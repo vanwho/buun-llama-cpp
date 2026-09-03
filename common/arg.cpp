@@ -2295,6 +2295,10 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params, const std::string & value) { common_kv_pager_set_size(params.kv_pager.host_budget, value, "--kv-host-budget"); }
     ).set_env("LLAMA_KV_HOST_BUDGET"));
     add_opt(common_arg(
+        {"--kv-safety-headroom"}, "SIZE|auto", "experimental pager safety headroom (default: auto)",
+        [](common_params & params, const std::string & value) { common_kv_pager_set_size(params.kv_pager.safety_headroom, value, "--kv-safety-headroom"); }
+    ).set_env("LLAMA_KV_SAFETY_HEADROOM"));
+    add_opt(common_arg(
         {"--kv-pin-recent"}, "TOKENS|auto", "experimental pager recent-token protection (default: auto)",
         [](common_params & params, const std::string & value) { common_kv_pager_set_count(params.kv_pager.pin_recent, value, "--kv-pin-recent"); }
     ).set_env("LLAMA_KV_PIN_RECENT"));

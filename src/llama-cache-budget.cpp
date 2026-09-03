@@ -247,8 +247,8 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
     out.target_page_bytes = input.target_page_bytes;
     if (input.allocation_granularity == 0 || input.target_page_bytes == 0 ||
         input.page_tokens == 0 || input.logical_page_count == 0 ||
-        input.mtp_tokens == 0 || input.mtp_values_per_token == 0 ||
-        input.mtp_bits_per_value == 0 || !input.mtp_is_turbo4) {
+        (input.mtp_present && (input.mtp_tokens == 0 || input.mtp_values_per_token == 0 ||
+        input.mtp_bits_per_value == 0)) || (input.mtp_present && !input.mtp_is_turbo4)) {
         out.refusal = input.mtp_is_turbo4 ?
             llama_cache_budget_admission_refusal::invalid_geometry :
             llama_cache_budget_admission_refusal::mtp_not_turbo4;
@@ -272,7 +272,9 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
         out.refusal = llama_cache_budget_admission_refusal::invalid_geometry;
         return out;
     }
-    if (input.mtp_k_row_bytes != 0) {
+    if (!input.mtp_present) {
+        out.mtp_bytes = 0;
+    } else if (input.mtp_k_row_bytes != 0) {
         if (input.mtp_k_row_bytes > UINT64_MAX - input.mtp_v_row_bytes ||
             input.mtp_tokens > UINT64_MAX / (input.mtp_k_row_bytes + input.mtp_v_row_bytes) ||
             !rounded(input.mtp_tokens * (input.mtp_k_row_bytes + input.mtp_v_row_bytes), out.mtp_bytes)) {

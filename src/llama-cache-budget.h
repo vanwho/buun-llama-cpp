@@ -81,6 +81,9 @@ struct llama_cache_budget_admission_input {
     // estimate; zero means use the reference bits/value fallback above.
     uint64_t mtp_k_row_bytes = 0;
     uint64_t mtp_v_row_bytes = 0;
+    // False for a target context without a native MTP companion. True preserves
+    // the strict context-sized MTP requirement used by existing callers.
+    bool mtp_present = true;
     bool mtp_is_turbo4 = true;
     uint64_t target_page_bytes = 0; // actual measured/encoded cross-layer page size
     uint64_t page_tokens = VBR_GENERATION_PAGE_CELLS;

@@ -8,6 +8,7 @@
 #include "llama-impl.h"
 #include "llama-memory.h"
 #include "llama-kv-pager-config.h"
+#include "llama-kv-pager.h"
 
 #include "ggml-cpp.h"
 #include "ggml-opt.h"
@@ -560,6 +561,8 @@ private:
     // disable auto fused ops (Flash Attention, Gated Delta Net) whose op lands on a device
     // that differs from the layer it belongs to (usually due to missing backend support)
     void resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs);
+    void init_kv_pager();
+    void validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const;
 
     // TODO: read/write lora adapters and cvec
     size_t state_write_data(llama_io_write_i & io);
@@ -583,6 +586,7 @@ private:
     llama_cross cross; // TODO: tmp for handling cross-attention - need something better probably
 
     llama_memory_ptr memory;
+    std::unique_ptr<llama_kv_pager> kv_pager_owner;
     llama_kv_attention_execution kv_attention_execution;
 
     // decode output (2-dimensional array: [n_outputs][n_vocab])
