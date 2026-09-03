@@ -33,6 +33,22 @@ static llama_kv_pager_geometry geometry(uint64_t context) {
     return result;
 }
 
+static bool build_routing_summary(
+        void *, const llama_kv_page_record & page,
+        const llama_kv_routing_summary_config & config,
+        llama_kv_routing_page_input & output) noexcept {
+    output = {};
+    output.id = page.id;
+    const uint32_t rows = uint32_t(page.id.position_end - page.id.position_begin);
+    output.row_indices = { 0, rows / 3, (2 * rows) / 3, rows - 1 };
+    output.rotated_k_rows.assign(output.row_indices.size() * config.vector_dim, 0.0f);
+    for (size_t i = 0; i < output.row_indices.size(); ++i) {
+        output.rotated_k_rows[i * config.vector_dim] = float(page.id.logical_page + 1);
+    }
+    output.source_bytes = output.rotated_k_rows.size() * sizeof(float);
+    return config.representative_count == output.row_indices.size();
+}
+
 struct host_page_fixture {
     static constexpr uint64_t source_namespace = 0x9911;
     static constexpr uint32_t row_count = 512;
@@ -318,6 +334,7 @@ int main() {
     write_backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
     auto pager = llama_kv_pager::create(config, geometry(1025), resources(1024, 128), write_backend, status);
     assert(pager && write_allocations == 1 && status == llama_kv_pager_status::ok);
+    pager->set_routing_summary_provider({ nullptr, build_routing_summary });
     llama_kv_pager_write_ticket ticket;
     assert(pager->begin_write(0, 11, 3, ticket) == llama_kv_pager_write_status::ok);
     assert(ticket.logical_page == 0 && ticket.physical_row == 3);
@@ -367,6 +384,25 @@ int main() {
     assert(pager->mutate({ llama_kv_pager_mutation_kind::keep, 0, -1, 0, 0, 0, 0 }) ==
         llama_kv_pager_write_status::ok);
     assert(!pager->physical_row(1, 515, physical_row));
+
+    // The production owner can build a bounded summary after the post-graph
+    // fence even when host backing is unavailable in this local fake.
+    auto summary_pager = llama_kv_pager::create(
+            config, geometry(512), resources(1024, 128), write_backend, status);
+    assert(summary_pager && status == llama_kv_pager_status::ok);
+    summary_pager->set_routing_summary_provider({ nullptr, build_routing_summary });
+    for (llama_pos position = 0; position <= 256; ++position) {
+        assert(summary_pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
+        assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    }
+    assert(summary_pager->seal_ready_pages() == 1);
+    assert(summary_pager->routing_summaries().valid());
+    assert(summary_pager->routing_summary_accounting().source_rows == 4);
+    std::vector<float> summary_query(256, 0.0f);
+    summary_query[0] = 1.0f;
+    const auto summary_scores = summary_pager->routing_summaries().score(
+            summary_pager->residency(), summary_query, 1);
+    assert(summary_scores.status == llama_kv_routing_summary_status::ok);
 
     config.hot_pages.automatic = true;
     config.hot_pages.value = 0;

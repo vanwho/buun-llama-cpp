@@ -4,11 +4,17 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <chrono>
 #include <vector>
 
 // Experimental, internal-only routing representation.  The vectors are already
 // in the rotated K domain and are deliberately kept separate from the KV page.
-constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 1;
+constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 2;
+
+enum class llama_kv_routing_summary_form : uint8_t {
+    representatives = 0,
+    centroid_upper_bound,
+};
 
 enum class llama_kv_routing_summary_status : uint8_t {
     ok = 0,
@@ -29,6 +35,9 @@ struct llama_kv_routing_summary_config {
     uint32_t vector_dim = 256;
     uint64_t byte_budget = 0;          // zero means unbounded
     uint64_t allocation_granularity = 1;
+    llama_kv_routing_summary_form form = llama_kv_routing_summary_form::representatives;
+    uint32_t layer_index = 0;
+    uint32_t head_index = 0;
 };
 
 // rows contains rotated K rows for one page, in row-major order.  A tail may
@@ -37,12 +46,18 @@ struct llama_kv_routing_summary_config {
 struct llama_kv_routing_page_input {
     llama_kv_page_id id;
     std::vector<float> rotated_k_rows;
+    // When present, rotated_k_rows contains only these sampled row offsets.
+    // This keeps the seal-time source read bounded; the legacy full-page form
+    // remains accepted for deterministic calibration fixtures.
+    std::vector<uint32_t> row_indices;
+    uint64_t source_bytes = 0;
 };
 
 struct llama_kv_routing_page_score {
     uint32_t logical_page = UINT32_MAX;
     uint32_t page_generation = 0;
     float score = 0.0f;
+    bool upper_bound = false;
 };
 
 struct llama_kv_routing_score_result {
@@ -62,6 +77,12 @@ struct llama_kv_routing_summary_accounting {
     uint64_t metadata_bytes = 0;
     uint64_t logical_bytes = 0;
     uint64_t charged_bytes = 0;
+    uint64_t source_bytes = 0;
+    uint64_t source_rows = 0;
+    uint64_t build_time_us = 0;
+    uint64_t build_count = 0;
+    uint64_t invalidation_count = 0;
+    uint64_t content_hash = 0;
 };
 
 class llama_kv_routing_summary_store {
@@ -84,9 +105,34 @@ public:
         return build(snapshot, inputs, config, status);
     }
 
+    // Copy-on-write update for one sealed page. Existing summaries are not
+    // reread or rebuilt; only the supplied sampled rows are materialized.
+    llama_kv_routing_summary_store update_page(
+            const llama_kv_residency_snapshot & snapshot,
+            const llama_kv_routing_page_input & input,
+            const llama_kv_routing_summary_config & config,
+            llama_kv_routing_summary_status & status) const noexcept;
+
+    // Drop summaries whose page identity is no longer current. The returned
+    // store is still tied to the new table epoch and can accept later seals.
+    llama_kv_routing_summary_store reconcile(
+            const llama_kv_residency_snapshot & snapshot,
+            llama_kv_routing_summary_status & status) const noexcept;
+
+    llama_kv_routing_summary_store invalidate_page(
+            const llama_kv_residency_snapshot & snapshot,
+            uint32_t logical_page,
+            llama_kv_routing_summary_status & status) const noexcept;
+
+    bool contains(uint32_t logical_page) const noexcept;
+
     bool valid() const noexcept { return !pages_.empty() && snapshot_epoch_ != 0; }
     uint64_t version() const noexcept { return LLAMA_KV_ROUTING_SUMMARY_VERSION; }
     uint64_t snapshot_epoch() const noexcept { return snapshot_epoch_; }
+    uint32_t layer_index() const noexcept { return layer_index_; }
+    uint32_t head_index() const noexcept { return head_index_; }
+    llama_kv_routing_summary_form form() const noexcept { return form_; }
+    uint64_t content_hash() const noexcept { return accounting_.content_hash; }
     const llama_kv_routing_summary_accounting & accounting() const noexcept { return accounting_; }
 
     llama_kv_routing_score_result score(
@@ -95,14 +141,25 @@ public:
             uint32_t top_k) const noexcept;
 
 private:
+    void rebuild_accounting(
+            const llama_kv_routing_summary_config & config,
+            std::chrono::steady_clock::time_point start) noexcept;
+
     struct page {
         llama_kv_page_id id;
         std::vector<float> vectors;
+        float radius = 0.0f;
+        uint64_t source_bytes = 0;
+        uint64_t source_rows = 0;
     };
 
     uint64_t snapshot_epoch_ = 0;
     uint32_t representative_count_ = 0;
     uint32_t vector_dim_ = 0;
+    uint32_t layer_index_ = 0;
+    uint32_t head_index_ = 0;
+    llama_kv_routing_summary_form form_ = llama_kv_routing_summary_form::representatives;
+    uint64_t allocation_granularity_ = 1;
     std::vector<page> pages_;
     llama_kv_routing_summary_accounting accounting_;
 };

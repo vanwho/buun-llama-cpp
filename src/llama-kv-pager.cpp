@@ -366,6 +366,14 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
     output->backend_ = std::move(backend);
     try {
         if (!llama_kv_pager_plan(config, geometry, resources, output->snapshot_, status)) return nullptr;
+        output->routing_summary_config_ = resources.routing_summary;
+        if (output->routing_summary_config_.vector_dim == 0) {
+            output->routing_summary_config_.vector_dim = geometry.key_length;
+        }
+        if (output->routing_summary_config_.representative_count < 4 ||
+            output->routing_summary_config_.representative_count > 8) {
+            output->routing_summary_config_.representative_count = 4;
+        }
         if (config.mode == llama_kv_pager_mode::observe) {
             output->snapshot_.physical_page_count = 0;
             output->snapshot_.physical_rows = 0;
@@ -469,46 +477,89 @@ void llama_kv_pager::set_host_provider(
     }
 }
 
+void llama_kv_pager::set_routing_summary_provider(
+        llama_kv_pager_routing_summary_provider provider) noexcept {
+    routing_summary_provider_ = provider;
+}
+
+void llama_kv_pager::reconcile_routing_summaries() noexcept {
+    llama_kv_routing_summary_status status;
+    auto next = routing_summaries_.reconcile(residency_.snapshot(), status);
+    if (status == llama_kv_routing_summary_status::ok) {
+        routing_summaries_ = std::move(next);
+    }
+}
+
 uint32_t llama_kv_pager::seal_ready_pages() noexcept {
-    if (!host_) {
+    if (!host_ && routing_summary_provider_.build == nullptr) {
         return 0;
     }
     uint32_t sealed = 0;
     for (auto & page : pages_) {
-        if (!page.present || page.record.host_valid || page.record.pin_count != 0 ||
+        if (!page.present || page.record.pin_count != 0 ||
             page.valid_rows.size() != snapshot_.geometry.page_tokens ||
             !std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
                          [](uint8_t value) { return value != 0; }) ||
-            page.record.state != llama_kv_page_state::gpu_dirty) {
+            (page.record.state != llama_kv_page_state::gpu_dirty &&
+             page.record.state != llama_kv_page_state::gpu_host_clean)) {
             continue;
         }
+        const bool needs_host_seal = host_ != nullptr && !page.record.host_valid;
+        if (!needs_host_seal && routing_summary_provider_.build == nullptr) continue;
         const auto previous = page.record;
-        page.record.state = llama_kv_page_state::sealing_host;
-        if (publish_page(page) != llama_kv_pager_write_status::ok) {
+        llama_kv_routing_page_input summary_input;
+        if (routing_summary_provider_.build != nullptr && !routing_summary_provider_.build(
+                routing_summary_provider_.context, page.record, routing_summary_config_, summary_input)) {
+            if (!needs_host_seal) continue;
             page.record = previous;
             continue;
         }
-        const auto result = host_->seal(page.record);
-        if (result.status != llama_kv_pager_host_status::ok) {
-            page.record = previous;
-            (void) publish_page(page);
-            continue;
+        if (needs_host_seal) {
+            page.record.state = llama_kv_page_state::sealing_host;
+            if (publish_page(page) != llama_kv_pager_write_status::ok) {
+                page.record = previous;
+                continue;
+            }
+            const auto result = host_->seal(page.record);
+            if (result.status != llama_kv_pager_host_status::ok) {
+                page.record = previous;
+                (void) publish_page(page);
+                continue;
+            }
+            page.record.host_valid = true;
+            page.record.dirty = false;
+            page.record.state = llama_kv_page_state::gpu_host_clean;
+            if (publish_page(page) != llama_kv_pager_write_status::ok) {
+                page.record = previous;
+                (void) publish_page(page);
+                (void) host_->invalidate(previous.id);
+                continue;
+            }
         }
-        page.record.host_valid = true;
-        page.record.dirty = false;
-        page.record.state = llama_kv_page_state::gpu_host_clean;
-        if (publish_page(page) == llama_kv_pager_write_status::ok) {
+        if (routing_summary_provider_.build == nullptr) {
             ++sealed;
-        } else {
+            continue;
+        }
+        llama_kv_routing_summary_status summary_status;
+        auto next = routing_summaries_.update_page(
+                residency_.snapshot(), summary_input, routing_summary_config_, summary_status);
+        if (summary_status != llama_kv_routing_summary_status::ok) {
             page.record = previous;
             (void) publish_page(page);
+            if (host_) (void) host_->invalidate(previous.id);
+            continue;
         }
+        routing_summaries_ = std::move(next);
+        ++sealed;
     }
     return sealed;
 }
 
 bool llama_kv_pager::invalidate_host_page(
         const llama_kv_page_id & page) noexcept {
+    llama_kv_routing_summary_status status;
+    auto next = routing_summaries_.reconcile(residency_.snapshot(), status);
+    if (status == llama_kv_routing_summary_status::ok) routing_summaries_ = std::move(next);
     return !host_ || host_->invalidate(page);
 }
 
@@ -551,6 +602,7 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
         residency_.rollback(tx);
         return llama_kv_pager_write_status::transaction;
     }
+    reconcile_routing_summaries();
     return llama_kv_pager_write_status::ok;
 }
 
@@ -578,6 +630,7 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(page_state & page) noexce
     if (host_) {
         (void) host_->invalidate(page.record.id);
     }
+    reconcile_routing_summaries();
     page = {};
     return llama_kv_pager_write_status::ok;
 }
@@ -711,6 +764,12 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.host_valid = false;
     page->record.dirty = true;
+    llama_kv_routing_summary_status summary_status;
+    auto invalidated = routing_summaries_.invalidate_page(
+            residency_.snapshot(), logical, summary_status);
+    if (summary_status == llama_kv_routing_summary_status::ok) {
+        routing_summaries_ = std::move(invalidated);
+    }
     page->record.pin_count++;
     current_page_index_ = uint32_t(page - pages_.data());
     if (publish_page(*page) != llama_kv_pager_write_status::ok) {
@@ -1014,6 +1073,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         slot_pages_ = std::move(next_slots);
         current_page_index_ = next_current;
         ++mutation_generation_;
+        reconcile_routing_summaries();
         return llama_kv_pager_write_status::ok;
     } catch (...) {
         return llama_kv_pager_write_status::overflow;

@@ -621,6 +621,11 @@ private:
         vbr_selected_page_capture_request & request,
         std::vector<vbr_selected_page_unit_source> & sources,
         vbr_selected_page_capture_snapshot_provider & snapshots) noexcept;
+    static bool pager_routing_summary_build(
+        void * context,
+        const llama_kv_page_record & page,
+        const llama_kv_routing_summary_config & config,
+        llama_kv_routing_page_input & output) noexcept;
     static bool pager_host_snapshot_acquire(
         void * context,
         const vbr_selected_page_capture_request & request,

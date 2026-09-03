@@ -906,6 +906,13 @@ void llama_context::init_kv_pager() {
     resources.host_budget.host.pinned_state =
             llama_cache_budget_capacity_state::known;
 
+    // Use one runtime full-attention K head for the bounded baseline. The
+    // vector dimension follows admitted geometry and is not context-sized.
+    resources.routing_summary.vector_dim = geometry.key_length;
+    resources.routing_summary.representative_count = 4;
+    resources.routing_summary.layer_index = 0;
+    resources.routing_summary.head_index = 0;
+
     llama_kv_pager_backend pager_backend;
     pager_backend.allocate = [backend_index, this](uint64_t bytes, llama_kv_pager_allocation & allocation) {
         if (backend_index >= backend_buft.size()) return false;
