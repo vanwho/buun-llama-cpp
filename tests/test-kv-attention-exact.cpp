@@ -151,6 +151,13 @@ static void test_plan_and_executor() {
     assert(fake.uploads == 2 && fake.waits == 2);
     assert(fake.asynchronous_uploads == 0);
     assert(plan.ledger().pages_visited == 4 && plan.ledger().missing_pages == 0);
+    llama_kv_attention_execution_metrics metrics;
+    metrics.record_exact_ledger(plan.ledger());
+    assert(metrics.exact_plan_pages == 4 && metrics.exact_pages_visited == 4);
+    assert(metrics.exact_resident_pages == 2 && metrics.exact_cold_pages == 2);
+    assert(metrics.exact_h2d_useful_bytes == 200 && metrics.exact_peak_staging_pages == 1);
+    assert(metrics.exact_duplicate_pages == 0 && metrics.exact_missing_pages == 0);
+    assert(metrics.exact_stale_pages == 0);
     float output[2];
     assert(llama_kv_attention_online_state_normalize(result, output, 2) ==
         llama_kv_attention_exact_status::ok);

@@ -71,8 +71,25 @@ const char * llama_kv_attention_execution_status_name(
         case llama_kv_attention_execution_status::invalid_metadata:      return "invalid_metadata";
         case llama_kv_attention_execution_status::invalid_prefill_transition:return "invalid_prefill_transition";
         case llama_kv_attention_execution_status::overflow:               return "overflow";
+        case llama_kv_attention_execution_status::not_configured:         return "not_configured";
     }
     return "invalid";
+}
+
+void llama_kv_attention_execution_metrics::record_exact_ledger(
+        const llama_kv_attention_exact_ledger & ledger) noexcept {
+    exact_plan_waves = ledger.waves;
+    exact_plan_pages = ledger.logical_page_count;
+    exact_resident_pages = ledger.resident_pages;
+    exact_cold_pages = ledger.cold_pages;
+    exact_pages_visited = ledger.pages_visited;
+    exact_h2d_useful_bytes = ledger.h2d_useful_bytes;
+    exact_h2d_aligned_bytes = ledger.h2d_aligned_bytes;
+    exact_waits = ledger.waits;
+    exact_peak_staging_pages = ledger.peak_staging_pages;
+    exact_duplicate_pages = ledger.duplicate_pages;
+    exact_missing_pages = ledger.missing_pages;
+    exact_stale_pages = ledger.stale_pages;
 }
 
 uint64_t llama_kv_attention_scratch_request::required_rows() const noexcept {

@@ -395,6 +395,23 @@ const vbr_selected_page_host_view * llama_vbr_selected_page_host_catalog::find(
     return nullptr;
 }
 
+std::vector<vbr_selected_page_host_view>
+llama_vbr_selected_page_host_catalog::pages() const noexcept {
+    std::vector<vbr_selected_page_host_view> output;
+    try {
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        output.reserve(impl_->pages.size());
+        for (const auto & page : impl_->pages) {
+            if (!page.view.obsolete) {
+                output.push_back(page.view);
+            }
+        }
+    } catch (...) {
+        output.clear();
+    }
+    return output;
+}
+
 bool llama_vbr_selected_page_host_catalog::invalidate(
         const vbr_selected_page_host_key & key) noexcept {
     std::lock_guard<std::mutex> lock(impl_->mutex);

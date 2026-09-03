@@ -228,6 +228,54 @@ vbr_selected_page_host_catalog_snapshot llama_kv_pager_host::snapshot() const no
     return catalog_.snapshot();
 }
 
+std::vector<vbr_selected_page_host_view> llama_kv_pager_host::pages() const noexcept {
+    return catalog_.pages();
+}
+
+std::vector<llama_kv_page_record> llama_kv_pager::exact_page_records(
+        int32_t sequence_id) const noexcept {
+    std::vector<llama_kv_page_record> output;
+    if (sequence_id < 0 || !snapshot_.initialized) {
+        return output;
+    }
+    try {
+        const auto resident = residency(sequence_id);
+        output = resident.pages();
+
+        std::vector<vbr_selected_page_host_view> host_pages;
+        if (host_) {
+            host_pages = host_->pages();
+        }
+        for (const auto & host_page : host_pages) {
+            const auto & id = host_page.page.identity;
+            if (id.sequence_id != sequence_id || id.logical_page >= snapshot_.logical_page_count) {
+                continue;
+            }
+            const bool resident_page = std::any_of(output.begin(), output.end(),
+                    [&](const llama_kv_page_record & page) {
+                        return page.id == id;
+                    });
+            if (resident_page) {
+                continue;
+            }
+            llama_kv_page_record page;
+            page.id = id;
+            page.state = llama_kv_page_state::host_clean;
+            page.host_valid = true;
+            page.dirty = false;
+            output.push_back(page);
+        }
+        std::sort(output.begin(), output.end(),
+                [](const llama_kv_page_record & lhs,
+                   const llama_kv_page_record & rhs) {
+            return lhs.id.logical_page < rhs.id.logical_page;
+        });
+    } catch (...) {
+        output.clear();
+    }
+    return output;
+}
+
 const char * llama_kv_pager_status_name(llama_kv_pager_status status) noexcept {
     switch (status) {
         case llama_kv_pager_status::ok: return "ok";

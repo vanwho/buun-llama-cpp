@@ -126,7 +126,11 @@ public:
         uint64_t pinned_staging_bytes = 0) noexcept;
 
     const vbr_selected_page_host_view * find(
-        const vbr_selected_page_host_key & key) const noexcept;
+            const vbr_selected_page_host_key & key) const noexcept;
+    // Return immutable copies of every live page.  Exact attention uses this
+    // inventory to reconcile resident rows with canonical cold backing without
+    // exposing the catalog's mutex-protected storage.
+    std::vector<vbr_selected_page_host_view> pages() const noexcept;
     bool invalidate(const vbr_selected_page_host_key & key) noexcept;
     vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
 

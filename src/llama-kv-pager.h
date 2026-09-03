@@ -121,6 +121,7 @@ public:
 
     llama_kv_pager_host_result seal(
             const llama_kv_page_record & page) noexcept;
+    std::vector<vbr_selected_page_host_view> pages() const noexcept;
     bool invalidate(const llama_kv_page_id & page) noexcept;
     vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
     vbr_h2d_chunk_ring * upload_ring() const noexcept { return upload_ring_.get(); }
@@ -233,6 +234,13 @@ public:
     llama_kv_residency_snapshot residency(int32_t sequence_id) const noexcept {
         return residency_.snapshot().for_sequence(sequence_id);
     }
+
+    // Reconcile the current resident table with authenticated canonical host
+    // pages for exact attention.  The result contains at most one live record
+    // per logical page; cold records have no physical slot and require the
+    // exact wave upload callback.
+    std::vector<llama_kv_page_record> exact_page_records(
+            int32_t sequence_id) const noexcept;
 
     // Reserve the physical row for one logical position before graph submission. The returned
     // row is an implementation detail; callers must continue to use the logical position for
