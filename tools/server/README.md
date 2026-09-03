@@ -40,13 +40,13 @@ full matrix is in
 
 ## Attention-aware KV paging (experimental internal boundary)
 
-The repository contains CPU/fake-backend contracts and a bounded CUDA
-reference for attention-aware page residency. It does not currently expose a
-production `--kv-pager` command-line option, a live pager telemetry endpoint,
-or a model-backed 256K pager server route. The internal modes are `off`,
-`observe`, `selective`, and `exact`; `off` preserves the ordinary dense path.
-Do not infer live capacity, quality, or throughput from the deterministic
-fixtures.
+The server exposes the experimental `--kv-pager` command-line option through
+the common parser. The modes are `off`, `observe`, `selective`, and `exact`;
+`off` preserves the ordinary dense path. Enabled startup emits one normalized
+configuration and resolved-capacity summary. The summary reports `auto`
+budgets/caps until the runtime resolves them and reports `not configured` for
+placement data that is not owned by this target context. Do not infer live
+capacity, quality, or throughput from deterministic fixtures.
 
 The reference geometry is Qwen3.8-specific: 256-token cross-layer target pages,
 16 full-attention layers, 4 KV heads, K/V width 256, and Turbo4 at 4.125
@@ -75,8 +75,8 @@ snapshot. There is no CPU Turbo4 attention fallback.
 
 Internal telemetry aggregates bounded per-page mass, EMA/peak retention
 evidence, transfers, faults, prefetch, evictions, stale completions, and
-resource accounting. `--metrics` enables the ordinary Prometheus endpoint; it
-does not expose pager counters in the current build. Missing pager telemetry
+resource accounting. `--metrics` enables the ordinary Prometheus endpoint;
+pager counter export is completed by the metrics task. Missing pager telemetry
 must be recorded as `not_configured`, not as zero.
 
 For supported draft placement, use the documented
@@ -96,6 +96,22 @@ raw acceptance status are linked from
 
 | Argument | Explanation |
 | -------- | ----------- |
+| `--kv-pager off\|observe\|selective\|exact` | experimental attention-aware KV pager mode (default: off)<br/>(env: LLAMA_KV_PAGER) |
+| `--kv-page-size N` | experimental pager logical page size in tokens (default: 256)<br/>(env: LLAMA_KV_PAGE_SIZE) |
+| `--kv-vram-budget SIZE\|auto` | experimental pager VRAM budget (default: auto)<br/>(env: LLAMA_KV_VRAM_BUDGET) |
+| `--kv-host-budget SIZE\|auto` | experimental pager host budget (default: auto)<br/>(env: LLAMA_KV_HOST_BUDGET) |
+| `--kv-safety-headroom SIZE\|auto` | experimental pager safety headroom (default: auto)<br/>(env: LLAMA_KV_SAFETY_HEADROOM) |
+| `--kv-pin-recent TOKENS\|auto` | experimental pager recent-token protection (default: auto)<br/>(env: LLAMA_KV_PIN_RECENT) |
+| `--kv-hotset-policy NAME` | experimental pager hot-page policy (default: attention)<br/>(env: LLAMA_KV_HOTSET_POLICY) |
+| `--kv-hot-pages N\|auto` | experimental pager hot-page upper bound (default: auto)<br/>(env: LLAMA_KV_HOT_PAGES) |
+| `--kv-router-top-k N` | experimental pager router top-k (default: 0)<br/>(env: LLAMA_KV_ROUTER_TOP_K) |
+| `--kv-router-explore N` | experimental pager router exploration count (default: 0)<br/>(env: LLAMA_KV_ROUTER_EXPLORE) |
+| `--kv-prefetch-depth N` | experimental pager prefetch depth (default: 0)<br/>(env: LLAMA_KV_PREFETCH_DEPTH) |
+| `--kv-telemetry-interval N` | page-mass telemetry token cadence (default: 1)<br/>(env: LLAMA_KV_TELEMETRY_INTERVAL) |
+| `--kv-telemetry-layer N` | page-mass telemetry attention layer (default: 0)<br/>(env: LLAMA_KV_TELEMETRY_LAYER) |
+| `--kv-telemetry-head-begin N` | first query head sampled by page-mass telemetry (default: 0)<br/>(env: LLAMA_KV_TELEMETRY_HEAD_BEGIN) |
+| `--kv-telemetry-head-count N` | query heads sampled by page-mass telemetry (0: all; default: 0)<br/>(env: LLAMA_KV_TELEMETRY_HEAD_COUNT) |
+| `--kv-pager-debug` | enable experimental pager diagnostics<br/>(env: LLAMA_KV_PAGER_DEBUG) |
 | `-h, --help, --usage` | print usage and exit |
 | `--version` | show version and build info |
 | `-cl, --cache-list` | show list of models in cache |
@@ -380,7 +396,7 @@ raw acceptance status are linked from
 | `--spec-ngram-map-k4v-size-m N` | ngram size M for ngram-map-k4v speculative decoding, length of draft m-gram (default: 48) |
 | `--spec-ngram-map-k4v-min-hits N` | minimum hits for ngram-map-k4v speculative decoding (default: 1) |
 | `--draft, --draft-n, --draft-max N` | (compat alias for --spec-draft-n-max) max draft tokens (default: 3)<br/>(env: LLAMA_ARG_DRAFT_MAX) |
-| `-cd, --ctx-size-draft N` | draft-model context size (default: 0, 0 = inherit the target's per-sequence capacity; implicit MTP uses unified KV; drafters rarely need more than a few hundred)<br/>(env: LLAMA_ARG_CTX_SIZE_DRAFT) |
+| `-cd, --ctx-size-draft N` | draft-model context size (default: 0, 0 = inherit the target's per-sequence capacity; native MTP -cd must match the target; implicit MTP uses unified KV; external drafters may use an independent value)<br/>(env: LLAMA_ARG_CTX_SIZE_DRAFT) |
 | `--draft-min, --draft-n-min N` | (compat alias for --spec-draft-n-min) min draft tokens (default: 0)<br/>(env: LLAMA_ARG_DRAFT_MIN) |
 | `--spec-ngram-size-n N` | the argument has been removed. use the respective --spec-ngram-*-size-n or --spec-ngram-mod-n-match |
 | `--spec-ngram-size-m N` | the argument has been removed. use the respective --spec-ngram-*-size-m |

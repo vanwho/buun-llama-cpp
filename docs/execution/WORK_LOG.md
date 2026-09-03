@@ -258,3 +258,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-11-05`
 - Commit at update: `291690e30`
 - Summary: Added generation-safe single-slot live lifecycle composition for ranked/coalesced bounded prefetch, decode readiness, atomic companion/table publication, and prompt/checkpoint/clear/cancel/slot-reuse teardown; added deterministic overlap and stale-completion tests.
+
+## 2026-09-03T21:39:51+00:00 — 12-01 — done
+
+- Branch: `codex/task-12-01`
+- Commit at update: `d20b71bac`
+- Summary: Finalized canonical experimental pager CLI diagnostics, regenerated CLI/completion/server help, and passed focused parser/completion/refusal checks; model-backed CUDA startup deferred.
