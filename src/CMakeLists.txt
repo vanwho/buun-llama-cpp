@@ -53,6 +53,7 @@ add_library(llama
             llama-cache-accounting.cpp
             llama-cache-budget.cpp
             llama-kv-policy.cpp
+            llama-kv-prefetch.cpp
             llama-cache-authority.cpp
             llama-vbr-hard-seal.cpp
             llama-vbr-extent.cpp

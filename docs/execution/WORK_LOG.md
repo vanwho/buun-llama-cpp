@@ -114,3 +114,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-04-03`
 - Commit at update: `a92a00ac1`
 - Summary: Added bounded deterministic hot-set controller with normalized retention evidence, exact default partition, pin overflow refusal, decision reasons, hysteresis, and replay tests.
+
+## 2026-09-03T09:47:27+00:00 — 04-04 — done
+
+- Branch: `codex/task-04-04`
+- Commit at update: `7e449d5ac`
+- Summary: Added bounded asynchronous KV prefetch scheduler with predictive depth, double-buffer staging, backpressure, generation cancellation, explicit readiness fallback, clean eviction/reseal handling, counters, and deterministic fake-backend coverage.
