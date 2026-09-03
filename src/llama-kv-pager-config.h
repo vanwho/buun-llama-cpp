@@ -33,12 +33,14 @@ struct llama_kv_pager_config {
     llama_kv_pager_auto_count pin_recent;
     std::string hotset_policy = "attention";
     llama_kv_pager_auto_count hot_pages;
-    uint32_t router_top_k = 0;
-    uint32_t router_explore = 0;
-    uint32_t prefetch_depth = 0;
+    // Release-candidate routing defaults. Capacity and page count remain
+    // runtime-derived; these values only bound evidence and lookahead.
+    uint32_t router_top_k = 8;
+    uint32_t router_explore = 2;
+    uint32_t prefetch_depth = 2;
     bool debug = false;
     bool telemetry = true;
-    uint32_t telemetry_interval_tokens = 1;
+    uint32_t telemetry_interval_tokens = 4;
     uint32_t telemetry_layer = 0;
     uint32_t telemetry_head_begin = 0;
     uint32_t telemetry_head_count = 0;

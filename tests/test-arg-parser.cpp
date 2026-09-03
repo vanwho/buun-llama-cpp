@@ -28,6 +28,10 @@ static void test(void) {
 
     assert(params.kv_pager.mode == llama_kv_pager_mode::off);
     assert(params.kv_pager.vram_budget.automatic);
+    assert(params.kv_pager.router_top_k == 8);
+    assert(params.kv_pager.router_explore == 2);
+    assert(params.kv_pager.prefetch_depth == 2);
+    assert(params.kv_pager.telemetry_interval_tokens == 4);
     assert(llama_kv_pager_parse_mode("SELECTIVE", params.kv_pager.mode));
     assert(params.kv_pager.mode == llama_kv_pager_mode::selective);
     for (const auto & mode : { "off", "observe", "selective", "exact" }) {

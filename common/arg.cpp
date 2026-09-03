@@ -2311,19 +2311,19 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params, const std::string & value) { common_kv_pager_set_count(params.kv_pager.hot_pages, value, "--kv-hot-pages"); }
     ).set_env("LLAMA_KV_HOT_PAGES"));
     add_opt(common_arg(
-        {"--kv-router-top-k"}, "N", "experimental pager router top-k (default: 0)",
+        {"--kv-router-top-k"}, "N", "experimental pager router top-k (default: 8)",
         [](common_params & params, int value) { if (value < 0) throw std::invalid_argument("--kv-router-top-k must not be negative"); params.kv_pager.router_top_k = uint32_t(value); }
     ).set_env("LLAMA_KV_ROUTER_TOP_K"));
     add_opt(common_arg(
-        {"--kv-router-explore"}, "N", "experimental pager router exploration count (default: 0)",
+        {"--kv-router-explore"}, "N", "experimental pager router exploration count (default: 2)",
         [](common_params & params, int value) { if (value < 0) throw std::invalid_argument("--kv-router-explore must not be negative"); params.kv_pager.router_explore = uint32_t(value); }
     ).set_env("LLAMA_KV_ROUTER_EXPLORE"));
     add_opt(common_arg(
-        {"--kv-prefetch-depth"}, "N", "experimental pager prefetch depth (default: 0)",
+        {"--kv-prefetch-depth"}, "N", "experimental pager prefetch depth (default: 2)",
         [](common_params & params, int value) { if (value < 0) throw std::invalid_argument("--kv-prefetch-depth must not be negative"); params.kv_pager.prefetch_depth = uint32_t(value); }
     ).set_env("LLAMA_KV_PREFETCH_DEPTH"));
     add_opt(common_arg(
-        {"--kv-telemetry-interval"}, "N", "page-mass telemetry token cadence (default: 1)",
+        {"--kv-telemetry-interval"}, "N", "page-mass telemetry token cadence (default: 4)",
         [](common_params & params, int value) {
             if (value <= 0) throw std::invalid_argument("--kv-telemetry-interval must be positive");
             params.kv_pager.telemetry_interval_tokens = uint32_t(value);
