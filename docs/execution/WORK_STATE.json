@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "10",
-  "current_task": "10-04",
-  "last_updated_utc": "2026-09-03T18:56:50+00:00",
+  "current_task": "10-05",
+  "last_updated_utc": "2026-09-03T19:23:14+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -703,13 +703,13 @@
       "cluster": "10b-live-prefill-exact",
       "title": "Implement bounded selected Turbo4 prefill",
       "packet": "docs/execution/tasks/10-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "10-03"
       ],
-      "commit": null
+      "commit": "70247ed7ac095769ef9f822c52835d001650b5e4"
     },
     {
       "id": "10-05",

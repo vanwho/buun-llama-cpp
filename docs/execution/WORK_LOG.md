@@ -224,3 +224,7 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-10-01`
 - Commit at update: `daa4d9243`
 - Summary: Wired selected-all-pages reference attention through the live Qwen Turbo4 graph with immutable sequence-scoped page metadata, bounded K/V gathers, native causal masks, graph reuse keys, fences, accounting, tests, and handoff; model-backed CUDA parity deferred because no runnable Qwen model is available.
+
+## 2026-09-03T19:22:16+00:00 — 10-04 — done
+
+- Summary: Added bounded selective/exact prefill batching from the admitted physical page window, compact physical-row selected gathers, post-fence host page sealing, and the safe transition to direct decode. CPU attention, view, pager, and residency checks passed 4/4; the full CUDA template rebuild and model-backed benchmark remain deferred.
