@@ -150,3 +150,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-06-01`
 - Commit at update: `5d9584c9c`
 - Summary: Added the CPU/fake-backend correctness matrix with explicit feature-off coverage and deferred CUDA/model-backed rows; deterministic CPU and server lifecycle checks passed.
+
+## 2026-09-03T11:12:38+00:00 — 06-02 — done
+
+- Branch: `codex/task-06-02`
+- Commit at update: `bfc536912`
+- Summary: Added CUDA correctness matrix with RTX 4080 sm_89 fixture, VMM, sanitizer, graph-key, and server-fault evidence; explicitly dispositioned live model/integration checks.
