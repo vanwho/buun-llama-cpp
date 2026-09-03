@@ -39,7 +39,10 @@ CODEX_SESSION_MAX_INPUT_TOKENS=90000 \
 
 Leave `MAX_TASKS_PER_RUN` unset to run through all remaining tasks. Managed mode creates and pushes
 temporary `codex/task-<id>` branches, merges them into the plan branch, and removes those temporary
-branches. Upstream-facing issues, pull requests, and merges remain human-owned.
+branches. Each task's implementation commit excludes `docs/execution/**`; a following completion commit
+contains the state, work log, handoff, and other execution metadata. This keeps code commits clean for
+upstream range-diffs while retaining resumable controller history in the fork. Upstream-facing issues,
+pull requests, and merges remain human-owned.
 
 The wrapper defaults each cluster thread to four turns or 90,000 reported input tokens before rotation.
 These are context-efficiency guardrails and can be lowered with `CODEX_SESSION_MAX_TURNS` or

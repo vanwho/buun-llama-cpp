@@ -707,7 +707,11 @@ feature branches must be based on that recorded default-branch SHA; do not merge
 in-progress slice. Before handoff, rebase or
 range-diff deliberately and rerun the slice's tests. The clustered runner remains `CODEX_GIT_MODE=local`
 and never commits automatically; the user-authorized outer agent may review, commit, and push fork-only
-branches. Upstream submissions remain a later explicit, human-owned action.
+branches. If managed mode is explicitly selected for a fully unattended fork run, its implementation
+commit excludes `docs/execution/**`; the subsequent `chore(<task>): record task completion` commit contains
+the state, work log, handoff, and other execution metadata. Thus code commits remain suitable for
+upstream range-diffs while the controller history stays fork-local. Upstream submissions remain a later
+explicit, human-owned action.
 
 ## 12. Test matrix
 
@@ -823,8 +827,10 @@ Mandatory process:
   PRs, and performs merges;
 - use reviewed, focused commits and preserve a clean range-diff for any upstream-bound work.
 
-The clustered runner must therefore use `CODEX_GIT_MODE=local`. Its historical managed mode is not
-permitted for this project’s upstream-bound work.
+The checked-in wrapper uses `CODEX_GIT_MODE=local` for supervised upstream-bound work. Explicit managed
+mode is permitted only for the user-authorized fork-local completion run documented in section 14; its
+implementation and execution-metadata commits remain separate, and no upstream GitHub action is
+automated.
 
 ## 14. Runner and resume procedure
 
