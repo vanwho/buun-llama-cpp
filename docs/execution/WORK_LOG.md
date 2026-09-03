@@ -234,3 +234,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-11-01`
 - Commit at update: `226d951a8`
 - Summary: Implemented live sealed-page routing summary production, bounded Turbo4 sampling, incremental identity-safe updates, calibration candidates, tests, and handoff.
+
+## 2026-09-03T20:13:46+00:00 — 11-02 — done
+
+- Branch: `codex/task-11-02`
+- Commit at update: `c3957a5c1`
+- Summary: Added generation-tagged all-page routing retrieval with deterministic structural union, safe summary fallback, typed mandatory overflow, exploration rotation, tests, and checkpoint.
