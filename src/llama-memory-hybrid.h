@@ -7,6 +7,7 @@
 #include "llama-memory-recurrent.h"
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 //
@@ -18,6 +19,45 @@
 
 class llama_memory_hybrid : public llama_memory_i {
 public:
+    // Owns the single VBR operation for a hybrid mutation.  The recurrent child is fixed GPU
+    // state, but it must remain inside the same lifetime as the attention and optional companion
+    // cache mutations so a failed child cannot publish a newer attention generation alone.
+    class mutation_scope {
+    public:
+        mutation_scope(
+                llama_memory_hybrid * mem,
+                vbr_operation_kind kind,
+                vbr_operation_class operation_class,
+                llama_seq_id seq_id,
+                llama_pos p0,
+                llama_pos p1,
+                llama_kv_cache * companion = nullptr);
+        mutation_scope(
+                llama_memory_hybrid * mem,
+                vbr_operation_binding binding,
+                llama_kv_cache * companion = nullptr);
+        ~mutation_scope();
+
+        mutation_scope(const mutation_scope &) = delete;
+        mutation_scope & operator=(const mutation_scope &) = delete;
+
+        void adopt_composite(int32_t declared);
+        void finish(bool ok);
+
+    private:
+        void adopt(llama_kv_cache * cache);
+        void release();
+
+        llama_memory_hybrid * mem = nullptr;
+        llama_kv_cache * companion = nullptr;
+        std::optional<vbr_scoped_operation> operation;
+        std::shared_ptr<llama_kv_cache::vbr_composite_outcome> composite;
+        bool adopted = false;
+        bool refused = false;
+        bool finished = false;
+        int exceptions_at_entry = 0;
+    };
+
     llama_memory_hybrid(
         const llama_model & model,
                             /* attn */
@@ -238,6 +278,12 @@ public:
     const llama_kv_cache_context * get_attn() const;
     const llama_memory_recurrent_context * get_recr() const;
 
+protected:
+    // Apply the recurrent and attention contexts, optionally inserting a fixed-layout companion
+    // before attention publication.  Indexed hybrid memory uses this to keep QSA metadata in the
+    // same decode transaction.
+    bool apply_atomic(llama_memory_context_i * companion_context, llama_kv_cache * companion_cache);
+
 private:
     // the index of the next ubatch to process
     size_t i_next = 0;
@@ -246,6 +292,8 @@ private:
 
     const llama_memory_context_ptr ctx_recr;
     const llama_memory_context_ptr ctx_attn;
+
+    llama_memory_hybrid * const mem = nullptr;
 
     const llama_memory_status status;
 };

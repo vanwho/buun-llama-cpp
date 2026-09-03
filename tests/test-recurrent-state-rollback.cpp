@@ -678,19 +678,21 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    // The hybrid fallback cannot roll back the attention copy, so detected failure
-    // invalidates both children. The destination is empty and therefore never selectable
-    // as a half-copied composite checkpoint.
+    // The hybrid coordinator runs the rejecting recurrent copy before attention publication.
+    // A detected failure therefore preserves the complete pre-call destination instead of
+    // exposing a half-copied composite checkpoint.
     llama_memory_t mem_parallel = llama_get_memory(ctx_parallel.get());
-    if (dynamic_cast<llama_memory_hybrid *>(mem_parallel) != nullptr ||
-        dynamic_cast<llama_memory_hybrid_iswa *>(mem_parallel) != nullptr) {
+    if (dynamic_cast<llama_memory_hybrid *>(mem_parallel) != nullptr) {
+        const auto failed_hybrid_dst_state = save_seq(ctx_parallel.get(), 0);
+        const int32_t failed_hybrid_dst_tail = recurrent_parallel->cells[0].tail;
+        const llama_pos failed_hybrid_dst_pos = recurrent_parallel->seq_pos_max(0);
         if (mem_parallel->try_seq_cp(1, 0, -1, -1) ||
-            recurrent_parallel->get_cell_count(0) != 0 ||
-            recurrent_parallel->seq_pos_max(0) != -1 ||
-            get_attention_pos_max(ctx_parallel.get(), 0) != -1 ||
-            llama_memory_seq_pos_max(mem_parallel, 0) != -1 ||
-            !check_depth(ctx_parallel.get(), 0, 0, "failed hybrid seq_cp destination")) {
-            fprintf(stderr, "%s : failed hybrid seq_cp left an incoherent destination\n", __func__);
+            failed_hybrid_dst_state != save_seq(ctx_parallel.get(), 0) ||
+            recurrent_parallel->cells[0].tail != failed_hybrid_dst_tail ||
+            recurrent_parallel->seq_pos_max(0) != failed_hybrid_dst_pos ||
+            get_attention_pos_max(ctx_parallel.get(), 0) != failed_hybrid_dst_pos ||
+            llama_memory_seq_pos_max(mem_parallel, 0) != failed_hybrid_dst_pos) {
+            fprintf(stderr, "%s : failed hybrid seq_cp changed the destination\n", __func__);
             return 1;
         }
     }

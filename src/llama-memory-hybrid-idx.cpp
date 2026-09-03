@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cmath>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
 
 //
@@ -104,19 +105,50 @@ llama_memory_context_ptr llama_memory_hybrid_idx::init_batch(llama_batch_allocr 
             break;
         }
 
+        auto heads_attn = get_mem_attn()->plan_slots(ubatches);
+        if (heads_attn.empty()) {
+            LLAMA_LOG_ERROR("%s: failed to plan attention ubatches\n", __func__);
+            break;
+        }
+
+        // The index cache follows the attention slot layout, but still participates in the
+        // side-effect-free capacity preflight. Its fixed GPU state is never VBR-managed.
+        if (mem_idx) {
+            const auto heads_idx_plan = mem_idx->plan_slots(ubatches);
+            if (heads_idx_plan.empty()) {
+                LLAMA_LOG_ERROR("%s: failed to plan index ubatches\n", __func__);
+                break;
+            }
+            if (heads_idx_plan.size() != heads_attn.size()) {
+                LLAMA_LOG_ERROR("%s: attention/index slot plans have different batch counts\n", __func__);
+                break;
+            }
+            for (size_t i = 0; i < heads_attn.size(); ++i) {
+                if (heads_idx_plan[i].s0 != heads_attn[i].s0 ||
+                    heads_idx_plan[i].s1 != heads_attn[i].s1 ||
+                    heads_idx_plan[i].strm != heads_attn[i].strm ||
+                    heads_idx_plan[i].idxs != heads_attn[i].idxs) {
+                    LLAMA_LOG_ERROR("%s: attention/index slot plans disagree\n", __func__);
+                    return std::make_unique<llama_memory_hybrid_idx_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+                }
+            }
+        }
+
         // prepare the recurrent batches first
         if (!get_mem_recr()->prepare(ubatches)) {
-            // TODO: will the recurrent cache be in an undefined context at this point?
             LLAMA_LOG_ERROR("%s: failed to prepare recurrent ubatches\n", __func__);
             return std::make_unique<llama_memory_hybrid_idx_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
         }
 
-        // prepare the attention cache
-        auto heads_attn = get_mem_attn()->prepare(ubatches);
+        mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+                vbr_operation_class::state_api, -1, 0, std::numeric_limits<llama_pos>::max(), mem_idx.get());
+        heads_attn = get_mem_attn()->prepare_with_slots(ubatches, std::move(heads_attn));
         if (heads_attn.empty()) {
             LLAMA_LOG_ERROR("%s: failed to prepare attention ubatches\n", __func__);
+            mutation.finish(false);
             return std::make_unique<llama_memory_hybrid_idx_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
         }
+        mutation.finish(true);
 
         // the indexer uses the attention cache's slot layout; a separate one can drift from it
         llama_kv_cache::slot_info_vec_t heads_idx;
@@ -140,16 +172,21 @@ llama_memory_context_ptr llama_memory_hybrid_idx::init_update(llama_context * lc
 }
 
 void llama_memory_hybrid_idx::clear(bool data) {
-    llama_memory_hybrid::clear(data);
-
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, -1, 0, std::numeric_limits<llama_pos>::max(), mem_idx.get());
+    get_mem_attn()->clear(data);
+    get_mem_recr()->clear(data);
     if (mem_idx) {
         mem_idx->clear(data);
     }
 }
 
 bool llama_memory_hybrid_idx::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos p1) {
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id, p0, p1, mem_idx.get());
     // same order as llama_memory_hybrid::seq_rm: the recurrent cache can refuse, so try it first
     if (!get_mem_recr()->seq_rm(seq_id, p0, p1)) {
+        mutation.finish(false);
         return false;
     }
 
@@ -159,10 +196,14 @@ bool llama_memory_hybrid_idx::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_po
         GGML_UNUSED(removed_idx);
     }
 
-    return get_mem_attn()->seq_rm(seq_id, p0, p1);
+    const bool result = get_mem_attn()->seq_rm(seq_id, p0, p1);
+    mutation.finish(result);
+    return result;
 }
 
 bool llama_memory_hybrid_idx::seq_rm_attn(llama_seq_id seq_id, llama_pos p0, llama_pos p1) {
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id, p0, p1, mem_idx.get());
     // The indexer is auxiliary attention state. Every attention-only edit must retain the same
     // cell membership in both children, while deliberately leaving recurrent state untouched.
     if (mem_idx) {
@@ -170,11 +211,16 @@ bool llama_memory_hybrid_idx::seq_rm_attn(llama_seq_id seq_id, llama_pos p0, lla
         GGML_ASSERT(removed_idx);
         GGML_UNUSED(removed_idx);
     }
-    return get_mem_attn()->seq_rm(seq_id, p0, p1);
+    const bool result = get_mem_attn()->seq_rm(seq_id, p0, p1);
+    mutation.finish(result);
+    return result;
 }
 
 bool llama_memory_hybrid_idx::seq_rm_transient(llama_seq_id seq_id, llama_pos p0, llama_pos p1) {
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id, p0, p1, mem_idx.get());
     if (!get_mem_recr()->seq_rm(seq_id, p0, p1)) {
+        mutation.finish(false);
         return false;
     }
     if (mem_idx) {
@@ -182,16 +228,22 @@ bool llama_memory_hybrid_idx::seq_rm_transient(llama_seq_id seq_id, llama_pos p0
         GGML_ASSERT(removed_idx);
         GGML_UNUSED(removed_idx);
     }
-    return get_mem_attn()->seq_rm_transient(seq_id, p0, p1);
+    const bool result = get_mem_attn()->seq_rm_transient(seq_id, p0, p1);
+    mutation.finish(result);
+    return result;
 }
 
 bool llama_memory_hybrid_idx::seq_rm_attn_transient(llama_seq_id seq_id, llama_pos p0, llama_pos p1) {
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id, p0, p1, mem_idx.get());
     if (mem_idx) {
         const bool removed_idx = mem_idx->seq_rm_attn_transient(seq_id, p0, p1);
         GGML_ASSERT(removed_idx);
         GGML_UNUSED(removed_idx);
     }
-    return get_mem_attn()->seq_rm_attn_transient(seq_id, p0, p1);
+    const bool result = get_mem_attn()->seq_rm_attn_transient(seq_id, p0, p1);
+    mutation.finish(result);
+    return result;
 }
 
 void llama_memory_hybrid_idx::seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
@@ -203,22 +255,21 @@ bool llama_memory_hybrid_idx::try_seq_cp(
         llama_seq_id seq_id_dst,
         llama_pos p0,
         llama_pos p1) {
-    if (!llama_memory_hybrid::try_seq_cp(seq_id_src, seq_id_dst, p0, p1)) {
-        // The base has already invalidated attention and recurrent state.
-        const bool removed_idx = !mem_idx || mem_idx->seq_rm(seq_id_dst, -1, -1);
-        GGML_ASSERT(removed_idx);
-        GGML_UNUSED(removed_idx);
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id_dst, p0, p1, mem_idx.get());
+    if (!get_mem_recr()->try_seq_cp(seq_id_src, seq_id_dst, p0, p1)) {
+        mutation.finish(false);
         return false;
     }
 
-    if (!mem_idx || mem_idx->try_seq_cp(seq_id_src, seq_id_dst, p0, p1)) {
-        return true;
+    if (!get_mem_attn()->try_seq_cp(seq_id_src, seq_id_dst, p0, p1)) {
+        mutation.finish(false);
+        return false;
     }
 
-    // A failed index copy after the base succeeded invalidates the destination rather than
-    // exposing children from different timelines.
-    state_drop(seq_id_dst);
-    return false;
+    const bool result = !mem_idx || mem_idx->try_seq_cp(seq_id_src, seq_id_dst, p0, p1);
+    mutation.finish(result);
+    return result;
 }
 
 bool llama_memory_hybrid_idx::try_seq_cp_transient(
@@ -226,30 +277,28 @@ bool llama_memory_hybrid_idx::try_seq_cp_transient(
         llama_seq_id seq_id_dst,
         llama_pos p0,
         llama_pos p1) {
-    if (!llama_memory_hybrid::try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1)) {
-        const bool removed_idx = !mem_idx || mem_idx->seq_rm_transient(seq_id_dst, -1, -1);
-        GGML_ASSERT(removed_idx);
-        GGML_UNUSED(removed_idx);
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id_dst, p0, p1, mem_idx.get());
+    if (!get_mem_recr()->try_seq_cp(seq_id_src, seq_id_dst, p0, p1)) {
+        mutation.finish(false);
         return false;
     }
 
-    if (!mem_idx || mem_idx->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1)) {
-        return true;
+    if (!get_mem_attn()->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1)) {
+        mutation.finish(false);
+        return false;
     }
 
-    const bool removed_recr = get_mem_recr()->seq_rm(seq_id_dst, -1, -1);
-    const bool removed_attn = get_mem_attn()->seq_rm_transient(seq_id_dst, -1, -1);
-    const bool removed_idx = !mem_idx || mem_idx->seq_rm_transient(seq_id_dst, -1, -1);
-    GGML_ASSERT(removed_recr && removed_attn && removed_idx);
-    GGML_UNUSED(removed_recr);
-    GGML_UNUSED(removed_attn);
-    GGML_UNUSED(removed_idx);
-    return false;
+    const bool result = !mem_idx || mem_idx->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1);
+    mutation.finish(result);
+    return result;
 }
 
 void llama_memory_hybrid_idx::seq_keep(llama_seq_id seq_id) {
-    llama_memory_hybrid::seq_keep(seq_id);
-
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, -1, 0, std::numeric_limits<llama_pos>::max(), mem_idx.get());
+    get_mem_attn()->seq_keep(seq_id);
+    get_mem_recr()->seq_keep(seq_id);
     if (mem_idx) {
         mem_idx->seq_keep(seq_id);
     }
@@ -266,7 +315,10 @@ void llama_memory_hybrid_idx::seq_add(llama_seq_id seq_id, llama_pos p0, llama_p
     GGML_ASSERT(get_mem_attn()->can_shift_qwen4_text_range(seq_id, p0, p1));
     GGML_ASSERT(!mem_idx || mem_idx->can_shift_qwen4_text_range(seq_id, p0, p1));
 
-    llama_memory_hybrid::seq_add(seq_id, p0, p1, shift);
+    mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id, p0, p1, mem_idx.get());
+    get_mem_attn()->seq_add(seq_id, p0, p1, shift);
+    get_mem_recr()->seq_add(seq_id, p0, p1, shift);
 
     if (mem_idx) {
         // QSA caches the unnormalised, pre-RoPE index projection.  Only its
@@ -325,6 +377,8 @@ void llama_memory_hybrid_idx::state_read(llama_io_read_i & io, llama_seq_id seq_
     // the indexer restore adopts the attention cache's layout instead of searching for cells of its own
     // two find_slot calls agree only while both caches see the same occupancy, which a restore cannot promise
     llama_kv_cache::slot_info_vec_t sinfos_attn;
+    mutation_scope mutation(this, vbr_operation_kind::state_import,
+            vbr_operation_class::state_api, seq_id, 0, std::numeric_limits<llama_pos>::max(), mem_idx.get());
 
     try {
         if ((flags & LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == 0) {
@@ -344,6 +398,7 @@ void llama_memory_hybrid_idx::state_read(llama_io_read_i & io, llama_seq_id seq_
         // a half-restored context is the one state the indexer cannot fix by itself: attention holds new cells, the indexer old ones
         // drop what was being restored from all of them, which is a state they do agree on.
         state_drop(seq_id);
+        mutation.finish(false);
 
         throw;
     }
@@ -352,7 +407,13 @@ void llama_memory_hybrid_idx::state_read(llama_io_read_i & io, llama_seq_id seq_
 void llama_memory_hybrid_idx::state_drop(llama_seq_id seq_id) {
     // dropped directly, not via seq_rm: the recurrent cache may refuse it and then only the other two get cleared
     if (seq_id < 0) {
-        clear(true);
+        // Use the child APIs directly while a state-import scope may still be active. Calling
+        // this composite again would mint a nested root instead of joining the failed import.
+        get_mem_attn()->clear(true);
+        get_mem_recr()->clear(true);
+        if (mem_idx) {
+            mem_idx->clear(true);
+        }
 
         return;
     }
@@ -432,13 +493,7 @@ bool llama_memory_hybrid_idx_context::next() {
 }
 
 bool llama_memory_hybrid_idx_context::apply() {
-    bool res = llama_memory_hybrid_context::apply();
-
-    if (ctx_idx) {
-        res = res & ctx_idx->apply();
-    }
-
-    return res;
+    return apply_atomic(ctx_idx.get(), mem != nullptr ? mem->get_mem_idx() : nullptr);
 }
 
 const llama_kv_cache_context * llama_memory_hybrid_idx_context::get_idx() const {

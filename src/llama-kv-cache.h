@@ -237,6 +237,7 @@ public:
 
     uint32_t get_size()     const;
     uint32_t get_n_stream() const;
+    uint32_t get_n_swa()    const { return n_swa; }
     uint32_t get_stream_for_seq(llama_seq_id seq_id) const;
     bool state_empty() const;
 
