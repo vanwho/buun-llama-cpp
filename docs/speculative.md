@@ -99,6 +99,29 @@ PLE convolution histories are included in partial rollback. For byte-for-byte
 speculative/non-speculative comparisons, also pass `--ctx-checkpoints 0` so server
 prompt-checkpoint recomputation does not introduce an independent numerical change.
 
+#### Draft K/V placement
+
+`--spec-draft-kv-device auto|gpu|cpu` controls draft-model K/V placement
+independently of the target cache. `auto` preserves the target's existing
+placement policy, `gpu` requests device-resident draft K/V, and `cpu` keeps
+draft K/V off the GPU. The setting applies to external draft models and native
+MTP contexts. A requested GPU placement with no usable GPU is rejected during
+initialization; it is not silently converted to CPU placement.
+
+For the Buun Turbo4 MTP path, use Turbo4 on both draft sides, for example:
+
+```bash
+llama-server -m Qwen3.8-27B.gguf \
+    --spec-type draft-mtp --spec-draft-kv-device gpu \
+    -ctkd turbo4 -ctvd turbo4
+```
+
+The `t4`, `turbo4_0`, and `4` spellings are Buun compatibility aliases for
+draft Turbo4 types. Native MTP is a separate static cache and is not eligible
+for target VBR or pager eviction. Full-context MTP placement and model-backed
+262K verification remain experimental; see the execution evidence index for
+the recorded controls and deferred checks.
+
 ### DFlash (`draft-dflash`)
 
 DFlash produces an entire block of draft tokens in a single forward pass (block diffusion) and

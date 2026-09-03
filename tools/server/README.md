@@ -38,6 +38,54 @@ Media prompts and aLoRA invocation boundaries remain typed live-only fallbacks. 
 full matrix is in
 [docs/vbr.md](../../docs/vbr.md#automatic-host-cache-support-matrix).
 
+## Attention-aware KV paging (experimental internal boundary)
+
+The repository contains CPU/fake-backend contracts and a bounded CUDA
+reference for attention-aware page residency. It does not currently expose a
+production `--kv-pager` command-line option, a live pager telemetry endpoint,
+or a model-backed 256K pager server route. The internal modes are `off`,
+`observe`, `selective`, and `exact`; `off` preserves the ordinary dense path.
+Do not infer live capacity, quality, or throughput from the deterministic
+fixtures.
+
+The reference geometry is Qwen3.8-specific: 256-token cross-layer target pages,
+16 full-attention layers, 4 KV heads, K/V width 256, and Turbo4 at 4.125
+bits/value. A complete target page is 4,325,376 encoded bytes (4.125 MiB).
+The design target is about 304 target pages, or 77,824 hot tokens, after
+weights, graph/scratch, recurrent state, staging, headroom, and full-length
+MTP are reserved. Native MTP is a separate full-context Turbo4 GPU allocation;
+the reference 262,144-token MTP payload is 276,824,064 encoded bytes (264 MiB)
+before allocator overhead. These are accounting values, not a promise that the
+current server allocates them.
+
+Every sealed target page requires canonical Turbo4 host backing. VRAM holds
+only the selected target window plus model, graph, recurrent, MTP, and bounded
+staging resources; clean target eviction drops device residency without a D2H
+copy. Host RAM must therefore cover the sealed-page catalog and its metadata,
+while pinned memory is limited to the transfer ring. The target pager never
+owns recurrent state or native MTP pages.
+
+The selected attention boundary is currently narrow and fail-closed: causal
+Turbo4 K/V, head width 256, GQA 4, batch-one one-token CUDA decode for the
+direct kernel. Prompt shapes use the selected reference route where available.
+Unsupported backends, non-causal attention, incompatible K/V types, malformed
+page identity/positions, stale generations, missing host backing, dirty
+eviction, and insufficient budget are refused or remain on the prior valid
+snapshot. There is no CPU Turbo4 attention fallback.
+
+Internal telemetry aggregates bounded per-page mass, EMA/peak retention
+evidence, transfers, faults, prefetch, evictions, stale completions, and
+resource accounting. `--metrics` enables the ordinary Prometheus endpoint; it
+does not expose pager counters in the current build. Missing pager telemetry
+must be recorded as `not_configured`, not as zero.
+
+For supported draft placement, use the documented
+[`--spec-draft-kv-device`](../../docs/speculative.md#draft-kv-placement) option. Pager
+page-size, hot-set, budget, prefetch, and mode switches remain internal until
+the runtime and CLI contracts are accepted. The bounded benchmark adapter and
+raw acceptance status are linked from
+[`docs/execution/evidence/INDEX.md`](../../docs/execution/evidence/INDEX.md).
+
 ## Usage
 
 <!-- HELP_START -->
