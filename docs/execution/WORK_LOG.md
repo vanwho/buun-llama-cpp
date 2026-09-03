@@ -170,3 +170,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
   definitions, and machine-readable required-run dispositions. Restored `ai-long-memory.service`;
   ports 8080 and 8091 returned HTTP 200. No selective result was claimed because the current server
   does not expose the live pager runtime or telemetry required by the acceptance gates.
+
+## 2026-09-03T11:41:55+00:00 — 06-05 — done
+
+- Branch: `codex/task-06-05`
+- Commit at update: `c55e3d3f7`
+- Summary: Added the exact all-page online-softmax reference: stable (m,l,o) merge, deterministic hot-then-cold bounded wave planning with coverage ledger, serial/double-buffer callback execution, explicit exact route, and CUDA Turbo4 partial-state output. Focused CPU/CUDA fixtures and CUDA memcheck passed; full model-backed 256K exact/selective quality evidence remains deferred.
