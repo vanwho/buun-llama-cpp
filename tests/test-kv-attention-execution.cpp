@@ -16,12 +16,13 @@ static llama_kv_page_record page(uint32_t logical, uint32_t slot, llama_pos end)
     return result;
 }
 
-static llama_kv_residency_snapshot snapshot(uint32_t last_end = 700) {
+static llama_kv_residency_snapshot snapshot_slots(
+        uint32_t slot0, uint32_t slot1, uint32_t slot2, uint32_t last_end = 700) {
     llama_kv_residency_table table(8);
     auto tx = table.begin();
-    assert(table.replace(tx, page(0, 5, 256)) == llama_kv_residency_status::ok);
-    assert(table.replace(tx, page(1, 1, 512)) == llama_kv_residency_status::ok);
-    assert(table.replace(tx, page(2, 7, last_end)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, page(0, slot0, 256)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, page(1, slot1, 512)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, page(2, slot2, last_end)) == llama_kv_residency_status::ok);
     assert(table.publish(tx) == llama_kv_residency_status::ok);
     if (last_end != 700) {
         auto next = table.begin();
@@ -30,10 +31,16 @@ static llama_kv_residency_snapshot snapshot(uint32_t last_end = 700) {
     return table.snapshot();
 }
 
+static llama_kv_residency_snapshot snapshot(uint32_t last_end = 700) {
+    return snapshot_slots(5, 1, 7, last_end);
+}
+
 static llama_kv_attention_operator_metadata metadata(
-        const llama_kv_residency_snapshot & snap, uint32_t n_query, uint32_t n_batch) {
+        const llama_kv_residency_snapshot & snap, uint32_t n_query, uint32_t n_batch,
+        const std::vector<uint32_t> & selected_pages = { 2, 0 },
+        llama_pos query_position = 600) {
     llama_kv_attention_view_status view_status;
-    const auto view = llama_kv_attention_view::build(snap, { 2, 0 }, view_status);
+    const auto view = llama_kv_attention_view::build(snap, selected_pages, view_status);
     assert(view_status == llama_kv_attention_view_status::ok);
 
     llama_kv_attention_operator_params params;
@@ -46,7 +53,7 @@ static llama_kv_attention_operator_metadata metadata(
     params.n_head_kv = 4;
     params.n_query_tokens = n_query;
     params.n_batch = n_batch;
-    params.query_positions.resize(size_t(n_query) * n_batch, 600);
+    params.query_positions.resize(size_t(n_query) * n_batch, query_position);
 
     llama_kv_attention_operator_status status;
     auto result = llama_kv_attention_operator_metadata::build(view, params, status);
@@ -161,6 +168,11 @@ static void test_fallbacks_and_graph_key() {
     a.kv_attention_representation_epoch = 2;
     a.kv_attention_shape_epoch = 3;
     auto b = a;
+    llama_kv_attention_execution_metrics metrics_a;
+    llama_kv_attention_execution_metrics metrics_b;
+    a.kv_attention_metrics = &metrics_a;
+    b.kv_attention_metrics = &metrics_b;
+    // Metrics ownership is controller state, not graph topology.
     assert(a.allow_reuse(b));
     ++b.kv_attention_representation_epoch;
     assert(!a.allow_reuse(b));
@@ -170,9 +182,92 @@ static void test_fallbacks_and_graph_key() {
     execution.complete_one_graph();
 }
 
+static void test_epoch_matrix_and_lifetime_metrics() {
+    const auto base = metadata(snapshot(), 1, 1);
+    const auto reordered = metadata(snapshot(), 1, 1, { 0, 2 });
+    const auto remapped = metadata(snapshot_slots(6, 1, 7), 1, 1);
+    const auto grown = metadata(snapshot(701), 1, 1);
+    const auto query_changed = metadata(snapshot(), 1, 1, { 2, 0 }, 601);
+    const auto shape_changed = metadata(snapshot(), 2, 1);
+
+    assert(base.graph_content_key() != reordered.graph_content_key());
+    assert(base.graph_content_key() != remapped.graph_content_key());
+    assert(base.table_epoch() != grown.table_epoch());
+    assert(base.graph_content_key() != grown.graph_content_key());
+    assert(base.graph_content_key() != query_changed.graph_content_key());
+    assert(base.graph_content_key() != shape_changed.graph_content_key());
+
+    llama_kv_attention_scratch_request scratch;
+    scratch.resident_rows = base.get_n_kv();
+    scratch.bytes_per_row = 64;
+    llama_kv_attention_execution execution(llama_kv_attention_execution_mode::selective);
+    execution.reset_metrics();
+
+    const auto first = execution.prepare(base, llama_kv_attention_execution_phase::decode,
+            11, 22, true, scratch);
+    assert(first.route == llama_kv_attention_execution_route::selected_direct);
+    assert(first.graph_rebuild);
+
+    auto irrelevant_scratch = scratch;
+    irrelevant_scratch.router_rows = 99;
+    const auto reused = execution.prepare(base, llama_kv_attention_execution_phase::decode,
+            11, 22, true, irrelevant_scratch);
+    assert(!reused.graph_rebuild);
+
+    const auto reference = execution.prepare(base, llama_kv_attention_execution_phase::decode,
+            11, 22, false, scratch);
+    assert(reference.route == llama_kv_attention_execution_route::selected_reference);
+    assert(reference.graph_rebuild);
+
+    const auto order_change = execution.prepare(reordered,
+            llama_kv_attention_execution_phase::decode, 11, 22, false, scratch);
+    assert(order_change.graph_rebuild);
+    const auto slot_change = execution.prepare(remapped,
+            llama_kv_attention_execution_phase::decode, 11, 22, false, scratch);
+    assert(slot_change.graph_rebuild);
+    const auto representation_change = execution.prepare(base,
+            llama_kv_attention_execution_phase::decode, 12, 22, false, scratch);
+    assert(representation_change.graph_rebuild);
+    const auto query_change = execution.prepare(query_changed,
+            llama_kv_attention_execution_phase::decode, 12, 22, false, scratch);
+    assert(query_change.graph_rebuild);
+    const auto tail_growth = execution.prepare(grown,
+            llama_kv_attention_execution_phase::decode, 12, 22, false, scratch);
+    assert(tail_growth.graph_rebuild);
+    const auto shape_change = execution.prepare(shape_changed,
+            llama_kv_attention_execution_phase::prefill, 12, 23, false, scratch);
+    assert(shape_change.graph_rebuild);
+
+    const auto & counters = execution.metrics();
+    assert(counters.graph_capture_count == 8);
+    assert(counters.graph_replay_count == 1);
+    assert(counters.graph_rebuild_count == counters.graph_capture_count);
+    assert(counters.graph_submission_count == 9);
+    assert(counters.table_upload_bytes == 2 * (4 * sizeof(uint32_t) + sizeof(int64_t)) * 2);
+    assert(counters.scratch_high_water_rows == irrelevant_scratch.required_rows());
+    assert(counters.scratch_high_water_bytes == irrelevant_scratch.required_bytes());
+
+    // Clearing the current key must leave the old immutable view leased. The
+    // replacement is visible to later submissions while both leases coexist.
+    llama_kv_attention_execution fenced(llama_kv_attention_execution_mode::selective);
+    assert(fenced.prepare(base, llama_kv_attention_execution_phase::decode,
+                1, 1, true, scratch).graph_rebuild);
+    assert(fenced.in_flight_graphs() == 1);
+    fenced.clear();
+    assert(!fenced.has_graph() && fenced.in_flight_graphs() == 1);
+    assert(fenced.prepare(grown, llama_kv_attention_execution_phase::decode,
+                1, 1, true, scratch).graph_rebuild);
+    assert(fenced.in_flight_graphs() == 2);
+    fenced.complete_one_graph();
+    assert(fenced.in_flight_graphs() == 1);
+    fenced.complete_one_graph();
+    assert(fenced.in_flight_graphs() == 0);
+}
+
 int main() {
     test_prefill_admission();
     test_routes_epochs_and_fences();
     test_fallbacks_and_graph_key();
+    test_epoch_matrix_and_lifetime_metrics();
     return 0;
 }

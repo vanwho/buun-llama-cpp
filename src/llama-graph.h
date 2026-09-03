@@ -390,11 +390,13 @@ public:
             const llama_hparams & hparams,
             const llama_cparams & cparams,
             const llama_kv_cache_context * mctx,
-            const llama_tree_mask * tree_mask = nullptr) :
+            const llama_tree_mask * tree_mask = nullptr,
+            llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr) :
         hparams(hparams),
         cparams(cparams),
         mctx(mctx),
-        tree_mask(tree_mask) {
+        tree_mask(tree_mask),
+        kv_attention_metrics(kv_attention_metrics) {
     }
     ~llm_graph_input_attn_kv() = default;
 
@@ -456,6 +458,7 @@ public:
 
     const llama_kv_cache_context * mctx;
     const llama_tree_mask * tree_mask;
+    llama_kv_attention_execution_metrics * kv_attention_metrics;
 };
 
 // V-less input for the KV cache
@@ -929,6 +932,7 @@ struct llm_graph_params {
     uint64_t kv_attention_shape_epoch = 0;
     llama_kv_attention_execution_route kv_attention_route = llama_kv_attention_execution_route::dense;
     llama_kv_attention_operator_metadata kv_attention_metadata;
+    llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr;
 
     // return true if the "other" params would result in a graph with the same topology as with the current params
     //   having the same topology allows us to reuse the graph in some cases
@@ -1188,6 +1192,7 @@ struct llm_graph_context {
 
     const llama_kv_attention_operator_metadata & kv_attention_metadata;
     const llama_kv_attention_execution_route kv_attention_route;
+    llama_kv_attention_execution_metrics * const kv_attention_metrics;
 
     std::map<llama_seq_id, llama_sampler *> samplers;
 

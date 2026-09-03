@@ -709,6 +709,9 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     mctx->set_input_k_idxs(self_k_idxs, ubatch);
     mctx->set_input_v_idxs(self_v_idxs, ubatch);
 
+    const int64_t selected_input_start = selected_attention && kv_attention_metrics
+        ? ggml_time_us() : 0;
+
     if (selected_attention) {
         if (direct_attention) {
             ggml_backend_tensor_set(direct_pages, direct_pages_host.data(), 0,
@@ -727,6 +730,11 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             ggml_backend_tensor_set(self_selected_idxs, selected_rows.data(), 0,
                     selected_rows.size() * sizeof(selected_rows[0]));
         }
+    }
+
+    if (selected_input_start != 0 && kv_attention_metrics != nullptr) {
+        kv_attention_metrics->record_descriptor_prepare_us(uint64_t(
+                std::max<int64_t>(0, ggml_time_us() - selected_input_start)));
     }
 
     // the mask is left unallocated when the graph only stores K/V without attending
@@ -1925,6 +1933,7 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
     tree_n_recurrent_layers   (params.tree_n_recurrent_layers),
     kv_attention_metadata(params.kv_attention_metadata),
     kv_attention_route(params.kv_attention_route),
+    kv_attention_metrics(params.kv_attention_metrics),
     samplers         (params.samplers),
     cb_func          (params.cb),
     res              (params.res),
@@ -3254,9 +3263,11 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
     const llama_kv_cache_context * mctx_cur,
     const llama_tree_mask * tree_mask = nullptr,
     const llama_kv_attention_operator_metadata * selected_metadata = nullptr,
-    bool direct_attention = false) {
+    bool direct_attention = false,
+    llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr) {
 
-    auto inp = std::make_unique<llm_graph_input_attn_kv>(hparams, cparams, mctx_cur, tree_mask);
+    auto inp = std::make_unique<llm_graph_input_attn_kv>(hparams, cparams, mctx_cur,
+            tree_mask, kv_attention_metrics);
 
     if (selected_metadata != nullptr && selected_metadata->enabled()) {
         inp->selected_attention = true;
@@ -3368,7 +3379,8 @@ llm_graph_input_attn_kv * llm_graph_context::build_attn_inp_kv() const {
             (kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
              kv_attention_route == llama_kv_attention_execution_route::selected_direct)
                 ? &kv_attention_metadata : nullptr,
-            kv_attention_route == llama_kv_attention_execution_route::selected_direct);
+            kv_attention_route == llama_kv_attention_execution_route::selected_direct,
+            kv_attention_metrics);
 
     return (llm_graph_input_attn_kv *) res->add_input(std::move(inp));
 }
