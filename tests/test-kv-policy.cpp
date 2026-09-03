@@ -1,5 +1,6 @@
 #include "llama-kv-policy.h"
 #include "llama-kv-live-policy.h"
+#include "llama-kv-live-lifecycle.h"
 #include "llama-kv-prefetch.h"
 
 #include <algorithm>
@@ -44,6 +45,9 @@ struct live_transfer_fake {
     static bool host_read(void *, uint32_t, uint64_t, uint8_t * destination,
                           size_t size) noexcept {
         std::fill(destination, destination + size, uint8_t(7));
+        return true;
+    }
+    static bool recheck(void *, const llama_kv_residency_completion &) noexcept {
         return true;
     }
 };
@@ -98,9 +102,9 @@ static llama_kv_residency_transfer_plan live_promotion() {
     page.physical_slot = 1;
     page.runs.push_back({ UINT32_MAX, 0, 0, 0, 0, 8, 1, 0, 0 });
     llama_kv_residency_transfer_plan output;
-    assert(llama_kv_residency_build_transfer_plan(
-        llama_kv_residency_transfer_direction::h2d_promotion,
-        { page }, 4, {}, output));
+    if (!llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            { page }, 4, {}, output)) return {};
     return output;
 }
 
@@ -266,8 +270,175 @@ struct fake_prefetch_backend {
     }
 };
 
+struct fake_live_lifecycle_hooks {
+    uint32_t companion_publishes = 0;
+    uint32_t companion_rollbacks = 0;
+    uint32_t lifecycle_events = 0;
+    bool reject_publish = false;
+
+    static bool publish(void * opaque,
+            const llama_kv_live_lifecycle_generation &,
+            const llama_kv_live_lifecycle_frontier &) noexcept {
+        auto & fake = *static_cast<fake_live_lifecycle_hooks *>(opaque);
+        ++fake.companion_publishes;
+        return !fake.reject_publish;
+    }
+
+    static void rollback(void * opaque,
+            const llama_kv_live_lifecycle_generation &,
+            const llama_kv_live_lifecycle_frontier &) noexcept {
+        ++static_cast<fake_live_lifecycle_hooks *>(opaque)->companion_rollbacks;
+    }
+
+    static bool event(void * opaque, llama_kv_live_lifecycle_event,
+            const llama_kv_live_lifecycle_generation &) noexcept {
+        ++static_cast<fake_live_lifecycle_hooks *>(opaque)->lifecycle_events;
+        return true;
+    }
+};
+
+static bool test_live_lifecycle() {
+#define LIVE_CHECK(expression) do { if (!(expression)) { std::cerr << "live lifecycle check failed: " << #expression << "\n"; return false; } } while (false)
+    fake_prefetch_backend prefetch_fake;
+    llama_kv_live_lifecycle_config config;
+    config.prefetch.max_queued_pages = 8;
+    config.prefetch.max_queued_bytes = 128;
+    config.prefetch.max_events = 2;
+    config.prefetch.max_pinned_slots = 4;
+    config.prefetch.staging_slots = 2;
+    config.prefetch.prefetch_depth = 3;
+    config.prefetch.wait_budget_steps = 1;
+    fake_live_lifecycle_hooks hooks_fake;
+    llama_kv_live_lifecycle_hooks hooks;
+    hooks.context = &hooks_fake;
+    hooks.publish_companions = fake_live_lifecycle_hooks::publish;
+    hooks.rollback_companions = fake_live_lifecycle_hooks::rollback;
+    hooks.event = fake_live_lifecycle_hooks::event;
+    llama_kv_prefetch_backend backend;
+    backend.context = &prefetch_fake;
+    backend.submit = fake_prefetch_backend::submit;
+    backend.poll = fake_prefetch_backend::poll;
+    backend.cancel = fake_prefetch_backend::cancel;
+    backend.publish_complete = fake_prefetch_backend::publish;
+    backend.timestamp_us = fake_prefetch_backend::timestamp;
+
+    llama_kv_live_lifecycle_status status;
+    auto lifecycle = llama_kv_live_lifecycle::create(config, backend, hooks, status);
+    LIVE_CHECK(lifecycle && status == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(lifecycle->start({ 1, 0, 1, 1 }) == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(lifecycle->set_frontier({ 1, 1, 1, 2, 1, 1 }) ==
+           llama_kv_live_lifecycle_status::ready);
+
+    prefetch_fake.attention_active = true;
+    const auto future = [](uint64_t id, uint32_t priority) {
+        return llama_kv_prefetch_intent { id, 0, 8, 10, priority, false };
+    };
+    LIVE_CHECK(lifecycle->prefetch({ future(100, 1), future(101, 3), future(100, 9) }) ==
+           llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(prefetch_fake.submitted.size() == 2 && prefetch_fake.submitted[0] == 100 &&
+           prefetch_fake.submitted[1] == 101);
+    LIVE_CHECK(prefetch_fake.overlap_seen);
+    prefetch_fake.complete_next = 1;
+    LIVE_CHECK(lifecycle->advance() == llama_kv_live_lifecycle_status::ready);
+    const auto ready = lifecycle->ensure_ready({ future(100, 1) }, { 101 }, 0);
+    LIVE_CHECK(ready.status == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(ready.prefetch.readiness == llama_kv_prefetch_readiness::ready);
+    LIVE_CHECK(lifecycle->ensure_ready({ { 102, 99, 8, 10, 1, true } }, {}, 0).status ==
+           llama_kv_live_lifecycle_status::stale_generation);
+
+    llama_kv_residency_table table(2);
+    auto initial = table.begin();
+    LIVE_CHECK(table.replace(initial, live_resident(0, 0)) == llama_kv_residency_status::ok);
+    LIVE_CHECK(table.publish(initial) == llama_kv_residency_status::ok);
+    live_transfer_fake transfer_fake;
+    auto pool_backend = live_pool_backend(transfer_fake);
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create({ 2, 64, 4, 4, 1024 },
+                                                 pool_backend, pool_status);
+    LIVE_CHECK(pool && pool_status == llama_kv_residency_pool_status::ok);
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    LIVE_CHECK(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &transfer_fake;
+    transport.host_read = live_transfer_fake::host_read;
+    transport.recheck = live_transfer_fake::recheck;
+    const auto result = lifecycle->apply_policy(
+            table, *pool, live_boundary(table.snapshot(), live_promotion()),
+            pool_backend, transport);
+    LIVE_CHECK(result.status == llama_kv_live_lifecycle_status::committed);
+    LIVE_CHECK(result.companion_published && hooks_fake.companion_publishes == 1);
+    LIVE_CHECK(table.snapshot().epoch() == 2);
+
+    fake_live_lifecycle_hooks rejected_hooks_fake;
+    rejected_hooks_fake.reject_publish = true;
+    auto rejected_hooks = hooks;
+    rejected_hooks.context = &rejected_hooks_fake;
+    auto rejected = llama_kv_live_lifecycle::create(config, backend, rejected_hooks, status);
+    LIVE_CHECK(rejected && rejected->start({ 1, 0, 1, 1 }) == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(rejected->set_frontier({ 1, 1, 1, 0, 0, 0 }) == llama_kv_live_lifecycle_status::ready);
+    llama_kv_residency_table rejected_table(2);
+    auto rejected_initial = rejected_table.begin();
+    LIVE_CHECK(rejected_table.replace(rejected_initial, live_resident(0, 0)) == llama_kv_residency_status::ok);
+    LIVE_CHECK(rejected_table.publish(rejected_initial) == llama_kv_residency_status::ok);
+    live_transfer_fake rejected_transfer_fake;
+    auto rejected_pool_backend = live_pool_backend(rejected_transfer_fake);
+    auto rejected_pool = llama_kv_residency_pool::create(
+            { 2, 64, 4, 4, 1024 }, rejected_pool_backend, pool_status);
+    LIVE_CHECK(rejected_pool);
+    auto rejected_ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    LIVE_CHECK(rejected_ring);
+    llama_kv_residency_transfer_transport rejected_transport;
+    rejected_transport.upload_ring = rejected_ring.get();
+    rejected_transport.context = &rejected_transfer_fake;
+    rejected_transport.host_read = live_transfer_fake::host_read;
+    rejected_transport.recheck = live_transfer_fake::recheck;
+    const auto rejected_result = rejected->apply_policy(
+            rejected_table, *rejected_pool,
+            live_boundary(rejected_table.snapshot(), live_promotion()),
+            rejected_pool_backend, rejected_transport);
+    LIVE_CHECK(rejected_result.status == llama_kv_live_lifecycle_status::companion_rejected);
+    LIVE_CHECK(!rejected_result.policy.published && rejected_result.companion_rolled_back);
+    LIVE_CHECK(rejected_table.snapshot().epoch() == 1 && rejected_hooks_fake.companion_rollbacks == 1);
+
+    LIVE_CHECK(lifecycle->prefetch({ future(103, 1) }) == llama_kv_live_lifecycle_status::ready);
+    const auto cancelled_before = prefetch_fake.cancelled.size();
+    const auto published_before_reuse = prefetch_fake.published.size();
+    LIVE_CHECK(lifecycle->prompt_adopt({ 1, 0, 1, 2 }) == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(prefetch_fake.cancelled.size() > cancelled_before);
+    prefetch_fake.complete_next = prefetch_fake.tickets.back().value;
+    LIVE_CHECK(lifecycle->advance() == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(prefetch_fake.published.size() == published_before_reuse);
+    LIVE_CHECK(lifecycle->slot_reuse({ 1, 0, 1, 3 }) == llama_kv_live_lifecycle_status::ready);
+    const auto fallback = lifecycle->ensure_ready({ future(104, 1) }, { 101 }, 0);
+    LIVE_CHECK(fallback.status == llama_kv_live_lifecycle_status::reuse_old_hot_set);
+    LIVE_CHECK(lifecycle->checkpoint_save() == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(lifecycle->checkpoint_restore({ 1, 0, 1, 4 }) == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(lifecycle->clear() == llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(hooks_fake.lifecycle_events >= 4);
+    lifecycle->shutdown();
+    LIVE_CHECK(lifecycle->stopped());
+    const auto & counters = lifecycle->prefetch_counters();
+    std::cout << "live lifecycle trace submitted=" << counters.submitted
+              << " completed=" << counters.completed
+              << " late_waits=" << counters.late_waits
+              << " cancellations=" << counters.cancellations
+              << " useful_bytes=" << counters.useful_bytes
+              << " aligned_bytes=" << counters.aligned_bytes
+              << " overlap=" << (prefetch_fake.overlap_seen ? 1 : 0)
+              << " companion_publishes=" << hooks_fake.companion_publishes
+              << " companion_rollbacks=" << hooks_fake.companion_rollbacks << "\n";
+    LIVE_CHECK(llama_kv_live_lifecycle::create(
+            llama_kv_live_lifecycle_config { 2, {} }, backend, hooks, status) == nullptr);
+    LIVE_CHECK(status == llama_kv_live_lifecycle_status::unsupported_slots);
+#undef LIVE_CHECK
+    return true;
+}
+
 int main() {
     test_live_policy_publication();
+    if (!test_live_lifecycle()) return 1;
 
     llama_kv_policy_trace trace;
     trace.epoch = 1; trace.capacity_pages = 2; trace.write_page = 4;

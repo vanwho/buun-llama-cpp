@@ -39,6 +39,7 @@ add_library(llama
             llama-kv-routing-retrieval.cpp
             llama-kv-attention-telemetry.cpp
             llama-kv-live-policy.cpp
+            llama-kv-live-lifecycle.cpp
             llama-kv-residency.cpp
             llama-kv-residency-transfer.cpp
             llama-kv-residency-transaction.cpp
