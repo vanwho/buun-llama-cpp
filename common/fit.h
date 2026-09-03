@@ -74,9 +74,8 @@ struct common_fit_extra_model {
     const common_fit_extra_model * next = nullptr;
     bool optional_if_no_mtp = false;
     bool borrows_target_tensors = false;
-    // Reserve this extra context at the target model's full trained frontier instead of
-    // allowing target auto-fit to shrink it with the target hot working set. This is used by
-    // native MTP, whose full-length KV cache is a separate GPU-resident allocation.
+    // Reserved for extras whose context is intentionally independent of the target candidate.
+    // Native MTP leaves this false and follows the resolved target per-sequence context.
     bool full_target_context = false;
 };
 

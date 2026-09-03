@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "08",
-  "current_task": "08-02",
-  "last_updated_utc": "2026-09-03T13:47:05+00:00",
+  "current_task": "08-03",
+  "last_updated_utc": "2026-09-03T14:06:32+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -535,13 +535,13 @@
       "cluster": "08a-dynamic-contract",
       "title": "Make native MTP capacity follow resolved target context",
       "packet": "docs/execution/tasks/08-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "08-01"
       ],
-      "commit": null
+      "commit": "c242dd746a0ad8321c0bc8b56f5a9ac914376de4"
     },
     {
       "id": "08-03",

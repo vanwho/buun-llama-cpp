@@ -5558,7 +5558,8 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     add_opt(common_arg(
         {"-cd", "--ctx-size-draft"}, "N",
         string_format("draft-model context size (default: %d, 0 = inherit the target's per-sequence "
-                "capacity; implicit MTP uses unified KV; drafters rarely need more than a few hundred)",
+                "capacity; native MTP -cd must match the target; implicit MTP uses unified KV; "
+                "external drafters may use an independent value)",
                 params.speculative.draft.n_ctx),
         [](common_params & params, int value) {
             params.speculative.draft.n_ctx = value;

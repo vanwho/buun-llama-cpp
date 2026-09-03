@@ -58,21 +58,36 @@ const std::vector<double> & common_speculative_get_synth_probs(const common_spec
 common_params common_base_params_to_speculative(const common_params & params);
 
 struct common_speculative_mtp_context_params {
+    enum class status : uint8_t {
+        ok = 0,
+        conflicting_explicit_context,
+    };
+
+    status validation = status::ok;
     uint32_t n_ctx;
     uint32_t n_seq_max;
     bool kv_unified;
+
+    bool valid() const noexcept {
+        return validation == status::ok;
+    }
 };
 
-// Native and sidecar MTP contexts must expose the target's realized context
-// width per sequence. An implicit draft context can do that without multiplying
-// its KV allocation by the number of server slots by using unified KV. An
-// explicit -cd remains an exact user override, including the requested KV
-// topology.
+const char * common_speculative_mtp_context_status_name(
+        common_speculative_mtp_context_params::status status) noexcept;
+
+// Native MTP contexts must expose the target's realized context width per
+// sequence. An implicit native context can do that without multiplying its KV
+// allocation by the number of server slots by using unified KV. External MTP
+// sidecars retain an exact explicit -cd override, including requested topology.
+// Native callers set native_mtp=true; there an explicit -cd is accepted only
+// when it equals the resolved target width.
 common_speculative_mtp_context_params common_speculative_mtp_context_params_resolve(
         uint32_t target_n_ctx_seq,
         int32_t explicit_draft_n_ctx,
         uint32_t requested_n_seq_max,
-        bool requested_kv_unified);
+        bool requested_kv_unified,
+        bool native_mtp = false);
 
 // Apply the native MTP context contract after the common target conversion. MTP has a separate
 // KV allocation, so it keeps the requested draft placement while never arming an independent
