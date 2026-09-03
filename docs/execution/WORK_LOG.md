@@ -44,3 +44,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-00-04`
 - Commit at update: `9e4e10100`
 - Summary: Added and validated the prototype/community salvage matrix with all required rows, explicit VBR-page boundary, and no reference worktree changes.
+
+## 2026-09-03T05:57:57+00:00 — 01-01 — done
+
+- Branch: `codex/task-01-01`
+- Commit at update: `175ec305f`
+- Summary: Froze selective-attention semantics, retrieval/retention boundary, lifecycle ownership, fail-closed scope, and telemetry contract in design/SEMANTICS.md; validation and diff checks passed.
