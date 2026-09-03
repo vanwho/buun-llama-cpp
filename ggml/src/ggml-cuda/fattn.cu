@@ -1319,8 +1319,11 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
         const size_t v_page_stride,
         const size_t page_mass_head_stride,
         const uint32_t page_mass_logical_count,
+        float * partial_state,
+        const size_t partial_state_head_stride,
         const float scale,
         const bool reduce_page_mass,
+        const bool write_partial_state,
         const bool causal) {
     extern __shared__ float shared[];
 
@@ -1336,7 +1339,8 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
     float * page_sum = page_max + n_pages;
 
     const float * q_head = (const float *) ((const char *) q + head * q_head_stride);
-    float * output_head = (float *) ((char *) output + head * output_head_stride);
+    float * output_head = output == nullptr ? nullptr :
+        (float *) ((char *) output + head * output_head_stride);
 
     // Rotate Q in shared memory, matching the dense Turbo4 fused path.  The
     // K/V pages stay compressed and are decoded only for the current row.
@@ -1434,7 +1438,17 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
         }
     }
 
-    output_head[tid] = qk_sum > 0.0f ? value_sum / qk_sum : 0.0f;
+    if (output != nullptr) {
+        output_head[tid] = qk_sum > 0.0f ? value_sum / qk_sum : 0.0f;
+    }
+    if (write_partial_state) {
+        float * state = (float *) ((char *) partial_state + head * partial_state_head_stride);
+        if (tid == 0) {
+            state[0] = qk_sum > 0.0f ? qk_max : -INFINITY;
+            state[1] = qk_sum;
+        }
+        state[2 + tid] = value_sum;
+    }
 
     if (reduce_page_mass) {
         __syncthreads();
@@ -1456,8 +1470,9 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
 ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         ggml_backend_cuda_context & ctx,
         const ggml_cuda_fattn_turbo4_paged_params & params) noexcept {
-    if (params.q == nullptr || params.k == nullptr || params.v == nullptr || params.output == nullptr ||
+    if (params.q == nullptr || params.k == nullptr || params.v == nullptr ||
         params.pages_host == nullptr || params.pages_device == nullptr || params.query_positions_device == nullptr ||
+        (!params.write_partial_state && params.output == nullptr) ||
         params.n_pages == 0 || params.n_rows == 0 || params.n_head_q == 0 || params.n_head_kv == 0) {
         return ggml_cuda_fattn_turbo4_paged_status::invalid_argument;
     }
@@ -1467,13 +1482,18 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     if (params.n_query_tokens != 1 || params.n_batch != 1 ||
         uint64_t(params.n_head_kv) * 4u != params.n_head_q ||
         params.head_dim_k != 256 || params.head_dim_v != 256 ||
-        params.q_head_stride_bytes < 256 * sizeof(float) || params.output_head_stride_bytes < 256 * sizeof(float) ||
+        params.q_head_stride_bytes < 256 * sizeof(float) ||
+        (!params.write_partial_state && params.output_head_stride_bytes < 256 * sizeof(float)) ||
         params.k_row_stride_bytes < 2 * sizeof(block_turbo4_0) || params.v_row_stride_bytes < 2 * sizeof(block_turbo4_0) ||
         params.k_page_stride_bytes / params.k_row_stride_bytes < 256 ||
         params.v_page_stride_bytes / params.v_row_stride_bytes < 256 ||
         (params.reduce_page_mass &&
             (params.page_mass_head_stride_bytes % sizeof(float) != 0 ||
              params.page_mass_head_stride_bytes / sizeof(float) < params.page_mass_logical_count)) ||
+        (params.write_partial_state &&
+            (params.partial_state == nullptr ||
+             params.partial_state_head_stride_bytes % sizeof(float) != 0 ||
+             params.partial_state_head_stride_bytes / sizeof(float) < 2 + params.head_dim_v)) ||
         !std::isfinite(params.scale) || !params.causal) {
         return ggml_cuda_fattn_turbo4_paged_status::unsupported_shape;
     }
@@ -1513,8 +1533,9 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         params.q_head_stride_bytes, params.output_head_stride_bytes,
         params.k_row_stride_bytes, params.k_head_stride_bytes, params.k_page_stride_bytes,
         params.v_row_stride_bytes, params.v_head_stride_bytes, params.v_page_stride_bytes,
-        params.page_mass_head_stride_bytes, params.page_mass_logical_count, params.scale,
-        params.reduce_page_mass, params.causal);
+        params.page_mass_head_stride_bytes, params.page_mass_logical_count,
+        params.partial_state, params.partial_state_head_stride_bytes, params.scale,
+        params.reduce_page_mass, params.write_partial_state, params.causal);
 
     return cudaGetLastError() == cudaSuccess
         ? ggml_cuda_fattn_turbo4_paged_status::ok

@@ -14,6 +14,7 @@ enum class llama_kv_attention_execution_mode : uint8_t {
     off = 0,
     observe,
     selective,
+    exact,
 };
 
 enum class llama_kv_attention_execution_phase : uint8_t {
@@ -26,6 +27,7 @@ enum class llama_kv_attention_execution_route : uint8_t {
     observe,
     selected_reference,
     selected_direct,
+    exact_reference,
     refusal,
 };
 
@@ -155,4 +157,3 @@ private:
     bool have_graph_ = false;
     std::vector<llama_kv_attention_view::graph_fence> graph_fences_;
 };
-
