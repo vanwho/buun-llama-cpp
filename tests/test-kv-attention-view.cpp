@@ -1,4 +1,6 @@
 #include "llama-kv-attention-view.h"
+#include "llama-kv-attention-op.h"
+#include "llama-graph.h"
 
 #include <cassert>
 #include <vector>
@@ -61,8 +63,72 @@ static void test_tail_and_rejections() {
     assert(!absent.valid() && status == llama_kv_attention_view_status::not_resident);
 }
 
+static void test_operator_contract() {
+    llama_kv_attention_view_status view_status;
+    const auto view = llama_kv_attention_view::build(make_snapshot(), { 2, 0 }, view_status);
+    assert(view_status == llama_kv_attention_view_status::ok);
+
+    llama_kv_attention_operator_params params;
+    params.mode = llama_kv_attention_operator_mode::selective;
+    params.type_k = GGML_TYPE_TURBO4_0;
+    params.type_v = GGML_TYPE_TURBO4_0;
+    params.head_dim_k = 256;
+    params.head_dim_v = 256;
+    params.n_head_q = 16;
+    params.n_head_kv = 4;
+    params.n_query_tokens = 2;
+    params.n_batch = 2;
+    params.query_positions = { 700, 701, 500, 501 };
+
+    llama_kv_attention_operator_status status;
+    const auto metadata = llama_kv_attention_operator_metadata::build(view, params, status);
+    assert(status == llama_kv_attention_operator_status::ok);
+    assert(metadata.valid() && metadata.enabled());
+    assert(metadata.table_epoch() == view.graph_epoch());
+    assert(metadata.graph_reuse_key() == 1);
+    assert(metadata.get_n_kv() == view.get_n_kv());
+    assert(metadata.n_head_q() / metadata.n_head_kv() == 4);
+    assert(metadata.query_positions().size() == 4);
+    assert(llama_kv_attention_operator_check_backend(
+                GGML_BACKEND_DEVICE_TYPE_CPU, metadata) ==
+           llama_kv_attention_backend_status::supported_reference);
+    assert(llama_kv_attention_operator_check_backend(
+                GGML_BACKEND_DEVICE_TYPE_GPU, metadata) ==
+           llama_kv_attention_backend_status::unsupported_backend);
+    assert(llama_kv_attention_operator_check_backend(
+                static_cast<ggml_backend_t>(nullptr), metadata) ==
+           llama_kv_attention_backend_status::unsupported_backend);
+
+    auto wrong_type = params;
+    wrong_type.type_v = GGML_TYPE_F16;
+    assert(!llama_kv_attention_operator_metadata::build(view, wrong_type, status).valid());
+    assert(status == llama_kv_attention_operator_status::invalid_type);
+
+    auto wrong_gqa = params;
+    wrong_gqa.n_head_q = 15;
+    assert(!llama_kv_attention_operator_metadata::build(view, wrong_gqa, status).valid());
+    assert(status == llama_kv_attention_operator_status::invalid_shape);
+
+    auto non_causal = params;
+    non_causal.causal = false;
+    assert(!llama_kv_attention_operator_metadata::build(view, non_causal, status).valid());
+    assert(status == llama_kv_attention_operator_status::non_causal);
+
+    params.mode = llama_kv_attention_operator_mode::off;
+    assert(!llama_kv_attention_operator_metadata::build(view, params, status).valid());
+    assert(status == llama_kv_attention_operator_status::disabled);
+
+    llm_graph_params graph_a = {};
+    graph_a.kv_attention_table_epoch = view.graph_epoch();
+    auto graph_b = graph_a;
+    assert(graph_a.allow_reuse(graph_a));
+    graph_b.kv_attention_table_epoch++;
+    assert(!graph_a.allow_reuse(graph_b));
+}
+
 int main() {
     test_compact_permuted_gapped_view();
     test_tail_and_rejections();
+    test_operator_contract();
     return 0;
 }

@@ -893,6 +893,11 @@ struct llm_graph_params {
 
     llm_graph_result * res;
 
+    // Selected KV page-table contents are immutable for a graph. A non-zero
+    // epoch participates in topology reuse; zero preserves the dense/off
+    // path and adds no page-table input.
+    uint64_t kv_attention_table_epoch = 0;
+
     // return true if the "other" params would result in a graph with the same topology as with the current params
     //   having the same topology allows us to reuse the graph in some cases
     bool allow_reuse(const llm_graph_params & other) const {
@@ -967,6 +972,7 @@ struct llm_graph_params {
             cvec  == other.cvec  &&
             loras == other.loras &&
             cross == other.cross &&
+            kv_attention_table_epoch == other.kv_attention_table_epoch &&
             (tree_parent_ids != nullptr) == (other.tree_parent_ids != nullptr);
     }
 };
