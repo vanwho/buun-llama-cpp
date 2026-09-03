@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "01",
-  "current_task": "01-02",
-  "last_updated_utc": "2026-09-03T05:58:02+00:00",
+  "current_task": "01-03",
+  "last_updated_utc": "2026-09-03T06:02:05+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -126,13 +126,13 @@
       "cluster": "01a-page-core",
       "title": "Implement pure page identity and residency table",
       "packet": "docs/execution/tasks/01-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "01-01"
       ],
-      "commit": null
+      "commit": "f02add48e012527371e4626e2411f4cf1f041f8d"
     },
     {
       "id": "01-03",

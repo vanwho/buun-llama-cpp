@@ -50,3 +50,15 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-01-01`
 - Commit at update: `175ec305f`
 - Summary: Froze selective-attention semantics, retrieval/retention boundary, lifecycle ownership, fail-closed scope, and telemetry contract in design/SEMANTICS.md; validation and diff checks passed.
+
+## 2026-09-03T06:01:45+00:00 — 01-02 — in_progress
+
+- Branch: `codex/task-01-02`
+- Commit at update: `65180956d`
+- Summary: Task started
+
+## 2026-09-03T06:02:01+00:00 — 01-02 — done
+
+- Branch: `codex/task-01-02`
+- Commit at update: `65180956d`
+- Summary: Added and tested CPU-only llama_kv page identity, checked forward/reverse residency uniqueness, immutable snapshots, and generation-checked publish/rollback.
