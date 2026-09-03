@@ -181,6 +181,8 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     target_include_directories(test-cache-accounting PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
     llama_build_and_test(test-cache-budget.cpp)
+    llama_build_and_test(test-kv-policy.cpp)
+    target_include_directories(test-kv-policy PRIVATE ${PROJECT_SOURCE_DIR}/src)
     target_include_directories(test-cache-budget PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
     llama_build_and_test(test-cache-authority.cpp)

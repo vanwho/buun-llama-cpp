@@ -7,9 +7,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "01",
-  "current_task": "01-04",
-  "last_updated_utc": "2026-09-03T06:05:29+00:00",
+  "current_phase": "02",
+  "current_task": "02-01",
+  "last_updated_utc": "2026-09-03T06:07:52+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -154,14 +154,14 @@
       "cluster": "01b-budget-policy",
       "title": "Implement pure retrieval and retention policy replay",
       "packet": "docs/execution/tasks/01-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "01-02",
         "01-03"
       ],
-      "commit": null
+      "commit": "4c8975ddf80e9299cc44a36f2182542fa992eaab"
     },
     {
       "id": "02-01",
