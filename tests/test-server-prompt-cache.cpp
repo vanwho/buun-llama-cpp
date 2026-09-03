@@ -44,6 +44,18 @@ server_task idle_capture_test_task(int id) {
     return task;
 }
 
+void test_slot_pager_lifecycle_generation() {
+    const auto result = server_slot_pager_lifecycle_for_test();
+    CHECK(result.single_slot_authority);
+    CHECK(result.selective_multi_slot_rejected);
+    CHECK(result.observe_multi_slot_unchanged);
+    CHECK(result.generation_minted_before_completion);
+    CHECK(result.stale_completion_rejected);
+    CHECK(result.current_completion_accepted);
+    CHECK(result.cancelled_completion_rejected);
+    CHECK(result.generation_rollover_safe);
+}
+
 void test_idle_capture_session_cancellation() {
     {
         server_queue queue;
@@ -5380,6 +5392,7 @@ int main(int argc, char ** argv) {
         return failures == 0 ? 0 : 1;
     }
     test_lifecycle_full_cache_rotates();
+    test_slot_pager_lifecycle_generation();
     test_idle_capture_session_cancellation();
     test_idle_capture_refuses_active_queue_yield();
     test_queue_yield_work_exception_precedes_callback_exception();

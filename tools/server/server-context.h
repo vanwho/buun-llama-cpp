@@ -30,6 +30,23 @@ server_speculative_decode_terminal_resolve(
     bool selected_exception,
     bool speculative_ok) noexcept;
 
+// The page authority is deliberately single-slot until its multi-sequence
+// accounting and publication proof are complete.  The off/observe paths do
+// not acquire that authority and therefore retain ordinary multi-slot use.
+struct server_slot_pager_lifecycle_test_result {
+    bool single_slot_authority = false;
+    bool selective_multi_slot_rejected = false;
+    bool observe_multi_slot_unchanged = false;
+    bool generation_minted_before_completion = false;
+    bool stale_completion_rejected = false;
+    bool current_completion_accepted = false;
+    bool cancelled_completion_rejected = false;
+    bool generation_rollover_safe = false;
+};
+
+server_slot_pager_lifecycle_test_result
+server_slot_pager_lifecycle_for_test();
+
 struct server_committed_decode_reset_test_result {
     bool processing_prompt_cleared = false;
     bool processing_family_cleared = false;

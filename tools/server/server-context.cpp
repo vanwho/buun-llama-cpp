@@ -1276,6 +1276,80 @@ server_speculative_decode_terminal_resolve(
     return server_speculative_decode_terminal::success;
 }
 
+namespace {
+
+// Pager authority is intentionally narrower than ordinary VBR/prompt-cache
+// support. Whole-artifact prompt caching may remain multi-slot; selective
+// page residency cannot claim that scope until per-slot accounting and page
+// publication are independently proven.
+bool server_slot_pager_authority_supported(
+        bool selective, int32_t n_parallel) noexcept {
+    return !selective || n_parallel == 1;
+}
+
+bool server_slot_session_generation_next(
+        uint64_t & next, uint64_t & output) noexcept {
+    if (next == 0) {
+        return false;
+    }
+    output = next;
+    next = next == UINT64_MAX ? 1 : next + 1;
+    return true;
+}
+
+bool server_slot_page_completion_current(
+        uint64_t candidate_generation,
+        uint64_t current_generation,
+        bool cancelled) noexcept {
+    return !cancelled && candidate_generation != 0 &&
+        candidate_generation == current_generation;
+}
+
+} // namespace
+
+server_slot_pager_lifecycle_test_result
+server_slot_pager_lifecycle_for_test() {
+    server_slot_pager_lifecycle_test_result result;
+    result.single_slot_authority =
+        server_slot_pager_authority_supported(true, 1);
+    result.selective_multi_slot_rejected =
+        !server_slot_pager_authority_supported(true, 2);
+    result.observe_multi_slot_unchanged =
+        server_slot_pager_authority_supported(false, 2);
+
+    uint64_t next = 1;
+    uint64_t old_generation = 0;
+    uint64_t new_generation = 0;
+    const bool old_minted = server_slot_session_generation_next(
+        next, old_generation);
+    const bool new_minted = server_slot_session_generation_next(
+        next, new_generation);
+    result.generation_minted_before_completion = old_minted && new_minted &&
+        old_generation != new_generation && old_generation != 0 &&
+        new_generation != 0;
+    result.stale_completion_rejected =
+        !server_slot_page_completion_current(
+            old_generation, new_generation, false);
+    result.current_completion_accepted =
+        server_slot_page_completion_current(
+            new_generation, new_generation, false);
+    result.cancelled_completion_rejected =
+        !server_slot_page_completion_current(
+            new_generation, new_generation, true);
+
+    next = UINT64_MAX;
+    uint64_t rollover_generation = 0;
+    uint64_t wrapped_generation = 0;
+    const bool rollover = server_slot_session_generation_next(
+        next, rollover_generation);
+    const bool wrapped = server_slot_session_generation_next(
+        next, wrapped_generation);
+    result.generation_rollover_safe = rollover && wrapped &&
+        rollover_generation == UINT64_MAX && wrapped_generation == 1 &&
+        next == 2;
+    return result;
+}
+
 struct server_slot; // forward declaration
 
 struct server_batch {
@@ -1547,6 +1621,10 @@ struct server_slot {
     common_cache_plan_destruction_reason checkpoint_thinning_refusal =
         common_cache_plan_destruction_reason::none;
     std::array<uint8_t, 32> vbr_idle_capture_attempt_identity = {};
+    // This request/session generation is deliberately separate from
+    // prompt.sequence_epoch: prompt lineage survives valid reuse, while an
+    // asynchronous completion must never cross a slot reuse boundary.
+    uint64_t slot_session_generation = 0;
     int64_t vbr_idle_capture_retry_after_ms = 0;
     bool vbr_idle_capture_terminal = false;
     // Admission is frontier-specific. Stateful sources can expose several
@@ -3072,6 +3150,12 @@ struct server_slot {
             }},
         };
 
+        if (!only_metrics && cache_debug_observability) {
+            res["lifecycle"] = json {
+                {"session_generation", slot_session_generation},
+            };
+        }
+
         // live effective KV bits/value (moves under dynamic VBR); pollable via GET /slots
         if (ctx_tgt != nullptr) {
             const double kv_bpv = llama_memory_kv_bpv(llama_get_memory(ctx_tgt));
@@ -3572,6 +3656,7 @@ private:
     // logits companion to the exact model/execution configuration.
     server_slot_runtime_identity slot_file_runtime_identity;
     uint64_t frontier_next_sequence_epoch = 1;
+    uint64_t next_slot_session_generation = 1;
     uint64_t frontier_ratchet_threshold = 1024;
 
     // Cache authority substrate: ledger, coordinator, leases, retention, and destruction.
@@ -3643,6 +3728,7 @@ private:
         bool stemmed = false;
         bool prepressure = false;
         bool active_prompt_frontier = false;
+        uint64_t slot_session_generation = 0;
         uint64_t selected_tokens = 0;
         server_prompt_cache_vbr_publication_metadata publication;
     };
@@ -3746,6 +3832,7 @@ private:
                 ctx_tgt,
                 ctx_dft.get(),
                 ctx_dft_shared.get(),
+                ctx_mtp.get(),
             };
             for (size_t i_ctx = 0; i_ctx < std::size(contexts); ++i_ctx) {
                 const llama_context * ctx = contexts[i_ctx];
@@ -3877,6 +3964,7 @@ private:
                 ctx_tgt,
                 ctx_dft.get(),
                 ctx_dft_shared.get(),
+                ctx_mtp.get(),
             };
             for (size_t i_ctx = 0; i_ctx < std::size(contexts); ++i_ctx) {
                 const llama_context * ctx = contexts[i_ctx];
@@ -5122,6 +5210,16 @@ private:
         }
     }
 
+    bool mint_slot_session_generation(server_slot & slot) noexcept {
+        uint64_t generation = 0;
+        if (!server_slot_session_generation_next(
+                next_slot_session_generation, generation)) {
+            return false;
+        }
+        slot.slot_session_generation = generation;
+        return true;
+    }
+
     uint64_t ensure_frontier_sequence_epoch(server_prompt & prompt) {
         if (prompt.sequence_epoch == 0) {
             GGML_ASSERT(frontier_next_sequence_epoch != 0);
@@ -5299,6 +5397,17 @@ private:
     const slot_prompt_admission_geometry * prompt_admission_geometry_for_test =
         nullptr;
     uint64_t prompt_selection_calls_for_test = 0;
+
+    void terminate() noexcept {
+        // server_queue::terminate() only changes queue state and cancels the
+        // shared session while holding its mutex. Join the bounded transfer
+        // after that lock is released so teardown cannot block a queue lock.
+        queue_tasks.terminate();
+        if (vbr_idle_exact_capture) {
+            vbr_idle_exact_capture->session.cancel();
+            (void) finish_idle_exact_vbr_capture(false);
+        }
+    }
 
     // speculative-context ↔ mmproj GPU swap state
     bool mmproj_gpu_swap = false;
@@ -8653,8 +8762,8 @@ private:
         queue_tasks.on_new_task([this](server_task && task, bool is_yielding) {
             // Task arrival has already cancelled the shared idle-capture
             // session. Drain the bounded worker before any decode can mutate
-            // its source; an unpublished private build is simply abandoned.
-            (void) finish_idle_exact_vbr_capture(true, true);
+            // its source; the private transfer is never publishable now.
+            (void) finish_idle_exact_vbr_capture(false, true);
             return process_single_task(std::move(task), is_yielding);
         });
         queue_tasks.on_update_slots([this]() {
@@ -11035,6 +11144,14 @@ private:
             return false;
         }
 
+        // Mint before restore or any subsequent decode can publish page or
+        // artifact state. The prompt's semantic sequence epoch intentionally
+        // remains unchanged for a valid same-prefix reuse.
+        if (!mint_slot_session_generation(slot)) {
+            send_error(task, "Unable to allocate a request generation", ERROR_TYPE_SERVER);
+            return false;
+        }
+
         SLT_DBG(slot, "launching slot : %s\n", safe_json_to_str(slot.to_json()).c_str());
 
         // initialize samplers
@@ -12923,6 +13040,17 @@ private:
             source.vbr_idle_capture_retry_after_ms =
                 terminal ? 0 : ggml_time_ms() + 5000;
         };
+        const int32_t source_id = pending->candidate.slot_id;
+        if (source_id < 0 || size_t(source_id) >= slots.size() ||
+            slots[size_t(source_id)].id != source_id ||
+            !server_slot_page_completion_current(
+                pending->candidate.slot_session_generation,
+                slots[size_t(source_id)].slot_session_generation,
+                false)) {
+            trace_terminal("refused", "session_generation_changed");
+            mark_retry();
+            return reset_pending(0);
+        }
         if (!allow_publish) {
             trace_terminal("abandon", "publication_disabled");
             mark_retry();
@@ -13235,6 +13363,7 @@ private:
             bool refresh = false;
             bool stem_requested = false;
             bool stemmed = false;
+            uint64_t slot_session_generation = 0;
             uint64_t selected_tokens = 0;
             server_prompt_cache_vbr_publication_metadata publication;
         };
@@ -13839,6 +13968,7 @@ private:
                     representation_changed,
                     stem_retry || checkpoint_stem || prompt_boundary_stem,
                     checkpoint_stem || prompt_boundary_stem,
+                    idle.slot_session_generation,
                     checkpoint_stem
                         ? uint64_t(checkpoint_frontier->n_tokens)
                         : prompt_boundary_stem
@@ -14219,6 +14349,8 @@ private:
             background->candidate.stem_requested =
                 candidate.stem_requested;
             background->candidate.stemmed = candidate.stemmed;
+            background->candidate.slot_session_generation =
+                candidate.slot_session_generation;
             background->candidate.prepressure = readiness_only;
             background->candidate.active_prompt_frontier =
                 vbr_prompt_boundary_capture_slot == candidate.slot->id;
@@ -15761,6 +15893,14 @@ private:
                             terminal(server_vbr_artifact_import_status::unavailable);
                             break;
                         }
+                        // Imports replace an empty slot without entering the
+                        // normal completion launch path. Mint before the
+                        // store can publish the restored target and fence
+                        // any prior slot generation.
+                        if (!mint_slot_session_generation(*slot)) {
+                            terminal(server_vbr_artifact_import_status::internal_error);
+                            break;
+                        }
 
                         struct import_publish_state {
                             server_slot * slot = nullptr;
@@ -16015,6 +16155,14 @@ private:
                                 restored_token_digest)) {
                             throw std::runtime_error(
                                 "Unable to authenticate restored token identity");
+                        }
+                        // A slot-file restore replaces the logical contents
+                        // of an idle slot without going through a completion
+                        // launch. Fence any completion prepared for the old
+                        // contents before installing the new target state.
+                        if (!mint_slot_session_generation(*slot)) {
+                            throw std::runtime_error(
+                                "Unable to allocate a request generation");
                         }
                         if (!legacy) {
                             envelope.status =
@@ -21712,7 +21860,7 @@ void server_context::start_loop() {
 }
 
 void server_context::terminate() {
-    impl->queue_tasks.terminate();
+    impl->terminate();
 }
 
 llama_context * server_context::get_llama_context() const {
