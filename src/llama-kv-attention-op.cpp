@@ -7,7 +7,47 @@
 struct llama_kv_attention_operator_metadata::state {
     llama_kv_attention_operator_params params;
     llama_kv_attention_view view;
+    uint64_t content_key = 0;
 };
+
+static void attention_key_mix(uint64_t & key, uint64_t value) noexcept {
+    key ^= value;
+    key *= 1099511628211ull;
+}
+
+static uint64_t attention_content_key(
+        const llama_kv_attention_view & view,
+        const llama_kv_attention_operator_params & params) noexcept {
+    uint64_t key = 1469598103934665603ull;
+    attention_key_mix(key, view.graph_epoch());
+    attention_key_mix(key, uint64_t(params.type_k));
+    attention_key_mix(key, uint64_t(params.type_v));
+    attention_key_mix(key, params.head_dim_k);
+    attention_key_mix(key, params.head_dim_v);
+    attention_key_mix(key, params.n_head_q);
+    attention_key_mix(key, params.n_head_kv);
+    attention_key_mix(key, params.n_query_tokens);
+    attention_key_mix(key, params.n_batch);
+    attention_key_mix(key, params.causal ? 1 : 0);
+    for (const auto & page : view.pages()) {
+        attention_key_mix(key, page.logical_page);
+        attention_key_mix(key, page.source_physical_slot);
+        attention_key_mix(key, page.compact_row_begin);
+        attention_key_mix(key, page.row_count);
+        attention_key_mix(key, uint64_t(page.native_position_begin));
+        attention_key_mix(key, uint64_t(page.native_position_end));
+    }
+    for (const llama_pos position : view.native_positions()) {
+        attention_key_mix(key, uint64_t(position));
+    }
+    for (const uint8_t valid : view.native_mask()) {
+        attention_key_mix(key, valid);
+    }
+    for (const llama_pos position : params.query_positions) {
+        attention_key_mix(key, uint64_t(position));
+    }
+    return key == 0 ? 1 : key;
+}
 
 const char * llama_kv_attention_operator_status_name(
         llama_kv_attention_operator_status status) noexcept {
@@ -113,6 +153,7 @@ llama_kv_attention_operator_metadata llama_kv_attention_operator_metadata::build
         auto state = std::make_shared<llama_kv_attention_operator_metadata::state>();
         state->params = params;
         state->view = view;
+        state->content_key = attention_content_key(view, params);
         status = llama_kv_attention_operator_status::ok;
         return llama_kv_attention_operator_metadata(std::move(state));
     } catch (const std::bad_alloc &) {
@@ -131,6 +172,10 @@ llama_kv_attention_operator_mode llama_kv_attention_operator_metadata::mode() co
 
 uint64_t llama_kv_attention_operator_metadata::table_epoch() const noexcept {
     return state_ ? state_->view.graph_epoch() : 0;
+}
+
+uint64_t llama_kv_attention_operator_metadata::graph_content_key() const noexcept {
+    return state_ ? state_->content_key : 0;
 }
 
 uint32_t llama_kv_attention_operator_metadata::get_n_kv() const noexcept {
@@ -171,6 +216,10 @@ const std::vector<uint8_t> & llama_kv_attention_operator_metadata::native_mask()
 const std::vector<llama_pos> & llama_kv_attention_operator_metadata::query_positions() const noexcept {
     static const std::vector<llama_pos> empty;
     return state_ ? state_->params.query_positions : empty;
+}
+
+llama_kv_attention_view::graph_fence llama_kv_attention_operator_metadata::acquire_graph_fence() const noexcept {
+    return state_ ? state_->view.acquire_graph_fence() : llama_kv_attention_view::graph_fence{};
 }
 
 llama_kv_attention_backend_status llama_kv_attention_operator_check_backend(

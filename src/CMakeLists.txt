@@ -31,6 +31,7 @@ add_library(llama
             llama-kv-fixed-window.cpp
             llama-kv-attention-view.cpp
             llama-kv-attention-op.cpp
+            llama-kv-attention-execution.cpp
             llama-kv-residency.cpp
             llama-kv-residency-transfer.cpp
             llama-kv-residency-transaction.cpp

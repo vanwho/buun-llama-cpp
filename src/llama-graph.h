@@ -4,6 +4,8 @@
 #include "llama-batch.h"
 #include "llama-hparams.h"
 #include "llama-adapter.h"
+#include "llama-kv-attention-op.h"
+#include "llama-kv-attention-execution.h"
 
 #include <cstdint>
 #include <vector>
@@ -897,6 +899,11 @@ struct llm_graph_params {
     // epoch participates in topology reuse; zero preserves the dense/off
     // path and adds no page-table input.
     uint64_t kv_attention_table_epoch = 0;
+    uint64_t kv_attention_content_key = 0;
+    uint64_t kv_attention_representation_epoch = 0;
+    uint64_t kv_attention_shape_epoch = 0;
+    llama_kv_attention_execution_route kv_attention_route = llama_kv_attention_execution_route::dense;
+    llama_kv_attention_operator_metadata kv_attention_metadata;
 
     // return true if the "other" params would result in a graph with the same topology as with the current params
     //   having the same topology allows us to reuse the graph in some cases
@@ -973,6 +980,10 @@ struct llm_graph_params {
             loras == other.loras &&
             cross == other.cross &&
             kv_attention_table_epoch == other.kv_attention_table_epoch &&
+            kv_attention_content_key == other.kv_attention_content_key &&
+            kv_attention_representation_epoch == other.kv_attention_representation_epoch &&
+            kv_attention_shape_epoch == other.kv_attention_shape_epoch &&
+            kv_attention_route == other.kv_attention_route &&
             (tree_parent_ids != nullptr) == (other.tree_parent_ids != nullptr);
     }
 };
@@ -1069,6 +1080,7 @@ private:
     // memory context's VBR tier-flip epoch at build; can_reuse fences on it (in-place tier
     // flips rewrite the cache tensors' type/strides under this graph's baked views)
     uint64_t vbr_epoch = 0;
+    llama_kv_attention_view::graph_fence kv_attention_fence;
 
     // env: LLAMA_GRAPH_RESULT_DEBUG
     int debug = 0;

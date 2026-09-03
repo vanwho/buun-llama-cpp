@@ -1586,6 +1586,7 @@ int64_t llm_graph_result::get_max_nodes() const {
 }
 
 void llm_graph_result::reset() {
+    kv_attention_fence.release();
     t_inp_tokens        = nullptr;
     t_inp_embd          = nullptr;
     t_logits            = nullptr;
@@ -1780,7 +1781,12 @@ void llm_graph_result::add_fused_node(llm_graph_fused_node result) {
 }
 
 void llm_graph_result::set_params(const llm_graph_params & params) {
+    kv_attention_fence.release();
     this->params = params;
+
+    if (params.kv_attention_metadata.enabled()) {
+        kv_attention_fence = params.kv_attention_metadata.acquire_graph_fence();
+    }
 
     vbr_epoch = params.mctx != nullptr ? params.mctx->get_vbr_epoch() : 0;
 }

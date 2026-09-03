@@ -1116,6 +1116,12 @@ void llama_context::synchronize() {
 
     ggml_backend_sched_synchronize(sched.get());
 
+    // The scheduler fence is the completion boundary for all selected views,
+    // including an older table that coexisted with a rebuilt graph.
+    while (kv_attention_execution.in_flight_graphs() != 0) {
+        kv_attention_execution.complete_one_graph();
+    }
+
     // The scheduler fence above is the per-family success boundary for the
     // deferred append/reuse extents — promote submitted -> committed here. No new fences.
     if (memory) {
@@ -1155,6 +1161,25 @@ const llama_model & llama_context::get_model() const {
 
 const llama_cparams & llama_context::get_cparams() const {
     return cparams;
+}
+
+void llama_context::set_kv_attention_mode(llama_kv_attention_execution_mode mode) noexcept {
+    kv_attention_execution.set_mode(mode);
+}
+
+llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
+        const llama_kv_attention_operator_metadata & metadata,
+        llama_kv_attention_execution_phase phase,
+        uint64_t representation_epoch,
+        uint64_t shape_epoch,
+        bool direct_capable,
+        const llama_kv_attention_scratch_request & scratch) {
+    return kv_attention_execution.prepare(metadata, phase, representation_epoch,
+            shape_epoch, direct_capable, scratch);
+}
+
+void llama_context::complete_kv_attention_graph() noexcept {
+    kv_attention_execution.complete_one_graph();
 }
 
 ggml_backend_sched_t llama_context::get_sched() const {
@@ -5616,6 +5641,12 @@ llm_graph_params llama_context::graph_params(
         /*.n_outputs   =*/ n_outputs,
         /*.cb          =*/ graph_get_cb(),
         /*.res         =*/ res,
+        /*.kv_attention_table_epoch =*/ kv_attention_execution.table_epoch(),
+        /*.kv_attention_content_key =*/ kv_attention_execution.metadata().graph_content_key(),
+        /*.kv_attention_representation_epoch =*/ kv_attention_execution.representation_epoch(),
+        /*.kv_attention_shape_epoch =*/ kv_attention_execution.shape_epoch(),
+        /*.kv_attention_route =*/ kv_attention_execution.route(),
+        /*.kv_attention_metadata =*/ kv_attention_execution.metadata(),
     };
 }
 
