@@ -117,3 +117,24 @@ LLAMA_SERVER_BIN_PATH=../../../cmake-build-release/bin/llama-server python bench
               --max-prompt-tokens 256 \
               --max-tokens 256
 ```
+
+### Pager profile adapter
+
+`run-pager-profile-benchmark.sh` preserves the canonical profile runner and
+adds a joinable pager/corpus envelope to its existing artifacts. It supports
+the historical short and large runs plus `stable-focus`, `cold-needles`,
+`focus-shifts`, and `churn` variants:
+
+```shell
+tools/server/bench/run-pager-profile-benchmark.sh fast short results/pager-short
+tools/server/bench/run-pager-profile-benchmark.sh fast cold-needles results/pager-cold
+tools/server/bench/run-pager-profile-benchmark.sh fast short results/pager-dry --dry-run
+```
+
+The adapter never claims pager counters that the current server does not
+publish. Such fields are `null` and marked `not_configured`; configured values
+may be supplied through `PAGER_*` environment variables. A live run delegates
+profile activation, clean isolation, interruption summaries, and restoration
+to `run-profile-benchmark.sh`, then records pre/post profile, PID, command,
+health, and running-service snapshots. A failed restoration or post-run health
+check is an error.
