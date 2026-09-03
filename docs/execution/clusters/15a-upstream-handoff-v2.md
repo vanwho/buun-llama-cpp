@@ -7,8 +7,9 @@ live gates pass.
 
 Carry forward:
 
-- fetch upstream and re-read `CONTRIBUTING.md`/`AGENTS.md`; do not overwrite unrelated work or silently
-  resolve semantic conflicts during rebase;
+- fetch upstream and re-read `CONTRIBUTING.md`/`AGENTS.md`; task agents do not perform Git mutations. If
+  the integration base moved, an authorized outer Git owner must supply a clean updated branch before
+  source-level reconciliation continues;
 - partition generic draft placement, dynamic sizing/accounting, page core, host/CUDA residency, Turbo4
   attention, routing/telemetry/policy, Qwen/server lifecycle, exact mode, tests, and docs into dependency-
   ordered review slices;
