@@ -144,3 +144,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-05-04`
 - Commit at update: `a41f24436`
 - Summary: Centralized speculative rollback frontiers across target and MTP state, made malformed carry restore atomic, hardened child clone rollback, gated MTP-primary setup to qwen35, and added diagnostics/tests.
+
+## 2026-09-03T11:05:59+00:00 — 06-01 — done
+
+- Branch: `codex/task-06-01`
+- Commit at update: `5d9584c9c`
+- Summary: Added the CPU/fake-backend correctness matrix with explicit feature-off coverage and deferred CUDA/model-backed rows; deterministic CPU and server lifecycle checks passed.

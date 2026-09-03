@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "06",
-  "current_task": "06-01",
-  "last_updated_utc": "2026-09-03T10:59:39+00:00",
+  "current_task": "06-02",
+  "last_updated_utc": "2026-09-03T11:06:21+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -412,13 +412,13 @@
       "cluster": "06a-correctness",
       "title": "Complete CPU and fake-backend regression matrix",
       "packet": "docs/execution/tasks/06-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "05-04"
       ],
-      "commit": null
+      "commit": "5d9584c9c1262372701bedda19f4e46435bf8f4d"
     },
     {
       "id": "06-02",
