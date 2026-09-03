@@ -80,3 +80,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-02-03`
 - Commit at update: `53d1f37c1`
 - Summary: Added bounded KV residency transfer plans and separate backend pool with coalesced D2H/H2D runs, pre-submit slot/event/catalog admission, async cancellation-safe VBR seams, generation rechecks, clean eviction, fixed counters, and fake-backend failure tests.
+
+## 2026-09-03T07:28:11+00:00 — 02-04 — done
+
+- Branch: `codex/task-02-04`
+- Commit at update: `b50a11691`
+- Summary: Added failure-atomic KV residency transactions with explicit snapshot/plan/reserve/pin/reseal/drop/load/fence/recheck/publish ordering, reversible victim rollback, generation and epoch rejection, dirty/all-pinned/source failure handling, and deterministic phase fault tests.
