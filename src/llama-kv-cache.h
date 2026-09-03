@@ -176,6 +176,7 @@ public:
     ~llama_kv_cache(); // frees the VBR VMM pool (if any); = default otherwise
 
     void set_kv_pager(llama_kv_pager * pager) override;
+    void seal_kv_pager_pages() override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
 

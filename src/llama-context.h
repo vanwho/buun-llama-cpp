@@ -563,6 +563,7 @@ private:
     void resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs);
     void init_kv_pager();
     void validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const;
+    uint32_t prefill_ubatch_size(uint32_t requested) const noexcept;
     llama_kv_attention_execution_decision prepare_kv_attention_graph(
             const llama_ubatch & ubatch,
             llama_memory_context_i * mctx,

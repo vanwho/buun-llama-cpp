@@ -71,6 +71,14 @@ static void test_prefill_admission() {
     assert(admission.begin_decode() == llama_kv_attention_execution_status::ok);
     assert(admission.decode_ready() && admission.phase() == llama_kv_attention_execution_phase::decode);
     assert(admission.page_count() == 2 && admission.resident_rows() == 300);
+
+    // The live prefill scheduler uses the physical window, not the logical
+    // context, as its upper bound. A zero window preserves the unbounded
+    // feature-off/observe convention.
+    assert(llama_kv_attention_prefill_chunk_size(4096, 2) == 512);
+    assert(llama_kv_attention_prefill_chunk_size(4096, 0) == 4096);
+    assert(llama_kv_attention_prefill_chunk_size(4096, 2, 128) == 256);
+    assert(llama_kv_attention_prefill_chunk_size(0, 2) == 0);
 }
 
 static void test_routes_epochs_and_fences() {
@@ -180,6 +188,13 @@ static void test_fallbacks_and_graph_key() {
     ++b.kv_attention_content_key;
     assert(!a.allow_reuse(b));
     execution.complete_one_graph();
+
+    llama_kv_attention_execution exact(llama_kv_attention_execution_mode::exact);
+    const auto exact_route = exact.prepare({},
+            llama_kv_attention_execution_phase::prefill, 0, 1, false, scratch);
+    assert(exact_route.status == llama_kv_attention_execution_status::ok);
+    assert(exact_route.route == llama_kv_attention_execution_route::exact_reference);
+    exact.complete_one_graph();
 }
 
 static void test_epoch_matrix_and_lifetime_metrics() {

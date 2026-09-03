@@ -44,6 +44,14 @@ public:
 
     ~llama_memory_hybrid_iswa() = default;
 
+    void set_kv_pager(llama_kv_pager * pager) override {
+        mem_attn->set_kv_pager(pager);
+    }
+
+    void seal_kv_pager_pages() override {
+        mem_attn->seal_kv_pager_pages();
+    }
+
     //
     // llama_memory_i
     //

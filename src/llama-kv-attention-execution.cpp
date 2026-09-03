@@ -87,6 +87,18 @@ size_t llama_kv_attention_scratch_request::required_bytes() const noexcept {
     return size_t(rows) * bytes_per_row;
 }
 
+uint32_t llama_kv_attention_prefill_chunk_size(
+        uint32_t configured_ubatch,
+        uint32_t physical_page_count,
+        uint32_t page_tokens) noexcept {
+    if (configured_ubatch == 0 || physical_page_count == 0 || page_tokens == 0) {
+        return configured_ubatch;
+    }
+    const uint64_t rows = uint64_t(physical_page_count) * page_tokens;
+    return uint32_t(std::min<uint64_t>(configured_ubatch,
+            std::min<uint64_t>(rows, std::numeric_limits<uint32_t>::max())));
+}
+
 llama_kv_attention_execution_status llama_kv_attention_prefill_admission::append(
         uint32_t logical_page, uint32_t row_count) noexcept {
     if (phase_ != llama_kv_attention_execution_phase::prefill || row_count == 0 ||
