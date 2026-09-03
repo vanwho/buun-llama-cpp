@@ -6,10 +6,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
+  "status": "in_progress",
   "current_phase": "00",
   "current_task": "00-03",
-  "last_updated_utc": "2026-09-03T04:40:01+00:00",
+  "last_updated_utc": "2026-09-03T04:40:04+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -67,7 +67,7 @@
       "cluster": "00b-baseline-draft",
       "title": "Reproduce canonical benchmark baselines",
       "packet": "docs/execution/tasks/00-03.md",
-      "status": "todo",
+      "status": "in_progress",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
