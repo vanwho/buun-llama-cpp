@@ -30,6 +30,7 @@ add_library(llama
             llama-kv-cache-dsv4.cpp
             llama-kv-residency.cpp
             llama-kv-residency-transfer.cpp
+            llama-kv-residency-transaction.cpp
             llama-memory.cpp
             llama-memory-hybrid.cpp
             llama-memory-hybrid-iswa.cpp

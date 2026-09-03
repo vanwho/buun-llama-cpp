@@ -1,5 +1,6 @@
 #include "../src/llama-kv-residency.h"
 #include "../src/llama-kv-residency-transfer.h"
+#include "../src/llama-kv-residency-transaction.h"
 
 #include <cassert>
 #include <cstring>
@@ -235,6 +236,69 @@ struct fake_transfer_backend {
     }
 };
 
+struct fake_residency_transaction {
+    llama_kv_residency_pool * pool = nullptr;
+    llama_kv_residency_transaction_phase fail_phase =
+        llama_kv_residency_transaction_phase::_count;
+    uint32_t pins = 0;
+    uint32_t unpins = 0;
+    uint32_t drops = 0;
+    uint32_t restores = 0;
+    uint32_t retires = 0;
+    bool stale = false;
+
+    static bool phase(
+            void * opaque,
+            llama_kv_residency_transaction_phase value) noexcept {
+        return static_cast<fake_residency_transaction *>(opaque)->fail_phase != value;
+    }
+
+    static bool pin(void * opaque, const llama_kv_page_id &) noexcept {
+        ++static_cast<fake_residency_transaction *>(opaque)->pins;
+        return true;
+    }
+
+    static void unpin(void * opaque, const llama_kv_page_id &) noexcept {
+        ++static_cast<fake_residency_transaction *>(opaque)->unpins;
+    }
+
+    static bool drop_clean(
+            void * opaque, const llama_kv_page_record & page) noexcept {
+        auto & self = *static_cast<fake_residency_transaction *>(opaque);
+        if (self.pool) {
+            bool dropped = false;
+            if (self.pool->drop_logical_page(page.id, dropped) !=
+                    llama_kv_residency_pool_status::ok || !dropped) {
+                return false;
+            }
+        }
+        ++self.drops;
+        return true;
+    }
+
+    static bool restore_clean(
+            void * opaque, const llama_kv_page_record &) noexcept {
+        ++static_cast<fake_residency_transaction *>(opaque)->restores;
+        return true;
+    }
+
+    static void retire(void * opaque, const llama_kv_page_record &) noexcept {
+        ++static_cast<fake_residency_transaction *>(opaque)->retires;
+    }
+
+    static bool has_clean_host(
+            void *, const llama_kv_page_id &, uint64_t bytes) noexcept {
+        return bytes != 0;
+    }
+
+    static bool recheck(
+            void * opaque, uint64_t base_epoch,
+            const std::vector<llama_kv_page_record> & desired) noexcept {
+        const auto & self = *static_cast<fake_residency_transaction *>(opaque);
+        return !self.stale && base_epoch != 0 && desired.size() <= 1;
+    }
+};
+
 static llama_kv_residency_transfer_page transfer_page(
         uint32_t slot, uint64_t epoch = 11) {
     llama_kv_residency_transfer_page result;
@@ -244,6 +308,13 @@ static llama_kv_residency_transfer_page transfer_page(
     result.runs.push_back({
         UINT32_MAX, 0, 0, 0, 0, 8, 1, 0, 0,
     });
+    return result;
+}
+
+static llama_kv_residency_transfer_page transfer_page_for(
+        uint32_t logical, uint32_t slot, uint64_t epoch = 11) {
+    auto result = transfer_page(slot, epoch);
+    result.page = page(logical);
     return result;
 }
 
@@ -408,11 +479,261 @@ static void test_transfer_rollback_and_stale_completion() {
     assert(pool->mapped_slots() == 0 && fake.pending.empty());
 }
 
+static llama_kv_residency_transaction_hooks transaction_hooks(
+        fake_residency_transaction & fake) {
+    llama_kv_residency_transaction_hooks hooks;
+    hooks.context = &fake;
+    hooks.phase = fake_residency_transaction::phase;
+    hooks.pin = fake_residency_transaction::pin;
+    hooks.unpin = fake_residency_transaction::unpin;
+    hooks.drop_clean = fake_residency_transaction::drop_clean;
+    hooks.restore_clean = fake_residency_transaction::restore_clean;
+    hooks.retire = fake_residency_transaction::retire;
+    hooks.has_clean_host = fake_residency_transaction::has_clean_host;
+    hooks.recheck = fake_residency_transaction::recheck;
+    return hooks;
+}
+
+static llama_kv_residency_transaction_result run_transaction(
+        llama_kv_residency_transaction_phase fail_phase,
+        fake_residency_transaction & transaction_fake,
+        fake_transfer_backend & transfer_fake,
+        llama_kv_residency_table & table) {
+    llama_kv_residency_pool_backend backend {
+        &transfer_fake, fake_transfer_backend::reserve_slots,
+        fake_transfer_backend::release_slots, fake_transfer_backend::map_slot,
+        fake_transfer_backend::drop_slot, fake_transfer_backend::issue,
+        fake_transfer_backend::complete, fake_transfer_backend::cancel,
+    };
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create(
+        { 2, 64, 4, 4, 1024 }, backend, pool_status);
+    assert(pool && pool_status == llama_kv_residency_pool_status::ok);
+
+    llama_kv_residency_transfer_plan upload;
+    assert(llama_kv_residency_build_transfer_plan(
+        llama_kv_residency_transfer_direction::h2d_promotion,
+        { transfer_page_for(1, 1, 19) }, 4, {}, upload));
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    assert(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &transfer_fake;
+    transport.host_read = fake_transfer_backend::host_read;
+    transport.recheck = fake_transfer_backend::recheck;
+
+    llama_kv_residency_transaction_request request;
+    request.desired_pages.push_back(resident(1, 1));
+    request.transfers.push_back(upload);
+    request.staging_capacity = 32;
+    transaction_fake.fail_phase = fail_phase;
+    return llama_kv_residency_execute_transaction(
+        table, *pool, request, backend, transport,
+        transaction_hooks(transaction_fake));
+}
+
+static void test_residency_transaction() {
+    llama_kv_residency_table table(2);
+    auto initial = table.begin();
+    assert(table.replace(initial, resident(0, 0)) ==
+        llama_kv_residency_status::ok);
+    assert(table.publish(initial) == llama_kv_residency_status::ok);
+    const auto before = table.snapshot();
+
+    fake_residency_transaction transaction_fake;
+    fake_transfer_backend transfer_fake;
+    auto result = run_transaction(
+        llama_kv_residency_transaction_phase::_count,
+        transaction_fake, transfer_fake, table);
+    assert(result.status == llama_kv_residency_transaction_status::committed);
+    assert(result.published && result.base_epoch == 1 &&
+        result.published_epoch == 2 && result.pinned_pages == 1 &&
+        result.dropped_pages == 1 && result.loaded_pages == 1);
+    assert(transaction_fake.pins == 1 && transaction_fake.unpins == 1 &&
+        transaction_fake.drops == 1 && transaction_fake.restores == 0 &&
+        transaction_fake.retires == 1);
+    assert(table.snapshot().epoch() == 2 && table.snapshot().pages().size() == 1 &&
+        table.snapshot().pages()[0].id == page(1));
+    assert(before.epoch() == 1 && before.pages()[0].id == page(0));
+
+    for (uint8_t raw = uint8_t(llama_kv_residency_transaction_phase::snapshot);
+         raw <= uint8_t(llama_kv_residency_transaction_phase::retire); ++raw) {
+        table = llama_kv_residency_table(2);
+        auto tx = table.begin();
+        assert(table.replace(tx, resident(0, 0)) ==
+            llama_kv_residency_status::ok);
+        assert(table.publish(tx) == llama_kv_residency_status::ok);
+        transaction_fake = {};
+        transfer_fake = {};
+        result = run_transaction(
+            llama_kv_residency_transaction_phase(raw),
+            transaction_fake, transfer_fake, table);
+        assert(!result.published && result.rollback_complete);
+        assert(table.snapshot().epoch() == 1 &&
+            table.snapshot().pages()[0].id == page(0));
+        assert(transaction_fake.pins == transaction_fake.unpins);
+        assert(transaction_fake.drops == transaction_fake.restores);
+    }
+
+    table = llama_kv_residency_table(2);
+    auto dirty_tx = table.begin();
+    auto dirty = resident(0, 0);
+    dirty.dirty = true;
+    assert(table.replace(dirty_tx, dirty) == llama_kv_residency_status::ok);
+    assert(table.publish(dirty_tx) == llama_kv_residency_status::ok);
+    transaction_fake = {};
+    transfer_fake = {};
+    result = run_transaction(
+        llama_kv_residency_transaction_phase::_count,
+        transaction_fake, transfer_fake, table);
+    assert(result.status == llama_kv_residency_transaction_status::dirty_victim);
+    assert(table.snapshot().epoch() == 1 && transfer_fake.pending.empty());
+
+    table = llama_kv_residency_table(2);
+    auto missing_tx = table.begin();
+    auto missing = resident(0, 0);
+    missing.host_valid = false;
+    assert(table.replace(missing_tx, missing) == llama_kv_residency_status::ok);
+    assert(table.publish(missing_tx) == llama_kv_residency_status::ok);
+    transaction_fake = {};
+    transfer_fake = {};
+    result = run_transaction(
+        llama_kv_residency_transaction_phase::_count,
+        transaction_fake, transfer_fake, table);
+    assert(result.status == llama_kv_residency_transaction_status::missing_host_source);
+    assert(table.snapshot().epoch() == 1 && transfer_fake.pending.empty());
+
+    table = llama_kv_residency_table(2);
+    auto stale_table_tx = table.begin();
+    assert(table.replace(stale_table_tx, resident(0, 0)) ==
+        llama_kv_residency_status::ok);
+    assert(table.publish(stale_table_tx) == llama_kv_residency_status::ok);
+    transaction_fake = {};
+    transaction_fake.stale = true;
+    transfer_fake = {};
+    result = run_transaction(
+        llama_kv_residency_transaction_phase::_count,
+        transaction_fake, transfer_fake, table);
+    assert(result.status == llama_kv_residency_transaction_status::stale_epoch);
+    assert(!result.published && result.rollback_complete &&
+        transaction_fake.pins == transaction_fake.unpins);
+
+    table = llama_kv_residency_table(2);
+    auto pinned_tx = table.begin();
+    auto pinned = resident(0, 0);
+    pinned.pin_count = 1;
+    assert(table.replace(pinned_tx, pinned) == llama_kv_residency_status::ok);
+    assert(table.publish(pinned_tx) == llama_kv_residency_status::ok);
+    transaction_fake = {};
+    transfer_fake = {};
+    result = run_transaction(
+        llama_kv_residency_transaction_phase::_count,
+        transaction_fake, transfer_fake, table);
+    assert(result.status == llama_kv_residency_transaction_status::all_pinned);
+    assert(table.snapshot().epoch() == 1 && transfer_fake.pending.empty());
+
+    table = llama_kv_residency_table(2);
+    auto stale_tx = table.begin();
+    assert(table.replace(stale_tx, resident(0, 0)) ==
+        llama_kv_residency_status::ok);
+    assert(table.publish(stale_tx) == llama_kv_residency_status::ok);
+    auto concurrent = table.begin();
+    assert(table.replace(concurrent, resident(0, 0)) ==
+        llama_kv_residency_status::duplicate_logical_page);
+    auto replacement = table.begin();
+    assert(table.erase(replacement, page(0)) == llama_kv_residency_status::ok);
+    assert(table.replace(replacement, resident(0, 1)) ==
+        llama_kv_residency_status::ok);
+    assert(table.publish(replacement) == llama_kv_residency_status::ok);
+    transaction_fake = {};
+    transfer_fake = {};
+    result = run_transaction(
+        llama_kv_residency_transaction_phase::_count,
+        transaction_fake, transfer_fake, table);
+    assert(result.status == llama_kv_residency_transaction_status::committed);
+}
+
+static void test_reseal_before_eviction() {
+    fake_transfer_backend transfer_fake;
+    llama_kv_residency_pool_backend backend {
+        &transfer_fake, fake_transfer_backend::reserve_slots,
+        fake_transfer_backend::release_slots, fake_transfer_backend::map_slot,
+        fake_transfer_backend::drop_slot, fake_transfer_backend::issue,
+        fake_transfer_backend::complete, fake_transfer_backend::cancel,
+    };
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create(
+        { 2, 64, 4, 4, 1024 }, backend, pool_status);
+    assert(pool && pool_status == llama_kv_residency_pool_status::ok);
+
+    llama_kv_residency_transfer_plan upload;
+    assert(llama_kv_residency_build_transfer_plan(
+        llama_kv_residency_transfer_direction::h2d_promotion,
+        { transfer_page(0) }, 4, {}, upload));
+    vbr_h2d_status upload_status;
+    auto upload_ring = vbr_h2d_chunk_ring::create(
+        { {} }, 128, 32, upload_status);
+    assert(upload_ring && upload_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = upload_ring.get();
+    transport.context = &transfer_fake;
+    transport.host_read = fake_transfer_backend::host_read;
+    transport.recheck = fake_transfer_backend::recheck;
+    llama_kv_residency_transfer_claim upload_claim;
+    assert(pool->reserve(upload, 32, {}, upload_claim) ==
+        llama_kv_residency_pool_status::ok);
+    assert(llama_kv_residency_execute_transfer(
+        *pool, upload, upload_claim, backend, transport).status ==
+        llama_kv_residency_pool_status::ok);
+
+    llama_kv_residency_table table(2);
+    auto initial = table.begin();
+    auto dirty = resident(0, 0);
+    dirty.dirty = true;
+    assert(table.replace(initial, dirty) == llama_kv_residency_status::ok);
+    assert(table.publish(initial) == llama_kv_residency_status::ok);
+
+    llama_kv_residency_transfer_plan reseal;
+    assert(llama_kv_residency_build_transfer_plan(
+        llama_kv_residency_transfer_direction::d2h_reseal,
+        { transfer_page(0, 22) }, 4, {}, reseal));
+    vbr_capture_stream_status download_status;
+    auto download_ring = vbr_pinned_chunk_ring::create(
+        { {} }, 128, 32, download_status);
+    assert(download_ring && download_status == vbr_capture_stream_status::ok);
+    transport.download_ring = download_ring.get();
+    transport.host_write = fake_transfer_backend::host_write;
+    llama_kv_residency_catalog_reservation catalog {
+        &transfer_fake, fake_transfer_backend::reserve_catalog,
+        fake_transfer_backend::release_catalog,
+    };
+    llama_kv_residency_transaction_request request;
+    request.transfers.push_back(reseal);
+    request.staging_capacity = 32;
+    request.catalog = catalog;
+    fake_residency_transaction transaction_fake;
+    transaction_fake.pool = pool.get();
+    const auto result = llama_kv_residency_execute_transaction(
+        table, *pool, request, backend, transport,
+        transaction_hooks(transaction_fake));
+    assert(result.status == llama_kv_residency_transaction_status::committed);
+    assert(result.published && result.dropped_pages == 1 &&
+        result.loaded_pages == 0 && transaction_fake.pins == 1 &&
+        transaction_fake.unpins == 1 && transaction_fake.drops == 1);
+    assert(table.snapshot().epoch() == 2 && table.snapshot().pages().empty());
+    assert(pool->mapped_slots() == 0 && transfer_fake.catalog_reserved == 8);
+    assert(transfer_fake.host_bytes ==
+        std::vector<uint8_t>({ 1, 2, 3, 4, 5, 6, 7, 8 }));
+}
+
 int main() {
     test_page_geometry();
     test_table_identity_and_snapshot();
     test_rejection_and_stale_publication();
     test_batched_transfer_pool();
     test_transfer_rollback_and_stale_completion();
+    test_residency_transaction();
+    test_reseal_before_eviction();
     return 0;
 }
