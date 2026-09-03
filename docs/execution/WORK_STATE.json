@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "05",
-  "current_task": "05-01",
-  "last_updated_utc": "2026-09-03T09:47:34+00:00",
+  "current_task": "05-02",
+  "last_updated_utc": "2026-09-03T10:07:14+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -353,13 +353,13 @@
       "cluster": "05a-hybrid-mtp",
       "title": "Make hybrid recurrent and page operations atomic",
       "packet": "docs/execution/tasks/05-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "04-04"
       ],
-      "commit": null
+      "commit": "e801caadb4f64612dd5cd92efac6cdd792d3369f"
     },
     {
       "id": "05-02",
