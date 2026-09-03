@@ -140,6 +140,22 @@ static void test(void) {
         assert(draft.n_outputs_max == 4);
         assert(draft.n_outputs_max_per_seq == 1);
 
+        for (const auto device : {
+                common_speculative_draft_kv_device::AUTO,
+                common_speculative_draft_kv_device::GPU,
+                common_speculative_draft_kv_device::CPU }) {
+            base.speculative.draft.kv_device = device;
+            for (const bool target_no_kv_offload : { false, true }) {
+                base.no_kv_offload = target_no_kv_offload;
+                const auto draft_params = common_base_params_to_speculative(base);
+                const auto draft_cparams = common_context_params_to_llama(draft_params);
+                const auto target_cparams = common_context_params_to_llama(base);
+                const bool expected = common_speculative_draft_kv_offload(device, target_no_kv_offload);
+                assert(draft_cparams.offload_kqv == expected);
+                assert(target_cparams.offload_kqv == !target_no_kv_offload);
+            }
+        }
+
         base.vbr_entry = "t8";
         base.vbr_entry_explicit = true;
         base.vbr_cache_type_k = true;
@@ -469,6 +485,28 @@ static void test(void) {
     argv = {"binary_name", "--spec-draft-n-max", "123"};
     assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_SPECULATIVE));
     assert(params.speculative.draft.n_max == 123);
+
+    for (const auto & device : {"auto", "gpu", "cpu"}) {
+        common_params placement;
+        argv = {"binary_name", "-m", "model.gguf", "--spec-draft-kv-device", device};
+        const bool parsed = common_params_parse(argv.size(), list_str_to_char(argv).data(), placement, LLAMA_EXAMPLE_SPECULATIVE);
+        assert(parsed == (std::string(device) != "gpu" || llama_supports_gpu_offload()));
+        if (parsed) {
+            assert(std::string(common_speculative_draft_kv_device_name(placement.speculative.draft.kv_device)) == device);
+        }
+    }
+    {
+        common_params placement;
+        argv = {"binary_name", "-m", "model.gguf", "--spec-draft-kv-device", "bogus"};
+        assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), placement, LLAMA_EXAMPLE_SPECULATIVE));
+    }
+    for (const auto & type : {"t4", "turbo4", "turbo4_0", "4"}) {
+        common_params turbo4_params;
+        argv = {"binary_name", "-m", "model.gguf", "-ctkd", type, "-ctvd", type};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), turbo4_params, LLAMA_EXAMPLE_SPECULATIVE));
+        assert(turbo4_params.speculative.draft.cache_type_k == GGML_TYPE_TURBO4_0);
+        assert(turbo4_params.speculative.draft.cache_type_v == GGML_TYPE_TURBO4_0);
+    }
     assert(params.speculative.draft.n_max_set);
 
     {
@@ -1137,6 +1175,16 @@ static void test(void) {
     assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), params, LLAMA_EXAMPLE_COMMON));
     assert(params.model.path == "blah.gguf");
     assert(params.cpuparams.n_threads == 1010);
+
+    setenv("LLAMA_ARG_SPEC_DRAFT_KV_DEVICE", "cpu", true);
+    common_params env_placement;
+    argv = {"binary_name"};
+    assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), env_placement, LLAMA_EXAMPLE_SPECULATIVE));
+    assert(env_placement.speculative.draft.kv_device == common_speculative_draft_kv_device::CPU);
+    argv = {"binary_name", "--spec-draft-kv-device", "auto"};
+    assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), env_placement, LLAMA_EXAMPLE_SPECULATIVE));
+    assert(env_placement.speculative.draft.kv_device == common_speculative_draft_kv_device::AUTO);
+    unsetenv("LLAMA_ARG_SPEC_DRAFT_KV_DEVICE");
 
     setenv("LLAMA_ARG_LOAD_MODE", "blah", true);
     argv = {"binary_name"};

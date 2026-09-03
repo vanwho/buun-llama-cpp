@@ -352,6 +352,9 @@ static ggml_type kv_cache_type_from_str(const std::string & s_raw, bool allow_vb
             return type;
         }
     }
+    if (s == "t4" || s == "turbo4_0" || s == "4") {
+        return GGML_TYPE_TURBO4_0;
+    }
     throw std::runtime_error("Unsupported cache type: " + s);
 }
 
@@ -5048,6 +5051,27 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     //
 
     add_opt(common_arg(
+        {"--spec-draft-kv-device"}, "auto|gpu|cpu",
+        "Draft K/V residency: auto follows target, gpu offloads K/Q/V, cpu keeps K/V off the GPU (default: auto)",
+        [](common_params & params, const std::string & value) {
+            if (value == "auto") {
+                params.speculative.draft.kv_device = common_speculative_draft_kv_device::AUTO;
+            } else if (value == "gpu") {
+                params.speculative.draft.kv_device = common_speculative_draft_kv_device::GPU;
+            } else if (value == "cpu") {
+                params.speculative.draft.kv_device = common_speculative_draft_kv_device::CPU;
+            } else {
+                throw std::invalid_argument("invalid draft K/V device: " + value + " (expected auto, gpu, or cpu)");
+            }
+            if (!common_speculative_draft_kv_device_is_available(
+                    params.speculative.draft.kv_device)) {
+                throw std::invalid_argument(
+                    "draft K/V GPU placement requested, but no usable GPU backend is available");
+            }
+        }
+    ).set_spec().set_examples({LLAMA_EXAMPLE_SPECULATIVE, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_CLI}).set_env("LLAMA_ARG_SPEC_DRAFT_KV_DEVICE"));
+
+    add_opt(common_arg(
         {"--spec-draft-hf", "-hfd", "-hfrd", "--hf-repo-draft"}, "<user>/<model>[:quant]",
         "Same as --hf-repo, but for the draft model (default: unused)",
         [](common_params & params, const std::string & value) {
@@ -5199,6 +5223,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         string_format(
             "KV cache data type for K for the draft model\n"
             "allowed values: %s\n"
+            "Turbo4 aliases: t4, turbo4_0, 4\n"
             "(default: %s)",
             get_all_kv_cache_types(false).c_str(),
             ggml_type_name(params.speculative.draft.cache_type_k)
@@ -5212,6 +5237,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         string_format(
             "KV cache data type for V for the draft model\n"
             "allowed values: %s\n"
+            "Turbo4 aliases: t4, turbo4_0, 4\n"
             "(default: %s)",
             get_all_kv_cache_types(false).c_str(),
             ggml_type_name(params.speculative.draft.cache_type_v)

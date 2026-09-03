@@ -5491,6 +5491,9 @@ common_params common_base_params_to_speculative(const common_params & params) {
         }
     }
 
+    result.no_kv_offload = !common_speculative_draft_kv_offload(
+        params_spec.kv_device, params.no_kv_offload);
+
     result.cache_type_k  = params_spec.cache_type_k;
     result.cache_type_v  = params_spec.cache_type_v;
     // Drafter caches are small and ephemeral — never arm dynamic VBR for them. The
@@ -5574,6 +5577,10 @@ common_speculative_init_result::common_speculative_init_result(
     auto mparams = common_model_params_to_llama(params);
     auto cparams = common_context_params_to_llama(params);
 
+    LOG_INF("%s: draft K/V device=%s, offload_kqv=%s\n", __func__,
+            common_speculative_draft_kv_device_name(params.speculative.draft.kv_device),
+            cparams.offload_kqv ? "true" : "false");
+
     // Non-MTP drafters retain the established full target-context geometry.
     cparams.n_ctx = llama_n_ctx(ctx_tgt);
 
@@ -5581,6 +5588,12 @@ common_speculative_init_result::common_speculative_init_result(
     //       the extra memory for small models is likely negligible?
     cparams.n_rs_seq  = 0;
     cparams.ctx_other = ctx_tgt;
+
+    if (!has_draft && !common_speculative_draft_kv_device_is_available(
+            params.speculative.draft.kv_device, model_tgt)) {
+        LOG_ERR("%s: draft K/V GPU placement requested, but no usable GPU device is selected\n", __func__);
+        return;
+    }
 
     auto cparams_mtp = cparams;
     const auto mtp_context = common_speculative_mtp_context_params_resolve(
@@ -5618,6 +5631,12 @@ common_speculative_init_result::common_speculative_init_result(
 
         pimpl->model.reset(model_dft);
 
+        if (!common_speculative_draft_kv_device_is_available(
+                params.speculative.draft.kv_device, model_dft)) {
+            LOG_ERR("%s: draft K/V GPU placement requested, but the draft model has no usable GPU device\n", __func__);
+            return;
+        }
+
         llama_context * ctx_dft = llama_init_from_model(
                 model_dft, external_mtp_sidecar ? cparams_mtp : cparams);
         if (ctx_dft == nullptr) {
@@ -5630,6 +5649,12 @@ common_speculative_init_result::common_speculative_init_result(
         if (combined_external_and_mtp) {
             LOG_INF("%s: creating native MTP context against the target model '%s'\n",
                     __func__, params.model.path.c_str());
+
+            if (!common_speculative_draft_kv_device_is_available(
+                    params.speculative.draft.kv_device, model_tgt)) {
+                LOG_ERR("%s: native MTP draft K/V GPU placement requested, but no usable GPU device is selected\n", __func__);
+                return;
+            }
 
             llama_context * ctx_mtp = llama_init_from_model(model_tgt, cparams_mtp);
             if (ctx_mtp == nullptr) {
@@ -5646,6 +5671,12 @@ common_speculative_init_result::common_speculative_init_result(
         model_path = params.model.path;
 
         LOG_INF("%s: creating MTP draft context against the target model '%s'\n", __func__, model_path.c_str());
+
+        if (!common_speculative_draft_kv_device_is_available(
+                params.speculative.draft.kv_device, model_tgt)) {
+            LOG_ERR("%s: draft K/V GPU placement requested, but no usable GPU device is selected\n", __func__);
+            return;
+        }
 
         llama_context * ctx_dft = llama_init_from_model(model_tgt, cparams_mtp);
         if (ctx_dft == nullptr) {

@@ -116,6 +116,7 @@ llama-completion.exe -m models\gemma-1.1-7b-it.Q4_K_M.gguf --ignore-eos -n -1
 | `--keep N` | number of tokens to keep from the initial prompt (default: 0, -1 = all) |
 | `--swa-full` | use full-size SWA cache (default: false)<br/>[(more info)](https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)<br/>(env: LLAMA_ARG_SWA_FULL) |
 | `-fa, --flash-attn [on\|off\|auto]` | set Flash Attention use ('on', 'off', or 'auto', default: 'auto')<br/>(env: LLAMA_ARG_FLASH_ATTN) |
+| `--no-fused-gdn` | disable fused Gated Delta Net kernels (use decomposed ops instead) |
 | `-p, --prompt PROMPT` | prompt to start generation with; for system message, use -sys |
 | `--perf, --no-perf` | whether to enable internal libllama performance timings (default: false)<br/>(env: LLAMA_ARG_PERF) |
 | `-f, --file FNAME` | a file containing the prompt (default: none) |
@@ -133,8 +134,14 @@ llama-completion.exe -m models\gemma-1.1-7b-it.Q4_K_M.gguf --ignore-eos -n -1
 | `-kvo, --kv-offload, -nkvo, --no-kv-offload` | whether to enable KV cache offloading (default: enabled)<br/>(env: LLAMA_ARG_KV_OFFLOAD) |
 | `--repack, -nr, --no-repack` | whether to enable weight repacking (default: enabled)<br/>(env: LLAMA_ARG_REPACK) |
 | `--no-host` | bypass host buffer allowing extra buffers to be used<br/>(env: LLAMA_ARG_NO_HOST) |
-| `-ctk, --cache-type-k TYPE` | KV cache data type for K<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1<br/>(default: f16)<br/>(env: LLAMA_ARG_CACHE_TYPE_K) |
-| `-ctv, --cache-type-v TYPE` | KV cache data type for V<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1<br/>(default: f16)<br/>(env: LLAMA_ARG_CACHE_TYPE_V) |
+| `-ct, --cache-type TYPE` | KV cache data type for both K and V (shorthand for -ctk TYPE -ctv TYPE; a later<br/>-ctk/-ctv overrides its side)<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1, turbo2, turbo3, turbo4, turbo8, turbo3_tcq, turbo2_tcq, turbo1_tcq, vbr<br/>(default: vbr with implicit t4 floor)<br/>(env: LLAMA_ARG_CACHE_TYPE) |
+| `-ctk, --cache-type-k TYPE` | KV cache data type for K<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1, turbo2, turbo3, turbo4, turbo8, turbo3_tcq, turbo2_tcq, turbo1_tcq, vbr<br/>(default: vbr (implicit t4 floor))<br/>(env: LLAMA_ARG_CACHE_TYPE_K) |
+| `-ctv, --cache-type-v TYPE` | KV cache data type for V<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1, turbo2, turbo3, turbo4, turbo8, turbo3_tcq, turbo2_tcq, turbo1_tcq, vbr<br/>(default: vbr (implicit t4 floor))<br/>(env: LLAMA_ARG_CACHE_TYPE_V) |
+| `--vbr-bits, --vbr-budget VALUE` | VBR target budget: dynamic/auto = runtime degrade controller (starts at --vbr-entry, F16 by default, and degrades down the measured price order as the KV VRAM budget fills; see --vbr-vram/--vbr-floor); or a fixed tier f16, 8/t8, 4/t4, 3/t3, 2/t2, 1/t1; or numeric bits/value with --vbr-policy (default: dynamic when cache type is vbr)<br/>(env: LLAMA_ARG_VBR_BUDGET) |
+| `--vbr-entry TIER` | dynamic VBR entry tier: f16 (quality-first default), t8, t4, t3, t2, or t1. Starting below F16 is an explicit quality-for-bandwidth trade; tensors still degrade toward --vbr-floor as the KV VRAM budget fills<br/>(env: LLAMA_ARG_VBR_ENTRY) |
+| `--vbr-floor, --vbr-min-bits BITS` | aggregate VBR bits/value floor; accepts decimal bits or tier aliases f16, t8, t4, t3, t2, t1. Dynamic mode enforces it LITERALLY: the degrade order stops at the last step whose aggregate stays at or above the floor (e.g. 4.25 = t4 layout with a few units held a tier higher), and the advertised context capacity is computed at this floor (implicit VBR default: t4 = 4.125; explicit -ct vbr without this flag: t1 = 1.25)<br/>(env: LLAMA_ARG_VBR_MIN_BITS) |
+| `--vbr-vram, --vbr-vram-budget SIZE` | VBR KV VRAM budget: auto = remaining VRAM after model/overhead (resolved by the fit pass; in dynamic mode this arms the runtime degrade controller and, when -c is unset, advertises n_ctx = the budget's capacity at the --vbr-floor tier), or an explicit size like 24G, 24576M, or bytes (default: auto)<br/>(env: LLAMA_ARG_VBR_VRAM_BUDGET) |
+| `--vbr-policy PATH` | VBR runtime policy ladder JSON or directory; selects the lowest-KLD measured schedule that fits the requested VBR budget/floor (default: auto via VBR_POLICY_LADDER)<br/>(env: LLAMA_ARG_VBR_POLICY) |
 | `-dt, --defrag-thold N` | KV cache defragmentation threshold (DEPRECATED)<br/>(env: LLAMA_ARG_DEFRAG_THOLD) |
 | `-np, --parallel N` | number of parallel sequences to decode (default: 1)<br/>(env: LLAMA_ARG_N_PARALLEL) |
 | `--rpc SERVERS` | comma-separated list of RPC servers (host:port)<br/>(env: LLAMA_ARG_RPC) |
@@ -143,12 +150,16 @@ llama-completion.exe -m models\gemma-1.1-7b-it.Q4_K_M.gguf --ignore-eos -n -1
 | `-dio, --direct-io, -ndio, --no-direct-io` | DEPRECATED in favor of `--load-mode`: use DirectIO if available<br/>(env: LLAMA_ARG_DIO) |
 | `-lm, --load-mode MODE` | model loading mode (default: auto)<br/>- auto: mmap, unless a device does not support it<br/>- none: no special loading mode<br/>- mmap: memory-map model (if mmap disabled, slower load but may reduce pageouts if not using mlock)<br/>- mlock: force system to keep model in RAM rather than swapping or compressing<br/>- mmap+mlock: mmap + force system to keep model in RAM rather than swapping or compressing<br/>- dio: use DirectIO if available<br/><br/>(env: LLAMA_ARG_LOAD_MODE) |
 | `-lzm, --lazy-mode MODE` | on-demand reading of certain tensors, for example per-layer embeddings (default: auto)<br/>- on: read the rows of such tensors from disk on demand instead of keeping them resident (requires mmap)<br/>- auto: on, but only for tensors larger than 4 GiB<br/>- off: always keep them resident<br/>(env: LLAMA_ARG_LAZY_MODE) |
+| `--mmap-prefetch MODE` | bulk mmap prefetch policy (default: auto)<br/>- auto: prefetch only when the mapped model comfortably fits available system RAM<br/>- on: preserve eager whole-model prefetch<br/>- off: rely on normal sequential readahead and demand paging<br/>(env: LLAMA_ARG_MMAP_PREFETCH) |
 | `--numa TYPE` | attempt optimizations that help on some NUMA systems<br/>- distribute: spread execution evenly over all nodes<br/>- isolate: only spawn threads on CPUs on the node that execution started on<br/>- numactl: use the CPU map provided by numactl<br/>if run without this previously, it is recommended to drop the system page cache before using this<br/>see https://github.com/ggml-org/llama.cpp/issues/1437<br/>(env: LLAMA_ARG_NUMA) |
 | `-dev, --device <dev1,dev2,..>` | comma-separated list of devices to use for offloading (none = don't offload)<br/>use --list-devices to see a list of available devices<br/>(env: LLAMA_ARG_DEVICE) |
 | `--list-devices` | print list of available devices and exit |
 | `-ot, --override-tensor <tensor name pattern>=<buffer type>,...` | override tensor buffer type<br/>(env: LLAMA_ARG_OVERRIDE_TENSOR) |
 | `-cmoe, --cpu-moe` | keep all Mixture of Experts (MoE) weights in the CPU<br/>(env: LLAMA_ARG_CPU_MOE) |
 | `-ncmoe, --n-cpu-moe N` | keep the Mixture of Experts (MoE) weights of the first N layers in the CPU<br/>(env: LLAMA_ARG_N_CPU_MOE) |
+| `--moe-cache MODE` | adaptively cache the hottest CPU-resident MoE experts in spare VRAM (default: auto; auto = preserve weight repacking; on = automatic budget without weight repacking; soft = try spare VRAM first, evict experts only as needed; off/0 = disabled; N = VRAM budget in MiB per device without weight repacking)<br/>(env: LLAMA_ARG_MOE_CACHE) |
+| `--moe-cache-profile, --no-moe-cache-profile` | persist a versioned per-model expert heatmap in the llama.cpp cache directory and use it for bounded expert prewarming (default: enabled)<br/>(env: LLAMA_ARG_MOE_CACHE_PROFILE) |
+| `--moe-cache-expert-parallel N` | split cached MoE expert rows across devices (default: 0 = disabled; auto = provider policy; N = device fanout)<br/>(env: LLAMA_ARG_MOE_CACHE_EXPERT_PARALLEL) |
 | `-ncffn, --n-cpu-ffn N` | keep the dense FFN weights of the first N layers in the CPU<br/>(dense models; for MoE expert weights use --n-cpu-moe)<br/>(env: LLAMA_ARG_N_CPU_FFN) |
 | `-ngl, --gpu-layers, --n-gpu-layers N` | max. number of layers to store in VRAM, either an exact number, 'auto', or 'all' (default: auto)<br/>(env: LLAMA_ARG_N_GPU_LAYERS) |
 | `-sm, --split-mode {none,layer,row,tensor}` | how to split the model across multiple GPUs, one of:<br/>- none: use one GPU only<br/>- layer (default): split layers and KV across GPUs (pipelined)<br/>- row: split weight across GPUs by rows (parallelized)<br/>- tensor: split weights and KV across GPUs (parallelized, EXPERIMENTAL)<br/>(env: LLAMA_ARG_SPLIT_MODE) |
@@ -179,8 +190,8 @@ llama-completion.exe -m models\gemma-1.1-7b-it.Q4_K_M.gguf --ignore-eos -n -1
 | `-lv, --verbosity, --log-verbosity N` | Set the verbosity threshold. Messages with a higher verbosity will be ignored. Values:<br/> - 0: generic output<br/> - 1: error<br/> - 2: warning<br/> - 3: info<br/> - 4: trace (more info)<br/> - 5: debug<br/>(default: 3)<br/><br/>(env: LLAMA_ARG_LOG_VERBOSITY) |
 | `--log-prefix, --no-log-prefix` | Enable prefix in log messages<br/>(env: LLAMA_ARG_LOG_PREFIX) |
 | `--log-timestamps, --no-log-timestamps` | Enable timestamps in log messages<br/>(env: LLAMA_ARG_LOG_TIMESTAMPS) |
-| `--spec-draft-type-k, -ctkd, --cache-type-k-draft TYPE` | KV cache data type for K for the draft model<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1<br/>(default: f16)<br/>(env: LLAMA_ARG_SPEC_DRAFT_CACHE_TYPE_K) |
-| `--spec-draft-type-v, -ctvd, --cache-type-v-draft TYPE` | KV cache data type for V for the draft model<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1<br/>(default: f16)<br/>(env: LLAMA_ARG_SPEC_DRAFT_CACHE_TYPE_V) |
+| `--spec-draft-type-k, -ctkd, --cache-type-k-draft TYPE` | KV cache data type for K for the draft model<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1, turbo2, turbo3, turbo4, turbo8, turbo3_tcq, turbo2_tcq, turbo1_tcq<br/>Turbo4 aliases: t4, turbo4_0, 4<br/>(default: f16)<br/>(env: LLAMA_ARG_SPEC_DRAFT_CACHE_TYPE_K) |
+| `--spec-draft-type-v, -ctvd, --cache-type-v-draft TYPE` | KV cache data type for V for the draft model<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1, turbo2, turbo3, turbo4, turbo8, turbo3_tcq, turbo2_tcq, turbo1_tcq<br/>Turbo4 aliases: t4, turbo4_0, 4<br/>(default: f16)<br/>(env: LLAMA_ARG_SPEC_DRAFT_CACHE_TYPE_V) |
 
 
 ### Sampling params

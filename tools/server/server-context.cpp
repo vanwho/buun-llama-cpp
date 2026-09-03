@@ -5405,7 +5405,13 @@ private:
     }
 
     llama_context * create_mtp_context() {
-        auto cparams = common_context_params_to_llama(params_base);
+        const auto params_mtp = common_base_params_to_speculative(params_base);
+        auto cparams = common_context_params_to_llama(params_mtp);
+        if (!common_speculative_draft_kv_device_is_available(
+                params_base.speculative.draft.kv_device, model_tgt)) {
+            SRV_ERR("%s", "native MTP draft K/V GPU placement requested, but no usable GPU device is selected\n");
+            return nullptr;
+        }
         // Auto-fit mutates the target's llama_context_params, not params_base.  Reuse the
         // realized target width here; otherwise n_ctx=0 expands the MTP cache to n_ctx_train even
         // when the fitted target is much smaller.
@@ -5422,6 +5428,10 @@ private:
         cparams.n_rs_seq      = 0;
         cparams.n_outputs_max = params_base.n_parallel;
         cparams.ctx_other     = ctx_tgt;
+        SRV_INF("native MTP draft K/V device=%s, offload_kqv=%s\n",
+                common_speculative_draft_kv_device_name(
+                    params_base.speculative.draft.kv_device),
+                cparams.offload_kqv ? "true" : "false");
         return llama_init_from_model(model_tgt, cparams);
     }
 
