@@ -163,3 +163,10 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
   manifest/record/summary enrichment, corpus identity, pre/post service snapshots, explicit
   not-configured telemetry, and deterministic dry-run coverage. Live smoke verification is deferred
   because the established profile workflow requires unavailable port 8091 health.
+
+## 2026-09-03T12:25:00+00:00 — 06-04 — done
+
+- Summary: Recorded selective acceptance as deferred with raw canonical controls, frozen corpus/gate
+  definitions, and machine-readable required-run dispositions. Restored `ai-long-memory.service`;
+  ports 8080 and 8091 returned HTTP 200. No selective result was claimed because the current server
+  does not expose the live pager runtime or telemetry required by the acceptance gates.

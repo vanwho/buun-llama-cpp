@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "06",
-  "current_task": "06-04",
-  "last_updated_utc": "2026-09-03T11:21:07+00:00",
+  "current_task": "06-05",
+  "last_updated_utc": "2026-09-03T11:24:13+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -454,14 +454,14 @@
       "cluster": "06b-benchmarks",
       "title": "Run 256K quality and performance acceptance",
       "packet": "docs/execution/tasks/06-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "06-02",
         "06-03"
       ],
-      "commit": null
+      "commit": "b535f5144d092051b3e99d7c374c11896d668f35"
     },
     {
       "id": "06-05",
