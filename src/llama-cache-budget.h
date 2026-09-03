@@ -28,6 +28,56 @@ enum class llama_cache_budget_fit_state : uint8_t {
     _count,
 };
 
+enum class llama_cache_budget_admission_refusal : uint8_t {
+    none = 0,
+    invalid_geometry,
+    mtp_not_turbo4,
+    missing_scratch,
+    overflow,
+    insufficient_capacity,
+    diagnostic_capacity_exceeds_budget,
+    _count,
+};
+
+struct llama_cache_budget_admission_input {
+    uint64_t capacity_bytes = 0;
+    uint64_t allocation_granularity = 1;
+    uint64_t weights_bytes = 0;
+    uint64_t fixed_bytes = 0;
+    uint64_t graph_bytes = 0;
+    uint64_t turbo4_scratch_bytes = 0;
+    uint64_t routing_bytes = 0;
+    uint64_t staging_bytes = 0;
+    uint64_t headroom_bytes = 0;
+    uint64_t mtp_tokens = 262144;
+    uint64_t mtp_values_per_token = 2048;
+    uint64_t mtp_bits_per_value = 33; // 4.125 effective bits/value
+    bool mtp_is_turbo4 = true;
+    uint64_t target_page_bytes = 0; // actual measured/encoded cross-layer page size
+    uint64_t diagnostic_max_pages = 0; // zero means no diagnostic cap
+};
+
+struct llama_cache_budget_admission_result {
+    llama_cache_budget_admission_refusal refusal =
+        llama_cache_budget_admission_refusal::none;
+    uint64_t fixed_bytes = 0;
+    uint64_t mtp_bytes = 0;
+    uint64_t scratch_bytes = 0;
+    uint64_t routing_bytes = 0;
+    uint64_t headroom_bytes = 0;
+    uint64_t charged_bytes = 0;
+    uint64_t remaining_bytes = 0;
+    uint64_t target_page_bytes = 0;
+    uint64_t capacity_pages = 0;
+    uint64_t capacity_tokens = 0;
+};
+
+llama_cache_budget_admission_result llama_cache_budget_admit(
+        const llama_cache_budget_admission_input & input) noexcept;
+
+const char * llama_cache_budget_admission_refusal_name(
+        llama_cache_budget_admission_refusal refusal) noexcept;
+
 // The classification vocabulary is closed. The CI census requires exactly one
 // entry for every llama_cache_acct_category. `excluded` means the budget has no
 // certified capacity-participating producer for that leaf yet; it is not a claim that
