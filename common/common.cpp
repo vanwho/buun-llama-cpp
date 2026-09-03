@@ -1426,10 +1426,11 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
         auto mparams_dft = common_model_params_to_llama(params_dft);
         auto cparams_dft = common_context_params_to_llama(params_dft);
         const bool extra_is_mtp = params.speculative.uses_mtp_as_primary_drafter();
+        const bool native_mtp = extra_is_mtp && !params.speculative.has_external_mtp_sidecar();
         if (extra_is_mtp) {
             const auto mtp_context = common_speculative_mtp_context_params_resolve(
                 0, params.speculative.draft.n_ctx,
-                cparams_dft.n_seq_max, cparams_dft.kv_unified);
+                cparams_dft.n_seq_max, cparams_dft.kv_unified, native_mtp);
             common_speculative_mtp_context_params_apply(cparams_dft, mtp_context, nullptr);
         }
         cparams_dft.n_rs_seq = 0;
@@ -1439,7 +1440,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
         llama_context_params cparams_mtp = cparams_dft;
         const auto mtp_context = common_speculative_mtp_context_params_resolve(
             0, params.speculative.draft.n_ctx,
-            cparams_mtp.n_seq_max, cparams_mtp.kv_unified);
+            cparams_mtp.n_seq_max, cparams_mtp.kv_unified, native_mtp);
         common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, nullptr);
 
         const common_fit_extra_model extra_mtp = {
@@ -1453,7 +1454,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             /*.next         =*/ nullptr,
             /*.optional_if_no_mtp =*/ true,
             /*.borrows_target_tensors =*/ false,
-            /*.full_target_context =*/ true,
+            /*.full_target_context =*/ false,
         };
 
         const common_fit_extra_model extra_dft = {
@@ -1467,7 +1468,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             /*.next         =*/ spec_mtp && !extra_is_mtp ? &extra_mtp : nullptr,
             /*.optional_if_no_mtp =*/ false,
             /*.borrows_target_tensors =*/ has_draft && extra_is_mtp,
-            /*.full_target_context =*/ extra_is_mtp,
+            /*.full_target_context =*/ false,
         };
 
         const common_params_fit_status fit_status = common_fit_params(

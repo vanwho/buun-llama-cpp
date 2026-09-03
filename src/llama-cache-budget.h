@@ -49,7 +49,9 @@ struct llama_cache_budget_admission_input {
     uint64_t routing_bytes = 0;
     uint64_t staging_bytes = 0;
     uint64_t headroom_bytes = 0;
-    uint64_t mtp_tokens = 262144;
+    // Must come from the resolved native-MTP target rows. Zero is explicit
+    // not-configured input; admission must not guess a model context floor.
+    uint64_t mtp_tokens = 0;
     uint64_t mtp_values_per_token = 2048;
     uint64_t mtp_bits_per_value = 33; // 4.125 effective bits/value
     // When available, prefer the row sizes measured from the constructed MTP cache. These

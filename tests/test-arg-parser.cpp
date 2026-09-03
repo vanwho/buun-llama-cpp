@@ -50,12 +50,14 @@ static void test(void) {
         assert(implicit.n_ctx == 4096);
         assert(implicit.n_seq_max == 2);
         assert(implicit.kv_unified);
+        assert(implicit.valid());
 
         const auto explicit_split = common_speculative_mtp_context_params_resolve(
             4096, 8192, 3, false);
         assert(explicit_split.n_ctx == 8192);
         assert(explicit_split.n_seq_max == 3);
         assert(!explicit_split.kv_unified);
+        assert(explicit_split.valid());
 
         const auto explicit_unified = common_speculative_mtp_context_params_resolve(
             4096, 8192, 4, true);
@@ -63,17 +65,39 @@ static void test(void) {
         assert(explicit_unified.n_seq_max == 4);
         assert(explicit_unified.kv_unified);
 
-        const auto full_frontier = common_speculative_mtp_context_params_resolve(
-            std::max<uint32_t>(4096, 262144), 0, 2, false);
-        assert(full_frontier.n_ctx == 262144);
+        const auto native_implicit = common_speculative_mtp_context_params_resolve(
+            4096, 0, 2, false, true);
+        assert(native_implicit.valid());
+        assert(native_implicit.n_ctx == 4096);
+        assert(native_implicit.kv_unified);
+
+        const auto native_matching = common_speculative_mtp_context_params_resolve(
+            4096, 4096, 2, false, true);
+        assert(native_matching.valid());
+        assert(native_matching.n_ctx == 4096);
+        assert(native_matching.kv_unified);
+
+        const auto native_conflicting = common_speculative_mtp_context_params_resolve(
+            4096, 8192, 2, false, true);
+        assert(!native_conflicting.valid());
+        assert(native_conflicting.validation ==
+               common_speculative_mtp_context_params::status::conflicting_explicit_context);
+
+        // The fitter has not resolved the target candidate yet. Keep an explicit
+        // value for projection, then validate it again against the realized target.
+        const auto native_unresolved = common_speculative_mtp_context_params_resolve(
+            0, 8192, 2, false, true);
+        assert(native_unresolved.valid());
+        assert(native_unresolved.n_ctx == 8192);
+
         llama_context_params mtp_cparams = llama_context_default_params();
         mtp_cparams.vbr_dynamic = true;
         mtp_cparams.vbr_min_bits = 2.0;
         mtp_cparams.vbr_vram_budget_bytes = 1024;
         common_speculative_mtp_context_params_apply(
-            mtp_cparams, full_frontier, nullptr);
+            mtp_cparams, native_implicit, nullptr);
         assert(mtp_cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP);
-        assert(mtp_cparams.n_ctx == 262144);
+        assert(mtp_cparams.n_ctx == 4096);
         assert(!mtp_cparams.vbr_dynamic);
         assert(mtp_cparams.vbr_vram_budget_bytes == 0);
         assert(common_speculative_mtp_cache_types_valid(

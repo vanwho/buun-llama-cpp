@@ -5566,15 +5566,20 @@ private:
             SRV_ERR("%s", "native MTP draft K/V GPU placement requested, but no usable GPU device is selected\n");
             return nullptr;
         }
-        // MTP owns the full accepted target frontier. Target auto-fit may shrink the pageable
-        // attention working set, but it must not shrink this separate GPU reservation.
+        // Native MTP follows the resolved target per-sequence context. It remains a separate
+        // static GPU reservation, but the trained model frontier is not an allocation floor.
         const auto mtp_context = common_speculative_mtp_context_params_resolve(
-            std::max<uint32_t>(
-                llama_n_ctx_seq(ctx_tgt),
-                (uint32_t) std::max(0, llama_model_n_ctx_train(model_tgt))),
+            llama_n_ctx_seq(ctx_tgt),
             params_base.speculative.draft.n_ctx,
             cparams.n_seq_max,
-            cparams.kv_unified);
+            cparams.kv_unified,
+            /* native_mtp = */ true);
+        if (!mtp_context.valid()) {
+            SRV_ERR("native MTP context rejected: target_rows=%u explicit_draft_rows=%d status=%s\n",
+                    llama_n_ctx_seq(ctx_tgt), params_base.speculative.draft.n_ctx,
+                    common_speculative_mtp_context_status_name(mtp_context.validation));
+            return nullptr;
+        }
         common_speculative_mtp_context_params_apply(cparams, mtp_context, ctx_tgt);
         cparams.type_k        = params_base.speculative.draft.cache_type_k;
         cparams.type_v        = params_base.speculative.draft.cache_type_v;
@@ -6969,7 +6974,8 @@ private:
                 const auto mtp_context = common_speculative_mtp_context_params_resolve(
                     0, params_base.speculative.draft.n_ctx,
                     cparams_mtp.n_seq_max,
-                    cparams_mtp.kv_unified);
+                    cparams_mtp.kv_unified,
+                    /* native_mtp = */ true);
                 common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, nullptr);
                 cparams_mtp.n_outputs_max = n_parallel_user;
                 const common_fit_extra_model extra {
@@ -6983,7 +6989,7 @@ private:
                     nullptr,
                     false,
                     false,
-                    true,
+                    false,
                 };
 
                 const auto fit_status = common_fit_params(
@@ -6999,8 +7005,8 @@ private:
                     return false;
                 }
                 // common_fit_params updates the extra's cparams on every target candidate.
-                // The full-target flag keeps the implicit MTP context at the model frontier;
-                // an explicit -cd remains an exact user override.
+                // Native MTP follows that candidate's resolved per-sequence context; an
+                // explicit -cd is checked against the realized target before construction.
                 if (params_base.speculative.draft.n_ctx > 0) {
                     cparams_mtp.n_ctx = (uint32_t) params_base.speculative.draft.n_ctx;
                 }
@@ -7489,13 +7495,19 @@ private:
             // external drafter keeps ctx_dft and native MTP gets ctx_mtp.
             if (spec_mtp && !combined_external_and_mtp) {
                 auto cparams = common_context_params_to_llama(params_dft);
+                const bool native_mtp = !params_base.speculative.has_external_mtp_sidecar();
                 const auto mtp_context = common_speculative_mtp_context_params_resolve(
-                    std::max<uint32_t>(
-                        llama_n_ctx_seq(ctx_tgt),
-                        (uint32_t) std::max(0, llama_model_n_ctx_train(llama_get_model(ctx_tgt)))),
+                    llama_n_ctx_seq(ctx_tgt),
                     params_base.speculative.draft.n_ctx,
                     params_base.n_parallel,
-                    cparams.kv_unified);
+                    cparams.kv_unified,
+                    native_mtp);
+                if (!mtp_context.valid()) {
+                    SRV_ERR("MTP context rejected: target_rows=%u explicit_draft_rows=%d status=%s\n",
+                            llama_n_ctx_seq(ctx_tgt), params_base.speculative.draft.n_ctx,
+                            common_speculative_mtp_context_status_name(mtp_context.validation));
+                    return false;
+                }
                 common_speculative_mtp_context_params_apply(cparams, mtp_context, ctx_tgt);
                 if (!common_speculative_mtp_cache_types_valid(cparams.type_k, cparams.type_v)) {
                     SRV_ERR("%s: native MTP requires Turbo4 K/V; got type_k=%s type_v=%s\n",

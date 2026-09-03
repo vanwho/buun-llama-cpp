@@ -5559,16 +5559,50 @@ common_params common_base_params_to_speculative(const common_params & params) {
     return result;
 }
 
+const char * common_speculative_mtp_context_status_name(
+        common_speculative_mtp_context_params::status status) noexcept {
+    switch (status) {
+        case common_speculative_mtp_context_params::status::ok:
+            return "ok";
+        case common_speculative_mtp_context_params::status::conflicting_explicit_context:
+            return "conflicting_explicit_context";
+    }
+
+    return "unknown";
+}
+
 common_speculative_mtp_context_params common_speculative_mtp_context_params_resolve(
         uint32_t target_n_ctx_seq,
         int32_t explicit_draft_n_ctx,
         uint32_t requested_n_seq_max,
-        bool requested_kv_unified) {
-    if (explicit_draft_n_ctx > 0) {
-        return { (uint32_t) explicit_draft_n_ctx, requested_n_seq_max, requested_kv_unified };
+        bool requested_kv_unified,
+        bool native_mtp) {
+    common_speculative_mtp_context_params result {
+        common_speculative_mtp_context_params::status::ok,
+        target_n_ctx_seq,
+        requested_n_seq_max,
+        requested_kv_unified,
+    };
+
+    if (native_mtp && target_n_ctx_seq > 0 && explicit_draft_n_ctx > 0 &&
+            uint32_t(explicit_draft_n_ctx) != target_n_ctx_seq) {
+        result.validation = common_speculative_mtp_context_params::status::conflicting_explicit_context;
+        return result;
     }
 
-    return { target_n_ctx_seq, requested_n_seq_max, true };
+    if (explicit_draft_n_ctx > 0) {
+        result.n_ctx = (uint32_t) explicit_draft_n_ctx;
+        if (native_mtp) {
+            // Native MTP's n_ctx is its per-sequence row count. Keep one unified
+            // pool even when the target uses per-sequence KV streams so rows do
+            // not get divided by the MTP stream count.
+            result.kv_unified = true;
+        }
+        return result;
+    }
+
+    result.kv_unified = true;
+    return result;
 }
 
 void common_speculative_mtp_context_params_apply(
@@ -5712,13 +5746,19 @@ common_speculative_init_result::common_speculative_init_result(
     }
 
     auto cparams_mtp = cparams;
-    const uint32_t target_n_ctx_full = std::max<uint32_t>(
-        llama_n_ctx_seq(ctx_tgt),
-        (uint32_t) std::max(0, llama_model_n_ctx_train(model_tgt)));
+    const uint32_t target_n_ctx_seq = llama_n_ctx_seq(ctx_tgt);
     const auto mtp_context = common_speculative_mtp_context_params_resolve(
-        target_n_ctx_full, params.speculative.draft.n_ctx,
+        target_n_ctx_seq, params.speculative.draft.n_ctx,
         cparams_mtp.n_seq_max,
-        cparams_mtp.kv_unified);
+        cparams_mtp.kv_unified,
+        /* native_mtp = */ spec_mtp && !external_mtp_sidecar);
+    if (!mtp_context.valid()) {
+        LOG_ERR("%s: native MTP context rejected: target_rows=%" PRIu32
+                " explicit_draft_rows=%" PRId32 " status=%s\n",
+                __func__, target_n_ctx_seq, params.speculative.draft.n_ctx,
+                common_speculative_mtp_context_status_name(mtp_context.validation));
+        return;
+    }
     common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, ctx_tgt);
 
     if (spec_mtp && !common_speculative_mtp_cache_types_valid(

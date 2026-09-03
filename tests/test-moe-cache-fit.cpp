@@ -41,6 +41,22 @@ int main() {
     expect(common_fit_extra_context_size(513, 1, true, 0) == 768,
             "implicit unified MTP fit must mirror target context padding");
 
+    // Native MTP uses the candidate's resolved per-sequence rows. The probe
+    // models the measured cache payload so a changed candidate cannot retain
+    // a trained-frontier-sized reservation by accident.
+    llama_model_params mtp_mparams = llama_model_default_params();
+    llama_context_params mtp_cparams = llama_context_default_params();
+    const common_fit_extra_model native_mtp = {
+        "native-mtp", &mtp_mparams, &mtp_cparams, true,
+        true, 0, nullptr, false, false, false,
+    };
+    const common_fit_extra_cache_probe_result mtp_probe = common_fit_extra_cache_probe(
+        &native_mtp, {4096, 8192}, 1,
+        {{true, {100}}});
+    expect(mtp_probe.success && mtp_probe.measurement_counts == std::vector<size_t>({2}) &&
+            mtp_probe.aggregate_bytes_by_device == std::vector<size_t>({8292}),
+            "native MTP fit payload must track resolved rows linearly");
+
     {
         llama_model_params probe_mparams = llama_model_default_params();
         llama_context_params probe_cparams[5] = {

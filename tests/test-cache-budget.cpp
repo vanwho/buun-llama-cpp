@@ -103,6 +103,13 @@ static llama_cache_budget_config base_config() {
 }
 
 static void test_mtp_reference_payload_uses_actual_rows() {
+    llama_cache_budget_admission_input unconfigured;
+    unconfigured.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    unconfigured.target_page_bytes = 1;
+    unconfigured.turbo4_scratch_bytes = 1;
+    CHECK(llama_cache_budget_admit(unconfigured).refusal ==
+          llama_cache_budget_admission_refusal::invalid_geometry);
+
     constexpr uint64_t tokens = 262144;
     constexpr uint64_t values_per_head = 1024;
     const uint64_t k_row = ggml_row_size(GGML_TYPE_TURBO4_0, values_per_head);
