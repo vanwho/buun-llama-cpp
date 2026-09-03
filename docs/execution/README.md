@@ -7,7 +7,7 @@ three tightly coupled tasks to reuse one session without carrying unrelated phas
 belong under `handoffs/` and must record commands, results, changed files, unresolved risks, and deferred
 hardware or human actions.
 
-For supervised upstream-bound work, run the shared clustered runner in manual Git mode:
+The wrapper defaults to auto Git mode. For supervised upstream-bound work, explicitly select manual mode:
 
 ```bash
 CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
@@ -24,7 +24,7 @@ tool/codex/run_clustered.sh --show-clusters
 
 When the user explicitly authorizes autonomous fork commits and pushes, run the shared runner directly
 in auto mode. Use the current plan branch as the integration branch because it contains the execution
-package; the wrapper intentionally forces manual mode and therefore must not be used for this variant:
+package; set the integration branch explicitly as shown below:
 
 ```bash
 cd /srv/repos/vanwho/buun-llama-cpp

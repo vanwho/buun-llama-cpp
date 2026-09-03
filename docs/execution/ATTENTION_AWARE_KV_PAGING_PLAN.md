@@ -850,8 +850,9 @@ Mandatory process:
   PRs, and performs merges;
 - use reviewed, focused commits and preserve a clean range-diff for any upstream-bound work.
 
-The checked-in wrapper uses `CODEX_GIT_MODE=manual` for supervised upstream-bound work. Explicit auto
-mode is permitted only for the user-authorized fork-local completion run documented in section 14; its
+The checked-in wrapper defaults to `CODEX_GIT_MODE=auto`; use `CODEX_GIT_MODE=manual` for supervised
+upstream-bound work. Auto mode is permitted only for the user-authorized fork-local completion run
+documented in section 14; its
 implementation and execution-metadata commits remain separate, and no upstream GitHub action is
 automated.
 
@@ -871,8 +872,8 @@ CODEX_GIT_MODE=manual \
 
 For an unattended fork-only run that creates task branches, commits each completed task, pushes the
 branches, merges them into the fork's integration branch, and continues until every task is `done` or
-`deferred`, invoke the shared runner directly in auto mode. The checked-in wrapper must not be used
-for this variant because it deliberately forces `CODEX_GIT_MODE=manual`. Keep the plan branch as the
+`deferred`, invoke the shared runner directly in auto mode with the plan branch explicitly selected as
+the integration branch. Keep the plan branch as the
 integration branch until the execution package and its history have been deliberately reviewed:
 
 ```bash

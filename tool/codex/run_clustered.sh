@@ -19,7 +19,9 @@ if ! grep -q 'CODEX_PROJECT_ROOT' "$runner" ||
 fi
 
 export CODEX_PROJECT_ROOT="$root"
-export CODEX_GIT_MODE=manual
+export CODEX_GIT_MODE="${CODEX_GIT_MODE:-auto}"
+export CODEX_PROJECT_REMOTE="${CODEX_PROJECT_REMOTE:-origin}"
+export CODEX_PROJECT_BRANCH="${CODEX_PROJECT_BRANCH:-plan/attention-aware-kv-paging}"
 # Clusters still bound related work by task ownership. Leave conversation
 # rotation opt-in; 0 means no proactive turn/input guardrail.
 export CODEX_SESSION_MAX_TURNS="${CODEX_SESSION_MAX_TURNS:-0}"
