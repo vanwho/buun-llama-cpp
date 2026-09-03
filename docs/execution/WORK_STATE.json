@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "04",
-  "current_task": "04-01",
-  "last_updated_utc": "2026-09-03T09:22:17+00:00",
+  "current_task": "04-02",
+  "last_updated_utc": "2026-09-03T09:27:39+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -296,13 +296,13 @@
       "cluster": "04a-routing-telemetry",
       "title": "Build all-page routing summaries",
       "packet": "docs/execution/tasks/04-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "03-04"
       ],
-      "commit": null
+      "commit": "3ac062c330741b502843f4bde034b50d004dd2bf"
     },
     {
       "id": "04-02",
