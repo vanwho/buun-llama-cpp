@@ -1,0 +1,78 @@
+# Task 13-02 direct Turbo4 paged-decode experiments
+# GPU: NVIDIA GeForce RTX 4080, compute capability 8.9, CUDA 12.4
+# Build: Release, GGML_CUDA=ON, GGML_CUDA_GRAPHS=ON, 89-real
+# Shape: four Q heads, one query, 529 selected rows, three physical Turbo4 pages
+# Command: env LD_LIBRARY_PATH=build-cuda-test/bin:build-cuda/bin build-cuda-test/bin/test-cuda-fattn-paged-turbo4
+# Measurement contract: seven invocations; first two warmups; trials 3-7 measured.
+
+## Baseline before experiments
+# trial=1 22.432 ms
+# trial=2 22.138 ms
+# trial=3 20.601 ms
+# trial=4 23.246 ms
+# trial=5 22.650 ms
+# trial=6 20.824 ms
+# trial=7 20.865 ms
+# measured=[20.601, 23.246, 22.650, 20.824, 20.865]
+# measured mean=21.637 ms, sample stdev=1.219 ms, median=20.865 ms, empirical p95/max=23.246 ms
+
+## Rejected candidate A: warp/register specialization
+# Delta: one 32-thread warp per head; register-resident 256-element FWHT state;
+# register accumulators for eight output lanes; page metadata and norms broadcast
+# by warp shuffles; dynamic shared q-rotation/reduction storage removed.
+# trial=1 21.193 ms
+# trial=2 22.382 ms
+# trial=3 20.952 ms
+# trial=4 21.738 ms
+# trial=5 22.795 ms
+# trial=6 22.289 ms
+# trial=7 20.741 ms
+# measured=[20.952, 21.738, 22.795, 22.289, 20.741]
+# measured mean=21.703 ms, sample stdev=0.870 ms, median=21.738 ms, empirical p95/max=22.795 ms
+# median delta=+4.184% versus baseline; rejected.
+
+## Rejected candidate B: descriptor cache
+# Delta: one lane staged the 24-byte page descriptor into shared memory once per
+# page, followed by a block barrier, replacing per-thread global descriptor reads.
+# The 256-thread FWHT, reduction, and numerical path were unchanged.
+# trial=1 21.035 ms
+# trial=2 22.282 ms
+# trial=3 21.396 ms
+# trial=4 21.318 ms
+# trial=5 22.074 ms
+# trial=6 22.323 ms
+# trial=7 22.185 ms
+# measured=[21.396, 21.318, 22.074, 22.323, 22.185]
+# measured mean=21.859 ms, sample stdev=0.468 ms, median=22.074 ms, empirical p95/max=22.323 ms
+# median delta=+5.794% versus baseline; rejected.
+
+## Rejected candidate C: packed-nibble warp reuse
+# Delta: paired threads reused each packed Turbo4 byte through a warp shuffle,
+# attempting to halve duplicate byte loads while keeping the 256-thread block.
+# trial=1 22.529 ms
+# trial=2 21.151 ms
+# trial=3 20.128 ms
+# trial=4 21.560 ms
+# trial=5 22.297 ms
+# trial=6 22.355 ms
+# trial=7 22.535 ms
+# measured=[20.128, 21.560, 22.297, 22.355, 22.535]
+# measured mean=21.775 ms, sample stdev=0.993 ms, median=22.297 ms, empirical p95/max=22.535 ms
+# median delta=+6.863% versus baseline; rejected.
+
+## Fresh final baseline after reverting candidates
+# trial=1 21.453 ms
+# trial=2 21.033 ms
+# trial=3 22.097 ms
+# trial=4 20.908 ms
+# trial=5 20.969 ms
+# trial=6 20.822 ms
+# trial=7 21.192 ms
+# measured=[22.097, 20.908, 20.969, 20.822, 21.192]
+# measured mean=21.198 ms, sample stdev=0.521 ms, median=20.969 ms, empirical p95/max=22.097 ms
+# final source is unchanged from the task baseline; retained improvement=0%.
+
+## Final resource report
+# cuobjdump --dump-resource-usage build-cuda-test/bin/libggml-cuda.so.0.22.0
+# Function _Z42ggml_cuda_fattn_turbo4_paged_decode_kernelPKfPKcS2_PfPK27ggml_cuda_fattn_turbo4_pagePKlPKhS8_S3_jjjjmmmmmmmmmjS3_mfbbb:
+# REG:40 STACK:0 SHARED:0 LOCAL:0 CONSTANT[2]:8 CONSTANT[0]:543 TEXTURE:0 SURFACE:0 SAMPLER:0

@@ -92,7 +92,7 @@ and quantifies selective-attention quality rather than serving as the primary pe
 The current Qwen3.8-27B/qwen35 model metadata observed in the previous work is:
 
 - deployed model: `/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf` via `current.gguf`;
-- profile: `/srv/ai/config/profiles/qwen38-fast.env`;
+- canonical existing server profile: `/srv/ai/config/profiles/qwen38-fast.env`;
 - native context: 262,144 tokens;
 - 65 total blocks: 64 target trunk blocks plus one native MTP block;
 - 16 full-attention target layers (`full_attention_interval = 4`);
@@ -102,6 +102,15 @@ The current Qwen3.8-27B/qwen35 model metadata observed in the previous work is:
 
 The plan must re-read the deployed GGUF metadata and fail closed if this geometry differs. No generic
 API should silently assume it.
+
+The existing `qwen38-fast.env` is the canonical Qwen3.8-27B UD-IQ4_XS/Turbo4/MTP baseline and
+the starting point for every live comparison. The existing `qwen38-big.env` is the same model's
+ordinary non-MTP/control profile and remains the paired CPU-KV comparison and rollback target;
+the harness must capture whichever profile is active and restore it after each run. The historical
+`qwen38-fast.env` `CTX=77824` value is retained only as a reproducibility control; it is **not** a
+pager or MTP default. New runs must clone the appropriate existing profile and set context from
+the benchmark ladder, with native MTP capacity resolved to that same requested context on every
+run. No production code may restore that historical number.
 
 ### 3.1 Exact payload arithmetic
 

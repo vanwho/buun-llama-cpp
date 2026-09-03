@@ -282,3 +282,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-13-01`
 - Commit at update: `28ccd876d`
 - Summary: Frozen reproducible phase-13 calibration shapes, Release CUDA provenance, raw control measurements, component accounting, ranked bottlenecks, three optimization hypotheses, and numeric budgets in PERFORMANCE_PROFILE.md/json; no optimization made.
+
+## 2026-09-03T22:59:06+00:00 — 13-02 — done
+
+- Branch: `codex/task-13-02`
+- Commit at update: `c31a4b2af`
+- Summary: Tested three direct Turbo4 kernel hypotheses; all regressed on repeated CUDA fixture medians, so baseline retained. Focused fixture, graph-key, memcheck, racecheck, and resource checks pass; live model parity/MTP profiling deferred.

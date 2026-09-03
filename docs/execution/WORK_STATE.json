@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "13",
-  "current_task": "13-02",
-  "last_updated_utc": "2026-09-03T22:19:59+00:00",
+  "current_task": "13-03",
+  "last_updated_utc": "2026-09-03T22:59:41+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -857,13 +857,13 @@
       "cluster": "13a-kernel-transfer-opt",
       "title": "Optimize direct Turbo4 paged decode",
       "packet": "docs/execution/tasks/13-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "13-01"
       ],
-      "commit": null
+      "commit": "c31a4b2af9a4d65fcf187e5caff04954b114f354"
     },
     {
       "id": "13-03",
