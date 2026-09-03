@@ -259,18 +259,32 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
         if (b > std::numeric_limits<uint64_t>::max() - a) return false;
         result = a + b; return true;
     };
-    uint64_t mtp_bits;
-    if (input.mtp_values_per_token > UINT64_MAX / input.mtp_tokens ||
-        input.mtp_tokens * input.mtp_values_per_token > UINT64_MAX / input.mtp_bits_per_value) {
-        out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
+    if ((input.mtp_k_row_bytes == 0) != (input.mtp_v_row_bytes == 0)) {
+        out.refusal = llama_cache_budget_admission_refusal::invalid_geometry;
+        return out;
     }
-    mtp_bits = input.mtp_tokens * input.mtp_values_per_token * input.mtp_bits_per_value;
-    // mtp_bits_per_value is expressed in eighths of a bit (33 == 4.125).
-    if (mtp_bits > UINT64_MAX - 63 || !rounded((mtp_bits + 63) / 64, out.mtp_bytes) ||
-        input.turbo4_scratch_bytes == 0) {
-        out.refusal = input.turbo4_scratch_bytes == 0 ?
-            llama_cache_budget_admission_refusal::missing_scratch :
-            llama_cache_budget_admission_refusal::overflow; return out;
+    if (input.mtp_k_row_bytes != 0) {
+        if (input.mtp_k_row_bytes > UINT64_MAX - input.mtp_v_row_bytes ||
+            input.mtp_tokens > UINT64_MAX / (input.mtp_k_row_bytes + input.mtp_v_row_bytes) ||
+            !rounded(input.mtp_tokens * (input.mtp_k_row_bytes + input.mtp_v_row_bytes), out.mtp_bytes)) {
+            out.refusal = llama_cache_budget_admission_refusal::overflow;
+            return out;
+        }
+    } else {
+        uint64_t mtp_bits;
+        if (input.mtp_values_per_token > UINT64_MAX / input.mtp_tokens ||
+            input.mtp_tokens * input.mtp_values_per_token > UINT64_MAX / input.mtp_bits_per_value) {
+            out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
+        }
+        mtp_bits = input.mtp_tokens * input.mtp_values_per_token * input.mtp_bits_per_value;
+        // mtp_bits_per_value is expressed in eighths of a bit (33 == 4.125).
+        if (mtp_bits > UINT64_MAX - 63 || !rounded((mtp_bits + 63) / 64, out.mtp_bytes)) {
+            out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
+        }
+    }
+    if (input.turbo4_scratch_bytes == 0) {
+        out.refusal = llama_cache_budget_admission_refusal::missing_scratch;
+        return out;
     }
     if (!add(input.weights_bytes, input.fixed_bytes, out.fixed_bytes) ||
         !rounded(out.fixed_bytes, out.fixed_bytes) || !add(input.graph_bytes, input.turbo4_scratch_bytes, out.scratch_bytes) ||

@@ -2,6 +2,7 @@
 // durable+reserved accounting, hierarchical constraints, and fail-closed plans.
 
 #include "llama-cache-budget.h"
+#include "ggml.h"
 
 #include <cstdio>
 #include <limits>
@@ -99,6 +100,37 @@ static llama_cache_budget_config base_config() {
     config.host.pinned_cap = 10;
     config.host.pinned_state = llama_cache_budget_capacity_state::known;
     return config;
+}
+
+static void test_mtp_reference_payload_uses_actual_rows() {
+    constexpr uint64_t tokens = 262144;
+    constexpr uint64_t values_per_head = 1024;
+    const uint64_t k_row = ggml_row_size(GGML_TYPE_TURBO4_0, values_per_head);
+    const uint64_t v_row = ggml_row_size(GGML_TYPE_TURBO4_0, values_per_head);
+    CHECK(k_row == 528);
+    CHECK(v_row == 528);
+
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    input.target_page_bytes = 1;
+    input.turbo4_scratch_bytes = 1;
+    input.mtp_tokens = tokens;
+    input.mtp_k_row_bytes = k_row;
+    input.mtp_v_row_bytes = v_row;
+
+    const auto admitted = llama_cache_budget_admit(input);
+    CHECK(admitted.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(admitted.mtp_bytes == 264ull * 1024 * 1024);
+    CHECK(admitted.mtp_bytes / tokens == 1056);
+
+    input.capacity_bytes = admitted.mtp_bytes - 1;
+    const auto insufficient = llama_cache_budget_admit(input);
+    CHECK(insufficient.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+
+    input.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    input.mtp_is_turbo4 = false;
+    const auto f16 = llama_cache_budget_admit(input);
+    CHECK(f16.refusal == llama_cache_budget_admission_refusal::mtp_not_turbo4);
 }
 
 static const llama_cache_budget_row * find_group(
@@ -445,6 +477,7 @@ static void test_f2_capacity_activation_is_inert_until_observed() {
 }
 
 int main() {
+    test_mtp_reference_payload_uses_actual_rows();
     test_baseline_and_group_rollup();
     test_optional_hierarchy();
     test_fail_closed_inputs();

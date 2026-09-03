@@ -74,6 +74,25 @@ common_speculative_mtp_context_params common_speculative_mtp_context_params_reso
         uint32_t requested_n_seq_max,
         bool requested_kv_unified);
 
+// Apply the native MTP context contract after the common target conversion. MTP has a separate
+// KV allocation, so it keeps the requested draft placement while never arming an independent
+// VBR/pager controller.
+void common_speculative_mtp_context_params_apply(
+        llama_context_params & cparams,
+        const common_speculative_mtp_context_params & geometry,
+        llama_context * target);
+
+bool common_speculative_mtp_cache_types_valid(
+        ggml_type type_k, ggml_type type_v) noexcept;
+
+// Validate and report the realized MTP KV allocation. The report is deliberately based on the
+// constructed context's memory breakdown rather than a projected target budget.
+bool common_speculative_mtp_log_residency(
+        const llama_context * context,
+        ggml_type type_k,
+        ggml_type type_v,
+        const char * budget_category = "mtp_gpu_reserved");
+
 bool common_speculative_mtp_context_available(const common_params_speculative & params);
 
 // Compact external MTP sidecars borrow their missing global tensors from the
