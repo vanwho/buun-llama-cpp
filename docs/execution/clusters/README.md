@@ -8,6 +8,11 @@ Clusters are intentionally smaller than phases. Two or three tasks share a sessi
 the same source ownership and intermediate mental model. Repository provenance, CUDA kernel work,
 server lifecycle, benchmarks, exact reference work, and upstream slicing rotate to fresh sessions.
 
+All task recommendations use `gpt-5.6-luna`: Luna Medium is the default, Luna Low is reserved for
+checklist/documentation/pure-arithmetic tasks, and Luna High is reserved for cross-repository placement,
+VBR/residency transactions, CUDA/operator integration, concurrent server/speculative lifecycle, CUDA
+acceptance, and exact online-softmax work. No task routes to Terra or Sol.
+
 For every task, read in this order:
 
 1. repository instructions;

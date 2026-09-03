@@ -9,7 +9,7 @@
   "status": "ready",
   "current_phase": "00",
   "current_task": "00-02",
-  "last_updated_utc": "2026-09-03T02:52:44+00:00",
+  "last_updated_utc": "2026-09-03T03:01:50+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "local",
@@ -67,7 +67,7 @@
       "packet": "docs/execution/tasks/00-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Low",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "00-02"
       ],
@@ -95,7 +95,7 @@
       "packet": "docs/execution/tasks/00-05.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra Medium",
+      "recommended_model": "Luna High",
       "depends_on": [
         "00-03",
         "00-04"
@@ -126,7 +126,7 @@
       "packet": "docs/execution/tasks/01-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra Medium",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "01-01"
       ],
@@ -154,7 +154,7 @@
       "packet": "docs/execution/tasks/01-04.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra Medium",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "01-02",
         "01-03"
@@ -169,7 +169,7 @@
       "packet": "docs/execution/tasks/02-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "01-04"
       ],
@@ -183,7 +183,7 @@
       "packet": "docs/execution/tasks/02-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra Medium",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "02-01"
       ],
@@ -197,7 +197,7 @@
       "packet": "docs/execution/tasks/02-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "02-01",
         "02-02"
@@ -212,7 +212,7 @@
       "packet": "docs/execution/tasks/02-04.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "02-03"
       ],
@@ -226,7 +226,7 @@
       "packet": "docs/execution/tasks/02-05.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "02-04"
       ],
@@ -240,7 +240,7 @@
       "packet": "docs/execution/tasks/03-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "02-05"
       ],
@@ -254,7 +254,7 @@
       "packet": "docs/execution/tasks/03-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "03-01"
       ],
@@ -268,7 +268,7 @@
       "packet": "docs/execution/tasks/03-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Sol High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "03-02"
       ],
@@ -282,7 +282,7 @@
       "packet": "docs/execution/tasks/03-04.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "03-03"
       ],
@@ -296,7 +296,7 @@
       "packet": "docs/execution/tasks/04-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra Medium",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "03-04"
       ],
@@ -310,7 +310,7 @@
       "packet": "docs/execution/tasks/04-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "03-04"
       ],
@@ -324,7 +324,7 @@
       "packet": "docs/execution/tasks/04-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra Medium",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "04-01",
         "04-02"
@@ -339,7 +339,7 @@
       "packet": "docs/execution/tasks/04-04.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "04-03"
       ],
@@ -353,7 +353,7 @@
       "packet": "docs/execution/tasks/05-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "04-04"
       ],
@@ -367,7 +367,7 @@
       "packet": "docs/execution/tasks/05-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "00-05",
         "01-03",
@@ -383,7 +383,7 @@
       "packet": "docs/execution/tasks/05-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "05-01",
         "05-02"
@@ -398,7 +398,7 @@
       "packet": "docs/execution/tasks/05-04.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Sol High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "05-03"
       ],
@@ -412,7 +412,7 @@
       "packet": "docs/execution/tasks/06-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Low",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "05-04"
       ],
@@ -426,7 +426,7 @@
       "packet": "docs/execution/tasks/06-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "06-01"
       ],
@@ -440,7 +440,7 @@
       "packet": "docs/execution/tasks/06-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra Medium",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "06-01"
       ],
@@ -454,7 +454,7 @@
       "packet": "docs/execution/tasks/06-04.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Sol High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "06-02",
         "06-03"
@@ -469,7 +469,7 @@
       "packet": "docs/execution/tasks/06-05.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Sol High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "06-04"
       ],
@@ -483,7 +483,7 @@
       "packet": "docs/execution/tasks/07-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Terra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "06-05"
       ],
@@ -497,7 +497,7 @@
       "packet": "docs/execution/tasks/07-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Low",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "07-01"
       ],

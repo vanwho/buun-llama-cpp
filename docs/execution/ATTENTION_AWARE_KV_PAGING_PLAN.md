@@ -587,8 +587,16 @@ VBR authorities, unsupported sequence layouts, missing host budget, and insuffic
 ## 11. Execution phases and gates
 
 The authoritative task order, status, cluster, model recommendation, and packet path live in
-`WORK_STATE.json`. Each packet is self-contained for Luna Low and names its reads, allowed writes,
+`WORK_STATE.json`. Each packet is self-contained for Luna Medium (or Luna High where the task is
+cross-repository, CUDA, lifecycle, or numerically demanding) and names its reads, allowed writes,
 tests, stop conditions, and handoff evidence.
+
+All task model recommendations are now Luna-family only: Luna Low for genuinely checklist/documentation
+or pure-arithmetic work (`00-01`, `00-02`, `00-04`, `01-01`, `01-03`), Luna Medium for ordinary
+implementation/benchmark/policy work, and Luna High for cross-worktree placement, residency
+transactions, CUDA/operator integration, concurrent lifecycle, CUDA acceptance, and exact numerical
+reference work. The runner converts these labels to `gpt-5.6-luna` with the corresponding reasoning
+effort; no task relies on Terra or Sol.
 
 ### Phase 00 — governance and reproducible baseline
 
@@ -939,6 +947,7 @@ handoff; **provisional API** may change before upstream review without changing 
 | D16 | Locked | Off mode and existing prompt artifacts must remain compatible; state/server/MTP/recurrent changes publish as one generation-safe operation. | Fail closed on stale identity, rollback every partial operation, and test cancellation/slot reuse/checkpoints. | 02-04, 05-01–06-02 |
 | D17 | Locked | Upstreamability requires small connected branches and repository conventions. | Generic draft placement first; page core, backing, FA, telemetry, policy, integration, and exact work remain separate; no giant initial PR. | 00-05, 07-01, 07-02 |
 | D18 | Locked | Performance claims use the existing `/srv/ai/benchmarks` result contract and same model/corpus controls. | Preserve raw manifests; compare all-GPU 77K, ordinary CPU KV, observe, selective focus/needle/churn, exact separately. | 00-03, 06-03–06-05 |
+| D19 | Locked | Task execution uses Luna Medium by default, Luna Low only for genuinely simple checklist work, and Luna High only where cross-repo, CUDA, lifecycle, or numerical risk warrants it. | `WORK_STATE.json` recommendations are all `Luna Low`, `Luna Medium`, or `Luna High`; runner/session clusters remain model-homogeneous enough for efficient reuse. | 00-01–07-02 |
 
 ### 17.1 Deliberately unresolved choices
 
@@ -984,3 +993,31 @@ Do not guess these prematurely:
 Task packets narrow these pointers further. A low-reasoning agent reads repository instructions, state,
 its cluster context, its task packet, the prior dependency handoffs, and only then the explicitly named
 source files. It does not need this entire plan in every task session.
+
+## 19. Agentic-run preflight and genuine blockers
+
+The clustered runner can execute the implementation sequence without conversational clarification when
+these preconditions hold. This section distinguishes a safe automatic retry/defer from a condition that
+must stop the run; agents must not “solve” a blocker by ad-hoc killing an unrelated service, weakening a
+test, inventing hardware evidence, or publishing upstream text. The user has authorized controlled
+stop/restart of the active Qwen service through the established benchmark/profile workflow.
+
+| Condition | Runner behavior | Can the agent resolve it? |
+| --- | --- | --- |
+| A task is incomplete, Codex hits a transient network/rate-limit, or a cluster exceeds its context guardrail | Retry with the same task/session, then rotate the cluster session; preserve state/handoff. | Yes, automatically, subject to service availability. |
+| The current task is blocked in `WORK_STATE.json` | Exit with code 3 and preserve the concrete blocker. | No; an external state change or user decision is required. |
+| Required model/sidecar is absent or metadata differs from the pinned Qwen3.8 geometry | Stop at provenance; do not guess or expand scope. | No, unless the artifact becomes available or the user changes scope. |
+| Relevant upstream default branch moves after provenance | Stop and request a deliberate re-sync/rebase decision; never merge over local work. | Not safely without an explicit policy choice. |
+| A live service would be disrupted by `/srv/ai/benchmarks` | Enter a controlled maintenance window: capture active profile/PID/command/health, let the established profile harness stop/restart the service with non-interactive sudo, and verify restoration plus health afterward. Never kill an unrelated service or leave a failed restart hidden. | Yes, now that the user has explicitly authorized the plan to bring down/restart the active server and passwordless sudo is available. A restart failure remains a blocker. |
+| Reference RTX 4080/CUDA is unavailable | Complete pure/fake-backend work, record hardware checks as deferred where packets permit, and stop release acceptance that requires CUDA evidence. | No; the requested speed/capacity goal cannot be honestly certified without the reference system. |
+| Selective quality, exact coverage, or throughput gate fails | Preserve raw evidence and mark the task blocked; do not retune thresholds after seeing results. | No; the implementation must be repaired or the user must accept a changed goal. |
+| Upstream issue/PR direction, prose, review, or merge is needed | Prepare local slice maps/evidence only; leave GitHub-facing action for the human. | No, but this does not block fork-local implementation completion. |
+| Local-Git mode has uncommitted changes | Continue agentically if desired; status/handoffs are persisted. Use `MAX_TASKS_PER_RUN=1` for an outer agent to review/commit between tasks. | Yes for code execution; fork commit/push is an outer-agent action. |
+| Another clustered runner holds `.codex-runner/runner.lock`, or stop/pause is requested | Wait for pause/lock or exit safely; never run two writers concurrently. | Yes after the other run exits or the operator clears the control condition. |
+
+Current preflight facts were checked on 2026-09-03: `nvidia-smi` reports an RTX 4080 with 16,376 MiB,
+the Qwen3.8 GGUF is readable, both fork defaults match their upstream defaults, Codex CLI is installed,
+passwordless sudo is available for the established activation workflow, and a Qwen `llama-server` is
+active on port 8080. The user has authorized controlled service restart, so this is a planned preflight
+action rather than a standing blocker. The benchmark harness's profile restore and post-run health check
+must succeed before the task is complete.

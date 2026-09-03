@@ -18,7 +18,7 @@ Carry forward:
   stretch, not a movable requirement;
 - quality thresholds and corpus are frozen before results; failures block rather than trigger retuning.
 
-Read: plan sections 1–3, 11 Phase 06, 12.4, 16–18; baseline and correctness handoffs; all three
+Read: plan sections 1–3, 11 Phase 06, 12.4, 16–19; baseline and correctness handoffs; all three
 `/srv/ai/benchmarks` files. Do not implement exact mode here.
 
 Exit artifacts: compatible benchmark records and `evidence/FINAL_ACCEPTANCE.md` for selective mode,

@@ -17,8 +17,9 @@ Carry forward:
 - task 00-05 alone may edit the prepared clean `/srv/repos/vanwho/llama.cpp-kv-pager` branch worktree
   and Buun; the ordinary llama.cpp `master` checkout remains read-only.
 
-Read: provenance outputs; plan sections 3.3–7, 12.4, 13; prior handoff after each task. Do not load pager
-kernel or dynamic policy sources in this cluster.
+Read: provenance outputs; plan sections 3.3–7, 12.4, 13, 19; prior handoff after each task. Do not load
+pager kernel or dynamic policy sources in this cluster. Check the Section 19 service preflight before
+starting live benchmarks; controlled stop/restart is authorized through the established harness.
 
 Exit artifacts: comparable baseline records, `baseline/SALVAGE_MATRIX.md`, and a tested generic/Buun
 draft-placement truth table with fork base/tip correspondence.
