@@ -294,3 +294,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-13-03`
 - Commit at update: `a360bb35e`
 - Summary: Retained bounded ordinary and packed H2D pipelining with cancellation-safe draining; added deterministic overlap/resource regressions, transfer evidence, and completed CPU/CUDA-configured/ASan verification.
+
+## 2026-09-03T23:32:09+00:00 — 13-04 — done
+
+- Branch: `codex/task-13-04`
+- Commit at update: `d9717589a`
+- Summary: Retained grow-only prefill host staging and capture-only selected descriptor/mask uploads; corrected replay table accounting; focused CPU/CUDA checks pass, live model profiling deferred.

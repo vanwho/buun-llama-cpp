@@ -1,0 +1,75 @@
+# 13-04 prefill/graph optimization evidence
+
+This is the local deterministic profile for task 13-04.  It is not a
+model-backed pp/TTFT benchmark: the configured service does not expose the
+selected pager route and no current-tree Qwen graph runner was available.
+
+## Retained changes
+
+- H1 — M-RoPE position expansion and attention-temperature staging use grow-only
+  graph-input-owned host buffers.  Repeated graph submissions refresh values
+  without constructing a temporary vector.
+- H2 — selected reference/direct page descriptors, row IDs, native positions,
+  native masks, and query positions are uploaded at graph capture only.
+  Dynamic cache indices and telemetry state remain submission-scoped.
+- H3 — the selected causal mask is filled at graph capture only for ordinary
+  reusable graphs; the tree-mask path remains refreshed when its dynamic
+  visibility matrix is active.  Direct page-table telemetry charges
+  `table_upload_bytes` only for a rebuilt graph, so an unchanged replay is a
+  zero-upload operation.
+
+All three hypotheses were compiled and exercised through the deterministic
+graph/input contract.  H2/H3 are measured by the replay byte assertion and
+the unchanged graph-key sequence; H1 is an allocation-lifetime change whose
+model timing requires the unavailable live graph route.  All three are
+retained because they do not alter tensor shapes, values, route
+qualification, or dynamic cache ownership.
+
+## Runtime-derived bounded sweep
+
+The existing prefill admission helper was exercised by
+`test-kv-attention-execution`:
+
+| configured ubatch | physical pages | page rows | admitted chunk |
+|---:|---:|---:|---:|
+| 4096 | 2 | 256 | 512 |
+| 4096 | 2 | 128 | 256 |
+| 4096 | 0 | n/a | 4096 |
+| 0 | 2 | 256 | 0 |
+
+The first three rows confirm that chunk size follows the runtime physical
+window and page geometry; zero pages preserves the feature-off/observe
+unbounded convention.  No logical-context-sized GPU allocation is introduced.
+
+## Before/after contract measurement
+
+The direct fixture graph-key sequence contains one unchanged replay.  Before
+this change the metric counted the immutable two-page descriptor on both the
+capture and replay: `2 * 24 * 2 = 96` bytes.  After this change the replay is
+not an upload: `2 * 24 = 48` bytes, asserted by the test.  This is a
+deterministic accounting result, not a CUDA bandwidth or TTFT claim.
+
+Five post-change deterministic execution trials were run with
+`/usr/bin/time -f 'trial=%s real_s=%e user_s=%U sys_s=%S max_rss_kb=%M'`.
+The binary emitted the same route/epoch assertions on each trial:
+
+```text
+trial=1 real_s=0.00 user_s=0.00 sys_s=0.00 max_rss_kb=8160
+trial=2 real_s=0.00 user_s=0.00 sys_s=0.00 max_rss_kb=7968
+trial=3 real_s=0.00 user_s=0.00 sys_s=0.00 max_rss_kb=7960
+trial=4 real_s=0.00 user_s=0.00 sys_s=0.00 max_rss_kb=7668
+trial=5 real_s=0.00 user_s=0.00 sys_s=0.00 max_rss_kb=8072
+```
+
+These trials validate deterministic route/key/lifetime behavior only.  Live
+before/after pp, TTFT, first-token, steady decode, VRAM peak, and p95/p99
+measurements remain deferred.
+
+## Provenance
+
+```text
+src/llama-graph.cpp  86e8586e37abb9b7c785483f76cbaac5327e4c99cd871858aaac63cb357d9d14
+src/llama-graph.h    8b8772d522330023a1054fcd4e7932d7107eec675e1e001f0a5840b877b8609a
+src/llama-kv-attention-execution.cpp  9d360dbe6744c6731aa7ab2a3358328a283238d8bc5b93ae32727d274aa719b4
+build/bin/test-kv-attention-execution  97e24f14adadeb7529669753199bcf8f9939b91adc7baad1b72c8912cce8f701
+```
