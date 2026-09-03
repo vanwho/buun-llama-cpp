@@ -38,3 +38,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-00-03`
 - Commit at update: `ad8ebd1fe`
 - Summary: Captured Fast default/large, full-context ordinary CPU-KV, and Big spec-off controls; manifests and summaries verified, final qwen38-big and 8080/8091 health restored.
+
+## 2026-09-03T04:54:38+00:00 — 00-04 — done
+
+- Branch: `codex/task-00-04`
+- Commit at update: `9e4e10100`
+- Summary: Added and validated the prototype/community salvage matrix with all required rows, explicit VBR-page boundary, and no reference worktree changes.

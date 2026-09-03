@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "00",
-  "current_task": "00-04",
-  "last_updated_utc": "2026-09-03T04:52:32+00:00",
+  "current_task": "00-05",
+  "last_updated_utc": "2026-09-03T04:54:59+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -81,13 +81,13 @@
       "cluster": "00b-baseline-draft",
       "title": "Record prototype and community salvage matrix",
       "packet": "docs/execution/tasks/00-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Low",
       "depends_on": [
         "00-02"
       ],
-      "commit": null
+      "commit": "9e4e1010099ee6409902ee9e1cbc1cae34ef5fe5"
     },
     {
       "id": "00-05",
