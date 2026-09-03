@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "01",
-  "current_task": "01-03",
-  "last_updated_utc": "2026-09-03T06:02:05+00:00",
+  "current_task": "01-04",
+  "last_updated_utc": "2026-09-03T06:05:29+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -140,13 +140,13 @@
       "cluster": "01b-budget-policy",
       "title": "Implement budget and MTP reservation arithmetic",
       "packet": "docs/execution/tasks/01-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Low",
       "depends_on": [
         "01-01"
       ],
-      "commit": null
+      "commit": "b36ee8e99603d4e87d8d473788aadd4528f467fd"
     },
     {
       "id": "01-04",
