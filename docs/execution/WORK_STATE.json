@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "03",
-  "current_task": "03-02",
-  "last_updated_utc": "2026-09-03T07:43:29+00:00",
+  "current_task": "03-03",
+  "last_updated_utc": "2026-09-03T07:50:44+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -254,13 +254,13 @@
       "cluster": "03a-attention-view",
       "title": "Add backend-neutral page-table attention plumbing",
       "packet": "docs/execution/tasks/03-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "03-01"
       ],
-      "commit": null
+      "commit": "f2908b775d7465de7772e9893b62bd2c9d565244"
     },
     {
       "id": "03-03",

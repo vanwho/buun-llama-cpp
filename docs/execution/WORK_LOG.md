@@ -96,3 +96,7 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 ## 2026-09-03T07:42:58+00:00 — 03-01 — done
 
 - Summary: Added immutable compact selected-cache attention view with bounded physical row dimensions, native logical positions/masks, source-slot mapping, graph-fence snapshot lifetime, tail support, and deterministic permutation/gap/rejection tests.
+
+## 2026-09-03T07:50:02+00:00 — 03-02 — done
+
+- Summary: Added backend-neutral selected-page operator metadata with Turbo4/GQA/causal/batch contracts, typed CPU/unsupported-backend capability results, table-epoch graph reuse fencing, and deterministic validation tests.
