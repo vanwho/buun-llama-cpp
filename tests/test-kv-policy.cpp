@@ -508,7 +508,7 @@ int main() {
     llama_kv_policy_trace dynamic_trace;
     dynamic_trace.epoch = 8;
     dynamic_trace.write_page = 1;
-    dynamic_trace.pages.resize(16);
+    dynamic_trace.pages.resize(512);
     for (size_t i = 0; i < dynamic_trace.pages.size(); ++i) {
         dynamic_trace.pages[i] = page(i + 1);
     }
@@ -519,6 +519,62 @@ int main() {
         assert(dynamic.status == llama_kv_policy_status::ok);
         assert(dynamic.target.size() == capacity);
     }
+
+    const auto check_replay_candidate = [&](uint32_t recent_ratio,
+                                            uint32_t structural_ratio,
+                                            uint32_t historical_ratio,
+                                            uint32_t transient_ratio,
+                                            uint32_t ema_weight,
+                                            uint32_t peak_weight,
+                                            uint32_t frequency_weight,
+                                            uint32_t recency_weight,
+                                            uint64_t hysteresis_q) {
+        auto candidate = llama_kv_policy_release_defaults();
+        candidate.recent_ratio = recent_ratio;
+        candidate.structural_ratio = structural_ratio;
+        candidate.historical_ratio = historical_ratio;
+        candidate.transient_ratio = transient_ratio;
+        candidate.attention_ema_weight = ema_weight;
+        candidate.recent_peak_weight = peak_weight;
+        candidate.frequency_weight = frequency_weight;
+        candidate.recency_weight = recency_weight;
+        candidate.hysteresis_q = hysteresis_q;
+        for (const uint32_t capacity : { 1u, 2u, 3u, 5u, 8u, 16u, 304u }) {
+            candidate.capacity_pages = capacity;
+            const auto result = llama_kv_policy_decide(dynamic_trace, candidate);
+            if (result.status != llama_kv_policy_status::ok ||
+                    result.target.size() != capacity) return false;
+        }
+        return true;
+    };
+    if (!check_replay_candidate(300000, 200000, 350000, 150000,
+                                250000, 250000, 250000, 250000, 0) ||
+        !check_replay_candidate(400000, 100000, 350000, 150000,
+                                500000, 200000, 150000, 150000, 100000) ||
+        !check_replay_candidate(350000, 150000, 350000, 150000,
+                                600000, 200000, 100000, 100000, 200000)) return 1;
+
+    const auto release = llama_kv_policy_release_defaults(5);
+    assert(release.capacity_pages == 5);
+    assert(release.recent_pages == 0 && release.structural_pages == 0 &&
+           release.historical_pages == 0 && release.transient_pages == 0);
+    assert(release.recent_ratio + release.structural_ratio +
+           release.historical_ratio + release.transient_ratio == LLAMA_KV_POLICY_RATIO_SCALE);
+    assert(release.recent_min_pages == 1 && release.transient_min_pages == 1);
+    assert(release.attention_ema_weight == 500000 &&
+           release.recent_peak_weight == 200000 && release.frequency_weight == 150000 &&
+           release.recency_weight == 150000);
+    assert(release.hysteresis_q == 100000);
+    const auto release_decision = llama_kv_policy_decide(dynamic_trace, release);
+    assert(release_decision.status == llama_kv_policy_status::ok &&
+           release_decision.target.size() == release.capacity_pages);
+    auto invalid_weights = release;
+    invalid_weights.attention_ema_weight = 0;
+    invalid_weights.recent_peak_weight = 0;
+    invalid_weights.frequency_weight = 0;
+    invalid_weights.recency_weight = 0;
+    if (llama_kv_policy_decide(dynamic_trace, invalid_weights).status !=
+            llama_kv_policy_status::invalid_trace) return 1;
 
     fake_prefetch_backend fake;
     llama_kv_prefetch_config prefetch_config;

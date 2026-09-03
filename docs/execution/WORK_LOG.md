@@ -300,3 +300,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-13-04`
 - Commit at update: `d9717589a`
 - Summary: Retained grow-only prefill host staging and capture-only selected descriptor/mask uploads; corrected replay table accounting; focused CPU/CUDA checks pass, live model profiling deferred.
+
+## 2026-09-03T23:47:04+00:00 — 13-05 — done
+
+- Branch: `codex/task-13-05`
+- Commit at update: `2d9721215`
+- Summary: Locked capacity-relative policy/pager release defaults, added weighted deterministic retention scoring and replay sweep coverage, recorded calibration/Pareto artifact and release hash; live selective quality/speed measurements deferred because pager telemetry route is not configured.

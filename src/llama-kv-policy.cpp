@@ -49,6 +49,11 @@ uint64_t normalized(uint64_t value, uint64_t maximum) {
     return static_cast<uint64_t>((static_cast<long double>(value) * 1000000.0L) / maximum);
 }
 
+uint64_t weighted_normalized(uint64_t value, uint64_t maximum, uint32_t weight) {
+    return (normalized(value, maximum) * uint64_t(weight)) /
+        LLAMA_KV_POLICY_WEIGHT_SCALE;
+}
+
 bool contains(const std::vector<uint64_t> & values, uint64_t id) {
     return std::find(values.begin(), values.end(), id) != values.end();
 }
@@ -162,9 +167,12 @@ llama_kv_policy_decision llama_kv_policy_decide(
         }
         const uint64_t ratio_sum = uint64_t(config.recent_ratio) +
             config.structural_ratio + config.historical_ratio + config.transient_ratio;
+        const uint64_t weight_sum = uint64_t(config.attention_ema_weight) +
+            config.recent_peak_weight + config.frequency_weight + config.recency_weight;
         const bool needs_auto = config.recent_pages == 0 || config.structural_pages == 0 ||
             config.historical_pages == 0 || config.transient_pages == 0;
-        if ((needs_auto && ratio_sum == 0) || ratio_sum > LLAMA_KV_POLICY_RATIO_SCALE * 4ull) {
+        if ((needs_auto && ratio_sum == 0) || ratio_sum > LLAMA_KV_POLICY_RATIO_SCALE * 4ull ||
+            weight_sum == 0 || weight_sum > LLAMA_KV_POLICY_WEIGHT_SCALE * 4ull) {
             out.status = llama_kv_policy_status::invalid_trace;
             return out;
         }
@@ -218,11 +226,18 @@ llama_kv_policy_decision llama_kv_policy_decide(
             max_age = std::max(max_age, page.age);
         }
         auto score = [&](const llama_kv_policy_page & page) {
-            // Inputs are normalized independently. Equal contribution is an
-            // intentionally provisional rank, not a calibrated coefficient.
-            uint64_t value = normalized(page.attention_ema_q, max_ema) +
-                normalized(page.recent_peak_q, max_peak) + normalized(page.retrieval_hits, max_frequency) +
-                normalized(page.recency, max_recency) + page.hysteresis_q;
+            // Inputs are normalized independently before applying the locked
+            // release weights. This keeps the policy deterministic when a
+            // trace omits one evidence stream and makes the coefficients
+            // auditable in the calibration artifact.
+            uint64_t value = weighted_normalized(page.attention_ema_q, max_ema,
+                    config.attention_ema_weight) +
+                weighted_normalized(page.recent_peak_q, max_peak,
+                    config.recent_peak_weight) +
+                weighted_normalized(page.retrieval_hits, max_frequency,
+                    config.frequency_weight) +
+                weighted_normalized(page.recency, max_recency,
+                    config.recency_weight) + page.hysteresis_q;
             if (contains(previous_target, page.id)) value += config.hysteresis_q;
             const uint64_t cost = normalized(page.fault_cost, max_fault) + normalized(page.dirty_cost, max_dirty);
             const uint64_t decay = normalized(page.age, max_age);
@@ -304,6 +319,13 @@ llama_kv_policy_decision llama_kv_policy_decide(
         out.target.clear(); out.adds.clear(); out.keeps.clear(); out.victims.clear(); out.records.clear();
         return out;
     }
+}
+
+llama_kv_policy_controller_config llama_kv_policy_release_defaults(
+        uint32_t capacity_pages) noexcept {
+    llama_kv_policy_controller_config output;
+    output.capacity_pages = capacity_pages;
+    return output;
 }
 
 llama_kv_policy_result llama_kv_policy_replay(

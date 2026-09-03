@@ -7,9 +7,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "13",
-  "current_task": "13-05",
-  "last_updated_utc": "2026-09-03T23:33:16+00:00",
+  "current_phase": "14",
+  "current_task": "14-01",
+  "last_updated_utc": "2026-09-03T23:48:34+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -899,13 +899,13 @@
       "cluster": "13b-system-opt",
       "title": "Calibrate policy and lock release-candidate defaults",
       "packet": "docs/execution/tasks/13-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "13-04"
       ],
-      "commit": null
+      "commit": "1e38028802bcf4e69cc72d413b0760eb6a3bed0d"
     },
     {
       "id": "14-01",
