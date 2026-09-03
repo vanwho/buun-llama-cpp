@@ -9,7 +9,7 @@
   "status": "ready",
   "current_phase": "00",
   "current_task": "00-02",
-  "last_updated_utc": "2026-09-03T02:10:52+00:00",
+  "last_updated_utc": "2026-09-03T02:34:42+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "local",
@@ -85,6 +85,21 @@
       "commit": null
     },
     {
+      "id": "00-05",
+      "phase": "00",
+      "cluster": "00-governance-baseline",
+      "title": "Add independent draft-KV placement",
+      "packet": "docs/execution/tasks/00-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra Medium",
+      "depends_on": [
+        "00-03",
+        "00-04"
+      ],
+      "commit": null
+    },
+    {
       "id": "01-01",
       "phase": "01",
       "cluster": "01-page-contracts",
@@ -95,7 +110,8 @@
       "recommended_model": "Luna Low",
       "depends_on": [
         "00-03",
-        "00-04"
+        "00-04",
+        "00-05"
       ],
       "commit": null
     },
@@ -145,8 +161,8 @@
     {
       "id": "02-01",
       "phase": "02",
-      "cluster": "02-vbr-host-pages",
-      "title": "Add bounded selected-page VBR capture descriptors",
+      "cluster": "02-kv-host-pages",
+      "title": "Add bounded selected-page capture descriptors",
       "packet": "docs/execution/tasks/02-01.md",
       "status": "todo",
       "blocker": null,
@@ -159,7 +175,7 @@
     {
       "id": "02-02",
       "phase": "02",
-      "cluster": "02-vbr-host-pages",
+      "cluster": "02-kv-host-pages",
       "title": "Add host Turbo4 page catalog and budget",
       "packet": "docs/execution/tasks/02-02.md",
       "status": "todo",
@@ -173,7 +189,7 @@
     {
       "id": "02-03",
       "phase": "02",
-      "cluster": "02-vbr-host-pages",
+      "cluster": "02-kv-host-pages",
       "title": "Add batched asynchronous page transfers",
       "packet": "docs/execution/tasks/02-03.md",
       "status": "todo",
@@ -188,7 +204,7 @@
     {
       "id": "02-04",
       "phase": "02",
-      "cluster": "02-vbr-host-pages",
+      "cluster": "02-kv-host-pages",
       "title": "Publish residency transactions with rollback",
       "packet": "docs/execution/tasks/02-04.md",
       "status": "todo",
@@ -196,6 +212,20 @@
       "recommended_model": "Terra High",
       "depends_on": [
         "02-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "02-05",
+      "phase": "02",
+      "cluster": "02-kv-host-pages",
+      "title": "Prove canonical host backing with a fixed GPU window",
+      "packet": "docs/execution/tasks/02-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "02-04"
       ],
       "commit": null
     },
@@ -209,7 +239,7 @@
       "blocker": null,
       "recommended_model": "Terra High",
       "depends_on": [
-        "02-04"
+        "02-05"
       ],
       "commit": null
     },
@@ -336,6 +366,7 @@
       "blocker": null,
       "recommended_model": "Terra High",
       "depends_on": [
+        "00-05",
         "01-03",
         "05-01"
       ],
@@ -428,6 +459,20 @@
       "commit": null
     },
     {
+      "id": "06-05",
+      "phase": "06",
+      "cluster": "06-validation-campaign",
+      "title": "Implement the exact page-wave reference",
+      "packet": "docs/execution/tasks/06-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Sol High",
+      "depends_on": [
+        "06-04"
+      ],
+      "commit": null
+    },
+    {
       "id": "07-01",
       "phase": "07",
       "cluster": "07-upstream-handoff",
@@ -437,7 +482,7 @@
       "blocker": null,
       "recommended_model": "Terra High",
       "depends_on": [
-        "06-04"
+        "06-05"
       ],
       "commit": null
     },
