@@ -33,6 +33,9 @@
 #include <unordered_map>
 #include <vector>
 
+extern "C" void dequantize_row_turbo4_0(
+        const void * x, float * y, int64_t k);
+
 // Dynamic-VBR degrade tier ladder and measured price order (generated table).
 enum vbr_tier : uint8_t {
     VBR_TIER_T8,
@@ -2059,6 +2062,11 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     // graph is outstanding.
     GGML_ASSERT(pager_pending_writes_.empty());
     pager_ = pager;
+    if (pager_ != nullptr) {
+        pager_->set_routing_summary_provider({
+            this, &llama_kv_cache::pager_routing_summary_build,
+        });
+    }
     if (pager_ == nullptr || pager_->host_catalog() == nullptr) {
         return;
     }
@@ -2240,6 +2248,71 @@ bool llama_kv_cache::pager_host_prepare(
         request.expected_unit_generations[unit.logical_unit_id] = unit.generation;
     }
     return true;
+}
+
+bool llama_kv_cache::pager_routing_summary_build(
+        void * context,
+        const llama_kv_page_record & page,
+        const llama_kv_routing_summary_config & config,
+        llama_kv_routing_page_input & output) noexcept {
+    auto * cache = static_cast<llama_kv_cache *>(context);
+    if (cache == nullptr || cache->pager_ == nullptr || cache->layers.empty() ||
+        page.id.position_begin < 0 || page.id.position_end <= page.id.position_begin ||
+        page.id.position_end - page.id.position_begin != llama_pos(VBR_GENERATION_PAGE_CELLS) ||
+        page.physical_slot == UINT32_MAX || config.representative_count < 4 ||
+        config.representative_count > 8 || config.vector_dim == 0 ||
+        config.layer_index >= cache->layers.size()) {
+        return false;
+    }
+    const auto & layer = cache->layers[config.layer_index];
+    const auto * tensor = layer.k;
+    const uint32_t heads = cache->hparams.n_head_kv(layer.il);
+    if (tensor == nullptr || tensor->type != GGML_TYPE_TURBO4_0 || tensor->ne[0] <= 0 ||
+        tensor->ne[1] <= 0 || heads == 0 || tensor->ne[0] % heads != 0 ||
+        config.vector_dim != uint32_t(tensor->ne[0] / heads) || config.head_index >= heads) {
+        return false;
+    }
+    const uint32_t stream = cache->get_stream_for_seq(page.id.sequence_id);
+    if (tensor->ne[2] <= int64_t(stream)) return false;
+    const uint64_t row_bytes = ggml_row_size(tensor->type, tensor->ne[0]);
+    const uint64_t row_count = uint64_t(tensor->ne[1]);
+    if (row_bytes == 0 || row_count > std::numeric_limits<uint64_t>::max() / row_bytes ||
+        uint64_t(stream) > std::numeric_limits<uint64_t>::max() / (row_count * row_bytes) ||
+        uint64_t(page.physical_slot) * VBR_GENERATION_PAGE_CELLS + VBR_GENERATION_PAGE_CELLS > row_count) {
+        return false;
+    }
+    const uint64_t stream_bytes = row_count * row_bytes;
+    try {
+        output = {};
+        output.id = page.id;
+        output.row_indices.resize(config.representative_count);
+        output.rotated_k_rows.resize(size_t(config.representative_count) * config.vector_dim);
+        std::vector<uint8_t> encoded(row_bytes);
+        std::vector<float> decoded(size_t(tensor->ne[0]));
+        const uint64_t stream_offset = uint64_t(stream) * stream_bytes;
+        for (uint32_t representative = 0; representative < config.representative_count; ++representative) {
+            const uint32_t row = uint32_t((uint64_t(representative) *
+                    (VBR_GENERATION_PAGE_CELLS - 1)) /
+                    (config.representative_count - 1));
+            const uint64_t physical = uint64_t(page.physical_slot) * VBR_GENERATION_PAGE_CELLS + row;
+            if (physical > std::numeric_limits<uint64_t>::max() / row_bytes ||
+                stream_offset > std::numeric_limits<uint64_t>::max() - physical * row_bytes) return false;
+            const uint64_t offset = stream_offset + physical * row_bytes;
+            if (offset > std::numeric_limits<size_t>::max() - row_bytes) return false;
+            ggml_backend_tensor_get(tensor, encoded.data(), size_t(offset), size_t(row_bytes));
+            dequantize_row_turbo4_0(encoded.data(), decoded.data(), tensor->ne[0]);
+            output.row_indices[representative] = row;
+            const size_t source = size_t(config.head_index) * config.vector_dim;
+            std::copy_n(decoded.data() + source, config.vector_dim,
+                        output.rotated_k_rows.begin() + size_t(representative) * config.vector_dim);
+        }
+        if (uint64_t(config.representative_count) > std::numeric_limits<uint64_t>::max() / row_bytes) return false;
+        output.source_bytes = uint64_t(config.representative_count) * row_bytes;
+        return true;
+    } catch (...) {
+        output = {};
+        return false;
+    }
 }
 
 bool llama_kv_cache::pager_host_snapshot_acquire(

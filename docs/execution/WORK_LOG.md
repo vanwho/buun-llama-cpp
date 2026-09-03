@@ -228,3 +228,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 ## 2026-09-03T19:22:16+00:00 — 10-04 — done
 
 - Summary: Added bounded selective/exact prefill batching from the admitted physical page window, compact physical-row selected gathers, post-fence host page sealing, and the safe transition to direct decode. CPU attention, view, pager, and residency checks passed 4/4; the full CUDA template rebuild and model-backed benchmark remain deferred.
+
+## 2026-09-03T19:59:18+00:00 — 11-01 — done
+
+- Branch: `codex/task-11-01`
+- Commit at update: `226d951a8`
+- Summary: Implemented live sealed-page routing summary production, bounded Turbo4 sampling, incremental identity-safe updates, calibration candidates, tests, and handoff.

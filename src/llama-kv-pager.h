@@ -2,6 +2,7 @@
 
 #include "llama-cache-budget.h"
 #include "llama-kv-pager-config.h"
+#include "llama-kv-routing-summary.h"
 #include "llama-kv-residency.h"
 #include "llama-kv-residency-transfer.h"
 #include "llama-vbr-artifact-catalog.h"
@@ -50,6 +51,21 @@ struct llama_kv_pager_resources {
     uint64_t host_ring_bytes = 0;
     size_t host_chunk_bytes = 0;
     vbr_selected_page_capture_limits host_capture_limits;
+    llama_kv_routing_summary_config routing_summary;
+};
+
+// The cache owns the representation-specific sampler. It is called only at a
+// completed page boundary, after the graph fence, and may read a bounded set
+// of rotated Turbo4 K rows into the input descriptor.
+struct llama_kv_pager_routing_summary_provider {
+    using build_fn = bool (*) (
+            void * context,
+            const llama_kv_page_record & page,
+            const llama_kv_routing_summary_config & config,
+            llama_kv_routing_page_input & output) noexcept;
+
+    void * context = nullptr;
+    build_fn build = nullptr;
 };
 
 struct llama_kv_pager_allocation {
@@ -264,6 +280,8 @@ public:
     // A page becomes evictable only after seal_ready_pages() reports a
     // successful catalog publication.
     void set_host_provider(llama_kv_pager_host_provider provider) noexcept;
+    void set_routing_summary_provider(
+            llama_kv_pager_routing_summary_provider provider) noexcept;
     uint32_t seal_ready_pages() noexcept;
     bool invalidate_host_page(const llama_kv_page_id & page) noexcept;
     void bind_representation_identity(
@@ -293,6 +311,13 @@ public:
         return host_ ? resources_host_stream_index_ : UINT32_MAX;
     }
 
+    const llama_kv_routing_summary_store & routing_summaries() const noexcept {
+        return routing_summaries_;
+    }
+    const llama_kv_routing_summary_accounting & routing_summary_accounting() const noexcept {
+        return routing_summaries_.accounting();
+    }
+
     // The pager table remains the logical authority; these are the real
     // backend-owned slot/event doors used by the residency transfer owner.
     llama_kv_residency_pool_backend residency_backend() const noexcept {
@@ -319,6 +344,7 @@ private:
 
     llama_kv_pager_write_status publish_page(page_state & page) noexcept;
     llama_kv_pager_write_status erase_page(page_state & page) noexcept;
+    void reconcile_routing_summaries() noexcept;
     page_state * find_page(int32_t sequence_id, uint32_t logical_page) noexcept;
     const page_state * find_page(int32_t sequence_id, uint32_t logical_page) const noexcept;
     page_state * find_slot(uint32_t slot) noexcept;
@@ -336,6 +362,9 @@ private:
     uint64_t resources_host_topology_identity_ = 0;
     uint32_t resources_host_child_id_ = UINT32_MAX;
     uint32_t resources_host_stream_index_ = UINT32_MAX;
+    llama_kv_routing_summary_config routing_summary_config_;
+    llama_kv_pager_routing_summary_provider routing_summary_provider_;
+    llama_kv_routing_summary_store routing_summaries_;
     llama_kv_page_id page_identity_;
     llama_kv_pager_allocation allocation_;
     std::vector<page_state> pages_;
