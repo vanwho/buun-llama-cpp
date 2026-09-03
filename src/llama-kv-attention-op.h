@@ -62,6 +62,10 @@ public:
     uint64_t table_epoch() const noexcept;
     // This is the graph reuse/capture key for selected-page table contents.
     uint64_t graph_reuse_key() const noexcept { return table_epoch(); }
+    // Unlike graph_reuse_key(), this also includes the ordered selected-page
+    // contents. Two views may share one residency snapshot epoch while having
+    // different compact page tables.
+    uint64_t graph_content_key() const noexcept;
     uint32_t get_n_kv() const noexcept;
 
     ggml_type type_k() const noexcept;
@@ -78,6 +82,10 @@ public:
     const std::vector<llama_pos> & native_positions() const noexcept;
     const std::vector<uint8_t> & native_mask() const noexcept;
     const std::vector<llama_pos> & query_positions() const noexcept;
+
+    // Retain the immutable selected view for one submitted graph.  This is
+    // intentionally the same lightweight fence used by the compact view.
+    llama_kv_attention_view::graph_fence acquire_graph_fence() const noexcept;
 
 private:
     struct state;

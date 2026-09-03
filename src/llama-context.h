@@ -291,6 +291,18 @@ struct llama_context {
     const llama_model   & get_model()   const;
     const llama_cparams & get_cparams() const;
 
+    // Internal selected-attention boundary.  Policy supplies immutable
+    // metadata; graph construction then carries its epochs and page fence.
+    void set_kv_attention_mode(llama_kv_attention_execution_mode mode) noexcept;
+    llama_kv_attention_execution_decision prepare_kv_attention(
+            const llama_kv_attention_operator_metadata & metadata,
+            llama_kv_attention_execution_phase phase,
+            uint64_t representation_epoch,
+            uint64_t shape_epoch,
+            bool direct_capable,
+            const llama_kv_attention_scratch_request & scratch);
+    void complete_kv_attention_graph() noexcept;
+
     ggml_backend_sched_t get_sched() const;
     ggml_backend_t backend_for_device(
         ggml_backend_dev_t device) const;
@@ -566,6 +578,7 @@ private:
     llama_cross cross; // TODO: tmp for handling cross-attention - need something better probably
 
     llama_memory_ptr memory;
+    llama_kv_attention_execution kv_attention_execution;
 
     // decode output (2-dimensional array: [n_outputs][n_vocab])
     buffer_view<float> logits = {nullptr, 0};
