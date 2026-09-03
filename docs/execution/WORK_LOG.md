@@ -270,3 +270,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-12-02`
 - Commit at update: `4f03687dc`
 - Summary: Exported bounded server pager telemetry and made the profile adapter consume /metrics with fail-closed required-field validation.
+
+## 2026-09-03T22:13:59+00:00 — 12-03 — done
+
+- Branch: `codex/task-12-03`
+- Commit at update: `5a867e524`
+- Summary: Added explicit off/observe/selective/exact pager construction coverage and recorded the operator-surface lifecycle/refusal matrix with live CUDA checks deferred.
