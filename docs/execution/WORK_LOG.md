@@ -92,3 +92,7 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-02-05`
 - Commit at update: `a4f869753`
 - Summary: Added derived fixed/manual 304-page residency window with exact Turbo4 geometry, scalar host/device/staging ledger, partial-tail seal/reseal, checksum validation, mutation/promotion/clean-eviction proof, and deterministic tests.
+
+## 2026-09-03T07:42:58+00:00 — 03-01 — done
+
+- Summary: Added immutable compact selected-cache attention view with bounded physical row dimensions, native logical positions/masks, source-slot mapping, graph-fence snapshot lifetime, tail support, and deterministic permutation/gap/rejection tests.
