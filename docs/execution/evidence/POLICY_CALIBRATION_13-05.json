@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "task": "13-05",
+  "status": "release_candidate_locked_live_measurement_deferred",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_head": "2d9721215c483f91b6ec14badf032781b5126228",
+    "release_binary": "build/bin/libllama.so",
+    "release_binary_sha256": "6f0cc39e99aa3ee0b352be84262b73a2834003e5f2f2d1053b303a52b1f7560d",
+    "build": "Release CPU local verification; CUDA binary refresh deferred",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "sampling": {"temperature": 0, "seed": 42},
+    "corpus": "pager-corpus-v2",
+    "corpus_sha256": "e8cd002b2a6215a5003db7b8c204602bba1879a5bdf91a2a9ef9b0a2e3ff0e35"
+  },
+  "calibration_split": {
+    "cases": 12,
+    "frozen": true,
+    "held_out_accessed": false,
+    "held_out_results": null,
+    "source_contract": "docs/execution/evidence/PAGER_BENCHMARK_CONTRACT_V2.json"
+  },
+  "release_candidate": {
+    "version": 1,
+    "capacity_source": "runtime admitted H",
+    "fixed_hot_page_or_token_count": false,
+    "pager": {
+      "pin_recent": "auto",
+      "hot_pages": "auto",
+      "router_top_k": 8,
+      "router_explore": 2,
+      "telemetry_interval_tokens": 4,
+      "prefetch_depth": 2
+    },
+    "policy": {
+      "recent_pages": "auto",
+      "structural_pages": "auto",
+      "historical_pages": "auto",
+      "transient_pages": "auto",
+      "recent_ratio": 400000,
+      "structural_ratio": 100000,
+      "historical_ratio": 350000,
+      "transient_ratio": 150000,
+      "recent_min_pages": 1,
+      "structural_min_pages": 0,
+      "historical_min_pages": 0,
+      "transient_min_pages": 1,
+      "attention_ema_weight": 500000,
+      "recent_peak_weight": 200000,
+      "frequency_weight": 150000,
+      "recency_weight": 150000,
+      "hysteresis_q": 100000
+    },
+    "rounding": {
+      "ratios": "floor each share after minima, then assign remaining pages in recent, structural, historical, transient order",
+      "minima": "consume minima in the same order and clamp each to remaining capacity",
+      "mandatory": "insert first; H minus mandatory pages is the quota capacity",
+      "small_capacity": "when H is smaller than the minima, consume only the pages available; when H >= L, select all logical pages"
+    }
+  },
+  "release_config_hash": {
+    "algorithm": "sha256",
+    "canonical_payload": "sorted compact JSON of release_candidate pager/policy values plus corpus_sha256 and release_binary_sha256",
+    "sha256": "2497f112026c71f904ac115cded4dd290a42bfd52a18ba202dc7337e5f88276b"
+  },
+  "bounded_replay_sweep": {
+    "status": "passed_deterministic_policy_invariants",
+    "implementation": "llama_kv_policy_decide",
+    "admitted_capacities": [1, 2, 3, 5, 8, 16, 304],
+    "candidates": [
+      {
+        "id": "baseline-equal-evidence",
+        "ratios": [300000, 200000, 350000, 150000],
+        "weights": [250000, 250000, 250000, 250000],
+        "hysteresis_q": 0,
+        "replay_result": "valid_target_and_capacity_bounded"
+      },
+      {
+        "id": "release-candidate",
+        "ratios": [400000, 100000, 350000, 150000],
+        "weights": [500000, 200000, 150000, 150000],
+        "hysteresis_q": 100000,
+        "replay_result": "valid_target_and_capacity_bounded"
+      },
+      {
+        "id": "quality-first-exploration",
+        "ratios": [350000, 150000, 350000, 150000],
+        "weights": [600000, 200000, 100000, 100000],
+        "hysteresis_q": 200000,
+        "replay_result": "valid_target_and_capacity_bounded"
+      }
+    ],
+    "objective": "quality floor first, then warm decode speed, then p95 stability, then transfer/fault cost",
+    "live_comparison": null,
+    "pareto_frontier": [
+      {"candidate": "release-candidate", "status": "selected_provisional_pending_live_quality_and_speed"}
+    ]
+  },
+  "component_ablations": [
+    {"component": "structural pins", "replay": "mandatory path preserved", "live_quality": null, "live_speed": null},
+    {"component": "recent region", "replay": "capacity-relative quota preserved", "live_quality": null, "live_speed": null},
+    {"component": "summary top-k", "replay": "candidate union remains deterministic", "live_quality": null, "live_speed": null},
+    {"component": "exploration", "replay": "bounded exploration remains deterministic", "live_quality": null, "live_speed": null},
+    {"component": "attention retention", "replay": "weighted normalized score is deterministic", "live_quality": null, "live_speed": null},
+    {"component": "hysteresis", "replay": "previous target tie-break is deterministic", "live_quality": null, "live_speed": null},
+    {"component": "prefetch", "replay": "scheduler bounds remain covered by test-kv-policy", "live_quality": null, "live_speed": null}
+  ],
+  "quality_gates": {
+    "routing_recall_at_selected": {"floor": 0.95, "observed": null},
+    "captured_attention_mass": {"floor": 0.95, "observed": null},
+    "output_abs_error": {"floor": 0.00001, "observed": null},
+    "logit_abs_error": {"floor": 0.0001, "observed": null},
+    "perplexity_delta": {"floor": 0.02, "observed": null},
+    "kl_divergence": {"floor": 0.01, "observed": null},
+    "mtp_acceptance": {"floor": "report only", "observed": null},
+    "status": "not_configured_no_quality_claim"
+  },
+  "integrated_speed_checkpoint": {
+    "status": "deferred_live_pager_not_configured",
+    "same_context_cpu_kv": null,
+    "selective_warm_decode_tok_s": null,
+    "speedup": null,
+    "three_x_floor": null,
+    "five_x_target": null,
+    "safe_all_gpu_fraction": null,
+    "raw_path": "/srv/ai/paged-kv/results/13-05/",
+    "reason": "The available model-backed controls are off/all-GPU; the current server exposes no configured selective pager route or live pager counters."
+  },
+  "prior_optimization_repairs": [
+    {"task": "13-02", "area": "direct kernel", "result": "three candidates rejected or retained without a live end-to-end quality/speed claim", "raw_path": "docs/execution/evidence/kernel-profile-13-02.txt"},
+    {"task": "13-03", "area": "transfer overlap", "result": "bounded H2D overlap and rollback path retained; live pager bandwidth deferred", "raw_path": "docs/execution/evidence/transfer-profile-13-03.txt"},
+    {"task": "13-04", "area": "prefill/graph", "result": "bounded graph-input reuse retained; live model profile deferred", "raw_path": "docs/execution/evidence/prefill-graph-profile-13-04.txt"}
+  ],
+  "raw_artifacts": {
+    "frozen_profile": "docs/execution/evidence/PERFORMANCE_PROFILE.json",
+    "benchmark_contract": "docs/execution/evidence/PAGER_BENCHMARK_CONTRACT_V2.json",
+    "control_baseline": "docs/execution/evidence/BASELINE_V2.json",
+    "live_results_directory": "/srv/ai/paged-kv/results/13-05/",
+    "live_results_produced": false
+  },
+  "deferred": {
+    "reason": "No isolated configured model-backed selective pager service and no expected-answer stream is available in this workspace.",
+    "required_later_setup": "Run the Release CUDA server with the frozen pager-corpus-v2 calibration partition, preserve per-request telemetry and raw traces under the live_results_directory, then rerun the Pareto candidates and all ablations before phase-14 held-out evaluation.",
+    "checks": ["ten final trials per selected calibration case", "exact/dense attention-mass comparison", "routing recall and task score", "p95/p99 cold/focus/churn latency", "MTP acceptance", "observe overhead", "same-context CPU-KV 3x checkpoint", "safe all-GPU comparison", "CUDA transfer/graph/policy counters"]
+  }
+}
