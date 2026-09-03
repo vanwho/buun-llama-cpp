@@ -525,6 +525,24 @@ if (NOT LLAMA_SANITIZE_ADDRESS AND NOT GGML_SCHED_NO_REALLOC)
   llama_build_and_test(test-opt.cpp)
 endif()
 llama_build_and_test(test-backend-ops.cpp)
+
+if (TARGET ggml-cuda)
+    enable_language(CUDA)
+    add_executable(test-cuda-fattn-paged-turbo4 test-cuda-fattn-paged-turbo4.cu)
+    target_link_libraries(test-cuda-fattn-paged-turbo4 PRIVATE ggml-cuda ggml-base)
+    target_include_directories(test-cuda-fattn-paged-turbo4 PRIVATE
+        ${PROJECT_SOURCE_DIR}/ggml/include
+        ${PROJECT_SOURCE_DIR}/ggml/src)
+    if (MSVC)
+        target_compile_options(test-cuda-fattn-paged-turbo4 PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(test-cuda-fattn-paged-turbo4 PRIVATE -UNDEBUG)
+    endif()
+    add_test(NAME test-cuda-fattn-paged-turbo4
+        COMMAND $<TARGET_FILE:test-cuda-fattn-paged-turbo4>)
+    set_property(TEST test-cuda-fattn-paged-turbo4 PROPERTY LABELS "cuda")
+endif()
+
 if (TARGET ggml-cuda AND GGML_CUDA_Q8_MMV_TEST_INSTRUMENTATION)
     llama_test(test-backend-ops NAME test-cuda-q8-mmv-dispatch
         LABEL "main;backend"

@@ -100,3 +100,7 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 ## 2026-09-03T07:50:02+00:00 — 03-02 — done
 
 - Summary: Added backend-neutral selected-page operator metadata with Turbo4/GQA/causal/batch contracts, typed CPU/unsupported-backend capability results, table-epoch graph reuse fencing, and deterministic validation tests.
+
+## 2026-09-03T08:56:50+00:00 — 03-03 — done
+
+- Summary: Added direct selected-page CUDA Turbo4 decode with validated physical-page addressing, native masks/causal tails, bounded online logical-page mass reduction, fail-closed geometry/type checks, deterministic CUDA coverage, timing/resource capture, and compute-sanitizer verification.
