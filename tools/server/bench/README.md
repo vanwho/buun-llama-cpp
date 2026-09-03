@@ -151,16 +151,17 @@ tools/server/bench/run-pager-profile-benchmark.sh fast cold-needles results/page
 tools/server/bench/run-pager-profile-benchmark.sh fast short results/pager-dry --dry-run
 ```
 
-The adapter never claims pager counters that the current server does not
-publish. Such fields are `null` and marked `not_configured`; configured values
-may be supplied through `PAGER_*` environment variables. A live run delegates
+The adapter reads pager telemetry directly from the server's `/metrics`
+endpoint. A live run fails if required pager fields are absent; it never
+substitutes `PAGER_*` environment values for runtime measurements. A dry run
+remains explicitly `not_configured`. A live run delegates
 profile activation, clean isolation, interruption summaries, and restoration
 to `run-profile-benchmark.sh`, then records pre/post profile, PID, command,
 health, and running-service snapshots. A failed restoration or post-run health
 check is an error.
 
-The current server has no live pager mode or pager counter stream. Therefore a
-dry run validates command construction and manifest compatibility, while a
-live invocation can produce only the existing non-pager controls unless a
-pager-enabled server and telemetry adapter are supplied. Do not treat those
-controls as selective capacity, quality, or throughput acceptance.
+Pager samples use the names `llamacpp:kv_pager_<field>`; `mode`, `route`,
+`mtp_backend`, and target type are represented as labels. The snapshot includes
+page/byte ledgers, epochs, attention and graph counters, transfer bytes, and
+routing configuration. Epoch fields are the generation boundary for consumers
+that need to reconcile multiple scrapes.

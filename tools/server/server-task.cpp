@@ -1661,6 +1661,34 @@ std::string server_task_result_metrics::to_metrics() {
     add_items("counter", counters);
     add_items("gauge",   gauges);
 
+    if (!metrics.pager_metrics.is_null()) {
+        const auto mode = metrics.pager_metrics.at("mode").get<std::string>();
+        prometheus << "# HELP llamacpp:kv_pager_mode Experimental KV pager mode\n"
+                   << "# TYPE llamacpp:kv_pager_mode gauge\n"
+                   << "llamacpp:kv_pager_mode{mode=\"" << mode << "\"} 1\n";
+        for (const char * key : {"route", "mtp_backend", "target_type_k", "target_type_v"}) {
+            if (!metrics.pager_metrics.contains(key) || !metrics.pager_metrics.at(key).is_string()) {
+                continue;
+            }
+            const auto value = metrics.pager_metrics.at(key).get<std::string>();
+            prometheus << "# HELP llamacpp:kv_pager_" << key << " Experimental KV pager " << key << "\n"
+                       << "# TYPE llamacpp:kv_pager_" << key << " gauge\n"
+                       << "llamacpp:kv_pager_" << key << "{" << (std::string(key) == "route" ? "route" :
+                           std::string(key) == "mtp_backend" ? "backend" : "type")
+                       << "=\"" << value << "\"} 1\n";
+        }
+        for (const auto & item : metrics.pager_metrics.items()) {
+            if (item.key() == "status" || item.value().is_string() || item.key() == "mode") {
+                continue;
+            }
+            prometheus << "# HELP llamacpp:kv_pager_" << item.key()
+                       << " Experimental KV pager " << item.key() << "\n"
+                       << "# TYPE llamacpp:kv_pager_" << item.key() << " gauge\n"
+                       << "llamacpp:kv_pager_" << item.key() << " "
+                       << item.value().get<double>() << "\n";
+        }
+    }
+
     // labeled counter: one time series per draft position
     if (!metrics.n_accepted_per_pos.empty()) {
         prometheus << "# HELP llamacpp:spec_decode_num_accepted_tokens_per_pos_total"
