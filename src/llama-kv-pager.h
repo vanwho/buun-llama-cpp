@@ -2,6 +2,7 @@
 
 #include "llama-cache-budget.h"
 #include "llama-kv-pager-config.h"
+#include "llama-kv-live-policy.h"
 #include "llama-kv-routing-summary.h"
 #include "llama-kv-residency.h"
 #include "llama-kv-residency-transfer.h"
@@ -326,6 +327,13 @@ public:
     vbr_h2d_chunk_ring * upload_ring() const noexcept {
         return host_ ? host_->upload_ring() : nullptr;
     }
+
+    // Apply one complete runtime-H target through the pager-owned pool and
+    // immutable table. The boundary snapshot must be from this pager.
+    llama_kv_live_policy_result apply_live_policy(
+            const llama_kv_live_policy_boundary & boundary,
+            const llama_kv_residency_transfer_transport & transport,
+            const llama_kv_residency_transaction_hooks & hooks = {}) noexcept;
 
     ggml_tensor * residency_storage_tensor() const noexcept {
         return residency_adapter_ ? residency_adapter_->storage_tensor() : nullptr;

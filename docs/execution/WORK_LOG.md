@@ -246,3 +246,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-11-03`
 - Commit at update: `b70658a61`
 - Summary: Wired bounded direct CUDA page-mass telemetry with generation-safe publication; CPU, parser, adjacent KV, and CUDA fixture checks pass; model-backed calibration deferred.
+
+## 2026-09-03T21:15:43+00:00 — 11-04 — done
+
+- Branch: `codex/task-11-04`
+- Commit at update: `61f5675e9`
+- Summary: Added the full-identity live hot-set boundary and pager publication door with runtime-H exact target reconciliation, safe evidence fallbacks, transfer preflight, deterministic slot assignment, and rollback-safe occupied-slot transaction ordering. Focused CPU/fake KV regressions pass; model-backed CUDA calibration remains deferred.

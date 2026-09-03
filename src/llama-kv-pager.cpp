@@ -292,6 +292,21 @@ const char * llama_kv_pager_status_name(llama_kv_pager_status status) noexcept {
     return "invalid";
 }
 
+llama_kv_live_policy_result llama_kv_pager::apply_live_policy(
+        const llama_kv_live_policy_boundary & boundary,
+        const llama_kv_residency_transfer_transport & transport,
+        const llama_kv_residency_transaction_hooks & hooks) noexcept {
+    llama_kv_live_policy_result output;
+    if (!snapshot_.initialized || !residency_pool_) {
+        output.status = llama_kv_live_policy_status::not_configured;
+        output.base_epoch = residency_.snapshot().epoch();
+        return output;
+    }
+    return llama_kv_live_policy_apply(
+            residency_, *residency_pool_, boundary, residency_backend_,
+            transport, hooks);
+}
+
 const char * llama_kv_pager_write_status_name(llama_kv_pager_write_status status) noexcept {
     switch (status) {
         case llama_kv_pager_write_status::ok: return "ok";
