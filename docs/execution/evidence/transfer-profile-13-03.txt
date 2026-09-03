@@ -1,0 +1,71 @@
+13-03 transfer optimization evidence
+=====================================
+
+Environment
+-----------
+Repository: /srv/repos/vanwho/buun-llama-cpp
+Date: 2026-09-04
+Live pager route: unavailable for component-level transfer telemetry
+
+Measured wall-time controls
+---------------------------
+The existing deterministic CPU fake was run with /usr/bin/time. These are
+functional transfer/adoption tests, not GPU bandwidth measurements.
+
+                       samples (seconds)          median
+baseline capture      1.11 1.12 1.12 1.11 1.12     1.12
+post capture           1.10 1.12 1.12 1.12 1.12     1.12
+baseline adoption     0.07 0.07 0.07                  0.07
+post adoption         0.07 0.06 0.06                  0.06
+
+Raw command output was captured under /tmp/13-03-capture-*.time,
+/tmp/13-03-post-capture-*.time, /tmp/13-03-adopt-*.time, and
+/tmp/13-03-post-adopt-*.time during this run.
+
+Hypothesis sweep
+----------------
+1. H2D cancellation callback forced serialization. The old adapter selected
+   serialize_submissions whenever continue_transfer was non-null, so its
+   bounded fake control path could have only one outstanding operation. The
+   retained candidate leaves H2D pipelined while keeping the callback probe
+   before every fill. The ordinary 8 MiB ring / 4 MiB chunk test observed a
+   peak of two outstanding operations; the packed test also observed a peak
+   greater than one. Both tests drained to zero and preserved byte/digest
+   validation. Accepted.
+
+2. Full-transfer pinned backing versus a bounded ring. The available
+   deterministic geometry uses a 257 MiB transfer with an 8 MiB ring and
+   4 MiB chunks. The test asserts ring capacity is below transfer size,
+   peak_pinned_bytes is no greater than ring capacity, and event completion
+   covers every chunk. No whole-transfer pinning or unbounded allocation was
+   introduced. The bounded design was retained; live RSS/pageable-versus-
+   pinned latency remains deferred.
+
+3. D2H pipelining under cancellation. The cancellation fixture intentionally
+   retains one-at-a-time D2H submission: two continuation probes result in
+   one submitted chunk, then the pending state is drained and the partial
+   chain is not published. Removing that serialization was rejected because
+   it would weaken the existing cancellation-latency/publication contract.
+
+Observed deterministic counters
+--------------------------------
+test-kv-policy:
+  submitted=4 completed=1 late_waits=0 cancellations=3
+  useful_bytes=32 aligned_bytes=40 overlap=1
+  companion_publishes=1 companion_rollbacks=0
+
+The residency fixture continues to verify promotion useful/aligned bytes,
+stale-generation rollback, cancellation/failed completion cleanup, and clean
+eviction with zero D2H. The transfer fixture verifies event and synchronous
+fallback paths, ring backpressure, failed completion cleanup, packed ranges,
+and bounded pinned high-water.
+
+Decision
+--------
+Retain H2D pipelining for ordinary and packed adapters. No machine-specific
+stream-count, priority, prefetch, or ring-size auto rule was selected because
+the configured pager does not expose live H2D/D2H timing, overlap, p95/p99,
+fault, RSS, or VRAM-staging counters. The implementation's fixed rule is
+structural: H2D uses the existing bounded ring depth; cancellation drains all
+bounded pending work, while D2H serialization remains enabled only when its
+cancellation callback is present.

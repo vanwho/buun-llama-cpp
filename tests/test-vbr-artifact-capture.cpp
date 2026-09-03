@@ -4660,6 +4660,7 @@ struct fake_h2d_destination {
     };
     std::unordered_map<uint64_t, pending> operations;
     uint64_t bytes = 0;
+    size_t peak_operations = 0;
     bool valid = true;
 
     static uint64_t digest(const uint8_t * data, size_t size) noexcept {
@@ -4688,6 +4689,8 @@ struct fake_h2d_destination {
         destination.operations.emplace(ticket, pending {
             offset, data, size, digest(data, size),
         });
+        destination.peak_operations = std::max(
+            destination.peak_operations, destination.operations.size());
         return true;
     }
 
@@ -4733,6 +4736,7 @@ static void test_h2d_bounded_streaming() {
         fake_h2d_destination::complete,
         true,
     };
+    transfer.continue_transfer = [](void *) noexcept { return true; };
     vbr_h2d_stats stats;
     CHECK(ring->stream(transfer, stats) == vbr_h2d_status::ok);
     CHECK(event_destination.valid);
@@ -4743,6 +4747,7 @@ static void test_h2d_bounded_streaming() {
     CHECK(stats.event_completions == stats.chunks);
     CHECK(stats.synchronous_fallbacks == 0);
     CHECK(stats.peak_pinned_bytes <= ring->capacity_bytes());
+    CHECK(event_destination.peak_operations > 1);
 
     fake_h2d_destination sync_destination;
     transfer.fake.context = &sync_destination;

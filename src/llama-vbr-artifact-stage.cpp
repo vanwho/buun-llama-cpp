@@ -224,7 +224,11 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream(
     callbacks.submit_failed = uint32_t(vbr_h2d_status::internal_error);
     callbacks.wait_failed = uint32_t(vbr_h2d_status::event_failed);
     callbacks.internal_error = uint32_t(vbr_h2d_status::internal_error);
-    callbacks.serialize_submissions = transfer.continue_transfer != nullptr;
+    // H2D cancellation is probed before each bounded fill and
+    // abandon_pending() drains/cancels every submitted chunk. Keep the
+    // bounded ring pipelined; D2H retains serialization because its capture
+    // path has the tighter cancellation-latency requirement.
+    callbacks.serialize_submissions = false;
     callbacks.more = [](void * opaque) noexcept {
         const auto & context = *static_cast<h2d_pump_context *>(opaque);
         return context.offset < context.transfer->size;
@@ -406,8 +410,11 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream_packed_reserved(
     callbacks.submit_failed = uint32_t(vbr_h2d_status::internal_error);
     callbacks.wait_failed = uint32_t(vbr_h2d_status::event_failed);
     callbacks.internal_error = uint32_t(vbr_h2d_status::internal_error);
-    callbacks.serialize_submissions =
-        transfer.continue_transfer != nullptr;
+    // H2D cancellation is probed before each bounded fill and
+    // abandon_pending() drains/cancels every submitted chunk. Keep the
+    // bounded ring pipelined; D2H retains serialization because its capture
+    // path has the tighter cancellation-latency requirement.
+    callbacks.serialize_submissions = false;
     callbacks.more = [](void * opaque) noexcept {
         const auto & context = *static_cast<packed_pump_context *>(opaque);
         return context.transferred < context.transfer->size;

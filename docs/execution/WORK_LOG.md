@@ -288,3 +288,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-13-02`
 - Commit at update: `c31a4b2af`
 - Summary: Tested three direct Turbo4 kernel hypotheses; all regressed on repeated CUDA fixture medians, so baseline retained. Focused fixture, graph-key, memcheck, racecheck, and resource checks pass; live model parity/MTP profiling deferred.
+
+## 2026-09-03T23:20:54+00:00 — 13-03 — done
+
+- Branch: `codex/task-13-03`
+- Commit at update: `a360bb35e`
+- Summary: Retained bounded ordinary and packed H2D pipelining with cancellation-safe draining; added deterministic overlap/resource regressions, transfer evidence, and completed CPU/CUDA-configured/ASan verification.

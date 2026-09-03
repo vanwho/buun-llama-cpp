@@ -3912,22 +3912,52 @@ struct packed_h2d_source {
 };
 
 struct packed_h2d_destination {
+    struct pending {
+        uint64_t offset = 0;
+        const uint8_t * data = nullptr;
+        size_t size = 0;
+    };
     std::vector<uint8_t> bytes;
+    std::unordered_map<uint64_t, pending> operations;
+    size_t peak_operations = 0;
 
-    static bool issue(void * opaque, uint64_t, uint64_t offset,
+    static bool issue(void * opaque, uint64_t ticket, uint64_t offset,
                       const uint8_t * data, size_t size,
                       bool asynchronous) noexcept {
         auto & destination =
             *static_cast<packed_h2d_destination *>(opaque);
-        if (!data || asynchronous || offset > destination.bytes.size() ||
+        if (!data || offset > destination.bytes.size() ||
             size > destination.bytes.size() - size_t(offset)) {
             return false;
+        }
+        if (asynchronous) {
+            if (destination.operations.count(ticket) != 0) {
+                return false;
+            }
+            destination.operations.emplace(ticket, pending {
+                offset, data, size,
+            });
+            destination.peak_operations = std::max(
+                destination.peak_operations, destination.operations.size());
+            return true;
         }
         std::copy_n(data, size, destination.bytes.data() + size_t(offset));
         return true;
     }
 
-    static bool complete(void *, uint64_t) noexcept { return true; }
+    static bool complete(void * opaque, uint64_t ticket) noexcept {
+        auto & destination =
+            *static_cast<packed_h2d_destination *>(opaque);
+        const auto found = destination.operations.find(ticket);
+        if (found == destination.operations.end()) {
+            return true;
+        }
+        std::copy_n(
+            found->second.data, found->second.size,
+            destination.bytes.data() + size_t(found->second.offset));
+        destination.operations.erase(found);
+        return true;
+    }
 };
 
 static void test_packed_h2d_projection_stream() {
@@ -3946,7 +3976,9 @@ static void test_packed_h2d_projection_stream() {
             source.bytes.begin() + range.source_offset + range.size);
     }
     expected.resize(32, 0xa5);
-    packed_h2d_destination destination { std::vector<uint8_t>(32, 0xa5) };
+    packed_h2d_destination destination {
+        std::vector<uint8_t>(32, 0xa5), {}, 0,
+    };
 
     vbr_h2d_status status;
     auto ring = vbr_h2d_chunk_ring::create({ {} }, 16, 8, status);
@@ -3964,8 +3996,9 @@ static void test_packed_h2d_projection_stream() {
     transfer.destination_offset = 4;
     transfer.fake = {
         &destination, packed_h2d_destination::issue,
-        packed_h2d_destination::complete, false,
+        packed_h2d_destination::complete, true,
     };
+    transfer.continue_transfer = [](void *) noexcept { return true; };
     vbr_h2d_stats stats;
     CHECK(ring->stream_packed_reserved(operation, transfer, stats) ==
           vbr_h2d_status::ok);
@@ -3973,6 +4006,8 @@ static void test_packed_h2d_projection_stream() {
     CHECK(source.bytes_read == transfer.size);
     CHECK(stats.bytes == transfer.size);
     CHECK(stats.chunks == 3);
+    CHECK(destination.operations.empty());
+    CHECK(destination.peak_operations > 1);
 
     // The reservation spans the complete projected unit set rather than
     // permitting the other direction to splice work between shards.
@@ -3995,7 +4030,9 @@ static void test_packed_h2d_projection_max_ranges() {
         source.bytes[i] = uint8_t(i & 0xff);
         ranges[i] = { n - 1 - i, 1 };
     }
-    packed_h2d_destination destination { std::vector<uint8_t>(n) };
+    packed_h2d_destination destination {
+        std::vector<uint8_t>(n), {}, 0,
+    };
     vbr_h2d_status status;
     auto ring = vbr_h2d_chunk_ring::create(
         { {} }, 128*1024, 64*1024, status);
