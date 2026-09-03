@@ -73,6 +73,11 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     const int64_t * query_positions_device = nullptr;
     float * page_mass = nullptr;
     size_t page_mass_head_stride_bytes = 0;
+    // Optional unnormalized online-softmax output [m, l, o[head_dim_v]] per
+    // query head. This is the bounded exact page-wave handoff; no K/V or
+    // attention matrix is transferred to the host.
+    float * partial_state = nullptr;
+    size_t partial_state_head_stride_bytes = 0;
 
     uint32_t n_pages = 0;
     uint32_t n_physical_pages = 0;
@@ -84,6 +89,7 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     uint32_t page_mass_logical_count = 0;
     float scale = 0.0f;
     bool reduce_page_mass = false;
+    bool write_partial_state = false;
     bool causal = true;
 };
 

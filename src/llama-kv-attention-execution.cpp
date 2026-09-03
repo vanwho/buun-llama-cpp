@@ -31,6 +31,7 @@ const char * llama_kv_attention_execution_mode_name(
         case llama_kv_attention_execution_mode::off:       return "off";
         case llama_kv_attention_execution_mode::observe:   return "observe";
         case llama_kv_attention_execution_mode::selective:return "selective";
+        case llama_kv_attention_execution_mode::exact:    return "exact";
     }
     return "invalid";
 }
@@ -51,6 +52,7 @@ const char * llama_kv_attention_execution_route_name(
         case llama_kv_attention_execution_route::observe:           return "observe";
         case llama_kv_attention_execution_route::selected_reference:return "selected reference";
         case llama_kv_attention_execution_route::selected_direct:  return "selected direct";
+        case llama_kv_attention_execution_route::exact_reference:   return "exact reference";
         case llama_kv_attention_execution_route::refusal:           return "refusal";
     }
     return "invalid";
@@ -176,6 +178,10 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.status = llama_kv_attention_execution_status::ok;
         result.route = llama_kv_attention_execution_route::observe;
         result.reason = "observation preserves dense attention";
+    } else if (mode_ == llama_kv_attention_execution_mode::exact) {
+        result.status = llama_kv_attention_execution_status::ok;
+        result.route = llama_kv_attention_execution_route::exact_reference;
+        result.reason = "all-page online-softmax reference";
     } else if ((scratch.required_rows() == std::numeric_limits<uint64_t>::max() &&
                 (scratch.resident_rows != 0 || scratch.transfer_rows != 0 || scratch.router_rows != 0)) ||
                (scratch.required_bytes() == std::numeric_limits<size_t>::max() &&

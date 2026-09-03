@@ -84,6 +84,7 @@ int main() {
     int64_t * query_position_device = nullptr;
     float * output_device = nullptr;
     float * page_mass_device = nullptr;
+    float * partial_state_device = nullptr;
     cuda_check(cudaMalloc(&q_device, q_host.size() * sizeof(float)), "q allocation");
     cuda_check(cudaMalloc(&k_device, k_host.size()), "k allocation");
     cuda_check(cudaMalloc(&v_device, v_host.size()), "v allocation");
@@ -93,6 +94,7 @@ int main() {
     cuda_check(cudaMalloc(&query_position_device, sizeof(query_position)), "query position allocation");
     cuda_check(cudaMalloc(&output_device, q_host.size() * sizeof(float)), "output allocation");
     cuda_check(cudaMalloc(&page_mass_device, n_head_q * 4 * sizeof(float)), "mass allocation");
+    cuda_check(cudaMalloc(&partial_state_device, n_head_q * (2 + 256) * sizeof(float)), "partial state allocation");
     cuda_check(cudaMemcpy(q_device, q_host.data(), q_host.size() * sizeof(float), cudaMemcpyHostToDevice), "q copy");
     cuda_check(cudaMemcpy(k_device, k_host.data(), k_host.size(), cudaMemcpyHostToDevice), "k copy");
     cuda_check(cudaMemcpy(v_device, v_host.data(), v_host.size(), cudaMemcpyHostToDevice), "v copy");
@@ -204,9 +206,31 @@ int main() {
         assert(std::fabs(page_mass[head * 4 + 3] - 17.0f / 527.0f) < 1.0e-5f);
     }
 
+    // The exact page-wave path consumes unnormalized [m, l, o] state. It may
+    // omit the normalized output entirely, which keeps each cold wave's
+    // staging bounded to Turbo4 pages plus this per-head partial state.
+    params.output = nullptr;
+    params.output_head_stride_bytes = 0;
+    params.partial_state = partial_state_device;
+    params.partial_state_head_stride_bytes = (2 + 256) * sizeof(float);
+    params.write_partial_state = true;
+    params.reduce_page_mass = false;
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaDeviceSynchronize(), "partial page attention");
+    std::vector<float> partial_state(n_head_q * (2 + 256));
+    cuda_check(cudaMemcpy(partial_state.data(), partial_state_device,
+        partial_state.size() * sizeof(float), cudaMemcpyDeviceToHost), "partial state readback");
+    for (uint32_t head = 0; head < n_head_q; ++head) {
+        const float * state = partial_state.data() + head * (2 + 256);
+        assert(std::fabs(state[0]) < 1.0e-6f);
+        assert(std::fabs(state[1] - 527.0f) < 1.0e-4f);
+        for (uint32_t d = 0; d < 256; ++d) assert(std::isfinite(state[2 + d]));
+    }
+
     cudaEventDestroy(timing_stop);
     cudaEventDestroy(timing_start);
     cudaFree(page_mass_device);
+    cudaFree(partial_state_device);
     cudaFree(output_device);
     cudaFree(query_position_device);
     cudaFree(native_mask_device);
