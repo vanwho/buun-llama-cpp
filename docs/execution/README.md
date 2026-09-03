@@ -22,6 +22,25 @@ tool/codex/run_clustered.sh --status
 tool/codex/run_clustered.sh --show-clusters
 ```
 
+When the user explicitly authorizes autonomous fork commits and pushes, run the shared runner directly
+in managed mode. Use the current plan branch as the integration branch because it contains the execution
+package; the wrapper intentionally forces local mode and therefore must not be used for this variant:
+
+```bash
+cd /srv/repos/vanwho/buun-llama-cpp
+CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+CODEX_PROJECT_REMOTE=origin \
+CODEX_PROJECT_BRANCH=plan/attention-aware-kv-paging \
+CODEX_GIT_MODE=managed \
+CODEX_SESSION_MAX_TURNS=4 \
+CODEX_SESSION_MAX_INPUT_TOKENS=90000 \
+/srv/codex/run_until_complete_clustered.sh
+```
+
+Leave `MAX_TASKS_PER_RUN` unset to run through all remaining tasks. Managed mode creates and pushes
+temporary `codex/task-<id>` branches, merges them into the plan branch, and removes those temporary
+branches. Upstream-facing issues, pull requests, and merges remain human-owned.
+
 The wrapper defaults each cluster thread to four turns or 90,000 reported input tokens before rotation.
 These are context-efficiency guardrails and can be lowered with `CODEX_SESSION_MAX_TURNS` or
 `CODEX_SESSION_MAX_INPUT_TOKENS`. The state validator also requires every task's cluster context file.

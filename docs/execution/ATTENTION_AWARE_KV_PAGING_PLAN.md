@@ -840,6 +840,32 @@ CODEX_GIT_MODE=local \
 /srv/codex/run_until_complete_clustered.sh --show-clusters
 ```
 
+For an unattended fork-only run that creates task branches, commits each completed task, pushes the
+branches, merges them into the fork's integration branch, and continues until every task is `done` or
+`deferred`, invoke the shared runner directly in managed mode. The checked-in wrapper must not be used
+for this variant because it deliberately forces `CODEX_GIT_MODE=local`. Keep the plan branch as the
+integration branch until the execution package and its history have been deliberately reviewed:
+
+```bash
+cd /srv/repos/vanwho/buun-llama-cpp
+CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+CODEX_PROJECT_REMOTE=origin \
+CODEX_PROJECT_BRANCH=plan/attention-aware-kv-paging \
+CODEX_GIT_MODE=managed \
+CODEX_SESSION_MAX_TURNS=4 \
+CODEX_SESSION_MAX_INPUT_TOKENS=90000 \
+/srv/codex/run_until_complete_clustered.sh
+```
+
+Do not set `MAX_TASKS_PER_RUN`; its default `0` means no per-run task cap. Task packets supply the
+Luna Low/Medium/High recommendation, so no model override is needed. Managed mode operates only on the
+configured `origin` fork, creates temporary `codex/task-<id>` branches, pushes them, merges each into
+`plan/attention-aware-kv-paging`, and removes the temporary remote branch. It still stops on a persisted
+blocked task, the runner stop/pause controls, an unavailable required artifact, a failing hard gate, or
+an unrecoverable restart/health-check failure. Upstream branches, issues, pull requests, and merges remain
+human-owned. To inspect before or after a run, use `CODEX_GIT_MODE=local` with the wrapper's `--status`
+or `--show-clusters` commands above.
+
 The 33 tasks are divided into 16 contiguous ownership-oriented clusters of one to three tasks; the
 mapping and rationale live in `docs/execution/clusters/README.md`. Each fresh/resumed runner prompt
 loads `docs/execution/clusters/<cluster>.md` and dependency handoffs before task-specific source. The
