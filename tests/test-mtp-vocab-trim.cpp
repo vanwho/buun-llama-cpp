@@ -117,18 +117,32 @@ void test_mtp_carry_lifecycle() {
     corrupt[0] ^= 0x80;
     assert(!common_speculative_mtp_carry_state_load(
         restored_lifecycle, restored, corrupt));
-    assert(!restored_lifecycle.draft_ready());
+    assert(restored_lifecycle.draft_ready());
+    assert(restored == source);
 
     corrupt = state;
     corrupt.pop_back();
     assert(!common_speculative_mtp_carry_state_load(
         restored_lifecycle, restored, corrupt));
-    assert(!restored_lifecycle.draft_ready());
+    assert(restored_lifecycle.draft_ready());
+    assert(restored == source);
 
     std::vector<float> wrong_width(source.size() + 1, 0.0f);
     assert(!common_speculative_mtp_carry_state_load(
         restored_lifecycle, wrong_width, state));
-    assert(!restored_lifecycle.draft_ready());
+    assert(restored_lifecycle.draft_ready());
+
+    const auto frontier =
+        common_speculative_rollback_frontier_resolve(12, 5, 2);
+    assert(frontier.valid());
+    assert(frontier.accepted_token_count == 15);
+    assert(frontier.rejected_suffix_begin == 15);
+    assert(frontier.rejected_suffix_end == 18);
+    assert(frontier.rejected_draft_tokens == 3);
+
+    const auto invalid_frontier =
+        common_speculative_rollback_frontier_resolve(12, 2, 3);
+    assert(!invalid_frontier.valid());
 
     const auto none = common_speculative_checkpoint_policy_resolve(
         false, false, true, true);
