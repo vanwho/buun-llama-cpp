@@ -832,6 +832,23 @@ CODEX_GIT_MODE=local \
 /srv/codex/run_until_complete_clustered.sh --show-clusters
 ```
 
+The 33 tasks are divided into 16 contiguous ownership-oriented clusters of one to three tasks; the
+mapping and rationale live in `docs/execution/clusters/README.md`. Each fresh/resumed runner prompt
+loads `docs/execution/clusters/<cluster>.md` and dependency handoffs before task-specific source. The
+checked-in wrapper defaults to four turns or 90,000 reported input tokens per cluster thread, after
+which the runner rotates to a fresh session. This prevents a five-task phase from carrying unrelated
+repository, CUDA, benchmark, or numerical context.
+
+For supervised review/commit boundaries, run one task at a time while retaining saved cluster threads:
+
+```bash
+MAX_TASKS_PER_RUN=1 tool/codex/run_clustered.sh
+```
+
+The outer agent can then review, commit, and push the completed fork-only task before invoking the same
+command again. Omitting `MAX_TASKS_PER_RUN` continues through all tasks in local-Git mode and preserves
+changes in one working tree; it does not create the connected commits described in section 11.1.
+
 Task `00-01` is complete: the user authorized experimental commits in the `vanwho/*` forks while
 upstream submission remains deferred. Normal execution now resumes at `00-02`, the first task not
 `done` or `deferred`. Every task maintains `docs/execution/handoffs/<task>.md`; raw benchmark artifacts
@@ -888,9 +905,82 @@ permits deferral; lack of the reference CUDA system is a blocker for Phase 06 re
 
 This project is complete only when a human-reviewed build on the reference machine demonstrates a
 262,144-token logical Qwen3.8 session with full Turbo4 MTP in VRAM, approximately 77K target tokens hot
-in VRAM, canonical host Turbo4 backing for every sealed target page, stable attention-aware selection, correct
-recurrent/speculative/server lifecycle, disclosed quality behavior, and the Phase 06 performance gates.
+in VRAM, canonical host Turbo4 backing for every sealed target page, stable attention-aware selection,
+correct recurrent/speculative/server lifecycle, disclosed quality behavior, and the Phase 06
+performance gates.
 An exact page-wave run must also match dense all-pages attention within declared numerical tolerance on
 bounded fixtures and provide the full-context storage/selection correctness reference; it is not held to
 the selective throughput gate. Documentation, raw evidence, status, and reviewable upstream slices must
 agree with the actual code.
+
+## 17. Decision ledger for context-free execution
+
+Later agents must treat this table as the concise record of conclusions, not reopen the design from
+scratch. A decision marked **measured** may change only with captured evidence recorded in its task
+handoff; **provisional API** may change before upstream review without changing the underlying contract.
+
+| ID | Status | Decision and reason | Implementation consequence | Owning tasks |
+| --- | --- | --- | --- | --- |
+| D01 | Locked | Scope is Qwen3.8-27B/qwen35 on the reference RTX 4080 first. Genericity before proof would multiply lifecycle and kernel risk. | Fail closed on other geometry/backends; no claim of generic support. | 00-02, 01-03, 03-03, 06-04 |
+| D02 | Locked | Logical pages contain 256 tokens across all 16 target attention layers and both K/V sides. This matches Buun's generation granularity and gives a 4.125-MiB reference transfer. | One target residency decision and generation per cross-layer page; 1,024 logical pages at 256K. | 01-02, 02-01, 02-05 |
+| D03 | Locked | VBR answers “what representation?”; the pager answers “where resident?”. Combining them creates ambiguous authority. | Separate `llama_kv_*` pager/controller and backend residency pool, sharing low-level VMM/events/descriptors under one composite transaction. | 01-01, 01-02, 02-03, 02-04 |
+| D04 | Locked | Draft KV placement must be independent before pager work because target CPU placement currently leaks into draft context construction. | Add one tri-state draft policy in both fork worktrees; `auto` preserves legacy behavior. | 00-05, 05-02 |
+| D05 | Locked initially | Target and MTP K/V remain Turbo4. Dynamic VBR precision changes are not combined with initial paging. | Direct Turbo4 storage/transfers/FA; representation epoch still guards future cooperation. | 02-01–03-04, 05-02 |
+| D06 | Locked | Every sealed target page has canonical host Turbo4 backing; the partial write page remains pinned and GPU-authoritative. Literal per-token write-through is likely excessive. | One batched D2H at seal/reseal; normal clean eviction only drops/unmaps GPU residency and performs zero D2H. | 02-02–02-05 |
+| D07 | Measured admission | 77,824/304 pages is a target after reserving weights, graphs, scratch, MTP, recurrent state, routing, staging, and headroom. | Budget is authoritative; diagnostic token override may only reduce admitted capacity. | 01-03, 02-05, 06-04 |
+| D08 | Initial policy | Exact 304-page split is 96 recent, 32 structural, 140 attention-selected historical, 36 transient. The originally suggested 24K+8K+36K+9K page-rounded split totaled 78,848. | Deduplicate pools, refuse mandatory overflow, and tune only from traces. | 01-04, 04-03, 06-04 |
+| D09 | Locked | Resident attention width must scale with physical rows, not the 262K logical frontier; no hidden full-size GPU target allocation is acceptable. | Start with compact slots/reference view; sparse VMM is allowed only when mappings and ledgers prove bounded physical occupancy. | 02-05, 03-01, 03-02 |
+| D10 | Locked | Paged FA consumes Turbo4 K/V directly and dequantizes tiles in registers/shared memory. | Never build a whole-cache F16 gather buffer. | 03-03, 03-04 |
+| D11 | Locked | Retrieval of cold candidates and retention of observed resident pages are different problems. Resident attention alone cannot rediscover a cold page. | All-page routing summaries plus anchors/exploration feed retrieval; FA attention EMA/peak feeds retention. | 01-04, 04-01–04-03 |
+| D12 | Measured | GPU reduces page attention statistics; CPU/controller receives bounded summaries only. Fixed score weights are unjustified before normalization. | About 4 KiB for 1,024 float scores; calibrate normalization/weights with captured trace replay. | 04-02, 04-03 |
+| D13 | Locked | Promotions are asynchronous and predictive; partially transferred pages are never published. | Dedicated upload stream, bounded/double-buffered staging, events, revalidation, atomic table swap, explicit not-ready behavior. | 02-03, 02-04, 04-04 |
+| D14 | Locked | MTP owns a separate full-length 262,144-token Turbo4 GPU allocation and is never a target pager victim. | Reserve/account its expected 264-MiB payload before target hot pages and keep rollback/frontier atomic. | 01-03, 05-01–05-04 |
+| D15 | Locked | Selective mode is approximate. Exact mode is a late correctness/quality oracle, initially using bounded GPU page waves because CPU Turbo4 attention is absent. | Merge per-partition online-softmax `(m,l,o)` states; CPU/GPU split is optional later. | 01-01, 06-05 |
+| D16 | Locked | Off mode and existing prompt artifacts must remain compatible; state/server/MTP/recurrent changes publish as one generation-safe operation. | Fail closed on stale identity, rollback every partial operation, and test cancellation/slot reuse/checkpoints. | 02-04, 05-01–06-02 |
+| D17 | Locked | Upstreamability requires small connected branches and repository conventions. | Generic draft placement first; page core, backing, FA, telemetry, policy, integration, and exact work remain separate; no giant initial PR. | 00-05, 07-01, 07-02 |
+| D18 | Locked | Performance claims use the existing `/srv/ai/benchmarks` result contract and same model/corpus controls. | Preserve raw manifests; compare all-GPU 77K, ordinary CPU KV, observe, selective focus/needle/churn, exact separately. | 00-03, 06-03–06-05 |
+
+### 17.1 Deliberately unresolved choices
+
+Do not guess these prematurely:
+
+- public CLI spellings are provisional until maintainer discussion, while semantics are fixed;
+- routing-summary shape starts with 4–8 representative rotated K vectors but is selected by measured
+  recall, bytes, and latency;
+- attention/peak/frequency/recency weights require normalized trace evidence;
+- whole-store pinned host allocation competes with pageable backing plus a bounded pinned ring and must
+  be benchmarked before selection;
+- compact physical slots are the correctness-first layout; sparse VMM mappings may replace them only if
+  arbitrary page addressing and physical savings are demonstrated;
+- multi-slot/multi-sequence pager authority is unsupported initially and must not be inferred from
+  whole-artifact multi-GPU support;
+- optimized CPU/GPU exact attention waits for a real CPU Turbo4 primitive.
+
+## 18. Source and evidence pointer index
+
+| Subject | Primary pointer | Why it matters |
+| --- | --- | --- |
+| Canonical execution | `docs/execution/WORK_STATE.json`, `docs/execution/tasks/`, `docs/execution/clusters/` | Sole task order, task acceptance, and per-session context |
+| Resume tooling | `tool/codex/task_state.py`, `tool/codex/run_clustered.sh`, `/srv/codex/run_until_complete_clustered.sh` | Validates state, resumes at the first unfinished task, and reuses only one cluster's session |
+| Buun VBR/VMM | `src/llama-vbr-*`, `src/llama-kv-cache.*` | Representation epochs, VMM precedents, transactions, capture/adopt, generations, pinned ring |
+| CUDA VMM backend | `ggml/src/ggml-cuda/vbr-vmm.cu`, `vbr-vmm-policy.h` | Low-level reserve/map/unmap/physical-accounting primitives to factor beneath a separate pager pool |
+| Turbo4 FA CUDA | `ggml/src/ggml-cuda/fattn-mma-turbo.cuh`, `fattn-common.cuh`, `fattn.cu`, `template-instances/` | Existing direct Turbo K/V tile loaders, dispatch, and generated specializations |
+| GPU top-k | `ggml/src/ggml-cuda/top-k.cu` | Candidate implementation for bounded all-page summary selection after measurement |
+| Host artifacts | `src/llama-vbr-artifact-{capture,adopt,stage,validate}.*`, `src/llama-vbr-explicit-capture.*` | Bounded segment chains, identity/checksum validation, occupied replacement |
+| Budget/accounting | `common/fit.cpp`, `src/llama-cache-accounting.*`, `src/llama-cache-budget.*` | Reserve MTP/scratch/headroom before deriving target page capacity |
+| Hybrid/recurrent ownership | `src/llama-memory-hybrid.*`, `src/llama-memory-recurrent.*`, `docs/qwen4-vbr-plan.md` | Composite operations and exact non-attention companions |
+| MTP construction | `common/speculative.*`, `common/common.cpp`, `tools/server/server-context.cpp` | Current target/draft placement coupling and native/external context creation |
+| Generic draft-placement worktree | `/srv/repos/vanwho/llama.cpp-kv-pager` on `pager/00-draft-placement` | Prepared clean branch based on synchronized llama.cpp `67a17c17`; task 00-05 may edit it |
+| Server retention | `common/common-retention-sidecar.*`, `tools/server/server-cache-yield.*` | Reusable bounded ranking/accounting vocabulary, not page-attention authority |
+| Relevant Buun history | commits `34941d33b`, `2714303b5`, `2174ad63`, `283ba19ed`, `65eb44ebc`, `87b37eac9`, `764f3a044`, `cb703be37` | Prompt lifecycle, restore, multi-GPU, entry tiers, batched maps, MTP fit/carry safety |
+| Relevant llama.cpp history | commits `2d8d612e4`, `8e93a9773`, `36b101543`, `0eadefebd` | Non-contiguous restore batching, sparse FA plumbing, Qwen sparse positions/rollback |
+| Community pager | `/srv/repos/matiaslin/llama.cpp`, Discussion #21961, draft PR #22569 | Block manager/table and operator reference; not directly mergeable |
+| Old prototype | `/srv/ai/paged-kv/repos/buun-llama-cpp` | Reference-only identity/table/policy ideas; dirty and never modified by this project |
+| Archived original plan | `/srv/ai/paged-kv/qwen38_256k_attention_aware_kv_paging_implementation_plan.md` | Historical rationale only; its banner points here |
+| Model/profile | `/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf`, `/srv/ai/config/profiles/qwen38-fast.env` | Actual geometry, Turbo4 types, MTP2, 77,824 baseline profile |
+| Benchmarks | `/srv/ai/benchmarks/README.md`, `benchmarks.md`, `run-profile-benchmark.sh` | Required comparable harness and output schema |
+| Raw historical evidence | `/srv/ai/paged-kv/results/` | Prior performance/MTP orientation; never substitute it for new-build acceptance |
+
+Task packets narrow these pointers further. A low-reasoning agent reads repository instructions, state,
+its cluster context, its task packet, the prior dependency handoffs, and only then the explicitly named
+source files. It does not need this entire plan in every task session.

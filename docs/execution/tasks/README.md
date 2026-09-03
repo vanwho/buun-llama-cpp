@@ -1,6 +1,8 @@
 # Task packet contract
 
-Each packet is the complete local context for one bounded task. Follow it exactly.
+Each packet is the complete task-specific context for one bounded task. Its shared session context is
+`docs/execution/clusters/<task.cluster>.md`; read that file once per fresh cluster session and reuse it
+for consecutive tasks in the cluster.
 
 Global rules for every packet:
 
@@ -17,7 +19,8 @@ Global rules for every packet:
 6. Never claim a CUDA, benchmark, quality, or hardware result without raw output. Missing reference
    hardware blocks a hardware acceptance task; it does not block pure/fake-backend work.
 7. Keep feature-disabled behavior unchanged and make unsupported configurations fail closed.
-8. Create/update `docs/execution/handoffs/<task-id>.md` with scope, changed files, commands/results,
+8. Read existing handoffs for every `depends_on` task before implementation. Create/update
+   `docs/execution/handoffs/<task-id>.md` with scope, changed files, commands/results,
    invariants checked, raw artifact paths, risks, and deferred checks.
 9. Update only this task in `WORK_STATE.json`. Use `tool/codex/task_state.py`; mark complete only after
    every locally executable acceptance item passes. Mark blocked with one concrete reason and needed

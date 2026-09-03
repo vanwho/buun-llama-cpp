@@ -96,6 +96,11 @@ def validate(state: dict[str, Any]) -> list[str]:
         packet = task.get("packet")
         if isinstance(packet, str) and not (ROOT / packet).is_file():
             errors.append(f"{task_id}: missing packet {packet}")
+        cluster = task.get("cluster")
+        if isinstance(cluster, str) and cluster:
+            cluster_context = ROOT / "docs/execution/clusters" / f"{cluster}.md"
+            if not cluster_context.is_file():
+                errors.append(f"{task_id}: missing cluster context {cluster_context.relative_to(ROOT)}")
         depends = task.get("depends_on", [])
         if not isinstance(depends, list) or not all(isinstance(x, str) for x in depends):
             errors.append(f"{task_id}: depends_on must be a string list")
@@ -105,9 +110,39 @@ def validate(state: dict[str, Any]) -> list[str]:
             if dependency not in ids:
                 errors.append(f"{task.get('id')}: unknown dependency {dependency}")
 
+    positions = {task.get("id"): index for index, task in enumerate(tasks)}
+    for task in tasks:
+        for dependency in task.get("depends_on", []):
+            if dependency in positions and positions[dependency] >= positions.get(task.get("id"), -1):
+                errors.append(f"{task.get('id')}: dependency {dependency} must appear earlier")
+
+    cluster_counts: dict[str, int] = {}
+    closed_clusters: set[str] = set()
+    previous_cluster: str | None = None
+    for task in tasks:
+        cluster = task.get("cluster")
+        if not isinstance(cluster, str) or not cluster:
+            continue
+        cluster_counts[cluster] = cluster_counts.get(cluster, 0) + 1
+        if cluster != previous_cluster:
+            if previous_cluster is not None:
+                closed_clusters.add(previous_cluster)
+            if cluster in closed_clusters:
+                errors.append(f"{task.get('id')}: cluster {cluster} is not contiguous")
+            previous_cluster = cluster
+    for cluster, count in cluster_counts.items():
+        if count > 3:
+            errors.append(f"cluster {cluster} has {count} tasks; maximum is 3")
+
     current = state.get("current_task")
     if current not in ids:
         errors.append(f"current_task {current!r} is not in tasks")
+    expected_current = next(
+        (task.get("id") for task in tasks if task.get("status") not in {"done", "deferred"}),
+        tasks[-1].get("id"),
+    )
+    if current in ids and current != expected_current:
+        errors.append(f"current_task {current!r} should be first unfinished task {expected_current!r}")
     return errors
 
 

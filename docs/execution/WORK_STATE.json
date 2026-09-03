@@ -9,11 +9,14 @@
   "status": "ready",
   "current_phase": "00",
   "current_task": "00-02",
-  "last_updated_utc": "2026-09-03T02:34:42+00:00",
+  "last_updated_utc": "2026-09-03T02:52:44+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "local",
-    "root_environment": "CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp"
+    "root_environment": "CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp",
+    "cluster_context_dir": "docs/execution/clusters",
+    "default_cluster_max_turns": 4,
+    "default_cluster_max_input_tokens": 90000
   },
   "external_gates": [
     {
@@ -33,7 +36,7 @@
     {
       "id": "00-01",
       "phase": "00",
-      "cluster": "00-governance-baseline",
+      "cluster": "00a-provenance",
       "title": "Resolve contribution and upstream-direction gate",
       "packet": "docs/execution/tasks/00-01.md",
       "status": "done",
@@ -45,7 +48,7 @@
     {
       "id": "00-02",
       "phase": "00",
-      "cluster": "00-governance-baseline",
+      "cluster": "00a-provenance",
       "title": "Pin source, model, build, and hardware provenance",
       "packet": "docs/execution/tasks/00-02.md",
       "status": "todo",
@@ -59,7 +62,7 @@
     {
       "id": "00-03",
       "phase": "00",
-      "cluster": "00-governance-baseline",
+      "cluster": "00b-baseline-draft",
       "title": "Reproduce canonical benchmark baselines",
       "packet": "docs/execution/tasks/00-03.md",
       "status": "todo",
@@ -73,7 +76,7 @@
     {
       "id": "00-04",
       "phase": "00",
-      "cluster": "00-governance-baseline",
+      "cluster": "00b-baseline-draft",
       "title": "Record prototype and community salvage matrix",
       "packet": "docs/execution/tasks/00-04.md",
       "status": "todo",
@@ -87,7 +90,7 @@
     {
       "id": "00-05",
       "phase": "00",
-      "cluster": "00-governance-baseline",
+      "cluster": "00b-baseline-draft",
       "title": "Add independent draft-KV placement",
       "packet": "docs/execution/tasks/00-05.md",
       "status": "todo",
@@ -102,7 +105,7 @@
     {
       "id": "01-01",
       "phase": "01",
-      "cluster": "01-page-contracts",
+      "cluster": "01a-page-core",
       "title": "Freeze selective-attention product semantics",
       "packet": "docs/execution/tasks/01-01.md",
       "status": "todo",
@@ -118,7 +121,7 @@
     {
       "id": "01-02",
       "phase": "01",
-      "cluster": "01-page-contracts",
+      "cluster": "01a-page-core",
       "title": "Implement pure page identity and residency table",
       "packet": "docs/execution/tasks/01-02.md",
       "status": "todo",
@@ -132,7 +135,7 @@
     {
       "id": "01-03",
       "phase": "01",
-      "cluster": "01-page-contracts",
+      "cluster": "01b-budget-policy",
       "title": "Implement budget and MTP reservation arithmetic",
       "packet": "docs/execution/tasks/01-03.md",
       "status": "todo",
@@ -146,7 +149,7 @@
     {
       "id": "01-04",
       "phase": "01",
-      "cluster": "01-page-contracts",
+      "cluster": "01b-budget-policy",
       "title": "Implement pure retrieval and retention policy replay",
       "packet": "docs/execution/tasks/01-04.md",
       "status": "todo",
@@ -161,7 +164,7 @@
     {
       "id": "02-01",
       "phase": "02",
-      "cluster": "02-kv-host-pages",
+      "cluster": "02a-host-backing",
       "title": "Add bounded selected-page capture descriptors",
       "packet": "docs/execution/tasks/02-01.md",
       "status": "todo",
@@ -175,7 +178,7 @@
     {
       "id": "02-02",
       "phase": "02",
-      "cluster": "02-kv-host-pages",
+      "cluster": "02a-host-backing",
       "title": "Add host Turbo4 page catalog and budget",
       "packet": "docs/execution/tasks/02-02.md",
       "status": "todo",
@@ -189,7 +192,7 @@
     {
       "id": "02-03",
       "phase": "02",
-      "cluster": "02-kv-host-pages",
+      "cluster": "02b-residency-transfers",
       "title": "Add batched asynchronous page transfers",
       "packet": "docs/execution/tasks/02-03.md",
       "status": "todo",
@@ -204,7 +207,7 @@
     {
       "id": "02-04",
       "phase": "02",
-      "cluster": "02-kv-host-pages",
+      "cluster": "02b-residency-transfers",
       "title": "Publish residency transactions with rollback",
       "packet": "docs/execution/tasks/02-04.md",
       "status": "todo",
@@ -218,7 +221,7 @@
     {
       "id": "02-05",
       "phase": "02",
-      "cluster": "02-kv-host-pages",
+      "cluster": "02b-residency-transfers",
       "title": "Prove canonical host backing with a fixed GPU window",
       "packet": "docs/execution/tasks/02-05.md",
       "status": "todo",
@@ -232,7 +235,7 @@
     {
       "id": "03-01",
       "phase": "03",
-      "cluster": "03-paged-fa",
+      "cluster": "03a-attention-view",
       "title": "Build compact selected-cache reference view",
       "packet": "docs/execution/tasks/03-01.md",
       "status": "todo",
@@ -246,7 +249,7 @@
     {
       "id": "03-02",
       "phase": "03",
-      "cluster": "03-paged-fa",
+      "cluster": "03a-attention-view",
       "title": "Add backend-neutral page-table attention plumbing",
       "packet": "docs/execution/tasks/03-02.md",
       "status": "todo",
@@ -260,7 +263,7 @@
     {
       "id": "03-03",
       "phase": "03",
-      "cluster": "03-paged-fa",
+      "cluster": "03b-turbo4-fa",
       "title": "Implement Turbo4 paged flash-attention decode",
       "packet": "docs/execution/tasks/03-03.md",
       "status": "todo",
@@ -274,7 +277,7 @@
     {
       "id": "03-04",
       "phase": "03",
-      "cluster": "03-paged-fa",
+      "cluster": "03b-turbo4-fa",
       "title": "Integrate prefill, decode, and graph epochs",
       "packet": "docs/execution/tasks/03-04.md",
       "status": "todo",
@@ -288,7 +291,7 @@
     {
       "id": "04-01",
       "phase": "04",
-      "cluster": "04-routing-policy",
+      "cluster": "04a-routing-telemetry",
       "title": "Build all-page routing summaries",
       "packet": "docs/execution/tasks/04-01.md",
       "status": "todo",
@@ -302,7 +305,7 @@
     {
       "id": "04-02",
       "phase": "04",
-      "cluster": "04-routing-policy",
+      "cluster": "04a-routing-telemetry",
       "title": "Collect per-page attention telemetry",
       "packet": "docs/execution/tasks/04-02.md",
       "status": "todo",
@@ -316,7 +319,7 @@
     {
       "id": "04-03",
       "phase": "04",
-      "cluster": "04-routing-policy",
+      "cluster": "04b-policy-prefetch",
       "title": "Implement deterministic hot-set controller",
       "packet": "docs/execution/tasks/04-03.md",
       "status": "todo",
@@ -331,7 +334,7 @@
     {
       "id": "04-04",
       "phase": "04",
-      "cluster": "04-routing-policy",
+      "cluster": "04b-policy-prefetch",
       "title": "Add page-fault prefetch and backpressure scheduler",
       "packet": "docs/execution/tasks/04-04.md",
       "status": "todo",
@@ -345,7 +348,7 @@
     {
       "id": "05-01",
       "phase": "05",
-      "cluster": "05-qwen-mtp-server",
+      "cluster": "05a-hybrid-mtp",
       "title": "Make hybrid recurrent and page operations atomic",
       "packet": "docs/execution/tasks/05-01.md",
       "status": "todo",
@@ -359,7 +362,7 @@
     {
       "id": "05-02",
       "phase": "05",
-      "cluster": "05-qwen-mtp-server",
+      "cluster": "05a-hybrid-mtp",
       "title": "Pin full-context Turbo4 MTP KV in VRAM",
       "packet": "docs/execution/tasks/05-02.md",
       "status": "todo",
@@ -375,7 +378,7 @@
     {
       "id": "05-03",
       "phase": "05",
-      "cluster": "05-qwen-mtp-server",
+      "cluster": "05b-server-speculation",
       "title": "Integrate server slots and request lifecycle",
       "packet": "docs/execution/tasks/05-03.md",
       "status": "todo",
@@ -390,7 +393,7 @@
     {
       "id": "05-04",
       "phase": "05",
-      "cluster": "05-qwen-mtp-server",
+      "cluster": "05b-server-speculation",
       "title": "Integrate checkpoints and speculative rollback",
       "packet": "docs/execution/tasks/05-04.md",
       "status": "todo",
@@ -404,7 +407,7 @@
     {
       "id": "06-01",
       "phase": "06",
-      "cluster": "06-validation-campaign",
+      "cluster": "06a-correctness",
       "title": "Complete CPU and fake-backend regression matrix",
       "packet": "docs/execution/tasks/06-01.md",
       "status": "todo",
@@ -418,7 +421,7 @@
     {
       "id": "06-02",
       "phase": "06",
-      "cluster": "06-validation-campaign",
+      "cluster": "06a-correctness",
       "title": "Complete CUDA correctness and fault matrix",
       "packet": "docs/execution/tasks/06-02.md",
       "status": "todo",
@@ -432,7 +435,7 @@
     {
       "id": "06-03",
       "phase": "06",
-      "cluster": "06-validation-campaign",
+      "cluster": "06b-benchmarks",
       "title": "Integrate canonical profile benchmark harness",
       "packet": "docs/execution/tasks/06-03.md",
       "status": "todo",
@@ -446,7 +449,7 @@
     {
       "id": "06-04",
       "phase": "06",
-      "cluster": "06-validation-campaign",
+      "cluster": "06b-benchmarks",
       "title": "Run 256K quality and performance acceptance",
       "packet": "docs/execution/tasks/06-04.md",
       "status": "todo",
@@ -461,7 +464,7 @@
     {
       "id": "06-05",
       "phase": "06",
-      "cluster": "06-validation-campaign",
+      "cluster": "06c-exact-reference",
       "title": "Implement the exact page-wave reference",
       "packet": "docs/execution/tasks/06-05.md",
       "status": "todo",
@@ -475,7 +478,7 @@
     {
       "id": "07-01",
       "phase": "07",
-      "cluster": "07-upstream-handoff",
+      "cluster": "07a-upstream-handoff",
       "title": "Prepare reviewable upstream change slices",
       "packet": "docs/execution/tasks/07-01.md",
       "status": "todo",
@@ -489,7 +492,7 @@
     {
       "id": "07-02",
       "phase": "07",
-      "cluster": "07-upstream-handoff",
+      "cluster": "07a-upstream-handoff",
       "title": "Finalize documentation and evidence index",
       "packet": "docs/execution/tasks/07-02.md",
       "status": "todo",
