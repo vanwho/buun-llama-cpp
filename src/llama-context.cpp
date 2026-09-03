@@ -132,6 +132,17 @@ llama_context::llama_context(
     //     may need to be backend-dependent
     LLAMA_LOG_INFO("%s: constructing llama_context\n", __func__);
 
+    if (params.kv_pager_config) {
+        kv_pager = *params.kv_pager_config;
+        std::string pager_error;
+        if (!kv_pager.validate(pager_error)) {
+            throw std::invalid_argument("invalid KV pager configuration: " + pager_error);
+        }
+        if (kv_pager.enabled()) {
+            LLAMA_LOG_INFO("KV pager normalized settings: %s\n", kv_pager.summary().c_str());
+        }
+    }
+
     t_start_us = model.t_start_us;
     t_load_us  = model.t_load_us;
 
@@ -7152,6 +7163,7 @@ llama_context_params llama_context_default_params() {
         /*.moe_cache_budget_mib        =*/ 0,
         /*.moe_cache_expert_parallel   =*/ 0,
         /*.moe_cache_profile_path      =*/ nullptr,
+        /*.kv_pager_config             =*/ nullptr,
         /*.abort_callback              =*/ nullptr,
         /*.abort_callback_data         =*/ nullptr,
         /*.embeddings                  =*/ false,

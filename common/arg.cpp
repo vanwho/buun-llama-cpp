@@ -580,6 +580,24 @@ static bool common_vbr_parse_vram_budget(const std::string & raw, std::string & 
     return true;
 }
 
+static void common_kv_pager_set_mode(common_params & params, const std::string & value) {
+    if (!llama_kv_pager_parse_mode(value, params.kv_pager.mode)) {
+        throw std::invalid_argument("invalid --kv-pager mode (expected off, observe, selective, or exact)");
+    }
+}
+
+static void common_kv_pager_set_size(llama_kv_pager_auto_size & target, const std::string & value, const char * name) {
+    if (!llama_kv_pager_parse_size(value, target)) {
+        throw std::invalid_argument(string_format("invalid %s size: %s", name, value.c_str()));
+    }
+}
+
+static void common_kv_pager_set_count(llama_kv_pager_auto_count & target, const std::string & value, const char * name) {
+    if (!llama_kv_pager_parse_count(value, target)) {
+        throw std::invalid_argument(string_format("invalid %s value: %s", name, value.c_str()));
+    }
+}
+
 // public wrapper (declared in common.h): VRAM budget spec -> bytes (0 == auto), throwing on bad input.
 // Reuses the canonical parser so llama-bench's --vbr-vram agrees with the main CLI (K/M/G[i]B suffixes,
 // finiteness/overflow validation) instead of re-rolling a bare-MiB parse that would silently diverge.
@@ -2077,6 +2095,10 @@ bool common_params_parse(int argc, char ** argv, common_params & params, llama_e
             common_params_print_completion(ctx_arg);
             exit(0);
         }
+        std::string pager_error;
+        if (!params.kv_pager.validate(pager_error)) {
+            throw std::invalid_argument("invalid KV pager configuration: " + pager_error);
+        }
         params.lr.init();
 
         // DFlash-safe target batch defaults. The drafter's block_size=16 / internal
@@ -2247,6 +2269,59 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             ctx_arg.options.push_back(std::move(arg));
         }
     };
+
+    add_opt(common_arg(
+        {"--kv-pager"}, "off|observe|selective|exact",
+        "experimental attention-aware KV pager mode (default: off)",
+        [](common_params & params, const std::string & value) { common_kv_pager_set_mode(params, value); }
+    ).set_env("LLAMA_KV_PAGER"));
+    add_opt(common_arg(
+        {"--kv-page-size"}, "N",
+        "experimental pager logical page size in tokens (default: 256)",
+        [](common_params & params, const std::string & value) {
+            llama_kv_pager_auto_count parsed;
+            common_kv_pager_set_count(parsed, value, "--kv-page-size");
+            if (parsed.automatic || parsed.value == 0) throw std::invalid_argument("--kv-page-size requires a positive value");
+            if (parsed.value % 256 != 0) throw std::invalid_argument("--kv-page-size must be a multiple of 256");
+            params.kv_pager.page_size = parsed.value;
+        }
+    ).set_env("LLAMA_KV_PAGE_SIZE"));
+    add_opt(common_arg(
+        {"--kv-vram-budget"}, "SIZE|auto", "experimental pager VRAM budget (default: auto)",
+        [](common_params & params, const std::string & value) { common_kv_pager_set_size(params.kv_pager.vram_budget, value, "--kv-vram-budget"); }
+    ).set_env("LLAMA_KV_VRAM_BUDGET"));
+    add_opt(common_arg(
+        {"--kv-host-budget"}, "SIZE|auto", "experimental pager host budget (default: auto)",
+        [](common_params & params, const std::string & value) { common_kv_pager_set_size(params.kv_pager.host_budget, value, "--kv-host-budget"); }
+    ).set_env("LLAMA_KV_HOST_BUDGET"));
+    add_opt(common_arg(
+        {"--kv-pin-recent"}, "TOKENS|auto", "experimental pager recent-token protection (default: auto)",
+        [](common_params & params, const std::string & value) { common_kv_pager_set_count(params.kv_pager.pin_recent, value, "--kv-pin-recent"); }
+    ).set_env("LLAMA_KV_PIN_RECENT"));
+    add_opt(common_arg(
+        {"--kv-hotset-policy"}, "NAME", "experimental pager hot-page policy (default: attention)",
+        [](common_params & params, const std::string & value) { params.kv_pager.hotset_policy = value; }
+    ).set_env("LLAMA_KV_HOTSET_POLICY"));
+    add_opt(common_arg(
+        {"--kv-hot-pages"}, "N|auto", "experimental pager hot-page upper bound (default: auto)",
+        [](common_params & params, const std::string & value) { common_kv_pager_set_count(params.kv_pager.hot_pages, value, "--kv-hot-pages"); }
+    ).set_env("LLAMA_KV_HOT_PAGES"));
+    add_opt(common_arg(
+        {"--kv-router-top-k"}, "N", "experimental pager router top-k (default: 0)",
+        [](common_params & params, int value) { if (value < 0) throw std::invalid_argument("--kv-router-top-k must not be negative"); params.kv_pager.router_top_k = uint32_t(value); }
+    ).set_env("LLAMA_KV_ROUTER_TOP_K"));
+    add_opt(common_arg(
+        {"--kv-router-explore"}, "N", "experimental pager router exploration count (default: 0)",
+        [](common_params & params, int value) { if (value < 0) throw std::invalid_argument("--kv-router-explore must not be negative"); params.kv_pager.router_explore = uint32_t(value); }
+    ).set_env("LLAMA_KV_ROUTER_EXPLORE"));
+    add_opt(common_arg(
+        {"--kv-prefetch-depth"}, "N", "experimental pager prefetch depth (default: 0)",
+        [](common_params & params, int value) { if (value < 0) throw std::invalid_argument("--kv-prefetch-depth must not be negative"); params.kv_pager.prefetch_depth = uint32_t(value); }
+    ).set_env("LLAMA_KV_PREFETCH_DEPTH"));
+    add_opt(common_arg(
+        {"--kv-pager-debug"}, "enable experimental pager diagnostics",
+        [](common_params & params) { params.kv_pager.debug = true; }
+    ).set_env("LLAMA_KV_PAGER_DEBUG"));
 
     add_opt(common_arg(
         {"-h", "--help", "--usage"},

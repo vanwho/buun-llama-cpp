@@ -1644,6 +1644,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
     // fallback. Rebind the borrowed C pointer after the final policy decision.
     cparams.moe_cache_profile_path = params.moe_cache.profile_path.empty()
         ? nullptr : params.moe_cache.profile_path.c_str();
+    cparams.kv_pager_config = &params.kv_pager;
     llama_context * lctx = llama_init_from_model(model, cparams);
     if (lctx == NULL) {
         COM_ERR("failed to create context with model '%s'\n", params.model.path.c_str());

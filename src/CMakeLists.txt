@@ -33,6 +33,7 @@ add_library(llama
             llama-kv-attention-op.cpp
             llama-kv-attention-execution.cpp
             llama-kv-attention-exact.cpp
+            llama-kv-pager-config.cpp
             llama-kv-routing-summary.cpp
             llama-kv-attention-telemetry.cpp
             llama-kv-residency.cpp

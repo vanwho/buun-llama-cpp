@@ -26,6 +26,19 @@
 static void test(void) {
     common_params params;
 
+    assert(params.kv_pager.mode == llama_kv_pager_mode::off);
+    assert(params.kv_pager.vram_budget.automatic);
+    assert(llama_kv_pager_parse_mode("SELECTIVE", params.kv_pager.mode));
+    assert(params.kv_pager.mode == llama_kv_pager_mode::selective);
+    llama_kv_pager_auto_size size;
+    assert(llama_kv_pager_parse_size("1.5GiB", size) && size.bytes == 1610612736ULL);
+    assert(llama_kv_pager_parse_size("auto", size) && size.automatic);
+    assert(!llama_kv_pager_parse_size("18446744073709551616G", size));
+    std::string pager_error;
+    params.kv_pager.page_size = 128;
+    assert(!params.kv_pager.validate(pager_error));
+    params.kv_pager.page_size = 256;
+
     auto assert_output_limits = [](int32_t n_batch, int32_t n_parallel, int32_t n_draft,
                                    int32_t total, int32_t per_seq) {
         const auto limits = common_speculative_get_output_limits(n_batch, n_parallel, n_draft);

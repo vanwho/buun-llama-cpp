@@ -7,6 +7,7 @@
 #include "llama-adapter.h"
 #include "llama-impl.h"
 #include "llama-memory.h"
+#include "llama-kv-pager-config.h"
 
 #include "ggml-cpp.h"
 #include "ggml-opt.h"
@@ -277,6 +278,10 @@ struct llama_context {
                   llama_context_params params);
 
     ~llama_context();
+
+    // Configuration is copied at the construction boundary; no pager resource
+    // is allocated until a later live-storage task consumes this owner.
+    llama_kv_pager_config kv_pager;
 
     // reserve a new backend scheduler (if needed)
     // for example, when:
