@@ -1002,6 +1002,20 @@ static bool server_has_cpu_dspark_backbone(const common_params & params) {
            params.speculative.draft.n_gpu_layers == 0;
 }
 
+// The checkpoint/carry coupling in this server task is for the Qwen3.8-27B
+// target, whose GGUF architecture is qwen35. Do not let an MTP primary
+// silently enter the path with a different recurrent or next-token layout.
+static bool server_mtp_target_architecture_supported(
+        const llama_model * model) noexcept {
+    if (!model) {
+        return false;
+    }
+    char architecture[64] = {};
+    const int32_t length = llama_model_meta_val_str(
+        model, "general.architecture", architecture, sizeof(architecture));
+    return length > 0 && std::strcmp(architecture, "qwen35") == 0;
+}
+
 static void server_append_tensor_override(
         common_params & params, llama_model_tensor_buft_override tensor_override) {
     if (!params.tensor_buft_overrides.empty() &&
@@ -2468,6 +2482,8 @@ struct server_slot {
     // capture and rollback costs. Outer index = generated draft length; inner
     // index = rejected target rows (rollback depth).
     std::vector<std::vector<int32_t>> n_verify_rollback;
+    uint64_t speculative_frontier_mismatches = 0;
+    uint64_t speculative_rollbacks = 0;
 
     // Hybrid model: recurrent state backup for speculative decoding
     bool has_draft_backup = false;
@@ -3153,6 +3169,9 @@ struct server_slot {
         if (!only_metrics && cache_debug_observability) {
             res["lifecycle"] = json {
                 {"session_generation", slot_session_generation},
+                {"speculative_rollbacks", speculative_rollbacks},
+                {"speculative_frontier_mismatches",
+                    speculative_frontier_mismatches},
             };
         }
 
@@ -3225,16 +3244,35 @@ struct server_slot {
     bool copy_state_to(server_slot & other) const {
         GGML_ASSERT(state == SLOT_STATE_DONE_PROMPT);
 
+        // Capture branch-local speculative state before any destination
+        // transition. It is process-local (not part of the target/draft KV
+        // image), but a child must not consume the parent's stale carry after
+        // a failed or partial clone.
+        std::vector<uint8_t> speculative_state;
+        const bool has_speculative_state = can_speculate() &&
+            common_speculative_get_state(
+                get_spec(), id, speculative_state) &&
+            !speculative_state.empty();
+
+        const auto clear_partial_copy = [&]() {
+            // Target copy can succeed before draft/recurrent allocation does.
+            // Clear the complete destination image so a caller observing the
+            // false return never sees a target-only child with old metadata.
+            other.server_cache_slot_drop_impl();
+        };
+
         other.observe_live_range_drop(
             server_cache_destruction_reason::child_release, true);
         ::server_cache_live_range_drop_impl(ctx_tgt, other.id, -1, -1);
         if (!llama_memory_try_seq_cp(llama_get_memory(ctx_tgt), id, other.id, -1, -1)) {
+            clear_partial_copy();
             return false;
         }
 
         if (ctx_dft) {
             ::server_cache_live_range_drop_impl(ctx_dft, other.id, -1, -1);
             if (!llama_memory_try_seq_cp(llama_get_memory(ctx_dft), id, other.id, -1, -1)) {
+                clear_partial_copy();
                 return false;
             }
         }
@@ -3244,6 +3282,13 @@ struct server_slot {
             ctx_dft
                 ? common_speculative_sequence_event::draft_image_restored
                 : common_speculative_sequence_event::target_restored_without_draft);
+
+        if (has_speculative_state &&
+                !common_speculative_set_state(
+                    other.get_spec(), other.id, speculative_state)) {
+            clear_partial_copy();
+            return false;
+        }
 
         other.i_batch = i_batch;
 
@@ -7105,6 +7150,19 @@ private:
         // bail before anything derefs ctx_tgt
         if (ctx_tgt == nullptr) {
             SRV_ERR("failed to create context, '%s'\n", params_base.model.path.c_str());
+            return false;
+        }
+
+        if (params_base.speculative.uses_mtp_as_primary_drafter() &&
+                !server_mtp_target_architecture_supported(model_tgt)) {
+            char architecture[64] = {};
+            (void) llama_model_meta_val_str(
+                model_tgt, "general.architecture", architecture,
+                sizeof(architecture));
+            SRV_ERR(
+                "MTP checkpoint/carry integration requires the Qwen3.8-27B "
+                "target architecture 'qwen35'; refusing '%s'\n",
+                architecture[0] ? architecture : "unknown");
             return false;
         }
 
@@ -19921,6 +19979,22 @@ private:
                     slot.spec_i_batch, slot.spec_draft);
             }
 
+            const auto rollback_frontier =
+                common_speculative_rollback_frontier_resolve(
+                    slot.n_tokens_before_draft,
+                    n_draft,
+                    ids.size() > 0 ? ids.size() - 1 : 0);
+            if (ids.empty() || !rollback_frontier.valid()) {
+                slot.speculative_frontier_mismatches++;
+                SLT_ERR(slot, "%s\n",
+                        "invalid speculative rollback frontier; resetting slot");
+                send_error(slot, "Invalid speculative rollback frontier");
+                slot.release();
+                slot.mandatory_recovery_reset(
+                    server_cache_destruction_reason::restore_failure);
+                return;
+            }
+
             // Keep the small output-index table until token stop handling has
             // had a chance to retain the exact terminal vocabulary row.
             const std::vector<int32_t> verified_output_rows =
@@ -19956,7 +20030,8 @@ private:
             // always retained; rollback depth is exactly the rejected draft
             // suffix. Preserve the joint distribution because marginal
             // acceptance rates cannot recover capture cost by verify length.
-            const size_t n_accepted_draft = n_accepted;
+            const size_t n_accepted_draft =
+                size_t(rollback_frontier.accepted_draft_tokens);
             GGML_ASSERT(n_accepted_draft <= n_draft);
             const size_t rollback_depth = n_draft - n_accepted_draft;
             if (slot.n_verify_rollback.size() <= n_draft) {
@@ -19992,6 +20067,24 @@ private:
             slot.server_cache_transient_token_truncate_impl(
                 slot.prompt.n_tokens() - n_draft);
             slot.prompt.tokens.insert(llama_tokens(ids.begin(), ids.end() - 1));
+
+            // The token ledger is the page/write-frontier authority for this
+            // transient verification. If it disagrees with the shared
+            // frontier, do not let one carrier advance past the others.
+            if (slot.prompt.n_tokens() !=
+                    rollback_frontier.accepted_token_count) {
+                slot.speculative_frontier_mismatches++;
+                SLT_ERR(slot,
+                        "speculative frontier mismatch (ledger=%d expected=%" PRId64 ")\n",
+                        slot.prompt.n_tokens(),
+                        rollback_frontier.accepted_token_count);
+                send_error(slot, "Speculative rollback frontier mismatch");
+                slot.release();
+                slot.mandatory_recovery_reset(
+                    server_cache_destruction_reason::restore_failure);
+                return;
+            }
+            slot.speculative_rollbacks++;
 
             if (slot.has_draft_backup) {
                 const llama_seq_id seq_backup = slot.seq_id_backup;
@@ -20052,7 +20145,9 @@ private:
                             server_cache_transient_seq_rm_impl(
                                 mem, seq_backup, -1, -1);
 
-                            const int n_reeval = slot.prompt.n_tokens() - n_past_before;
+                            const int n_reeval = int(
+                                rollback_frontier.accepted_token_count) -
+                                n_past_before;
                             if (n_reeval > 0) {
                                 llama_batch batch_reeval = llama_batch_init(n_reeval, 0, 1);
                                 const auto & toks = slot.prompt.tokens.get_text_tokens();
@@ -20084,7 +20179,8 @@ private:
                 slot.seq_id_backup = -1;
             } else if (!server_cache_transient_seq_rm_impl(
                            llama_get_memory(ctx_tgt), slot.id,
-                           slot.prompt.tokens.pos_next(), -1)) {
+                           llama_pos(rollback_frontier.rejected_suffix_begin),
+                           -1)) {
                 // RS contexts own their rollback snapshot internally, so this is the
                 // only target-state rollback operation on the no-backup path. Refusal
                 // cannot be ignored: accepted-token bookkeeping would otherwise advance
@@ -20097,7 +20193,10 @@ private:
                 return;
             }
 
-            common_speculative_rollback_dft(slot.get_spec(), slot.id, slot.prompt.n_tokens(), (uint16_t)(ids.size() - 1));
+            common_speculative_rollback_dft(
+                slot.get_spec(), slot.id,
+                llama_pos(rollback_frontier.accepted_token_count),
+                (uint16_t) rollback_frontier.accepted_draft_tokens);
 
             for (size_t i = 0; i < ids.size(); ++i) {
                 completion_token_output result;

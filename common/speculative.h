@@ -205,6 +205,51 @@ private:
     bool ready = false;
 };
 
+// The target verification batch is [sampled, draft...].  Keep the accepted
+// frontier in one representation so target KV/page metadata, recurrent
+// rollback, MTP KV, and the deferred carry all consume the same boundary.
+// `committed_tokens` is the logical token count before that batch; the sampled
+// token is always retained and `accepted_draft_tokens` is the accepted prefix
+// of the proposed draft.
+struct common_speculative_rollback_frontier {
+    int64_t committed_tokens = 0;
+    uint64_t proposed_draft_tokens = 0;
+    uint64_t accepted_draft_tokens = 0;
+    uint64_t rejected_draft_tokens = 0;
+    int64_t accepted_token_count = 0;
+    int64_t rejected_suffix_begin = 0;
+    int64_t rejected_suffix_end = 0;
+
+    bool valid() const noexcept {
+        if (committed_tokens < 0 ||
+                accepted_draft_tokens > proposed_draft_tokens) {
+            return false;
+        }
+        const uint64_t committed = uint64_t(committed_tokens);
+        if (committed > uint64_t(INT64_MAX) - 1u -
+                accepted_draft_tokens ||
+                committed > uint64_t(INT64_MAX) - 1u -
+                proposed_draft_tokens) {
+            return false;
+        }
+        const int64_t accepted = committed_tokens + 1 +
+            int64_t(accepted_draft_tokens);
+        const int64_t rejected_end = committed_tokens + 1 +
+            int64_t(proposed_draft_tokens);
+        return rejected_draft_tokens ==
+                   proposed_draft_tokens - accepted_draft_tokens &&
+               accepted_token_count == accepted &&
+               rejected_suffix_begin == accepted &&
+               rejected_suffix_end == rejected_end;
+    }
+};
+
+common_speculative_rollback_frontier
+common_speculative_rollback_frontier_resolve(
+        int64_t committed_tokens,
+        size_t proposed_draft_tokens,
+        size_t accepted_draft_tokens) noexcept;
+
 // Host-checkpoint codec for the deferred MTP hidden row. A complete draft
 // sequence image is not usable without this carry at a nonzero frontier.
 bool common_speculative_mtp_carry_state_save(

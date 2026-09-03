@@ -130,8 +130,6 @@ bool common_speculative_mtp_carry_state_load(
     constexpr uint32_t version     = 1;
     constexpr size_t   header_size = 3*sizeof(uint32_t);
 
-    lifecycle.target_process_skipped();
-
     uint32_t stored_magic = 0;
     uint32_t stored_version = 0;
     uint32_t width = 0;
@@ -147,10 +145,46 @@ bool common_speculative_mtp_carry_state_load(
         return false;
     }
 
+    // Validate the complete payload before touching either the carry bytes or
+    // its readiness bit. A rejected checkpoint is a no-mutation result; the
+    // caller may then clear the whole composite image explicitly.
     std::memcpy(pending_h.data(), data.data() + header_size,
                 (size_t) width*sizeof(float));
     lifecycle.target_process_refreshed();
     return true;
+}
+
+common_speculative_rollback_frontier
+common_speculative_rollback_frontier_resolve(
+        int64_t committed_tokens,
+        size_t proposed_draft_tokens,
+        size_t accepted_draft_tokens) noexcept {
+    common_speculative_rollback_frontier result;
+    result.committed_tokens = committed_tokens;
+    result.proposed_draft_tokens = uint64_t(proposed_draft_tokens);
+    result.accepted_draft_tokens = uint64_t(accepted_draft_tokens);
+    if (accepted_draft_tokens > proposed_draft_tokens ||
+            committed_tokens < 0 ||
+            uint64_t(committed_tokens) > uint64_t(INT64_MAX) - 1u ||
+            uint64_t(accepted_draft_tokens) > uint64_t(INT64_MAX) -
+                1u - uint64_t(committed_tokens) ||
+            uint64_t(proposed_draft_tokens) > uint64_t(INT64_MAX) -
+                1u - uint64_t(committed_tokens)) {
+        result.rejected_draft_tokens = UINT64_MAX;
+        result.accepted_token_count = -1;
+        result.rejected_suffix_begin = -1;
+        result.rejected_suffix_end = -1;
+        return result;
+    }
+
+    result.rejected_draft_tokens =
+        uint64_t(proposed_draft_tokens - accepted_draft_tokens);
+    result.accepted_token_count = committed_tokens + 1 +
+        int64_t(accepted_draft_tokens);
+    result.rejected_suffix_begin = result.accepted_token_count;
+    result.rejected_suffix_end = committed_tokens + 1 +
+        int64_t(proposed_draft_tokens);
+    return result;
 }
 
 common_speculative_checkpoint_policy common_speculative_checkpoint_policy_resolve(

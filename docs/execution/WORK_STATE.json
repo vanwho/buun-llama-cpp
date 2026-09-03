@@ -7,9 +7,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "05",
-  "current_task": "05-04",
-  "last_updated_utc": "2026-09-03T10:44:39+00:00",
+  "current_phase": "06",
+  "current_task": "06-01",
+  "last_updated_utc": "2026-09-03T10:59:39+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -398,13 +398,13 @@
       "cluster": "05b-server-speculation",
       "title": "Integrate checkpoints and speculative rollback",
       "packet": "docs/execution/tasks/05-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "05-03"
       ],
-      "commit": null
+      "commit": "ede62ff96e9c5b4861fa83510a9125f18512bf05"
     },
     {
       "id": "06-01",
