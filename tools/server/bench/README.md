@@ -138,3 +138,9 @@ profile activation, clean isolation, interruption summaries, and restoration
 to `run-profile-benchmark.sh`, then records pre/post profile, PID, command,
 health, and running-service snapshots. A failed restoration or post-run health
 check is an error.
+
+The current server has no live pager mode or pager counter stream. Therefore a
+dry run validates command construction and manifest compatibility, while a
+live invocation can produce only the existing non-pager controls unless a
+pager-enabled server and telemetry adapter are supplied. Do not treat those
+controls as selective capacity, quality, or throughput acceptance.

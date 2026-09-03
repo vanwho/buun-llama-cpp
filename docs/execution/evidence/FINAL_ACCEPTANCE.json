@@ -47,7 +47,7 @@
     {
       "name": "feature_off_speculative_control",
       "status": "available_control",
-      "path": "/srv/ai/paged-kv/results/profile-benchmark-default-big-20260903/",
+      "path": "/srv/ai/paged-kv/results/profile-benchmark-default-big-20260903-065012/",
       "description": "Big/spec-off canonical control; not a selective pager run"
     }
   ],

@@ -182,3 +182,15 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-07-01`
 - Commit at update: `8ac64b171`
 - Summary: Added diff-grounded upstream slice map with source ranges, hunk ownership, boundary evidence, issue disposition, and rebase strategy.
+
+## 2026-09-03T11:54:26+00:00 — 07-02 — in_progress
+
+- Branch: `codex/task-07-02`
+- Commit at update: `58ed84c05`
+- Summary: Task started
+
+## 2026-09-03T12:01:55+00:00 — 07-02 — done
+
+- Branch: `codex/task-07-02`
+- Commit at update: `58ed84c05`
+- Summary: Finalized operator documentation, evidence index, artifact references, and deferred acceptance register
