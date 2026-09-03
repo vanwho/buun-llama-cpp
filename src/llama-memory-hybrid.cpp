@@ -522,6 +522,12 @@ bool llama_memory_hybrid_context::apply() {
     return apply_atomic(nullptr, nullptr);
 }
 
+void llama_memory_hybrid_context::finish(bool graph_succeeded) {
+    if (ctx_attn) {
+        ctx_attn->finish(graph_succeeded);
+    }
+}
+
 bool llama_memory_hybrid_context::apply_atomic(
         llama_memory_context_i * companion_context,
         llama_kv_cache * companion_cache) {

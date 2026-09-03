@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "09",
-  "current_task": "09-03",
-  "last_updated_utc": "2026-09-03T15:39:41+00:00",
+  "current_task": "09-04",
+  "last_updated_utc": "2026-09-03T16:08:50+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -619,13 +619,13 @@
       "cluster": "09a-live-memory",
       "title": "Bind target KV writes positions and mutations to compact pages",
       "packet": "docs/execution/tasks/09-03.md",
-      "status": "in_progress",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "09-02"
       ],
-      "commit": null
+      "commit": "39adfde835ca8d7f87d6c33a1b0e36464cc6ea19"
     },
     {
       "id": "09-04",

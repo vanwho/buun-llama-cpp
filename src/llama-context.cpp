@@ -887,6 +887,7 @@ void llama_context::init_kv_pager() {
     if (!kv_pager_owner) {
         throw std::runtime_error("KV pager initialization failed: " + std::string(llama_kv_pager_status_name(status)));
     }
+    memory->set_kv_pager(kv_pager_owner.get());
     const auto & snapshot = kv_pager_owner->snapshot();
     LLAMA_LOG_INFO("KV pager compact target storage: C=%" PRIu64 " L=%u H=%u rows=%" PRIu64 " bytes=%" PRIu64 "\n",
             geometry.context_tokens, snapshot.logical_page_count, snapshot.physical_page_count,
@@ -4262,6 +4263,7 @@ bool llama_context::set_adapter_cvec(
 
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
     if (mctx && !mctx->apply()) {
+        mctx->finish(false);
         LLAMA_LOG_ERROR("%s: failed to apply memory context\n", __func__);
         ret = GGML_STATUS_FAILED;
         return nullptr;
@@ -4294,12 +4296,14 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         gf = model.build_graph(gparams);
 
         if (!gf) {
+            if (mctx) mctx->finish(false);
             LLAMA_LOG_ERROR("%s: failed to initialize graph\n", __func__);
             ret = GGML_STATUS_FAILED;
             return nullptr;
         }
 
         if (!ggml_backend_sched_alloc_graph(sched.get(), gf)) {
+            if (mctx) mctx->finish(false);
             LLAMA_LOG_ERROR("%s: failed to allocate graph\n", __func__);
             ret = GGML_STATUS_ALLOC_FAILED;
             return nullptr;
@@ -4327,10 +4331,13 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
 
     const auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);
     if (status != GGML_STATUS_SUCCESS) {
+        if (mctx) mctx->finish(false);
         LLAMA_LOG_ERROR("%s: failed to compute graph, compute status: %d\n", __func__, status);
         ret = status;
         return nullptr;
     }
+
+    if (mctx) mctx->finish(true);
 
     ret = GGML_STATUS_SUCCESS;
 
