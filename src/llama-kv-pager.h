@@ -226,6 +226,9 @@ public:
 
     const llama_kv_pager_snapshot & snapshot() const noexcept { return snapshot_; }
     llama_kv_residency_snapshot residency() const noexcept { return residency_.snapshot(); }
+    llama_kv_residency_snapshot residency(int32_t sequence_id) const noexcept {
+        return residency_.snapshot().for_sequence(sequence_id);
+    }
 
     // Reserve the physical row for one logical position before graph submission. The returned
     // row is an implementation detail; callers must continue to use the logical position for

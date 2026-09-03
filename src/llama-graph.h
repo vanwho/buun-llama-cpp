@@ -413,6 +413,15 @@ public:
     ggml_tensor * self_kq_mask     = nullptr; // F32/F16 [n_kv, n_batch/n_stream, 1, n_stream]
     ggml_tensor * self_kq_mask_cnv = nullptr; //         [n_kv, n_batch/n_stream, 1, n_stream]
 
+    // Selected reference attention gathers only the rows named by the live
+    // page view.  The IDs address the ordinary cache's bounded physical view;
+    // the immutable metadata retains the native logical positions and table
+    // lifetime for the graph.
+    bool selected_attention = false;
+    ggml_tensor * self_selected_idxs = nullptr; // I32 [selected physical rows]
+    std::vector<int32_t> selected_rows;
+    llama_kv_attention_operator_metadata selected_metadata;
+
     // note: assumes v_rot^2 == I
     ggml_tensor * self_k_rot = nullptr;
     ggml_tensor * self_v_rot = nullptr;
@@ -1160,6 +1169,9 @@ struct llm_graph_context {
     ggml_tensor * tree_parent_ids = nullptr;
     const std::vector<ggml_tensor *> * tree_ssm_intermediates = nullptr;
     int tree_n_recurrent_layers = 0;
+
+    const llama_kv_attention_operator_metadata & kv_attention_metadata;
+    const llama_kv_attention_execution_route kv_attention_route;
 
     std::map<llama_seq_id, llama_sampler *> samplers;
 

@@ -218,3 +218,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-09-05`
 - Commit at update: `25da0a174`
 - Summary: Implemented the ggml-backed compact-slot residency adapter, real tensor H2D/D2H executor route, shared bounded staging core, pager-owned slot/event lifecycle, transfer counters, deterministic coverage, and task handoff/checkpoint. Model-backed CUDA/live verification is deferred because no Qwen target GGUF is available.
+
+## 2026-09-03T17:24:20+00:00 — 10-01 — done
+
+- Branch: `codex/task-10-01`
+- Commit at update: `daa4d9243`
+- Summary: Wired selected-all-pages reference attention through the live Qwen Turbo4 graph with immutable sequence-scoped page metadata, bounded K/V gathers, native causal masks, graph reuse keys, fences, accounting, tests, and handoff; model-backed CUDA parity deferred because no runnable Qwen model is available.

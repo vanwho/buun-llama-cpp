@@ -43,6 +43,12 @@ public:
             const std::vector<uint32_t> & selected_pages,
             llama_kv_attention_view_status & status) noexcept;
 
+    static llama_kv_attention_view build(
+            const llama_kv_residency_snapshot & snapshot,
+            const std::vector<uint32_t> & selected_pages,
+            int32_t sequence_id,
+            llama_kv_attention_view_status & status) noexcept;
+
     bool valid() const noexcept { return state_ != nullptr; }
     uint64_t graph_epoch() const noexcept;
     // Graph builders must use this value for the K/V attention dimension.

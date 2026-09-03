@@ -73,6 +73,12 @@ public:
     uint32_t slot_capacity() const noexcept;
     const std::vector<llama_kv_page_record> & pages() const noexcept;
 
+    // Return an immutable view containing only one sequence's pages.  The
+    // table may contain the same logical page number for several sequences;
+    // selected attention must never resolve such a page by logical number
+    // alone.
+    llama_kv_residency_snapshot for_sequence(int32_t sequence_id) const noexcept;
+
 private:
     struct state;
     explicit llama_kv_residency_snapshot(std::shared_ptr<const state> value) noexcept;
