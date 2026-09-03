@@ -74,8 +74,30 @@ int main() {
     assert(std::fabs(page.normalized_ema - 0.375f) < 1.0e-6f);
     assert(std::fabs(page.recent_peak - 0.375f) < 1.0e-6f);
     assert(telemetry.page_state(2, page) && page.observed);
+    assert(page.frequency == 1);
     assert(telemetry.counters().sampled_tokens == 1);
     assert(telemetry.counters().sampled_pages == 3);
+    assert(telemetry.counters().samples == 1);
+    assert(telemetry.counters().sampled_layers == 1);
+    assert(telemetry.counters().sampled_heads == 2);
+
+    // Layer and head aggregation is over participating page bins only. The
+    // second layer gives page 0 a second .30 contribution and page 1 a .10
+    // contribution, so the two-layer averages are .30 and .15.
+    llama_kv_attention_telemetry aggregated(config);
+    assert(aggregated.initialize(snapshot) == llama_kv_attention_telemetry_status::ok);
+    const std::array<float, 16> layered_mass = {
+        0.20f, 0.10f, 0.0f, 0.0f,  0.40f, 0.30f, 0.0f, 0.0f,
+        0.40f, 0.20f, 0.0f, 0.0f,  0.20f, 0.00f, 0.0f, 0.0f,
+    };
+    auto layered = make_sample(snapshot, layered_mass.data(), snapshot.pages().size());
+    layered.layer_count = 2;
+    layered.head_stride_bytes = 4 * sizeof(float);
+    layered.layer_stride_bytes = 2 * layered.head_stride_bytes;
+    layered.token_stride_bytes = 2 * layered.layer_stride_bytes;
+    assert(aggregated.publish_completed(snapshot, layered) == llama_kv_attention_telemetry_status::ok);
+    assert(aggregated.page_state(0, page) && std::fabs(page.normalized_ema - 0.30f) < 1.0e-6f);
+    assert(aggregated.page_state(1, page) && std::fabs(page.normalized_ema - 0.15f) < 1.0e-6f);
 
     // A second completed sample exercises EMA and recent-peak decay.
     const std::array<float, 8> second_mass = { 0.0f, 0.0f, 0.0f, 0.0f,
@@ -110,6 +132,7 @@ int main() {
     sample.token_index = 1;
     assert(sampled.publish_completed(snapshot, sample) == llama_kv_attention_telemetry_status::sampling_skipped);
     assert(sampled.counters().sampled_tokens == 0);
+    assert(sampled.counters().skipped == 1);
     sample.token_index = 2;
     assert(sampled.publish_completed(snapshot, sample) == llama_kv_attention_telemetry_status::ok);
 
@@ -135,5 +158,15 @@ int main() {
     sample = make_sample(changed, mass.data(), changed.pages().size());
     assert(active.publish_completed(changed, sample) == llama_kv_attention_telemetry_status::stale_epoch);
     assert(active.counters().stale_dropped == 1);
+
+    // Rebinding a rebuilt table preserves only identical full page identities;
+    // a changed generation starts cold and can be observed by the next sample.
+    llama_kv_attention_telemetry rebound(config);
+    assert(rebound.initialize(snapshot) == llama_kv_attention_telemetry_status::ok);
+    assert(rebound.publish_completed(snapshot, make_sample(snapshot, mass.data(), snapshot.pages().size())) ==
+            llama_kv_attention_telemetry_status::ok);
+    assert(rebound.reconcile(changed) == llama_kv_attention_telemetry_status::ok);
+    assert(rebound.page_state(0, page) && !page.observed);
+    assert(rebound.page_state(1, page) && page.observed);
     return 0;
 }

@@ -14,6 +14,7 @@
 #include "llama-kv-cache-dsa-iswa.h"
 #include "llama-kv-cache-msa.h"
 #include "llama-kv-cache-dsv4.h"
+#include "llama-kv-attention-telemetry.h"
 #include "llama-memory-hybrid.h"
 #include "llama-memory-hybrid-iswa.h"
 #include "llama-memory-recurrent.h"
@@ -714,6 +715,8 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
 
     if (selected_attention) {
         if (direct_attention) {
+            direct_telemetry_published = false;
+            direct_telemetry_skipped = false;
             ggml_backend_tensor_set(direct_pages, direct_pages_host.data(), 0,
                     direct_pages_host.size() * sizeof(direct_pages_host[0]));
             const auto & positions = selected_metadata.native_positions();
@@ -724,6 +727,16 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             ggml_backend_tensor_set(direct_native_mask, valid.data(), 0, valid.size());
             ggml_backend_tensor_set(direct_query_positions, queries.data(), 0,
                     queries.size() * sizeof(queries[0]));
+            if (direct_page_mass != nullptr && ubatch->pos != nullptr) {
+                direct_telemetry_token_index = uint64_t(
+                        std::max<llama_pos>(0, ubatch->pos[0]));
+            } else if (direct_page_mass == nullptr && kv_attention_telemetry != nullptr &&
+                       kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+                       ubatch->pos != nullptr &&
+                       !kv_attention_telemetry->cadence_due(uint64_t(
+                           std::max<llama_pos>(0, ubatch->pos[0])))) {
+                direct_telemetry_skipped = true;
+            }
         } else {
             GGML_ASSERT(self_selected_idxs != nullptr);
             GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
@@ -836,6 +849,14 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         res &= direct_native_mask->ne[0] == params.kv_attention_metadata.get_n_kv();
         res &= direct_query_positions->ne[0] == int64_t(
                 params.kv_attention_metadata.query_positions().size());
+        const bool telemetry_enabled = params.kv_attention_telemetry != nullptr &&
+            params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+            params.kv_attention_telemetry->layer_index() < uint32_t(hparams.n_layer()) &&
+            params.kv_attention_telemetry->head_begin() < uint32_t(
+                hparams.n_head(params.kv_attention_telemetry->layer_index())) &&
+            params.kv_attention_telemetry->cadence_due(params.ubatch.pos != nullptr
+                ? uint64_t(std::max<llama_pos>(0, params.ubatch.pos[0])) : 0);
+        res &= (direct_page_mass != nullptr) == telemetry_enabled;
     }
 
     return res;
@@ -1934,6 +1955,7 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
     kv_attention_metadata(params.kv_attention_metadata),
     kv_attention_route(params.kv_attention_route),
     kv_attention_metrics(params.kv_attention_metrics),
+    kv_attention_telemetry(params.kv_attention_telemetry),
     samplers         (params.samplers),
     cb_func          (params.cb),
     res              (params.res),
@@ -3264,10 +3286,11 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
     const llama_tree_mask * tree_mask = nullptr,
     const llama_kv_attention_operator_metadata * selected_metadata = nullptr,
     bool direct_attention = false,
-    llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr) {
+    llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr,
+    llama_kv_attention_telemetry * kv_attention_telemetry = nullptr) {
 
     auto inp = std::make_unique<llm_graph_input_attn_kv>(hparams, cparams, mctx_cur,
-            tree_mask, kv_attention_metrics);
+            tree_mask, kv_attention_metrics, kv_attention_telemetry);
 
     if (selected_metadata != nullptr && selected_metadata->enabled()) {
         inp->selected_attention = true;
@@ -3342,6 +3365,69 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_positions, direct_backend);
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
+
+            // The CUDA reduction writes one F32 vector per query head. Keep a
+            // single configured layer and the resolved logical-page bound so
+            // device storage scales with L, never with K/V or an attention
+            // matrix. The host only reads this page-level tensor after the
+            // scheduler fence.
+            if (kv_attention_telemetry != nullptr &&
+                kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+                kv_attention_telemetry->layer_index() < geometry.attention_layers &&
+                kv_attention_telemetry->head_begin() < uint32_t(
+                    hparams.n_head(kv_attention_telemetry->layer_index()))) {
+                const uint32_t telemetry_head_total = uint32_t(
+                    hparams.n_head(kv_attention_telemetry->layer_index()));
+                const uint32_t available_heads = telemetry_head_total -
+                    kv_attention_telemetry->head_begin();
+                const uint32_t requested_heads = kv_attention_telemetry->head_count();
+                const uint32_t sampled_heads = requested_heads == 0
+                    ? available_heads : std::min(requested_heads, available_heads);
+                const uint64_t telemetry_token_index = ubatch.pos != nullptr
+                    ? uint64_t(std::max<llama_pos>(0, ubatch.pos[0])) : 0;
+                if (sampled_heads != 0 && pager->snapshot().logical_page_count != 0 &&
+                    kv_attention_telemetry->cadence_due(telemetry_token_index)) {
+                    const llama_seq_id sequence_id = ubatch.n_seq_id != nullptr &&
+                        ubatch.n_seq_id[0] != 0 && ubatch.seq_id != nullptr &&
+                        ubatch.seq_id[0] != nullptr ? ubatch.seq_id[0][0] : -1;
+                    if (sequence_id >= 0) {
+                        inp->direct_telemetry_snapshot = pager->residency(sequence_id);
+                        if (inp->direct_telemetry_snapshot.epoch() != 0 &&
+                            kv_attention_telemetry->reconcile(inp->direct_telemetry_snapshot) ==
+                                llama_kv_attention_telemetry_status::ok) {
+                            inp->direct_telemetry_pages.reserve(inp->direct_pages_host.size());
+                            bool complete = true;
+                            for (const auto & view_page : inp->direct_pages_host) {
+                                const auto it = std::find_if(
+                                    inp->direct_telemetry_snapshot.pages().begin(),
+                                    inp->direct_telemetry_snapshot.pages().end(),
+                                    [&](const auto & record) {
+                                        return record.id.logical_page == view_page.logical_page &&
+                                            record.physical_slot == view_page.source_physical_slot;
+                                    });
+                                if (it == inp->direct_telemetry_snapshot.pages().end()) {
+                                    complete = false;
+                                    break;
+                                }
+                                inp->direct_telemetry_pages.push_back(*it);
+                            }
+                            if (complete) {
+                                inp->direct_page_mass = ggml_new_tensor_2d(
+                                    ctx0, GGML_TYPE_F32,
+                                    pager->snapshot().logical_page_count, telemetry_head_total);
+                                ggml_set_input(inp->direct_page_mass);
+                                ggml_set_name(inp->direct_page_mass, "kv_direct_page_mass");
+                                ggml_backend_sched_set_tensor_backend(
+                                    sched, inp->direct_page_mass, direct_backend);
+                                inp->direct_telemetry_token_index = telemetry_token_index;
+                            }
+                        }
+                    }
+                } else if (sampled_heads != 0 &&
+                           !kv_attention_telemetry->cadence_due(telemetry_token_index)) {
+                    inp->direct_telemetry_skipped = true;
+                }
+            }
         }
     }
 
@@ -3380,7 +3466,7 @@ llm_graph_input_attn_kv * llm_graph_context::build_attn_inp_kv() const {
              kv_attention_route == llama_kv_attention_execution_route::selected_direct)
                 ? &kv_attention_metadata : nullptr,
             kv_attention_route == llama_kv_attention_execution_route::selected_direct,
-            kv_attention_metrics);
+            kv_attention_metrics, kv_attention_telemetry);
 
     return (llm_graph_input_attn_kv *) res->add_input(std::move(inp));
 }
@@ -3459,11 +3545,17 @@ ggml_tensor * llm_graph_context::build_attn(
 
         ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
             ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
+        ggml_tensor * telemetry_page_mass =
+            inp->kv_attention_telemetry != nullptr &&
+            inp->kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+            uint32_t(il) == inp->kv_attention_telemetry->layer_index()
+                ? inp->direct_page_mass : nullptr;
         const ggml_flash_attn_ext_paged_turbo4_params direct_params = {
             inp->selected_metadata.head_dim_k(),
             inp->selected_metadata.head_dim_v(),
             kq_scale,
             true,
+            telemetry_page_mass,
         };
         ggml_tensor * direct = ggml_flash_attn_ext_paged_turbo4(
                 ctx0, q_direct, k_raw, v_raw, inp->direct_storage,
@@ -4263,7 +4355,8 @@ llm_graph_input_mem_hybrid * llm_graph_context::build_inp_mem_hybrid() const {
             (kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
              kv_attention_route == llama_kv_attention_execution_route::selected_direct)
                 ? &kv_attention_metadata : nullptr,
-            kv_attention_route == llama_kv_attention_execution_route::selected_direct);
+            kv_attention_route == llama_kv_attention_execution_route::selected_direct,
+            kv_attention_metrics, kv_attention_telemetry);
 
     auto inp = std::make_unique<llm_graph_input_mem_hybrid>(cparams, std::move(inp_attn), std::move(inp_rs), mctx_cur);
 

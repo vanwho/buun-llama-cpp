@@ -1,6 +1,7 @@
 #include "llama-kv-attention-telemetry.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -12,6 +13,11 @@ bool valid_ratio(float value) noexcept {
 
 bool stride_product_fits(size_t stride, uint32_t count) noexcept {
     return count == 0 || stride <= std::numeric_limits<size_t>::max() / count;
+}
+
+uint64_t elapsed_us(const std::chrono::steady_clock::time_point begin) noexcept {
+    return uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - begin).count());
 }
 
 void saturating_add(uint64_t & target, uint64_t value) noexcept {
@@ -53,6 +59,9 @@ llama_kv_attention_telemetry::llama_kv_attention_telemetry(
         mode_(config.mode),
         logical_page_count_(config.logical_page_count),
         sample_interval_tokens_(config.sample_interval_tokens),
+        layer_index_(config.layer_index),
+        head_begin_(config.head_begin),
+        head_count_(config.head_count),
         ema_alpha_(config.ema_alpha),
         peak_decay_(config.peak_decay) {
     if (logical_page_count_ == 0 || pages_.max_size() < logical_page_count_ ||
@@ -123,6 +132,48 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::initialize(
     return llama_kv_attention_telemetry_status::ok;
 }
 
+llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reconcile(
+        const llama_kv_residency_snapshot & snapshot) noexcept {
+    if (mode_ == llama_kv_attention_telemetry_mode::off) {
+        return llama_kv_attention_telemetry_status::disabled;
+    }
+    if (snapshot.epoch() == 0 || logical_page_count_ == 0 ||
+        snapshot.pages().size() > pages_.max_size()) {
+        return reject_invalid();
+    }
+    if (table_epoch_ == snapshot.epoch() && snapshot_matches(snapshot)) {
+        return llama_kv_attention_telemetry_status::ok;
+    }
+
+    std::vector<slot> next;
+    try {
+        next.resize(logical_page_count_);
+    } catch (...) {
+        return reject_invalid();
+    }
+    for (const auto & page : snapshot.pages()) {
+        const bool tail = page.state == llama_kv_page_state::filling_gpu;
+        if (!valid_state(page.state) || !llama_kv_page_id_valid(page.id, tail)) continue;
+        if (!valid_page(page.id.logical_page) || next[page.id.logical_page].value.known) {
+            return reject_invalid();
+        }
+        auto & state = next[page.id.logical_page].value;
+        state.known = true;
+        state.id = page.id;
+        const auto & old = pages_[page.id.logical_page].value;
+        if (old.known && old.id == page.id) {
+            state.observed = old.observed;
+            state.normalized_ema = old.normalized_ema;
+            state.recent_peak = old.recent_peak;
+            state.sample_count = old.sample_count;
+            state.frequency = old.frequency;
+        }
+    }
+    pages_.swap(next);
+    table_epoch_ = snapshot.epoch();
+    return llama_kv_attention_telemetry_status::ok;
+}
+
 llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_completed(
         const llama_kv_residency_snapshot & snapshot,
         const llama_kv_attention_telemetry_sample & sample) noexcept {
@@ -136,6 +187,7 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
         if (sample.table_epoch != table_epoch_ || snapshot.epoch() != table_epoch_ ||
             !snapshot_matches(snapshot)) return reject_stale();
         if (sample.token_count != 0 && sample.token_index % sample_interval_tokens_ != 0) {
+            saturating_add(counters_.skipped, 1);
             return llama_kv_attention_telemetry_status::sampling_skipped;
         }
         return reject_invalid();
@@ -149,6 +201,7 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
         sample.token_stride_bytes < sample.layer_stride_bytes * sample.layer_count) {
         return reject_invalid();
     }
+    const auto publish_begin = std::chrono::steady_clock::now();
     for (size_t i = 0; i < sample.page_count; ++i) {
         const auto & page = sample.pages[i];
         if (!valid_page(page.id.logical_page) || !pages_[page.id.logical_page].value.known ||
@@ -204,9 +257,19 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
         state.recent_peak = std::max(peak, peak_decay_ * state.recent_peak);
         state.observed = true;
         ++state.sample_count;
+        if (state.frequency != std::numeric_limits<uint64_t>::max()) ++state.frequency;
     }
+    saturating_add(counters_.samples, 1);
     saturating_add(counters_.sampled_tokens, sample.token_count);
     saturating_add(counters_.sampled_pages, sample.page_count);
+    saturating_add(counters_.sampled_layers,
+            saturating_mul(sample.token_count, sample.layer_count));
+    saturating_add(counters_.sampled_heads,
+            saturating_mul(saturating_mul(sample.token_count, sample.layer_count), sample.head_count));
+    saturating_add(counters_.gpu_reduction_us, sample.gpu_reduction_us);
+    saturating_add(counters_.d2h_bytes, sample.d2h_bytes);
+    saturating_add(counters_.d2h_time_us, sample.d2h_time_us);
+    saturating_add(counters_.publish_time_us, elapsed_us(publish_begin));
     return llama_kv_attention_telemetry_status::ok;
 }
 
@@ -220,6 +283,14 @@ void llama_kv_attention_telemetry::set_mode(
         llama_kv_attention_telemetry_mode mode) noexcept {
     if (mode_ != mode) clear();
     mode_ = mode;
+}
+
+void llama_kv_attention_telemetry::record_observe_overhead(uint64_t elapsed) noexcept {
+    saturating_add(counters_.observe_overhead_us, elapsed);
+}
+
+void llama_kv_attention_telemetry::record_skipped_sample() noexcept {
+    saturating_add(counters_.skipped, 1);
 }
 
 bool llama_kv_attention_telemetry::page_state(
@@ -249,5 +320,6 @@ llama_kv_attention_telemetry_accounting llama_kv_attention_telemetry::accounting
         ? std::numeric_limits<uint64_t>::max()
         : result.ema_bytes + result.peak_bytes;
     result.metadata_bytes = saturating_mul(logical_page_count_, sizeof(llama_kv_page_id));
+    result.device_capture_bytes = saturating_mul(logical_page_count_, sizeof(float));
     return result;
 }

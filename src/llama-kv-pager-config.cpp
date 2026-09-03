@@ -64,6 +64,7 @@ bool llama_kv_pager_config::validate(std::string & error) const {
         error = "hot-page cap contradicts an empty VRAM budget"; return false;
     }
     if (hotset_policy.empty()) { error = "hot-page policy must not be empty"; return false; }
+    if (telemetry_interval_tokens == 0) { error = "telemetry interval must be positive"; return false; }
     return true;
 }
 
@@ -76,7 +77,11 @@ std::string llama_kv_pager_config::mode_name() const {
 std::string llama_kv_pager_config::summary() const {
     return "mode=" + mode_name() + " page_size=" + std::to_string(page_size) +
            " vram=" + (vram_budget.automatic ? "auto" : std::to_string(vram_budget.bytes)) +
-           " host=" + (host_budget.automatic ? "auto" : std::to_string(host_budget.bytes));
+           " host=" + (host_budget.automatic ? "auto" : std::to_string(host_budget.bytes)) +
+           " telemetry_interval=" + std::to_string(telemetry_interval_tokens) +
+           " telemetry_layer=" + std::to_string(telemetry_layer) +
+           " telemetry_heads=" + std::to_string(telemetry_head_begin) + ":" +
+           std::to_string(telemetry_head_count);
 }
 
 const char * llama_kv_pager_capability_reason_name(llama_kv_pager_capability_reason reason) noexcept {

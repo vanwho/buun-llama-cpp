@@ -5731,6 +5731,7 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     GGML_ASSERT(native_mask->type == GGML_TYPE_I8);
     GGML_ASSERT(query_positions->type == GGML_TYPE_I64);
     GGML_ASSERT(params->head_dim_k > 0 && params->head_dim_v > 0);
+    GGML_ASSERT(params->page_mass == NULL || params->page_mass->type == GGML_TYPE_F32);
 
     // The direct backend consumes these fields from the source tensor views;
     // only the fixed geometry and scale need to be carried in op_params.
@@ -5753,6 +5754,7 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     result->src[5] = native_mask;
     result->src[6] = query_positions;
     result->src[7] = storage;
+    result->src[8] = params->page_mass;
     // This is immutable graph metadata, not a backend allocation.  The graph
     // input object owns the pointed-to vector for the lifetime of the node.
     result->extra = (void *) (uintptr_t) pages_host;

@@ -2519,6 +2519,10 @@ extern "C" {
         uint32_t head_dim_v;
         float    scale;
         bool     causal;
+        // Optional F32 [logical_page_count, query_heads] device output.
+        // The CUDA kernel writes page-level softmax mass without exposing an
+        // attention matrix to the host.
+        struct ggml_tensor * page_mass;
     };
 
     GGML_API struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
