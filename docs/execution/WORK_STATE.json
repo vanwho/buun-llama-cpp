@@ -1,0 +1,459 @@
+{
+  "schema_version": 1,
+  "project": "Qwen3.8 256K attention-aware Turbo4 KV paging",
+  "canonical_plan": "docs/execution/ATTENTION_AWARE_KV_PAGING_PLAN.md",
+  "repository": "/srv/repos/vanwho/buun-llama-cpp",
+  "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
+  "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
+  "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
+  "status": "ready",
+  "current_phase": "00",
+  "current_task": "00-02",
+  "last_updated_utc": "2026-09-03T02:10:52+00:00",
+  "runner": {
+    "path": "/srv/codex/run_until_complete_clustered.sh",
+    "required_git_mode": "local",
+    "root_environment": "CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp"
+  },
+  "external_gates": [
+    {
+      "id": "upstream-direction",
+      "status": "resolved_experimental_fork_only",
+      "reason": "A human must decide where the Buun-specific feature discussion belongs and write any GitHub-facing text.",
+      "resolution": "The user explicitly authorized iterative work and commits in vanwho/* forks. Upstream issues/PRs remain deferred until maintainer direction and repository rules are rechecked.",
+      "known_references": [
+        "https://github.com/ggml-org/llama.cpp/discussions/21961",
+        "https://github.com/ggml-org/llama.cpp/pull/22569",
+        "https://github.com/ggml-org/llama.cpp/issues/28115",
+        "https://github.com/spiritbuun/buun-llama-cpp/issues/109"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "00-01",
+      "phase": "00",
+      "cluster": "00-governance-baseline",
+      "title": "Resolve contribution and upstream-direction gate",
+      "packet": "docs/execution/tasks/00-01.md",
+      "status": "done",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": [],
+      "commit": "cb703be37e3628dadb71912f3b3b25b82090555b"
+    },
+    {
+      "id": "00-02",
+      "phase": "00",
+      "cluster": "00-governance-baseline",
+      "title": "Pin source, model, build, and hardware provenance",
+      "packet": "docs/execution/tasks/00-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": [
+        "00-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "00-03",
+      "phase": "00",
+      "cluster": "00-governance-baseline",
+      "title": "Reproduce canonical benchmark baselines",
+      "packet": "docs/execution/tasks/00-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": [
+        "00-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "00-04",
+      "phase": "00",
+      "cluster": "00-governance-baseline",
+      "title": "Record prototype and community salvage matrix",
+      "packet": "docs/execution/tasks/00-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": [
+        "00-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "01-01",
+      "phase": "01",
+      "cluster": "01-page-contracts",
+      "title": "Freeze selective-attention product semantics",
+      "packet": "docs/execution/tasks/01-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": [
+        "00-03",
+        "00-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "01-02",
+      "phase": "01",
+      "cluster": "01-page-contracts",
+      "title": "Implement pure page identity and residency table",
+      "packet": "docs/execution/tasks/01-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra Medium",
+      "depends_on": [
+        "01-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "01-03",
+      "phase": "01",
+      "cluster": "01-page-contracts",
+      "title": "Implement budget and MTP reservation arithmetic",
+      "packet": "docs/execution/tasks/01-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": [
+        "01-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "01-04",
+      "phase": "01",
+      "cluster": "01-page-contracts",
+      "title": "Implement pure retrieval and retention policy replay",
+      "packet": "docs/execution/tasks/01-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra Medium",
+      "depends_on": [
+        "01-02",
+        "01-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "02-01",
+      "phase": "02",
+      "cluster": "02-vbr-host-pages",
+      "title": "Add bounded selected-page VBR capture descriptors",
+      "packet": "docs/execution/tasks/02-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "01-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "02-02",
+      "phase": "02",
+      "cluster": "02-vbr-host-pages",
+      "title": "Add host Turbo4 page catalog and budget",
+      "packet": "docs/execution/tasks/02-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra Medium",
+      "depends_on": [
+        "02-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "02-03",
+      "phase": "02",
+      "cluster": "02-vbr-host-pages",
+      "title": "Add batched asynchronous page transfers",
+      "packet": "docs/execution/tasks/02-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "02-01",
+        "02-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "02-04",
+      "phase": "02",
+      "cluster": "02-vbr-host-pages",
+      "title": "Publish residency transactions with rollback",
+      "packet": "docs/execution/tasks/02-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "02-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "03-01",
+      "phase": "03",
+      "cluster": "03-paged-fa",
+      "title": "Build compact selected-cache reference view",
+      "packet": "docs/execution/tasks/03-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "02-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "03-02",
+      "phase": "03",
+      "cluster": "03-paged-fa",
+      "title": "Add backend-neutral page-table attention plumbing",
+      "packet": "docs/execution/tasks/03-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "03-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "03-03",
+      "phase": "03",
+      "cluster": "03-paged-fa",
+      "title": "Implement Turbo4 paged flash-attention decode",
+      "packet": "docs/execution/tasks/03-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Sol High",
+      "depends_on": [
+        "03-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "03-04",
+      "phase": "03",
+      "cluster": "03-paged-fa",
+      "title": "Integrate prefill, decode, and graph epochs",
+      "packet": "docs/execution/tasks/03-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "03-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "04-01",
+      "phase": "04",
+      "cluster": "04-routing-policy",
+      "title": "Build all-page routing summaries",
+      "packet": "docs/execution/tasks/04-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra Medium",
+      "depends_on": [
+        "03-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "04-02",
+      "phase": "04",
+      "cluster": "04-routing-policy",
+      "title": "Collect per-page attention telemetry",
+      "packet": "docs/execution/tasks/04-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "03-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "04-03",
+      "phase": "04",
+      "cluster": "04-routing-policy",
+      "title": "Implement deterministic hot-set controller",
+      "packet": "docs/execution/tasks/04-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra Medium",
+      "depends_on": [
+        "04-01",
+        "04-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "04-04",
+      "phase": "04",
+      "cluster": "04-routing-policy",
+      "title": "Add page-fault prefetch and backpressure scheduler",
+      "packet": "docs/execution/tasks/04-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "04-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "05-01",
+      "phase": "05",
+      "cluster": "05-qwen-mtp-server",
+      "title": "Make hybrid recurrent and page operations atomic",
+      "packet": "docs/execution/tasks/05-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "04-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "05-02",
+      "phase": "05",
+      "cluster": "05-qwen-mtp-server",
+      "title": "Pin full-context Turbo4 MTP KV in VRAM",
+      "packet": "docs/execution/tasks/05-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "01-03",
+        "05-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "05-03",
+      "phase": "05",
+      "cluster": "05-qwen-mtp-server",
+      "title": "Integrate server slots and request lifecycle",
+      "packet": "docs/execution/tasks/05-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "05-01",
+        "05-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "05-04",
+      "phase": "05",
+      "cluster": "05-qwen-mtp-server",
+      "title": "Integrate checkpoints and speculative rollback",
+      "packet": "docs/execution/tasks/05-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Sol High",
+      "depends_on": [
+        "05-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "06-01",
+      "phase": "06",
+      "cluster": "06-validation-campaign",
+      "title": "Complete CPU and fake-backend regression matrix",
+      "packet": "docs/execution/tasks/06-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": [
+        "05-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "06-02",
+      "phase": "06",
+      "cluster": "06-validation-campaign",
+      "title": "Complete CUDA correctness and fault matrix",
+      "packet": "docs/execution/tasks/06-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "06-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "06-03",
+      "phase": "06",
+      "cluster": "06-validation-campaign",
+      "title": "Integrate canonical profile benchmark harness",
+      "packet": "docs/execution/tasks/06-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra Medium",
+      "depends_on": [
+        "06-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "06-04",
+      "phase": "06",
+      "cluster": "06-validation-campaign",
+      "title": "Run 256K quality and performance acceptance",
+      "packet": "docs/execution/tasks/06-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Sol High",
+      "depends_on": [
+        "06-02",
+        "06-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "07-01",
+      "phase": "07",
+      "cluster": "07-upstream-handoff",
+      "title": "Prepare reviewable upstream change slices",
+      "packet": "docs/execution/tasks/07-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Terra High",
+      "depends_on": [
+        "06-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "07-02",
+      "phase": "07",
+      "cluster": "07-upstream-handoff",
+      "title": "Finalize documentation and evidence index",
+      "packet": "docs/execution/tasks/07-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": [
+        "07-01"
+      ],
+      "commit": null
+    }
+  ]
+}

@@ -1,0 +1,753 @@
+# Qwen3.8 256K attention-aware Turbo4 KV paging plan
+
+Status: execution plan, revised 2026-09-03
+Canonical worktree: `/srv/repos/vanwho/buun-llama-cpp`
+Pinned Buun base: `cb703be37e3628dadb71912f3b3b25b82090555b`
+Compared llama.cpp base: `67a17c17caa95742186f8b1ecadd1b5abd6d5ebb`
+Execution state: `docs/execution/WORK_STATE.json`
+
+## 1. Outcome
+
+Build an opt-in Qwen3.8 path with a 262,144-token logical target context in which:
+
+- all target and MTP K/V are TurboQuant Turbo4;
+- approximately 77,824 target-attention tokens are physically resident in VRAM at a time;
+- the remaining target attention pages are retained as opaque Turbo4 bytes in pinned CPU RAM;
+- the full MTP draft K/V remains resident in VRAM and is never selected as a paging victim;
+- recurrent/linear-attention state remains exact and GPU-resident;
+- a small all-page routing index can recall relevant cold pages;
+- selected target pages are compacted into a bounded physical working set before Turbo4 flash attention;
+- transfers are page-batched and asynchronous, so a focused workload is much faster than ordinary
+  `--no-kv-offload` execution.
+
+The 77,824 figure is a measured target, not a hardcoded allocation promise. Admission must derive the
+largest safe multiple of 256 tokens after model weights, graphs, Turbo4 dequant scratch, the full MTP
+cache, recurrent state, transfer rings, routing summaries, and a configurable VRAM headroom have been
+reserved. The acceptance campaign should land close to 77K on the reference machine. If it does not,
+the ledger must explain every byte.
+
+## 2. Required semantics
+
+The fast mode is intentionally selective, not bit-equivalent dense attention. Calling it ordinary KV
+offload would be misleading. It has two different decisions:
+
+1. **Retrieval:** choose candidate logical pages from all 1,024 pages, including pages not currently
+   resident. This must use an all-page routing index plus structural anchors. Resident attention weights
+   alone cannot discover a cold page.
+2. **Retention:** after real attention executes, aggregate observed attention mass and reuse data to
+   decide which resident pages should remain hot.
+
+A correct implementation keeps those decisions separate. A page that is not retrieved receives no
+attention weight; treating that missing observation as zero importance creates an irreversible cache
+trap.
+
+Three operating modes are required:
+
+- `off`: unchanged upstream behavior and zero pager work;
+- `observe`: dense/current execution plus routing and retention telemetry, with no page movement;
+- `selective`: bounded resident set with host Turbo4 backing and selected attention.
+
+An exact dense reference remains necessary for validation at feasible context sizes. An exact CPU cold
+attention branch is not an initial deliverable: it would restore the bandwidth-bound behavior this
+project is meant to avoid. It may be explored only after selective mode meets its gates.
+
+## 3. Reference-model geometry and memory budget
+
+The current Qwen3.8-27B/qwen35 model metadata observed in the previous work is:
+
+- deployed model: `/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf` via `current.gguf`;
+- profile: `/srv/ai/config/profiles/qwen38-fast.env`;
+- native context: 262,144 tokens;
+- 65 total blocks: 64 target trunk blocks plus one native MTP block;
+- 16 full-attention target layers (`full_attention_interval = 4`);
+- four K/V heads;
+- K width 256 and V width 256 per full-attention layer;
+- 4.125 effective bits/value for Turbo4 rows, including block scales.
+
+The plan must re-read the deployed GGUF metadata and fail closed if this geometry differs. No generic
+API should silently assume it.
+
+### 3.1 Exact payload arithmetic
+
+For the 16 target full-attention layers:
+
+```text
+values/token = 16 layers * 4 KV heads * (256 K + 256 V) = 32,768
+bytes/token  = 32,768 * 4.125 / 8 = 16,896
+```
+
+For the single MTP layer:
+
+```text
+values/token = 1 layer * 4 KV heads * (256 K + 256 V) = 2,048
+bytes/token  = 2,048 * 4.125 / 8 = 1,056
+```
+
+| Allocation | Tokens/pages | Turbo4 payload |
+| --- | ---: | ---: |
+| One target logical page | 256 / 1 | 4.125 MiB |
+| Target VRAM working set | 77,824 / 304 | 1.224609375 GiB |
+| Target host cold set | 184,320 / 720 | 2.900390625 GiB |
+| Full target logical context | 262,144 / 1,024 | 4.125 GiB |
+| Full MTP VRAM cache | 262,144 / 1,024 | 264 MiB |
+| Target + MTP Turbo4 payload | 262,144 each | 4.3828125 GiB |
+
+These are encoded payloads only. The budget must separately report allocator/VMM granularity,
+alignment, page tables, positions, masks, routing summaries, pinned staging, CUDA graph reserves,
+recurrent state, and dequant scratch.
+
+### 3.2 Why MTP must be Turbo4 and pinned
+
+The previous September plan used F16 for MTP, which would consume 1 GiB at 256K. Turbo4 consumes
+264 MiB, saving 760 MiB. The current profile and benchmark already prove that Buun accepts Turbo4 for
+draft K/V and that acceptance/throughput were indistinguishable within the small sample:
+
+- F16 result: `/srv/ai/paged-kv/results/profile-benchmark-default-fast-20260902-233315`;
+- Turbo4 result: `/srv/ai/paged-kv/results/profile-benchmark-default-fast-20260902-233429`.
+
+Therefore “add Turbo4 draft support” is complete before this plan starts. The remaining work is to
+make the MTP allocation independently budgeted, full-length, GPU-pinned, and excluded from the target
+pager/VBR controller.
+
+The current parser confirms that `get_all_kv_cache_types(false)` includes `GGML_TYPE_TURBO4_0` and
+accepts `t4`, `turbo4`, `turbo4_0`, or `4`. Generated CLI/server tables still show only upstream cache
+types, so their generation/update path should be corrected when the MTP placement work is documented.
+
+## 4. Findings from the previous work
+
+### 4.1 Reusable ideas
+
+The dirty historical worktree at `/srv/ai/paged-kv/repos/buun-llama-cpp` is reference-only. It contains
+a useful prototype with:
+
+- typed logical page identity including a session generation;
+- deterministic policy and hot-set delta calculation;
+- transaction-style page-table publication/replacement;
+- logical-position run validation;
+- focused tests for page-table and replacement invariants.
+
+Reimplement those ideas against current Buun APIs. Do not copy unreviewed code wholesale, do not reset
+or clean that worktree, and do not make it the execution root.
+
+### 4.2 Prototype limitations that must not survive
+
+- fixed 512-token pages, while current VBR generation ownership uses 256 cells;
+- `physical_cells == context_size`, so no VRAM capacity is saved;
+- whole-cache/state-serializer capture through synchronous host vectors;
+- no automatic faults, prefetch, eviction, host catalog, or CUDA residency changes;
+- no paged Turbo4 flash-attention kernel;
+- no recurrent/MTP/speculative transaction;
+- public context-parameter surface added before the internal contract was proven;
+- new test binaries without maintainer approval.
+
+The old probe demonstrated metadata behavior, not paging performance.
+
+## 5. What current Buun already provides
+
+Buun master at `cb703be37` is a substantially better foundation than the old prototype base.
+
+### 5.1 VBR/VMM and representation safety
+
+Current files under `src/llama-vbr-*` and `src/llama-kv-cache.*` provide:
+
+- stable virtual-address VMM pools per layer/side;
+- mapped-physical accounting and recoverable map projection;
+- asynchronous retiering, per-device streams, fences, and deferred unmaps;
+- process-wide bounded pinned capture/adoption rings;
+- authenticated host artifacts and projected capture manifests;
+- explicit capture/adopt transactions and occupied replacement;
+- representation, checkpoint, sequence, and page generations;
+- capture leases and fail-closed validation;
+- composite operations for hybrid/recurrent companions;
+- automatic server prompt-cache lifecycle and retention/accounting catalogs;
+- multi-GPU artifact bindings and batched HIP VMM maps.
+
+This machinery solves most of the hard ownership, failure, and lifecycle problems. The pager should be
+a new VBR residency policy and selected-page data path, not a parallel state serializer.
+
+Important boundary: VBR’s existing 256-cell generation pages describe mutation dependencies. Existing
+live VMM mappings are principally tensor extents/watermarks and representation bands. They do not yet
+provide a logical-page-to-arbitrary-physical-slot attention table. Sharing the 256-cell constant and
+generation records is correct; claiming the existing subsystem already implements demand paging is not.
+
+### 5.2 Prompt artifacts and MTP checkpoints
+
+Relevant landed commits include:
+
+- `34941d33b`: automatic VBR prompt-cache lifecycle;
+- `2714303b5`: speculative restore repair;
+- `2174ad63`: multi-GPU prompt capture;
+- `283ba19ed`: configurable VBR entry tiers;
+- `65eb44ebc`: batched HIP VMM maps;
+- `87b37eac9`: align MTP context sizing and fit;
+- `764f3a044`: move artifact stream buffers off stack;
+- `cb703be37`: preserve MTP carry state across prompt checkpoints.
+
+Host prompt artifacts capture immutable prefixes. Live page backing is more mutable and granular, but
+must reuse the artifact segment chain, representation descriptors, pinned ring, validation vocabulary,
+and companion transaction patterns wherever their contracts fit.
+
+### 5.3 Retention and cache-plan machinery
+
+`common/common-retention-sidecar.*`, `tools/server/server-cache-yield.*`, cache accounting, and cache
+budgeting already model bounded candidates, marginal resource, stable identities, recency, frequency,
+leases, and fail-closed authority. They rank whole live/host/checkpoint artifacts, not tokens inside one
+attention cache. Reuse their value/accounting patterns and terminology, but create a distinct page
+policy so request-level lineage frequency is never confused with per-page attention evidence.
+
+### 5.4 Hybrid memory precedents
+
+`llama_memory_hybrid`, `llama_memory_hybrid_idx`, and `docs/qwen4-vbr-plan.md` show how one attention
+child owns VBR while recurrent and index companions remain exact and fixed. The unmerged
+`feature/dsv4-vbr` branch similarly demonstrates grouped cache tiering, but it is model-specific and
+diverged from master. Consult it; do not base this work on it or merge its 1,200-line change.
+
+## 6. What current llama.cpp adds
+
+Latest llama.cpp was inspected at `67a17c17`. Buun is synced through upstream `0f3a71be`; after that,
+the following are particularly relevant and should be integrated through Buun’s normal upstream-sync
+process, not casually cherry-picked into a feature patch:
+
+- `2d8d612e4` / PR #27991 batches state restoration by contiguous destination cell runs. Its run
+  construction and tests are useful for sparse page restores even though live paging must not use the
+  public state serializer as its transport.
+- `8e93a9773` / PR #27970 adds sparse flash-attention plumbing for DSV4/GLM. Its typed sparse metadata,
+  graph operator, CUDA dispatch, and backend tests are the closest current upstream kernel precedent.
+- `36b101543` / PR #27941 fixes block-position keying, sequence copying, and rollback in Qwen4 sparse
+  memory. Those invariants overlap selected logical pages.
+- `0eadefebd` adds recurrent rollback coverage and should be compared with Buun’s companion handling.
+
+None is a generic Turbo4 page-offload implementation.
+
+### 6.1 Current issue audit with authenticated GitHub CLI
+
+The issue/PR inventory was rechecked on 2026-09-03 with the authenticated `gh` CLI. No open Buun
+issue specifically proposes attention-aware host paging. The following active issues must still be
+treated as dependencies or regression inputs:
+
+- Buun #109: dynamic VBR multi-slot context accounting. Initial pager work remains `-np 1`; multi-slot
+  authority is not enabled until this issue is resolved or the pager independently proves per-slot
+  limits.
+- closed Buun #95/#96: VBR auto-fit previously overcommitted context-scaled dequant scratch. The
+  present budget design must test this failure class rather than assuming the historical fix covers a
+  new compact/paged cache.
+- llama.cpp #28115: target RAM placement unintentionally drags MTP KV to RAM. The pager avoids the
+  coupled flag for its normal fast mode, but independent draft placement is still a useful generic
+  upstream slice.
+
+## 7. Existing community paged-attention work
+
+Do not open a generic duplicate without acknowledging:
+
+- llama.cpp Discussion #21961, “Paged Attention Implementation for llama.cpp”;
+- draft PR #22569 and the local reference clone `/srv/repos/matiaslin/llama.cpp`;
+- llama.cpp Issue #28115 about keeping speculative/MTP KV on GPU when target KV is in RAM.
+
+The Matias Lin branch provides a useful `llama_block_manager`, CPU/GPU block pools, scheduler, block
+table, and CUDA/CPU paged-attention operator. It does not solve this project because it is F16-only,
+synchronous, dense in logical block order, limited to single-GPU/full-offload, lacks working state and
+sequence operations, and does not support hybrid recurrent memory, MTP, Turbo4, arbitrary selected
+native positions, or Buun VBR artifacts. Its default 16-token blocks are also too fine for a 4.125-MiB
+cross-layer transfer unit.
+
+Treat it as a kernel-interface and scheduler reference. Prefer contributing generic improvements to
+that discussion/PR when they are independently useful; keep Buun-specific VBR/Turbo4 integration in
+Buun until maintainers choose a common direction.
+
+## 8. Architecture
+
+### 8.1 Ownership tree
+
+```text
+Qwen3.8 request
+├── exact recurrent state (GPU, never paged)
+├── target attention residency controller (one authority)
+│   ├── 1,024 logical token pages, 256 tokens each
+│   ├── ~304 GPU physical slots, Turbo4 K+V across all 16 attention layers
+│   ├── pinned-RAM canonical backing for cold target pages
+│   ├── all-page routing summaries and structural metadata
+│   └── transactional logical↔physical residency table
+└── MTP context
+    ├── full 262,144-token Turbo4 K+V allocation in GPU VRAM
+    ├── separate budget/accounting identity
+    └── no target pager/VBR victim eligibility
+```
+
+The target page is cross-layer and includes K and V for the same 256 logical positions across all 16
+full-attention layers. This yields a 4.125-MiB transfer. A common token-page residency decision avoids
+faulting different pages at every layer and keeps recurrent/attention sequence operations coherent.
+
+### 8.2 Page states
+
+Use a closed internal state machine:
+
+```text
+absent -> filling_gpu -> gpu_clean
+gpu_clean -> evicting_host -> host_clean
+host_clean -> loading_gpu -> gpu_clean
+gpu_clean -> gpu_dirty (new writes or logical mutation)
+gpu_dirty -> evicting_host -> host_clean
+* -> invalid (generation mismatch, clear, failed validation)
+```
+
+Only `gpu_clean`/`gpu_dirty` pages can appear in the published attention table. Only `host_clean` pages
+can be restored without recomputation. Transfer completion is not publication: validate identity,
+generation, representation, position runs, and all layer/side segments before atomically swapping the
+table. A failed transaction leaves the old table usable.
+
+### 8.3 Logical and physical identity
+
+Every reference must include at least:
+
+```text
+request/session generation
+sequence id and sequence generation
+logical page index
+logical position begin/end or explicit position run digest
+target representation epoch
+page mutation generation
+model/execution/topology identity
+Turbo4 codec, codebook, rotation, mean-subtraction digests
+```
+
+Physical slot IDs are ephemeral and never serialized as logical identity. The table owns forward and
+reverse maps, state, last-use fence, last-attention epoch, pin count, dirty flag, and host handle.
+
+### 8.4 CPU backing representation
+
+The canonical cold target payload is exactly the device Turbo4 row encoding, stored as opaque bytes.
+Do not route it through CPU attention and do not silently transcode it to Q8_0. Capture D2H and restore
+H2D using representation descriptors and per-segment checksums. A direct mapped pinned allocation for
+the entire 2.9-GiB cold set is optional; prefer pageable catalog storage plus a bounded pinned transfer
+ring unless measurement proves the pin cost acceptable.
+
+### 8.5 Physical layout
+
+Start with a compact physical cache of `resident_pages * 256` rows for every full-attention K/V tensor.
+Selected logical pages are copied into physical slots. The corresponding native logical positions are
+stored in a compact position vector, so RoPE/masking uses original positions rather than slot order.
+
+The first kernel milestone may materialize the compact table before graph launch. The optimized
+milestone passes a block/page table and native-position metadata directly to flash attention. Keep both
+behind the same internal view contract so the simpler implementation remains a correctness oracle.
+
+Do not allocate 262K target tensor rows merely to reserve virtual addresses; that would hide physical
+savings behind VMM semantics and reproduce the old prototype mistake. A sparse VMM mapping approach is
+acceptable only if the backend tensor and kernel can address arbitrary logical pages without mapping
+all intervening pages and the ledger proves physical occupancy.
+
+### 8.6 Retrieval router
+
+Required candidate union per decode decision:
+
+- current write page;
+- configurable recent window;
+- first-token/system and conversation-boundary anchors;
+- M mandatory pages supplied by application policy;
+- pages already pinned by an in-flight graph or speculative checkpoint;
+- top-K pages from an all-page query-to-summary scorer;
+- a small exploration budget so cold pages can recover from stale summaries.
+
+Initial summaries should be deliberately simple and measurable. Begin with 4–8 representative rotated
+K vectors per page for a selected subset of full-attention layers/heads, stored in F16 or a measured
+lower-precision format. Score all summaries on GPU, reduce to one page score, and take top-K using the
+existing radix top-k machinery where suitable. Do not freeze this format in a public API until recall,
+memory, and latency are measured. Clustering or learned summaries are later optimizations.
+
+Retrieval runs ahead of the layer that will consume the page. At minimum, use the prior token’s query
+or summary score and prefetch for the next token. If required pages are not ready, use an explicit
+policy: wait, use the old hot set, or fall back to a larger resident union. Never consume a partially
+published page.
+
+### 8.7 Retention signal
+
+The Turbo4 FA path should optionally reduce attention probability mass into a bounded per-logical-page
+accumulator. Aggregate across heads and chosen layers with an EMA. Combine it with recency, hit count,
+fault cost, dirty cost, structural pins, and hysteresis. Instrumentation must be allocation-free on the
+decode hot path and disabled by default.
+
+Victim ordering is deterministic. A useful first formula is documented inputs rather than magic:
+
+```text
+keep_score = attention_ema
+           + retrieval_hit_credit
+           + recency_credit
+           + dirty_writeback_penalty
+           + structural_pin_infinity
+           - age_decay
+```
+
+Tune only through captured traces and replayable policy tests.
+
+### 8.8 Fault and transfer pipeline
+
+One scheduler owns a bounded queue of page intents. It must:
+
+1. snapshot generations and the published table;
+2. compute required additions/removals and validate capacity;
+3. pin current graph pages;
+4. select only unpinned victims;
+5. D2H dirty victims in layer/side batches;
+6. H2D required host pages using the shared pinned ring;
+7. wait on backend events outside global metadata locks;
+8. revalidate all snapshots;
+9. publish the complete new map atomically;
+10. release pins and defer/reclaim old mappings only after consumer fences.
+
+Coalesce contiguous physical runs as in llama.cpp PR #27991. Prefer one descriptor batch per device and
+direction. Add counters for useful bytes, amplified bytes, queueing, copy time, wait time, faults,
+prefetch hits, canceled transfers, stale-generation rejects, and evictions.
+
+### 8.9 Hybrid, speculative, and server atomicity
+
+A Qwen3.8 sequence mutation is one composite operation across target page metadata, recurrent state,
+and MTP state. `seq_cp`, `seq_rm`, shifts, prompt reuse, context rewind, speculative rejection, and
+checkpoint restore either update every child consistently or leave the prior generation authoritative.
+
+MTP does not share the target page table. Its carry state and cache length must follow the target’s
+accepted frontier, using the latest Buun checkpoint companion support. Rejecting draft tokens rolls back
+MTP and target write-page metadata without evicting unrelated target pages.
+
+Server slot reuse must mint a new session/sequence generation before any old async completion can
+publish. Prompt-cache artifacts may seed host pages, but live mutable pages must not be published as
+immutable prefix artifacts until sealed under the existing artifact contract.
+
+## 9. Internal interfaces to add
+
+Names are provisional and internal. Reuse existing files where ownership is clear; avoid public
+`llama_context_params` fields until maintainers approve the CLI/API.
+
+### 9.1 Page descriptor and table
+
+- `vbr_attention_page_id`: logical page plus session/sequence generations;
+- `vbr_attention_page_record`: position digest, mutation/representation generations, state, host and
+  physical handles, pins, scores, fences;
+- `vbr_attention_residency_snapshot`: immutable table version consumed by one graph;
+- `vbr_attention_residency_tx`: plan/reserve/transfer/recheck/publish/rollback phases.
+
+### 9.2 Selected capture/adoption seam
+
+Extend VBR capture/adoption below the whole-prefix manifest layer with a bounded list of logical
+256-cell page ranges. The adapter must produce/consume existing representation descriptors and segment
+chains and must use the pinned ring. It must never build one multi-gigabyte `std::vector`.
+
+Keep full prompt artifacts unchanged. Page backing may use a smaller catalog envelope with the same
+identity/checksum/generation primitives. A page restore into an occupied slot uses occupied-replacement
+guards and publishes only after every layer/side segment succeeds.
+
+### 9.3 Memory attention view
+
+Add an internal `llama_memory_i`/KV-cache view that supplies:
+
+- compact K/V tensors or a page table;
+- native logical positions and masks;
+- table epoch as a graph reuse key;
+- physical row count bounded by resident capacity;
+- page pin/fence lifetime tied to graph completion.
+
+Do not make `get_n_kv()` equal the 262K logical frontier in selected mode; that would make attention and
+graph scratch scale with logical context. It must reflect the compact selected row count.
+
+### 9.4 CUDA operator
+
+The final operator needs Turbo4 K and V, GQA, native position/mask semantics, arbitrary selected page
+order, tail-page masking, and per-page score reduction. Start from current Turbo4 FA loaders in Buun and
+the sparse/block metadata shape in upstream PR #27970 / community PR #22569. It must not dequantize the
+whole cache into F16 scratch.
+
+## 10. CLI and configuration contract
+
+Keep initial switches fork-local and experimental. Proposed shape:
+
+```text
+--kv-page-mode off|observe|selective
+--kv-page-cells 256
+--kv-page-vram-budget SIZE|auto
+--kv-page-hot-tokens 77824          # diagnostic override; budget remains authority
+--kv-page-host-budget SIZE
+--kv-page-recent-tokens N
+--kv-page-router-top-k N
+--kv-page-router-explore N
+--kv-page-prefetch-depth N
+--kv-page-debug
+```
+
+Required companion flags remain Turbo4 target and draft types. The current parser accepts
+`-ctk t4`, `-ctv t4`, `-ctkd t4`, and `-ctvd t4` (and the `turbo4` spelling).
+
+Fail closed for unsupported backends, non-causal attention, incompatible K/V types, multiple target
+VBR authorities, unsupported sequence layouts, missing host budget, and insufficient MTP reservation.
+`off` must preserve existing behavior exactly.
+
+## 11. Execution phases and gates
+
+The authoritative task order, status, cluster, model recommendation, and packet path live in
+`WORK_STATE.json`. Each packet is self-contained for Luna Low and names its reads, allowed writes,
+tests, stop conditions, and handoff evidence.
+
+### Phase 00 — governance and reproducible baseline
+
+1. Resolve the human upstream issue/discussion gate and record URLs without AI-authored GitHub text.
+2. Pin commits, GGUF/model hash, build flags, GPU/driver, and profile.
+3. Reproduce all-GPU 77K, full-context CPU KV, and Turbo4 MTP baselines with a shared prompt corpus.
+4. Produce a salvage matrix from the old prototype and community pager.
+
+Gate: repository provenance is immutable, baseline artifacts are machine-readable, and no result is
+claimed without raw logs.
+
+### Phase 01 — contracts before data movement
+
+1. Freeze selective-vs-exact semantics and observability.
+2. Implement/test pure page identity, position runs, forward/reverse map, and table epochs.
+3. Implement/test target/MTP/recurrent/summary/transfer budget arithmetic.
+4. Implement/test pure retrieval and retention policy replay.
+
+Gate: CPU-only deterministic tests cover ABA, duplicate map, partial tail, pins, hysteresis, and budget
+rounding. No CUDA mutation is allowed before this gate.
+
+### Phase 02 — VBR host-page substrate
+
+1. Add bounded selected-page capture/adoption descriptors.
+2. Add host page catalog/storage with checksums, budget, and stale-entry rejection.
+3. Add batched async D2H/H2D transfer plans through existing backend/pinned-ring APIs.
+4. Add transactional residency publication and rollback.
+
+Gate: fake-backend fault injection proves that failure before/after every phase leaves the old table
+valid and leaks no pin, catalog charge, or physical slot.
+
+### Phase 03 — bounded physical attention path
+
+1. Materialize a compact selected-cache reference view with native positions.
+2. Add backend-neutral block/page table operator plumbing.
+3. Add Turbo4 CUDA paged/sparse FA decode kernel plus optional score reduction.
+4. Integrate prefill/decode graphs and graph-cache epoch invalidation.
+
+Gate: selected-all-pages equals existing Turbo4 FA within tolerance at small context; permuted physical
+slots and gapped native positions match a gather-based reference.
+
+### Phase 04 — dynamic attention policy
+
+1. Build and update all-page routing summaries.
+2. Collect actual per-page attention telemetry in observe mode.
+3. Implement the hot-set controller with pins and hysteresis.
+4. Add predictive prefetch, bounded faults, cancellation, and backpressure.
+
+Gate: trace replay retrieves synthetic cold needles, exploration prevents permanent starvation, and a
+stable focus workload reaches high prefetch hit rate without oscillation.
+
+### Phase 05 — Qwen3.8/MTP/server integration
+
+1. Make hybrid recurrent/page transactions atomic.
+2. Reserve full-context Turbo4 MTP in VRAM and keep it out of pager authority.
+3. Integrate server slots, clears, prompt reuse, cancellation, and concurrent requests.
+4. Integrate MTP carry/checkpoints/speculative rollback with page generations.
+
+Gate: rejection, slot reuse, and checkpoint restore cannot publish stale pages; MTP remains GPU-resident
+under target page pressure.
+
+### Phase 06 — correctness and performance campaign
+
+1. Land CPU/fake-backend tests in existing test targets unless maintainers approve a new test file.
+2. Run CUDA correctness and sanitizer/fault matrix.
+3. Add a reproducible paging benchmark/trace harness.
+4. Run 256K long-context quality, churn, and throughput acceptance.
+
+Required release gates on the reference system:
+
+- logical target context is 262,144 and no target allocation scales secretly to full GPU residency;
+- target hot payload is near 304 pages, with exact ledger output;
+- MTP Turbo4 K/V is full-length and GPU-resident;
+- cold target payload remains Turbo4 in CPU RAM;
+- focused steady-state throughput is at least 2x the ordinary CPU-KV baseline and within 20% of the
+  comparable 77K all-GPU path after warmup; stretch goal is 3x CPU-KV;
+- page-fault and churn workloads disclose degraded throughput rather than hiding stalls;
+- retrieval/needle and conversation quality thresholds are defined before tuning and met afterward;
+- `off` mode matches unmodified Buun performance/correctness within benchmark noise.
+
+### Phase 07 — upstreamable slicing
+
+1. Separate generic, Buun-VBR, Turbo4-CUDA, and Qwen3.8/server changes into reviewable slices.
+2. Update docs and final evidence; a human writes all issues, PR descriptions, commit messages, and
+   reviewer replies and performs all pushes/PR creation.
+
+## 12. Test matrix
+
+### 12.1 Pure/unit tests
+
+- page-number and tail arithmetic at 0, 1, 255, 256, 257, 77,824, and 262,144;
+- row-byte and payload math from actual tensor types/dimensions;
+- logical↔physical bijection and deterministic victim ties;
+- sequence generation ABA and stale async completion rejection;
+- dirty victim, pinned victim, all-pinned exhaustion, and host-budget exhaustion;
+- partial D2H/H2D failures at every transaction phase;
+- table epoch/graph reuse rules;
+- routing top-K, structural union, exploration, retention EMA, and hysteresis trace replay;
+- recurrent/MTP companion rollback.
+
+### 12.2 GPU correctness
+
+- T4/T4 K/V, GQA=4, head width 256;
+- one page, tail page, 304 pages, permuted slots, logical gaps, and mixed contiguous runs;
+- decode batch 1 and supported multi-sequence batches;
+- prefill chunks and transition from prefill to decode;
+- score reduction on/off produces the same attention output;
+- compare compact gather reference, paged kernel, existing dense T4, and F16 quality reference;
+- compute-sanitizer on bounded fixtures;
+- CUDA graph capture/reuse across unchanged and changed table epochs.
+
+### 12.3 Lifecycle/fault tests
+
+- server cancellation during each transfer phase;
+- slot reuse while old event completes;
+- `seq_cp`, `seq_rm`, shift, rewind, clear, and full reset;
+- MTP draft accept/reject sequences and checkpoint restore;
+- host corruption, short read, wrong codec/topology/model digest;
+- VRAM map denial, pinned-ring exhaustion, host-budget pressure, and all pages pinned;
+- clean shutdown with transfers in flight.
+
+### 12.4 Performance evidence
+
+Record build SHA/options, model SHA, full CLI, driver/runtime, clocks/power state where available,
+prompt hash, warmup, repetitions, median/p10/p90, pp/tg, acceptance rate, VRAM/RAM peak, copy bytes,
+faults, prefetch hits, and per-stage time. Compare:
+
+1. current all-GPU 77K Turbo4 target + Turbo4 MTP;
+2. current full logical context with ordinary CPU KV placement;
+3. pager observe mode;
+4. pager selective warm focus;
+5. pager selective cold-needle;
+6. pager selective adversarial page churn.
+
+The canonical existing service harness is `/srv/ai/benchmarks/run-profile-benchmark.sh`; its contract
+is documented in `/srv/ai/benchmarks/README.md` and dated results in
+`/srv/ai/benchmarks/benchmarks.md`. Do not replace it with an incomparable microbenchmark. Extend it
+carefully (the `/srv/ai` worktree already contains unrelated user edits) or add a repo-local adapter
+that invokes it without changing its established `run-config.json`, `records.jsonl`, raw response,
+and summary formats.
+
+The harness already performs clean isolated profile startup, restores the previously active profile,
+captures model/backend/GPU/profile identity, runs warmups and repeated trials, records MTP acceptance,
+and writes partial summaries on interruption. Pager integration must add, without removing existing
+fields:
+
+- pager mode, page size, logical/hot token counts, host/VRAM budgets, router K, exploration, recent
+  window, and prefetch depth;
+- target/MTP physical placement and K/V codec evidence from server startup;
+- target page faults, useful prefetches, evictions, canceled/stale transfers, D2H/H2D useful and actual
+  bytes, queue/copy/wait time, selected-page count, and attention-table epoch changes;
+- peak and steady VRAM/RAM plus transfer-ring bytes;
+- prompt/corpus identity and expected needle answers.
+
+Use its current modes as fixed historical anchors:
+
+- `BENCH_SIZE=default`, thinking off, one warmup and three measured 400-token requests per prompt for
+  short decode/MTP acceptance;
+- `BENCH_SIZE=large`, approximately 44K input tokens, two warmups and five measured trials for scratch
+  pressure and long prefill/decode;
+- a new pager corpus/variant for focus locality, cold needles at several page distances, focus shifts,
+  and adversarial churn. Keep the same request/manifest plumbing so results can be joined.
+
+Existing reference observations that must appear in the Phase 00 baseline report include:
+
+- production Fast: 77,824 target context, target and MTP Turbo4, batch/ubatch 1024/256;
+- RTX 4080 reported capacity: 16,376 MiB;
+- 44,018-token Fast validation at 77,824 passed at 1,411.64 prompt tok/s and 37.43 decode tok/s;
+- 81,920 failed its long prompt on the context-scaled F16 dequant scratch despite passing startup;
+- recorded large Fast/off median: 71.05 decode tok/s and 1,326.38 prompt tok/s over five trials;
+- short Turbo4-vs-F16 MTP aggregate acceptance: 81.591% vs 80.974%, with about 214 MiB startup VRAM
+  recovered in that configuration.
+
+These historical values are orientation, not acceptance results for a new build. Re-run the exact
+corpus against the pinned base and pager candidate, and preserve both manifests.
+
+## 13. Upstream contribution rules
+
+The current `CONTRIBUTING.md` in Buun and current llama.cpp `CONTRIBUTING.md`/`AGENTS.md` were read in
+full. Every execution packet must re-read applicable instructions because upstream may change.
+
+Mandatory process:
+
+- search existing issues/PRs first and link #21961, #22569, and #28115 where relevant;
+- a feature starts with an issue/discussion and maintainer agreement on direction;
+- first-time contributors submit one PR at a time;
+- keep changes simple, focused, formatted, and tested;
+- do not add a new test file without maintainer approval; prefer an existing target/file;
+- disclose AI assistance as required, while the human author understands every line;
+- autonomous agents do not write GitHub posts, issue/PR descriptions, commit messages, reviewer
+  replies, push branches, create PRs, or merge;
+- use a human-reviewed local working tree and human-authored commits for upstream work.
+
+The clustered runner must therefore use `CODEX_GIT_MODE=local`. Its historical managed mode is not
+permitted for this project’s upstream-bound work.
+
+## 14. Runner and resume procedure
+
+The shared runner now accepts project-specific state clusters and a no-Git mode. From this worktree:
+
+```bash
+CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+CODEX_GIT_MODE=local \
+/srv/codex/run_until_complete_clustered.sh --status
+
+CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+CODEX_GIT_MODE=local \
+/srv/codex/run_until_complete_clustered.sh --show-clusters
+```
+
+Before continuous execution, a human resolves task `00-01` and changes it from `blocked` to `todo` with
+the issue/discussion decision recorded in its handoff. Normal execution then resumes the first task not
+`done` or `deferred`. Every task maintains `docs/execution/handoffs/<task>.md`; raw benchmark artifacts
+belong under ignored build/result storage, with stable summaries linked from the handoff.
+
+The status helper supports:
+
+```bash
+python3 tool/codex/task_state.py validate
+python3 tool/codex/task_state.py show
+python3 tool/codex/task_state.py unblock 00-01 --summary "human recorded issue URL ..."
+python3 tool/codex/task_state.py start 00-01
+python3 tool/codex/task_state.py checkpoint 00-01 --summary "..."
+python3 tool/codex/task_state.py complete 00-01 --summary "..."
+python3 tool/codex/task_state.py block 02-03 --reason "..."
+```
+
+Never mark a hardware gate complete without its raw output. Use `deferred` only when the plan explicitly
+permits deferral; lack of the reference CUDA system is a blocker for Phase 06 release acceptance.
+
+## 15. Risks and explicit non-goals
+
+### Highest risks
+
+- routing recall, not page transfer mechanics, determines long-context quality;
+- a 4.125-MiB cross-layer page can amplify transfers under rapidly shifting focus;
+- graph/scratch allocation may reduce the safe hot set below 77K;
+- CUDA kernels may lose more to irregular page metadata than they save in bounded sequence width;
+- MTP and recurrent rollback can expose stale-generation bugs under server concurrency;
+- VBR is already complex; a parallel pager authority would be unreviewable.
+
+### Mitigations
+
+- observe mode and offline trace replay before selective authority;
+- structural anchors, exploration, hysteresis, and prefetch;
+- compact gather reference before custom paged kernel;
+- one VBR-derived transaction and accounting authority;
+- fail-closed generation checks and exhaustive fault injection;
+- measured gates at every phase and no performance claims from synthetic metadata tests.
+
+### Non-goals for the first implementation
+
+- generic multi-model/backend support;
+- exact dense CPU+GPU split softmax;
+- disk/remote cold storage;
+- paging recurrent state or live MTP pages;
+- changing Turbo4 codec quality;
+- merging the Matias branch or the DSV4 VBR feature branch wholesale;
+- exposing a stable public C API before the internal design is accepted.
+
+## 16. Definition of done
+
+This project is complete only when a human-reviewed build on the reference machine demonstrates a
+262,144-token logical Qwen3.8 session with full Turbo4 MTP in VRAM, approximately 77K target tokens hot
+in VRAM, remaining target Turbo4 pages in CPU RAM, stable attention-aware page selection, correct
+recurrent/speculative/server lifecycle, disclosed quality behavior, and the Phase 06 performance gates.
+Documentation, raw evidence, status, and reviewable upstream slices must agree with the actual code.
