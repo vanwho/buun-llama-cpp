@@ -44,3 +44,17 @@ do not override task acceptance or repository instructions.
 | `06b-benchmarks` | 06-03–06-04 | Harness integration and selective acceptance |
 | `06c-exact-reference` | 06-05 | Online-softmax all-pages oracle |
 | `07a-upstream-handoff` | 07-01–07-02 | Reviewable slices, evidence and operator docs |
+| `08a-dynamic-contract` | 08-01–08-03 | Live-gap map, context-sized MTP, dynamic hot capacity |
+| `08b-benchmark-contract` | 08-04–08-05 | Frozen quality/performance corpus and corrected controls |
+| `09a-live-memory` | 09-01–09-03 | Runtime configuration, pager owner, target writes and mutations |
+| `09b-live-transfers` | 09-04–09-05 | Canonical host sealing and real CUDA residency transfers |
+| `10a-live-decode` | 10-01–10-03 | Production selected reference/direct decode and graph epochs |
+| `10b-live-prefill-exact` | 10-04–10-05 | Bounded prefill and live exact page-wave oracle |
+| `11a-live-routing` | 11-01–11-03 | Production summaries, cold retrieval, attention telemetry |
+| `11b-live-policy` | 11-04–11-05 | Dynamic hot tables, prefetch overlap, atomic lifecycle |
+| `12a-operator-surface` | 12-01–12-03 | Experimental CLI, metrics, harness, fail-closed lifecycle |
+| `13a-kernel-transfer-opt` | 13-01–13-03 | Reproducible profiles, Turbo4 kernel, transfer overlap |
+| `13b-system-opt` | 13-04–13-05 | Prefill/graph optimization and policy Pareto calibration |
+| `14a-correctness-quality` | 14-01–14-03 | Full fault matrix, dynamic ladder, held-out quality |
+| `14b-performance-soak` | 14-04–14-05 | Final speed gates and endurance/churn/concurrency soak |
+| `15a-upstream-handoff-v2` | 15-01–15-03 | Rebase/slices, operator evidence, clean reproduction |

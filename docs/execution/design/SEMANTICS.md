@@ -33,11 +33,13 @@ Every page/table reference carries session generation, sequence ID and generatio
 
 The published table is immutable for one graph and contains only validated GPU mappings. A transaction snapshots generations, reserves and pins, transfers, revalidates, atomically swaps the complete table, and releases old pins after consumer fences. Any failure rolls back to the prior table.
 
-Target attention, recurrent/linear state, and MTP form one composite mutation for sequence copy/remove, shifts, rewind, prompt reuse, speculative rejection, and checkpoint restore. Recurrent state is exact and GPU-resident. MTP owns a separate full-length 262,144-token Turbo4 GPU allocation, follows the accepted frontier, and is never a target victim. Prompt artifacts may seed sealed host pages but cannot publish a live mutable page as an immutable artifact.
+Target attention, recurrent/linear state, and MTP form one composite mutation for sequence copy/remove, shifts, rewind, prompt reuse, speculative rejection, and checkpoint restore. Recurrent state is exact and GPU-resident. MTP owns a separate Turbo4 GPU allocation whose logical row capacity exactly equals the resolved target per-sequence context for the current run; it follows the accepted frontier and is never a target victim. The trained model context is not an MTP allocation floor, and a conflicting explicit native-MTP draft-context size is refused. Prompt artifacts may seed sealed host pages but cannot publish a live mutable page as an immutable artifact.
 
 ## Tail pages and supported scope
 
 Pages seal only when their 256-token range is complete; a partial tail is GPU-authoritative, pinned, and represented by its valid begin/end run. Clears, failed validation, and generation changes invalidate the page. The initial implementation supports one target sequence/slot, one supported topology, and one pager/VBR authority. Multi-slot, multi-sequence, non-causal, mixed-representation, and unsupported-backend use is explicitly refused until independently proven.
+
+The target hot-set capacity is not a fixed page or token count. Admission derives it from the resolved context, actual Turbo4 page charge, context-sized MTP allocation, model/recurrent/graph/kernel resources, transfer/routing staging, backend granularity, and safety headroom. Policy partitions the admitted capacity after mandatory-page deduplication using calibrated ratios and minima. Absolute hot-page counts are permitted only as explicit test inputs or measured outputs.
 
 ## Telemetry and knobs
 

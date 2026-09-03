@@ -1,5 +1,9 @@
 # Phase 06 selective acceptance
 
+This is the immutable foundation-series disposition. Phases 08–15 now own
+production completion and must write `FINAL_ACCEPTANCE_V2.md/json`; this record
+must not be mistaken for the final project decision.
+
 ## Decision
 
 Selective capacity, quality, and speed acceptance is deferred. The RTX 4080,

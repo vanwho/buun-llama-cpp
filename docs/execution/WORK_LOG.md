@@ -194,3 +194,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-07-02`
 - Commit at update: `58ed84c05`
 - Summary: Finalized operator documentation, evidence index, artifact references, and deferred acceptance register
+
+## 2026-09-03T12:48:19+00:00 — completion-series — ready
+
+- Branch: `plan/attention-aware-kv-paging`
+- Commit at update: `26629e0ac`
+- Summary: Added phases 08–15 with 36 production-completion tasks. Native MTP is now required to follow the resolved target context, target hot capacity is runtime-budget-derived with no fixed hot count, and final model-backed quality/performance/soak gates cannot be deferred.

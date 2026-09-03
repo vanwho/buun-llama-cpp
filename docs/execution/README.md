@@ -7,6 +7,11 @@ three tightly coupled tasks to reuse one session without carrying unrelated phas
 belong under `handoffs/` and must record commands, results, changed files, unresolved risks, and deferred
 hardware or human actions.
 
+Foundation phases 00–07 are historical completed work. Production-completion phases 08–15 contain 36
+additional tasks that wire and validate the live pager. The current state is intentionally `ready`, not
+`complete`. In the completion series native MTP capacity follows the resolved target context and target
+hot capacity is derived from the runtime memory ledger; no prior Fast-profile hot count is a default.
+
 The wrapper defaults to auto Git mode. For supervised upstream-bound work, explicitly select manual mode:
 
 ```bash

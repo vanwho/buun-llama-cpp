@@ -1,10 +1,11 @@
 # Execution evidence index
 
-This index is the navigation page for the attention-aware KV paging work. It
-separates deterministic implementation evidence and bounded CUDA checks from
-model-backed acceptance. The Phase 06 decision is deferred: the current server
-does not expose a live selective pager runtime, placement ledger, transfer
-telemetry, or expected-answer stream.
+This is the foundation-series evidence index for phases 00–07. It separates
+deterministic implementation evidence and bounded CUDA checks from the model-
+backed acceptance that was deferred in Phase 06. Production-completion phases
+08–15 are now queued in `WORK_STATE.json`; they must produce `INDEX_V2.md` and
+`FINAL_ACCEPTANCE_V2.*` after the live selective pager, placement ledger,
+transfer telemetry, and frozen expected-answer stream exist.
 
 No result below is a release claim. External result directories are named for
 reproduction and remain outside this repository.

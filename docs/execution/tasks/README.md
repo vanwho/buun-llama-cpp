@@ -6,8 +6,10 @@ for consecutive tasks in the cluster.
 
 Global rules for every packet:
 
-1. Work only in `/srv/repos/vanwho/buun-llama-cpp`, except for explicitly read-only references and
-   benchmark output paths named by the packet.
+1. Work primarily in `/srv/repos/vanwho/buun-llama-cpp`. A phase 08–14 packet may also explicitly
+   authorize server-specific benchmark corpus/config/script edits under `/srv/ai/benchmarks` and raw
+   outputs under `/srv/ai/paged-kv/results`; inspect that repository's instructions and dirty state
+   first, preserve unrelated work, and never put those machine paths in production source.
 2. Re-read repository `CONTRIBUTING.md` and any applicable `AGENTS.md` before editing. The current
    Buun tree has no `AGENTS.md`; do not assume that remains true after an upstream sync.
 3. Preserve unrelated dirty work. Never alter or clean `/srv/ai/paged-kv/repos/buun-llama-cpp`.
@@ -31,6 +33,16 @@ Global rules for every packet:
    input only after distinct recovery paths have been tried. The runner automatically reopens a blocked
    task twice, using a fresh session each time and escalating a Luna task to Terra/high on the final
    approach; do not treat the first failed command as a sufficient blocker.
+11. For phases 08–15, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
+    the trained model context is not an allocation floor. No production default may encode a fixed hot
+    token/page count. Historical benchmark artifacts may retain their measured configuration names.
+12. Required model-backed phase 14 gates cannot be deferred. A failing result starts diagnosis and
+    repair through the owning implementation task; it is not converted to a documentation success.
+13. Live benchmark tasks may stop/restart the active Qwen service using passwordless sudo and the
+    established profile scripts. Capture the starting profile, restore it, verify ports 8080 and 8091,
+    and never stop or reconfigure the unrelated service on port 8092.
+14. Performance tasks preserve raw before/after results for every attempted optimization. They test at
+    least three evidence-driven repair hypotheses before blocking on the final 3x speed floor.
 
 Suggested handoff skeleton:
 
