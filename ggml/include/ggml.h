@@ -224,6 +224,7 @@
 #define GGML_MAX_SRC            10
 #define GGML_MAX_N_THREADS      512
 #define GGML_MAX_OP_PARAMS      64
+#define GGML_FLASH_ATTN_EXT_PAGED_TURBO4_MARKER 0x50343450
 
 #ifndef GGML_MAX_NAME
 #   define GGML_MAX_NAME        64
@@ -2500,6 +2501,41 @@ extern "C" {
             float                 scale,
             float                 max_bias,
             float                 logit_softcap);
+
+    // Direct paged Turbo4 decode. K and V are I8 byte views over the opaque
+    // physical storage slab; the remaining tensors are graph inputs
+    // containing immutable page and native-position metadata. `pages_host`
+    // is retained by the graph owner for capture-safe host validation by CUDA.
+    struct ggml_flash_attn_ext_paged_turbo4_page {
+        uint32_t logical_page;
+        uint32_t source_physical_slot;
+        uint32_t compact_row_begin;
+        uint32_t row_count;
+        int64_t  native_position_begin;
+    };
+
+    struct ggml_flash_attn_ext_paged_turbo4_params {
+        uint32_t head_dim_k;
+        uint32_t head_dim_v;
+        float    scale;
+        bool     causal;
+    };
+
+    GGML_API struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * k,
+            struct ggml_tensor  * v,
+            struct ggml_tensor  * storage,
+            struct ggml_tensor  * pages,
+            struct ggml_tensor  * native_positions,
+            struct ggml_tensor  * native_mask,
+            struct ggml_tensor  * query_positions,
+            const struct ggml_flash_attn_ext_paged_turbo4_params * params,
+            const void * pages_host);
+
+    GGML_API bool ggml_flash_attn_ext_is_paged_turbo4(
+            const struct ggml_tensor * a);
 
     GGML_API void ggml_flash_attn_ext_set_prec(
             struct ggml_tensor * a,

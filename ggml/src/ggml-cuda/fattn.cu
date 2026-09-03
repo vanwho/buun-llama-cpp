@@ -1555,6 +1555,120 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     return ggml_cuda_flash_attn_ext_paged_turbo4(*ctx, params);
 }
 
+static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
+        int device, const ggml_tensor * dst) noexcept {
+    GGML_UNUSED(device);
+    if (dst == nullptr || !ggml_flash_attn_ext_is_paged_turbo4(dst) ||
+        dst->extra == nullptr || dst->src[0] == nullptr || dst->src[1] == nullptr ||
+        dst->src[2] == nullptr || dst->src[3] == nullptr || dst->src[4] == nullptr ||
+        dst->src[5] == nullptr || dst->src[6] == nullptr || dst->src[7] == nullptr) {
+        return false;
+    }
+    const ggml_tensor * q = dst->src[0];
+    const ggml_tensor * k = dst->src[1];
+    const ggml_tensor * v = dst->src[2];
+    const ggml_tensor * pages = dst->src[3];
+    const ggml_tensor * positions = dst->src[4];
+    const ggml_tensor * mask = dst->src[5];
+    const ggml_tensor * queries = dst->src[6];
+    const ggml_tensor * storage = dst->src[7];
+    const uint32_t head_dim_k = uint32_t(ggml_get_op_params_i32(dst, 1));
+    const uint32_t head_dim_v = uint32_t(ggml_get_op_params_i32(dst, 2));
+    const float scale = ggml_get_op_params_f32(dst, 3);
+    const bool causal = ggml_get_op_params_i32(dst, 4) != 0;
+    const size_t pages_bytes = ggml_nbytes(pages);
+    const size_t positions_count = size_t(positions->ne[0]);
+    const size_t storage_bytes = ggml_nbytes(storage);
+    if (q->type != GGML_TYPE_F32 || k->type != GGML_TYPE_I8 ||
+        v->type != GGML_TYPE_I8 || storage->type != GGML_TYPE_I8 || pages->type != GGML_TYPE_I8 ||
+        positions->type != GGML_TYPE_I64 || mask->type != GGML_TYPE_I8 ||
+        queries->type != GGML_TYPE_I64 || dst->type != GGML_TYPE_F32 ||
+        q->ne[0] != head_dim_k || q->ne[1] <= 0 || q->ne[2] != 1 || q->ne[3] != 1 ||
+        dst->ne[0] != head_dim_v || dst->ne[1] != q->ne[1] ||
+        positions->ne[0] <= 0 || mask->ne[0] != positions->ne[0] ||
+        queries->ne[0] != 1 || pages_bytes % sizeof(ggml_cuda_fattn_turbo4_page) != 0 ||
+        k->nb[1] == 0 || k->nb[2] == 0 || k->nb[3] == 0 ||
+        v->nb[1] == 0 || v->nb[2] == 0 || v->nb[3] == 0 ||
+        storage_bytes == 0 || storage_bytes % k->nb[3] != 0 ||
+        storage_bytes % v->nb[3] != 0 || pages_bytes / sizeof(ggml_cuda_fattn_turbo4_page) > UINT32_MAX ||
+        positions_count > UINT32_MAX || storage_bytes / k->nb[3] > UINT32_MAX ||
+        !std::isfinite(scale) || !causal) {
+        return false;
+    }
+    const uint32_t n_pages = uint32_t(pages_bytes /
+            sizeof(ggml_cuda_fattn_turbo4_page));
+    const uint32_t n_rows = uint32_t(positions_count);
+    const uint32_t n_physical = uint32_t(storage_bytes / k->nb[3]);
+    return n_pages != 0 && n_rows != 0 && n_physical != 0 &&
+        ggml_cuda_fattn_turbo4_page_table_valid(
+            static_cast<const ggml_cuda_fattn_turbo4_page *>(dst->extra),
+            n_pages, n_rows, 256, n_physical);
+}
+
+bool ggml_cuda_flash_attn_ext_paged_turbo4_supported(
+        int device, const ggml_tensor * dst) noexcept {
+    if (!ggml_cuda_flash_attn_ext_paged_turbo4_shape(device, dst)) {
+        return false;
+    }
+    const ggml_tensor * k = dst->src[1];
+    const ggml_tensor * v = dst->src[2];
+    const ggml_tensor * q = dst->src[0];
+    return q->ne[0] == 256 && dst->ne[0] == 256 && q->ne[1] % 4 == 0 &&
+        q->nb[1] >= 256 * sizeof(float) && dst->nb[1] >= 256 * sizeof(float) &&
+        k->nb[1] >= 2 * sizeof(block_turbo4_0) &&
+        v->nb[1] >= 2 * sizeof(block_turbo4_0) &&
+        k->nb[3] / k->nb[1] >= 256 && v->nb[3] / v->nb[1] >= 256;
+}
+
+void ggml_cuda_flash_attn_ext_paged_turbo4(
+        ggml_backend_cuda_context & ctx, ggml_tensor * dst) noexcept {
+    const ggml_tensor * q = dst->src[0];
+    const ggml_tensor * k = dst->src[1];
+    const ggml_tensor * v = dst->src[2];
+    const ggml_tensor * pages = dst->src[3];
+    const ggml_tensor * positions = dst->src[4];
+    const ggml_tensor * mask = dst->src[5];
+    const ggml_tensor * queries = dst->src[6];
+    const ggml_tensor * storage = dst->src[7];
+    ggml_cuda_fattn_turbo4_paged_params params;
+    params.q = static_cast<const float *>(q->data);
+    params.output = static_cast<float *>(dst->data);
+    params.q_head_stride_bytes = q->nb[1];
+    params.output_head_stride_bytes = dst->nb[1];
+    params.type_k = GGML_TYPE_TURBO4_0;
+    params.type_v = GGML_TYPE_TURBO4_0;
+    params.head_dim_k = uint32_t(ggml_get_op_params_i32(dst, 1));
+    params.head_dim_v = uint32_t(ggml_get_op_params_i32(dst, 2));
+    params.k = static_cast<const char *>(k->data);
+    params.v = static_cast<const char *>(v->data);
+    params.k_row_stride_bytes = k->nb[1];
+    params.k_head_stride_bytes = k->nb[2];
+    params.k_page_stride_bytes = k->nb[3];
+    params.v_row_stride_bytes = v->nb[1];
+    params.v_head_stride_bytes = v->nb[2];
+    params.v_page_stride_bytes = v->nb[3];
+    params.pages_host = static_cast<const ggml_cuda_fattn_turbo4_page *>(dst->extra);
+    params.pages_device = static_cast<const ggml_cuda_fattn_turbo4_page *>(pages->data);
+    params.native_positions_device = static_cast<const int64_t *>(positions->data);
+    params.native_mask_device = static_cast<const uint8_t *>(mask->data);
+    params.query_positions_device = static_cast<const int64_t *>(queries->data);
+    params.n_pages = uint32_t(ggml_nbytes(pages) / sizeof(ggml_cuda_fattn_turbo4_page));
+    params.n_physical_pages = uint32_t(ggml_nbytes(storage) / k->nb[3]);
+    params.n_rows = uint32_t(positions->ne[0]);
+    params.n_head_q = uint32_t(q->ne[1]);
+    params.n_head_kv = params.n_head_q / 4;
+    params.n_query_tokens = 1;
+    params.n_batch = 1;
+    params.scale = ggml_get_op_params_f32(dst, 3);
+    params.causal = ggml_get_op_params_i32(dst, 4) != 0;
+    const auto status = ggml_cuda_flash_attn_ext_paged_turbo4(ctx, params);
+    if (status != ggml_cuda_fattn_turbo4_paged_status::ok) {
+        GGML_LOG_ERROR("paged Turbo4 attention dispatch failed: %s\n",
+                ggml_cuda_fattn_turbo4_paged_status_name(status));
+        GGML_ABORT("paged Turbo4 attention dispatch failed");
+    }
+}
+
 // Grow-only Q rotation scratch. This state belongs to the backend context because independent
 // contexts can execute concurrently on different non-blocking streams of the same device.
 static void q_rot_buf_ensure(ggml_backend_cuda_context & ctx, size_t q_size) {

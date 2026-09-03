@@ -995,7 +995,9 @@ static size_t ggml_backend_cuda_buffer_type_get_alloc_size(ggml_backend_buffer_t
     ggml_backend_cuda_buffer_type_context * buft_ctx = (ggml_backend_cuda_buffer_type_context *) buft->context;
 
     size_t size = tensor->op == GGML_OP_FLASH_ATTN_EXT
-        ? ggml_cuda_flash_attn_ext_get_alloc_size(buft_ctx->device, tensor)
+        ? (ggml_flash_attn_ext_is_paged_turbo4(tensor)
+            ? ggml_nbytes(tensor)
+            : ggml_cuda_flash_attn_ext_get_alloc_size(buft_ctx->device, tensor))
         : ggml_nbytes(tensor);
     int64_t ne0 = tensor->ne[0];
 
@@ -2475,7 +2477,11 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
             ggml_cuda_op_argsort(ctx, dst);
             break;
         case GGML_OP_FLASH_ATTN_EXT:
-            ggml_cuda_flash_attn_ext(ctx, dst);
+            if (ggml_flash_attn_ext_is_paged_turbo4(dst)) {
+                ggml_cuda_flash_attn_ext_paged_turbo4(ctx, dst);
+            } else {
+                ggml_cuda_flash_attn_ext(ctx, dst);
+            }
             break;
         case GGML_OP_CROSS_ENTROPY_LOSS:
             ggml_cuda_cross_entropy_loss(ctx, dst);
@@ -6386,7 +6392,9 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                 op->type == GGML_TYPE_F32 && ggml_is_contiguous(op->src[0]) &&
                 ggml_is_contiguous(op->src[1]) && ggml_is_contiguous(op->src[2]);
         case GGML_OP_FLASH_ATTN_EXT:
-            return ggml_cuda_flash_attn_ext_supported(dev_ctx->device, op);
+            return ggml_flash_attn_ext_is_paged_turbo4(op)
+                ? ggml_cuda_flash_attn_ext_paged_turbo4_supported(dev_ctx->device, op)
+                : ggml_cuda_flash_attn_ext_supported(dev_ctx->device, op);
         case GGML_OP_CROSS_ENTROPY_LOSS:
         case GGML_OP_CROSS_ENTROPY_LOSS_BACK:
         case GGML_OP_OPT_STEP_ADAMW:

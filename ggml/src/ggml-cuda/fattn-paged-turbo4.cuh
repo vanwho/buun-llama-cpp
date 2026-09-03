@@ -5,17 +5,28 @@
 #include <cstddef>
 #include <cstdint>
 
-// Device-side description of one selected Turbo4 page.  The page table is
-// deliberately separate from the cache tensor: logical_page selects the
-// telemetry bin, source_physical_slot selects the resident storage, and
-// compact_row_begin selects the native-position/mask range.
+// Device-side description of one selected Turbo4 page.  Keep this established
+// CUDA-facing type distinct from the backend-neutral GGML graph descriptor so
+// the raw CUDA API retains its existing C++ ABI. Both descriptors have the
+// same field order and layout; the graph dispatch uses a reinterpretation only
+// after validating the immutable host table.
 struct ggml_cuda_fattn_turbo4_page {
-    uint32_t logical_page = UINT32_MAX;
-    uint32_t source_physical_slot = UINT32_MAX;
-    uint32_t compact_row_begin = 0;
-    uint32_t row_count = 0;
-    int64_t native_position_begin = -1;
+    uint32_t logical_page;
+    uint32_t source_physical_slot;
+    uint32_t compact_row_begin;
+    uint32_t row_count;
+    int64_t  native_position_begin;
 };
+
+static_assert(sizeof(ggml_cuda_fattn_turbo4_page) ==
+              sizeof(ggml_flash_attn_ext_paged_turbo4_page));
+static_assert(offsetof(ggml_cuda_fattn_turbo4_page, native_position_begin) ==
+              offsetof(ggml_flash_attn_ext_paged_turbo4_page, native_position_begin));
+
+bool ggml_cuda_flash_attn_ext_paged_turbo4_supported(
+        int device, const ggml_tensor * dst) noexcept;
+void ggml_cuda_flash_attn_ext_paged_turbo4(
+        ggml_backend_cuda_context & ctx, ggml_tensor * dst) noexcept;
 
 enum class ggml_cuda_fattn_turbo4_paged_status : uint8_t {
     ok = 0,

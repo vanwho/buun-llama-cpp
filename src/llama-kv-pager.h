@@ -22,6 +22,10 @@ struct llama_kv_pager_geometry {
     uint32_t key_length = 0;
     uint32_t value_length = 0;
     uint64_t page_bytes = 0; // complete opaque K/V page across all attention layers
+    // Byte offsets within one physical slot. Each layer stores all K rows
+    // followed by all V rows, matching the transfer-owner layout.
+    std::vector<uint64_t> layer_k_offsets;
+    std::vector<uint64_t> layer_v_offsets;
 };
 
 struct llama_kv_pager_resources {
@@ -288,6 +292,13 @@ public:
     }
     vbr_h2d_chunk_ring * upload_ring() const noexcept {
         return host_ ? host_->upload_ring() : nullptr;
+    }
+
+    ggml_tensor * residency_storage_tensor() const noexcept {
+        return residency_adapter_ ? residency_adapter_->storage_tensor() : nullptr;
+    }
+    uint64_t residency_bytes_per_slot() const noexcept {
+        return residency_adapter_ ? residency_adapter_->bytes_per_slot_value() : 0;
     }
 
 private:
