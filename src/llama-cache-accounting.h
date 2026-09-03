@@ -796,6 +796,16 @@ struct llama_cache_acct_ledger {
             const llama_cache_acct_resource_domain & domain,
             llama_cache_acct_measure measure);
 
+    // Add accounting cells without changing the process-wide completeness
+    // manifest. This is used by internal stores whose categories are
+    // transactional leaves but whose producer certification is owned by a
+    // surrounding cache authority.
+    bool ensure_cells(
+            const llama_cache_acct_category * categories,
+            size_t category_count,
+            const llama_cache_acct_resource_domain * domains,
+            size_t domain_count) noexcept;
+
     // A producer whose own observation failed (e.g. checked-sum overflow) latches the cell
     // unavailable instead of reporting a fabricated value.
     void mark_unavailable(llama_cache_acct_category category,

@@ -68,3 +68,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-02-01`
 - Commit at update: `0ffec87e3`
 - Summary: Added bounded 16-layer Turbo4 selected-page capture descriptors with exact preflight quotes, pinned-ring segmented transfers, generation/representation rechecks, and fake-provider fault coverage.
+
+## 2026-09-03T06:43:51+00:00 — 02-02 — done
+
+- Branch: `codex/task-02-02`
+- Commit at update: `a687880e2`
+- Summary: Added authenticated canonical Turbo4 selected-page host catalog with pageable/pinned accounting, budget admission, aliasing, invalidation, and deterministic tests.

@@ -2910,6 +2910,9 @@ vbr_selected_page_capture_status vbr_selected_page_capture_project(
                 return vbr_selected_page_capture_status::missing_unit;
             }
         }
+        output.source_namespace = request.source_namespace;
+        output.child_id = request.child_id;
+        output.stream_index = request.stream_index;
         output.page_count = uint32_t(request.pages.size());
         output.unit_count = VBR_SELECTED_PAGE_REQUIRED_UNITS;
         for (size_t page_index = 0; page_index < request.pages.size();

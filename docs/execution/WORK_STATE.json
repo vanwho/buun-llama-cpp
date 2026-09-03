@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "02",
-  "current_task": "02-02",
-  "last_updated_utc": "2026-09-03T06:26:30+00:00",
+  "current_task": "02-03",
+  "last_updated_utc": "2026-09-03T06:44:05+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -183,13 +183,13 @@
       "cluster": "02a-host-backing",
       "title": "Add host Turbo4 page catalog and budget",
       "packet": "docs/execution/tasks/02-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "02-01"
       ],
-      "commit": null
+      "commit": "e531addc23916ef1f4b66324c0daaeec9ea3ae06"
     },
     {
       "id": "02-03",

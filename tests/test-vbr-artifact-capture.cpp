@@ -1,4 +1,5 @@
 #include "llama-vbr-artifact-capture.h"
+#include "llama-vbr-artifact-catalog.h"
 #include "llama-vbr-artifact-stage.h"
 #include "llama-vbr-artifact-validate.h"
 #include "llama-vbr-explicit-capture.h"
@@ -1509,6 +1510,57 @@ static void test_selected_page_capture() {
     storage[0].fail_at = 4;
     expect_reject(vbr_selected_page_capture_status::short_read,
                   request, sources, snapshot);
+
+    vbr_selected_page_capture_request sealed_request = request;
+    sealed_request.pages.resize(1);
+    selected_page_snapshot_fixture sealed_snapshot = snapshot;
+    sealed_snapshot.snapshot.pages.resize(1);
+    vbr_selected_page_capture sealed_capture;
+    storage[0].fail_at = SIZE_MAX;
+    CHECK(vbr_selected_page_capture_transfer(
+              sealed_request, sources, {}, sealed_snapshot.provider(), *ring,
+              sealed_capture) == vbr_selected_page_capture_status::ok);
+    CHECK(sealed_capture && sealed_capture.quote().source_namespace ==
+          SOURCE_NAMESPACE);
+
+    llama_cache_acct_ledger ledger;
+    const auto pageable = llama_cache_acct_resource_domain::non_device(
+        llama_cache_acct_residency::pageable_host);
+    const auto pinned = llama_cache_acct_resource_domain::non_device(
+        llama_cache_acct_residency::pinned_host);
+    const llama_cache_acct_completeness_requirement requirements[] = {
+        { pageable, llama_cache_acct_producer::observer_init },
+        { pinned, llama_cache_acct_producer::observer_init },
+    };
+    CHECK(ledger.configure_required_producers(requirements, 2));
+    CHECK(ledger.certify_complete(
+              pageable, llama_cache_acct_producer::observer_init));
+    CHECK(ledger.certify_complete(
+              pinned, llama_cache_acct_producer::observer_init));
+    llama_cache_budget_config budget;
+    budget.host.pageable_cap = 1 << 20;
+    budget.host.pageable_state = llama_cache_budget_capacity_state::known;
+    budget.host.pinned_cap = 1 << 20;
+    budget.host.pinned_state = llama_cache_budget_capacity_state::known;
+    budget.host.total_cap = 2 << 20;
+    budget.host.total_state = llama_cache_budget_capacity_state::known;
+    llama_vbr_selected_page_host_catalog catalog(ledger);
+    const auto stored = catalog.publish(sealed_capture, budget, false, 4096);
+    CHECK(stored.status == vbr_selected_page_host_status::stored);
+    CHECK(stored.pageable_bytes == sealed_capture.pages()[0].payload_bytes);
+    CHECK(stored.pinned_bytes == 4096);
+    CHECK(catalog.snapshot().live_pages == 1);
+    vbr_selected_page_host_key key;
+    key.source_namespace = SOURCE_NAMESPACE;
+    key.child_id = 0;
+    key.stream_index = 0;
+    key.page = sealed_capture.pages()[0].identity;
+    CHECK(catalog.find(key) != nullptr);
+    CHECK(catalog.publish(sealed_capture, budget, false, 4096).status ==
+          vbr_selected_page_host_status::alias);
+    CHECK(catalog.invalidate(key));
+    CHECK(catalog.snapshot().live_pages == 0);
+    CHECK(catalog.snapshot().obsolete_pages == 1);
 }
 
 struct projected_controller_fixture {
