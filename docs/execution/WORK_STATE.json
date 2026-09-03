@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "04",
-  "current_task": "04-02",
-  "last_updated_utc": "2026-09-03T09:27:39+00:00",
+  "current_task": "04-03",
+  "last_updated_utc": "2026-09-03T09:34:08+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -310,13 +310,13 @@
       "cluster": "04a-routing-telemetry",
       "title": "Collect per-page attention telemetry",
       "packet": "docs/execution/tasks/04-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "03-04"
       ],
-      "commit": null
+      "commit": "f340a5ff43f31d4c6ba088fe0927c60ce968ad03"
     },
     {
       "id": "04-03",
