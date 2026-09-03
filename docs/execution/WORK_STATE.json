@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "00",
-  "current_task": "00-02",
-  "last_updated_utc": "2026-09-03T03:01:50+00:00",
+  "current_task": "00-03",
+  "last_updated_utc": "2026-09-03T03:51:02+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "local",
@@ -51,13 +51,13 @@
       "cluster": "00a-provenance",
       "title": "Pin source, model, build, and hardware provenance",
       "packet": "docs/execution/tasks/00-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Low",
       "depends_on": [
         "00-01"
       ],
-      "commit": null
+      "commit": "6de47d6ffdaa2bf6bff76024067bf68c861b9353"
     },
     {
       "id": "00-03",
