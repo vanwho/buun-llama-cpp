@@ -251,10 +251,12 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         } else {
             ++metrics_.graph_replay_count;
         }
-        if (result.route == llama_kv_attention_execution_route::selected_direct) {
+        if (result.route == llama_kv_attention_execution_route::selected_direct && rebuild) {
             // This is the exact host-to-device page-table payload written by
-            // llm_graph_input_attn_kv::set_input.  The descriptor is four
-            // uint32 fields followed by one native int64 position.
+            // llm_graph_input_attn_kv::set_input when a graph is captured. A
+            // replay retains the immutable descriptor and does not upload it
+            // again. The descriptor is four uint32 fields followed by one
+            // native int64 position.
             constexpr uint64_t direct_page_bytes =
                 4 * sizeof(uint32_t) + sizeof(int64_t);
             const uint64_t page_count = uint64_t(metadata.page_table().size());

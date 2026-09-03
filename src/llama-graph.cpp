@@ -360,7 +360,7 @@ void llm_graph_input_pos::set_input(const llama_ubatch * ubatch) {
         if (ubatch->token && n_pos_per_embd == 4) {
             // in case we're using M-RoPE with text tokens, convert the 1D positions to 4D
             // the 3 first dims are the same, and 4th dim is all 0
-            std::vector<llama_pos> pos_data(n_tokens*n_pos_per_embd);
+            pos_data.resize(size_t(n_tokens) * n_pos_per_embd);
             // copy the first dimension
             for (int i = 0; i < n_tokens; ++i) {
                 pos_data[               i] = ubatch->pos[i];
@@ -370,7 +370,8 @@ void llm_graph_input_pos::set_input(const llama_ubatch * ubatch) {
             }
             ggml_backend_tensor_set(pos, pos_data.data(), 0, pos_data.size()*ggml_element_size(pos));
         } else {
-            ggml_backend_tensor_set(pos, ubatch->pos, 0, n_tokens*n_pos_per_embd*ggml_element_size(pos));
+            ggml_backend_tensor_set(pos, ubatch->pos, 0,
+                    n_tokens*n_pos_per_embd*ggml_element_size(pos));
         }
     }
 }
@@ -390,7 +391,7 @@ void llm_graph_input_attn_temp::set_input(const llama_ubatch * ubatch) {
         GGML_ASSERT(f_attn_temp_scale != 0.0f);
         GGML_ASSERT(n_attn_temp_floor_scale != 0);
 
-        std::vector<float> attn_scale_data(n_tokens, 0.0f);
+        attn_scale_data.resize(n_tokens);
         for (int i = 0; i < n_tokens; ++i) {
             const float pos = ubatch->pos[i];
             attn_scale_data[i] = std::log(
@@ -710,23 +711,26 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     mctx->set_input_k_idxs(self_k_idxs, ubatch);
     mctx->set_input_v_idxs(self_v_idxs, ubatch);
 
-    const int64_t selected_input_start = selected_attention && kv_attention_metrics
+    const bool initialize_selected = selected_attention && !selected_static_inputs_initialized;
+    const int64_t selected_input_start = initialize_selected && kv_attention_metrics
         ? ggml_time_us() : 0;
 
     if (selected_attention) {
         if (direct_attention) {
             direct_telemetry_published = false;
             direct_telemetry_skipped = false;
-            ggml_backend_tensor_set(direct_pages, direct_pages_host.data(), 0,
-                    direct_pages_host.size() * sizeof(direct_pages_host[0]));
-            const auto & positions = selected_metadata.native_positions();
-            const auto & valid = selected_metadata.native_mask();
-            const auto & queries = selected_metadata.query_positions();
-            ggml_backend_tensor_set(direct_native_positions, positions.data(), 0,
-                    positions.size() * sizeof(positions[0]));
-            ggml_backend_tensor_set(direct_native_mask, valid.data(), 0, valid.size());
-            ggml_backend_tensor_set(direct_query_positions, queries.data(), 0,
-                    queries.size() * sizeof(queries[0]));
+            if (initialize_selected) {
+                ggml_backend_tensor_set(direct_pages, direct_pages_host.data(), 0,
+                        direct_pages_host.size() * sizeof(direct_pages_host[0]));
+                const auto & positions = selected_metadata.native_positions();
+                const auto & valid = selected_metadata.native_mask();
+                const auto & queries = selected_metadata.query_positions();
+                ggml_backend_tensor_set(direct_native_positions, positions.data(), 0,
+                        positions.size() * sizeof(positions[0]));
+                ggml_backend_tensor_set(direct_native_mask, valid.data(), 0, valid.size());
+                ggml_backend_tensor_set(direct_query_positions, queries.data(), 0,
+                        queries.size() * sizeof(queries[0]));
+            }
             if (direct_page_mass != nullptr && ubatch->pos != nullptr) {
                 direct_telemetry_token_index = uint64_t(
                         std::max<llama_pos>(0, ubatch->pos[0]));
@@ -740,8 +744,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
         } else {
             GGML_ASSERT(self_selected_idxs != nullptr);
             GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
-            ggml_backend_tensor_set(self_selected_idxs, selected_rows.data(), 0,
-                    selected_rows.size() * sizeof(selected_rows[0]));
+            if (initialize_selected) {
+                ggml_backend_tensor_set(self_selected_idxs, selected_rows.data(), 0,
+                        selected_rows.size() * sizeof(selected_rows[0]));
+            }
         }
     }
 
@@ -755,7 +761,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     if (self_kq_mask && self_kq_mask->buffer) {
         if (!selected_attention) {
             mctx->set_input_kq_mask(self_kq_mask, ubatch, cparams.causal_attn);
-        } else {
+        } else if (initialize_selected || (tree_mask && tree_mask->active)) {
             GGML_ASSERT(ggml_backend_buffer_is_host(self_kq_mask->buffer));
             const auto & positions = selected_metadata.native_positions();
             const auto & valid = selected_metadata.native_mask();
@@ -784,6 +790,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 fill((float *) self_kq_mask->data);
             }
         }
+    }
+
+    if (initialize_selected) {
+        selected_static_inputs_initialized = true;
     }
 
     // DDTree: overwrite the tree×tree block of the attention mask with the visibility matrix

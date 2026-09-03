@@ -258,7 +258,9 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     assert(counters.graph_replay_count == 1);
     assert(counters.graph_rebuild_count == counters.graph_capture_count);
     assert(counters.graph_submission_count == 9);
-    assert(counters.table_upload_bytes == 2 * (4 * sizeof(uint32_t) + sizeof(int64_t)) * 2);
+    // The immutable direct descriptor is uploaded at capture time. Replaying
+    // the same graph must not re-upload its page table.
+    assert(counters.table_upload_bytes == 2 * (4 * sizeof(uint32_t) + sizeof(int64_t)));
     assert(counters.scratch_high_water_rows == irrelevant_scratch.required_rows());
     assert(counters.scratch_high_water_bytes == irrelevant_scratch.required_bytes());
 

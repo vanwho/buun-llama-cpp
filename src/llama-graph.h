@@ -228,6 +228,11 @@ public:
 
     ggml_tensor * pos = nullptr; // I32 [n_batch]
 
+    // Reused host staging for M-RoPE expansion.  A graph input lives for the
+    // lifetime of its graph, so growing this once is sufficient and avoids a
+    // temporary allocation on every submission.
+    std::vector<llama_pos> pos_data;
+
     const uint32_t n_pos_per_embd = 1;
 };
 
@@ -241,6 +246,10 @@ public:
     void set_input(const llama_ubatch * ubatch) override;
 
     ggml_tensor * attn_scale = nullptr; // F32 [n_batch]
+
+    // Grow-only host staging; the values are refreshed for every submission,
+    // but the backing allocation is retained by the graph input.
+    std::vector<float> attn_scale_data;
 
     const uint32_t n_attn_temp_floor_scale;
     const float    f_attn_temp_scale;
@@ -424,6 +433,10 @@ public:
     // lifetime for the graph.
     bool selected_attention = false;
     bool direct_attention = false;
+    // Page descriptors, selected row IDs, native positions/masks, and query
+    // positions are immutable for a reusable selected graph.  Dynamic cache
+    // indices and telemetry state are still refreshed on every submission.
+    bool selected_static_inputs_initialized = false;
     ggml_tensor * self_selected_idxs = nullptr; // I32 [selected physical rows]
     std::vector<int32_t> selected_rows;
     llama_kv_attention_operator_metadata selected_metadata;
