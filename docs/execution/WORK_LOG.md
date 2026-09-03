@@ -200,3 +200,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `plan/attention-aware-kv-paging`
 - Commit at update: `26629e0ac`
 - Summary: Added phases 08–15 with 36 production-completion tasks. Native MTP is now required to follow the resolved target context, target hot capacity is runtime-budget-derived with no fixed hot count, and final model-backed quality/performance/soak gates cannot be deferred.
+
+## 2026-09-03T14:27:01+00:00 — 08-04 — done
+
+- Branch: `codex/task-08-04`
+- Commit at update: `58fdbc9dd`
+- Summary: Frozen pager-corpus-v2, benchmark schemas, gates, and deterministic validation; live selective verification deferred to runtime-enabled tasks.

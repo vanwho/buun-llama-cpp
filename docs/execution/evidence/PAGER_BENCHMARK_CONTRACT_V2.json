@@ -1,0 +1,55 @@
+{
+  "schema_version": 2,
+  "corpus": {
+    "name": "pager-corpus-v2",
+    "partitions": ["calibration", "held_out"],
+    "cases": 24,
+    "per_partition": 12,
+    "corpus_hash": "e8cd002b2a6215a5003db7b8c204602bba1879a5bdf91a2a9ef9b0a2e3ff0e35",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "artifact_root": "/srv/ai/paged-kv/pager-corpus-v2",
+    "generator": "tools/server/bench/generate-pager-corpus.py",
+    "model_and_tokenizer_hashes": "recorded in the external corpus and every run manifest"
+  },
+  "quality_tolerances": {
+    "dense_selected_all_exact_output_abs": 0.00001,
+    "dense_selected_all_logit_abs": 0.0001,
+    "routing_recall_at_selected": 0.95,
+    "captured_attention_mass": 0.95,
+    "held_out_task_score": 1.0,
+    "perplexity_relative_delta": 0.02,
+    "kl_divergence": 0.01,
+    "mtp_acceptance": "report weighted draft/accepted counts; no minimum frozen here"
+  },
+  "performance_gates": {
+    "measured_trials": 10,
+    "checkpoint_minimum_trials": 5,
+    "warmup_trials": 2,
+    "warm_focus_decode_vs_cpu_kv_min_ratio": 3.0,
+    "warm_focus_decode_vs_cpu_kv_report_target_ratio": 5.0,
+    "warm_focus_decode_vs_safe_all_gpu_min_ratio": 0.70,
+    "steady_fault_free_inter_token_p95_over_median_max_ratio": 1.5,
+    "observe_overhead_max_ratio": 1.05,
+    "fault_segments": "report separately; never average into steady segment",
+    "exact_mode": "quality oracle; excluded from selective speed gate"
+  },
+  "context_ladder": {
+    "selection": "derive from model maximum and page geometry",
+    "required_shapes": ["small_fit", "intermediate", "odd_non_page_aligned", "model_maximum"],
+    "safe_all_gpu": "largest fresh-ladder candidate with successful startup and stress probe"
+  },
+  "required_telemetry": [
+    "prompt_tokens", "completion_tokens", "ttft_us", "inter_token_p50_us", "inter_token_p95_us",
+    "H", "L", "attention_rows", "graph_bytes", "scratch_bytes", "faults", "prefetch_hits",
+    "late_waits", "evictions", "d2h_useful_bytes", "d2h_aligned_bytes", "h2d_useful_bytes",
+    "h2d_aligned_bytes", "transfer_bandwidth_bytes_per_s", "overlap_us", "table_rebuilds",
+    "host_rss_bytes", "pinned_bytes", "vram_total_bytes", "vram_free_bytes", "vram_peak_bytes",
+    "mtp_rows", "mtp_kv_type", "mtp_backend", "mtp_bytes", "pager_ledger"
+  ],
+  "legacy": {
+    "schema_version": 1,
+    "accepted_for": "historical comparison only",
+    "accepted_for_final_acceptance": false
+  }
+}
