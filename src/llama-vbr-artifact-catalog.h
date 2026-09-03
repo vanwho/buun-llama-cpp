@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <array>
 #include <vector>
 
 // Internal immutable artifact catalog. It is deliberately absent from
@@ -47,6 +48,91 @@ struct llama_vbr_artifact_catalog_snapshot {
     uint64_t adopted = 0;
     uint64_t refusals = 0;
     uint64_t staging_overlap_refusals = 0;
+};
+
+// Canonical host backing identity for one selected Turbo4 attention page.  The
+// page id carries the model, sequence, page, representation, codec, and epoch
+// tuple; the capture scope fields prevent aliases across controller children.
+struct vbr_selected_page_host_key {
+    uint64_t source_namespace = 0;
+    uint32_t child_id = UINT32_MAX;
+    uint32_t stream_index = UINT32_MAX;
+    llama_kv_page_id page;
+};
+
+bool operator==(const vbr_selected_page_host_key & lhs,
+                const vbr_selected_page_host_key & rhs) noexcept;
+
+enum class vbr_selected_page_host_status : uint8_t {
+    stored = 0,
+    alias,
+    invalid_argument,
+    budget_unavailable,
+    budget_refused,
+    checksum_failure,
+    short_payload,
+    representation_mismatch,
+    stale_identity,
+    duplicate_ownership,
+    overflow,
+    internal_error,
+    _count,
+};
+
+struct vbr_selected_page_host_result {
+    vbr_selected_page_host_status status =
+        vbr_selected_page_host_status::internal_error;
+    uint32_t page_index = UINT32_MAX;
+    uint64_t pageable_bytes = 0;
+    uint64_t metadata_bytes = 0;
+    uint64_t pinned_bytes = 0;
+};
+
+struct vbr_selected_page_host_view {
+    vbr_selected_page_host_key key;
+    vbr_selected_page_descriptor page;
+    bool dirty = false;
+    bool obsolete = false;
+    uint64_t metadata_bytes = 0;
+    uint64_t pinned_bytes = 0;
+};
+
+struct vbr_selected_page_host_catalog_snapshot {
+    uint64_t live_pages = 0;
+    uint64_t obsolete_pages = 0;
+    uint64_t pageable_bytes = 0;
+    uint64_t metadata_bytes = 0;
+    uint64_t pinned_bytes = 0;
+};
+
+// The canonical pageable owner for selected target pages.  Device residency
+// is intentionally only a duplicate of this backing: publication never
+// charges a second full-page device copy, while the bounded pinned staging
+// window remains separately accounted.
+class llama_vbr_selected_page_host_catalog {
+public:
+    explicit llama_vbr_selected_page_host_catalog(llama_cache_acct_ledger & ledger);
+    ~llama_vbr_selected_page_host_catalog();
+
+    llama_vbr_selected_page_host_catalog(
+        const llama_vbr_selected_page_host_catalog &) = delete;
+    llama_vbr_selected_page_host_catalog & operator=(
+        const llama_vbr_selected_page_host_catalog &) = delete;
+
+    vbr_selected_page_host_result publish(
+        const vbr_selected_page_capture & capture,
+        const llama_cache_budget_config & budget,
+        bool dirty,
+        uint64_t pinned_staging_bytes = 0) noexcept;
+
+    const vbr_selected_page_host_view * find(
+        const vbr_selected_page_host_key & key) const noexcept;
+    bool invalidate(const vbr_selected_page_host_key & key) noexcept;
+    vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
+
+private:
+    struct impl;
+    std::unique_ptr<impl> impl_;
 };
 
 struct llama_vbr_artifact_reference_tokens {

@@ -52,6 +52,387 @@ bool operator<(const configured_cell & a, const configured_cell & b) {
 
 } // namespace
 
+bool operator==(const vbr_selected_page_host_key & lhs,
+                const vbr_selected_page_host_key & rhs) noexcept {
+    return lhs.source_namespace == rhs.source_namespace &&
+           lhs.child_id == rhs.child_id &&
+           lhs.stream_index == rhs.stream_index &&
+           lhs.page == rhs.page;
+}
+
+namespace {
+
+bool add_u64(uint64_t a, uint64_t b, uint64_t & out) noexcept {
+    if (b > std::numeric_limits<uint64_t>::max() - a) {
+        return false;
+    }
+    out = a + b;
+    return true;
+}
+
+bool mul_u64(uint64_t a, uint64_t b, uint64_t & out) noexcept {
+    if (a != 0 && b > std::numeric_limits<uint64_t>::max() / a) {
+        return false;
+    }
+    out = a * b;
+    return true;
+}
+
+vbr_selected_page_host_key selected_page_host_key(
+        const vbr_selected_page_capture & capture,
+        const vbr_selected_page_descriptor & page) {
+    vbr_selected_page_host_key key;
+    key.source_namespace = capture.quote().source_namespace;
+    key.child_id = capture.quote().child_id;
+    key.stream_index = capture.quote().stream_index;
+    key.page = page.identity;
+    return key;
+}
+
+bool page_payload_valid(const vbr_selected_page_descriptor & page,
+                        uint64_t & payload,
+                        uint64_t & metadata) noexcept {
+    if (page.tail || page.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+        page.positions.size() != VBR_GENERATION_PAGE_CELLS ||
+        page.payload_bytes == 0) {
+        return false;
+    }
+    payload = 0;
+    metadata = sizeof(vbr_selected_page_descriptor);
+    uint64_t positions_bytes = 0;
+    if (!mul_u64(page.positions.size(), sizeof(llama_pos), positions_bytes) ||
+        !add_u64(metadata, positions_bytes, metadata)) {
+        return false;
+    }
+    std::array<bool, VBR_SELECTED_PAGE_REQUIRED_UNITS> seen = {};
+    for (const auto & unit : page.units) {
+        if (unit.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+            seen[unit.logical_unit_id] || !unit.bytes ||
+            !unit.bytes->authenticated() || unit.bytes->size() == 0 ||
+            unit.bytes->size() != unit.transfer.bytes ||
+            unit.row_bytes == 0 ||
+            unit.valid_rows == 0 ||
+            unit.valid_rows > UINT64_MAX / unit.row_bytes ||
+            unit.bytes->size() != unit.row_bytes * uint64_t(unit.valid_rows) ||
+            unit.representation.current_type != GGML_TYPE_TURBO4_0 ||
+            unit.representation.side != unit.side) {
+            return false;
+        }
+        seen[unit.logical_unit_id] = true;
+        if (std::all_of(unit.streaming_digest.begin(),
+                        unit.streaming_digest.end(),
+                        [](uint8_t value) { return value == 0; })) {
+            return false;
+        }
+        if (!add_u64(payload, unit.bytes->size(), payload) ||
+            !add_u64(metadata, sizeof(vbr_selected_page_unit_descriptor), metadata) ||
+            unit.representation.shards.size() >
+                UINT64_MAX / sizeof(vbr_artifact_shard_descriptor) ||
+            !add_u64(metadata,
+                     uint64_t(unit.representation.shards.size()) *
+                         sizeof(vbr_artifact_shard_descriptor), metadata)) {
+            return false;
+        }
+    }
+    if (payload != page.payload_bytes) {
+        return false;
+    }
+    const bool complete = std::all_of(seen.begin(), seen.end(), [](bool value) { return value; });
+    return complete;
+}
+
+} // namespace
+
+struct llama_vbr_selected_page_host_catalog::impl {
+    struct owned_page {
+        vbr_selected_page_host_view view;
+        std::vector<llama_cache_acct_op_id> ops;
+    };
+    llama_cache_acct_ledger & ledger;
+    mutable std::mutex mutex;
+    std::vector<owned_page> pages;
+};
+
+llama_vbr_selected_page_host_catalog::llama_vbr_selected_page_host_catalog(
+        llama_cache_acct_ledger & ledger)
+    : impl_(new impl { ledger, {}, {} }) {}
+
+llama_vbr_selected_page_host_catalog::~llama_vbr_selected_page_host_catalog() {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    for (auto & page : impl_->pages) {
+        if (!page.ops.empty()) {
+            impl_->ledger.release_set_current(page.ops);
+            page.ops.clear();
+        }
+    }
+}
+
+vbr_selected_page_host_result llama_vbr_selected_page_host_catalog::publish(
+        const vbr_selected_page_capture & capture,
+        const llama_cache_budget_config & budget,
+        bool dirty,
+        uint64_t pinned_staging_bytes) noexcept {
+    vbr_selected_page_host_result result;
+    try {
+        if (!capture || capture.pages().empty() || pinned_staging_bytes > uint64_t(64)*1024*1024) {
+            result.status = vbr_selected_page_host_status::invalid_argument;
+            return result;
+        }
+        struct pending {
+            vbr_selected_page_host_view view;
+            uint64_t payload = 0;
+            uint64_t metadata = 0;
+        };
+        std::vector<pending> fresh;
+        {
+            std::lock_guard<std::mutex> lock(impl_->mutex);
+            for (const auto & page : capture.pages()) {
+                uint64_t payload = 0, metadata = 0;
+                if (!llama_kv_page_id_valid(page.identity, false) ||
+                    !page_payload_valid(page, payload, metadata)) {
+                    result.status = page.tail ?
+                        vbr_selected_page_host_status::stale_identity :
+                        vbr_selected_page_host_status::short_payload;
+                    return result;
+                }
+                pending item;
+                item.payload = payload;
+                item.metadata = metadata;
+                item.view.key = selected_page_host_key(capture, page);
+                item.view.page = page;
+                item.view.dirty = dirty;
+                item.view.metadata_bytes = metadata;
+                item.view.pinned_bytes = pinned_staging_bytes;
+                const auto found = std::find_if(impl_->pages.begin(), impl_->pages.end(),
+                    [&](const impl::owned_page & existing) {
+                        return !existing.view.obsolete && existing.view.key == item.view.key;
+                    });
+                if (found != impl_->pages.end()) {
+                    if (found->view.page.payload_bytes != page.payload_bytes ||
+                        found->view.page.units.size() != page.units.size()) {
+                        result.status = vbr_selected_page_host_status::duplicate_ownership;
+                        return result;
+                    }
+                    if (result.page_index == UINT32_MAX) {
+                        result.page_index = uint32_t(found - impl_->pages.begin());
+                    }
+                    continue;
+                }
+                fresh.push_back(std::move(item));
+            }
+            if (fresh.empty()) {
+                result.status = vbr_selected_page_host_status::alias;
+                return result;
+            }
+        }
+
+        uint64_t payload_total = 0, metadata_total = 0;
+        for (const auto & item : fresh) {
+            if (!add_u64(payload_total, item.payload, payload_total) ||
+                !add_u64(metadata_total, item.metadata, metadata_total)) {
+                result.status = vbr_selected_page_host_status::overflow;
+                return result;
+            }
+        }
+        uint64_t pinned_total = 0;
+        if (!mul_u64(pinned_staging_bytes, fresh.size(), pinned_total)) {
+            result.status = vbr_selected_page_host_status::overflow;
+            return result;
+        }
+        const auto pageable = llama_cache_acct_resource_domain::non_device(
+            llama_cache_acct_residency::pageable_host);
+        const auto pinned = llama_cache_acct_resource_domain::non_device(
+            llama_cache_acct_residency::pinned_host);
+        const llama_cache_acct_category categories[] = {
+            llama_cache_acct_category::unit_version_payload,
+            llama_cache_acct_category::artifact_descriptor_metadata,
+            llama_cache_acct_category::transfer_staging,
+        };
+        const llama_cache_acct_resource_domain domains[] = { pageable, pinned };
+        if (!impl_->ledger.ensure_cells(categories, 3, domains, 2)) {
+            result.status = vbr_selected_page_host_status::budget_unavailable;
+            return result;
+        }
+        for (const auto category : categories) {
+            for (const auto & domain : domains) {
+                for (const auto measure : {
+                        llama_cache_acct_measure::logical_payload,
+                        llama_cache_acct_measure::resident_allocated,
+                        llama_cache_acct_measure::reserved }) {
+                    if (!impl_->ledger.gauge_initialize_zero(
+                            category, domain, measure)) {
+                        result.status = vbr_selected_page_host_status::budget_unavailable;
+                        return result;
+                    }
+                }
+            }
+        }
+        const auto before = impl_->ledger.snapshot();
+        if (before.serial == 0) {
+            result.status = vbr_selected_page_host_status::budget_unavailable;
+            return result;
+        }
+        uint64_t pageable_total = 0;
+        if (!add_u64(payload_total, metadata_total, pageable_total)) {
+            result.status = vbr_selected_page_host_status::overflow;
+            return result;
+        }
+        uint64_t current_pageable = 0, current_pinned = 0;
+        for (const auto & cell : before.cells) {
+            if (cell.category != llama_cache_acct_category::unit_version_payload &&
+                cell.category != llama_cache_acct_category::artifact_descriptor_metadata &&
+                cell.category != llama_cache_acct_category::transfer_staging) {
+                continue;
+            }
+            const auto resident = cell.cell.measures[size_t(
+                llama_cache_acct_measure::resident_allocated)];
+            const auto reserved = cell.cell.measures[size_t(
+                llama_cache_acct_measure::reserved)];
+            uint64_t current = 0;
+            if (resident.state != llama_cache_acct_known::known ||
+                reserved.state != llama_cache_acct_known::known ||
+                !add_u64(resident.value, reserved.value, current) ||
+                (cell.domain.residency == llama_cache_acct_residency::pageable_host &&
+                 !add_u64(current_pageable, current, current_pageable)) ||
+                (cell.domain.residency == llama_cache_acct_residency::pinned_host &&
+                 !add_u64(current_pinned, current, current_pinned))) {
+                result.status = vbr_selected_page_host_status::budget_unavailable;
+                return result;
+            }
+        }
+        auto within = [](llama_cache_budget_capacity_state state,
+                         uint64_t cap, uint64_t current, uint64_t add) {
+            return state == llama_cache_budget_capacity_state::unbounded ||
+                   (state == llama_cache_budget_capacity_state::known &&
+                    current <= cap && add <= cap - current);
+        };
+        uint64_t current_total = 0, requested_total = 0;
+        if (!add_u64(current_pageable, current_pinned, current_total) ||
+            !add_u64(pageable_total, pinned_total, requested_total)) {
+            result.status = vbr_selected_page_host_status::overflow;
+            return result;
+        }
+        if (!within(budget.host.pageable_state, budget.host.pageable_cap,
+                    current_pageable, pageable_total) ||
+            !within(budget.host.pinned_state, budget.host.pinned_cap,
+                    current_pinned, pinned_total) ||
+            !within(budget.host.total_state, budget.host.total_cap,
+                    current_total, requested_total)) {
+            result.status = vbr_selected_page_host_status::budget_refused;
+            return result;
+        }
+        std::vector<llama_cache_conditional_reserve_request> requests;
+        requests.reserve(fresh.size() * (pinned_total ? 3 : 2));
+        auto request = [&](llama_cache_acct_category category,
+                           const llama_cache_acct_resource_domain & domain,
+                           uint64_t bytes) {
+            if (bytes != 0) {
+                requests.push_back({ category, domain, {}, bytes, bytes });
+            }
+        };
+        for (const auto & item : fresh) {
+            request(llama_cache_acct_category::unit_version_payload, pageable, item.payload);
+            request(llama_cache_acct_category::artifact_descriptor_metadata, pageable, item.metadata);
+            request(llama_cache_acct_category::transfer_staging, pinned, pinned_staging_bytes);
+        }
+        std::vector<llama_cache_acct_op_id> ops(requests.size());
+        const auto reserved = impl_->ledger.reserve_set_if_serial(
+            before.serial, requests.data(), requests.size(), ops.data());
+        if (reserved.status != llama_cache_conditional_reserve_status::admitted) {
+            result.status = vbr_selected_page_host_status::budget_refused;
+            return result;
+        }
+        std::vector<llama_cache_acct_op_id> committed;
+        committed.reserve(ops.size());
+        for (size_t i = 0; i < ops.size(); ++i) {
+            const auto alloc = impl_->ledger.new_alloc();
+            if (!alloc || !impl_->ledger.stage(ops[i], alloc,
+                    requests[i].expected_resident) ||
+                !impl_->ledger.commit(ops[i], requests[i].expected_logical)) {
+                for (const auto committed_op : committed) {
+                    impl_->ledger.release(committed_op);
+                }
+                for (size_t pending = i; pending < ops.size(); ++pending) {
+                    impl_->ledger.abort(ops[pending]);
+                }
+                result.status = vbr_selected_page_host_status::internal_error;
+                return result;
+            }
+            committed.push_back(ops[i]);
+        }
+        {
+            std::lock_guard<std::mutex> lock(impl_->mutex);
+            const uint32_t first = uint32_t(impl_->pages.size());
+            const size_t ops_per_page = pinned_staging_bytes ? 3 : 2;
+            for (auto & item : fresh) {
+                const size_t offset = (impl_->pages.size() - first) * ops_per_page;
+                std::vector<llama_cache_acct_op_id> page_ops(
+                    committed.begin() + offset,
+                    committed.begin() + offset + ops_per_page);
+                impl_->pages.push_back({ std::move(item.view), std::move(page_ops) });
+            }
+            result.page_index = first;
+        }
+        result.status = vbr_selected_page_host_status::stored;
+        result.pageable_bytes = payload_total;
+        result.metadata_bytes = metadata_total;
+        result.pinned_bytes = pinned_total;
+        return result;
+    } catch (...) {
+        result.status = vbr_selected_page_host_status::internal_error;
+        return result;
+    }
+}
+
+const vbr_selected_page_host_view * llama_vbr_selected_page_host_catalog::find(
+        const vbr_selected_page_host_key & key) const noexcept {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    for (const auto & page : impl_->pages) {
+        if (!page.view.obsolete && page.view.key == key) {
+            return &page.view;
+        }
+    }
+    return nullptr;
+}
+
+bool llama_vbr_selected_page_host_catalog::invalidate(
+        const vbr_selected_page_host_key & key) noexcept {
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    for (auto & page : impl_->pages) {
+        if (!page.view.obsolete && page.view.key == key) {
+            page.view.obsolete = true;
+            if (!page.ops.empty() &&
+                impl_->ledger.release_set_current(page.ops) !=
+                    llama_cache_conditional_release_status::released) {
+                page.view.obsolete = false;
+                return false;
+            }
+            page.ops.clear();
+            return true;
+        }
+    }
+    return false;
+}
+
+vbr_selected_page_host_catalog_snapshot
+llama_vbr_selected_page_host_catalog::snapshot() const noexcept {
+    vbr_selected_page_host_catalog_snapshot out;
+    std::lock_guard<std::mutex> lock(impl_->mutex);
+    for (const auto & page : impl_->pages) {
+        if (page.view.obsolete) {
+            ++out.obsolete_pages;
+        } else {
+            ++out.live_pages;
+            for (const auto & unit : page.view.page.units) {
+                out.pageable_bytes += unit.bytes ? unit.bytes->size() : 0;
+            }
+            out.metadata_bytes += page.view.metadata_bytes;
+            out.pinned_bytes += page.view.pinned_bytes;
+        }
+    }
+    return out;
+}
+
 struct llama_vbr_artifact_catalog::impl {
     struct allocation {
         llama_cache_acct_category category =

@@ -674,6 +674,9 @@ struct vbr_selected_page_unit_source {
 // counts are exact for the supplied physical-row ranges, including page
 // fragmentation and per-unit row widths.
 struct vbr_selected_page_capture_quote {
+    uint64_t source_namespace = 0;
+    uint32_t child_id = UINT32_MAX;
+    uint32_t stream_index = UINT32_MAX;
     uint32_t page_count = 0;
     uint32_t unit_count = 0;
     uint64_t position_count = 0;

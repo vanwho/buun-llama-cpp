@@ -1655,6 +1655,50 @@ bool llama_cache_acct_ledger::gauge_initialize_zero(
     return true;
 }
 
+bool llama_cache_acct_ledger::ensure_cells(
+        const llama_cache_acct_category * categories,
+        size_t category_count,
+        const llama_cache_acct_resource_domain * domains,
+        size_t domain_count) noexcept {
+    std::lock_guard<std::mutex> lock(mtx);
+    if ((category_count != 0 && categories == nullptr) ||
+        (domain_count != 0 && domains == nullptr)) {
+        state.faults_invalid_transition++;
+        bump_serial();
+        return false;
+    }
+    try {
+        for (size_t ci = 0; ci < category_count; ++ci) {
+            if (categories[ci] >= llama_cache_acct_category::_count) {
+                state.faults_invalid_transition++;
+                bump_serial();
+                return false;
+            }
+            for (size_t di = 0; di < domain_count; ++di) {
+                if (!domain_use_valid(categories[ci], domains[di])) {
+                    state.faults_invalid_transition++;
+                    bump_serial();
+                    return false;
+                }
+                if (!find_cell(categories[ci], domains[di])) {
+                    llama_cache_acct_cell_row row;
+                    row.category = categories[ci];
+                    row.domain = domains[di];
+                    state.cells.push_back(std::move(row));
+                }
+            }
+        }
+        if (category_count != 0 && domain_count != 0) {
+            bump_serial();
+        }
+        return true;
+    } catch (...) {
+        state.faults_allocation++;
+        bump_serial();
+        return false;
+    }
+}
+
 void llama_cache_acct_ledger::mark_unavailable(
         llama_cache_acct_category category,
         const llama_cache_acct_resource_domain & domain,
