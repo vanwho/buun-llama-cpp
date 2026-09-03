@@ -29,6 +29,7 @@ struct llama_kv_pager_config {
     uint32_t page_size = 256;
     llama_kv_pager_auto_size vram_budget;
     llama_kv_pager_auto_size host_budget;
+    llama_kv_pager_auto_size safety_headroom;
     llama_kv_pager_auto_count pin_recent;
     std::string hotset_policy = "attention";
     llama_kv_pager_auto_count hot_pages;

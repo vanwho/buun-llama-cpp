@@ -429,6 +429,8 @@ llama_context::llama_context(
         }
     }
 
+    validate_kv_pager_capability(params.type_k, params.type_v);
+
     LLAMA_LOG_INFO("%s: n_seq_max             = %u\n",   __func__, cparams.n_seq_max);
     LLAMA_LOG_INFO("%s: n_ctx                 = %u\n",   __func__, cparams.n_ctx);
     LLAMA_LOG_INFO("%s: n_ctx_seq             = %u\n",   __func__, cparams.n_ctx_seq);
@@ -750,6 +752,145 @@ llama_context::~llama_context() {
     if (vram_ledger_tree_owned_) {
         g_vbr_ledger_tree_owned.store(false);
     }
+}
+
+void llama_context::validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const {
+    if (!kv_pager.enabled()) {
+        return;
+    }
+
+    uint32_t attention_layers = 0;
+    uint32_t heads = 0;
+    uint32_t key_length = 0;
+    uint32_t value_length = 0;
+    bool geometry = true;
+    for (uint32_t il = 0; il < model.hparams.n_layer(); ++il) {
+        if (!model.hparams.has_kv(il)) {
+            continue;
+        }
+        ++attention_layers;
+        const uint32_t layer_heads = model.hparams.n_head_kv(il);
+        const uint32_t layer_key = model.hparams.n_embd_head_k(il);
+        const uint32_t layer_value = model.hparams.n_embd_head_v(il);
+        if (heads == 0) {
+            heads = layer_heads;
+            key_length = layer_key;
+            value_length = layer_value;
+        } else if (heads != layer_heads || key_length != layer_key || value_length != layer_value) {
+            geometry = false;
+        }
+    }
+
+    const bool backend = model.devices.size() == 1 && !model.devices[0].is_meta &&
+        model.devices[0].dev != nullptr &&
+        (ggml_backend_dev_type(model.devices[0].dev) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+         ggml_backend_dev_type(model.devices[0].dev) == GGML_BACKEND_DEVICE_TYPE_IGPU);
+    const auto capability = llama_kv_pager_evaluate_capability(
+        kv_pager,
+        backend,
+        model.arch == LLM_ARCH_QWEN35 || model.arch == LLM_ARCH_QWEN35MOE,
+        cparams.causal_attn,
+        type_k == GGML_TYPE_TURBO4_0 && type_v == GGML_TYPE_TURBO4_0,
+        geometry && attention_layers != 0 && heads != 0 && key_length != 0 && value_length != 0,
+        kv_pager.page_size == 256,
+        backend,
+        cparams.n_seq_max == 1,
+        true,
+        true,
+        cparams.vbr_dynamic || cparams.vbr_vram_budget_bytes != 0 || cparams.vbr_min_bits != 0.0);
+    if (!capability.supported) {
+        throw std::runtime_error("KV pager capability refused: " + capability.diagnostic);
+    }
+}
+
+void llama_context::init_kv_pager() {
+    if (!kv_pager.enabled()) {
+        return;
+    }
+    ggml_backend_t backend = find_gpu_backend();
+    if (!backend) {
+        throw std::runtime_error("KV pager capability refused: backend");
+    }
+    const ggml_backend_dev_t dev = ggml_backend_get_device(backend);
+    size_t free_bytes = 0;
+    size_t total_bytes = 0;
+    ggml_backend_dev_memory(dev, &free_bytes, &total_bytes);
+
+    llama_kv_pager_geometry geometry;
+    geometry.context_tokens = cparams.n_ctx_seq;
+    geometry.page_tokens = kv_pager.page_size;
+    for (uint32_t il = 0; il < model.hparams.n_layer(); ++il) {
+        if (!model.hparams.has_kv(il)) continue;
+        ++geometry.attention_layers;
+        geometry.kv_heads = model.hparams.n_head_kv(il);
+        geometry.key_length = model.hparams.n_embd_head_k(il);
+        geometry.value_length = model.hparams.n_embd_head_v(il);
+        const uint64_t k = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0, model.hparams.n_embd_k_gqa(il))) * geometry.page_tokens;
+        const uint64_t v = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0, model.hparams.n_embd_v_gqa(il))) * geometry.page_tokens;
+        if (k > UINT64_MAX - v || geometry.page_bytes > UINT64_MAX - k - v) {
+            throw std::runtime_error("KV pager geometry overflow");
+        }
+        geometry.page_bytes += k + v;
+    }
+
+    size_t backend_index = 0;
+    for (; backend_index < backend_ptrs.size(); ++backend_index) {
+        if (backend_ptrs[backend_index] == backend) break;
+    }
+    const uint64_t alignment = backend_index < backend_buft.size()
+        ? std::max<size_t>(1, ggml_backend_buft_get_alignment(backend_buft[backend_index])) : 1;
+    llama_kv_pager_resources resources;
+    resources.admission.capacity_bytes = free_bytes;
+    resources.admission.user_budget_bytes = kv_pager.vram_budget.automatic ? 0 : kv_pager.vram_budget.bytes;
+    // The scheduler's realized buffer is the combined graph/kernel scratch term;
+    // keep it in one ledger column rather than charging it twice.
+    resources.admission.graph_bytes = 0;
+    resources.admission.turbo4_scratch_bytes = backend_index < backend_buf_exp_size.size()
+        ? std::max<uint64_t>(alignment, backend_buf_exp_size[backend_index]) : alignment;
+    resources.admission.allocator_guard_bytes = alignment;
+    resources.admission.headroom_bytes = kv_pager.safety_headroom.automatic ? 0 : kv_pager.safety_headroom.bytes;
+    resources.admission.mtp_present = false;
+    resources.admission.mtp_is_turbo4 = true;
+    resources.host_budget_known = true;
+    if (kv_pager.host_budget.automatic) {
+        size_t host_free = 0;
+        size_t host_total = 0;
+        const ggml_backend_dev_t host_dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU);
+        if (host_dev == nullptr) {
+            resources.host_budget_known = false;
+        } else {
+            ggml_backend_dev_memory(host_dev, &host_free, &host_total);
+        }
+        resources.host_budget_bytes = host_free;
+    } else {
+        resources.host_budget_bytes = kv_pager.host_budget.bytes;
+    }
+    resources.allocator_granularity = alignment;
+    resources.duplicate_representation_authority = false;
+
+    llama_kv_pager_backend pager_backend;
+    pager_backend.allocate = [backend_index, this](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        if (backend_index >= backend_buft.size()) return false;
+        ggml_backend_buffer_t buffer = ggml_backend_buft_alloc_buffer(backend_buft[backend_index], bytes);
+        if (!buffer) return false;
+        allocation.handle = buffer;
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = ggml_backend_buffer_get_size(buffer);
+        return true;
+    };
+    pager_backend.release = [](llama_kv_pager_allocation & allocation) {
+        ggml_backend_buffer_free(static_cast<ggml_backend_buffer_t>(allocation.handle));
+        allocation = {};
+    };
+    llama_kv_pager_status status = llama_kv_pager_status::invalid_geometry;
+    kv_pager_owner = llama_kv_pager::create(kv_pager, geometry, resources, std::move(pager_backend), status);
+    if (!kv_pager_owner) {
+        throw std::runtime_error("KV pager initialization failed: " + std::string(llama_kv_pager_status_name(status)));
+    }
+    const auto & snapshot = kv_pager_owner->snapshot();
+    LLAMA_LOG_INFO("KV pager compact target storage: C=%" PRIu64 " L=%u H=%u rows=%" PRIu64 " bytes=%" PRIu64 "\n",
+            geometry.context_tokens, snapshot.logical_page_count, snapshot.physical_page_count,
+            snapshot.physical_rows, snapshot.realized_bytes);
 }
 
 void llama_context::resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs) {
@@ -1099,6 +1240,8 @@ void llama_context::sched_reserve() {
                     backend_buf_exp_size[i] / 1024.0 / 1024.0);
         }
     }
+
+    init_kv_pager();
 
     if (n_nodes_pp == n_nodes_tg) {
         LLAMA_LOG_INFO("%s: graph nodes  = %d\n", __func__, n_nodes_pp);
