@@ -1756,6 +1756,11 @@ vbr_pinned_chunk_ring::attach(
     }
 }
 
+std::shared_ptr<vbr_bounded_pinned_ring_core>
+vbr_pinned_chunk_ring::shared_core() const noexcept {
+    return impl_ ? impl_->core : nullptr;
+}
+
 uint64_t vbr_pinned_chunk_ring::capacity_bytes() const noexcept {
     return impl_ && impl_->core ? impl_->core->capacity_bytes() : 0;
 }
@@ -1840,10 +1845,10 @@ vbr_capture_stream_status vbr_pinned_chunk_ring::stream_ranges_impl(
         // The store may be constructed before VBR lazily creates its dedicated
         // side-stream backend. Events and pinned buffers are device-scoped, so
         // bind the lane to the physical device rather than one backend handle.
-        if (!source.backend || !source.device ||
-            !lane || source.device != lane->device ||
-            ggml_backend_get_device(source.backend) !=
-                lane->device ||
+        if (!source.backend || !source.device || !lane ||
+            (lane->device != nullptr &&
+             (source.device != lane->device ||
+              ggml_backend_get_device(source.backend) != lane->device)) ||
             source.tensor_offset >
                 std::numeric_limits<uint64_t>::max() -
                     source.size ||

@@ -212,3 +212,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-08-05`
 - Commit at update: `b3152a6a0`
 - Summary: Captured exact Release CUDA same-build MTP/all-GPU controls, preserved fail-closed CPU-KV/MTP refusal, restored service, and documented pending pager controls.
+
+## 2026-09-03T17:00:26+00:00 — 09-05 — done
+
+- Branch: `codex/task-09-05`
+- Commit at update: `25da0a174`
+- Summary: Implemented the ggml-backed compact-slot residency adapter, real tensor H2D/D2H executor route, shared bounded staging core, pager-owned slot/event lifecycle, transfer counters, deterministic coverage, and task handoff/checkpoint. Model-backed CUDA/live verification is deferred because no Qwen target GGUF is available.

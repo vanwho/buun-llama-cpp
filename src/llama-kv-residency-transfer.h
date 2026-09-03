@@ -128,6 +128,103 @@ struct llama_kv_residency_pool_backend {
         bool asynchronous) noexcept = nullptr;
     bool (*complete_copy)(void * context, uint64_t ticket) noexcept = nullptr;
     void (*cancel_copy)(void * context, uint64_t ticket) noexcept = nullptr;
+
+    // Set for a real ggml-backed adapter.  Tensor transfers use the backend
+    // and slot tensor directly; the callback copy seam above remains for
+    // deterministic CPU/fault-injection backends.  Appending these fields
+    // preserves the positional initializer contract of the fake backend.
+    ggml_backend_t backend = nullptr;
+    ggml_tensor * (*slot_tensor)(void * context, uint32_t slot) noexcept = nullptr;
+};
+
+enum class llama_kv_residency_ggml_status : uint8_t {
+    ok = 0,
+    invalid_argument,
+    unavailable,
+    allocation_failed,
+    event_failed,
+    _count,
+};
+
+const char * llama_kv_residency_ggml_status_name(
+        llama_kv_residency_ggml_status status) noexcept;
+
+struct llama_kv_residency_ggml_adapter_config {
+    ggml_backend_t backend = nullptr;
+    ggml_backend_buffer_t buffer = nullptr; // borrowed; owner outlives adapter
+    uint32_t slot_capacity = 0;
+    uint64_t bytes_per_slot = 0;
+    bool force_synchronous = false;
+};
+
+// Owns the slot tensor views and backend events for one compact residency
+// allocation.  The allocation itself remains owned by the pager; this object
+// only creates bounded views over it and supplies the transfer-pool callbacks.
+// Real transfers take the tensor route in llama_kv_residency_execute_transfer;
+// issue_copy is retained as a synchronous-compatible compatibility door for
+// callers that do not use the extended tensor route.
+class llama_kv_residency_ggml_adapter {
+public:
+    static std::unique_ptr<llama_kv_residency_ggml_adapter> create(
+            const llama_kv_residency_ggml_adapter_config & config,
+            llama_kv_residency_ggml_status & status) noexcept;
+    ~llama_kv_residency_ggml_adapter();
+
+    llama_kv_residency_ggml_adapter(
+            const llama_kv_residency_ggml_adapter &) = delete;
+    llama_kv_residency_ggml_adapter & operator=(
+            const llama_kv_residency_ggml_adapter &) = delete;
+
+    llama_kv_residency_pool_backend pool_backend() noexcept;
+    ggml_backend_t backend() const noexcept { return backend_; }
+    ggml_backend_dev_t device() const noexcept { return device_; }
+    uint32_t slot_capacity() const noexcept { return slot_capacity_; }
+    uint64_t bytes_per_slot() const noexcept { return bytes_per_slot_; }
+    uint32_t mapped_slots() const noexcept;
+    uint32_t pending_events() const noexcept;
+    void drain() noexcept;
+
+private:
+    struct pending_event;
+    explicit llama_kv_residency_ggml_adapter(
+            const llama_kv_residency_ggml_adapter_config & config) noexcept;
+
+    ggml_backend_t backend_ = nullptr;
+    ggml_backend_dev_t device_ = nullptr;
+    ggml_backend_buffer_t buffer_ = nullptr;
+    ggml_context * tensor_context_ = nullptr;
+    uint32_t slot_capacity_ = 0;
+    uint64_t bytes_per_slot_ = 0;
+    bool force_synchronous_ = false;
+    ggml_tensor * storage_tensor_ = nullptr;
+    std::vector<ggml_tensor *> slot_tensors_;
+    std::vector<uint8_t> mapped_;
+    std::vector<pending_event> pending_;
+
+    bool initialize_slots() noexcept;
+    void release_slots() noexcept;
+    bool issue(
+            llama_kv_residency_transfer_direction direction,
+            const llama_kv_residency_completion & completion,
+            uint64_t device_offset, void * host, size_t size,
+            uint64_t ticket, bool asynchronous) noexcept;
+    bool complete(uint64_t ticket) noexcept;
+    void cancel(uint64_t ticket) noexcept;
+
+    static bool reserve_slots(
+            void * context, uint32_t slots, uint64_t bytes_per_slot) noexcept;
+    static void release_slots(
+            void * context, uint32_t slots, uint64_t bytes_per_slot) noexcept;
+    static bool map_slot(void * context, uint32_t slot) noexcept;
+    static bool drop_slot(void * context, uint32_t slot) noexcept;
+    static bool issue_copy(
+            void * context, llama_kv_residency_transfer_direction direction,
+            const llama_kv_residency_completion & completion,
+            uint64_t device_offset, void * host, size_t size,
+            uint64_t ticket, bool asynchronous) noexcept;
+    static bool complete_copy(void * context, uint64_t ticket) noexcept;
+    static void cancel_copy(void * context, uint64_t ticket) noexcept;
+    static ggml_tensor * slot_tensor(void * context, uint32_t slot) noexcept;
 };
 
 struct llama_kv_residency_catalog_reservation {
@@ -164,6 +261,9 @@ struct llama_kv_residency_transfer_counters {
     uint64_t stale_completions = 0;
     uint64_t event_completions = 0;
     uint64_t evictions = 0;
+    uint64_t backpressure_waits = 0;
+    uint64_t transfer_time_us = 0;
+    uint64_t map_failures = 0;
 };
 
 struct llama_kv_residency_transfer_result {
@@ -265,4 +365,3 @@ llama_kv_residency_transfer_result llama_kv_residency_execute_transfer(
     llama_kv_residency_transfer_claim & claim,
     const llama_kv_residency_pool_backend & backend,
     const llama_kv_residency_transfer_transport & transport) noexcept;
-

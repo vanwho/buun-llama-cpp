@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "task": "09-05",
+  "status": "locally_verified_model_run_deferred",
+  "storage": {
+    "authority": "llama_kv_residency_table",
+    "slot_owner": "llama_kv_residency_ggml_adapter",
+    "allocation": "one_ggml_backend_buffer_with_bounded_slot_views",
+    "staging": "one_direction_neutral_shared_pinned_ring_core",
+    "transfer_route": "ggml_backend_tensor_set_async_get_async",
+    "clean_eviction": "drop_slot_without_d2h",
+    "rollback": "llama_kv_residency_execute_transaction"
+  },
+  "deterministic_checkpoint": {
+    "slot_capacity": 2,
+    "bytes_per_slot": 64,
+    "promotion_useful_bytes": 8,
+    "promotion_aligned_bytes": 8,
+    "d2h_useful_bytes": 8,
+    "clean_eviction_d2h_bytes": 0,
+    "pending_events_after_completion": 0,
+    "mapped_slots_after_clean_eviction": 0
+  },
+  "verification": [
+    { "command": "build/bin/test-kv-residency", "result": "pass" },
+    { "command": "build/bin/test-kv-pager", "result": "pass" },
+    { "command": "build/bin/test-vbr-artifact-capture", "result": "pass" },
+    { "command": "build-cuda/bin/test-kv-residency", "result": "pass" },
+    { "command": "build-cuda/bin/test-kv-pager", "result": "pass" },
+    { "command": "build-cuda/bin/test-vbr-artifact-capture", "result": "pass" },
+    { "command": "git diff --check", "result": "pass" }
+  ],
+  "raw_logs": [],
+  "deferred": {
+    "reason": "No Qwen target GGUF or model-backed residency run is available in this workspace.",
+    "raw_log_root": "/srv/ai/paged-kv/results/",
+    "required_later_checks": [
+      "CUDA event timing and memcheck/racecheck",
+      "capacity-crossing Qwen promotion with device/host byte equality",
+      "bounded VRAM, MTP GPU placement, service restore, and teardown drain"
+    ]
+  },
+  "handoff": "docs/execution/handoffs/09-05.md"
+}

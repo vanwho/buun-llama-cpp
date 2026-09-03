@@ -7,9 +7,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "09",
-  "current_task": "09-05",
-  "last_updated_utc": "2026-09-03T16:41:20+00:00",
+  "current_phase": "10",
+  "current_task": "10-01",
+  "last_updated_utc": "2026-09-03T17:01:20+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -647,13 +647,13 @@
       "cluster": "09b-live-transfers",
       "title": "Bind real CUDA promotion publication and clean eviction",
       "packet": "docs/execution/tasks/09-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "09-04"
       ],
-      "commit": null
+      "commit": "59fbbb4ee97f3f780cd70d4aa9ca1625f299b5b0"
     },
     {
       "id": "10-01",

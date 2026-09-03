@@ -3,6 +3,7 @@
 #include "llama-cache-budget.h"
 #include "llama-kv-pager-config.h"
 #include "llama-kv-residency.h"
+#include "llama-kv-residency-transfer.h"
 #include "llama-vbr-artifact-catalog.h"
 #include "llama-vbr-artifact-capture.h"
 
@@ -10,6 +11,8 @@
 #include <functional>
 #include <memory>
 #include <vector>
+
+class vbr_h2d_chunk_ring;
 
 struct llama_kv_pager_geometry {
     uint64_t context_tokens = 0;
@@ -116,6 +119,7 @@ public:
             const llama_kv_page_record & page) noexcept;
     bool invalidate(const llama_kv_page_id & page) noexcept;
     vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
+    vbr_h2d_chunk_ring * upload_ring() const noexcept { return upload_ring_.get(); }
 
 private:
     explicit llama_kv_pager_host(
@@ -126,6 +130,7 @@ private:
     llama_cache_acct_ledger ledger_;
     llama_vbr_selected_page_host_catalog catalog_;
     std::unique_ptr<vbr_pinned_chunk_ring> ring_;
+    std::shared_ptr<vbr_h2d_chunk_ring> upload_ring_;
 };
 
 struct llama_kv_pager_snapshot {
@@ -273,6 +278,15 @@ public:
         return host_ ? resources_host_stream_index_ : UINT32_MAX;
     }
 
+    // The pager table remains the logical authority; these are the real
+    // backend-owned slot/event doors used by the residency transfer owner.
+    llama_kv_residency_pool_backend residency_backend() const noexcept {
+        return residency_backend_;
+    }
+    vbr_h2d_chunk_ring * upload_ring() const noexcept {
+        return host_ ? host_->upload_ring() : nullptr;
+    }
+
 private:
     struct page_state {
         llama_kv_page_record record;
@@ -292,6 +306,9 @@ private:
     llama_kv_pager_snapshot snapshot_;
     llama_kv_pager_backend backend_;
     std::unique_ptr<llama_kv_pager_host> host_;
+    std::unique_ptr<llama_kv_residency_ggml_adapter> residency_adapter_;
+    std::unique_ptr<llama_kv_residency_pool> residency_pool_;
+    llama_kv_residency_pool_backend residency_backend_;
     ggml_backend_t resources_host_backend_ = nullptr;
     uint64_t resources_host_source_namespace_ = 0;
     uint64_t resources_host_topology_identity_ = 0;
