@@ -20,6 +20,8 @@ fi
 
 export CODEX_PROJECT_ROOT="$root"
 export CODEX_GIT_MODE=local
-export CODEX_SESSION_MAX_TURNS="${CODEX_SESSION_MAX_TURNS:-4}"
-export CODEX_SESSION_MAX_INPUT_TOKENS="${CODEX_SESSION_MAX_INPUT_TOKENS:-90000}"
+# Clusters still bound related work by task ownership. Leave conversation
+# rotation opt-in; 0 means no proactive turn/input guardrail.
+export CODEX_SESSION_MAX_TURNS="${CODEX_SESSION_MAX_TURNS:-0}"
+export CODEX_SESSION_MAX_INPUT_TOKENS="${CODEX_SESSION_MAX_INPUT_TOKENS:-0}"
 exec "$runner" "$@"
