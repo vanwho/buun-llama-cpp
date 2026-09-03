@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "05",
-  "current_task": "05-02",
-  "last_updated_utc": "2026-09-03T10:07:14+00:00",
+  "current_task": "05-03",
+  "last_updated_utc": "2026-09-03T10:23:59+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -367,7 +367,7 @@
       "cluster": "05a-hybrid-mtp",
       "title": "Pin full-context Turbo4 MTP KV in VRAM",
       "packet": "docs/execution/tasks/05-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
@@ -375,7 +375,7 @@
         "01-03",
         "05-01"
       ],
-      "commit": null
+      "commit": "824e18cae174f33ad826647057f78ddaced1b5d1"
     },
     {
       "id": "05-03",
