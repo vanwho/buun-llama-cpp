@@ -3,6 +3,8 @@
 #include "llama-cache-budget.h"
 #include "llama-kv-pager-config.h"
 #include "llama-kv-residency.h"
+#include "llama-vbr-artifact-catalog.h"
+#include "llama-vbr-artifact-capture.h"
 
 #include <cstdint>
 #include <functional>
@@ -26,6 +28,21 @@ struct llama_kv_pager_resources {
     uint64_t allocator_granularity = 1;
     bool host_budget_known = false;
     bool duplicate_representation_authority = false;
+
+    // The host copy is optional for the unit-test/observe pager, but when it is
+    // enabled these are the complete production transport binding.  The ring
+    // is charged once at construction and is never expanded per page.
+    bool host_capture_enabled = false;
+    llama_cache_budget_config host_budget;
+    uint64_t host_source_namespace = 0;
+    uint64_t host_topology_identity = 0;
+    uint32_t host_child_id = 0;
+    uint32_t host_stream_index = 0;
+    std::vector<vbr_capture_lane> host_lanes;
+    ggml_backend_t host_backend = nullptr;
+    uint64_t host_ring_bytes = 0;
+    size_t host_chunk_bytes = 0;
+    vbr_selected_page_capture_limits host_capture_limits;
 };
 
 struct llama_kv_pager_allocation {
@@ -37,6 +54,78 @@ struct llama_kv_pager_allocation {
 struct llama_kv_pager_backend {
     std::function<bool(uint64_t, llama_kv_pager_allocation &)> allocate;
     std::function<void(llama_kv_pager_allocation &)> release;
+};
+
+enum class llama_kv_pager_host_status : uint8_t {
+    ok = 0,
+    not_configured,
+    invalid_page,
+    prepare_failed,
+    capture_failed,
+    catalog_failed,
+    accounting_failed,
+    ring_unavailable,
+};
+
+const char * llama_kv_pager_host_status_name(
+        llama_kv_pager_host_status status) noexcept;
+
+// The live owner supplies exact tensor sources and a snapshot provider.  The
+// pager host boundary owns the ring, immutable pageable chains, and catalog
+// accounting; it never knows how a model stores or decodes Turbo4 rows.
+struct llama_kv_pager_host_provider {
+    using prepare_fn = bool (*) (
+        void * context,
+        const llama_kv_page_record & page,
+        vbr_selected_page_capture_request & request,
+        std::vector<vbr_selected_page_unit_source> & sources,
+        vbr_selected_page_capture_snapshot_provider & snapshots) noexcept;
+
+    void * context = nullptr;
+    prepare_fn prepare = nullptr;
+};
+
+struct llama_kv_pager_host_result {
+    llama_kv_pager_host_status status =
+        llama_kv_pager_host_status::not_configured;
+    vbr_selected_page_capture_status capture_status =
+        vbr_selected_page_capture_status::invalid_argument;
+    vbr_selected_page_host_status catalog_status =
+        vbr_selected_page_host_status::internal_error;
+    uint64_t pageable_bytes = 0;
+    uint64_t metadata_bytes = 0;
+    uint64_t pinned_bytes = 0;
+};
+
+class llama_kv_pager_host {
+public:
+    static std::unique_ptr<llama_kv_pager_host> create(
+            const llama_kv_pager_resources & resources,
+            llama_kv_pager_host_provider provider,
+            llama_kv_pager_host_status & status) noexcept;
+
+    ~llama_kv_pager_host();
+    llama_kv_pager_host(const llama_kv_pager_host &) = delete;
+    llama_kv_pager_host & operator=(const llama_kv_pager_host &) = delete;
+
+    void set_provider(llama_kv_pager_host_provider provider) noexcept {
+        provider_ = provider;
+    }
+
+    llama_kv_pager_host_result seal(
+            const llama_kv_page_record & page) noexcept;
+    bool invalidate(const llama_kv_page_id & page) noexcept;
+    vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
+
+private:
+    explicit llama_kv_pager_host(
+            const llama_kv_pager_resources & resources);
+
+    llama_kv_pager_resources resources_;
+    llama_kv_pager_host_provider provider_;
+    llama_cache_acct_ledger ledger_;
+    llama_vbr_selected_page_host_catalog catalog_;
+    std::unique_ptr<vbr_pinned_chunk_ring> ring_;
 };
 
 struct llama_kv_pager_snapshot {
@@ -151,6 +240,39 @@ public:
     // deferred to the residency transfer owner; this method never publishes a half mutation.
     llama_kv_pager_write_status mutate(const llama_kv_pager_mutation & mutation) noexcept;
 
+    // Attach the cache-owned source/snapshot provider after pager admission.
+    // A page becomes evictable only after seal_ready_pages() reports a
+    // successful catalog publication.
+    void set_host_provider(llama_kv_pager_host_provider provider) noexcept;
+    uint32_t seal_ready_pages() noexcept;
+    bool invalidate_host_page(const llama_kv_page_id & page) noexcept;
+    void bind_representation_identity(
+            uint64_t model_identity,
+            uint64_t topology_identity,
+            uint64_t codec_digest,
+            uint64_t codebook_digest,
+            uint64_t rotation_digest,
+            uint64_t meansub_digest,
+            uint64_t representation_epoch) noexcept;
+    const llama_kv_pager_host * host_catalog() const noexcept {
+        return host_.get();
+    }
+    ggml_backend_t host_backend() const noexcept {
+        return host_ ? resources_host_backend_ : nullptr;
+    }
+    uint64_t host_source_namespace() const noexcept {
+        return host_ ? resources_host_source_namespace_ : 0;
+    }
+    uint64_t host_topology_identity() const noexcept {
+        return host_ ? resources_host_topology_identity_ : 0;
+    }
+    uint32_t host_child_id() const noexcept {
+        return host_ ? resources_host_child_id_ : UINT32_MAX;
+    }
+    uint32_t host_stream_index() const noexcept {
+        return host_ ? resources_host_stream_index_ : UINT32_MAX;
+    }
+
 private:
     struct page_state {
         llama_kv_page_record record;
@@ -169,6 +291,13 @@ private:
     llama_kv_pager() = default;
     llama_kv_pager_snapshot snapshot_;
     llama_kv_pager_backend backend_;
+    std::unique_ptr<llama_kv_pager_host> host_;
+    ggml_backend_t resources_host_backend_ = nullptr;
+    uint64_t resources_host_source_namespace_ = 0;
+    uint64_t resources_host_topology_identity_ = 0;
+    uint32_t resources_host_child_id_ = UINT32_MAX;
+    uint32_t resources_host_stream_index_ = UINT32_MAX;
+    llama_kv_page_id page_identity_;
     llama_kv_pager_allocation allocation_;
     std::vector<page_state> pages_;
     std::vector<int32_t> slot_pages_;

@@ -324,6 +324,14 @@ bool vbr_explicit_capture_representation_identity(
     int32_t meansub_model_id,
     vbr_explicit_representation_identity & output) noexcept;
 
+// Canonical digest for the representation tuple.  Producers that construct
+// an authenticated descriptor outside the explicit-capture implementation
+// must use this door rather than duplicating the hash recipe.
+std::array<uint8_t, 32> vbr_explicit_representation_reference_digest(
+    int32_t current_type,
+    int32_t last_source_type,
+    const vbr_explicit_representation_identity & identity) noexcept;
+
 struct vbr_explicit_companion_provider {
     using capture_fn = bool (*)(
         const void * context,

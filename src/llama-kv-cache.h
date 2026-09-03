@@ -241,6 +241,8 @@ public:
 
     uint32_t get_size()     const;
     uint32_t get_n_stream() const;
+    bool pager_geometry(uint32_t page_tokens,
+            llama_kv_pager_geometry & output) const noexcept;
     uint32_t get_n_swa()    const { return n_swa; }
     uint32_t get_stream_for_seq(llama_seq_id seq_id) const;
     bool state_empty() const;
@@ -610,6 +612,22 @@ private:
         void * context, const vbr_capture_unit_snapshot & expected) noexcept;
     static void vbr_capture_snapshot_release(
         void * context, const vbr_capture_unit_snapshot & snapshot) noexcept;
+    static bool pager_host_prepare(
+        void * context,
+        const llama_kv_page_record & page,
+        vbr_selected_page_capture_request & request,
+        std::vector<vbr_selected_page_unit_source> & sources,
+        vbr_selected_page_capture_snapshot_provider & snapshots) noexcept;
+    static bool pager_host_snapshot_acquire(
+        void * context,
+        const vbr_selected_page_capture_request & request,
+        vbr_selected_page_capture_snapshot & output) noexcept;
+    static bool pager_host_snapshot_recheck(
+        void * context,
+        const vbr_selected_page_capture_snapshot & expected) noexcept;
+    static void pager_host_snapshot_release(
+        void * context,
+        const vbr_selected_page_capture_snapshot & snapshot) noexcept;
     bool vbr_capture_stability_matches(
         const vbr_capture_stability_token & token) const noexcept;
     bool vbr_capture_generation_record(
@@ -1430,6 +1448,8 @@ private:
     // separate from apply_ubatch: graph construction/allocation may still fail.
     llama_kv_pager * pager_ = nullptr;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
+    vbr_lineage_uuid pager_host_lineage_;
+    uint64_t pager_host_controller_generation_ = 1;
 
   public:
     // Promote submitted extents to committed. Called from the context's existing synchronize
