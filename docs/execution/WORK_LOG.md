@@ -120,3 +120,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-04-04`
 - Commit at update: `7e449d5ac`
 - Summary: Added bounded asynchronous KV prefetch scheduler with predictive depth, double-buffer staging, backpressure, generation cancellation, explicit readiness fallback, clean eviction/reseal handling, counters, and deterministic fake-backend coverage.
+
+## 2026-09-03T10:06:08+00:00 — 05-01 — done
+
+- Branch: `codex/task-05-01`
+- Commit at update: `c084b0d36`
+- Summary: Hybrid recurrent, attention-page, and QSA-index mutations now share one composite operation with ordered preflight, atomic preparation, decode-context adoption, and fail-closed import/copy failure handling.
