@@ -138,3 +138,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-05-03`
 - Commit at update: `9c748f91c`
 - Summary: Added single-slot pager lifecycle seam, slot session-generation fencing for async VBR publication, cancellation-safe request/teardown draining, MTP accounting coverage, cache-debug generation output, and focused regression tests.
+
+## 2026-09-03T10:59:23+00:00 — 05-04 — done
+
+- Branch: `codex/task-05-04`
+- Commit at update: `a41f24436`
+- Summary: Centralized speculative rollback frontiers across target and MTP state, made malformed carry restore atomic, hardened child clone rollback, gated MTP-primary setup to qwen35, and added diagnostics/tests.
