@@ -132,3 +132,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-05-02`
 - Commit at update: `ff1b7dc8d`
 - Summary: Pinned full-frontier Turbo4 native MTP independently from target fit; disarmed MTP VBR, enforced GPU-only realized residency with typed logging, added actual-row 1056-byte/token admission coverage, and verified CPU builds/tests plus docs regeneration.
+
+## 2026-09-03T10:42:30+00:00 — 05-03 — done
+
+- Branch: `codex/task-05-03`
+- Commit at update: `9c748f91c`
+- Summary: Added single-slot pager lifecycle seam, slot session-generation fencing for async VBR publication, cancellation-safe request/teardown draining, MTP accounting coverage, cache-debug generation output, and focused regression tests.
