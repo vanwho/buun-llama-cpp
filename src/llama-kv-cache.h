@@ -177,6 +177,7 @@ public:
 
     void set_kv_pager(llama_kv_pager * pager) override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
+    llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
 
     //
     // llama_memory_i
@@ -418,6 +419,7 @@ public:
     //
 
     uint32_t get_n_kv(const slot_info & sinfo) const;
+    bool selected_attention_supported() const noexcept { return !v_trans; }
 
     // get views of the current state of the cache
     ggml_tensor * get_k(ggml_context * ctx, int32_t il, uint32_t n_kv, const slot_info & sinfo) const;
@@ -1765,6 +1767,15 @@ public:
     ggml_tensor * get_k(ggml_context * ctx, int32_t il) const;
     ggml_tensor * get_v(ggml_context * ctx, int32_t il) const;
     llama_turbo_meansub_ref get_turbo_meansub_ref(int32_t il) const;
+
+    // Build row IDs into the ordinary cache for the bounded selected
+    // reference route.  The IDs address the cache's physical rows; native
+    // logical positions remain owned by the selected-page metadata.
+    bool selected_attention_supported() const noexcept;
+    bool selected_attention_rows(
+            const std::vector<llama_pos> & positions,
+            std::vector<int32_t> & rows) const;
+    llama_kv_pager * get_kv_pager() const noexcept;
 
 
     // TurboQuant rotation accessors

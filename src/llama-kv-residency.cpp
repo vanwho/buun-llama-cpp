@@ -47,6 +47,27 @@ const std::vector<llama_kv_page_record> & llama_kv_residency_snapshot::pages() c
     return state_ ? state_->pages : empty;
 }
 
+llama_kv_residency_snapshot llama_kv_residency_snapshot::for_sequence(
+        int32_t sequence_id) const noexcept {
+    if (!state_ || sequence_id < 0) {
+        return {};
+    }
+
+    try {
+        auto filtered = std::make_shared<state>();
+        filtered->epoch = state_->epoch;
+        filtered->slot_capacity = state_->slot_capacity;
+        for (const auto & page : state_->pages) {
+            if (page.id.sequence_id == sequence_id) {
+                filtered->pages.push_back(page);
+            }
+        }
+        return llama_kv_residency_snapshot(std::move(filtered));
+    } catch (...) {
+        return {};
+    }
+}
+
 uint64_t llama_kv_residency_transaction::base_epoch() const noexcept { return base_epoch_; }
 bool llama_kv_residency_transaction::active() const noexcept { return active_; }
 const std::vector<llama_kv_page_record> & llama_kv_residency_transaction::pages() const noexcept { return pages_; }

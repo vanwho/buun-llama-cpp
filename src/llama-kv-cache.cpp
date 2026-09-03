@@ -13938,6 +13938,60 @@ ggml_tensor * llama_kv_cache_context::get_v(ggml_context * ctx, int32_t il) cons
     return kv->get_v(ctx, il, n_kv, sinfos[i_cur]);
 }
 
+bool llama_kv_cache_context::selected_attention_supported() const noexcept {
+    return kv != nullptr && kv->selected_attention_supported() &&
+        !sinfos.empty() && i_cur < sinfos.size() && sinfos[i_cur].n_stream() == 1 &&
+        !ubatches.empty() && i_cur < ubatches.size() &&
+        ubatches[i_cur].n_seqs_unq == 1;
+}
+
+bool llama_kv_cache_context::selected_attention_rows(
+        const std::vector<llama_pos> & positions,
+        std::vector<int32_t> & rows) const {
+    rows.clear();
+    if (!selected_attention_supported() || positions.empty()) {
+        return false;
+    }
+
+    const auto & ubatch = ubatches[i_cur];
+    const llama_seq_id sequence_id = ubatch.seq_id[0][0];
+    if (sequence_id < 0) {
+        return false;
+    }
+
+    try {
+        const auto & cells = kv->get_cells(sequence_id);
+        const auto & sinfo = sinfos[i_cur];
+        rows.reserve(positions.size());
+
+        for (const llama_pos position : positions) {
+            uint32_t found = UINT32_MAX;
+            for (uint32_t cell = 0; cell < cells.size(); ++cell) {
+                if (!cells.is_empty(cell) && cells.seq_has(cell, sequence_id) &&
+                    cells.pos_get(cell) == position) {
+                    found = cell;
+                    break;
+                }
+            }
+            if (found == UINT32_MAX || found < sinfo.s0 ||
+                uint64_t(found - sinfo.s0) >= uint64_t(n_kv) ||
+                found - sinfo.s0 > uint32_t(std::numeric_limits<int32_t>::max())) {
+                rows.clear();
+                return false;
+            }
+            rows.push_back(int32_t(found - sinfo.s0));
+        }
+        return true;
+    } catch (...) {
+        rows.clear();
+        return false;
+    }
+}
+
+llama_kv_pager * llama_kv_cache_context::get_kv_pager() const noexcept {
+    return kv ? kv->get_kv_pager() : nullptr;
+}
+
 llama_turbo_meansub_ref llama_kv_cache_context::get_turbo_meansub_ref(int32_t il) const {
     return kv->get_turbo_meansub_ref(il);
 }

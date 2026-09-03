@@ -38,6 +38,14 @@ llama_kv_attention_view llama_kv_attention_view::build(
         const llama_kv_residency_snapshot & snapshot,
         const std::vector<uint32_t> & selected_pages,
         llama_kv_attention_view_status & status) noexcept {
+    return build(snapshot, selected_pages, -1, status);
+}
+
+llama_kv_attention_view llama_kv_attention_view::build(
+        const llama_kv_residency_snapshot & snapshot,
+        const std::vector<uint32_t> & selected_pages,
+        int32_t sequence_id,
+        llama_kv_attention_view_status & status) noexcept {
     status = llama_kv_attention_view_status::invalid_argument;
     if (snapshot.epoch() == 0 || selected_pages.empty()) {
         return {};
@@ -53,7 +61,8 @@ llama_kv_attention_view llama_kv_attention_view::build(
         for (const uint32_t logical_page : selected_pages) {
             const llama_kv_page_record * found = nullptr;
             for (const auto & page : snapshot.pages()) {
-                if (page.id.logical_page == logical_page) {
+                if (page.id.logical_page == logical_page &&
+                    (sequence_id < 0 || page.id.sequence_id == sequence_id)) {
                     found = &page;
                     break;
                 }

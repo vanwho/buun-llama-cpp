@@ -143,6 +143,13 @@ llama_context::llama_context(
         }
     }
 
+    switch (kv_pager.mode) {
+        case llama_kv_pager_mode::off:       set_kv_attention_mode(llama_kv_attention_execution_mode::off);       break;
+        case llama_kv_pager_mode::observe:   set_kv_attention_mode(llama_kv_attention_execution_mode::observe);   break;
+        case llama_kv_pager_mode::selective:set_kv_attention_mode(llama_kv_attention_execution_mode::selective);break;
+        case llama_kv_pager_mode::exact:    set_kv_attention_mode(llama_kv_attention_execution_mode::exact);    break;
+    }
+
     t_start_us = model.t_start_us;
     t_load_us  = model.t_load_us;
 
@@ -1366,6 +1373,138 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
 
 void llama_context::complete_kv_attention_graph() noexcept {
     kv_attention_execution.complete_one_graph();
+}
+
+llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
+        const llama_ubatch & ubatch,
+        llama_memory_context_i * mctx,
+        llm_graph_type gtype) {
+    const auto phase = ubatch.n_seq_tokens == 1
+        ? llama_kv_attention_execution_phase::decode
+        : llama_kv_attention_execution_phase::prefill;
+    const uint64_t representation_epoch = mctx ? mctx->get_vbr_epoch() : 0;
+
+    uint64_t shape_epoch = 1469598103934665603ull;
+    const auto mix_shape = [&](uint64_t value) {
+        shape_epoch ^= value;
+        shape_epoch *= 1099511628211ull;
+    };
+    mix_shape(ubatch.n_tokens);
+    mix_shape(ubatch.n_seq_tokens);
+    mix_shape(ubatch.n_seqs_unq);
+    mix_shape(cparams.flash_attn ? 1 : 0);
+    if (shape_epoch == 0) shape_epoch = 1;
+
+    const llama_kv_attention_scratch_request empty_scratch;
+    if (kv_pager.mode != llama_kv_pager_mode::selective) {
+        return prepare_kv_attention({}, phase, representation_epoch, shape_epoch,
+                false, empty_scratch);
+    }
+
+    auto refuse = [&](const char * reason) {
+        kv_attention_execution.clear();
+        auto result = prepare_kv_attention({}, phase, representation_epoch, shape_epoch,
+                false, empty_scratch);
+        result.reason = reason;
+        LLAMA_LOG_ERROR("%s: selected reference refused: %s\n", __func__, reason);
+        return result;
+    };
+
+    // The first live route is intentionally a single-sequence, flash-attention
+    // reference.  It is a correctness oracle until per-sequence page unions
+    // and the direct paged loader are connected by later tasks.
+    if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
+        (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
+        !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
+        ubatch.n_tokens != ubatch.n_seq_tokens || ubatch.n_pos != 1 ||
+        ubatch.pos == nullptr || ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr ||
+        ubatch.n_seq_id[0] != 1) {
+        return refuse("unsupported Qwen selected-reference shape");
+    }
+
+    const llama_kv_cache_context * attention =
+        dynamic_cast<const llama_kv_cache_context *>(mctx);
+    if (attention == nullptr) {
+        const auto * hybrid = dynamic_cast<const llama_memory_hybrid_context *>(mctx);
+        attention = hybrid ? hybrid->get_attn() : nullptr;
+    }
+    if (attention == nullptr || !attention->selected_attention_supported()) {
+        return refuse("attention cache cannot expose bounded selected rows");
+    }
+
+    const llama_seq_id sequence_id = ubatch.seq_id[0][0];
+    if (sequence_id < 0 || attention->get_kv_pager() == nullptr) {
+        return refuse("selected reference has no live pager sequence");
+    }
+
+    const auto & pager = *attention->get_kv_pager();
+    const auto pager_snapshot = pager.residency(sequence_id);
+    const auto & pager_geometry = pager.snapshot();
+    const uint32_t hot_capacity = pager_geometry.physical_page_count;
+    if (pager_snapshot.epoch() == 0 || pager_snapshot.pages().empty() ||
+        pager_geometry.logical_page_count > hot_capacity ||
+        pager_snapshot.pages().size() > hot_capacity) {
+        return refuse("selected logical pages exceed admitted hot capacity");
+    }
+
+    std::vector<uint32_t> selected_pages;
+    try {
+        selected_pages.reserve(pager_snapshot.pages().size());
+        for (const auto & page : pager_snapshot.pages()) {
+            if (page.id.sequence_id != sequence_id || page.physical_slot == UINT32_MAX ||
+                (page.state != llama_kv_page_state::filling_gpu &&
+                 page.state != llama_kv_page_state::gpu_host_clean &&
+                 page.state != llama_kv_page_state::gpu_dirty)) {
+                return refuse("selected reference encountered a non-resident page");
+            }
+            selected_pages.push_back(page.id.logical_page);
+        }
+    } catch (...) {
+        return refuse("selected page metadata allocation failed");
+    }
+
+    llama_kv_attention_view_status view_status;
+    const auto view = llama_kv_attention_view::build(
+            pager_snapshot, selected_pages, sequence_id, view_status);
+    if (!view.valid()) {
+        return refuse(llama_kv_attention_view_status_name(view_status));
+    }
+
+    llama_kv_attention_operator_params op_params;
+    op_params.mode = llama_kv_attention_operator_mode::selective;
+    op_params.type_k = attention->type_k();
+    op_params.type_v = attention->type_v();
+    op_params.page_tokens = kv_pager.page_size;
+    op_params.head_dim_k = model.hparams.n_embd_head_k();
+    op_params.head_dim_v = model.hparams.n_embd_head_v();
+    op_params.n_head_q = model.hparams.n_head();
+    op_params.n_head_kv = model.hparams.n_head_kv();
+    op_params.n_query_tokens = ubatch.n_tokens;
+    op_params.n_batch = 1;
+    op_params.causal = cparams.causal_attn;
+    op_params.query_positions.assign(ubatch.pos, ubatch.pos + ubatch.n_tokens);
+
+    llama_kv_attention_operator_status op_status;
+    const auto metadata = llama_kv_attention_operator_metadata::build(
+            view, op_params, op_status);
+    if (!metadata.valid()) {
+        return refuse(llama_kv_attention_operator_status_name(op_status));
+    }
+
+    std::vector<int32_t> rows;
+    if (!attention->selected_attention_rows(metadata.native_positions(), rows)) {
+        return refuse("selected page positions are not present in the cache view");
+    }
+
+    llama_kv_attention_scratch_request scratch;
+    scratch.resident_rows = metadata.get_n_kv();
+    scratch.bytes_per_row = (size_t(model.hparams.n_embd_head_k()) +
+            size_t(model.hparams.n_embd_head_v())) * size_t(model.hparams.n_head_kv()) *
+            sizeof(float);
+    LLAMA_LOG_DEBUG("%s: selected reference pages=%zu rows=%u bounded_gather_bytes=%zu\n",
+            __func__, view.pages().size(), metadata.get_n_kv(), scratch.required_bytes());
+    return prepare_kv_attention(metadata, phase, representation_epoch, shape_epoch,
+            false, scratch);
 }
 
 ggml_backend_sched_t llama_context::get_sched() const {
@@ -4296,6 +4435,15 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     if (mctx && !mctx->apply()) {
         mctx->finish(false);
         LLAMA_LOG_ERROR("%s: failed to apply memory context\n", __func__);
+        ret = GGML_STATUS_FAILED;
+        return nullptr;
+    }
+
+    const auto attention_decision = prepare_kv_attention_graph(ubatch, mctx, gtype);
+    if (!attention_decision.accepted()) {
+        if (mctx) mctx->finish(false);
+        LLAMA_LOG_ERROR("%s: selected attention refused: %s\n",
+                __func__, attention_decision.reason.c_str());
         ret = GGML_STATUS_FAILED;
         return nullptr;
     }

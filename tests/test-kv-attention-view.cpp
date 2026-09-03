@@ -28,6 +28,36 @@ static llama_kv_residency_snapshot make_snapshot() {
     return table.snapshot();
 }
 
+static void test_sequence_scoped_lookup() {
+    llama_kv_residency_table table(8);
+    auto tx = table.begin();
+    const auto seq0 = page(0, 1, 256);
+    auto seq1 = page(0, 6, 256);
+    seq1.id.sequence_id = 1;
+    const auto first = table.replace(tx, seq0);
+    const auto second = table.replace(tx, seq1);
+    const auto published = table.publish(tx);
+    assert(first == llama_kv_residency_status::ok);
+    assert(second == llama_kv_residency_status::ok);
+    assert(published == llama_kv_residency_status::ok);
+    (void) first;
+    (void) second;
+    (void) published;
+
+    const auto snapshot = table.snapshot();
+    const auto filtered = snapshot.for_sequence(1);
+    assert(filtered.epoch() == snapshot.epoch());
+    assert(filtered.slot_capacity() == snapshot.slot_capacity());
+    assert(filtered.pages().size() == 1);
+    assert(filtered.pages()[0].id.sequence_id == 1);
+    assert(filtered.pages()[0].physical_slot == 6);
+
+    llama_kv_attention_view_status status;
+    const auto view = llama_kv_attention_view::build(snapshot, { 0 }, 1, status);
+    assert(status == llama_kv_attention_view_status::ok);
+    assert(view.valid() && view.pages()[0].source_physical_slot == 6);
+}
+
 static void test_compact_permuted_gapped_view() {
     llama_kv_attention_view_status status;
     const auto view = llama_kv_attention_view::build(make_snapshot(), { 2, 0 }, status);
@@ -129,6 +159,7 @@ static void test_operator_contract() {
 int main() {
     test_compact_permuted_gapped_view();
     test_tail_and_rejections();
+    test_sequence_scoped_lookup();
     test_operator_contract();
     return 0;
 }
