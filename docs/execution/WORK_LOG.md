@@ -74,3 +74,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-02-02`
 - Commit at update: `a687880e2`
 - Summary: Added authenticated canonical Turbo4 selected-page host catalog with pageable/pinned accounting, budget admission, aliasing, invalidation, and deterministic tests.
+
+## 2026-09-03T07:10:58+00:00 — 02-03 — done
+
+- Branch: `codex/task-02-03`
+- Commit at update: `53d1f37c1`
+- Summary: Added bounded KV residency transfer plans and separate backend pool with coalesced D2H/H2D runs, pre-submit slot/event/catalog admission, async cancellation-safe VBR seams, generation rechecks, clean eviction, fixed counters, and fake-backend failure tests.
