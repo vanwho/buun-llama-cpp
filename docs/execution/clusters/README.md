@@ -11,7 +11,8 @@ server lifecycle, benchmarks, exact reference work, and upstream slicing rotate 
 All task recommendations use `gpt-5.6-luna`: Luna Medium is the default, Luna Low is reserved for
 checklist/documentation/pure-arithmetic tasks, and Luna High is reserved for cross-repository placement,
 VBR/residency transactions, CUDA/operator integration, concurrent server/speculative lifecycle, CUDA
-acceptance, and exact online-softmax work. No task routes to Terra or Sol.
+acceptance, and exact online-softmax work. A Luna task that blocks twice receives one final Terra/high
+recovery attempt before the runner preserves a real block; Terra is not a normal task recommendation.
 
 For every task, read in this order:
 

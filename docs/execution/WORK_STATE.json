@@ -6,17 +6,19 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
+  "status": "blocked",
   "current_phase": "00",
   "current_task": "00-03",
-  "last_updated_utc": "2026-09-03T03:51:02+00:00",
+  "last_updated_utc": "2026-09-03T04:08:35+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
-    "required_git_mode": "local",
+    "required_git_mode": "auto",
     "root_environment": "CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp",
     "cluster_context_dir": "docs/execution/clusters",
-    "default_cluster_max_turns": 4,
-    "default_cluster_max_input_tokens": 90000
+    "default_cluster_max_turns": 0,
+    "default_cluster_max_input_tokens": 0,
+    "block_recovery_attempts": 2,
+    "block_escalation": "Luna task: Terra/high on final recovery after two failed approaches"
   },
   "external_gates": [
     {
@@ -65,8 +67,8 @@
       "cluster": "00b-baseline-draft",
       "title": "Reproduce canonical benchmark baselines",
       "packet": "docs/execution/tasks/00-03.md",
-      "status": "todo",
-      "blocker": null,
+      "status": "blocked",
+      "blocker": "Controlled profile restore failed because required health endpoint 127.0.0.1:8091 was unavailable; Qwen 8080 is healthy but the harness restore gate cannot be certified.",
       "recommended_model": "Luna Medium",
       "depends_on": [
         "00-02"
