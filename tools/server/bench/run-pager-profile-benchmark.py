@@ -18,6 +18,8 @@ import time
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from pager_benchmark_contract import CORPUS_SCHEMA
+
 
 VARIANTS = {
     "short": {"size": "default", "description": "short/default MTP throughput"},
@@ -111,19 +113,37 @@ def pager_envelope(variant: str) -> dict[str, object]:
 
 def corpus(variant: str) -> dict[str, object]:
     description = VARIANTS[variant]["description"]
-    identity = f"pager-corpus-v1:{variant}:{description}"
-    return {"name": "pager-corpus-v1", "variant": variant, "description": description,
-            "identity": identity, "prompt_hash": sha256_text(identity),
-            "expected_needle_answers": [], "expected_answers_status": "not_configured"}
+    corpus_path = pathlib.Path(os.environ.get("PAGER_CORPUS", "/srv/ai/paged-kv/pager-corpus-v2/corpus.json"))
+    if corpus_path.exists():
+        try:
+            frozen = json.loads(corpus_path.read_text())
+            return {"schema": CORPUS_SCHEMA, "name": "pager-corpus-v2", "variant": variant,
+                    "description": description, "path": str(corpus_path),
+                    "corpus_hash": frozen["corpus_hash"], "cases": len(frozen["cases"]),
+                    "model_sha256": frozen["model_sha256"], "tokenizer_sha256": frozen["tokenizer_sha256"],
+                    "expected_answers_status": "frozen"}
+        except (OSError, KeyError, TypeError, json.JSONDecodeError):
+            pass
+    return {"schema": CORPUS_SCHEMA, "name": "pager-corpus-v2", "variant": variant,
+            "description": description, "path": str(corpus_path),
+            "corpus_hash": None, "cases": 0, "model_sha256": None, "tokenizer_sha256": None,
+            "expected_answers_status": "not_configured"}
 
 
 def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str) -> None:
     output.mkdir(parents=True, exist_ok=True)
     envelope = pager_envelope(variant)
+    frozen_corpus = corpus(variant)
     config = {
+        "schema_version": 2, "run_id": f"dry-{target}-{variant}",
         "run_timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "target": target,
         "profile": f"qwen38-{target}", "benchmark_size": VARIANTS[variant]["size"],
-        "endpoint": endpoint, "dry_run": True, "pager": envelope, "corpus": corpus(variant),
+        "endpoint": endpoint, "dry_run": True, "pager": envelope, "corpus": frozen_corpus,
+        "model": {"sha256": os.environ.get("PAGER_MODEL_SHA256", frozen_corpus.get("model_sha256", "0" * 64))},
+        "tokenizer": {"sha256": os.environ.get("PAGER_TOKENIZER_SHA256", frozen_corpus.get("tokenizer_sha256", "1" * 64))},
+        "context": {"ladder": "derived", "selected": None},
+        "placement": {"target_kv": "not_configured", "mtp_rows": None,
+                       "mtp_kv_type": "not_configured", "mtp_backend": "not_configured", "mtp_bytes": None},
         "service": {"status": "not_started"},
         "compatibility": {"canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
                            "records_format": "canonical records.jsonl preserved"},

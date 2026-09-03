@@ -120,6 +120,26 @@ LLAMA_SERVER_BIN_PATH=../../../cmake-build-release/bin/llama-server python bench
 
 ### Pager profile adapter
 
+#### Frozen pager-corpus-v2 contract
+
+The portable contract is implemented by
+`pager_benchmark_contract.py`. Generate the external corpus artifact with:
+
+```shell
+python3 tools/server/bench/generate-pager-corpus.py \
+  /srv/ai/paged-kv/pager-corpus-v2/corpus.json \
+  --model <model-gguf-sha256> --tokenizer <tokenizer-sha256>
+```
+
+It produces deterministic calibration and held-out cases with immutable case
+and corpus hashes. Validate a dry-run or acceptance manifest with
+`validate-pager-benchmark.py`; schema 1 is accepted only as
+`legacy/non-acceptance`, while unknown schemas and missing runtime evidence
+fail closed. Acceptance manifests require model/tokenizer hashes, Turbo4 MTP
+placement, the reconciled pager ledger, timing, raw requests, and all required
+telemetry. The frozen gate values and fields are summarized in
+`docs/execution/evidence/PAGER_BENCHMARK_CONTRACT_V2.json`.
+
 `run-pager-profile-benchmark.sh` preserves the canonical profile runner and
 adds a joinable pager/corpus envelope to its existing artifacts. It supports
 the historical short and large runs plus `stable-focus`, `cold-needles`,
