@@ -14,6 +14,7 @@
 #include "server-queue.h"
 #include "server-recurrent-expansion.h"
 #include "server-schema.h"
+#include "../../src/llama-context.h"
 #include "server-stream.h"
 
 #include "build-info.h"
@@ -3632,7 +3633,81 @@ public:
     }
 
     server_metrics get_metrics() const {
-        return metrics;
+        server_metrics result = metrics;
+        if (ctx_tgt != nullptr) {
+            const auto pager = ctx_tgt->get_kv_pager_metrics();
+            if (pager.enabled) {
+                result.pager_metrics = {
+                    {"status", "ok"},
+                    {"mode", pager.mode == llama_kv_pager_mode::observe ? "observe" :
+                              pager.mode == llama_kv_pager_mode::selective ? "selective" :
+                              pager.mode == llama_kv_pager_mode::exact ? "exact" : "off"},
+                    {"target_type_k", ggml_type_name(pager.target_type_k)},
+                    {"target_type_v", ggml_type_name(pager.target_type_v)},
+                    {"route", llama_kv_attention_execution_route_name(pager.route)},
+                    {"mtp_backend", pager.mtp_backend},
+                    {"page_capacity", pager.logical_pages == 0 ? uint64_t(0) : pager.resident_pages},
+                    {"table_epoch", pager.table_epoch},
+                    {"representation_epoch", pager.representation_epoch},
+                    {"shape_epoch", pager.shape_epoch},
+                    {"context_tokens", pager.context_tokens},
+                    {"page_tokens", pager.page_tokens},
+                    {"logical_pages", pager.logical_pages},
+                    {"resident_pages", pager.resident_pages},
+                    {"host_pages", pager.host_pages},
+                    {"page_bytes", pager.page_bytes},
+                    {"page_charge_bytes", pager.page_charge_bytes},
+                    {"target_bytes", pager.target_bytes},
+                    {"host_pageable_bytes", pager.host_pageable_bytes},
+                    {"host_metadata_bytes", pager.host_metadata_bytes},
+                    {"host_pinned_bytes", pager.host_pinned_bytes},
+                    {"usable_device_bytes", pager.usable_device_bytes},
+                    {"charged_bytes", pager.charged_bytes},
+                    {"reserved_bytes", pager.reserved_bytes},
+                    {"headroom_bytes", pager.headroom_bytes},
+                    {"mtp_rows", pager.mtp_rows},
+                    {"mtp_bytes", pager.mtp_bytes},
+                    {"host_budget_bytes", pager.host_budget_bytes},
+                    {"vram_budget_bytes", pager.vram_budget_bytes},
+                    {"router_top_k", pager.router_top_k},
+                    {"router_explore", pager.router_explore ? uint64_t(1) : uint64_t(0)},
+                    {"pin_recent_tokens", pager.pin_recent_tokens},
+                    {"prefetch_depth", pager.prefetch_depth},
+                    {"attention_samples", pager.attention.samples},
+                    {"attention_sampled_pages", pager.attention.sampled_pages},
+                    {"attention_skipped", pager.attention.skipped},
+                    {"attention_stale_dropped", pager.attention.stale_dropped},
+                    {"attention_invalid_dropped", pager.attention.invalid_dropped},
+                    {"attention_gpu_reduction_us", pager.attention.gpu_reduction_us},
+                    {"attention_d2h_bytes", pager.attention.d2h_bytes},
+                    {"attention_d2h_time_us", pager.attention.d2h_time_us},
+                    {"graph_capture_count", pager.execution.graph_capture_count},
+                    {"graph_replay_count", pager.execution.graph_replay_count},
+                    {"graph_rebuild_count", pager.execution.graph_rebuild_count},
+                    {"graph_submission_count", pager.execution.graph_submission_count},
+                    {"graph_completion_count", pager.execution.graph_completion_count},
+                    {"waits", pager.execution.waits},
+                    {"scratch_high_water_rows", pager.execution.scratch_high_water_rows},
+                    {"scratch_high_water_bytes", pager.execution.scratch_high_water_bytes},
+                    {"exact_plan_waves", pager.execution.exact_plan_waves},
+                    {"exact_pages_visited", pager.execution.exact_pages_visited},
+                    {"exact_h2d_useful_bytes", pager.execution.exact_h2d_useful_bytes},
+                    {"exact_h2d_aligned_bytes", pager.execution.exact_h2d_aligned_bytes},
+                    {"faults", uint64_t(0)},
+                    {"prefetch_hits", uint64_t(0)},
+                    {"evictions", uint64_t(0)},
+                    {"late_waits", uint64_t(0)},
+                    {"d2h_useful_bytes", uint64_t(0)},
+                    {"d2h_aligned_bytes", pager.attention.d2h_bytes},
+                    {"h2d_useful_bytes", pager.execution.exact_h2d_useful_bytes},
+                    {"h2d_aligned_bytes", pager.execution.exact_h2d_aligned_bytes},
+                    {"attention_ema_bytes", pager.attention_accounting.ema_bytes},
+                    {"attention_peak_bytes", pager.attention_accounting.peak_bytes},
+                    {"attention_metadata_bytes", pager.attention_accounting.metadata_bytes},
+                };
+            }
+        }
+        return result;
     }
 
     void reset_metrics_bucket() {

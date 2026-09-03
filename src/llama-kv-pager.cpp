@@ -361,6 +361,10 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
     output.physical_rows = rows;
     output.physical_bytes = bytes;
     output.host_metadata_bytes = resources.host_metadata_bytes;
+    output.mtp_rows = resources.admission.mtp_tokens;
+    output.host_budget_bytes = resources.host_budget_bytes;
+    output.vram_budget_bytes = resources.admission.user_budget_bytes != 0
+        ? resources.admission.user_budget_bytes : result.usable_device_bytes;
     status = llama_kv_pager_status::ok;
     return true;
 }

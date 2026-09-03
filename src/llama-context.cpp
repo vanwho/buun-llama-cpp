@@ -132,6 +132,9 @@ llama_context::llama_context(
     //     may need to be backend-dependent
     LLAMA_LOG_INFO("%s: constructing llama_context\n", __func__);
 
+    pager_target_type_k_ = params.type_k;
+    pager_target_type_v_ = params.type_v;
+
     if (params.kv_pager_config) {
         kv_pager = *params.kv_pager_config;
         std::string pager_error;
@@ -759,6 +762,65 @@ llama_context::~llama_context() {
     if (vram_ledger_tree_owned_) {
         g_vbr_ledger_tree_owned.store(false);
     }
+}
+
+llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics() const noexcept {
+    llama_kv_pager_metrics_snapshot result;
+    result.enabled = kv_pager.enabled();
+    result.mode = kv_pager.mode;
+    result.target_type_k = pager_target_type_k_;
+    result.target_type_v = pager_target_type_v_;
+    result.route = kv_attention_execution.route();
+    result.table_epoch = kv_attention_execution.table_epoch();
+    result.representation_epoch = kv_attention_execution.representation_epoch();
+    result.shape_epoch = kv_attention_execution.shape_epoch();
+    result.execution = kv_attention_execution.metrics();
+
+    if (kv_attention_telemetry) {
+        result.attention = kv_attention_telemetry->counters();
+        result.attention_accounting = kv_attention_telemetry->accounting();
+    }
+    if (!kv_pager_owner) {
+        return result;
+    }
+
+    const auto & snapshot = kv_pager_owner->snapshot();
+    result.context_tokens = snapshot.geometry.context_tokens;
+    result.page_tokens = snapshot.geometry.page_tokens;
+    result.logical_pages = snapshot.logical_page_count;
+    result.resident_pages = 0;
+    result.page_bytes = snapshot.admission.target_page_bytes;
+    result.page_charge_bytes = snapshot.admission.page_charge_bytes;
+    result.target_bytes = snapshot.realized_bytes;
+    result.usable_device_bytes = snapshot.admission.usable_device_bytes;
+    result.charged_bytes = snapshot.admission.charged_bytes;
+    result.reserved_bytes = snapshot.admission.reserved_bytes;
+    result.headroom_bytes = snapshot.admission.headroom_bytes;
+    result.mtp_rows = snapshot.mtp_rows;
+    result.mtp_bytes = snapshot.admission.mtp_bytes;
+    result.host_budget_bytes = snapshot.host_budget_bytes;
+    result.vram_budget_bytes = snapshot.vram_budget_bytes;
+    result.router_top_k = kv_pager.router_top_k;
+    result.router_explore = kv_pager.router_explore;
+    result.pin_recent_tokens = kv_pager.pin_recent.automatic ? 0 : kv_pager.pin_recent.value;
+    result.prefetch_depth = kv_pager.prefetch_depth;
+
+    const auto residency = kv_pager_owner->residency();
+    for (const auto & page : residency.pages()) {
+        if (page.physical_slot != UINT32_MAX) {
+            ++result.resident_pages;
+        }
+        if (page.host_valid) {
+            ++result.host_pages;
+        }
+    }
+    if (const auto * host = kv_pager_owner->host_catalog()) {
+        const auto host_snapshot = host->snapshot();
+        result.host_pageable_bytes = host_snapshot.pageable_bytes;
+        result.host_metadata_bytes = host_snapshot.metadata_bytes;
+        result.host_pinned_bytes = host_snapshot.pinned_bytes;
+    }
+    return result;
 }
 
 void llama_context::validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const {

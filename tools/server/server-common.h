@@ -525,6 +525,9 @@ struct server_slot_stats {
 // unlike server_slot_stats, server_metrics is server-global and cumulative, not tied to a slot
 struct server_metrics {
     int64_t t_start = 0;
+    // Serialized pager snapshot, captured with the ordinary metric snapshot.
+    // Null means the feature is off or no target context is currently live.
+    json pager_metrics = nullptr;
 
     struct bucket {
         uint64_t count = 0; // number of tokens

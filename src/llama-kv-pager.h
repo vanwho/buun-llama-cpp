@@ -163,6 +163,9 @@ struct llama_kv_pager_snapshot {
     uint64_t physical_rows = 0;
     uint64_t physical_bytes = 0;
     uint64_t host_metadata_bytes = 0;
+    uint64_t mtp_rows = 0;
+    uint64_t host_budget_bytes = 0;
+    uint64_t vram_budget_bytes = 0;
     uint64_t realized_bytes = 0;
     bool initialized = false;
 };

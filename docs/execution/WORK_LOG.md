@@ -264,3 +264,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-12-01`
 - Commit at update: `d20b71bac`
 - Summary: Finalized canonical experimental pager CLI diagnostics, regenerated CLI/completion/server help, and passed focused parser/completion/refusal checks; model-backed CUDA startup deferred.
+
+## 2026-09-03T21:52:29+00:00 — 12-02 — done
+
+- Branch: `codex/task-12-02`
+- Commit at update: `4f03687dc`
+- Summary: Exported bounded server pager telemetry and made the profile adapter consume /metrics with fail-closed required-field validation.

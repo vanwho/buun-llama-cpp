@@ -15,6 +15,7 @@ import pathlib
 import subprocess
 import sys
 import time
+import re
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -89,26 +90,87 @@ def service_snapshot(endpoint: str) -> dict[str, object]:
             "running_services": [line.split()[0] for line in services if line.split()]}
 
 
-def pager_envelope(variant: str) -> dict[str, object]:
-    values: dict[str, object] = {"status": "not_configured", "source": "PAGER_* environment or server telemetry"}
+def metrics_endpoint(endpoint: str) -> str:
+    return endpoint.split("/v1/", 1)[0].rstrip("/") + "/metrics"
+
+
+def read_server_metrics(endpoint: str) -> dict[str, object] | None:
+    key = os.environ.get("BENCH_API_KEY", "")
+    if not key:
+        key_path = os.environ.get("LLAMA_API_KEY_FILE", "/srv/ai/config/llama/api-keys")
+        try:
+            key = next(line for line in pathlib.Path(key_path).read_text().splitlines()
+                       if line.strip() and not line.lstrip().startswith("#"))
+        except (OSError, StopIteration):
+            pass
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    try:
+        with urlopen(Request(metrics_endpoint(endpoint), headers=headers), timeout=3) as response:
+            body = response.read().decode(errors="replace")
+    except (OSError, URLError):
+        return None
+
+    values: dict[str, object] = {}
+    mode = None
+    pattern = re.compile(r"^llamacpp:kv_pager_([a-zA-Z0-9_]+)(?:\{(mode|route|backend|type)=\"([^\"]+)\"\})?\s+([-+0-9.eE]+)$")
+    for line in body.splitlines():
+        match = pattern.match(line)
+        if not match:
+            continue
+        name, label_name, label_value, raw = match.groups()
+        if name == "mode":
+            mode = label_value
+            continue
+        try:
+            value = float(raw) if any(c in raw for c in ".eE") else int(raw)
+        except ValueError:
+            continue
+        values[name] = value
+        if label_name and label_value:
+            values[name] = label_value
+    if not values:
+        return None
+    values["mode"] = mode or "unknown"
+    return values
+
+
+def pager_envelope(variant: str, telemetry: dict[str, object] | None = None) -> dict[str, object]:
+    values: dict[str, object] = {
+        "status": "ok" if telemetry is not None else "not_configured",
+        "source": "server telemetry" if telemetry is not None else "server telemetry unavailable",
+    }
+    telemetry = telemetry or {}
+    field_map = {
+        "page_size_tokens": "page_tokens", "logical_tokens": "context_tokens",
+        "hot_tokens": "target_bytes", "host_budget_bytes": "host_budget_bytes",
+        "vram_budget_bytes": "vram_budget_bytes", "router_k": "router_top_k",
+        "exploration": "router_explore", "recent_window_tokens": "pin_recent_tokens",
+        "prefetch_depth": "prefetch_depth", "faults": "faults",
+        "useful_prefetches": "prefetch_hits", "evictions": "evictions",
+        "canceled_stale_transfers": "attention_stale_dropped",
+        "d2h_useful_bytes": "d2h_useful_bytes", "d2h_actual_bytes": "d2h_aligned_bytes",
+        "h2d_useful_bytes": "h2d_useful_bytes", "h2d_actual_bytes": "h2d_aligned_bytes",
+        "queue_us": "attention_publish_time_us", "copy_us": "attention_d2h_time_us",
+        "wait_us": "waits", "selected_page_count": "resident_pages",
+        "attention_table_epoch_changes": "table_epoch", "peak_vram_bytes": "target_bytes",
+        "steady_vram_bytes": "target_bytes", "peak_ram_bytes": "host_pageable_bytes",
+        "steady_ram_bytes": "host_pageable_bytes", "transfer_ring_bytes": "host_pinned_bytes",
+        "target_placement": "route", "mtp_placement": "mtp_backend", "kv_codec": "target_type_k",
+    }
     for field in PAGER_FIELDS:
-        env_name = "PAGER_" + field.upper()
-        value = os.environ.get(env_name)
-        if value is None:
-            values[field] = None
-        elif field in {"target_placement", "mtp_placement", "kv_codec"}:
-            values[field] = value
-        else:
-            try:
-                values[field] = float(value) if "." in value else int(value)
-            except ValueError:
-                values[field] = value
+        source = field_map.get(field)
+        values[field] = telemetry.get(source) if source else None
     values.update({
-        "mode": os.environ.get("PAGER_MODE", "off"),
+        "mode": telemetry.get("mode", "unknown"),
         "variant": variant,
-        "runtime_counters": "not published by current server endpoint",
+        "runtime_counters": "server telemetry",
     })
     return values
+
+
+def missing_pager_fields(telemetry: dict[str, object] | None) -> list[str]:
+    envelope = pager_envelope("validation", telemetry)
+    return [field for field in PAGER_FIELDS if envelope.get(field) is None]
 
 
 def corpus(variant: str) -> dict[str, object]:
@@ -155,10 +217,10 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
     (output / "summary.txt").write_text("dry run: service was not contacted\n")
 
 
-def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, object], after: dict[str, object]) -> None:
+def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, object], after: dict[str, object], telemetry: dict[str, object] | None) -> None:
     config_path = output / "run-config.json"
     config = json.loads(config_path.read_text())
-    config["pager"] = pager_envelope(variant)
+    config["pager"] = pager_envelope(variant, telemetry)
     config["corpus"] = corpus(variant)
     config["service"] = {"before": before, "after": after,
                           "restored_profile": before.get("profile")}
@@ -170,7 +232,7 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
         for line in records_path.read_text().splitlines():
             if line.strip():
                 record = json.loads(line)
-                record["pager"] = pager_envelope(variant)
+                record["pager"] = pager_envelope(variant, telemetry)
                 record["corpus"] = corpus(variant)
                 lines.append(json.dumps(record, separators=(",", ":")))
         records_path.write_text("\n".join(lines) + ("\n" if lines else ""))
@@ -179,7 +241,7 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
     if summary_path.exists():
         summary = json.loads(summary_path.read_text())
         for item in summary:
-            item["pager_status"] = "not_configured"
+            item["pager_status"] = "ok" if telemetry is not None else "not_configured"
             item["benchmark_variant"] = variant
         summary_path.write_text(json.dumps(summary, indent=2) + "\n")
 
@@ -199,19 +261,26 @@ def main() -> int:
         return 0
 
     before = service_snapshot(endpoint)
+    telemetry_before = read_server_metrics(endpoint)
     command = ["/srv/ai/benchmarks/run-profile-benchmark.sh", args.target, str(output)]
     env = os.environ.copy()
     env["BENCH_SIZE"] = VARIANTS[args.variant]["size"]
     result = subprocess.run(command, env=env)
     after = service_snapshot(endpoint)
+    telemetry_after = read_server_metrics(endpoint)
     if (output / "run-config.json").exists():
-        enrich(output, args.target, args.variant, before, after)
+        enrich(output, args.target, args.variant, before, after, telemetry_after or telemetry_before)
     if before.get("profile") and after.get("profile") != before.get("profile"):
         print("pager benchmark: production profile was not restored", file=sys.stderr)
         return 1
     if not after.get("health") or after["health"].get("http_code") != 200:  # type: ignore[union-attr]
         print("pager benchmark: post-run service health check failed", file=sys.stderr)
         return 1
+    if result.returncode == 0:
+        missing = missing_pager_fields(telemetry_after or telemetry_before)
+        if missing:
+            print("pager benchmark: required server pager telemetry missing: " + ", ".join(missing), file=sys.stderr)
+            return 1
     return result.returncode
 
 

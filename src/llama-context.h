@@ -23,6 +23,48 @@ class llama_batch_allocr;
 class llama_io_read_i;
 class llama_io_write_i;
 
+// Scalar, bounded snapshot used by the experimental server diagnostics. It
+// deliberately contains no page identities, prompts, attention matrices, or
+// backend handles. A disabled context reports enabled=false and leaves the
+// remaining fields at their zero values.
+struct llama_kv_pager_metrics_snapshot {
+    bool enabled = false;
+    llama_kv_pager_mode mode = llama_kv_pager_mode::off;
+    ggml_type target_type_k = GGML_TYPE_COUNT;
+    ggml_type target_type_v = GGML_TYPE_COUNT;
+    llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
+    uint64_t table_epoch = 0;
+    uint64_t representation_epoch = 0;
+    uint64_t shape_epoch = 0;
+    uint64_t context_tokens = 0;
+    uint64_t page_tokens = 0;
+    uint64_t logical_pages = 0;
+    uint64_t resident_pages = 0;
+    uint64_t host_pages = 0;
+    uint64_t page_bytes = 0;
+    uint64_t page_charge_bytes = 0;
+    uint64_t target_bytes = 0;
+    uint64_t host_pageable_bytes = 0;
+    uint64_t host_metadata_bytes = 0;
+    uint64_t host_pinned_bytes = 0;
+    uint64_t usable_device_bytes = 0;
+    uint64_t charged_bytes = 0;
+    uint64_t reserved_bytes = 0;
+    uint64_t headroom_bytes = 0;
+    uint64_t mtp_rows = 0;
+    uint64_t mtp_bytes = 0;
+    uint64_t host_budget_bytes = 0;
+    uint64_t vram_budget_bytes = 0;
+    uint64_t router_top_k = 0;
+    uint64_t pin_recent_tokens = 0;
+    uint64_t prefetch_depth = 0;
+    bool router_explore = false;
+    const char * mtp_backend = "not_present";
+    llama_kv_attention_telemetry_counters attention;
+    llama_kv_attention_telemetry_accounting attention_accounting;
+    llama_kv_attention_execution_metrics execution;
+};
+
 // Authenticated immutable sequence-file bytes. The pathname is consumed only
 // during prepare; inspection and application use this retained snapshot.
 class llama_state_seq_file_snapshot {
@@ -300,6 +342,7 @@ struct llama_context {
     const llama_kv_attention_telemetry * get_kv_attention_telemetry() const noexcept {
         return kv_attention_telemetry.get();
     }
+    llama_kv_pager_metrics_snapshot get_kv_pager_metrics() const noexcept;
 
     // Internal selected-attention boundary.  Policy supplies immutable
     // metadata; graph construction then carries its epochs and page fence.
@@ -588,6 +631,8 @@ private:
     const llama_model & model;
 
     llama_cparams cparams;
+    ggml_type pager_target_type_k_ = GGML_TYPE_COUNT;
+    ggml_type pager_target_type_v_ = GGML_TYPE_COUNT;
 
     llama_adapter_cvec_ptr  cvec;
     llama_adapter_loras_ptr loras;
