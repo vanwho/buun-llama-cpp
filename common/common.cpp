@@ -1992,6 +1992,41 @@ struct llama_model_params common_model_params_to_llama(common_params & params) {
     return mparams;
 }
 
+bool common_speculative_draft_kv_offload(
+        common_speculative_draft_kv_device device, bool target_no_kv_offload) {
+    switch (device) {
+        case common_speculative_draft_kv_device::AUTO:
+            return !target_no_kv_offload;
+        case common_speculative_draft_kv_device::GPU:
+            return true;
+        case common_speculative_draft_kv_device::CPU:
+            return false;
+    }
+
+    GGML_ABORT("invalid speculative draft K/V device");
+}
+
+bool common_speculative_draft_kv_device_is_available(
+        common_speculative_draft_kv_device device, const llama_model * model) {
+    if (device != common_speculative_draft_kv_device::GPU) {
+        return true;
+    }
+
+    return llama_supports_gpu_offload() &&
+        (model == nullptr || llama_model_n_devices(model) > 0);
+}
+
+const char * common_speculative_draft_kv_device_name(
+        common_speculative_draft_kv_device device) {
+    switch (device) {
+        case common_speculative_draft_kv_device::AUTO: return "auto";
+        case common_speculative_draft_kv_device::GPU:  return "gpu";
+        case common_speculative_draft_kv_device::CPU:  return "cpu";
+    }
+
+    return "invalid";
+}
+
 struct llama_context_params common_context_params_to_llama(const common_params & params) {
     auto cparams = llama_context_default_params();
 
