@@ -816,22 +816,19 @@ void llama_context::init_kv_pager() {
     size_t total_bytes = 0;
     ggml_backend_dev_memory(dev, &free_bytes, &total_bytes);
 
+    llama_kv_cache * attention_cache = nullptr;
+    if (auto * hybrid_idx = dynamic_cast<llama_memory_hybrid_idx *>(memory.get())) {
+        attention_cache = hybrid_idx->get_mem_attn();
+    } else if (auto * hybrid = dynamic_cast<llama_memory_hybrid *>(memory.get())) {
+        attention_cache = hybrid->get_mem_attn();
+    }
     llama_kv_pager_geometry geometry;
     geometry.context_tokens = cparams.n_ctx_seq;
-    geometry.page_tokens = kv_pager.page_size;
-    for (uint32_t il = 0; il < model.hparams.n_layer(); ++il) {
-        if (!model.hparams.has_kv(il)) continue;
-        ++geometry.attention_layers;
-        geometry.kv_heads = model.hparams.n_head_kv(il);
-        geometry.key_length = model.hparams.n_embd_head_k(il);
-        geometry.value_length = model.hparams.n_embd_head_v(il);
-        const uint64_t k = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0, model.hparams.n_embd_k_gqa(il))) * geometry.page_tokens;
-        const uint64_t v = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0, model.hparams.n_embd_v_gqa(il))) * geometry.page_tokens;
-        if (k > UINT64_MAX - v || geometry.page_bytes > UINT64_MAX - k - v) {
-            throw std::runtime_error("KV pager geometry overflow");
-        }
-        geometry.page_bytes += k + v;
+    if (attention_cache == nullptr ||
+        !attention_cache->pager_geometry(kv_pager.page_size, geometry)) {
+        throw std::runtime_error("KV pager geometry refused: runtime tensors");
     }
+    geometry.context_tokens = cparams.n_ctx_seq;
 
     size_t backend_index = 0;
     for (; backend_index < backend_ptrs.size(); ++backend_index) {
@@ -867,6 +864,40 @@ void llama_context::init_kv_pager() {
     }
     resources.allocator_granularity = alignment;
     resources.duplicate_representation_authority = false;
+    resources.host_capture_enabled = true;
+    resources.host_backend = backend;
+    resources.host_source_namespace = uint64_t(
+            reinterpret_cast<uintptr_t>(&model));
+    resources.host_topology_identity = uint64_t(
+            reinterpret_cast<uintptr_t>(dev));
+    if (resources.host_source_namespace == 0) resources.host_source_namespace = 1;
+    if (resources.host_topology_identity == 0) resources.host_topology_identity = 1;
+    resources.host_child_id = 0;
+    resources.host_stream_index = 0;
+    resources.host_lanes.push_back({ dev, backend, false });
+    const uint64_t host_cap = resources.host_budget_bytes;
+    resources.host_budget.host.pageable_cap = host_cap;
+    resources.host_budget.host.pageable_state =
+            llama_cache_budget_capacity_state::known;
+    resources.host_budget.host.total_cap = host_cap;
+    resources.host_budget.host.total_state =
+            llama_cache_budget_capacity_state::known;
+    const uint64_t minimum_ring = 2ull * 64*1024;
+    resources.host_chunk_bytes = 64*1024;
+    resources.host_ring_bytes = std::min<uint64_t>(
+            VBR_PINNED_RING_MAX_BYTES,
+            std::max<uint64_t>(minimum_ring,
+                std::min<uint64_t>(64ull*1024*1024,
+                    std::max<uint64_t>(minimum_ring, geometry.page_bytes))));
+    if (host_cap != 0 && resources.host_ring_bytes > host_cap) {
+        resources.host_ring_bytes = host_cap - (host_cap % resources.host_chunk_bytes);
+    }
+    if (resources.host_ring_bytes < minimum_ring) {
+        resources.host_capture_enabled = false;
+    }
+    resources.host_budget.host.pinned_cap = resources.host_ring_bytes;
+    resources.host_budget.host.pinned_state =
+            llama_cache_budget_capacity_state::known;
 
     llama_kv_pager_backend pager_backend;
     pager_backend.allocate = [backend_index, this](uint64_t bytes, llama_kv_pager_allocation & allocation) {

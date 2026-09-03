@@ -1,6 +1,7 @@
 #include "llama-kv-pager.h"
 
 #include <algorithm>
+#include <array>
 #include <limits>
 #include <new>
 
@@ -14,6 +15,203 @@ bool add(uint64_t a, uint64_t b, uint64_t & out) noexcept {
     if (b > std::numeric_limits<uint64_t>::max() - a) return false;
     out = a + b; return true;
 }
+
+} // namespace
+
+const char * llama_kv_pager_host_status_name(
+        llama_kv_pager_host_status status) noexcept {
+    switch (status) {
+        case llama_kv_pager_host_status::ok: return "ok";
+        case llama_kv_pager_host_status::not_configured: return "not_configured";
+        case llama_kv_pager_host_status::invalid_page: return "invalid_page";
+        case llama_kv_pager_host_status::prepare_failed: return "prepare_failed";
+        case llama_kv_pager_host_status::capture_failed: return "capture_failed";
+        case llama_kv_pager_host_status::catalog_failed: return "catalog_failed";
+        case llama_kv_pager_host_status::accounting_failed: return "accounting_failed";
+        case llama_kv_pager_host_status::ring_unavailable: return "ring_unavailable";
+    }
+    return "invalid";
+}
+
+llama_kv_pager_host::llama_kv_pager_host(
+        const llama_kv_pager_resources & resources)
+    : resources_(resources), provider_ {}, ledger_ {}, catalog_(ledger_) {}
+
+llama_kv_pager_host::~llama_kv_pager_host() {
+    // The ring is a process-bounded physical allocation.  It is deliberately
+    // charged once here, rather than once per catalog page.
+    ring_.reset();
+    const auto pinned = llama_cache_acct_resource_domain::non_device(
+            llama_cache_acct_residency::pinned_host);
+    const auto category = llama_cache_acct_category::pinned_preimage_ring;
+    ledger_.gauge_set(category, pinned,
+            llama_cache_acct_measure::logical_payload, 0);
+    ledger_.gauge_set(category, pinned,
+            llama_cache_acct_measure::resident_allocated, 0);
+}
+
+std::unique_ptr<llama_kv_pager_host> llama_kv_pager_host::create(
+        const llama_kv_pager_resources & resources,
+        llama_kv_pager_host_provider provider,
+        llama_kv_pager_host_status & status) noexcept {
+    status = llama_kv_pager_host_status::not_configured;
+    if (!resources.host_capture_enabled) {
+        return nullptr;
+    }
+    try {
+        const auto pageable = llama_cache_acct_resource_domain::non_device(
+                llama_cache_acct_residency::pageable_host);
+        const auto pinned = llama_cache_acct_resource_domain::non_device(
+                llama_cache_acct_residency::pinned_host);
+        const llama_cache_acct_completeness_requirement requirements[] = {
+            { pageable, llama_cache_acct_producer::observer_init },
+            { pinned, llama_cache_acct_producer::observer_init },
+        };
+        auto output = std::unique_ptr<llama_kv_pager_host>(
+                new (std::nothrow) llama_kv_pager_host(resources));
+        if (!output || !output->ledger_.configure_required_producers(
+                    requirements, 2) ||
+            !output->ledger_.certify_complete(
+                    pageable, llama_cache_acct_producer::observer_init) ||
+            !output->ledger_.certify_complete(
+                    pinned, llama_cache_acct_producer::observer_init)) {
+            status = llama_kv_pager_host_status::accounting_failed;
+            return nullptr;
+        }
+        const llama_cache_acct_category ring_category =
+                llama_cache_acct_category::pinned_preimage_ring;
+        const llama_cache_acct_category pageable_category =
+                llama_cache_acct_category::unit_version_payload;
+        if (!output->ledger_.ensure_cells(
+                    &ring_category, 1, &pinned, 1) ||
+            !output->ledger_.ensure_cells(
+                    &pageable_category, 1, &pageable, 1)) {
+            status = llama_kv_pager_host_status::accounting_failed;
+            return nullptr;
+        }
+        for (const auto measure : {
+                llama_cache_acct_measure::logical_payload,
+                llama_cache_acct_measure::resident_allocated,
+                llama_cache_acct_measure::reserved }) {
+            output->ledger_.gauge_set(ring_category, pinned, measure, 0);
+            output->ledger_.gauge_set(pageable_category, pageable, measure, 0);
+        }
+
+        output->provider_ = provider;
+        std::vector<vbr_capture_lane> lanes = resources.host_lanes;
+        if (lanes.empty()) {
+            lanes.push_back({ nullptr, nullptr, true });
+        }
+        if (resources.host_ring_bytes == 0 ||
+            resources.host_chunk_bytes == 0) {
+            status = llama_kv_pager_host_status::not_configured;
+            return nullptr;
+        }
+        llama_cache_budget_config budget = resources.host_budget;
+        if (budget.host.pinned_state !=
+                llama_cache_budget_capacity_state::known) {
+            budget.host.pinned_state =
+                    llama_cache_budget_capacity_state::known;
+            budget.host.pinned_cap = resources.host_ring_bytes;
+        }
+        output->resources_.host_budget = std::move(budget);
+        if (output->resources_.host_budget.host.pinned_state ==
+                    llama_cache_budget_capacity_state::known &&
+            resources.host_ring_bytes >
+                    output->resources_.host_budget.host.pinned_cap) {
+            status = llama_kv_pager_host_status::accounting_failed;
+            return nullptr;
+        }
+        vbr_capture_stream_status ring_status =
+                vbr_capture_stream_status::ring_unavailable;
+        auto ring = vbr_pinned_chunk_ring::create(
+                lanes, resources.host_ring_bytes, resources.host_chunk_bytes,
+                ring_status);
+        if (!ring) {
+            status = llama_kv_pager_host_status::ring_unavailable;
+            return nullptr;
+        }
+        output->ledger_.gauge_set(ring_category, pinned,
+                llama_cache_acct_measure::logical_payload,
+                resources.host_ring_bytes);
+        output->ledger_.gauge_set(ring_category, pinned,
+                llama_cache_acct_measure::resident_allocated,
+                resources.host_ring_bytes);
+        output->ring_ = std::move(ring);
+        status = llama_kv_pager_host_status::ok;
+        return output;
+    } catch (...) {
+        status = llama_kv_pager_host_status::accounting_failed;
+        return nullptr;
+    }
+}
+
+llama_kv_pager_host_result llama_kv_pager_host::seal(
+        const llama_kv_page_record & page) noexcept {
+    llama_kv_pager_host_result result;
+    result.capture_status = vbr_selected_page_capture_status::invalid_argument;
+    if (!ring_ || !provider_.prepare) {
+        result.status = llama_kv_pager_host_status::not_configured;
+        return result;
+    }
+    if (!llama_kv_page_id_valid(page.id, false) || page.physical_slot == UINT32_MAX ||
+        page.state == llama_kv_page_state::absent || page.pin_count != 0) {
+        result.status = llama_kv_pager_host_status::invalid_page;
+        return result;
+    }
+    try {
+        vbr_selected_page_capture_request request;
+        std::vector<vbr_selected_page_unit_source> sources;
+        vbr_selected_page_capture_snapshot_provider snapshots;
+        if (!provider_.prepare(provider_.context, page, request, sources,
+                               snapshots)) {
+            result.status = llama_kv_pager_host_status::prepare_failed;
+            return result;
+        }
+        if (request.source_namespace != resources_.host_source_namespace ||
+            request.child_id != resources_.host_child_id ||
+            request.stream_index != resources_.host_stream_index) {
+            result.status = llama_kv_pager_host_status::prepare_failed;
+            return result;
+        }
+        vbr_selected_page_capture capture;
+        result.capture_status = vbr_selected_page_capture_transfer(
+                request, sources, resources_.host_capture_limits, snapshots,
+                *ring_, capture);
+        if (result.capture_status != vbr_selected_page_capture_status::ok) {
+            result.status = llama_kv_pager_host_status::capture_failed;
+            return result;
+        }
+        const auto published = catalog_.publish(
+                capture, resources_.host_budget, false, 0);
+        result.catalog_status = published.status;
+        result.pageable_bytes = published.pageable_bytes;
+        result.metadata_bytes = published.metadata_bytes;
+        result.pinned_bytes = published.pinned_bytes;
+        if (published.status != vbr_selected_page_host_status::stored &&
+            published.status != vbr_selected_page_host_status::alias) {
+            result.status = llama_kv_pager_host_status::catalog_failed;
+            return result;
+        }
+        result.status = llama_kv_pager_host_status::ok;
+        return result;
+    } catch (...) {
+        result.status = llama_kv_pager_host_status::capture_failed;
+        return result;
+    }
+}
+
+bool llama_kv_pager_host::invalidate(const llama_kv_page_id & page) noexcept {
+    vbr_selected_page_host_key key;
+    key.source_namespace = resources_.host_source_namespace;
+    key.child_id = resources_.host_child_id;
+    key.stream_index = resources_.host_stream_index;
+    key.page = page;
+    return catalog_.invalidate(key);
+}
+
+vbr_selected_page_host_catalog_snapshot llama_kv_pager_host::snapshot() const noexcept {
+    return catalog_.snapshot();
 }
 
 const char * llama_kv_pager_status_name(llama_kv_pager_status status) noexcept {
@@ -126,9 +324,27 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
         }
         output->snapshot_.realized_bytes = output->allocation_.realized_bytes;
         output->snapshot_.initialized = true;
+        output->resources_host_backend_ = resources.host_backend;
+        output->resources_host_source_namespace_ = resources.host_source_namespace;
+        output->resources_host_topology_identity_ = resources.host_topology_identity;
+        output->resources_host_child_id_ = resources.host_child_id;
+        output->resources_host_stream_index_ = resources.host_stream_index;
         output->pages_.reserve(output->snapshot_.logical_page_count);
         output->slot_pages_.assign(output->snapshot_.physical_page_count, -1);
         output->residency_ = llama_kv_residency_table(output->snapshot_.physical_page_count);
+        if (resources.host_capture_enabled) {
+            llama_kv_pager_host_status host_status;
+            output->host_ = llama_kv_pager_host::create(
+                    resources, {}, host_status);
+            if (!output->host_) {
+                if (output->backend_.release) {
+                    output->backend_.release(output->allocation_);
+                }
+                output->allocation_ = {};
+                status = llama_kv_pager_status::host_budget;
+                return nullptr;
+            }
+        }
         return output;
     } catch (...) {
         status = llama_kv_pager_status::allocation;
@@ -137,7 +353,77 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
 }
 
 llama_kv_pager::~llama_kv_pager() {
+    host_.reset();
     if (allocation_.handle && backend_.release) backend_.release(allocation_);
+}
+
+void llama_kv_pager::set_host_provider(
+        llama_kv_pager_host_provider provider) noexcept {
+    if (host_) {
+        host_->set_provider(provider);
+    }
+}
+
+uint32_t llama_kv_pager::seal_ready_pages() noexcept {
+    if (!host_) {
+        return 0;
+    }
+    uint32_t sealed = 0;
+    for (auto & page : pages_) {
+        if (!page.present || page.record.host_valid || page.record.pin_count != 0 ||
+            page.valid_rows.size() != snapshot_.geometry.page_tokens ||
+            !std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                         [](uint8_t value) { return value != 0; }) ||
+            page.record.state != llama_kv_page_state::gpu_dirty) {
+            continue;
+        }
+        const auto previous = page.record;
+        page.record.state = llama_kv_page_state::sealing_host;
+        if (publish_page(page) != llama_kv_pager_write_status::ok) {
+            page.record = previous;
+            continue;
+        }
+        const auto result = host_->seal(page.record);
+        if (result.status != llama_kv_pager_host_status::ok) {
+            page.record = previous;
+            (void) publish_page(page);
+            continue;
+        }
+        page.record.host_valid = true;
+        page.record.dirty = false;
+        page.record.state = llama_kv_page_state::gpu_host_clean;
+        if (publish_page(page) == llama_kv_pager_write_status::ok) {
+            ++sealed;
+        } else {
+            page.record = previous;
+            (void) publish_page(page);
+        }
+    }
+    return sealed;
+}
+
+bool llama_kv_pager::invalidate_host_page(
+        const llama_kv_page_id & page) noexcept {
+    return !host_ || host_->invalidate(page);
+}
+
+void llama_kv_pager::bind_representation_identity(
+        uint64_t model_identity,
+        uint64_t topology_identity,
+        uint64_t codec_digest,
+        uint64_t codebook_digest,
+        uint64_t rotation_digest,
+        uint64_t meansub_digest,
+        uint64_t representation_epoch) noexcept {
+    page_identity_ = {};
+    page_identity_.session_generation = 1;
+    page_identity_.representation_epoch = representation_epoch;
+    page_identity_.model_identity = model_identity;
+    page_identity_.topology_identity = topology_identity;
+    page_identity_.codec_digest = codec_digest;
+    page_identity_.codebook_digest = codebook_digest;
+    page_identity_.rotation_digest = rotation_digest;
+    page_identity_.meansub_digest = meansub_digest;
 }
 
 llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noexcept {
@@ -183,6 +469,9 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(page_state & page) noexce
     }
     if (page.record.physical_slot < slot_pages_.size()) {
         slot_pages_[page.record.physical_slot] = -1;
+    }
+    if (host_) {
+        (void) host_->invalidate(page.record.id);
     }
     page = {};
     return llama_kv_pager_write_status::ok;
@@ -237,6 +526,10 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         snapshot_.geometry.page_tokens == 0) {
         return llama_kv_pager_write_status::invalid_position;
     }
+    // Older callers did not carry the sequence-generation sideband.  Bind
+    // those writes to the first live generation instead of emitting an
+    // unauthenticated zero into a sealed host-page identity.
+    sequence_generation = sequence_generation == 0 ? 1 : sequence_generation;
     const uint64_t logical64 = uint64_t(position) / snapshot_.geometry.page_tokens;
     const uint64_t offset64 = uint64_t(position) % snapshot_.geometry.page_tokens;
     if (logical64 >= snapshot_.logical_page_count || offset64 > UINT32_MAX ||
@@ -285,6 +578,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         if (page_index == pages_.size()) pages_.push_back({});
         page = &pages_[page_index];
         page->record = {};
+        page->record.id = page_identity_;
         page->record.physical_slot = slot;
         page->record.id.session_generation = 1;
         page->record.id.sequence_id = sequence_id;

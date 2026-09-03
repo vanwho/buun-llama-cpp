@@ -802,6 +802,18 @@ vbr_explicit_capture_status stream_status(
 
 } // namespace
 
+std::array<uint8_t, 32> vbr_explicit_representation_reference_digest(
+        int32_t current_type,
+        int32_t last_source_type,
+        const vbr_explicit_representation_identity & identity) noexcept {
+    try {
+        return representation_reference_digest(
+                current_type, last_source_type, identity);
+    } catch (...) {
+        return {};
+    }
+}
+
 bool vbr_explicit_capture_representation_identity(
         const void * context,
         int32_t current_type,

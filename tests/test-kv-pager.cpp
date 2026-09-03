@@ -1,6 +1,10 @@
 #include "llama-kv-pager.h"
 
+#include <array>
 #include <cstdint>
+#include <cstring>
+#include <utility>
+#include <vector>
 
 #undef NDEBUG
 #include <cassert>
@@ -29,7 +33,201 @@ static llama_kv_pager_geometry geometry(uint64_t context) {
     return result;
 }
 
+struct host_page_fixture {
+    static constexpr uint64_t source_namespace = 0x9911;
+    static constexpr uint32_t row_count = 512;
+    static constexpr uint64_t row_bytes = 2;
+
+    std::vector<std::vector<uint8_t>> storage;
+    std::vector<vbr_selected_page_unit_source> sources;
+    vbr_selected_page_capture_snapshot snapshot;
+
+    static bool read(
+            const void * context, uint64_t offset,
+            uint8_t * destination, size_t size) noexcept {
+        const auto * bytes = static_cast<const std::vector<uint8_t> *>(context);
+        if (bytes == nullptr || offset > bytes->size() ||
+            size > bytes->size() - offset) return false;
+        std::memcpy(destination, bytes->data() + offset, size);
+        return true;
+    }
+
+    static bool acquire(
+            void * context,
+            const vbr_selected_page_capture_request &,
+            vbr_selected_page_capture_snapshot & output) noexcept {
+        output = static_cast<host_page_fixture *>(context)->snapshot;
+        return true;
+    }
+
+    static bool recheck(
+            void *, const vbr_selected_page_capture_snapshot &) noexcept {
+        return true;
+    }
+
+    static void release(
+            void *, const vbr_selected_page_capture_snapshot &) noexcept {}
+
+    static bool prepare(
+            void * context, const llama_kv_page_record & page,
+            vbr_selected_page_capture_request & request,
+            std::vector<vbr_selected_page_unit_source> & output_sources,
+            vbr_selected_page_capture_snapshot_provider & snapshots) noexcept {
+        auto & self = *static_cast<host_page_fixture *>(context);
+        request = {};
+        request.source_namespace = source_namespace;
+        request.child_id = 0;
+        request.stream_index = 0;
+        request.expected_unit_generations.resize(
+                VBR_SELECTED_PAGE_REQUIRED_UNITS);
+        for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+            request.required_unit_ids.push_back(unit);
+            request.expected_unit_generations[unit] =
+                    self.snapshot.units[unit].generation;
+        }
+        vbr_selected_page_range range;
+        range.identity = page.id;
+        range.positions.resize(VBR_GENERATION_PAGE_CELLS);
+        range.physical_cells.resize(VBR_GENERATION_PAGE_CELLS);
+        for (uint32_t i = 0; i < VBR_GENERATION_PAGE_CELLS; ++i) {
+            range.positions[i] = page.id.position_begin + llama_pos(i);
+            range.physical_cells[i] =
+                    page.physical_slot * VBR_GENERATION_PAGE_CELLS + i;
+        }
+        request.pages.push_back(std::move(range));
+        output_sources = self.sources;
+        snapshots = { &self, acquire, recheck, release };
+        return true;
+    }
+
+    void initialize() {
+        storage.resize(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+        sources.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+        snapshot.source_namespace = source_namespace;
+        snapshot.child_id = 0;
+        snapshot.stream_index = 0;
+        llama_kv_page_id page;
+        page.session_generation = 1;
+        page.sequence_id = 1;
+        page.sequence_generation = 1;
+        page.logical_page = 0;
+        page.page_generation = 3;
+        page.representation_epoch = 4;
+        page.model_identity = 5;
+        page.topology_identity = 6;
+        page.codec_digest = 7;
+        page.codebook_digest = 8;
+        page.rotation_digest = 9;
+        page.meansub_digest = 10;
+        page.position_begin = 0;
+        page.position_end = VBR_GENERATION_PAGE_CELLS;
+        snapshot.pages.push_back(page);
+        for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+            storage[unit].resize(row_count * row_bytes);
+            for (size_t i = 0; i < storage[unit].size(); ++i) {
+                storage[unit][i] = uint8_t(unit + i);
+            }
+            vbr_selected_page_unit_source source;
+            source.logical_unit_id = unit;
+            source.row_count = row_count;
+            source.row_bytes = row_bytes;
+            source.source_identity = 0x1000 + unit;
+            source.source.size = storage[unit].size();
+            source.source.context = &storage[unit];
+            source.source.read = read;
+            sources.push_back(source);
+
+            vbr_capture_projected_shard_source projected;
+            projected.shard_index = 0;
+            projected.row_count = row_count;
+            projected.row_bytes = row_bytes;
+            projected.source_identity = source.source_identity;
+            projected.source = source.source;
+            vbr_capture_unit_snapshot unit_snapshot;
+            unit_snapshot.source_namespace = source_namespace;
+            unit_snapshot.child_id = 0;
+            unit_snapshot.logical_unit_id = unit;
+            unit_snapshot.lineage_uuid = { 11, 12 };
+            unit_snapshot.controller_generation = 13;
+            unit_snapshot.generation.repr_gen = 14;
+            unit_snapshot.generation.current_type = GGML_TYPE_TURBO4_0;
+            unit_snapshot.generation.last_source_type = GGML_TYPE_TURBO4_0;
+            unit_snapshot.generation.domain = vbr_repr_domain::full;
+            assert(vbr_capture_projected_shard_topology(
+                    { projected }, unit_snapshot.shard_count,
+                    unit_snapshot.shard_topology_digest));
+            snapshot.units.push_back(unit_snapshot);
+
+            vbr_artifact_unit_descriptor descriptor;
+            descriptor.child_id = 0;
+            descriptor.logical_unit_id = unit;
+            descriptor.lineage_uuid = unit_snapshot.lineage_uuid;
+            descriptor.repr_gen = unit_snapshot.generation.repr_gen;
+            descriptor.current_type = GGML_TYPE_TURBO4_0;
+            descriptor.last_source_type = GGML_TYPE_TURBO4_0;
+            descriptor.representation.kind =
+                    vbr_artifact_representation_kind::approximate;
+            descriptor.representation.codec_id = 4;
+            descriptor.representation.codec_version = 1;
+            descriptor.representation.reference_digest.fill(1);
+            descriptor.side = (unit & 1u)
+                    ? vbr_artifact_side::value : vbr_artifact_side::key;
+            descriptor.layout = vbr_artifact_layout::row_major;
+            descriptor.n_stream = 1;
+            descriptor.wm_cells = row_count;
+            descriptor.codebook_digest.fill(2);
+            descriptor.rotation_digest.fill(3);
+            descriptor.meansub_digest.fill(4);
+            descriptor.row_codec_version = 1;
+            vbr_artifact_shard_descriptor shard;
+            shard.row_count = row_count;
+            shard.column_count = 1;
+            shard.row_bytes = row_bytes;
+            shard.payload_bytes = storage[unit].size();
+            descriptor.shards.push_back(shard);
+            snapshot.unit_descriptors.push_back(std::move(descriptor));
+        }
+    }
+};
+
+static void test_host_seal_boundary() {
+    host_page_fixture fixture;
+    fixture.initialize();
+    auto host_resources = resources(1u << 20, 128);
+    host_resources.host_capture_enabled = true;
+    host_resources.host_source_namespace = host_page_fixture::source_namespace;
+    host_resources.host_child_id = 0;
+    host_resources.host_stream_index = 0;
+    host_resources.host_lanes = { { nullptr, nullptr, true } };
+    host_resources.host_ring_bytes = 128;
+    host_resources.host_chunk_bytes = 64;
+    host_resources.host_budget.host.pageable_cap = 1u << 20;
+    host_resources.host_budget.host.pageable_state =
+            llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.pinned_cap = 128;
+    host_resources.host_budget.host.pinned_state =
+            llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.total_cap = 1u << 20;
+    host_resources.host_budget.host.total_state =
+            llama_cache_budget_capacity_state::known;
+    llama_kv_pager_host_status host_status;
+    auto host = llama_kv_pager_host::create(
+            host_resources, { &fixture, host_page_fixture::prepare }, host_status);
+    assert(host && host_status == llama_kv_pager_host_status::ok);
+    llama_kv_page_record page;
+    page.id = fixture.snapshot.pages[0];
+    page.physical_slot = 0;
+    page.state = llama_kv_page_state::gpu_dirty;
+    auto result = host->seal(page);
+    assert(result.status == llama_kv_pager_host_status::ok);
+    assert(host->snapshot().live_pages == 1);
+    assert(host->invalidate(page.id));
+    assert(host->snapshot().live_pages == 0);
+    assert(host->snapshot().obsolete_pages == 1);
+}
+
 int main() {
+    test_host_seal_boundary();
     llama_kv_pager_config off;
     llama_kv_pager_snapshot snapshot;
     llama_kv_pager_status status;

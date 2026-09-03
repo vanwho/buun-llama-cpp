@@ -2059,6 +2059,71 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     // graph is outstanding.
     GGML_ASSERT(pager_pending_writes_.empty());
     pager_ = pager;
+    if (pager_ == nullptr || pager_->host_catalog() == nullptr) {
+        return;
+    }
+    if (layers.size() < VBR_SELECTED_PAGE_TARGET_LAYERS) {
+        pager_ = nullptr;
+        throw std::runtime_error("KV pager target has fewer than 16 attention layers");
+    }
+
+    pager_host_lineage_ = vbr_lineage_uuid_allocate();
+    if (!vbr_lineage_uuid_is_set(pager_host_lineage_)) {
+        pager_ = nullptr;
+        throw std::runtime_error("KV pager host lineage allocation failed");
+    }
+    llama_sha256_writer model_hash;
+    model_hash.string("buun.kv-pager/model/v1", 22);
+    model_hash.u32(uint32_t(model.arch));
+    model_hash.u32(hparams.n_layer());
+    model_hash.u32(hparams.n_embd);
+    const auto model_digest = model_hash.finish();
+    uint64_t model_identity = 0;
+    std::memcpy(&model_identity, model_digest.data(), sizeof(model_identity));
+    if (model_identity == 0) model_identity = 1;
+
+    vbr_explicit_representation_policy policy;
+    llama_sha256_writer codec_hash;
+    llama_sha256_writer codebook_hash;
+    llama_sha256_writer rotation_hash;
+    llama_sha256_writer meansub_hash;
+    codec_hash.string("buun.kv-pager/codec/v1", 22);
+    codebook_hash.string("buun.kv-pager/codebook/v1", 25);
+    rotation_hash.string("buun.kv-pager/rotation/v1", 24);
+    meansub_hash.string("buun.kv-pager/meansub/v1", 24);
+    for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+        const auto & layer = layers[unit / 2];
+        const bool value_side = (unit & 1u) != 0;
+        vbr_explicit_representation_identity identity;
+        if (!vbr_explicit_capture_representation_identity(
+                    &policy, GGML_TYPE_TURBO4_0, value_side,
+                    layer.turbo_meansub_ref.model_id, identity)) {
+            pager_ = nullptr;
+            throw std::runtime_error("KV pager Turbo4 identity unavailable");
+        }
+        codec_hash.u32(unit);
+        codec_hash.u32(identity.codec_id);
+        codec_hash.u32(identity.codec_version);
+        codebook_hash.bytes(identity.codebook_digest.data(), identity.codebook_digest.size());
+        rotation_hash.bytes(identity.rotation_digest.data(), identity.rotation_digest.size());
+        meansub_hash.bytes(identity.meansub_digest.data(), identity.meansub_digest.size());
+    }
+    auto digest_head = [](const std::array<uint8_t, 32> & digest) {
+        uint64_t value = 0;
+        std::memcpy(&value, digest.data(), sizeof(value));
+        return value == 0 ? uint64_t(1) : value;
+    };
+    const uint64_t topology = pager_->host_topology_identity() != 0
+        ? pager_->host_topology_identity() : pager_->host_source_namespace();
+    pager_->bind_representation_identity(
+            model_identity, topology, digest_head(codec_hash.finish()),
+            digest_head(codebook_hash.finish()),
+            digest_head(rotation_hash.finish()),
+            digest_head(meansub_hash.finish()),
+            std::max<uint64_t>(1, vbr_representation_epoch()));
+    pager_->set_host_provider({
+        this, &llama_kv_cache::pager_host_prepare,
+    });
 }
 
 void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
@@ -2066,7 +2131,11 @@ void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
         return;
     }
 
-    const uint32_t segments = pager_->snapshot().geometry.attention_layers * 2;
+    uint32_t segments = 0;
+    for (const auto & layer : layers) {
+        segments += layer.k != nullptr ? 1u : 0u;
+        segments += layer.v != nullptr ? 1u : 0u;
+    }
     if (graph_succeeded) {
         for (const auto & ticket : pager_pending_writes_) {
             (void) pager_->complete_write(ticket, segments, true);
@@ -2080,7 +2149,246 @@ void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
         }
     }
     pager_pending_writes_.clear();
+    if (graph_succeeded) {
+        (void) pager_->seal_ready_pages();
+    }
 }
+
+bool llama_kv_cache::pager_host_prepare(
+        void * context,
+        const llama_kv_page_record & page,
+        vbr_selected_page_capture_request & request,
+        std::vector<vbr_selected_page_unit_source> & sources,
+        vbr_selected_page_capture_snapshot_provider & snapshots) noexcept {
+    auto * cache = static_cast<llama_kv_cache *>(context);
+    if (cache == nullptr || cache->pager_ == nullptr ||
+        cache->layers.size() < VBR_SELECTED_PAGE_TARGET_LAYERS ||
+        page.id.position_end - page.id.position_begin != llama_pos(VBR_GENERATION_PAGE_CELLS)) {
+        return false;
+    }
+    request = {};
+    request.source_namespace = cache->pager_->host_source_namespace();
+    request.child_id = cache->pager_->host_child_id();
+    request.stream_index = cache->pager_->host_stream_index();
+    request.expected_unit_generations.resize(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+        request.required_unit_ids.push_back(unit);
+    }
+    vbr_selected_page_range range;
+    range.identity = page.id;
+    range.positions.resize(VBR_GENERATION_PAGE_CELLS);
+    range.physical_cells.resize(VBR_GENERATION_PAGE_CELLS);
+    for (uint32_t i = 0; i < VBR_GENERATION_PAGE_CELLS; ++i) {
+        range.positions[i] = page.id.position_begin + llama_pos(i);
+        const uint64_t physical = uint64_t(page.physical_slot) *
+                VBR_GENERATION_PAGE_CELLS + i;
+        if (physical > UINT32_MAX) return false;
+        range.physical_cells[i] = uint32_t(physical);
+    }
+    request.pages.push_back(std::move(range));
+
+    const auto backend = cache->pager_->host_backend();
+    if (backend == nullptr || request.source_namespace == 0 ||
+        request.child_id == UINT32_MAX || request.stream_index == UINT32_MAX) {
+        return false;
+    }
+    const uint32_t stream = cache->get_stream_for_seq(page.id.sequence_id);
+    sources.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+        const auto * tensor = (unit & 1u)
+            ? cache->layers[unit / 2].v : cache->layers[unit / 2].k;
+        if (tensor == nullptr || tensor->type != GGML_TYPE_TURBO4_0 ||
+            tensor->ne[0] <= 0 || tensor->ne[1] <= 0 || tensor->ne[2] <= int64_t(stream)) {
+            return false;
+        }
+        const uint64_t row_bytes = ggml_row_size(tensor->type, tensor->ne[0]);
+        const uint64_t rows = uint64_t(tensor->ne[1]);
+        const uint64_t stream_bytes = rows * row_bytes;
+        const uint64_t physical = uint64_t(page.physical_slot) *
+                VBR_GENERATION_PAGE_CELLS;
+        if (row_bytes == 0 || rows > UINT32_MAX ||
+            physical + VBR_GENERATION_PAGE_CELLS > rows ||
+            stream_bytes / row_bytes != rows) {
+            return false;
+        }
+        vbr_selected_page_unit_source source;
+        source.logical_unit_id = unit;
+        source.row_count = uint32_t(rows);
+        source.row_bytes = row_bytes;
+        source.source_identity = uint64_t(reinterpret_cast<uintptr_t>(tensor));
+        source.source.lane = 0;
+        source.source.size = stream_bytes;
+        source.source.backend = backend;
+        source.source.device = ggml_backend_get_device(backend);
+        source.source.tensor = tensor;
+        source.source.tensor_offset = uint64_t(stream) * stream_bytes;
+        sources.push_back(std::move(source));
+    }
+    snapshots.context = cache;
+    snapshots.acquire = &llama_kv_cache::pager_host_snapshot_acquire;
+    snapshots.recheck = &llama_kv_cache::pager_host_snapshot_recheck;
+    snapshots.release = &llama_kv_cache::pager_host_snapshot_release;
+    vbr_selected_page_capture_snapshot snapshot;
+    if (!pager_host_snapshot_acquire(cache, request, snapshot)) return false;
+    for (const auto & unit : snapshot.units) {
+        request.expected_unit_generations[unit.logical_unit_id] = unit.generation;
+    }
+    return true;
+}
+
+bool llama_kv_cache::pager_host_snapshot_acquire(
+        void * context,
+        const vbr_selected_page_capture_request & request,
+        vbr_selected_page_capture_snapshot & output) noexcept {
+    auto * cache = static_cast<llama_kv_cache *>(context);
+    output = {};
+    if (cache == nullptr || cache->pager_ == nullptr || request.pages.size() != 1 ||
+        request.required_unit_ids.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+        cache->layers.size() < VBR_SELECTED_PAGE_TARGET_LAYERS ||
+        !vbr_lineage_uuid_is_set(cache->pager_host_lineage_) ||
+        request.pages[0].identity.representation_epoch !=
+            std::max<uint64_t>(1, cache->vbr_representation_epoch())) {
+        return false;
+    }
+    try {
+        output.source_namespace = request.source_namespace;
+        output.child_id = request.child_id;
+        output.stream_index = request.stream_index;
+        output.pages.push_back(request.pages[0].identity);
+        output.units.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+        output.unit_descriptors.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+        const uint64_t repr_gen = std::max<uint64_t>(
+                1, cache->vbr_representation_epoch());
+        vbr_explicit_representation_policy policy;
+        for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+            const auto & layer = cache->layers[unit / 2];
+            const bool value_side = (unit & 1u) != 0;
+            const auto * tensor = value_side ? layer.v : layer.k;
+            if (tensor == nullptr || tensor->type != GGML_TYPE_TURBO4_0 ||
+                tensor->ne[0] <= 0 || tensor->ne[1] <= 0) return false;
+            const uint64_t row_bytes = ggml_row_size(tensor->type, tensor->ne[0]);
+            vbr_explicit_representation_identity identity;
+            if (!vbr_explicit_capture_representation_identity(
+                        &policy, GGML_TYPE_TURBO4_0, value_side,
+                        layer.turbo_meansub_ref.model_id, identity)) return false;
+            vbr_capture_projected_shard_source projected;
+            projected.shard_index = 0;
+            projected.row_count = uint32_t(tensor->ne[1]);
+            projected.row_bytes = row_bytes;
+            projected.source_identity = uint64_t(reinterpret_cast<uintptr_t>(tensor));
+            projected.source.size = projected.row_count * row_bytes;
+            projected.source.lane = 0;
+            projected.source.backend = cache->pager_->host_backend();
+            projected.source.device = ggml_backend_get_device(projected.source.backend);
+            projected.source.tensor = tensor;
+            projected.source.tensor_offset = uint64_t(request.stream_index) *
+                    projected.source.size;
+            uint32_t shard_count = 0;
+            std::array<uint8_t, 32> topology_digest = {};
+            if (!vbr_capture_projected_shard_topology(
+                        { projected }, shard_count, topology_digest)) return false;
+
+            vbr_capture_unit_snapshot unit_snapshot;
+            unit_snapshot.source_namespace = request.source_namespace;
+            unit_snapshot.child_id = request.child_id;
+            unit_snapshot.logical_unit_id = unit;
+            unit_snapshot.lineage_uuid = cache->pager_host_lineage_;
+            unit_snapshot.controller_generation =
+                    cache->pager_host_controller_generation_;
+            unit_snapshot.mutation_serial = 0;
+            unit_snapshot.generation.repr_gen = repr_gen;
+            unit_snapshot.generation.publish_seq = 0;
+            unit_snapshot.generation.current_type = GGML_TYPE_TURBO4_0;
+            unit_snapshot.generation.last_source_type = GGML_TYPE_TURBO4_0;
+            unit_snapshot.generation.domain = vbr_repr_domain::full;
+            unit_snapshot.generation.last_transition = vbr_repr_transition::initial;
+            unit_snapshot.shard_count = shard_count;
+            unit_snapshot.shard_topology_digest = topology_digest;
+            output.units.push_back(unit_snapshot);
+
+            vbr_artifact_unit_descriptor descriptor;
+            descriptor.child_id = request.child_id;
+            descriptor.logical_unit_id = unit;
+            descriptor.lineage_uuid = cache->pager_host_lineage_;
+            descriptor.repr_gen = repr_gen;
+            descriptor.current_type = GGML_TYPE_TURBO4_0;
+            descriptor.last_source_type = GGML_TYPE_TURBO4_0;
+            descriptor.representation.kind = vbr_artifact_representation_kind::approximate;
+            descriptor.representation.codec_id = identity.codec_id;
+            descriptor.representation.codec_version = identity.codec_version;
+            descriptor.representation.reference_digest =
+                    vbr_explicit_representation_reference_digest(
+                            GGML_TYPE_TURBO4_0, GGML_TYPE_TURBO4_0, identity);
+            descriptor.side = value_side ? vbr_artifact_side::value : vbr_artifact_side::key;
+            descriptor.layout = vbr_artifact_layout::row_major;
+            descriptor.n_stream = 1;
+            descriptor.wm_cells = uint64_t(tensor->ne[1]);
+            descriptor.rank = 2;
+            descriptor.dimensions[0] = uint64_t(tensor->ne[0]);
+            descriptor.dimensions[1] = uint64_t(tensor->ne[1]);
+            descriptor.row_alignment = 1;
+            descriptor.row_codec_version = 1;
+            descriptor.codebook_digest = identity.codebook_digest;
+            descriptor.rotation_digest = identity.rotation_digest;
+            descriptor.meansub_digest = identity.meansub_digest;
+            descriptor.meansub_model_id = layer.turbo_meansub_ref.model_id;
+            descriptor.meansub_layer = layer.turbo_meansub_ref.layer;
+            descriptor.meansub_baked = identity.meansub_baked;
+            vbr_artifact_shard_descriptor shard;
+            shard.shard_index = 0;
+            shard.row_count = uint64_t(tensor->ne[1]);
+            shard.column_count = uint64_t(tensor->ne[0]);
+            shard.row_bytes = row_bytes;
+            shard.payload_bytes = shard.row_count * row_bytes;
+            descriptor.shards.push_back(shard);
+            output.unit_descriptors.push_back(std::move(descriptor));
+        }
+        return output.units.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS &&
+               output.unit_descriptors.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS;
+    } catch (...) {
+        output = {};
+        return false;
+    }
+}
+
+bool llama_kv_cache::pager_host_snapshot_recheck(
+        void * context,
+        const vbr_selected_page_capture_snapshot & expected) noexcept {
+    auto * cache = static_cast<llama_kv_cache *>(context);
+    if (cache == nullptr || expected.pages.size() != 1) return false;
+    vbr_selected_page_capture_request request;
+    request.source_namespace = expected.source_namespace;
+    request.child_id = expected.child_id;
+    request.stream_index = expected.stream_index;
+    vbr_selected_page_range range;
+    range.identity = expected.pages[0];
+    request.pages.push_back(std::move(range));
+    for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+        request.required_unit_ids.push_back(unit);
+    }
+    vbr_selected_page_capture_snapshot current;
+    if (!pager_host_snapshot_acquire(cache, request, current) ||
+        current.units.size() != expected.units.size() ||
+        current.unit_descriptors.size() != expected.unit_descriptors.size()) return false;
+    for (size_t i = 0; i < current.units.size(); ++i) {
+        if (current.units[i].source_namespace != expected.units[i].source_namespace ||
+            current.units[i].logical_unit_id != expected.units[i].logical_unit_id ||
+            current.units[i].lineage_uuid != expected.units[i].lineage_uuid ||
+            current.units[i].controller_generation != expected.units[i].controller_generation ||
+            current.units[i].generation.repr_gen != expected.units[i].generation.repr_gen ||
+            current.units[i].shard_topology_digest != expected.units[i].shard_topology_digest) return false;
+        const auto & a = current.unit_descriptors[i];
+        const auto & b = expected.unit_descriptors[i];
+        if (a.current_type != b.current_type || a.repr_gen != b.repr_gen ||
+            a.codebook_digest != b.codebook_digest ||
+            a.rotation_digest != b.rotation_digest ||
+            a.meansub_digest != b.meansub_digest) return false;
+    }
+    return true;
+}
+
+void llama_kv_cache::pager_host_snapshot_release(
+        void *, const vbr_selected_page_capture_snapshot &) noexcept {}
 
 void llama_kv_cache::vbr_release_resources() {
     // vbr_trace_fp_ closes itself through its RAII unique_ptr.
@@ -11819,6 +12127,36 @@ uint32_t llama_kv_cache::get_size() const {
 
 uint32_t llama_kv_cache::get_n_stream() const {
     return n_stream;
+}
+
+bool llama_kv_cache::pager_geometry(
+        uint32_t page_tokens,
+        llama_kv_pager_geometry & output) const noexcept {
+    output = {};
+    output.page_tokens = page_tokens;
+    if (page_tokens == 0) return false;
+    try {
+        for (const auto & layer : layers) {
+            if (layer.k == nullptr || layer.v == nullptr ||
+                layer.k->type != GGML_TYPE_TURBO4_0 ||
+                layer.v->type != GGML_TYPE_TURBO4_0 ||
+                layer.k->ne[0] <= 0 || layer.v->ne[0] <= 0) return false;
+            ++output.attention_layers;
+            output.kv_heads = hparams.n_head_kv(layer.il);
+            output.key_length = uint32_t(layer.k->ne[0] / std::max<uint32_t>(1, output.kv_heads));
+            output.value_length = uint32_t(layer.v->ne[0] / std::max<uint32_t>(1, output.kv_heads));
+            const uint64_t k = uint64_t(ggml_row_size(layer.k->type, layer.k->ne[0])) * page_tokens;
+            const uint64_t v = uint64_t(ggml_row_size(layer.v->type, layer.v->ne[0])) * page_tokens;
+            if (k > UINT64_MAX - v || output.page_bytes > UINT64_MAX - k - v) return false;
+            output.page_bytes += k + v;
+        }
+        return output.attention_layers != 0 && output.kv_heads != 0 &&
+               output.key_length != 0 && output.value_length != 0 &&
+               output.page_bytes != 0;
+    } catch (...) {
+        output = {};
+        return false;
+    }
 }
 
 uint32_t llama_kv_cache::get_stream_for_seq(llama_seq_id seq_id) const {
