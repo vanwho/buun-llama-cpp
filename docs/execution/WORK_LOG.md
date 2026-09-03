@@ -62,3 +62,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-01-02`
 - Commit at update: `65180956d`
 - Summary: Added and tested CPU-only llama_kv page identity, checked forward/reverse residency uniqueness, immutable snapshots, and generation-checked publish/rollback.
+
+## 2026-09-03T06:26:17+00:00 — 02-01 — done
+
+- Branch: `codex/task-02-01`
+- Commit at update: `0ffec87e3`
+- Summary: Added bounded 16-layer Turbo4 selected-page capture descriptors with exact preflight quotes, pinned-ring segmented transfers, generation/representation rechecks, and fake-provider fault coverage.
