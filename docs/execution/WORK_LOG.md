@@ -104,3 +104,7 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 ## 2026-09-03T08:56:50+00:00 — 03-03 — done
 
 - Summary: Added direct selected-page CUDA Turbo4 decode with validated physical-page addressing, native masks/causal tails, bounded online logical-page mass reduction, fail-closed geometry/type checks, deterministic CUDA coverage, timing/resource capture, and compute-sanitizer verification.
+
+## 2026-09-03T09:19:01+00:00 — 03-04 — done
+
+- Summary: Added the selected-attention execution boundary for multi-chunk prefill/tail admission, decode transition, reference/direct route selection, observe/off/refusal logging, resident-plus-transfer/router scratch sizing, selected-content graph keys, and scheduler-completion page fences; focused lifecycle, graph, residency, and prior CUDA primitive checks passed.
