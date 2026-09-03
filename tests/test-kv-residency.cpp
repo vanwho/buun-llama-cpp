@@ -399,6 +399,86 @@ static void test_batched_transfer_pool() {
     assert(pool->mapped_slots() == 0);
 }
 
+static void test_ggml_adapter_tensor_route() {
+    ggml_backend_t backend = ggml_backend_cpu_init();
+    assert(backend != nullptr);
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_buffer(backend, 128);
+    assert(buffer != nullptr);
+
+    llama_kv_residency_ggml_status adapter_status;
+    auto adapter = llama_kv_residency_ggml_adapter::create(
+            { backend, buffer, 2, 64, false }, adapter_status);
+    assert(adapter && adapter_status == llama_kv_residency_ggml_status::ok);
+    auto pool_backend = adapter->pool_backend();
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create(
+            { 2, 64, 4, 4, 1024 }, pool_backend, pool_status);
+    assert(pool && pool_status == llama_kv_residency_pool_status::ok);
+    fake_transfer_backend fake;
+
+    vbr_h2d_status ring_status;
+    auto upload_ring = vbr_h2d_chunk_ring::create(
+            { {} },
+            128, 32, ring_status);
+    assert(upload_ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_plan upload;
+    assert(llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            { transfer_page(0) }, 4, {}, upload));
+    llama_kv_residency_transfer_claim claim;
+    assert(pool->reserve(upload, 32, {}, claim) ==
+            llama_kv_residency_pool_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = upload_ring.get();
+    transport.context = &fake;
+    transport.host_read = fake_transfer_backend::host_read;
+    transport.recheck = fake_transfer_backend::recheck;
+    assert(llama_kv_residency_execute_transfer(
+            *pool, upload, claim, pool_backend, transport).status ==
+            llama_kv_residency_pool_status::ok);
+    assert(adapter->mapped_slots() == 1 && adapter->pending_events() == 0);
+
+    const auto * base = static_cast<const uint8_t *>(
+            ggml_backend_buffer_get_base(buffer));
+    for (size_t i = 0; i < 8; ++i) {
+        assert(base[i] == uint8_t(i + 1));
+    }
+
+    vbr_capture_stream_status download_status;
+    auto download_ring = vbr_pinned_chunk_ring::create(
+            { {} },
+            128, 32, download_status);
+    assert(download_ring && download_status == vbr_capture_stream_status::ok);
+    llama_kv_residency_transfer_plan download;
+    assert(llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::d2h_seal,
+            { transfer_page(0) }, 4, {}, download));
+    llama_kv_residency_transfer_claim download_claim;
+    llama_kv_residency_catalog_reservation catalog {
+        &fake, fake_transfer_backend::reserve_catalog,
+        fake_transfer_backend::release_catalog,
+    };
+    assert(pool->reserve(download, 32, catalog, download_claim) ==
+            llama_kv_residency_pool_status::ok);
+    transport.download_ring = download_ring.get();
+    transport.host_write = fake_transfer_backend::host_write;
+    transport.context = &fake;
+    assert(llama_kv_residency_execute_transfer(
+            *pool, download, download_claim, pool_backend, transport).status ==
+            llama_kv_residency_pool_status::ok);
+    assert(fake.host_bytes ==
+            std::vector<uint8_t>({ 1, 2, 3, 4, 5, 6, 7, 8 }));
+
+    bool dropped = false;
+    assert(pool->drop_logical_page(page(0), dropped) ==
+            llama_kv_residency_pool_status::ok && dropped);
+    assert(adapter->mapped_slots() == 0);
+    pool.reset();
+    adapter.reset();
+    ggml_backend_buffer_free(buffer);
+    ggml_backend_free(backend);
+}
+
 static void test_transfer_rollback_and_stale_completion() {
     fake_transfer_backend fake;
     llama_kv_residency_pool_backend backend {
@@ -819,6 +899,7 @@ int main() {
     test_table_identity_and_snapshot();
     test_rejection_and_stale_publication();
     test_batched_transfer_pool();
+    test_ggml_adapter_tensor_route();
     test_transfer_rollback_and_stale_completion();
     test_residency_transaction();
     test_reseal_before_eviction();

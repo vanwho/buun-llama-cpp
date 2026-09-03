@@ -200,8 +200,9 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream(
     }
     if (tensor_destination) {
         if (!lane || !transfer.backend || !transfer.device ||
-            transfer.device != lane->device ||
-            ggml_backend_get_device(transfer.backend) != lane->device ||
+            (lane->device != nullptr &&
+             (transfer.device != lane->device ||
+              ggml_backend_get_device(transfer.backend) != lane->device)) ||
             transfer.destination_offset > ggml_nbytes(transfer.destination) ||
             transfer.size > ggml_nbytes(transfer.destination) -
                 transfer.destination_offset) {
@@ -378,8 +379,9 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream_packed_reserved(
     }
     if (tensor_destination) {
         if (!lane || !transfer.backend || !transfer.device ||
-            transfer.device != lane->device ||
-            ggml_backend_get_device(transfer.backend) != lane->device ||
+            (lane->device != nullptr &&
+             (transfer.device != lane->device ||
+              ggml_backend_get_device(transfer.backend) != lane->device)) ||
             transfer.destination_offset > ggml_nbytes(transfer.destination) ||
             transfer.size > ggml_nbytes(transfer.destination) -
                 transfer.destination_offset) {

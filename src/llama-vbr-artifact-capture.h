@@ -472,6 +472,11 @@ public:
     static std::unique_ptr<vbr_pinned_chunk_ring> attach(
         std::shared_ptr<vbr_bounded_pinned_ring_core> core) noexcept;
 
+    // The residency H2D adapter is attached to the same direction-neutral
+    // core.  This is intentionally a shared handle, not a second ring (and
+    // therefore not a second pinned allocation or accounting charge).
+    std::shared_ptr<vbr_bounded_pinned_ring_core> shared_core() const noexcept;
+
     ~vbr_pinned_chunk_ring();
     vbr_pinned_chunk_ring(const vbr_pinned_chunk_ring &) = delete;
     vbr_pinned_chunk_ring & operator=(const vbr_pinned_chunk_ring &) = delete;

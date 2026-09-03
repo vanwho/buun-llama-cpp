@@ -413,6 +413,12 @@ llama_kv_residency_execute_transaction(
                 transfer_result.counters.stale_completions;
             result.transfer_counters.event_completions +=
                 transfer_result.counters.event_completions;
+            result.transfer_counters.backpressure_waits +=
+                transfer_result.counters.backpressure_waits;
+            result.transfer_counters.transfer_time_us +=
+                transfer_result.counters.transfer_time_us;
+            result.transfer_counters.map_failures +=
+                transfer_result.counters.map_failures;
             if (transfer_result.status != llama_kv_residency_pool_status::ok) {
                 result.status = transfer_result.status ==
                     llama_kv_residency_pool_status::stale_completion

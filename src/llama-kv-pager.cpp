@@ -1,4 +1,5 @@
 #include "llama-kv-pager.h"
+#include "llama-vbr-artifact-stage.h"
 
 #include <algorithm>
 #include <array>
@@ -138,6 +139,19 @@ std::unique_ptr<llama_kv_pager_host> llama_kv_pager_host::create(
                 llama_cache_acct_measure::resident_allocated,
                 resources.host_ring_bytes);
         output->ring_ = std::move(ring);
+        std::vector<vbr_h2d_lane_binding> upload_lanes;
+        upload_lanes.reserve(lanes.size());
+        for (const auto & lane : lanes) {
+            upload_lanes.push_back({
+                {}, lane.device, lane.backend, lane.force_synchronous,
+            });
+        }
+        output->upload_ring_ = vbr_h2d_chunk_ring::attach(
+                output->ring_->shared_core(), upload_lanes);
+        if (!output->upload_ring_) {
+            status = llama_kv_pager_host_status::ring_unavailable;
+            return nullptr;
+        }
         status = llama_kv_pager_host_status::ok;
         return output;
     } catch (...) {
@@ -332,6 +346,47 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
         output->pages_.reserve(output->snapshot_.logical_page_count);
         output->slot_pages_.assign(output->snapshot_.physical_page_count, -1);
         output->residency_ = llama_kv_residency_table(output->snapshot_.physical_page_count);
+        if (resources.host_backend != nullptr) {
+            const uint64_t bytes_per_slot = output->snapshot_.physical_page_count != 0
+                ? output->snapshot_.physical_bytes /
+                    output->snapshot_.physical_page_count : 0;
+            llama_kv_residency_ggml_status adapter_status;
+            output->residency_adapter_ =
+                    llama_kv_residency_ggml_adapter::create(
+                        { resources.host_backend,
+                          static_cast<ggml_backend_buffer_t>(
+                              output->allocation_.handle),
+                          output->snapshot_.physical_page_count,
+                          bytes_per_slot, false }, adapter_status);
+            if (!output->residency_adapter_) {
+                output->backend_.release(output->allocation_);
+                output->allocation_ = {};
+                status = llama_kv_pager_status::allocation;
+                return nullptr;
+            }
+            output->residency_backend_ =
+                    output->residency_adapter_->pool_backend();
+            const uint64_t event_capacity = std::min<uint64_t>(
+                    UINT32_MAX,
+                    std::max<uint64_t>(1,
+                        uint64_t(output->snapshot_.physical_page_count) * 32));
+            llama_kv_residency_pool_status pool_status;
+            output->residency_pool_ = llama_kv_residency_pool::create(
+                    { output->snapshot_.physical_page_count,
+                      bytes_per_slot, std::max<uint64_t>(1,
+                          resources.allocator_granularity),
+                      uint32_t(event_capacity),
+                      std::max<uint64_t>(output->snapshot_.physical_bytes,
+                          uint64_t(1)) },
+                    output->residency_backend_, pool_status);
+            if (!output->residency_pool_) {
+                output->residency_adapter_.reset();
+                output->backend_.release(output->allocation_);
+                output->allocation_ = {};
+                status = llama_kv_pager_status::allocation;
+                return nullptr;
+            }
+        }
         if (resources.host_capture_enabled) {
             llama_kv_pager_host_status host_status;
             output->host_ = llama_kv_pager_host::create(
@@ -354,6 +409,8 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
 
 llama_kv_pager::~llama_kv_pager() {
     host_.reset();
+    residency_pool_.reset();
+    residency_adapter_.reset();
     if (allocation_.handle && backend_.release) backend_.release(allocation_);
 }
 
