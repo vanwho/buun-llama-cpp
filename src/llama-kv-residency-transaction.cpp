@@ -378,23 +378,30 @@ llama_kv_residency_execute_transaction(
             result.rollback_complete = true;
             return result;
         }
-        claims.reserve(request.transfers.size());
-        for (const auto & plan : request.transfers) {
-            llama_kv_residency_transfer_claim claim;
+        claims.resize(request.transfers.size());
+        const auto reserve_transfer = [&](size_t index) -> bool {
             const auto status = pool.reserve(
-                plan, request.staging_capacity, request.catalog, claim);
-            if (status != llama_kv_residency_pool_status::ok) {
-                result.status = status == llama_kv_residency_pool_status::slot_unavailable
-                    ? llama_kv_residency_transaction_status::insufficient_slots
-                    : llama_kv_residency_transaction_status::transfer_failed;
+                request.transfers[index], request.staging_capacity,
+                request.catalog, claims[index]);
+            if (status == llama_kv_residency_pool_status::ok) return true;
+            result.status = status == llama_kv_residency_pool_status::slot_unavailable
+                ? llama_kv_residency_transaction_status::insufficient_slots
+                : llama_kv_residency_transaction_status::transfer_failed;
+            return false;
+        };
+        // Reseals must reserve while their old mappings still exist. Promotion
+        // slots are reserved after clean victims are dropped below, allowing a
+        // full pool to reuse an occupied victim slot without a race or a
+        // transient overcommit.
+        for (size_t i = 0; i < request.transfers.size(); ++i) {
+            if (request.transfers[i].direction ==
+                    llama_kv_residency_transfer_direction::h2d_promotion) continue;
+            if (!reserve_transfer(i)) {
                 result.failed_phase = llama_kv_residency_transaction_phase::reserve;
-                for (auto & prior : claims) {
-                    if (prior.active()) pool.rollback(prior);
-                }
+                for (auto & prior : claims) if (prior.active()) pool.rollback(prior);
                 result.rollback_complete = true;
                 return result;
             }
-            claims.push_back(std::move(claim));
         }
 
         const auto execute_transfer = [&](size_t index) -> bool {
@@ -521,11 +528,17 @@ llama_kv_residency_execute_transaction(
         }
         for (size_t i = 0; i < request.transfers.size(); ++i) {
             if (request.transfers[i].direction ==
-                    llama_kv_residency_transfer_direction::h2d_promotion &&
-                !execute_transfer(i)) {
-                result.failed_phase = llama_kv_residency_transaction_phase::load;
-                rollback_resources();
-                return result;
+                    llama_kv_residency_transfer_direction::h2d_promotion) {
+                if (!reserve_transfer(i)) {
+                    result.failed_phase = llama_kv_residency_transaction_phase::load;
+                    rollback_resources();
+                    return result;
+                }
+                if (!execute_transfer(i)) {
+                    result.failed_phase = llama_kv_residency_transaction_phase::load;
+                    rollback_resources();
+                    return result;
+                }
             }
         }
 
