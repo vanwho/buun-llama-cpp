@@ -240,8 +240,13 @@ llama_cache_budget_row & add_rollup_group(
 llama_cache_budget_admission_result llama_cache_budget_admit(
         const llama_cache_budget_admission_input & input) noexcept {
     llama_cache_budget_admission_result out;
+    out.provenance = input.provenance;
+    out.reconciliation = input.reconciliation;
+    out.page_tokens = input.page_tokens;
+    out.logical_page_count = input.logical_page_count;
     out.target_page_bytes = input.target_page_bytes;
     if (input.allocation_granularity == 0 || input.target_page_bytes == 0 ||
+        input.page_tokens == 0 || input.logical_page_count == 0 ||
         input.mtp_tokens == 0 || input.mtp_values_per_token == 0 ||
         input.mtp_bits_per_value == 0 || !input.mtp_is_turbo4) {
         out.refusal = input.mtp_is_turbo4 ?
@@ -258,6 +263,10 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
     auto add = [](uint64_t a, uint64_t b, uint64_t & result) {
         if (b > std::numeric_limits<uint64_t>::max() - a) return false;
         result = a + b; return true;
+    };
+    auto multiply = [](uint64_t a, uint64_t b, uint64_t & result) {
+        if (b != 0 && a > std::numeric_limits<uint64_t>::max() / b) return false;
+        result = a * b; return true;
     };
     if ((input.mtp_k_row_bytes == 0) != (input.mtp_v_row_bytes == 0)) {
         out.refusal = llama_cache_budget_admission_refusal::invalid_geometry;
@@ -293,17 +302,53 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
         out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
     }
     // weights + already-resident fixed companions are one charge; do not charge either twice.
-    if (!add(out.fixed_bytes, out.mtp_bytes, out.charged_bytes) || !add(out.charged_bytes, out.scratch_bytes, out.charged_bytes) ||
-        !add(out.charged_bytes, out.routing_bytes, out.charged_bytes) || !add(out.charged_bytes, out.headroom_bytes, out.charged_bytes)) {
+    out.allocator_guard_bytes = input.allocator_guard_bytes;
+    if (!add(out.mtp_bytes, out.scratch_bytes, out.reserved_bytes) ||
+        !add(out.reserved_bytes, out.routing_bytes, out.reserved_bytes) ||
+        !add(out.reserved_bytes, out.allocator_guard_bytes, out.reserved_bytes)) {
         out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
     }
-    if (out.charged_bytes > input.capacity_bytes) { out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity; return out; }
-    out.remaining_bytes = input.capacity_bytes - out.charged_bytes;
-    out.capacity_pages = out.remaining_bytes / input.target_page_bytes;
-    out.capacity_tokens = out.capacity_pages * 256;
-    if (input.diagnostic_max_pages && out.capacity_pages > input.diagnostic_max_pages) {
-        out.capacity_pages = input.diagnostic_max_pages; out.capacity_tokens = out.capacity_pages * 256;
+    if (!add(out.fixed_bytes, out.reserved_bytes, out.charged_bytes) ||
+        !add(out.charged_bytes, out.headroom_bytes, out.charged_bytes)) {
+        out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
     }
+
+    out.usable_device_bytes = input.capacity_bytes;
+    if (input.user_budget_bytes != 0) {
+        out.usable_device_bytes = std::min(out.usable_device_bytes, input.user_budget_bytes);
+    }
+    if (input.backend_safe_limit_bytes != 0) {
+        out.usable_device_bytes = std::min(out.usable_device_bytes, input.backend_safe_limit_bytes);
+    }
+    if (out.charged_bytes > out.usable_device_bytes) {
+        out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity;
+        return out;
+    }
+    out.remaining_bytes = out.usable_device_bytes - out.charged_bytes;
+    if (input.target_page_bytes > std::numeric_limits<uint64_t>::max() - (input.allocation_granularity - 1) ||
+        !rounded(input.target_page_bytes, out.page_charge_bytes)) {
+        out.refusal = llama_cache_budget_admission_refusal::overflow;
+        return out;
+    }
+    uint64_t admitted = out.remaining_bytes / out.page_charge_bytes;
+    if (input.logical_page_count != 0) {
+        admitted = std::min(admitted, input.logical_page_count);
+    }
+    if (input.user_page_cap != 0) {
+        admitted = std::min(admitted, input.user_page_cap);
+    }
+    if (input.diagnostic_max_pages != 0) {
+        admitted = std::min(admitted, input.diagnostic_max_pages);
+    }
+    out.admitted_pages = admitted;
+    out.capacity_pages = admitted;
+    uint64_t admitted_bytes = 0;
+    if (!multiply(admitted, out.page_charge_bytes, admitted_bytes) ||
+        !multiply(admitted, out.page_tokens, out.capacity_tokens)) {
+        out.refusal = llama_cache_budget_admission_refusal::overflow;
+        return out;
+    }
+    out.unused_bytes = out.remaining_bytes - admitted_bytes;
     return out;
 }
 
@@ -318,6 +363,30 @@ const char * llama_cache_budget_admission_refusal_name(
         case llama_cache_budget_admission_refusal::insufficient_capacity: return "insufficient_capacity";
         case llama_cache_budget_admission_refusal::diagnostic_capacity_exceeds_budget: return "diagnostic_capacity_exceeds_budget";
         case llama_cache_budget_admission_refusal::_count: return "invalid";
+    }
+    return "invalid";
+}
+
+const char * llama_cache_budget_admission_provenance_name(
+        llama_cache_budget_admission_provenance provenance) noexcept {
+    switch (provenance) {
+        case llama_cache_budget_admission_provenance::actual: return "actual";
+        case llama_cache_budget_admission_provenance::estimated: return "estimated";
+        case llama_cache_budget_admission_provenance::mixed: return "mixed";
+        case llama_cache_budget_admission_provenance::unavailable: return "unavailable";
+        case llama_cache_budget_admission_provenance::_count: return "invalid";
+    }
+    return "invalid";
+}
+
+const char * llama_cache_budget_reconciliation_status_name(
+        llama_cache_budget_reconciliation_status status) noexcept {
+    switch (status) {
+        case llama_cache_budget_reconciliation_status::not_requested: return "not_requested";
+        case llama_cache_budget_reconciliation_status::pending: return "pending";
+        case llama_cache_budget_reconciliation_status::matched: return "matched";
+        case llama_cache_budget_reconciliation_status::mismatch: return "mismatch";
+        case llama_cache_budget_reconciliation_status::_count: return "invalid";
     }
     return "invalid";
 }

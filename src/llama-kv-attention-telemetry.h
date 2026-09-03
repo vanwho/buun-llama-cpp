@@ -2,14 +2,9 @@
 
 #include "llama-kv-residency.h"
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
-
-// Qwen3.8's 256K target has 1,024 logical 256-token pages.  Keeping this
-// bound fixed makes the decode/update path allocation-free and keeps the
-// controller transfer bounded independently of resident rows.
-constexpr uint32_t LLAMA_KV_ATTENTION_TELEMETRY_MAX_PAGES = 1024;
+#include <vector>
 
 enum class llama_kv_attention_telemetry_mode : uint8_t {
     off = 0,
@@ -124,6 +119,8 @@ private:
     float ema_alpha_ = 0.25f;
     float peak_decay_ = 0.90f;
     uint64_t table_epoch_ = 0;
-    std::array<slot, LLAMA_KV_ATTENTION_TELEMETRY_MAX_PAGES> pages_;
+    // Sized from the resolved logical page count. The caller owns the bound;
+    // no model-family context or page-count constant is encoded here.
+    std::vector<slot> pages_;
     llama_kv_attention_telemetry_counters counters_;
 };

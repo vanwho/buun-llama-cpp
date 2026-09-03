@@ -122,6 +122,7 @@ static void test_mtp_reference_payload_uses_actual_rows() {
     input.target_page_bytes = 1;
     input.turbo4_scratch_bytes = 1;
     input.mtp_tokens = tokens;
+    input.logical_page_count = tokens / input.page_tokens;
     input.mtp_k_row_bytes = k_row;
     input.mtp_v_row_bytes = v_row;
 
@@ -138,6 +139,55 @@ static void test_mtp_reference_payload_uses_actual_rows() {
     input.mtp_is_turbo4 = false;
     const auto f16 = llama_cache_budget_admit(input);
     CHECK(f16.refusal == llama_cache_budget_admission_refusal::mtp_not_turbo4);
+}
+
+static void test_dynamic_admission_ledger() {
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = 5000;
+    input.user_budget_bytes = 4800;
+    input.backend_safe_limit_bytes = 4500;
+    input.allocation_granularity = 64;
+    input.fixed_bytes = 100;
+    input.turbo4_scratch_bytes = 100;
+    input.routing_bytes = 30;
+    input.allocator_guard_bytes = 10;
+    input.headroom_bytes = 20;
+    input.mtp_tokens = 10;
+    input.mtp_k_row_bytes = 5;
+    input.mtp_v_row_bytes = 7;
+    input.target_page_bytes = 100;
+    input.page_tokens = 4;
+    input.logical_page_count = 100;
+    input.provenance = llama_cache_budget_admission_provenance::actual;
+    input.reconciliation = llama_cache_budget_reconciliation_status::matched;
+
+    const auto admitted = llama_cache_budget_admit(input);
+    CHECK(admitted.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(admitted.usable_device_bytes == 4500);
+    CHECK(admitted.fixed_bytes == 128);
+    CHECK(admitted.mtp_bytes == 128);
+    CHECK(admitted.scratch_bytes == 128);
+    CHECK(admitted.routing_bytes == 64);
+    CHECK(admitted.allocator_guard_bytes == 10);
+    CHECK(admitted.reserved_bytes == 330);
+    CHECK(admitted.charged_bytes == 522);
+    CHECK(admitted.page_charge_bytes == 128);
+    CHECK(admitted.admitted_pages == 31);
+    CHECK(admitted.capacity_tokens == 124);
+    CHECK(admitted.unused_bytes == 10);
+    CHECK(admitted.provenance == input.provenance);
+    CHECK(admitted.reconciliation == input.reconciliation);
+
+    input.user_page_cap = 5;
+    const auto capped = llama_cache_budget_admit(input);
+    CHECK(capped.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(capped.admitted_pages == 5);
+    CHECK(capped.unused_bytes == 3338);
+
+    input.user_page_cap = 0;
+    input.mtp_tokens = std::numeric_limits<uint64_t>::max();
+    const auto overflow = llama_cache_budget_admit(input);
+    CHECK(overflow.refusal == llama_cache_budget_admission_refusal::overflow);
 }
 
 static const llama_cache_budget_row * find_group(
@@ -485,6 +535,7 @@ static void test_f2_capacity_activation_is_inert_until_observed() {
 
 int main() {
     test_mtp_reference_payload_uses_actual_rows();
+    test_dynamic_admission_ledger();
     test_baseline_and_group_rollup();
     test_optional_hierarchy();
     test_fail_closed_inputs();

@@ -53,6 +53,82 @@ bool contains(const std::vector<uint64_t> & values, uint64_t id) {
     return std::find(values.begin(), values.end(), id) != values.end();
 }
 
+struct quota_split {
+    uint32_t recent = 0;
+    uint32_t structural = 0;
+    uint32_t historical = 0;
+    uint32_t transient = 0;
+};
+
+quota_split resolve_quotas(
+        const llama_kv_policy_controller_config & config,
+        uint32_t available) {
+    const uint32_t explicit_values[] = {
+        config.recent_pages, config.structural_pages,
+        config.historical_pages, config.transient_pages,
+    };
+    const uint32_t ratios[] = {
+        config.recent_ratio, config.structural_ratio,
+        config.historical_ratio, config.transient_ratio,
+    };
+    const uint32_t minima[] = {
+        config.recent_min_pages, config.structural_min_pages,
+        config.historical_min_pages, config.transient_min_pages,
+    };
+    uint64_t explicit_sum = 0;
+    uint64_t ratio_sum = 0;
+    bool needs_auto = false;
+    for (size_t i = 0; i < 4; ++i) {
+        explicit_sum += explicit_values[i];
+        ratio_sum += ratios[i];
+        needs_auto = needs_auto || explicit_values[i] == 0;
+    }
+    if ((needs_auto && ratio_sum == 0) || ratio_sum > LLAMA_KV_POLICY_RATIO_SCALE * 4ull) {
+        return {};
+    }
+
+    quota_split output;
+    uint32_t * values[] = {
+        &output.recent, &output.structural,
+        &output.historical, &output.transient,
+    };
+    uint32_t explicit_remaining = std::min<uint64_t>(available, explicit_sum);
+    for (size_t i = 0; i < 4; ++i) {
+        *values[i] = std::min(explicit_values[i], explicit_remaining);
+        explicit_remaining -= *values[i];
+    }
+
+    const uint32_t auto_capacity = available -
+        uint32_t(std::min<uint64_t>(available, explicit_sum));
+    uint32_t auto_assigned = 0;
+    for (size_t i = 0; i < 4; ++i) {
+        if (explicit_values[i] == 0) {
+            const uint32_t value = std::min(minima[i], auto_capacity - auto_assigned);
+            *values[i] += value;
+            auto_assigned += value;
+        }
+    }
+    const uint32_t ratio_capacity = auto_capacity - auto_assigned;
+    uint32_t ratio_assigned = 0;
+    for (size_t i = 0; i < 4; ++i) {
+        if (explicit_values[i] != 0 || ratio_sum == 0) continue;
+        const uint32_t share = uint32_t(
+            (uint64_t(ratio_capacity) * ratios[i]) / ratio_sum);
+        *values[i] += share;
+        ratio_assigned += share;
+    }
+    // Assign integer division remainders in policy priority order. This makes
+    // the automatic partition deterministic and ensures its quota sum is the
+    // entire available capacity before candidate deduplication.
+    for (size_t i = 0; auto_assigned + ratio_assigned < auto_capacity && i < 4; ++i) {
+        if (explicit_values[i] == 0) {
+            ++*values[i];
+            ++ratio_assigned;
+        }
+    }
+    return output;
+}
+
 bool controller_pinned(const llama_kv_policy_page & page) {
     return page.current || page.recent || page.anchor || page.application_pin || page.inflight_pin ||
            page.speculative_pin;
@@ -76,14 +152,19 @@ llama_kv_policy_decision llama_kv_policy_decide(
     llama_kv_policy_decision out;
     out.epoch = trace.epoch;
     try {
-        const uint64_t partition = static_cast<uint64_t>(config.recent_pages) + config.structural_pages +
-                                   config.historical_pages + config.transient_pages;
         if (trace.version != LLAMA_KV_POLICY_TRACE_VERSION || trace.epoch == 0 ||
-            trace.pages.empty() || trace.pages.size() > LLAMA_KV_POLICY_MAX_PAGES ||
-            config.capacity_pages == 0 || config.capacity_pages > LLAMA_KV_POLICY_MAX_PAGES ||
-            partition == 0 ||
-            trace.summary_top_k.size() > LLAMA_KV_POLICY_MAX_SUMMARY ||
-            trace.exploration.size() > LLAMA_KV_POLICY_MAX_SUMMARY) {
+            trace.pages.empty() || trace.pages.size() > std::numeric_limits<uint32_t>::max() ||
+            config.capacity_pages == 0 ||
+            trace.summary_top_k.size() > std::numeric_limits<uint32_t>::max() ||
+            trace.exploration.size() > std::numeric_limits<uint32_t>::max()) {
+            out.status = llama_kv_policy_status::invalid_trace;
+            return out;
+        }
+        const uint64_t ratio_sum = uint64_t(config.recent_ratio) +
+            config.structural_ratio + config.historical_ratio + config.transient_ratio;
+        const bool needs_auto = config.recent_pages == 0 || config.structural_pages == 0 ||
+            config.historical_pages == 0 || config.transient_pages == 0;
+        if ((needs_auto && ratio_sum == 0) || ratio_sum > LLAMA_KV_POLICY_RATIO_SCALE * 4ull) {
             out.status = llama_kv_policy_status::invalid_trace;
             return out;
         }
@@ -107,7 +188,7 @@ llama_kv_policy_decision llama_kv_policy_decide(
             return true;
         };
 
-        uint32_t mandatory = 0;
+        uint64_t mandatory = 0;
         for (const auto & page : trace.pages) {
             mandatory += controller_pinned(page) || page.id == trace.write_page;
         }
@@ -121,6 +202,9 @@ llama_kv_policy_decision llama_kv_policy_decide(
         };
         mandatory_add(trace.write_page);
         for (const auto & page : trace.pages) if (controller_pinned(page)) add(page, llama_kv_policy_reason::mandatory);
+
+        const uint32_t available = config.capacity_pages - uint32_t(mandatory);
+        const quota_split effective = resolve_quotas(config, available);
 
         uint64_t max_ema = 0, max_peak = 0, max_frequency = 0, max_recency = 0;
         uint64_t max_fault = 0, max_dirty = 0, max_age = 0;
@@ -165,8 +249,8 @@ llama_kv_policy_decision llama_kv_policy_decide(
         auto is_structural = [](const llama_kv_policy_page & p) { return p.structural || p.anchor; };
         auto is_historical = [](const llama_kv_policy_page & p) { return p.resident || p.attention_observed; };
         auto is_transient = [](const llama_kv_policy_page & p) { return !p.resident && !p.attention_observed; };
-        take(rank(is_recent), config.recent_pages, llama_kv_policy_reason::recent);
-        take(rank(is_structural), config.structural_pages, llama_kv_policy_reason::structural);
+        take(rank(is_recent), effective.recent, llama_kv_policy_reason::recent);
+        take(rank(is_structural), effective.structural, llama_kv_policy_reason::structural);
 
         auto include_ids = [&](const std::vector<uint64_t> & values, llama_kv_policy_reason reason) {
             for (uint64_t id : values) {
@@ -175,9 +259,9 @@ llama_kv_policy_decision llama_kv_policy_decide(
             }
         };
         include_ids(trace.summary_top_k, llama_kv_policy_reason::summary);
-        take(rank(is_historical), config.historical_pages, llama_kv_policy_reason::retention);
+        take(rank(is_historical), effective.historical, llama_kv_policy_reason::retention);
         include_ids(trace.exploration, llama_kv_policy_reason::exploration);
-        take(rank(is_transient), config.transient_pages, llama_kv_policy_reason::exploration);
+        take(rank(is_transient), effective.transient, llama_kv_policy_reason::exploration);
 
         auto has_record = [&](uint64_t id) {
             for (const auto & entry : out.records) if (entry.id == id) return true;
@@ -186,7 +270,7 @@ llama_kv_policy_decision llama_kv_policy_decide(
         for (const auto & page : trace.pages) {
             if (!page.attention_observed) {
                 ++out.unavailable_evidence;
-                if (!has_record(page.id) && out.records.size() < LLAMA_KV_POLICY_MAX_PAGES) {
+                if (!has_record(page.id)) {
                     out.records.push_back(record(page.id, llama_kv_policy_reason::unavailable));
                 }
             }
@@ -227,10 +311,10 @@ llama_kv_policy_result llama_kv_policy_replay(
     llama_kv_policy_result out;
     try {
         if (trace.version != LLAMA_KV_POLICY_TRACE_VERSION || trace.epoch == 0 ||
-            trace.capacity_pages == 0 || trace.capacity_pages > LLAMA_KV_POLICY_MAX_PAGES ||
-            trace.pages.empty() || trace.pages.size() > LLAMA_KV_POLICY_MAX_PAGES ||
-            trace.summary_top_k.size() > LLAMA_KV_POLICY_MAX_SUMMARY ||
-            trace.exploration.size() > LLAMA_KV_POLICY_MAX_SUMMARY) {
+            trace.capacity_pages == 0 || trace.pages.empty() ||
+            trace.pages.size() > std::numeric_limits<uint32_t>::max() ||
+            trace.summary_top_k.size() > std::numeric_limits<uint32_t>::max() ||
+            trace.exploration.size() > std::numeric_limits<uint32_t>::max()) {
             out.status = llama_kv_policy_status::invalid_trace;
             return out;
         }

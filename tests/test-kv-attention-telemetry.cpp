@@ -51,6 +51,12 @@ int main() {
     config.logical_page_count = 4;
     config.ema_alpha = 0.5f;
     config.peak_decay = 0.5f;
+    llama_kv_attention_telemetry_config large_config = config;
+    large_config.logical_page_count = 2048;
+    llama_kv_attention_telemetry large(large_config);
+    assert(large.accounting().logical_page_count == 2048);
+    assert(large.accounting().controller_score_bytes == 4096 * sizeof(float));
+
     llama_kv_attention_telemetry telemetry(config);
     assert(telemetry.initialize(snapshot) == llama_kv_attention_telemetry_status::ok);
     assert(telemetry.accounting().controller_score_bytes == 8 * sizeof(float));
