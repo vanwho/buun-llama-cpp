@@ -948,9 +948,25 @@ void llama_context::init_kv_pager() {
         telemetry_config.head_count = kv_pager.telemetry_head_count;
         kv_attention_telemetry = std::make_unique<llama_kv_attention_telemetry>(telemetry_config);
     }
-    LLAMA_LOG_INFO("KV pager compact target storage: C=%" PRIu64 " L=%u H=%u rows=%" PRIu64 " bytes=%" PRIu64 "\n",
-            geometry.context_tokens, snapshot.logical_page_count, snapshot.physical_page_count,
-            snapshot.physical_rows, snapshot.realized_bytes);
+    const auto & admission = snapshot.admission;
+    LLAMA_LOG_INFO(
+            "KV pager startup: {%s context_tokens=%" PRIu64
+            " logical_pages=%u admitted_pages=%u physical_rows=%" PRIu64
+            " target_page_bytes=%" PRIu64 " page_charge_bytes=%" PRIu64
+            " target_bytes=%" PRIu64 " mtp_rows=%" PRIu64 " mtp_bytes=%" PRIu64
+            " ledger_usable_bytes=%" PRIu64 " ledger_charged_bytes=%" PRIu64
+            " ledger_reserved_bytes=%" PRIu64 " ledger_headroom_bytes=%" PRIu64
+            " device=%s route=%s refusal=none}\n",
+            kv_pager.summary().c_str(), geometry.context_tokens,
+            snapshot.logical_page_count, snapshot.physical_page_count,
+            snapshot.physical_rows, admission.target_page_bytes,
+            admission.page_charge_bytes, snapshot.realized_bytes,
+            resources.admission.mtp_tokens, admission.mtp_bytes,
+            admission.usable_device_bytes, admission.charged_bytes,
+            admission.reserved_bytes, admission.headroom_bytes,
+            ggml_backend_dev_name(dev),
+            kv_pager.mode == llama_kv_pager_mode::observe ? "observe" :
+            kv_pager.mode == llama_kv_pager_mode::exact ? "exact" : "selective");
 }
 
 uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {

@@ -75,13 +75,32 @@ std::string llama_kv_pager_config::mode_name() const {
 }
 
 std::string llama_kv_pager_config::summary() const {
-    return "mode=" + mode_name() + " page_size=" + std::to_string(page_size) +
-           " vram=" + (vram_budget.automatic ? "auto" : std::to_string(vram_budget.bytes)) +
-           " host=" + (host_budget.automatic ? "auto" : std::to_string(host_budget.bytes)) +
-           " telemetry_interval=" + std::to_string(telemetry_interval_tokens) +
+    const auto size_name = [](const llama_kv_pager_auto_size & value) {
+        return value.automatic ? std::string("auto") : std::to_string(value.bytes);
+    };
+    const auto count_name = [](const llama_kv_pager_auto_count & value) {
+        return value.automatic ? std::string("auto") : std::to_string(value.value);
+    };
+
+    // Keep this ordering stable: the string is emitted in startup diagnostics
+    // and is also useful as a machine-readable key/value line in logs.
+    return "mode=" + mode_name() +
+           " page_size_tokens=" + std::to_string(page_size) +
+           " vram_budget_bytes=" + size_name(vram_budget) +
+           " host_budget_bytes=" + size_name(host_budget) +
+           " safety_headroom_bytes=" + size_name(safety_headroom) +
+           " pin_recent_tokens=" + count_name(pin_recent) +
+           " hotset_policy=" + hotset_policy +
+           " hot_pages_cap=" + count_name(hot_pages) +
+           " router_top_k=" + std::to_string(router_top_k) +
+           " router_explore=" + std::to_string(router_explore) +
+           " prefetch_depth=" + std::to_string(prefetch_depth) +
+           " telemetry=" + (telemetry ? "on" : "off") +
+           " telemetry_interval_tokens=" + std::to_string(telemetry_interval_tokens) +
            " telemetry_layer=" + std::to_string(telemetry_layer) +
            " telemetry_heads=" + std::to_string(telemetry_head_begin) + ":" +
-           std::to_string(telemetry_head_count);
+           std::to_string(telemetry_head_count) +
+           " debug=" + (debug ? "on" : "off");
 }
 
 const char * llama_kv_pager_capability_reason_name(llama_kv_pager_capability_reason reason) noexcept {

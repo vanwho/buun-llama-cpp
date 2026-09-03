@@ -30,6 +30,11 @@ static void test(void) {
     assert(params.kv_pager.vram_budget.automatic);
     assert(llama_kv_pager_parse_mode("SELECTIVE", params.kv_pager.mode));
     assert(params.kv_pager.mode == llama_kv_pager_mode::selective);
+    for (const auto & mode : { "off", "observe", "selective", "exact" }) {
+        llama_kv_pager_mode parsed = llama_kv_pager_mode::off;
+        assert(llama_kv_pager_parse_mode(mode, parsed));
+    }
+    assert(!llama_kv_pager_parse_mode("unsupported", params.kv_pager.mode));
     llama_kv_pager_auto_size size;
     assert(llama_kv_pager_parse_size("1.5GiB", size) && size.bytes == 1610612736ULL);
     assert(llama_kv_pager_parse_size("auto", size) && size.automatic);
@@ -38,6 +43,25 @@ static void test(void) {
     params.kv_pager.page_size = 128;
     assert(!params.kv_pager.validate(pager_error));
     params.kv_pager.page_size = 256;
+
+    params.kv_pager.vram_budget = { false, 1024 };
+    params.kv_pager.host_budget = { false, 2048 };
+    params.kv_pager.safety_headroom = { false, 256 };
+    params.kv_pager.pin_recent = { false, 512 };
+    params.kv_pager.hot_pages = { false, 7 };
+    params.kv_pager.router_top_k = 3;
+    params.kv_pager.router_explore = 2;
+    params.kv_pager.prefetch_depth = 4;
+    params.kv_pager.telemetry = false;
+    params.kv_pager.debug = true;
+    const std::string pager_summary = params.kv_pager.summary();
+    assert(pager_summary.find("mode=selective") != std::string::npos);
+    assert(pager_summary.find("vram_budget_bytes=1024") != std::string::npos);
+    assert(pager_summary.find("host_budget_bytes=2048") != std::string::npos);
+    assert(pager_summary.find("hot_pages_cap=7") != std::string::npos);
+    assert(pager_summary.find("router_top_k=3") != std::string::npos);
+    assert(pager_summary.find("telemetry=off") != std::string::npos);
+    assert(pager_summary.find("debug=on") != std::string::npos);
 
     auto assert_output_limits = [](int32_t n_batch, int32_t n_parallel, int32_t n_draft,
                                    int32_t total, int32_t per_seq) {

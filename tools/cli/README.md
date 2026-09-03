@@ -10,6 +10,22 @@
 
 | Argument | Explanation |
 | -------- | ----------- |
+| `--kv-pager off\|observe\|selective\|exact` | experimental attention-aware KV pager mode (default: off)<br/>(env: LLAMA_KV_PAGER) |
+| `--kv-page-size N` | experimental pager logical page size in tokens (default: 256)<br/>(env: LLAMA_KV_PAGE_SIZE) |
+| `--kv-vram-budget SIZE\|auto` | experimental pager VRAM budget (default: auto)<br/>(env: LLAMA_KV_VRAM_BUDGET) |
+| `--kv-host-budget SIZE\|auto` | experimental pager host budget (default: auto)<br/>(env: LLAMA_KV_HOST_BUDGET) |
+| `--kv-safety-headroom SIZE\|auto` | experimental pager safety headroom (default: auto)<br/>(env: LLAMA_KV_SAFETY_HEADROOM) |
+| `--kv-pin-recent TOKENS\|auto` | experimental pager recent-token protection (default: auto)<br/>(env: LLAMA_KV_PIN_RECENT) |
+| `--kv-hotset-policy NAME` | experimental pager hot-page policy (default: attention)<br/>(env: LLAMA_KV_HOTSET_POLICY) |
+| `--kv-hot-pages N\|auto` | experimental pager hot-page upper bound (default: auto)<br/>(env: LLAMA_KV_HOT_PAGES) |
+| `--kv-router-top-k N` | experimental pager router top-k (default: 0)<br/>(env: LLAMA_KV_ROUTER_TOP_K) |
+| `--kv-router-explore N` | experimental pager router exploration count (default: 0)<br/>(env: LLAMA_KV_ROUTER_EXPLORE) |
+| `--kv-prefetch-depth N` | experimental pager prefetch depth (default: 0)<br/>(env: LLAMA_KV_PREFETCH_DEPTH) |
+| `--kv-telemetry-interval N` | page-mass telemetry token cadence (default: 1)<br/>(env: LLAMA_KV_TELEMETRY_INTERVAL) |
+| `--kv-telemetry-layer N` | page-mass telemetry attention layer (default: 0)<br/>(env: LLAMA_KV_TELEMETRY_LAYER) |
+| `--kv-telemetry-head-begin N` | first query head sampled by page-mass telemetry (default: 0)<br/>(env: LLAMA_KV_TELEMETRY_HEAD_BEGIN) |
+| `--kv-telemetry-head-count N` | query heads sampled by page-mass telemetry (0: all; default: 0)<br/>(env: LLAMA_KV_TELEMETRY_HEAD_COUNT) |
+| `--kv-pager-debug` | enable experimental pager diagnostics<br/>(env: LLAMA_KV_PAGER_DEBUG) |
 | `-h, --help, --usage` | print usage and exit |
 | `--version` | show version and build info |
 | `-cl, --cache-list` | show list of models in cache |
@@ -237,7 +253,7 @@
 | `--spec-ngram-map-k4v-size-m N` | ngram size M for ngram-map-k4v speculative decoding, length of draft m-gram (default: 48) |
 | `--spec-ngram-map-k4v-min-hits N` | minimum hits for ngram-map-k4v speculative decoding (default: 1) |
 | `--draft, --draft-n, --draft-max N` | (compat alias for --spec-draft-n-max) max draft tokens (default: 3)<br/>(env: LLAMA_ARG_DRAFT_MAX) |
-| `-cd, --ctx-size-draft N` | draft-model context size (default: 0, 0 = inherit the target's per-sequence capacity; implicit MTP uses unified KV; drafters rarely need more than a few hundred)<br/>(env: LLAMA_ARG_CTX_SIZE_DRAFT) |
+| `-cd, --ctx-size-draft N` | draft-model context size (default: 0, 0 = inherit the target's per-sequence capacity; native MTP -cd must match the target; implicit MTP uses unified KV; external drafters may use an independent value)<br/>(env: LLAMA_ARG_CTX_SIZE_DRAFT) |
 | `--draft-min, --draft-n-min N` | (compat alias for --spec-draft-n-min) min draft tokens (default: 0)<br/>(env: LLAMA_ARG_DRAFT_MIN) |
 | `--gpt-oss-20b-default` | use gpt-oss-20b (note: can download weights from the internet) |
 | `--gpt-oss-120b-default` | use gpt-oss-120b (note: can download weights from the internet) |
