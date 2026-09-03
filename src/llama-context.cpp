@@ -934,6 +934,20 @@ void llama_context::init_kv_pager() {
     }
     memory->set_kv_pager(kv_pager_owner.get());
     const auto & snapshot = kv_pager_owner->snapshot();
+    if (kv_pager.telemetry &&
+        (kv_pager.mode == llama_kv_pager_mode::observe ||
+         kv_pager.mode == llama_kv_pager_mode::selective)) {
+        llama_kv_attention_telemetry_config telemetry_config;
+        telemetry_config.mode = kv_pager.mode == llama_kv_pager_mode::selective
+            ? llama_kv_attention_telemetry_mode::selective
+            : llama_kv_attention_telemetry_mode::observe;
+        telemetry_config.logical_page_count = snapshot.logical_page_count;
+        telemetry_config.sample_interval_tokens = kv_pager.telemetry_interval_tokens;
+        telemetry_config.layer_index = kv_pager.telemetry_layer;
+        telemetry_config.head_begin = kv_pager.telemetry_head_begin;
+        telemetry_config.head_count = kv_pager.telemetry_head_count;
+        kv_attention_telemetry = std::make_unique<llama_kv_attention_telemetry>(telemetry_config);
+    }
     LLAMA_LOG_INFO("KV pager compact target storage: C=%" PRIu64 " L=%u H=%u rows=%" PRIu64 " bytes=%" PRIu64 "\n",
             geometry.context_tokens, snapshot.logical_page_count, snapshot.physical_page_count,
             snapshot.physical_rows, snapshot.realized_bytes);
@@ -1352,6 +1366,11 @@ void llama_context::synchronize() {
     while (kv_attention_execution.in_flight_graphs() != 0) {
         kv_attention_execution.complete_one_graph();
     }
+
+    // Page-mass is an optional output of the direct CUDA attention node. Read
+    // it only after the scheduler fence, then publish against the immutable
+    // snapshot captured when that graph was built.
+    publish_kv_attention_telemetry();
 
     if (kv_attention_wait && t_compute_start_us != 0) {
         kv_attention_execution.record_total_token_us(uint64_t(std::max<int64_t>(
@@ -6206,7 +6225,84 @@ llm_graph_params llama_context::graph_params(
         /*.kv_attention_route =*/ kv_attention_execution.route(),
         /*.kv_attention_metadata =*/ kv_attention_execution.metadata(),
         /*.kv_attention_metrics =*/ &kv_attention_execution.metrics_mutable(),
+        /*.kv_attention_telemetry =*/ kv_attention_telemetry.get(),
     };
+}
+
+void llama_context::publish_kv_attention_telemetry() noexcept {
+    if (!kv_attention_telemetry || !gf_res_prev) {
+        return;
+    }
+    for (const auto & input_ptr : gf_res_prev->inputs) {
+        auto * input = dynamic_cast<llm_graph_input_attn_kv *>(input_ptr.get());
+        if (input == nullptr || input->direct_telemetry_published) {
+            continue;
+        }
+        input->direct_telemetry_published = true;
+        if (input->direct_telemetry_skipped) {
+            kv_attention_telemetry->record_skipped_sample();
+            continue;
+        }
+        if (input->direct_page_mass == nullptr || input->direct_telemetry_pages.empty()) {
+            continue;
+        }
+        const uint32_t total_heads = uint32_t(input->direct_page_mass->ne[1]);
+        const uint32_t head_begin = kv_attention_telemetry->head_begin();
+        if (head_begin >= total_heads || input->direct_page_mass->ne[0] == 0) {
+            continue;
+        }
+        const uint32_t available_heads = total_heads - head_begin;
+        const uint32_t requested_heads = kv_attention_telemetry->head_count();
+        const uint32_t head_count = requested_heads == 0
+            ? available_heads : std::min(requested_heads, available_heads);
+        if (head_count == 0 || input->direct_page_mass->nb[1] == 0) {
+            continue;
+        }
+        const size_t bytes = ggml_nbytes(input->direct_page_mass);
+        if (bytes == 0 || bytes % sizeof(float) != 0) {
+            continue;
+        }
+        std::vector<float> host;
+        try {
+            host.resize(bytes / sizeof(float));
+        } catch (...) {
+            continue;
+        }
+        const int64_t copy_begin = ggml_time_us();
+        ggml_backend_tensor_get(input->direct_page_mass, host.data(), 0, bytes);
+        const uint64_t d2h_time_us = uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - copy_begin));
+
+        const size_t head_stride = input->direct_page_mass->nb[1];
+        const size_t layer_stride = head_stride * size_t(total_heads);
+        if (head_stride < sizeof(float) * size_t(input->direct_page_mass->ne[0]) ||
+            layer_stride < head_stride * size_t(head_count)) {
+            continue;
+        }
+        llama_kv_attention_telemetry_sample sample;
+        sample.table_epoch = input->direct_telemetry_snapshot.epoch();
+        sample.token_index = input->direct_telemetry_token_index;
+        sample.layer_count = 1;
+        sample.head_count = head_count;
+        sample.head_stride_bytes = head_stride;
+        sample.layer_stride_bytes = layer_stride;
+        sample.token_stride_bytes = layer_stride;
+        sample.page_mass = reinterpret_cast<const float *>(
+                reinterpret_cast<const char *>(host.data()) + head_begin * head_stride);
+        sample.pages = input->direct_telemetry_pages.data();
+        sample.page_count = input->direct_telemetry_pages.size();
+        sample.d2h_bytes = bytes;
+        sample.d2h_time_us = d2h_time_us;
+        const auto status = kv_attention_telemetry->publish_completed(
+                input->direct_telemetry_snapshot, sample);
+        kv_attention_telemetry->record_observe_overhead(uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - copy_begin)));
+        if (status != llama_kv_attention_telemetry_status::ok &&
+            status != llama_kv_attention_telemetry_status::sampling_skipped) {
+            LLAMA_LOG_DEBUG("%s: page-mass publication dropped: %s\n", __func__,
+                    llama_kv_attention_telemetry_status_name(status));
+        }
+    }
 }
 
 ggml_status llama_context::graph_compute(

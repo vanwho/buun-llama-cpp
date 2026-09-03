@@ -1572,6 +1572,7 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
     const ggml_tensor * mask = dst->src[5];
     const ggml_tensor * queries = dst->src[6];
     const ggml_tensor * storage = dst->src[7];
+    const ggml_tensor * page_mass = dst->src[8];
     const uint32_t head_dim_k = uint32_t(ggml_get_op_params_i32(dst, 1));
     const uint32_t head_dim_v = uint32_t(ggml_get_op_params_i32(dst, 2));
     const float scale = ggml_get_op_params_f32(dst, 3);
@@ -1583,6 +1584,10 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
         v->type != GGML_TYPE_I8 || storage->type != GGML_TYPE_I8 || pages->type != GGML_TYPE_I8 ||
         positions->type != GGML_TYPE_I64 || mask->type != GGML_TYPE_I8 ||
         queries->type != GGML_TYPE_I64 || dst->type != GGML_TYPE_F32 ||
+        (page_mass != nullptr && (page_mass->type != GGML_TYPE_F32 ||
+                                  page_mass->ne[0] <= 0 || page_mass->ne[0] > UINT32_MAX ||
+                                  page_mass->ne[1] < q->ne[1] ||
+                                  page_mass->nb[1] < size_t(page_mass->ne[0]) * sizeof(float))) ||
         q->ne[0] != head_dim_k || q->ne[1] <= 0 || q->ne[2] != 1 || q->ne[3] != 1 ||
         dst->ne[0] != head_dim_v || dst->ne[1] != q->ne[1] ||
         positions->ne[0] <= 0 || mask->ne[0] != positions->ne[0] ||
@@ -1630,6 +1635,7 @@ void ggml_cuda_flash_attn_ext_paged_turbo4(
     const ggml_tensor * mask = dst->src[5];
     const ggml_tensor * queries = dst->src[6];
     const ggml_tensor * storage = dst->src[7];
+    const ggml_tensor * page_mass = dst->src[8];
     ggml_cuda_fattn_turbo4_paged_params params;
     params.q = static_cast<const float *>(q->data);
     params.output = static_cast<float *>(dst->data);
@@ -1661,6 +1667,12 @@ void ggml_cuda_flash_attn_ext_paged_turbo4(
     params.n_batch = 1;
     params.scale = ggml_get_op_params_f32(dst, 3);
     params.causal = ggml_get_op_params_i32(dst, 4) != 0;
+    if (page_mass != nullptr) {
+        params.page_mass = static_cast<float *>(page_mass->data);
+        params.page_mass_head_stride_bytes = page_mass->nb[1];
+        params.page_mass_logical_count = uint32_t(page_mass->ne[0]);
+        params.reduce_page_mass = true;
+    }
     const auto status = ggml_cuda_flash_attn_ext_paged_turbo4(ctx, params);
     if (status != ggml_cuda_fattn_turbo4_paged_status::ok) {
         GGML_LOG_ERROR("paged Turbo4 attention dispatch failed: %s\n",

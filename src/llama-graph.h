@@ -34,6 +34,7 @@ class llama_kv_cache_iswa_context;
 class llama_memory_recurrent_context;
 class llama_memory_hybrid_context;
 class llama_memory_hybrid_iswa_context;
+class llama_kv_attention_telemetry;
 
 // certain models (typically multi-modal) can produce different types of graphs
 enum llm_graph_type {
@@ -391,12 +392,14 @@ public:
             const llama_cparams & cparams,
             const llama_kv_cache_context * mctx,
             const llama_tree_mask * tree_mask = nullptr,
-            llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr) :
+            llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr,
+            llama_kv_attention_telemetry * kv_attention_telemetry = nullptr) :
         hparams(hparams),
         cparams(cparams),
         mctx(mctx),
         tree_mask(tree_mask),
-        kv_attention_metrics(kv_attention_metrics) {
+        kv_attention_metrics(kv_attention_metrics),
+        kv_attention_telemetry(kv_attention_telemetry) {
     }
     ~llm_graph_input_attn_kv() = default;
 
@@ -435,7 +438,13 @@ public:
     ggml_tensor * direct_native_positions = nullptr;
     ggml_tensor * direct_native_mask = nullptr;
     ggml_tensor * direct_query_positions = nullptr;
+    ggml_tensor * direct_page_mass = nullptr;
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_host;
+    std::vector<llama_kv_page_record> direct_telemetry_pages;
+    llama_kv_residency_snapshot direct_telemetry_snapshot;
+    uint64_t direct_telemetry_token_index = 0;
+    bool direct_telemetry_published = false;
+    bool direct_telemetry_skipped = false;
     std::vector<uint64_t> direct_layer_k_offsets;
     std::vector<uint64_t> direct_layer_v_offsets;
     uint64_t direct_bytes_per_slot = 0;
@@ -459,6 +468,7 @@ public:
     const llama_kv_cache_context * mctx;
     const llama_tree_mask * tree_mask;
     llama_kv_attention_execution_metrics * kv_attention_metrics;
+    llama_kv_attention_telemetry * kv_attention_telemetry;
 };
 
 // V-less input for the KV cache
@@ -933,6 +943,7 @@ struct llm_graph_params {
     llama_kv_attention_execution_route kv_attention_route = llama_kv_attention_execution_route::dense;
     llama_kv_attention_operator_metadata kv_attention_metadata;
     llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr;
+    llama_kv_attention_telemetry * kv_attention_telemetry = nullptr;
 
     // return true if the "other" params would result in a graph with the same topology as with the current params
     //   having the same topology allows us to reuse the graph in some cases
@@ -1013,6 +1024,7 @@ struct llm_graph_params {
             kv_attention_representation_epoch == other.kv_attention_representation_epoch &&
             kv_attention_shape_epoch == other.kv_attention_shape_epoch &&
             kv_attention_route == other.kv_attention_route &&
+            kv_attention_telemetry == other.kv_attention_telemetry &&
             (tree_parent_ids != nullptr) == (other.tree_parent_ids != nullptr);
     }
 };
@@ -1193,6 +1205,7 @@ struct llm_graph_context {
     const llama_kv_attention_operator_metadata & kv_attention_metadata;
     const llama_kv_attention_execution_route kv_attention_route;
     llama_kv_attention_execution_metrics * const kv_attention_metrics;
+    llama_kv_attention_telemetry * const kv_attention_telemetry;
 
     std::map<llama_seq_id, llama_sampler *> samplers;
 

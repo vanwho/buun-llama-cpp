@@ -38,6 +38,10 @@ struct llama_kv_pager_config {
     uint32_t prefetch_depth = 0;
     bool debug = false;
     bool telemetry = true;
+    uint32_t telemetry_interval_tokens = 1;
+    uint32_t telemetry_layer = 0;
+    uint32_t telemetry_head_begin = 0;
+    uint32_t telemetry_head_count = 0;
 
     bool enabled() const noexcept { return mode != llama_kv_pager_mode::off; }
     bool validate(std::string & error) const;

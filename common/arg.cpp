@@ -2323,6 +2323,34 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params, int value) { if (value < 0) throw std::invalid_argument("--kv-prefetch-depth must not be negative"); params.kv_pager.prefetch_depth = uint32_t(value); }
     ).set_env("LLAMA_KV_PREFETCH_DEPTH"));
     add_opt(common_arg(
+        {"--kv-telemetry-interval"}, "N", "page-mass telemetry token cadence (default: 1)",
+        [](common_params & params, int value) {
+            if (value <= 0) throw std::invalid_argument("--kv-telemetry-interval must be positive");
+            params.kv_pager.telemetry_interval_tokens = uint32_t(value);
+        }
+    ).set_env("LLAMA_KV_TELEMETRY_INTERVAL"));
+    add_opt(common_arg(
+        {"--kv-telemetry-layer"}, "N", "page-mass telemetry attention layer (default: 0)",
+        [](common_params & params, int value) {
+            if (value < 0) throw std::invalid_argument("--kv-telemetry-layer must not be negative");
+            params.kv_pager.telemetry_layer = uint32_t(value);
+        }
+    ).set_env("LLAMA_KV_TELEMETRY_LAYER"));
+    add_opt(common_arg(
+        {"--kv-telemetry-head-begin"}, "N", "first query head sampled by page-mass telemetry (default: 0)",
+        [](common_params & params, int value) {
+            if (value < 0) throw std::invalid_argument("--kv-telemetry-head-begin must not be negative");
+            params.kv_pager.telemetry_head_begin = uint32_t(value);
+        }
+    ).set_env("LLAMA_KV_TELEMETRY_HEAD_BEGIN"));
+    add_opt(common_arg(
+        {"--kv-telemetry-head-count"}, "N", "query heads sampled by page-mass telemetry (0: all; default: 0)",
+        [](common_params & params, int value) {
+            if (value < 0) throw std::invalid_argument("--kv-telemetry-head-count must not be negative");
+            params.kv_pager.telemetry_head_count = uint32_t(value);
+        }
+    ).set_env("LLAMA_KV_TELEMETRY_HEAD_COUNT"));
+    add_opt(common_arg(
         {"--kv-pager-debug"}, "enable experimental pager diagnostics",
         [](common_params & params) { params.kv_pager.debug = true; }
     ).set_env("LLAMA_KV_PAGER_DEBUG"));

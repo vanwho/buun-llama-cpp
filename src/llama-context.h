@@ -9,6 +9,7 @@
 #include "llama-memory.h"
 #include "llama-kv-pager-config.h"
 #include "llama-kv-pager.h"
+#include "llama-kv-attention-telemetry.h"
 
 #include "ggml-cpp.h"
 #include "ggml-opt.h"
@@ -296,6 +297,9 @@ struct llama_context {
 
     const llama_model   & get_model()   const;
     const llama_cparams & get_cparams() const;
+    const llama_kv_attention_telemetry * get_kv_attention_telemetry() const noexcept {
+        return kv_attention_telemetry.get();
+    }
 
     // Internal selected-attention boundary.  Policy supplies immutable
     // metadata; graph construction then carries its epochs and page fence.
@@ -538,6 +542,7 @@ public:
 
     // returns the result of ggml_backend_sched_graph_compute_async execution
     ggml_status graph_compute(ggml_cgraph * gf, bool batched);
+    void publish_kv_attention_telemetry() noexcept;
 
     // reserve a graph with a dummy ubatch of the specified size
     ggml_cgraph * graph_reserve(
@@ -593,6 +598,7 @@ private:
     llama_memory_ptr memory;
     std::unique_ptr<llama_kv_pager> kv_pager_owner;
     llama_kv_attention_execution kv_attention_execution;
+    std::unique_ptr<llama_kv_attention_telemetry> kv_attention_telemetry;
 
     // decode output (2-dimensional array: [n_outputs][n_vocab])
     buffer_view<float> logits = {nullptr, 0};

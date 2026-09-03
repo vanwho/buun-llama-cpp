@@ -152,8 +152,9 @@ documentation alone.
 - [07-01 handoff](../handoffs/07-01.md) - upstream slicing and rebase state.
 
 The generated option tables in the CLI and server guides are parser output;
-future option changes must regenerate them. The pager mode and page-tuning
-switches are not currently public CLI options.
+future option changes must regenerate them. Pager mode and page-tuning switches
+remain internal; the task-11 telemetry cadence/layer/head switches are exposed
+by the common parser for controlled calibration runs.
 
 ## Task handoffs
 

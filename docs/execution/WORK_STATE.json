@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "11",
-  "current_task": "11-03",
-  "last_updated_utc": "2026-09-03T20:15:15+00:00",
+  "current_task": "11-04",
+  "last_updated_utc": "2026-09-03T20:55:49+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -759,13 +759,13 @@
       "cluster": "11a-live-routing",
       "title": "Publish live GPU-reduced attention telemetry",
       "packet": "docs/execution/tasks/11-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "11-02"
       ],
-      "commit": null
+      "commit": "ef6e59c6f5d01525656a0a67acd3df038f7c25b3"
     },
     {
       "id": "11-04",
