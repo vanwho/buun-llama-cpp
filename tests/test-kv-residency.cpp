@@ -1,6 +1,7 @@
 #include "../src/llama-kv-residency.h"
 #include "../src/llama-kv-residency-transfer.h"
 #include "../src/llama-kv-residency-transaction.h"
+#include "../src/llama-kv-fixed-window.h"
 
 #include <cassert>
 #include <cstring>
@@ -727,6 +728,92 @@ static void test_reseal_before_eviction() {
         std::vector<uint8_t>({ 1, 2, 3, 4, 5, 6, 7, 8 }));
 }
 
+static void test_fixed_window_proof() {
+    llama_kv_fixed_window_geometry geometry;
+    geometry.logical_pages = 1024;
+    llama_kv_fixed_window_derived_geometry derived;
+    assert(llama_kv_fixed_window_derive_geometry(geometry, derived));
+    assert(derived.values_per_token == 32768);
+    assert(derived.bytes_per_token == 16896);
+    assert(derived.row_bytes == 135168);
+    assert(derived.page_bytes == 4325376);
+    assert(derived.full_context_bytes == 4429185024ULL);
+
+    llama_kv_fixed_window_selection selection;
+    assert(llama_kv_fixed_window_select(
+        geometry.logical_pages, 304, 303, { 0 }, selection));
+    assert(selection.logical_pages.size() == 304);
+    assert(selection.logical_pages.front() == 721 &&
+        selection.logical_pages.back() == 0);
+    llama_kv_fixed_window_selection invalid_selection;
+    assert(!llama_kv_fixed_window_select(
+        geometry.logical_pages, 304, 304, { 0 }, invalid_selection));
+
+    llama_kv_fixed_window_status status;
+    auto window = llama_kv_fixed_window::create(
+        { geometry, 304, derived.full_context_bytes, 32*1024*1024 },
+        derived, status);
+    assert(window && status == llama_kv_fixed_window_status::ok);
+    for (uint32_t logical_page = 0;
+         logical_page < geometry.logical_pages; ++logical_page) {
+        assert(window->seal_host_only(
+            logical_page, geometry.page_tokens, logical_page + 1,
+            derived.page_bytes) == llama_kv_fixed_window_status::ok);
+    }
+    assert(window->ledger().host_valid_pages == 1024);
+    assert(window->ledger().host_payload_bytes == derived.full_context_bytes);
+    assert(window->ledger().d2h_seal_useful_bytes == derived.full_context_bytes);
+    assert(window->ledger().d2h_seal_aligned_bytes == derived.full_context_bytes);
+
+    for (uint32_t slot = 0; slot < selection.logical_pages.size(); ++slot) {
+        const uint32_t logical_page = selection.logical_pages[slot];
+        assert(window->promote(
+            logical_page, slot, logical_page + 1, derived.page_bytes) ==
+            llama_kv_fixed_window_status::ok);
+    }
+    assert(window->ledger().resident_pages == 304);
+    assert(window->ledger().resident_bytes == 304ULL * derived.page_bytes);
+    assert(window->ledger().h2d_useful_bytes ==
+        304ULL * derived.page_bytes);
+
+    const uint64_t d2h_before_evict =
+        window->ledger().d2h_seal_useful_bytes;
+    assert(window->evict_clean(0) == llama_kv_fixed_window_status::ok);
+    assert(window->ledger().resident_pages == 303 &&
+        window->ledger().d2h_seal_useful_bytes == d2h_before_evict &&
+        window->ledger().d2h_eviction_useful_bytes == 0 &&
+        window->ledger().evictions == 1);
+    assert(window->promote(0, 303, 1, derived.page_bytes) ==
+        llama_kv_fixed_window_status::ok);
+
+    assert(window->mutate(0) == llama_kv_fixed_window_status::ok);
+    assert(window->evict_clean(0) == llama_kv_fixed_window_status::dirty);
+    assert(window->seal(0, geometry.page_tokens, 1001, derived.page_bytes) ==
+        llama_kv_fixed_window_status::ok);
+    assert(window->ledger().host_valid_pages == 1024);
+    assert(window->evict_clean(0) == llama_kv_fixed_window_status::ok);
+
+    assert(window->begin_fill(500, 303, 17) == llama_kv_fixed_window_status::ok);
+    assert(window->ledger().pinned_pages == 1);
+    assert(window->evict_clean(500) == llama_kv_fixed_window_status::pinned);
+    const uint64_t partial_bytes = 17ULL * derived.bytes_per_token;
+    assert(window->seal(500, 17, 5001, derived.page_bytes) ==
+        llama_kv_fixed_window_status::ok);
+    assert(window->ledger().pinned_pages == 0 &&
+        window->find(500)->valid_tokens == 17 &&
+        window->find(500)->host_payload_bytes == partial_bytes);
+    assert(window->evict_clean(500) == llama_kv_fixed_window_status::ok);
+
+    assert(window->promote(1, 303, 9999, derived.page_bytes) ==
+        llama_kv_fixed_window_status::checksum_mismatch);
+    assert(window->ledger().checksum_failures == 1);
+    assert(window->promote(1, 303, 2, derived.page_bytes) ==
+        llama_kv_fixed_window_status::ok);
+    assert(window->pin(1) == llama_kv_fixed_window_status::ok);
+    assert(window->unpin(1) == llama_kv_fixed_window_status::ok);
+    assert(window->evict_clean(1) == llama_kv_fixed_window_status::ok);
+}
+
 int main() {
     test_page_geometry();
     test_table_identity_and_snapshot();
@@ -735,5 +822,6 @@ int main() {
     test_transfer_rollback_and_stale_completion();
     test_residency_transaction();
     test_reseal_before_eviction();
+    test_fixed_window_proof();
     return 0;
 }
