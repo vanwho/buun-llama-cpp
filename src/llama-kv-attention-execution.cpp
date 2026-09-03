@@ -2,6 +2,7 @@
 
 #include "llama-impl.h"
 
+#include <algorithm>
 #include <limits>
 
 namespace {
@@ -12,6 +13,10 @@ T saturating_add(T a, T b) noexcept {
         return std::numeric_limits<T>::max();
     }
     return a + b;
+}
+
+void saturating_add_u64(uint64_t & target, uint64_t value) noexcept {
+    target = saturating_add(target, value);
 }
 
 bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcept {
@@ -209,6 +214,30 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         !same_graph(metadata, phase, representation_epoch, shape_epoch, result.route);
 
     if (result.status == llama_kv_attention_execution_status::ok) {
+        const bool rebuild = result.graph_rebuild;
+        ++metrics_.graph_submission_count;
+        if (rebuild) {
+            ++metrics_.graph_capture_count;
+            ++metrics_.graph_rebuild_count;
+        } else {
+            ++metrics_.graph_replay_count;
+        }
+        if (result.route == llama_kv_attention_execution_route::selected_direct) {
+            // This is the exact host-to-device page-table payload written by
+            // llm_graph_input_attn_kv::set_input.  The descriptor is four
+            // uint32 fields followed by one native int64 position.
+            constexpr uint64_t direct_page_bytes =
+                4 * sizeof(uint32_t) + sizeof(int64_t);
+            const uint64_t page_count = uint64_t(metadata.page_table().size());
+            saturating_add_u64(metrics_.table_upload_bytes,
+                    page_count > std::numeric_limits<uint64_t>::max() / direct_page_bytes
+                        ? std::numeric_limits<uint64_t>::max()
+                        : page_count * direct_page_bytes);
+        }
+        metrics_.scratch_high_water_rows = std::max(
+                metrics_.scratch_high_water_rows, result.scratch_rows);
+        metrics_.scratch_high_water_bytes = std::max(
+                metrics_.scratch_high_water_bytes, uint64_t(result.scratch_bytes));
         metadata_ = metadata;
         route_ = result.route;
         phase_ = phase;
@@ -235,10 +264,30 @@ void llama_kv_attention_execution::complete_one_graph() noexcept {
     }
     graph_fences_.front().release();
     graph_fences_.erase(graph_fences_.begin());
+    ++metrics_.graph_completion_count;
+}
+
+void llama_kv_attention_execution::record_descriptor_prepare_us(uint64_t elapsed_us) noexcept {
+    saturating_add_u64(metrics_.descriptor_prepare_us, elapsed_us);
+}
+
+void llama_kv_attention_execution::record_kernel_us(uint64_t elapsed_us) noexcept {
+    saturating_add_u64(metrics_.kernel_us, elapsed_us);
+}
+
+void llama_kv_attention_execution::record_total_token_us(uint64_t elapsed_us) noexcept {
+    saturating_add_u64(metrics_.total_token_us, elapsed_us);
+}
+
+void llama_kv_attention_execution::record_wait() noexcept {
+    saturating_add_u64(metrics_.waits, 1);
 }
 
 void llama_kv_attention_execution::clear() noexcept {
-    graph_fences_.clear();
+    // A route/mode change invalidates the current graph key, but it does not
+    // cancel work already submitted to the scheduler.  Keep every lease until
+    // the normal completion boundary so an old page table cannot be reclaimed
+    // while its graph is still consuming it.
     metadata_ = {};
     route_ = llama_kv_attention_execution_route::dense;
     phase_ = llama_kv_attention_execution_phase::prefill;

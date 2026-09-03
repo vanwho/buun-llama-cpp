@@ -1307,12 +1307,21 @@ void llama_context::synchronize() {
         return;
     }
 
+    const bool kv_attention_wait = kv_attention_execution.in_flight_graphs() != 0;
+    if (kv_attention_wait) {
+        kv_attention_execution.record_wait();
+    }
     ggml_backend_sched_synchronize(sched.get());
 
     // The scheduler fence is the completion boundary for all selected views,
     // including an older table that coexisted with a rebuilt graph.
     while (kv_attention_execution.in_flight_graphs() != 0) {
         kv_attention_execution.complete_one_graph();
+    }
+
+    if (kv_attention_wait && t_compute_start_us != 0) {
+        kv_attention_execution.record_total_token_us(uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - t_compute_start_us)));
     }
 
     // The scheduler fence above is the per-family success boundary for the
@@ -6008,6 +6017,7 @@ llm_graph_params llama_context::graph_params(
         /*.kv_attention_shape_epoch =*/ kv_attention_execution.shape_epoch(),
         /*.kv_attention_route =*/ kv_attention_execution.route(),
         /*.kv_attention_metadata =*/ kv_attention_execution.metadata(),
+        /*.kv_attention_metrics =*/ &kv_attention_execution.metrics_mutable(),
     };
 }
 
