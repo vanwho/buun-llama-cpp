@@ -807,9 +807,11 @@ static void common_params_fit_impl(
         std::vector<common_fit_extra_cache_request> requests;
         requests.reserve(extra_models.size());
         for (const common_fit_extra_model * current : extra_models) {
-            const uint32_t n_ctx_current = common_fit_extra_context_size(
-                cparams->n_ctx, n_streams,
-                current->follows_target_per_sequence, current->fixed_n_ctx);
+            const uint32_t n_ctx_current = current->full_target_context && hp_nct > 0
+                ? hp_nct
+                : common_fit_extra_context_size(
+                    cparams->n_ctx, n_streams,
+                    current->follows_target_per_sequence, current->fixed_n_ctx);
             current->cparams->n_ctx = n_ctx_current;
             requests.push_back({
                 n_ctx_current,

@@ -5412,27 +5412,37 @@ private:
             SRV_ERR("%s", "native MTP draft K/V GPU placement requested, but no usable GPU device is selected\n");
             return nullptr;
         }
-        // Auto-fit mutates the target's llama_context_params, not params_base.  Reuse the
-        // realized target width here; otherwise n_ctx=0 expands the MTP cache to n_ctx_train even
-        // when the fitted target is much smaller.
+        // MTP owns the full accepted target frontier. Target auto-fit may shrink the pageable
+        // attention working set, but it must not shrink this separate GPU reservation.
         const auto mtp_context = common_speculative_mtp_context_params_resolve(
-            llama_n_ctx_seq(ctx_tgt), params_base.speculative.draft.n_ctx,
+            std::max<uint32_t>(
+                llama_n_ctx_seq(ctx_tgt),
+                (uint32_t) std::max(0, llama_model_n_ctx_train(model_tgt))),
+            params_base.speculative.draft.n_ctx,
             cparams.n_seq_max,
             cparams.kv_unified);
-        cparams.n_ctx         = mtp_context.n_ctx;
-        cparams.n_seq_max     = mtp_context.n_seq_max;
-        cparams.kv_unified    = mtp_context.kv_unified;
-        cparams.ctx_type      = LLAMA_CONTEXT_TYPE_MTP;
+        common_speculative_mtp_context_params_apply(cparams, mtp_context, ctx_tgt);
         cparams.type_k        = params_base.speculative.draft.cache_type_k;
         cparams.type_v        = params_base.speculative.draft.cache_type_v;
-        cparams.n_rs_seq      = 0;
         cparams.n_outputs_max = params_base.n_parallel;
-        cparams.ctx_other     = ctx_tgt;
+        if (!common_speculative_mtp_cache_types_valid(cparams.type_k, cparams.type_v)) {
+            SRV_ERR("%s: native MTP requires Turbo4 K/V; got type_k=%s type_v=%s\n",
+                    __func__, ggml_type_name(cparams.type_k), ggml_type_name(cparams.type_v));
+            return nullptr;
+        }
         SRV_INF("native MTP draft K/V device=%s, offload_kqv=%s\n",
                 common_speculative_draft_kv_device_name(
                     params_base.speculative.draft.kv_device),
                 cparams.offload_kqv ? "true" : "false");
-        return llama_init_from_model(model_tgt, cparams);
+        llama_context * context = llama_init_from_model(model_tgt, cparams);
+        if (context == nullptr || !common_speculative_mtp_log_residency(
+                context, cparams.type_k, cparams.type_v)) {
+            if (context != nullptr) {
+                llama_free(context);
+            }
+            return nullptr;
+        }
+        return context;
     }
 
     bool recheck_context_shift_capability(
@@ -6806,11 +6816,7 @@ private:
                     0, params_base.speculative.draft.n_ctx,
                     cparams_mtp.n_seq_max,
                     cparams_mtp.kv_unified);
-                cparams_mtp.n_ctx      = mtp_context.n_ctx;
-                cparams_mtp.n_seq_max  = mtp_context.n_seq_max;
-                cparams_mtp.kv_unified = mtp_context.kv_unified;
-                cparams_mtp.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
-                cparams_mtp.n_rs_seq = 0;
+                common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, nullptr);
                 cparams_mtp.n_outputs_max = n_parallel_user;
                 const common_fit_extra_model extra {
                     params_mtp.model.path.c_str(),
@@ -6820,6 +6826,10 @@ private:
                     params_base.speculative.draft.n_ctx <= 0,
                     params_base.speculative.draft.n_ctx > 0
                         ? (uint32_t) params_base.speculative.draft.n_ctx : 0,
+                    nullptr,
+                    false,
+                    false,
+                    true,
                 };
 
                 const auto fit_status = common_fit_params(
@@ -6835,16 +6845,11 @@ private:
                     return false;
                 }
                 // common_fit_params updates the extra's cparams on every target candidate.
-                // The final interpolation can select a context between measured candidates,
-                // so resolve the extra once more from the returned target before the
-                // phase-residency comparison below.
-                const uint32_t n_streams_fit = cparams_fit.kv_unified ? 1 :
-                    std::max<uint32_t>(1, cparams_fit.n_seq_max);
-                cparams_mtp.n_ctx = common_fit_extra_context_size(
-                    cparams_fit.n_ctx, n_streams_fit,
-                    params_base.speculative.draft.n_ctx <= 0,
-                    params_base.speculative.draft.n_ctx > 0
-                        ? (uint32_t) params_base.speculative.draft.n_ctx : 0);
+                // The full-target flag keeps the implicit MTP context at the model frontier;
+                // an explicit -cd remains an exact user override.
+                if (params_base.speculative.draft.n_ctx > 0) {
+                    cparams_mtp.n_ctx = (uint32_t) params_base.speculative.draft.n_ctx;
+                }
 
                 const bool load_mtp = mparams_mtp.load_mtp;
                 mparams_mtp = mparams_fit;
@@ -7318,18 +7323,26 @@ private:
             if (spec_mtp && !combined_external_and_mtp) {
                 auto cparams = common_context_params_to_llama(params_dft);
                 const auto mtp_context = common_speculative_mtp_context_params_resolve(
-                    llama_n_ctx_seq(ctx_tgt), params_base.speculative.draft.n_ctx,
+                    std::max<uint32_t>(
+                        llama_n_ctx_seq(ctx_tgt),
+                        (uint32_t) std::max(0, llama_model_n_ctx_train(llama_get_model(ctx_tgt)))),
+                    params_base.speculative.draft.n_ctx,
                     params_base.n_parallel,
                     cparams.kv_unified);
-                cparams.n_ctx      = mtp_context.n_ctx;
-                cparams.n_seq_max  = mtp_context.n_seq_max;
-                cparams.kv_unified = mtp_context.kv_unified;
-                cparams.ctx_type   = LLAMA_CONTEXT_TYPE_MTP;
-                cparams.n_rs_seq   = 0;
-                cparams.ctx_other  = ctx_tgt;
+                common_speculative_mtp_context_params_apply(cparams, mtp_context, ctx_tgt);
+                if (!common_speculative_mtp_cache_types_valid(cparams.type_k, cparams.type_v)) {
+                    SRV_ERR("%s: native MTP requires Turbo4 K/V; got type_k=%s type_v=%s\n",
+                            __func__, ggml_type_name(cparams.type_k), ggml_type_name(cparams.type_v));
+                    return false;
+                }
                 ctx_dft.reset(llama_init_from_model(model_dft.get(), cparams));
                 if (ctx_dft == nullptr) {
                     SRV_ERR("%s", "failed to create draft context\n");
+                    return false;
+                }
+                if (!common_speculative_mtp_log_residency(
+                        ctx_dft.get(), cparams.type_k, cparams.type_v)) {
+                    ctx_dft.reset();
                     return false;
                 }
                 ctx_dft_seq_rm_type = common_context_can_seq_rm(ctx_dft.get());

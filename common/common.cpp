@@ -1430,10 +1430,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             const auto mtp_context = common_speculative_mtp_context_params_resolve(
                 0, params.speculative.draft.n_ctx,
                 cparams_dft.n_seq_max, cparams_dft.kv_unified);
-            cparams_dft.n_ctx      = mtp_context.n_ctx;
-            cparams_dft.n_seq_max  = mtp_context.n_seq_max;
-            cparams_dft.kv_unified = mtp_context.kv_unified;
-            cparams_dft.ctx_type   = LLAMA_CONTEXT_TYPE_MTP;
+            common_speculative_mtp_context_params_apply(cparams_dft, mtp_context, nullptr);
         }
         cparams_dft.n_rs_seq = 0;
 
@@ -1443,10 +1440,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
         const auto mtp_context = common_speculative_mtp_context_params_resolve(
             0, params.speculative.draft.n_ctx,
             cparams_mtp.n_seq_max, cparams_mtp.kv_unified);
-        cparams_mtp.n_ctx      = mtp_context.n_ctx;
-        cparams_mtp.n_seq_max  = mtp_context.n_seq_max;
-        cparams_mtp.kv_unified = mtp_context.kv_unified;
-        cparams_mtp.ctx_type   = LLAMA_CONTEXT_TYPE_MTP;
+        common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, nullptr);
 
         const common_fit_extra_model extra_mtp = {
             /*.path_model   =*/ params.model.path.c_str(),
@@ -1458,6 +1452,8 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
                 ? (uint32_t) params.speculative.draft.n_ctx : 0,
             /*.next         =*/ nullptr,
             /*.optional_if_no_mtp =*/ true,
+            /*.borrows_target_tensors =*/ false,
+            /*.full_target_context =*/ true,
         };
 
         const common_fit_extra_model extra_dft = {
@@ -1471,6 +1467,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             /*.next         =*/ spec_mtp && !extra_is_mtp ? &extra_mtp : nullptr,
             /*.optional_if_no_mtp =*/ false,
             /*.borrows_target_tensors =*/ has_draft && extra_is_mtp,
+            /*.full_target_context =*/ extra_is_mtp,
         };
 
         const common_params_fit_status fit_status = common_fit_params(
@@ -1494,9 +1491,11 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             mparams.tensor_buft_overrides = params.tensor_buft_overrides.empty()
                 ? nullptr : params.tensor_buft_overrides.data();
 
-            if (fit_status == COMMON_PARAMS_FIT_STATUS_ERROR) {
+            if (fit_status == COMMON_PARAMS_FIT_STATUS_ERROR || spec_mtp) {
                 throw std::runtime_error(
-                    "failed to fit parameters to device memory (hard error); retry with -fit off");
+                    spec_mtp
+                        ? "failed to reserve the full native MTP context in device memory"
+                        : "failed to fit parameters to device memory (hard error); retry with -fit off");
             }
         } else {
             // surface the RESOLVED placement: auto-fit decided the real offload count in
@@ -2012,8 +2011,21 @@ bool common_speculative_draft_kv_device_is_available(
         return true;
     }
 
-    return llama_supports_gpu_offload() &&
-        (model == nullptr || llama_model_n_devices(model) > 0);
+    if (!llama_supports_gpu_offload()) {
+        return false;
+    }
+    if (model == nullptr) {
+        return true;
+    }
+    for (int32_t i = 0; i < llama_model_n_devices(model); ++i) {
+        const ggml_backend_dev_t backend_device = llama_model_get_device(model, i);
+        if (backend_device != nullptr &&
+                (ggml_backend_dev_type(backend_device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+                 ggml_backend_dev_type(backend_device) == GGML_BACKEND_DEVICE_TYPE_IGPU)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 const char * common_speculative_draft_kv_device_name(

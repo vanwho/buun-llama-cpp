@@ -63,6 +63,24 @@ static void test(void) {
         assert(explicit_unified.n_seq_max == 4);
         assert(explicit_unified.kv_unified);
 
+        const auto full_frontier = common_speculative_mtp_context_params_resolve(
+            std::max<uint32_t>(4096, 262144), 0, 2, false);
+        assert(full_frontier.n_ctx == 262144);
+        llama_context_params mtp_cparams = llama_context_default_params();
+        mtp_cparams.vbr_dynamic = true;
+        mtp_cparams.vbr_min_bits = 2.0;
+        mtp_cparams.vbr_vram_budget_bytes = 1024;
+        common_speculative_mtp_context_params_apply(
+            mtp_cparams, full_frontier, nullptr);
+        assert(mtp_cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP);
+        assert(mtp_cparams.n_ctx == 262144);
+        assert(!mtp_cparams.vbr_dynamic);
+        assert(mtp_cparams.vbr_vram_budget_bytes == 0);
+        assert(common_speculative_mtp_cache_types_valid(
+            GGML_TYPE_TURBO4_0, GGML_TYPE_TURBO4_0));
+        assert(!common_speculative_mtp_cache_types_valid(
+            GGML_TYPE_F16, GGML_TYPE_F16));
+
         common_params_speculative pure_mtp;
         pure_mtp.types = { COMMON_SPECULATIVE_TYPE_DRAFT_MTP };
         pure_mtp.draft.ctx_dft = reinterpret_cast<llama_context *>(uintptr_t(1));

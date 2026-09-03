@@ -5537,6 +5537,88 @@ common_speculative_mtp_context_params common_speculative_mtp_context_params_reso
     return { target_n_ctx_seq, requested_n_seq_max, true };
 }
 
+void common_speculative_mtp_context_params_apply(
+        llama_context_params & cparams,
+        const common_speculative_mtp_context_params & geometry,
+        llama_context * target) {
+    cparams.n_ctx      = geometry.n_ctx;
+    cparams.n_seq_max  = geometry.n_seq_max;
+    cparams.kv_unified = geometry.kv_unified;
+    cparams.ctx_type   = LLAMA_CONTEXT_TYPE_MTP;
+    cparams.ctx_other  = target;
+    cparams.n_rs_seq   = 0;
+
+    // The target attention pager/VBR controller owns only the target cache. MTP is a separate,
+    // full-length GPU reservation and must remain static and ineligible for target eviction.
+    cparams.vbr_dynamic               = false;
+    cparams.vbr_min_bits              = 0.0;
+    cparams.vbr_min_bits_explicit     = false;
+    cparams.vbr_vram_budget_bytes     = 0;
+    cparams.vbr_growth_headroom_bytes = 0;
+    cparams.vbr_budget_explicit       = false;
+    cparams.vbr_pin_k                 = false;
+    cparams.vbr_pin_v                 = false;
+}
+
+bool common_speculative_mtp_cache_types_valid(
+        ggml_type type_k, ggml_type type_v) noexcept {
+    return type_k == GGML_TYPE_TURBO4_0 && type_v == GGML_TYPE_TURBO4_0;
+}
+
+bool common_speculative_mtp_log_residency(
+        const llama_context * context,
+        ggml_type type_k,
+        ggml_type type_v,
+        const char * budget_category) {
+    const char * category = budget_category != nullptr ? budget_category : "mtp_gpu_reserved";
+    const uint32_t rows = context != nullptr ? llama_n_ctx_seq(context) : 0;
+    size_t total_bytes = 0;
+    bool all_gpu = context != nullptr && rows > 0;
+
+    if (!common_speculative_mtp_cache_types_valid(type_k, type_v)) {
+        LOG_ERR("%s: rejecting MTP KV type_k=%s type_v=%s; native MTP requires Turbo4/Turbo4\n",
+                __func__, ggml_type_name(type_k), ggml_type_name(type_v));
+        all_gpu = false;
+    }
+
+    if (context != nullptr) {
+        const llama_memory_breakdown breakdown = llama_get_memory_breakdown(context);
+        for (const auto & [buft, memory] : breakdown) {
+            if (memory.context == 0) {
+                continue;
+            }
+
+            total_bytes += memory.context;
+            const ggml_backend_dev_t device = ggml_backend_buft_get_device(buft);
+            const bool gpu = !ggml_backend_buft_is_host(buft) && device != nullptr &&
+                (ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+                 ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_IGPU);
+            all_gpu = all_gpu && gpu;
+
+            LOG_INF("%s: MTP KV type_k=%s type_v=%s rows=%" PRIu32 " bytes=%zu "
+                    "bytes_per_token=%zu backend=%s budget_category=%s\n",
+                    __func__, ggml_type_name(type_k), ggml_type_name(type_v), rows,
+                    memory.context, rows != 0 && memory.context % rows == 0
+                        ? memory.context / rows : 0,
+                    device != nullptr ? ggml_backend_dev_name(device) : "host",
+                    category);
+        }
+    }
+
+    if (total_bytes == 0 || !all_gpu) {
+        LOG_ERR("%s: MTP KV reservation is unsafe: type_k=%s type_v=%s rows=%" PRIu32
+                " bytes=%zu backend=gpu-required budget_category=%s\n",
+                __func__, ggml_type_name(type_k), ggml_type_name(type_v), rows,
+                total_bytes, category);
+        return false;
+    }
+
+    LOG_INF("%s: MTP KV reservation committed: rows=%" PRIu32 " bytes=%zu "
+            "backend=gpu budget_category=%s\n",
+            __func__, rows, total_bytes, category);
+    return true;
+}
+
 bool common_speculative_mtp_context_available(const common_params_speculative & params) {
     if (params.has_non_mtp_model_drafter()) {
         return params.draft.ctx_mtp != nullptr;
@@ -5596,14 +5678,21 @@ common_speculative_init_result::common_speculative_init_result(
     }
 
     auto cparams_mtp = cparams;
+    const uint32_t target_n_ctx_full = std::max<uint32_t>(
+        llama_n_ctx_seq(ctx_tgt),
+        (uint32_t) std::max(0, llama_model_n_ctx_train(model_tgt)));
     const auto mtp_context = common_speculative_mtp_context_params_resolve(
-        llama_n_ctx_seq(ctx_tgt), params.speculative.draft.n_ctx,
+        target_n_ctx_full, params.speculative.draft.n_ctx,
         cparams_mtp.n_seq_max,
         cparams_mtp.kv_unified);
-    cparams_mtp.n_ctx      = mtp_context.n_ctx;
-    cparams_mtp.n_seq_max  = mtp_context.n_seq_max;
-    cparams_mtp.kv_unified = mtp_context.kv_unified;
-    cparams_mtp.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
+    common_speculative_mtp_context_params_apply(cparams_mtp, mtp_context, ctx_tgt);
+
+    if (spec_mtp && !common_speculative_mtp_cache_types_valid(
+            cparams_mtp.type_k, cparams_mtp.type_v)) {
+        LOG_ERR("%s: native MTP requires Turbo4 K/V; got type_k=%s type_v=%s\n",
+                __func__, ggml_type_name(cparams_mtp.type_k), ggml_type_name(cparams_mtp.type_v));
+        return;
+    }
 
     std::string model_path;
     if (has_draft) {
@@ -5646,6 +5735,12 @@ common_speculative_init_result::common_speculative_init_result(
 
         pimpl->context.reset(ctx_dft);
 
+        if (external_mtp_sidecar && !common_speculative_mtp_log_residency(
+                pimpl->context.get(), cparams_mtp.type_k, cparams_mtp.type_v)) {
+            pimpl->context.reset();
+            return;
+        }
+
         if (combined_external_and_mtp) {
             LOG_INF("%s: creating native MTP context against the target model '%s'\n",
                     __func__, params.model.path.c_str());
@@ -5665,6 +5760,12 @@ common_speculative_init_result::common_speculative_init_result(
                         params.speculative.types.end());
             } else {
                 pimpl->context_mtp.reset(ctx_mtp);
+                if (!common_speculative_mtp_log_residency(
+                        pimpl->context_mtp.get(), cparams_mtp.type_k, cparams_mtp.type_v)) {
+                    pimpl->context_mtp.reset();
+                    pimpl->context.reset();
+                    return;
+                }
             }
         }
     } else if (spec_mtp) {
@@ -5685,6 +5786,11 @@ common_speculative_init_result::common_speculative_init_result(
         }
 
         pimpl->context.reset(ctx_dft);
+        if (!common_speculative_mtp_log_residency(
+                pimpl->context.get(), cparams_mtp.type_k, cparams_mtp.type_v)) {
+            pimpl->context.reset();
+            return;
+        }
     }
 }
 
