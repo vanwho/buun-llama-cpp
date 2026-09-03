@@ -694,8 +694,8 @@ CODEX_GIT_MODE=local \
 /srv/codex/run_until_complete_clustered.sh --show-clusters
 ```
 
-Before continuous execution, a human resolves task `00-01` and changes it from `blocked` to `todo` with
-the issue/discussion decision recorded in its handoff. Normal execution then resumes the first task not
+Task `00-01` is complete: the user authorized experimental commits in the `vanwho/*` forks while
+upstream submission remains deferred. Normal execution now resumes at `00-02`, the first task not
 `done` or `deferred`. Every task maintains `docs/execution/handoffs/<task>.md`; raw benchmark artifacts
 belong under ignored build/result storage, with stable summaries linked from the handoff.
 
@@ -704,11 +704,11 @@ The status helper supports:
 ```bash
 python3 tool/codex/task_state.py validate
 python3 tool/codex/task_state.py show
-python3 tool/codex/task_state.py unblock 00-01 --summary "human recorded issue URL ..."
-python3 tool/codex/task_state.py start 00-01
-python3 tool/codex/task_state.py checkpoint 00-01 --summary "..."
-python3 tool/codex/task_state.py complete 00-01 --summary "..."
+python3 tool/codex/task_state.py start 00-02
+python3 tool/codex/task_state.py checkpoint 00-02 --summary "..."
+python3 tool/codex/task_state.py complete 00-02 --summary "..."
 python3 tool/codex/task_state.py block 02-03 --reason "..."
+python3 tool/codex/task_state.py unblock 02-03 --summary "blocker resolved ..."
 ```
 
 Never mark a hardware gate complete without its raw output. Use `deferred` only when the plan explicitly
