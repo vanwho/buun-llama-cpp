@@ -44,6 +44,7 @@ add_library(llama
             llama-vocab.cpp
             llama-cache-accounting.cpp
             llama-cache-budget.cpp
+            llama-kv-policy.cpp
             llama-cache-authority.cpp
             llama-vbr-hard-seal.cpp
             llama-vbr-extent.cpp
