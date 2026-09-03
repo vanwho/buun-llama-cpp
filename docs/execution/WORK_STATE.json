@@ -7,9 +7,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "08",
-  "current_task": "08-05",
-  "last_updated_utc": "2026-09-03T14:27:08+00:00",
+  "current_phase": "09",
+  "current_task": "09-01",
+  "last_updated_utc": "2026-09-03T14:41:02+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -577,13 +577,13 @@
       "cluster": "08b-benchmark-contract",
       "title": "Capture corrected same-build control matrix",
       "packet": "docs/execution/tasks/08-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "08-04"
       ],
-      "commit": null
+      "commit": "b3152a6a0d6f399cbad74272defcbcbe85d353d8"
     },
     {
       "id": "09-01",
