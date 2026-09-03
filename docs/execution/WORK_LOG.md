@@ -156,3 +156,10 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-06-02`
 - Commit at update: `bfc536912`
 - Summary: Added CUDA correctness matrix with RTX 4080 sm_89 fixture, VMM, sanitizer, graph-key, and server-fault evidence; explicitly dispositioned live model/integration checks.
+
+## 2026-09-03T12:01:00+00:00 — 06-03 — done
+
+- Summary: Added a repo-local canonical profile benchmark adapter with six pager variants, compatible
+  manifest/record/summary enrichment, corpus identity, pre/post service snapshots, explicit
+  not-configured telemetry, and deterministic dry-run coverage. Live smoke verification is deferred
+  because the established profile workflow requires unavailable port 8091 health.
