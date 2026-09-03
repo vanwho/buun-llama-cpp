@@ -106,8 +106,13 @@ public:
     llama_kv_residency_transaction begin() const noexcept;
 
     llama_kv_residency_status replace(
-        llama_kv_residency_transaction & tx,
-        const llama_kv_page_record & page) const noexcept;
+            llama_kv_residency_transaction & tx,
+            const llama_kv_page_record & page) const noexcept;
+    // Replace an existing logical page record without changing its physical slot. This is used
+    // while a write page remains pinned and its valid-range/state advances.
+    llama_kv_residency_status update(
+            llama_kv_residency_transaction & tx,
+            const llama_kv_page_record & page) const noexcept;
     llama_kv_residency_status erase(
         llama_kv_residency_transaction & tx,
         const llama_kv_page_id & id) const noexcept;

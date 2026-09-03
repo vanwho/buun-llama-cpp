@@ -84,6 +84,10 @@ public:
 
     ~llama_memory_hybrid() = default;
 
+    void set_kv_pager(llama_kv_pager * pager) override {
+        mem_attn->set_kv_pager(pager);
+    }
+
     //
     // llama_memory_i
     //
@@ -258,6 +262,7 @@ public:
 
     bool next()  override;
     bool apply() override;
+    void finish(bool graph_succeeded) override;
 
     llama_memory_status  get_status() const override;
     const llama_ubatch & get_ubatch() const override;

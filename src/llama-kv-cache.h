@@ -3,6 +3,7 @@
 #include "llama-batch.h"
 #include "llama-graph.h"
 #include "llama-kv-cells.h"
+#include "llama-kv-pager.h"
 #include "llama-memory.h"
 #include "llama-vbr-generation.h"
 #include "llama-vbr-hard-seal.h"
@@ -173,6 +174,9 @@ public:
                  const char *   name_tag);
 
     ~llama_kv_cache(); // frees the VBR VMM pool (if any); = default otherwise
+
+    void set_kv_pager(llama_kv_pager * pager) override;
+    void finish_pager_batch(bool graph_succeeded) noexcept;
 
     //
     // llama_memory_i
@@ -1422,6 +1426,11 @@ private:
     std::vector<vbr_pending_decode_op> vbr_awaiting_commit_;
     uint64_t vbr_pending_commit_failures_ = 0;  // sync-boundary commit failures, counted
 
+    // Rows reserved before graph construction. Completion is deliberately
+    // separate from apply_ubatch: graph construction/allocation may still fail.
+    llama_kv_pager * pager_ = nullptr;
+    std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
+
   public:
     // Promote submitted extents to committed. Called from the context's existing synchronize
     // point — never introduces a new fence (Rev 5.1). No-op when nothing is pending.
@@ -1714,6 +1723,7 @@ public:
 
     bool next()  override;
     bool apply() override;
+    void finish(bool graph_succeeded) override;
 
     llama_memory_status  get_status() const override;
     const llama_ubatch & get_ubatch() const override;

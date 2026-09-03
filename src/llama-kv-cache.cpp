@@ -2053,6 +2053,35 @@ llama_kv_cache::~llama_kv_cache() {
     vbr_release_resources();
 }
 
+void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
+    // Binding happens once, after the context has admitted the pager target.
+    // Do not silently discard writes if a caller attempts to replace it while a
+    // graph is outstanding.
+    GGML_ASSERT(pager_pending_writes_.empty());
+    pager_ = pager;
+}
+
+void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
+    if (pager_ == nullptr || pager_pending_writes_.empty()) {
+        return;
+    }
+
+    const uint32_t segments = pager_->snapshot().geometry.attention_layers * 2;
+    if (graph_succeeded) {
+        for (const auto & ticket : pager_pending_writes_) {
+            (void) pager_->complete_write(ticket, segments, true);
+        }
+    } else {
+        // Reverse order makes duplicate logical positions cancel correctly: the
+        // ticket that observed a row already valid cannot clear the row inserted
+        // by an earlier ticket.
+        for (auto it = pager_pending_writes_.rbegin(); it != pager_pending_writes_.rend(); ++it) {
+            (void) pager_->cancel_write(*it);
+        }
+    }
+    pager_pending_writes_.clear();
+}
+
 void llama_kv_cache::vbr_release_resources() {
     // vbr_trace_fp_ closes itself through its RAII unique_ptr.
     // Normally the enclosing llama_context's detach guard clears these while this context's
@@ -2232,6 +2261,11 @@ void llama_kv_cache::vbr_shared_scratch_detach() {
 }
 
 void llama_kv_cache::clear(bool data) {
+    if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
+            llama_kv_pager_mutation_kind::clear, -1, -1, 0,
+            std::numeric_limits<llama_pos>::max(), 0, 0 }) != llama_kv_pager_write_status::ok) {
+        return;
+    }
     vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
             vbr_operation_class::state_api, -1, 0, std::numeric_limits<llama_pos>::max());
     const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
@@ -2339,10 +2373,19 @@ bool llama_kv_cache::seq_rm_impl(
         p1 = std::numeric_limits<llama_pos>::max();
     }
 
+    const bool commit = mode != seq_rm_mode::dry_run;
+    if (commit && pager_ != nullptr && pager_->snapshot().physical_page_count != 0) {
+        const auto pager_status = pager_->mutate({
+            llama_kv_pager_mutation_kind::remove, seq_id < 0 ? 0 : seq_id, -1,
+            p0, p1, 0, 0 });
+        if (pager_status != llama_kv_pager_write_status::ok) {
+            return false;
+        }
+    }
+
     // VBR mutation scope: authenticated (sequence_edit, seq, [p0,p1)). Generic seq_rm remains
     // membership-only state_api (not provenance-bearing); the destructive §7.5 classes arrive
     // with the classed server paths in the mutation coordinator commit.
-    const bool commit = mode != seq_rm_mode::dry_run;
     vbr_mutation_op mutation_op(commit ? this : nullptr, vbr_operation_kind::sequence_edit,
             vbr_operation_class::state_api, seq_id, p0, p1);
     const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
@@ -2481,6 +2524,12 @@ void llama_kv_cache::seq_cp_impl(
 
     vbr_normalize_edit_range(p0, p1);  // Canonical range before the scope.
 
+    if (seq_id_src != seq_id_dst && pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
+            llama_kv_pager_mutation_kind::copy, seq_id_src, seq_id_dst,
+            p0, p1, 0, 0 }) != llama_kv_pager_write_status::ok) {
+        return;
+    }
+
     // VBR mutation scope. Cross-stream copies additionally reserve recovery and carry the
     // source-stability token; that wiring rides the sc_info pending owner below.
     vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
@@ -2613,6 +2662,12 @@ void llama_kv_cache::seq_keep(llama_seq_id seq_id) {
             vbr_operation_class::state_api, -1, 0, std::numeric_limits<llama_pos>::max());
     const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
 
+    if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
+            llama_kv_pager_mutation_kind::keep, seq_id, -1, 0,
+            std::numeric_limits<llama_pos>::max(), 0, 0 }) != llama_kv_pager_write_status::ok) {
+        return;
+    }
+
     GGML_ASSERT(seq_id >= 0 && (size_t) seq_id < seq_to_stream.size());
 
     const uint32_t stream = seq_to_stream[seq_id];
@@ -2694,6 +2749,11 @@ void llama_kv_cache::seq_add_impl(
     auto & cells = v_cells[stream];
     auto & head  = v_heads[stream];
     vbr_normalize_edit_range(p0, p1);  // Canonical range before the scope.
+    if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
+            llama_kv_pager_mutation_kind::shift, seq_id, -1, p0, p1, shift, 0 }) !=
+            llama_kv_pager_write_status::ok) {
+        return;
+    }
     // VBR mutation scope: position shift is a dependency-changing edit over [p0,p1).
     vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
             vbr_operation_class::state_api, seq_id, p0, p1);
@@ -3659,6 +3719,29 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
     }
 
     assert(ubatch.n_tokens == sinfo.n_stream()*sinfo.size());
+
+    if (commit && pager_ != nullptr && pager_->snapshot().physical_page_count != 0) {
+        const size_t old_size = pager_pending_writes_.size();
+        try {
+            pager_pending_writes_.reserve(old_size + ubatch.n_tokens);
+            for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
+                llama_kv_pager_write_ticket ticket;
+                const llama_seq_id sequence_id = ubatch.seq_id[i][0];
+                const auto write_status = pager_->begin_write(sequence_id, 0, ubatch.pos[i], ticket);
+                if (write_status != llama_kv_pager_write_status::ok) {
+                    throw std::runtime_error(std::string("KV pager write reservation failed: ") +
+                            llama_kv_pager_write_status_name(write_status));
+                }
+                pager_pending_writes_.push_back(ticket);
+            }
+        } catch (...) {
+            while (pager_pending_writes_.size() > old_size) {
+                (void) pager_->cancel_write(pager_pending_writes_.back());
+                pager_pending_writes_.pop_back();
+            }
+            throw;
+        }
+    }
 
     // One decode-kind operation scope per apply_ubatch commit. Recovery is eager
     // (reserved in the ctor — the wrap class is provenance-bearing); the extents and the
@@ -12061,7 +12144,10 @@ void llama_kv_cache::set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ub
         const int64_t offs = sinfo.strm[s]*get_size();
 
         for (uint32_t i = 0; i < sinfo.size(); ++i) {
-            data[s*sinfo.size() + i] = offs + sinfo.idxs[s][i];
+            uint32_t pager_row = UINT32_MAX;
+            const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
+                pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], pager_row);
+            data[s*sinfo.size() + i] = compact ? pager_row : offs + sinfo.idxs[s][i];
         }
     }
 }
@@ -12079,7 +12165,10 @@ void llama_kv_cache::set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ub
             const int64_t offs = sinfo.strm[s]*get_size();
 
             for (uint32_t i = 0; i < sinfo.size(); ++i) {
-                data[s*sinfo.size() + i] = offs + sinfo.idxs[s][i];
+                uint32_t pager_row = UINT32_MAX;
+                const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
+                    pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], pager_row);
+                data[s*sinfo.size() + i] = compact ? pager_row : offs + sinfo.idxs[s][i];
             }
         }
     } else {
@@ -12092,8 +12181,12 @@ void llama_kv_cache::set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ub
             const int64_t offs = sinfo.strm[s]*kv_size*n_embd_v_gqa;
 
             for (uint32_t i = 0; i < sinfo.size(); ++i) {
+                uint32_t pager_row = UINT32_MAX;
+                const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
+                    pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], pager_row);
+                const int64_t row = compact ? pager_row : sinfo.idxs[s][i];
                 for (uint32_t j = 0; j < n_embd_v_gqa; ++j) {
-                    data[s*sinfo.size()*n_embd_v_gqa + i*n_embd_v_gqa + j] = offs + j*kv_size + sinfo.idxs[s][i];
+                    data[s*sinfo.size()*n_embd_v_gqa + i*n_embd_v_gqa + j] = offs + j*kv_size + row;
                 }
             }
         }
@@ -13463,6 +13556,10 @@ bool llama_kv_cache_context::apply() {
     n_kv = kv->get_n_kv(sinfos[i_cur]);
 
     return true;
+}
+
+void llama_kv_cache_context::finish(bool graph_succeeded) {
+    kv->finish_pager_batch(graph_succeeded);
 }
 
 llama_memory_status llama_kv_cache_context::get_status() const {

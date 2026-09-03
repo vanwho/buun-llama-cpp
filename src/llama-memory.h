@@ -173,6 +173,11 @@ struct llama_memory_context_i {
     // return false on failure
     virtual bool apply() = 0;
 
+    // Complete or cancel backend-owned writes reserved by apply(). The default
+    // keeps non-attention memories inert; attention contexts use this at the
+    // graph submission boundary so a failed graph cannot publish a partial page.
+    virtual void finish(bool /*graph_succeeded*/) {}
+
     // get the current ubatch
     virtual const llama_ubatch & get_ubatch() const = 0;
 
@@ -220,6 +225,10 @@ struct llama_memory_i {
     using layer_share_cb = std::function<int32_t(int32_t il)>;
 
     virtual ~llama_memory_i() = default;
+
+    // Attach the optional compact attention target after the owning context has
+    // finished backend admission. Non-attention memories remain unchanged.
+    virtual void set_kv_pager(class llama_kv_pager * /*pager*/) {}
 
     // split the input batch into a set of ubatches and verify that they can fit into the cache
     // return a context object containing the ubatches and memory state required to process them

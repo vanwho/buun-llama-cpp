@@ -102,6 +102,26 @@ llama_kv_residency_status llama_kv_residency_table::erase(
     return llama_kv_residency_status::ok;
 }
 
+llama_kv_residency_status llama_kv_residency_table::update(
+        llama_kv_residency_transaction & tx, const llama_kv_page_record & page) const noexcept {
+    if (!tx.active_) return llama_kv_residency_status::transaction_closed;
+    if (!llama_kv_page_id_valid(page.id, page.state == llama_kv_page_state::filling_gpu)) {
+        return llama_kv_residency_status::invalid_position_range;
+    }
+    auto it = std::find_if(tx.pages_.begin(), tx.pages_.end(), [&](const auto & existing) {
+        return existing.id.session_generation == page.id.session_generation &&
+            existing.id.sequence_id == page.id.sequence_id &&
+            existing.id.sequence_generation == page.id.sequence_generation &&
+            existing.id.logical_page == page.id.logical_page;
+    });
+    if (it == tx.pages_.end()) return llama_kv_residency_status::not_found;
+    if (it->physical_slot != page.physical_slot) {
+        return llama_kv_residency_status::duplicate_physical_slot;
+    }
+    *it = page;
+    return llama_kv_residency_status::ok;
+}
+
 llama_kv_residency_status llama_kv_residency_table::publish(llama_kv_residency_transaction & tx) noexcept {
     if (!tx.active_) return llama_kv_residency_status::transaction_closed;
     if (tx.base_epoch_ != state_->epoch) return llama_kv_residency_status::stale_epoch;
