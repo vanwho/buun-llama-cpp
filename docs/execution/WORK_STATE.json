@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "01",
-  "current_task": "01-01",
-  "last_updated_utc": "2026-09-03T05:55:48+00:00",
+  "current_task": "01-02",
+  "last_updated_utc": "2026-09-03T05:58:02+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -110,7 +110,7 @@
       "cluster": "01a-page-core",
       "title": "Freeze selective-attention product semantics",
       "packet": "docs/execution/tasks/01-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Low",
       "depends_on": [
@@ -118,7 +118,7 @@
         "00-04",
         "00-05"
       ],
-      "commit": null
+      "commit": "175ec305fef99c9beeaa2c405bb79e0bc5ee9436"
     },
     {
       "id": "01-02",
