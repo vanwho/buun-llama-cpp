@@ -836,7 +836,8 @@ Existing reference observations that must appear in the Phase 00 baseline report
 
 - historical production Fast target context, target and MTP Turbo4, batch/ubatch 1024/256;
 - RTX 4080 reported capacity: 16,376 MiB;
-- 44,018-token Fast validation at 77,824 passed at 1,411.64 prompt tok/s and 37.43 decode tok/s;
+- 44,018-token Fast validation at its recorded historical context passed at 1,411.64 prompt tok/s and
+  37.43 decode tok/s;
 - 81,920 failed its long prompt on the context-scaled F16 dequant scratch despite passing startup;
 - recorded large Fast/off median: 71.05 decode tok/s and 1,326.38 prompt tok/s over five trials;
 - short Turbo4-vs-F16 MTP aggregate acceptance: 81.591% vs 80.974%, with about 214 MiB startup VRAM
