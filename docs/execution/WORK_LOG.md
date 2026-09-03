@@ -240,3 +240,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-11-02`
 - Commit at update: `c3957a5c1`
 - Summary: Added generation-tagged all-page routing retrieval with deterministic structural union, safe summary fallback, typed mandatory overflow, exploration rotation, tests, and checkpoint.
+
+## 2026-09-03T20:55:24+00:00 — 11-03 — done
+
+- Branch: `codex/task-11-03`
+- Commit at update: `b70658a61`
+- Summary: Wired bounded direct CUDA page-mass telemetry with generation-safe publication; CPU, parser, adjacent KV, and CUDA fixture checks pass; model-backed calibration deferred.
