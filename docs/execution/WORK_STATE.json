@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "13",
-  "current_task": "13-01",
-  "last_updated_utc": "2026-09-03T22:14:06+00:00",
+  "current_task": "13-02",
+  "last_updated_utc": "2026-09-03T22:19:59+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -843,13 +843,13 @@
       "cluster": "13a-kernel-transfer-opt",
       "title": "Establish reproducible profiles and performance budgets",
       "packet": "docs/execution/tasks/13-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "12-03"
       ],
-      "commit": null
+      "commit": "28ccd876d475626de61ebbfade8096ccbddf1536"
     },
     {
       "id": "13-02",

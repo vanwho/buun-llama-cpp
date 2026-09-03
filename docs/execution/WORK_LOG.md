@@ -276,3 +276,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-12-03`
 - Commit at update: `5a867e524`
 - Summary: Added explicit off/observe/selective/exact pager construction coverage and recorded the operator-surface lifecycle/refusal matrix with live CUDA checks deferred.
+
+## 2026-09-03T22:19:28+00:00 — 13-01 — done
+
+- Branch: `codex/task-13-01`
+- Commit at update: `28ccd876d`
+- Summary: Frozen reproducible phase-13 calibration shapes, Release CUDA provenance, raw control measurements, component accounting, ranked bottlenecks, three optimization hypotheses, and numeric budgets in PERFORMANCE_PROFILE.md/json; no optimization made.
