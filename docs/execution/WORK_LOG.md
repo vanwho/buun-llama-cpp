@@ -32,3 +32,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-00-03`
 - Commit at update: `07cf19764`
 - Summary: Automatic blocker-recovery attempt 1/2; previous blocker: Controlled profile restore failed because required health endpoint 127.0.0.1:8091 was unavailable; Qwen 8080 is healthy but the harness restore gate cannot be certified.
+
+## 2026-09-03T04:52:25+00:00 — 00-03 — done
+
+- Branch: `codex/task-00-03`
+- Commit at update: `ad8ebd1fe`
+- Summary: Captured Fast default/large, full-context ordinary CPU-KV, and Big spec-off controls; manifests and summaries verified, final qwen38-big and 8080/8091 health restored.

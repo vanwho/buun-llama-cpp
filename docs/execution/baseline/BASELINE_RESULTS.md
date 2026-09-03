@@ -16,19 +16,23 @@ The measured MTP acceptance in the short run was 93.697%, 58.571%, and
 Both manifests record model, build, GPU, profile, sampling, and exact request
 settings.
 
-## Controls not completed
+## Controls
 
-The temporary full-context ordinary CPU-KV launch loaded the pinned model at
-262,144 tokens with explicit `--no-kv-offload` and logged the CPU-bound KV
-path, but its standalone process was reclaimed by the service manager before
-the first request. No CPU-KV throughput or quality number is reported. Its
-launch log and failed control setup are retained at
-`/srv/ai/paged-kv/results/qwen38-cpu-kv-launch-20260903.log` and
+The full-context ordinary CPU-KV control used a transient systemd unit with
+the pinned model/build, 262,144-token context, Turbo4 K/V, and explicit
+`--no-kv-offload`. Three requests passed: prompt median 1049.49 tok/s and
+decode median 8.96 tok/s. Artifacts, including the launch manifest, records,
+summary, HTTP metadata, and raw responses, are under
 `/srv/ai/paged-kv/results/ordinary-cpu-kv-full-20260903/`.
 
-A same-corpus greedy spec-off token comparison was not run after the failed
-temporary launch. The valid Fast run is the spec-on/MTP control; no spec-off
-acceptance or quality result is claimed.
+The canonical Big profile supplied the same-build greedy spec-off control:
+9/9 short requests passed, with decode medians 49.08, 48.98, and 48.93 tok/s
+and prompt medians 736.79, 671.84, and 692.45 tok/s. No MTP acceptance is
+expected for this profile. Its manifest, records, and summaries are under
+`/srv/ai/paged-kv/results/profile-benchmark-default-big-20260903/`. The Fast
+MTP run is the spec-on control above; these profiles differ in context and
+MTP placement, so the comparison is a rollback/performance control rather
+than a paired quality claim.
 
 ## Historical comparison
 
@@ -42,7 +46,5 @@ replacement of the dated history. The new large run uses 512-token outputs
 and reports 89.35 decode tok/s, so it is not directly interchangeable with
 the dated 71.05 figure without preserving those configuration differences.
 
-The controlled restore left `qwen38-big` active and Qwen `/health` on port
-8080 healthy. The harness and activation workflow also require the separate
-8091 health endpoint, which was unavailable during restore; this remains the
-task blocker recorded in the handoff.
+The controlled restore left `qwen38-big` active with both Qwen `/health` on
+8080 and the configured long-memory `/health` on 8091 healthy.
