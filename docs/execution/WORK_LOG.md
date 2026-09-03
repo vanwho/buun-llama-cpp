@@ -108,3 +108,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 ## 2026-09-03T09:19:01+00:00 — 03-04 — done
 
 - Summary: Added the selected-attention execution boundary for multi-chunk prefill/tail admission, decode transition, reference/direct route selection, observe/off/refusal logging, resident-plus-transfer/router scratch sizing, selected-content graph keys, and scheduler-completion page fences; focused lifecycle, graph, residency, and prior CUDA primitive checks passed.
+
+## 2026-09-03T09:38:13+00:00 — 04-03 — done
+
+- Branch: `codex/task-04-03`
+- Commit at update: `a92a00ac1`
+- Summary: Added bounded deterministic hot-set controller with normalized retention evidence, exact default partition, pin overflow refusal, decision reasons, hysteresis, and replay tests.

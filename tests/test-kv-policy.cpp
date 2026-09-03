@@ -1,10 +1,15 @@
 #include "llama-kv-policy.h"
 
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 
 static llama_kv_policy_page page(uint64_t id, bool resident = true) {
     llama_kv_policy_page p; p.id = id; p.resident = resident; p.age = id; p.recency = id; return p;
+}
+
+static bool contains(const std::vector<uint64_t> & values, uint64_t id) {
+    return std::find(values.begin(), values.end(), id) != values.end();
 }
 
 int main() {
@@ -32,5 +37,44 @@ int main() {
     trace.pages[2].inflight_pin = true;
     trace.pages[4].application_pin = true;
     assert(llama_kv_policy_replay(trace).status == llama_kv_policy_status::pin_overflow);
+
+    llama_kv_policy_trace controller_trace;
+    controller_trace.epoch = 7;
+    controller_trace.write_page = 1;
+    controller_trace.pages.resize(8);
+    for (size_t i = 0; i < controller_trace.pages.size(); ++i) {
+        controller_trace.pages[i] = page(i + 1, i < 6);
+        controller_trace.pages[i].age = 8 - i;
+        controller_trace.pages[i].recency = i;
+        controller_trace.pages[i].attention_ema_q = i * 10;
+    }
+    controller_trace.pages[0].current = true;
+    controller_trace.pages[1].structural = true;
+    controller_trace.pages[2].recent = true;
+    controller_trace.pages[3].attention_observed = true;
+    controller_trace.pages[4].attention_observed = true;
+    controller_trace.pages[5].speculative_pin = true;
+    controller_trace.summary_top_k = { 7, 4, 7 };
+    controller_trace.exploration = { 8, 4 };
+
+    llama_kv_policy_controller_config controller_config;
+    controller_config.capacity_pages = 6;
+    controller_config.recent_pages = 1;
+    controller_config.structural_pages = 1;
+    controller_config.historical_pages = 2;
+    controller_config.transient_pages = 2;
+    const auto decision = llama_kv_policy_decide(controller_trace, controller_config);
+    assert(decision.status == llama_kv_policy_status::ok);
+    assert(decision.target.size() == controller_config.capacity_pages);
+    assert(contains(decision.target, 1));
+    assert(contains(decision.target, 6));
+    assert(decision.unavailable_evidence == 6);
+    const auto repeat = llama_kv_policy_decide(controller_trace, controller_config);
+    assert(decision.target == repeat.target);
+    const auto retained = llama_kv_policy_decide(controller_trace, controller_config, decision.target);
+    assert(retained.keeps.size() == decision.target.size());
+    controller_config.capacity_pages = 1;
+    assert(llama_kv_policy_decide(controller_trace, controller_config).status == llama_kv_policy_status::pin_overflow);
+
     std::cout << "kv policy checks passed\n";
 }
