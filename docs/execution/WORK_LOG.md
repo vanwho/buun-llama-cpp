@@ -252,3 +252,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-11-04`
 - Commit at update: `61f5675e9`
 - Summary: Added the full-identity live hot-set boundary and pager publication door with runtime-H exact target reconciliation, safe evidence fallbacks, transfer preflight, deterministic slot assignment, and rollback-safe occupied-slot transaction ordering. Focused CPU/fake KV regressions pass; model-backed CUDA calibration remains deferred.
+
+## 2026-09-03T21:31:52+00:00 — 11-05 — done
+
+- Branch: `codex/task-11-05`
+- Commit at update: `291690e30`
+- Summary: Added generation-safe single-slot live lifecycle composition for ranked/coalesced bounded prefetch, decode readiness, atomic companion/table publication, and prompt/checkpoint/clear/cancel/slot-reuse teardown; added deterministic overlap and stale-completion tests.
