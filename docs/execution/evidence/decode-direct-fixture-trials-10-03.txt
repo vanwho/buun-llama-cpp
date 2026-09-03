@@ -1,0 +1,27 @@
+# Task 10-03 bounded direct fixture trials
+# Captured 2026-09-03T18:53Z on NVIDIA GeForce RTX 4080, CUDA 12.4 build.
+# Command: for trial in 1 2 3 4 5 6 7; do build-cuda-test/bin/test-cuda-fattn-paged-turbo4; done
+# First two invocations are warmups; trials 3-7 are the five measured samples.
+# This fixture has no model prompt, dense/reference peer, or end-to-end token stream.
+trial=1
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15942 MiB):
+paged Turbo4 decode: 20.422 ms (four Q heads, 529 selected rows)
+trial=2
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15942 MiB):
+paged Turbo4 decode: 22.137 ms (four Q heads, 529 selected rows)
+trial=3
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15942 MiB):
+paged Turbo4 decode: 20.461 ms (four Q heads, 529 selected rows)
+trial=4
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15942 MiB):
+paged Turbo4 decode: 19.692 ms (four Q heads, 529 selected rows)
+trial=5
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15942 MiB):
+paged Turbo4 decode: 20.952 ms (four Q heads, 529 selected rows)
+trial=6
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15942 MiB):
+paged Turbo4 decode: 21.066 ms (four Q heads, 529 selected rows)
+trial=7
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15942 MiB):
+paged Turbo4 decode: 22.157 ms (four Q heads, 529 selected rows)
+# Measured trials 3-7: median=20.952 ms, mean=20.8656 ms, min=19.692 ms, max=22.157 ms.

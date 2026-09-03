@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "task": "10-03",
+  "title": "First live-decode graph epoch checkpoint",
+  "status": "model_route_checkpoint_deferred",
+  "captured_utc": "2026-09-03T18:45:26Z",
+  "source": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "head_at_capture": "835a929e3ff08337f548ef8f4db4d16e3a90366f",
+    "working_tree": "task 10-03 changes are uncommitted by runner contract"
+  },
+  "epoch_contract": {
+    "status": "passed",
+    "test": "test-kv-attention-execution",
+    "command": "ctest --test-dir build -R '^test-kv-attention-execution$' --output-on-failure",
+    "coverage": [
+      "unchanged table reuse",
+      "ordered page-content change",
+      "physical-slot remap",
+      "representation epoch",
+      "table epoch and tail growth",
+      "query position and shape change",
+      "direct-to-reference route change",
+      "irrelevant scratch and metrics ownership",
+      "old/new immutable view leases across clear and replacement"
+    ],
+    "asserted_counts": {
+      "graph_captures": 8,
+      "graph_replays": 1,
+      "graph_submissions": 9,
+      "direct_page_table_upload_bytes": 96,
+      "old_and_new_leases_coexist": true
+    }
+  },
+  "instrumentation": {
+    "implementation": "llama_kv_attention_execution_metrics",
+    "counters": [
+      "graph_capture_count",
+      "graph_replay_count",
+      "graph_rebuild_count",
+      "graph_submission_count",
+      "graph_completion_count",
+      "table_upload_bytes",
+      "descriptor_prepare_us",
+      "kernel_us",
+      "total_token_us",
+      "waits",
+      "scratch_high_water_rows",
+      "scratch_high_water_bytes"
+    ],
+    "scope": "The controller records graph-key admission, direct page-table payload bytes, and scratch watermarks. The graph input records descriptor-copy preparation time; the context records selected-graph synchronization and total token time. CUDA kernel time is supplied by CUDA event fixtures.",
+    "live_model_values": "not_recorded"
+  },
+  "routes": {
+    "dense": {
+      "status": "deferred",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "raw_path": null,
+      "reason": "No task-local route-comparison runner exposes the identical prompt/output stream and the new selected-route counters together."
+    },
+    "selected_reference": {
+      "status": "deferred",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "raw_path": null,
+      "reason": "Requires a model-backed run with CUDA direct qualification disabled while preserving the selected page stream."
+    },
+    "selected_direct": {
+      "status": "bounded_fixture_only",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "raw_path": "docs/execution/evidence/decode-direct-fixture-trials-10-03.txt",
+      "reason": "The registered fixture validates the direct Turbo4 page kernel, not end-to-end Qwen graph output."
+    }
+  },
+  "trial_contract": {
+    "required_warmup_trials": 2,
+    "required_measured_trials": 5,
+    "identical_prompt_and_output_stream": false,
+    "status": "deferred",
+    "reason": "A dense/reference/direct model-backed harness with shared prompts, logits, route labels, and per-token counters is not registered in this repository."
+  },
+  "bounded_direct_fixture": {
+    "shape": "four Q heads, one query, 529 selected rows, three physical Turbo4 pages",
+    "warmup_trials": 2,
+    "measured_trials": 5,
+    "timing_unit": "ms",
+    "timings": [20.461, 19.692, 20.952, 21.066, 22.157],
+    "median_ms": 20.952,
+    "mean_ms": 20.8656,
+    "min_ms": 19.692,
+    "max_ms": 22.157,
+    "kernel_time_source": "CUDA events in tests/test-cuda-fattn-paged-turbo4.cu",
+    "quality_claim": false,
+    "raw_path": "docs/execution/evidence/decode-direct-fixture-trials-10-03.txt"
+  },
+  "h2l_bounded_manual_selection": {
+    "status": "not_run",
+    "quality_claim": false,
+    "reason": "No model-backed selection stream is available in the task-local harness."
+  },
+  "resource_and_safety_evidence": {
+    "cuda_fixture": "docs/execution/evidence/cuda-fixture.log",
+    "memcheck": "docs/execution/evidence/cuda-sanitizer.log",
+    "racecheck": "docs/execution/evidence/cuda-racecheck.log",
+    "kernel_resources": "docs/execution/evidence/cuda-kernel-resource-summary.log",
+    "vmm": "docs/execution/evidence/cuda-vmm.log",
+    "result": "bounded direct fixture and VMM checks pass; live graph/table-update replay remains deferred"
+  },
+  "bottlenecks": [
+    "The direct graph currently rewrites page-table and native-position inputs on each submission; the measured table payload is bounded but not yet amortized by a live capture harness.",
+    "Descriptor-copy, kernel, and total-token counters are wired at the production boundary, but no model run has populated all three timing classes.",
+    "The next prefill task must establish a shared route-control harness before dynamic selection or a speed gate is meaningful."
+  ],
+  "next_prefill_requirements": [
+    "capture dense, selected-all-pages reference, and direct routes for identical Qwen prompts",
+    "record logits/output equality before reporting throughput",
+    "run two warmups and five measured trials per route with pp/tg/TTFT/inter-token p50/p95",
+    "retain graph epoch, table upload, descriptor, scratch, wait, and CUDA event timing counters",
+    "add bounded H<L allocation/timing evidence without a quality claim",
+    "exercise prefill-to-decode transition and page-tail publication under the same completion fence"
+  ]
+}
