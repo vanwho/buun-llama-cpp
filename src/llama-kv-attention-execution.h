@@ -1,5 +1,6 @@
 #pragma once
 
+#include "llama-kv-attention-exact.h"
 #include "llama-kv-attention-op.h"
 
 #include <cstddef>
@@ -44,6 +45,7 @@ enum class llama_kv_attention_execution_status : uint8_t {
     invalid_metadata,
     invalid_prefill_transition,
     overflow,
+    not_configured,
 };
 
 const char * llama_kv_attention_execution_status_name(
@@ -107,6 +109,18 @@ struct llama_kv_attention_execution_metrics {
     uint64_t waits = 0;
     uint64_t scratch_high_water_rows = 0;
     uint64_t scratch_high_water_bytes = 0;
+    uint64_t exact_plan_waves = 0;
+    uint64_t exact_plan_pages = 0;
+    uint64_t exact_resident_pages = 0;
+    uint64_t exact_cold_pages = 0;
+    uint64_t exact_pages_visited = 0;
+    uint64_t exact_h2d_useful_bytes = 0;
+    uint64_t exact_h2d_aligned_bytes = 0;
+    uint64_t exact_waits = 0;
+    uint64_t exact_peak_staging_pages = 0;
+    uint64_t exact_duplicate_pages = 0;
+    uint64_t exact_missing_pages = 0;
+    uint64_t exact_stale_pages = 0;
 
     void record_descriptor_prepare_us(uint64_t elapsed_us) noexcept {
         descriptor_prepare_us = descriptor_prepare_us > UINT64_MAX - elapsed_us
@@ -122,6 +136,8 @@ struct llama_kv_attention_execution_metrics {
     void record_wait() noexcept {
         waits = waits == UINT64_MAX ? UINT64_MAX : waits + 1;
     }
+    void record_exact_ledger(
+            const llama_kv_attention_exact_ledger & ledger) noexcept;
 };
 
 // Admission is kept separate from residency publication.  A page can be

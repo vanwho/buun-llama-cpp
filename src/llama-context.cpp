@@ -1432,6 +1432,143 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     if (shape_epoch == 0) shape_epoch = 1;
 
     const llama_kv_attention_scratch_request empty_scratch;
+    if (kv_pager.mode == llama_kv_pager_mode::exact) {
+        kv_attention_execution.metrics_mutable().record_exact_ledger({});
+        auto refuse_exact = [&](llama_kv_attention_execution_status status,
+                                const std::string & reason) {
+            kv_attention_execution.clear();
+            llama_kv_attention_execution_decision result;
+            result.status = status;
+            result.route = llama_kv_attention_execution_route::refusal;
+            result.phase = phase;
+            result.representation_epoch = representation_epoch;
+            result.shape_epoch = shape_epoch;
+            result.reason = reason;
+            LLAMA_LOG_ERROR("%s: exact attention refused: %s\n",
+                    __func__, result.reason.c_str());
+            return result;
+        };
+
+        // Exact attention is a page-wave route, not a dense graph hint.  The
+        // graph builder currently has no node that can suspend at each layer,
+        // stage a cold page, and merge its (m,l,o) partial.  Build and publish
+        // the complete immutable coverage ledger here so an unavailable
+        // backend fails closed instead of silently executing dense attention.
+        if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
+            (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
+            !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
+            ubatch.pos == nullptr || ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr) {
+            return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                    "exact page-wave graph requires one Qwen sequence");
+        }
+
+        const llama_seq_id sequence_id = ubatch.seq_id[0][0];
+        if (sequence_id < 0 || ubatch.n_seq_id[0] != 1) {
+            return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                    "exact page-wave graph has invalid sequence metadata");
+        }
+        for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+            if (ubatch.n_seq_id[token] != 1 || ubatch.seq_id[token] == nullptr ||
+                ubatch.seq_id[token][0] != sequence_id) {
+                return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                        "exact page-wave graph requires one sequence per query block");
+            }
+        }
+
+        const llama_kv_cache_context * attention =
+            dynamic_cast<const llama_kv_cache_context *>(mctx);
+        if (attention == nullptr) {
+            const auto * hybrid = dynamic_cast<const llama_memory_hybrid_context *>(mctx);
+            attention = hybrid ? hybrid->get_attn() : nullptr;
+        }
+        if (attention == nullptr || !attention->selected_attention_supported() ||
+            attention->get_kv_pager() == nullptr) {
+            return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                    "exact attention cache cannot expose canonical page records");
+        }
+
+        const auto & pager = *attention->get_kv_pager();
+        const auto pager_geometry = pager.snapshot();
+        const auto resident_snapshot = pager.residency(sequence_id);
+        const auto records = pager.exact_page_records(sequence_id);
+        if (records.empty() || resident_snapshot.epoch() == 0 ||
+            records.size() > 1024 ||
+            pager_geometry.physical_page_count == 0 ||
+            pager_geometry.geometry.page_tokens == 0 ||
+            pager_geometry.geometry.page_bytes == 0) {
+            return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                    "exact attention has no complete resident/host page inventory");
+        }
+
+        std::vector<llama_kv_attention_exact_page> pages;
+        try {
+            pages.reserve(records.size());
+            uint32_t logical_page_count = 0;
+            for (const auto & record : records) {
+                if (record.id.sequence_id != sequence_id ||
+                    record.id.logical_page == UINT32_MAX ||
+                    record.id.position_begin < 0 || record.id.position_end < 0 ||
+                    record.id.position_end <= record.id.position_begin) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            "exact attention encountered an invalid page identity");
+                }
+                const uint64_t valid_tokens = uint64_t(record.id.position_end) -
+                    uint64_t(record.id.position_begin);
+                if (valid_tokens == 0 || valid_tokens > pager_geometry.geometry.page_tokens) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            "exact attention encountered an invalid page tail");
+                }
+                const bool resident = record.physical_slot != UINT32_MAX;
+                if (!resident && !record.host_valid) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            "exact attention encountered a cold page without host backing");
+                }
+                pages.push_back({ record.id, record.physical_slot,
+                        uint32_t(valid_tokens), resident, record.host_valid });
+                logical_page_count = std::max(logical_page_count,
+                        record.id.logical_page + 1);
+            }
+
+            // The available physical page window is the only live device
+            // budget exposed by the pager.  Keep cold waves bounded by it;
+            // the eventual CUDA binding may choose a smaller budget but can
+            // never need a full logical-context allocation.
+            const uint32_t cold_pages = uint32_t(std::count_if(
+                    pages.begin(), pages.end(), [](const auto & page) { return !page.resident; }));
+            const uint32_t wave_page_budget = std::max(1u, std::min(
+                    cold_pages == 0 ? 1u : cold_pages,
+                    pager_geometry.physical_page_count));
+            llama_kv_attention_exact_config config;
+            config.logical_page_count = logical_page_count;
+            config.pages_per_wave = wave_page_budget;
+            config.staging_slots = 1;
+            config.page_bytes = pager_geometry.geometry.page_bytes;
+            config.schedule = llama_kv_attention_exact_schedule::serial;
+
+            llama_kv_attention_exact_status exact_status;
+            const auto plan = llama_kv_attention_exact_wave_plan::build(
+                    pages, resident_snapshot, config, exact_status);
+            kv_attention_execution.metrics_mutable().record_exact_ledger(plan.ledger());
+            if (!plan.valid()) {
+                return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                        std::string("exact page-wave coverage rejected: ") +
+                        llama_kv_attention_exact_status_name(exact_status));
+            }
+            LLAMA_LOG_DEBUG("%s: exact page-wave plan pages=%u waves=%llu resident=%llu cold=%llu h2d=%llu peak_staging=%llu\n",
+                    __func__, plan.logical_page_count(),
+                    (unsigned long long) plan.ledger().waves,
+                    (unsigned long long) plan.ledger().resident_pages,
+                    (unsigned long long) plan.ledger().cold_pages,
+                    (unsigned long long) plan.ledger().h2d_useful_bytes,
+                    (unsigned long long) plan.ledger().peak_staging_pages);
+        } catch (...) {
+            return refuse_exact(llama_kv_attention_execution_status::overflow,
+                    "exact attention page-wave metadata allocation failed");
+        }
+
+        return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                "exact CUDA page-wave callbacks are not configured");
+    }
     if (kv_pager.mode != llama_kv_pager_mode::selective) {
         return prepare_kv_attention({}, phase, representation_epoch, shape_epoch,
                 false, empty_scratch);

@@ -92,6 +92,9 @@ verification outputs, not source evidence to stage.
   [`cuda-kernel-resource-summary.log`](cuda-kernel-resource-summary.log).
 - [Exact reference](EXACT_REFERENCE.md) - online-softmax `(m,l,o)` merge,
   page coverage, cold staging, and partial CUDA output.
+- [Exact live checkpoint](EXACT_LIVE_CHECKPOINT.md) - canonical host-page
+  inventory, bounded live preflight ledger, verification, and deferred graph
+  binding checks.
 - [Exact CUDA fixture log](exact-cuda-fixture.log) - bounded partial-state
   execution and memcheck evidence.
 - [Task 06-02 handoff](../handoffs/06-02.md) - CUDA scope and deferred live

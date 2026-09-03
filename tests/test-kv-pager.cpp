@@ -221,9 +221,14 @@ static void test_host_seal_boundary() {
     auto result = host->seal(page);
     assert(result.status == llama_kv_pager_host_status::ok);
     assert(host->snapshot().live_pages == 1);
+    const auto live_pages = host->pages();
+    assert(live_pages.size() == 1);
+    assert(live_pages[0].page.identity == page.id);
+    assert(!live_pages[0].obsolete);
     assert(host->invalidate(page.id));
     assert(host->snapshot().live_pages == 0);
     assert(host->snapshot().obsolete_pages == 1);
+    assert(host->pages().empty());
 }
 
 int main() {
