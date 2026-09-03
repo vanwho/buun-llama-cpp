@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "07",
-  "current_task": "07-01",
-  "last_updated_utc": "2026-09-03T11:43:17+00:00",
+  "current_task": "07-02",
+  "last_updated_utc": "2026-09-03T11:53:49+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -483,13 +483,13 @@
       "cluster": "07a-upstream-handoff",
       "title": "Prepare reviewable upstream change slices",
       "packet": "docs/execution/tasks/07-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "06-05"
       ],
-      "commit": null
+      "commit": "8ac64b1714b1f4c29898a3450619e8d53df295cb"
     },
     {
       "id": "07-02",

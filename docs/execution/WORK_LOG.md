@@ -176,3 +176,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-06-05`
 - Commit at update: `c55e3d3f7`
 - Summary: Added the exact all-page online-softmax reference: stable (m,l,o) merge, deterministic hot-then-cold bounded wave planning with coverage ledger, serial/double-buffer callback execution, explicit exact route, and CUDA Turbo4 partial-state output. Focused CPU/CUDA fixtures and CUDA memcheck passed; full model-backed 256K exact/selective quality evidence remains deferred.
+
+## 2026-09-03T11:53:07+00:00 — 07-01 — done
+
+- Branch: `codex/task-07-01`
+- Commit at update: `8ac64b171`
+- Summary: Added diff-grounded upstream slice map with source ranges, hunk ownership, boundary evidence, issue disposition, and rebase strategy.
