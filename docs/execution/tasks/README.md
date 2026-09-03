@@ -28,7 +28,9 @@ Global rules for every packet:
    invariants checked, raw artifact paths, risks, and deferred checks.
 10. Update only this task in `WORK_STATE.json`. Use `tool/codex/task_state.py`; mark complete only after
    every locally executable acceptance item passes. Mark blocked with one concrete reason and needed
-   input when progress cannot continue.
+   input only after distinct recovery paths have been tried. The runner automatically reopens a blocked
+   task twice, using a fresh session each time and escalating a Luna task to Terra/high on the final
+   approach; do not treat the first failed command as a sufficient blocker.
 
 Suggested handoff skeleton:
 

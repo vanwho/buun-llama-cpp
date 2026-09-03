@@ -619,7 +619,9 @@ or pure-arithmetic work (`00-01`, `00-02`, `00-04`, `01-01`, `01-03`), Luna Medi
 implementation/benchmark/policy work, and Luna High for cross-worktree placement, residency
 transactions, CUDA/operator integration, concurrent lifecycle, CUDA acceptance, and exact numerical
 reference work. The runner converts these labels to `gpt-5.6-luna` with the corresponding reasoning
-effort; no task relies on Terra or Sol.
+effort. If a Luna task blocks twice while pursuing concrete recovery paths, the runner escalates its
+third and final approach to `gpt-5.6-terra` with high reasoning before preserving a real block; explicit
+model overrides suppress that escalation.
 
 ### Phase 00 — governance and reproducible baseline
 
@@ -1005,7 +1007,7 @@ handoff; **provisional API** may change before upstream review without changing 
 | D16 | Locked | Off mode and existing prompt artifacts must remain compatible; state/server/MTP/recurrent changes publish as one generation-safe operation. | Fail closed on stale identity, rollback every partial operation, and test cancellation/slot reuse/checkpoints. | 02-04, 05-01–06-02 |
 | D17 | Locked | Upstreamability requires small connected branches and repository conventions. | Generic draft placement first; page core, backing, FA, telemetry, policy, integration, and exact work remain separate; no giant initial PR. | 00-05, 07-01, 07-02 |
 | D18 | Locked | Performance claims use the existing `/srv/ai/benchmarks` result contract and same model/corpus controls. | Preserve raw manifests; compare all-GPU 77K, ordinary CPU KV, observe, selective focus/needle/churn, exact separately. | 00-03, 06-03–06-05 |
-| D19 | Locked | Task execution uses Luna Medium by default, Luna Low only for genuinely simple checklist work, and Luna High only where cross-repo, CUDA, lifecycle, or numerical risk warrants it. | `WORK_STATE.json` recommendations are all `Luna Low`, `Luna Medium`, or `Luna High`; runner/session clusters remain model-homogeneous enough for efficient reuse. | 00-01–07-02 |
+| D19 | Locked | Task execution uses Luna Medium by default, Luna Low only for genuinely simple checklist work, and Luna High only where cross-repo, CUDA, lifecycle, or numerical risk warrants it. A Luna task that blocks twice gets one Terra/high recovery attempt before a real block. | `WORK_STATE.json` retains Luna recommendations; the runner records recovery count under ignored run state and escalates only when no explicit model/reasoning override is supplied. | 00-01–07-02 |
 | D20 | Locked | Acceptance is Qwen3.8-on-reference-machine-specific, but committed implementation must remain portable Buun/llama code. | Keep server paths, profiles, service/PID/port facts, model filenames, GPU assumptions, and mutable benchmark data outside production source; express geometry through runtime metadata/capability and injected configuration, and scan changed files before upstream slicing. | 00-02, 01-01–06-05, 07-01–07-02 |
 
 ### 17.1 Deliberately unresolved choices
@@ -1064,7 +1066,7 @@ stop/restart of the active Qwen service through the established benchmark/profil
 | Condition | Runner behavior | Can the agent resolve it? |
 | --- | --- | --- |
 | A task is incomplete, Codex hits a transient network/rate-limit, or a cluster exceeds its context guardrail | Retry with the same task/session, then rotate the cluster session; preserve state/handoff. | Yes, automatically, subject to service availability. |
-| The current task is blocked in `WORK_STATE.json` | Exit with code 3 and preserve the concrete blocker. | No; an external state change or user decision is required. |
+| The current task reports a blocker | Reopen it for two automatic recovery attempts (fresh session each time); on the second recovery of a Luna task use Terra/high, then preserve the block and exit code 3 only if the third total approach still fails. | Yes, through distinct diagnostics/configuration/fallback paths; a persisted block remains when all three approaches fail. |
 | Required model/sidecar is absent or metadata differs from the pinned Qwen3.8 geometry | Stop at provenance; do not guess or expand scope. | No, unless the artifact becomes available or the user changes scope. |
 | Relevant upstream default branch moves after provenance | Stop and request a deliberate re-sync/rebase decision; never merge over local work. | Not safely without an explicit policy choice. |
 | A live service would be disrupted by `/srv/ai/benchmarks` | Enter a controlled maintenance window: capture active profile/PID/command/health, let the established profile harness stop/restart the service with non-interactive sudo, and verify restoration plus health afterward. Never kill an unrelated service or leave a failed restart hidden. | Yes, now that the user has explicitly authorized the plan to bring down/restart the active server and passwordless sudo is available. A restart failure remains a blocker. |
