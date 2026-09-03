@@ -86,3 +86,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-02-04`
 - Commit at update: `b50a11691`
 - Summary: Added failure-atomic KV residency transactions with explicit snapshot/plan/reserve/pin/reseal/drop/load/fence/recheck/publish ordering, reversible victim rollback, generation and epoch rejection, dirty/all-pinned/source failure handling, and deterministic phase fault tests.
+
+## 2026-09-03T07:38:32+00:00 — 02-05 — done
+
+- Branch: `codex/task-02-05`
+- Commit at update: `a4f869753`
+- Summary: Added derived fixed/manual 304-page residency window with exact Turbo4 geometry, scalar host/device/staging ledger, partial-tail seal/reseal, checksum validation, mutation/promotion/clean-eviction proof, and deterministic tests.
