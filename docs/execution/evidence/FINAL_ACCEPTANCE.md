@@ -21,7 +21,7 @@ contract. The valid controls are retained outside this repository:
   approximately 44K large scratch run with five measured trials.
 - `/srv/ai/paged-kv/results/ordinary-cpu-kv-full-20260903/`:
   262,144 ordinary CPU-KV control with explicit `--no-kv-offload`.
-- `/srv/ai/paged-kv/results/profile-benchmark-default-big-20260903/`:
+- `/srv/ai/paged-kv/results/profile-benchmark-default-big-20260903-065012/`:
   canonical feature/spec-off rollback control.
 
 The adapter's frozen corpus identity is `pager-corpus-v1`; expected needle

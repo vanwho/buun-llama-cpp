@@ -29,7 +29,7 @@ The canonical Big profile supplied the same-build greedy spec-off control:
 9/9 short requests passed, with decode medians 49.08, 48.98, and 48.93 tok/s
 and prompt medians 736.79, 671.84, and 692.45 tok/s. No MTP acceptance is
 expected for this profile. Its manifest, records, and summaries are under
-`/srv/ai/paged-kv/results/profile-benchmark-default-big-20260903/`. The Fast
+`/srv/ai/paged-kv/results/profile-benchmark-default-big-20260903-065012/`. The Fast
 MTP run is the spec-on control above; these profiles differ in context and
 MTP placement, so the comparison is a rollback/performance control rather
 than a paired quality claim.
