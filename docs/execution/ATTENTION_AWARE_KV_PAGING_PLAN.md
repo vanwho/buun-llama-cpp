@@ -27,6 +27,29 @@ cache, recurrent state, transfer rings, routing summaries, and a configurable VR
 reserved. The acceptance campaign should land close to 77K on the reference machine. If it does not,
 the ledger must explain every byte.
 
+### 1.1 Portability and repository-boundary invariant
+
+The implementation is Buun/llama-compatible code, not a deployment script for this particular server.
+All committed source, headers, tests, CLI options, backend abstractions, and user-facing documentation
+must be portable to another checkout, model path, host OS, GPU, and supported backend. In particular,
+implementation files must not contain `/srv/ai`, `/srv/repos`, `/home/ninja`, this server's systemd unit
+names, process IDs, fixed ports, absolute model/profile paths, or assumptions that an RTX 4080 is present.
+Use existing repository configuration/CLI seams, runtime capability and GGUF metadata checks, injected
+allocators/streams, and caller-provided paths instead.
+
+Qwen3.8-27B is the first acceptance fixture and may have a dedicated model-capability adapter, but its
+geometry, Turbo4 choice, 256-token page size, 262K context, and 77K hot-set are runtime configuration or
+test data—not compile-time global constants hidden in generic pager/VMM/attention code. Unsupported
+geometry must fail closed with a clear diagnostic. `/srv/ai` paths, profiles, service lifecycle commands,
+machine facts, benchmark result directories, and raw manifests belong only in fork-local execution docs,
+handoffs, ignored build/evidence storage, or the external `/srv/ai` benchmark repository; they must never
+be required by the Buun library or binary at runtime.
+
+Every implementation task must inspect its changed-file diff for this invariant. The final documentation
+task must run a changed-file portability scan and record any intentional test fixture exceptions. A code
+commit that embeds server-specific paths or operational state fails review even if the local benchmark
+passes.
+
 ## 2. Required semantics
 
 The fast mode is intentionally selective, not bit-equivalent dense attention. Calling it ordinary KV
@@ -980,6 +1003,7 @@ handoff; **provisional API** may change before upstream review without changing 
 | D17 | Locked | Upstreamability requires small connected branches and repository conventions. | Generic draft placement first; page core, backing, FA, telemetry, policy, integration, and exact work remain separate; no giant initial PR. | 00-05, 07-01, 07-02 |
 | D18 | Locked | Performance claims use the existing `/srv/ai/benchmarks` result contract and same model/corpus controls. | Preserve raw manifests; compare all-GPU 77K, ordinary CPU KV, observe, selective focus/needle/churn, exact separately. | 00-03, 06-03–06-05 |
 | D19 | Locked | Task execution uses Luna Medium by default, Luna Low only for genuinely simple checklist work, and Luna High only where cross-repo, CUDA, lifecycle, or numerical risk warrants it. | `WORK_STATE.json` recommendations are all `Luna Low`, `Luna Medium`, or `Luna High`; runner/session clusters remain model-homogeneous enough for efficient reuse. | 00-01–07-02 |
+| D20 | Locked | Acceptance is Qwen3.8-on-reference-machine-specific, but committed implementation must remain portable Buun/llama code. | Keep server paths, profiles, service/PID/port facts, model filenames, GPU assumptions, and mutable benchmark data outside production source; express geometry through runtime metadata/capability and injected configuration, and scan changed files before upstream slicing. | 00-02, 01-01–06-05, 07-01–07-02 |
 
 ### 17.1 Deliberately unresolved choices
 

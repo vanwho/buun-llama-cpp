@@ -19,10 +19,14 @@ Global rules for every packet:
 6. Never claim a CUDA, benchmark, quality, or hardware result without raw output. Missing reference
    hardware blocks a hardware acceptance task; it does not block pure/fake-backend work.
 7. Keep feature-disabled behavior unchanged and make unsupported configurations fail closed.
-8. Read existing handoffs for every `depends_on` task before implementation. Create/update
+8. Keep implementation portable: never hard-code `/srv/ai`, `/srv/repos`, `/home/ninja`, local service
+   units/PIDs/ports, absolute model/profile filenames, or RTX 4080 assumptions. Qwen3.8 geometry belongs
+   in runtime capability checks and test fixtures; server profiles, lifecycle commands, and benchmark
+   artifacts stay in execution metadata or the external `/srv/ai` repository.
+9. Read existing handoffs for every `depends_on` task before implementation. Create/update
    `docs/execution/handoffs/<task-id>.md` with scope, changed files, commands/results,
    invariants checked, raw artifact paths, risks, and deferred checks.
-9. Update only this task in `WORK_STATE.json`. Use `tool/codex/task_state.py`; mark complete only after
+10. Update only this task in `WORK_STATE.json`. Use `tool/codex/task_state.py`; mark complete only after
    every locally executable acceptance item passes. Mark blocked with one concrete reason and needed
    input when progress cannot continue.
 
