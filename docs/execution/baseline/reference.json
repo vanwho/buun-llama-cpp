@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-09-03",
+  "source": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "commit": "6de47d6ffdaa2bf6bff76024067bf68c861b9353",
+    "origin": "git@github.com:vanwho/buun-llama-cpp.git",
+    "upstream": "https://github.com/spiritbuun/buun-llama-cpp.git",
+    "compared_base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
+    "ahead_behind": {"origin": {"ahead": 13, "behind": 0}, "upstream": {"ahead": 13, "behind": 0}}
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "current_link": "/srv/ai/models/text/current.gguf",
+    "source": "unsloth/Qwen3.8-27B-GGUF",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "size_bytes": 14252845984,
+    "quantization": "UD-IQ4_XS",
+    "gguf": {"architecture": "qwen35", "blocks": 65, "context_length": 262144, "full_attention_interval": 4, "kv_heads": 4, "key_length": 256, "value_length": 256, "native_mtp_layers": 1},
+    "mtp": {"identity": "embedded native qwen35.nextn_predict_layers=1", "sidecar": null}
+  },
+  "hardware": {"gpu": "NVIDIA GeForce RTX 4080", "driver": "595.84", "vram_mib": 16376, "compute_capability": "8.9", "observed_clocks": "210 MHz, 3285 MHz", "note": "RTX 4080 persistent tuning: 210-2925 MHz, 400 W"},
+  "build": {"binary": "/srv/ai/paged-kv/build/buun/bin/llama-server", "sha256": "bb75f2bca1701cc144fc04f29157ea1729c2f1636205f1e9a41f9a9a5fd18bc8", "version": "version: 1 (7d30a72) built with GNU 15.2.0 for Linux x86_64", "type": "Release", "options": {"shared_libraries": true, "cuda": true, "cuda_fa": true, "cuda_graphs": true, "native": true, "cxx": "/usr/bin/c++", "nvcc": "/usr/bin/nvcc"}},
+  "profile": {"path": "/srv/ai/config/profiles/qwen38-fast.env", "context": 77824, "batch": 1024, "ubatch": 256, "parallel": 1, "kv_k": "turbo4", "kv_v": "turbo4", "mtp": {"type": "draft-mtp", "n_max": 2, "k": "turbo4", "v": "turbo4"}, "flash_attention": "on", "fit": "off", "poll": 0, "n_gpu_layers": 999},
+  "payload_bytes": {"turbo4_bits_per_value": 4.125, "target_bytes_per_token": 16896, "mtp_bytes_per_token": 1056, "target_page_tokens": 256, "target_page_bytes": 4325376, "target_hot_tokens": 77824, "target_hot_bytes": 1314914304, "target_full_context_bytes": 4429185024, "mtp_full_context_bytes": 276824064, "combined_full_context_bytes": 4706009088},
+  "benchmark_harness": {"path": "/srv/ai/benchmarks/run-profile-benchmark.sh", "sha256": "356d82680fa9005d4f7316317de4cec1e67bf54220ee25668381c5b65aec6922", "contract": "default: one 40-token warmup and three measured 400-token requests per prompt, T=0 seed 42, stream usage enabled"}
+}
