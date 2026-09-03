@@ -10,6 +10,7 @@ const char * vbr_h2d_status_name(vbr_h2d_status status) noexcept {
         case vbr_h2d_status::ok: return "ok";
         case vbr_h2d_status::invalid_argument: return "invalid_argument";
         case vbr_h2d_status::ring_unavailable: return "ring_unavailable";
+        case vbr_h2d_status::cancelled: return "cancelled";
         case vbr_h2d_status::source_read_failed: return "source_read_failed";
         case vbr_h2d_status::transfer_failed: return "transfer_failed";
         case vbr_h2d_status::event_failed: return "event_failed";
@@ -222,6 +223,7 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream(
     callbacks.submit_failed = uint32_t(vbr_h2d_status::internal_error);
     callbacks.wait_failed = uint32_t(vbr_h2d_status::event_failed);
     callbacks.internal_error = uint32_t(vbr_h2d_status::internal_error);
+    callbacks.serialize_submissions = transfer.continue_transfer != nullptr;
     callbacks.more = [](void * opaque) noexcept {
         const auto & context = *static_cast<h2d_pump_context *>(opaque);
         return context.offset < context.transfer->size;
@@ -233,6 +235,10 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream(
         auto & context = *static_cast<h2d_pump_context *>(opaque);
         const auto & transfer = *context.transfer;
         try {
+            if (transfer.continue_transfer &&
+                !transfer.continue_transfer(transfer.continue_context)) {
+                return uint32_t(vbr_h2d_status::cancelled);
+            }
             const size_t count = size_t(std::min<uint64_t>(
                 capacity, transfer.size - context.offset));
             if (!transfer.source.read(
@@ -297,8 +303,13 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream(
                            bool fake_async) noexcept {
         const auto & context = *static_cast<h2d_pump_context *>(opaque);
         if (fake_async) {
-            (void) context.transfer->fake.complete(
-                context.transfer->fake.context, ticket);
+            if (context.transfer->fake.cancel) {
+                context.transfer->fake.cancel(
+                    context.transfer->fake.context, ticket);
+            } else {
+                (void) context.transfer->fake.complete(
+                    context.transfer->fake.context, ticket);
+            }
         }
     };
 
@@ -393,6 +404,8 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream_packed_reserved(
     callbacks.submit_failed = uint32_t(vbr_h2d_status::internal_error);
     callbacks.wait_failed = uint32_t(vbr_h2d_status::event_failed);
     callbacks.internal_error = uint32_t(vbr_h2d_status::internal_error);
+    callbacks.serialize_submissions =
+        transfer.continue_transfer != nullptr;
     callbacks.more = [](void * opaque) noexcept {
         const auto & context = *static_cast<packed_pump_context *>(opaque);
         return context.transferred < context.transfer->size;
@@ -404,6 +417,10 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream_packed_reserved(
         auto & context = *static_cast<packed_pump_context *>(opaque);
         const auto & transfer = *context.transfer;
         try {
+            if (transfer.continue_transfer &&
+                !transfer.continue_transfer(transfer.continue_context)) {
+                return uint32_t(vbr_h2d_status::cancelled);
+            }
             size_t filled = 0;
             while (filled < capacity &&
                    context.range_index < transfer.range_count) {
@@ -482,8 +499,13 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream_packed_reserved(
                            bool fake_async) noexcept {
         const auto & context = *static_cast<packed_pump_context *>(opaque);
         if (fake_async) {
-            (void) context.transfer->fake.complete(
-                context.transfer->fake.context, ticket);
+            if (context.transfer->fake.cancel) {
+                context.transfer->fake.cancel(
+                    context.transfer->fake.context, ticket);
+            } else {
+                (void) context.transfer->fake.complete(
+                    context.transfer->fake.context, ticket);
+            }
         }
     };
 

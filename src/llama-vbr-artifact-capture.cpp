@@ -1853,7 +1853,8 @@ vbr_capture_stream_status vbr_pinned_chunk_ring::stream_ranges_impl(
                     source.tensor_offset) {
             return vbr_capture_stream_status::invalid_argument;
         }
-    } else if (!source.read) {
+    } else if (!source.read &&
+               (!source.async_read || !source.complete)) {
         return vbr_capture_stream_status::invalid_argument;
     }
     const bool legacy_digest = !destination.authenticated();
@@ -1871,12 +1872,15 @@ vbr_capture_stream_status vbr_pinned_chunk_ring::stream_ranges_impl(
         size_t range_count = 0;
         size_t range_index = 0;
         uint64_t range_offset = 0;
+        uint64_t next_ticket = 1;
+        bool force_synchronous = false;
         bool tensor_source = false;
         artifact_segment_chain * destination = nullptr;
         llama_sha256_writer * hash = nullptr;
         bool legacy_digest = false;
     } pump_context {
-        &source, ranges, range_count, 0, 0, tensor_source,
+        &source, ranges, range_count, 0, 0, 1, lane && lane->force_synchronous,
+        tensor_source,
         &destination, &hash, legacy_digest,
     };
     vbr_bounded_pinned_ring_core::pump_callbacks callbacks;
@@ -1925,6 +1929,24 @@ vbr_capture_stream_status vbr_pinned_chunk_ring::stream_ranges_impl(
                         output + filled,
                         size_t(source.tensor_offset + source_offset),
                         count);
+                } else if (source.async_read) {
+                    const uint64_t ticket = context.next_ticket++;
+                    const bool asynchronous = !context.force_synchronous;
+                    if (!source.async_read(
+                            source.context, source_offset,
+                            output + filled, count, ticket,
+                            asynchronous)) {
+                        return uint32_t(
+                            vbr_capture_stream_status::transfer_failed);
+                    }
+                    if (asynchronous) {
+                        step.adapter_async = true;
+                        step.tag = ticket;
+                    } else if (!source.complete(
+                                   source.context, ticket)) {
+                        return uint32_t(
+                            vbr_capture_stream_status::transfer_failed);
+                    }
                 } else if (!source.read(
                                source.context, source_offset,
                                output + filled, count)) {
@@ -1946,9 +1968,18 @@ vbr_capture_stream_status vbr_pinned_chunk_ring::stream_ranges_impl(
         }
     };
     callbacks.consume = [](void * opaque, const uint8_t * input,
-                           size_t size, uint64_t, bool,
-                           uint64_t ordinal, bool &) noexcept -> uint32_t {
+                           size_t size, uint64_t ticket, bool adapter_async,
+                           uint64_t ordinal, bool & event_completion)
+            noexcept -> uint32_t {
         auto & context = *static_cast<capture_pump_context *>(opaque);
+        if (adapter_async && (!context.source->complete ||
+                              !context.source->complete(
+                                  context.source->context, ticket))) {
+            return uint32_t(vbr_capture_stream_status::transfer_failed);
+        }
+        if (adapter_async) {
+            event_completion = true;
+        }
         // KNOWN LIMITATION: ggml's asynchronous copy/event APIs return no
         // transfer result. The synthetic seam can report transfer_failed,
         // while a real device error can only surface later as a length or
@@ -1963,6 +1994,13 @@ vbr_capture_stream_status vbr_pinned_chunk_ring::stream_ranges_impl(
             context.hash->bytes(input, size);
         }
         return uint32_t(vbr_capture_stream_status::ok);
+    };
+    callbacks.abandon = [](void * opaque, uint64_t ticket,
+                           bool adapter_async) noexcept {
+        const auto & source = *static_cast<capture_pump_context *>(opaque)->source;
+        if (adapter_async && source.cancel) {
+            source.cancel(source.context, ticket);
+        }
     };
 
     vbr_bounded_pinned_ring_core::pump_stats pump_stats;

@@ -280,6 +280,19 @@ struct vbr_capture_stream_source {
         uint64_t offset,
         uint8_t * destination,
         size_t size) noexcept;
+    using async_read_fn = bool (*)(
+        const void * context,
+        uint64_t offset,
+        uint8_t * destination,
+        size_t size,
+        uint64_t ticket,
+        bool asynchronous) noexcept;
+    using completion_fn = bool (*)(
+        const void * context,
+        uint64_t ticket) noexcept;
+    using cancellation_fn = void (*)(
+        const void * context,
+        uint64_t ticket) noexcept;
 
     uint32_t lane = 0;
     uint64_t size = 0;
@@ -305,6 +318,13 @@ struct vbr_capture_stream_source {
     // UINT64_MAX; tests prove a failed completion drains the ring and exposes
     // no verified segment.
     uint64_t fail_completion_at = UINT64_MAX;
+
+    // Deterministic asynchronous D2H seam. The callback owns the device
+    // operation until completion_fn/cancellation_fn is called. Tensor sources
+    // continue to use ggml's backend event path above this seam.
+    async_read_fn async_read = nullptr;
+    completion_fn complete = nullptr;
+    cancellation_fn cancel = nullptr;
 };
 
 struct vbr_capture_stream_range {

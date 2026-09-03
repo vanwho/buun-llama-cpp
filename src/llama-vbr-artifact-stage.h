@@ -13,6 +13,7 @@ enum class vbr_h2d_status : uint8_t {
     ok = 0,
     invalid_argument,
     ring_unavailable,
+    cancelled,
     source_read_failed,
     transfer_failed,
     event_failed,
@@ -38,11 +39,14 @@ struct vbr_h2d_fake_destination {
         const uint8_t * data, size_t size, bool asynchronous) noexcept;
     using complete_fn = bool (*)(
         void * context, uint64_t ticket) noexcept;
+    using cancel_fn = void (*)(
+        void * context, uint64_t ticket) noexcept;
 
     void * context = nullptr;
     issue_fn issue = nullptr;
     complete_fn complete = nullptr;
     bool supports_events = false;
+    cancel_fn cancel = nullptr;
 };
 
 struct vbr_h2d_transfer {
@@ -58,6 +62,8 @@ struct vbr_h2d_transfer {
     vbr_h2d_fake_destination fake;
 
     uint64_t fail_completion_at = UINT64_MAX;
+    void * continue_context = nullptr;
+    bool (*continue_transfer)(void * context) noexcept = nullptr;
 };
 
 struct vbr_h2d_source_range {
@@ -79,6 +85,8 @@ struct vbr_h2d_packed_transfer {
     vbr_h2d_fake_destination fake;
 
     uint64_t fail_completion_at = UINT64_MAX;
+    void * continue_context = nullptr;
+    bool (*continue_transfer)(void * context) noexcept = nullptr;
 };
 
 struct vbr_h2d_stats {
