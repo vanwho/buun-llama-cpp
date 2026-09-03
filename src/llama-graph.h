@@ -418,9 +418,25 @@ public:
     // the immutable metadata retains the native logical positions and table
     // lifetime for the graph.
     bool selected_attention = false;
+    bool direct_attention = false;
     ggml_tensor * self_selected_idxs = nullptr; // I32 [selected physical rows]
     std::vector<int32_t> selected_rows;
     llama_kv_attention_operator_metadata selected_metadata;
+
+    // Direct CUDA paged Turbo4 inputs. The K/V views are created per layer
+    // over the pager's persistent physical slot slab; metadata is copied into
+    // graph inputs once per submission and remains capture-safe.
+    ggml_tensor * direct_storage = nullptr;
+    ggml_tensor * direct_k = nullptr;
+    ggml_tensor * direct_v = nullptr;
+    ggml_tensor * direct_pages = nullptr;
+    ggml_tensor * direct_native_positions = nullptr;
+    ggml_tensor * direct_native_mask = nullptr;
+    ggml_tensor * direct_query_positions = nullptr;
+    std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_host;
+    std::vector<uint64_t> direct_layer_k_offsets;
+    std::vector<uint64_t> direct_layer_v_offsets;
+    uint64_t direct_bytes_per_slot = 0;
 
     // note: assumes v_rot^2 == I
     ggml_tensor * self_k_rot = nullptr;

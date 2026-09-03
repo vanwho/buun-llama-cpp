@@ -1410,9 +1410,10 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         return result;
     };
 
-    // The first live route is intentionally a single-sequence, flash-attention
-    // reference.  It is a correctness oracle until per-sequence page unions
-    // and the direct paged loader are connected by later tasks.
+    // Live attention is intentionally limited to one Qwen sequence. Decode
+    // may use the direct Turbo4 loader when the actual layer device and pager
+    // slab qualify; all other valid selected shapes retain the reference
+    // gather as the deterministic fallback.
     if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
         (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
         !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
@@ -1503,8 +1504,28 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             sizeof(float);
     LLAMA_LOG_DEBUG("%s: selected reference pages=%zu rows=%u bounded_gather_bytes=%zu\n",
             __func__, view.pages().size(), metadata.get_n_kv(), scratch.required_bytes());
+    const auto layer_device = model.dev_layer(0);
+    const auto layer_reg = layer_device
+        ? ggml_backend_dev_backend_reg(layer_device) : nullptr;
+    const bool cuda_backend = layer_reg != nullptr &&
+        std::strcmp(ggml_backend_reg_name(layer_reg), "CUDA") == 0;
+    const bool scheduler_cuda = layer_device != nullptr &&
+        backend_for_device(layer_device) != nullptr;
+    const bool direct_shape = metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
+        metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
+        metadata.head_dim_v() == 256 && metadata.n_query_tokens() == 1 &&
+        metadata.n_batch() == 1 && metadata.n_head_kv() != 0 &&
+        metadata.n_head_q() / metadata.n_head_kv() == 4 &&
+        metadata.n_head_q() % metadata.n_head_kv() == 0;
+    const bool direct_capable = cuda_backend && scheduler_cuda &&
+        phase == llama_kv_attention_execution_phase::decode &&
+        direct_shape && pager.residency_storage_tensor() != nullptr &&
+        pager.residency_bytes_per_slot() != 0 &&
+        model.hparams.f_max_alibi_bias == 0.0f && !model.hparams.attn_soft_cap &&
+        pager.snapshot().geometry.layer_k_offsets.size() == pager.snapshot().geometry.attention_layers &&
+        pager.snapshot().geometry.layer_v_offsets.size() == pager.snapshot().geometry.attention_layers;
     return prepare_kv_attention(metadata, phase, representation_epoch, shape_epoch,
-            false, scratch);
+            direct_capable, scratch);
 }
 
 ggml_backend_sched_t llama_context::get_sched() const {

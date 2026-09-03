@@ -710,10 +710,23 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     mctx->set_input_v_idxs(self_v_idxs, ubatch);
 
     if (selected_attention) {
-        GGML_ASSERT(self_selected_idxs != nullptr);
-        GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
-        ggml_backend_tensor_set(self_selected_idxs, selected_rows.data(), 0,
-                selected_rows.size() * sizeof(selected_rows[0]));
+        if (direct_attention) {
+            ggml_backend_tensor_set(direct_pages, direct_pages_host.data(), 0,
+                    direct_pages_host.size() * sizeof(direct_pages_host[0]));
+            const auto & positions = selected_metadata.native_positions();
+            const auto & valid = selected_metadata.native_mask();
+            const auto & queries = selected_metadata.query_positions();
+            ggml_backend_tensor_set(direct_native_positions, positions.data(), 0,
+                    positions.size() * sizeof(positions[0]));
+            ggml_backend_tensor_set(direct_native_mask, valid.data(), 0, valid.size());
+            ggml_backend_tensor_set(direct_query_positions, queries.data(), 0,
+                    queries.size() * sizeof(queries[0]));
+        } else {
+            GGML_ASSERT(self_selected_idxs != nullptr);
+            GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
+            ggml_backend_tensor_set(self_selected_idxs, selected_rows.data(), 0,
+                    selected_rows.size() * sizeof(selected_rows[0]));
+        }
     }
 
     // the mask is left unallocated when the graph only stores K/V without attending
@@ -794,13 +807,27 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     res &= self_k_idxs->ne[0] == params.ubatch.n_tokens;
   //res &= self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
 
-    const bool selected = params.kv_attention_route == llama_kv_attention_execution_route::selected_reference;
+    const bool selected = params.kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct;
+    const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct;
     res &= selected_attention == selected;
+    res &= direct_attention == direct;
     res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams,
             selected ? params.kv_attention_metadata.get_n_kv() : 0);
-    if (selected) {
+    if (selected && !direct) {
         res &= self_selected_idxs != nullptr;
         res &= self_selected_idxs->ne[0] == params.kv_attention_metadata.get_n_kv();
+    }
+    if (direct) {
+        res &= direct_pages != nullptr && direct_native_positions != nullptr &&
+            direct_native_mask != nullptr && direct_query_positions != nullptr;
+        res &= direct_pages->ne[0] == int64_t(
+                params.kv_attention_metadata.page_table().size() *
+                sizeof(ggml_flash_attn_ext_paged_turbo4_page));
+        res &= direct_native_positions->ne[0] == params.kv_attention_metadata.get_n_kv();
+        res &= direct_native_mask->ne[0] == params.kv_attention_metadata.get_n_kv();
+        res &= direct_query_positions->ne[0] == int64_t(
+                params.kv_attention_metadata.query_positions().size());
     }
 
     return res;
@@ -1420,13 +1447,27 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
     res &= inp_attn->self_k_idxs->ne[0] == params.ubatch.n_tokens;
   //res &= inp_attn->self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
 
-    const bool selected = params.kv_attention_route == llama_kv_attention_execution_route::selected_reference;
+    const bool selected = params.kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct;
+    const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct;
     res &= inp_attn->selected_attention == selected;
+    res &= inp_attn->direct_attention == direct;
     res &= can_reuse_kq_mask(inp_attn->self_kq_mask, mctx->get_attn(), params.ubatch, params.cparams,
             selected ? params.kv_attention_metadata.get_n_kv() : 0);
-    if (selected) {
+    if (selected && !direct) {
         res &= inp_attn->self_selected_idxs != nullptr;
         res &= inp_attn->self_selected_idxs->ne[0] == params.kv_attention_metadata.get_n_kv();
+    }
+    if (direct) {
+        res &= inp_attn->direct_pages != nullptr && inp_attn->direct_native_positions != nullptr &&
+            inp_attn->direct_native_mask != nullptr && inp_attn->direct_query_positions != nullptr;
+        res &= inp_attn->direct_pages->ne[0] == int64_t(
+                params.kv_attention_metadata.page_table().size() *
+                sizeof(ggml_flash_attn_ext_paged_turbo4_page));
+        res &= inp_attn->direct_native_positions->ne[0] == params.kv_attention_metadata.get_n_kv();
+        res &= inp_attn->direct_native_mask->ne[0] == params.kv_attention_metadata.get_n_kv();
+        res &= inp_attn->direct_query_positions->ne[0] == int64_t(
+                params.kv_attention_metadata.query_positions().size());
     }
 
     res &= inp_rs->s_copy->ne[0] == mctx->get_recr()->get_n_rs();
@@ -3206,26 +3247,91 @@ ggml_tensor * llm_graph_context::build_attn(
 
 static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
            ggml_context * ctx0,
+    ggml_backend_sched_t sched,
      const llama_ubatch & ubatch,
     const llama_hparams & hparams,
     const llama_cparams & cparams,
     const llama_kv_cache_context * mctx_cur,
     const llama_tree_mask * tree_mask = nullptr,
-    const llama_kv_attention_operator_metadata * selected_metadata = nullptr) {
+    const llama_kv_attention_operator_metadata * selected_metadata = nullptr,
+    bool direct_attention = false) {
 
     auto inp = std::make_unique<llm_graph_input_attn_kv>(hparams, cparams, mctx_cur, tree_mask);
 
     if (selected_metadata != nullptr && selected_metadata->enabled()) {
         inp->selected_attention = true;
+        inp->direct_attention = direct_attention;
         inp->selected_metadata = *selected_metadata;
-        if (!mctx_cur->selected_attention_rows(
+        if (!direct_attention && !mctx_cur->selected_attention_rows(
                     selected_metadata->native_positions(), inp->selected_rows)) {
             throw std::runtime_error("selected KV attention rows are not available");
         }
-        inp->self_selected_idxs = ggml_new_tensor_1d(
-                ctx0, GGML_TYPE_I32, selected_metadata->get_n_kv());
-        ggml_set_input(inp->self_selected_idxs);
-        ggml_set_name(inp->self_selected_idxs, "kv_selected_row_ids");
+        if (!direct_attention) {
+            inp->self_selected_idxs = ggml_new_tensor_1d(
+                    ctx0, GGML_TYPE_I32, selected_metadata->get_n_kv());
+            ggml_set_input(inp->self_selected_idxs);
+            ggml_set_name(inp->self_selected_idxs, "kv_selected_row_ids");
+        } else {
+            const auto * pager = mctx_cur->get_kv_pager();
+            if (pager == nullptr || pager->residency_storage_tensor() == nullptr) {
+                throw std::runtime_error("direct paged attention has no physical storage");
+            }
+            inp->direct_storage = pager->residency_storage_tensor();
+            inp->direct_bytes_per_slot = pager->residency_bytes_per_slot();
+            const auto & geometry = pager->snapshot().geometry;
+            inp->direct_layer_k_offsets = geometry.layer_k_offsets;
+            inp->direct_layer_v_offsets = geometry.layer_v_offsets;
+            if (inp->direct_bytes_per_slot == 0 ||
+                inp->direct_layer_k_offsets.empty() ||
+                inp->direct_layer_k_offsets.size() != inp->direct_layer_v_offsets.size()) {
+                throw std::runtime_error("direct paged attention has incomplete slot geometry");
+            }
+            inp->direct_pages_host.reserve(selected_metadata->page_table().size());
+            for (const auto & page : selected_metadata->page_table()) {
+                inp->direct_pages_host.push_back({
+                    page.logical_page, page.source_physical_slot,
+                    page.compact_row_begin, page.row_count,
+                    page.native_position_begin });
+            }
+            inp->direct_pages = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                    int64_t(inp->direct_pages_host.size() * sizeof(inp->direct_pages_host[0])));
+            inp->direct_native_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                    selected_metadata->native_positions().size());
+            inp->direct_native_mask = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                    selected_metadata->native_mask().size());
+            inp->direct_query_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                    selected_metadata->query_positions().size());
+            ggml_set_input(inp->direct_pages);
+            ggml_set_input(inp->direct_native_positions);
+            ggml_set_input(inp->direct_native_mask);
+            ggml_set_input(inp->direct_query_positions);
+            ggml_set_name(inp->direct_pages, "kv_direct_page_table");
+            ggml_set_name(inp->direct_native_positions, "kv_direct_native_positions");
+            ggml_set_name(inp->direct_native_mask, "kv_direct_native_mask");
+            ggml_set_name(inp->direct_query_positions, "kv_direct_query_positions");
+
+            // Graph inputs normally default to the CPU scheduler backend.
+            // These four arrays are dereferenced by the CUDA kernel, so bind
+            // them to the same device as the persistent pager slab up front;
+            // otherwise a host input would be passed as a device pointer.
+            const auto storage_device = ggml_backend_buft_get_device(
+                    ggml_backend_buffer_get_type(inp->direct_storage->buffer));
+            ggml_backend_t direct_backend = nullptr;
+            for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
+                ggml_backend_t candidate = ggml_backend_sched_get_backend(sched, i);
+                if (candidate && ggml_backend_get_device(candidate) == storage_device) {
+                    direct_backend = candidate;
+                    break;
+                }
+            }
+            if (direct_backend == nullptr) {
+                throw std::runtime_error("direct paged attention CUDA backend is unavailable");
+            }
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_pages, direct_backend);
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_positions, direct_backend);
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
+        }
     }
 
     {
@@ -3258,9 +3364,11 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
 llm_graph_input_attn_kv * llm_graph_context::build_attn_inp_kv() const {
     const auto * mctx_cur = static_cast<const llama_kv_cache_context *>(mctx);
 
-    auto inp = build_attn_inp_kv_impl(ctx0, ubatch, hparams, cparams, mctx_cur, tree_mask,
-            kv_attention_route == llama_kv_attention_execution_route::selected_reference
-                ? &kv_attention_metadata : nullptr);
+    auto inp = build_attn_inp_kv_impl(ctx0, sched, ubatch, hparams, cparams, mctx_cur, tree_mask,
+            (kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
+             kv_attention_route == llama_kv_attention_execution_route::selected_direct)
+                ? &kv_attention_metadata : nullptr,
+            kv_attention_route == llama_kv_attention_execution_route::selected_direct);
 
     return (llm_graph_input_attn_kv *) res->add_input(std::move(inp));
 }
@@ -3314,7 +3422,47 @@ ggml_tensor * llm_graph_context::build_attn(
     ggml_tensor * v = mctx_cur->get_v(ctx0, il);
     ggml_tensor * v_for_unrotate = v;
 
-    if (inp->selected_attention) {
+    ggml_tensor * cur = nullptr;
+
+    if (inp->direct_attention) {
+        GGML_ASSERT(inp->direct_storage != nullptr);
+        GGML_ASSERT(il >= 0 && size_t(il) < inp->direct_layer_k_offsets.size());
+        GGML_ASSERT(size_t(il) < inp->direct_layer_v_offsets.size());
+        GGML_ASSERT(v->type == GGML_TYPE_TURBO4_0 && k->type == GGML_TYPE_TURBO4_0);
+
+        // The pager slot is laid out as full interleaved token rows. The
+        // direct kernel addresses one KV head within each row, so these views
+        // describe row/head/page strides without copying or repacking bytes.
+        ggml_tensor * k_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
+                inp->direct_layer_k_offsets[size_t(il)]);
+        ggml_tensor * v_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
+                inp->direct_layer_v_offsets[size_t(il)]);
+        GGML_ASSERT(k_raw && v_raw);
+        k_raw->nb[1] = ggml_row_size(k->type, k->ne[0]);
+        k_raw->nb[2] = ggml_row_size(k->type, inp->selected_metadata.head_dim_k());
+        k_raw->nb[3] = inp->direct_bytes_per_slot;
+        v_raw->nb[1] = ggml_row_size(v->type, v->ne[0]);
+        v_raw->nb[2] = ggml_row_size(v->type, inp->selected_metadata.head_dim_v());
+        v_raw->nb[3] = inp->direct_bytes_per_slot;
+
+        ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
+            ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
+        const ggml_flash_attn_ext_paged_turbo4_params direct_params = {
+            inp->selected_metadata.head_dim_k(),
+            inp->selected_metadata.head_dim_v(),
+            kq_scale,
+            true,
+        };
+        ggml_tensor * direct = ggml_flash_attn_ext_paged_turbo4(
+                ctx0, q_direct, k_raw, v_raw, inp->direct_storage,
+                inp->direct_pages, inp->direct_native_positions,
+                inp->direct_native_mask, inp->direct_query_positions,
+                &direct_params, inp->direct_pages_host.data());
+        ggml_build_forward_expand(gf, direct);
+        cur = ggml_reshape_2d(ctx0, direct,
+                direct->ne[0] * direct->ne[1], direct->ne[2] * direct->ne[3]);
+        cb(cur, "kqv_out_direct", il);
+    } else if (inp->selected_attention) {
         GGML_ASSERT(inp->self_selected_idxs != nullptr);
         GGML_ASSERT(v->nb[1] <= v->nb[2] &&
                 "selected reference requires non-transposed Turbo4 V");
@@ -3342,13 +3490,15 @@ ggml_tensor * llm_graph_context::build_attn(
 
     // Pad Q to match K's padded head_dim (turbo FWHT requires 128-aligned heads)
     const int64_t orig_head_dim = q->ne[0];
-    const bool head_padded = (q->ne[0] < k->ne[0]);
+    const bool head_padded = !inp->direct_attention && q->ne[0] < k->ne[0];
     if (head_padded) {
         q = ggml_pad(ctx0, q, k->ne[0] - q->ne[0], 0, 0, 0);
     }
 
-    ggml_tensor * cur = build_attn_mha(q, k, v, kq_b, kq_mask, sinks, v_mla, kq_scale, il);
-    cb(cur, "kqv_out", il);
+    if (!inp->direct_attention) {
+        cur = build_attn_mha(q, k, v, kq_b, kq_mask, sinks, v_mla, kq_scale, il);
+        cb(cur, "kqv_out", il);
+    }
 
     cur = build_attn_v_unrotate(cur, v_for_unrotate, inp->self_v_rot, inp->self_vmean, il);
 
@@ -4097,9 +4247,11 @@ llm_graph_input_mem_hybrid * llm_graph_context::build_inp_mem_hybrid() const {
     const auto * mctx_cur = static_cast<const llama_memory_hybrid_context *>(mctx);
 
     auto inp_rs   = build_rs_inp_impl     (ctx0, ubatch, mctx_cur->get_recr());
-    auto inp_attn = build_attn_inp_kv_impl(ctx0, ubatch, hparams, cparams, mctx_cur->get_attn(), tree_mask,
-            kv_attention_route == llama_kv_attention_execution_route::selected_reference
-                ? &kv_attention_metadata : nullptr);
+    auto inp_attn = build_attn_inp_kv_impl(ctx0, sched, ubatch, hparams, cparams, mctx_cur->get_attn(), tree_mask,
+            (kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
+             kv_attention_route == llama_kv_attention_execution_route::selected_direct)
+                ? &kv_attention_metadata : nullptr,
+            kv_attention_route == llama_kv_attention_execution_route::selected_direct);
 
     auto inp = std::make_unique<llm_graph_input_mem_hybrid>(cparams, std::move(inp_attn), std::move(inp_rs), mctx_cur);
 

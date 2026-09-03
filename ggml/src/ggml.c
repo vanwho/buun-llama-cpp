@@ -5709,6 +5709,61 @@ void ggml_flash_attn_ext_add_sinks(
     a->src[4] = sinks;
 }
 
+struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * q,
+        struct ggml_tensor  * k,
+        struct ggml_tensor  * v,
+        struct ggml_tensor  * storage,
+        struct ggml_tensor  * pages,
+        struct ggml_tensor  * native_positions,
+        struct ggml_tensor  * native_mask,
+        struct ggml_tensor  * query_positions,
+        const struct ggml_flash_attn_ext_paged_turbo4_params * params,
+        const void * pages_host) {
+    GGML_ASSERT(ctx && q && k && v && storage && pages && native_positions &&
+            native_mask && query_positions && params && pages_host);
+    GGML_ASSERT(q->type == GGML_TYPE_F32);
+    GGML_ASSERT(k->type == GGML_TYPE_I8 && v->type == GGML_TYPE_I8);
+    GGML_ASSERT(storage->type == GGML_TYPE_I8);
+    GGML_ASSERT(pages->type == GGML_TYPE_I8);
+    GGML_ASSERT(native_positions->type == GGML_TYPE_I64);
+    GGML_ASSERT(native_mask->type == GGML_TYPE_I8);
+    GGML_ASSERT(query_positions->type == GGML_TYPE_I64);
+    GGML_ASSERT(params->head_dim_k > 0 && params->head_dim_v > 0);
+
+    // The direct backend consumes these fields from the source tensor views;
+    // only the fixed geometry and scale need to be carried in op_params.
+    int32_t op_params[GGML_MAX_OP_PARAMS / sizeof(int32_t)] = { 0 };
+    op_params[0] = GGML_FLASH_ATTN_EXT_PAGED_TURBO4_MARKER;
+    op_params[1] = (int32_t) params->head_dim_k;
+    op_params[2] = (int32_t) params->head_dim_v;
+    memcpy((float *) op_params + 3, &params->scale, sizeof(float));
+    op_params[4] = params->causal ? 1 : 0;
+
+    int64_t ne[4] = { params->head_dim_v, q->ne[1], 1, 1 };
+    struct ggml_tensor * result = ggml_new_tensor(ctx, GGML_TYPE_F32, 4, ne);
+    ggml_set_op_params(result, op_params, sizeof(op_params));
+    result->op = GGML_OP_FLASH_ATTN_EXT;
+    result->src[0] = q;
+    result->src[1] = k;
+    result->src[2] = v;
+    result->src[3] = pages;
+    result->src[4] = native_positions;
+    result->src[5] = native_mask;
+    result->src[6] = query_positions;
+    result->src[7] = storage;
+    // This is immutable graph metadata, not a backend allocation.  The graph
+    // input object owns the pointed-to vector for the lifetime of the node.
+    result->extra = (void *) (uintptr_t) pages_host;
+    return result;
+}
+
+bool ggml_flash_attn_ext_is_paged_turbo4(const struct ggml_tensor * a) {
+    return a != NULL && a->op == GGML_OP_FLASH_ATTN_EXT &&
+        ggml_get_op_params_i32(a, 0) == GGML_FLASH_ATTN_EXT_PAGED_TURBO4_MARKER;
+}
+
 // ggml_flash_attn_back
 
 struct ggml_tensor * ggml_flash_attn_back(

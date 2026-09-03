@@ -12136,6 +12136,7 @@ bool llama_kv_cache::pager_geometry(
     output.page_tokens = page_tokens;
     if (page_tokens == 0) return false;
     try {
+        uint64_t layer_offset = 0;
         for (const auto & layer : layers) {
             if (layer.k == nullptr || layer.v == nullptr ||
                 layer.k->type != GGML_TYPE_TURBO4_0 ||
@@ -12147,12 +12148,18 @@ bool llama_kv_cache::pager_geometry(
             output.value_length = uint32_t(layer.v->ne[0] / std::max<uint32_t>(1, output.kv_heads));
             const uint64_t k = uint64_t(ggml_row_size(layer.k->type, layer.k->ne[0])) * page_tokens;
             const uint64_t v = uint64_t(ggml_row_size(layer.v->type, layer.v->ne[0])) * page_tokens;
+            output.layer_k_offsets.push_back(layer_offset);
+            if (layer_offset > UINT64_MAX - k) return false;
+            output.layer_v_offsets.push_back(layer_offset + k);
             if (k > UINT64_MAX - v || output.page_bytes > UINT64_MAX - k - v) return false;
             output.page_bytes += k + v;
+            if (layer_offset > UINT64_MAX - k - v) return false;
+            layer_offset += k + v;
         }
         return output.attention_layers != 0 && output.kv_heads != 0 &&
                output.key_length != 0 && output.value_length != 0 &&
-               output.page_bytes != 0;
+               output.page_bytes != 0 && output.layer_k_offsets.size() == output.attention_layers &&
+               output.layer_v_offsets.size() == output.attention_layers;
     } catch (...) {
         output = {};
         return false;

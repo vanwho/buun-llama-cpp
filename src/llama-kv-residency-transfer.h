@@ -182,6 +182,8 @@ public:
     uint64_t bytes_per_slot() const noexcept { return bytes_per_slot_; }
     uint32_t mapped_slots() const noexcept;
     uint32_t pending_events() const noexcept;
+    ggml_tensor * storage_tensor() const noexcept { return storage_tensor_; }
+    uint64_t bytes_per_slot_value() const noexcept { return bytes_per_slot_; }
     void drain() noexcept;
 
 private:
