@@ -151,6 +151,23 @@ int main() {
     controller_config.capacity_pages = 1;
     assert(llama_kv_policy_decide(controller_trace, controller_config).status == llama_kv_policy_status::pin_overflow);
 
+    // Automatic policy quotas are capacity-relative. Exercise several admitted
+    // capacities, including values below any former nominal quota.
+    llama_kv_policy_trace dynamic_trace;
+    dynamic_trace.epoch = 8;
+    dynamic_trace.write_page = 1;
+    dynamic_trace.pages.resize(16);
+    for (size_t i = 0; i < dynamic_trace.pages.size(); ++i) {
+        dynamic_trace.pages[i] = page(i + 1);
+    }
+    llama_kv_policy_controller_config dynamic_config;
+    for (const uint32_t capacity : { 1u, 2u, 3u, 5u, 8u }) {
+        dynamic_config.capacity_pages = capacity;
+        const auto dynamic = llama_kv_policy_decide(dynamic_trace, dynamic_config);
+        assert(dynamic.status == llama_kv_policy_status::ok);
+        assert(dynamic.target.size() == capacity);
+    }
+
     fake_prefetch_backend fake;
     llama_kv_prefetch_config prefetch_config;
     prefetch_config.max_queued_pages = 4;

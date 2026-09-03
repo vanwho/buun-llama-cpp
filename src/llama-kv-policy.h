@@ -4,9 +4,7 @@
 #include <vector>
 
 constexpr uint32_t LLAMA_KV_POLICY_TRACE_VERSION = 1;
-constexpr uint32_t LLAMA_KV_POLICY_MAX_PAGES = 4096;
-constexpr uint32_t LLAMA_KV_POLICY_MAX_SUMMARY = 256;
-constexpr uint32_t LLAMA_KV_POLICY_DEFAULT_CAPACITY = 304;
+constexpr uint32_t LLAMA_KV_POLICY_RATIO_SCALE = 1000000;
 
 enum class llama_kv_policy_status : uint8_t {
     ok = 0,
@@ -73,11 +71,25 @@ struct llama_kv_policy_decision_entry {
 };
 
 struct llama_kv_policy_controller_config {
-    uint32_t capacity_pages = LLAMA_KV_POLICY_DEFAULT_CAPACITY;
-    uint32_t recent_pages = 96;
-    uint32_t structural_pages = 32;
-    uint32_t historical_pages = 140;
-    uint32_t transient_pages = 36;
+    // Capacity is supplied by runtime admission; zero is not configured.
+    uint32_t capacity_pages = 0;
+
+    // Nonzero page counts are explicit overrides. Zero selects the corresponding
+    // capacity-relative ratio, so no preferred context size is encoded here.
+    uint32_t recent_pages = 0;
+    uint32_t structural_pages = 0;
+    uint32_t historical_pages = 0;
+    uint32_t transient_pages = 0;
+
+    uint32_t recent_ratio = 300000;
+    uint32_t structural_ratio = 200000;
+    uint32_t historical_ratio = 350000;
+    uint32_t transient_ratio = 150000;
+
+    uint32_t recent_min_pages = 0;
+    uint32_t structural_min_pages = 0;
+    uint32_t historical_min_pages = 0;
+    uint32_t transient_min_pages = 0;
     uint64_t hysteresis_q = 0;
 };
 

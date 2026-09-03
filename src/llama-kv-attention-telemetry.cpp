@@ -22,6 +22,13 @@ void saturating_add(uint64_t & target, uint64_t value) noexcept {
     }
 }
 
+uint64_t saturating_mul(uint64_t value, uint64_t factor) noexcept {
+    if (factor != 0 && value > std::numeric_limits<uint64_t>::max() / factor) {
+        return std::numeric_limits<uint64_t>::max();
+    }
+    return value * factor;
+}
+
 bool valid_state(llama_kv_page_state state) noexcept {
     return state != llama_kv_page_state::absent && state != llama_kv_page_state::invalid;
 }
@@ -48,10 +55,18 @@ llama_kv_attention_telemetry::llama_kv_attention_telemetry(
         sample_interval_tokens_(config.sample_interval_tokens),
         ema_alpha_(config.ema_alpha),
         peak_decay_(config.peak_decay) {
-    if (logical_page_count_ > LLAMA_KV_ATTENTION_TELEMETRY_MAX_PAGES ||
+    if (logical_page_count_ == 0 || pages_.max_size() < logical_page_count_ ||
         sample_interval_tokens_ == 0 || !valid_ratio(ema_alpha_) || !valid_ratio(peak_decay_)) {
         mode_ = llama_kv_attention_telemetry_mode::off;
         logical_page_count_ = 0;
+        return;
+    }
+    try {
+        pages_.resize(logical_page_count_);
+    } catch (...) {
+        mode_ = llama_kv_attention_telemetry_mode::off;
+        logical_page_count_ = 0;
+        pages_.clear();
     }
 }
 
@@ -88,7 +103,7 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::initialize(
         return llama_kv_attention_telemetry_status::disabled;
     }
     if (snapshot.epoch() == 0 || logical_page_count_ == 0 ||
-        snapshot.pages().size() > LLAMA_KV_ATTENTION_TELEMETRY_MAX_PAGES) {
+        snapshot.pages().size() > pages_.max_size()) {
         return reject_invalid();
     }
     clear();
@@ -227,9 +242,12 @@ bool llama_kv_attention_telemetry::copy_scores(
 llama_kv_attention_telemetry_accounting llama_kv_attention_telemetry::accounting() const noexcept {
     llama_kv_attention_telemetry_accounting result;
     result.logical_page_count = logical_page_count_;
-    result.ema_bytes = uint64_t(logical_page_count_) * sizeof(float);
-    result.peak_bytes = uint64_t(logical_page_count_) * sizeof(float);
-    result.controller_score_bytes = result.ema_bytes + result.peak_bytes;
-    result.metadata_bytes = uint64_t(logical_page_count_) * sizeof(llama_kv_page_id);
+    result.ema_bytes = saturating_mul(logical_page_count_, sizeof(float));
+    result.peak_bytes = saturating_mul(logical_page_count_, sizeof(float));
+    result.controller_score_bytes = result.ema_bytes >
+            std::numeric_limits<uint64_t>::max() - result.peak_bytes
+        ? std::numeric_limits<uint64_t>::max()
+        : result.ema_bytes + result.peak_bytes;
+    result.metadata_bytes = saturating_mul(logical_page_count_, sizeof(llama_kv_page_id));
     return result;
 }
