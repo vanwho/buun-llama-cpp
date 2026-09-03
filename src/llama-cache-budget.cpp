@@ -237,6 +237,77 @@ llama_cache_budget_row & add_rollup_group(
 
 } // namespace
 
+llama_cache_budget_admission_result llama_cache_budget_admit(
+        const llama_cache_budget_admission_input & input) noexcept {
+    llama_cache_budget_admission_result out;
+    out.target_page_bytes = input.target_page_bytes;
+    if (input.allocation_granularity == 0 || input.target_page_bytes == 0 ||
+        input.mtp_tokens == 0 || input.mtp_values_per_token == 0 ||
+        input.mtp_bits_per_value == 0 || !input.mtp_is_turbo4) {
+        out.refusal = input.mtp_is_turbo4 ?
+            llama_cache_budget_admission_refusal::invalid_geometry :
+            llama_cache_budget_admission_refusal::mtp_not_turbo4;
+        return out;
+    }
+    const uint64_t g = input.allocation_granularity;
+    auto rounded = [g](uint64_t value, uint64_t & result) {
+        if (value > std::numeric_limits<uint64_t>::max() - (g - 1)) return false;
+        result = (value + g - 1) / g * g;
+        return result >= value;
+    };
+    auto add = [](uint64_t a, uint64_t b, uint64_t & result) {
+        if (b > std::numeric_limits<uint64_t>::max() - a) return false;
+        result = a + b; return true;
+    };
+    uint64_t mtp_bits;
+    if (input.mtp_values_per_token > UINT64_MAX / input.mtp_tokens ||
+        input.mtp_tokens * input.mtp_values_per_token > UINT64_MAX / input.mtp_bits_per_value) {
+        out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
+    }
+    mtp_bits = input.mtp_tokens * input.mtp_values_per_token * input.mtp_bits_per_value;
+    // mtp_bits_per_value is expressed in eighths of a bit (33 == 4.125).
+    if (mtp_bits > UINT64_MAX - 63 || !rounded((mtp_bits + 63) / 64, out.mtp_bytes) ||
+        input.turbo4_scratch_bytes == 0) {
+        out.refusal = input.turbo4_scratch_bytes == 0 ?
+            llama_cache_budget_admission_refusal::missing_scratch :
+            llama_cache_budget_admission_refusal::overflow; return out;
+    }
+    if (!add(input.weights_bytes, input.fixed_bytes, out.fixed_bytes) ||
+        !rounded(out.fixed_bytes, out.fixed_bytes) || !add(input.graph_bytes, input.turbo4_scratch_bytes, out.scratch_bytes) ||
+        !rounded(out.scratch_bytes, out.scratch_bytes) || !add(input.routing_bytes, input.staging_bytes, out.routing_bytes) ||
+        !rounded(out.routing_bytes, out.routing_bytes) || !rounded(input.headroom_bytes, out.headroom_bytes)) {
+        out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
+    }
+    // weights + already-resident fixed companions are one charge; do not charge either twice.
+    if (!add(out.fixed_bytes, out.mtp_bytes, out.charged_bytes) || !add(out.charged_bytes, out.scratch_bytes, out.charged_bytes) ||
+        !add(out.charged_bytes, out.routing_bytes, out.charged_bytes) || !add(out.charged_bytes, out.headroom_bytes, out.charged_bytes)) {
+        out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
+    }
+    if (out.charged_bytes > input.capacity_bytes) { out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity; return out; }
+    out.remaining_bytes = input.capacity_bytes - out.charged_bytes;
+    out.capacity_pages = out.remaining_bytes / input.target_page_bytes;
+    out.capacity_tokens = out.capacity_pages * 256;
+    if (input.diagnostic_max_pages && out.capacity_pages > input.diagnostic_max_pages) {
+        out.capacity_pages = input.diagnostic_max_pages; out.capacity_tokens = out.capacity_pages * 256;
+    }
+    return out;
+}
+
+const char * llama_cache_budget_admission_refusal_name(
+        llama_cache_budget_admission_refusal refusal) noexcept {
+    switch (refusal) {
+        case llama_cache_budget_admission_refusal::none: return "none";
+        case llama_cache_budget_admission_refusal::invalid_geometry: return "invalid_geometry";
+        case llama_cache_budget_admission_refusal::mtp_not_turbo4: return "mtp_not_turbo4";
+        case llama_cache_budget_admission_refusal::missing_scratch: return "missing_scratch";
+        case llama_cache_budget_admission_refusal::overflow: return "overflow";
+        case llama_cache_budget_admission_refusal::insufficient_capacity: return "insufficient_capacity";
+        case llama_cache_budget_admission_refusal::diagnostic_capacity_exceeds_budget: return "diagnostic_capacity_exceeds_budget";
+        case llama_cache_budget_admission_refusal::_count: return "invalid";
+    }
+    return "invalid";
+}
+
 llama_cache_budget_category_classification llama_cache_budget_classify(
         llama_cache_acct_category category) noexcept {
     switch (category) {
