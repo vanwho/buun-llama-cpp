@@ -1,0 +1,39 @@
+{
+  "schema_version": 2,
+  "status": "controls_recorded_with_pending_cases",
+  "build": {
+    "binary": "build-cuda/bin/llama-server",
+    "sha256": "31ee7e802a177101bbb6435928324cd19a2a639917c0607c1f64cca24c674995",
+    "version": "0.3.0-dev build 11921 commit b3152a6a0",
+    "configuration": "Release CUDA, CUDA architecture 89-real"
+  },
+  "model": {
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "quantization": "UD-IQ4_XS"
+  },
+  "corpus": {
+    "name": "pager-corpus-v2",
+    "sha256": "e8cd002b2a6215a5003db7b8c204602bba1879a5bdf91a2a9ef9b0a2e3ff0e35",
+    "calibration_cases": 12,
+    "held_out_cases": 12
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.84",
+    "vram_mib": 16376
+  },
+  "sampling": {"temperature": 0, "seed": 42, "warmups": 1, "measured_trials": 5, "output_tokens": 32},
+  "controls": [
+    {"id": "mtp_gpu_16384", "context": 16384, "target_kv": "GPU Turbo4", "mtp": "Turbo4 GPU", "requests": 15, "errors": 0, "raw": "/srv/ai/paged-kv/results/control-v2-fast-mtp-16384-20260903/", "decode_median_tok_s": {"prompt_0": 99.4923, "prompt_1": 85.0401, "prompt_2": 86.1585}, "mtp_acceptance_percent": {"prompt_0": 90.909, "prompt_1": 72.0, "prompt_2": 75.0}},
+    {"id": "mtp_gpu_32768", "context": 32768, "target_kv": "GPU Turbo4", "mtp": "Turbo4 GPU", "requests": 15, "errors": 0, "raw": "/srv/ai/paged-kv/results/control-v2-fast-mtp-32768-20260903/", "decode_median_tok_s": {"prompt_0": 99.3453, "prompt_1": 85.0079, "prompt_2": 85.9395}, "mtp_acceptance_percent": {"prompt_0": 90.909, "prompt_1": 72.0, "prompt_2": 75.0}},
+    {"id": "mtp_gpu_77824", "context": 77824, "target_kv": "GPU Turbo4", "mtp": "Turbo4 GPU", "requests": 15, "errors": 0, "raw": "/srv/ai/paged-kv/results/control-v2-fast-mtp-77824-20260903/", "decode_median_tok_s": {"prompt_0": 96.5539, "prompt_1": 80.5678, "prompt_2": 92.6610}, "mtp_acceptance_percent": {"prompt_0": 88.889, "prompt_1": 64.815, "prompt_2": 81.25}},
+    {"id": "all_gpu_131072", "context": 131072, "target_kv": "GPU Turbo4", "mtp": "off", "requests": 15, "errors": 0, "raw": "/srv/ai/paged-kv/results/control-v2-big-allgpu-131072-20260903/", "decode_median_tok_s": {"prompt_0": 48.8416, "prompt_1": 48.8153, "prompt_2": 48.8245}, "mtp_acceptance": "not_applicable"}
+  ],
+  "failed_or_pending": [
+    {"id": "cpu_kv_mtp_gpu_77824", "status": "startup_refused", "reason": "--no-kv-offload makes native MTP offload_kqv=false; GPU-required MTP reservation fails closed", "raw": "/srv/ai/paged-kv/results/control-v2-cpu-kv-mtp-gpu-77824-20260903/"},
+    {"id": "feature_off", "status": "pending", "reason": "no live pager feature switch in current server"},
+    {"id": "observe", "status": "pending", "reason": "no live pager telemetry endpoint"},
+    {"id": "odd_tail_and_model_max_ladder", "status": "pending", "reason": "not run after the required same-build profile boundary was restored"}
+  ],
+  "restoration": {"profile": "qwen38-big", "health_8080": 200, "health_8091": 200, "port_8092_touched": false}
+}

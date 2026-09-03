@@ -206,3 +206,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-08-04`
 - Commit at update: `58fdbc9dd`
 - Summary: Frozen pager-corpus-v2, benchmark schemas, gates, and deterministic validation; live selective verification deferred to runtime-enabled tasks.
+
+## 2026-09-03T14:40:54+00:00 — 08-05 — done
+
+- Branch: `codex/task-08-05`
+- Commit at update: `b3152a6a0`
+- Summary: Captured exact Release CUDA same-build MTP/all-GPU controls, preserved fail-closed CPU-KV/MTP refusal, restored service, and documented pending pager controls.
