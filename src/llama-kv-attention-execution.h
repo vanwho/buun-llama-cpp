@@ -63,6 +63,14 @@ struct llama_kv_attention_scratch_request {
     size_t required_bytes() const noexcept;
 };
 
+// Return the largest prompt chunk whose pending K/V rows can fit in the
+// admitted physical page window. A zero page count disables the bound and is
+// reserved for feature-off/observe callers.
+uint32_t llama_kv_attention_prefill_chunk_size(
+        uint32_t configured_ubatch,
+        uint32_t physical_page_count,
+        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS) noexcept;
+
 struct llama_kv_attention_execution_decision {
     llama_kv_attention_execution_status status = llama_kv_attention_execution_status::disabled;
     llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;

@@ -88,6 +88,10 @@ public:
         mem_attn->set_kv_pager(pager);
     }
 
+    void seal_kv_pager_pages() override {
+        mem_attn->seal_kv_pager_pages();
+    }
+
     //
     // llama_memory_i
     //

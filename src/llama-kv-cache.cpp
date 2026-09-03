@@ -2126,6 +2126,12 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     });
 }
 
+void llama_kv_cache::seal_kv_pager_pages() {
+    if (pager_ != nullptr) {
+        (void) pager_->seal_ready_pages();
+    }
+}
+
 void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
     if (pager_ == nullptr || pager_pending_writes_.empty()) {
         return;
@@ -2149,9 +2155,9 @@ void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
         }
     }
     pager_pending_writes_.clear();
-    if (graph_succeeded) {
-        (void) pager_->seal_ready_pages();
-    }
+    // Host sealing is deliberately deferred to llama_context::synchronize().
+    // `graph_succeeded` means graph submission succeeded; it does not mean
+    // asynchronous CUDA K/V writes have reached the cache tensor yet.
 }
 
 bool llama_kv_cache::pager_host_prepare(
@@ -13938,11 +13944,23 @@ ggml_type llama_kv_cache_context::type_v() const {
 }
 
 ggml_tensor * llama_kv_cache_context::get_k(ggml_context * ctx, int32_t il) const {
-    return kv->get_k(ctx, il, n_kv, sinfos[i_cur]);
+    uint32_t source_rows = n_kv;
+    if (const auto * pager = kv->get_kv_pager()) {
+        source_rows = std::max<uint32_t>(source_rows,
+                uint32_t(std::min<uint64_t>(pager->snapshot().physical_rows,
+                    std::numeric_limits<uint32_t>::max())));
+    }
+    return kv->get_k(ctx, il, source_rows, sinfos[i_cur]);
 }
 
 ggml_tensor * llama_kv_cache_context::get_v(ggml_context * ctx, int32_t il) const {
-    return kv->get_v(ctx, il, n_kv, sinfos[i_cur]);
+    uint32_t source_rows = n_kv;
+    if (const auto * pager = kv->get_kv_pager()) {
+        source_rows = std::max<uint32_t>(source_rows,
+                uint32_t(std::min<uint64_t>(pager->snapshot().physical_rows,
+                    std::numeric_limits<uint32_t>::max())));
+    }
+    return kv->get_v(ctx, il, source_rows, sinfos[i_cur]);
 }
 
 bool llama_kv_cache_context::selected_attention_supported() const noexcept {
@@ -13969,9 +13987,22 @@ bool llama_kv_cache_context::selected_attention_rows(
     try {
         const auto & cells = kv->get_cells(sequence_id);
         const auto & sinfo = sinfos[i_cur];
+        const auto * pager = kv->get_kv_pager();
+        const bool compact = pager != nullptr &&
+                pager->snapshot().physical_page_count != 0;
         rows.reserve(positions.size());
 
         for (const llama_pos position : positions) {
+            if (compact) {
+                uint32_t physical = UINT32_MAX;
+                if (!pager->physical_row(sequence_id, position, physical) ||
+                    physical > uint32_t(std::numeric_limits<int32_t>::max())) {
+                    rows.clear();
+                    return false;
+                }
+                rows.push_back(int32_t(physical));
+                continue;
+            }
             uint32_t found = UINT32_MAX;
             for (uint32_t cell = 0; cell < cells.size(); ++cell) {
                 if (!cells.is_empty(cell) && cells.seq_has(cell, sequence_id) &&

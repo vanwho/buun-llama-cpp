@@ -230,6 +230,11 @@ struct llama_memory_i {
     // finished backend admission. Non-attention memories remain unchanged.
     virtual void set_kv_pager(class llama_kv_pager * /*pager*/) {}
 
+    // Complete host publication for target pages after the scheduler fence.
+    // The graph may write K/V asynchronously, so this must not be performed
+    // from the graph-submission callback itself.
+    virtual void seal_kv_pager_pages() {}
+
     // split the input batch into a set of ubatches and verify that they can fit into the cache
     // return a context object containing the ubatches and memory state required to process them
     // check the llama_memory_context_i::get_status() for the result

@@ -932,6 +932,25 @@ void llama_context::init_kv_pager() {
             snapshot.physical_rows, snapshot.realized_bytes);
 }
 
+uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
+    if (requested == 0 || kv_pager.mode == llama_kv_pager_mode::off ||
+        kv_pager.mode == llama_kv_pager_mode::observe || !kv_pager_owner) {
+        return requested;
+    }
+
+    // A graph can reserve one pager row for every token in its ubatch before
+    // any of those writes complete.  Keep the in-flight write frontier within
+    // the admitted physical window so a page boundary never pins more pages
+    // than H and forces an avoidable all-pinned refusal.
+    const auto & snapshot = kv_pager_owner->snapshot();
+    if (snapshot.physical_page_count == 0) {
+        return requested;
+    }
+    return llama_kv_attention_prefill_chunk_size(
+            requested, snapshot.physical_page_count,
+            snapshot.geometry.page_tokens);
+}
+
 void llama_context::resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs) {
     const char * func = __func__;
     auto resolve = [&](const llm_fused_op_probe & probe, bool & enabled) {
@@ -1313,6 +1332,14 @@ void llama_context::synchronize() {
     }
     ggml_backend_sched_synchronize(sched.get());
 
+    // K/V graph writes are asynchronous on GPU backends.  Host publication
+    // therefore belongs after the scheduler fence, otherwise a completed
+    // page can be sealed from stale bytes and the next prefill chunk cannot
+    // safely evict it.
+    if (memory) {
+        memory->seal_kv_pager_pages();
+    }
+
     // The scheduler fence is the completion boundary for all selected views,
     // including an older table that coexisted with a rebuilt graph.
     while (kv_attention_execution.in_flight_graphs() != 0) {
@@ -1452,7 +1479,6 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     const auto & pager_geometry = pager.snapshot();
     const uint32_t hot_capacity = pager_geometry.physical_page_count;
     if (pager_snapshot.epoch() == 0 || pager_snapshot.pages().empty() ||
-        pager_geometry.logical_page_count > hot_capacity ||
         pager_snapshot.pages().size() > hot_capacity) {
         return refuse("selected logical pages exceed admitted hot capacity");
     }
@@ -1511,8 +1537,9 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     scratch.bytes_per_row = (size_t(model.hparams.n_embd_head_k()) +
             size_t(model.hparams.n_embd_head_v())) * size_t(model.hparams.n_head_kv()) *
             sizeof(float);
-    LLAMA_LOG_DEBUG("%s: selected reference pages=%zu rows=%u bounded_gather_bytes=%zu\n",
-            __func__, view.pages().size(), metadata.get_n_kv(), scratch.required_bytes());
+    LLAMA_LOG_DEBUG("%s: bounded prefill/decode pages=%zu rows=%u hot_pages=%u logical_pages=%u bounded_gather_bytes=%zu\n",
+            __func__, view.pages().size(), metadata.get_n_kv(), hot_capacity,
+            pager_geometry.logical_page_count, scratch.required_bytes());
     const auto layer_device = model.dev_layer(0);
     const auto layer_reg = layer_device
         ? ggml_backend_dev_backend_reg(layer_device) : nullptr;
@@ -4951,9 +4978,18 @@ int llama_context::decode(const llama_batch & batch_inp) {
     memory_update(false);
 
     llama_memory_context_ptr mctx;
+    const bool bounded_pager_prefill = n_tokens_all > 1 &&
+            (kv_pager.mode == llama_kv_pager_mode::selective ||
+             kv_pager.mode == llama_kv_pager_mode::exact);
+    const uint32_t memory_ubatch = bounded_pager_prefill
+        ? prefill_ubatch_size(cparams.n_ubatch) : cparams.n_ubatch;
+    if (bounded_pager_prefill && memory_ubatch != cparams.n_ubatch) {
+        LLAMA_LOG_INFO("%s: bounded pager prefill ubatch=%u (configured=%u)\n",
+                __func__, memory_ubatch, cparams.n_ubatch);
+    }
 
     while (true) {
-        mctx = memory->init_batch(*balloc, cparams.n_ubatch, output_all);
+        mctx = memory->init_batch(*balloc, memory_ubatch, output_all);
         if (!mctx) {
             return -2;
         }
@@ -5358,6 +5394,14 @@ int llama_context::decode(const llama_batch & batch_inp) {
 
         n_outputs_prev += n_outputs;
         n_tokens_prev  += ubatch.n_tokens;
+
+        // Each prompt chunk owns a bounded set of physical rows.  Wait before
+        // preparing the next chunk so completed K/V pages can be authenticated
+        // in host RAM and become clean eviction victims.  Decode keeps the
+        // existing asynchronous submission behavior.
+        if (bounded_pager_prefill) {
+            synchronize();
+        }
     } while (mctx->next());
 
     // set to total number of outputs in the batch, for use in llama_get_logits_ith
