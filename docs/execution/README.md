@@ -32,8 +32,8 @@ CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 CODEX_PROJECT_REMOTE=origin \
 CODEX_PROJECT_BRANCH=plan/attention-aware-kv-paging \
 CODEX_GIT_MODE=managed \
-CODEX_SESSION_MAX_TURNS=4 \
-CODEX_SESSION_MAX_INPUT_TOKENS=90000 \
+CODEX_SESSION_MAX_TURNS=0 \
+CODEX_SESSION_MAX_INPUT_TOKENS=0 \
 /srv/codex/run_until_complete_clustered.sh
 ```
 
@@ -44,9 +44,10 @@ contains the state, work log, handoff, and other execution metadata. This keeps 
 upstream range-diffs while retaining resumable controller history in the fork. Upstream-facing issues,
 pull requests, and merges remain human-owned.
 
-The wrapper defaults each cluster thread to four turns or 90,000 reported input tokens before rotation.
-These are context-efficiency guardrails and can be lowered with `CODEX_SESSION_MAX_TURNS` or
-`CODEX_SESSION_MAX_INPUT_TOKENS`. The state validator also requires every task's cluster context file.
+The shared runner and wrapper default both proactive session-rotation guardrails to `0` (disabled). Set a
+positive value only when you deliberately want conversation rotation for context hygiene; these settings
+do not truncate prompts. The Codex service's own hard context/usage limits still apply. The state validator
+also requires every task's cluster context file.
 
 The runner must not author commits, push, merge, create issues, or create pull requests. A user-authorized
 outer agent may commit/push `vanwho/*`; a human owns upstream-facing prose, PR creation/replies, and merges.

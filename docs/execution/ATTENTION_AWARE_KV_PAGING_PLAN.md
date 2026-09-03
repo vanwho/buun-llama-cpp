@@ -881,8 +881,8 @@ CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 CODEX_PROJECT_REMOTE=origin \
 CODEX_PROJECT_BRANCH=plan/attention-aware-kv-paging \
 CODEX_GIT_MODE=managed \
-CODEX_SESSION_MAX_TURNS=4 \
-CODEX_SESSION_MAX_INPUT_TOKENS=90000 \
+CODEX_SESSION_MAX_TURNS=0 \
+CODEX_SESSION_MAX_INPUT_TOKENS=0 \
 /srv/codex/run_until_complete_clustered.sh
 ```
 
@@ -898,9 +898,11 @@ or `--show-clusters` commands above.
 The 33 tasks are divided into 16 contiguous ownership-oriented clusters of one to three tasks; the
 mapping and rationale live in `docs/execution/clusters/README.md`. Each fresh/resumed runner prompt
 loads `docs/execution/clusters/<cluster>.md` and dependency handoffs before task-specific source. The
-checked-in wrapper defaults to four turns or 90,000 reported input tokens per cluster thread, after
-which the runner rotates to a fresh session. This prevents a five-task phase from carrying unrelated
-repository, CUDA, benchmark, or numerical context.
+The shared runner and checked-in wrapper default both proactive session-rotation guardrails to `0`
+(disabled). Set a positive `CODEX_SESSION_MAX_TURNS` or `CODEX_SESSION_MAX_INPUT_TOKENS` only when you
+deliberately want conversation rotation for context hygiene; these settings do not truncate prompts. The
+Codex service's own hard context/usage limits still apply, and the runner can rotate after a resulting
+failure.
 
 For supervised review/commit boundaries, run one task at a time while retaining saved cluster threads:
 
