@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "10",
-  "current_task": "10-02",
-  "last_updated_utc": "2026-09-03T17:26:04+00:00",
+  "current_task": "10-03",
+  "last_updated_utc": "2026-09-03T18:33:26+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -675,13 +675,13 @@
       "cluster": "10a-live-decode",
       "title": "Dispatch direct Turbo4 paged Flash Attention in live decode",
       "packet": "docs/execution/tasks/10-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "10-01"
       ],
-      "commit": null
+      "commit": "0b88846cbc5fb516a5ac19a6106ac09b1694b86b"
     },
     {
       "id": "10-03",
