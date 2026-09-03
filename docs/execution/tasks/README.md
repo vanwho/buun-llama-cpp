@@ -12,7 +12,7 @@ Global rules for every packet:
    Buun tree has no `AGENTS.md`; do not assume that remains true after an upstream sync.
 3. Preserve unrelated dirty work. Never alter or clean `/srv/ai/paged-kv/repos/buun-llama-cpp`.
 4. Do not create GitHub issues/PRs, write their descriptions/replies, push, merge, or invent human
-   approval. The user permits iterative commits in `vanwho/*`, but the clustered runner uses local Git
+   approval. The user permits iterative commits in `vanwho/*`, but the clustered runner uses manual Git
    mode and leaves reviewable commits/pushes to a human or an explicitly authorized outer agent.
 5. Prefer internal APIs and existing source/test files. Do not add a new test file without maintainer
    approval recorded in the task handoff.
