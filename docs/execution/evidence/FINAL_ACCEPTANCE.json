@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "task": "06-04",
+  "captured_at": "2026-09-03",
+  "decision": "deferred",
+  "decision_reason": "The reference GPU and model service are available, but this build does not expose a live 262144-token selective pager runtime, placement evidence, or pager counter stream.",
+  "provenance": {
+    "repository_head": "b535f5144d092051b3e99d7c374c11896d668f35",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf via /srv/ai/models/text/current.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "server_binary": "/srv/ai/paged-kv/build/buun/bin/llama-server",
+    "server_binary_sha256": "bb75f2bca1701cc144fc04f29157ea1729c2f1636205f1e9a41f9a9a5fd18bc8",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.84",
+    "vram_mib": 16376,
+    "canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "canonical_runner_sha256": "356d82680fa9005d4f7316317de4cec1e67bf54220ee25668381c5b65aec6922",
+    "health": {"8080": 200, "8091": 200}
+  },
+  "frozen_controls": {
+    "sampling": {"temperature": 0, "seed": 42},
+    "pager_corpus": "pager-corpus-v1",
+    "expected_answer_status": "not_configured",
+    "speed_gate": "warm-focus median decode >= 2x ordinary CPU-KV and within 20% of comparable 77824 all-GPU after warmup",
+    "stretch_gate": "report whether warm-focus reaches 3x ordinary CPU-KV",
+    "quality_gate": "preset needle and conversation answers must meet the predeclared corpus thresholds"
+  },
+  "raw_runs": [
+    {
+      "name": "all_gpu_77824_target_mtp",
+      "status": "available_control",
+      "path": "/srv/ai/paged-kv/results/profile-benchmark-default-fast-20260903-055158/",
+      "description": "Fast/default, Turbo4 target and MTP, one warmup plus three measured requests per prompt"
+    },
+    {
+      "name": "all_gpu_large_scratch",
+      "status": "available_control",
+      "path": "/srv/ai/paged-kv/results/profile-benchmark-large-fast-20260903-055411/",
+      "description": "Fast/large, approximately 44K input, two warmups plus five measured trials"
+    },
+    {
+      "name": "ordinary_cpu_kv_262144",
+      "status": "available_control",
+      "path": "/srv/ai/paged-kv/results/ordinary-cpu-kv-full-20260903/",
+      "description": "Transient service with explicit no-kv-offload and full logical context"
+    },
+    {
+      "name": "feature_off_speculative_control",
+      "status": "available_control",
+      "path": "/srv/ai/paged-kv/results/profile-benchmark-default-big-20260903/",
+      "description": "Big/spec-off canonical control; not a selective pager run"
+    }
+  ],
+  "required_runs": [
+    {"name": "all_gpu_77824_target_mtp", "status": "control_recorded"},
+    {"name": "ordinary_cpu_kv_262144", "status": "control_recorded"},
+    {"name": "pager_observe", "status": "deferred", "reason": "No live pager runtime/telemetry endpoint"},
+    {"name": "pager_selective_warm_focus", "status": "deferred", "reason": "No live selective pager runtime/telemetry endpoint"},
+    {"name": "pager_selective_cold_needles", "status": "deferred", "reason": "No live selective pager runtime or expected needle answers"},
+    {"name": "pager_selective_focus_shifts", "status": "deferred", "reason": "No live selective pager runtime/telemetry endpoint"},
+    {"name": "pager_selective_churn", "status": "deferred", "reason": "No live selective pager runtime/telemetry endpoint"},
+    {"name": "feature_off", "status": "control_recorded", "reason": "Canonical spec-off control recorded; pager-off end-to-end comparison remains deferred"}
+  ],
+  "gates": [
+    {"name": "logical_context_262144", "status": "deferred", "evidence": "Model metadata records 262144; no live pager session"},
+    {"name": "hot_set_near_304_pages", "status": "deferred", "evidence": "No live pager ledger"},
+    {"name": "cold_pages_turbo4_host_ram", "status": "deferred", "evidence": "Deterministic host-backing tests pass; no model-backed pager run"},
+    {"name": "full_context_mtp_turbo4_gpu", "status": "deferred", "evidence": "MTP placement is recorded for 77824 Fast control only"},
+    {"name": "bounded_target_gpu_allocation", "status": "deferred", "evidence": "Bounded CUDA resource evidence exists; no 262144 pager allocation"},
+    {"name": "warm_focus_speed", "status": "deferred", "evidence": "No selective warm-focus trials"},
+    {"name": "three_x_stretch", "status": "deferred", "evidence": "No selective warm-focus trials"},
+    {"name": "needle_and_conversation_quality", "status": "deferred", "evidence": "Expected answers and live selective outputs are not configured"},
+    {"name": "churn_disclosure", "status": "deferred", "evidence": "No live churn trials"},
+    {"name": "feature_off_regression", "status": "deferred", "evidence": "Deterministic off-route tests and Big/spec-off control exist; no paired pager-off run"}
+  ],
+  "next_inputs": {
+    "required_service": "A model-backed server build with pager mode, placement, ledger, transfer, and attention-epoch telemetry exposed to the adapter",
+    "required_corpus": "Frozen pager-corpus-v1 prompts with expected needle answers at fixed page distances",
+    "required_workflow": "Keep ai-long-memory.service active so ports 8080 and 8091 pass the profile restore health gate"
+  }
+}
