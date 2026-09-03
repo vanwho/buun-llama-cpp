@@ -39,10 +39,14 @@ recurrent state, and scratch are not included.
 The captured server is `/srv/ai/paged-kv/build/buun/bin/llama-server`, build version
 `1 (7d30a72)`, SHA256 in `reference.json`. It is a Release, shared-library, CUDA,
 CUDA-FA, CUDA-graphs, native-optimized build using `/usr/bin/c++` and `/usr/bin/nvcc`.
-The exact fast profile and benchmark command are preserved in the manifest and the
-profile remains unmodified. Benchmark API keys and tokens were not read or recorded.
+The exact existing Qwen3.8 fast profile (`/srv/ai/config/profiles/qwen38-fast.env`)
+and benchmark command are preserved in the manifest and the profile remains
+unmodified. Its historical context value is a baseline control, not a production
+hot-set/MTP default; later runs clone it and resolve context-sized MTP dynamically.
+Benchmark API keys and tokens were not read or recorded.
 
-No model, profile, service, or API-key state was mutated. No benchmark was rerun in this
-task; historical harness identity is retained only as provenance, not new acceptance
-evidence. Hardware-specific pager verification is deferred until the later benchmark
-and GPU correctness tasks.
+No model, profile, service, or API-key state was mutated. No pager benchmark was rerun
+in this foundation task; historical harness identity is retained only as provenance,
+not new acceptance evidence. The model/profile are available on the server, while
+hardware-specific pager verification belongs to the live benchmark and GPU correctness
+tasks in phases 08–14 and cannot be replaced by this fixture evidence.

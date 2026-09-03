@@ -98,10 +98,12 @@ boundaries, not tolerated failures:
 - CUDA transfer faults require a production CUDA transfer adapter. The fake
   backend is the deterministic test double and its complete fault matrix is
   linked above; no fake result is promoted to a hardware result.
-- The repository contains no Qwen3.8 model checkpoint or registered
-  model-backed selective-pager runner. The pinned external model location is
-  recorded in `docs/execution/baseline/reference.json`; use the later profile
-  and acceptance harness only after that external artifact is provisioned.
+- The Git repository intentionally contains no vendored Qwen3.8 checkpoint or
+  registered model-backed selective-pager runner. The pinned external model is
+  already provisioned at `/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf` and its
+  identity is recorded in `docs/execution/baseline/reference.json`; phases
+  08–14 must use the existing Qwen3.8 profile and acceptance harness once the
+  production pager wiring is present.
 
 ## Deferred verification
 
