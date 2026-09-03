@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "09",
-  "current_task": "09-01",
-  "last_updated_utc": "2026-09-03T14:41:02+00:00",
+  "current_task": "09-02",
+  "last_updated_utc": "2026-09-03T14:50:15+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -591,13 +591,13 @@
       "cluster": "09a-live-memory",
       "title": "Add normalized experimental pager configuration and gate",
       "packet": "docs/execution/tasks/09-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "08-05"
       ],
-      "commit": null
+      "commit": "4c36ba20083a842202070e75b76cbf9e8cbd482d"
     },
     {
       "id": "09-02",

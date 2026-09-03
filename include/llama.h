@@ -417,6 +417,8 @@ extern "C" {
         size_t moe_cache_budget_mib;               // 0 uses the provider's available-memory budget
         int32_t moe_cache_expert_parallel;          // -1 = provider policy, 0 = disabled, N = device fanout
         const char * moe_cache_profile_path;        // optional versioned expert heatmap
+        // Normalized experimental KV pager configuration, copied during construction.
+        const struct llama_kv_pager_config * kv_pager_config;
 
         // Abort callback
         // if it returns true, execution of llama_decode() will be aborted

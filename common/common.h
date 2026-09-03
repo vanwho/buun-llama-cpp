@@ -8,6 +8,7 @@
 #include "ggml-opt.h"
 #include "ggml.h"
 #include "llama.h"
+#include "../src/llama-kv-pager-config.h"
 
 #include <list>
 #include <set>
@@ -729,6 +730,8 @@ struct common_params {
     bool swa_full          = false; // use full-size SWA cache (https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
     bool kv_unified        = false; // enable unified KV cache
     bool logits_all        = true;  // see llama_context_params.logits_all
+
+    llama_kv_pager_config kv_pager;
 
     bool input_prefix_bos  = false; // prefix BOS to user inputs, preceding input_prefix
     bool verbose_prompt    = false; // print prompt tokens before generation
