@@ -2538,6 +2538,714 @@ vbr_capture_stream_status vbr_capture_projected_unit_transfer(
     }
 }
 
+namespace {
+
+bool selected_page_digest_nonzero(uint64_t value) {
+    return value != 0;
+}
+
+bool selected_page_id_same_except_page_generation(
+        const llama_kv_page_id & lhs,
+        const llama_kv_page_id & rhs) {
+    auto a = lhs;
+    auto b = rhs;
+    a.page_generation = 0;
+    b.page_generation = 0;
+    return a == b;
+}
+
+bool selected_page_id_representation_equal(
+        const llama_kv_page_id & lhs,
+        const llama_kv_page_id & rhs) {
+    return lhs.representation_epoch == rhs.representation_epoch &&
+           lhs.codec_digest == rhs.codec_digest &&
+           lhs.codebook_digest == rhs.codebook_digest &&
+           lhs.rotation_digest == rhs.rotation_digest &&
+           lhs.meansub_digest == rhs.meansub_digest;
+}
+
+bool selected_page_id_valid(
+        const vbr_selected_page_range & range) {
+    if (!llama_kv_page_id_valid(range.identity, range.tail) ||
+        range.positions.empty() ||
+        range.positions.size() != range.physical_cells.size()) {
+        return false;
+    }
+    const uint64_t expected =
+        uint64_t(range.identity.position_end) -
+        uint64_t(range.identity.position_begin);
+    if (expected != range.positions.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < range.positions.size(); ++i) {
+        if (range.positions[i] !=
+                range.identity.position_begin + llama_pos(i)) {
+            return false;
+        }
+        for (size_t j = 0; j < i; ++j) {
+            if (range.physical_cells[j] == range.physical_cells[i]) {
+                return false;
+            }
+        }
+    }
+    return range.identity.session_generation != 0 &&
+           range.identity.sequence_generation != 0 &&
+           range.identity.page_generation != 0 &&
+           range.identity.representation_epoch != 0 &&
+           range.identity.model_identity != 0 &&
+           range.identity.topology_identity != 0 &&
+           selected_page_digest_nonzero(range.identity.codec_digest) &&
+           selected_page_digest_nonzero(range.identity.codebook_digest) &&
+           selected_page_digest_nonzero(range.identity.rotation_digest) &&
+           selected_page_digest_nonzero(range.identity.meansub_digest);
+}
+
+bool selected_page_required_units_valid(
+        const std::vector<uint32_t> & required) {
+    if (required.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS) {
+        return false;
+    }
+    for (uint32_t unit : required) {
+        if (unit >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+            std::count(required.begin(), required.end(), unit) != 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+const vbr_selected_page_unit_source * selected_page_source_for(
+        const std::vector<vbr_selected_page_unit_source> & sources,
+        uint32_t logical_unit_id) {
+    const auto found = std::find_if(
+        sources.begin(), sources.end(),
+        [&](const vbr_selected_page_unit_source & source) {
+            return source.logical_unit_id == logical_unit_id;
+        });
+    return found == sources.end() ? nullptr : &*found;
+}
+
+const vbr_capture_unit_snapshot * selected_page_unit_snapshot_for(
+        const vbr_selected_page_capture_snapshot & snapshot,
+        uint32_t logical_unit_id) {
+    const auto found = std::find_if(
+        snapshot.units.begin(), snapshot.units.end(),
+        [&](const vbr_capture_unit_snapshot & unit) {
+            return unit.logical_unit_id == logical_unit_id;
+        });
+    return found == snapshot.units.end() ? nullptr : &*found;
+}
+
+const vbr_artifact_unit_descriptor * selected_page_descriptor_for(
+        const vbr_selected_page_capture_snapshot & snapshot,
+        uint32_t logical_unit_id) {
+    const auto found = std::find_if(
+        snapshot.unit_descriptors.begin(), snapshot.unit_descriptors.end(),
+        [&](const vbr_artifact_unit_descriptor & descriptor) {
+            return descriptor.logical_unit_id == logical_unit_id;
+        });
+    return found == snapshot.unit_descriptors.end() ? nullptr : &*found;
+}
+
+bool selected_page_generation_matches(
+        const vbr_capture_unit_snapshot & snapshot,
+        const vbr_artifact_unit_descriptor & descriptor,
+        uint32_t child_id,
+        uint64_t source_namespace) {
+    return snapshot.source_namespace == source_namespace &&
+           snapshot.child_id == child_id &&
+           snapshot.logical_unit_id == descriptor.logical_unit_id &&
+           vbr_lineage_uuid_is_set(snapshot.lineage_uuid) &&
+           snapshot.controller_generation != 0 &&
+           (snapshot.mutation_serial & 1u) == 0 &&
+           capture_generation_valid(snapshot.generation) &&
+           descriptor.child_id == child_id &&
+           descriptor.lineage_uuid == snapshot.lineage_uuid &&
+           descriptor.repr_gen == snapshot.generation.repr_gen &&
+           descriptor.current_type == snapshot.generation.current_type &&
+           descriptor.last_source_type ==
+               snapshot.generation.last_source_type &&
+           descriptor.promote_hops == snapshot.generation.promote_hops &&
+           descriptor.last_transition == snapshot.generation.last_transition;
+}
+
+bool selected_page_unit_generation_equal(
+        const vbr_unit_generation & lhs,
+        const vbr_unit_generation & rhs) {
+    return lhs.repr_gen == rhs.repr_gen &&
+           lhs.publish_seq == rhs.publish_seq &&
+           lhs.current_type == rhs.current_type &&
+           lhs.last_source_type == rhs.last_source_type &&
+           lhs.domain == rhs.domain &&
+           lhs.promote_hops == rhs.promote_hops &&
+           lhs.last_transition == rhs.last_transition &&
+           lhs.flags == rhs.flags;
+}
+
+bool selected_page_representation_valid(
+        const vbr_artifact_unit_descriptor & descriptor,
+        uint32_t logical_unit_id) {
+    const bool value_side = (logical_unit_id & 1u) != 0;
+    return descriptor.logical_unit_id == logical_unit_id &&
+           descriptor.current_type == GGML_TYPE_TURBO4_0 &&
+           descriptor.last_source_type >= 0 &&
+           descriptor.representation.codec_id != 0 &&
+           descriptor.representation.codec_version != 0 &&
+           capture_digest_nonzero(
+               descriptor.representation.reference_digest) &&
+           capture_digest_nonzero(descriptor.codebook_digest) &&
+           capture_digest_nonzero(descriptor.rotation_digest) &&
+           capture_digest_nonzero(descriptor.meansub_digest) &&
+           descriptor.side == (value_side
+               ? vbr_artifact_side::value : vbr_artifact_side::key) &&
+           descriptor.layout == vbr_artifact_layout::row_major &&
+           descriptor.n_stream == 1 &&
+           descriptor.wm_cells != 0;
+}
+
+uint64_t selected_page_run_count(
+        const vbr_selected_page_range & range) {
+    uint64_t result = 0;
+    for (size_t i = 0; i < range.physical_cells.size(); ++i) {
+        bool has_predecessor = false;
+        if (range.physical_cells[i] != 0) {
+            for (size_t j = 0; j < range.physical_cells.size(); ++j) {
+                if (range.physical_cells[j] != UINT32_MAX &&
+                    range.physical_cells[j] + 1 ==
+                        range.physical_cells[i]) {
+                    has_predecessor = true;
+                    break;
+                }
+            }
+        }
+        if (!has_predecessor) {
+            ++result;
+        }
+    }
+    return result;
+}
+
+bool selected_page_quote_add(
+        uint64_t value, uint64_t & target, uint64_t limit) {
+    return value <= limit - target && (target += value, true);
+}
+
+bool selected_page_stats_add(
+        vbr_capture_stream_stats & target,
+        const vbr_capture_stream_stats & source) {
+    if (!capture_checked_add(target.bytes, source.bytes, target.bytes) ||
+        !capture_checked_add(target.chunks, source.chunks, target.chunks) ||
+        !capture_checked_add(target.submitted_bytes, source.submitted_bytes,
+                             target.submitted_bytes) ||
+        !capture_checked_add(target.submitted_chunks, source.submitted_chunks,
+                             target.submitted_chunks) ||
+        !capture_checked_add(target.backpressure_waits,
+                             source.backpressure_waits,
+                             target.backpressure_waits) ||
+        !capture_checked_add(target.event_completions,
+                             source.event_completions,
+                             target.event_completions) ||
+        !capture_checked_add(target.synchronous_fallbacks,
+                             source.synchronous_fallbacks,
+                             target.synchronous_fallbacks)) {
+        return false;
+    }
+    target.max_segment_size = std::max(
+        target.max_segment_size, source.max_segment_size);
+    return true;
+}
+
+struct selected_page_unit_snapshot_adapter {
+    const vbr_selected_page_capture_snapshot * snapshot = nullptr;
+    uint32_t logical_unit_id = UINT32_MAX;
+
+    static bool acquire(
+            void * context, uint64_t source_namespace, uint32_t child_id,
+            uint32_t logical_unit_id,
+            vbr_capture_unit_snapshot & output) noexcept {
+        const auto & self =
+            *static_cast<selected_page_unit_snapshot_adapter *>(context);
+        const auto * value = selected_page_unit_snapshot_for(
+            *self.snapshot, logical_unit_id);
+        if (!value || self.logical_unit_id != logical_unit_id ||
+            value->source_namespace != source_namespace ||
+            value->child_id != child_id) {
+            return false;
+        }
+        output = *value;
+        return true;
+    }
+
+    static bool recheck(
+            void * context,
+            const vbr_capture_unit_snapshot & expected) noexcept {
+        const auto & self =
+            *static_cast<selected_page_unit_snapshot_adapter *>(context);
+        const auto * current = selected_page_unit_snapshot_for(
+            *self.snapshot, expected.logical_unit_id);
+        return current && current->source_namespace == expected.source_namespace &&
+               current->child_id == expected.child_id &&
+               current->logical_unit_id == expected.logical_unit_id &&
+               current->lineage_uuid == expected.lineage_uuid &&
+               current->controller_generation ==
+                   expected.controller_generation &&
+               current->mutation_serial == expected.mutation_serial &&
+               selected_page_unit_generation_equal(
+                   current->generation, expected.generation);
+    }
+
+    static void release(
+            void *, const vbr_capture_unit_snapshot &) noexcept {}
+
+    vbr_capture_unit_snapshot_provider provider() noexcept {
+        return { this, acquire, recheck, release };
+    }
+};
+
+vbr_selected_page_capture_status selected_page_status_for_transfer(
+        vbr_capture_stream_status status) {
+    switch (status) {
+        case vbr_capture_stream_status::transfer_failed:
+            return vbr_selected_page_capture_status::transfer_failed;
+        case vbr_capture_stream_status::short_read:
+            return vbr_selected_page_capture_status::short_read;
+        case vbr_capture_stream_status::snapshot_changed:
+            return vbr_selected_page_capture_status::snapshot_changed;
+        case vbr_capture_stream_status::ring_unavailable:
+            return vbr_selected_page_capture_status::ring_unavailable;
+        case vbr_capture_stream_status::ok:
+            return vbr_selected_page_capture_status::ok;
+        case vbr_capture_stream_status::invalid_argument:
+        case vbr_capture_stream_status::duplicate_segment:
+        case vbr_capture_stream_status::missing_segment:
+        case vbr_capture_stream_status::late_segment:
+        case vbr_capture_stream_status::hash_mismatch:
+        case vbr_capture_stream_status::format_rejected:
+        case vbr_capture_stream_status::accounting_unavailable:
+        case vbr_capture_stream_status::accounting_refused:
+        case vbr_capture_stream_status::stage_failed:
+        case vbr_capture_stream_status::commit_failed:
+        case vbr_capture_stream_status::publication_failed:
+        case vbr_capture_stream_status::projection_invalid:
+        case vbr_capture_stream_status::snapshot_unavailable:
+        case vbr_capture_stream_status::cancelled:
+        case vbr_capture_stream_status::internal_error:
+        case vbr_capture_stream_status::_count:
+            return vbr_selected_page_capture_status::internal_error;
+    }
+    return vbr_selected_page_capture_status::internal_error;
+}
+
+} // namespace
+
+const char * vbr_selected_page_capture_status_name(
+        vbr_selected_page_capture_status status) noexcept {
+    switch (status) {
+        case vbr_selected_page_capture_status::ok: return "ok";
+        case vbr_selected_page_capture_status::invalid_argument: return "invalid_argument";
+        case vbr_selected_page_capture_status::unsupported_page: return "unsupported_page";
+        case vbr_selected_page_capture_status::duplicate_page: return "duplicate_page";
+        case vbr_selected_page_capture_status::missing_page: return "missing_page";
+        case vbr_selected_page_capture_status::wrong_type: return "wrong_type";
+        case vbr_selected_page_capture_status::missing_unit: return "missing_unit";
+        case vbr_selected_page_capture_status::duplicate_unit: return "duplicate_unit";
+        case vbr_selected_page_capture_status::geometry_overflow: return "geometry_overflow";
+        case vbr_selected_page_capture_status::snapshot_unavailable: return "snapshot_unavailable";
+        case vbr_selected_page_capture_status::stale_page_generation: return "stale_page_generation";
+        case vbr_selected_page_capture_status::representation_changed: return "representation_changed";
+        case vbr_selected_page_capture_status::ring_unavailable: return "ring_unavailable";
+        case vbr_selected_page_capture_status::transfer_failed: return "transfer_failed";
+        case vbr_selected_page_capture_status::short_read: return "short_read";
+        case vbr_selected_page_capture_status::snapshot_changed: return "snapshot_changed";
+        case vbr_selected_page_capture_status::incomplete: return "incomplete";
+        case vbr_selected_page_capture_status::internal_error: return "internal_error";
+        case vbr_selected_page_capture_status::_count: break;
+    }
+    return "invalid";
+}
+
+vbr_selected_page_capture_status vbr_selected_page_capture_project(
+        const vbr_selected_page_capture_request & request,
+        const std::vector<vbr_selected_page_unit_source> & sources,
+        const vbr_selected_page_capture_limits & limits,
+        vbr_selected_page_capture_quote & output) noexcept {
+    output = {};
+    try {
+        if (request.source_namespace == 0 ||
+            request.child_id == UINT32_MAX ||
+            request.stream_index == UINT32_MAX ||
+            request.pages.empty() ||
+            request.pages.size() > limits.max_pages ||
+            limits.max_pages == 0 ||
+            limits.max_units < VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+            limits.max_positions == 0 || limits.max_segments == 0 ||
+            limits.max_payload_bytes == 0 ||
+            limits.max_source_operations == 0 ||
+            !selected_page_required_units_valid(request.required_unit_ids) ||
+            request.expected_unit_generations.size() !=
+                VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+            sources.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS) {
+            return sources.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS
+                ? vbr_selected_page_capture_status::invalid_argument
+                : vbr_selected_page_capture_status::missing_unit;
+        }
+        for (const auto & source : sources) {
+            if (source.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS) {
+                return vbr_selected_page_capture_status::missing_unit;
+            }
+            if (selected_page_source_for(sources, source.logical_unit_id) !=
+                    &source) {
+                return vbr_selected_page_capture_status::duplicate_unit;
+            }
+            if (source.source_identity == 0 || source.row_count == 0 ||
+                source.row_bytes == 0 ||
+                source.row_count > UINT64_MAX/source.row_bytes ||
+                uint64_t(source.row_count)*source.row_bytes >
+                    source.source.size) {
+                return vbr_selected_page_capture_status::geometry_overflow;
+            }
+        }
+        for (uint32_t unit : request.required_unit_ids) {
+            if (!selected_page_source_for(sources, unit)) {
+                return vbr_selected_page_capture_status::missing_unit;
+            }
+        }
+        output.page_count = uint32_t(request.pages.size());
+        output.unit_count = VBR_SELECTED_PAGE_REQUIRED_UNITS;
+        for (size_t page_index = 0; page_index < request.pages.size();
+             ++page_index) {
+            const auto & page = request.pages[page_index];
+            if (!selected_page_id_valid(page)) {
+                return vbr_selected_page_capture_status::unsupported_page;
+            }
+            for (size_t prior = 0; prior < page_index; ++prior) {
+                const auto & other = request.pages[prior];
+                if (other.identity.session_generation ==
+                        page.identity.session_generation &&
+                    other.identity.sequence_id == page.identity.sequence_id &&
+                    other.identity.sequence_generation ==
+                        page.identity.sequence_generation &&
+                    other.identity.logical_page ==
+                        page.identity.logical_page) {
+                    return vbr_selected_page_capture_status::duplicate_page;
+                }
+                for (uint32_t cell : page.physical_cells) {
+                    if (std::find(
+                            other.physical_cells.begin(),
+                            other.physical_cells.end(), cell) !=
+                            other.physical_cells.end()) {
+                        return vbr_selected_page_capture_status::geometry_overflow;
+                    }
+                }
+            }
+            const uint64_t positions = page.positions.size();
+            const uint64_t runs = selected_page_run_count(page);
+            if (!selected_page_quote_add(
+                    positions, output.position_count,
+                    limits.max_positions) ||
+                !selected_page_quote_add(
+                    runs * sources.size(), output.segment_count,
+                    limits.max_segments) ||
+                !selected_page_quote_add(
+                    runs * sources.size(), output.source_operations,
+                    limits.max_source_operations)) {
+                return vbr_selected_page_capture_status::geometry_overflow;
+            }
+            for (const auto & source : sources) {
+                uint32_t max_cell = 0;
+                for (uint32_t cell : page.physical_cells) {
+                    max_cell = std::max(max_cell, cell);
+                }
+                if (!page.physical_cells.empty() && max_cell >= source.row_count) {
+                    return vbr_selected_page_capture_status::geometry_overflow;
+                }
+                if (positions > UINT64_MAX/source.row_bytes ||
+                    !selected_page_quote_add(
+                        positions*source.row_bytes, output.payload_bytes,
+                        limits.max_payload_bytes)) {
+                    return vbr_selected_page_capture_status::geometry_overflow;
+                }
+                const uint64_t packed = positions*source.row_bytes;
+                const uint64_t chunks =
+                    (packed - 1)/VBR_CAPTURE_RANGE_CHUNK_BYTES + 1;
+                uint64_t metadata = 0;
+                if (!capture_range_tree_metadata_bytes(chunks, metadata) ||
+                    !selected_page_quote_add(
+                        chunks, output.authenticated_chunks,
+                        limits.max_authenticated_chunks) ||
+                    !selected_page_quote_add(
+                        metadata, output.authenticated_metadata_bytes,
+                        limits.max_authenticated_metadata_bytes)) {
+                    return vbr_selected_page_capture_status::geometry_overflow;
+                }
+            }
+        }
+        return vbr_selected_page_capture_status::ok;
+    } catch (...) {
+        output = {};
+        return vbr_selected_page_capture_status::internal_error;
+    }
+}
+
+struct vbr_selected_page_capture::data {
+    vbr_selected_page_capture_quote quote;
+    std::vector<vbr_selected_page_descriptor> pages;
+};
+
+vbr_selected_page_capture::vbr_selected_page_capture(
+        std::shared_ptr<const data> value) noexcept
+    : data_(std::move(value)) {}
+
+vbr_selected_page_capture::operator bool() const noexcept {
+    return bool(data_);
+}
+
+const vbr_selected_page_capture_quote &
+vbr_selected_page_capture::quote() const noexcept {
+    static const vbr_selected_page_capture_quote empty;
+    return data_ ? data_->quote : empty;
+}
+
+const std::vector<vbr_selected_page_descriptor> &
+vbr_selected_page_capture::pages() const noexcept {
+    static const std::vector<vbr_selected_page_descriptor> empty;
+    return data_ ? data_->pages : empty;
+}
+
+vbr_selected_page_capture_status vbr_selected_page_capture_transfer(
+        const vbr_selected_page_capture_request & request,
+        const std::vector<vbr_selected_page_unit_source> & sources,
+        const vbr_selected_page_capture_limits & limits,
+        const vbr_selected_page_capture_snapshot_provider & snapshots,
+        vbr_pinned_chunk_ring & ring,
+        vbr_selected_page_capture & output,
+        vbr_capture_stream_stats * attempted,
+        const vbr_pinned_ring_operation * operation) noexcept {
+    output = {};
+    if (attempted) {
+        *attempted = {};
+    }
+    try {
+        vbr_selected_page_capture_quote quote;
+        const auto projected = vbr_selected_page_capture_project(
+            request, sources, limits, quote);
+        if (projected != vbr_selected_page_capture_status::ok) {
+            return projected;
+        }
+        if (!snapshots.acquire || !snapshots.recheck || !snapshots.release) {
+            return vbr_selected_page_capture_status::snapshot_unavailable;
+        }
+        if (operation && !*operation) {
+            return vbr_selected_page_capture_status::ring_unavailable;
+        }
+        vbr_selected_page_capture_snapshot snapshot;
+        if (!snapshots.acquire(snapshots.context, request, snapshot)) {
+            return vbr_selected_page_capture_status::snapshot_unavailable;
+        }
+        struct release_guard {
+            const vbr_selected_page_capture_snapshot_provider * provider;
+            const vbr_selected_page_capture_snapshot * snapshot;
+            ~release_guard() {
+                provider->release(provider->context, *snapshot);
+            }
+        } release { &snapshots, &snapshot };
+
+        if (snapshot.source_namespace != request.source_namespace ||
+            snapshot.child_id != request.child_id ||
+            snapshot.stream_index != request.stream_index ||
+            snapshot.pages.size() != request.pages.size() ||
+            snapshot.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+            snapshot.unit_descriptors.size() !=
+                VBR_SELECTED_PAGE_REQUIRED_UNITS) {
+            return vbr_selected_page_capture_status::snapshot_unavailable;
+        }
+        for (size_t i = 0; i < request.pages.size(); ++i) {
+            if (snapshot.pages[i] != request.pages[i].identity) {
+                if (selected_page_id_same_except_page_generation(
+                        snapshot.pages[i], request.pages[i].identity)) {
+                    return vbr_selected_page_capture_status::stale_page_generation;
+                }
+                if (selected_page_id_representation_equal(
+                        snapshot.pages[i], request.pages[i].identity)) {
+                    return vbr_selected_page_capture_status::snapshot_unavailable;
+                }
+                return vbr_selected_page_capture_status::representation_changed;
+            }
+        }
+        for (uint32_t unit : request.required_unit_ids) {
+            const auto * unit_snapshot = selected_page_unit_snapshot_for(
+                snapshot, unit);
+            const auto * descriptor = selected_page_descriptor_for(
+                snapshot, unit);
+            const auto * source = selected_page_source_for(sources, unit);
+            if (!unit_snapshot || !descriptor || !source) {
+                return vbr_selected_page_capture_status::missing_unit;
+            }
+            if (!selected_page_representation_valid(*descriptor, unit)) {
+                return vbr_selected_page_capture_status::wrong_type;
+            }
+            if (!selected_page_generation_matches(
+                    *unit_snapshot, *descriptor, request.child_id,
+                    request.source_namespace)) {
+                return vbr_selected_page_capture_status::representation_changed;
+            }
+            if (!selected_page_unit_generation_equal(
+                    unit_snapshot->generation,
+                    request.expected_unit_generations[unit])) {
+                return vbr_selected_page_capture_status::stale_page_generation;
+            }
+            vbr_capture_projected_shard_source projected_source;
+            projected_source.shard_index = 0;
+            projected_source.row_count = source->row_count;
+            projected_source.row_bytes = source->row_bytes;
+            projected_source.source_identity = source->source_identity;
+            projected_source.source = source->source;
+            uint32_t shard_count = 0;
+            std::array<uint8_t, 32> topology_digest = {};
+            if (!vbr_capture_projected_shard_topology(
+                    { projected_source }, shard_count, topology_digest) ||
+                unit_snapshot->shard_count != shard_count ||
+                unit_snapshot->shard_topology_digest != topology_digest) {
+                return vbr_selected_page_capture_status::snapshot_unavailable;
+            }
+        }
+
+        vbr_pinned_ring_operation owned_operation;
+        const vbr_pinned_ring_operation * active_operation = operation;
+        if (!active_operation) {
+            owned_operation = ring.try_begin_operation();
+            if (!owned_operation) {
+                return vbr_selected_page_capture_status::ring_unavailable;
+            }
+            active_operation = &owned_operation;
+        }
+
+        auto result = std::make_shared<vbr_selected_page_capture::data>();
+        result->quote = quote;
+        result->pages.reserve(request.pages.size());
+        for (const auto & page : request.pages) {
+            vbr_capture_projection_manifest manifest;
+            manifest.manifest_id = uint64_t(
+                result->pages.size()) + 1;
+            vbr_artifact_stream_placement placement;
+            placement.child_id = request.child_id;
+            placement.stream_index = request.stream_index;
+            placement.source_sequence = page.identity.sequence_id;
+            placement.computation_frontier = page.identity.position_end;
+            for (size_t i = 0; i < page.positions.size(); ++i) {
+                placement.cells.push_back({
+                    page.physical_cells[i], page.positions[i], 0, 0,
+                });
+            }
+            manifest.placements.push_back(std::move(placement));
+            vbr_capture_projection projection;
+            if (!vbr_artifact_project_capture_union(
+                    { request.source_namespace, { std::move(manifest) } },
+                    {}, projection)) {
+                return vbr_selected_page_capture_status::geometry_overflow;
+            }
+            vbr_selected_page_descriptor page_result;
+            page_result.identity = page.identity;
+            page_result.tail = page.tail;
+            page_result.positions = page.positions;
+            page_result.units.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+            for (uint32_t unit : request.required_unit_ids) {
+                const auto * source = selected_page_source_for(sources, unit);
+                const auto * descriptor = selected_page_descriptor_for(
+                    snapshot, unit);
+                if (!source || !descriptor) {
+                    return vbr_selected_page_capture_status::missing_unit;
+                }
+                vbr_capture_projected_shard_source projected_source;
+                projected_source.shard_index = 0;
+                projected_source.row_count = source->row_count;
+                projected_source.row_bytes = source->row_bytes;
+                projected_source.source_identity = source->source_identity;
+                projected_source.source = source->source;
+                selected_page_unit_snapshot_adapter adapter {
+                    &snapshot, unit,
+                };
+                vbr_capture_projected_unit captured;
+                vbr_capture_stream_stats stats;
+                const auto transferred =
+                    vbr_capture_projected_unit_transfer(
+                        projection, request.child_id, request.stream_index,
+                        unit, { projected_source },
+                        { 1, limits.max_segments,
+                          uint32_t(std::min<uint64_t>(
+                              limits.max_source_operations, UINT32_MAX)),
+                          limits.max_payload_bytes,
+                          uint32_t(std::min<uint64_t>(
+                              limits.max_authenticated_chunks, UINT32_MAX)),
+                          limits.max_authenticated_metadata_bytes },
+                        adapter.provider(), ring, captured, &stats,
+                        active_operation);
+                if (attempted && !selected_page_stats_add(*attempted, stats)) {
+                    return vbr_selected_page_capture_status::internal_error;
+                }
+                if (transferred != vbr_capture_stream_status::ok ||
+                    !captured || captured.shards().size() != 1 ||
+                    !captured.shards()[0].bytes ||
+                    captured.shards()[0].bytes->size() !=
+                        uint64_t(page.positions.size())*source->row_bytes) {
+                    return transferred == vbr_capture_stream_status::ok
+                        ? vbr_selected_page_capture_status::incomplete
+                        : selected_page_status_for_transfer(transferred);
+                }
+                const auto & shard = captured.shards()[0];
+                vbr_selected_page_unit_descriptor unit_result;
+                unit_result.logical_unit_id = unit;
+                unit_result.layer = unit / 2;
+                unit_result.side = (unit & 1u)
+                    ? vbr_artifact_side::value : vbr_artifact_side::key;
+                unit_result.valid_rows = uint32_t(page.positions.size());
+                unit_result.row_bytes = source->row_bytes;
+                unit_result.topology_digest =
+                    captured.snapshot().shard_topology_digest;
+                unit_result.representation = *descriptor;
+                unit_result.bytes = shard.bytes;
+                unit_result.streaming_digest = shard.streaming_digest;
+                unit_result.transfer = stats;
+                if (!selected_page_stats_add(page_result.transfer, stats)) {
+                    return vbr_selected_page_capture_status::internal_error;
+                }
+                if (!capture_checked_add(
+                        page_result.payload_bytes, unit_result.bytes->size(),
+                        page_result.payload_bytes)) {
+                    return vbr_selected_page_capture_status::geometry_overflow;
+                }
+                page_result.units.push_back(std::move(unit_result));
+            }
+            if (page_result.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+                page_result.payload_bytes == 0) {
+                return vbr_selected_page_capture_status::incomplete;
+            }
+            result->pages.push_back(std::move(page_result));
+        }
+        uint64_t actual_payload_bytes = 0;
+        for (const auto & page : result->pages) {
+            if (!capture_checked_add(
+                    actual_payload_bytes, page.payload_bytes,
+                    actual_payload_bytes)) {
+                return vbr_selected_page_capture_status::geometry_overflow;
+            }
+        }
+        if (result->quote.payload_bytes != actual_payload_bytes) {
+            return vbr_selected_page_capture_status::incomplete;
+        }
+        if (!snapshots.recheck(snapshots.context, snapshot)) {
+            return vbr_selected_page_capture_status::snapshot_changed;
+        }
+        output = vbr_selected_page_capture(
+            std::shared_ptr<const vbr_selected_page_capture::data>(
+                std::move(result)));
+        return vbr_selected_page_capture_status::ok;
+    } catch (...) {
+        output = {};
+        return vbr_selected_page_capture_status::internal_error;
+    }
+}
+
 vbr_capture_sealed_companion::operator bool() const noexcept {
     return companion_index_ != UINT32_MAX && bytes_ != nullptr &&
            capture_digest_nonzero(streaming_digest_);

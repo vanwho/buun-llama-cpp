@@ -1,6 +1,7 @@
 #pragma once
 
 #include "llama-cache-authority.h"
+#include "llama-kv-residency.h"
 #include "llama-vbr-artifact.h"
 #include "llama-vbr-generation.h"
 #include "llama-vbr-pinned-ring.h"
@@ -600,6 +601,201 @@ class vbr_capture_projected_unit {
         vbr_capture_stream_stats *,
         const vbr_pinned_ring_operation *) noexcept;
 };
+
+// The target pager's transport unit is one logical page across the complete
+// full-attention target.  It is deliberately separate from a VBR generation
+// page: generation pages authenticate mutation dependencies, while this
+// descriptor authenticates one selected attention page and its opaque device
+// rows.
+static constexpr uint32_t VBR_SELECTED_PAGE_TARGET_LAYERS = 16;
+static constexpr uint32_t VBR_SELECTED_PAGE_REQUIRED_UNITS =
+    VBR_SELECTED_PAGE_TARGET_LAYERS * 2;
+
+enum class vbr_selected_page_capture_status : uint8_t {
+    ok = 0,
+    invalid_argument,
+    unsupported_page,
+    duplicate_page,
+    missing_page,
+    wrong_type,
+    missing_unit,
+    duplicate_unit,
+    geometry_overflow,
+    snapshot_unavailable,
+    stale_page_generation,
+    representation_changed,
+    ring_unavailable,
+    transfer_failed,
+    short_read,
+    snapshot_changed,
+    incomplete,
+    internal_error,
+    _count,
+};
+
+const char * vbr_selected_page_capture_status_name(
+    vbr_selected_page_capture_status status) noexcept;
+
+// A page range names both the logical position run and the physical rows that
+// contain it.  Physical rows are intentionally supplied by the live KV owner;
+// this seam never scans or serializes a public context state.  A sealed page
+// has 256 positions; only the current write tail may be shorter.
+struct vbr_selected_page_range {
+    llama_kv_page_id identity;
+    bool tail = false;
+    std::vector<llama_pos> positions;
+    std::vector<uint32_t> physical_cells;
+};
+
+struct vbr_selected_page_capture_request {
+    uint64_t source_namespace = 0;
+    uint32_t child_id = UINT32_MAX;
+    uint32_t stream_index = UINT32_MAX;
+    std::vector<vbr_selected_page_range> pages;
+    // The request is intentionally explicit even though the supported target
+    // has a fixed shape.  Capture refuses anything other than every K/V unit
+    // in layers [0, 16), in canonical logical-unit order-independent form.
+    std::vector<uint32_t> required_unit_ids;
+    // Indexed by logical unit ID. These are the generation tuples observed by
+    // the caller before the transfer and are checked again against the live
+    // snapshot before any bytes become adoptable.
+    std::vector<vbr_unit_generation> expected_unit_generations;
+};
+
+struct vbr_selected_page_unit_source {
+    uint32_t logical_unit_id = UINT32_MAX;
+    uint32_t row_count = 0;
+    uint64_t row_bytes = 0;
+    uint64_t source_identity = 0;
+    vbr_capture_stream_source source;
+};
+
+// The quote is produced before any segment chain or payload allocation.  Its
+// counts are exact for the supplied physical-row ranges, including page
+// fragmentation and per-unit row widths.
+struct vbr_selected_page_capture_quote {
+    uint32_t page_count = 0;
+    uint32_t unit_count = 0;
+    uint64_t position_count = 0;
+    uint64_t segment_count = 0;
+    uint64_t payload_bytes = 0;
+    uint64_t source_operations = 0;
+    uint64_t authenticated_chunks = 0;
+    uint64_t authenticated_metadata_bytes = 0;
+};
+
+struct vbr_selected_page_capture_limits {
+    uint32_t max_pages = 1024;
+    uint32_t max_units = VBR_SELECTED_PAGE_REQUIRED_UNITS;
+    uint64_t max_positions = 262144;
+    uint64_t max_segments = 1048576;
+    uint64_t max_payload_bytes = uint64_t(16)*1024*1024*1024;
+    uint64_t max_source_operations = 1048576;
+    uint64_t max_authenticated_chunks = 262144;
+    uint64_t max_authenticated_metadata_bytes = uint64_t(32)*1024*1024;
+};
+
+// A bounded, allocation-free geometry projection. It is also the admission
+// quote used by the transfer function after the live snapshot has supplied
+// representation descriptors.
+vbr_selected_page_capture_status vbr_selected_page_capture_project(
+    const vbr_selected_page_capture_request & request,
+    const std::vector<vbr_selected_page_unit_source> & sources,
+    const vbr_selected_page_capture_limits & limits,
+    vbr_selected_page_capture_quote & output) noexcept;
+
+struct vbr_selected_page_capture_snapshot {
+    uint64_t source_namespace = 0;
+    uint32_t child_id = UINT32_MAX;
+    uint32_t stream_index = UINT32_MAX;
+    std::vector<llama_kv_page_id> pages;
+    std::vector<vbr_capture_unit_snapshot> units;
+    // These are the existing VBR descriptors, copied from the live
+    // representation owner.  The page adapter does not invent a second codec
+    // identity vocabulary.
+    std::vector<vbr_artifact_unit_descriptor> unit_descriptors;
+};
+
+struct vbr_selected_page_capture_snapshot_provider {
+    using acquire_fn = bool (*) (
+        void * context,
+        const vbr_selected_page_capture_request & request,
+        vbr_selected_page_capture_snapshot & output) noexcept;
+    using recheck_fn = bool (*) (
+        void * context,
+        const vbr_selected_page_capture_snapshot & expected) noexcept;
+    using release_fn = void (*) (
+        void * context,
+        const vbr_selected_page_capture_snapshot & snapshot) noexcept;
+
+    void * context = nullptr;
+    acquire_fn acquire = nullptr;
+    recheck_fn recheck = nullptr;
+    release_fn release = nullptr;
+};
+
+struct vbr_selected_page_unit_descriptor {
+    uint32_t logical_unit_id = UINT32_MAX;
+    uint32_t layer = UINT32_MAX;
+    vbr_artifact_side side = vbr_artifact_side::key;
+    uint32_t valid_rows = 0;
+    uint64_t row_bytes = 0;
+    std::array<uint8_t, 32> topology_digest = {};
+    vbr_artifact_unit_descriptor representation;
+    std::shared_ptr<const artifact_segment_chain> bytes;
+    std::array<uint8_t, 32> streaming_digest = {};
+    vbr_capture_stream_stats transfer;
+};
+
+struct vbr_selected_page_descriptor {
+    llama_kv_page_id identity;
+    bool tail = false;
+    std::vector<llama_pos> positions;
+    uint64_t payload_bytes = 0;
+    vbr_capture_stream_stats transfer;
+    std::vector<vbr_selected_page_unit_descriptor> units;
+};
+
+// Immutable adoption capability. Every page owns all 32 complete unit
+// descriptors and authenticated segment chains; no partial result is exposed.
+class vbr_selected_page_capture {
+public:
+    vbr_selected_page_capture() noexcept = default;
+
+    explicit operator bool() const noexcept;
+    const vbr_selected_page_capture_quote & quote() const noexcept;
+    const std::vector<vbr_selected_page_descriptor> & pages() const noexcept;
+
+private:
+    struct data;
+    explicit vbr_selected_page_capture(
+        std::shared_ptr<const data> value) noexcept;
+    std::shared_ptr<const data> data_;
+
+    friend vbr_selected_page_capture_status vbr_selected_page_capture_transfer(
+        const vbr_selected_page_capture_request &,
+        const std::vector<vbr_selected_page_unit_source> &,
+        const vbr_selected_page_capture_limits &,
+        const vbr_selected_page_capture_snapshot_provider &,
+        vbr_pinned_chunk_ring &,
+        vbr_selected_page_capture &,
+        vbr_capture_stream_stats *,
+        const vbr_pinned_ring_operation *) noexcept;
+};
+
+// Acquires one immutable page/unit snapshot, streams every requested page and
+// unit through the existing projected-unit path, and rechecks the snapshot
+// only after all transfers complete. Failure leaves output empty and therefore
+// never adoptable.
+vbr_selected_page_capture_status vbr_selected_page_capture_transfer(
+    const vbr_selected_page_capture_request & request,
+    const std::vector<vbr_selected_page_unit_source> & sources,
+    const vbr_selected_page_capture_limits & limits,
+    const vbr_selected_page_capture_snapshot_provider & snapshots,
+    vbr_pinned_chunk_ring & ring,
+    vbr_selected_page_capture & output,
+    vbr_capture_stream_stats * attempted = nullptr,
+    const vbr_pinned_ring_operation * operation = nullptr) noexcept;
 
 // A controller-authenticated representation target for one projected child.
 // The target is a value capability: assembly owns its copy, and the
