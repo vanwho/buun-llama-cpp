@@ -76,6 +76,12 @@ The local build directories named by the handoffs (`build/`,
 `build-cuda-test/`, and task-specific `/tmp` directories) are generated
 verification outputs, not source evidence to stage.
 
+## Operator surface
+
+- [Operator-surface lifecycle matrix](OPERATOR_SURFACE_MATRIX.md) — local
+  four-mode construction, refusal, generation, and deferred live-service
+  disposition for task 12-03.
+
 ## CUDA and exact-reference evidence
 
 - [CUDA test matrix](CUDA_TEST_MATRIX.md) - direct Turbo4 page kernel, VMM,

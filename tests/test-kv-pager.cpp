@@ -247,8 +247,62 @@ static void test_host_seal_boundary() {
     assert(host->pages().empty());
 }
 
+static void test_mode_lifecycle_matrix() {
+    llama_kv_pager_config config;
+    config.page_size = 256;
+
+    int allocations = 0;
+    int releases = 0;
+    llama_kv_pager_backend backend;
+    backend.allocate = [&](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        ++allocations;
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(0x44));
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = bytes;
+        return true;
+    };
+    backend.release = [&](llama_kv_pager_allocation & allocation) {
+        ++releases;
+        allocation = {};
+    };
+
+    for (const auto mode : {
+            llama_kv_pager_mode::observe,
+            llama_kv_pager_mode::selective,
+            llama_kv_pager_mode::exact }) {
+        config.mode = mode;
+        llama_kv_pager_status status;
+        {
+            auto pager = llama_kv_pager::create(
+                    config, geometry(1025), resources(1024, 128), backend, status);
+            assert(pager && status == llama_kv_pager_status::ok);
+            assert(pager->snapshot().initialized);
+            assert(pager->snapshot().logical_page_count == 5);
+            if (mode == llama_kv_pager_mode::observe) {
+                assert(pager->snapshot().physical_page_count == 0);
+                assert(pager->residency().slot_capacity() == 0);
+            } else {
+                assert(pager->snapshot().physical_page_count == 5);
+                assert(pager->residency().slot_capacity() == 5);
+            }
+        }
+    }
+    assert(allocations == 2 && releases == 2);
+
+    // Feature-off is a valid ordinary configuration and never constructs a
+    // pager owner or requests a backend allocation.
+    config.mode = llama_kv_pager_mode::off;
+    llama_kv_pager_snapshot off_snapshot;
+    llama_kv_pager_status off_status;
+    assert(llama_kv_pager_plan(
+            config, geometry(1025), resources(1024, 128), off_snapshot, off_status));
+    assert(off_status == llama_kv_pager_status::disabled);
+    assert(!off_snapshot.initialized && off_snapshot.logical_page_count == 0);
+}
+
 int main() {
     test_host_seal_boundary();
+    test_mode_lifecycle_matrix();
     llama_kv_pager_config off;
     llama_kv_pager_snapshot snapshot;
     llama_kv_pager_status status;
