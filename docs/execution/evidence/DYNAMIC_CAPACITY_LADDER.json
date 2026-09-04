@@ -1,0 +1,99 @@
+{
+  "task": "14-02",
+  "raw_root": "/srv/ai/paged-kv/results/14-02-ladder-20260904T004547Z",
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "size_bytes": 14252845984,
+    "architecture": "qwen35",
+    "max_context": 262144,
+    "layers": 65,
+    "kv_heads": 4,
+    "head_length": 256,
+    "m_rope_positions": 4
+  },
+  "build": {
+    "binary": "build-14-01-cuda/bin/llama-server",
+    "sha256": "4cb1a90011d2d5b486b3f83b2ce3c9863eb65b55119b290fa52c8e70c1854626",
+    "version": "0.3.0-dev (build 11993, commit 8a550d30c)",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "gpu_total_mib": 16376,
+    "compute_capability": "8.9"
+  },
+  "geometry": {
+    "page_tokens": 256,
+    "target_page_bytes": 4325376,
+    "target_page_bytes_justification": "fixed model geometry and fixed page size",
+    "equations": [
+      "logical_pages = ceil(resolved_context / page_tokens)",
+      "H = admitted_pages * page_tokens",
+      "target_bytes = H * target_page_bytes"
+    ]
+  },
+  "auto_ladder": [
+    {"requested": 256, "resolved": 256, "result": "pass", "logical_pages": 1, "admitted_pages": 1, "H": 256, "target_page_bytes": 4325376, "target_bytes": 4325376, "usable_bytes": 2761687040, "charged_bytes": 32051584, "reserved_bytes": 32051584, "headroom_bytes": 0, "mtp_rows": 0, "mtp_bytes": 0, "selected_rows": {"prefill": 2, "decode": 1}, "gpu_serving_used_mib": 13345, "raw": "raw/ladder-256"},
+    {"requested": 16384, "resolved": 16384, "result": "pass", "logical_pages": 64, "admitted_pages": 64, "H": 16384, "target_page_bytes": 4325376, "target_bytes": 276824064, "usable_bytes": 2484862976, "charged_bytes": 36180352, "reserved_bytes": 36180352, "headroom_bytes": 0, "selected_rows": {"prefill": 2, "decode": 1}, "gpu_serving_used_mib": 13867, "raw": "raw/ladder-16384"},
+    {"requested": 32768, "resolved": 32768, "result": "pass", "logical_pages": 128, "admitted_pages": 128, "H": 32768, "target_page_bytes": 4325376, "target_bytes": 553648128, "usable_bytes": 2203844608, "charged_bytes": 40374656, "reserved_bytes": 40374656, "headroom_bytes": 0, "selected_rows": {"prefill": 2, "decode": 1}, "gpu_serving_used_mib": 14399, "raw": "raw/ladder-32768"},
+    {"requested": 65536, "resolved": 65536, "result": "pass", "logical_pages": 256, "admitted_pages": 256, "H": 65536, "target_page_bytes": 4325376, "target_bytes": 1107296256, "usable_bytes": 1641807872, "charged_bytes": 48763264, "reserved_bytes": 48763264, "headroom_bytes": 0, "selected_rows": {"prefill": 2, "decode": 1}, "gpu_serving_used_mib": 15463, "raw": "raw/ladder-65536"},
+    {"requested": 131072, "resolved": 131072, "result": "pass", "logical_pages": 512, "admitted_pages": 104, "H": 26624, "target_page_bytes": 4325376, "target_bytes": 449839104, "usable_bytes": 517734400, "charged_bytes": 65540480, "reserved_bytes": 65540480, "headroom_bytes": 0, "selected_rows": {"prefill": 2, "decode": 1}, "gpu_serving_used_mib": 15909, "raw": "raw/ladder-131072"},
+    {"requested": 262144, "resolved": 262144, "result": "safe_refusal_before_listen", "raw": "raw/ladder-262144", "reason": "VRAM demand 8448.1 MiB remained unmet; failed KV allocation before partial serving", "gpu_serving_used_mib": 148}
+  ],
+  "odd_tail": {
+    "requested": 65537,
+    "resolved": 65792,
+    "result": "pass",
+    "logical_pages": 257,
+    "admitted_pages": 257,
+    "H": 65792,
+    "target_page_bytes": 4325376,
+    "target_bytes": 1111621632,
+    "raw": "raw/odd-65537"
+  },
+  "fixed_capacity": [
+    {"name": "fixed-h2-pass", "context": 16384, "vram_budget_bytes": 536870912, "host_budget_bytes": 1073741824, "headroom_bytes": 134217728, "hot_pages": 2, "admitted_pages": 2, "H": 512, "target_bytes": 8650752, "result": "pass", "raw": "raw/fixed-h2-pass"},
+    {"name": "fixed-h2", "context": 16384, "vram_budget_bytes": 67108864, "host_budget_bytes": 1073741824, "headroom_bytes": 134217728, "hot_pages": 2, "result": "safe_refusal_before_listen", "reason": "KV pager admission", "raw": "raw/fixed-h2"},
+    {"name": "too-small", "context": 16384, "vram_budget_bytes": 1048576, "host_budget_bytes": 1073741824, "headroom_bytes": 134217728, "result": "safe_refusal_before_listen", "reason": "KV pager admission", "raw": "raw/too-small"}
+  ],
+  "mtp_gpu": [
+    {"context": 256, "rows": 256, "type_k": "turbo4", "type_v": "turbo4", "bytes": 401408, "bytes_per_token": 1568, "backend_log": "CUDA0", "backend_reservation": "gpu", "budget_category": "mtp_gpu_reserved", "pager_startup_rows": 0, "result": "pass", "raw": "raw/mtp-gpu-256"},
+    {"context": 16384, "rows": 16384, "type_k": "turbo4", "type_v": "turbo4", "bytes": 17432576, "bytes_per_token": 1064, "backend_log": "CUDA0", "backend_reservation": "gpu", "budget_category": "mtp_gpu_reserved", "pager_startup_rows": 0, "result": "pass", "raw": "raw/mtp-gpu-16384"},
+    {"context": 131072, "rows": null, "result": "safe_refusal_before_listen", "reason": "recurrent-state allocation failed before native MTP reservation", "raw": "raw/mtp-gpu-131072"}
+  ],
+  "host_accounting": {
+    "host_pageable_bytes": null,
+    "host_metadata_bytes": null,
+    "host_pinned_bytes": null,
+    "status": "not_emitted_by_raw_metrics_scrape",
+    "note": "The runtime snapshot API contains these fields, but the captured one-token server metrics output did not export custom pager gauges and the partial page was not a sealed full page."
+  },
+  "memory_breakdown_observation": {
+    "cuda_context_mib": {"256": 153, "16384": 413, "32768": 677, "65536": 1205, "131072": 2261},
+    "interpretation": "The ordinary attention-cache category grows with requested context. The bounded pager target allocation is separately reported above; no claim is made that this ordinary allocation was replaced."
+  },
+  "teardown": {
+    "raw": "teardown-restore.txt",
+    "isolated_gpu_baseline_used_mib": 148,
+    "restored_gpu_used_mib": 15481,
+    "restored_gpu_free_mib": 462,
+    "primary_service": "active and healthy",
+    "long_memory_service": "active, upstream 200, healthy DB",
+    "profiles_restored": true,
+    "temporary_manager_environment_unset": true,
+    "independent_8092_process_untouched": true
+  },
+  "acceptance": {
+    "auto_context_scaling": "observed",
+    "model_maximum_safe_refusal": "observed",
+    "odd_tail_rounding": "observed",
+    "fixed_hot_page_cap": "observed",
+    "headroom_and_budget_refusal": "observed",
+    "mtp_rows_equal_resolved_context": "observed in native MTP reservation",
+    "mtp_gpu_turbo4": "observed",
+    "pager_target_follows_H": "observed",
+    "ledger_terms_logged": "observed",
+    "sealed_page_host_backing": "not_claimed; one-token runs did not seal a full page and host gauges were not emitted",
+    "no_hidden_full_target_gpu_cache": "not_claimed; ordinary context allocation grows in raw memory breakdown",
+    "service_restore": "observed",
+    "external_verification": "none_deferred"
+  }
+}
