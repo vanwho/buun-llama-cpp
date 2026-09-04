@@ -407,6 +407,29 @@ llama_kv_residency_execute_transaction(
         const auto execute_transfer = [&](size_t index) -> bool {
             const auto transfer_result = llama_kv_residency_execute_transfer(
                 pool, request.transfers[index], claims[index], backend, transport);
+            auto & direction_counters = request.transfers[index].direction ==
+                llama_kv_residency_transfer_direction::h2d_promotion
+                ? result.h2d_counters : result.d2h_counters;
+            const auto add_counters = [](llama_kv_residency_transfer_counters & target,
+                                         const llama_kv_residency_transfer_counters & source) {
+                const auto add = [](uint64_t & lhs, uint64_t rhs) {
+                    lhs = rhs > std::numeric_limits<uint64_t>::max() - lhs
+                        ? std::numeric_limits<uint64_t>::max() : lhs + rhs;
+                };
+                add(target.queued, source.queued);
+                add(target.submitted, source.submitted);
+                add(target.copied_useful_bytes, source.copied_useful_bytes);
+                add(target.copied_aligned_bytes, source.copied_aligned_bytes);
+                add(target.waits, source.waits);
+                add(target.cancellations, source.cancellations);
+                add(target.stale_completions, source.stale_completions);
+                add(target.event_completions, source.event_completions);
+                add(target.evictions, source.evictions);
+                add(target.backpressure_waits, source.backpressure_waits);
+                add(target.transfer_time_us, source.transfer_time_us);
+                add(target.map_failures, source.map_failures);
+            };
+            add_counters(direction_counters, transfer_result.counters);
             result.transfer_counters.queued += transfer_result.counters.queued;
             result.transfer_counters.submitted += transfer_result.counters.submitted;
             result.transfer_counters.copied_useful_bytes +=

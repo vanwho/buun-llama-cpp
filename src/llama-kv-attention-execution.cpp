@@ -58,6 +58,7 @@ const char * llama_kv_attention_execution_route_name(
         case llama_kv_attention_execution_route::selected_reference:return "selected reference";
         case llama_kv_attention_execution_route::selected_direct:  return "selected direct";
         case llama_kv_attention_execution_route::exact_reference:   return "exact reference";
+        case llama_kv_attention_execution_route::exact_direct:      return "exact direct";
         case llama_kv_attention_execution_route::refusal:           return "refusal";
     }
     return "invalid";
@@ -90,6 +91,7 @@ void llama_kv_attention_execution_metrics::record_exact_ledger(
     exact_duplicate_pages = ledger.duplicate_pages;
     exact_missing_pages = ledger.missing_pages;
     exact_stale_pages = ledger.stale_pages;
+    exact_faults = ledger.cold_pages;
 }
 
 uint64_t llama_kv_attention_scratch_request::required_rows() const noexcept {
@@ -214,8 +216,13 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.reason = "observation preserves dense attention";
     } else if (mode_ == llama_kv_attention_execution_mode::exact) {
         result.status = llama_kv_attention_execution_status::ok;
-        result.route = llama_kv_attention_execution_route::exact_reference;
-        result.reason = "all-page online-softmax reference";
+        result.route = phase == llama_kv_attention_execution_phase::decode &&
+                       direct_capable && direct_shape(metadata)
+            ? llama_kv_attention_execution_route::exact_direct
+            : llama_kv_attention_execution_route::exact_reference;
+        result.reason = result.route == llama_kv_attention_execution_route::exact_direct
+            ? "all-page Turbo4 direct exact route"
+            : "all-page online-softmax reference";
     } else if ((scratch.required_rows() == std::numeric_limits<uint64_t>::max() &&
                 (scratch.resident_rows != 0 || scratch.transfer_rows != 0 || scratch.router_rows != 0)) ||
                (scratch.required_bytes() == std::numeric_limits<size_t>::max() &&
@@ -269,6 +276,8 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
                 metrics_.scratch_high_water_rows, result.scratch_rows);
         metrics_.scratch_high_water_bytes = std::max(
                 metrics_.scratch_high_water_bytes, uint64_t(result.scratch_bytes));
+        metrics_.selected_pages = std::max<uint64_t>(metrics_.selected_pages,
+                metadata.page_table().size());
         metadata_ = metadata;
         route_ = result.route;
         phase_ = phase;

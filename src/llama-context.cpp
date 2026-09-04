@@ -845,6 +845,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics() const noex
     result.context_tokens = snapshot.geometry.context_tokens;
     result.page_tokens = snapshot.geometry.page_tokens;
     result.logical_pages = snapshot.logical_page_count;
+    result.physical_page_capacity = snapshot.physical_page_count;
     result.resident_pages = 0;
     result.page_bytes = snapshot.admission.target_page_bytes;
     result.page_charge_bytes = snapshot.admission.page_charge_bytes;
@@ -877,6 +878,11 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics() const noex
         result.host_metadata_bytes = host_snapshot.metadata_bytes;
         result.host_pinned_bytes = host_snapshot.pinned_bytes;
     }
+    result.transfers = kv_pager_owner->transfer_counters();
+    result.h2d_transfers = kv_pager_owner->h2d_counters();
+    result.d2h_transfers = kv_pager_owner->d2h_counters();
+    result.promotion_pages = kv_pager_owner->promotion_pages();
+    result.eviction_pages = kv_pager_owner->eviction_pages();
     return result;
 }
 
@@ -1075,7 +1081,8 @@ void llama_context::init_kv_pager() {
     const auto & snapshot = kv_pager_owner->snapshot();
     if (kv_pager.telemetry &&
         (kv_pager.mode == llama_kv_pager_mode::observe ||
-         kv_pager.mode == llama_kv_pager_mode::selective)) {
+         kv_pager.mode == llama_kv_pager_mode::selective ||
+         kv_pager.mode == llama_kv_pager_mode::exact)) {
         llama_kv_attention_telemetry_config telemetry_config;
         telemetry_config.mode = kv_pager.mode == llama_kv_pager_mode::selective
             ? llama_kv_attention_telemetry_mode::selective
@@ -1742,6 +1749,95 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                     (unsigned long long) plan.ledger().cold_pages,
                     (unsigned long long) plan.ledger().h2d_useful_bytes,
                     (unsigned long long) plan.ledger().peak_staging_pages);
+
+            // The direct Turbo4 node is the production exact binding for the
+            // resident case: its page table covers the complete logical
+            // inventory, its native mask is causal-position based, and its
+            // page-mass reduction is published only after the scheduler fence.
+            // Cold waves still require a graph boundary between upload and
+            // per-layer online-state merge; do not turn those into a dense
+            // fallback or pretend the planner itself performed H2D work.
+            if (plan.ledger().cold_pages == 0 &&
+                phase == llama_kv_attention_execution_phase::decode &&
+                ubatch.n_tokens == 1 && ubatch.n_seq_tokens == 1) {
+                std::vector<uint32_t> all_pages;
+                all_pages.reserve(records.size());
+                for (const auto & record : records) {
+                    all_pages.push_back(record.id.logical_page);
+                }
+                llama_kv_attention_view_status view_status;
+                const auto view = llama_kv_attention_view::build(
+                        resident_snapshot, all_pages, sequence_id, view_status);
+                if (!view.valid()) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            std::string("exact resident view rejected: ") +
+                            llama_kv_attention_view_status_name(view_status));
+                }
+
+                llama_kv_attention_operator_params op_params;
+                op_params.mode = llama_kv_attention_operator_mode::selective;
+                op_params.type_k = attention->type_k();
+                op_params.type_v = attention->type_v();
+                op_params.page_tokens = kv_pager.page_size;
+                op_params.head_dim_k = model.hparams.n_embd_head_k();
+                op_params.head_dim_v = model.hparams.n_embd_head_v();
+                op_params.n_head_q = model.hparams.n_head();
+                op_params.n_head_kv = model.hparams.n_head_kv();
+                op_params.n_query_tokens = 1;
+                op_params.n_batch = 1;
+                op_params.causal = cparams.causal_attn;
+                op_params.query_positions.push_back(ubatch.pos[0]);
+
+                llama_kv_attention_operator_status op_status;
+                const auto metadata = llama_kv_attention_operator_metadata::build(
+                        view, op_params, op_status);
+                if (!metadata.valid()) {
+                    return refuse_exact(llama_kv_attention_execution_status::invalid_metadata,
+                            std::string("exact resident metadata rejected: ") +
+                            llama_kv_attention_operator_status_name(op_status));
+                }
+                std::vector<int32_t> rows;
+                if (!attention->selected_attention_rows(metadata.native_positions(), rows)) {
+                    return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                            "exact resident page positions are not present in the cache view");
+                }
+                llama_kv_attention_scratch_request scratch;
+                scratch.resident_rows = metadata.get_n_kv();
+                scratch.bytes_per_row = (size_t(model.hparams.n_embd_head_k()) +
+                        size_t(model.hparams.n_embd_head_v())) *
+                        size_t(model.hparams.n_head_kv()) * sizeof(float);
+                const auto layer_device = model.dev_layer(0);
+                const auto layer_reg = layer_device
+                    ? ggml_backend_dev_backend_reg(layer_device) : nullptr;
+                const bool cuda_backend = layer_reg != nullptr &&
+                    std::strcmp(ggml_backend_reg_name(layer_reg), "CUDA") == 0;
+                const bool scheduler_cuda = layer_device != nullptr &&
+                    backend_for_device(layer_device) != nullptr;
+                const bool direct_capable = cuda_backend && scheduler_cuda &&
+                    metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
+                    metadata.type_v() == GGML_TYPE_TURBO4_0 &&
+                    metadata.head_dim_k() == 256 && metadata.head_dim_v() == 256 &&
+                    metadata.n_query_tokens() == 1 && metadata.n_batch() == 1 &&
+                    metadata.n_head_kv() != 0 &&
+                    metadata.n_head_q() / metadata.n_head_kv() == 4 &&
+                    metadata.n_head_q() % metadata.n_head_kv() == 0 &&
+                    pager.residency_storage_tensor() != nullptr &&
+                    pager.residency_bytes_per_slot() != 0 &&
+                    model.hparams.f_max_alibi_bias == 0.0f &&
+                    !model.hparams.attn_soft_cap &&
+                    pager.snapshot().geometry.layer_k_offsets.size() ==
+                        pager.snapshot().geometry.attention_layers &&
+                    pager.snapshot().geometry.layer_v_offsets.size() ==
+                        pager.snapshot().geometry.attention_layers;
+                const auto result = prepare_kv_attention(metadata, phase,
+                        representation_epoch, shape_epoch, direct_capable, scratch);
+                if (result.status == llama_kv_attention_execution_status::ok &&
+                    result.route == llama_kv_attention_execution_route::exact_direct) {
+                    return result;
+                }
+                return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                        "exact resident Turbo4 direct backend is unavailable");
+            }
         } catch (...) {
             return refuse_exact(llama_kv_attention_execution_status::overflow,
                     "exact attention page-wave metadata allocation failed");

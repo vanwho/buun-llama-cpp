@@ -324,6 +324,21 @@ public:
         return host_ ? resources_host_stream_index_ : UINT32_MAX;
     }
 
+    // Cumulative counters from observed residency transactions. They remain
+    // separate from the immutable page snapshot so metrics do not alter the
+    // table epoch or page identities.
+    const llama_kv_residency_transfer_counters & transfer_counters() const noexcept {
+        return transfer_counters_;
+    }
+    const llama_kv_residency_transfer_counters & h2d_counters() const noexcept {
+        return h2d_counters_;
+    }
+    const llama_kv_residency_transfer_counters & d2h_counters() const noexcept {
+        return d2h_counters_;
+    }
+    uint64_t promotion_pages() const noexcept { return promotion_pages_; }
+    uint64_t eviction_pages() const noexcept { return eviction_pages_; }
+
     const llama_kv_routing_summary_store & routing_summaries() const noexcept {
         return routing_summaries_;
     }
@@ -392,4 +407,9 @@ private:
     uint32_t current_page_index_ = UINT32_MAX;
     uint64_t mutation_generation_ = 1;
     llama_kv_residency_table residency_{0};
+    llama_kv_residency_transfer_counters transfer_counters_;
+    llama_kv_residency_transfer_counters h2d_counters_;
+    llama_kv_residency_transfer_counters d2h_counters_;
+    uint64_t promotion_pages_ = 0;
+    uint64_t eviction_pages_ = 0;
 };
