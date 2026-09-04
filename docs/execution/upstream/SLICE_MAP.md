@@ -515,13 +515,13 @@ contract exists.
   `tools/server/bench/run-pager-profile-benchmark.py`, and
   `tools/server/bench/run-pager-profile-benchmark.sh`.
 - Execution helper tooling: `tool/codex/run_clustered.sh` and
-  `tool/codex/task_state.py`.
+  `/srv/codex/task_state.py` (with `PROJECT_ROOT` set to the repository).
 
 **Dependencies.** All code slices and their evidence. Task 07-02 owns the
   final evidence index and operator-document consistency pass.
 
 **Tests and platform.** Validate Markdown links and JSON, run
-  `python3 tool/codex/task_state.py validate`, `git diff --check`, and the
+  `PROJECT_ROOT=... python3 /srv/codex/task_state.py validate`, `git diff --check`, and the
   changed benchmark adapter syntax checks. Existing raw CPU/CUDA logs and
   final acceptance JSON remain the source of truth. The selective model-backed
   gates are explicitly deferred in `FINAL_ACCEPTANCE.md` and must not be

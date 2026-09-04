@@ -21,6 +21,10 @@ GIT_MODE=manual \
 /srv/codex/run_until_complete_clustered.sh --status
 ```
 
+The shared runner and its adjacent `/srv/codex/task_state.py` executable are the only execution
+programs. `task_state.py` receives `PROJECT_ROOT` from the runner; all state, logs, packets, and
+handoffs remain under that project root.
+
 The checked-in wrapper sets and verifies those safe defaults:
 
 ```bash

@@ -958,13 +958,13 @@ belong under ignored build/result storage, with stable summaries linked from the
 The status helper supports:
 
 ```bash
-python3 tool/codex/task_state.py validate
-python3 tool/codex/task_state.py show
-python3 tool/codex/task_state.py start 00-02
-python3 tool/codex/task_state.py checkpoint 00-02 --summary "..."
-python3 tool/codex/task_state.py complete 00-02 --summary "..."
-python3 tool/codex/task_state.py block 02-03 --reason "..."
-python3 tool/codex/task_state.py unblock 02-03 --summary "blocker resolved ..."
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py validate
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py show
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py start 00-02
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py checkpoint 00-02 --summary "..."
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py complete 00-02 --summary "..."
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py block 02-03 --reason "..."
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py unblock 02-03 --summary "blocker resolved ..."
 ```
 
 Never mark a hardware gate complete without its raw output. Use `deferred` only when the plan explicitly
@@ -1069,7 +1069,7 @@ Do not guess these prematurely:
 | Subject | Primary pointer | Why it matters |
 | --- | --- | --- |
 | Canonical execution | `docs/execution/WORK_STATE.json`, `docs/execution/tasks/`, `docs/execution/clusters/` | Sole task order, task acceptance, and per-session context |
-| Resume tooling | `tool/codex/task_state.py`, `tool/codex/run_clustered.sh`, `/srv/codex/run_until_complete_clustered.sh` | Validates state, resumes at the first unfinished task, and reuses only one cluster's session |
+| Resume tooling | `/srv/codex/task_state.py`, `/srv/codex/run_until_complete_clustered.sh` | Validates state, resumes at the first unfinished task, and reuses only one cluster's session |
 | Buun VBR/VMM | `src/llama-vbr-*`, `src/llama-kv-cache.*` | Representation epochs, VMM precedents, transactions, capture/adopt, generations, pinned ring |
 | CUDA VMM backend | `ggml/src/ggml-cuda/vbr-vmm.cu`, `vbr-vmm-policy.h` | Low-level reserve/map/unmap/physical-accounting primitives to factor beneath a separate pager pool |
 | Turbo4 FA CUDA | `ggml/src/ggml-cuda/fattn-mma-turbo.cuh`, `fattn-common.cuh`, `fattn.cu`, `template-instances/` | Existing direct Turbo K/V tile loaders, dispatch, and generated specializations |
@@ -1409,7 +1409,7 @@ GitHub issue/PR text.
 Every new task packet contains exact reads, likely write ownership, implementation steps, commands,
 benchmark conditions, acceptance, recovery paths, and handoff requirements. An executing agent must:
 
-1. start only the task reported by `tool/codex/task_state.py next`;
+1. start only the task reported by `/srv/codex/task_state.py next`;
 2. read the cluster file once, the packet, and dependency handoffs; avoid loading unrelated old packets;
 3. treat existing callbacks as untrusted until a live caller and test are demonstrated;
 4. keep implementation generic; machine/service/profile facts live in execution metadata or `/srv/ai`;

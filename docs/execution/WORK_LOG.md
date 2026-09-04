@@ -1,6 +1,7 @@
 # Work log
 
-Append-only task transitions are maintained by `tool/codex/task_state.py`.
+Append-only task transitions are maintained by `/srv/codex/task_state.py`, which
+receives `PROJECT_ROOT` from the shared runner.
 
 ## 2026-09-04T10:44:12+00:00 — corrective phase inserted
 
