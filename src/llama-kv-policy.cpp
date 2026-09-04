@@ -289,7 +289,7 @@ llama_kv_policy_decision llama_kv_policy_decide(
                     out.records.push_back(record(page.id, llama_kv_policy_reason::unavailable));
                 }
             }
-            if (out.target.size() >= config.capacity_pages) break;
+            if (out.target.size() >= config.capacity_pages) continue;
             if (!contains(out.target, page.id)) add(page, llama_kv_policy_reason::retention, score(page));
         }
 

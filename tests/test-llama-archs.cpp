@@ -1306,8 +1306,8 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
     GGML_ASSERT(llama_memory_can_shift(indexed));
 
     // All attention-only/transient/copy APIs must treat the QSA indexer as auxiliary attention
-    // state. Fill both recurrent slots so the first copy deterministically fails after the base
-    // attention mutation; the indexed wrapper must invalidate the destination in all children.
+    // state. Fill both recurrent slots so the copy preflight deterministically fails without
+    // mutating the destination in any child.
     {
         llama_context_params mutation_params = llama_context_default_params();
         mutation_params.n_ctx = 128;
@@ -1360,13 +1360,19 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
 
         GGML_ASSERT(!mutation_memory->try_seq_cp(0, 1, 0, -1));
         assert_mirrored(1);
-        GGML_ASSERT(mutation_attn->seq_pos_max(1) == -1);
-        GGML_ASSERT(mutation_idx ->seq_pos_max(1) == -1);
-        GGML_ASSERT(mutation_recr->seq_pos_max(1) == -1);
+        GGML_ASSERT(mutation_attn->seq_pos_max(1) == 3);
+        GGML_ASSERT(mutation_idx ->seq_pos_max(1) == 3);
+        GGML_ASSERT(mutation_recr->seq_pos_max(1) == 3);
 
-        decode_seq(1, 2);
         GGML_ASSERT(!mutation_memory->try_seq_cp_transient(0, 1, 0, -1));
         assert_mirrored(1);
+        GGML_ASSERT(mutation_attn->seq_pos_max(1) == 3);
+        GGML_ASSERT(mutation_idx ->seq_pos_max(1) == 3);
+        GGML_ASSERT(mutation_recr->seq_pos_max(1) == 3);
+
+        // A successful copy requires an available recurrent destination. Remove the old
+        // destination explicitly; failed preflight must not create that space implicitly.
+        GGML_ASSERT(mutation_memory->seq_rm(1, -1, -1));
         GGML_ASSERT(mutation_attn->seq_pos_max(1) == -1);
         GGML_ASSERT(mutation_idx ->seq_pos_max(1) == -1);
         GGML_ASSERT(mutation_recr->seq_pos_max(1) == -1);

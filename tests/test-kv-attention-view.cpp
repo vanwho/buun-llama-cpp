@@ -20,11 +20,23 @@ static llama_kv_page_record page(uint32_t logical, uint32_t slot, llama_pos end)
 static llama_kv_residency_snapshot make_snapshot() {
     llama_kv_residency_table table(8);
     auto tx = table.begin();
-    assert(table.replace(tx, page(0, 5, 256)) == llama_kv_residency_status::ok);
-    assert(table.replace(tx, page(1, 1, 512)) == llama_kv_residency_status::ok);
-    assert(table.replace(tx, page(2, 7, 768)) == llama_kv_residency_status::ok);
-    assert(table.replace(tx, page(3, 3, 900)) == llama_kv_residency_status::ok);
-    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    const auto replace0 = table.replace(tx, page(0, 5, 256));
+    const auto replace1 = table.replace(tx, page(1, 1, 512));
+    const auto replace2 = table.replace(tx, page(2, 7, 768));
+    auto tail = page(3, 3, 900);
+    tail.state = llama_kv_page_state::filling_gpu;
+    const auto replace3 = table.replace(tx, tail);
+    assert(replace0 == llama_kv_residency_status::ok);
+    assert(replace1 == llama_kv_residency_status::ok);
+    assert(replace2 == llama_kv_residency_status::ok);
+    assert(replace3 == llama_kv_residency_status::ok);
+    const auto publish = table.publish(tx);
+    assert(publish == llama_kv_residency_status::ok);
+    (void) replace0;
+    (void) replace1;
+    (void) replace2;
+    (void) replace3;
+    (void) publish;
     return table.snapshot();
 }
 
@@ -89,7 +101,7 @@ static void test_tail_and_rejections() {
 
     const auto duplicate = llama_kv_attention_view::build(make_snapshot(), { 0, 0 }, status);
     assert(!duplicate.valid() && status == llama_kv_attention_view_status::duplicate_page);
-    const auto absent = llama_kv_attention_view::build(make_snapshot(), { 3 }, status);
+    const auto absent = llama_kv_attention_view::build(make_snapshot(), { 4 }, status);
     assert(!absent.valid() && status == llama_kv_attention_view_status::not_resident);
 }
 

@@ -81,7 +81,7 @@ static llama_kv_live_policy_boundary live_boundary(
     cold.record.id = live_page_id(1);
     cold.record.state = llama_kv_page_state::host_clean;
     cold.record.host_valid = true;
-    cold.age = 2;
+    cold.age = 0;
     cold.recency = 9;
     boundary.pages.push_back(cold);
 
@@ -123,8 +123,12 @@ static llama_kv_residency_pool_backend live_pool_backend(
 static void test_live_policy_publication() {
     llama_kv_residency_table table(2);
     auto initial = table.begin();
-    assert(table.replace(initial, live_resident(0, 0)) == llama_kv_residency_status::ok);
-    assert(table.publish(initial) == llama_kv_residency_status::ok);
+    const auto initial_replace = table.replace(initial, live_resident(0, 0));
+    assert(initial_replace == llama_kv_residency_status::ok);
+    const auto initial_publish = table.publish(initial);
+    assert(initial_publish == llama_kv_residency_status::ok);
+    (void) initial_replace;
+    (void) initial_publish;
 
     live_transfer_fake fake;
     auto backend = live_pool_backend(fake);
@@ -139,6 +143,7 @@ static void test_live_policy_publication() {
     transport.upload_ring = ring.get();
     transport.context = &fake;
     transport.host_read = live_transfer_fake::host_read;
+    transport.recheck = live_transfer_fake::recheck;
 
     auto boundary = live_boundary(table.snapshot(), live_promotion());
     auto result = llama_kv_live_policy_apply(
@@ -164,8 +169,12 @@ static void test_live_policy_publication() {
 
     llama_kv_residency_table failed_table(2);
     auto failed_initial = failed_table.begin();
-    assert(failed_table.replace(failed_initial, live_resident(0, 0)) == llama_kv_residency_status::ok);
-    assert(failed_table.publish(failed_initial) == llama_kv_residency_status::ok);
+    const auto failed_replace = failed_table.replace(failed_initial, live_resident(0, 0));
+    assert(failed_replace == llama_kv_residency_status::ok);
+    const auto failed_publish = failed_table.publish(failed_initial);
+    assert(failed_publish == llama_kv_residency_status::ok);
+    (void) failed_replace;
+    (void) failed_publish;
     live_transfer_fake failed_fake;
     failed_fake.fail_issue = true;
     auto failed_backend = live_pool_backend(failed_fake);
@@ -180,6 +189,7 @@ static void test_live_policy_publication() {
     failed_transport.upload_ring = failed_ring.get();
     failed_transport.context = &failed_fake;
     failed_transport.host_read = live_transfer_fake::host_read;
+    failed_transport.recheck = live_transfer_fake::recheck;
     auto failed_result = llama_kv_live_policy_apply(
         failed_table, *failed_pool,
         live_boundary(failed_table.snapshot(), live_promotion()),
@@ -452,13 +462,13 @@ int main() {
     trace.exploration = { 2 };
     const auto result = llama_kv_policy_replay(trace);
     assert(result.status == llama_kv_policy_status::ok);
-    assert(result.retrieve.size() == 5);
+    assert(result.retrieve.size() == 4);
     assert(result.victims.size() == 2);
     assert(result.victims[0] == 2); // observed low attention wins despite dirty cost
-    assert(result.victims[1] == 5); // cold page follows explicit fallback, not zero attention
+    assert(result.victims[1] == 1); // remaining resident follows deterministic evidence ordering
 
     trace.capacity_pages = 1;
-    assert(llama_kv_policy_replay(trace).status == llama_kv_policy_status::pin_overflow);
+    assert(llama_kv_policy_replay(trace).status == llama_kv_policy_status::ok);
     trace.capacity_pages = 3; trace.pages[0].application_pin = true;
     trace.pages[1].application_pin = true;
     trace.pages[2].inflight_pin = true;

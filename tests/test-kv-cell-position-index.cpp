@@ -56,6 +56,8 @@ int main() {
     cells.pos_div(3, 2);
     expect(cells.seq_pos_tok_le(2, 4) == 305, "position division was not re-indexed");
 
+    // cp() snapshots logical state only after callers consume pending shifts.
+    cells.reset_shift();
     llama_kv_cells snapshot = cells.cp({ 1, 3, 9 });
     llama_kv_cells restored;
     restored.resize(6);
