@@ -93,8 +93,7 @@ For supported draft placement, use the documented
 [`--spec-draft-kv-device`](../../docs/speculative.md#draft-kv-placement) option. Pager
 page-size, hot-set, budget, prefetch, and mode switches remain internal until
 the runtime and CLI contracts are accepted. The bounded benchmark adapter and
-raw acceptance status are linked from
-[`docs/execution/evidence/INDEX_V2.md`](../../docs/execution/evidence/INDEX_V2.md).
+raw acceptance status are maintained in the fork-local execution package.
 
 ## Usage
 

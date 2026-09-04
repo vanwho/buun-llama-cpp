@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "task": "11-02",
+  "status": "deterministic_retrieval_boundary_verified_live_model_deferred",
+  "contract": {
+    "version": 1,
+    "query_tags": [
+      "query_generation",
+      "token_index",
+      "table_epoch",
+      "model_identity",
+      "topology_identity",
+      "representation_epoch",
+      "session_generation",
+      "sequence_id",
+      "layer_index",
+      "head_index"
+    ],
+    "score_complexity": "valid_page_count * summary_width",
+    "priority": [
+      "current/write",
+      "application/inflight/speculative pins",
+      "structural anchors",
+      "recent",
+      "summary top-k",
+      "rotating exploration"
+    ],
+    "missing_summary": "unavailable_with_safe_fallback",
+    "mandatory_overflow": "typed_refusal"
+  },
+  "selected_baseline": {
+    "summary_form": "representatives",
+    "summary_width": 4,
+    "summary_storage": "caller-configured runtime layer/head, production default layer 0 head 0",
+    "query_path": "backend-neutral CPU reference seam",
+    "summary_top_k": 1,
+    "exploration_pages": 1,
+    "exploration": "deterministic circular rotation by seed plus turn"
+  },
+  "deterministic_fixture": {
+    "valid_pages": 6,
+    "partial_tail_pages": 1,
+    "capacity_pages": 6,
+    "summary_pages_scored": 6,
+    "summary_comparisons": 24,
+    "requested_order": [5, 1, 0, 4, 3, 2],
+    "cold_needle_logical_page": 3,
+    "cold_needle_entered_requested_set": true,
+    "synthetic_top_page_recall": 1.0,
+    "synthetic_attention_mass_capture": null,
+    "score_latency_us": null,
+    "union_latency_us": null,
+    "latency_note": "Per-process timing fields are exported by the API; no stable model-backed benchmark was run in this workspace.",
+    "page_distance_definition": "zero inside native page interval; otherwise distance to nearest interval boundary"
+  },
+  "failure_examples": [
+    {
+      "case": "missing_summary",
+      "status": "unavailable_summary",
+      "behavior": "mandatory/recent pages and explicit previous target remain eligible; score_available stays false"
+    },
+    {
+      "case": "stale_query_table_epoch",
+      "status": "stale_query",
+      "behavior": "no query scores are accepted"
+    },
+    {
+      "case": "mandatory_union_larger_than_H",
+      "status": "mandatory_overflow",
+      "behavior": "no partial target is returned"
+    }
+  ],
+  "verification": [
+    {
+      "command": "cmake --build build --target test-kv-routing-retrieval -j2",
+      "result": "pass"
+    },
+    {
+      "command": "build/bin/test-kv-routing-retrieval",
+      "result": "pass"
+    },
+    {
+      "command": "python3 /srv/codex/task_state.py validate",
+      "result": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    },
+    {
+      "command": "cmake --build build --target llama test-kv-routing-retrieval test-kv-routing-summary test-kv-pager test-kv-policy test-kv-attention-view test-kv-attention-execution test-kv-attention-telemetry test-kv-attention-exact test-kv-residency -j2",
+      "result": "pass"
+    },
+    {
+      "command": "ctest --test-dir build -R '^test-kv-(routing-retrieval|routing-summary|policy|pager|attention-view|attention-execution|attention-telemetry|attention-exact|residency)$' --output-on-failure",
+      "result": "9/9 pass"
+    }
+  ],
+  "raw_model_paths": {
+    "intended_results": "/srv/ai/paged-kv/results/11-02/",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "artifacts_claimed": false
+  },
+  "deferred": {
+    "reason": "No linked Qwen3.8 model-backed CUDA run is available in this workspace.",
+    "checks": [
+      "GPU all-page score versus CPU score and transfer cost",
+      "calibration and held-out cold-page recall",
+      "dense/exact attention-mass capture",
+      "top-k and exploration latency at runtime L",
+      "live query extraction before target attention",
+      "CUDA byte and timing evidence"
+    ]
+  },
+  "handoff": ".wiretail/execution/handoffs/11-02.md"
+}

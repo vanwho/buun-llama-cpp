@@ -138,7 +138,7 @@ and corpus hashes. Validate a dry-run or acceptance manifest with
 fail closed. Acceptance manifests require model/tokenizer hashes, Turbo4 MTP
 placement, the reconciled pager ledger, timing, raw requests, and all required
 telemetry. The frozen gate values and fields are summarized in
-`docs/execution/evidence/PAGER_BENCHMARK_CONTRACT_V2.json`.
+the fork-local execution package.
 
 `run-pager-profile-benchmark.sh` preserves the canonical profile runner and
 adds a joinable pager/corpus envelope to its existing artifacts. It supports
