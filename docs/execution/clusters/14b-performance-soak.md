@@ -17,7 +17,9 @@ Carry forward:
 - soak repeated long conversations, focus shifts, cache/checkpoint restore, speculative rejection,
   cancellation, slot reuse, clear, shutdown/restart, and memory recovery. No monotonically growing host,
   pinned, device, event, or page-table resource is allowed;
-- always restore the starting profile and both required health endpoints; never touch port 8092.
+- keep a successful tested profile loaded for the next dependent task; restore the starting profile only
+  for an explicitly declared control/revert, teardown, recovery, or final-cleanup operation, and always
+  verify both required health endpoints; never touch port 8092.
 
 Read: plan section 24; handoffs 08-05, 12-02, 13-05, 14-01–14-03; benchmark scripts and raw manifests.
 

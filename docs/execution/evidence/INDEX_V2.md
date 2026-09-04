@@ -10,9 +10,9 @@ or operator commands.
 - [Work state](../WORK_STATE.json) — task and acceptance contract.
 - [V2 slice map](../upstream/SLICE_MAP_V2.md) — reviewable implementation
   slices and upstream handoff.
-- [server operator contract](../../tools/server/README.md) and
-  [speculative/MTP contract](../../docs/speculative.md).
-- [benchmark adapter contract](../../tools/server/bench/README.md) and
+- [server operator contract](../../../tools/server/README.md) and
+  [speculative/MTP contract](../../../docs/speculative.md).
+- [benchmark adapter contract](../../../tools/server/bench/README.md) and
   [frozen schema](PAGER_BENCHMARK_CONTRACT_V2.json).
 
 The supported boundary is Qwen3.8-family causal Turbo4 K/V on the selected
@@ -80,5 +80,5 @@ external evidence, not repository portability inputs.
 No specialized hardware check is newly deferred by this documentation task.
 The quality, selective-speed, and pager-soak gates above remain blocked by
 their recorded runtime outcomes. Upstream re-sync and final branch verification
-remain deferred to the authorized Git owner as recorded in
-[handoff 15-01](../handoffs/15-01.md).
+remain deferred to the authorized Git owner as recorded in the historical
+[handoff 16-01](../handoffs/16-01.md).

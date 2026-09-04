@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "15",
-  "current_task": "15-03",
-  "last_updated_utc": "2026-09-04T02:43:59+00:00",
+  "current_task": "15-01",
+  "last_updated_utc": "2026-09-04T10:44:12+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -18,7 +18,12 @@
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
     "block_recovery_attempts": 2,
-    "block_escalation": "Luna task: Terra/high on final recovery after two failed approaches"
+    "substantive_retry_limit": 2,
+    "retry_assessment": "Luna/high assessment before each substantive retry",
+    "block_escalation": "Luna task: Terra/high on final recovery after two failed approaches",
+    "escalated_start_prompt": "Complete this task, but first assess the task and its output of previous tries that are causing a retry to be needed. Fix the approach so it will achieve the task's goal, if needed, while staying aligned to the overall goals.",
+    "benchmark_lifecycle": "keep_loaded_by_default",
+    "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
     "foundation_tasks": "00-01 through 07-02 are complete components, not live-product acceptance",
@@ -28,7 +33,7 @@
     "target_cold_backing": "canonical opaque Turbo4 pages in CPU RAM",
     "speed_floor": "warm selective median decode at least 3x same-context ordinary CPU KV",
     "speed_target": "report whether 5x CPU KV and 70% of comparable safe all-GPU are achieved",
-    "required_final_status": "phase 14 model-backed correctness, quality, performance, and soak gates must pass; they cannot be deferred"
+    "required_final_status": "phase 15 corrective model-backed correctness, quality, performance, and soak gates must pass, followed by phase 16 handoff; they cannot be deferred"
   },
   "external_gates": [
     {
@@ -980,44 +985,147 @@
     {
       "id": "15-01",
       "phase": "15",
-      "cluster": "15a-upstream-handoff-v2",
-      "title": "Re-sync upstream and construct reviewable slices",
+      "cluster": "15a-corrective-integration",
+      "title": "Rebase corrective work onto synced fork and preserve V2 evidence",
       "packet": "docs/execution/tasks/15-01.md",
-      "status": "done",
+      "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": [
-        "14-05"
-      ],
-      "commit": "39dfb98c88e40ebd9acc0b9de84d66322412f974"
+      "depends_on": ["14-05"],
+      "commit": null
     },
     {
       "id": "15-02",
       "phase": "15",
-      "cluster": "15a-upstream-handoff-v2",
-      "title": "Finalize portable operator docs and evidence index",
+      "cluster": "15b-corpus-contract",
+      "title": "Repair and freeze a real multi-page pager corpus",
       "packet": "docs/execution/tasks/15-02.md",
-      "status": "done",
+      "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Low",
-      "depends_on": [
-        "15-01"
-      ],
-      "commit": "c73e5c3fe042e664ffad369d511f04308cc68b61"
+      "recommended_model": "Luna Medium",
+      "depends_on": ["15-01"],
+      "commit": null
     },
     {
       "id": "15-03",
       "phase": "15",
-      "cluster": "15a-upstream-handoff-v2",
-      "title": "Reproduce cleanly and close completion ledger",
+      "cluster": "15c-harness-lifecycle",
+      "title": "Make the benchmark launcher real and keep successful state loaded",
       "packet": "docs/execution/tasks/15-03.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna Medium",
-      "depends_on": [
-        "15-02"
-      ],
+      "depends_on": ["15-02"],
+      "commit": null
+    },
+    {
+      "id": "15-04",
+      "phase": "15",
+      "cluster": "15d-mtp-fit",
+      "title": "Solve dynamic placement and context-sized Turbo4 MTP admission",
+      "packet": "docs/execution/tasks/15-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["15-03"],
+      "commit": null
+    },
+    {
+      "id": "15-05",
+      "phase": "15",
+      "cluster": "15e-runtime-lifecycle",
+      "title": "Repair speculative rollback across paged target and GPU MTP state",
+      "packet": "docs/execution/tasks/15-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["15-04"],
+      "commit": null
+    },
+    {
+      "id": "15-06",
+      "phase": "15",
+      "cluster": "15f-exact-telemetry",
+      "title": "Bind exact page waves and publish live residency telemetry",
+      "packet": "docs/execution/tasks/15-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["15-05"],
+      "commit": null
+    },
+    {
+      "id": "15-07",
+      "phase": "15",
+      "cluster": "15g-quality",
+      "title": "Rerun corrective model-backed quality acceptance",
+      "packet": "docs/execution/tasks/15-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["15-06"],
+      "commit": null
+    },
+    {
+      "id": "15-08",
+      "phase": "15",
+      "cluster": "15h-performance",
+      "title": "Rerun paired selective Turbo4+MTP speed acceptance",
+      "packet": "docs/execution/tasks/15-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["15-07"],
+      "commit": null
+    },
+    {
+      "id": "15-09",
+      "phase": "15",
+      "cluster": "15i-soak",
+      "title": "Soak the accepted pager+MTP profile and hand off without forced restore",
+      "packet": "docs/execution/tasks/15-09.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["15-08"],
+      "commit": null
+    },
+    {
+      "id": "16-01",
+      "phase": "16",
+      "cluster": "16a-upstream-handoff-v2",
+      "title": "Re-sync upstream and construct reviewable change slices",
+      "packet": "docs/execution/tasks/16-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["15-09"],
+      "commit": null
+    },
+    {
+      "id": "16-02",
+      "phase": "16",
+      "cluster": "16a-upstream-handoff-v2",
+      "title": "Finalize portable operator documentation and evidence index",
+      "packet": "docs/execution/tasks/16-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Low",
+      "depends_on": ["16-01"],
+      "commit": null
+    },
+    {
+      "id": "16-03",
+      "phase": "16",
+      "cluster": "16a-upstream-handoff-v2",
+      "title": "Reproduce from a clean worktree and close the completion ledger",
+      "packet": "docs/execution/tasks/16-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "depends_on": ["16-02"],
       "commit": null
     }
-  ]
+  ],
+  "last_checkpoint_commit": "1d059e345b1f0bedb87f93f3c16ea0d5168bf42e"
 }

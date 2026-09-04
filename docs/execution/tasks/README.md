@@ -33,14 +33,17 @@ Global rules for every packet:
    input only after distinct recovery paths have been tried. The runner automatically reopens a blocked
    task twice, using a fresh session each time and escalating a Luna task to Terra/high on the final
    approach; do not treat the first failed command as a sufficient blocker.
-11. For phases 08–15, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
+11. For phases 08–16, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
     the trained model context is not an allocation floor. No production default may encode a fixed hot
     token/page count. Historical benchmark artifacts may retain their measured configuration names.
-12. Required model-backed phase 14 gates cannot be deferred. A failing result starts diagnosis and
+12. Required model-backed phase 15 corrective gates cannot be deferred. A failing result starts diagnosis and
     repair through the owning implementation task; it is not converted to a documentation success.
 13. Live benchmark tasks may stop/restart the active Qwen service using passwordless sudo and the
-    established profile scripts. Capture the starting profile, restore it, verify ports 8080 and 8091,
-    and never stop or reconfigure the unrelated service on port 8092.
+    established profile scripts. Capture the starting profile and verify ports 8080 and 8091. A
+    successful benchmark keeps its tested server/profile loaded for the next task or retry by default;
+    restore only when the packet explicitly requests a control/revert benchmark, teardown, failed-start
+    recovery, or final cleanup, and record the lifecycle decision. Never stop or reconfigure the unrelated
+    service on port 8092.
 14. Performance tasks preserve raw before/after results for every attempted optimization. They test at
     least three evidence-driven repair hypotheses before blocking on the final 3x speed floor.
 

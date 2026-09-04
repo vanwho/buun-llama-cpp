@@ -106,7 +106,9 @@ API should silently assume it.
 The existing `qwen38-fast.env` is the canonical Qwen3.8-27B UD-IQ4_XS/Turbo4/MTP baseline and
 the starting point for every live comparison. The existing `qwen38-big.env` is the same model's
 ordinary non-MTP/control profile and remains the paired CPU-KV comparison and rollback target;
-the harness must capture whichever profile is active and restore it after each run. The historical
+the harness must capture whichever profile is active and preserve the tested profile after a successful
+run for the next task; restoration is explicit for control/revert, teardown, failed-start recovery, or
+final cleanup. The historical
 `qwen38-fast.env` `CTX=77824` value is retained only as a reproducibility control; it is **not** a
 pager or MTP default. New runs must clone the appropriate existing profile and set context from
 the benchmark ladder, with native MTP capacity resolved to that same requested context on every
@@ -819,9 +821,12 @@ carefully (the `/srv/ai` worktree already contains unrelated user edits) or add 
 that invokes it without changing its established `run-config.json`, `records.jsonl`, raw response,
 and summary formats.
 
-The harness already performs clean isolated profile startup, restores the previously active profile,
-captures model/backend/GPU/profile identity, runs warmups and repeated trials, records MTP acceptance,
-and writes partial summaries on interruption. Pager integration must add, without removing existing
+The harness performs clean isolated profile startup, captures the previously active profile, captures
+model/backend/GPU/profile identity, runs warmups and repeated trials, records MTP acceptance, and writes
+partial summaries on interruption. By default, a successful run leaves its tested profile/server loaded
+and health-checked so the next task or retry can inspect and reuse the exact state. Restoration is an
+explicit operation for a control/revert benchmark, teardown, failed-start recovery, or final cleanup;
+the lifecycle record must state which policy was used. Pager integration must add, without removing existing
 fields:
 
 - pager mode, page size, logical/hot token counts, host/VRAM budgets, router K, exploration, recent
@@ -1038,7 +1043,7 @@ handoff; **provisional API** may change before upstream review without changing 
 | D21 | Locked | Hot target capacity is a runtime result, never a named token/page target. | Compute `H=floor(usable_after_all_reservations/page_charge)`, clamp to logical pages, expose the complete ledger, and permit only user-supplied upper bounds. | 08-03, 09-01–09-02, 12-02, 14-02 |
 | D22 | Locked | Auto policy allocation scales with admitted `H`; absolute page counts are valid only as explicit test inputs. | Mandatory pages consume exact capacity first; recent/history/transient shares use calibrated ratios/minima and fail on mandatory overflow. | 08-03, 11-04, 13-05 |
 | D23 | Locked | Native MTP KV capacity always equals the resolved target per-sequence context for the run. | Never use `n_ctx_train` as an MTP allocation floor; reject conflicting native-MTP `-cd`, reserve actual Turbo4 bytes first, and verify every MTP KV buffer is GPU-backed. | 08-02, 09-02, 14-02 |
-| D24 | Locked | The first 33 tasks delivered tested components, not a live pager product. | Phases 08–15 must wire real model storage, CUDA transfers, attention, routing, telemetry, policy, lifecycle, CLI, benchmarks, and acceptance; required live gates cannot be marked deferred. | 08-01–15-03 |
+| D24 | Locked | The first 33 tasks delivered tested components, not a live pager product. | Phases 08–16 must wire real model storage, CUDA transfers, attention, routing, telemetry, policy, lifecycle, CLI, benchmarks, corrective acceptance, and handoff; required live gates cannot be marked deferred. | 08-01–16-03 |
 | D25 | Locked | Speed is the primary optimization objective after correctness and frozen quality floors. | Require at least 3x warm-focused decode over same-context ordinary CPU KV, target 5x, retain at least 70% of the comparable safe all-GPU control, and report fault/churn tails without averaging them away. | 08-04, 13-01–14-05 |
 
 ### 17.1 Deliberately unresolved choices
@@ -1111,15 +1116,17 @@ Current preflight facts were checked on 2026-09-03: `nvidia-smi` reports an RTX 
 the Qwen3.8 GGUF is readable, both fork defaults match their upstream defaults, Codex CLI is installed,
 passwordless sudo is available for the established activation workflow, and a Qwen `llama-server` is
 active on port 8080. The user has authorized controlled service restart, so this is a planned preflight
-action rather than a standing blocker. The benchmark harness's profile restore and post-run health check
-must succeed before the task is complete.
+action rather than a standing blocker. The benchmark harness's post-run health check must succeed before
+the task is complete; profile restoration is required only for an explicitly declared control/revert,
+teardown, failed-start recovery, or final-cleanup operation under section 27.
 
-## 20. Production-completion series: why phases 08–15 exist
+## 20. Production-completion series: why phases 08–16 exist
 
 Phases 00–07 completed 33 tasks and left reviewable, tested components. They did not connect those
 components into the production Qwen graph. Their final acceptance record correctly deferred the live
-product. Phases 08–15 are the non-optional completion series. They end only when the requested runtime
-works and is measured; a task may not count a callback fake, arithmetic fixture, documentation update,
+product. Phases 08–14 are the original production wiring, phase 15 is the corrective repair/re-acceptance
+series, and phase 16 is the final handoff. They end only when the requested runtime works and is measured;
+a task may not count a callback fake, arithmetic fixture, documentation update,
 or `not_configured` metric as a substitute for its required model-backed acceptance.
 
 The known gaps at the start of phase 08 are concrete:
@@ -1363,16 +1370,39 @@ failed evidence-driven hypotheses for further repair.
 Gate: every definition-of-done item has raw machine-readable evidence. Phase 14 tasks cannot be deferred;
 they either pass or remain blocked with reproducible evidence.
 
-### Phase 15 — clean handoff and reproducibility
+### Phase 15 — corrective live-product repair and re-acceptance
 
-- `15a-upstream-handoff-v2`: recheck upstream, rebase/slice locally, update portable operator/evidence
+Phase 15 exists because the V2 audit correctly preserved blocked quality, performance, and soak gates.
+It is an implementation-and-evidence repair phase, not a documentation retry. Tasks are intentionally
+small so a lower-reasoning model can resume from a handoff without loading the whole plan:
+
+- `15a-corrective-integration`: rebase the implementation onto the synced fork and preserve V2 evidence;
+- `15b-corpus-contract`: construct and validate real multi-page fact-bearing prompts;
+- `15c-harness-lifecycle`: make the benchmark launcher explicit and keep successful server state loaded;
+- `15d-mtp-fit`: solve dynamic context-sized Turbo4 MTP GPU admission and target hot capacity;
+- `15e-runtime-lifecycle`: repair speculative rollback and page-generation atomicity;
+- `15f-exact-telemetry`: bind live exact page waves and publish real residency metrics;
+- `15g-quality`: rerun dense/reference/exact/selective model-backed quality;
+- `15h-performance`: run paired dynamic-capacity Turbo4 pager+MTP speed trials;
+- `15i-soak`: run lifecycle endurance and leave the accepted profile loaded for handoff.
+
+Gate: V3 quality, performance, and soak manifests contain live model-backed evidence with one consistent
+source/model/profile/corpus provenance. A failed gate returns to its implementation owner; it cannot be
+closed by changing thresholds, shrinking context, or relabeling `not_configured` as a result.
+
+### Phase 16 — clean handoff and reproducibility
+
+The former phase-15 tasks are shifted to phase 16 and run only after phase 15's corrective gates pass:
+
+- `16a-upstream-handoff-v2`: recheck upstream, rebase/slice locally, update portable operator/evidence
   documentation, and reproduce the final build/run from a clean worktree.
 
 Gate: the fork integration branch is clean and pushed, implementation commits contain no execution data,
 the evidence commits contain no upstream code dependency, all source is portable, and the status is
-complete only if phase 14 passed. Agents prepare but never post AI-authored GitHub issue/PR text.
+complete only if phase 15 and all required live gates passed. Agents prepare but never post AI-authored
+GitHub issue/PR text.
 
-## 26. Autonomous execution rules for phases 08–15
+## 26. Autonomous execution rules for phases 08–16
 
 Every new task packet contains exact reads, likely write ownership, implementation steps, commands,
 benchmark conditions, acceptance, recovery paths, and handoff requirements. An executing agent must:
@@ -1384,16 +1414,34 @@ benchmark conditions, acceptance, recovery paths, and handoff requirements. An e
 5. use Release builds for timing and separate test builds for sanitizer/debug evidence;
 6. preserve active-profile identity, stop/start only the named benchmark service through the established
    scripts, keep `ai-long-memory.service` healthy for the restore gate, and never touch the unrelated
-   service on port 8092;
+   service on port 8092. A successful benchmark leaves its tested server/profile loaded by default for
+   the next task or retry; restoration is required only when the packet explicitly requests a control or
+   revert benchmark, teardown, failed-start recovery, or final cleanup, and the lifecycle state records it;
 7. use passwordless `sudo` non-interactively when the packet calls for controlled service work;
 8. retain raw results under `/srv/ai/paged-kv/results/` and put only summaries/hashes/pointers in Git;
 9. checkpoint after each major sub-gate so a restarted Luna session can resume from evidence;
 10. try distinct diagnosis and repair paths before blocking; never satisfy a gate by disabling it,
     shrinking the requested maximum-context test, or relabeling missing telemetry as zero;
-11. mark a task complete only when every required item in its packet passes; required live phase 14 work
-    may not be deferred;
+11. mark a task complete only when every required item in its packet passes; required live phase 15
+    corrective work may not be deferred;
 12. leave GitHub issues, PR creation, descriptions, replies, and merges to a human under `CONTRIBUTING.md`.
 
 The outer runner owns task branches, implementation-versus-execution commits, pushes to the user's fork,
 and merges into the plan branch in `auto` mode. New implementation commits exclude `docs/execution/**`;
 task state, logs, handoffs, and raw-evidence pointers follow in their own metadata commit.
+
+## 27. Persistent benchmark lifecycle contract
+
+Benchmark tasks are a dependent diagnostic sequence, not independent disposable runs. Each live task
+records the active profile, server command, PID, health result, loaded model, resolved context, MTP
+placement, pager mode, and lifecycle action in its handoff. If startup and its acceptance sub-gate pass,
+the tested server/profile remains loaded so the next task or retry can inspect the same allocation and
+cache state. This is the default `keep_loaded` policy and is especially important for diagnosing transfer,
+rollback, and telemetry failures.
+
+An explicit revert is required only when a task declares a paired control benchmark, requests a clean
+teardown/restart, recovers from a failed start, or performs final cleanup. Control and revert tasks must
+capture before/after health and profile identity. A failed run must leave either a usable tested process
+with a recorded failure or a known stopped state; agents must never silently restore a different profile
+and thereby erase the state needed by the next recovery attempt. The unrelated service on port 8092 is
+always out of scope.

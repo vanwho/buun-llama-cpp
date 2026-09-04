@@ -1,6 +1,6 @@
-# Cluster 15a — final rebase, portable handoff, and clean reproduction
+# Cluster 16a — final rebase, portable handoff, and clean reproduction
 
-Tasks: `15-01`, `15-02`, `15-03`.
+Tasks: `16-01`, `16-02`, `16-03`.
 
 Purpose: leave a clean, understandable fork series and reproducible operator/evidence package after all
 live gates pass.
@@ -26,5 +26,5 @@ Read: plan sections 13, 16–18, 25–26; `CONTRIBUTING.md`; old and new slice m
 
 Exit gate: upstream relation is recorded, branch/slices are clean and pushed to the user's fork by the
 outer auto runner, all tests and bounded reproduction pass, final evidence links resolve, and
-`WORK_STATE.json` becomes complete only when every phase 08–15 task is done. No acceptance item may be
+`WORK_STATE.json` becomes complete only when every phase 08–16 task is done. No acceptance item may be
 converted to deferred during packaging.

@@ -330,3 +330,124 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-15-02`
 - Commit at update: `eae287119`
 - Summary: Finalized portable pager/operator docs, regenerated help, and added the V2 evidence index with exact provenance and explicit blocked acceptance outcomes.
+
+## 2026-09-04T02:59:32+00:00 — 15-03 — blocked
+
+- Branch: `codex/task-15-03`
+- Commit at update: `1d059e345`
+- Summary: Final acceptance remains blocked after three recovery paths: phase-14 quality/performance/soak manifests have no accepted results; fresh CUDA server smoke passes, but the focused CUDA test build is incomplete within the bounded window.
+
+## 2026-09-04T02:59:49+00:00 — 15-03 — todo
+
+- Branch: `codex/task-15-03`
+- Commit at update: `1d059e345`
+- Summary: Automatic blocker-recovery attempt 1/2; previous blocker: Final acceptance remains blocked after three recovery paths: phase-14 quality/performance/soak manifests have no accepted results; fresh CUDA server smoke passes, but the focused CUDA test build is incomplete within the bounded window.
+
+## 2026-09-04T04:45:39+00:00 — 15-03 — in_progress
+
+- Branch: `codex/task-15-03`
+- Summary: Recovery attempt 2/2 completed a distinct closure-predicate and clean local reproduction audit. State, JSON, corpus, model/binary hashes, direct CUDA Turbo4 fixture, CPU CTest, generated docs, service health, normalized links, diff check, and scans passed. Phase-14 quality/performance/soak manifests remain substantively blocked, and fork publication/upstream re-sync remains outside the task, so 15-03 stays in progress.
+
+## 2026-09-04T04:46:00+00:00 — 15-03 — in_progress
+
+- Summary: Resumed admissibility audit inspected historical `/srv/ai/paged-kv` JSON inputs against the schema-v2 benchmark contract; zero schema-v2, contract-valid, or accepted manifests were found. Raw phase-14 roots remain present and blocked; no closure transition is justified.
+
+## 2026-09-04T07:49:00+02:00 — 15-03 — in_progress
+
+- Summary: Ran the smallest configured real profile benchmark (`fast short`). Ordinary fast/off controls completed with zero request errors, but the adapter correctly failed closed because required pager telemetry was absent. Profile restoration passed; no phase-14 acceptance evidence was produced.
+
+## 2026-09-04T07:50:00+02:00 — 15-03 — in_progress
+
+- Summary: Confirmed the configured profile boundary: fast has native draft MTP but no pager telemetry route, and big has MTP off. Neither can produce selective/native-MTP pager acceptance; final phase-14 decisions remain blocked.
+
+## 2026-09-04T07:52:00+02:00 — 15-03 — in_progress
+
+- Summary: Ran an isolated direct `--kv-pager selective` server and one request. Startup/request passed, but `/metrics` emitted no pager series. Both services were restored healthy and 8092 was untouched; phase-14 acceptance remains blocked.
+
+## 2026-09-04T07:55:00+02:00 — 15-03 — in_progress
+
+- Summary: Repeated the isolated direct pager probe with a 1,312-token request to cross the 256-token page boundary. Request/startup passed, but `/metrics` still had no pager series. Services restored healthy; acceptance remains blocked.
+
+## 2026-09-04T08:00:00+02:00 — 15-03 — in_progress
+
+- Summary: Rebuilt the current CUDA `llama-server` target successfully and reran the isolated selective pager probe. The rebuilt binary handled a 1,312-token request but emitted no pager startup log or metrics; services restored healthy and acceptance remains blocked.
+
+## 2026-09-04T08:05:00+02:00 — 15-03 — in_progress
+
+- Summary: Source/runtime comparison confirmed the intended pager configuration and metrics export paths, but the rebuilt server still omits pager initialization and metrics. Classified as an owning phase-14 runtime defect; no closure transition made.
+
+## 2026-09-04T08:10:00+02:00 — 15-03 — in_progress
+
+- Summary: Audited the server parameter-copy path (`params_load` → `params_base` → `common_init_from_params`) and confirmed the expected pager config assignment, yet runtime initialization/metrics remain absent. No metadata-only repair is valid; phase-14 ownership retained.
+
+## 2026-09-04T08:15:00+02:00 — 15-03 — in_progress
+
+- Summary: Disproved initial-resume parameter loss: `sleeping` defaults false and incoming parameters are copied before context creation. Pager omission remains a substantive owning runtime issue; final ledger stays blocked.
+
+## 2026-09-04T08:20:00+02:00 — 15-03 — in_progress
+
+- Summary: Focused CUDA contract suite passed 4/4 for argument parsing, pager, telemetry, and execution. Final acceptance remains blocked because model-backed pager telemetry is still absent.
+
+## 2026-09-04T09:53:11+02:00 - 15-03 - in_progress
+
+- Summary: Final local predicate rerun passed state/JSON validation, Python compilation, focused CUDA 4/4, CPU main CTest exit 0, service health, and diff check. Phase-14 quality/performance/soak manifests remain blocked, so no completion transition is justified.
+
+## 2026-09-04T09:56:31+02:00 - 15-03 - in_progress
+
+- Summary: Distinct evidence admissibility audit resolved 267/267 repository links, found all phase-14 raw roots, passed JSON and diff checks, and found no fixed-capacity or credential violations. The fork remains unpublished and phase-14 acceptance remains blocked.
+
+## 2026-09-04T10:00:27+02:00 - 15-03 - in_progress
+
+- Summary: Isolated `LLAMA_KV_PAGER=selective` boundary probe could not reach readiness because the active service left insufficient CUDA memory for the 12.7 GiB model allocation. Cleanup restored named services and health; no acceptance result was produced.
+
+## 2026-09-04T10:32:20+02:00 - 15-03 - in_progress
+
+- Summary: Final recovery path could not quiesce `llama-server.service`; systemd rejected the stop command because interactive authentication is unavailable. No probe ran. Services remained active and 8080/8091 stayed healthy; phase-14 acceptance remains blocked.
+
+## 2026-09-04T10:36:11+02:00 - 15-03 - in_progress
+
+- Summary: Final admissibility and local reproduction audit passed state/JSON validation, benchmark-tool compilation, server help, focused CUDA 4/4, CPU main CTest, raw-root presence, service health, and diff checks. Quality, performance, and soak remain substantively blocked; no completion transition was made.
+
+## 2026-09-04T10:40:00+02:00 - 15-03 - in_progress
+
+- Summary: Resumed runtime/profile audit confirmed the active big profile uses Turbo4 K/V with MTP off and no pager route, while both named services remain active. No new acceptance result was produced; phase-14 gates remain substantively blocked.
+
+## 2026-09-04T10:45:00+02:00 - 15-03 - in_progress
+
+- Summary: Read-only remote audit confirmed `origin/plan/attention-aware-kv-paging` matches the recorded repository HEAD. Final acceptance metadata now records the fork relation; upstream remains one commit ahead and phase-14 quality/performance/soak remain blocked.
+
+## 2026-09-04T11:15:00+02:00 - 15-03 - in_progress
+
+- Summary: Artifact admissibility and portability audit resolved 271/271 repository links, verified raw roots and pinned model hash, found no fixed-hot-count or large-artifact violation, and passed state validation and diff check. Phase-14 acceptance remains blocked.
+
+## 2026-09-04T11:20:00+02:00 - 15-03 - in_progress
+
+- Summary: Corrected exact completion-ledger predicate passed actual predecessor-status, fork-SHA, final-manifest-SHA, state, diff, and service checks. Quality, performance, soak, and final acceptance decisions remain blocked; no closure transition made.
+
+## 2026-09-04T11:25:00+02:00 - 15-03 - in_progress
+
+- Summary: Final fork-diff and change-scope audit found an empty fork-to-HEAD diff and no implementation-file changes; state, manifest, and diff checks passed. Mandatory phase-14 decisions remain blocked.
+
+## 2026-09-04T09:55:18+00:00 — 15-03 — in_progress
+
+- Branch: `codex/task-15-03`
+- Commit at update: `1d059e345`
+- Summary: Current clean predicate rerun passed state/JSON/corpus/link/portability audits, generated docs, CPU main CTest, focused CUDA 4/4, service health, and fork-tip match; phase-14 quality/performance/soak remain blocked, so task stays in_progress.
+
+## 2026-09-04T09:57:48+00:00 — 15-03 — in_progress
+
+- Branch: `codex/task-15-03`
+- Commit at update: `1d059e345`
+- Summary: External acceptance-manifest admissibility recovery found no additional schema-v2 manifests; all authoritative raw roots are present, fork diff is empty, and phase-14 quality/performance/soak remain blocked.
+
+## 2026-09-04T10:00:24+00:00 — 15-03 — in_progress
+
+- Branch: `codex/task-15-03`
+- Commit at update: `1d059e345`
+- Summary: Artifact provenance audit found the current in-place CUDA binary differs from historical phase-14 and recorded fresh-build hashes; historical provenance was preserved, all raw roots remain present, and blocked acceptance was not promoted.
+
+## 2026-09-04T10:06:19+00:00 — 15-03 — in_progress
+
+- Branch: `codex/task-15-03`
+- Commit at update: `1d059e345`
+- Summary: Attempt 25 clean reproduction passed state/JSON/corpus/link/portability, CPU/CUDA focused tests, generated docs, server help, service health, and fork-tip checks; authoritative phase-14 quality/performance/soak decisions remain blocked, so task stays in_progress.

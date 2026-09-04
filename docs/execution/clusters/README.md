@@ -57,4 +57,13 @@ do not override task acceptance or repository instructions.
 | `13b-system-opt` | 13-04–13-05 | Prefill/graph optimization and policy Pareto calibration |
 | `14a-correctness-quality` | 14-01–14-03 | Full fault matrix, dynamic ladder, held-out quality |
 | `14b-performance-soak` | 14-04–14-05 | Final speed gates and endurance/churn/concurrency soak |
-| `15a-upstream-handoff-v2` | 15-01–15-03 | Rebase/slices, operator evidence, clean reproduction |
+| `15a-corrective-integration` | 15-01 | Synced-fork integration and immutable V2 evidence |
+| `15b-corpus-contract` | 15-02 | Fact-bearing multi-page corpus and semantic validation |
+| `15c-harness-lifecycle` | 15-03 | Live launcher and persistent benchmark server state |
+| `15d-mtp-fit` | 15-04 | Dynamic context-sized MTP and VRAM admission |
+| `15e-runtime-lifecycle` | 15-05 | Speculative rollback and page lifecycle atomicity |
+| `15f-exact-telemetry` | 15-06 | Exact waves, transfers, and live telemetry |
+| `15g-quality` | 15-07 | Corrective model-backed quality acceptance |
+| `15h-performance` | 15-08 | Corrective paired speed acceptance |
+| `15i-soak` | 15-09 | Endurance and handoff lifecycle |
+| `16a-upstream-handoff-v2` | 16-01–16-03 | Rebase/slices, operator evidence, clean reproduction |
