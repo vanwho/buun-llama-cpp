@@ -1,6 +1,6 @@
 # Qwen3.8 256K attention-aware Turbo4 KV paging plan
 
-Status: production-completion execution plan, revised 2026-09-03
+Status: corrective execution phase ready, revised 2026-09-04
 Canonical worktree: `/srv/repos/vanwho/buun-llama-cpp`
 Pinned Buun base: `cb703be37e3628dadb71912f3b3b25b82090555b`
 Compared llama.cpp base: `67a17c17caa95742186f8b1ecadd1b5abd6d5ebb`
