@@ -490,3 +490,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-16-01`
 - Commit at update: `aedec149b`
 - Summary: Fetched upstream/origin; recorded upstream c9c52d718, ancestry 3/243, conflict-free virtual merge and current duplicate check; refreshed V2 slices with phase-15 hunk ownership; rebuilt Release CPU and passed 105/105 main tests, CUDA ADD 99/99, corpus/scripts/help/scans; upstream integration remains outer-owner deferred.
+
+## 2026-09-04T16:08:44+00:00 — 16-02 — done
+
+- Branch: `codex/task-16-02`
+- Commit at update: `8b4eacd01`
+- Summary: Finalized portable pager/operator documentation and V2 evidence index; regenerated help/docs and verified links, portability scans, and V3 manifest hashes.

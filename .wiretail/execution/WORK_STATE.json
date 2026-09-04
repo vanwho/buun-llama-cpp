@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "16",
-  "current_task": "16-02",
-  "last_updated_utc": "2026-09-04T16:04:08+00:00",
+  "current_task": "16-03",
+  "last_updated_utc": "2026-09-04T16:08:50+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1132,13 +1132,13 @@
       "cluster": "16a-upstream-handoff-v2",
       "title": "Finalize portable operator documentation and evidence index",
       "packet": ".wiretail/execution/tasks/16-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Low",
       "depends_on": [
         "16-01"
       ],
-      "commit": null
+      "commit": "8f29f45c2b54340b2c69c5416080bdd53485924a"
     },
     {
       "id": "16-03",

@@ -1,84 +1,93 @@
 # Evidence index V2
 
-This is the release-facing index for the attention-aware KV pager. It is an
-evidence ledger, not a claim that every gate passed. Machine paths below are
-intentional raw-artifact pointers and must not be copied into portable source
-or operator commands.
+This release-facing ledger records the attention-aware KV pager’s operator
+boundary, measured evidence, failed gates, and deferred checks. Raw artifacts
+are external evidence; their machine paths are not portable command defaults.
 
-## Scope and source contracts
+## Portable contracts
 
-- [Work state](../WORK_STATE.json) — task and acceptance contract.
-- [V2 slice map](../upstream/SLICE_MAP_V2.md) — reviewable implementation
-  slices and upstream handoff.
-- [server operator contract](../../../tools/server/README.md) and
-  [speculative/MTP contract](../../../docs/speculative.md).
-- [benchmark adapter contract](../../../tools/server/bench/README.md) and
-  [frozen schema](PAGER_BENCHMARK_CONTRACT_V2.json).
+- [Server operator contract](../../../tools/server/README.md)
+- [Speculative/MTP contract](../../../docs/speculative.md)
+- [Benchmark adapter contract](../../../tools/server/bench/README.md)
+- [Frozen benchmark schema](PAGER_BENCHMARK_CONTRACT_V2.json)
+- [V2 upstream slice map](../upstream/SLICE_MAP_V2.md)
 
-The supported boundary is Qwen3.8-family causal Turbo4 K/V on the selected
-CUDA route, with single-slot/batch-one decode coverage. Modes are `off`,
-`observe`, `selective`, and `exact`; unsupported geometry, backend, placement,
+The supported pager boundary is causal Qwen3.8-family Turbo4 K/V on the
+selected CUDA route, with single-slot, batch-one decode coverage. Modes are
+`off`, `observe`, `selective`, and `exact`; unsupported geometry, placement,
 stale identity, missing backing, dirty eviction, or insufficient budget fails
-closed. Hot capacity is derived from the runtime ledger. Native MTP uses the
-resolved target context, is Turbo4/GPU-resident, and is outside the target
-victim set.
+closed. Page size, hot capacity, host budget, and safety headroom are runtime
+ledger results; no fixed hot-page count is an operator promise.
 
-## Provenance
+Native MTP uses the resolved target per-sequence context, is Turbo4/GPU
+resident, and is outside the target pager victim set. VRAM owns the selected
+target window and ordinary model/runtime reservations; host RAM owns canonical
+sealed-page backing and metadata; pinned memory owns only the bounded transfer
+ring. Recurrent state and MTP are separate allocations.
 
-The acceptance manifests share these exact identity values:
+Metrics use `llamacpp:kv_pager_mode` plus labeled identity gauges and scalar
+`llamacpp:kv_pager_<field>` gauges. Missing telemetry means `not_configured`,
+not zero.
 
-| item | value |
+## Repository evidence
+
+| area | evidence |
 | --- | --- |
-| model SHA256 | `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199` |
-| tokenizer SHA256 | `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199` |
-| release binary SHA256 | `4cb1a90011d2d5b486b3f83b2ce3c9863eb65b55119b290fa52c8e70c1854626` |
-| release config SHA256 | `2497f112026c71f904ac115cded4dd290a42bfd52a18ba202dc7337e5f88276b` |
-| corpus schema/hash | `pager-corpus-v2` / `e8cd002b2a6215a5003db7b8c204602bba1879a5bdf91a2a9ef9b0a2e3ff0e35` |
+| CPU release matrix | [CPU_TEST_MATRIX_V2](CPU_TEST_MATRIX_V2.md) |
+| CUDA release matrix and fault coverage | [CUDA_TEST_MATRIX_V2](CUDA_TEST_MATRIX_V2.md) |
+| operator/parser surface | [OPERATOR_SURFACE_MATRIX](OPERATOR_SURFACE_MATRIX.md) |
+| dynamic context and capacity ladder | [DYNAMIC_CAPACITY_LADDER](DYNAMIC_CAPACITY_LADDER.md), [JSON manifest](DYNAMIC_CAPACITY_LADDER.json) |
+| frozen corpus V3 validation | [PAGER_CORPUS_V3_VALIDATION](PAGER_CORPUS_V3_VALIDATION.md), [contract](PAGER_BENCHMARK_CONTRACT_V2.json) |
+| historical controls/calibration | [BASELINE_V2](BASELINE_V2.md), [policy calibration](POLICY_CALIBRATION_13-05.md), [performance profile](PERFORMANCE_PROFILE.md) |
+| quality acceptance | [V2 report](QUALITY_ACCEPTANCE_V2.md), [V2 manifest](QUALITY_ACCEPTANCE_V2.json) |
+| performance/selective speed | [V2 report](PERFORMANCE_ACCEPTANCE_V2.md), [V2 manifest](PERFORMANCE_ACCEPTANCE_V2.json) |
+| soak/churn/fault/cancellation | [V2 report](SOAK_ACCEPTANCE_V2.md), [V2 manifest](SOAK_ACCEPTANCE_V2.json) |
+| final disposition | [FINAL_ACCEPTANCE_V2](FINAL_ACCEPTANCE_V2.md), [JSON](FINAL_ACCEPTANCE_V2.json) |
 
-## Release and deterministic checks
+Release logs are [CPU](release-cpu-14-01.log), [CUDA](release-cuda-14-01.log),
+[fault](release-faults-14-01.log), and
+[sanitizer](release-sanitizer-14-01.log). These are deterministic release
+checks, not model-backed quality or speed claims.
 
-- [CPU matrix V2](CPU_TEST_MATRIX_V2.md), [CUDA matrix V2](CUDA_TEST_MATRIX_V2.md)
-- [operator surface matrix](OPERATOR_SURFACE_MATRIX.md)
-- [release CPU log](release-cpu-14-01.log), [CUDA log](release-cuda-14-01.log),
-  [fault log](release-faults-14-01.log), and [sanitizer log](release-sanitizer-14-01.log)
-- [dynamic context ladder](DYNAMIC_CAPACITY_LADDER.md) and its
-  [JSON manifest](DYNAMIC_CAPACITY_LADDER.json)
+## Acceptance disposition
 
-The ladder proves runtime-derived sizing and explicit refusal boundaries. Its
-measured rows are historical controls, not a preferred hot count or portable
-capacity promise.
+The authoritative V2 gates remain blocked: dense-control/held-out quality did
+not provide an accepted pager run, the selective/exact speed floor was not
+met, and the full pager soak prerequisite was unavailable after those failures.
+The records retain controls, calibration, held-out partitions, exact-oracle
+checks, failed startup/fault paths, rollback, cancellation, and churn. A dense
+control result is not an acceptance result, and a historical profile is not a
+speed claim.
 
-## Acceptance ledger
+Corrective V3 artifacts are indexed below; they do not rewrite V2:
 
-| gate | result | evidence and interpretation |
-| --- | --- | --- |
-| quality | **BLOCKED** | [QUALITY_ACCEPTANCE_V2](QUALITY_ACCEPTANCE_V2.md): corpus fixtures did not produce the required dense/selective acceptance rows; exact failed closed. |
-| selective/exact speed | **BLOCKED** | [PERFORMANCE_ACCEPTANCE_V2](PERFORMANCE_ACCEPTANCE_V2.md): maximum-context startup refused and the smaller selective trial hit speculative rollback; no ratio is claimed. |
-| soak/churn | **BLOCKED** | [SOAK_ACCEPTANCE_V2](SOAK_ACCEPTANCE_V2.md): pager soak depends on the blocked performance prerequisite; ordinary control, cancellation, restart, and restoration observations remain recorded. |
-| final release acceptance | **DEFERRED/BLOCKED** | [FINAL_ACCEPTANCE](FINAL_ACCEPTANCE.md) and the three V2 manifests; phase-14 failures are explicit and are not hidden as a packaging pass. |
+| gate | raw root | manifest | manifest SHA-256 |
+| --- | --- | --- | --- |
+| quality | `/srv/ai/paged-kv/results/15-07-quality-20260904T163000Z/` | `quality-gate-v3.manifest.json` | `9ccd97f27fdaab0216a2d03f662e8f12bc48f44b3b7677f39d9390d1ed0d50b1` |
+| performance | `/srv/ai/paged-kv/results/15-08-performance-20260904T144503Z/` | `performance-v3.manifest.json` | `7fa2a5f9fafc16909250b8eadfe98263718c70c80b50ccc9e0da5db6aebeb603` |
+| performance paired controls | same performance root | `paired-controls-v3.manifest.json` | `badacb7ead79bb1b138251a0031676d77bb9bd569133e3780219737211a2c8a2` |
+| bounded soak | `/srv/ai/paged-kv/results/15-09-soak-20260904T181000Z-bounded/` | `soak-v3.manifest.json` | `5c735e8af6f4c711f5dea21eaf5cd29eb6edfb1f6c6e44d9da8a4cc47653eefb` |
 
-Controls, calibration, held-out acceptance, exact-mode checks, and selective
-speed are separate evidence classes. Failed startup, fault, cancellation,
-rollback, and churn artifacts remain part of the record in the linked raw
-roots.
+V3 statuses are `failed_dense_control`,
+`failed_floor_and_runtime_telemetry_boundary`, and
+`lifecycle_passed_acceptance_blocked`. No V3 result promotes a blocked gate.
 
-## Raw roots and exact manifest pointers
+## Shared provenance
 
-| artifact | raw root | manifest |
-| --- | --- | --- |
-| capacity ladder | `/srv/ai/paged-kv/results/14-02-ladder-20260904T004547Z` | [JSON](DYNAMIC_CAPACITY_LADDER.json) |
-| quality | `/srv/ai/paged-kv/results/14-03-quality-20260904T012500Z` | [JSON](QUALITY_ACCEPTANCE_V2.json) |
-| performance | `/srv/ai/paged-kv/results/14-04-speed-20260904T020000Z` | [JSON](PERFORMANCE_ACCEPTANCE_V2.json) |
-| soak | `/srv/ai/paged-kv/results/14-05-soak-20260904T041000Z` | [JSON](SOAK_ACCEPTANCE_V2.json) |
-
-The exact raw files include the release configuration, request envelopes,
-metrics snapshots, resource ledgers, and failure/churn traces. They are
-external evidence, not repository portability inputs.
+| item | SHA-256 / value |
+| --- | --- |
+| model | `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199` |
+| tokenizer | `40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199` |
+| release binary | `4cb1a90011d2d5b486b3f83b2ce3c9863eb65b55119b290fa52c8e70c1854626` |
+| release config | `2497f112026c71f904ac115cded4dd290a42bfd52a18ba202dc7337e5f88276b` |
+| V2 corpus | `e8cd002b2a6215a5003db7b8c204602bba1879a5bdf91a2a9ef9b0a2e3ff0e35` |
+| V3 corpus file | `ff62534953f9fc73e616cf050c7b6df367e1c9f7f048443700167067dab83e5f` |
+| V3 corpus logical hash | `cbf1e3bf727f0f52e8d0e922a68af9cd70bf7ded48b440ae2ef9328921ac52e` |
 
 ## Deferred verification
 
-No specialized hardware check is newly deferred by this documentation task.
-The quality, selective-speed, and pager-soak gates above remain blocked by
-their recorded runtime outcomes. Upstream re-sync and final branch verification
-remain deferred to the authorized Git owner as recorded in the historical
-[handoff 16-01](../handoffs/16-01.md).
+No new hardware or service verification is claimed by this documentation
+task. Model-backed selective/native-MTP quality, speed, and full pager soak
+remain blocked by the linked raw manifests. Upstream synchronization and
+final clean-worktree publication remain the authorized Git owner’s action;
+the [16-01 handoff](../handoffs/16-01.md) records that boundary.
