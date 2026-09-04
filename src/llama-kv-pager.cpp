@@ -302,9 +302,46 @@ llama_kv_live_policy_result llama_kv_pager::apply_live_policy(
         output.base_epoch = residency_.snapshot().epoch();
         return output;
     }
-    return llama_kv_live_policy_apply(
+    output = llama_kv_live_policy_apply(
             residency_, *residency_pool_, boundary, residency_backend_,
             transport, hooks);
+    const auto add = [](uint64_t & target, uint64_t value) {
+        target = value > std::numeric_limits<uint64_t>::max() - target
+            ? std::numeric_limits<uint64_t>::max() : target + value;
+    };
+    const auto & counters = output.transaction.transfer_counters;
+    add(transfer_counters_.queued, counters.queued);
+    add(transfer_counters_.submitted, counters.submitted);
+    add(transfer_counters_.copied_useful_bytes, counters.copied_useful_bytes);
+    add(transfer_counters_.copied_aligned_bytes, counters.copied_aligned_bytes);
+    add(transfer_counters_.waits, counters.waits);
+    add(transfer_counters_.cancellations, counters.cancellations);
+    add(transfer_counters_.stale_completions, counters.stale_completions);
+    add(transfer_counters_.event_completions, counters.event_completions);
+    add(transfer_counters_.evictions, counters.evictions);
+    add(transfer_counters_.backpressure_waits, counters.backpressure_waits);
+    add(transfer_counters_.transfer_time_us, counters.transfer_time_us);
+    add(transfer_counters_.map_failures, counters.map_failures);
+    const auto add_direction = [&](llama_kv_residency_transfer_counters & target,
+                                   const llama_kv_residency_transfer_counters & source) {
+        add(target.queued, source.queued);
+        add(target.submitted, source.submitted);
+        add(target.copied_useful_bytes, source.copied_useful_bytes);
+        add(target.copied_aligned_bytes, source.copied_aligned_bytes);
+        add(target.waits, source.waits);
+        add(target.cancellations, source.cancellations);
+        add(target.stale_completions, source.stale_completions);
+        add(target.event_completions, source.event_completions);
+        add(target.evictions, source.evictions);
+        add(target.backpressure_waits, source.backpressure_waits);
+        add(target.transfer_time_us, source.transfer_time_us);
+        add(target.map_failures, source.map_failures);
+    };
+    add_direction(h2d_counters_, output.transaction.h2d_counters);
+    add_direction(d2h_counters_, output.transaction.d2h_counters);
+    add(promotion_pages_, output.transaction.loaded_pages);
+    add(eviction_pages_, output.transaction.dropped_pages);
+    return output;
 }
 
 const char * llama_kv_pager_write_status_name(llama_kv_pager_write_status status) noexcept {

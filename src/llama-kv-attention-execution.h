@@ -29,6 +29,7 @@ enum class llama_kv_attention_execution_route : uint8_t {
     selected_reference,
     selected_direct,
     exact_reference,
+    exact_direct,
     refusal,
 };
 
@@ -109,6 +110,7 @@ struct llama_kv_attention_execution_metrics {
     uint64_t waits = 0;
     uint64_t scratch_high_water_rows = 0;
     uint64_t scratch_high_water_bytes = 0;
+    uint64_t selected_pages = 0;
     uint64_t exact_plan_waves = 0;
     uint64_t exact_plan_pages = 0;
     uint64_t exact_resident_pages = 0;
@@ -121,6 +123,8 @@ struct llama_kv_attention_execution_metrics {
     uint64_t exact_duplicate_pages = 0;
     uint64_t exact_missing_pages = 0;
     uint64_t exact_stale_pages = 0;
+    uint64_t exact_faults = 0;
+    uint64_t exact_overlap_us = 0;
 
     void record_descriptor_prepare_us(uint64_t elapsed_us) noexcept {
         descriptor_prepare_us = descriptor_prepare_us > UINT64_MAX - elapsed_us

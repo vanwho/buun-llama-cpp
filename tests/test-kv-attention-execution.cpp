@@ -195,6 +195,13 @@ static void test_fallbacks_and_graph_key() {
     assert(exact_route.status == llama_kv_attention_execution_status::ok);
     assert(exact_route.route == llama_kv_attention_execution_route::exact_reference);
     exact.complete_one_graph();
+
+    llama_kv_attention_execution exact_direct(llama_kv_attention_execution_mode::exact);
+    const auto exact_direct_route = exact_direct.prepare(metadata(snapshot(), 1, 1),
+            llama_kv_attention_execution_phase::decode, 0, 1, true, scratch);
+    assert(exact_direct_route.status == llama_kv_attention_execution_status::ok);
+    assert(exact_direct_route.route == llama_kv_attention_execution_route::exact_direct);
+    exact_direct.complete_one_graph();
 }
 
 static void test_epoch_matrix_and_lifetime_metrics() {

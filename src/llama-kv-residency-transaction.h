@@ -113,6 +113,10 @@ struct llama_kv_residency_transaction_result {
     bool published = false;
     bool rollback_complete = false;
     llama_kv_residency_transfer_counters transfer_counters;
+    // Direction-specific copies prevent a mixed transaction from attributing
+    // a promotion to D2H or a reseal to H2D in the metrics boundary.
+    llama_kv_residency_transfer_counters h2d_counters;
+    llama_kv_residency_transfer_counters d2h_counters;
 };
 
 // Executes one failure-atomic residency update. The caller supplies the
@@ -126,4 +130,3 @@ llama_kv_residency_execute_transaction(
     const llama_kv_residency_pool_backend & backend,
     const llama_kv_residency_transfer_transport & transport,
     const llama_kv_residency_transaction_hooks & hooks = {}) noexcept;
-

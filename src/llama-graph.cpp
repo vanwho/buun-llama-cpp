@@ -839,8 +839,10 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
   //res &= self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
 
     const bool selected = params.kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
-        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct;
-    const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct;
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+        params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
+    const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+        params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
     res &= selected_attention == selected;
     res &= direct_attention == direct;
     res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams,
@@ -1487,8 +1489,10 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
   //res &= inp_attn->self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
 
     const bool selected = params.kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
-        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct;
-    const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct;
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+        params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
+    const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+        params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
     res &= inp_attn->selected_attention == selected;
     res &= inp_attn->direct_attention == direct;
     res &= can_reuse_kq_mask(inp_attn->self_kq_mask, mctx->get_attn(), params.ubatch, params.cparams,
@@ -3473,9 +3477,11 @@ llm_graph_input_attn_kv * llm_graph_context::build_attn_inp_kv() const {
 
     auto inp = build_attn_inp_kv_impl(ctx0, sched, ubatch, hparams, cparams, mctx_cur, tree_mask,
             (kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
-             kv_attention_route == llama_kv_attention_execution_route::selected_direct)
+             kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+             kv_attention_route == llama_kv_attention_execution_route::exact_direct)
                 ? &kv_attention_metadata : nullptr,
-            kv_attention_route == llama_kv_attention_execution_route::selected_direct,
+            kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+            kv_attention_route == llama_kv_attention_execution_route::exact_direct,
             kv_attention_metrics, kv_attention_telemetry);
 
     return (llm_graph_input_attn_kv *) res->add_input(std::move(inp));
@@ -4363,9 +4369,11 @@ llm_graph_input_mem_hybrid * llm_graph_context::build_inp_mem_hybrid() const {
     auto inp_rs   = build_rs_inp_impl     (ctx0, ubatch, mctx_cur->get_recr());
     auto inp_attn = build_attn_inp_kv_impl(ctx0, sched, ubatch, hparams, cparams, mctx_cur->get_attn(), tree_mask,
             (kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
-             kv_attention_route == llama_kv_attention_execution_route::selected_direct)
+             kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+             kv_attention_route == llama_kv_attention_execution_route::exact_direct)
                 ? &kv_attention_metadata : nullptr,
-            kv_attention_route == llama_kv_attention_execution_route::selected_direct,
+            kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+            kv_attention_route == llama_kv_attention_execution_route::exact_direct,
             kv_attention_metrics, kv_attention_telemetry);
 
     auto inp = std::make_unique<llm_graph_input_mem_hybrid>(cparams, std::move(inp_attn), std::move(inp_rs), mctx_cur);

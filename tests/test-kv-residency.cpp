@@ -631,6 +631,9 @@ static void test_residency_transaction() {
     assert(result.published && result.base_epoch == 1 &&
         result.published_epoch == 2 && result.pinned_pages == 1 &&
         result.dropped_pages == 1 && result.loaded_pages == 1);
+    assert(result.h2d_counters.copied_useful_bytes ==
+        result.transfer_counters.copied_useful_bytes);
+    assert(result.d2h_counters.copied_useful_bytes == 0);
     assert(transaction_fake.pins == 1 && transaction_fake.unpins == 1 &&
         transaction_fake.drops == 1 && transaction_fake.restores == 0 &&
         transaction_fake.retires == 1);
@@ -802,6 +805,8 @@ static void test_reseal_before_eviction() {
     assert(result.published && result.dropped_pages == 1 &&
         result.loaded_pages == 0 && transaction_fake.pins == 1 &&
         transaction_fake.unpins == 1 && transaction_fake.drops == 1);
+    assert(result.d2h_counters.copied_useful_bytes == 8);
+    assert(result.h2d_counters.copied_useful_bytes == 0);
     assert(table.snapshot().epoch() == 2 && table.snapshot().pages().empty());
     assert(pool->mapped_slots() == 0 && transfer_fake.catalog_reserved == 8);
     assert(transfer_fake.host_bytes ==

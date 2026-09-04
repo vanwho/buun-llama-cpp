@@ -39,6 +39,7 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t context_tokens = 0;
     uint64_t page_tokens = 0;
     uint64_t logical_pages = 0;
+    uint64_t physical_page_capacity = 0;
     uint64_t resident_pages = 0;
     uint64_t host_pages = 0;
     uint64_t page_bytes = 0;
@@ -60,6 +61,11 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t prefetch_depth = 0;
     bool router_explore = false;
     const char * mtp_backend = "not_present";
+    llama_kv_residency_transfer_counters transfers;
+    llama_kv_residency_transfer_counters h2d_transfers;
+    llama_kv_residency_transfer_counters d2h_transfers;
+    uint64_t promotion_pages = 0;
+    uint64_t eviction_pages = 0;
     llama_kv_attention_telemetry_counters attention;
     llama_kv_attention_telemetry_accounting attention_accounting;
     llama_kv_attention_execution_metrics execution;
