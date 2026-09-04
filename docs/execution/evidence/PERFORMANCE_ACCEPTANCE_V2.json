@@ -1,0 +1,172 @@
+{
+  "schema_version": 2,
+  "task": "14-04",
+  "decision": "block",
+  "decision_reason": "The required model-maximum selective run with context-sized native GPU MTP could not reach service readiness: 262144 and 131072 contexts failed native MTP device reservation, while a 32768 selective+MTP request failed during speculative rollback. No valid ten-trial warm-focus segment was produced, so speed ratios and hard-gate claims are intentionally absent.",
+  "raw_root": "/srv/ai/paged-kv/results/14-04-speed-20260904T020000Z",
+  "provenance": {
+    "repository_head": "8ae95b618581638c6d73d33168dfdade89fd6008",
+    "release_config_hash": "2497f112026c71f904ac115cded4dd290a42bfd52a18ba202dc7337e5f88276b",
+    "binary": "build-14-01-cuda/bin/llama-server",
+    "binary_sha256": "4cb1a90011d2d5b486b3f83b2ce3c9863eb65b55119b290fa52c8e70c1854626",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus_schema": "pager-corpus-v2",
+    "corpus_hash": "e8cd002b2a6215a5003db7b8c204602bba1879a5bdf91a2a9ef9b0a2e3ff0e35",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "gpu_total_mib": 16376,
+    "sampling": {
+      "temperature": 0,
+      "seed": 42
+    }
+  },
+  "context_ladder": [
+    {
+      "requested_context": 262144,
+      "mode": "selective",
+      "mtp": "native GPU",
+      "result": "safe_refusal_before_listen",
+      "reason": "failed to reserve the full native MTP context in device memory",
+      "raw": "server-probe2.log"
+    },
+    {
+      "requested_context": 131072,
+      "mode": "selective",
+      "mtp": "native GPU",
+      "result": "safe_refusal_before_listen",
+      "reason": "failed to reserve the full native MTP context in device memory",
+      "raw": "server-ladder-131072.log"
+    },
+    {
+      "requested_context": 32768,
+      "mode": "selective",
+      "mtp": "native GPU",
+      "result": "startup_pass_request_fail",
+      "mtp_rows": 32768,
+      "mtp_bytes": 34734080,
+      "reason": "Compute error rolling back speculative tokens",
+      "raw": "server-mtp-32768.log"
+    },
+    {
+      "requested_context": 32768,
+      "mode": "selective",
+      "mtp": "disabled",
+      "result": "not_accepted",
+      "reason": "standalone control did not complete a pager telemetry acceptance run",
+      "raw": "server-standalone-32768.log"
+    }
+  ],
+  "trial_table": {
+    "required_measured_trials": 10,
+    "warmups": 2,
+    "measured_trials": 0,
+    "segments": [
+      {
+        "name": "warm_focus",
+        "context": 262144,
+        "status": "blocked_before_service_ready",
+        "median_decode_tok_s": null,
+        "inter_token_p50_us": null,
+        "inter_token_p95_us": null,
+        "inter_token_p99_us": null
+      },
+      {
+        "name": "cold_needles",
+        "context": 262144,
+        "status": "not_run_after_prerequisite_failure"
+      },
+      {
+        "name": "focus_shifts",
+        "context": 262144,
+        "status": "not_run_after_prerequisite_failure"
+      },
+      {
+        "name": "churn",
+        "context": 262144,
+        "status": "not_run_after_prerequisite_failure"
+      },
+      {
+        "name": "feature_off",
+        "context": 262144,
+        "status": "not_run_after_prerequisite_failure"
+      },
+      {
+        "name": "observe",
+        "context": 262144,
+        "status": "not_run_after_prerequisite_failure"
+      },
+      {
+        "name": "exact",
+        "context": 262144,
+        "status": "not_run_after_prerequisite_failure"
+      }
+    ]
+  },
+  "ratios": {
+    "selective_over_same_context_cpu_kv": null,
+    "selective_over_comparable_safe_all_gpu": null,
+    "target_ratio_5x_achieved": null,
+    "all_gpu_ratio_70_percent_achieved": null,
+    "reason": "Both accepted denominators require a valid same-context MTP/selective run; no historical control was substituted."
+  },
+  "resource_ledger": {
+    "pager_startup_observed": {
+      "context_tokens": 32768,
+      "logical_pages": 128,
+      "admitted_pages": 128,
+      "physical_rows": 32768,
+      "target_page_bytes": 4325376,
+      "target_bytes": 553648128,
+      "ledger_usable_bytes": 2203844608,
+      "ledger_charged_bytes": 40374656,
+      "ledger_reserved_bytes": 40374656,
+      "route": "selective"
+    },
+    "native_mtp_observed": {
+      "context_tokens": 32768,
+      "rows": 32768,
+      "bytes": 34734080,
+      "type_k": "turbo4",
+      "type_v": "turbo4",
+      "backend": "CUDA0",
+      "budget_category": "mtp_gpu_reserved"
+    },
+    "full_context_gpu_allocation": "not observed; model-max native-MTP startup refused before serving"
+  },
+  "telemetry": {
+    "required_pager_metrics_complete": false,
+    "pager_metrics_reason": "The only successful pager startup was a timed startup probe; the native-MTP request failed before a valid acceptance scrape. The generic standalone control did not enable pager telemetry.",
+    "required_fields": "not satisfied",
+    "raw_generic_metrics": "metrics-standalone-32768.txt"
+  },
+  "failed_paths": [
+    {
+      "hypothesis": "model-maximum context with native GPU MTP is usable",
+      "component": "native MTP recurrent-state/device reservation",
+      "failure_mode": "startup abort before listen",
+      "validation": "server-probe2.log; failure text records full native MTP context reservation failure"
+    },
+    {
+      "hypothesis": "largest prior safe ladder context 131072 remains usable with native GPU MTP",
+      "component": "native MTP context sizing",
+      "failure_mode": "startup abort before listen",
+      "validation": "server-ladder-131072.log; same reservation failure reproduced"
+    },
+    {
+      "hypothesis": "reducing context to 32768 preserves a usable selective+MTP request",
+      "component": "selective execution plus speculative suffix rollback",
+      "failure_mode": "HTTP 500 Compute error rolling back speculative tokens",
+      "validation": "server-mtp-32768.log and response-mtp-32768.json"
+    }
+  ],
+  "restore": {
+    "profile": "qwen38-big",
+    "primary_service": "active",
+    "primary_health": "200",
+    "long_memory_service": "active",
+    "long_memory_health": "200/upstream 200/db healthy",
+    "port_8092": "untouched",
+    "raw": "teardown-restore.txt"
+  },
+  "deferred_verification": "none; the required GPU and model were available. The acceptance is blocked by observed runtime allocation and speculative-rollback failures, not deferred hardware or human setup."
+}
