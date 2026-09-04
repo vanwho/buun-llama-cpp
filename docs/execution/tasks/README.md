@@ -31,8 +31,11 @@ Global rules for every packet:
 10. Update only this task in `WORK_STATE.json`. Use `tool/codex/task_state.py`; mark complete only after
    every locally executable acceptance item passes. Mark blocked with one concrete reason and needed
    input only after distinct recovery paths have been tried. The runner automatically reopens a blocked
-   task twice, using a fresh session each time and escalating a Luna task to Terra/high on the final
-   approach; do not treat the first failed command as a sufficient blocker.
+   task three times after its initial approach, using fresh sessions as needed. Before retry 1 and retry 2,
+   the task's own model family runs a High-reasoning assessment; retry 1 receives the direct retry
+   instruction. Before retry 3, the next-tier/high assessment uses `luna -> terra -> sol` (Sol remains the
+   ceiling), while every task attempt still uses its original model. Do not treat the first failed command
+   as a sufficient blocker.
 11. For phases 08–16, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
     the trained model context is not an allocation floor. No production default may encode a fixed hot
     token/page count. Historical benchmark artifacts may retain their measured configuration names.

@@ -11,8 +11,11 @@ server lifecycle, benchmarks, exact reference work, and upstream slicing rotate 
 All task recommendations use `gpt-5.6-luna`: Luna Medium is the default, Luna Low is reserved for
 checklist/documentation/pure-arithmetic tasks, and Luna High is reserved for cross-repository placement,
 VBR/residency transactions, CUDA/operator integration, concurrent server/speculative lifecycle, CUDA
-acceptance, and exact online-softmax work. A Luna task that blocks twice receives one final Terra/high
-recovery attempt before the runner preserves a real block; Terra is not a normal task recommendation.
+acceptance, and exact online-softmax work. Every task gets three bounded substantive retries after its
+initial approach. Before retry 1 and retry 2, the task's own model family runs a High-reasoning assessment;
+retry 1 then uses the direct retry instruction. Before retry 3, the next family in the escalation map
+`luna -> terra -> sol` (Sol remains the ceiling) runs a High-reasoning assessment. Every task attempt keeps
+its original model; promotion is assessment-only.
 
 For every task, read in this order:
 

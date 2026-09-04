@@ -14,6 +14,13 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
   and final cleanup paths still restore and verify the prior profile.
 - State validates with 78 tasks; next task is 15-01. V2 evidence remains immutable historical evidence.
 
+## 2026-09-04T11:00:00+00:00 — retry assessor escalation map
+
+- Retry policy now runs a High-reasoning assessor before each substantive retry: the task's own model
+  family for retries 1 and 2, then the next family from `luna -> terra -> sol` for retry 3 (Sol ceiling).
+- The task attempt always retains its original model; only the assessor is promoted. Transient usage and
+  network retries remain outside this substantive budget.
+
 
 ## 2026-09-03T02:10:52+00:00 — 00-01 — todo
 
