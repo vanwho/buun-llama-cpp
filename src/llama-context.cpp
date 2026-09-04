@@ -1694,7 +1694,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
         (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
         !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
-        ubatch.n_tokens != ubatch.n_seq_tokens || ubatch.n_pos != 1 ||
+        ubatch.n_tokens != ubatch.n_seq_tokens || ubatch.n_pos == 0 ||
         ubatch.pos == nullptr || ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr ||
         ubatch.n_seq_id[0] != 1) {
         return refuse("unsupported Qwen selected-reference shape");
@@ -1759,7 +1759,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     op_params.n_query_tokens = ubatch.n_tokens;
     op_params.n_batch = 1;
     op_params.causal = cparams.causal_attn;
-    op_params.query_positions.assign(ubatch.pos, ubatch.pos + ubatch.n_tokens);
+    op_params.query_positions.reserve(ubatch.n_tokens);
+    for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+        // M-RoPE stores n_pos coordinates per token.  The first coordinate is
+        // the causal sequence position; the remaining coordinates describe
+        // spatial/auxiliary axes and are not part of the KV row identity.
+        op_params.query_positions.push_back(ubatch.pos[token * ubatch.n_pos]);
+    }
 
     llama_kv_attention_operator_status op_status;
     const auto metadata = llama_kv_attention_operator_metadata::build(

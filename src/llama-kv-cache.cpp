@@ -2090,7 +2090,9 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     std::memcpy(&model_identity, model_digest.data(), sizeof(model_identity));
     if (model_identity == 0) model_identity = 1;
 
-    vbr_explicit_representation_policy policy;
+    const vbr_explicit_representation_policy policy {
+        LLAMA_COMMIT, std::strlen(LLAMA_COMMIT),
+    };
     llama_sha256_writer codec_hash;
     llama_sha256_writer codebook_hash;
     llama_sha256_writer rotation_hash;
@@ -2338,7 +2340,9 @@ bool llama_kv_cache::pager_host_snapshot_acquire(
         output.unit_descriptors.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
         const uint64_t repr_gen = std::max<uint64_t>(
                 1, cache->vbr_representation_epoch());
-        vbr_explicit_representation_policy policy;
+        const vbr_explicit_representation_policy policy {
+            LLAMA_COMMIT, std::strlen(LLAMA_COMMIT),
+        };
         for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
             const auto & layer = cache->layers[unit / 2];
             const bool value_side = (unit & 1u) != 0;
@@ -2752,6 +2756,7 @@ bool llama_kv_cache::seq_rm_impl(
     // TODO: fix incosistent handling of `seq_id < 0` and `seq_id == -1` in the codebase [TAG_LLAMA_SEQ_ID_NEG]
     GGML_ASSERT(seq_id == -1 || (seq_id >= 0 && (size_t) seq_id < seq_to_stream.size()));
 
+    const bool remove_all = p0 < 0 && p1 < 0;
     if (p0 < 0) {
         p0 = 0;
     }
@@ -2762,6 +2767,9 @@ bool llama_kv_cache::seq_rm_impl(
 
     const bool commit = mode != seq_rm_mode::dry_run;
     if (commit && pager_ != nullptr && pager_->snapshot().physical_page_count != 0) {
+        if (remove_all) {
+            pager_->release_sequence_pins(seq_id);
+        }
         const auto pager_status = pager_->mutate({
             llama_kv_pager_mutation_kind::remove, seq_id < 0 ? 0 : seq_id, -1,
             p0, p1, 0, 0 });

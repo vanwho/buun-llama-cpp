@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "14",
-  "current_task": "14-02",
-  "last_updated_utc": "2026-09-04T00:42:35+00:00",
+  "current_task": "14-03",
+  "last_updated_utc": "2026-09-04T01:22:09+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -927,13 +927,13 @@
       "cluster": "14a-correctness-quality",
       "title": "Run dynamic context MTP capacity and teardown ladder",
       "packet": "docs/execution/tasks/14-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "14-01"
       ],
-      "commit": null
+      "commit": "281ff43345aae0936b67aad444d508c8fbc3f4fb"
     },
     {
       "id": "14-03",
