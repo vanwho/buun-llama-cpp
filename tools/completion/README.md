@@ -101,10 +101,10 @@ llama-completion.exe -m models\gemma-1.1-7b-it.Q4_K_M.gguf --ignore-eos -n -1
 | `--kv-pin-recent TOKENS\|auto` | experimental pager recent-token protection (default: auto)<br/>(env: LLAMA_KV_PIN_RECENT) |
 | `--kv-hotset-policy NAME` | experimental pager hot-page policy (default: attention)<br/>(env: LLAMA_KV_HOTSET_POLICY) |
 | `--kv-hot-pages N\|auto` | experimental pager hot-page upper bound (default: auto)<br/>(env: LLAMA_KV_HOT_PAGES) |
-| `--kv-router-top-k N` | experimental pager router top-k (default: 0)<br/>(env: LLAMA_KV_ROUTER_TOP_K) |
-| `--kv-router-explore N` | experimental pager router exploration count (default: 0)<br/>(env: LLAMA_KV_ROUTER_EXPLORE) |
-| `--kv-prefetch-depth N` | experimental pager prefetch depth (default: 0)<br/>(env: LLAMA_KV_PREFETCH_DEPTH) |
-| `--kv-telemetry-interval N` | page-mass telemetry token cadence (default: 1)<br/>(env: LLAMA_KV_TELEMETRY_INTERVAL) |
+| `--kv-router-top-k N` | experimental pager router top-k (default: 8)<br/>(env: LLAMA_KV_ROUTER_TOP_K) |
+| `--kv-router-explore N` | experimental pager router exploration count (default: 2)<br/>(env: LLAMA_KV_ROUTER_EXPLORE) |
+| `--kv-prefetch-depth N` | experimental pager prefetch depth (default: 2)<br/>(env: LLAMA_KV_PREFETCH_DEPTH) |
+| `--kv-telemetry-interval N` | page-mass telemetry token cadence (default: 4)<br/>(env: LLAMA_KV_TELEMETRY_INTERVAL) |
 | `--kv-telemetry-layer N` | page-mass telemetry attention layer (default: 0)<br/>(env: LLAMA_KV_TELEMETRY_LAYER) |
 | `--kv-telemetry-head-begin N` | first query head sampled by page-mass telemetry (default: 0)<br/>(env: LLAMA_KV_TELEMETRY_HEAD_BEGIN) |
 | `--kv-telemetry-head-count N` | query heads sampled by page-mass telemetry (0: all; default: 0)<br/>(env: LLAMA_KV_TELEMETRY_HEAD_COUNT) |
