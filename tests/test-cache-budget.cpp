@@ -190,6 +190,58 @@ static void test_dynamic_admission_ledger() {
     CHECK(overflow.refusal == llama_cache_budget_admission_refusal::overflow);
 }
 
+static void test_context_ladder_reserves_native_mtp_first() {
+    const uint64_t mtp_k_row = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
+    const uint64_t mtp_v_row = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
+    const uint64_t contexts[] = { 256, 16384, 32768, 65536, 65537, 131072, 262144 };
+
+    for (const uint64_t context : contexts) {
+        llama_cache_budget_admission_input input;
+        input.capacity_bytes = std::numeric_limits<uint64_t>::max();
+        input.fixed_bytes = 4096;
+        input.turbo4_scratch_bytes = 4096;
+        input.target_page_bytes = 8192;
+        input.mtp_tokens = context;
+        input.mtp_k_row_bytes = mtp_k_row;
+        input.mtp_v_row_bytes = mtp_v_row;
+        input.logical_page_count = (context + input.page_tokens - 1) / input.page_tokens;
+
+        const auto full = llama_cache_budget_admit(input);
+        CHECK(full.refusal == llama_cache_budget_admission_refusal::none);
+        CHECK(full.admitted_pages == full.logical_page_count);
+        CHECK(full.capacity_tokens == full.logical_page_count * input.page_tokens);
+        CHECK(full.mtp_bytes == context * (mtp_k_row + mtp_v_row));
+    }
+
+    // An odd tail is a real page, while the target hotset is whatever remains
+    // after the complete context-sized MTP reservation.
+    llama_cache_budget_admission_input ladder;
+    ladder.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    ladder.fixed_bytes = 4096;
+    ladder.turbo4_scratch_bytes = 4096;
+    ladder.target_page_bytes = 8192;
+    ladder.mtp_tokens = 65537;
+    ladder.mtp_k_row_bytes = mtp_k_row;
+    ladder.mtp_v_row_bytes = mtp_v_row;
+    ladder.logical_page_count = (ladder.mtp_tokens + ladder.page_tokens - 1) / ladder.page_tokens;
+    const auto full = llama_cache_budget_admit(ladder);
+    CHECK(full.logical_page_count == 257);
+    CHECK(full.admitted_pages == 257);
+
+    ladder.capacity_bytes = full.charged_bytes + 5 * full.page_charge_bytes + full.page_charge_bytes - 1;
+    const auto intermediate = llama_cache_budget_admit(ladder);
+    CHECK(intermediate.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(intermediate.admitted_pages == 5);
+    CHECK(intermediate.mtp_bytes == full.mtp_bytes);
+    CHECK(intermediate.capacity_tokens == 5 * ladder.page_tokens);
+
+    // Below the complete MTP reservation is an explicit startup refusal; it
+    // must not be converted into a smaller draft or a fixed hot-page count.
+    ladder.capacity_bytes = full.charged_bytes - 1;
+    const auto impossible = llama_cache_budget_admit(ladder);
+    CHECK(impossible.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+}
+
 static const llama_cache_budget_row * find_group(
         const llama_cache_budget_result & result,
         llama_cache_budget_resource_kind kind,
@@ -536,6 +588,7 @@ static void test_f2_capacity_activation_is_inert_until_observed() {
 int main() {
     test_mtp_reference_payload_uses_actual_rows();
     test_dynamic_admission_ledger();
+    test_context_ladder_reserves_native_mtp_first();
     test_baseline_and_group_rollup();
     test_optional_hierarchy();
     test_fail_closed_inputs();

@@ -7065,6 +7065,7 @@ private:
                     false,
                     false,
                     false,
+                    2u,
                 };
 
                 const auto fit_status = common_fit_params(

@@ -1427,6 +1427,11 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
         auto cparams_dft = common_context_params_to_llama(params_dft);
         const bool extra_is_mtp = params.speculative.uses_mtp_as_primary_drafter();
         const bool native_mtp = extra_is_mtp && !params.speculative.has_external_mtp_sidecar();
+        if (native_mtp && !common_speculative_draft_kv_offload(
+                params.speculative.draft.kv_device, params.no_kv_offload)) {
+            throw std::runtime_error(
+                "native MTP requires GPU-resident K/V; use a GPU draft K/V device and Turbo4 K/V types");
+        }
         if (extra_is_mtp) {
             const auto mtp_context = common_speculative_mtp_context_params_resolve(
                 0, params.speculative.draft.n_ctx,
@@ -1455,6 +1460,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             /*.optional_if_no_mtp =*/ true,
             /*.borrows_target_tensors =*/ false,
             /*.full_target_context =*/ false,
+            /*.required_gpu_layers =*/ native_mtp ? 2u : 0u,
         };
 
         const common_fit_extra_model extra_dft = {
@@ -1469,6 +1475,7 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
             /*.optional_if_no_mtp =*/ false,
             /*.borrows_target_tensors =*/ has_draft && extra_is_mtp,
             /*.full_target_context =*/ false,
+            /*.required_gpu_layers =*/ extra_is_mtp && native_mtp ? 2u : 0u,
         };
 
         const common_params_fit_status fit_status = common_fit_params(

@@ -795,6 +795,19 @@ static void common_params_fit_impl(
     std::vector<common_fit_extra_cache_state> extra_caches(extra_models.size());
     dmds_t dmds_extra; // latest aggregate, laid out on the target devices
 
+    uint32_t required_gpu_layers = 0;
+    for (const common_fit_extra_model * current : extra_models) {
+        required_gpu_layers = std::max(required_gpu_layers, current->required_gpu_layers);
+    }
+    // An explicit partial offload is a placement request, not a hint. Reject it before
+    // measuring contexts if it would strand a required native MTP block on the host.
+    if (required_gpu_layers != 0 && mparams->n_gpu_layers >= 0 &&
+            uint32_t(mparams->n_gpu_layers) < required_gpu_layers) {
+        throw common_params_fit_exception(
+            "native MTP requires at least " + std::to_string(required_gpu_layers) +
+            " terminal GPU layers (MTP block plus output)");
+    }
+
     // the extra model competes for the same memory as the main model, add it to every measurement
     // its memory is measured again whenever the context it follows changes. A shared-model MTP
     // context also follows the target placement, so candidate placements must not reuse the
@@ -1604,6 +1617,11 @@ static void common_params_fit_impl(
             }
         }
         assert(uint32_t(mparams.n_gpu_layers) <= hp_ngl + 1);
+        if (required_gpu_layers != 0 && mparams.n_gpu_layers >= 0 &&
+                uint32_t(mparams.n_gpu_layers) < required_gpu_layers) {
+            throw common_params_fit_exception(
+                "native MTP placement left the required draft block on the host");
+        }
         uint32_t il0 = hp_ngl + 1 - mparams.n_gpu_layers; // start index for tensor buft overrides
 
         mparams.tensor_split = tensor_split;
