@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "15",
-  "current_task": "15-02",
-  "last_updated_utc": "2026-09-04T12:58:38+00:00",
+  "current_task": "15-03",
+  "last_updated_utc": "2026-09-04T13:06:25+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1006,13 +1006,13 @@
       "cluster": "15b-corpus-contract",
       "title": "Repair and freeze a real multi-page pager corpus",
       "packet": ".wiretail/execution/tasks/15-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "15-01"
       ],
-      "commit": null
+      "commit": "b2e07390e8ab1f814806db1329a2ecf49050febd"
     },
     {
       "id": "15-03",

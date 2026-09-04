@@ -24,10 +24,18 @@ def load(path: Path) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("manifest", type=Path)
+    parser.add_argument("manifest", type=Path, help="manifest or corpus JSON")
     parser.add_argument("--corpus", type=Path)
     args = parser.parse_args()
     manifest = load(args.manifest)
+    if manifest.get("schema") in {"pager-corpus-v2", "pager-corpus-v3"} and "schema_version" not in manifest:
+        errors = validate_corpus(manifest)
+        if errors:
+            for error in errors:
+                print(error, file=sys.stderr)
+            return 1
+        print("valid corpus")
+        return 0
     errors = validate_manifest(manifest)
     if args.corpus:
         errors.extend(f"corpus: {error}" for error in validate_corpus(load(args.corpus)))
