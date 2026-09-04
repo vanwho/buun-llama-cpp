@@ -2654,7 +2654,8 @@ void llama_kv_cache::vbr_shared_scratch_detach() {
 void llama_kv_cache::clear(bool data) {
     if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
             llama_kv_pager_mutation_kind::clear, -1, -1, 0,
-            std::numeric_limits<llama_pos>::max(), 0, 0 }) != llama_kv_pager_write_status::ok) {
+            std::numeric_limits<llama_pos>::max(), 0, 0,
+            pager_->residency().epoch() }) != llama_kv_pager_write_status::ok) {
         return;
     }
     vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
@@ -2767,12 +2768,17 @@ bool llama_kv_cache::seq_rm_impl(
 
     const bool commit = mode != seq_rm_mode::dry_run;
     if (commit && pager_ != nullptr && pager_->snapshot().physical_page_count != 0) {
-        if (remove_all) {
+        // A speculative suffix is removed only after the target graph fence,
+        // but its partial page can still carry the write-frontier pin. Release
+        // that completed frontier before the atomic pager mutation; direct
+        // pager callers still get the all-pinned guard for in-flight work.
+        if (mode == seq_rm_mode::nested_commit || remove_all) {
             pager_->release_sequence_pins(seq_id);
         }
+        const uint64_t pager_epoch = pager_->residency().epoch();
         const auto pager_status = pager_->mutate({
             llama_kv_pager_mutation_kind::remove, seq_id < 0 ? 0 : seq_id, -1,
-            p0, p1, 0, 0 });
+            p0, p1, 0, 0, pager_epoch });
         if (pager_status != llama_kv_pager_write_status::ok) {
             return false;
         }
@@ -2921,7 +2927,7 @@ void llama_kv_cache::seq_cp_impl(
 
     if (seq_id_src != seq_id_dst && pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
             llama_kv_pager_mutation_kind::copy, seq_id_src, seq_id_dst,
-            p0, p1, 0, 0 }) != llama_kv_pager_write_status::ok) {
+            p0, p1, 0, 0, pager_->residency().epoch() }) != llama_kv_pager_write_status::ok) {
         return;
     }
 
@@ -3059,7 +3065,8 @@ void llama_kv_cache::seq_keep(llama_seq_id seq_id) {
 
     if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
             llama_kv_pager_mutation_kind::keep, seq_id, -1, 0,
-            std::numeric_limits<llama_pos>::max(), 0, 0 }) != llama_kv_pager_write_status::ok) {
+            std::numeric_limits<llama_pos>::max(), 0, 0,
+            pager_->residency().epoch() }) != llama_kv_pager_write_status::ok) {
         return;
     }
 
@@ -3145,7 +3152,8 @@ void llama_kv_cache::seq_add_impl(
     auto & head  = v_heads[stream];
     vbr_normalize_edit_range(p0, p1);  // Canonical range before the scope.
     if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
-            llama_kv_pager_mutation_kind::shift, seq_id, -1, p0, p1, shift, 0 }) !=
+            llama_kv_pager_mutation_kind::shift, seq_id, -1, p0, p1, shift, 0,
+            pager_->residency().epoch() }) !=
             llama_kv_pager_write_status::ok) {
         return;
     }

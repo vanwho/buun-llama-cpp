@@ -227,6 +227,10 @@ struct llama_kv_pager_mutation {
     llama_pos position_end = 0;
     llama_pos shift = 0;
     uint64_t sequence_generation = 0;
+    // Optional residency-table epoch captured by the caller. Zero retains the
+    // legacy unchecked form used by observers; runtime mutations bind this to
+    // the table snapshot they are about to edit.
+    uint64_t expected_epoch = 0;
 };
 
 bool llama_kv_pager_plan(
