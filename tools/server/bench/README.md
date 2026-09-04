@@ -127,7 +127,7 @@ The portable contract is implemented by
 
 ```shell
 python3 tools/server/bench/generate-pager-corpus.py \
-  /srv/ai/paged-kv/pager-corpus-v2/corpus.json \
+  <corpus.json> \
   --model <model-gguf-sha256> --tokenizer <tokenizer-sha256>
 ```
 
@@ -146,9 +146,8 @@ the historical short and large runs plus `stable-focus`, `cold-needles`,
 `focus-shifts`, and `churn` variants:
 
 ```shell
-tools/server/bench/run-pager-profile-benchmark.sh fast short results/pager-short
-tools/server/bench/run-pager-profile-benchmark.sh fast cold-needles results/pager-cold
-tools/server/bench/run-pager-profile-benchmark.sh fast short results/pager-dry --dry-run
+tools/server/bench/run-pager-profile-benchmark.sh <profile> <variant> <results-dir>
+tools/server/bench/run-pager-profile-benchmark.sh <profile> <variant> <results-dir> --dry-run
 ```
 
 The adapter reads pager telemetry directly from the server's `/metrics`
@@ -165,3 +164,8 @@ Pager samples use the names `llamacpp:kv_pager_<field>`; `mode`, `route`,
 page/byte ledgers, epochs, attention and graph counters, transfer bytes, and
 routing configuration. Epoch fields are the generation boundary for consumers
 that need to reconcile multiple scrapes.
+
+Calibration controls and historical short/large runs are not acceptance
+results. Held-out acceptance requires the immutable corpus and all runtime
+telemetry. Exact and selective results are reported separately, including
+failed, fault, cancellation, and churn cases; missing telemetry fails closed.

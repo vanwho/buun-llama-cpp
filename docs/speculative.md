@@ -70,7 +70,7 @@ decoding remains lossless; an omitted draft token can reduce acceptance but cann
 change accepted target output.
 
 ```bash
-llama-server -m Qwen3.8-27B.gguf -md mtp-Qwen3.8-27B.gguf \
+llama-server -m <target-model.gguf> -md <mtp-model.gguf> \
     --spec-type draft-mtp --spec-mtp-vocab-size 32768
 ```
 
@@ -88,8 +88,8 @@ remain loaded for the lifetime of the sidecar. A shared sidecar therefore cannot
 loaded as a standalone target, and mismatched target tensor shapes are rejected.
 
 ```bash
-llama-server -m Qwen3.8-Flash-Next.gguf \
-    -md mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf \
+llama-server -m <target-model.gguf> \
+    -md <shared-mtp-model.gguf> \
     --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-p-min 0
 ```
 
@@ -111,16 +111,17 @@ initialization; it is not silently converted to CPU placement.
 For the Buun Turbo4 MTP path, use Turbo4 on both draft sides, for example:
 
 ```bash
-llama-server -m Qwen3.8-27B.gguf \
+llama-server -m <target-model.gguf> \
     --spec-type draft-mtp --spec-draft-kv-device gpu \
     -ctkd turbo4 -ctvd turbo4
 ```
 
 The `t4`, `turbo4_0`, and `4` spellings are Buun compatibility aliases for
-draft Turbo4 types. Native MTP is a separate static cache and is not eligible
-for target VBR or pager eviction. Full-context MTP placement and model-backed
-262K verification remain experimental; see the execution evidence index for
-the recorded controls and deferred checks.
+draft Turbo4 types. Native MTP uses exactly the resolved target per-sequence
+context, remains fully GPU-resident, and is not eligible for target VBR or
+pager eviction. Unsupported placement or insufficient resources is rejected;
+there is no silent CPU fallback. See the V2 execution evidence index for the
+recorded controls and the still-blocked model-backed acceptance gates.
 
 ### DFlash (`draft-dflash`)
 
