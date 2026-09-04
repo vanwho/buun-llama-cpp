@@ -222,8 +222,11 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
     config = json.loads(config_path.read_text())
     config["pager"] = pager_envelope(variant, telemetry)
     config["corpus"] = corpus(variant)
+    restore_requested = os.environ.get("BENCH_RESTORE_PROFILE", "0") == "1"
     config["service"] = {"before": before, "after": after,
-                          "restored_profile": before.get("profile")}
+                          "restore_requested": restore_requested,
+                          "loaded_profile": after.get("profile"),
+                          "restored_profile": before.get("profile") if restore_requested else None}
     config["benchmark_variant"] = variant
     config_path.write_text(json.dumps(config, indent=2) + "\n")
     records_path = output / "records.jsonl"
@@ -252,6 +255,8 @@ def main() -> int:
     parser.add_argument("variant", choices=tuple(VARIANTS))
     parser.add_argument("output", nargs="?")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--restore-control", action="store_true",
+                        help="restore the profile active before the run after completion")
     args = parser.parse_args()
     endpoint = os.environ.get("BENCH_ENDPOINT", "http://127.0.0.1:8090/v1/chat/completions")
     output = pathlib.Path(args.output or f"/srv/ai/paged-kv/results/pager-{args.variant}-{args.target}-dry")
@@ -265,13 +270,16 @@ def main() -> int:
     command = ["/srv/ai/benchmarks/run-profile-benchmark.sh", args.target, str(output)]
     env = os.environ.copy()
     env["BENCH_SIZE"] = VARIANTS[args.variant]["size"]
+    # Successful runs remain loaded by default. Explicit control/revert runs
+    # opt into restoration; failed runs are restored by the canonical runner.
+    env["BENCH_RESTORE_PROFILE"] = "1" if args.restore_control else "0"
     result = subprocess.run(command, env=env)
     after = service_snapshot(endpoint)
     telemetry_after = read_server_metrics(endpoint)
     if (output / "run-config.json").exists():
         enrich(output, args.target, args.variant, before, after, telemetry_after or telemetry_before)
-    if before.get("profile") and after.get("profile") != before.get("profile"):
-        print("pager benchmark: production profile was not restored", file=sys.stderr)
+    if args.restore_control and before.get("profile") and after.get("profile") != before.get("profile"):
+        print("pager benchmark: requested control profile was not restored", file=sys.stderr)
         return 1
     if not after.get("health") or after["health"].get("http_code") != 200:  # type: ignore[union-attr]
         print("pager benchmark: post-run service health check failed", file=sys.stderr)
