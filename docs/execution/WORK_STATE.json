@@ -13,7 +13,7 @@
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
-    "root_environment": "CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp",
+    "root_environment": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp",
     "cluster_context_dir": "docs/execution/clusters",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,

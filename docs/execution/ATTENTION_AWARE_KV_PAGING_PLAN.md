@@ -896,11 +896,11 @@ automated.
 The shared runner now accepts project-specific state clusters and a no-Git mode. From this worktree:
 
 ```bash
-CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 CODEX_GIT_MODE=manual \
 /srv/codex/run_until_complete_clustered.sh --status
 
-CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 CODEX_GIT_MODE=manual \
 /srv/codex/run_until_complete_clustered.sh --show-clusters
 ```
@@ -913,9 +913,9 @@ integration branch until the execution package and its history have been deliber
 
 ```bash
 cd /srv/repos/vanwho/buun-llama-cpp
-CODEX_PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
-CODEX_PROJECT_REMOTE=origin \
-CODEX_PROJECT_BRANCH=plan/attention-aware-kv-paging \
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+PROJECT_REMOTE=origin \
+PROJECT_BRANCH=plan/attention-aware-kv-paging \
 CODEX_GIT_MODE=auto \
 CODEX_SESSION_MAX_TURNS=0 \
 CODEX_SESSION_MAX_INPUT_TOKENS=0 \
