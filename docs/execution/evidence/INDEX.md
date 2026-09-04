@@ -1,5 +1,8 @@
 # Execution evidence index
 
+The current release-facing index is [INDEX_V2.md](INDEX_V2.md). This document
+is the historical foundation index; older pointers are retained for provenance.
+
 This is the foundation-series evidence index for phases 00–07. It separates
 deterministic implementation evidence and bounded CUDA checks from the model-
 backed acceptance that was deferred in Phase 06. Production-completion phases

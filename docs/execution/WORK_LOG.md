@@ -324,3 +324,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-15-01`
 - Commit at update: `39dfb98c8`
 - Summary: Fetched remotes, recorded upstream divergence and duplicate direction, created the V2 dependency-ordered source slice map, ran release CPU and focused CUDA verification, and preserved the outer-Git re-sync requirement in the handoff.
+
+## 2026-09-04T02:43:44+00:00 — 15-02 — done
+
+- Branch: `codex/task-15-02`
+- Commit at update: `eae287119`
+- Summary: Finalized portable pager/operator docs, regenerated help, and added the V2 evidence index with exact provenance and explicit blocked acceptance outcomes.
