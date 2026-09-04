@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "17",
-  "current_task": "17-02",
-  "last_updated_utc": "2026-09-04T23:41:04+00:00",
+  "current_task": "17-03",
+  "last_updated_utc": "2026-09-04T23:55:32+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1163,13 +1163,13 @@
       "cluster": "17a-harness-contract",
       "title": "Complete pager and native-MTP telemetry export",
       "packet": ".wiretail/execution/tasks/17-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "17-01"
       ],
-      "commit": null
+      "commit": "c260c8eaf7ba40c90f8f7216a16ac21d3f10a3d0"
     },
     {
       "id": "17-03",
