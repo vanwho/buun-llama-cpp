@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Portable contracts for pager-corpus-v2 and benchmark evidence.
+"""Portable contracts for pager-corpus-v3 and benchmark evidence.
 
 The module deliberately has no server or model dependency.  It is used by the
 corpus generator and by result consumers to reject incomplete evidence rather
@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-CORPUS_SCHEMA = "pager-corpus-v2"
+CORPUS_SCHEMA = "pager-corpus-v3"
+LEGACY_CORPUS_SCHEMAS = {"pager-corpus-v2"}
 MANIFEST_SCHEMA = 2
 LEGACY_MANIFEST_SCHEMAS = {1}
 PARTITIONS = ("calibration", "held_out")
@@ -58,25 +59,37 @@ def _missing(mapping: dict[str, Any], fields: Iterable[str], prefix: str) -> lis
 
 def validate_corpus(corpus: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    if corpus.get("schema") != CORPUS_SCHEMA:
-        errors.append("schema must be pager-corpus-v2")
+    if corpus.get("schema") not in {CORPUS_SCHEMA, *LEGACY_CORPUS_SCHEMAS}:
+        errors.append("schema must be pager-corpus-v3")
+    if corpus.get("schema") == CORPUS_SCHEMA and corpus.get("version") != 3:
+        errors.append("pager-corpus-v3 version must be 3")
     if corpus.get("partitions") != list(PARTITIONS):
         errors.append("partitions must be calibration, held_out")
     if not isinstance(corpus.get("model_sha256"), str) or len(corpus["model_sha256"]) != 64:
         errors.append("model_sha256 must be a 64-character hash")
     if not isinstance(corpus.get("tokenizer_sha256"), str) or len(corpus["tokenizer_sha256"]) != 64:
         errors.append("tokenizer_sha256 must be a 64-character hash")
+    for name in ("model_sha256", "tokenizer_sha256"):
+        value = corpus.get(name)
+        if isinstance(value, str):
+            try:
+                int(value, 16)
+            except ValueError:
+                errors.append(f"{name} must contain hexadecimal digits")
     cases = corpus.get("cases")
     if not isinstance(cases, list) or not cases:
         return errors + ["cases must be a non-empty list"]
     hashes: set[str] = set()
-    answer_hashes: set[str] = set()
+    prompt_hashes: set[str] = set()
+    ids_by_partition: dict[str, set[str]] = {partition: set() for partition in PARTITIONS}
     partitions: set[str] = set()
     for index, case in enumerate(cases):
         prefix = f"cases[{index}]"
         if not isinstance(case, dict):
             errors.append(f"{prefix} must be an object")
             continue
+        if corpus.get("schema") == CORPUS_SCHEMA and str(case.get("expected_answer", "")).endswith(" (held-out)"):
+            errors.append(f"{prefix}.expected_answer must not use the legacy held-out suffix")
         partition = case.get("partition")
         partitions.add(str(partition))
         if partition not in PARTITIONS:
@@ -86,6 +99,41 @@ def validate_corpus(corpus: dict[str, Any]) -> list[str]:
             "tokenizer_sha256", "expected_answer", "checker", "score_rule",
             "minimum_score", "context_tokens", "page_distance", "stable_hash",
         ), prefix))
+        fixture = case.get("fixture")
+        if not isinstance(fixture, dict):
+            errors.append(f"{prefix}.fixture must contain the supplied facts")
+        else:
+            facts = fixture.get("facts")
+            if not isinstance(facts, list) or not facts or any(not isinstance(fact, str) or not fact for fact in facts):
+                errors.append(f"{prefix}.fixture.facts must be a non-empty list of strings")
+            if isinstance(case.get("prompt"), str) and isinstance(facts, list):
+                for fact in facts:
+                    if fact not in case["prompt"]:
+                        errors.append(f"{prefix}.fixture fact is absent from prompt")
+        token_count = case.get("token_count")
+        context_tokens = case.get("context_tokens")
+        if not isinstance(token_count, int) or token_count <= 0:
+            errors.append(f"{prefix}.token_count must be a positive integer")
+        if isinstance(context_tokens, int) and isinstance(token_count, int) and abs(token_count - context_tokens) > max(32, context_tokens // 100):
+            errors.append(f"{prefix}.token_count is outside the 1%/32-token tolerance")
+        page_distance = case.get("page_distance")
+        if not isinstance(page_distance, dict) or page_distance.get("unit") != "logical_pages":
+            errors.append(f"{prefix}.page_distance must use logical_pages")
+        else:
+            distance = page_distance.get("from_recent")
+            page_count = case.get("page_count")
+            needle_page = case.get("needle_page")
+            tail_tokens = case.get("tail_tokens")
+            if not isinstance(distance, int) or distance < 0:
+                errors.append(f"{prefix}.page_distance.from_recent must be non-negative")
+            if not isinstance(page_count, int) or page_count < 2:
+                errors.append(f"{prefix}.page_count must describe multiple pages")
+            if not isinstance(tail_tokens, int) or tail_tokens != (context_tokens % 256 if isinstance(context_tokens, int) else -1):
+                errors.append(f"{prefix}.tail_tokens does not match the declared context")
+            if not isinstance(needle_page, int) or not isinstance(page_count, int) or not 0 <= needle_page < page_count:
+                errors.append(f"{prefix}.needle_page is outside page bounds")
+            elif isinstance(distance, int) and distance != page_count - 1 - needle_page:
+                errors.append(f"{prefix}.page_distance does not match needle_page")
         stable = case.get("stable_hash")
         if stable and stable != case_hash(case):
             errors.append(f"{prefix}.stable_hash does not match content")
@@ -93,15 +141,22 @@ def validate_corpus(corpus: dict[str, Any]) -> list[str]:
             errors.append(f"duplicate stable hash: {stable}")
         if stable:
             hashes.add(stable)
-        expected_hash = sha256_json(case.get("expected_answer"))
-        if expected_hash in answer_hashes:
-            errors.append(f"possible answer leakage: {prefix}.expected_answer")
-        answer_hashes.add(expected_hash)
+        prompt_hash = sha256_json(case.get("prompt"))
+        recorded_prompt_hash = case.get("prompt_sha256")
+        if recorded_prompt_hash != hashlib.sha256(str(case.get("prompt")).encode("utf-8")).hexdigest():
+            errors.append(f"{prefix}.prompt_sha256 does not match prompt")
+        if prompt_hash in prompt_hashes:
+            errors.append(f"duplicate prompt hash: {prefix}.prompt")
+        prompt_hashes.add(prompt_hash)
+        if partition in ids_by_partition:
+            ids_by_partition[partition].add(str(case.get("id")))
         checker = case.get("checker")
         if isinstance(checker, dict) and checker.get("type") not in {"exact", "contains_all", "regex"}:
             errors.append(f"{prefix}.checker.type is unsupported")
     if partitions != set(PARTITIONS):
         errors.append("both calibration and held_out partitions are required")
+    if ids_by_partition["calibration"] != ids_by_partition["held_out"]:
+        errors.append("calibration and held_out must contain the same fixture ids")
     if corpus.get("corpus_hash") and corpus["corpus_hash"] != corpus_hash(cases):
         errors.append("corpus_hash does not match cases")
     return errors
@@ -136,7 +191,7 @@ def validate_manifest(manifest: dict[str, Any], *, legacy_ok: bool = True) -> li
     ), "manifest"))
     corpus = manifest.get("corpus")
     if not isinstance(corpus, dict) or corpus.get("schema") != CORPUS_SCHEMA:
-        errors.append("manifest.corpus must identify pager-corpus-v2")
+        errors.append("manifest.corpus must identify pager-corpus-v3")
     model = manifest.get("model")
     tokenizer = manifest.get("tokenizer")
     if not isinstance(model, dict) or not isinstance(model.get("sha256"), str):

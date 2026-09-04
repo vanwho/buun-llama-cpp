@@ -120,10 +120,10 @@ LLAMA_SERVER_BIN_PATH=../../../cmake-build-release/bin/llama-server python bench
 
 ### Pager profile adapter
 
-#### Frozen pager-corpus-v2 contract
+#### Frozen pager-corpus-v3 contract
 
 The portable contract is implemented by
-`pager_benchmark_contract.py`. Generate the external corpus artifact with:
+`pager_benchmark_contract.py`. Generate the versioned corpus artifact with:
 
 ```shell
 python3 tools/server/bench/generate-pager-corpus.py \
@@ -131,11 +131,16 @@ python3 tools/server/bench/generate-pager-corpus.py \
   --model <model-gguf-sha256> --tokenizer <tokenizer-sha256>
 ```
 
-It produces deterministic calibration and held-out cases with immutable case
-and corpus hashes. Validate a dry-run or acceptance manifest with
+The checked-in fixture is `fixtures/pager-corpus-v3.json`. It contains real
+facts inside 256-token logical-page fixtures, including tails, odd page counts,
+and cold/focus/churn distances. For measured Qwen lengths, pass
+`--tokenizer-command` and `--tokenizer-model`; the generator records the
+tokenizer identity and measured count. It produces deterministic calibration
+and held-out cases with immutable case, prompt, and corpus hashes. Validate a
+corpus, dry-run, or acceptance manifest with
 `validate-pager-benchmark.py`; schema 1 is accepted only as
-`legacy/non-acceptance`, while unknown schemas and missing runtime evidence
-fail closed. Acceptance manifests require model/tokenizer hashes, Turbo4 MTP
+`legacy/non-acceptance`, while the prior v2 corpus remains historical and
+unknown schemas or missing runtime evidence fail closed. Acceptance manifests require model/tokenizer hashes, Turbo4 MTP
 placement, the reconciled pager ledger, timing, raw requests, and all required
 telemetry. The frozen gate values and fields are summarized in
 the fork-local execution package.
