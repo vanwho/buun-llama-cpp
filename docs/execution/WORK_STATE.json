@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "15",
-  "current_task": "15-01",
-  "last_updated_utc": "2026-09-04T02:22:22+00:00",
+  "current_task": "15-02",
+  "last_updated_utc": "2026-09-04T02:39:15+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -983,13 +983,13 @@
       "cluster": "15a-upstream-handoff-v2",
       "title": "Re-sync upstream and construct reviewable slices",
       "packet": "docs/execution/tasks/15-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "14-05"
       ],
-      "commit": null
+      "commit": "39dfb98c88e40ebd9acc0b9de84d66322412f974"
     },
     {
       "id": "15-02",
