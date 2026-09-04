@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "14",
-  "current_task": "14-03",
-  "last_updated_utc": "2026-09-04T01:22:09+00:00",
+  "current_task": "14-04",
+  "last_updated_utc": "2026-09-04T01:35:48+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -941,13 +941,13 @@
       "cluster": "14a-correctness-quality",
       "title": "Run held-out dense exact selective quality acceptance",
       "packet": "docs/execution/tasks/14-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "14-02"
       ],
-      "commit": null
+      "commit": "8ae95b618581638c6d73d33168dfdade89fd6008"
     },
     {
       "id": "14-04",
