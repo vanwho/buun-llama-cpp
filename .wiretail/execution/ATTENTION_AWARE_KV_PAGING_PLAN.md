@@ -931,7 +931,20 @@ an unrecoverable restart/health-check failure. Upstream branches, issues, pull r
 human-owned. To inspect before or after a run, use `GIT_MODE=manual` with the shared runner's `--status`
 or `--show-clusters` commands above.
 
-The 78 tasks are divided into contiguous ownership-oriented clusters of one to three tasks; the
+For a one-off operator instruction, set `PROMPT_PREFIX` when starting the
+runner. The runner consumes it exactly once when the next task begins and
+injects it through `build_prompt()` into that task's initial attempt. It is not
+sent to retry assessors, substantive retries, or subsequent tasks; the normal
+retry directives and escalation policy remain authoritative after the initial
+attempt:
+
+```bash
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+PROMPT_PREFIX='Inspect the current blocker first and choose a distinct recovery path.' \
+/srv/wiretail/wiretail.sh
+```
+
+The 89 current tasks are divided into contiguous ownership-oriented clusters of one to three tasks; the
 mapping and rationale live in `.wiretail/execution/clusters/README.md`. Each fresh/resumed runner prompt
 loads `.wiretail/execution/clusters/<cluster>.md` and dependency handoffs before task-specific source. The
 The shared runner defaults both proactive session-rotation guardrails to `0`
@@ -939,6 +952,14 @@ The shared runner defaults both proactive session-rotation guardrails to `0`
 deliberately want conversation rotation for context hygiene; these settings do not truncate prompts. The
 Codex service's own hard context/usage limits still apply, and the runner can rotate after a resulting
 failure.
+
+Tool-router failures are handled as task failures only when they are real structured/diagnostic events,
+not when their wording merely appears in command output. In particular, an `apply_patch verification
+failed` message means the patch anchor is stale or the change already moved. The runner records that
+signal, rotates the cluster session before the next substantive attempt, and injects a directive to
+inspect the current file and apply one small exact patch. Retry assessors receive the same signal and must
+change the approach rather than repeat the failed patch or append duplicate handoff text. This remains
+within the normal four total task approaches; it is not an unbounded per-tool retry loop.
 
 For supervised review/commit boundaries, run one task at a time while retaining saved cluster threads:
 
@@ -1041,12 +1062,12 @@ handoff; **provisional API** may change before upstream review without changing 
 | D16 | Locked | Off mode and existing prompt artifacts must remain compatible; state/server/MTP/recurrent changes publish as one generation-safe operation. | Fail closed on stale identity, rollback every partial operation, and test cancellation/slot reuse/checkpoints. | 02-04, 05-01–06-02 |
 | D17 | Locked | Upstreamability requires small connected branches and repository conventions. | Generic draft placement first; page core, backing, FA, telemetry, policy, integration, and exact work remain separate; no giant initial PR. | 00-05, 07-01, 07-02 |
 | D18 | Locked | Performance claims use the existing `/srv/ai/benchmarks` result contract and same model/corpus controls. | Preserve historical raw manifests; new comparisons use same-context CPU KV, an automatically discovered safe all-GPU control, observe, selective focus/needle/churn, and exact separately. | 08-04–08-05, 12-02, 14-03–14-05 |
-| D19 | Locked | Task execution uses Luna Medium by default, Luna Low only for genuinely simple checklist work, and Luna High only where cross-repo, CUDA, lifecycle, or numerical risk warrants it. Three bounded substantive retries are allowed: retry 1 is a direct artifact-aware prefix only; retry 2 receives a same-family High assessment; retry 3 receives the next family from `luna -> terra -> sol` in High mode. | `WORK_STATE.json` retains task recommendations; the runner records recovery count under ignored run state, promotes only the separate assessment model, and keeps every task retry on its original model and reasoning with no prefix after the assessment. | 00-01–16-03 |
+| D19 | Locked | Task execution uses Luna Medium by default, Luna Low only for genuinely simple checklist work, and Luna High only where cross-repo, CUDA, lifecycle, or numerical risk warrants it. Three bounded substantive retries are allowed: retry 1 is a direct artifact-aware prefix only; retry 2 receives a same-family High assessment; retry 3 receives the next family from `luna -> terra -> sol` in High mode. | `WORK_STATE.json` retains task recommendations; the runner records recovery count under ignored run state, promotes only the separate assessment model, and keeps every task retry on its original model and reasoning with no prefix after the assessment. | 00-01–18-01 and any generated remediation chain |
 | D20 | Locked | Acceptance is Qwen3.8-on-reference-machine-specific, but committed implementation must remain portable Buun/llama code. | Keep server paths, profiles, service/PID/port facts, model filenames, GPU assumptions, and mutable benchmark data outside production source; express geometry through runtime metadata/capability and injected configuration, and scan changed files before upstream slicing. | 00-02, 01-01–06-05, 07-01–07-02 |
 | D21 | Locked | Hot target capacity is a runtime result, never a named token/page target. | Compute `H=floor(usable_after_all_reservations/page_charge)`, clamp to logical pages, expose the complete ledger, and permit only user-supplied upper bounds. | 08-03, 09-01–09-02, 12-02, 14-02 |
 | D22 | Locked | Auto policy allocation scales with admitted `H`; absolute page counts are valid only as explicit test inputs. | Mandatory pages consume exact capacity first; recent/history/transient shares use calibrated ratios/minima and fail on mandatory overflow. | 08-03, 11-04, 13-05 |
 | D23 | Locked | Native MTP KV capacity always equals the resolved target per-sequence context for the run. | Never use `n_ctx_train` as an MTP allocation floor; reject conflicting native-MTP `-cd`, reserve actual Turbo4 bytes first, and verify every MTP KV buffer is GPU-backed. | 08-02, 09-02, 14-02 |
-| D24 | Locked | The first 33 tasks delivered tested components, not a live pager product. | Phases 08–16 must wire real model storage, CUDA transfers, attention, routing, telemetry, policy, lifecycle, CLI, benchmarks, corrective acceptance, and handoff; required live gates cannot be marked deferred. | 08-01–16-03 |
+| D24 | Locked | The first 33 tasks delivered tested components, not a live pager product. | Phases 08–17 must wire real model storage, CUDA transfers, attention, routing, telemetry, policy, lifecycle, CLI, benchmarks, and corrective evidence; phase 18 assesses only the resulting benchmark summary and may generate another measured remediation chain. | 08-01–18-01 and generated remediation phases |
 | D25 | Locked | Speed is the primary optimization objective after correctness and frozen quality floors. | Require at least 3x warm-focused decode over same-context ordinary CPU KV, target 5x, retain at least 70% of the comparable safe all-GPU control, and report fault/churn tails without averaging them away. | 08-04, 13-01–14-05 |
 
 ### 17.1 Deliberately unresolved choices
@@ -1105,7 +1126,8 @@ stop/restart of the active Qwen service through the established benchmark/profil
 | Condition | Runner behavior | Can the agent resolve it? |
 | --- | --- | --- |
 | A task is incomplete, Codex hits a transient network/rate-limit, or a cluster exceeds its context guardrail | Retry with the same task/session, then rotate the cluster session; preserve state/handoff. | Yes, automatically, subject to service availability. |
-| The current task reports a blocker | Reopen it for three automatic recovery attempts (fresh session each time); retry 1 gets only the direct prefix, retry 2 gets a same-family/high assessment, and retry 3 gets the next-tier/high assessment from `luna -> terra -> sol`. Preserve the block and exit code 3 only if the fourth total task approach still fails. | Yes, through distinct diagnostics/configuration/fallback paths; a persisted block remains when all four approaches fail. |
+| Codex emits `codex_core::tools::router` / `apply_patch verification failed` | Treat the turn as incomplete, preserve the stderr artifact, rotate before the next substantive attempt, and inject the current-anchor/minimal-patch recovery directive into the task and High-reasoning assessment. Never retry the identical stale patch. | Yes, by re-reading current files and taking a distinct patch/validation path; the ordinary four-approach budget still bounds recovery. |
+| The current task reports a blocker | Reopen it for three automatic recovery attempts (fresh session each time); retry 1 gets only the direct prefix, retry 2 gets a same-family/high assessment, and retry 3 gets the next-tier/high assessment from `luna -> terra -> sol`. Preserve the block and exit code 3 only if the fourth total task approach still fails. The transient recovery budget resets when a new runner invocation resumes the project. | Yes, through distinct diagnostics/configuration/fallback paths; a persisted block remains when all four approaches fail in one run. |
 | Required model/sidecar is absent or metadata differs from the pinned Qwen3.8 geometry | Stop at provenance; do not guess or expand scope. | No, unless the artifact becomes available or the user changes scope. |
 | Relevant upstream default branch moves after provenance | Stop and request a deliberate re-sync/rebase decision; never merge over local work. | Not safely without an explicit policy choice. |
 | A live service would be disrupted by `/srv/ai/benchmarks` | Enter a controlled maintenance window: capture active profile/PID/command/health, let the established profile harness stop/restart the service with non-interactive sudo, and verify restoration plus health afterward. Never kill an unrelated service or leave a failed restart hidden. | Yes, now that the user has explicitly authorized the plan to bring down/restart the active server and passwordless sudo is available. A restart failure remains a blocker. |
@@ -1123,12 +1145,13 @@ action rather than a standing blocker. The benchmark harness's post-run health c
 the task is complete; profile restoration is required only for an explicitly declared control/revert,
 teardown, failed-start recovery, or final-cleanup operation under section 27.
 
-## 20. Production-completion series: why phases 08–16 exist
+## 20. Production-completion series: why phases 08–18 exist
 
 Phases 00–07 completed 33 tasks and left reviewable, tested components. They did not connect those
 components into the production Qwen graph. Their final acceptance record correctly deferred the live
 product. Phases 08–14 are the original production wiring, phase 15 is the corrective repair/re-acceptance
-series, and phase 16 is the final handoff. They end only when the requested runtime works and is measured;
+series, phase 16 is handoff preparation, phase 17 is corrective implementation and benchmark evidence, and
+phase 18 is the benchmark-only overall-goal review. They end only when the requested runtime works and is measured;
 a task may not count a callback fake, arithmetic fixture, documentation update,
 or `not_configured` metric as a substitute for its required model-backed acceptance.
 
@@ -1395,17 +1418,44 @@ closed by changing thresholds, shrinking context, or relabeling `not_configured`
 
 ### Phase 16 — clean handoff and reproducibility
 
-The former phase-15 tasks are shifted to phase 16 and run only after phase 15's corrective gates pass:
+Phase 16 follows phase 15 and runs only after the corrective implementation/evidence sequence has produced
+its handoff inputs:
 
-- `16a-upstream-handoff-v2`: recheck upstream, rebase/slice locally, update portable operator/evidence
-  documentation, and reproduce the final build/run from a clean worktree.
+- `16a-upstream-handoff-v2`: recheck upstream, rebase/slice locally, and update portable operator/evidence
+  documentation. The former clean-closure task is superseded by the benchmark-only phase 18 review.
 
-Gate: the fork integration branch is clean and pushed, implementation commits contain no execution data,
-the evidence commits contain no upstream code dependency, all source is portable, and the status is
-complete only if phase 15 and all required live gates passed. Agents prepare but never post AI-authored
-GitHub issue/PR text.
+Gate: implementation commits contain no execution data and all source is portable. Phase 16 does not claim
+runtime completion; phase 17 owns corrective implementation and evidence, while phase 18 assesses only its
+compact benchmark summary. Agents prepare but never post AI-authored GitHub issue/PR text.
 
-## 26. Autonomous execution rules for phases 08–16
+### Phase 17 — corrective implementation and benchmark evidence
+
+Phase 17 repairs the concrete blockers found by the previous live runs and then creates fresh evidence for
+the final assessment. Its task order is intentionally dependency-oriented and avoids replaying old audit
+narratives:
+
+- `17a-harness-contract`: lifecycle cleanup, runtime identity, telemetry export, and adapter validation;
+- `17b-mtp-capacity`: dynamic VRAM admission for target/draft Turbo4 and speculative rollback atomicity;
+- `17c-corpus-exact`: fact-bearing multi-page corpus and exact/selected-all correctness reference;
+- `17d-benchmark-quality`: model-backed quality campaign;
+- `17e-benchmark-soak`: paired performance, endurance, and compact evidence consolidation.
+
+Tasks `17-08`–`17-11` must preserve raw benchmark roots and hashes while writing only concise manifests and
+summaries into `.wiretail/execution/evidence/`. They measure dynamic context and ledger-derived hot capacity;
+the historical 77K estimate is not a production constant. Phase 17 is complete only when its implementation
+and benchmark tasks have honest pass/block decisions and `PHASE17_BENCHMARK_SUMMARY.json/.md` exists.
+
+### Phase 18 — benchmark-only overall-goal review
+
+`18-01` reads the phase-17 compact summary and raw pointers, not every prior phase's acceptance files or
+handoffs. It writes `PHASE18_REVIEW.json/.md` with quality, speed, MTP placement, residency, dynamic-context,
+and soak findings and a direct `goal_reached`, `partially_reached`, or `not_reached` verdict. If the goal is not
+reached, it creates a new measured-gap remediation phase (normally 19), repeats implementation tasks required
+by the observed failures, appends the same quality/performance/soak/summary benchmark tasks, and creates the
+next review task (normally 20-01) using this exact benchmark-only procedure for phase 19. Each review consumes
+only the immediately preceding phase's compact summary, so the chain remains resumable and context-bounded.
+
+## 26. Autonomous execution rules for phases 08–18
 
 Every new task packet contains exact reads, likely write ownership, implementation steps, commands,
 benchmark conditions, acceptance, recovery paths, and handoff requirements. An executing agent must:
@@ -1425,8 +1475,11 @@ benchmark conditions, acceptance, recovery paths, and handoff requirements. An e
 9. checkpoint after each major sub-gate so a restarted Luna session can resume from evidence;
 10. try distinct diagnosis and repair paths before blocking; never satisfy a gate by disabling it,
     shrinking the requested maximum-context test, or relabeling missing telemetry as zero;
-11. mark a task complete only when every required item in its packet passes; required live phase 15
-    corrective work may not be deferred;
+   - if a tool/router patch application fails, re-read the exact current anchors and use a minimal
+     replacement patch; do not repeat the failed patch text or spend the turn duplicating evidence;
+11. mark a task complete only when every required item in its packet passes; required live phase 17
+    corrective work may not be deferred. Phase 18 may create a measured remediation phase instead of
+    declaring an unproven overall success;
 12. leave GitHub issues, PR creation, descriptions, replies, and merges to a human under `CONTRIBUTING.md`.
 
 The outer runner owns task branches, implementation-versus-execution commits, pushes to the user's fork,

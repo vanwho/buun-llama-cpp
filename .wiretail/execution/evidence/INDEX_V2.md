@@ -51,13 +51,11 @@ checks, not model-backed quality or speed claims.
 
 ## Acceptance disposition
 
-The authoritative V2 gates remain blocked: dense-control/held-out quality did
-not provide an accepted pager run, the selective/exact speed floor was not
-met, and the full pager soak prerequisite was unavailable after those failures.
-The records retain controls, calibration, held-out partitions, exact-oracle
-checks, failed startup/fault paths, rollback, cancellation, and churn. A dense
-control result is not an acceptance result, and a historical profile is not a
-speed claim.
+The former V2 gates remain historical blocked diagnostics. They are not replay
+instructions for the current execution. Phase 17 owns corrective implementation
+and fresh quality/performance/soak evidence; phase 18 reads only its compact
+summary and decides whether the overall goal was reached. A dense control result
+is not an acceptance result, and a historical profile is not a speed claim.
 
 Corrective V3 artifacts are indexed below; they do not rewrite V2:
 
@@ -68,9 +66,18 @@ Corrective V3 artifacts are indexed below; they do not rewrite V2:
 | performance paired controls | same performance root | `paired-controls-v3.manifest.json` | `badacb7ead79bb1b138251a0031676d77bb9bd569133e3780219737211a2c8a2` |
 | bounded soak | `/srv/ai/paged-kv/results/15-09-soak-20260904T181000Z-bounded/` | `soak-v3.manifest.json` | `5c735e8af6f4c711f5dea21eaf5cd29eb6edfb1f6c6e44d9da8a4cc47653eefb` |
 
-V3 statuses are `failed_dense_control`,
+V3 statuses are historical `failed_dense_control`,
 `failed_floor_and_runtime_telemetry_boundary`, and
 `lifecycle_passed_acceptance_blocked`. No V3 result promotes a blocked gate.
+
+## Current review chain
+
+Phase 17 produces `PHASE17_QUALITY`, `PHASE17_PERFORMANCE`,
+`PHASE17_SOAK`, and `PHASE17_BENCHMARK_SUMMARY` manifests. Task 18-01 reads
+that summary and writes `PHASE18_REVIEW`; if the goal is not reached, it adds a
+new measured remediation phase and the next benchmark-only review task. These
+current artifacts intentionally contain concise pointers rather than the old
+16-03 audit narrative.
 
 ## Shared provenance
 

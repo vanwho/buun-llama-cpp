@@ -31,17 +31,20 @@ Global rules for every packet:
 10. Update only this task in `WORK_STATE.json`. Use `/srv/wiretail/task_state.py`; mark complete only after
    every locally executable acceptance item passes. Mark blocked with one concrete reason and needed
    input only after distinct recovery paths have been tried. The runner automatically reopens a blocked
-   task three times after its initial approach, using fresh sessions as needed. Retry 1 only adds the direct
+   task three times after its initial approach, using fresh sessions as needed; the transient recovery
+   budget resets when a new runner invocation resumes the project. Retry 1 only adds the direct
    artifact-aware prefix to the original task model/reasoning. Before retry 2, the task's own model family
    runs a High-reasoning assessment; retry 2 uses the original task model/reasoning with no retry prefix.
    Before retry 3, the next-tier/high assessment uses `luna -> terra -> sol` (Sol remains the ceiling); retry
    3 also uses the original task model/reasoning with no retry prefix. Do not treat the first failed command
    as a sufficient blocker.
-11. For phases 08–16, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
+11. For phases 08–17, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
     the trained model context is not an allocation floor. No production default may encode a fixed hot
     token/page count. Historical benchmark artifacts may retain their measured configuration names.
-12. Required model-backed phase 15 corrective gates cannot be deferred. A failing result starts diagnosis and
-    repair through the owning implementation task; it is not converted to a documentation success.
+12. Required model-backed phase 17 corrective gates cannot be deferred. A failing result starts diagnosis and
+    repair through the owning implementation task; it is not converted to a documentation success. Phase 18
+    reviews only the compact phase-17 (or later remediation-phase) benchmark summary and creates the next
+    measured remediation chain when the overall goal is not reached.
 13. Live benchmark tasks may stop/restart the active Qwen service using passwordless sudo and the
     established profile scripts. Capture the starting profile and verify ports 8080 and 8091. A
     successful benchmark keeps its tested server/profile loaded for the next task or retry by default;
@@ -50,6 +53,14 @@ Global rules for every packet:
     service on port 8092.
 14. Performance tasks preserve raw before/after results for every attempted optimization. They test at
     least three evidence-driven repair hypotheses before blocking on the final 3x speed floor.
+
+15. If Codex reports `codex_core::tools::router` or `apply_patch verification failed`, treat it as a
+    patch-anchor/context failure. Re-read the current file and exact surrounding lines with `rg`/`sed`,
+    check whether the intended change already exists, and apply one small patch against the current
+    content. Never repeat the same stale patch, blindly append another handoff note, or spend the turn
+    retrying an anchor that is no longer present. The runner records this signal, rotates the session
+    before the next substantive attempt, and injects the same recovery direction into the retry and
+    High-reasoning assessment prompts.
 
 Suggested handoff skeleton:
 

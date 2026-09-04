@@ -70,4 +70,10 @@ do not override task acceptance or repository instructions.
 | `15g-quality` | 15-07 | Corrective model-backed quality acceptance |
 | `15h-performance` | 15-08 | Corrective paired speed acceptance |
 | `15i-soak` | 15-09 | Endurance and handoff lifecycle |
-| `16a-upstream-handoff-v2` | 16-01–16-03 | Rebase/slices, operator evidence, clean reproduction |
+| `16a-upstream-handoff-v2` | 16-01–16-02 | Rebase/slices and portable operator evidence |
+| `17a-harness-contract` | 17-01–17-03 | Benchmark lifecycle, runtime identity, telemetry contract |
+| `17b-mtp-capacity` | 17-04–17-05 | Dynamic Turbo4 MTP admission and rollback atomicity |
+| `17c-corpus-exact` | 17-06–17-07 | Fact-bearing corpus and exact/selected-all reference |
+| `17d-benchmark-quality` | 17-08–17-09 | Model-backed quality and paired performance evidence |
+| `17e-benchmark-soak` | 17-10–17-11 | Soak campaign and compact benchmark summary |
+| `18a-benchmark-review` | 18-01 | Benchmark-only overall-goal assessment and remediation chaining |

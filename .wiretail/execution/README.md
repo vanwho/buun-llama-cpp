@@ -8,10 +8,11 @@ belong under `handoffs/` and must record commands, results, changed files, unres
 hardware or human actions.
 
 Foundation phases 00–07 are historical completed work. Production-completion phases 08–14 contain the
-original implementation, phase 15 is the corrective live-product repair/re-acceptance series, and phase
-16 is the shifted handoff/reproducibility series. The current state is intentionally `ready`, not
-`complete`. Native MTP capacity follows the resolved target context and target hot capacity is derived
-from the runtime memory ledger; no prior Fast-profile hot count is a default.
+original implementation, phase 15 is the corrective live-product repair/re-acceptance series, phase 16
+is handoff preparation, phase 17 owns corrective implementation and benchmark evidence, and phase 18 is
+the benchmark-only overall-goal review. The current state is intentionally `ready`, not `complete`.
+Native MTP capacity follows the resolved target context and target hot capacity is derived from the
+runtime memory ledger; no prior Fast-profile hot count is a default.
 
 The shared runner defaults to auto Git mode. For supervised upstream-bound work, explicitly select manual mode:
 
@@ -30,6 +31,17 @@ The shared runner provides status and cluster inspection:
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp /srv/wiretail/wiretail.sh --status
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp /srv/wiretail/wiretail.sh --show-clusters
+```
+
+To give the next task's initial agent prompt a one-shot operator directive, set
+`PROMPT_PREFIX`. It is consumed when that task starts, is injected through
+`build_prompt()`, and is not carried into substantive retries, recovery
+assessments, or later tasks:
+
+```bash
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
+PROMPT_PREFIX='First inspect the current blocker and choose a distinct recovery path.' \
+/srv/wiretail/wiretail.sh
 ```
 
 When the user explicitly authorizes autonomous fork commits and pushes, run the shared runner directly

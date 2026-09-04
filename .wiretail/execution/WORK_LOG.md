@@ -496,3 +496,39 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-16-02`
 - Commit at update: `8b4eacd01`
 - Summary: Finalized portable pager/operator documentation and V2 evidence index; regenerated help/docs and verified links, portability scans, and V3 manifest hashes.
+
+## 2026-09-04T16:51:14+00:00 — 16-03 — blocked
+
+- Branch: `codex/task-16-03`
+- Commit at update: `2c03d7db0`
+- Summary: Three distinct recovery paths exhausted: fresh CUDA build timeout, reduced-kernel CUDA build timeout, and successful incremental CUDA target path; authoritative quality, performance, and soak manifests remain substantively blocked.
+
+## 2026-09-04T16:51:43+00:00 — 16-03 — todo
+
+- Branch: `codex/task-16-03`
+- Commit at update: `2c03d7db0`
+- Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Three distinct recovery paths exhausted: fresh CUDA build timeout, reduced-kernel CUDA build timeout, and successful incremental CUDA target path; authoritative quality, performance, and soak manifests remain substantively blocked.
+
+## 2026-09-04T16:55:00+00:00 — 16-03 — in_progress
+
+- Branch: `codex/task-16-03`
+- Commit at update: `2c03d7db0`
+- Summary: Retry-4 assessment repaired the authenticated benchmark path: the prior anonymous scrape hit an older deployed binary and returned 401. The adapter now fails closed on 401/403, and the packet/handoff require BENCH_SERVER_BIN plus the existing credential-file environment boundary before V3 owning-gate reruns.
+
+## 2026-09-04T19:00:00+02:00 — 16-03 — in_progress
+
+- Summary: Executed the authenticated canonical runner against the rebuilt CUDA candidate with the mandated short selective/native-MTP smoke. Candidate startup failed on an 82.01 MiB native-MTP CUDA allocation with approximately 67.8 MiB free; no raw benchmark envelope or acceptance telemetry was produced. Probe cleanup restored qwen38-fast and active 8080/8091 health; 8092 was untouched. Phase-14 quality/performance/soak remain blocked.
+
+## 2026-09-04T19:05:00+02:00 — 16-03 — in_progress
+
+- Summary: Distinct reduced-context (`16384`) authenticated candidate smoke started successfully, produced six control records, then failed closed on missing `queue_us`; telemetry also reported native-MTP placement absent. Raw root `/tmp/16-03-pager-context-smoke-wF8YIS` preserved. Cleanup passed, qwen38-fast and 8080/8091 health restored; 8092 untouched. Acceptance remains blocked.
+
+## 2026-09-04T17:35:00+00:00 — 16-03 — blocked
+
+- Branch: `codex/task-16-03`
+- Commit at update: `2c03d7db0`
+- Summary: Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/16-03-attempt-4-20260904T173231Z-final.md.
+
+## 2026-09-05T00:00:00+00:00 — execution-plan restructure — ready
+
+- Summary: Superseded the stale 16-03 closure audit with compact historical pointers; added phase 17 corrective lifecycle, telemetry, dynamic MTP admission, rollback, corpus, exact-reference, quality, performance, soak, and evidence-consolidation tasks; added phase 18 benchmark-only overall-goal review with measured remediation/review chaining.

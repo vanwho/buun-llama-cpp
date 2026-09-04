@@ -6,9 +6,10 @@ is the historical foundation index; older pointers are retained for provenance.
 This is the foundation-series evidence index for phases 00–07. It separates
 deterministic implementation evidence and bounded CUDA checks from the model-
 backed acceptance that was deferred in Phase 06. Production-completion phases
-08–15 are now queued in `WORK_STATE.json`; they must produce `INDEX_V2.md` and
-`FINAL_ACCEPTANCE_V2.*` after the live selective pager, placement ledger,
-transfer telemetry, and frozen expected-answer stream exist.
+08–18 are now represented in `WORK_STATE.json`; phase 17 produces fresh
+benchmark evidence and phase 18 produces the benchmark-only overall-goal
+review. The historical `FINAL_ACCEPTANCE_V2.*` record is superseded and is not
+an instruction to replay old audits.
 
 No result below is a release claim. External result directories are named for
 reproduction and remain outside this repository.

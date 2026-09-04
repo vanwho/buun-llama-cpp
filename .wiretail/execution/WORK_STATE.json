@@ -7,9 +7,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "16",
-  "current_task": "16-03",
-  "last_updated_utc": "2026-09-04T16:08:50+00:00",
+  "current_phase": "17",
+  "current_task": "17-01",
+  "last_updated_utc": "2026-09-05T00:00:00+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -37,7 +37,7 @@
     "target_cold_backing": "canonical opaque Turbo4 pages in CPU RAM",
     "speed_floor": "warm selective median decode at least 3x same-context ordinary CPU KV",
     "speed_target": "report whether 5x CPU KV and 70% of comparable safe all-GPU are achieved",
-    "required_final_status": "phase 15 corrective model-backed correctness, quality, performance, and soak gates must pass, followed by phase 16 handoff; they cannot be deferred"
+    "required_final_status": "phase 17 corrective implementation and benchmark evidence must be honestly summarized by phase 18; if the goal is not reached, phase 18 creates the next measured remediation and review chain"
   },
   "external_gates": [
     {
@@ -1141,19 +1141,149 @@
       "commit": "8f29f45c2b54340b2c69c5416080bdd53485924a"
     },
     {
-      "id": "16-03",
-      "phase": "16",
-      "cluster": "16a-upstream-handoff-v2",
-      "title": "Reproduce from a clean worktree and close the completion ledger",
-      "packet": ".wiretail/execution/tasks/16-03.md",
+      "id": "17-01",
+      "phase": "17",
+      "cluster": "17a-harness-contract",
+      "title": "Repair benchmark lifecycle cleanup and runtime identity",
+      "packet": ".wiretail/execution/tasks/17-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["16-02"],
+      "commit": null
+    },
+    {
+      "id": "17-02",
+      "phase": "17",
+      "cluster": "17a-harness-contract",
+      "title": "Complete pager and native-MTP telemetry export",
+      "packet": ".wiretail/execution/tasks/17-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["17-01"],
+      "commit": null
+    },
+    {
+      "id": "17-03",
+      "phase": "17",
+      "cluster": "17a-harness-contract",
+      "title": "Make the benchmark adapter contract-safe",
+      "packet": ".wiretail/execution/tasks/17-03.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna Medium",
-      "depends_on": [
-        "16-02"
-      ],
+      "depends_on": ["17-02"],
+      "commit": null
+    },
+    {
+      "id": "17-04",
+      "phase": "17",
+      "cluster": "17b-mtp-capacity",
+      "title": "Repair dynamic VRAM admission for Turbo4 target and MTP",
+      "packet": ".wiretail/execution/tasks/17-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["17-03"],
+      "commit": null
+    },
+    {
+      "id": "17-05",
+      "phase": "17",
+      "cluster": "17b-mtp-capacity",
+      "title": "Repair speculative rollback and page-generation atomicity",
+      "packet": ".wiretail/execution/tasks/17-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["17-04"],
+      "commit": null
+    },
+    {
+      "id": "17-06",
+      "phase": "17",
+      "cluster": "17c-corpus-exact",
+      "title": "Build a fact-bearing multi-page benchmark corpus",
+      "packet": ".wiretail/execution/tasks/17-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "depends_on": ["17-05"],
+      "commit": null
+    },
+    {
+      "id": "17-07",
+      "phase": "17",
+      "cluster": "17c-corpus-exact",
+      "title": "Complete exact page-wave and selected-all reference paths",
+      "packet": ".wiretail/execution/tasks/17-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["17-06"],
+      "commit": null
+    },
+    {
+      "id": "17-08",
+      "phase": "17",
+      "cluster": "17d-benchmark-quality",
+      "title": "Produce phase-17 quality benchmark evidence",
+      "packet": ".wiretail/execution/tasks/17-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["17-07"],
+      "commit": null
+    },
+    {
+      "id": "17-09",
+      "phase": "17",
+      "cluster": "17d-benchmark-quality",
+      "title": "Produce phase-17 performance benchmark evidence",
+      "packet": ".wiretail/execution/tasks/17-09.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["17-08"],
+      "commit": null
+    },
+    {
+      "id": "17-10",
+      "phase": "17",
+      "cluster": "17e-benchmark-soak",
+      "title": "Produce phase-17 soak and lifecycle evidence",
+      "packet": ".wiretail/execution/tasks/17-10.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["17-09"],
+      "commit": null
+    },
+    {
+      "id": "17-11",
+      "phase": "17",
+      "cluster": "17e-benchmark-soak",
+      "title": "Consolidate phase-17 benchmark evidence for review",
+      "packet": ".wiretail/execution/tasks/17-11.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "depends_on": ["17-10"],
+      "commit": null
+    },
+    {
+      "id": "18-01",
+      "phase": "18",
+      "cluster": "18a-benchmark-review",
+      "title": "Assess phase-17 benchmarks against the overall goal",
+      "packet": ".wiretail/execution/tasks/18-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": ["17-11"],
       "commit": null
     }
   ],
-  "last_checkpoint_commit": "1d059e345b1f0bedb87f93f3c16ea0d5168bf42e"
+  "last_checkpoint_commit": "2c03d7db0613dd52f29c0880fd390167c0483603"
 }

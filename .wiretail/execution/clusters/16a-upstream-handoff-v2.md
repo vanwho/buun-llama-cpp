@@ -1,9 +1,8 @@
-# Cluster 16a — final rebase, portable handoff, and clean reproduction
+# Cluster 16a — rebase and portable handoff preparation
 
-Tasks: `16-01`, `16-02`, `16-03`.
+Tasks: `16-01`, `16-02`.
 
-Purpose: leave a clean, understandable fork series and reproducible operator/evidence package after all
-live gates pass.
+Purpose: leave a clean, understandable fork series and portable operator/evidence package before phase 17.
 
 Carry forward:
 
@@ -24,7 +23,13 @@ Carry forward:
 
 Read: plan sections 13, 16–18, 25–26; `CONTRIBUTING.md`; old and new slice maps; all phase 14 handoffs.
 
+Recovery note: a `codex_core::tools::router` `apply_patch verification failed` diagnostic is a stale
+patch-anchor failure, not a runtime acceptance blocker. Re-read the current file and use a minimal exact
+patch; never repeat the same failed patch or append duplicate evidence. The runner rotates the session
+for the next substantive attempt and supplies this signal to the retry assessor. Its transient recovery
+counter resets on a new runner invocation, so an externally repaired blocker remains resumable.
+
 Exit gate: upstream relation is recorded, branch/slices are clean and pushed to the user's fork by the
-outer auto runner, all tests and bounded reproduction pass, final evidence links resolve, and
-`WORK_STATE.json` becomes complete only when every phase 08–16 task is done. No acceptance item may be
-converted to deferred during packaging.
+outer auto runner, and portable documentation/evidence links resolve. Runtime completion is intentionally
+owned by phase 17 and the benchmark-only phase 18 review; no acceptance item may be converted to deferred
+during packaging.
