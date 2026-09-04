@@ -16,10 +16,11 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 
 ## 2026-09-04T11:00:00+00:00 — retry assessor escalation map
 
-- Retry policy now runs a High-reasoning assessor before each substantive retry: the task's own model
-  family for retries 1 and 2, then the next family from `luna -> terra -> sol` for retry 3 (Sol ceiling).
-- The task attempt always retains its original model; only the assessor is promoted. Transient usage and
-  network retries remain outside this substantive budget.
+- Retry policy now uses only an artifact-aware prefix for retry 1; retry 2 is preceded by a High-reasoning
+  assessor from the task's own model family, and retry 3 by the next family from `luna -> terra -> sol`
+  (Sol ceiling).
+- Retry 2 and retry 3 task attempts retain the initial model and reasoning with no retry prefix. Transient
+  usage and network retries remain outside this substantive budget.
 
 
 ## 2026-09-03T02:10:52+00:00 — 00-01 — todo

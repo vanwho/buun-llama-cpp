@@ -12,10 +12,11 @@ All task recommendations use `gpt-5.6-luna`: Luna Medium is the default, Luna Lo
 checklist/documentation/pure-arithmetic tasks, and Luna High is reserved for cross-repository placement,
 VBR/residency transactions, CUDA/operator integration, concurrent server/speculative lifecycle, CUDA
 acceptance, and exact online-softmax work. Every task gets three bounded substantive retries after its
-initial approach. Before retry 1 and retry 2, the task's own model family runs a High-reasoning assessment;
-retry 1 then uses the direct retry instruction. Before retry 3, the next family in the escalation map
-`luna -> terra -> sol` (Sol remains the ceiling) runs a High-reasoning assessment. Every task attempt keeps
-its original model; promotion is assessment-only.
+initial approach. Retry 1 is only the original task model/reasoning with an artifact-aware direct prefix.
+Before retry 2, the task's own model family runs a High-reasoning assessment; retry 2 then uses the
+original task model/reasoning with no retry prefix. Before retry 3, the next family in the escalation map
+`luna -> terra -> sol` (Sol remains the ceiling) runs a High-reasoning assessment; retry 3 also uses the
+original task model/reasoning with no retry prefix.
 
 For every task, read in this order:
 
