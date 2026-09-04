@@ -532,3 +532,9 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-05T00:00:00+00:00 — execution-plan restructure — ready
 
 - Summary: Superseded the stale 16-03 closure audit with compact historical pointers; added phase 17 corrective lifecycle, telemetry, dynamic MTP admission, rollback, corpus, exact-reference, quality, performance, soak, and evidence-consolidation tasks; added phase 18 benchmark-only overall-goal review with measured remediation/review chaining.
+
+## 2026-09-04T23:40:34+00:00 — 17-01 — done
+
+- Branch: `plan/attention-aware-kv-paging`
+- Commit at update: `c8fa0716f`
+- Summary: Implemented managed benchmark lifecycle cleanup, candidate/active runtime identity capture, fail-closed preflight, adapter-owned restoration, interruption handling, and deterministic lifecycle evidence; local checks passed.

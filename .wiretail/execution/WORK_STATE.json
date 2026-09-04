@@ -6,10 +6,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "17",
-  "current_task": "17-01",
-  "last_updated_utc": "2026-09-04T23:20:19+00:00",
+  "current_task": "17-02",
+  "last_updated_utc": "2026-09-04T23:41:04+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1149,13 +1149,13 @@
       "cluster": "17a-harness-contract",
       "title": "Repair benchmark lifecycle cleanup and runtime identity",
       "packet": ".wiretail/execution/tasks/17-01.md",
-      "status": "in_progress",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "16-02"
       ],
-      "commit": null
+      "commit": "b703159f178216e2e2a826ca39030e7c085c41e6"
     },
     {
       "id": "17-02",
