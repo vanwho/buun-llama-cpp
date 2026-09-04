@@ -632,19 +632,16 @@ VBR authorities, unsupported sequence layouts, missing host budget, and insuffic
 ## 11. Execution phases and gates
 
 The authoritative task order, status, cluster, model recommendation, and packet path live in
-`WORK_STATE.json`. Each packet is self-contained for Luna Medium (or Luna High where the task is
-cross-repository, CUDA, lifecycle, or numerically demanding) and names its reads, allowed writes,
+`WORK_STATE.json`. Each packet is self-contained for Luna High and names its reads, allowed writes,
 tests, stop conditions, and handoff evidence.
 
-All task model recommendations are now Luna-family only: Luna Low for genuinely checklist/documentation
-or pure-arithmetic work (`00-01`, `00-02`, `00-04`, `01-01`, `01-03`), Luna Medium for ordinary
-implementation/benchmark/policy work, and Luna High for cross-worktree placement, residency
-transactions, CUDA/operator integration, concurrent lifecycle, CUDA acceptance, and exact numerical
-reference work. The runner converts these labels to `gpt-5.6-luna` with the corresponding reasoning
-effort. Retry 1 is only the original task model/reasoning with an artifact-aware direct prefix. Before
-retry 2, the task's own model family runs a High-reasoning assessment; before retry 3, the assessor
-advances through `luna -> terra -> sol` (Sol is the ceiling). Retry 2 and retry 3 task attempts retain
-the original model/reasoning and receive no retry prefix; explicit model overrides may override assessor
+All current and generated task recommendations use `Luna High` (`gpt-5.6-luna` with high reasoning).
+This is intentional: even checklist tasks can affect live CUDA, service lifecycle, benchmark
+provenance, or resumability, and a uniform high-reasoning baseline is preferred during corrective
+implementation and measurement. Retry 1 remains the same Luna High task attempt with an artifact-aware
+direct prefix. Before retry 2, the task's own model family runs a High-reasoning assessment; before retry
+3, the assessor advances through `luna -> terra -> sol` (Sol is the ceiling). Retry 2 and retry 3 task
+attempts retain Luna High and receive no retry prefix; explicit model overrides may override assessor
 models.
 
 ### Phase 00 — governance and reproducible baseline
@@ -1062,7 +1059,7 @@ handoff; **provisional API** may change before upstream review without changing 
 | D16 | Locked | Off mode and existing prompt artifacts must remain compatible; state/server/MTP/recurrent changes publish as one generation-safe operation. | Fail closed on stale identity, rollback every partial operation, and test cancellation/slot reuse/checkpoints. | 02-04, 05-01–06-02 |
 | D17 | Locked | Upstreamability requires small connected branches and repository conventions. | Generic draft placement first; page core, backing, FA, telemetry, policy, integration, and exact work remain separate; no giant initial PR. | 00-05, 07-01, 07-02 |
 | D18 | Locked | Performance claims use the existing `/srv/ai/benchmarks` result contract and same model/corpus controls. | Preserve historical raw manifests; new comparisons use same-context CPU KV, an automatically discovered safe all-GPU control, observe, selective focus/needle/churn, and exact separately. | 08-04–08-05, 12-02, 14-03–14-05 |
-| D19 | Locked | Task execution uses Luna Medium by default, Luna Low only for genuinely simple checklist work, and Luna High only where cross-repo, CUDA, lifecycle, or numerical risk warrants it. Three bounded substantive retries are allowed: retry 1 is a direct artifact-aware prefix only; retry 2 receives a same-family High assessment; retry 3 receives the next family from `luna -> terra -> sol` in High mode. | `WORK_STATE.json` retains task recommendations; the runner records recovery count under ignored run state, promotes only the separate assessment model, and keeps every task retry on its original model and reasoning with no prefix after the assessment. | 00-01–18-01 and any generated remediation chain |
+| D19 | Locked | All current and generated task execution uses Luna High by default. Three bounded substantive retries are allowed: retry 1 is a direct artifact-aware prefix only; retry 2 receives a same-family High assessment; retry 3 receives the next family from `luna -> terra -> sol` in High mode. | `WORK_STATE.json` retains Luna High recommendations; the runner records recovery count under ignored run state, promotes only the separate assessment model, and keeps every task retry on Luna High with no prefix after the assessment. | 00-01–18-01 and any generated remediation chain |
 | D20 | Locked | Acceptance is Qwen3.8-on-reference-machine-specific, but committed implementation must remain portable Buun/llama code. | Keep server paths, profiles, service/PID/port facts, model filenames, GPU assumptions, and mutable benchmark data outside production source; express geometry through runtime metadata/capability and injected configuration, and scan changed files before upstream slicing. | 00-02, 01-01–06-05, 07-01–07-02 |
 | D21 | Locked | Hot target capacity is a runtime result, never a named token/page target. | Compute `H=floor(usable_after_all_reservations/page_charge)`, clamp to logical pages, expose the complete ledger, and permit only user-supplied upper bounds. | 08-03, 09-01–09-02, 12-02, 14-02 |
 | D22 | Locked | Auto policy allocation scales with admitted `H`; absolute page counts are valid only as explicit test inputs. | Mandatory pages consume exact capacity first; recent/history/transient shares use calibrated ratios/minima and fail on mandatory overflow. | 08-03, 11-04, 13-05 |
