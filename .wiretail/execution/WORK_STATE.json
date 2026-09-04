@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "15",
-  "current_task": "15-05",
-  "last_updated_utc": "2026-09-04T13:39:26+00:00",
+  "current_task": "15-06",
+  "last_updated_utc": "2026-09-04T13:59:45+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1048,13 +1048,13 @@
       "cluster": "15e-runtime-lifecycle",
       "title": "Repair speculative rollback across paged target and GPU MTP state",
       "packet": ".wiretail/execution/tasks/15-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "15-04"
       ],
-      "commit": null
+      "commit": "18a8d3e45378f8599ea139e865344b329bd6985a"
     },
     {
       "id": "15-06",
