@@ -7,25 +7,29 @@ Turbo4 pager. It is not an issue, pull request, review reply, commit message,
 or upstream proposal. The map records source ranges, destinations, tests, and
 known exclusions so a human owner can prepare small branches later.
 
-Checked 2026-09-04 from the `codex/task-15-01` worktree:
+Checked 2026-09-04 from the `codex/task-16-01` worktree:
 
 | Ref | SHA | Meaning |
 | --- | --- | --- |
 | Recorded Buun base | `cb703be37e3628dadb71912f3b3b25b82090555b` | `WORK_STATE.json` base and parent of current upstream tip |
-| `origin/master` | `cb703be37e3628dadb71912f3b3b25b82090555b` | fork default remains at the recorded base |
-| `upstream/master` | `3823c9eb6541725bffa70fe3f8508c55b3b5ca7b` | current upstream tip, `cuda: fix Qwen4 HC combine ordering on SM90+` |
-| integration tip | `39dfb98c88e40ebd9acc0b9de84d66322412f974` | current phase-14 integration branch |
+| `origin/master` | `3823c9eb6541725bffa70fe3f8508c55b3b5ca7b` | fork default, one upstream sync commit behind current upstream |
+| `upstream/master` | `c9c52d7183bd75d7ae4a71d02f1aba6d34546fe5` | current upstream tip, `speculative: recover MTP after target-only restore` |
+| integration tip (`HEAD`) | `aedec149b252459d83202b4321cc08ed07a6440b` | current phase-15 integration branch |
 | common ancestor | `cb703be37e3628dadb71912f3b3b25b82090555b` | merge base of integration and current upstream |
 
-The recorded base is an ancestor of the integration tip. Current upstream is
-one commit ahead of that base and is not yet an ancestor of the integration
-tip: `git rev-list --left-right --count upstream/master...HEAD` returned
-`1 199`. The fetched upstream commit changes only
-`ggml/src/ggml-cuda/dsv4-hc.cu` and `tests/test-backend-ops.cpp`; neither path
-is changed by the phase-08–14 implementation range. The expected re-sync
-forecast is therefore a clean path-level apply, followed by the backend-op
-focused test and the release smoke. The task agent did not rebase, merge,
-commit, push, switch branches, or change remotes.
+The recorded base is an ancestor of the integration tip and remains the merge
+base. Current upstream is not yet an ancestor of the integration tip:
+`git rev-list --left-right --count upstream/master...HEAD` returned `3 243`.
+The three upstream commits change six paths:
+`common/speculative.cpp`, `ggml/src/ggml-cuda/dsv4-hc.cu`, `include/llama.h`,
+`src/llama-model.cpp`, `tests/test-backend-ops.cpp`, and
+`tests/test-llama-archs.cpp`. Three paths overlap local source history, but
+`git merge-tree --write-tree HEAD upstream/master` produced candidate tree
+`9892c75076466d90a425b601381824fed6409bb0` with exit 0 and no conflict
+records. Semantic review is still required for the MTP recovery hunk in
+`common/speculative.cpp`, adjacent drafter API comments in `include/llama.h`,
+and the self-contained-MTP test in `tests/test-llama-archs.cpp`. The task
+agent did not rebase, merge, commit, push, switch branches, or change remotes.
 
 ## Upstream duplicate/direction check
 
@@ -41,6 +45,13 @@ content was created or changed.
   open MTP draft-KV placement issue and has no development branch or pull
   request. It overlaps the independent MTP-placement motivation, not the
   Buun-specific VBR/Turbo4 pager implementation.
+- The current keyword search also found open MTP-adjacent records [#28252](https://github.com/ggml-org/llama.cpp/issues/28252)
+  (multi-GPU draft catch-up synchronization), [#26750](https://github.com/ggml-org/llama.cpp/issues/26750)
+  (CUDA MTP acceptance), [#26432](https://github.com/ggml-org/llama.cpp/issues/26432)
+  (MTP-related GTT spill), and [#27616](https://github.com/ggml-org/llama.cpp/issues/27616)
+  (prompt-cache reuse). They are issue reports or feature requests, not
+  duplicate implementations of this selective pager; #28252 is a relevant
+  integration risk for any future multi-GPU/MTP extraction.
 - [Buun issue #109](https://github.com/spiritbuun/buun-llama-cpp/issues/109)
   remains open and concerns multi-slot VBR context accounting. It is a
   lifecycle dependency/risk, not a duplicate implementation branch.
@@ -51,12 +62,12 @@ Any future issue, discussion, PR, or review text remains human-owned.
 
 ## Extraction rules
 
-Each phase-08–14 `feat(<task>)` SHA below is a source range whose parent is the
+Each phase-08–15 `feat(<task>)` SHA below is a source range whose parent is the
 extraction base for that commit. A commit is assigned to one slice, except that
-explicitly identified documentation hunks in a mixed commit belong to the
-tests/docs slice. The task-state, handoff, evidence, plan, merge, and chore
-commits under `.wiretail/execution/**` are execution metadata and are excluded from
-all upstream-bound slices.
+explicitly identified mixed-file hunks are assigned by path/symbol to the
+owning slice. The task-state, handoff, evidence, plan, merge, and chore
+commits under `.wiretail/execution/**` are execution metadata and are excluded
+from all upstream-bound slices.
 
 The phase-00–07 foundation slices remain as the smaller ranges in
 `SLICE_MAP.md`: U01 draft placement, B02 page/budget primitives, B03 host
@@ -307,6 +318,16 @@ source slice; benchmark adapters and acceptance evidence remain fork-local.
   `1988b072cc0e3466c739a1762c4e5f44b00a59a4..f118f270b4a298500d9675dd688eed3dab374976`:
   phase-14 policy/view/cell/architecture regression fixes and help-table
   refresh. The source policy line is assigned to S05.
+- Corrective phase-15 benchmark/documentation ranges:
+  `231c5a51c525d7a5107f9540554353b1b2b1f52e..0db11f6d0ab66807bd106dc639f818035961d971`
+  (portable launcher boundary in `tools/server/bench/README.md` and
+  `run-pager-profile-benchmark.py`),
+  `eb8ac83c38a7ac3403389b328268f511f7423e82..b2e07390e8ab1f814806db1329a2ecf49050febd`
+  (V3 corpus, generator, contract, validator, and launcher), and
+  `023da847a4150278aed8b2e434de583a146f6599..f73d22c2ea2da5f56014a967117c2c528734fada`
+  (explicit launcher modes and keep-loaded lifecycle fields). These are
+  fork-local S08 benchmark/docs artifacts; the V3 fixture and raw results are
+  not upstream implementation material.
 
 **Tests/evidence:** benchmark Python compile/JSON validation, generated help
 checks, release CPU/CUDA/fault matrices, and all phase-14 evidence manifests.
@@ -317,9 +338,44 @@ promote them to acceptance passes.
 absolute paths, service state, or any `.wiretail/execution/**` file in an
 upstream-bound implementation branch.
 
+### Corrective source hunk ownership (phase 15)
+
+The phase-15 source commits are split below by exact path/hunk. This ledger is
+in addition to the phase-08–14 ranges above and prevents a whole corrective
+task merge from being treated as one review slice:
+
+- `850b210eda918cfe6f267d0e6e6a6bc644112331..4a46aa5d3db5bf03b7714821d4f3f0a39811258a`:
+  `common/fit.{h,cpp}` native-MTP required-terminal-GPU placement and
+  `common/common.cpp` native-MTP GPU refusal/fit metadata belong to S01;
+  `src/llama-context.cpp` `llama_context_native_mtp_rows()` and
+  `init_kv_pager()` MTP admission ledger belong to S02;
+  `tests/test-cache-budget.cpp` context-ladder/admission assertions belong to
+  S08; the one `tools/server/server-context.cpp` fit-metadata hunk belongs to
+  S06.
+- `ddf24d7bff65022a42d7ec093a11ad2def1012d8..18a8d3e45378f8599ea139e865344b329bd6985a`:
+  `src/llama-kv-pager.{h,cpp}` epoch checking, post-fence pin release,
+  generation/host invalidation and `src/llama-kv-cache.cpp` epoch-bound
+  sequence mutations belong to S02; `tests/test-kv-pager.cpp` host mutation,
+  stale-generation, and cancellation assertions belong to S08.
+- `898687ade2a05f3f63ca61c1cb6ec538f2f81efe..00ba110edd9357bd80beeb6be571ae4b8c58af64`:
+  `src/llama-context.{h,cpp}` exact resident binding and telemetry ownership,
+  `src/llama-graph.cpp`, and `src/llama-kv-attention-execution.{h,cpp}` exact
+  direct graph route belong to S04; pager counters in
+  `src/llama-kv-pager.{h,cpp}` and post-fence metrics publication belong to
+  S05; H2D/D2H attribution in `src/llama-kv-residency-transaction.{h,cpp}`
+  belongs to S03; endpoint serialization in
+  `tools/server/server-context.cpp` and `tools/server/server-task.cpp` belongs
+  to S06; the additions in `tests/test-kv-attention-execution.cpp` and
+  `tests/test-kv-residency.cpp` belong to S08.
+
+Tasks `15-07`, `15-08`, and `15-09` have completion/chore commits only at the
+source boundary; their quality, performance, soak, and lifecycle manifests
+remain S08 execution evidence and are not implementation slices. All phase-15
+completion commits and all paths under `.wiretail/execution/**` stay excluded.
+
 ## Commit coverage and exclusions
 
-The phase-08–14 source coverage is complete with the following assignment:
+The phase-08–15 source coverage is complete with the following assignment:
 
 | Task commits | Slice |
 | --- | --- |
@@ -332,8 +388,13 @@ The phase-08–14 source coverage is complete with the following assignment:
 | `11-01:27efb0e0a`, `11-02:9c92e5a77`, `11-03:ef6e59c6f`, `11-04:d838f6eb0`, `11-05:7aff84602`, `13-05:1e3802880` | S05/S06 as detailed above |
 | `12-01:e5be94667`, `12-02:396981d66`, `12-03:13ac21958` | S06/S08 as detailed above |
 | `14-01:f118f270b`, `14-02:281ff4334` | S05/S06/S08 as detailed above |
+| `15-01:0db11f6d0`, `15-02:b2e07390e`, `15-03:f73d22c2e` | S08, by benchmark/docs path as detailed above |
+| `15-04:4a46aa5d3` | S01/S02/S06/S08, by path/hunk as detailed above |
+| `15-05:18a8d3e45` | S02/S08, by path/hunk as detailed above |
+| `15-06:00ba110ed` | S03/S04/S05/S06/S08, by path/hunk as detailed above |
 
-`08-01`, `08-05`, `13-01`, `13-02`, and `14-03` through `14-05` contain only
+`08-01`, `08-05`, `13-01`, `13-02`, and `14-03` through `14-05`, plus
+`15-07` through `15-09`, contain only
 execution analysis, evidence, state, or handoff material at their completion
 boundaries. Their files are intentionally not in an upstream implementation
 slice. All merge/chore/state commits and every path under `.wiretail/execution/**`
@@ -343,25 +404,27 @@ are likewise excluded.
 
 | Slice | Local boundary | Result |
 | --- | --- | --- |
-| S01/S02 | parser, budget, pager, residency, policy, telemetry tests | passed in CPU/fake and release matrices |
+| S01/S02 | parser, budget, pager, residency, policy, telemetry tests and native-MTP admission | passed in CPU/fake and release matrices |
 | S03 | capture/adopt/residency tests; VMM/event and transfer evidence | passed at deterministic boundary; live acceptance is recorded separately |
 | S04 | view/execution, direct CUDA, graph-key, sanitizer tests | passed for bounded fixtures |
-| S05 | routing, retrieval, telemetry, policy, lifecycle fakes | passed; phase-14 model quality/speed gates remain blocked by their recorded failures |
-| S06 | server/MTP/rollback and dynamic context ladder | passed at local boundaries; selective MTP request rollback remains a phase-14 risk |
+| S05 | routing, retrieval, telemetry, policy, lifecycle fakes | passed; phase-14/15 model quality, speed, and telemetry gates remain recorded failures where applicable |
+| S06 | server/MTP/rollback, exact endpoint serialization, and dynamic context ladder | passed at local boundaries; live acceptance status remains in the phase-15 handoffs |
 | S07 | exact CPU merge/coverage and CUDA partial fixtures | passed for bounded exact boundary |
-| S08 | benchmark syntax/JSON, generated help, release smoke, and acceptance manifests | passed for locally executable checks; manifests retain blocked decisions honestly |
+| S08 | benchmark syntax/JSON, generated help, corrective tests, release smoke, and acceptance manifests | passed for locally executable checks; manifests retain blocked decisions honestly |
 
 ## Re-sync and review procedure for the authorized outer Git owner
 
 1. Preserve the task metadata and create a clean fork integration worktree at
-   the fetched `upstream/master` tip `3823c9eb6`; do not include
+   the fetched `upstream/master` tip `c9c52d718`; do not include
    `.wiretail/execution/**` in an upstream-bound branch.
 2. Apply S01 through S08 as separate dependency-ordered branches. For mixed
    commits, extract only the symbols listed in the slice; do not cherry-pick a
    whole task merge or execution commit.
-3. Run `git range-diff` against the synchronized destination base for every
-   branch and inspect `git diff --check`. The fetched Qwen4 CUDA fix has no
-   changed-path overlap with the local implementation, but its backend-op test
+3. Reconcile the three upstream-only commits before extraction. The virtual
+   merge is conflict-free, but review the overlapping `common/speculative.cpp`
+   MTP recovery code against S01/S06, the `include/llama.h` comment/API hunk,
+   and the `tests/test-llama-archs.cpp` hunk. The CUDA HC fix and backend-op
+   test changes have no local implementation overlap, but the backend-op test
    must still be rerun after integration.
 4. Run the listed boundary test after each slice, then the Release CPU/CUDA
    smoke. Re-run full model-backed phase-14 gates separately; the current

@@ -484,3 +484,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-15-03`
 - Commit at update: `023da847a`
 - Summary: Implemented explicit Qwen3.8 pager benchmark launcher controls and lifecycle state; deterministic dry-run and control/revert smoke passed. Native pager+MTP smoke fails closed before restart because available binaries lack the required pager CLI or usable accelerator; exact evidence and deferred setup are recorded in handoffs/15-03.md.
+
+## 2026-09-04T16:03:28+00:00 — 16-01 — done
+
+- Branch: `codex/task-16-01`
+- Commit at update: `aedec149b`
+- Summary: Fetched upstream/origin; recorded upstream c9c52d718, ancestry 3/243, conflict-free virtual merge and current duplicate check; refreshed V2 slices with phase-15 hunk ownership; rebuilt Release CPU and passed 105/105 main tests, CUDA ADD 99/99, corpus/scripts/help/scans; upstream integration remains outer-owner deferred.
