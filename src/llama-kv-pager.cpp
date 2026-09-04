@@ -510,6 +510,27 @@ void llama_kv_pager::reconcile_routing_summaries() noexcept {
 }
 
 uint32_t llama_kv_pager::seal_ready_pages() noexcept {
+    // finish_pager_batch() runs at graph submission time, so a full page can
+    // still carry the last write-frontier pin while the graph is in flight.
+    // This method is entered after the context fence and is the first point at
+    // which that pin may be released safely.
+    for (auto & page : pages_) {
+        if (!page.present || page.record.pin_count == 0 ||
+            page.valid_rows.size() != snapshot_.geometry.page_tokens ||
+            !std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                         [](uint8_t value) { return value != 0; })) {
+            continue;
+        }
+        const auto previous = page.record;
+        page.record.pin_count = 0;
+        if (page.record.state == llama_kv_page_state::filling_gpu) {
+            page.record.state = llama_kv_page_state::gpu_dirty;
+        }
+        if (publish_page(page) != llama_kv_pager_write_status::ok) {
+            page.record = previous;
+            (void) publish_page(page);
+        }
+    }
     if (!host_ && routing_summary_provider_.build == nullptr) {
         return 0;
     }
@@ -861,6 +882,8 @@ llama_kv_pager_write_status llama_kv_pager::complete_write(
     const bool is_current = current_page_index_ < pages_.size() &&
         &pages_[current_page_index_] == page;
     if (!full && is_current) {
+        // A partial page is the write frontier and remains protected until a
+        // later page takes over or the post-graph fence releases it.
         page->record.pin_count = std::max(page->record.pin_count, 1u);
     }
     return publish_page(*page);
@@ -922,6 +945,10 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         return llama_kv_pager_write_status::disabled;
     }
     try {
+        if (mutation.expected_epoch != 0 &&
+            mutation.expected_epoch != residency_.snapshot().epoch()) {
+            return llama_kv_pager_write_status::stale_generation;
+        }
         auto next = pages_;
         auto next_slots = slot_pages_;
         uint32_t next_current = current_page_index_;
@@ -1056,7 +1083,15 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                         page.record.id.position_end = page.record.id.position_begin + llama_pos(end_row);
                         page.record.state = end_row == page.valid_rows.size()
                             ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
+                        page.record.id.page_generation = uint32_t(++mutation_generation_);
+                        page.record.host_valid = false;
+                        page.record.dirty = true;
                     }
+                }
+                if (mutation.kind == llama_kv_pager_mutation_kind::shift && page.present) {
+                    page.record.id.page_generation = uint32_t(++mutation_generation_);
+                    page.record.host_valid = false;
+                    page.record.dirty = true;
                 }
             }
             if (next_current < next.size() && !next[next_current].present) {
@@ -1079,6 +1114,58 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
 
         auto tx = residency_.begin();
         const auto old_pages = tx.pages();
+        std::vector<llama_kv_page_id> host_invalidations;
+        const auto add_host_invalidation = [&](const llama_kv_page_id & id) {
+            if (!host_) return;
+            if (std::find(host_invalidations.begin(), host_invalidations.end(), id) ==
+                    host_invalidations.end()) {
+                host_invalidations.push_back(id);
+            }
+        };
+        const auto host_selected = [&](const llama_kv_page_id & id,
+                                       int32_t sequence) {
+            return id.sequence_id == sequence &&
+                (mutation.sequence_generation == 0 ||
+                 id.sequence_generation == mutation.sequence_generation);
+        };
+        const auto host_overlaps = [&](const llama_kv_page_id & id) {
+            const llama_pos end = mutation.position_end > mutation.position_begin
+                ? mutation.position_end : std::numeric_limits<llama_pos>::max();
+            return id.position_end > mutation.position_begin &&
+                id.position_begin < end;
+        };
+        if (host_) {
+            // Host-only pages are part of the exact authority even when they
+            // have no resident page_state. Include them in this mutation so a
+            // removed suffix cannot reappear after slot reuse.
+            for (const auto & view : host_->pages()) {
+                const auto & id = view.page.identity;
+                bool invalidate = false;
+                switch (mutation.kind) {
+                    case llama_kv_pager_mutation_kind::clear:
+                        invalidate = true;
+                        break;
+                    case llama_kv_pager_mutation_kind::keep:
+                        invalidate = id.sequence_id != mutation.sequence_id;
+                        break;
+                    case llama_kv_pager_mutation_kind::copy:
+                        // A copy overwrites any cold destination page at a
+                        // logical page populated by the source.
+                        invalidate = id.sequence_id == mutation.destination_sequence_id &&
+                            std::any_of(next.begin(), next.end(), [&](const auto & page) {
+                                return page.present &&
+                                    page.record.id.sequence_id == mutation.destination_sequence_id &&
+                                    page.record.id.logical_page == id.logical_page;
+                            });
+                        break;
+                    default:
+                        invalidate = host_selected(id, mutation.sequence_id) &&
+                            host_overlaps(id);
+                        break;
+                }
+                if (invalidate) add_host_invalidation(id);
+            }
+        }
         // Retain records for pages unaffected by this mutation. In particular, the
         // current partial page may remain pinned while another sequence/page is
         // removed or copied. Only changed or removed records are erased.
@@ -1086,6 +1173,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
             const bool retained = std::any_of(next.begin(), next.end(), [&](const auto & candidate) {
                 return candidate.present && candidate.record.id == page.id;
             });
+            if (!retained) add_host_invalidation(page.id);
             if (!retained && residency_.erase(tx, page.id) != llama_kv_residency_status::ok) {
                 residency_.rollback(tx);
                 return llama_kv_pager_write_status::transaction;
@@ -1111,6 +1199,9 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         pages_ = std::move(next);
         slot_pages_ = std::move(next_slots);
         current_page_index_ = next_current;
+        for (const auto & id : host_invalidations) {
+            (void) host_->invalidate(id);
+        }
         ++mutation_generation_;
         reconcile_routing_summaries();
         return llama_kv_pager_write_status::ok;

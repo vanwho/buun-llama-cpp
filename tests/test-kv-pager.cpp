@@ -300,9 +300,86 @@ static void test_mode_lifecycle_matrix() {
     assert(!off_snapshot.initialized && off_snapshot.logical_page_count == 0);
 }
 
+static void test_pager_host_mutation() {
+    host_page_fixture fixture;
+    fixture.initialize();
+    auto host_resources = resources(1u << 20, 128);
+    host_resources.host_capture_enabled = true;
+    host_resources.host_source_namespace = host_page_fixture::source_namespace;
+    host_resources.host_child_id = 0;
+    host_resources.host_stream_index = 0;
+    host_resources.host_lanes = { { nullptr, nullptr, true } };
+    host_resources.host_ring_bytes = 128;
+    host_resources.host_chunk_bytes = 64;
+    host_resources.host_budget.host.pageable_cap = 1u << 20;
+    host_resources.host_budget.host.pageable_state =
+            llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.pinned_cap = 128;
+    host_resources.host_budget.host.pinned_state =
+            llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.total_cap = 1u << 20;
+    host_resources.host_budget.host.total_state =
+            llama_cache_budget_capacity_state::known;
+
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    llama_kv_pager_status status;
+    llama_kv_pager_backend backend;
+    backend.allocate = [](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(0x55));
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = bytes;
+        return true;
+    };
+    backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+    auto pager = llama_kv_pager::create(
+            config, geometry(512), host_resources, backend, status);
+    assert(pager && status == llama_kv_pager_status::ok);
+    pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+
+    llama_kv_pager_write_ticket ticket;
+    for (llama_pos position = 0; position < 256; ++position) {
+        assert(pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
+        assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    }
+    assert(pager->residency().pages().size() == 1);
+    assert(pager->residency().pages()[0].pin_count == 1);
+    fixture.snapshot.pages[0] = pager->residency().pages()[0].id;
+    assert(pager->seal_ready_pages() == 1);
+    assert(pager->residency().pages()[0].pin_count == 0);
+    assert(pager->host_catalog()->snapshot().live_pages == 1);
+    assert(pager->exact_page_records(0).size() == 1);
+
+    const uint64_t epoch = pager->residency().epoch();
+    assert(pager->mutate({
+            llama_kv_pager_mutation_kind::remove, 0, -1, 0, 256, 0, 1,
+            epoch - 1 }) == llama_kv_pager_write_status::stale_generation);
+    assert(pager->residency().epoch() == epoch);
+
+    // A completion captured before a partial-tail edit must not publish after
+    // that edit, even when the physical page is reused in place.
+    llama_kv_pager_write_ticket stale_ticket;
+    assert(pager->begin_write(0, 1, 0, stale_ticket) == llama_kv_pager_write_status::ok);
+    pager->release_sequence_pins(0); // post-fence cancellation boundary
+    const uint32_t old_page_generation = stale_ticket.page_generation;
+    assert(pager->mutate({
+            llama_kv_pager_mutation_kind::remove, 0, -1, 0, 1, 0, 1,
+            pager->residency().epoch() }) == llama_kv_pager_write_status::ok);
+    assert(pager->residency().pages()[0].id.page_generation != old_page_generation);
+    assert(pager->complete_write(stale_ticket, 32, true) ==
+        llama_kv_pager_write_status::stale_generation);
+    assert(pager->mutate({
+            llama_kv_pager_mutation_kind::remove, 0, -1, 0, 256, 0, 1,
+            pager->residency().epoch() }) == llama_kv_pager_write_status::ok);
+    assert(pager->host_catalog()->snapshot().live_pages == 0);
+    assert(pager->exact_page_records(0).empty());
+}
+
 int main() {
     test_host_seal_boundary();
     test_mode_lifecycle_matrix();
+    test_pager_host_mutation();
     llama_kv_pager_config off;
     llama_kv_pager_snapshot snapshot;
     llama_kv_pager_status status;
