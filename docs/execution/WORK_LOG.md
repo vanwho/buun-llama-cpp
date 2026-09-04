@@ -2,6 +2,18 @@
 
 Append-only task transitions are maintained by `tool/codex/task_state.py`.
 
+## 2026-09-04T10:44:12+00:00 — corrective phase inserted
+
+- V2 quality, selective-performance, and pager-soak gates remain substantively blocked; repeated 15-03
+  closure audits are superseded rather than retried.
+- Added phase 15 corrective tasks 15-01 through 15-09 for synced-fork integration, corpus repair, live
+  launcher/lifecycle, dynamic MTP fit, speculative rollback, exact waves/telemetry, quality, performance,
+  and soak. Shifted the former phase-15 handoff tasks to phase 16.
+- Benchmark lifecycle is now `keep_loaded_by_default`: successful tested server/profile state remains
+  available to the next dependent task or retry. Explicit control/revert, teardown, failed-start recovery,
+  and final cleanup paths still restore and verify the prior profile.
+- State validates with 78 tasks; next task is 15-01. V2 evidence remains immutable historical evidence.
+
 
 ## 2026-09-03T02:10:52+00:00 — 00-01 — todo
 
