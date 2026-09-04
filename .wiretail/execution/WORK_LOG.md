@@ -478,3 +478,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-15-01`
 - Commit at update: `231c5a51c`
 - Summary: Prepared synced origin/upstream integration evidence; conflict-free candidate tree 04608dca, bounded Release CPU smoke 2/2 pass, portability/secret/large/generated scans pass, V2 evidence unchanged, and portable benchmark boundary fixed. Outer Git owner must materialize the origin/master-based branch and separate commits.
+
+## 2026-09-04T13:20:24+00:00 — 15-03 — done
+
+- Branch: `codex/task-15-03`
+- Commit at update: `023da847a`
+- Summary: Implemented explicit Qwen3.8 pager benchmark launcher controls and lifecycle state; deterministic dry-run and control/revert smoke passed. Native pager+MTP smoke fails closed before restart because available binaries lack the required pager CLI or usable accelerator; exact evidence and deferred setup are recorded in handoffs/15-03.md.
