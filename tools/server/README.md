@@ -77,12 +77,18 @@ snapshot. There is no CPU Turbo4 attention fallback.
 Internal telemetry aggregates bounded per-page mass, EMA/peak retention
 evidence, transfers, faults, prefetch, evictions, stale completions, epochs,
 and resource accounting. With `--metrics`, the Prometheus endpoint exports
-`llamacpp:kv_pager_mode`, labeled identity gauges (`route`, `mtp_backend`, and
-target types), and scalar `llamacpp:kv_pager_<field>` gauges. Missing pager
-telemetry means `not_configured`; it must not be reported as zero. For an
-active server, the snapshot is captured by the metrics task at scrape time;
-when the server is sleeping, the last snapshot is served from the cached
-metrics response.
+`llamacpp:kv_pager_mode`, labeled identity gauges (`route`, `mtp_backend`, the
+target types, and realized native-MTP types), and scalar
+`llamacpp:kv_pager_<field>` gauges. Timing fields include
+`attention_publish_time_us` (the telemetry publish/queue time),
+`attention_d2h_time_us`, transfer time, and execution waits. Missing pager
+telemetry means `not_configured`; it must not be reported as zero. Native-MTP
+placement is read from the live draft context allocation: `gpu` means the
+realized allocation is GPU-resident and Turbo4/Turbo4, `unsupported` means a
+present context did not satisfy that contract, and `not_present` means no
+native draft context was supplied. For an active server, the snapshot is
+captured by the metrics task at scrape time; when the server is sleeping, the
+last snapshot is served from the cached metrics response.
 
 `off` is the normal dense path; `observe` records evidence without selective
 eviction; `selective` enables the supported attention-guided route; and

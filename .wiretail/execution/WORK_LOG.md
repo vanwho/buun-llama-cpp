@@ -538,3 +538,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `plan/attention-aware-kv-paging`
 - Commit at update: `c8fa0716f`
 - Summary: Implemented managed benchmark lifecycle cleanup, candidate/active runtime identity capture, fail-closed preflight, adapter-owned restoration, interruption handling, and deterministic lifecycle evidence; local checks passed.
+
+## 2026-09-04T23:54:29+00:00 — 17-02 — done
+
+- Branch: `codex/task-17-02`
+- Commit at update: `f392331c4`
+- Summary: Exported publish timing and complete pager telemetry; bound native-MTP metrics to the measured draft context with explicit placement/type states; focused builds and tests pass.

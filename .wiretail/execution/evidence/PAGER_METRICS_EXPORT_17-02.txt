@@ -1,0 +1,15 @@
+# Deterministic exporter fixture from test-server-mmproj-lifecycle.
+# This is serialization evidence, not a model-backed or live acceptance run.
+llamacpp:kv_pager_mode{mode="selective"} 1
+llamacpp:kv_pager_route{route="selected_direct"} 1
+llamacpp:kv_pager_mtp_backend{backend="gpu"} 1
+llamacpp:kv_pager_target_type_k{type="turbo4"} 1
+llamacpp:kv_pager_target_type_v{type="turbo4"} 1
+llamacpp:kv_pager_mtp_type_k{type="turbo4"} 1
+llamacpp:kv_pager_mtp_type_v{type="turbo4"} 1
+llamacpp:kv_pager_attention_publish_time_us 11
+llamacpp:kv_pager_attention_d2h_time_us 13
+llamacpp:kv_pager_waits 17
+
+# Explicit unsupported-MTP state fixture.
+llamacpp:kv_pager_mtp_backend{backend="unsupported"} 1
