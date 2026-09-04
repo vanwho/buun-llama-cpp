@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "14",
-  "current_task": "14-04",
-  "last_updated_utc": "2026-09-04T01:35:48+00:00",
+  "current_task": "14-05",
+  "last_updated_utc": "2026-09-04T02:13:40+00:00",
   "runner": {
     "path": "/srv/codex/run_until_complete_clustered.sh",
     "required_git_mode": "auto",
@@ -955,13 +955,13 @@
       "cluster": "14b-performance-soak",
       "title": "Run final selective speed acceptance",
       "packet": "docs/execution/tasks/14-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "14-03"
       ],
-      "commit": null
+      "commit": "0361d253d1f9786471e9ae06e233c7287c0cf23a"
     },
     {
       "id": "14-05",

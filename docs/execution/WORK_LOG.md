@@ -306,3 +306,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-13-05`
 - Commit at update: `2d9721215`
 - Summary: Locked capacity-relative policy/pager release defaults, added weighted deterministic retention scoring and replay sweep coverage, recorded calibration/Pareto artifact and release hash; live selective quality/speed measurements deferred because pager telemetry route is not configured.
+
+## 2026-09-04T02:13:29+00:00 — 14-04 — done
+
+- Branch: `codex/task-14-04`
+- Commit at update: `0361d253d`
+- Summary: Executed final speed prerequisite ladder; recorded model-max/131072 native-MTP startup refusals and 32768 speculative-rollback failure in PERFORMANCE_ACCEPTANCE_V2 artifacts. No speed claim was made; qwen38-big, 8080/8091, and untouched 8092 were restored and healthy.
