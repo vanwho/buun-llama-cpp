@@ -155,6 +155,18 @@ tools/server/bench/run-pager-profile-benchmark.sh <profile> <variant> <results-d
 tools/server/bench/run-pager-profile-benchmark.sh <profile> <variant> <results-dir> --dry-run
 ```
 
+The launcher exposes the live configuration explicitly. `--mode selective`,
+`--page-size 256`, `--context derived`, and `--mtp native` are the defaults;
+`--device` accepts the server's device list. Native MTP requires the Qwen3.8
+fast profile and pins both target and draft K/V to Turbo4/GPU. `derived` asks
+the selected profile/model to supply the context rather than applying a
+historical fixed hotset or context default.
+
+Successful live runs keep the tested profile loaded and write
+`lifecycle-state.json`, including whether the health-checked service is usable
+for resume. Use `--restore-control` only for an intentional control/revert
+run; failed or interrupted runs restore the previous healthy profile.
+
 Live runs require `BENCH_ENDPOINT` and `CANONICAL_BENCHMARK_RUNNER`. Set
 `PAGER_CORPUS` for the frozen corpus, and optionally set `LLAMA_ACTIVE_PROFILE`
 and `LLAMA_API_KEY_FILE` for service snapshots and authentication. These

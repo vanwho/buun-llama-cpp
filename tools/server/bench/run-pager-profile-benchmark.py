@@ -211,10 +211,25 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
         "placement": {"target_kv": "not_configured", "mtp_rows": None,
                        "mtp_kv_type": "not_configured", "mtp_backend": "not_configured", "mtp_bytes": None},
         "service": {"status": "not_started"},
+        "lifecycle": {"policy": "restore-on-request-or-failure; keep-loaded-on-success",
+                       "resume_usable": False, "state": "not_started"},
+        "launcher": {"mode": os.environ.get("BENCH_PAGER_MODE", "selective"),
+                     "device": os.environ.get("BENCH_DEVICE", "auto"),
+                     "page_size_tokens": int(os.environ.get("BENCH_PAGE_SIZE", "256")),
+                     "context": os.environ.get("BENCH_CONTEXT", "derived"),
+                     "mtp": os.environ.get("BENCH_MTP", "native"),
+                     "draft_kv": "turbo4"},
         "compatibility": {"canonical_runner": os.environ.get("CANONICAL_BENCHMARK_RUNNER"),
                            "records_format": "canonical records.jsonl preserved"},
     }
     (output / "run-config.json").write_text(json.dumps(config, indent=2) + "\n")
+    (output / "lifecycle-state.json").write_text(json.dumps({
+        "schema_version": 1,
+        "policy": "restore-on-request-or-failure; keep-loaded-on-success",
+        "resume_usable": False,
+        "restore_requested": False,
+        "state": "not_started",
+    }, indent=2) + "\n")
     (output / "parameters.txt").write_text(f"dry_run=true\nvariant={variant}\ntarget={target}\n")
     (output / "records.jsonl").write_text("")
     (output / "summary.json").write_text("[]\n")
@@ -231,6 +246,21 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
                           "restore_requested": restore_requested,
                           "loaded_profile": after.get("profile"),
                           "restored_profile": before.get("profile") if restore_requested else None}
+    config["lifecycle"] = {
+        "policy": "restore-on-request-or-failure; keep-loaded-on-success",
+        "resume_usable": bool(after.get("health") and after["health"].get("http_code") == 200),
+        "active_profile_after_run": after.get("profile"),
+    }
+    (output / "lifecycle-state.json").write_text(json.dumps({
+        "schema_version": 1,
+        "policy": config["lifecycle"]["policy"],
+        "resume_usable": config["lifecycle"]["resume_usable"],
+        "restore_requested": restore_requested,
+        "profile_before": before.get("profile"),
+        "profile_after": after.get("profile"),
+        "health_after": after.get("health"),
+        "server_pid_after": after.get("pid"),
+    }, indent=2) + "\n")
     config["benchmark_variant"] = variant
     config_path.write_text(json.dumps(config, indent=2) + "\n")
     records_path = output / "records.jsonl"
@@ -261,10 +291,29 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--restore-control", action="store_true",
                         help="restore the profile active before the run after completion")
+    parser.add_argument("--mode", choices=("off", "observe", "selective", "exact"),
+                        default="selective", help="live KV pager mode")
+    parser.add_argument("--device", default="auto",
+                        help="target device list passed to the live server (default: auto)")
+    parser.add_argument("--page-size", type=int, default=256,
+                        help="logical pager page size in tokens (default: 256)")
+    parser.add_argument("--context", default="derived",
+                        help="target context, or derived to use the resolved profile/model context")
+    parser.add_argument("--mtp", choices=("native", "off"), default="native",
+                        help="native MTP companion policy")
     args = parser.parse_args()
+    if args.page_size <= 0 or args.page_size % 256:
+        parser.error("--page-size must be a positive multiple of 256")
+    if args.mtp == "native" and args.target != "fast":
+        parser.error("native MTP is only available with the canonical Qwen3.8 fast profile")
     endpoint = os.environ.get("BENCH_ENDPOINT")
     output = pathlib.Path(args.output or f"pager-results/pager-{args.variant}-{args.target}-dry")
     if args.dry_run:
+        os.environ["BENCH_PAGER_MODE"] = args.mode
+        os.environ["BENCH_DEVICE"] = args.device
+        os.environ["BENCH_PAGE_SIZE"] = str(args.page_size)
+        os.environ["BENCH_CONTEXT"] = args.context
+        os.environ["BENCH_MTP"] = args.mtp
         write_dry_run(output, args.target, args.variant, endpoint)
         print(output)
         return 0
@@ -280,6 +329,11 @@ def main() -> int:
     command = [runner, args.target, str(output)]
     env = os.environ.copy()
     env["BENCH_SIZE"] = VARIANTS[args.variant]["size"]
+    env["BENCH_PAGER_MODE"] = args.mode
+    env["BENCH_DEVICE"] = args.device
+    env["BENCH_PAGE_SIZE"] = str(args.page_size)
+    env["BENCH_CONTEXT"] = args.context
+    env["BENCH_MTP"] = args.mtp
     # Successful runs remain loaded by default. Explicit control/revert runs
     # opt into restoration; failed runs are restored by the canonical runner.
     env["BENCH_RESTORE_PROFILE"] = "1" if args.restore_control else "0"
