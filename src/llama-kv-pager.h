@@ -280,6 +280,11 @@ public:
     // deferred to the residency transfer owner; this method never publishes a half mutation.
     llama_kv_pager_write_status mutate(const llama_kv_pager_mutation & mutation) noexcept;
 
+    // A completed full-sequence reset is a lifecycle boundary.  Release the
+    // partial write-frontier pin before publishing that removal so an empty
+    // sequence can be reset after a short warmup/decode batch.
+    void release_sequence_pins(int32_t sequence_id) noexcept;
+
     // Attach the cache-owned source/snapshot provider after pager admission.
     // A page becomes evictable only after seal_ready_pages() reports a
     // successful catalog publication.

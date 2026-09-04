@@ -692,6 +692,23 @@ void llama_kv_pager::release_current_pin(page_state * except) noexcept {
     (void) publish_page(page);
 }
 
+void llama_kv_pager::release_sequence_pins(int32_t sequence_id) noexcept {
+    for (auto & page : pages_) {
+        if (!page.present || (sequence_id >= 0 && page.record.id.sequence_id != sequence_id) ||
+            page.record.pin_count == 0) {
+            continue;
+        }
+        page.record.pin_count = 0;
+        if (page.record.state == llama_kv_page_state::filling_gpu &&
+            page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+            std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                        [](uint8_t value) { return value != 0; })) {
+            page.record.state = llama_kv_page_state::gpu_dirty;
+        }
+        (void) publish_page(page);
+    }
+}
+
 llama_kv_pager_write_status llama_kv_pager::begin_write(
         int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
         llama_kv_pager_write_ticket & ticket) noexcept {
@@ -1041,6 +1058,9 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                             ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
                     }
                 }
+            }
+            if (next_current < next.size() && !next[next_current].present) {
+                next_current = UINT32_MAX;
             }
             if (mutation.kind == llama_kv_pager_mutation_kind::shift) {
                 std::fill(next_slots.begin(), next_slots.end(), -1);
