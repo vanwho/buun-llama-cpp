@@ -54,6 +54,8 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t headroom_bytes = 0;
     uint64_t mtp_rows = 0;
     uint64_t mtp_bytes = 0;
+    ggml_type mtp_type_k = GGML_TYPE_COUNT;
+    ggml_type mtp_type_v = GGML_TYPE_COUNT;
     uint64_t host_budget_bytes = 0;
     uint64_t vram_budget_bytes = 0;
     uint64_t router_top_k = 0;
@@ -348,7 +350,12 @@ struct llama_context {
     const llama_kv_attention_telemetry * get_kv_attention_telemetry() const noexcept {
         return kv_attention_telemetry.get();
     }
-    llama_kv_pager_metrics_snapshot get_kv_pager_metrics() const noexcept;
+    // `native_mtp_context` is the separately allocated native draft context,
+    // when one is live. The target owns the pager, but the draft owns its MTP
+    // allocation and is therefore the authoritative source for its placement
+    // and realized bytes.
+    llama_kv_pager_metrics_snapshot get_kv_pager_metrics(
+            const llama_context * native_mtp_context = nullptr) const noexcept;
 
     // Internal selected-attention boundary.  Policy supplies immutable
     // metadata; graph construction then carries its epochs and page fence.

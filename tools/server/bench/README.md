@@ -203,10 +203,17 @@ health, and running-service snapshots. A failed restoration or post-run health
 check is an error.
 
 Pager samples use the names `llamacpp:kv_pager_<field>`; `mode`, `route`,
-`mtp_backend`, and target type are represented as labels. The snapshot includes
-page/byte ledgers, epochs, attention and graph counters, transfer bytes, and
-routing configuration. Epoch fields are the generation boundary for consumers
-that need to reconcile multiple scrapes.
+`mtp_backend`, target type, and realized native-MTP type are represented as
+labels. The snapshot includes page/byte ledgers, epochs, attention and graph
+counters, publish/queue and transfer timings, transfer bytes, waits, host
+residency, and routing configuration. `attention_publish_time_us` is the
+runtime source for the adapter's required `queue_us` field. Native-MTP labels
+come from the draft context's measured allocation; `not_present` and
+`unsupported` are preserved as explicit states and are never encoded as
+numeric zero. Epoch fields are the generation boundary for consumers that need
+to reconcile multiple scrapes. The adapter preserves the raw `mtp_rows`,
+`mtp_bytes`, `mtp_type_k`, `mtp_type_v`, and `mtp_backend` fields in its pager
+envelope in addition to its normalized evidence fields.
 
 Calibration controls and historical short/large runs are not acceptance
 results. Held-out acceptance requires the immutable corpus and all runtime

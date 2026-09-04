@@ -286,6 +286,16 @@ def pager_envelope(variant: str, telemetry: dict[str, object] | None = None) -> 
         "mode": telemetry.get("mode", "unknown"),
         "variant": variant,
         "runtime_counters": "server telemetry",
+        # Preserve realized MTP evidence alongside the normalized benchmark
+        # fields. These values are optional for non-MTP controls, but must
+        # never be synthesized from launcher flags.
+        "mtp_rows": telemetry.get("mtp_rows"),
+        "mtp_bytes": telemetry.get("mtp_bytes"),
+        "mtp_backend": telemetry.get("mtp_backend"),
+        "mtp_type_k": telemetry.get("mtp_type_k"),
+        "mtp_type_v": telemetry.get("mtp_type_v"),
+        "target_type_k": telemetry.get("target_type_k"),
+        "target_type_v": telemetry.get("target_type_v"),
     })
     return values
 

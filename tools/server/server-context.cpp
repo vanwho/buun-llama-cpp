@@ -3635,7 +3635,16 @@ public:
     server_metrics get_metrics() const {
         server_metrics result = metrics;
         if (ctx_tgt != nullptr) {
-            const auto pager = ctx_tgt->get_kv_pager_metrics();
+            // Standalone native MTP owns ctx_dft; when combined with an
+            // external drafter it owns ctx_mtp. Do not pass an external MTP
+            // sidecar here: its placement is a different runtime contract.
+            const llama_context * native_mtp = ctx_mtp.get();
+            if (native_mtp == nullptr &&
+                    params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
+                    !params_base.speculative.has_external_mtp_sidecar()) {
+                native_mtp = ctx_dft.get();
+            }
+            const auto pager = ctx_tgt->get_kv_pager_metrics(native_mtp);
             if (pager.enabled) {
                 result.pager_metrics = {
                     {"status", "ok"},
@@ -3646,6 +3655,8 @@ public:
                     {"target_type_v", ggml_type_name(pager.target_type_v)},
                     {"route", llama_kv_attention_execution_route_name(pager.route)},
                     {"mtp_backend", pager.mtp_backend},
+                    {"mtp_type_k", pager.mtp_type_k == GGML_TYPE_COUNT ? "not_present" : ggml_type_name(pager.mtp_type_k)},
+                    {"mtp_type_v", pager.mtp_type_v == GGML_TYPE_COUNT ? "not_present" : ggml_type_name(pager.mtp_type_v)},
                     {"page_capacity", pager.physical_page_capacity},
                     {"table_epoch", pager.table_epoch},
                     {"representation_epoch", pager.representation_epoch},
@@ -3675,19 +3686,28 @@ public:
                     {"prefetch_depth", pager.prefetch_depth},
                     {"selected_pages", pager.execution.selected_pages},
                     {"attention_samples", pager.attention.samples},
+                    {"attention_sampled_tokens", pager.attention.sampled_tokens},
                     {"attention_sampled_pages", pager.attention.sampled_pages},
+                    {"attention_sampled_layers", pager.attention.sampled_layers},
+                    {"attention_sampled_heads", pager.attention.sampled_heads},
                     {"attention_skipped", pager.attention.skipped},
                     {"attention_stale_dropped", pager.attention.stale_dropped},
                     {"attention_invalid_dropped", pager.attention.invalid_dropped},
                     {"attention_gpu_reduction_us", pager.attention.gpu_reduction_us},
                     {"attention_d2h_bytes", pager.attention.d2h_bytes},
                     {"attention_d2h_time_us", pager.attention.d2h_time_us},
+                    {"attention_publish_time_us", pager.attention.publish_time_us},
+                    {"attention_observe_overhead_us", pager.attention.observe_overhead_us},
                     {"graph_capture_count", pager.execution.graph_capture_count},
                     {"graph_replay_count", pager.execution.graph_replay_count},
                     {"graph_rebuild_count", pager.execution.graph_rebuild_count},
                     {"graph_submission_count", pager.execution.graph_submission_count},
                     {"graph_completion_count", pager.execution.graph_completion_count},
                     {"waits", pager.execution.waits},
+                    {"table_upload_bytes", pager.execution.table_upload_bytes},
+                    {"descriptor_prepare_us", pager.execution.descriptor_prepare_us},
+                    {"kernel_us", pager.execution.kernel_us},
+                    {"total_token_us", pager.execution.total_token_us},
                     {"scratch_high_water_rows", pager.execution.scratch_high_water_rows},
                     {"scratch_high_water_bytes", pager.execution.scratch_high_water_bytes},
                     {"exact_plan_waves", pager.execution.exact_plan_waves},
@@ -3698,6 +3718,10 @@ public:
                     {"exact_h2d_useful_bytes", pager.execution.exact_h2d_useful_bytes},
                     {"exact_h2d_aligned_bytes", pager.execution.exact_h2d_aligned_bytes},
                     {"exact_waits", pager.execution.exact_waits},
+                    {"exact_peak_staging_pages", pager.execution.exact_peak_staging_pages},
+                    {"exact_duplicate_pages", pager.execution.exact_duplicate_pages},
+                    {"exact_missing_pages", pager.execution.exact_missing_pages},
+                    {"exact_stale_pages", pager.execution.exact_stale_pages},
                     {"exact_faults", pager.execution.exact_faults},
                     {"faults", pager.promotion_pages},
                     {"prefetch_hits", uint64_t(0)},
@@ -3716,6 +3740,7 @@ public:
                     {"transfer_cancellations", pager.transfers.cancellations},
                     {"transfer_stale_completions", pager.transfers.stale_completions},
                     {"transfer_event_completions", pager.transfers.event_completions},
+                    {"transfer_evictions", pager.transfers.evictions},
                     {"transfer_backpressure_waits", pager.transfers.backpressure_waits},
                     {"transfer_time_us", pager.transfers.transfer_time_us},
                     {"transfer_map_failures", pager.transfers.map_failures},

@@ -821,7 +821,8 @@ llama_context::~llama_context() {
     }
 }
 
-llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics() const noexcept {
+llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
+        const llama_context * native_mtp_context) const noexcept {
     llama_kv_pager_metrics_snapshot result;
     result.enabled = kv_pager.enabled();
     result.mode = kv_pager.mode;
@@ -832,6 +833,40 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics() const noex
     result.representation_epoch = kv_attention_execution.representation_epoch();
     result.shape_epoch = kv_attention_execution.shape_epoch();
     result.execution = kv_attention_execution.metrics();
+
+    // Native MTP is not part of the target pager owner. Read its actual
+    // context allocations at scrape time so a model flag or a projected
+    // admission cannot masquerade as a realized GPU placement.
+    if (native_mtp_context != nullptr) {
+        result.mtp_type_k = native_mtp_context->pager_target_type_k_;
+        result.mtp_type_v = native_mtp_context->pager_target_type_v_;
+        result.mtp_rows = native_mtp_context->cparams.n_ctx_seq;
+
+        bool saw_context = false;
+        bool all_gpu = true;
+        uint64_t bytes = 0;
+        for (const auto & [buft, breakdown] : native_mtp_context->memory_breakdown()) {
+            if (breakdown.context == 0) {
+                continue;
+            }
+            saw_context = true;
+            if (bytes > UINT64_MAX - uint64_t(breakdown.context)) {
+                bytes = UINT64_MAX;
+            } else {
+                bytes += uint64_t(breakdown.context);
+            }
+            const ggml_backend_dev_t device = ggml_backend_buft_get_device(buft);
+            const bool gpu = !ggml_backend_buft_is_host(buft) && device != nullptr &&
+                (ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+                 ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_IGPU);
+            all_gpu = all_gpu && gpu;
+        }
+        result.mtp_bytes = bytes;
+        result.mtp_backend = saw_context && bytes != 0 && all_gpu &&
+                result.mtp_type_k == GGML_TYPE_TURBO4_0 &&
+                result.mtp_type_v == GGML_TYPE_TURBO4_0
+            ? "gpu" : "unsupported";
+    }
 
     if (kv_attention_telemetry) {
         result.attention = kv_attention_telemetry->counters();
