@@ -26,8 +26,9 @@ Read: plan sections 21, 23, 24; `/srv/ai/benchmarks/{README.md,benchmarks.md,run
 baseline results/reference; handoffs 00-03, 06-03, 06-04, 08-02, 08-03.
 
 Operational rule: capture the active profile and health, use the established controlled restart path,
-ensure `ai-long-memory.service` supplies 8091, never touch 8092, and restore the initial profile even on
-failure. Passwordless sudo is available.
+ensure `ai-long-memory.service` supplies 8091, never touch 8092, and keep a successful tested profile
+loaded for dependent tasks; restore the initial profile only on an explicitly requested control/revert,
+teardown, recovery, or final-cleanup path, or after a failed run. Passwordless sudo is available.
 
 Exit artifacts: frozen corpus/gate manifest, generic benchmark schema support, raw control directories,
 machine-readable summary, and a handoff that distinguishes completed controls from later selective runs.
