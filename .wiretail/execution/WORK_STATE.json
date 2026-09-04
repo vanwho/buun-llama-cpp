@@ -11,7 +11,7 @@
   "current_task": "15-01",
   "last_updated_utc": "2026-09-04T11:05:14+00:00",
   "runner": {
-    "path": "/srv/codex/run_until_complete_clustered.sh",
+    "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
     "root_environment": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp",
     "cluster_context_dir": ".wiretail/execution/clusters",

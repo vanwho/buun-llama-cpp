@@ -80,7 +80,7 @@
       "result": "pass"
     },
     {
-      "command": "python3 /srv/codex/task_state.py validate",
+      "command": "python3 /srv/wiretail/task_state.py validate",
       "result": "pass"
     },
     {

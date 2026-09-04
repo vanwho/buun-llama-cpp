@@ -18,18 +18,18 @@ The shared runner defaults to auto Git mode. For supervised upstream-bound work,
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 GIT_MODE=manual \
-/srv/codex/run_until_complete_clustered.sh --status
+/srv/wiretail/wiretail.sh --status
 ```
 
-The shared runner and its adjacent `/srv/codex/task_state.py` executable are the only execution
+The shared runner and its adjacent `/srv/wiretail/task_state.py` executable are the only execution
 programs. `task_state.py` receives `PROJECT_ROOT` from the runner; all state, logs, packets, and
 handoffs remain under that project root.
 
 The shared runner provides status and cluster inspection:
 
 ```bash
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp /srv/codex/run_until_complete_clustered.sh --status
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp /srv/codex/run_until_complete_clustered.sh --show-clusters
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp /srv/wiretail/wiretail.sh --status
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp /srv/wiretail/wiretail.sh --show-clusters
 ```
 
 When the user explicitly authorizes autonomous fork commits and pushes, run the shared runner directly
@@ -44,7 +44,7 @@ PROJECT_BRANCH=plan/attention-aware-kv-paging \
 GIT_MODE=auto \
 CODEX_SESSION_MAX_TURNS=0 \
 CODEX_SESSION_MAX_INPUT_TOKENS=0 \
-/srv/codex/run_until_complete_clustered.sh
+/srv/wiretail/wiretail.sh
 ```
 
 Leave `MAX_TASKS_PER_RUN` unset to run through all remaining tasks. Auto mode creates and pushes

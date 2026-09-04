@@ -28,7 +28,7 @@ Global rules for every packet:
 9. Read existing handoffs for every `depends_on` task before implementation. Create/update
    `.wiretail/execution/handoffs/<task-id>.md` with scope, changed files, commands/results,
    invariants checked, raw artifact paths, risks, and deferred checks.
-10. Update only this task in `WORK_STATE.json`. Use `/srv/codex/task_state.py`; mark complete only after
+10. Update only this task in `WORK_STATE.json`. Use `/srv/wiretail/task_state.py`; mark complete only after
    every locally executable acceptance item passes. Mark blocked with one concrete reason and needed
    input only after distinct recovery paths have been tried. The runner automatically reopens a blocked
    task three times after its initial approach, using fresh sessions as needed. Retry 1 only adds the direct

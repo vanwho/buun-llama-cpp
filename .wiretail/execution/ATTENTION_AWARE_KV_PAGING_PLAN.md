@@ -898,11 +898,11 @@ The shared runner now accepts project-specific state clusters and a no-Git mode.
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 GIT_MODE=manual \
-/srv/codex/run_until_complete_clustered.sh --status
+/srv/wiretail/wiretail.sh --status
 
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 GIT_MODE=manual \
-/srv/codex/run_until_complete_clustered.sh --show-clusters
+/srv/wiretail/wiretail.sh --show-clusters
 ```
 
 For an unattended fork-only run that creates task branches, commits each completed task, pushes the
@@ -919,7 +919,7 @@ PROJECT_BRANCH=plan/attention-aware-kv-paging \
 GIT_MODE=auto \
 CODEX_SESSION_MAX_TURNS=0 \
 CODEX_SESSION_MAX_INPUT_TOKENS=0 \
-/srv/codex/run_until_complete_clustered.sh
+/srv/wiretail/wiretail.sh
 ```
 
 Do not set `MAX_TASKS_PER_RUN`; its default `0` means no per-run task cap. Task packets supply the
@@ -944,7 +944,7 @@ For supervised review/commit boundaries, run one task at a time while retaining 
 
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp MAX_TASKS_PER_RUN=1 \
-  /srv/codex/run_until_complete_clustered.sh
+  /srv/wiretail/wiretail.sh
 ```
 
 The outer agent can then review, commit, and push the completed fork-only task before invoking the same
@@ -959,13 +959,13 @@ belong under ignored build/result storage, with stable summaries linked from the
 The status helper supports:
 
 ```bash
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py validate
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py show
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py start 00-02
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py checkpoint 00-02 --summary "..."
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py complete 00-02 --summary "..."
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py block 02-03 --reason "..."
-PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/codex/task_state.py unblock 02-03 --summary "blocker resolved ..."
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py show
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py start 00-02
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py checkpoint 00-02 --summary "..."
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py complete 00-02 --summary "..."
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py block 02-03 --reason "..."
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py unblock 02-03 --summary "blocker resolved ..."
 ```
 
 Never mark a hardware gate complete without its raw output. Use `deferred` only when the plan explicitly
@@ -1070,7 +1070,7 @@ Do not guess these prematurely:
 | Subject | Primary pointer | Why it matters |
 | --- | --- | --- |
 | Canonical execution | `.wiretail/execution/WORK_STATE.json`, `.wiretail/execution/tasks/`, `.wiretail/execution/clusters/` | Sole task order, task acceptance, and per-session context |
-| Resume tooling | `/srv/codex/task_state.py`, `/srv/codex/run_until_complete_clustered.sh` | Validates state, resumes at the first unfinished task, and reuses only one cluster's session |
+| Resume tooling | `/srv/wiretail/task_state.py`, `/srv/wiretail/wiretail.sh` | Validates state, resumes at the first unfinished task, and reuses only one cluster's session |
 | Buun VBR/VMM | `src/llama-vbr-*`, `src/llama-kv-cache.*` | Representation epochs, VMM precedents, transactions, capture/adopt, generations, pinned ring |
 | CUDA VMM backend | `ggml/src/ggml-cuda/vbr-vmm.cu`, `vbr-vmm-policy.h` | Low-level reserve/map/unmap/physical-accounting primitives to factor beneath a separate pager pool |
 | Turbo4 FA CUDA | `ggml/src/ggml-cuda/fattn-mma-turbo.cuh`, `fattn-common.cuh`, `fattn.cu`, `template-instances/` | Existing direct Turbo K/V tile loaders, dispatch, and generated specializations |
@@ -1410,7 +1410,7 @@ GitHub issue/PR text.
 Every new task packet contains exact reads, likely write ownership, implementation steps, commands,
 benchmark conditions, acceptance, recovery paths, and handoff requirements. An executing agent must:
 
-1. start only the task reported by `/srv/codex/task_state.py next`;
+1. start only the task reported by `/srv/wiretail/task_state.py next`;
 2. read the cluster file once, the packet, and dependency handoffs; avoid loading unrelated old packets;
 3. treat existing callbacks as untrusted until a live caller and test are demonstrated;
 4. keep implementation generic; machine/service/profile facts live in execution metadata or `/srv/ai`;

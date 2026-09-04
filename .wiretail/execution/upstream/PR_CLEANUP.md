@@ -16,8 +16,8 @@ The current layout is:
   assessments, and retry records;
 - `.wiretail/` runtime files — lock, stop, pause, session, and retry-control
   files;
-- `/srv/codex/run_until_complete_clustered.sh` and
-  `/srv/codex/task_state.py` — external execution programs, never upstream
+- `/srv/wiretail/wiretail.sh` and
+  `/srv/wiretail/task_state.py` — external execution programs, never upstream
   source files.
 
 ## Historical paths to exclude
