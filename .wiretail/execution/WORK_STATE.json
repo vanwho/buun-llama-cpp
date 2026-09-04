@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "15",
-  "current_task": "15-07",
-  "last_updated_utc": "2026-09-04T14:16:05+00:00",
+  "current_task": "15-08",
+  "last_updated_utc": "2026-09-04T14:42:16+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1076,13 +1076,13 @@
       "cluster": "15g-quality",
       "title": "Rerun corrective model-backed quality acceptance",
       "packet": ".wiretail/execution/tasks/15-07.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "15-06"
       ],
-      "commit": null
+      "commit": "63146a0f6be39e9ec3a71eecf954ecc906526a73"
     },
     {
       "id": "15-08",
