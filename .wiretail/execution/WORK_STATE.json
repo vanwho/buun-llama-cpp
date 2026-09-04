@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "15",
-  "current_task": "15-01",
-  "last_updated_utc": "2026-09-04T11:05:14+00:00",
+  "current_task": "15-02",
+  "last_updated_utc": "2026-09-04T12:58:38+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -992,11 +992,13 @@
       "cluster": "15a-corrective-integration",
       "title": "Rebase corrective work onto synced fork and preserve V2 evidence",
       "packet": ".wiretail/execution/tasks/15-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": ["14-05"],
-      "commit": null
+      "depends_on": [
+        "14-05"
+      ],
+      "commit": "0db11f6d0ab66807bd106dc639f818035961d971"
     },
     {
       "id": "15-02",
@@ -1007,7 +1009,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna Medium",
-      "depends_on": ["15-01"],
+      "depends_on": [
+        "15-01"
+      ],
       "commit": null
     },
     {
@@ -1019,7 +1023,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna Medium",
-      "depends_on": ["15-02"],
+      "depends_on": [
+        "15-02"
+      ],
       "commit": null
     },
     {
@@ -1031,7 +1037,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": ["15-03"],
+      "depends_on": [
+        "15-03"
+      ],
       "commit": null
     },
     {
@@ -1043,7 +1051,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": ["15-04"],
+      "depends_on": [
+        "15-04"
+      ],
       "commit": null
     },
     {
@@ -1055,7 +1065,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": ["15-05"],
+      "depends_on": [
+        "15-05"
+      ],
       "commit": null
     },
     {
@@ -1067,7 +1079,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": ["15-06"],
+      "depends_on": [
+        "15-06"
+      ],
       "commit": null
     },
     {
@@ -1079,7 +1093,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": ["15-07"],
+      "depends_on": [
+        "15-07"
+      ],
       "commit": null
     },
     {
@@ -1091,7 +1107,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": ["15-08"],
+      "depends_on": [
+        "15-08"
+      ],
       "commit": null
     },
     {
@@ -1103,7 +1121,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
-      "depends_on": ["15-09"],
+      "depends_on": [
+        "15-09"
+      ],
       "commit": null
     },
     {
@@ -1115,7 +1135,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna Low",
-      "depends_on": ["16-01"],
+      "depends_on": [
+        "16-01"
+      ],
       "commit": null
     },
     {
@@ -1127,7 +1149,9 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna Medium",
-      "depends_on": ["16-02"],
+      "depends_on": [
+        "16-02"
+      ],
       "commit": null
     }
   ],

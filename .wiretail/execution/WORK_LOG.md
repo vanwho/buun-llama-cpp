@@ -472,3 +472,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-15-03`
 - Commit at update: `1d059e345`
 - Summary: Attempt 25 clean reproduction passed state/JSON/corpus/link/portability, CPU/CUDA focused tests, generated docs, server help, service health, and fork-tip checks; authoritative phase-14 quality/performance/soak decisions remain blocked, so task stays in_progress.
+
+## 2026-09-04T12:57:54+00:00 — 15-01 — done
+
+- Branch: `codex/task-15-01`
+- Commit at update: `231c5a51c`
+- Summary: Prepared synced origin/upstream integration evidence; conflict-free candidate tree 04608dca, bounded Release CPU smoke 2/2 pass, portability/secret/large/generated scans pass, V2 evidence unchanged, and portable benchmark boundary fixed. Outer Git owner must materialize the origin/master-based branch and separate commits.
