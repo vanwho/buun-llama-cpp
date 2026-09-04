@@ -79,7 +79,10 @@ evidence, transfers, faults, prefetch, evictions, stale completions, epochs,
 and resource accounting. With `--metrics`, the Prometheus endpoint exports
 `llamacpp:kv_pager_mode`, labeled identity gauges (`route`, `mtp_backend`, and
 target types), and scalar `llamacpp:kv_pager_<field>` gauges. Missing pager
-telemetry means `not_configured`; it must not be reported as zero.
+telemetry means `not_configured`; it must not be reported as zero. For an
+active server, the snapshot is captured by the metrics task at scrape time;
+when the server is sleeping, the last snapshot is served from the cached
+metrics response.
 
 `off` is the normal dense path; `observe` records evidence without selective
 eviction; `selective` enables the supported attention-guided route; and

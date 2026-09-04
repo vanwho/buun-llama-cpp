@@ -15514,7 +15514,10 @@ private:
                     res->id                  = task.id;
                     res->n_processing_slots  = n_processing_slots;
                     res->n_tasks_deferred    = queue_tasks.queue_tasks_deferred_size();
-                    res->metrics             = metrics;
+                    // Include live context-owned metrics (not just the server
+                    // counters); this is where the active /metrics request
+                    // receives the KV-pager snapshot.
+                    res->metrics             = get_metrics();
 
                     if (task.metrics_reset_bucket) {
                         metrics.reset_bucket();

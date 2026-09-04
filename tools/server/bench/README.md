@@ -169,9 +169,17 @@ run; failed or interrupted runs restore the previous healthy profile.
 
 Live runs require `BENCH_ENDPOINT` and `CANONICAL_BENCHMARK_RUNNER`. Set
 `PAGER_CORPUS` for the frozen corpus, and optionally set `LLAMA_ACTIVE_PROFILE`
-and `LLAMA_API_KEY_FILE` for service snapshots and authentication. These
-machine-specific paths are deliberately not supplied as defaults; a dry run
-remains usable without them and records the boundary as `not_configured`.
+and `LLAMA_API_KEY_FILE` for service snapshots and authentication. If the
+metrics endpoint is protected, `LLAMA_API_KEY_FILE` (or `BENCH_API_KEY`) is
+required: an HTTP 401/403 is a launcher-configuration error, not
+`not_configured` pager telemetry. The adapter reads the key locally and never
+places its value in output or manifests. These machine-specific paths are
+deliberately not supplied as defaults; a dry run remains usable without them
+and records the boundary as `not_configured`.
+
+For a managed profile runner, use `BENCH_SERVER_BIN` to select the candidate
+server binary. This keeps the source tree portable while ensuring a live retry
+does not accidentally validate an older deployed executable.
 
 The adapter reads pager telemetry directly from the server's `/metrics`
 endpoint. A live run fails if required pager fields are absent; it never

@@ -18,7 +18,20 @@ find_package(CUDAToolkit)
 if (CUDAToolkit_FOUND)
     message(STATUS "CUDA Toolkit found")
 
+    # Treat an explicitly empty cache value like an omitted value.  CMake
+    # accepts `-DCMAKE_CUDA_ARCHITECTURES=` but later rejects the empty value
+    # for CUDA targets, which makes otherwise valid test configurations fail
+    # during generation.
+    set(_GGML_CUDA_ARCHITECTURES_WAS_UNDEFINED OFF)
+    set(_GGML_CUDA_ARCHITECTURES_WAS_EMPTY OFF)
+    set(_GGML_CUDA_ARCHITECTURES_DEFAULT_NATIVE OFF)
     if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+        set(_GGML_CUDA_ARCHITECTURES_WAS_UNDEFINED ON)
+    elseif ("${CMAKE_CUDA_ARCHITECTURES}" STREQUAL "")
+        set(_GGML_CUDA_ARCHITECTURES_WAS_EMPTY ON)
+    endif()
+    if (_GGML_CUDA_ARCHITECTURES_WAS_UNDEFINED OR
+        _GGML_CUDA_ARCHITECTURES_WAS_EMPTY)
         # native == GPUs available at build time
         # 50     == Maxwell, lowest CUDA 12 standard
         # 60     == P100, FP16 CUDA intrinsics
@@ -39,6 +52,7 @@ if (CUDAToolkit_FOUND)
         #     for best performance and to also build real architectures for the most commonly used GPUs.
         if (GGML_NATIVE AND CUDAToolkit_VERSION VERSION_GREATER_EQUAL "11.6" AND CMAKE_VERSION VERSION_GREATER_EQUAL "3.24")
             set(CMAKE_CUDA_ARCHITECTURES "native")
+            set(_GGML_CUDA_ARCHITECTURES_DEFAULT_NATIVE ON)
         else()
             if (CUDAToolkit_VERSION VERSION_LESS "13")
                 list(APPEND CMAKE_CUDA_ARCHITECTURES 50-virtual 61-virtual 70-virtual)
@@ -111,6 +125,23 @@ if (CUDAToolkit_FOUND)
         set(CMAKE_CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES_NATIVE})
     endif()
     message(STATUS "Using CMAKE_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES} CMAKE_CUDA_ARCHITECTURES_NATIVE=${CMAKE_CUDA_ARCHITECTURES_NATIVE}")
+
+    # The CUDA backend lives below the project root, but CUDA test targets are
+    # declared at the root and inherit the cache value.  Publish a valid
+    # selection so those targets do not retain an explicitly empty value.
+    if (_GGML_CUDA_ARCHITECTURES_WAS_EMPTY OR _GGML_CUDA_ARCHITECTURES_WAS_UNDEFINED)
+        # Keep the portable native spelling dynamic across reconfigures.  An
+        # An explicitly empty input has no useful portable meaning.  Preserve
+        # the native spelling when it is supported so reconfiguration remains
+        # hardware-portable; otherwise publish the resolved fallback list.
+        if (_GGML_CUDA_ARCHITECTURES_DEFAULT_NATIVE)
+            set(_GGML_CUDA_ARCHITECTURES_CACHE_VALUE "native")
+        else()
+            set(_GGML_CUDA_ARCHITECTURES_CACHE_VALUE "${CMAKE_CUDA_ARCHITECTURES}")
+        endif()
+        set(CMAKE_CUDA_ARCHITECTURES "${_GGML_CUDA_ARCHITECTURES_CACHE_VALUE}" CACHE STRING
+            "CUDA architectures to compile for" FORCE)
+    endif()
 
     file(GLOB   GGML_HEADERS_CUDA "*.cuh")
     list(APPEND GGML_HEADERS_CUDA "../../include/ggml-cuda.h")

@@ -16,7 +16,7 @@ import subprocess
 import sys
 import time
 import re
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from pager_benchmark_contract import CORPUS_SCHEMA
@@ -104,14 +104,28 @@ def metrics_endpoint(endpoint: str) -> str:
     return endpoint.split("/v1/", 1)[0].rstrip("/") + "/metrics"
 
 
-def read_server_metrics(endpoint: str) -> dict[str, object] | None:
+def read_server_metrics(endpoint: str) -> tuple[dict[str, object] | None, str | None]:
+    """Return parsed pager telemetry and a non-secret authentication error.
+
+    A protected endpoint must not be reported as ``not_configured`` merely
+    because the caller omitted ``BENCH_API_KEY``/``LLAMA_API_KEY_FILE``.  The
+    latter is a launcher setup error, whereas a successful scrape with no
+    pager fields is meaningful runtime evidence.
+    """
     key = api_key()
     headers = {"Authorization": f"Bearer {key}"} if key else {}
     try:
         with urlopen(Request(metrics_endpoint(endpoint), headers=headers), timeout=3) as response:
             body = response.read().decode(errors="replace")
+    except HTTPError as error:
+        if error.code in (401, 403):
+            return None, (
+                "metrics endpoint rejected authentication; set BENCH_API_KEY or "
+                "LLAMA_API_KEY_FILE (the key value is never recorded)"
+            )
+        return None, None
     except (OSError, URLError):
-        return None
+        return None, None
 
     values: dict[str, object] = {}
     mode = None
@@ -132,9 +146,9 @@ def read_server_metrics(endpoint: str) -> dict[str, object] | None:
         if label_name and label_value:
             values[name] = label_value
     if not values:
-        return None
+        return None, None
     values["mode"] = mode or "unknown"
-    return values
+    return values, None
 
 
 def pager_envelope(variant: str, telemetry: dict[str, object] | None = None) -> dict[str, object]:
@@ -325,7 +339,10 @@ def main() -> int:
         print("pager benchmark: missing required configuration: " + ", ".join(missing), file=sys.stderr)
         return 2
     before = service_snapshot(endpoint)
-    telemetry_before = read_server_metrics(endpoint)
+    telemetry_before, telemetry_before_error = read_server_metrics(endpoint)
+    if telemetry_before_error:
+        print("pager benchmark: " + telemetry_before_error, file=sys.stderr)
+        return 2
     command = [runner, args.target, str(output)]
     env = os.environ.copy()
     env["BENCH_SIZE"] = VARIANTS[args.variant]["size"]
@@ -339,7 +356,10 @@ def main() -> int:
     env["BENCH_RESTORE_PROFILE"] = "1" if args.restore_control else "0"
     result = subprocess.run(command, env=env)
     after = service_snapshot(endpoint)
-    telemetry_after = read_server_metrics(endpoint)
+    telemetry_after, telemetry_after_error = read_server_metrics(endpoint)
+    if telemetry_after_error:
+        print("pager benchmark: " + telemetry_after_error, file=sys.stderr)
+        return 2
     if (output / "run-config.json").exists():
         enrich(output, args.target, args.variant, before, after, telemetry_after or telemetry_before)
     if args.restore_control and before.get("profile") and after.get("profile") != before.get("profile"):
