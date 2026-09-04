@@ -33,6 +33,11 @@ The current `.wiretail/` paths are also denylisted. Runtime paths are normally
 ignored locally, but tracked execution metadata must be excluded explicitly
 from production commits.
 
+The existing `.codex-runner/` session file and lock were migrated to
+`.wiretail/`, and the existing `build/codex-autonomous/` artifacts were
+migrated to `.wiretail/build/`; no prior session or attempt artifact was
+discarded during this layout change.
+
 ## Audit before preparing an upstream branch
 
 Run from the repository with `UPSTREAM_BASE` set to the reviewed upstream tip:
