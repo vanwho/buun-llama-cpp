@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "15",
-  "current_task": "15-06",
-  "last_updated_utc": "2026-09-04T13:59:45+00:00",
+  "current_task": "15-07",
+  "last_updated_utc": "2026-09-04T14:16:05+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1062,13 +1062,13 @@
       "cluster": "15f-exact-telemetry",
       "title": "Bind exact page waves and publish live residency telemetry",
       "packet": ".wiretail/execution/tasks/15-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "15-05"
       ],
-      "commit": null
+      "commit": "00ba110edd9357bd80beeb6be571ae4b8c58af64"
     },
     {
       "id": "15-07",
