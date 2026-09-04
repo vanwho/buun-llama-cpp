@@ -91,9 +91,10 @@ state and native MTP are separate allocations.
 
 For supported draft placement, use the documented
 [`--spec-draft-kv-device`](../../docs/speculative.md#draft-kv-placement) option. Pager
-page-size, hot-set, budget, prefetch, and mode switches remain internal until
-the runtime and CLI contracts are accepted. The bounded benchmark adapter and
-raw acceptance status are maintained in the fork-local execution package.
+page-size, hot-set, budget, prefetch, and mode switches are experimental and
+must be treated as runtime contracts rather than fixed capacity promises. The
+bounded benchmark adapter and raw acceptance status are maintained in the
+fork-local execution package.
 
 ## Usage
 
