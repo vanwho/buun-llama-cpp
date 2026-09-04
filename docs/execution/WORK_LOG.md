@@ -318,3 +318,9 @@ Append-only task transitions are maintained by `tool/codex/task_state.py`.
 - Branch: `codex/task-14-05`
 - Commit at update: `fcc4fde89`
 - Summary: Completed the final phase-14 soak evidence: focused lifecycle tests (19/20, with an explicit f16 fragmented-restore recovery), ordinary-service request/cancellation/restart control soak (12/12 HTTP 200), 30-sample resource capture, health/profile restoration, and SOAK_ACCEPTANCE_V2 artifacts. Pager acceptance remains blocked by the 14-04 selective native-MTP prerequisite failures; no pager pass or speed claim was made.
+
+## 2026-09-04T02:38:08+00:00 — 15-01 — done
+
+- Branch: `codex/task-15-01`
+- Commit at update: `39dfb98c8`
+- Summary: Fetched remotes, recorded upstream divergence and duplicate direction, created the V2 dependency-ordered source slice map, ran release CPU and focused CUDA verification, and preserved the outer-Git re-sync requirement in the handoff.
