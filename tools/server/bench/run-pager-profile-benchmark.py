@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import time
@@ -59,24 +60,80 @@ def api_key() -> str:
     return key
 
 
+def _managed_server_pid() -> int | None:
+    configured = os.environ.get("LLAMA_SERVER_PID")
+    if configured and configured.isdigit() and int(configured) > 0:
+        return int(configured)
+    service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
+    try:
+        value = subprocess.check_output(
+            ["systemctl", "show", "--value", "--property=MainPID", service],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+        return int(value) if value.isdigit() and int(value) > 0 else None
+    except (OSError, subprocess.CalledProcessError, ValueError):
+        return None
+
+
+def _command_value(command: list[str], option: str) -> str | None:
+    try:
+        index = command.index(option)
+    except ValueError:
+        return None
+    return command[index + 1] if index + 1 < len(command) else None
+
+
+def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, object]:
+    """Capture the managed server's observed process/configuration identity.
+
+    The MainPID is deliberately taken from the configured service, rather than
+    selecting the first process named llama-server.  That keeps an independent
+    inference service (for example one on another port) out of the evidence.
+    """
+    pid = _managed_server_pid() if pid is None else pid
+    command: list[str] = []
+    binary = None
+    if pid is not None:
+        try:
+            command = [part for part in pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0") if part]
+            binary = str(pathlib.Path(f"/proc/{pid}/exe").resolve())
+        except (OSError, UnicodeDecodeError):
+            pid = None
+    model = _command_value(command, "-m")
+    if model:
+        try:
+            model = str(pathlib.Path(model).resolve())
+        except OSError:
+            pass
+    pager = _command_value(command, "--kv-pager") or "not_present"
+    mtp = _command_value(command, "--spec-draft-kv-device") or "not_present"
+    return {
+        "profile": profile,
+        "pid": pid,
+        "binary": binary,
+        "command": shlex.join(command) if command else None,
+        "model": model,
+        "context": _command_value(command, "-c"),
+        "pager_mode": pager,
+        "page_size_tokens": _command_value(command, "--kv-page-size"),
+        "mtp_placement": mtp,
+        "mtp_type_k": _command_value(command, "--spec-draft-type-k") or "not_present",
+        "mtp_type_v": _command_value(command, "--spec-draft-type-v") or "not_present",
+    }
+
+
 def service_snapshot(endpoint: str | None) -> dict[str, object]:
     active_path = os.environ.get("LLAMA_ACTIVE_PROFILE")
     profile = None
     if active_path:
         active = pathlib.Path(active_path)
-        profile = active.read_text().split()[0] if active.exists() and active.read_text().split() else None
-    pid = None
-    command = None
-    try:
-        rows = subprocess.check_output(["ps", "-eo", "pid=,args="], text=True).splitlines()
-        for row in rows:
-            if "llama-server" in row and "grep" not in row:
-                parts = row.strip().split(None, 1)
-                pid = int(parts[0])
-                command = parts[1] if len(parts) == 2 else ""
-                break
-    except (OSError, subprocess.CalledProcessError, ValueError):
-        pass
+        try:
+            values = active.read_text().split()
+            profile = values[0] if values else None
+        except OSError:
+            pass
+    pid = _managed_server_pid()
+    identity = runtime_identity(profile, pid)
     health = None
     try:
         if not endpoint:
@@ -96,8 +153,56 @@ def service_snapshot(endpoint: str | None) -> dict[str, object]:
         ).splitlines()
     except (OSError, subprocess.CalledProcessError):
         services = []
-    return {"profile": profile, "pid": pid, "command": command, "health": health,
+    return {"profile": profile, "pid": pid, "command": identity["command"],
+            "identity": identity, "health": health,
             "running_services": [line.split()[0] for line in services if line.split()]}
+
+
+def identity_mismatches(observed: dict[str, object], expected: dict[str, object]) -> list[str]:
+    fields = ("profile", "binary", "model", "context", "pager_mode",
+              "page_size_tokens", "mtp_placement")
+    errors = [field for field in fields if observed.get(field) != expected.get(field)]
+    if expected.get("mtp_placement") == "gpu":
+        for field in ("mtp_type_k", "mtp_type_v"):
+            if observed.get(field) != "turbo4":
+                errors.append(field)
+    return errors
+
+
+def restore_profile(profile: str | None) -> dict[str, object]:
+    """Re-enter the established profile activation path, safely and repeatably."""
+    if not profile:
+        return {"attempted": False, "state": "no_prior_profile"}
+    activator = os.environ.get("LLAMA_PROFILE_ACTIVATOR")
+    if not activator:
+        return {"attempted": False, "state": "activator_not_configured"}
+    sudo = shlex.split(os.environ.get("BENCH_SUDO", "sudo"))
+    command = sudo + [activator, profile]
+    try:
+        result = subprocess.run(command, check=False, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL)
+    except OSError as error:
+        return {"attempted": True, "state": "activation_error", "error": str(error)}
+    return {"attempted": True, "state": "restored" if result.returncode == 0 else "restore_failed",
+            "exit_code": result.returncode, "profile": profile}
+
+
+def record_validation_errors(output: pathlib.Path) -> list[str]:
+    records_path = output / "records.jsonl"
+    if not records_path.exists():
+        return ["missing_records"]
+    errors: list[str] = []
+    try:
+        records = [json.loads(line) for line in records_path.read_text().splitlines() if line.strip()]
+    except (OSError, TypeError, json.JSONDecodeError):
+        return ["malformed_records"]
+    if not records:
+        return ["empty_records"]
+    if any(record.get("error") is True or record.get("http_code") != 200 for record in records):
+        errors.append("request_contract_failure")
+    if any(not isinstance(record.get("timings"), dict) for record in records if record.get("error") is not True):
+        errors.append("missing_record_timings")
+    return errors
 
 
 def metrics_endpoint(endpoint: str) -> str:
@@ -250,7 +355,8 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
     (output / "summary.txt").write_text("dry run: service was not contacted\n")
 
 
-def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, object], after: dict[str, object], telemetry: dict[str, object] | None) -> None:
+def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, object], after: dict[str, object], telemetry: dict[str, object] | None,
+           validation_errors: list[str], restoration: dict[str, object] | None) -> None:
     config_path = output / "run-config.json"
     config = json.loads(config_path.read_text())
     config["pager"] = pager_envelope(variant, telemetry)
@@ -260,10 +366,16 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
                           "restore_requested": restore_requested,
                           "loaded_profile": after.get("profile"),
                           "restored_profile": before.get("profile") if restore_requested else None}
+    previous_identity = config.get("runtime_identity")
+    requested_identity = previous_identity.get("candidate") if isinstance(previous_identity, dict) else None
+    config["runtime_identity"] = {"before": before.get("identity"), "after": after.get("identity"),
+                                   "requested": requested_identity}
     config["lifecycle"] = {
         "policy": "restore-on-request-or-failure; keep-loaded-on-success",
-        "resume_usable": bool(after.get("health") and after["health"].get("http_code") == 200),
+        "resume_usable": not validation_errors and bool(after.get("health") and after["health"].get("http_code") == 200),
         "active_profile_after_run": after.get("profile"),
+        "validation_errors": validation_errors,
+        "restoration": restoration,
     }
     (output / "lifecycle-state.json").write_text(json.dumps({
         "schema_version": 1,
@@ -274,6 +386,11 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
         "profile_after": after.get("profile"),
         "health_after": after.get("health"),
         "server_pid_after": after.get("pid"),
+        "identity_before": before.get("identity"),
+        "identity_after": after.get("identity"),
+        "candidate_identity": requested_identity,
+        "validation_errors": validation_errors,
+        "restoration": restoration,
     }, indent=2) + "\n")
     config["benchmark_variant"] = variant
     config_path.write_text(json.dumps(config, indent=2) + "\n")
@@ -338,9 +455,20 @@ def main() -> int:
                                              ("CANONICAL_BENCHMARK_RUNNER", runner)) if not value]
         print("pager benchmark: missing required configuration: " + ", ".join(missing), file=sys.stderr)
         return 2
+    output.mkdir(parents=True, exist_ok=True)
     before = service_snapshot(endpoint)
     telemetry_before, telemetry_before_error = read_server_metrics(endpoint)
     if telemetry_before_error:
+        (output / "lifecycle-state.json").write_text(json.dumps({
+            "schema_version": 1,
+            "policy": "restore-on-request-or-failure; keep-loaded-on-success",
+            "profile_before": before.get("profile"),
+            "profile_after": before.get("profile"),
+            "identity_before": before.get("identity"),
+            "identity_after": before.get("identity"),
+            "validation_errors": [telemetry_before_error],
+            "restoration": None,
+        }, indent=2) + "\n")
         print("pager benchmark: " + telemetry_before_error, file=sys.stderr)
         return 2
     command = [runner, args.target, str(output)]
@@ -354,26 +482,98 @@ def main() -> int:
     # Successful runs remain loaded by default. Explicit control/revert runs
     # opt into restoration; failed runs are restored by the canonical runner.
     env["BENCH_RESTORE_PROFILE"] = "1" if args.restore_control else "0"
-    result = subprocess.run(command, env=env)
+    validation_errors: list[str] = []
+    result: subprocess.CompletedProcess[str] | None = None
+    runner_error: str | None = None
+    try:
+        result = subprocess.run(command, env=env)
+    except KeyboardInterrupt:
+        runner_error = "canonical_runner_interrupted"
+    except OSError as error:
+        runner_error = f"canonical_runner_error:{error}"
     after = service_snapshot(endpoint)
     telemetry_after, telemetry_after_error = read_server_metrics(endpoint)
     if telemetry_after_error:
-        print("pager benchmark: " + telemetry_after_error, file=sys.stderr)
-        return 2
+        validation_errors.append(telemetry_after_error)
+    if runner_error:
+        validation_errors.append(runner_error)
+    canonical_rc = result.returncode if result is not None else 1
+    config: dict[str, object] | None = None
     if (output / "run-config.json").exists():
-        enrich(output, args.target, args.variant, before, after, telemetry_after or telemetry_before)
+        try:
+            config = json.loads((output / "run-config.json").read_text())
+        except (OSError, TypeError, json.JSONDecodeError):
+            validation_errors.append("malformed_run_config")
+    elif canonical_rc == 0:
+        validation_errors.append("missing_run_config")
+    if canonical_rc == 0:
+        validation_errors.extend(record_validation_errors(output))
+    if canonical_rc == 0 and config is not None:
+        requested = config.get("runtime_identity", {}).get("candidate") if isinstance(config.get("runtime_identity"), dict) else None
+        if isinstance(requested, dict):
+            mismatches = identity_mismatches(after.get("identity", {}), requested)
+            if mismatches:
+                validation_errors.append("runtime_identity_mismatch:" + ",".join(mismatches))
+        else:
+            validation_errors.append("missing_runtime_identity")
     if args.restore_control and before.get("profile") and after.get("profile") != before.get("profile"):
-        print("pager benchmark: requested control profile was not restored", file=sys.stderr)
-        return 1
-    if not after.get("health") or after["health"].get("http_code") != 200:  # type: ignore[union-attr]
-        print("pager benchmark: post-run service health check failed", file=sys.stderr)
-        return 1
-    if result.returncode == 0:
-        missing = missing_pager_fields(telemetry_after or telemetry_before)
+        validation_errors.append("control_profile_not_restored")
+    if canonical_rc == 0 and (not after.get("health") or after["health"].get("http_code") != 200):  # type: ignore[union-attr]
+        validation_errors.append("post_run_service_unhealthy")
+    if canonical_rc == 0:
+        missing = missing_pager_fields(telemetry_after)
         if missing:
-            print("pager benchmark: required server pager telemetry missing: " + ", ".join(missing), file=sys.stderr)
-            return 1
-    return result.returncode
+            validation_errors.append("missing_pager_telemetry:" + ",".join(missing))
+
+    restoration: dict[str, object] | None = None
+    if canonical_rc != 0 or validation_errors:
+        # The canonical runner restores its own failed attempts. This second,
+        # idempotent call covers failures discovered only by this adapter after
+        # the runner returned success, and covers a runner startup exception.
+        restoration = restore_profile(before.get("profile"))
+        if restoration.get("state") == "activator_not_configured":
+            validation_errors.append("restoration_not_configured")
+        after = service_snapshot(endpoint)
+        stopped = after.get("identity", {}).get("pid") is None and not (
+            after.get("health") and after["health"].get("http_code") == 200
+        )
+        if stopped:
+            restoration["state"] = "known_stopped"
+        elif before.get("profile") and after.get("profile") != before.get("profile"):
+            validation_errors.append("restore_verification_failed")
+
+    if (output / "run-config.json").exists():
+        try:
+            enrich(output, args.target, args.variant, before, after, telemetry_after,
+                   validation_errors, restoration)
+        except (OSError, TypeError, json.JSONDecodeError):
+            validation_errors.append("malformed_run_artifacts")
+            (output / "lifecycle-state.json").write_text(json.dumps({
+                "schema_version": 1,
+                "policy": "restore-on-request-or-failure; keep-loaded-on-success",
+                "profile_before": before.get("profile"),
+                "profile_after": after.get("profile"),
+                "identity_before": before.get("identity"),
+                "identity_after": after.get("identity"),
+                "validation_errors": validation_errors,
+                "restoration": restoration,
+            }, indent=2) + "\n")
+    elif validation_errors:
+        (output / "lifecycle-state.json").write_text(json.dumps({
+            "schema_version": 1,
+            "policy": "restore-on-request-or-failure; keep-loaded-on-success",
+            "profile_before": before.get("profile"),
+            "profile_after": after.get("profile"),
+            "identity_before": before.get("identity"),
+            "identity_after": after.get("identity"),
+            "validation_errors": validation_errors,
+            "restoration": restoration,
+        }, indent=2) + "\n")
+    if validation_errors:
+        print("pager benchmark: " + "; ".join(validation_errors), file=sys.stderr)
+    if canonical_rc != 0:
+        return canonical_rc
+    return 1 if validation_errors else 0
 
 
 if __name__ == "__main__":

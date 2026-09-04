@@ -165,11 +165,23 @@ historical fixed hotset or context default.
 Successful live runs keep the tested profile loaded and write
 `lifecycle-state.json`, including whether the health-checked service is usable
 for resume. Use `--restore-control` only for an intentional control/revert
-run; failed or interrupted runs restore the previous healthy profile.
+run; failed or interrupted runs restore the previous healthy profile. If the
+canonical runner returns success but adapter validation rejects telemetry,
+health, records, or identity, the adapter invokes the configured activator and
+verifies the prior profile again. Cleanup is safe to repeat.
 
-Live runs require `BENCH_ENDPOINT` and `CANONICAL_BENCHMARK_RUNNER`. Set
-`PAGER_CORPUS` for the frozen corpus, and optionally set `LLAMA_ACTIVE_PROFILE`
-and `LLAMA_API_KEY_FILE` for service snapshots and authentication. If the
+The lifecycle manifest records a requested candidate identity and the observed
+managed-service identity: profile, systemd MainPID, executable, model,
+context, pager mode/page size, and native-MTP placement/types. Identity is
+scoped to `LLAMA_SERVICE_NAME` (and never selects an arbitrary `llama-server`
+process), so an unrelated service such as one on another port is not touched.
+The run fails closed before measuring when the active candidate does not match
+the requested binary or configuration.
+
+Live runs require `BENCH_ENDPOINT`, `CANONICAL_BENCHMARK_RUNNER`,
+`LLAMA_ACTIVE_PROFILE`, and `LLAMA_PROFILE_ACTIVATOR`. Set
+`PAGER_CORPUS` for the frozen corpus, and optionally set
+`LLAMA_API_KEY_FILE` for authentication. If the
 metrics endpoint is protected, `LLAMA_API_KEY_FILE` (or `BENCH_API_KEY`) is
 required: an HTTP 401/403 is a launcher-configuration error, not
 `not_configured` pager telemetry. The adapter reads the key locally and never
