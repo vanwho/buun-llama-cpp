@@ -38,7 +38,7 @@ Media prompts and aLoRA invocation boundaries remain typed live-only fallbacks. 
 full matrix is in
 [docs/vbr.md](../../docs/vbr.md#automatic-host-cache-support-matrix).
 
-## Attention-aware KV paging (experimental internal boundary)
+## Attention-aware KV paging (experimental operator boundary)
 
 The server exposes the experimental `--kv-pager` command-line option through
 the common parser. The modes are `off`, `observe`, `selective`, and `exact`;
@@ -48,15 +48,16 @@ budgets/caps until the runtime resolves them and reports `not configured` for
 placement data that is not owned by this target context. Do not infer live
 capacity, quality, or throughput from deterministic fixtures.
 
-The reference geometry is Qwen3.8-specific: 256-token cross-layer target pages,
+The currently supported geometry is Qwen3.8-family-specific: 256-token
+cross-layer target pages,
 16 full-attention layers, 4 KV heads, K/V width 256, and Turbo4 at 4.125
 bits/value. A complete target page is 4,325,376 encoded bytes (4.125 MiB).
-The design target is about 304 target pages, or 77,824 hot tokens, after
-weights, graph/scratch, recurrent state, staging, headroom, and full-length
-MTP are reserved. Native MTP is a separate full-context Turbo4 GPU allocation;
-the reference 262,144-token MTP payload is 276,824,064 encoded bytes (264 MiB)
-before allocator overhead. These are accounting values, not a promise that the
-current server allocates them.
+The hot capacity is calculated at startup from the resolved target context and
+the runtime byte ledger after weights, graph/scratch, recurrent state, staging,
+headroom, and MTP reservations. It is not a fixed token or page default.
+Native MTP is a separate full-context Turbo4 GPU allocation whose row count is
+the resolved target context for that run; it is outside the target pager's
+victim set.
 
 Every sealed target page requires canonical Turbo4 host backing. VRAM holds
 only the selected target window plus model, graph, recurrent, MTP, and bounded
@@ -74,17 +75,26 @@ eviction, and insufficient budget are refused or remain on the prior valid
 snapshot. There is no CPU Turbo4 attention fallback.
 
 Internal telemetry aggregates bounded per-page mass, EMA/peak retention
-evidence, transfers, faults, prefetch, evictions, stale completions, and
-resource accounting. `--metrics` enables the ordinary Prometheus endpoint;
-pager counter export is completed by the metrics task. Missing pager telemetry
-must be recorded as `not_configured`, not as zero.
+evidence, transfers, faults, prefetch, evictions, stale completions, epochs,
+and resource accounting. With `--metrics`, the Prometheus endpoint exports
+`llamacpp:kv_pager_mode`, labeled identity gauges (`route`, `mtp_backend`, and
+target types), and scalar `llamacpp:kv_pager_<field>` gauges. Missing pager
+telemetry means `not_configured`; it must not be reported as zero.
+
+`off` is the normal dense path; `observe` records evidence without selective
+eviction; `selective` enables the supported attention-guided route; and
+`exact` requires exact-mode invariants and fails closed when they are not met.
+The pager owns target KV pages only. Host RAM owns canonical sealed-page
+backing and metadata, pinned memory owns only the transfer ring, and VRAM owns
+the selected target window plus ordinary model/runtime reservations. Recurrent
+state and native MTP are separate allocations.
 
 For supported draft placement, use the documented
 [`--spec-draft-kv-device`](../../docs/speculative.md#draft-kv-placement) option. Pager
 page-size, hot-set, budget, prefetch, and mode switches remain internal until
 the runtime and CLI contracts are accepted. The bounded benchmark adapter and
 raw acceptance status are linked from
-[`docs/execution/evidence/INDEX.md`](../../docs/execution/evidence/INDEX.md).
+[`docs/execution/evidence/INDEX_V2.md`](../../docs/execution/evidence/INDEX_V2.md).
 
 ## Usage
 
