@@ -47,9 +47,24 @@ def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
-def service_snapshot(endpoint: str) -> dict[str, object]:
-    active = pathlib.Path("/srv/ai/config/llama/active-profile")
-    profile = active.read_text().split()[0] if active.exists() and active.read_text().split() else None
+def api_key() -> str:
+    key = os.environ.get("BENCH_API_KEY", "")
+    key_path = os.environ.get("LLAMA_API_KEY_FILE")
+    if not key and key_path:
+        try:
+            key = next(line for line in pathlib.Path(key_path).read_text().splitlines()
+                       if line.strip() and not line.lstrip().startswith("#"))
+        except (OSError, StopIteration):
+            pass
+    return key
+
+
+def service_snapshot(endpoint: str | None) -> dict[str, object]:
+    active_path = os.environ.get("LLAMA_ACTIVE_PROFILE")
+    profile = None
+    if active_path:
+        active = pathlib.Path(active_path)
+        profile = active.read_text().split()[0] if active.exists() and active.read_text().split() else None
     pid = None
     command = None
     try:
@@ -64,15 +79,10 @@ def service_snapshot(endpoint: str) -> dict[str, object]:
         pass
     health = None
     try:
+        if not endpoint:
+            raise URLError("BENCH_ENDPOINT is not configured")
         root = endpoint.split("/v1/", 1)[0].rstrip("/")
-        key = os.environ.get("BENCH_API_KEY", "")
-        if not key:
-            key_path = os.environ.get("LLAMA_API_KEY_FILE", "/srv/ai/config/llama/api-keys")
-            try:
-                key = next(line for line in pathlib.Path(key_path).read_text().splitlines()
-                           if line.strip() and not line.lstrip().startswith("#"))
-            except (OSError, StopIteration):
-                pass
+        key = api_key()
         headers = {"Authorization": f"Bearer {key}"} if key else {}
         with urlopen(Request(root + "/health", headers=headers), timeout=3) as response:
             health = {"http_code": response.status, "body": response.read(4096).decode(errors="replace")}
@@ -95,14 +105,7 @@ def metrics_endpoint(endpoint: str) -> str:
 
 
 def read_server_metrics(endpoint: str) -> dict[str, object] | None:
-    key = os.environ.get("BENCH_API_KEY", "")
-    if not key:
-        key_path = os.environ.get("LLAMA_API_KEY_FILE", "/srv/ai/config/llama/api-keys")
-        try:
-            key = next(line for line in pathlib.Path(key_path).read_text().splitlines()
-                       if line.strip() and not line.lstrip().startswith("#"))
-        except (OSError, StopIteration):
-            pass
+    key = api_key()
     headers = {"Authorization": f"Bearer {key}"} if key else {}
     try:
         with urlopen(Request(metrics_endpoint(endpoint), headers=headers), timeout=3) as response:
@@ -175,8 +178,9 @@ def missing_pager_fields(telemetry: dict[str, object] | None) -> list[str]:
 
 def corpus(variant: str) -> dict[str, object]:
     description = VARIANTS[variant]["description"]
-    corpus_path = pathlib.Path(os.environ.get("PAGER_CORPUS", "/srv/ai/paged-kv/pager-corpus-v2/corpus.json"))
-    if corpus_path.exists():
+    corpus_value = os.environ.get("PAGER_CORPUS")
+    corpus_path = pathlib.Path(corpus_value) if corpus_value else None
+    if corpus_path and corpus_path.exists():
         try:
             frozen = json.loads(corpus_path.read_text())
             return {"schema": CORPUS_SCHEMA, "name": "pager-corpus-v2", "variant": variant,
@@ -187,12 +191,12 @@ def corpus(variant: str) -> dict[str, object]:
         except (OSError, KeyError, TypeError, json.JSONDecodeError):
             pass
     return {"schema": CORPUS_SCHEMA, "name": "pager-corpus-v2", "variant": variant,
-            "description": description, "path": str(corpus_path),
+            "description": description, "path": str(corpus_path) if corpus_path else None,
             "corpus_hash": None, "cases": 0, "model_sha256": None, "tokenizer_sha256": None,
             "expected_answers_status": "not_configured"}
 
 
-def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str) -> None:
+def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str | None) -> None:
     output.mkdir(parents=True, exist_ok=True)
     envelope = pager_envelope(variant)
     frozen_corpus = corpus(variant)
@@ -207,7 +211,7 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
         "placement": {"target_kv": "not_configured", "mtp_rows": None,
                        "mtp_kv_type": "not_configured", "mtp_backend": "not_configured", "mtp_bytes": None},
         "service": {"status": "not_started"},
-        "compatibility": {"canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "compatibility": {"canonical_runner": os.environ.get("CANONICAL_BENCHMARK_RUNNER"),
                            "records_format": "canonical records.jsonl preserved"},
     }
     (output / "run-config.json").write_text(json.dumps(config, indent=2) + "\n")
@@ -258,16 +262,22 @@ def main() -> int:
     parser.add_argument("--restore-control", action="store_true",
                         help="restore the profile active before the run after completion")
     args = parser.parse_args()
-    endpoint = os.environ.get("BENCH_ENDPOINT", "http://127.0.0.1:8090/v1/chat/completions")
-    output = pathlib.Path(args.output or f"/srv/ai/paged-kv/results/pager-{args.variant}-{args.target}-dry")
+    endpoint = os.environ.get("BENCH_ENDPOINT")
+    output = pathlib.Path(args.output or f"pager-results/pager-{args.variant}-{args.target}-dry")
     if args.dry_run:
         write_dry_run(output, args.target, args.variant, endpoint)
         print(output)
         return 0
 
+    runner = os.environ.get("CANONICAL_BENCHMARK_RUNNER")
+    if not endpoint or not runner:
+        missing = [name for name, value in (("BENCH_ENDPOINT", endpoint),
+                                             ("CANONICAL_BENCHMARK_RUNNER", runner)) if not value]
+        print("pager benchmark: missing required configuration: " + ", ".join(missing), file=sys.stderr)
+        return 2
     before = service_snapshot(endpoint)
     telemetry_before = read_server_metrics(endpoint)
-    command = ["/srv/ai/benchmarks/run-profile-benchmark.sh", args.target, str(output)]
+    command = [runner, args.target, str(output)]
     env = os.environ.copy()
     env["BENCH_SIZE"] = VARIANTS[args.variant]["size"]
     # Successful runs remain loaded by default. Explicit control/revert runs

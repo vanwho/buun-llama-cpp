@@ -150,6 +150,12 @@ tools/server/bench/run-pager-profile-benchmark.sh <profile> <variant> <results-d
 tools/server/bench/run-pager-profile-benchmark.sh <profile> <variant> <results-dir> --dry-run
 ```
 
+Live runs require `BENCH_ENDPOINT` and `CANONICAL_BENCHMARK_RUNNER`. Set
+`PAGER_CORPUS` for the frozen corpus, and optionally set `LLAMA_ACTIVE_PROFILE`
+and `LLAMA_API_KEY_FILE` for service snapshots and authentication. These
+machine-specific paths are deliberately not supplied as defaults; a dry run
+remains usable without them and records the boundary as `not_configured`.
+
 The adapter reads pager telemetry directly from the server's `/metrics`
 endpoint. A live run fails if required pager fields are absent; it never
 substitutes `PAGER_*` environment values for runtime measurements. A dry run
