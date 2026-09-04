@@ -10,7 +10,7 @@ runner=${CODEX_CLUSTERED_RUNNER:-/srv/codex/run_until_complete_clustered.sh}
 }
 
 if ! grep -q 'PROJECT_ROOT' "$runner" ||
-   ! grep -q 'CODEX_GIT_MODE' "$runner" ||
+   ! grep -q 'GIT_MODE' "$runner" ||
    ! grep -q 'docs/execution/clusters' "$runner"; then
   printf '%s\n' \
     'The shared runner lacks project/manual-Git/cluster-context support required by this package.' \
@@ -19,7 +19,7 @@ if ! grep -q 'PROJECT_ROOT' "$runner" ||
 fi
 
 export PROJECT_ROOT="$root"
-export CODEX_GIT_MODE="${CODEX_GIT_MODE:-auto}"
+export GIT_MODE="${GIT_MODE:-auto}"
 export PROJECT_REMOTE="${PROJECT_REMOTE:-origin}"
 export PROJECT_BRANCH="${PROJECT_BRANCH:-plan/attention-aware-kv-paging}"
 # Clusters still bound related work by task ownership. Leave conversation

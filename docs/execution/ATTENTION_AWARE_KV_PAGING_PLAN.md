@@ -757,7 +757,7 @@ Before beginning a slice, fetch and fast-forward the appropriate `vanwho/*` fork
 upstream in a clean worktree, re-read repository instructions, and record the base SHA. Fork-only
 feature branches must be based on that recorded default-branch SHA; do not merge upstream into an
 in-progress slice. Before handoff, rebase or
-range-diff deliberately and rerun the slice's tests. The clustered runner remains `CODEX_GIT_MODE=manual`
+range-diff deliberately and rerun the slice's tests. The clustered runner remains `GIT_MODE=manual`
 and never commits automatically; the user-authorized outer agent may review, commit, and push fork-only
 branches. If auto mode is explicitly selected for a fully unattended fork run, its implementation
 commit excludes `docs/execution/**`; the subsequent `chore(<task>): record task completion` commit contains
@@ -885,7 +885,7 @@ Mandatory process:
   PRs, and performs merges;
 - use reviewed, focused commits and preserve a clean range-diff for any upstream-bound work.
 
-The checked-in wrapper defaults to `CODEX_GIT_MODE=auto`; use `CODEX_GIT_MODE=manual` for supervised
+The checked-in wrapper defaults to `GIT_MODE=auto`; use `GIT_MODE=manual` for supervised
 upstream-bound work. Auto mode is permitted only for the user-authorized fork-local completion run
 documented in section 14; its
 implementation and execution-metadata commits remain separate, and no upstream GitHub action is
@@ -897,11 +897,11 @@ The shared runner now accepts project-specific state clusters and a no-Git mode.
 
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
-CODEX_GIT_MODE=manual \
+GIT_MODE=manual \
 /srv/codex/run_until_complete_clustered.sh --status
 
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
-CODEX_GIT_MODE=manual \
+GIT_MODE=manual \
 /srv/codex/run_until_complete_clustered.sh --show-clusters
 ```
 
@@ -916,7 +916,7 @@ cd /srv/repos/vanwho/buun-llama-cpp
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 PROJECT_REMOTE=origin \
 PROJECT_BRANCH=plan/attention-aware-kv-paging \
-CODEX_GIT_MODE=auto \
+GIT_MODE=auto \
 CODEX_SESSION_MAX_TURNS=0 \
 CODEX_SESSION_MAX_INPUT_TOKENS=0 \
 /srv/codex/run_until_complete_clustered.sh
@@ -928,7 +928,7 @@ configured `origin` fork, creates temporary `codex/task-<id>` branches, pushes t
 `plan/attention-aware-kv-paging`, and removes the temporary remote branch. It still stops on a persisted
 blocked task, the runner stop/pause controls, an unavailable required artifact, a failing hard gate, or
 an unrecoverable restart/health-check failure. Upstream branches, issues, pull requests, and merges remain
-human-owned. To inspect before or after a run, use `CODEX_GIT_MODE=manual` with the wrapper's `--status`
+human-owned. To inspect before or after a run, use `GIT_MODE=manual` with the wrapper's `--status`
 or `--show-clusters` commands above.
 
 The 33 tasks are divided into 16 contiguous ownership-oriented clusters of one to three tasks; the

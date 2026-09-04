@@ -17,7 +17,7 @@ The wrapper defaults to auto Git mode. For supervised upstream-bound work, expli
 
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
-CODEX_GIT_MODE=manual \
+GIT_MODE=manual \
 /srv/codex/run_until_complete_clustered.sh --status
 ```
 
@@ -37,7 +37,7 @@ cd /srv/repos/vanwho/buun-llama-cpp
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 PROJECT_REMOTE=origin \
 PROJECT_BRANCH=plan/attention-aware-kv-paging \
-CODEX_GIT_MODE=auto \
+GIT_MODE=auto \
 CODEX_SESSION_MAX_TURNS=0 \
 CODEX_SESSION_MAX_INPUT_TOKENS=0 \
 /srv/codex/run_until_complete_clustered.sh
