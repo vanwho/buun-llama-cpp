@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "task": "14-03",
+  "decision": "block",
+  "decision_reason": "Frozen held-out score is 0/12 for both dense and selective; exact CUDA page-wave callbacks and required pager telemetry are unavailable, and frozen prompts contain no fixture facts despite their construction label.",
+  "raw_root": "/srv/ai/paged-kv/results/14-03-quality-20260904T012500Z",
+  "provenance": {
+    "repository_head": "8ae95b618",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus_schema": "pager-corpus-v2",
+    "corpus_hash": "e8cd002b2a6215a5003db7b8c204602bba1879a5bdf91a2a9ef9b0a2e3ff0e35",
+    "release_config_hash": "2497f112026c71f904ac115cded4dd290a42bfd52a18ba202dc7337e5f88276b",
+    "binary": "build-14-01-cuda/bin/llama-server",
+    "binary_sha256": "4cb1a90011d2d5b486b3f83b2ce3c9863eb65b55119b290fa52c8e70c1854626",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "gpu_total_mib": 16376,
+    "sampling": {"temperature": 0, "seed": 42},
+    "corpus_validation": "passed; recomputed corpus hash matched"
+  },
+  "frozen_controls": {
+    "policy": "phase-13 release candidate unchanged",
+    "checker": "exact normalized answer, minimum score 1.0",
+    "held_out_cases": 12,
+    "dense_context": 32768,
+    "selective_context": 32768,
+    "exact_context": 32768
+  },
+  "runs": [
+    {"name": "dense", "mode": "off", "context": 32768, "cases": 12, "responses": 12, "errors": 0, "score": 0.0, "raw": "raw/dense-32768"},
+    {"name": "selective", "mode": "selective", "context": 32768, "cases": 12, "responses": 12, "errors": 0, "score": 0.0, "raw": "raw/selective-32768", "pager_startup": {"logical_pages": 128, "admitted_pages": 128, "H": 32768, "target_page_bytes": 4325376, "target_bytes": 553648128, "route": "selective"}},
+    {"name": "exact", "mode": "exact", "context": 32768, "cases": 12, "responses": 0, "errors": 12, "score": null, "raw": "raw/exact-32768", "coverage_observed": {"pages": 1, "waves": 1, "resident": 1, "cold": 0, "h2d": 0, "peak_staging": 0}, "refusal": "exact CUDA page-wave callbacks are not configured"},
+    {"name": "selective-diagnostic", "mode": "selective", "context": 16384, "cases": 12, "responses": 11, "errors": 1, "score": 0.0, "raw": "raw/selective-16384", "refusal": "selected page positions are not present in the cache view"}
+  ],
+  "per_case": [
+    {"id":"warm-focus","expected":"system anchor: answer only from the supplied context. (held-out)","dense":"no supplied context","selective":"no requested information","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"cold-early","expected":"early-needle-17 (held-out)","dense":"no supplied context","selective":"no supplied text/context","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"cold-middle","expected":"middle-needle-29 (held-out)","dense":"cold-middle","selective":"no information","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"cold-end","expected":"end-needle-41 (held-out)","dense":"no supplied context","selective":"refuses hidden content","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"competing-a","expected":"candidate-a (held-out)","dense":"cannot verify file","selective":"cannot verify document","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"competing-b","expected":"candidate-b (held-out)","dense":"cannot verify file","selective":"cannot verify document","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"conversation","expected":"the restoration procedure (held-out)","dense":"no supplied context","selective":"refuses protected content","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"focus-shift","expected":"page residency (held-out)","dense":"no prior context","selective":"no previous context","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"recent-control","expected":"use temperature zero (held-out)","dense":"no supplied contents","selective":"HTTP 500 Compute error","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"repo-fact","expected":"src/llama-cache-budget.cpp (held-out)","dense":"no supplied file content","selective":"file_1.txt absent","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"tool-anchor","expected":"timeout=30s (held-out)","dense":"30 seconds","selective":"no supplied tool context","exact":"callback refusal","dense_score":0,"selective_score":0},
+    {"id":"churn","expected":"stable-token-53 (held-out)","dense":"no stable answer","selective":"no stable answer","exact":"callback refusal","dense_score":0,"selective_score":0}
+  ],
+  "gates": {
+    "dense_selected_all_output_abs": {"threshold": 0.00001, "observed": null, "status": "blocked_no_selected_all_or_exact_binding"},
+    "dense_selected_all_logit_abs": {"threshold": 0.0001, "observed": null, "status": "blocked_no_aligned_logits"},
+    "routing_recall_at_selected": {"threshold": 0.95, "observed": null, "status": "blocked_telemetry_missing"},
+    "captured_attention_mass": {"threshold": 0.95, "observed": null, "status": "blocked_telemetry_missing"},
+    "held_out_task_score": {"threshold": 1.0, "dense": 0.0, "selective": 0.0, "status": "fail"},
+    "perplexity_relative_delta": {"threshold": 0.02, "observed": null, "status": "blocked_no_frozen_perplexity_sample"},
+    "kl_divergence": {"threshold": 0.01, "observed": null, "status": "blocked_no_aligned_exact_logits"},
+    "mtp_acceptance": {"threshold": "report weighted counts", "observed": null, "status": "not_run_mtp_disabled_in_quality_modes"}
+  },
+  "telemetry": {
+    "required_pager_metrics_exported": false,
+    "generic_metrics_exported": true,
+    "missing_fields": ["H", "L", "attention_rows", "graph_bytes", "scratch_bytes", "faults", "prefetch_hits", "late_waits", "evictions", "d2h_useful_bytes", "d2h_aligned_bytes", "h2d_useful_bytes", "h2d_aligned_bytes", "transfer_bandwidth_bytes_per_s", "overlap_us", "table_rebuilds", "host_rss_bytes", "pinned_bytes", "vram_peak_bytes", "mtp_rows", "mtp_kv_type", "mtp_backend", "mtp_bytes", "pager_ledger"],
+    "raw": "raw/selective-32768/final.metrics.txt"
+  },
+  "ablations": {
+    "router": "not_run_after_baseline_gate_failure",
+    "attention_retention": "not_run_after_baseline_gate_failure",
+    "recent_structural_transient_pins": "not_run_after_baseline_gate_failure",
+    "prefetch": "not_run_after_baseline_gate_failure",
+    "focus_shifts_and_churn": "not_run_without_multi_page_fixtures"
+  },
+  "exact_coverage": {
+    "status": "partial_plan_only",
+    "actual_prompt_pages": 1,
+    "full_context_cases_exercised": false,
+    "multi_wave_transfer_exercised": false,
+    "host_catalog_retrieval_exercised": false,
+    "callback_refusal": true
+  },
+  "restore": {
+    "raw": "restore-final.txt",
+    "profile": "qwen38-big",
+    "llama_server_active": true,
+    "long_memory_active": true,
+    "health_8080": "ok",
+    "health_8091": "ok",
+    "temporary_environment_unset": true,
+    "gpu_used_mib": 15481,
+    "gpu_free_mib": 462,
+    "independent_8092_untouched": true
+  },
+  "deferred_verification": {
+    "required_hardware_or_human_action": false,
+    "status": "none_deferred",
+    "block_is_local": true
+  }
+}
