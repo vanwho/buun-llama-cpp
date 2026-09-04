@@ -7,9 +7,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "15",
-  "current_task": "15-09",
-  "last_updated_utc": "2026-09-04T15:29:53+00:00",
+  "current_phase": "16",
+  "current_task": "16-01",
+  "last_updated_utc": "2026-09-04T15:52:16+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1104,13 +1104,13 @@
       "cluster": "15i-soak",
       "title": "Soak the accepted pager+MTP profile and hand off without forced restore",
       "packet": ".wiretail/execution/tasks/15-09.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "15-08"
       ],
-      "commit": null
+      "commit": "23ccbecf2b3f73056abf2dffb15c79aa3dc815cf"
     },
     {
       "id": "16-01",
