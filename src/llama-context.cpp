@@ -60,6 +60,63 @@ static bool turbo_vbr_layer_schedule_enabled() {
     return e && e[0];
 }
 
+// Resolve the allocator-visible rows for the native MTP cache before the target
+// pager is admitted.  The MTP context is a separate cache, so looking only at
+// the target attention cache would otherwise let its full target-sized payload
+// consume the pager's hot-page budget after admission.
+static bool llama_context_native_mtp_rows(
+        const llama_model & model, bool flash_attn,
+        uint64_t & k_row_bytes, uint64_t & v_row_bytes) noexcept {
+    k_row_bytes = 0;
+    v_row_bytes = 0;
+    const uint32_t n_layer = model.hparams.n_layer();
+    const uint32_t n_layer_all = model.hparams.n_layer_all;
+    if (!model.hparams.has_mtp() || n_layer_all <= n_layer ||
+            model.layers.size() < n_layer_all) {
+        return false;
+    }
+
+    const bool v_trans = !flash_attn;
+    for (uint32_t il = n_layer; il < n_layer_all; ++il) {
+        // TENSOR_SKIP leaves the MTP layer marker null when the target was
+        // loaded without native MTP.  Do not reserve a phantom draft cache.
+        if (model.layers[il].attn_norm == nullptr || !model.hparams.has_kv(il)) {
+            return false;
+        }
+
+        const uint32_t head_k = model.hparams.n_embd_head_k(il);
+        const uint32_t head_v = model.hparams.n_embd_head_v(il);
+        // Match llama_kv_cache's TurboQuant fallback. A non-Turbo MTP cache is
+        // not admissible for this GPU-only reservation contract.
+        if (head_k > 512 || head_v > 512) {
+            return false;
+        }
+        const uint32_t n_head_kv = model.hparams.n_head_kv(il);
+        uint32_t k_width = model.hparams.n_embd_k_gqa(il);
+        const uint32_t padded_k = ((head_k + 127) / 128) * 128;
+        if (padded_k > head_k) {
+            k_width = padded_k * n_head_kv;
+        }
+        uint32_t v_width = v_trans ? model.hparams.n_embd_v_gqa_max()
+                                   : model.hparams.n_embd_v_gqa(il);
+        if (!v_trans) {
+            const uint32_t padded_v = ((head_v + 127) / 128) * 128;
+            if (padded_v > head_v) {
+                v_width = padded_v * n_head_kv;
+            }
+        }
+        const uint64_t k = ggml_row_size(GGML_TYPE_TURBO4_0, k_width);
+        const uint64_t v = ggml_row_size(GGML_TYPE_TURBO4_0, v_width);
+        if (k == 0 || v == 0 || k_row_bytes > UINT64_MAX - k ||
+                v_row_bytes > UINT64_MAX - v) {
+            return false;
+        }
+        k_row_bytes += k;
+        v_row_bytes += v;
+    }
+    return k_row_bytes != 0 && v_row_bytes != 0;
+}
+
 // The on-disk marker identity is one (busid,pid) row, so independent controller
 // trees in one process cannot publish or service demands correctly. iSWA is one
 // tree (its composite memory reports only the base owner); shared-KV drafters are
@@ -915,8 +972,28 @@ void llama_context::init_kv_pager() {
         ? std::max<uint64_t>(alignment, backend_buf_exp_size[backend_index]) : alignment;
     resources.admission.allocator_guard_bytes = alignment;
     resources.admission.headroom_bytes = kv_pager.safety_headroom.automatic ? 0 : kv_pager.safety_headroom.bytes;
-    resources.admission.mtp_present = false;
+    bool mtp_loaded = model.hparams.has_mtp() &&
+        model.layers.size() >= model.hparams.n_layer_all;
+    if (mtp_loaded) {
+        for (uint32_t il = model.hparams.n_layer(); il < model.hparams.n_layer_all; ++il) {
+            if (model.layers[il].attn_norm == nullptr) {
+                mtp_loaded = false;
+                break;
+            }
+        }
+    }
+    resources.admission.mtp_present = mtp_loaded;
+    resources.admission.mtp_tokens = mtp_loaded ? cparams.n_ctx_seq : 0;
     resources.admission.mtp_is_turbo4 = true;
+    if (mtp_loaded) {
+        resources.admission.mtp_is_turbo4 =
+            pager_target_type_k_ == GGML_TYPE_TURBO4_0 &&
+            pager_target_type_v_ == GGML_TYPE_TURBO4_0 &&
+            llama_context_native_mtp_rows(
+                model, cparams.flash_attn,
+                resources.admission.mtp_k_row_bytes,
+                resources.admission.mtp_v_row_bytes);
+    }
     resources.host_budget_known = true;
     if (kv_pager.host_budget.automatic) {
         size_t host_free = 0;
