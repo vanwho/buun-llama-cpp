@@ -245,6 +245,10 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
     out.page_tokens = input.page_tokens;
     out.logical_page_count = input.logical_page_count;
     out.target_page_bytes = input.target_page_bytes;
+    out.requested_context_tokens = input.requested_context_tokens != 0
+        ? input.requested_context_tokens : input.mtp_tokens;
+    out.resolved_context_tokens = input.resolved_context_tokens != 0
+        ? input.resolved_context_tokens : input.mtp_tokens;
     if (input.allocation_granularity == 0 || input.target_page_bytes == 0 ||
         input.page_tokens == 0 || input.logical_page_count == 0 ||
         (input.mtp_present && (input.mtp_tokens == 0 || input.mtp_values_per_token == 0 ||
@@ -351,6 +355,11 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
         return out;
     }
     out.unused_bytes = out.remaining_bytes - admitted_bytes;
+    out.accepted_target_tokens = out.capacity_tokens;
+    out.accepted = admitted != 0;
+    if (!out.accepted) {
+        out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity;
+    }
     return out;
 }
 

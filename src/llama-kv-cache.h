@@ -243,6 +243,9 @@ public:
 
     uint32_t get_size()     const;
     uint32_t get_n_stream() const;
+    // Physical VMM mappings and pager buffers must share the most restrictive
+    // allocation granularity on this cache's device.
+    uint64_t allocation_granularity() const noexcept;
     bool pager_geometry(uint32_t page_tokens,
             llama_kv_pager_geometry & output) const noexcept;
     uint32_t get_n_swa()    const { return n_swa; }

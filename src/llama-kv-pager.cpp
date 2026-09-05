@@ -385,7 +385,7 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
     admission.user_page_cap = config.hot_pages.automatic ? 0 : config.hot_pages.value;
     admission.allocation_granularity = resources.allocator_granularity;
     const auto result = llama_cache_budget_admit(admission);
-    if (result.refusal != llama_cache_budget_admission_refusal::none || result.admitted_pages == 0) {
+    if (result.refusal != llama_cache_budget_admission_refusal::none || !result.accepted) {
         status = llama_kv_pager_status::admission; output.admission = result; return false;
     }
     uint64_t rows = 0, bytes = 0;

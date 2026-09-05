@@ -54,6 +54,11 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t headroom_bytes = 0;
     uint64_t mtp_rows = 0;
     uint64_t mtp_bytes = 0;
+    uint64_t requested_context_tokens = 0;
+    uint64_t resolved_context_tokens = 0;
+    uint64_t accepted_target_tokens = 0;
+    bool admission_accepted = false;
+    const char * admission_refusal = "not_configured";
     ggml_type mtp_type_k = GGML_TYPE_COUNT;
     ggml_type mtp_type_v = GGML_TYPE_COUNT;
     uint64_t host_budget_bytes = 0;

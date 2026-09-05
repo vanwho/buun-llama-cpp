@@ -12224,6 +12224,14 @@ uint32_t llama_kv_cache::get_n_stream() const {
     return n_stream;
 }
 
+uint64_t llama_kv_cache::allocation_granularity() const noexcept {
+    uint64_t result = 1;
+    for (const auto & pool : vbr_pools_) {
+        result = std::max<uint64_t>(result, pool.gran);
+    }
+    return result;
+}
+
 bool llama_kv_cache::pager_geometry(
         uint32_t page_tokens,
         llama_kv_pager_geometry & output) const noexcept {

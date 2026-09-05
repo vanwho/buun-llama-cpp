@@ -173,6 +173,10 @@ static void test_dynamic_admission_ledger() {
     CHECK(admitted.charged_bytes == 522);
     CHECK(admitted.page_charge_bytes == 128);
     CHECK(admitted.admitted_pages == 31);
+    CHECK(admitted.accepted);
+    CHECK(admitted.requested_context_tokens == input.mtp_tokens);
+    CHECK(admitted.resolved_context_tokens == input.mtp_tokens);
+    CHECK(admitted.accepted_target_tokens == admitted.capacity_tokens);
     CHECK(admitted.capacity_tokens == 124);
     CHECK(admitted.unused_bytes == 10);
     CHECK(admitted.provenance == input.provenance);
@@ -240,6 +244,17 @@ static void test_context_ladder_reserves_native_mtp_first() {
     ladder.capacity_bytes = full.charged_bytes - 1;
     const auto impossible = llama_cache_budget_admit(ladder);
     CHECK(impossible.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+    CHECK(!impossible.accepted);
+    CHECK(impossible.requested_context_tokens == ladder.mtp_tokens);
+    CHECK(impossible.resolved_context_tokens == ladder.mtp_tokens);
+
+    // A budget that covers the fixed/MTP reservation but cannot fit one target
+    // page is also an explicit refusal; it must not be exposed as a successful
+    // zero-capacity pager.
+    ladder.capacity_bytes = full.charged_bytes + full.page_charge_bytes - 1;
+    const auto no_page = llama_cache_budget_admit(ladder);
+    CHECK(no_page.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+    CHECK(!no_page.accepted);
 }
 
 static const llama_cache_budget_row * find_group(

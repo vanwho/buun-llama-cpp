@@ -891,6 +891,12 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.headroom_bytes = snapshot.admission.headroom_bytes;
     result.mtp_rows = snapshot.mtp_rows;
     result.mtp_bytes = snapshot.admission.mtp_bytes;
+    result.requested_context_tokens = snapshot.admission.requested_context_tokens;
+    result.resolved_context_tokens = snapshot.admission.resolved_context_tokens;
+    result.accepted_target_tokens = snapshot.admission.accepted_target_tokens;
+    result.admission_accepted = snapshot.admission.accepted;
+    result.admission_refusal = llama_cache_budget_admission_refusal_name(
+            snapshot.admission.refusal);
     result.host_budget_bytes = snapshot.host_budget_bytes;
     result.vram_budget_bytes = snapshot.vram_budget_bytes;
     result.router_top_k = kv_pager.router_top_k;
@@ -982,6 +988,42 @@ void llama_context::init_kv_pager() {
     size_t free_bytes = 0;
     size_t total_bytes = 0;
     ggml_backend_dev_memory(dev, &free_bytes, &total_bytes);
+    GGML_UNUSED(free_bytes);
+
+    // The device total is the admission ceiling.  Charge the allocations that
+    // are already resident separately, rather than feeding post-allocation
+    // free bytes into a second, opaque budget.  This keeps the MTP reservation
+    // and the target pager in one ledger and makes the startup record
+    // auditable against memory_breakdown().
+    uint64_t model_bytes = 0;
+    uint64_t context_bytes = 0;
+    uint64_t compute_bytes = 0;
+    const auto add_memory = [](uint64_t & total, size_t value) {
+        total = value > UINT64_MAX - total ? UINT64_MAX : total + uint64_t(value);
+    };
+    for (const auto & [buft, breakdown] : memory_breakdown()) {
+        if (ggml_backend_buft_is_host(buft) || ggml_backend_buft_get_device(buft) != dev) {
+            continue;
+        }
+        add_memory(model_bytes, breakdown.model);
+        add_memory(context_bytes, breakdown.context);
+        add_memory(compute_bytes, breakdown.compute);
+    }
+    uint64_t known_bytes = model_bytes;
+    known_bytes = context_bytes > UINT64_MAX - known_bytes
+        ? UINT64_MAX : known_bytes + context_bytes;
+    known_bytes = compute_bytes > UINT64_MAX - known_bytes
+        ? UINT64_MAX : known_bytes + compute_bytes;
+    // Retain allocator-visible occupancy that is not represented by the
+    // breakdown (driver reservations, peer allocations, and similar opaque
+    // buffers) as a safe limit.  This is equivalent to the old free-byte
+    // ceiling after charging known resident rows, while making the reason for
+    // the limit explicit in the ledger.
+    const uint64_t occupied_bytes = std::min<uint64_t>(total_bytes, total_bytes -
+        std::min<uint64_t>(total_bytes, free_bytes));
+    const uint64_t unaccounted_bytes = occupied_bytes > known_bytes
+        ? occupied_bytes - known_bytes : 0;
+    const uint64_t backend_safe_limit = total_bytes - unaccounted_bytes;
 
     llama_kv_cache * attention_cache = nullptr;
     if (auto * hybrid_idx = dynamic_cast<llama_memory_hybrid_idx *>(memory.get())) {
@@ -1003,16 +1045,26 @@ void llama_context::init_kv_pager() {
     }
     const uint64_t alignment = backend_index < backend_buft.size()
         ? std::max<size_t>(1, ggml_backend_buft_get_alignment(backend_buft[backend_index])) : 1;
+    const uint64_t allocation_granularity = std::max<uint64_t>(
+            alignment, attention_cache->allocation_granularity());
     llama_kv_pager_resources resources;
-    resources.admission.capacity_bytes = free_bytes;
+    resources.admission.capacity_bytes = total_bytes;
+    resources.admission.backend_safe_limit_bytes = backend_safe_limit;
     resources.admission.user_budget_bytes = kv_pager.vram_budget.automatic ? 0 : kv_pager.vram_budget.bytes;
-    // The scheduler's realized buffer is the combined graph/kernel scratch term;
-    // keep it in one ledger column rather than charging it twice.
-    resources.admission.graph_bytes = 0;
-    resources.admission.turbo4_scratch_bytes = backend_index < backend_buf_exp_size.size()
-        ? std::max<uint64_t>(alignment, backend_buf_exp_size[backend_index]) : alignment;
-    resources.admission.allocator_guard_bytes = alignment;
-    resources.admission.headroom_bytes = kv_pager.safety_headroom.automatic ? 0 : kv_pager.safety_headroom.bytes;
+    resources.admission.weights_bytes = model_bytes;
+    resources.admission.fixed_bytes = context_bytes;
+    resources.admission.graph_bytes = compute_bytes;
+    // The scheduler buffer is already in graph_bytes.  Keep only the
+    // allocator-alignment probe in the separate scratch column so it is not
+    // charged twice.
+    resources.admission.turbo4_scratch_bytes = allocation_granularity;
+    // The pager's allocator may need one aligned transient staging unit while
+    // publishing a new page.  Keep it explicit even though it is small; the
+    // host capture ring is accounted in the host budget, not as VRAM.
+    resources.admission.staging_bytes = allocation_granularity;
+    resources.admission.allocator_guard_bytes = allocation_granularity;
+    resources.admission.headroom_bytes = kv_pager.safety_headroom.automatic
+        ? llama_vram_headroom_bytes() : kv_pager.safety_headroom.bytes;
     bool mtp_loaded = model.hparams.has_mtp() &&
         model.layers.size() >= model.hparams.n_layer_all;
     if (mtp_loaded) {
@@ -1025,6 +1077,8 @@ void llama_context::init_kv_pager() {
     }
     resources.admission.mtp_present = mtp_loaded;
     resources.admission.mtp_tokens = mtp_loaded ? cparams.n_ctx_seq : 0;
+    resources.admission.requested_context_tokens = cparams.n_ctx_seq;
+    resources.admission.resolved_context_tokens = cparams.n_ctx_seq;
     resources.admission.mtp_is_turbo4 = true;
     if (mtp_loaded) {
         resources.admission.mtp_is_turbo4 =
@@ -1049,7 +1103,7 @@ void llama_context::init_kv_pager() {
     } else {
         resources.host_budget_bytes = kv_pager.host_budget.bytes;
     }
-    resources.allocator_granularity = alignment;
+    resources.allocator_granularity = allocation_granularity;
     resources.duplicate_representation_authority = false;
     resources.host_capture_enabled = true;
     resources.host_backend = backend;
@@ -1092,6 +1146,16 @@ void llama_context::init_kv_pager() {
     resources.routing_summary.representative_count = 4;
     resources.routing_summary.layer_index = 0;
     resources.routing_summary.head_index = 0;
+    const uint64_t logical_pages = (geometry.context_tokens - 1) / geometry.page_tokens + 1;
+    const uint64_t routing_vectors = uint64_t(resources.routing_summary.representative_count) *
+        resources.routing_summary.vector_dim;
+    const uint64_t routing_per_page = routing_vectors >
+            (UINT64_MAX - sizeof(llama_kv_page_id)) / sizeof(float)
+        ? UINT64_MAX
+        : routing_vectors * sizeof(float) + sizeof(llama_kv_page_id);
+    resources.admission.routing_bytes = routing_per_page != 0 &&
+            logical_pages > UINT64_MAX / routing_per_page
+        ? UINT64_MAX : logical_pages * routing_per_page;
 
     llama_kv_pager_backend pager_backend;
     pager_backend.allocate = [backend_index, this](uint64_t bytes, llama_kv_pager_allocation & allocation) {
@@ -1107,6 +1171,29 @@ void llama_context::init_kv_pager() {
         ggml_backend_buffer_free(static_cast<ggml_backend_buffer_t>(allocation.handle));
         allocation = {};
     };
+    // Emit the typed admission decision before create() can fail.  This is
+    // especially important for an impossible native-MTP request: callers get
+    // a machine-readable refusal in startup evidence instead of a retry loop
+    // ending at the allocator's less-specific error.
+    {
+        auto probe = resources.admission;
+        probe.page_tokens = geometry.page_tokens;
+        probe.logical_page_count = (geometry.context_tokens - 1) / geometry.page_tokens + 1;
+        probe.target_page_bytes = geometry.page_bytes;
+        probe.user_page_cap = kv_pager.hot_pages.automatic ? 0 : kv_pager.hot_pages.value;
+        probe.allocation_granularity = resources.allocator_granularity;
+        const auto decision = llama_cache_budget_admit(probe);
+        if (!decision.accepted) {
+            LLAMA_LOG_ERROR(
+                    "KV pager admission refused: {requested_context_tokens=%" PRIu64
+                    " resolved_context_tokens=%" PRIu64 " accepted_target_tokens=%" PRIu64
+                    " refusal=%s charged_bytes=%" PRIu64 " usable_device_bytes=%" PRIu64 "}\n",
+                    decision.requested_context_tokens, decision.resolved_context_tokens,
+                    decision.accepted_target_tokens,
+                    llama_cache_budget_admission_refusal_name(decision.refusal),
+                    decision.charged_bytes, decision.usable_device_bytes);
+        }
+    }
     llama_kv_pager_status status = llama_kv_pager_status::invalid_geometry;
     kv_pager_owner = llama_kv_pager::create(kv_pager, geometry, resources, std::move(pager_backend), status);
     if (!kv_pager_owner) {
@@ -1135,19 +1222,24 @@ void llama_context::init_kv_pager() {
             " logical_pages=%u admitted_pages=%u physical_rows=%" PRIu64
             " target_page_bytes=%" PRIu64 " page_charge_bytes=%" PRIu64
             " target_bytes=%" PRIu64 " mtp_rows=%" PRIu64 " mtp_bytes=%" PRIu64
+            " requested_context_tokens=%" PRIu64 " resolved_context_tokens=%" PRIu64
+            " accepted_target_tokens=%" PRIu64 " admission_accepted=%d"
             " ledger_usable_bytes=%" PRIu64 " ledger_charged_bytes=%" PRIu64
             " ledger_reserved_bytes=%" PRIu64 " ledger_headroom_bytes=%" PRIu64
-            " device=%s route=%s refusal=none}\n",
+            " device=%s route=%s refusal=%s}\n",
             kv_pager.summary().c_str(), geometry.context_tokens,
             snapshot.logical_page_count, snapshot.physical_page_count,
             snapshot.physical_rows, admission.target_page_bytes,
             admission.page_charge_bytes, snapshot.realized_bytes,
             resources.admission.mtp_tokens, admission.mtp_bytes,
+            admission.requested_context_tokens, admission.resolved_context_tokens,
+            admission.accepted_target_tokens, admission.accepted ? 1 : 0,
             admission.usable_device_bytes, admission.charged_bytes,
             admission.reserved_bytes, admission.headroom_bytes,
             ggml_backend_dev_name(dev),
             kv_pager.mode == llama_kv_pager_mode::observe ? "observe" :
-            kv_pager.mode == llama_kv_pager_mode::exact ? "exact" : "selective");
+            kv_pager.mode == llama_kv_pager_mode::exact ? "exact" : "selective",
+            llama_cache_budget_admission_refusal_name(admission.refusal));
 }
 
 uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
