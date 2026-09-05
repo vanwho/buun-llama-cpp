@@ -52,12 +52,14 @@ bool ggml_cuda_fattn_turbo4_page_table_valid(
         uint32_t n_physical_pages = UINT32_MAX) noexcept;
 
 struct ggml_cuda_fattn_turbo4_paged_params {
-    // Q and output are [256, n_head_q] for the supported one-token, batch-one
-    // geometry. Q is F32 and output is F32; q/output head strides are bytes.
+    // Q and output are [256, n_head_q, n_query_tokens, n_batch]. Q is F32
+    // and output is F32; head/query strides are explicit byte strides.
     const float * q = nullptr;
     float * output = nullptr;
     size_t q_head_stride_bytes = 0;
+    size_t q_query_stride_bytes = 0;
     size_t output_head_stride_bytes = 0;
+    size_t output_query_stride_bytes = 0;
 
     ggml_type type_k = GGML_TYPE_COUNT;
     ggml_type type_v = GGML_TYPE_COUNT;
@@ -84,11 +86,13 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     const int64_t * query_positions_device = nullptr;
     float * page_mass = nullptr;
     size_t page_mass_head_stride_bytes = 0;
-    // Optional unnormalized online-softmax output [m, l, o[head_dim_v]] per
-    // query head. This is the bounded exact page-wave handoff; no K/V or
+    size_t page_mass_query_stride_bytes = 0;
+    // Optional unnormalized online-softmax output [query][head][m, l,
+    // o[head_dim_v]]. This is the bounded exact page-wave handoff; no K/V or
     // attention matrix is transferred to the host.
     float * partial_state = nullptr;
     size_t partial_state_head_stride_bytes = 0;
+    size_t partial_state_query_stride_bytes = 0;
 
     uint32_t n_pages = 0;
     uint32_t n_physical_pages = 0;
@@ -105,10 +109,10 @@ struct ggml_cuda_fattn_turbo4_paged_params {
 };
 
 // Correctness-first direct page-wave decode. The initial qualified geometry
-// is causal, batch 1, one query token, head width 256, and GQA ratio 4. The
-// output remains in the Turbo V rotated domain, matching the existing dense
-// Turbo4 FA contract; the graph-level inverse WHT and mean restoration remain
-// outside this backend primitive.
+// is causal, batch 1, one to three query tokens, head width 256, and GQA ratio
+// 4. The output remains in the Turbo V rotated domain, matching the existing
+// dense Turbo4 FA contract; the graph-level inverse WHT and mean restoration
+// remain outside this backend primitive.
 ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         ggml_backend_cuda_context & ctx,
         const ggml_cuda_fattn_turbo4_paged_params & params) noexcept;

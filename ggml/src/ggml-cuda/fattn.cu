@@ -1310,7 +1310,9 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
         const uint32_t n_head_q,
         const uint32_t n_head_kv,
         const size_t q_head_stride,
+        const size_t q_query_stride,
         const size_t output_head_stride,
+        const size_t output_query_stride,
         const size_t k_row_stride,
         const size_t k_head_stride,
         const size_t k_page_stride,
@@ -1318,9 +1320,11 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
         const size_t v_head_stride,
         const size_t v_page_stride,
         const size_t page_mass_head_stride,
+        const size_t page_mass_query_stride,
         const uint32_t page_mass_logical_count,
         float * partial_state,
         const size_t partial_state_head_stride,
+        const size_t partial_state_query_stride,
         const float scale,
         const bool reduce_page_mass,
         const bool write_partial_state,
@@ -1328,19 +1332,22 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
     extern __shared__ float shared[];
 
     const int head = blockIdx.x;
+    const int query = blockIdx.y;
     const int tid = threadIdx.x;
     const int group = tid / 128;
     const int local = tid & 127;
-    const int kv_head = head / 4;
+    const int gqa_ratio = int(n_head_q / n_head_kv);
+    const int kv_head = head / gqa_ratio;
 
     float * q_rot = shared;
     float * reductions = q_rot + 256;
     float * page_max = reductions + 8;
     float * page_sum = page_max + n_pages;
 
-    const float * q_head = (const float *) ((const char *) q + head * q_head_stride);
+    const float * q_head = (const float *) ((const char *) q +
+        query * q_query_stride + head * q_head_stride);
     float * output_head = output == nullptr ? nullptr :
-        (float *) ((char *) output + head * output_head_stride);
+        (float *) ((char *) output + query * output_query_stride + head * output_head_stride);
 
     // Rotate Q in shared memory, matching the dense Turbo4 fused path.  The
     // K/V pages stay compressed and are decoded only for the current row.
@@ -1351,7 +1358,8 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
 
     if (reduce_page_mass) {
         for (uint32_t logical_page = tid; logical_page < page_mass_logical_count; logical_page += blockDim.x) {
-            page_mass[(size_t) head * page_mass_head_stride / sizeof(float) + logical_page] = 0.0f;
+            page_mass[(size_t) query * page_mass_query_stride / sizeof(float) +
+                (size_t) head * page_mass_head_stride / sizeof(float) + logical_page] = 0.0f;
         }
         if (tid == 0) {
             for (uint32_t page = 0; page < n_pages; ++page) {
@@ -1362,7 +1370,7 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
         __syncthreads();
     }
 
-    const int64_t query_position = query_positions[0];
+    const int64_t query_position = query_positions[query];
     const int64_t row_bytes_k = (int64_t) k_row_stride;
     const int64_t row_bytes_v = (int64_t) v_row_stride;
 
@@ -1442,7 +1450,8 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
         output_head[tid] = qk_sum > 0.0f ? value_sum / qk_sum : 0.0f;
     }
     if (write_partial_state) {
-        float * state = (float *) ((char *) partial_state + head * partial_state_head_stride);
+        float * state = (float *) ((char *) partial_state + query * partial_state_query_stride +
+            head * partial_state_head_stride);
         if (tid == 0) {
             state[0] = qk_sum > 0.0f ? qk_max : -INFINITY;
             state[1] = qk_sum;
@@ -1457,7 +1466,8 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
                 const ggml_cuda_fattn_turbo4_page page = pages[page_index];
                 const float mass = qk_sum > 0.0f && page_max[page_index] != -FLT_MAX
                     ? expf(page_max[page_index] - qk_max) * page_sum[page_index] / qk_sum : 0.0f;
-                page_mass[(size_t) head * page_mass_head_stride / sizeof(float) + page.logical_page] = mass;
+                page_mass[(size_t) query * page_mass_query_stride / sizeof(float) +
+                    (size_t) head * page_mass_head_stride / sizeof(float) + page.logical_page] = mass;
             }
         }
     }
@@ -1479,21 +1489,25 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     if (params.type_k != GGML_TYPE_TURBO4_0 || params.type_v != GGML_TYPE_TURBO4_0) {
         return ggml_cuda_fattn_turbo4_paged_status::unsupported_type;
     }
-    if (params.n_query_tokens != 1 || params.n_batch != 1 ||
+    if (params.n_query_tokens == 0 || params.n_query_tokens > 3 || params.n_batch != 1 ||
         uint64_t(params.n_head_kv) * 4u != params.n_head_q ||
         params.head_dim_k != 256 || params.head_dim_v != 256 ||
         params.q_head_stride_bytes < 256 * sizeof(float) ||
-        (!params.write_partial_state && params.output_head_stride_bytes < 256 * sizeof(float)) ||
+        params.q_query_stride_bytes < params.q_head_stride_bytes * params.n_head_q ||
+        (!params.write_partial_state && (params.output_head_stride_bytes < 256 * sizeof(float) ||
+            params.output_query_stride_bytes < params.output_head_stride_bytes * params.n_head_q)) ||
         params.k_row_stride_bytes < 2 * sizeof(block_turbo4_0) || params.v_row_stride_bytes < 2 * sizeof(block_turbo4_0) ||
         params.k_page_stride_bytes / params.k_row_stride_bytes < 256 ||
         params.v_page_stride_bytes / params.v_row_stride_bytes < 256 ||
         (params.reduce_page_mass &&
             (params.page_mass_head_stride_bytes % sizeof(float) != 0 ||
-             params.page_mass_head_stride_bytes / sizeof(float) < params.page_mass_logical_count)) ||
+             params.page_mass_head_stride_bytes / sizeof(float) < params.page_mass_logical_count ||
+             params.page_mass_query_stride_bytes < params.page_mass_head_stride_bytes * params.n_head_q)) ||
         (params.write_partial_state &&
             (params.partial_state == nullptr ||
              params.partial_state_head_stride_bytes % sizeof(float) != 0 ||
-             params.partial_state_head_stride_bytes / sizeof(float) < 2 + params.head_dim_v)) ||
+             params.partial_state_head_stride_bytes / sizeof(float) < 2 + params.head_dim_v ||
+             params.partial_state_query_stride_bytes < params.partial_state_head_stride_bytes * params.n_head_q)) ||
         !std::isfinite(params.scale) || !params.causal) {
         return ggml_cuda_fattn_turbo4_paged_status::unsupported_shape;
     }
@@ -1525,16 +1539,18 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         }
     }
 
-    ggml_cuda_fattn_turbo4_paged_decode_kernel<<<dim3(params.n_head_q, 1, 1), dim3(256, 1, 1),
+    ggml_cuda_fattn_turbo4_paged_decode_kernel<<<dim3(params.n_head_q, params.n_query_tokens, 1), dim3(256, 1, 1),
                                                    shared_bytes, ctx.stream()>>>(
         params.q, params.k, params.v, params.output, params.pages_device,
         params.native_positions_device, params.native_mask_device, params.query_positions_device,
         params.page_mass, params.n_pages, params.n_rows, params.n_head_q, params.n_head_kv,
-        params.q_head_stride_bytes, params.output_head_stride_bytes,
+        params.q_head_stride_bytes, params.q_query_stride_bytes,
+        params.output_head_stride_bytes, params.output_query_stride_bytes,
         params.k_row_stride_bytes, params.k_head_stride_bytes, params.k_page_stride_bytes,
         params.v_row_stride_bytes, params.v_head_stride_bytes, params.v_page_stride_bytes,
-        params.page_mass_head_stride_bytes, params.page_mass_logical_count,
-        params.partial_state, params.partial_state_head_stride_bytes, params.scale,
+        params.page_mass_head_stride_bytes, params.page_mass_query_stride_bytes,
+        params.page_mass_logical_count, params.partial_state, params.partial_state_head_stride_bytes,
+        params.partial_state_query_stride_bytes, params.scale,
         params.reduce_page_mass, params.write_partial_state, params.causal);
 
     return cudaGetLastError() == cudaSuccess
@@ -1575,6 +1591,7 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
     const ggml_tensor * page_mass = dst->src[8];
     const uint32_t head_dim_k = uint32_t(ggml_get_op_params_i32(dst, 1));
     const uint32_t head_dim_v = uint32_t(ggml_get_op_params_i32(dst, 2));
+    const uint32_t n_head_kv = uint32_t(ggml_get_op_params_i32(dst, 5));
     const float scale = ggml_get_op_params_f32(dst, 3);
     const bool causal = ggml_get_op_params_i32(dst, 4) != 0;
     const size_t pages_bytes = ggml_nbytes(pages);
@@ -1587,11 +1604,14 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
         (page_mass != nullptr && (page_mass->type != GGML_TYPE_F32 ||
                                   page_mass->ne[0] <= 0 || page_mass->ne[0] > UINT32_MAX ||
                                   page_mass->ne[1] < q->ne[1] ||
+                                  page_mass->ne[2] < q->ne[2] ||
                                   page_mass->nb[1] < size_t(page_mass->ne[0]) * sizeof(float))) ||
-        q->ne[0] != head_dim_k || q->ne[1] <= 0 || q->ne[2] != 1 || q->ne[3] != 1 ||
+        q->ne[0] != head_dim_k || q->ne[1] <= 0 || q->ne[2] == 0 || q->ne[2] > 3 || q->ne[3] != 1 ||
+        n_head_kv == 0 || q->ne[1] != int64_t(n_head_kv) * 4 ||
         dst->ne[0] != head_dim_v || dst->ne[1] != q->ne[1] ||
+        dst->ne[2] != q->ne[2] || dst->ne[3] != q->ne[3] ||
         positions->ne[0] <= 0 || mask->ne[0] != positions->ne[0] ||
-        queries->ne[0] != 1 || pages_bytes % sizeof(ggml_cuda_fattn_turbo4_page) != 0 ||
+        queries->ne[0] != q->ne[2] || pages_bytes % sizeof(ggml_cuda_fattn_turbo4_page) != 0 ||
         k->nb[1] == 0 || k->nb[2] == 0 || k->nb[3] == 0 ||
         v->nb[1] == 0 || v->nb[2] == 0 || v->nb[3] == 0 ||
         storage_bytes == 0 || storage_bytes % k->nb[3] != 0 ||
@@ -1618,7 +1638,10 @@ bool ggml_cuda_flash_attn_ext_paged_turbo4_supported(
     const ggml_tensor * k = dst->src[1];
     const ggml_tensor * v = dst->src[2];
     const ggml_tensor * q = dst->src[0];
-    return q->ne[0] == 256 && dst->ne[0] == 256 && q->ne[1] % 4 == 0 &&
+    const uint32_t n_head_kv = uint32_t(ggml_get_op_params_i32(dst, 5));
+    return q->ne[0] == 256 && dst->ne[0] == 256 && n_head_kv != 0 &&
+        q->ne[1] == int64_t(n_head_kv) * 4 &&
+        q->ne[2] >= 1 && q->ne[2] <= 3 &&
         q->nb[1] >= 256 * sizeof(float) && dst->nb[1] >= 256 * sizeof(float) &&
         k->nb[1] >= 2 * sizeof(block_turbo4_0) &&
         v->nb[1] >= 2 * sizeof(block_turbo4_0) &&
@@ -1640,11 +1663,14 @@ void ggml_cuda_flash_attn_ext_paged_turbo4(
     params.q = static_cast<const float *>(q->data);
     params.output = static_cast<float *>(dst->data);
     params.q_head_stride_bytes = q->nb[1];
+    params.q_query_stride_bytes = q->nb[2];
     params.output_head_stride_bytes = dst->nb[1];
+    params.output_query_stride_bytes = dst->nb[2];
     params.type_k = GGML_TYPE_TURBO4_0;
     params.type_v = GGML_TYPE_TURBO4_0;
     params.head_dim_k = uint32_t(ggml_get_op_params_i32(dst, 1));
     params.head_dim_v = uint32_t(ggml_get_op_params_i32(dst, 2));
+    params.n_head_kv = uint32_t(ggml_get_op_params_i32(dst, 5));
     params.k = static_cast<const char *>(k->data);
     params.v = static_cast<const char *>(v->data);
     params.k_row_stride_bytes = k->nb[1];
@@ -1662,14 +1688,15 @@ void ggml_cuda_flash_attn_ext_paged_turbo4(
     params.n_physical_pages = uint32_t(ggml_nbytes(storage) / k->nb[3]);
     params.n_rows = uint32_t(positions->ne[0]);
     params.n_head_q = uint32_t(q->ne[1]);
-    params.n_head_kv = params.n_head_q / 4;
-    params.n_query_tokens = 1;
-    params.n_batch = 1;
+    params.n_head_kv = uint32_t(ggml_get_op_params_i32(dst, 5));
+    params.n_query_tokens = uint32_t(q->ne[2]);
+    params.n_batch = uint32_t(q->ne[3]);
     params.scale = ggml_get_op_params_f32(dst, 3);
     params.causal = ggml_get_op_params_i32(dst, 4) != 0;
     if (page_mass != nullptr) {
         params.page_mass = static_cast<float *>(page_mass->data);
         params.page_mass_head_stride_bytes = page_mass->nb[1];
+        params.page_mass_query_stride_bytes = page_mass->nb[2];
         params.page_mass_logical_count = uint32_t(page_mass->ne[0]);
         params.reduce_page_mass = true;
     }

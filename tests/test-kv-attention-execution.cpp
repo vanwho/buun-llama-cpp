@@ -132,10 +132,11 @@ static void test_routes_epochs_and_fences() {
     assert(route_metrics.prefill_routes.selected_reference == 4);
     assert(route_metrics.decode_routes.selected_direct == 2);
     assert(route_metrics.selected_page_count == 2);
-    const auto mtp = execution.prepare(selected_decode,
+    const auto selected_mtp = metadata(snapshot(), 2, 1);
+    const auto mtp = execution.prepare(selected_mtp,
             llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch);
-    assert(mtp.route == llama_kv_attention_execution_route::selected_reference);
-    assert(execution.metrics().mtp_verify_routes.selected_reference == 1);
+    assert(mtp.route == llama_kv_attention_execution_route::selected_direct);
+    assert(execution.metrics().mtp_verify_routes.selected_direct == 1);
     execution.complete_one_graph();
     assert(llama_kv_attention_execution_phase_name(
             llama_kv_attention_execution_phase::mtp_verify) == std::string("mtp_verify"));
@@ -162,7 +163,7 @@ static void test_fallbacks_and_graph_key() {
     assert(reference.route == llama_kv_attention_execution_route::selected_reference);
     execution.complete_one_graph();
 
-    auto prompt_shape = metadata(snapshot(), 2, 1);
+    auto prompt_shape = metadata(snapshot(), 4, 1);
     auto prompt_reference = execution.prepare(prompt_shape,
             llama_kv_attention_execution_phase::decode, 1, 1, true, scratch);
     assert(prompt_reference.route == llama_kv_attention_execution_route::selected_reference);

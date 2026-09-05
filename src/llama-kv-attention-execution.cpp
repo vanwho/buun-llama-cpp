@@ -22,7 +22,8 @@ void saturating_add_u64(uint64_t & target, uint64_t value) noexcept {
 bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcept {
     return metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
            metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
-           metadata.head_dim_v() == 256 && metadata.n_query_tokens() == 1 &&
+           metadata.head_dim_v() == 256 && metadata.n_query_tokens() >= 1 &&
+           metadata.n_query_tokens() <= 3 &&
            metadata.n_batch() == 1 && metadata.n_head_kv() != 0 &&
            metadata.n_head_q() / metadata.n_head_kv() == 4 &&
            metadata.n_head_q() % metadata.n_head_kv() == 0;
@@ -257,7 +258,8 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.reason = "observation preserves dense attention";
     } else if (mode_ == llama_kv_attention_execution_mode::exact) {
         result.status = llama_kv_attention_execution_status::ok;
-        result.route = phase == llama_kv_attention_execution_phase::decode &&
+        result.route = (phase == llama_kv_attention_execution_phase::decode ||
+                        phase == llama_kv_attention_execution_phase::mtp_verify) &&
                        direct_capable && direct_shape(metadata)
             ? llama_kv_attention_execution_route::exact_direct
             : llama_kv_attention_execution_route::exact_reference;
@@ -277,7 +279,8 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.reason = "selected metadata is invalid";
     } else {
         result.status = llama_kv_attention_execution_status::ok;
-        result.route = phase == llama_kv_attention_execution_phase::decode &&
+        result.route = (phase == llama_kv_attention_execution_phase::decode ||
+                        phase == llama_kv_attention_execution_phase::mtp_verify) &&
                        direct_capable && direct_shape(metadata)
             ? llama_kv_attention_execution_route::selected_direct
             : llama_kv_attention_execution_route::selected_reference;
