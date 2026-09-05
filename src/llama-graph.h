@@ -460,6 +460,11 @@ public:
     bool direct_telemetry_skipped = false;
     std::vector<uint64_t> direct_layer_k_offsets;
     std::vector<uint64_t> direct_layer_v_offsets;
+    // Pager geometry is indexed by compact attention-layer ordinal, while
+    // build_attn() is called with the model layer ID.  Retain the explicit
+    // mapping captured with the graph input; hybrid models have gaps and must
+    // never use the model ID as a pager offset index.
+    std::vector<uint32_t> direct_layer_ids;
     uint64_t direct_bytes_per_slot = 0;
 
     // note: assumes v_rot^2 == I

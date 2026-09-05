@@ -131,6 +131,16 @@ static void test_operator_contract() {
     assert(metadata.get_n_kv() == view.get_n_kv());
     assert(metadata.n_head_q() / metadata.n_head_kv() == 4);
     assert(metadata.query_positions().size() == 4);
+    assert(metadata.domain_k() == llama_kv_attention_representation_domain::original);
+    assert(metadata.domain_v() == llama_kv_attention_representation_domain::original);
+    auto rotated_source = params;
+    rotated_source.domain_k = llama_kv_attention_representation_domain::turbo_rotated;
+    rotated_source.domain_v = llama_kv_attention_representation_domain::turbo_rotated;
+    const auto rotated_metadata = llama_kv_attention_operator_metadata::build(
+            view, rotated_source, status);
+    assert(rotated_metadata.valid());
+    assert(rotated_metadata.graph_content_key() != metadata.graph_content_key());
+    assert(rotated_metadata.domain_k() == llama_kv_attention_representation_domain::turbo_rotated);
     assert(llama_kv_attention_operator_check_backend(
                 GGML_BACKEND_DEVICE_TYPE_CPU, metadata) ==
            llama_kv_attention_backend_status::supported_reference);

@@ -27,6 +27,16 @@ enum class llama_kv_attention_operator_status : uint8_t {
     overflow,
 };
 
+// The cache tensor type does not describe the value domain of TurboQuant
+// rows.  Turbo4 cache bytes are stored after the forward FWHT, while the
+// ordinary attention reference consumes original-domain K and the final V
+// result is unrotated exactly once.  Keep this provenance in the operator
+// metadata instead of asking a backend to infer it from ggml_type alone.
+enum class llama_kv_attention_representation_domain : uint8_t {
+    original = 0,
+    turbo_rotated,
+};
+
 const char * llama_kv_attention_operator_status_name(
         llama_kv_attention_operator_status status) noexcept;
 
@@ -34,6 +44,10 @@ struct llama_kv_attention_operator_params {
     llama_kv_attention_operator_mode mode = llama_kv_attention_operator_mode::off;
     ggml_type type_k = GGML_TYPE_COUNT;
     ggml_type type_v = GGML_TYPE_COUNT;
+    llama_kv_attention_representation_domain domain_k =
+        llama_kv_attention_representation_domain::original;
+    llama_kv_attention_representation_domain domain_v =
+        llama_kv_attention_representation_domain::original;
     uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS;
     uint32_t head_dim_k = 0;
     uint32_t head_dim_v = 0;
@@ -70,6 +84,8 @@ public:
 
     ggml_type type_k() const noexcept;
     ggml_type type_v() const noexcept;
+    llama_kv_attention_representation_domain domain_k() const noexcept;
+    llama_kv_attention_representation_domain domain_v() const noexcept;
     uint32_t head_dim_k() const noexcept;
     uint32_t head_dim_v() const noexcept;
     uint32_t n_head_q() const noexcept;
