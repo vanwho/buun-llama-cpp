@@ -676,3 +676,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-20-05`
 - Commit at update: `a82806442`
 - Summary: Completed selective Turbo4/GPU-MTP calibration boundary, fixed compressed byte-anchor view sizing, recorded live telemetry and bounded quality/exact-control failures, and verified local CUDA tests.
+
+## 2026-09-05T19:00:47+00:00 — 20-06 — done
+
+- Branch: `codex/task-20-06`
+- Commit at update: `0b593fae0`
+- Summary: Implemented canonical CPU Turbo4 reference attention and static CPU-KV admission; verified CUDA/CPU backend parity, same-prefix 4096-token controls at 70 and 1898 occupied tokens with native GPU Turbo4 MTP, and an independent 98304-token all-GPU safe ceiling. Receipt and handoff updated; 20-07 remains unchanged.

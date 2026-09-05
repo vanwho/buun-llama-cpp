@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "20",
-  "current_task": "20-06",
-  "last_updated_utc": "2026-09-05T18:19:20+00:00",
+  "current_task": "20-07",
+  "last_updated_utc": "2026-09-05T19:01:06+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3297,22 +3297,36 @@
       "cluster": "20d-controls-release",
       "title": "Establish a valid ordinary CPU-KV plus GPU-MTP comparison",
       "packet": ".wiretail/execution/tasks/20-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "20-05"
       ],
-      "commit": null,
+      "commit": "b1d5b1fae215e85afbbc6329d5296d67a5413251",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/20-06-attempt-1-20260905T181937Z.jsonl:455",
+            "total_tokens": 36315600,
+            "total_tokens_derived": true,
+            "input_tokens": 36232658,
+            "cached_input_tokens": 35568384,
+            "output_tokens": 82942,
+            "thinking_tokens": 29273
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 36315600,
+          "input_tokens": 36232658,
+          "cached_input_tokens": 35568384,
+          "output_tokens": 82942,
+          "thinking_tokens": 29273
         }
       }
     },
@@ -4107,15 +4121,28 @@
           "cached_input_tokens": 21180160,
           "output_tokens": 50167,
           "thinking_tokens": 18202
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/20-06-attempt-1-20260905T181937Z.jsonl:455",
+          "total_tokens": 36315600,
+          "total_tokens_derived": true,
+          "input_tokens": 36232658,
+          "cached_input_tokens": 35568384,
+          "output_tokens": 82942,
+          "thinking_tokens": 29273
         }
       ],
       "totals": {
-        "turns": 5,
-        "total_tokens": 125367435,
-        "input_tokens": 125097469,
-        "cached_input_tokens": 122785792,
-        "output_tokens": 269966,
-        "thinking_tokens": 98315
+        "turns": 6,
+        "total_tokens": 161683035,
+        "input_tokens": 161330127,
+        "cached_input_tokens": 158354176,
+        "output_tokens": 352908,
+        "thinking_tokens": 127588
       }
     },
     "21": {
@@ -4143,12 +4170,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 28,
-      "total_tokens": 569097260,
-      "input_tokens": 567769879,
-      "cached_input_tokens": 557229568,
-      "output_tokens": 1327381,
-      "thinking_tokens": 482549
+      "turns": 29,
+      "total_tokens": 605412860,
+      "input_tokens": 604002537,
+      "cached_input_tokens": 592797952,
+      "output_tokens": 1410323,
+      "thinking_tokens": 511822
     },
     "source": "Codex turn.completed usage events"
   }
