@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "17",
-  "current_task": "17-08",
-  "last_updated_utc": "2026-09-05T01:06:07+00:00",
+  "current_task": "17-09",
+  "last_updated_utc": "2026-09-05T01:48:05+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1247,13 +1247,13 @@
       "cluster": "17d-benchmark-quality",
       "title": "Produce phase-17 quality benchmark evidence",
       "packet": ".wiretail/execution/tasks/17-08.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "17-07"
       ],
-      "commit": null
+      "commit": "817b405f9cde350919fffa6052d80689cdef69ef"
     },
     {
       "id": "17-09",
