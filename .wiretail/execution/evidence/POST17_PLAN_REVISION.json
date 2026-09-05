@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "revision": "post17-20260905",
+  "created_utc": "2026-09-05T05:04:04Z",
+  "scope": "Plan/state/technical specification and benchmark protocol; no pager code implementation or interference with active 17-15",
+  "inspected_base": "23411197aa446e4766ce921160ebe2e33cf53992",
+  "active_task_preserved": "17-15",
+  "active_branch_preserved": "codex/task-17-15",
+  "integration_branch": "plan/attention-aware-kv-paging",
+  "publication": "Changes persisted to active worktree for the running outer auto runner's separate execution-metadata checkpoint; no branch switch or competing commit/push performed",
+  "state_task_count": 122,
+  "future_task_count": 30,
+  "future_cluster_count": 15,
+  "next_task": "17-16",
+  "final_review": "22-01",
+  "final_review_model": "Sol High",
+  "task_model": "Luna High",
+  "wiretail_tool_defaults_changed": false,
+  "test_context_policy": "Purpose-appropriate development contexts; six-point curve only for final results after functional prerequisites work",
+  "retired_unstarted_packets": [
+    "17-16 (replaced by bridge)",
+    "17-17",
+    "17-18",
+    "17-19",
+    "18-01 (review moved to 22-01; ID reused for runtime repair)"
+  ],
+  "technical_targets": [
+    "Selected-reference gathered Turbo4 K domain versus missing matching Q transform (T1a)",
+    "Hybrid model-layer IDs versus attention-only layer offset indices (T1)",
+    "Single authoritative hot physical store for graph writes and attention reads (T2)",
+    "Pre-allocation full-MTP compute/KV budget with dynamic hot target capacity (T3)",
+    "Production call to real residency transactions and canonical committed host bytes (T4)",
+    "Direct multiquery/prefill and parallel split-KV rather than serial row scans (T5)",
+    "Executable layer-wise exact cold page waves (T6)",
+    "Real current-query graph boundary versus explicitly labeled predictive routing (T7)",
+    "All-page layer/head-group summaries and attention retention (T8)",
+    "Shape-stable graph replay and metadata updates (T9)",
+    "Token sizing, bounded lifecycle, resumable/progress-aware benchmarks and honest metrics (T10)"
+  ],
+  "documents": [
+    "POST17_IMPLEMENTATION_STRATEGY.md",
+    "TECHNICAL_CHANGE_SPEC.md",
+    "BENCHMARK_PROTOCOL_V5.md",
+    "ATTENTION_AWARE_KV_PAGING_PLAN.md",
+    "WORK_STATE.json"
+  ],
+  "validation": {
+    "task_state_validate": "pass:122 tasks",
+    "detailed_future_packet_dependency_cluster_model_audit": "pass:30 packets/15 clusters",
+    "current_packet_unchanged": "pass",
+    "historical_task_records_unchanged": "pass",
+    "reported_token_accounting_preserved": "pass",
+    "git_diff_check": "pass"
+  },
+  "caveat": "Plan validation is not proof that the target pager, full256K runtime or desired speed already works. The technical tasks require live evidence."
+}

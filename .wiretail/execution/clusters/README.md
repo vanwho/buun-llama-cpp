@@ -8,7 +8,8 @@ Clusters are intentionally smaller than phases. Two or three tasks share a sessi
 the same source ownership and intermediate mental model. Repository provenance, CUDA kernel work,
 server lifecycle, benchmarks, exact reference work, and upstream slicing rotate to fresh sessions.
 
-All current and generated task recommendations use `gpt-5.6-luna` with High reasoning. This uniform
+Implementation/benchmark tasks use `gpt-5.6-luna` with High reasoning; the
+benchmark-only 22-01 reviewer and generated reviewers use Sol High. This
 baseline applies even to checklist/documentation work because every task can affect live CUDA,
 service lifecycle, benchmark provenance, or resumability. Every task gets three bounded substantive
 retries after its initial approach. Retry 1 is only the original task model/reasoning with an artifact-aware direct prefix.
@@ -25,9 +26,16 @@ For every task, read in this order:
 4. handoffs named here and by the task dependencies;
 5. only the source paths named by those files.
 
-The canonical plan's decision ledger is authoritative when a task encounters an ambiguity. Read only
-the named plan sections first; load the full plan only for a genuine unresolved conflict. Cluster files
-do not override task acceptance or repository instructions.
+For post-17 work, POST17_IMPLEMENTATION_STRATEGY.md and the packet's named
+TECHNICAL_CHANGE_SPEC.md sections supersede stale historical decision-ledger
+directions. Live work follows BENCHMARK_PROTOCOL_V5.md. Read only the current
+cluster/packet and compact dependencies; never load all old audit logs.
+Cluster files do not override task acceptance or repository instructions.
+
+Future packets also select C-sections in `EXECUTION_COOKBOOK.md` and I-sections
+in `IMPLEMENTATION_CONTRACTS.md`. Load only those sections and reuse them within
+the cluster. These add command, fixture, schema and API detail without making
+the full historical plan mandatory context.
 
 | Cluster | Tasks | Shared context |
 | --- | --- | --- |
@@ -77,7 +85,19 @@ do not override task acceptance or repository instructions.
 | `17e-benchmark-soak` | 17-10–17-11 | Initial soak campaign and compact benchmark summary |
 | `17f-context-pressure` | 17-12–17-13 | Dynamic acceptance context and physical pager pressure |
 | `17g-quality-oracles` | 17-14 | Exact/native and concurrent correctness oracles |
-| `17h-full-benchmarks` | 17-15–17-17 | Full-context quality, paired speed, and pressured soak |
-| `17i-full-context` | 17-18 | Full 256K context capacity and residency |
-| `17i-summary` | 17-19 | Revised phase-17 evidence summary |
-| `18a-benchmark-review` | 18-01 | Benchmark-only overall-goal assessment and remediation chaining (Sol High) |
+| `17h-full-benchmarks` | 17-15 | Already-running quality campaign; unchanged |
+| `17j-reassessment-bridge` | 17-16 | Compact final findings and entry to new implementation |
+| `18a-runtime-experiments` | 18-01–18-03 | Coherent runtime, token sizing, resumable/progress-aware harness |
+| `18b-live-correctness` | 18-04–18-06 | Actual telemetry, layer/byte/logit parity, native MTP |
+| `19a-physical-storage` | 19-01–19-03 | Early budget, single GPU authority, canonical bytes and actual transfers |
+| `19b-paged-kernels` | 19-04–19-06 | Direct verify/prefill and live exact page waves |
+| `19c-capacity-lifecycle` | 19-07–19-08 | Cold-state atomicity and populated full256K proof |
+| `19d-parallel-attention` | 19-09 | Parallel split-KV versus serial paged attention |
+| `20a-attention-policy` | 20-01–20-02 | Real layer queries, all-page summaries and retention |
+| `20b-execution-performance` | 20-03–20-04 | Async prediction, late pages, graph reuse and overhead |
+| `20c-quality-calibration` | 20-05 | Prefill/selection quality–speed tradeoffs |
+| `20d-controls-release` | 20-06–20-07 | Correct CPU-KV denominator and frozen portable candidate |
+| `21a-quality-curve` | 21-01–21-02 | Full context/quality and canonical three-prompt speed curve |
+| `21b-controls-soak` | 21-03–21-04 | Matched controls and real physical-pressure soak |
+| `21c-stretch-summary` | 21-05–21-06 | Conditional YaRN and compact final benchmark summary |
+| `22a-benchmark-review` | 22-01 | Summary-only goal assessment and new remediation if needed (Sol High) |

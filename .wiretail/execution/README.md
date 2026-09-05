@@ -1,16 +1,29 @@
 # Attention-aware KV paging execution package
 
-Start with `ATTENTION_AWARE_KV_PAGING_PLAN.md`, then use `WORK_STATE.json` as the sole task-order and
+For work after the running 17-15, start with `POST17_IMPLEMENTATION_STRATEGY.md`,
+then the current packet's `TECHNICAL_CHANGE_SPEC.md` sections and
+`BENCHMARK_PROTOCOL_V5.md`. The large `ATTENTION_AWARE_KV_PAGING_PLAN.md` now
+points to this amendment; old acceptance ledgers are historical context only.
+Each future packet also names sections of `EXECUTION_COOKBOOK.md` for verified
+commands, minimal fixtures and common evidence, and `IMPLEMENTATION_CONTRACTS.md`
+for internal APIs, memory ownership, tensor layouts and checkpoint boundaries.
+Read those named sections once per cluster, not the entire history. A command
+or interface marked proposed must be implemented/tested before it is invoked.
+Use `WORK_STATE.json` as the sole task-order and
 status authority. Each task packet under `tasks/` is written to be executable without loading the full
 plan. Each `WORK_STATE.json` cluster has a matching shared context under `clusters/`, allowing two or
 three tightly coupled tasks to reuse one session without carrying unrelated phase history. Handoffs
 belong under `handoffs/` and must record commands, results, changed files, unresolved risks, and deferred
 hardware or human actions.
 
-Foundation phases 00–07 are historical completed work. Production-completion phases 08–14 contain the
-original implementation, phase 15 is the corrective live-product repair/re-acceptance series, phase 16
-is handoff preparation, phase 17 owns corrective implementation and benchmark evidence, and phase 18 is
-the benchmark-only overall-goal review. The current state is intentionally `ready`, not `complete`.
+Foundation phases 00–07 and follow-on phases through the active 17-15 remain
+historical/current evidence, not a proof that all live capabilities work.
+17-16 now bridges that campaign to 18–20 implementation repairs/advancements.
+Phase 21 produces new quality, context-speed, paired-control and physical-soak
+evidence; **22-01 is the Sol High benchmark-only reviewer**. It creates a new
+measured remediation chain if needed, not another historical closure audit.
+All other task recommendations stay Luna High; Wiretail defaults are unchanged.
+The project remains `in_progress`, not complete.
 Native MTP capacity follows the resolved target context and target hot capacity is derived from the
 runtime memory ledger; no prior Fast-profile hot count is a default.
 
@@ -51,11 +64,7 @@ package; set the integration branch explicitly as shown below:
 ```bash
 cd /srv/repos/vanwho/buun-llama-cpp
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
-PROJECT_REMOTE=origin \
 PROJECT_BRANCH=plan/attention-aware-kv-paging \
-GIT_MODE=auto \
-CODEX_SESSION_MAX_TURNS=0 \
-CODEX_SESSION_MAX_INPUT_TOKENS=0 \
 /srv/wiretail/wiretail.sh
 ```
 
