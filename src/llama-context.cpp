@@ -1472,9 +1472,20 @@ uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
     if (snapshot.physical_page_count == 0) {
         return requested;
     }
-    return llama_kv_attention_prefill_chunk_size(
+    const uint32_t physical_bound = llama_kv_attention_prefill_chunk_size(
             requested, snapshot.physical_page_count,
             snapshot.geometry.page_tokens);
+    const bool turbo4_selective_prefill = kv_pager.mode == llama_kv_pager_mode::selective &&
+        cparams.flash_attn &&
+        (model.arch == LLM_ARCH_QWEN35 || model.arch == LLM_ARCH_QWEN35MOE) &&
+        model.hparams.n_embd_head_k() == 256 && model.hparams.n_embd_head_v() == 256 &&
+        model.hparams.n_head_kv() != 0 &&
+        model.hparams.n_head() == model.hparams.n_head_kv() * 4;
+    // The direct Turbo4 page kernel is a bounded three-query tile. Keep the
+    // supported selective path no larger than both the admitted physical
+    // window and the kernel tile; other models and exact mode retain their
+    // existing physical-window bound and reference implementation.
+    return turbo4_selective_prefill ? std::min<uint32_t>(3, physical_bound) : physical_bound;
 }
 
 void llama_context::resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs) {
@@ -2225,10 +2236,10 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         return result;
     };
 
-    // Live attention is intentionally limited to one Qwen sequence. Decode
-    // may use the direct Turbo4 loader when the actual layer device and pager
-    // slab qualify; all other valid selected shapes retain the reference
-    // gather as the deterministic fallback.
+    // Live attention is intentionally limited to one Qwen sequence. Selective
+    // prefill, decode, and MTP may use the direct Turbo4 loader when the actual
+    // layer device and pager slab qualify; all other valid selected shapes
+    // retain the reference gather as the deterministic fallback.
     if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
         (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
         !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
@@ -2324,7 +2335,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     scratch.bytes_per_row = (size_t(model.hparams.n_embd_head_k()) +
             size_t(model.hparams.n_embd_head_v())) * size_t(model.hparams.n_head_kv()) *
             sizeof(float);
-    LLAMA_LOG_DEBUG("%s: bounded prefill/decode pages=%zu rows=%u hot_pages=%u logical_pages=%u bounded_gather_bytes=%zu\n",
+    LLAMA_LOG_DEBUG("%s: bounded prefill/decode pages=%zu rows=%u hot_pages=%u logical_pages=%u bounded_resident_scratch_bytes=%zu\n",
             __func__, view.pages().size(), metadata.get_n_kv(), hot_capacity,
             pager_geometry.logical_page_count, scratch.required_bytes());
     const auto layer_device = model.dev_layer(0);
@@ -2342,7 +2353,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         metadata.n_head_q() / metadata.n_head_kv() == 4 &&
         metadata.n_head_q() % metadata.n_head_kv() == 0;
     const bool direct_capable = cuda_backend && scheduler_cuda &&
-        (phase == llama_kv_attention_execution_phase::decode ||
+        (phase == llama_kv_attention_execution_phase::prefill ||
+         phase == llama_kv_attention_execution_phase::decode ||
          phase == llama_kv_attention_execution_phase::mtp_verify) &&
         direct_shape && pager.residency_storage_tensor() != nullptr &&
         pager.residency_bytes_per_slot() != 0 &&

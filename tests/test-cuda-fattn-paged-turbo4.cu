@@ -155,7 +155,7 @@ int main() {
     cuda_check(cudaEventSynchronize(timing_stop), "timing stop synchronize");
     float elapsed_ms = 0.0f;
     cuda_check(cudaEventElapsedTime(&elapsed_ms, timing_start, timing_stop), "timing readback");
-    std::fprintf(stderr, "paged Turbo4 decode: %.3f ms (four Q heads, 529 selected rows)\n", elapsed_ms);
+    std::fprintf(stderr, "paged Turbo4 query tile: %.3f ms (four Q heads, 529 selected rows)\n", elapsed_ms);
     cuda_check(cudaDeviceSynchronize(), "direct page attention");
     std::vector<float> output_without_mass(q_host.size());
     cuda_check(cudaMemcpy(output_without_mass.data(), output_device, output_without_mass.size() * sizeof(float), cudaMemcpyDeviceToHost), "output readback");
@@ -166,7 +166,7 @@ int main() {
     const float expected_527 = (17.0f * c8 + 255.0f * c9 + 255.0f * c10) / 527.0f;
     const float expected_528 = (17.0f * c8 + 255.0f * c9 + 256.0f * c10) / 528.0f;
 
-    // Multiquery verification uses one CTA per query/head. Verify each
+    // Multiquery verification uses one CTA per head/query tile. Verify each
     // query's causal position and guard the following output query with a
     // canary so adjacent query results cannot alias.
     const std::vector<float> output_canary(q_host.size(), -12345.0f);

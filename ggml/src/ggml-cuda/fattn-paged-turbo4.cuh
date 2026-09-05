@@ -108,11 +108,12 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     bool causal = true;
 };
 
-// Correctness-first direct page-wave decode. The initial qualified geometry
-// is causal, batch 1, one to three query tokens, head width 256, and GQA ratio
-// 4. The output remains in the Turbo V rotated domain, matching the existing
-// dense Turbo4 FA contract; the graph-level inverse WHT and mean restoration
-// remain outside this backend primitive.
+// Correctness-first direct page/query-tile attention. The initial qualified
+// geometry is causal, batch 1, one to three query tokens, head width 256, and
+// GQA ratio 4. One CTA traverses each compressed page list once per tile and
+// reuses decoded K/V rows across the tile's queries. The output remains in the
+// Turbo V rotated domain, matching the existing dense Turbo4 FA contract; the
+// graph-level inverse WHT and mean restoration remain outside this primitive.
 ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         ggml_backend_cuda_context & ctx,
         const ggml_cuda_fattn_turbo4_paged_params & params) noexcept;

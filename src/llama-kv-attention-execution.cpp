@@ -279,13 +279,16 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.reason = "selected metadata is invalid";
     } else {
         result.status = llama_kv_attention_execution_status::ok;
-        result.route = (phase == llama_kv_attention_execution_phase::decode ||
+        result.route = (phase == llama_kv_attention_execution_phase::prefill ||
+                        phase == llama_kv_attention_execution_phase::decode ||
                         phase == llama_kv_attention_execution_phase::mtp_verify) &&
                        direct_capable && direct_shape(metadata)
             ? llama_kv_attention_execution_route::selected_direct
             : llama_kv_attention_execution_route::selected_reference;
         result.reason = result.route == llama_kv_attention_execution_route::selected_direct
-            ? "qualified Turbo4 decode"
+            ? phase == llama_kv_attention_execution_phase::prefill
+                ? "qualified Turbo4 selective prefill query tile"
+                : "qualified Turbo4 decode"
             : "compact selected reference";
         result.table_epoch = metadata.table_epoch();
     }
