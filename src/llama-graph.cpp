@@ -3441,9 +3441,10 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                                 inp->direct_telemetry_pages.push_back(*it);
                             }
                             if (complete) {
-                                inp->direct_page_mass = ggml_new_tensor_2d(
+                                inp->direct_page_mass = ggml_new_tensor_3d(
                                     ctx0, GGML_TYPE_F32,
-                                    pager->snapshot().logical_page_count, telemetry_head_total);
+                                    pager->snapshot().logical_page_count, telemetry_head_total,
+                                    selected_metadata->n_query_tokens());
                                 ggml_set_input(inp->direct_page_mass);
                                 ggml_set_name(inp->direct_page_mass, "kv_direct_page_mass");
                                 ggml_backend_sched_set_tensor_backend(
@@ -3592,13 +3593,13 @@ ggml_tensor * llm_graph_context::build_attn(
             inp->kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
             uint32_t(il) == inp->kv_attention_telemetry->layer_index()
                 ? inp->direct_page_mass : nullptr;
-        const ggml_flash_attn_ext_paged_turbo4_params direct_params = {
-            inp->selected_metadata.head_dim_k(),
-            inp->selected_metadata.head_dim_v(),
-            kq_scale,
-            true,
-            telemetry_page_mass,
-        };
+        ggml_flash_attn_ext_paged_turbo4_params direct_params = {};
+        direct_params.head_dim_k = inp->selected_metadata.head_dim_k();
+        direct_params.head_dim_v = inp->selected_metadata.head_dim_v();
+        direct_params.n_head_kv = inp->selected_metadata.n_head_kv();
+        direct_params.scale = kq_scale;
+        direct_params.causal = true;
+        direct_params.page_mass = telemetry_page_mass;
         ggml_tensor * direct = ggml_flash_attn_ext_paged_turbo4(
                 ctx0, q_direct, k_raw, v_raw, inp->direct_storage,
                 inp->direct_pages, inp->direct_native_positions,

@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "19",
-  "current_task": "19-04",
-  "last_updated_utc": "2026-09-05T09:37:45+00:00",
+  "current_task": "19-05",
+  "last_updated_utc": "2026-09-05T11:10:23+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -2868,22 +2868,36 @@
       "cluster": "19b-paged-kernels",
       "title": "Extend direct compressed attention to native-MTP verification blocks",
       "packet": ".wiretail/execution/tasks/19-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "19-03"
       ],
-      "commit": null,
+      "commit": "b51d89a3da90274255129c0601f4110292ba9168",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/19-04-attempt-1-20260905T093801Z.jsonl:189",
+            "total_tokens": 32254165,
+            "total_tokens_derived": true,
+            "input_tokens": 32194136,
+            "cached_input_tokens": 31578880,
+            "output_tokens": 60029,
+            "thinking_tokens": 19831
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 32254165,
+          "input_tokens": 32194136,
+          "cached_input_tokens": 31578880,
+          "output_tokens": 60029,
+          "thinking_tokens": 19831
         }
       }
     },
@@ -3798,15 +3812,28 @@
           "cached_input_tokens": 21658368,
           "output_tokens": 57687,
           "thinking_tokens": 22817
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/19-04-attempt-1-20260905T093801Z.jsonl:189",
+          "total_tokens": 32254165,
+          "total_tokens_derived": true,
+          "input_tokens": 32194136,
+          "cached_input_tokens": 31578880,
+          "output_tokens": 60029,
+          "thinking_tokens": 19831
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 62340298,
-        "input_tokens": 62175400,
-        "cached_input_tokens": 60959488,
-        "output_tokens": 164898,
-        "thinking_tokens": 67718
+        "turns": 4,
+        "total_tokens": 94594463,
+        "input_tokens": 94369536,
+        "cached_input_tokens": 92538368,
+        "output_tokens": 224927,
+        "thinking_tokens": 87549
       }
     },
     "20": {
@@ -3845,12 +3872,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 17,
-      "total_tokens": 280889852,
-      "input_tokens": 280128700,
-      "cached_input_tokens": 274889728,
-      "output_tokens": 761152,
-      "thinking_tokens": 274050
+      "turns": 18,
+      "total_tokens": 313144017,
+      "input_tokens": 312322836,
+      "cached_input_tokens": 306468608,
+      "output_tokens": 821181,
+      "thinking_tokens": 293881
     },
     "source": "Codex turn.completed usage events"
   }

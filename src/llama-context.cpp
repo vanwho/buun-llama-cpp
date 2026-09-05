@@ -2115,8 +2115,10 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             // per-layer online-state merge; do not turn those into a dense
             // fallback or pretend the planner itself performed H2D work.
             if (plan.ledger().cold_pages == 0 &&
-                phase == llama_kv_attention_execution_phase::decode &&
-                ubatch.n_tokens == 1 && ubatch.n_seq_tokens == 1) {
+                (phase == llama_kv_attention_execution_phase::decode ||
+                 phase == llama_kv_attention_execution_phase::mtp_verify) &&
+                ubatch.n_tokens >= 1 && ubatch.n_tokens <= 3 &&
+                ubatch.n_seq_tokens == ubatch.n_tokens) {
                 std::vector<uint32_t> all_pages;
                 all_pages.reserve(records.size());
                 for (const auto & record : records) {
@@ -2142,10 +2144,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 op_params.head_dim_v = model.hparams.n_embd_head_v();
                 op_params.n_head_q = model.hparams.n_head();
                 op_params.n_head_kv = model.hparams.n_head_kv();
-                op_params.n_query_tokens = 1;
+                op_params.n_query_tokens = ubatch.n_tokens;
                 op_params.n_batch = 1;
                 op_params.causal = cparams.causal_attn;
-                op_params.query_positions.push_back(ubatch.pos[0]);
+                op_params.query_positions.reserve(ubatch.n_tokens);
+                for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+                    op_params.query_positions.push_back(ubatch.pos[token * ubatch.n_pos]);
+                }
 
                 llama_kv_attention_operator_status op_status;
                 const auto metadata = llama_kv_attention_operator_metadata::build(
@@ -2176,7 +2181,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                     metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
                     metadata.type_v() == GGML_TYPE_TURBO4_0 &&
                     metadata.head_dim_k() == 256 && metadata.head_dim_v() == 256 &&
-                    metadata.n_query_tokens() == 1 && metadata.n_batch() == 1 &&
+                    metadata.n_query_tokens() >= 1 && metadata.n_query_tokens() <= 3 &&
+                    metadata.n_batch() == 1 &&
                     metadata.n_head_kv() != 0 &&
                     metadata.n_head_q() / metadata.n_head_kv() == 4 &&
                     metadata.n_head_q() % metadata.n_head_kv() == 0 &&
@@ -2330,12 +2336,14 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         backend_for_device(layer_device) != nullptr;
     const bool direct_shape = metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
         metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
-        metadata.head_dim_v() == 256 && metadata.n_query_tokens() == 1 &&
+        metadata.head_dim_v() == 256 && metadata.n_query_tokens() >= 1 &&
+        metadata.n_query_tokens() <= 3 &&
         metadata.n_batch() == 1 && metadata.n_head_kv() != 0 &&
         metadata.n_head_q() / metadata.n_head_kv() == 4 &&
         metadata.n_head_q() % metadata.n_head_kv() == 0;
     const bool direct_capable = cuda_backend && scheduler_cuda &&
-        phase == llama_kv_attention_execution_phase::decode &&
+        (phase == llama_kv_attention_execution_phase::decode ||
+         phase == llama_kv_attention_execution_phase::mtp_verify) &&
         direct_shape && pager.residency_storage_tensor() != nullptr &&
         pager.residency_bytes_per_slot() != 0 &&
         model.hparams.f_max_alibi_bias == 0.0f && !model.hparams.attn_soft_cap &&
@@ -6871,6 +6879,7 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
             continue;
         }
         const uint32_t total_heads = uint32_t(input->direct_page_mass->ne[1]);
+        const uint32_t query_count = uint32_t(input->direct_page_mass->ne[2]);
         const uint32_t head_begin = kv_attention_telemetry->head_begin();
         if (head_begin >= total_heads || input->direct_page_mass->ne[0] == 0) {
             continue;
@@ -6908,9 +6917,10 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
         sample.token_index = input->direct_telemetry_token_index;
         sample.layer_count = 1;
         sample.head_count = head_count;
+        sample.token_count = query_count;
         sample.head_stride_bytes = head_stride;
         sample.layer_stride_bytes = layer_stride;
-        sample.token_stride_bytes = layer_stride;
+        sample.token_stride_bytes = input->direct_page_mass->nb[2];
         sample.page_mass = reinterpret_cast<const float *>(
                 reinterpret_cast<const char *>(host.data()) + head_begin * head_stride);
         sample.pages = input->direct_telemetry_pages.data();

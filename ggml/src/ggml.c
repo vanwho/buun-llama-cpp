@@ -5730,7 +5730,7 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     GGML_ASSERT(native_positions->type == GGML_TYPE_I64);
     GGML_ASSERT(native_mask->type == GGML_TYPE_I8);
     GGML_ASSERT(query_positions->type == GGML_TYPE_I64);
-    GGML_ASSERT(params->head_dim_k > 0 && params->head_dim_v > 0);
+    GGML_ASSERT(params->head_dim_k > 0 && params->head_dim_v > 0 && params->n_head_kv > 0);
     GGML_ASSERT(params->page_mass == NULL || params->page_mass->type == GGML_TYPE_F32);
 
     // The direct backend consumes these fields from the source tensor views;
@@ -5741,8 +5741,9 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     op_params[2] = (int32_t) params->head_dim_v;
     memcpy((float *) op_params + 3, &params->scale, sizeof(float));
     op_params[4] = params->causal ? 1 : 0;
+    op_params[5] = (int32_t) params->n_head_kv;
 
-    int64_t ne[4] = { params->head_dim_v, q->ne[1], 1, 1 };
+    int64_t ne[4] = { params->head_dim_v, q->ne[1], q->ne[2], q->ne[3] };
     struct ggml_tensor * result = ggml_new_tensor(ctx, GGML_TYPE_F32, 4, ne);
     ggml_set_op_params(result, op_params, sizeof(op_params));
     result->op = GGML_OP_FLASH_ATTN_EXT;
