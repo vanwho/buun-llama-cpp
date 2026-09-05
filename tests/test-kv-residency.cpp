@@ -479,6 +479,29 @@ static void test_ggml_adapter_tensor_route() {
     ggml_backend_free(backend);
 }
 
+static void test_ggml_adapter_borrowed_storage() {
+    ggml_backend_t backend = ggml_backend_cpu_init();
+    assert(backend != nullptr);
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_buffer(backend, 128);
+    assert(buffer != nullptr);
+    ggml_context * ctx = ggml_init({ 1024, nullptr, true });
+    assert(ctx != nullptr);
+    ggml_tensor * storage = ggml_new_tensor_1d(ctx, GGML_TYPE_I8, 128);
+    assert(storage != nullptr);
+    assert(ggml_backend_tensor_alloc(buffer, storage,
+            ggml_backend_buffer_get_base(buffer)) == GGML_STATUS_SUCCESS);
+
+    llama_kv_residency_ggml_status status;
+    auto adapter = llama_kv_residency_ggml_adapter::create(
+            { backend, buffer, 2, 64, false, storage }, status);
+    assert(adapter && status == llama_kv_residency_ggml_status::ok);
+    assert(adapter->storage_tensor() == storage);
+    adapter.reset();
+    ggml_free(ctx);
+    ggml_backend_buffer_free(buffer);
+    ggml_backend_free(backend);
+}
+
 static void test_transfer_rollback_and_stale_completion() {
     fake_transfer_backend fake;
     llama_kv_residency_pool_backend backend {
@@ -905,6 +928,7 @@ int main() {
     test_rejection_and_stale_publication();
     test_batched_transfer_pool();
     test_ggml_adapter_tensor_route();
+    test_ggml_adapter_borrowed_storage();
     test_transfer_rollback_and_stale_completion();
     test_residency_transaction();
     test_reseal_before_eviction();

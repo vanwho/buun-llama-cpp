@@ -409,8 +409,17 @@ int main() {
 
     config.hot_pages.automatic = false;
     config.hot_pages.value = 2;
+    plan_resources.physical_page_cap = 0;
     assert(llama_kv_pager_plan(config, geometry(1025), plan_resources, snapshot, status));
     assert(snapshot.physical_page_count == 2 && snapshot.physical_rows == 2 * 256);
+
+    config.hot_pages.automatic = true;
+    plan_resources.physical_page_cap = 1;
+    assert(llama_kv_pager_plan(config, geometry(1025), plan_resources, snapshot, status));
+    assert(snapshot.physical_page_count == 1);
+    config.hot_pages.automatic = false;
+    config.hot_pages.value = 2;
+    plan_resources.physical_page_cap = 0;
 
     auto tiny = resources(128, 128);
     assert(!llama_kv_pager_plan(config, geometry(1024), tiny, snapshot, status));
@@ -425,6 +434,31 @@ int main() {
     invalid.page_tokens = 128;
     assert(!llama_kv_pager_plan(config, invalid, resources(1024, 128), snapshot, status));
     assert(status == llama_kv_pager_status::invalid_geometry);
+
+    ggml_backend_t external_backend = ggml_backend_cpu_init();
+    assert(external_backend != nullptr);
+    ggml_backend_buffer_t external_buffer = ggml_backend_alloc_buffer(external_backend, 128);
+    assert(external_buffer != nullptr);
+    ggml_context * external_ctx = ggml_init({ 1024, nullptr, true });
+    assert(external_ctx != nullptr);
+    ggml_tensor * external_tensor = ggml_new_tensor_1d(external_ctx, GGML_TYPE_I8, 128);
+    assert(external_tensor != nullptr);
+    assert(ggml_backend_tensor_alloc(external_buffer, external_tensor,
+            ggml_backend_buffer_get_base(external_buffer)) == GGML_STATUS_SUCCESS);
+    auto external_config = config;
+    external_config.hot_pages.automatic = false;
+    external_config.hot_pages.value = 1;
+    auto external_resources = resources(1024, 128);
+    external_resources.external_storage_buffer = external_buffer;
+    external_resources.external_storage_tensor = external_tensor;
+    auto external_pager = llama_kv_pager::create(
+            external_config, geometry(1024), external_resources, {}, status);
+    assert(external_pager && status == llama_kv_pager_status::ok);
+    assert(external_pager->snapshot().realized_bytes == 128);
+    external_pager.reset();
+    ggml_free(external_ctx);
+    ggml_backend_buffer_free(external_buffer);
+    ggml_backend_free(external_backend);
 
     int allocations = 0;
     int releases = 0;

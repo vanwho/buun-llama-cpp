@@ -900,7 +900,8 @@ llama_kv_cache::llama_kv_cache(
     const  layer_reuse_cb & reuse,
     const  layer_share_cb & share,
     const llama_memory_vbr_params & vbr,
-             const char *   name_tag) :
+             const char *   name_tag,
+    const struct llama_kv_pager_snapshot * pager_plan) :
     model(model), hparams(hparams), vbr_params_(vbr), v_trans(v_trans),
     n_seq_max(n_seq_max), n_stream(unified ? 1 : n_seq_max), n_pad(n_pad), n_swa(n_swa), swa_type(swa_type),
     other(static_cast<llama_kv_cache *>(mem_other)),
@@ -908,6 +909,23 @@ llama_kv_cache::llama_kv_cache(
     v_cells(*v_cells_impl) {
 
     name_tag = name_tag ? name_tag : "";
+
+    pager_plan_ = pager_plan;
+    physical_kv_size_ = kv_size;
+    if (pager_plan_ != nullptr) {
+        if (other != nullptr || n_stream != 1 ||
+            pager_plan_->physical_rows == 0 ||
+            pager_plan_->physical_rows > UINT32_MAX ||
+            pager_plan_->physical_bytes == 0 ||
+            pager_plan_->admission.page_charge_bytes == 0 ||
+            pager_plan_->physical_bytes !=
+                uint64_t(pager_plan_->physical_page_count) *
+                    pager_plan_->admission.page_charge_bytes) {
+            throw std::runtime_error("invalid bounded KV pager storage plan");
+        }
+        physical_kv_size_ = uint32_t(pager_plan_->physical_rows);
+        pager_bytes_per_slot_ = pager_plan_->admission.page_charge_bytes;
+    }
 
     // Construct eagerly so multiple share-linked contexts can register without racing a lazy
     // owner-side pointer initialization. The registry itself stays empty for ordinary caches.
@@ -1091,6 +1109,10 @@ llama_kv_cache::llama_kv_cache(
             dev_name = ggml_backend_dev_name(dev);
         }
 
+        if (pager_plan_ != nullptr && ggml_backend_buft_is_host(buft)) {
+            throw std::runtime_error("bounded KV pager requires GPU target cache storage");
+        }
+
         LLAMA_LOG_DEBUG("%s: layer %3d: dev = %s\n", __func__, il, dev_name);
 
         const bool cpu_bound_kv = ggml_backend_buft_is_host(buft);
@@ -1192,8 +1214,57 @@ llama_kv_cache::llama_kv_cache(
             }
         }
 
-        ggml_tensor * k = has_k ? ggml_new_tensor_3d(ctx, layer_type_k, n_embd_k_alloc, kv_size, n_stream) : nullptr;
-        ggml_tensor * v = has_v ? ggml_new_tensor_3d(ctx, layer_type_v, n_embd_v_alloc, kv_size, n_stream) : nullptr;
+        ggml_tensor * k = nullptr;
+        ggml_tensor * v = nullptr;
+        if (pager_plan_ != nullptr) {
+            const size_t ordinal = layers.size();
+            if (ordinal >= pager_plan_->geometry.model_layer_ids.size() ||
+                pager_plan_->geometry.model_layer_ids[ordinal] != il ||
+                layer_type_k != GGML_TYPE_TURBO4_0 ||
+                layer_type_v != GGML_TYPE_TURBO4_0 ||
+                pager_plan_->geometry.layer_k_offsets.size() <= ordinal ||
+                pager_plan_->geometry.layer_v_offsets.size() <= ordinal ||
+                pager_plan_->geometry.layer_k_page_bytes.size() <= ordinal ||
+                pager_plan_->geometry.layer_v_page_bytes.size() <= ordinal) {
+                throw std::runtime_error("bounded KV pager plan does not match cache layers");
+            }
+            if (pager_storage_ == nullptr) {
+                pager_storage_buft_ = buft;
+                pager_storage_ = ggml_new_tensor_1d(ctx, GGML_TYPE_I8,
+                        int64_t(pager_plan_->physical_bytes));
+                if (pager_storage_ == nullptr) {
+                    throw std::runtime_error("failed to create bounded KV pager slab");
+                }
+                ggml_format_name(pager_storage_, "cache_%spager_slab", name_tag);
+            } else if (pager_storage_buft_ != buft) {
+                throw std::runtime_error("bounded KV pager cache spans multiple buffer types");
+            }
+            auto make_view = [&](ggml_type type, uint32_t width,
+                    uint64_t page_bytes, uint64_t offset) {
+                ggml_tensor * result = ggml_view_3d(ctx, pager_storage_,
+                        width, physical_kv_size_, 1,
+                        ggml_row_size(type, width),
+                        uint64_t(pager_plan_->physical_page_count) * page_bytes,
+                        offset);
+                if (result == nullptr) {
+                    throw std::runtime_error("failed to create bounded KV pager view");
+                }
+                // ggml views preserve the source type. This slab is a byte anchor;
+                // restore the codec type while retaining the bounded slab strides.
+                result->type = type;
+                result->nb[0] = ggml_type_size(type);
+                return result;
+            };
+            k = has_k ? make_view(layer_type_k, n_embd_k_alloc,
+                    pager_plan_->geometry.layer_k_page_bytes[ordinal],
+                    pager_plan_->geometry.layer_k_offsets[ordinal]) : nullptr;
+            v = has_v ? make_view(layer_type_v, n_embd_v_alloc,
+                    pager_plan_->geometry.layer_v_page_bytes[ordinal],
+                    pager_plan_->geometry.layer_v_offsets[ordinal]) : nullptr;
+        } else {
+            k = has_k ? ggml_new_tensor_3d(ctx, layer_type_k, n_embd_k_alloc, kv_size, n_stream) : nullptr;
+            v = has_v ? ggml_new_tensor_3d(ctx, layer_type_v, n_embd_v_alloc, kv_size, n_stream) : nullptr;
+        }
 
         has_k && ggml_format_name(k, "cache_%sk_l%d_ms%d", name_tag, il, hparams.turbo_meansub_id);
         has_v && ggml_format_name(v, "cache_%sv_l%d_ms%d", name_tag, il, hparams.turbo_meansub_id);
@@ -1202,8 +1273,10 @@ llama_kv_cache::llama_kv_cache(
         std::vector<ggml_tensor *> v_stream;
 
         for (uint32_t s = 0; s < n_stream; ++s) {
-            k_stream.push_back(has_k ? ggml_view_2d(ctx, k, n_embd_k_gqa, kv_size, k->nb[1], s*k->nb[2]) : nullptr);
-            v_stream.push_back(has_v ? ggml_view_2d(ctx, v, n_embd_v_gqa, kv_size, v->nb[1], s*v->nb[2]) : nullptr);
+            k_stream.push_back(has_k ? ggml_view_2d(ctx, k, n_embd_k_gqa,
+                    pager_plan_ ? physical_kv_size_ : kv_size, k->nb[1], s*k->nb[2]) : nullptr);
+            v_stream.push_back(has_v ? ggml_view_2d(ctx, v, n_embd_v_gqa,
+                    pager_plan_ ? physical_kv_size_ : kv_size, v->nb[1], s*v->nb[2]) : nullptr);
         }
 
         map_layer_ids[il] = layers.size();
@@ -12252,8 +12325,11 @@ bool llama_kv_cache::pager_geometry(
             const uint64_t k = uint64_t(ggml_row_size(layer.k->type, layer.k->ne[0])) * page_tokens;
             const uint64_t v = uint64_t(ggml_row_size(layer.v->type, layer.v->ne[0])) * page_tokens;
             output.layer_k_offsets.push_back(layer_offset);
+            output.layer_k_page_bytes.push_back(k);
             if (layer_offset > UINT64_MAX - k) return false;
+            output.model_layer_ids.push_back(layer.il);
             output.layer_v_offsets.push_back(layer_offset + k);
+            output.layer_v_page_bytes.push_back(v);
             if (k > UINT64_MAX - v || output.page_bytes > UINT64_MAX - k - v) return false;
             output.page_bytes += k + v;
             if (layer_offset > UINT64_MAX - k - v) return false;
@@ -12262,7 +12338,10 @@ bool llama_kv_cache::pager_geometry(
         return output.attention_layers != 0 && output.kv_heads != 0 &&
                output.key_length != 0 && output.value_length != 0 &&
                output.page_bytes != 0 && output.layer_k_offsets.size() == output.attention_layers &&
-               output.layer_v_offsets.size() == output.attention_layers;
+               output.layer_v_offsets.size() == output.attention_layers &&
+               output.model_layer_ids.size() == output.attention_layers &&
+               output.layer_k_page_bytes.size() == output.attention_layers &&
+               output.layer_v_page_bytes.size() == output.attention_layers;
     } catch (...) {
         output = {};
         return false;
@@ -12349,7 +12428,7 @@ ggml_tensor * llama_kv_cache::get_k(ggml_context * ctx, int32_t il, uint32_t n_k
 
     auto * k = layers[ikv].k;
 
-    const uint64_t kv_size      = get_size();
+    const uint64_t kv_size      = pager_plan_ ? physical_kv_size_ : get_size();
     const uint64_t n_embd_k_gqa = k->ne[0];
 
     // may be padded for turbo FWHT alignment
@@ -12357,6 +12436,9 @@ ggml_tensor * llama_kv_cache::get_k(ggml_context * ctx, int32_t il, uint32_t n_k
 
     const uint32_t n_head_kv     = hparams.n_head_kv(il);
     const uint32_t n_embd_head_k = n_embd_k_gqa / n_head_kv;
+    if (pager_plan_ != nullptr) {
+        n_kv = std::min<uint32_t>(n_kv, physical_kv_size_);
+    }
 
     const uint32_t ns = sinfo.s1 - sinfo.s0 + 1;
 
@@ -12374,13 +12456,16 @@ ggml_tensor * llama_kv_cache::get_v(ggml_context * ctx, int32_t il, uint32_t n_k
 
     auto * v = layers[ikv].v;
 
-    const uint64_t kv_size      = get_size();
+    const uint64_t kv_size      = pager_plan_ ? physical_kv_size_ : get_size();
     const uint64_t n_embd_v_gqa = v->ne[0];
 
     // [TAG_V_CACHE_VARIABLE]
     assert(n_embd_v_gqa >= hparams.n_embd_v_gqa(il));
 
     const uint32_t ns = sinfo.s1 - sinfo.s0 + 1;
+    if (pager_plan_ != nullptr) {
+        n_kv = std::min<uint32_t>(n_kv, physical_kv_size_);
+    }
 
     if (!v_trans) {
         // use padded head_dim from cache tensor (may be padded for turbo FWHT)
@@ -12436,7 +12521,7 @@ ggml_tensor * llama_kv_cache::cpy_k(ggml_context * ctx, ggml_tensor * k_cur, ggm
     const int64_t n_stream = k->ne[2];
 
     if (n_stream > 1) {
-        const int64_t kv_size = get_size();
+        const int64_t kv_size = pager_plan_ ? physical_kv_size_ : get_size();
 
         assert(n_embd_gqa == k->ne[0]);
         assert(kv_size    == k->ne[1]);
@@ -12480,7 +12565,7 @@ ggml_tensor * llama_kv_cache::cpy_v(ggml_context * ctx, ggml_tensor * v_cur, ggm
         v_cur = ggml_view_2d(ctx, v_cur, n_embd_gqa_cache, n_tokens, v_cur->nb[2], 0);
 
         if (n_stream > 1) {
-            const int64_t kv_size = get_size();
+            const int64_t kv_size = pager_plan_ ? physical_kv_size_ : get_size();
 
             assert(n_embd_gqa_cache == v->ne[0]);
             assert(kv_size          == v->ne[1]);
@@ -12589,7 +12674,8 @@ void llama_kv_cache::set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ub
     int64_t * data = (int64_t *) dst->data;
 
     for (uint32_t s = 0; s < sinfo.n_stream(); ++s) {
-        const int64_t offs = sinfo.strm[s]*get_size();
+        const int64_t offs = sinfo.strm[s] *
+            (pager_plan_ ? physical_kv_size_ : get_size());
 
         for (uint32_t i = 0; i < sinfo.size(); ++i) {
             uint32_t pager_row = UINT32_MAX;
@@ -12610,7 +12696,8 @@ void llama_kv_cache::set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ub
 
     if (!v_trans) {
         for (uint32_t s = 0; s < sinfo.n_stream(); ++s) {
-            const int64_t offs = sinfo.strm[s]*get_size();
+            const int64_t offs = sinfo.strm[s] *
+                (pager_plan_ ? physical_kv_size_ : get_size());
 
             for (uint32_t i = 0; i < sinfo.size(); ++i) {
                 uint32_t pager_row = UINT32_MAX;
@@ -12621,7 +12708,7 @@ void llama_kv_cache::set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ub
         }
     } else {
         // note: the V cache is transposed when not using flash attention
-        const int64_t kv_size = get_size();
+        const int64_t kv_size = pager_plan_ ? physical_kv_size_ : get_size();
 
         const int64_t n_embd_v_gqa = hparams.n_embd_v_gqa_max();
 

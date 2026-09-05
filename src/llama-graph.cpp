@@ -3329,7 +3329,11 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             const auto & geometry = pager->snapshot().geometry;
             inp->direct_layer_k_offsets = geometry.layer_k_offsets;
             inp->direct_layer_v_offsets = geometry.layer_v_offsets;
-            inp->direct_layer_ids = mctx_cur->get_layer_ids();
+            inp->direct_layer_ids = geometry.model_layer_ids;
+            const auto cache_layer_ids = mctx_cur->get_layer_ids();
+            if (inp->direct_layer_ids != cache_layer_ids) {
+                throw std::runtime_error("direct paged attention layer ordinal map disagrees with cache");
+            }
             bool duplicate_layer_id = false;
             for (size_t i = 0; i < inp->direct_layer_ids.size() && !duplicate_layer_id; ++i) {
                 duplicate_layer_id = std::find(inp->direct_layer_ids.begin(),
@@ -3339,6 +3343,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             if (inp->direct_bytes_per_slot == 0 ||
                 inp->direct_layer_k_offsets.empty() ||
                 inp->direct_layer_k_offsets.size() != inp->direct_layer_v_offsets.size() ||
+                inp->direct_layer_k_offsets.size() != geometry.layer_k_page_bytes.size() ||
+                inp->direct_layer_k_offsets.size() != geometry.layer_v_page_bytes.size() ||
                 inp->direct_layer_ids.size() != inp->direct_layer_k_offsets.size() ||
                 duplicate_layer_id) {
                 throw std::runtime_error("direct paged attention has incomplete slot geometry");
@@ -3564,9 +3570,9 @@ ggml_tensor * llm_graph_context::build_attn(
         }
         GGML_ASSERT(v->type == GGML_TYPE_TURBO4_0 && k->type == GGML_TYPE_TURBO4_0);
 
-        // The pager slot is laid out as full interleaved token rows. The
-        // direct kernel addresses one KV head within each row, so these views
-        // describe row/head/page strides without copying or repacking bytes.
+        // Each layer owns a contiguous K/V page run in the single slab. The
+        // direct kernel still addresses physical slots through nb[3], so no
+        // layer-specific repacking or second backing is required.
         ggml_tensor * k_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
                 inp->direct_layer_k_offsets[layer_ordinal]);
         ggml_tensor * v_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
@@ -3574,10 +3580,10 @@ ggml_tensor * llm_graph_context::build_attn(
         GGML_ASSERT(k_raw && v_raw);
         k_raw->nb[1] = ggml_row_size(k->type, k->ne[0]);
         k_raw->nb[2] = ggml_row_size(k->type, inp->selected_metadata.head_dim_k());
-        k_raw->nb[3] = inp->direct_bytes_per_slot;
+        k_raw->nb[3] = inp->mctx->get_kv_pager()->snapshot().geometry.layer_k_page_bytes[layer_ordinal];
         v_raw->nb[1] = ggml_row_size(v->type, v->ne[0]);
         v_raw->nb[2] = ggml_row_size(v->type, inp->selected_metadata.head_dim_v());
-        v_raw->nb[3] = inp->direct_bytes_per_slot;
+        v_raw->nb[3] = inp->mctx->get_kv_pager()->snapshot().geometry.layer_v_page_bytes[layer_ordinal];
 
         ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
             ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);

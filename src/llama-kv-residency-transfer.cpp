@@ -204,7 +204,9 @@ llama_kv_residency_ggml_adapter::llama_kv_residency_ggml_adapter(
       device_(config.backend ? ggml_backend_get_device(config.backend) : nullptr),
       buffer_(config.buffer), slot_capacity_(config.slot_capacity),
       bytes_per_slot_(config.bytes_per_slot),
-      force_synchronous_(config.force_synchronous) {}
+      force_synchronous_(config.force_synchronous),
+      storage_tensor_(config.external_storage),
+      external_storage_(config.external_storage != nullptr) {}
 
 llama_kv_residency_ggml_adapter::~llama_kv_residency_ggml_adapter() {
     drain();
@@ -219,6 +221,12 @@ llama_kv_residency_ggml_adapter::create(
     if (!config.backend || !config.buffer || config.slot_capacity == 0 ||
         config.bytes_per_slot == 0 ||
         config.bytes_per_slot > SIZE_MAX/config.slot_capacity) {
+        return nullptr;
+    }
+    if (config.external_storage != nullptr &&
+        (config.external_storage->type != GGML_TYPE_I8 ||
+         ggml_nbytes(config.external_storage) <
+             size_t(config.bytes_per_slot * config.slot_capacity))) {
         return nullptr;
     }
     try {
@@ -248,10 +256,15 @@ bool llama_kv_residency_ggml_adapter::initialize_slots() noexcept {
         if (!tensor_context_) return false;
         void * base = ggml_backend_buffer_get_base(buffer_);
         if (!base) return false;
-        storage_tensor_ = ggml_new_tensor_1d(
-                tensor_context_, GGML_TYPE_I8, int64_t(bytes));
-        if (!storage_tensor_ || ggml_backend_tensor_alloc(
-                buffer_, storage_tensor_, base) != GGML_STATUS_SUCCESS) {
+        if (!external_storage_) {
+            storage_tensor_ = ggml_new_tensor_1d(
+                    tensor_context_, GGML_TYPE_I8, int64_t(bytes));
+            if (!storage_tensor_ || ggml_backend_tensor_alloc(
+                    buffer_, storage_tensor_, base) != GGML_STATUS_SUCCESS) {
+                release_slots();
+                return false;
+            }
+        } else if (!storage_tensor_ || storage_tensor_->data == nullptr) {
             release_slots();
             return false;
         }
@@ -279,7 +292,9 @@ void llama_kv_residency_ggml_adapter::release_slots() noexcept {
     pending_.clear();
     mapped_.clear();
     slot_tensors_.clear();
-    storage_tensor_ = nullptr;
+    if (!external_storage_) {
+        storage_tensor_ = nullptr;
+    }
     if (tensor_context_) {
         ggml_free(tensor_context_);
         tensor_context_ = nullptr;

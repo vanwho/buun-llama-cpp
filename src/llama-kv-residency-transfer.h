@@ -155,6 +155,8 @@ struct llama_kv_residency_ggml_adapter_config {
     uint32_t slot_capacity = 0;
     uint64_t bytes_per_slot = 0;
     bool force_synchronous = false;
+    // Optional cache-owned slab. Only borrowed slot views are created when set.
+    ggml_tensor * external_storage = nullptr;
 };
 
 // Owns the slot tensor views and backend events for one compact residency
@@ -199,6 +201,7 @@ private:
     uint64_t bytes_per_slot_ = 0;
     bool force_synchronous_ = false;
     ggml_tensor * storage_tensor_ = nullptr;
+    bool external_storage_ = false;
     std::vector<ggml_tensor *> slot_tensors_;
     std::vector<uint8_t> mapped_;
     std::vector<pending_event> pending_;
