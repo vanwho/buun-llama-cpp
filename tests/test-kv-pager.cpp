@@ -33,6 +33,44 @@ static llama_kv_pager_geometry geometry(uint64_t context) {
     return result;
 }
 
+static void test_full_256k_capacity_plan() {
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    config.hot_pages.automatic = false;
+    config.hot_pages.value = 4;
+
+    auto full_resources = resources(2u << 20, 128);
+    full_resources.physical_page_cap = 4;
+    full_resources.admission.mtp_present = true;
+    full_resources.admission.mtp_tokens = 262144;
+    full_resources.admission.mtp_k_row_bytes = 1;
+    full_resources.admission.mtp_v_row_bytes = 1;
+    full_resources.admission.mtp_is_turbo4 = true;
+
+    llama_kv_pager_snapshot snapshot;
+    llama_kv_pager_status status;
+    assert(llama_kv_pager_plan(
+            config, geometry(262144), full_resources, snapshot, status));
+    assert(status == llama_kv_pager_status::ok);
+
+    // The complete logical target is addressable through host metadata while
+    // the physical device slab remains bounded to the configured hot set.
+    assert(snapshot.geometry.context_tokens == 262144);
+    assert(snapshot.logical_page_count == 1024);
+    assert(snapshot.host_metadata_bytes == 1024 * sizeof(llama_kv_page_id));
+    assert(snapshot.physical_page_count == 4);
+    assert(snapshot.physical_rows == 4 * 256);
+    assert(snapshot.physical_bytes == 4 * 128);
+    assert(snapshot.physical_page_count < snapshot.logical_page_count);
+
+    // Native Turbo4 MTP retains the full resolved target row count independently
+    // of the bounded attention hot pages.
+    assert(snapshot.mtp_rows == 262144);
+    assert(snapshot.admission.mtp_bytes == 262144 * 2);
+    assert(snapshot.admission.accepted_target_tokens == 4 * 256);
+    assert(snapshot.admission.accepted_target_tokens < snapshot.mtp_rows);
+}
+
 static bool build_routing_summary(
         void *, const llama_kv_page_record & page,
         const llama_kv_routing_summary_config & config,
@@ -460,6 +498,7 @@ int main() {
     test_host_seal_boundary();
     test_mode_lifecycle_matrix();
     test_pager_host_mutation();
+    test_full_256k_capacity_plan();
     llama_kv_pager_config off;
     llama_kv_pager_snapshot snapshot;
     llama_kv_pager_status status;
