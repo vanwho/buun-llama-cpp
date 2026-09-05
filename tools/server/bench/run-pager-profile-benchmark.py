@@ -20,7 +20,13 @@ import re
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from pager_benchmark_contract import CORPUS_SCHEMA
+from pager_benchmark_contract import (
+    CORPUS_SCHEMA,
+    ContextResolutionError,
+    corpus_context_ceiling,
+    resolve_context,
+    validate_corpus,
+)
 
 
 VARIANTS = {
@@ -368,30 +374,60 @@ def missing_pager_fields(telemetry: dict[str, object] | None) -> list[str]:
     return [field for field in PAGER_FIELDS if envelope.get(field) is None]
 
 
-def corpus(variant: str) -> dict[str, object]:
+DEFAULT_CORPUS = pathlib.Path(__file__).with_name("fixtures") / "pager-corpus-v4.json"
+
+
+def load_corpus() -> tuple[pathlib.Path, dict[str, object] | None, list[str]]:
+    configured = os.environ.get("PAGER_CORPUS")
+    path = pathlib.Path(configured) if configured else DEFAULT_CORPUS
+    try:
+        frozen = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        return path, None, [f"cannot read corpus {path}: {error}"]
+    if not isinstance(frozen, dict):
+        return path, None, ["corpus must be an object"]
+    errors = validate_corpus(frozen)
+    return path, frozen, errors
+
+
+def corpus(variant: str, frozen: dict[str, object] | None = None,
+           path: pathlib.Path | None = None) -> dict[str, object]:
     description = VARIANTS[variant]["description"]
-    corpus_value = os.environ.get("PAGER_CORPUS")
-    corpus_path = pathlib.Path(corpus_value) if corpus_value else None
-    if corpus_path and corpus_path.exists():
+    corpus_path = path
+    if frozen is None:
+        corpus_path, frozen, errors = load_corpus()
+    else:
+        errors = []
+    if frozen is not None and not errors:
         try:
-            frozen = json.loads(corpus_path.read_text())
             return {"schema": frozen.get("schema", CORPUS_SCHEMA), "name": frozen.get("schema", CORPUS_SCHEMA), "variant": variant,
                     "description": description, "path": str(corpus_path),
                     "corpus_hash": frozen["corpus_hash"], "cases": len(frozen["cases"]),
                     "model_sha256": frozen["model_sha256"], "tokenizer_sha256": frozen["tokenizer_sha256"],
+                    "context_ceiling": corpus_context_ceiling(frozen),
                     "expected_answers_status": "frozen"}
         except (OSError, KeyError, TypeError, json.JSONDecodeError):
             pass
     return {"schema": CORPUS_SCHEMA, "name": CORPUS_SCHEMA, "variant": variant,
             "description": description, "path": str(corpus_path) if corpus_path else None,
-            "corpus_hash": None, "cases": 0, "model_sha256": None, "tokenizer_sha256": None,
-            "expected_answers_status": "not_configured"}
+            "corpus_hash": None, "cases": 0, "context_ceiling": None,
+            "model_sha256": None, "tokenizer_sha256": None,
+            "expected_answers_status": "invalid_or_not_configured",
+            "validation_errors": errors}
 
 
-def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str | None) -> None:
+def prompt_context_words(context_tokens: int) -> int:
+    """Approximate a tokenizer-sized synthetic prompt without a fixed default."""
+    return max(1, context_tokens // 2)
+
+
+def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str | None,
+                  context: dict[str, object], frozen_corpus: dict[str, object],
+                  corpus_path: pathlib.Path) -> None:
     output.mkdir(parents=True, exist_ok=True)
     envelope = pager_envelope(variant)
-    frozen_corpus = corpus(variant)
+    resolved_context = int(context["resolved"])
+    context_words = prompt_context_words(resolved_context)
     config = {
         "schema_version": 2, "run_id": f"dry-{target}-{variant}",
         "run_timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "target": target,
@@ -399,7 +435,7 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
         "endpoint": endpoint, "dry_run": True, "pager": envelope, "corpus": frozen_corpus,
         "model": {"sha256": os.environ.get("PAGER_MODEL_SHA256", frozen_corpus.get("model_sha256", "0" * 64))},
         "tokenizer": {"sha256": os.environ.get("PAGER_TOKENIZER_SHA256", frozen_corpus.get("tokenizer_sha256", "1" * 64))},
-        "context": {"ladder": "derived", "selected": None},
+        "context": context,
         "placement": {"target_kv": "not_configured", "mtp_rows": None,
                        "mtp_kv_type": "not_configured", "mtp_backend": "not_configured", "mtp_bytes": None},
         "service": {"status": "not_started"},
@@ -408,9 +444,18 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
         "launcher": {"mode": os.environ.get("BENCH_PAGER_MODE", "selective"),
                      "device": os.environ.get("BENCH_DEVICE", "auto"),
                      "page_size_tokens": int(os.environ.get("BENCH_PAGE_SIZE", "256")),
-                     "context": os.environ.get("BENCH_CONTEXT", "derived"),
+                     "context": resolved_context,
+                     "requested_context": context["requested"],
+                     "mode": context["mode"],
+                     "diagnostic_only": context["diagnostic_only"],
+                     "prompt_context_target_tokens": resolved_context,
+                     "prompt_context_words": context_words,
                      "mtp": os.environ.get("BENCH_MTP", "native"),
                      "draft_kv": "turbo4"},
+        "prompt": {"target_context_tokens": resolved_context,
+                    "synthetic_context_words": context_words,
+                    "tail_tokens": resolved_context % 256},
+        "corpus_provenance": {"path": str(corpus_path), "context_ceiling": frozen_corpus["context_ceiling"]},
         "compatibility": {"canonical_runner": os.environ.get("CANONICAL_BENCHMARK_RUNNER"),
                            "records_format": "canonical records.jsonl preserved"},
     }
@@ -422,7 +467,11 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
         "restore_requested": False,
         "state": "not_started",
     }, indent=2) + "\n")
-    (output / "parameters.txt").write_text(f"dry_run=true\nvariant={variant}\ntarget={target}\n")
+    (output / "parameters.txt").write_text(
+        f"dry_run=true\nvariant={variant}\ntarget={target}\n"
+        f"requested_context={context['requested']}\nresolved_context={resolved_context}\n"
+        f"context_mode={context['mode']}\ndiagnostic_only={str(context['diagnostic_only']).lower()}\n"
+    )
     (output / "records.jsonl").write_text("")
     (output / "summary.json").write_text("[]\n")
     (output / "summary.txt").write_text("dry run: service was not contacted\n")
@@ -430,11 +479,19 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
 
 def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, object], after: dict[str, object], telemetry: dict[str, object] | None,
            validation_errors: list[str], restoration: dict[str, object] | None,
-           canonical_rc: int | None) -> None:
+           canonical_rc: int | None, context: dict[str, object]) -> None:
     config_path = output / "run-config.json"
     config = json.loads(config_path.read_text())
     config["pager"] = pager_envelope(variant, telemetry)
     config["corpus"] = corpus(variant)
+    config["context_resolution"] = context
+    config.setdefault("launcher", {})["requested_context"] = context["requested"]
+    config["launcher"]["resolved_context"] = context["resolved"]
+    config["launcher"]["diagnostic_only"] = context["diagnostic_only"]
+    profile_settings = config.setdefault("profile_settings", {})
+    if isinstance(profile_settings, dict):
+        profile_settings["context"] = context["resolved"]
+        profile_settings["context_resolution"] = context
     restore_requested = os.environ.get("BENCH_RESTORE_PROFILE", "0") == "1"
     config["service"] = {"before": before, "after": after,
                           "restore_requested": restore_requested,
@@ -509,7 +566,9 @@ def main() -> int:
     parser.add_argument("--page-size", type=int, default=256,
                         help="logical pager page size in tokens (default: 256)")
     parser.add_argument("--context", default="derived",
-                        help="target context, or derived to use the resolved profile/model context")
+                        help="corpus-derived context, or an explicit token count")
+    parser.add_argument("--diagnostic", action="store_true",
+                        help="explicitly permit a sub-ceiling diagnostic run")
     parser.add_argument("--mtp", choices=("native", "off"), default="native",
                         help="native MTP companion policy")
     args = parser.parse_args()
@@ -519,14 +578,29 @@ def main() -> int:
         parser.error("native MTP is only available with the canonical Qwen3.8 fast profile")
     endpoint = os.environ.get("BENCH_ENDPOINT")
     output = pathlib.Path(args.output or f"pager-results/pager-{args.variant}-{args.target}-dry")
+    corpus_path, frozen_corpus, corpus_errors = load_corpus()
+    if corpus_errors or frozen_corpus is None:
+        print("pager benchmark: invalid corpus: " + "; ".join(corpus_errors), file=sys.stderr)
+        return 2
+    try:
+        context = resolve_context(args.context, corpus_context_ceiling(frozen_corpus),
+                                  diagnostic=args.diagnostic)
+    except ContextResolutionError as error:
+        print(f"pager benchmark: invalid benchmark context: {error}", file=sys.stderr)
+        return 2
     if args.dry_run:
         os.environ["BENCH_PAGER_MODE"] = args.mode
         os.environ["BENCH_DEVICE"] = args.device
         os.environ["BENCH_PAGE_SIZE"] = str(args.page_size)
-        os.environ["BENCH_CONTEXT"] = args.context
+        os.environ["BENCH_CONTEXT"] = str(context["resolved"])
+        os.environ["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
+        os.environ["BENCH_CONTEXT_WORDS"] = str(prompt_context_words(int(context["resolved"])))
         os.environ["BENCH_MTP"] = args.mtp
-        write_dry_run(output, args.target, args.variant, endpoint)
-        print(output)
+        write_dry_run(output, args.target, args.variant, endpoint, context,
+                      corpus(variant=args.variant, frozen=frozen_corpus, path=corpus_path),
+                      corpus_path)
+        print(json.dumps({"output": str(output), "context": context,
+                          "mode": context["mode"]}, sort_keys=True))
         return 0
 
     runner = os.environ.get("CANONICAL_BENCHMARK_RUNNER")
@@ -560,7 +634,9 @@ def main() -> int:
     env["BENCH_PAGER_MODE"] = args.mode
     env["BENCH_DEVICE"] = args.device
     env["BENCH_PAGE_SIZE"] = str(args.page_size)
-    env["BENCH_CONTEXT"] = args.context
+    env["BENCH_CONTEXT"] = str(context["resolved"])
+    env["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
+    env["BENCH_CONTEXT_WORDS"] = str(prompt_context_words(int(context["resolved"])))
     env["BENCH_MTP"] = args.mtp
     # Successful runs remain loaded by default. Explicit control/revert runs
     # opt into restoration; failed runs are restored by the canonical runner.
@@ -622,7 +698,7 @@ def main() -> int:
     if (output / "run-config.json").exists():
         try:
             enrich(output, args.target, args.variant, before, after, telemetry_after,
-                   validation_errors, restoration, canonical_rc)
+                   validation_errors, restoration, canonical_rc, context)
         except (OSError, TypeError, json.JSONDecodeError):
             validation_errors.append("malformed_run_artifacts")
             (output / "lifecycle-state.json").write_text(json.dumps({

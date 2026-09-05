@@ -16,10 +16,22 @@ import os
 import pathlib
 import re
 import subprocess
+import sys
 import threading
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from pager_benchmark_contract import (
+    CORPUS_SCHEMA,
+    ContextResolutionError,
+    corpus_context_ceiling,
+    resolve_context,
+    validate_corpus,
+)
+
+
+DEFAULT_CORPUS = pathlib.Path(__file__).with_name("fixtures") / "pager-corpus-v4.json"
 
 
 def read_key(path: pathlib.Path) -> str:
@@ -35,7 +47,8 @@ def safe_name(value: str) -> str:
 
 class Soak:
     def __init__(self, root: pathlib.Path, endpoint: str, key: str, model: str,
-                 slot_dir: pathlib.Path, context: int) -> None:
+                 slot_dir: pathlib.Path, context: int,
+                 context_resolution: dict[str, object], corpus: dict[str, object]) -> None:
         self.root = root
         self.raw = root / "raw"
         self.raw.mkdir(parents=True, exist_ok=True)
@@ -44,6 +57,12 @@ class Soak:
         self.model = model
         self.slot_dir = slot_dir
         self.context = context
+        self.context_resolution = context_resolution
+        self.corpus = corpus
+        # The synthetic marker uses a stable two-token-ish word shape. Keep
+        # its size tied to the resolved context while leaving headroom for the
+        # system/question wrapper and completion.
+        self.prompt_words = max(640, (context - 512) // 2)
         self.records: list[dict[str, object]] = []
         self._records_lock = threading.Lock()
 
@@ -226,7 +245,43 @@ def words(prefix: str, count: int, focus: str) -> str:
     return " ".join(f"{prefix}-{i % 64:02d}" for i in range(count)) + f" Focus marker {focus}. Preserve the supplied facts and answer briefly."
 
 
-def restart(soak: Soak) -> dict[str, object]:
+def load_corpus(path: pathlib.Path) -> tuple[dict[str, object] | None, list[str]]:
+    try:
+        corpus = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        return None, [f"cannot read corpus {path}: {error}"]
+    if not isinstance(corpus, dict):
+        return None, ["corpus must be an object"]
+    errors = validate_corpus(corpus)
+    if corpus.get("schema") != CORPUS_SCHEMA:
+        errors.append(f"corpus schema must be {CORPUS_SCHEMA}")
+    return corpus, errors
+
+
+def write_dry_run(output: pathlib.Path, corpus_path: pathlib.Path,
+                  corpus: dict[str, object], context: dict[str, object]) -> None:
+    output.mkdir(parents=True, exist_ok=True)
+    resolved = int(context["resolved"])
+    payload = {
+        "schema_version": 1,
+        "dry_run": True,
+        "context": context,
+        "corpus": {"path": str(corpus_path), "schema": corpus["schema"],
+                    "corpus_hash": corpus.get("corpus_hash"),
+                    "context_ceiling": corpus_context_ceiling(corpus)},
+        "prompt": {"target_context_tokens": resolved,
+                   "synthetic_context_words": max(640, (resolved - 512) // 2),
+                   "tail_tokens": resolved % 256},
+        "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
+                       "draft_backend": "gpu", "context_tokens": resolved},
+    }
+    (output / "provenance.json").write_text(json.dumps(payload, indent=2) + "\n")
+    (output / "run-summary.json").write_text(json.dumps(payload, indent=2) + "\n")
+    print(json.dumps({"output": str(output), "context": context,
+                      "mode": context["mode"]}, sort_keys=True))
+
+
+def restart(soak: Soak, label: str = "restart") -> dict[str, object]:
     values = {
         "AI_BENCHMARK_CLEAN": "0", "AI_BENCHMARK_CONTEXT": str(soak.context),
         "AI_BENCHMARK_KV_PAGER": "selective", "AI_BENCHMARK_PAGE_SIZE": "256",
@@ -260,7 +315,8 @@ def restart(soak: Soak) -> dict[str, object]:
     result = {"set_rc": set_result.returncode, "restart_rc": restart_result.returncode,
               "restart_stderr": restart_result.stderr, "health": health,
               "clear_rc": clear_result.returncode, "elapsed_s": time.monotonic() - start}
-    soak.write_json("restart.json", result)
+    result["phase"] = label
+    soak.write_json(f"{label}.json", result)
     return result
 
 
@@ -268,23 +324,66 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=pathlib.Path)
     parser.add_argument("--endpoint", default="http://127.0.0.1:8080")
-    parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
+    parser.add_argument("--api-key-file", type=pathlib.Path)
     parser.add_argument("--model", default="qwen38-fast-turbo4-mtp")
-    parser.add_argument("--context", type=int, default=16384)
+    parser.add_argument("--corpus", type=pathlib.Path,
+                        help="V4 corpus (default: PAGER_CORPUS or checked-in fixture)")
+    parser.add_argument("--context", default="derived",
+                        help="corpus-derived context, or an explicit token count")
+    parser.add_argument("--diagnostic", action="store_true",
+                        help="explicitly permit a sub-ceiling diagnostic soak")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="resolve and print the run contract without contacting a service")
     parser.add_argument("--sample-seconds", type=int, default=45)
     args = parser.parse_args()
+    corpus_path = args.corpus or pathlib.Path(os.environ.get("PAGER_CORPUS", DEFAULT_CORPUS))
+    corpus, corpus_errors = load_corpus(corpus_path)
+    if corpus is None or corpus_errors:
+        print("invalid corpus: " + "; ".join(corpus_errors), file=sys.stderr)
+        return 2
+    try:
+        context = resolve_context(args.context, corpus_context_ceiling(corpus),
+                                  diagnostic=args.diagnostic)
+    except ContextResolutionError as error:
+        print(f"invalid benchmark context: {error}", file=sys.stderr)
+        return 2
+    if args.sample_seconds <= 0:
+        parser.error("sample-seconds must be positive")
+    if args.dry_run:
+        write_dry_run(args.output, corpus_path, corpus, context)
+        return 0
+    if not args.api_key_file:
+        parser.error("--api-key-file is required for a live soak")
     soak = Soak(args.output, args.endpoint, read_key(args.api_key_file), args.model,
-                pathlib.Path("/srv/ai/paged-kv/data/sessions/hybrid-fast"), args.context)
+                pathlib.Path("/srv/ai/paged-kv/data/sessions/hybrid-fast"),
+                int(context["resolved"]), context, {
+                    "path": str(corpus_path), "schema": corpus["schema"],
+                    "corpus_hash": corpus.get("corpus_hash"),
+                    "context_ceiling": corpus_context_ceiling(corpus),
+                })
+    (soak.root / "provenance.json").write_text(json.dumps({
+        "schema_version": 1,
+        "corpus": soak.corpus,
+        "context": context,
+        "prompt": {"target_context_tokens": soak.context,
+                    "synthetic_context_words": soak.prompt_words,
+                    "tail_tokens": soak.context % 256},
+        "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
+                       "draft_backend": "gpu", "context_tokens": soak.context},
+    }, indent=2) + "\n")
     started = time.time()
     soak.identity("before")
     soak.metrics("before")
     soak.get("health-before", "/health")
     soak.get("slots-before", "/slots")
+    startup_result = restart(soak, "startup")
+    soak.identity("after-startup")
+    soak.metrics("after-startup")
     stop = threading.Event()
     sampler = threading.Thread(target=soak.sampler, args=(stop, args.sample_seconds), daemon=True)
     sampler.start()
 
-    # Each case is multi-page at the resolved 16K boundary.  Distinct markers
+    # Each case is context-sized at the resolved corpus boundary. Distinct markers
     # make accidental cross-request reuse visible in the retained payloads.
     for label, prefix, focus in (
         ("stable-01", "stable-a", "stable-a"),
@@ -298,18 +397,18 @@ def main() -> int:
         ("churn-03", "churn-c", "churn-c"),
         ("churn-04", "churn-d", "churn-d"),
     ):
-        soak.request(label, words(prefix, 640, focus))
+        soak.request(label, words(prefix, soak.prompt_words, focus))
 
     soak.metrics("after-page-waves")
     soak.get("slots-after-page-waves", "/slots")
-    soak.request("speculative-rejection", words("rejection", 256, "speculative-rejection"), max_tokens=128)
+    soak.request("speculative-rejection", words("rejection", soak.prompt_words, "speculative-rejection"), max_tokens=128)
     soak.metrics("after-speculative-rejection")
 
     # A bounded client cancellation must release the single active slot.  The
     # request and command result are retained separately from normal records.
     cancel_payload = {
         "model": soak.model,
-        "messages": [{"role": "user", "content": words("cancel", 1400, "cancel")}],
+        "messages": [{"role": "user", "content": words("cancel", soak.prompt_words, "cancel")}],
         "max_tokens": 128, "temperature": 0, "seed": 42, "stream": False,
     }
     soak.write_json("cancel.request.json", cancel_payload)
@@ -327,7 +426,7 @@ def main() -> int:
     # Concurrent requests share one managed slot.  The server must serialize
     # them without mixing the distinct markers or leaving the slot busy.
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(soak.request, label, words(label, 384, label), 8, 180)
+        futures = [pool.submit(soak.request, label, words(label, soak.prompt_words, label), 8, 180)
                    for label in ("concurrent-a", "concurrent-b")]
         concurrent_results = [future.result() for future in futures]
     soak.write_json("concurrent-results.json", concurrent_results)
@@ -377,10 +476,10 @@ def main() -> int:
     soak.write_json("slot-roundtrip.json", {"save": save, "erase": erase, "restore": restore_result,
                                             "saved_sha256": saved_hash, "restored_sha256": restored_hash,
                                             "sha256_match": saved_hash is not None and saved_hash == restored_hash})
-    soak.request("post-restore", words("post-restore", 256, "post-restore"))
+    soak.request("post-restore", words("post-restore", soak.prompt_words, "post-restore"))
     clear = post_slot("clear-final", "erase")
     soak.write_json("clear-final.record.json", clear)
-    soak.request("recovery", words("recovery", 384, "recovery"))
+    soak.request("recovery", words("recovery", soak.prompt_words, "recovery"))
     soak.get("slots-before-restart", "/slots")
     soak.metrics("pre-restart")
 
@@ -390,7 +489,7 @@ def main() -> int:
     soak.get_url("health-8091-after-restart", "http://127.0.0.1:8091/health")
     soak.get("slots-after-restart", "/slots")
     soak.metrics("after-restart")
-    soak.request("post-restart-recovery", words("restart-recovery", 384, "restart-recovery"))
+    soak.request("post-restart-recovery", words("restart-recovery", soak.prompt_words, "restart-recovery"))
     soak.get("slots-final", "/slots")
     soak.metrics("final")
     stop.set()
@@ -398,9 +497,16 @@ def main() -> int:
 
     final = {"schema_version": 1, "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(started)),
              "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-             "context_tokens": args.context, "page_size_tokens": 256,
+             "context_tokens": soak.context, "page_size_tokens": 256,
+             "context": soak.context_resolution, "diagnostic_only": soak.context_resolution["diagnostic_only"],
+             "prompt": {"target_context_tokens": soak.context,
+                        "synthetic_context_words": soak.prompt_words,
+                        "tail_tokens": soak.context % 256},
+             "corpus": soak.corpus,
+             "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
+                            "draft_backend": "gpu", "context_tokens": soak.context},
              "profile": pathlib.Path("/srv/ai/config/llama/active-profile").read_text().strip(),
-             "restart": restart_result, "records": soak.records}
+             "startup": startup_result, "restart": restart_result, "records": soak.records}
     soak.write_json("records.json", soak.records)
     soak.write_json("run-summary.json", final)
     sums = []

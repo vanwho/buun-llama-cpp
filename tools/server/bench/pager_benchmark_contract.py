@@ -20,6 +20,10 @@ MANIFEST_SCHEMA = 2
 LEGACY_MANIFEST_SCHEMAS = {1}
 PARTITIONS = ("calibration", "held_out")
 
+
+class ContextResolutionError(ValueError):
+    """Raised when a requested benchmark context cannot be accepted."""
+
 REQUIRED_TIMING = (
     "prompt_tokens", "completion_tokens", "prompt_us", "decode_us",
     "ttft_us", "inter_token_p50_us", "inter_token_p95_us",
@@ -51,6 +55,55 @@ def case_hash(case: dict[str, Any]) -> str:
 
 def corpus_hash(cases: Iterable[dict[str, Any]]) -> str:
     return sha256_json([case_hash(case) for case in cases])
+
+
+def corpus_context_ceiling(corpus: dict[str, Any]) -> int:
+    """Return the largest declared context in a validated benchmark corpus."""
+    cases = corpus.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise ContextResolutionError("corpus has no cases from which to derive context")
+    contexts = [case.get("context_tokens") for case in cases if isinstance(case, dict)]
+    if not contexts or any(not isinstance(value, int) or value <= 0 for value in contexts):
+        raise ContextResolutionError("corpus cases must declare positive context_tokens")
+    return max(contexts)
+
+
+def resolve_context(requested: str | int, ceiling: int, *, diagnostic: bool = False) -> dict[str, Any]:
+    """Resolve a benchmark context and classify its evidence boundary.
+
+    ``derived`` is deliberately resolved to the corpus ceiling.  An explicit
+    lower context is useful for startup/recovery diagnostics, but it must be
+    opted into and is never represented as acceptance evidence.
+    """
+    if not isinstance(ceiling, int) or ceiling <= 0:
+        raise ContextResolutionError("corpus context ceiling must be positive")
+    if requested == "derived":
+        resolved = ceiling
+        source = "corpus_ceiling"
+    else:
+        try:
+            resolved = int(requested)
+        except (TypeError, ValueError) as error:
+            raise ContextResolutionError("context must be derived or a positive token count") from error
+        if resolved <= 0:
+            raise ContextResolutionError("context must be positive")
+        source = "explicit"
+    sub_ceiling = resolved < ceiling
+    if sub_ceiling and not diagnostic:
+        raise ContextResolutionError(
+            f"context {resolved} is below corpus ceiling {ceiling}; "
+            "use an explicit diagnostic mode for a partial run"
+        )
+    diagnostic_only = diagnostic or sub_ceiling
+    return {
+        "requested": requested,
+        "resolved": resolved,
+        "source": source,
+        "corpus_context_ceiling": ceiling,
+        "diagnostic_only": diagnostic_only,
+        "mode": "diagnostic" if diagnostic_only else "acceptance",
+        "sub_ceiling": sub_ceiling,
+    }
 
 
 def _missing(mapping: dict[str, Any], fields: Iterable[str], prefix: str) -> list[str]:

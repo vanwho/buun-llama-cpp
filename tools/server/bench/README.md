@@ -159,8 +159,23 @@ The launcher exposes the live configuration explicitly. `--mode selective`,
 `--page-size 256`, `--context derived`, and `--mtp native` are the defaults;
 `--device` accepts the server's device list. Native MTP requires the Qwen3.8
 fast profile and pins both target and draft K/V to Turbo4/GPU. `derived` asks
-the selected profile/model to supply the context rather than applying a
-historical fixed hotset or context default.
+the frozen V4 corpus to supply the context ceiling (currently 22,016 tokens),
+so the target KV, native draft KV, and large prompt use one resolved value.
+Use `--context TOKENS --diagnostic` only for an explicitly diagnostic
+sub-ceiling run; its manifest is never acceptance evidence. A dry run prints
+the resolved context and acceptance/diagnostic mode.
+
+The quality runner has the same boundary:
+
+```shell
+tools/server/bench/run-quality-corpus.py fixtures/pager-corpus-v4.json <results-dir> \
+  --endpoint <url> --model <model> --mode selective --context derived
+```
+
+`run-pager-soak.py <results-dir> --dry-run` resolves the same corpus ceiling
+without contacting a service. Its live synthetic marker prompts are sized from
+that resolved context. Lower contexts require `--diagnostic` and are recorded
+with their odd tail and diagnostic-only provenance.
 
 Successful live runs keep the tested profile loaded and write
 `lifecycle-state.json`, including whether the health-checked service is usable
