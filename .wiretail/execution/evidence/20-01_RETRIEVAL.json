@@ -1,0 +1,73 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "20-01",
+  "result": "pass_local_deferred_live_checkpoint",
+  "kind": "implementation",
+  "procedure": "actual_qcur_complete_inventory_retrieval_and_cold_promotion_boundary",
+  "created_utc": "2026-09-05T15:47:07Z",
+  "classification": {
+    "local_correctness": "pass",
+    "local_build_cpu": "pass",
+    "cuda_target_build": "pass",
+    "gpu_summary_scoring": "cpu_reference_path",
+    "live_qwen35_cold_retrieval": "deferred"
+  },
+  "provenance": {
+    "source_commit": "0dc2045843546770bcb39860ed778f17a793fd9e",
+    "source_diff_sha256": "47070388f47a4fdb5b96e58b15d0ba6fbf581922ce32132c69306acfbf8bbc16",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "binary": "build-cuda/bin/test-kv-routing-retrieval",
+    "binary_sha256": "dbe8b6c90ce39d969577052dc7a8ce588521256f8b793758152f23b73ff55c23",
+    "model": null,
+    "model_sha256": null,
+    "corpus": null,
+    "corpus_sha256": null,
+    "config": "build-cuda/CMakeCache.txt",
+    "config_sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1",
+    "build": "build and build-cuda; CUDA target sm_89 configured",
+    "cuda_library": "build-cuda/bin/libggml-cuda.so",
+    "cuda_library_sha256": "69e795525f5fe28a0db387be7dddf453fa39e147dabf7d90be6749df6eacb047",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; driver 595.84; 16376 MiB total",
+    "live_process_observed": "No model-backed candidate started; existing workload preserved"
+  },
+  "checks": [
+    {"name": "complete inventory accepts authenticated cold page", "status": "pass", "raw_ids": ["test-kv-routing-summary", "test-kv-routing-retrieval"]},
+    {"name": "clean eviction retains summary and changed identity invalidates", "status": "pass", "raw_ids": ["test-kv-routing-summary"]},
+    {"name": "coordinate identity and per-layer/head table index", "status": "pass", "raw_ids": ["test-kv-routing-retrieval", "test-kv-pager"]},
+    {"name": "actual Qcur capture feeds post-fence retrieval transaction boundary", "status": "implemented", "raw_ids": ["src/llama-context.cpp", "src/llama-kv-cache.cpp"]},
+    {"name": "CPU focused routing/pager regressions", "status": "pass", "raw_ids": ["build/bin/test-kv-routing-summary", "build/bin/test-kv-routing-retrieval", "build/bin/test-kv-pager"]},
+    {"name": "CUDA focused routing/pager build and regressions", "status": "pass", "raw_ids": ["build-cuda/bin/test-kv-routing-summary", "build-cuda/bin/test-kv-routing-retrieval", "build-cuda/bin/test-kv-pager"]},
+    {"name": "llama-server CPU target build", "status": "pass", "raw_ids": ["cmake-build-llama-server"]},
+    {"name": "model-backed cold fact recall, promotion trace, selected layer IDs, dense mass recall", "status": "not_measured", "raw_ids": []}
+  ],
+  "measurements": {
+    "fixture_complete_inventory_pages": 4,
+    "fixture_cold_pages": 1,
+    "fixture_coordinate_mismatch": "rejected as stale_query",
+    "pager_summary_tables": 64,
+    "pager_summary_table_shape": "16 attention ordinals x 4 KV heads",
+    "pager_tail_summary_source_rows": 8,
+    "query_source": "post-positioned Qcur tensor, read after scheduler fence",
+    "summary_coordinate": "dequantized Turbo4 K and Qcur share original-space CPU reference coordinate; identity is authenticated by rotation_digest"
+  },
+  "raw_index": [
+    {"id": "summary-contract", "path": "src/llama-kv-routing-summary.cpp", "sha256": "72ad74062b996b34bd8206d7d59e57c52a5d72da440d7920de07ebd12af9f580"},
+    {"id": "retrieval-contract", "path": "src/llama-kv-routing-retrieval.cpp", "sha256": "5814a751f66ed7743180bde55dc180ed0e7b7d4c08b0c32988bca54f3ca4e4d9"},
+    {"id": "pager-lifecycle", "path": "src/llama-kv-pager.cpp", "sha256": "ce0aeb2bfa591fad6a519924017bf1c2bb220f5a16bfe2f45846d0ae3846dc20"},
+    {"id": "query-boundary", "path": "src/llama-kv-cache.cpp", "sha256": "2887cb8591a93be9bc6e9ad4c076a16f998f78982c262c0dcef8b48bc026c78a"},
+    {"id": "cuda-build-log", "path": "/tmp/build-cuda-routing-final.out", "sha256": "932836c1829e4c16a2b21c04a7543a4e6e710d83919d5d92a0703a9e8318f0ef"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "No Qwen35 Turbo4 model/corpus fixture is present in this checkout; the available tiny fixture is Llama and is not a valid named checkpoint.",
+    "gpu_candidate_scoring": "The implemented score reference is CPU representative scoring; GPU-resident scoring needs the isolated model-backed measurement checkpoint."
+  },
+  "resume": {
+    "command": ["cmake", "--build", "build-cuda", "--target", "test-kv-routing-summary", "test-kv-routing-retrieval", "test-kv-pager", "-j8"],
+    "next_case": "run focused CUDA binaries, then the isolated Qwen35 cold-fact question-change checkpoint when its model/corpus is provisioned",
+    "secrets_omitted": true
+  },
+  "handoff": ".wiretail/execution/handoffs/20-01.md"
+}
