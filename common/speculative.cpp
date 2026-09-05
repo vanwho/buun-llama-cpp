@@ -2836,19 +2836,34 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         auto * ctx_tgt = this->params.ctx_tgt;
         auto * ctx_dft = this->params.ctx_dft;
 
+        const size_t row_bytes = (size_t) n_embd * sizeof(float);
+
         // pending_h is an activation, not part of either serialized sequence
-        // image. A restored/rewound nonzero frontier therefore cannot safely
-        // catch the draft model up: the predecessor target-hidden row is
-        // unavailable. Stay target-only without touching the restored draft
-        // sequence. A true cold frontier has a defined zero predecessor and can
-        // start/re-arm normal MTP processing.
+        // image. A restored/rewound nonzero frontier therefore cannot replay
+        // this target batch into the draft model: the predecessor target-hidden
+        // row is unavailable. Use this verified target batch as a recovery
+        // boundary instead. Drop the stale draft sequence, retain the newest
+        // target-hidden row, and re-arm MTP for the next process/draft cycle.
+        // The draft context then refills incrementally while every proposal
+        // remains target-verified.
         if (!is_mem_shared) {
             const auto preflight = common_speculative_mtp_process_preflight_resolve(
                 pending_h_lifecycle, i_batch_beg, batch_in.pos);
             if (preflight == common_speculative_mtp_process_preflight::target_only) {
+                auto * mem_dft = llama_get_memory(ctx_dft);
                 for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
                     if (i_batch_beg[seq_id] >= 0) {
-                        pending_h_lifecycle[seq_id].target_process_skipped();
+                        if (!mem_dft || !llama_memory_seq_rm(
+                                mem_dft, seq_id, -1, -1)) {
+                            return false;
+                        }
+                        const float * h_tgt = llama_get_embeddings_nextn_ith(
+                                ctx_tgt, i_batch_end[seq_id]);
+                        if (!h_tgt) {
+                            return false;
+                        }
+                        std::memcpy(pending_h[seq_id].data(), h_tgt, row_bytes);
+                        pending_h_lifecycle[seq_id].target_process_refreshed();
                         verify_h_rows[seq_id] = 0;
                     }
                 }
@@ -2861,15 +2876,10 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         // requires the stored position to be no greater than the incoming one.
         for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
             if (i_batch_beg[seq_id] >= 0) {
-                if (!llama_memory_seq_rm_transient(llama_get_memory(ctx_dft), seq_id,
-                        batch_in.pos[i_batch_beg[seq_id]], -1)) {
-                    SPC_ERR("failed to trim draft sequence %d before verification\n", (int) seq_id);
-                    return false;
-                }
+                llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id,
+                        batch_in.pos[i_batch_beg[seq_id]], -1);
             }
         }
-
-        const size_t row_bytes = (size_t) n_embd * sizeof(float);
 
         // if kv is shared with target (e.g Gemma4), then we can skip this catch-up decode
         if (!is_mem_shared) {
@@ -2918,11 +2928,8 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                         if (i_batch_beg[seq_id] < 0) {
                             continue;
                         }
-                        if (!llama_memory_seq_rm_transient(
-                                mem_dft, seq_id, batch_in.pos[i_batch_beg[seq_id]], -1)) {
-                            SPC_ERR("failed to trim chained draft sequence %d\n", (int) seq_id);
-                            return false;
-                        }
+                        llama_memory_seq_rm(
+                                mem_dft, seq_id, batch_in.pos[i_batch_beg[seq_id]], -1);
                     }
                     llama_set_nextn_layer_offset(ctx_dft, head);
                 }
@@ -2993,12 +3000,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             // Truncate stale draft positions: process() only cleans sequences
             // present in the verify batch, so a previous draft() may have
             // advanced this sequence past dp.n_past.
-            if (!llama_memory_seq_rm_transient(
-                    llama_get_memory(ctx_dft), seq_id, dp.n_past, -1)) {
-                SPC_ERR("failed to trim draft sequence %d before drafting\n", (int) seq_id);
-                dp.drafting = false;
-                continue;
-            }
+            llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, dp.n_past, -1);
 
             n_drafting++;
             drafting[seq_id] = true;
@@ -3027,12 +3029,8 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                 auto * mem_dft = llama_get_memory(ctx_dft);
                 for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
                     if (drafting[seq_id]) {
-                        if (!llama_memory_seq_rm_transient(
-                                mem_dft, seq_id, dparams[seq_id].n_past, -1)) {
-                            SPC_ERR("failed to trim chained draft sequence %d\n", (int) seq_id);
-                            drafting[seq_id] = false;
-                            n_drafting--;
-                        }
+                        llama_memory_seq_rm(
+                                mem_dft, seq_id, dparams[seq_id].n_past, -1);
                     }
                 }
                 llama_set_nextn_layer_offset(ctx_dft, i);
@@ -6921,7 +6919,7 @@ bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq
             auto * mtp = static_cast<common_speculative_impl_draft_mtp *>(impl.get());
             auto * ctx_dft = mtp->params.ctx_dft;
             if (ctx_dft == nullptr ||
-                    !llama_memory_seq_rm_transient(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
+                    !llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
                 return false;
             }
             mtp->accept(seq_id, n_accepted, false);
