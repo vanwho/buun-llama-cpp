@@ -77,7 +77,8 @@ enum class llama_kv_attention_exact_schedule : uint8_t {
 };
 
 struct llama_kv_attention_exact_config {
-    // Zero derives the logical page count from pages.size().
+    // Zero derives the logical page span from the largest supplied logical
+    // page.  The span may be larger than the inventory for sparse views.
     uint32_t logical_page_count = 0;
     uint32_t pages_per_wave = 1;
     uint32_t staging_slots = 1;
@@ -117,6 +118,7 @@ struct llama_kv_attention_exact_ledger {
     uint64_t stale_pages = 0;
     uint64_t h2d_useful_bytes = 0;
     uint64_t h2d_aligned_bytes = 0;
+    uint64_t h2d_transfer_time_us = 0;
     uint64_t waits = 0;
     uint64_t peak_staging_pages = 0;
 };
@@ -147,6 +149,11 @@ private:
         llama_kv_attention_exact_schedule::serial;
     uint32_t staging_slots_ = 1;
     std::vector<uint8_t> visited_;
+    // `logical_page_count` is the logical address span, not the number of
+    // records.  Host catalogs may intentionally omit a logical page (for
+    // example, a sparse selected-all fixture), so coverage is checked only
+    // for pages present in this immutable plan.
+    std::vector<uint8_t> expected_;
     std::vector<llama_kv_attention_exact_wave> waves_;
     llama_kv_attention_exact_ledger ledger_;
 };

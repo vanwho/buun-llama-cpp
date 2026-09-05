@@ -1752,6 +1752,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         auto refuse_exact = [&](llama_kv_attention_execution_status status,
                                 const std::string & reason) {
             kv_attention_execution.clear();
+            kv_attention_execution.metrics_mutable().record_exact_refusal(reason);
             llama_kv_attention_execution_decision result;
             result.status = status;
             result.route = llama_kv_attention_execution_route::refusal;

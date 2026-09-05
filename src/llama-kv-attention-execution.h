@@ -118,6 +118,7 @@ struct llama_kv_attention_execution_metrics {
     uint64_t exact_pages_visited = 0;
     uint64_t exact_h2d_useful_bytes = 0;
     uint64_t exact_h2d_aligned_bytes = 0;
+    uint64_t exact_h2d_transfer_time_us = 0;
     uint64_t exact_waits = 0;
     uint64_t exact_peak_staging_pages = 0;
     uint64_t exact_duplicate_pages = 0;
@@ -125,6 +126,7 @@ struct llama_kv_attention_execution_metrics {
     uint64_t exact_stale_pages = 0;
     uint64_t exact_faults = 0;
     uint64_t exact_overlap_us = 0;
+    std::string exact_refusal_reason;
 
     void record_descriptor_prepare_us(uint64_t elapsed_us) noexcept {
         descriptor_prepare_us = descriptor_prepare_us > UINT64_MAX - elapsed_us
@@ -142,6 +144,7 @@ struct llama_kv_attention_execution_metrics {
     }
     void record_exact_ledger(
             const llama_kv_attention_exact_ledger & ledger) noexcept;
+    void record_exact_refusal(const std::string & reason) noexcept;
 };
 
 // Admission is kept separate from residency publication.  A page can be
