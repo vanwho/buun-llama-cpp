@@ -1241,9 +1241,14 @@ llama_kv_cache::llama_kv_cache(
             }
             auto make_view = [&](ggml_type type, uint32_t width,
                     uint64_t page_bytes, uint64_t offset) {
+                // The source is an I8 byte anchor.  Construct the view with a
+                // byte-width so ggml validates the compressed byte span rather
+                // than interpreting the dimension as I8 elements, then restore
+                // the typed cache shape used by the attention kernels.
+                const uint64_t row_bytes = ggml_row_size(type, width);
                 ggml_tensor * result = ggml_view_3d(ctx, pager_storage_,
-                        width, physical_kv_size_, 1,
-                        ggml_row_size(type, width),
+                        int64_t(row_bytes), physical_kv_size_, 1,
+                        row_bytes,
                         uint64_t(pager_plan_->physical_page_count) * page_bytes,
                         offset);
                 if (result == nullptr) {
@@ -1251,6 +1256,7 @@ llama_kv_cache::llama_kv_cache(
                 }
                 // ggml views preserve the source type. This slab is a byte anchor;
                 // restore the codec type while retaining the bounded slab strides.
+                result->ne[0] = width;
                 result->type = type;
                 result->nb[0] = ggml_type_size(type);
                 return result;

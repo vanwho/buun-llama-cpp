@@ -1,0 +1,154 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "20-05",
+  "result": "incomplete",
+  "kind": "implementation_and_measurement",
+  "procedure": "quality_speed_pareto_calibration",
+  "created_utc": "2026-09-05T20:20:00Z",
+  "classification": {
+    "corpus_freeze_and_provenance": "pass",
+    "selective_live_startup_and_telemetry": "pass",
+    "local_cuda_regressions": "pass",
+    "quality_corpus_cold_retrieval": "incomplete_timeout",
+    "exact_prefill_selective_decode_control": "deferred_startup_failure",
+    "policy_sweep_and_dense_equivalence": "deferred"
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "a828064429ee311191452ea6a7359c59f747088e",
+    "source_diff_sha256": "b140d7722dbbd0895977d3587301d866333ea43623b19c7b39a874f0aa424271",
+    "source_file_sha256": "9ab048724ca1b15ad7539cd907acc3248bcd5cb3179028659c8309cd08c79ea2",
+    "bundle": "/srv/ai/paged-kv/results/20-05-runtime-bundle-20260905T200000Z",
+    "bundle_manifest": "/srv/ai/paged-kv/results/20-05-runtime-exact-20260905T200000Z/bundle-manifest.json",
+    "bundle_manifest_sha256": "3e7116e373f1f295d3367828bdbf92fc8f022b9468f4500fd6fb7583ee799fe8",
+    "server_binary_sha256": "653ba7d4076b57c98924878d0ef698abbedcd5d1d1c6b6efd5f4f7e603ee5057",
+    "model": "/srv/ai/models/text/current.gguf -> /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_template_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199:server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "config_sha256": "639137054120f0f1d996b687aa04b9c4487f20c8a113bdf1375ff80e2cc9ccb2",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; CUDA 0; native GPU MTP; target and MTP K/V Turbo4"
+  },
+  "checks": [
+    {"name": "frozen pager-corpus-v4 validates with calibration and held-out partitions", "status": "pass", "raw_ids": ["quality-provenance"]},
+    {"name": "typed Turbo4 views stay within the byte-anchor slab at live selective startup", "status": "pass", "raw_ids": ["selective-lifecycle", "kv-cache-source"]},
+    {"name": "selective managed runtime reports CUDA target, GPU MTP, Turbo4 K/V and bounded hot storage", "status": "pass", "raw_ids": ["selective-run-config"]},
+    {"name": "focused CUDA pager and attention regression matrix", "status": "pass", "raw_ids": ["cuda-test-pager", "cuda-test-attention"]},
+    {"name": "cold-early rendered fact retrieval and answer scoring", "status": "not_measured", "raw_ids": ["quality-summary"]},
+    {"name": "exact-prefill plus selective-decode control", "status": "fail", "raw_ids": ["exact-lifecycle"]},
+    {"name": "one-variable policy sweep at equal hot bytes and full dense-equivalence curve", "status": "not_measured", "raw_ids": []}
+  ],
+  "measurements": {
+    "case_split": {
+      "schema": "pager-corpus-v4",
+      "calibration_and_held_out_ids": ["warm-focus", "cold-early", "cold-middle", "cold-end", "competing-a", "competing-b", "tool-anchor", "repo-fact", "conversation", "focus-shift", "churn", "recent-control"],
+      "partition_note": "v4 contains the same frozen case IDs in calibration and held_out; answers and fact spans were not changed or used for tuning",
+      "declared_context_tokens": [4096, 5120, 6401, 8192, 9473, 11264, 12800, 14592, 16128, 17920, 19968, 22016],
+      "fact_locations_preserved": true
+    },
+    "selective_live": {
+      "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+      "context_tokens": 22016,
+      "page_tokens": 256,
+      "mode": "selective",
+      "target_backend": "CUDA",
+      "target_type_k": "turbo4",
+      "target_type_v": "turbo4",
+      "mtp_backend": "gpu",
+      "mtp_rows": 22016,
+      "mtp_bytes": 23380000,
+      "physical_pool_capacity_bytes": 371982000,
+      "target_allocated_bytes": 371982000,
+      "hot_tokens": 35,
+      "target_valid_rows": 35,
+      "target_valid_bytes": 591360,
+      "router_k": 8,
+      "exploration": 1,
+      "prefetch_depth": 2,
+      "faults": 0,
+      "evictions": 0,
+      "prefill_reference_routes": 1,
+      "decode_reference_routes": 2,
+      "mtp_verify_reference_routes": 58,
+      "accepted_tokens": 84,
+      "acceptance_denominator": 102,
+      "acceptance_rate": 0.8235294118
+    },
+    "speed_probe": {
+      "variant": "short generic warm/measured probe; not corpus quality",
+      "prompt_tokens": [30, 27, 28],
+      "measured_prompt_tokens_per_second": [26.0762, 24.8449, 25.6384],
+      "measured_decode_tokens_per_second": [4.0820, 4.1406, 3.9443],
+      "mtp_acceptance_rates_percent": [100.0, 100.0, 66.667]
+    },
+    "quality_probe": {
+      "case_id": "cold-early",
+      "partitions_attempted": ["calibration"],
+      "context_tokens": 5120,
+      "diagnostic_only": true,
+      "status": "incomplete_timeout",
+      "completed": 0,
+      "passed": 0,
+      "failed": 0,
+      "incomplete": 1,
+      "timeout_seconds": 600,
+      "progress_observed": "3072/5120 prompt tokens at 398.96 seconds; no answer response before the campaign wall limit",
+      "answer_score": null,
+      "prefill_cost": "recorded as timeout; no valid answer or dense delta available"
+    },
+    "exact_control": {
+      "requested": "exact-prefill plus selective-decode",
+      "runtime_cli_support": "no mixed mode; --kv-pager exposes whole-runtime off, observe, selective or exact",
+      "exact_probe": "exact Turbo4 candidate repeatedly aborted during startup at ggml_backend_sched_split_graph:1359",
+      "managed_service_after_probe": "selective candidate restored and healthy",
+      "implementation_owner": "llama_context::prepare_kv_attention_graph and exact CUDA page-wave graph binding"
+    },
+    "pareto_decision": {
+      "default": "selective",
+      "reason": "only live mode that loaded with full 22016 context, Turbo4 target/MTP and bounded physical storage; no dense-equivalence claim",
+      "equal_hot_byte_cap": 371982000,
+      "faster_lower_quality_options": [],
+      "freeze_before_held_out": false,
+      "confidence_fallback": "not_measured"
+    }
+  },
+  "raw_index": [
+    {"id": "kv-cache-source", "path": "src/llama-kv-cache.cpp", "sha256": "9ab048724ca1b15ad7539cd907acc3248bcd5cb3179028659c8309cd08c79ea2"},
+    {"id": "selective-run-config", "path": "/srv/ai/paged-kv/results/20-05-runtime-selective-20260905T200000Z/run-config.json", "sha256": "96f3efffad4e4c38fb72624714156a7217b185eae7d02335623344777b18b49e"},
+    {"id": "selective-lifecycle", "path": "/srv/ai/paged-kv/results/20-05-runtime-selective-20260905T200000Z", "sha256": "4d63c66c10b45f9b9026a7144d5a1813257efe6eeb47b334742afcbcaec95333"},
+    {"id": "exact-lifecycle", "path": "/srv/ai/paged-kv/results/20-05-runtime-exact-20260905T200000Z", "sha256": "76e834d82b37c03a208d71a2af7a8c925d30aeb7cf4957c745611bc1f886b86a"},
+    {"id": "quality-provenance", "path": "/srv/ai/paged-kv/results/20-05-quality-selective-cold-early-20260905T200000Z/provenance.json", "sha256": "7170feab6db5ab361cff033852a4f41cfa5ed1e6abc01b4bb071e69c9e630dad"},
+    {"id": "quality-summary", "path": "/srv/ai/paged-kv/results/20-05-quality-selective-cold-early-20260905T200000Z/summary.json", "sha256": "cedae196ef3ac3a0ceed490794ac30cadeccc3e862d6bf6058657a601306a72b"},
+    {"id": "cuda-test-pager", "path": "build-cuda/bin/test-kv-pager", "sha256": "2d97305c12888d1194cf19bcf8c4fada7696731b01e2d279f5b403dfbdfd1e73"},
+    {"id": "cuda-test-attention", "path": "build-cuda/bin/test-kv-attention-execution", "sha256": "7e754fe3139947e395e6e8cbbcfd6b63e35f3a5bc901041afab7ca9afe4221bc"},
+    {"id": "corpus-fixture", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"}
+  ],
+  "local_verification": [
+    {"command": "python3 tools/server/bench/validate-pager-benchmark.py tools/server/bench/fixtures/pager-corpus-v4.json", "status": "valid corpus"},
+    {"command": "python3 -m unittest discover -s tools/server/bench -p 'test*.py' -v", "status": "46 tests passed"},
+    {"command": "cmake --build build-cuda --target llama-server test-kv-pager test-kv-attention-view test-kv-attention-execution test-kv-attention-exact test-kv-attention-telemetry test-kv-routing-summary test-kv-routing-retrieval -j2", "status": "pass"},
+    {"command": "ctest --test-dir build-cuda --output-on-failure -R 'test-kv-(pager|attention-(view|execution|exact|telemetry)|routing-(summary|retrieval))'", "status": "7/7 passed"},
+    {"command": "systemctl show llama-server.service -p ActiveState -p SubState -p NRestarts", "status": "active/running, NRestarts=0 after selective restoration"}
+  ],
+  "failure": {
+    "class": "calibration_incomplete",
+    "summary": "The full-context selective candidate loads and reports the required Turbo4/GPU-MTP telemetry, but the 5120-token cold quality request exceeded the bounded 600-second prefill campaign limit. The exact control cannot start on this candidate.",
+    "falsifiable_hypothesis": "Exact page-wave graph tensors are assigned no backend during scheduler graph splitting; mixed exact-prefill/selective-decode is also not exposed as a supported CLI mode.",
+    "implementation_owner": "llama_context::prepare_kv_attention_graph; exact CUDA page-wave graph binding",
+    "not_a_threshold_adjustment": true
+  },
+  "provenance_unavailable": {
+    "quality_answers": "No answer score or logit/PPL delta is recorded because the rendered cold-early request timed out during prefill.",
+    "exact_mixed_control": "No supported mixed-prefill CLI exists; the whole-runtime exact startup probe failed closed by restoration after a scheduler assertion.",
+    "policy_sweep": "Recent-only, query, retention, exploration, layer-group and confidence-fallback variants were not run after the first causal timeout; no held-out tuning claim is made.",
+    "full_262144_context": "The managed Qwen live target is configured at 22016 tokens; the 262144-token ultimate target and ordinary CPU-KV control belong to later verification/task scope."
+  },
+  "resume": {
+    "command": "After exact page-wave backend repair, rerun run-quality-corpus.py for frozen calibration and held_out IDs at increasing contexts, then freeze one policy and repeat held_out sentinels.",
+    "next_case": "cold-early calibration and held_out after prefill throughput/control repair",
+    "secrets_omitted": true
+  }
+}
