@@ -562,3 +562,15 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-18-02`
 - Commit at update: `67dc5af9f`
 - Summary: Implemented exact rendered-token prompt sizing with server-authoritative template/tokenization preflight, padding-only fitting, overflow correction, and exact usage accounting across quality, soak, and canonical site runners; local suites and live smoke checks passed.
+
+## 2026-09-05T06:40:12+00:00 — 18-03 — in_progress
+
+- Branch: `codex/task-18-03`
+- Commit at update: `715202b8e`
+- Summary: Task started
+
+## 2026-09-05T07:19:05+00:00 — 18-03 — done
+
+- Branch: `codex/task-18-03`
+- Commit at update: `715202b8e`
+- Summary: Implemented resumable progress-aware campaigns; 45 tests pass and live interruption/resume checkpoints complete without duplicate rows.

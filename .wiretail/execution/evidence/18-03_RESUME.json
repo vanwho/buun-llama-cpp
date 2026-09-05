@@ -1,0 +1,106 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "18-03",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "resumable_progress_campaign",
+  "provenance": {
+    "source_commit": "715202b8e0d84ce460492384e58eac0712e99fa1",
+    "source_diff_sha256": "df83a992fd86461adb2a55fecb4e54000f20674d0717db04713e78ea14ebfbe6",
+    "bundle_manifest_sha256": "8635372d542cbb38a6a75a31de50e38c77beae3046fc2492400b0a25860cdfda",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_template_sha256": "tokenizer 40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199; server template 4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+    "corpus_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "config_sha256": "f17f85390c242fff3c34b33046c01333b70793c157e5f60b19779eea4d20945d"
+  },
+  "authority": {
+    "case_identity": "immutable provenance, rendered request hash, mode, context, cache condition, and trial index",
+    "completion_checkpoint": "raw request/response and metrics are flushed before completed-success state",
+    "progress": "atomic progress.json plus authenticated /slots polling where supported",
+    "timeout_policy": "connect, startup, prefill-idle, decode-idle, and campaign-total limits are independent; expiry is incomplete and resumable"
+  },
+  "checks": [
+    {
+      "name": "shared_resume_contract",
+      "status": "pass",
+      "raw_ids": ["resume_contract_test_source"],
+      "detail": "45 focused tests pass, including causal-key changes, provenance rejection, mixed-token SSE timing, timeout classes, fake 501/400/disconnect behavior, and two-successes-then-interruption resume without duplicate success rows."
+    },
+    {
+      "name": "live_quality_resume",
+      "status": "pass",
+      "raw_ids": ["quality_records", "quality_case_state", "quality_progress", "quality_summary", "quality_provenance"],
+      "detail": "Three unique completed case keys remain after one interrupted attempt and resume; completed-success rows are not duplicated; progress ends completed with ETA 0 and a last-progress timestamp. Diagnostic semantic scores are not used as a resume gate."
+    },
+    {
+      "name": "live_canonical_resume",
+      "status": "pass",
+      "raw_ids": ["site_records", "site_case_state", "site_progress", "site_summary", "site_run_config", "site_lifecycle"],
+      "detail": "A managed fast-profile canonical case completed, then the same manifest resumed with records 1 to 1, three planned/started/completed ledger events, adapter validation passed, and resume_usable=true."
+    },
+    {
+      "name": "cli_and_syntax_contract",
+      "status": "pass",
+      "raw_ids": ["resume_contract_test_source"],
+      "detail": "All runner --help surfaces expose resume, case selection, and independent deadline options; py_compile, bash -n, and git diff --check pass."
+    },
+    {
+      "name": "managed_service_health",
+      "status": "pass",
+      "raw_ids": ["site_lifecycle"],
+      "detail": "llama-server.service is active/running after the checkpoint with health HTTP 200, Result=success, and NRestarts=0; the unrelated service on port 8092 was not touched."
+    }
+  ],
+  "measurements": {
+    "quality_resume": {
+      "manifest": "/srv/ai/paged-kv/results/18-03-live-resume-20260905T0720Z/",
+      "records": 3,
+      "unique_completed_keys": 3,
+      "interrupted_attempts": 1,
+      "duplicate_completed_rows": 0,
+      "progress_completed_successes": 3,
+      "eta_seconds": 0
+    },
+    "canonical_resume": {
+      "manifest": "/srv/ai/paged-kv/results/18-03-site-resume-final-20260905T071106Z/",
+      "records_before_resume": 1,
+      "records_after_resume": 1,
+      "case_state_events": 3,
+      "completed_successes": 1,
+      "adapter_validation": "passed",
+      "resume_usable": true
+    },
+    "deadlines": {
+      "connect_seconds": 10,
+      "startup_seconds": 180,
+      "prefill_idle_seconds": 300,
+      "decode_idle_seconds": 120,
+      "total_seconds": 1800
+    }
+  },
+  "raw_index": [
+    {"id": "resume_contract_test_source", "path": "tools/server/bench/test_resume_contract.py", "sha256": "dd1d0e2fcc9bde86d0d8763f186fd06f088410698a6b66447a9b30ec2a911414"},
+    {"id": "quality_records", "path": "/srv/ai/paged-kv/results/18-03-live-resume-20260905T0720Z/records.jsonl", "sha256": "d87066b57ab5663f7cda12e1f38596535f5e8a9fe163749871e6aee830d8c7d8"},
+    {"id": "quality_case_state", "path": "/srv/ai/paged-kv/results/18-03-live-resume-20260905T0720Z/case-state.jsonl", "sha256": "d64100896b4b68e558ae7f320e4facf8b2753a5cbc6f8b1a26614b01ba36b948"},
+    {"id": "quality_progress", "path": "/srv/ai/paged-kv/results/18-03-live-resume-20260905T0720Z/progress.json", "sha256": "33f546b3099091526f7200c7aa9742d445ed96a89b1320291b978dc76ef54970"},
+    {"id": "quality_summary", "path": "/srv/ai/paged-kv/results/18-03-live-resume-20260905T0720Z/summary.json", "sha256": "37aa1afcbb68594368e9e7e339ed28c9166ba0148f1303be565238b084c1ad98"},
+    {"id": "quality_provenance", "path": "/srv/ai/paged-kv/results/18-03-live-resume-20260905T0720Z/provenance.json", "sha256": "750c57300624c2ae54c2eac3fb373c8e9fe25eb9c91809bd28577d81f667f9ab"},
+    {"id": "site_records", "path": "/srv/ai/paged-kv/results/18-03-site-resume-final-20260905T071106Z/records.jsonl", "sha256": "89145c6b046e8fb899431fc467ae61ac3d2d707f7506b246aaee3245cb6bc41d"},
+    {"id": "site_case_state", "path": "/srv/ai/paged-kv/results/18-03-site-resume-final-20260905T071106Z/case-state.jsonl", "sha256": "029a6c03ae7861a8d773d2655e4bf6a27d2313a3346d603e429a3d1af0bfe1e3"},
+    {"id": "site_progress", "path": "/srv/ai/paged-kv/results/18-03-site-resume-final-20260905T071106Z/progress.json", "sha256": "437c1e7f080e1627483efe50f8f2489c9028fbc27cf43d12973c8875fefbb4a0"},
+    {"id": "site_summary", "path": "/srv/ai/paged-kv/results/18-03-site-resume-final-20260905T071106Z/summary.json", "sha256": "cd63c7029bc564b853d5ab64b49fff6ab90d84adbfcd03d4de4923ec825e566f"},
+    {"id": "site_run_config", "path": "/srv/ai/paged-kv/results/18-03-site-resume-final-20260905T071106Z/run-config.json", "sha256": "357037882bcc31de79568088a86513f4d6258438077dbf20c9bddce0d9a25bd6"},
+    {"id": "site_lifecycle", "path": "/srv/ai/paged-kv/results/18-03-site-resume-final-20260905T071106Z/lifecycle-state.json", "sha256": "7f02aee8b447a2ae92b9a7ca7e509419467b53e31b51ae60c6ef8ddb2700f2c4"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "full_campaign": "The full 22016-token quality matrix and final speed curves were not run; the packet requests a tiny live resumability checkpoint.",
+    "hardware_gate": "No additional human or hardware verification was available or required after the managed service checkpoint."
+  },
+  "resume": {
+    "command": ["python3", "tools/server/bench/run-pager-profile-benchmark.py", "fast", "short", "<manifest>", "--resume", "--case-index", "0"],
+    "next_case": "18-04",
+    "secrets_omitted": true
+  }
+}
