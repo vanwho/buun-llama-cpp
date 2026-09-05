@@ -15,6 +15,7 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import subprocess
 import sys
 import threading
@@ -131,12 +132,21 @@ def build_concurrent_oracle(available_slot_ids: list[int],
     }
 
 
-def classify_startup_probe(health: object, restart_rc: int) -> str:
-    """Classify startup before any corpus request or telemetry loop begins."""
-    if isinstance(health, dict) and all(health.get(port) is True for port in ("8080", "8091")):
-        return "ready"
+def classify_startup_probe(health: object, restart_rc: int,
+                           identity_stable: bool = True,
+                           systemd_stable: bool = True) -> str:
+    """Classify startup before any corpus request or telemetry loop begins.
+
+    A health 200 is only a readiness sample.  The managed process and its
+    systemd restart counter must remain stable for the complete bounded gate.
+    """
     if restart_rc != 0:
         return "restart_failed"
+    if (isinstance(health, dict) and health.get("8080") is True and
+            identity_stable and systemd_stable):
+        return "ready"
+    if isinstance(health, dict) and health.get("8080") is True:
+        return "runtime_crash_or_unavailable"
     return "runtime_crash_or_unavailable"
 
 
@@ -394,6 +404,45 @@ def write_dry_run(output: pathlib.Path, corpus_path: pathlib.Path,
                       "mode": context["mode"]}, sort_keys=True))
 
 
+def managed_runtime_state() -> dict[str, object]:
+    """Capture the service identity used by the startup stability gate."""
+    service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
+    result = subprocess.run(
+        ["systemctl", "show", service, "--no-pager",
+         "--property=MainPID,ActiveState,SubState,Result,NRestarts"],
+        capture_output=True, text=True, check=False)
+    values: dict[str, object] = {"service": service,
+                                 "systemctl_returncode": result.returncode}
+    for line in result.stdout.splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key] = int(value) if key in {"MainPID", "NRestarts"} and value.isdigit() else value
+    pid = values.get("MainPID")
+    if isinstance(pid, int) and pid > 0:
+        command_path = pathlib.Path(f"/proc/{pid}/cmdline")
+        executable_path = pathlib.Path(f"/proc/{pid}/exe")
+        try:
+            values["command"] = command_path.read_bytes().replace(b"\0", b" ").decode().strip()
+            values["binary"] = os.path.realpath(executable_path).removesuffix(" (deleted)")
+        except (OSError, UnicodeDecodeError):
+            values["command"] = None
+            values["binary"] = None
+    else:
+        values["command"] = None
+        values["binary"] = None
+    return values
+
+
+def _startup_health(soak: Soak) -> bool:
+    try:
+        req = Request(soak.endpoint + "/health", headers={"Authorization": f"Bearer {soak.key}"})
+        with urlopen(req, timeout=3) as response:
+            return response.status == 200
+    except (OSError, URLError, HTTPError):
+        return False
+
+
 def restart(soak: Soak, label: str = "restart", probe_seconds: int = 180) -> dict[str, object]:
     values = {
         "AI_BENCHMARK_CLEAN": "0", "AI_BENCHMARK_CONTEXT": str(soak.context),
@@ -401,34 +450,75 @@ def restart(soak: Soak, label: str = "restart", probe_seconds: int = 180) -> dic
         "AI_BENCHMARK_DEVICE": "auto", "AI_BENCHMARK_MTP": "native",
         "AI_BENCHMARK_SERVER_BIN": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
     }
-    command = ["sudo", "systemctl", "set-environment"]
+    sudo = shlex.split(os.environ.get("BENCH_SUDO", "sudo"))
+    command = sudo + ["systemctl", "set-environment"]
     for key, value in values.items():
         command.append(f"{key}={value}")
     set_result = subprocess.run(command, capture_output=True, text=True, check=False)
     start = time.monotonic()
-    restart_result = subprocess.run(["sudo", "systemctl", "restart", "llama-server.service"],
+    service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
+    restart_result = subprocess.run(sudo + ["systemctl", "restart", service],
                                     capture_output=True, text=True, check=False)
-    health = {"8080": False, "8091": False}
+    health = {"8080": False}
+    health_samples: list[dict[str, object]] = []
+    identity_samples: list[dict[str, object]] = []
+    candidate_pid: int | None = None
+    baseline_restarts: int | None = None
+    healthy_since: float | None = None
+    identity_stable = True
+    systemd_stable = True
+    failure_reason: str | None = None
+    stable_seconds = min(120, max(30, probe_seconds // 2))
     deadline = time.monotonic() + probe_seconds
     while time.monotonic() < deadline:
-        for port, url in (("8080", soak.endpoint.split("/v1/")[0] + "/health"),
-                          ("8091", "http://127.0.0.1:8091/health")):
-            if not health[port]:
-                try:
-                    req = Request(url, headers={"Authorization": f"Bearer {soak.key}"})
-                    with urlopen(req, timeout=3) as response:
-                        health[port] = response.status == 200
-                except (OSError, URLError, HTTPError):
-                    pass
-        if all(health.values()):
+        health["8080"] = _startup_health(soak)
+        runtime = managed_runtime_state()
+        identity_samples.append({"elapsed_s": round(time.monotonic() - start, 3),
+                                 "health": dict(health), "runtime": runtime})
+        health_samples.append({"elapsed_s": round(time.monotonic() - start, 3),
+                               "healthy": health["8080"]})
+        pid = runtime.get("MainPID")
+        restarts = runtime.get("NRestarts")
+        if health["8080"]:
+            if healthy_since is None:
+                healthy_since = time.monotonic()
+                candidate_pid = pid if isinstance(pid, int) else None
+                baseline_restarts = restarts if isinstance(restarts, int) else None
+            elif pid != candidate_pid:
+                identity_stable = False
+                failure_reason = "managed_pid_changed_after_health"
+                break
+            if (runtime.get("ActiveState") != "active" or
+                    runtime.get("SubState") != "running" or
+                    (baseline_restarts is not None and restarts != baseline_restarts)):
+                systemd_stable = False
+                failure_reason = "systemd_state_changed_after_health"
+                break
+            if time.monotonic() - healthy_since >= stable_seconds:
+                break
+        elif healthy_since is not None:
+            identity_stable = False
+            failure_reason = "health_lost_after_ready"
             break
         time.sleep(1)
+    stable_elapsed = ((time.monotonic() - healthy_since)
+                      if healthy_since is not None else 0.0)
+    provisional = classify_startup_probe(health, restart_result.returncode,
+                                         identity_stable, systemd_stable)
+    quiesce = None
+    if provisional != "ready":
+        # Restart=always can otherwise replace a crashed candidate while the
+        # journal is being collected or while restoration is starting.
+        quiesce_result = subprocess.run(sudo + ["systemctl", "stop", service],
+                                        capture_output=True, text=True, check=False)
+        quiesce = {"returncode": quiesce_result.returncode,
+                   "stdout": quiesce_result.stdout, "stderr": quiesce_result.stderr}
     systemd = subprocess.run(
-        ["systemctl", "show", "llama-server.service", "--no-pager",
+        ["systemctl", "show", service, "--no-pager",
          "--property=ActiveState,SubState,Result,ExecMainCode,ExecMainStatus,NRestarts"],
         capture_output=True, text=True, check=False)
     journal = subprocess.run(
-        ["journalctl", "-u", "llama-server.service", "-n", "200", "--no-pager", "-o", "short-iso"],
+        ["journalctl", "-u", service, "-n", "200", "--no-pager", "-o", "short-iso"],
         capture_output=True, text=True, check=False)
     kernel = subprocess.run(
         ["journalctl", "-k", "-n", "200", "--no-pager", "-o", "short-iso"],
@@ -440,13 +530,21 @@ def restart(soak: Soak, label: str = "restart", probe_seconds: int = 180) -> dic
     journal_path.write_text(journal.stdout + journal.stderr)
     kernel_path.write_text(kernel.stdout + kernel.stderr)
     clear_result = subprocess.run(
-        ["sudo", "systemctl", "unset-environment", *values.keys()],
+        sudo + ["systemctl", "unset-environment", *values.keys()],
         capture_output=True, text=True, check=False)
+    classification = classify_startup_probe(health, restart_result.returncode,
+                                             identity_stable, systemd_stable)
+    if failure_reason is None and classification != "ready":
+        failure_reason = "startup_probe_timeout_or_unavailable"
     result = {"set_rc": set_result.returncode, "restart_rc": restart_result.returncode,
               "restart_stderr": restart_result.stderr, "health": health,
               "clear_rc": clear_result.returncode, "elapsed_s": time.monotonic() - start,
-              "probe_seconds": probe_seconds,
-              "classification": classify_startup_probe(health, restart_result.returncode),
+              "probe_seconds": probe_seconds, "stable_seconds_required": stable_seconds,
+              "stable_seconds_observed": round(stable_elapsed, 3),
+              "candidate_pid": candidate_pid, "identity_stable": identity_stable,
+              "systemd_stable": systemd_stable, "failure_reason": failure_reason,
+              "health_samples": health_samples, "identity_samples": identity_samples,
+              "quiesce": quiesce, "classification": classification,
               "systemd": {"returncode": systemd.returncode, "stdout": systemd.stdout,
                           "stderr": systemd.stderr},
               "journal": {"returncode": journal.returncode, "stdout": journal.stdout,
@@ -459,6 +557,85 @@ def restart(soak: Soak, label: str = "restart", probe_seconds: int = 180) -> dic
     result["phase"] = label
     soak.write_json(f"{label}.json", result)
     return result
+
+
+def command_option(command: object, option: str) -> str | None:
+    if not isinstance(command, str):
+        return None
+    try:
+        parts = shlex.split(command)
+        index = parts.index(option)
+    except (ValueError, TypeError):
+        return None
+    return parts[index + 1] if index + 1 < len(parts) else None
+
+
+def restore_previous_runtime(soak: Soak, before: dict[str, object]) -> dict[str, object]:
+    """Restart the exact prior managed runtime after quiescing a bad candidate."""
+    command_line = before.get("command")
+    # A service can still be running an older unlinked copy after a rebuild;
+    # restore the command's executable path, not procfs's ``(deleted)`` label.
+    binary = str(before.get("binary") or "").removesuffix(" (deleted)")
+    context = command_option(command_line, "-c")
+    pager = command_option(command_line, "--kv-pager")
+    page_size = command_option(command_line, "--kv-page-size")
+    mtp_device = command_option(command_line, "--spec-draft-kv-device")
+    if not binary or not context or not pager or not page_size:
+        return {"state": "not_restorable", "reason": "prior_runtime_identity_incomplete"}
+
+    sudo = shlex.split(os.environ.get("BENCH_SUDO", "sudo"))
+    service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
+    values = {
+        "AI_BENCHMARK_CLEAN": "0",
+        "AI_BENCHMARK_CONTEXT": context,
+        "AI_BENCHMARK_KV_PAGER": pager,
+        "AI_BENCHMARK_PAGE_SIZE": page_size,
+        "AI_BENCHMARK_DEVICE": "auto",
+        "AI_BENCHMARK_MTP": "native" if mtp_device == "gpu" else "off",
+        "AI_BENCHMARK_SERVER_BIN": binary,
+    }
+    set_result = subprocess.run(
+        sudo + ["systemctl", "set-environment"] +
+        [f"{key}={value}" for key, value in values.items()],
+        capture_output=True, text=True, check=False)
+    restart_result = subprocess.run(
+        sudo + ["systemctl", "restart", service],
+        capture_output=True, text=True, check=False)
+    deadline = time.monotonic() + 120
+    healthy = False
+    while time.monotonic() < deadline:
+        healthy = _startup_health(soak)
+        state = managed_runtime_state()
+        if (healthy and state.get("ActiveState") == "active" and
+                state.get("SubState") == "running"):
+            break
+        time.sleep(1)
+    state = managed_runtime_state()
+    clear_result = subprocess.run(
+        sudo + ["systemctl", "unset-environment", *values.keys()],
+        capture_output=True, text=True, check=False)
+    mismatches = []
+    expected = {
+        "binary": binary, "context": context, "pager_mode": pager,
+        "page_size_tokens": page_size,
+    }
+    actual_command = state.get("command")
+    if state.get("binary") != expected["binary"]:
+        mismatches.append("binary")
+    if command_option(actual_command, "-c") != expected["context"]:
+        mismatches.append("context")
+    if command_option(actual_command, "--kv-pager") != expected["pager_mode"]:
+        mismatches.append("pager_mode")
+    if command_option(actual_command, "--kv-page-size") != expected["page_size_tokens"]:
+        mismatches.append("page_size_tokens")
+    restored = (set_result.returncode == 0 and restart_result.returncode == 0 and
+                healthy and not mismatches)
+    return {
+        "state": "restored" if restored else "restore_failed",
+        "set_rc": set_result.returncode, "restart_rc": restart_result.returncode,
+        "clear_rc": clear_result.returncode, "health": healthy,
+        "observed": state, "mismatches": mismatches,
+    }
 
 
 def main() -> int:
@@ -513,7 +690,7 @@ def main() -> int:
                        "draft_backend": "gpu", "context_tokens": soak.context},
     }, indent=2) + "\n")
     started = time.time()
-    soak.identity("before")
+    before_identity = soak.identity("before")
     soak.metrics("before")
     soak.get("health-before", "/health")
     soak.get("slots-before", "/slots")
@@ -522,6 +699,8 @@ def main() -> int:
         # Do not turn a post-listen crash into missing telemetry or spend the
         # corpus budget retrying an unstable service. Keep the bounded probe,
         # systemd state, and journal in the run directory for diagnosis.
+        restoration = restore_previous_runtime(soak, before_identity)
+        soak.write_json("restoration.json", restoration)
         soak.write_json("records.json", soak.records)
         soak.write_json("run-summary.json", {
             "schema_version": 1,
@@ -530,6 +709,7 @@ def main() -> int:
             "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
                            "draft_backend": "gpu", "context_tokens": soak.context},
             "startup": startup_result,
+            "restoration": restoration,
             "records": soak.records,
         })
         write_raw_manifest(soak)
