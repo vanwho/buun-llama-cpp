@@ -21,6 +21,7 @@ enum class llama_kv_attention_execution_mode : uint8_t {
 enum class llama_kv_attention_execution_phase : uint8_t {
     prefill = 0,
     decode,
+    mtp_verify,
 };
 
 enum class llama_kv_attention_execution_route : uint8_t {
@@ -92,6 +93,22 @@ struct llama_kv_attention_execution_decision {
     }
 };
 
+// Route counters are split by execution phase because a multi-token MTP
+// verification batch is not a prefill, even though both use more than one
+// query row.  Every member is a count of an accepted or explicitly refused
+// route decision; no admission estimate is included.
+struct llama_kv_attention_execution_route_counts {
+    uint64_t dense = 0;
+    uint64_t observe = 0;
+    uint64_t selected_reference = 0;
+    uint64_t selected_direct = 0;
+    uint64_t exact_reference = 0;
+    uint64_t exact_direct = 0;
+    uint64_t refusal = 0;
+
+    void record(llama_kv_attention_execution_route route) noexcept;
+};
+
 // These counters deliberately cover the backend-neutral admission boundary.
 // CUDA event timings are recorded by the backend fixture, while the live
 // context can add descriptor, token, kernel, and wait timings through the
@@ -108,9 +125,17 @@ struct llama_kv_attention_execution_metrics {
     uint64_t kernel_us = 0;
     uint64_t total_token_us = 0;
     uint64_t waits = 0;
+    uint64_t wait_time_us = 0;
+    uint64_t copy_time_us = 0;
+    uint64_t queue_time_us = 0;
+    uint64_t table_epoch_changes = 0;
     uint64_t scratch_high_water_rows = 0;
     uint64_t scratch_high_water_bytes = 0;
     uint64_t selected_pages = 0;
+    uint64_t selected_page_count = 0;
+    llama_kv_attention_execution_route_counts prefill_routes;
+    llama_kv_attention_execution_route_counts decode_routes;
+    llama_kv_attention_execution_route_counts mtp_verify_routes;
     uint64_t exact_plan_waves = 0;
     uint64_t exact_plan_pages = 0;
     uint64_t exact_resident_pages = 0;
@@ -142,6 +167,9 @@ struct llama_kv_attention_execution_metrics {
     void record_wait() noexcept {
         waits = waits == UINT64_MAX ? UINT64_MAX : waits + 1;
     }
+    void record_wait_time_us(uint64_t elapsed_us) noexcept;
+    void record_copy_time_us(uint64_t elapsed_us) noexcept;
+    void record_queue_time_us(uint64_t elapsed_us) noexcept;
     void record_exact_ledger(
             const llama_kv_attention_exact_ledger & ledger) noexcept;
     void record_exact_refusal(const std::string & reason) noexcept;
@@ -198,12 +226,16 @@ public:
     void clear() noexcept;
 
     const llama_kv_attention_execution_metrics & metrics() const noexcept { return metrics_; }
+    uint64_t metrics_reset_epoch() const noexcept { return metrics_reset_epoch_; }
     llama_kv_attention_execution_metrics & metrics_mutable() const noexcept { return metrics_; }
-    void reset_metrics() noexcept { metrics_ = {}; }
+    void reset_metrics() noexcept;
     void record_descriptor_prepare_us(uint64_t elapsed_us) noexcept;
     void record_kernel_us(uint64_t elapsed_us) noexcept;
     void record_total_token_us(uint64_t elapsed_us) noexcept;
     void record_wait() noexcept;
+    void record_wait_time_us(uint64_t elapsed_us) noexcept;
+    void record_copy_time_us(uint64_t elapsed_us) noexcept;
+    void record_queue_time_us(uint64_t elapsed_us) noexcept;
 
     bool has_graph() const noexcept { return have_graph_; }
     size_t in_flight_graphs() const noexcept { return graph_fences_.size(); }
@@ -231,4 +263,5 @@ private:
     bool have_graph_ = false;
     std::vector<llama_kv_attention_view::graph_fence> graph_fences_;
     mutable llama_kv_attention_execution_metrics metrics_;
+    uint64_t metrics_reset_epoch_ = 0;
 };

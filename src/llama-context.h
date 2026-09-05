@@ -15,6 +15,7 @@
 #include "ggml-opt.h"
 
 #include <map>
+#include <string>
 #include <vector>
 
 struct llama_model;
@@ -30,8 +31,17 @@ class llama_io_write_i;
 struct llama_kv_pager_metrics_snapshot {
     bool enabled = false;
     llama_kv_pager_mode mode = llama_kv_pager_mode::off;
+    // All values below are from one point-in-time snapshot. The timestamp is
+    // monotonic; epochs identify boundaries across which counter deltas must
+    // not be combined.
+    uint64_t snapshot_monotonic_us = 0;
+    uint64_t request_generation = 0;
+    uint64_t slot_generation = 0;
+    uint64_t config_generation = 0;
+    uint64_t reset_epoch = 0;
     ggml_type target_type_k = GGML_TYPE_COUNT;
     ggml_type target_type_v = GGML_TYPE_COUNT;
+    std::string target_backend = "not_configured";
     llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
     uint64_t table_epoch = 0;
     uint64_t representation_epoch = 0;
@@ -40,11 +50,19 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t page_tokens = 0;
     uint64_t logical_pages = 0;
     uint64_t physical_page_capacity = 0;
+    uint64_t physical_pool_capacity_bytes = 0;
     uint64_t resident_pages = 0;
+    uint64_t target_resident_bytes = 0;
+    uint64_t target_valid_rows = 0;
+    uint64_t target_valid_bytes = 0;
     uint64_t host_pages = 0;
+    uint64_t host_valid_rows = 0;
+    uint64_t host_valid_bytes = 0;
     uint64_t page_bytes = 0;
     uint64_t page_charge_bytes = 0;
     uint64_t target_bytes = 0;
+    uint64_t target_allocated_bytes = 0;
+    uint64_t live_allocation_peak_bytes = 0;
     uint64_t host_pageable_bytes = 0;
     uint64_t host_metadata_bytes = 0;
     uint64_t host_pinned_bytes = 0;
@@ -360,11 +378,20 @@ struct llama_context {
     // allocation and is therefore the authoritative source for its placement
     // and realized bytes.
     llama_kv_pager_metrics_snapshot get_kv_pager_metrics(
-            const llama_context * native_mtp_context = nullptr) const noexcept;
+            const llama_context * native_mtp_context = nullptr,
+            uint64_t request_generation = 0,
+            uint64_t slot_generation = 0,
+            uint64_t config_generation = 0) const noexcept;
 
     // Internal selected-attention boundary.  Policy supplies immutable
     // metadata; graph construction then carries its epochs and page fence.
     void set_kv_attention_mode(llama_kv_attention_execution_mode mode) noexcept;
+    // The server marks the target batch while native MTP is verifying a
+    // proposal. This keeps MTP verification route counts separate from
+    // ordinary multi-token prefill without changing the public C API.
+    void set_kv_attention_mtp_verification(bool enabled) noexcept {
+        kv_attention_mtp_verification_ = enabled;
+    }
     llama_kv_attention_execution_decision prepare_kv_attention(
             const llama_kv_attention_operator_metadata & metadata,
             llama_kv_attention_execution_phase phase,
@@ -661,6 +688,7 @@ private:
     llama_memory_ptr memory;
     std::unique_ptr<llama_kv_pager> kv_pager_owner;
     llama_kv_attention_execution kv_attention_execution;
+    bool kv_attention_mtp_verification_ = false;
     std::unique_ptr<llama_kv_attention_telemetry> kv_attention_telemetry;
 
     // decode output (2-dimensional array: [n_outputs][n_vocab])

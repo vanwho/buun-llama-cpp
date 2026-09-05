@@ -46,6 +46,7 @@ const char * llama_kv_attention_execution_phase_name(
     switch (phase) {
         case llama_kv_attention_execution_phase::prefill: return "prefill";
         case llama_kv_attention_execution_phase::decode:  return "decode";
+        case llama_kv_attention_execution_phase::mtp_verify: return "mtp_verify";
     }
     return "invalid";
 }
@@ -62,6 +63,35 @@ const char * llama_kv_attention_execution_route_name(
         case llama_kv_attention_execution_route::refusal:           return "refusal";
     }
     return "invalid";
+}
+
+void llama_kv_attention_execution_route_counts::record(
+        llama_kv_attention_execution_route route) noexcept {
+    uint64_t * counter = nullptr;
+    switch (route) {
+        case llama_kv_attention_execution_route::dense:              counter = &dense; break;
+        case llama_kv_attention_execution_route::observe:            counter = &observe; break;
+        case llama_kv_attention_execution_route::selected_reference: counter = &selected_reference; break;
+        case llama_kv_attention_execution_route::selected_direct:   counter = &selected_direct; break;
+        case llama_kv_attention_execution_route::exact_reference:   counter = &exact_reference; break;
+        case llama_kv_attention_execution_route::exact_direct:      counter = &exact_direct; break;
+        case llama_kv_attention_execution_route::refusal:            counter = &refusal; break;
+    }
+    if (counter != nullptr) {
+        *counter = saturating_add(*counter, uint64_t(1));
+    }
+}
+
+void llama_kv_attention_execution_metrics::record_wait_time_us(uint64_t elapsed_us) noexcept {
+    wait_time_us = saturating_add(wait_time_us, elapsed_us);
+}
+
+void llama_kv_attention_execution_metrics::record_copy_time_us(uint64_t elapsed_us) noexcept {
+    copy_time_us = saturating_add(copy_time_us, elapsed_us);
+}
+
+void llama_kv_attention_execution_metrics::record_queue_time_us(uint64_t elapsed_us) noexcept {
+    queue_time_us = saturating_add(queue_time_us, elapsed_us);
 }
 
 const char * llama_kv_attention_execution_status_name(
@@ -262,6 +292,9 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
 
     if (result.status == llama_kv_attention_execution_status::ok) {
         const bool rebuild = result.graph_rebuild;
+        if (have_graph_ && metadata.table_epoch() != table_epoch_) {
+            saturating_add_u64(metrics_.table_epoch_changes, 1);
+        }
         ++metrics_.graph_submission_count;
         if (rebuild) {
             ++metrics_.graph_capture_count;
@@ -299,6 +332,19 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         graph_fences_.push_back(metadata.acquire_graph_fence());
     }
 
+    switch (phase) {
+        case llama_kv_attention_execution_phase::prefill:
+            metrics_.prefill_routes.record(result.route);
+            break;
+        case llama_kv_attention_execution_phase::decode:
+            metrics_.decode_routes.record(result.route);
+            break;
+        case llama_kv_attention_execution_phase::mtp_verify:
+            metrics_.mtp_verify_routes.record(result.route);
+            break;
+    }
+    metrics_.selected_page_count = metadata.page_table().size();
+
     LLAMA_LOG_DEBUG("kv-attention: %s path (%s, table=%llu, representation=%llu, shape=%llu, scratch_rows=%llu)\n",
             llama_kv_attention_execution_route_name(result.route),
             llama_kv_attention_execution_phase_name(phase),
@@ -332,6 +378,25 @@ void llama_kv_attention_execution::record_total_token_us(uint64_t elapsed_us) no
 
 void llama_kv_attention_execution::record_wait() noexcept {
     saturating_add_u64(metrics_.waits, 1);
+}
+
+void llama_kv_attention_execution::record_wait_time_us(uint64_t elapsed_us) noexcept {
+    metrics_.record_wait_time_us(elapsed_us);
+}
+
+void llama_kv_attention_execution::record_copy_time_us(uint64_t elapsed_us) noexcept {
+    metrics_.record_copy_time_us(elapsed_us);
+}
+
+void llama_kv_attention_execution::record_queue_time_us(uint64_t elapsed_us) noexcept {
+    metrics_.record_queue_time_us(elapsed_us);
+}
+
+void llama_kv_attention_execution::reset_metrics() noexcept {
+    if (metrics_reset_epoch_ != std::numeric_limits<uint64_t>::max()) {
+        ++metrics_reset_epoch_;
+    }
+    metrics_ = {};
 }
 
 void llama_kv_attention_execution::clear() noexcept {

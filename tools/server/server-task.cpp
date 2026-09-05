@@ -1666,8 +1666,8 @@ std::string server_task_result_metrics::to_metrics() {
         prometheus << "# HELP llamacpp:kv_pager_mode Experimental KV pager mode\n"
                    << "# TYPE llamacpp:kv_pager_mode gauge\n"
                    << "llamacpp:kv_pager_mode{mode=\"" << mode << "\"} 1\n";
-        for (const char * key : {"route", "mtp_backend", "target_type_k", "target_type_v",
-                                 "mtp_type_k", "mtp_type_v"}) {
+        for (const char * key : {"route", "mtp_backend", "target_backend",
+                                 "target_type_k", "target_type_v", "mtp_type_k", "mtp_type_v"}) {
             if (!metrics.pager_metrics.contains(key) || !metrics.pager_metrics.at(key).is_string()) {
                 continue;
             }
@@ -1675,7 +1675,8 @@ std::string server_task_result_metrics::to_metrics() {
             prometheus << "# HELP llamacpp:kv_pager_" << key << " Experimental KV pager " << key << "\n"
                        << "# TYPE llamacpp:kv_pager_" << key << " gauge\n"
                        << "llamacpp:kv_pager_" << key << "{" << (std::string(key) == "route" ? "route" :
-                           std::string(key) == "mtp_backend" ? "backend" : "type")
+                           std::string(key) == "mtp_backend" ? "backend" :
+                           std::string(key) == "target_backend" ? "target_backend" : "type")
                        << "=\"" << value << "\"} 1\n";
         }
         for (const auto & item : metrics.pager_metrics.items()) {

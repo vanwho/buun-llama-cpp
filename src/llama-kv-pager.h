@@ -370,6 +370,9 @@ public:
     uint64_t residency_bytes_per_slot() const noexcept {
         return residency_adapter_ ? residency_adapter_->bytes_per_slot_value() : 0;
     }
+    uint64_t resident_bytes() const noexcept {
+        return residency_pool_ ? residency_pool_->resident_bytes() : 0;
+    }
 
 private:
     struct page_state {
