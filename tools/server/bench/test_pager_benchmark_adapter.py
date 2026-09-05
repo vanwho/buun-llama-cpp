@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import importlib.util
+import os
 import pathlib
 import sys
 import tempfile
@@ -176,6 +177,50 @@ class AdapterContractTests(unittest.TestCase):
         mismatches = adapter.identity_mismatches(
             identity("candidate", 202, binary="/opt/other-server"), identity("candidate", 202))
         self.assertIn("binary", mismatches)
+
+    def test_runtime_identity_names_main_pid_exe_and_loaded_dsos(self) -> None:
+        pid = os.getpid()
+        with patch.object(adapter, "_managed_server_pid", return_value=pid):
+            observed = adapter.runtime_identity(None)
+        self.assertEqual(pid, observed["main_pid"])
+        self.assertEqual(pid, observed["pid"])
+        self.assertEqual(observed["binary"], observed["exe"])
+        self.assertIn(observed["binary"], observed["proc_maps"])
+        self.assertEqual(
+            ["/bundle/libllama.so", "/bundle/llama-server"],
+            adapter._loaded_project_dsos([
+                "/usr/lib/libc.so.6", "/bundle/llama-server", "/bundle/libllama.so",
+            ]))
+
+    def test_restoration_requires_exact_transient_overrides(self) -> None:
+        before = snapshot("prior", 101)
+        after = snapshot("prior", 303)
+        before["transient_overrides"] = {
+            "AI_BENCHMARK_KV_HOT_PAGES": "4",
+            "AI_BENCHMARK_SERVER_BIN": "/opt/frozen/llama-server",
+        }
+        after["transient_overrides"] = {
+            "AI_BENCHMARK_KV_HOT_PAGES": "8",
+            "AI_BENCHMARK_SERVER_BIN": "/opt/frozen/llama-server",
+        }
+        errors = adapter.verify_restoration(
+            before, after, {"attempted": True, "state": "restored"})
+        self.assertIn("restore_verification_failed:transient_overrides", errors)
+
+    def test_bundle_manifest_hashes_relative_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory) / "bundle"
+            (root / "bin").mkdir(parents=True)
+            executable = root / "bin" / "llama-server"
+            executable.write_bytes(b"candidate")
+            executable.chmod(0o555)
+            output = pathlib.Path(directory) / "result"
+            manifest = adapter.write_bundle_manifest(output, str(executable))
+            self.assertIsNotNone(manifest)
+            files = manifest["files"]
+            self.assertEqual("bin/llama-server", files[0]["path"])
+            self.assertEqual(adapter._sha256_file(executable), files[0]["sha256"])
+            self.assertEqual("bin/llama-server", manifest["executable"])
 
     def test_restoration_rejects_wrong_runtime_identity(self) -> None:
         errors = adapter.verify_restoration(

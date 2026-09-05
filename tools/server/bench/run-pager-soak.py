@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import fcntl
 import hashlib
 import json
 import os
@@ -33,6 +34,72 @@ from pager_benchmark_contract import (
 
 
 DEFAULT_CORPUS = pathlib.Path(__file__).with_name("fixtures") / "pager-corpus-v4.json"
+TRANSIENT_OVERRIDE_NAMES = (
+    "AI_BENCHMARK_CLEAN", "AI_BENCHMARK_CONTEXT", "AI_BENCHMARK_KV_PAGER",
+    "AI_BENCHMARK_PAGE_SIZE", "AI_BENCHMARK_DEVICE", "AI_BENCHMARK_MTP",
+    "AI_BENCHMARK_SERVER_BIN", "AI_BENCHMARK_KV_HOT_PAGES",
+    "AI_BENCHMARK_KV_VRAM_BUDGET", "AI_BENCHMARK_KV_HOST_BUDGET",
+    "AI_BENCHMARK_KV_SAFETY_HEADROOM", "AI_BENCHMARK_KV_PIN_RECENT",
+)
+DEFAULT_LIFECYCLE_LOCK = "/tmp/ai-pager-benchmark.lock"
+
+
+def sudo_argv() -> list[str]:
+    configured = os.environ.get("BENCH_SUDO")
+    return shlex.split(configured) if configured else ["sudo", "-n"]
+
+
+def transient_overrides(service: str | None = None) -> dict[str, str] | None:
+    result = subprocess.run(
+        ["systemctl", "show-environment"],
+        capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return None
+    try:
+        tokens = shlex.split(result.stdout.strip())
+    except ValueError:
+        return None
+    allowed = set(TRANSIENT_OVERRIDE_NAMES)
+    return {name: value for token in tokens
+            for name, separator, value in [token.partition("=")]
+            if separator and name in allowed}
+
+
+class LifecycleLock:
+    def __init__(self) -> None:
+        self.path = pathlib.Path(os.environ.get("PAGER_LIFECYCLE_LOCK", DEFAULT_LIFECYCLE_LOCK))
+        self.handle = None
+
+    def acquire(self, timeout: float = 30.0) -> bool:
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            handle = self.path.open("a+")
+        except OSError:
+            return False
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.handle = handle
+                return True
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    handle.close()
+                    return False
+                time.sleep(0.1)
+            except OSError:
+                handle.close()
+                return False
+
+    def release(self) -> None:
+        if self.handle is None:
+            return
+        handle = self.handle
+        self.handle = None
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
 
 
 def read_key(path: pathlib.Path) -> str:
@@ -168,6 +235,7 @@ class Soak:
         self.endpoint = endpoint.rstrip("/")
         self.key = key
         self.model = model
+        self.server_bin = os.environ.get("BENCH_SERVER_BIN") or os.environ.get("PAGER_SERVER_BIN")
         self.slot_dir = slot_dir
         self.context = context
         self.context_resolution = context_resolution
@@ -296,8 +364,9 @@ class Soak:
         return body
 
     def identity(self, label: str) -> dict[str, object]:
+        service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
         pid_text = subprocess.run(
-            ["systemctl", "show", "--value", "--property=MainPID", "llama-server.service"],
+            ["systemctl", "show", "--value", "--property=MainPID", service],
             capture_output=True, text=True, check=False).stdout.strip()
         pid = int(pid_text) if pid_text.isdigit() else 0
         command = ""
@@ -305,8 +374,26 @@ class Soak:
         if pid and pathlib.Path(f"/proc/{pid}/cmdline").exists():
             command = pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode().strip()
             binary = os.path.realpath(f"/proc/{pid}/exe")
-        identity = {"pid": pid, "binary": binary, "command": command,
-                    "profile": pathlib.Path("/srv/ai/config/llama/active-profile").read_text().strip()}
+        map_paths = []
+        if pid:
+            try:
+                map_paths = sorted({line.split(maxsplit=5)[5].removesuffix(" (deleted)")
+                                    for line in pathlib.Path(f"/proc/{pid}/maps").read_text(errors="replace").splitlines()
+                                    if len(line.split(maxsplit=5)) == 6 and line.split(maxsplit=5)[5].startswith("/")})
+            except OSError:
+                pass
+        try:
+            profile = pathlib.Path(os.environ.get(
+                "LLAMA_ACTIVE_PROFILE", "/srv/ai/config/llama/active-profile")).read_text().strip()
+        except OSError:
+            profile = None
+        identity = {"main_pid": pid, "pid": pid, "exe": binary, "binary": binary,
+                    "command": command, "profile": profile,
+                    "proc_maps": map_paths,
+                    "loaded_dsos": [path for path in map_paths
+                                    if pathlib.Path(path).name.startswith(
+                                        ("libggml", "libllama", "libmtmd", "llama-server"))],
+                    "transient_overrides": transient_overrides(service)}
         self.write_json(f"identity-{safe_name(label)}.json", identity)
         return identity
 
@@ -409,7 +496,7 @@ def managed_runtime_state() -> dict[str, object]:
     service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
     result = subprocess.run(
         ["systemctl", "show", service, "--no-pager",
-         "--property=MainPID,ActiveState,SubState,Result,NRestarts"],
+         "--property=MainPID,ActiveState,SubState,Result,NRestarts,Environment"],
         capture_output=True, text=True, check=False)
     values: dict[str, object] = {"service": service,
                                  "systemctl_returncode": result.returncode}
@@ -425,12 +512,34 @@ def managed_runtime_state() -> dict[str, object]:
         try:
             values["command"] = command_path.read_bytes().replace(b"\0", b" ").decode().strip()
             values["binary"] = os.path.realpath(executable_path).removesuffix(" (deleted)")
+            try:
+                paths = sorted({line.split(maxsplit=5)[5].removesuffix(" (deleted)")
+                                for line in pathlib.Path(f"/proc/{pid}/maps").read_text(errors="replace").splitlines()
+                                if len(line.split(maxsplit=5)) == 6 and line.split(maxsplit=5)[5].startswith("/")})
+            except OSError:
+                paths = []
+            values["proc_maps"] = paths
+            values["loaded_dsos"] = [path for path in paths
+                                      if pathlib.Path(path).name.startswith(
+                                          ("libggml", "libllama", "libmtmd", "llama-server"))]
         except (OSError, UnicodeDecodeError):
             values["command"] = None
             values["binary"] = None
     else:
         values["command"] = None
         values["binary"] = None
+        values["proc_maps"] = []
+        values["loaded_dsos"] = []
+    try:
+        tokens = shlex.split(result.stdout.strip())
+    except ValueError:
+        tokens = []
+    allowed = set(TRANSIENT_OVERRIDE_NAMES)
+    values["transient_overrides"] = {
+        name: value for token in tokens
+        for name, separator, value in [token.partition("=")]
+        if separator and name in allowed
+    }
     return values
 
 
@@ -448,17 +557,23 @@ def restart(soak: Soak, label: str = "restart", probe_seconds: int = 180) -> dic
         "AI_BENCHMARK_CLEAN": "0", "AI_BENCHMARK_CONTEXT": str(soak.context),
         "AI_BENCHMARK_KV_PAGER": "selective", "AI_BENCHMARK_PAGE_SIZE": "256",
         "AI_BENCHMARK_DEVICE": "auto", "AI_BENCHMARK_MTP": "native",
-        "AI_BENCHMARK_SERVER_BIN": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
     }
-    sudo = shlex.split(os.environ.get("BENCH_SUDO", "sudo"))
+    if soak.server_bin:
+        values["AI_BENCHMARK_SERVER_BIN"] = soak.server_bin
+    sudo = sudo_argv()
     command = sudo + ["systemctl", "set-environment"]
     for key, value in values.items():
         command.append(f"{key}={value}")
     set_result = subprocess.run(command, capture_output=True, text=True, check=False)
-    start = time.monotonic()
     service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
-    restart_result = subprocess.run(sudo + ["systemctl", "restart", service],
-                                    capture_output=True, text=True, check=False)
+    start = time.monotonic()
+    if set_result.returncode == 0:
+        restart_result = subprocess.run(sudo + ["systemctl", "restart", service],
+                                        capture_output=True, text=True, check=False)
+    else:
+        restart_result = subprocess.CompletedProcess(
+            sudo + ["systemctl", "restart", service], 1, "",
+            "transient override setup failed; restart skipped")
     health = {"8080": False}
     health_samples: list[dict[str, object]] = []
     identity_samples: list[dict[str, object]] = []
@@ -530,7 +645,7 @@ def restart(soak: Soak, label: str = "restart", probe_seconds: int = 180) -> dic
     journal_path.write_text(journal.stdout + journal.stderr)
     kernel_path.write_text(kernel.stdout + kernel.stderr)
     clear_result = subprocess.run(
-        sudo + ["systemctl", "unset-environment", *values.keys()],
+        sudo + ["systemctl", "unset-environment", *TRANSIENT_OVERRIDE_NAMES],
         capture_output=True, text=True, check=False)
     classification = classify_startup_probe(health, restart_result.returncode,
                                              identity_stable, systemd_stable)
@@ -579,29 +694,29 @@ def restore_previous_runtime(soak: Soak, before: dict[str, object]) -> dict[str,
     context = command_option(command_line, "-c")
     pager = command_option(command_line, "--kv-pager")
     page_size = command_option(command_line, "--kv-page-size")
-    mtp_device = command_option(command_line, "--spec-draft-kv-device")
-    if not binary or not context or not pager or not page_size:
+    overrides = before.get("transient_overrides")
+    if not binary or not context or not pager or not page_size or not isinstance(overrides, dict):
         return {"state": "not_restorable", "reason": "prior_runtime_identity_incomplete"}
 
-    sudo = shlex.split(os.environ.get("BENCH_SUDO", "sudo"))
+    sudo = sudo_argv()
     service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
-    values = {
-        "AI_BENCHMARK_CLEAN": "0",
-        "AI_BENCHMARK_CONTEXT": context,
-        "AI_BENCHMARK_KV_PAGER": pager,
-        "AI_BENCHMARK_PAGE_SIZE": page_size,
-        "AI_BENCHMARK_DEVICE": "auto",
-        "AI_BENCHMARK_MTP": "native" if mtp_device == "gpu" else "off",
-        "AI_BENCHMARK_SERVER_BIN": binary,
-    }
+    unset = subprocess.run(
+        sudo + ["systemctl", "unset-environment", *TRANSIENT_OVERRIDE_NAMES],
+        capture_output=True, text=True, check=False)
     set_result = subprocess.run(
         sudo + ["systemctl", "set-environment"] +
-        [f"{key}={value}" for key, value in values.items()],
+        [f"{key}={value}" for key, value in overrides.items()],
         capture_output=True, text=True, check=False)
-    restart_result = subprocess.run(
-        sudo + ["systemctl", "restart", service],
-        capture_output=True, text=True, check=False)
-    deadline = time.monotonic() + 120
+    if unset.returncode == 0 and set_result.returncode == 0:
+        restart_result = subprocess.run(
+            sudo + ["systemctl", "restart", service],
+            capture_output=True, text=True, check=False)
+    else:
+        restart_result = subprocess.CompletedProcess(
+            sudo + ["systemctl", "restart", service], 1, "",
+            "transient override restoration failed; restart skipped")
+    timeout = max(1.0, float(os.environ.get("PAGER_RESTORE_TIMEOUT", "120")))
+    deadline = time.monotonic() + timeout
     healthy = False
     while time.monotonic() < deadline:
         healthy = _startup_health(soak)
@@ -611,9 +726,6 @@ def restore_previous_runtime(soak: Soak, before: dict[str, object]) -> dict[str,
             break
         time.sleep(1)
     state = managed_runtime_state()
-    clear_result = subprocess.run(
-        sudo + ["systemctl", "unset-environment", *values.keys()],
-        capture_output=True, text=True, check=False)
     mismatches = []
     expected = {
         "binary": binary, "context": context, "pager_mode": pager,
@@ -628,17 +740,23 @@ def restore_previous_runtime(soak: Soak, before: dict[str, object]) -> dict[str,
         mismatches.append("pager_mode")
     if command_option(actual_command, "--kv-page-size") != expected["page_size_tokens"]:
         mismatches.append("page_size_tokens")
+    if state.get("transient_overrides") != overrides:
+        mismatches.append("transient_overrides")
+    before_dsos = before.get("loaded_dsos")
+    if isinstance(before_dsos, list) and state.get("loaded_dsos") != before_dsos:
+        mismatches.append("loaded_dsos")
     restored = (set_result.returncode == 0 and restart_result.returncode == 0 and
-                healthy and not mismatches)
+                unset.returncode == 0 and healthy and not mismatches)
     return {
         "state": "restored" if restored else "restore_failed",
-        "set_rc": set_result.returncode, "restart_rc": restart_result.returncode,
-        "clear_rc": clear_result.returncode, "health": healthy,
+        "unset_rc": unset.returncode, "set_rc": set_result.returncode,
+        "restart_rc": restart_result.returncode, "health": healthy,
+        "transient_overrides": overrides,
         "observed": state, "mismatches": mismatches,
     }
 
 
-def main() -> int:
+def _main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=pathlib.Path)
     parser.add_argument("--endpoint", default="http://127.0.0.1:8080")
@@ -868,6 +986,19 @@ def main() -> int:
     soak.write_json("run-summary.json", final)
     write_raw_manifest(soak)
     return 0
+
+
+def main() -> int:
+    if "--dry-run" in sys.argv:
+        return _main()
+    lock = LifecycleLock()
+    if not lock.acquire():
+        print("pager soak: lifecycle lock is busy or unavailable", file=sys.stderr)
+        return 75
+    try:
+        return _main()
+    finally:
+        lock.release()
 
 
 if __name__ == "__main__":

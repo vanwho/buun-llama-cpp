@@ -13,6 +13,9 @@ static bool pager_metrics_export_regression() {
         {"mtp_type_k", "turbo4"},
         {"mtp_type_v", "turbo4"},
         {"page_capacity", 7},
+        // Pager snapshots also contain boolean state. Prometheus rendering
+        // must ignore it instead of asking nlohmann::json for a double.
+        {"admission_accepted", true},
         {"attention_publish_time_us", 11},
         {"attention_d2h_time_us", 13},
         {"waits", 17},
@@ -27,6 +30,7 @@ static bool pager_metrics_export_regression() {
            rendered.find("llamacpp:kv_pager_mtp_type_k{type=\"turbo4\"} 1") != std::string::npos &&
            rendered.find("llamacpp:kv_pager_mtp_type_v{type=\"turbo4\"} 1") != std::string::npos &&
            rendered.find("llamacpp:kv_pager_page_capacity 7") != std::string::npos &&
+           rendered.find("llamacpp:kv_pager_admission_accepted") == std::string::npos &&
            rendered.find("llamacpp:kv_pager_attention_publish_time_us 11") != std::string::npos &&
            rendered.find("llamacpp:kv_pager_attention_d2h_time_us 13") != std::string::npos &&
            rendered.find("llamacpp:kv_pager_waits 17") != std::string::npos;
