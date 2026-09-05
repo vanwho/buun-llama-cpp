@@ -308,6 +308,10 @@ def healthy(snapshot: dict[str, object]) -> bool:
 
 def failure_class(canonical_rc: int | None, errors: list[str]) -> str | None:
     """Classify a failed boundary while retaining every individual error."""
+    if any(error.startswith("incomplete_timeout") for error in errors):
+        return "incomplete_timeout"
+    if any(error.startswith("unsupported") for error in errors) and canonical_rc == 0:
+        return "unsupported"
     if canonical_rc is not None and canonical_rc != 0:
         return "canonical_runner_failure"
     if any(error.startswith("restoration_") or error.startswith("restore_")
@@ -396,9 +400,20 @@ def record_validation_errors(output: pathlib.Path) -> list[str]:
         return ["malformed_records"]
     if not records:
         return ["empty_records"]
-    if any(record.get("error") is True or record.get("http_code") != 200 for record in records):
+    if any(record.get("error") is True and
+           record.get("error_class") not in {"incomplete_timeout", "unsupported"}
+           for record in records):
         errors.append("request_contract_failure")
-    if any(not isinstance(record.get("timings"), dict) for record in records if record.get("error") is not True):
+    if any(record.get("error") is not True and record.get("http_code") != 200
+           and record.get("phase") != "capability" for record in records):
+        errors.append("request_contract_failure")
+    if any(record.get("error_class") == "incomplete_timeout" for record in records):
+        errors.append("incomplete_timeout")
+    if any(record.get("error_class") == "unsupported" for record in records):
+        errors.append("unsupported")
+    if any(not isinstance(record.get("timings"), dict)
+           for record in records if record.get("error") is not True and
+           record.get("phase") != "capability"):
         errors.append("missing_record_timings")
     return errors
 
@@ -704,6 +719,9 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
         "service": {"status": "not_started"},
         "lifecycle": {"policy": "restore-on-request-or-failure; keep-loaded-on-success",
                        "resume_usable": False, "state": "not_started"},
+        "resume": {"enabled": os.environ.get("BENCH_RESUME", "0") == "1",
+                    "case_ids": [value for value in os.environ.get("BENCH_CASE_IDS", "").split(",") if value],
+                    "case_indexes": [int(value) for value in os.environ.get("BENCH_CASE_INDEXES", "").split(",") if value]},
         "launcher": {"mode": os.environ.get("BENCH_PAGER_MODE", "selective"),
                      "device": os.environ.get("BENCH_DEVICE", "auto"),
                      "page_size_tokens": int(os.environ.get("BENCH_PAGE_SIZE", "256")),
@@ -763,9 +781,16 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
                           "loaded_profile": after.get("profile"),
                           "restored_profile": before.get("profile") if restore_requested else None}
     previous_identity = config.get("runtime_identity")
-    requested_identity = previous_identity.get("candidate") if isinstance(previous_identity, dict) else None
-    config["runtime_identity"] = {"before": before.get("identity"), "after": after.get("identity"),
-                                   "requested": requested_identity}
+    requested_identity = None
+    if isinstance(previous_identity, dict):
+        requested_identity = previous_identity.get("candidate") or previous_identity.get("requested")
+    config["runtime_identity"] = {
+        "candidate": requested_identity,
+        "active": previous_identity.get("active") if isinstance(previous_identity, dict) else None,
+        "observed_before": previous_identity.get("observed_before") if isinstance(previous_identity, dict) else None,
+        "before": before.get("identity"), "after": after.get("identity"),
+        "requested": requested_identity,
+    }
     config["lifecycle"] = {
         "policy": "restore-on-request-or-failure; keep-loaded-on-success",
         "resume_usable": not validation_errors and bool(after.get("health") and after["health"].get("http_code") == 200),
@@ -810,9 +835,16 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
     summary_path = output / "summary.json"
     if summary_path.exists():
         summary = json.loads(summary_path.read_text())
-        for item in summary:
-            item["pager_status"] = "ok" if telemetry is not None else "not_configured"
-            item["benchmark_variant"] = variant
+        if isinstance(summary, list):
+            for item in summary:
+                item["pager_status"] = "ok" if telemetry is not None else "not_configured"
+                item["benchmark_variant"] = variant
+        elif isinstance(summary, dict):
+            for item in summary.get("groups", []):
+                item["pager_status"] = "ok" if telemetry is not None else "not_configured"
+                item["benchmark_variant"] = variant
+            summary["pager_status"] = "ok" if telemetry is not None else "not_configured"
+            summary["benchmark_variant"] = variant
         summary_path.write_text(json.dumps(summary, indent=2) + "\n")
 
 
@@ -836,9 +868,29 @@ def _main() -> int:
                         help="explicitly permit a sub-ceiling diagnostic run")
     parser.add_argument("--mtp", choices=("native", "off"), default="native",
                         help="native MTP companion policy")
+    parser.add_argument("--resume", action="store_true",
+                        help="resume matching completed canonical cases in output")
+    parser.add_argument("--case-id", action="append", default=[],
+                        help="run only this case label or prompt ID; repeat for a selection")
+    parser.add_argument("--case-index", action="append", type=int, default=[],
+                        help="run only this zero-based case index; repeat for a selection")
+    parser.add_argument("--connect-timeout", type=float, default=10.0,
+                        help="connection deadline in seconds")
+    parser.add_argument("--startup-timeout", type=float, default=180.0,
+                        help="startup/readiness deadline in seconds")
+    parser.add_argument("--prefill-timeout", type=float, default=300.0,
+                        help="prefill no-progress deadline in seconds")
+    parser.add_argument("--decode-timeout", type=float, default=120.0,
+                        help="decode no-progress deadline in seconds")
+    parser.add_argument("--total-timeout", type=float, default=1800.0,
+                        help="campaign wall deadline; expiry remains resumable")
     args = parser.parse_args()
     if args.page_size <= 0 or args.page_size % 256:
         parser.error("--page-size must be a positive multiple of 256")
+    if any(value <= 0 for value in (args.connect_timeout, args.startup_timeout,
+                                    args.prefill_timeout, args.decode_timeout,
+                                    args.total_timeout)):
+        parser.error("all timeout limits must be positive")
     if args.mtp == "native" and args.target != "fast":
         parser.error("native MTP is only available with the canonical Qwen3.8 fast profile")
     endpoint = os.environ.get("BENCH_ENDPOINT")
@@ -860,6 +912,9 @@ def _main() -> int:
         os.environ["BENCH_CONTEXT"] = str(context["resolved"])
         os.environ["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
         os.environ["BENCH_MTP"] = args.mtp
+        os.environ["BENCH_RESUME"] = "1" if args.resume else "0"
+        os.environ["BENCH_CASE_IDS"] = ",".join(args.case_id)
+        os.environ["BENCH_CASE_INDEXES"] = ",".join(str(value) for value in args.case_index)
         write_dry_run(output, args.target, args.variant, endpoint, context,
                       corpus(variant=args.variant, frozen=frozen_corpus, path=corpus_path),
                       corpus_path)
@@ -907,6 +962,14 @@ def _main() -> int:
     env["BENCH_CONTEXT"] = str(context["resolved"])
     env["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
     env["BENCH_MTP"] = args.mtp
+    env["BENCH_RESUME"] = "1" if args.resume else "0"
+    env["BENCH_CASE_IDS"] = ",".join(args.case_id)
+    env["BENCH_CASE_INDEXES"] = ",".join(str(value) for value in args.case_index)
+    env["BENCH_CONNECT_TIMEOUT"] = str(args.connect_timeout)
+    env["BENCH_STARTUP_TIMEOUT"] = str(args.startup_timeout)
+    env["BENCH_PREFILL_TIMEOUT"] = str(args.prefill_timeout)
+    env["BENCH_DECODE_TIMEOUT"] = str(args.decode_timeout)
+    env["BENCH_TOTAL_TIMEOUT"] = str(args.total_timeout)
     # Successful runs remain loaded by default. Explicit control/revert runs
     # opt into restoration; failed runs are restored by the canonical runner.
     env["BENCH_RESTORE_PROFILE"] = "1" if args.restore_control else "0"
@@ -939,7 +1002,10 @@ def _main() -> int:
     if canonical_rc == 0:
         validation_errors.extend(record_validation_errors(output))
     if canonical_rc == 0 and config is not None:
-        requested = config.get("runtime_identity", {}).get("candidate") if isinstance(config.get("runtime_identity"), dict) else None
+        identity_config = config.get("runtime_identity")
+        requested = None
+        if isinstance(identity_config, dict):
+            requested = identity_config.get("candidate") or identity_config.get("requested")
         if isinstance(requested, dict):
             mismatches = identity_mismatches(after.get("identity", {}), requested)
             if mismatches:

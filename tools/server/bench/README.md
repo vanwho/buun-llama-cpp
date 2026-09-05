@@ -172,6 +172,17 @@ tools/server/bench/run-quality-corpus.py fixtures/pager-corpus-v4.json <results-
   --endpoint <url> --model <model> --mode selective --context derived
 ```
 
+Long quality and canonical campaigns support `--resume` plus repeatable
+`--case-id ID` and `--case-index N` selection.  Resume requires the existing
+case manifest to match bundle/model/tokenizer/template, corpus, configuration,
+mode, cache condition, sampling, context, and timeout provenance; only
+successful completed case keys are skipped.  The shared case ledger writes
+append-only `case-state.jsonl` and atomically replaces `progress.json` after
+raw response/metrics artifacts are flushed.  The separate connect, startup,
+prefill-idle, decode-idle, and total limits are configurable with the matching
+`--*-timeout` options.  A total expiry is recorded as `incomplete_timeout` and
+can be resumed without fabricating a zero-speed or wrong-answer row.
+
 `run-pager-soak.py <results-dir> --dry-run` resolves the same corpus ceiling
 without contacting a service. Its live synthetic marker prompts are sized from
 that resolved context. Lower contexts require `--diagnostic` and are recorded

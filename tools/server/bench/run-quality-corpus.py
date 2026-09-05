@@ -13,6 +13,7 @@ import hashlib
 import json
 import pathlib
 import re
+import signal
 import sys
 import time
 from typing import Any
@@ -20,9 +21,13 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from pager_benchmark_contract import (
+    CaseStateStore,
     CORPUS_SCHEMA,
     ContextResolutionError,
     PromptFit,
+    ResumeError,
+    case_key,
+    case_key_inputs,
     fit_prompt,
     corpus_context_ceiling,
     resolve_context,
@@ -123,7 +128,7 @@ def read_key(path: str | None) -> str:
 
 
 def request_case(endpoint: str, body: dict[str, Any], key: str,
-                 timeout: float) -> tuple[int | None, dict[str, Any] | None, str | None]:
+                 timeout: float | None) -> tuple[int | None, dict[str, Any] | None, str | None]:
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
@@ -159,16 +164,38 @@ def main() -> int:
                         help="dense, selected-all, exact, or selective")
     parser.add_argument("--binary")
     parser.add_argument("--model-file")
-    parser.add_argument("--timeout", type=float, default=60.0,
-                        help="per-request timeout in seconds (default: 60)")
+    parser.add_argument("--timeout", type=float, default=None,
+                        help="legacy alias for total-timeout (not a campaign-wide fixed cap)")
+    parser.add_argument("--connect-timeout", type=float, default=10.0,
+                        help="operator limit for connecting to the server (default: 10)")
+    parser.add_argument("--startup-timeout", type=float, default=180.0,
+                        help="operator limit for server readiness (default: 180)")
+    parser.add_argument("--prefill-timeout", type=float, default=300.0,
+                        help="no-progress limit while prefill has no streamed tokens (default: 300)")
+    parser.add_argument("--decode-timeout", type=float, default=120.0,
+                        help="no-progress limit between decode chunks (default: 120)")
+    parser.add_argument("--total-timeout", type=float, default=1800.0,
+                        help="hard campaign wall limit; expiry is resumable incomplete (default: 1800)")
+    parser.add_argument("--resume", action="store_true",
+                        help="resume matching completed cases from the output manifest")
+    parser.add_argument("--case-id", action="append", default=[],
+                        help="run only this case ID; repeat for a documented selection")
+    parser.add_argument("--case-index", action="append", type=int, default=[],
+                        help="run only this zero-based case index; repeat for a selection")
     parser.add_argument("--max-tokens", type=int, default=32)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--diagnostic", "--diagnostic-incomplete", dest="diagnostic",
                         action="store_true",
                         help="explicitly record a sub-ceiling run as diagnostic-only")
     args = parser.parse_args()
-    if args.timeout <= 0 or args.max_tokens <= 0:
-        parser.error("timeout and max-tokens must be positive")
+    timeout_values = [args.connect_timeout, args.startup_timeout, args.prefill_timeout,
+                      args.decode_timeout, args.total_timeout]
+    if args.timeout is not None:
+        if args.timeout <= 0:
+            parser.error("timeout must be positive")
+        args.total_timeout = args.timeout
+    if any(value <= 0 for value in timeout_values) or args.max_tokens <= 0:
+        parser.error("all timeout limits and max-tokens must be positive")
 
     try:
         corpus = json.loads(args.corpus.read_text())
@@ -202,6 +229,10 @@ def main() -> int:
         tokenizer_id=corpus.get("tokenizer_sha256"),
         request_options=request_options(chat_template_kwargs={"enable_thinking": False}),
     )
+    probe = getattr(renderer, "probe_capabilities", None)
+    capability = probe() if callable(probe) else {
+        "status": 200, "supported": True, "error_class": None,
+    }
     provenance: dict[str, Any] = {
         "schema_version": 1,
         "corpus_schema": corpus["schema"],
@@ -226,13 +257,91 @@ def main() -> int:
             "authority": "/apply-template followed by /tokenize(add_special=true, parse_special=true)",
             "word_count_authoritative": False,
         },
+        "capability_probe": capability,
+    }
+    if not capability["supported"]:
+        write_json(args.output / "capability.json", capability)
+        unsupported = {
+            "schema_version": 1, "mode": args.mode, "context": resolved_context,
+            "corpus_cases": len(corpus["cases"]), "completed": 0, "passed": 0,
+            "failed": 0, "errors": 0, "incomplete": 0, "sizing_errors": 0,
+            "skipped_context": 0, "decision": "not_implemented",
+            "status": "unsupported", "capability_probe": capability,
+        }
+        record = {"status": "unsupported", "phase": "capability",
+                  "error_class": capability["error_class"],
+                  "http_status": capability["status"]}
+        write_json(args.output / "provenance.json", provenance)
+        (args.output / "records.jsonl").write_text(
+            json.dumps(record, separators=(",", ":")) + "\n")
+        write_json(args.output / "summary.json", unsupported)
+        return 0 if capability["error_class"] == "unsupported" else 2
+    config_material = {
+        "endpoint": args.endpoint, "model": args.model, "mode": args.mode,
+        "context": resolved_context, "seed": args.seed, "max_tokens": args.max_tokens,
+        "diagnostic": args.diagnostic,
+    }
+    campaign = {
+        "bundle_identity": provenance["binary_sha256"],
+        "model_sha256": provenance["model_file_sha256"] or corpus.get("model_sha256"),
+        "tokenizer_template_sha256": f"{renderer.tokenizer_id}:{renderer.template_id}",
+        "corpus_sha256": corpus.get("corpus_hash"),
+        "config_sha256": hashlib.sha256(json.dumps(
+            config_material, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest(),
+        "mode": args.mode, "context_tokens": resolved_context,
+        "sampling": {"temperature": 0, "seed": args.seed, "max_tokens": args.max_tokens},
+        "cache_condition": "managed-server-current-cache",
+        "source_release": provenance["binary_sha256"],
+        "timeouts": {
+            "connect": args.connect_timeout, "startup": args.startup_timeout,
+            "prefill_idle": args.prefill_timeout, "decode_idle": args.decode_timeout,
+            "total": args.total_timeout,
+        },
+    }
+    try:
+        state_store = CaseStateStore(args.output, campaign, resume=args.resume)
+    except ResumeError as error:
+        print(f"cannot resume quality campaign: {error}", file=sys.stderr)
+        return 2
+    provenance["campaign"] = {
+        "schema": "pager-case-state-v1", "campaign_hash": state_store.campaign_hash,
+        "resume": args.resume, "case_ids": args.case_id, "case_indexes": args.case_index,
+        "deadlines": campaign["timeouts"],
     }
     write_json(args.output / "provenance.json", provenance)
 
+    active_attempt: dict[str, str] = {}
+
+    def checkpoint_interrupt(signum: int, _frame: object) -> None:
+        if active_attempt:
+            state_store.interrupted(active_attempt["case_key"], active_attempt["attempt_id"],
+                                    reason=f"signal:{signum}")
+            active_attempt.clear()
+        raise KeyboardInterrupt
+
+    signal.signal(signal.SIGINT, checkpoint_interrupt)
+    signal.signal(signal.SIGTERM, checkpoint_interrupt)
+
     records_path = args.output / "records.jsonl"
     records: list[dict[str, Any]] = []
-    with records_path.open("w") as records_file:
+    if args.resume and records_path.exists():
+        try:
+            records = [json.loads(line) for line in records_path.read_text().splitlines()
+                       if line.strip()]
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"cannot resume quality records: {error}", file=sys.stderr)
+            return 2
+    campaign_started = time.monotonic()
+    campaign_expired = False
+    with records_path.open("a" if args.resume else "w") as records_file:
         for index, case in enumerate(corpus["cases"]):
+            if args.case_id and case["id"] not in args.case_id:
+                continue
+            if args.case_index and index not in args.case_index:
+                continue
+            if time.monotonic() - campaign_started >= args.total_timeout:
+                campaign_expired = True
+                break
             stem = f"{index:03d}-{case['partition']}-{case['id']}"
             record: dict[str, Any] = {
                 "index": index, "id": case["id"], "partition": case["partition"],
@@ -251,6 +360,21 @@ def main() -> int:
                 try:
                     fit = fit_case_prompt(case, renderer, resolved_context, args.max_tokens)
                     body = build_request(case, args.model, args.max_tokens, args.seed, fit=fit)
+                    identity = {
+                        **campaign,
+                        "case_id": case["id"],
+                        "case_partition": case["partition"],
+                        "prompt_hash": fit.request_token_sha256,
+                        "request_hash": hashlib.sha256(
+                            json.dumps(body, sort_keys=True, ensure_ascii=False,
+                                       separators=(",", ":")).encode("utf-8")).hexdigest(),
+                        "trial_index": 0,
+                    }
+                    current_key, already_completed = state_store.start(identity)
+                    if already_completed:
+                        continue
+                    attempt_id = state_store.states[current_key]["attempt_id"]
+                    active_attempt.update({"case_key": current_key, "attempt_id": attempt_id})
                     write_json(raw / f"{stem}.request.json", body)
                     record.update({
                         "status": "preflighted",
@@ -262,6 +386,10 @@ def main() -> int:
                         "fact_offsets": list(fit.fact_offsets),
                         "request_token_sha256": fit.request_token_sha256,
                         "padding_characters": fit.padding_characters,
+                        "case_key": current_key,
+                        "case_key_inputs": case_key_inputs(identity),
+                        "attempt_id": attempt_id,
+                        "deadlines": campaign["timeouts"],
                     })
                 except (PromptSizingError, ValueError) as error:
                     record.update({"status": "sizing_error", "error": str(error)})
@@ -269,7 +397,9 @@ def main() -> int:
                     records_file.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
                     records_file.flush()
                     continue
-                status, response, error = request_case(args.endpoint, body, key, args.timeout)
+                elapsed = time.monotonic() - started
+                remaining = max(0.1, args.total_timeout - elapsed)
+                status, response, error = request_case(args.endpoint, body, key, remaining)
                 if response is not None:
                     write_json(raw / f"{stem}.response.json", response)
                     usage = response.get("usage") if isinstance(response, dict) else None
@@ -288,14 +418,36 @@ def main() -> int:
                             "actual": actual,
                         })
                 else:
-                    record.update({"status": "error", "error": error})
+                    timeout_error = isinstance(error, str) and (
+                        "timeout" in error.lower() or "timed out" in error.lower())
+                    record.update({
+                        "status": "incomplete_timeout" if timeout_error else "error",
+                        "error": error,
+                        **({"timeout_class": "decode_no_progress_timeout"} if timeout_error else {}),
+                    })
                 record["http_status"] = status
+                if time.monotonic() - started >= args.total_timeout:
+                    record.update({"status": "incomplete_timeout",
+                                   "timeout_class": "total_campaign_timeout",
+                                   "error": "campaign wall limit expired"})
             record["elapsed_s"] = round(time.monotonic() - started, 6)
             records.append(record)
             records_file.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
             records_file.flush()
+            if record.get("case_key"):
+                if record["status"] == "incomplete_timeout":
+                    state_store.interrupted(record["case_key"], record["attempt_id"],
+                                            reason=record["error"], record=record)
+                else:
+                    state_store.complete(record["case_key"], record["attempt_id"],
+                                         success=record["status"] in {"pass", "fail"},
+                                         record=record,
+                                         raw_paths=[raw / f"{stem}.request.json"] +
+                                         ([raw / f"{stem}.response.json"] if response is not None else []))
+                active_attempt.clear()
 
-    completed = [record for record in records if record["status"] in {"pass", "fail"}]
+    completed = [record for record in state_store.completed_records()
+                 if record.get("status") in {"pass", "fail"}]
     summary = {
         "schema_version": 1,
         "mode": args.mode,
@@ -306,12 +458,16 @@ def main() -> int:
         "passed": sum(record["status"] == "pass" for record in records),
         "failed": sum(record["status"] == "fail" for record in records),
         "errors": sum(record["status"] == "error" for record in records),
+        "incomplete": sum(record["status"] == "incomplete_timeout" for record in records),
+        "sizing_errors": sum(record["status"] == "sizing_error" for record in records),
         "skipped_context": sum(record["status"] == "skipped_context" for record in records),
         "score": (sum(record.get("score", 0.0) for record in completed) / len(completed)
                   if completed else None),
         "decision": "pass" if len(completed) == len(records) and
                     all(record["status"] == "pass" for record in records) else "fail",
         "diagnostic_only": context["diagnostic_only"],
+        "status": "incomplete_timeout" if campaign_expired else "complete",
+        "resume_usable": True,
     }
     write_json(args.output / "summary.json", summary)
     (args.output / "SHA256SUMS").write_text(
@@ -320,7 +476,7 @@ def main() -> int:
                 if path.is_file() and path.name != "SHA256SUMS")
     )
     print(json.dumps(summary, sort_keys=True))
-    return 0 if summary["decision"] == "pass" else 1
+    return 1 if campaign_expired else (0 if summary["decision"] == "pass" else 1)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,10 @@ import json
 import pathlib
 import sys
 import tempfile
+import threading
+import time
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -170,6 +173,102 @@ class QualityCorpusRunnerTests(unittest.TestCase):
             "qwen", 32, 42)
         self.assertEqual("fact", request["messages"][0]["content"])
         self.assertFalse("api_key" in json.dumps(request))
+
+    def test_resume_skips_matching_completed_cases_without_duplicate_http(self) -> None:
+        corpus_path = HERE / "fixtures/pager-corpus-v4.json"
+        fit = PromptFit(
+            messages=[{"role": "user", "content": "fitted"}],
+            rendered_text="fitted", token_ids=(1,), token_count=1,
+            desired_occupancy=6401, generation_reserve=32,
+            padding_characters=0, template_id="template:test",
+            tokenizer_id="tokenizer:test", fact_offsets=(),
+            request_token_sha256="1" * 64)
+        calls: list[str] = []
+
+        def request(*_args: object) -> tuple[int, dict[str, object], None]:
+            calls.append("request")
+            return 200, {"usage": {"prompt_tokens": 1},
+                         "choices": [{"message": {"content": "wrong"}}]}, None
+
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+                runner, "request_case", side_effect=request), patch.object(
+                runner, "ServerPromptRenderer", return_value=type(
+                    "FakeRenderer", (), {"template_id": "template:test",
+                                         "tokenizer_id": "tokenizer:test"})()), patch.object(
+                runner, "fit_case_prompt", return_value=fit):
+            output = pathlib.Path(directory)
+            argv = ["run-quality-corpus.py", str(corpus_path), str(output),
+                    "--endpoint", "http://example/v1/chat/completions",
+                    "--model", "qwen", "--mode", "selective", "--context", "6401",
+                    "--diagnostic", "--case-id", "warm-focus"]
+            with patch.object(sys, "argv", argv):
+                self.assertEqual(1, runner.main())
+            self.assertEqual(2, len(calls))
+            with patch.object(sys, "argv", argv + ["--resume"]):
+                self.assertEqual(1, runner.main())
+            self.assertEqual(2, len(calls))
+            records = [json.loads(line) for line in
+                       (output / "records.jsonl").read_text().splitlines()]
+            self.assertEqual(2, len(records))
+
+    def test_capability_501_is_one_unsupported_record(self) -> None:
+        corpus_path = HERE / "fixtures/pager-corpus-v4.json"
+        fake_renderer = type(
+            "FakeRenderer", (), {
+                "template_id": "template:test", "tokenizer_id": "tokenizer:test",
+                "probe_capabilities": lambda self: {
+                    "status": 501, "supported": False, "error_class": "unsupported"}})()
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+                runner, "ServerPromptRenderer", return_value=fake_renderer), patch.object(
+                sys, "argv", ["run-quality-corpus.py", str(corpus_path), directory,
+                              "--endpoint", "http://example/v1/chat/completions", "--model", "qwen",
+                              "--mode", "selective"]):
+            self.assertEqual(0, runner.main())
+            records = [json.loads(line) for line in
+                       (pathlib.Path(directory) / "records.jsonl").read_text().splitlines()]
+            self.assertEqual(1, len(records))
+            self.assertEqual("unsupported", records[0]["error_class"])
+
+    def test_fake_server_statuses_and_disconnect_are_classified(self) -> None:
+        busy = threading.Event()
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:  # noqa: N802 - stdlib callback name
+                if self.path == "/501":
+                    self.send_response(501)
+                    self.end_headers()
+                    return
+                if self.path == "/400":
+                    self.send_response(400)
+                    self.end_headers()
+                    return
+                busy.set()
+                time.sleep(0.2)
+                try:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"usage":{"prompt_tokens":1}}')
+                except BrokenPipeError:
+                    pass
+
+            def log_message(self, *_args: object) -> None:
+                return
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            root = f"http://127.0.0.1:{server.server_port}"
+            self.assertEqual(501, runner.request_case(root + "/501", {}, "", 1)[0])
+            self.assertEqual(400, runner.request_case(root + "/400", {}, "", 1)[0])
+            status, _response, error = runner.request_case(root + "/slow", {}, "", 0.03)
+            self.assertIsNone(status)
+            self.assertIsNotNone(error)
+            self.assertTrue(busy.wait(1.0))
+        finally:
+            server.shutdown()
+            thread.join(timeout=2)
 
 if __name__ == "__main__":
     unittest.main()

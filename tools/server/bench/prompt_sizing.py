@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Mapping, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -41,7 +42,10 @@ class ServerPromptRenderer:
         try:
             with urlopen(request, timeout=self.timeout) as response:
                 value = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, OSError, URLError, TimeoutError, ValueError) as error:
+        except HTTPError as error:
+            raise PromptSizingError(
+                f"server prompt endpoint failed: HTTP {error.code}") from error
+        except (OSError, URLError, TimeoutError, ValueError) as error:
             raise PromptSizingError(f"server prompt endpoint failed: {type(error).__name__}") from error
         if not isinstance(value, dict):
             raise PromptSizingError("server prompt endpoint returned a non-object")
@@ -54,7 +58,10 @@ class ServerPromptRenderer:
         try:
             with urlopen(Request(self.endpoint + path, headers=headers), timeout=self.timeout) as response:
                 value = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, OSError, URLError, TimeoutError, ValueError) as error:
+        except HTTPError as error:
+            raise PromptSizingError(
+                f"server prompt endpoint failed: HTTP {error.code}") from error
+        except (OSError, URLError, TimeoutError, ValueError) as error:
             raise PromptSizingError(f"server prompt endpoint failed: {type(error).__name__}") from error
         if not isinstance(value, dict):
             raise PromptSizingError("server prompt endpoint returned a non-object")
@@ -79,6 +86,19 @@ class ServerPromptRenderer:
                 "model": self.model,
                 "chat_template_kwargs": self.request_options.get("chat_template_kwargs", {}),
             })
+
+    def probe_capabilities(self) -> dict[str, Any]:
+        """Probe once before a mode campaign and classify a known 501 refusal."""
+        try:
+            self._get("/props")
+            return {"status": 200, "supported": True, "error_class": None}
+        except PromptSizingError as error:
+            match = re.search(r"HTTP (\d+)", str(error))
+            status = int(match.group(1)) if match else None
+            return {
+                "status": status, "supported": False,
+                "error_class": "unsupported" if status == 501 else "capability_probe_failure",
+            }
 
     def __call__(self, messages: list[dict[str, Any]]) -> RenderedPrompt:
         body = dict(self.request_options)

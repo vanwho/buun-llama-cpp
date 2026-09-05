@@ -25,10 +25,13 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from pager_benchmark_contract import (
+    CaseStateStore,
+    CampaignDeadlines,
     CORPUS_SCHEMA,
     ContextResolutionError,
     PromptFit,
     PromptSizingError,
+    ResumeError,
     corpus_context_ceiling,
     fit_prompt,
     resolve_context,
@@ -241,7 +244,10 @@ def write_raw_manifest(soak: "Soak") -> None:
 class Soak:
     def __init__(self, root: pathlib.Path, endpoint: str, key: str, model: str,
                  slot_dir: pathlib.Path, context: int,
-                 context_resolution: dict[str, object], corpus: dict[str, object]) -> None:
+                 context_resolution: dict[str, object], corpus: dict[str, object], *,
+                 resume: bool = False, case_ids: list[str] | None = None,
+                 case_indexes: list[int] | None = None,
+                 deadlines: CampaignDeadlines | None = None) -> None:
         self.root = root
         self.raw = root / "raw"
         self.raw.mkdir(parents=True, exist_ok=True)
@@ -253,22 +259,73 @@ class Soak:
         self.context = context
         self.context_resolution = context_resolution
         self.corpus = corpus
-        # This is only an upper-bound padding hint. Admission is decided by the
-        # model's rendered token IDs, never by this legacy word-shaped input.
-        self.padding_hint_words = max(640, (context - 512) // 2)
+        self.case_ids = set(case_ids or [])
+        self.case_indexes = set(case_indexes or [])
+        self.deadlines = deadlines or CampaignDeadlines()
+        self.campaign_started = time.monotonic()
+        self.request_index = 0
+        self._state_lock = threading.Lock()
         self.renderer = ServerPromptRenderer(
             endpoint, model, key,
             tokenizer_id=os.environ.get("PAGER_TOKENIZER_SHA256"),
             request_options=request_options(chat_template_kwargs={"enable_thinking": False}),
         )
+        config_material = {
+            "endpoint": self.endpoint, "model": model, "context": context,
+            "mode": os.environ.get("BENCH_PAGER_MODE", "selective"),
+        }
+        campaign = {
+            "bundle_identity": self.server_bin,
+            "model_sha256": corpus.get("model_sha256"),
+            "tokenizer_template_sha256": f"{self.renderer.tokenizer_id}:{self.renderer.template_id}",
+            "corpus_sha256": corpus.get("corpus_hash"),
+            "config_sha256": hashlib.sha256(json.dumps(
+                config_material, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+            "source_release": self.server_bin,
+            "mode": os.environ.get("BENCH_PAGER_MODE", "selective"),
+            "context_tokens": context,
+            "sampling": {"temperature": 0, "seed": 42},
+            "cache_condition": os.environ.get("BENCH_CLEAN", "1"),
+            "deadlines": {"connect": self.deadlines.connect_seconds,
+                           "startup": self.deadlines.startup_seconds,
+                           "prefill_idle": self.deadlines.prefill_idle_seconds,
+                           "decode_idle": self.deadlines.decode_idle_seconds,
+                           "total": self.deadlines.total_seconds},
+        }
+        self.state_store = CaseStateStore(root, campaign, resume=resume)
+        # This is only an upper-bound padding hint. Admission is decided by the
+        # model's rendered token IDs, never by this legacy word-shaped input.
+        self.padding_hint_words = max(640, (context - 512) // 2)
         self.records: list[dict[str, object]] = []
         self._records_lock = threading.Lock()
+        records_path = root / "records.jsonl"
+        if resume and records_path.exists():
+            self.records = [json.loads(line) for line in records_path.read_text().splitlines()
+                            if line.strip()]
 
     def _url(self, path: str) -> str:
         return self.endpoint + path
 
     def write_json(self, name: str, value: object) -> None:
-        (self.raw / name).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+        path = self.raw / name
+        with path.open("w", encoding="utf-8") as handle:
+            handle.write(json.dumps(value, indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    def _append_record(self, record: dict[str, object]) -> None:
+        path = self.root / "records.jsonl"
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+
+    def _selected(self, label: str, index: int) -> bool:
+        return ((not self.case_ids and not self.case_indexes) or
+                label in self.case_ids or index in self.case_indexes)
+
+    def _campaign_expired(self) -> bool:
+        return time.monotonic() - self.campaign_started >= self.deadlines.total_seconds
 
     def fit_candidate(self, candidate: PromptCandidate | str, max_tokens: int,
                       *, include_system: bool = True) -> PromptFit:
@@ -283,8 +340,21 @@ class Soak:
                           protected_facts=candidate.protected_facts)
 
     def request(self, label: str, content: PromptCandidate | str, max_tokens: int = 8,
-                timeout: float = 180.0, *, expected_marker: str | None = None,
+                timeout: float | None = None, *, expected_marker: str | None = None,
                 slot_id: int | None = None) -> dict[str, object]:
+        with self._state_lock:
+            case_index = self.request_index
+            self.request_index += 1
+        if not self._selected(label, case_index):
+            return {"label": label, "status": "skipped_selection", "case_index": case_index}
+        if self._campaign_expired():
+            record = {"label": label, "status": "incomplete_timeout",
+                      "timeout_class": "total_campaign_timeout", "case_index": case_index,
+                      "error": "campaign wall limit expired"}
+            self._append_record(record)
+            with self._records_lock:
+                self.records.append(record)
+            return record
         try:
             fit = self.fit_candidate(content, max_tokens)
         except (PromptSizingError, ValueError) as error:
@@ -294,6 +364,7 @@ class Soak:
                       "generation_reserve_tokens": max_tokens}
             with self._records_lock:
                 self.records.append(record)
+            self._append_record(record)
             return record
         payload = {
             "model": self.model,
@@ -308,9 +379,34 @@ class Soak:
             payload["grammar"] = marker_grammar(expected_marker)
         if slot_id is not None:
             payload["id_slot"] = slot_id
+        identity = {
+            "bundle_identity": self.server_bin,
+            "model_sha256": self.corpus.get("model_sha256"),
+            "tokenizer_template_sha256": f"{fit.tokenizer_id}:{fit.template_id}",
+            "corpus_sha256": self.corpus.get("corpus_hash"),
+            "config_sha256": None,
+            "source_release": self.server_bin,
+            "case_id": label, "case_partition": "soak",
+            "prompt_hash": fit.request_token_sha256,
+            "request_hash": hashlib.sha256(json.dumps(
+                payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+            "mode": os.environ.get("BENCH_PAGER_MODE", "selective"),
+            "context_tokens": self.context,
+            "sampling": {"temperature": 0, "seed": 42, "max_tokens": max_tokens},
+            "cache_condition": os.environ.get("BENCH_CLEAN", "1"),
+            "trial_index": case_index,
+        }
+        with self._state_lock:
+            current_key, already_completed = self.state_store.start(identity)
+            if already_completed:
+                prior = self.state_store.states[current_key].get("record")
+                return dict(prior) if isinstance(prior, dict) else {
+                    "label": label, "status": "completed_reused", "case_key": current_key}
+            attempt_id = self.state_store.states[current_key]["attempt_id"]
         stem = safe_name(label)
         self.write_json(f"{stem}.request.json", payload)
         started = time.monotonic()
+        request_timeout = timeout if timeout is not None else self.deadlines.total_seconds
         status = 0
         body = ""
         error = None
@@ -319,7 +415,7 @@ class Soak:
                           data=json.dumps(payload).encode(),
                           headers={"Authorization": f"Bearer {self.key}",
                                    "Content-Type": "application/json"}, method="POST")
-            with urlopen(req, timeout=timeout) as response:
+            with urlopen(req, timeout=request_timeout) as response:
                 status = response.status
                 body = response.read().decode(errors="replace")
         except HTTPError as exc:
@@ -333,7 +429,11 @@ class Soak:
             parsed: object = json.loads(body) if body else None
         except json.JSONDecodeError:
             parsed = body
-        (self.raw / f"{stem}.response.body").write_text(body)
+        response_path = self.raw / f"{stem}.response.body"
+        with response_path.open("w", encoding="utf-8") as handle:
+            handle.write(body)
+            handle.flush()
+            os.fsync(handle.fileno())
         if body:
             self.write_json(f"{stem}.response.json", parsed)
         (self.raw / f"{stem}.http").write_text(f"{status}\n")
@@ -347,7 +447,14 @@ class Soak:
                   "resolved_capacity_tokens": self.context,
                   "fact_offsets": list(fit.fact_offsets),
                   "request_token_sha256": fit.request_token_sha256,
-                  "padding_characters": fit.padding_characters}
+                  "padding_characters": fit.padding_characters,
+                  "case_index": case_index, "case_key": current_key,
+                  "attempt_id": attempt_id,
+                  "deadlines": {"connect": self.deadlines.connect_seconds,
+                                "startup": self.deadlines.startup_seconds,
+                                "prefill_idle": self.deadlines.prefill_idle_seconds,
+                                "decode_idle": self.deadlines.decode_idle_seconds,
+                                "total": self.deadlines.total_seconds}}
         usage = parsed.get("usage") if isinstance(parsed, dict) else None
         actual_prompt_tokens = usage.get("prompt_tokens") if isinstance(usage, dict) else None
         record["actual_prompt_tokens"] = actual_prompt_tokens
@@ -356,8 +463,23 @@ class Soak:
             record["error"] = f"server prompt_tokens={actual_prompt_tokens}, local={fit.token_count}"
         record.update(classify_completion_response(
             status, error, parsed, expected_marker))
+        if error and isinstance(error, str) and "Timeout" in error:
+            record.update({"status": "incomplete_timeout",
+                           "timeout_class": "decode_no_progress_timeout"})
+        self._append_record(record)
         with self._records_lock:
             self.records.append(record)
+        if record.get("status") == "incomplete_timeout":
+            self.state_store.interrupted(current_key, attempt_id,
+                                         reason=str(record.get("error") or "timeout"),
+                                         record=record)
+        else:
+            self.state_store.complete(
+                current_key, attempt_id,
+                success=status == 200 and record.get("semantic_status") == "ok",
+                record=record,
+                raw_paths=[self.raw / f"{stem}.request.json", response_path,
+                           self.raw / f"{stem}.http"])
         return record
 
     def get(self, label: str, path: str, timeout: float = 30.0) -> dict[str, object]:
@@ -826,6 +948,22 @@ def _main() -> int:
     parser.add_argument("--dry-run", action="store_true",
                         help="resolve and print the run contract without contacting a service")
     parser.add_argument("--sample-seconds", type=int, default=45)
+    parser.add_argument("--connect-timeout", type=float, default=10.0,
+                        help="connection deadline in seconds (default: 10)")
+    parser.add_argument("--startup-timeout", type=float, default=180.0,
+                        help="startup/readiness deadline in seconds (default: 180)")
+    parser.add_argument("--prefill-timeout", type=float, default=300.0,
+                        help="no-progress prefill deadline in seconds (default: 300)")
+    parser.add_argument("--decode-timeout", type=float, default=120.0,
+                        help="no-progress decode deadline in seconds (default: 120)")
+    parser.add_argument("--total-timeout", type=float, default=1800.0,
+                        help="campaign wall deadline; expiry is resumable (default: 1800)")
+    parser.add_argument("--resume", action="store_true",
+                        help="resume matching completed case keys in this output")
+    parser.add_argument("--case-id", action="append", default=[],
+                        help="run only this labeled case; repeat for a selection")
+    parser.add_argument("--case-index", action="append", type=int, default=[],
+                        help="run only this zero-based request index; repeat for a selection")
     args = parser.parse_args()
     corpus_path = args.corpus or pathlib.Path(os.environ.get("PAGER_CORPUS", DEFAULT_CORPUS))
     corpus, corpus_errors = load_corpus(corpus_path)
@@ -840,18 +978,33 @@ def _main() -> int:
         return 2
     if args.sample_seconds <= 0:
         parser.error("sample-seconds must be positive")
+    try:
+        deadlines = CampaignDeadlines(
+            connect_seconds=args.connect_timeout,
+            startup_seconds=args.startup_timeout,
+            prefill_idle_seconds=args.prefill_timeout,
+            decode_idle_seconds=args.decode_timeout,
+            total_seconds=args.total_timeout,
+        )
+    except ValueError as error:
+        parser.error(str(error))
     if args.dry_run:
         write_dry_run(args.output, corpus_path, corpus, context)
         return 0
     if not args.api_key_file:
         parser.error("--api-key-file is required for a live soak")
-    soak = Soak(args.output, args.endpoint, read_key(args.api_key_file), args.model,
+    try:
+        soak = Soak(args.output, args.endpoint, read_key(args.api_key_file), args.model,
                 pathlib.Path("/srv/ai/paged-kv/data/sessions/hybrid-fast"),
                 int(context["resolved"]), context, {
                     "path": str(corpus_path), "schema": corpus["schema"],
                     "corpus_hash": corpus.get("corpus_hash"),
                     "context_ceiling": corpus_context_ceiling(corpus),
-                })
+                }, resume=args.resume, case_ids=args.case_id,
+                case_indexes=args.case_index, deadlines=deadlines)
+    except ResumeError as error:
+        print(f"cannot resume soak: {error}", file=sys.stderr)
+        return 2
     (soak.root / "provenance.json").write_text(json.dumps({
         "schema_version": 1,
         "corpus": soak.corpus,
@@ -862,13 +1015,20 @@ def _main() -> int:
                     "tail_tokens": soak.context % 256},
         "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
                        "draft_backend": "gpu", "context_tokens": soak.context},
+        "resume": {"enabled": args.resume, "campaign_hash": soak.state_store.campaign_hash,
+                    "case_ids": args.case_id, "case_indexes": args.case_index,
+                    "deadlines": {"connect_seconds": deadlines.connect_seconds,
+                                  "startup_seconds": deadlines.startup_seconds,
+                                  "prefill_idle_seconds": deadlines.prefill_idle_seconds,
+                                  "decode_idle_seconds": deadlines.decode_idle_seconds,
+                                  "total_seconds": deadlines.total_seconds}},
     }, indent=2) + "\n")
     started = time.time()
     before_identity = soak.identity("before")
     soak.metrics("before")
     soak.get("health-before", "/health")
     soak.get("slots-before", "/slots")
-    startup_result = restart(soak, "startup", probe_seconds=180)
+    startup_result = restart(soak, "startup", probe_seconds=int(deadlines.startup_seconds))
     if startup_result["classification"] != "ready":
         # Do not turn a post-listen crash into missing telemetry or spend the
         # corpus budget retrying an unstable service. Keep the bounded probe,
@@ -894,6 +1054,50 @@ def _main() -> int:
     stop = threading.Event()
     sampler = threading.Thread(target=soak.sampler, args=(stop, args.sample_seconds), daemon=True)
     sampler.start()
+
+    capability = soak.renderer.probe_capabilities()
+    soak.write_json("capability.json", capability)
+    if not capability["supported"]:
+        record = {"label": "capability", "phase": "capability",
+                  "status": "unsupported" if capability["error_class"] == "unsupported" else "error",
+                  "error_class": capability["error_class"], "http_status": capability["status"]}
+        soak._append_record(record)
+        with soak._records_lock:
+            soak.records.append(record)
+        stop.set()
+        sampler.join(timeout=10)
+        soak.write_json("records.json", soak.records)
+        soak.write_json("run-summary.json", {
+            "schema_version": 1, "status": record["status"],
+            "capability": capability, "records": soak.records,
+        })
+        return 0 if capability["error_class"] == "unsupported" else 1
+
+    # Three cheap correctness sentinels precede the full mode matrix. Their
+    # minimized marker records make a systematic mismatch actionable without
+    # spending the campaign on repeated doomed cases.
+    sentinel_results = [
+        soak.request("sentinel-page-boundary", "Reply with exactly SENTINEL_PAGE_BOUNDARY",
+                     expected_marker="SENTINEL_PAGE_BOUNDARY"),
+        soak.request("sentinel-distant-fact", "Reply with exactly SENTINEL_DISTANT_FACT",
+                     expected_marker="SENTINEL_DISTANT_FACT"),
+        soak.request("sentinel-mtp-rejection", "Reply with exactly SENTINEL_MTP_REJECTION",
+                     expected_marker="SENTINEL_MTP_REJECTION"),
+    ]
+    soak.write_json("sentinels.json", sentinel_results)
+    if any(result.get("marker_status") != "exact" for result in sentinel_results):
+        soak.write_json("sentinel-regression.json", {
+            "status": "sentinel_mismatch", "minimized": sentinel_results,
+            "route": "18-05/18-06", "full_matrix": "not_started",
+        })
+        stop.set()
+        sampler.join(timeout=10)
+        soak.write_json("records.json", soak.records)
+        soak.write_json("run-summary.json", {
+            "schema_version": 1, "status": "sentinel_mismatch",
+            "sentinels": sentinel_results, "records": soak.records,
+        })
+        return 4
 
     # Each case is context-sized at the resolved corpus boundary. Distinct markers
     # make accidental cross-request reuse visible in the retained payloads.
@@ -1016,7 +1220,7 @@ def _main() -> int:
     soak.get("slots-before-restart", "/slots")
     soak.metrics("pre-restart")
 
-    restart_result = restart(soak)
+    restart_result = restart(soak, probe_seconds=int(deadlines.startup_seconds))
     soak.identity("after-restart")
     soak.get("health-after-restart", "/health")
     soak.get_url("health-8091-after-restart", "http://127.0.0.1:8091/health")

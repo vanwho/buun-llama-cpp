@@ -10,9 +10,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
+import time
+import uuid
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
+from statistics import median
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 
@@ -21,6 +26,14 @@ LEGACY_CORPUS_SCHEMAS = {"pager-corpus-v2", "pager-corpus-v3"}
 MANIFEST_SCHEMA = 2
 LEGACY_MANIFEST_SCHEMAS = {1}
 PARTITIONS = ("calibration", "held_out")
+EVIDENCE_SCHEMA = "pager-evidence-v5"
+EVIDENCE_RESULTS = {"pass", "fail", "not_run", "incomplete"}
+CASE_STATE_SCHEMA = "pager-case-state-v1"
+CASE_STATES = {"planned", "started", "completed", "interrupted"}
+TIMEOUT_CLASSES = {
+    "connect_timeout", "startup_timeout", "prefill_no_progress_timeout",
+    "decode_no_progress_timeout", "total_campaign_timeout",
+}
 
 
 class ContextResolutionError(ValueError):
@@ -33,6 +46,357 @@ class PromptSizingError(ValueError):
 
 class MandatoryPromptTooLarge(PromptSizingError):
     """Raised before HTTP when facts/question/template overhead already overflows."""
+
+
+class ResumeError(ValueError):
+    """Raised when a durable campaign cannot safely be resumed."""
+
+
+def _atomic_write_json(path: Path, value: Any) -> None:
+    """Write a checkpoint beside its destination and publish it atomically."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
+
+
+def _fsync_file(path: Path) -> None:
+    with path.open("rb") as handle:
+        os.fsync(handle.fileno())
+
+
+def _nested_case_inputs(value: Mapping[str, Any]) -> dict[str, Any]:
+    nested = value.get("provenance")
+    result = dict(nested) if isinstance(nested, Mapping) else {}
+    result.update({key: item for key, item in value.items() if key != "provenance"})
+    return result
+
+
+_CASE_KEY_ALIASES = {
+    "actual_request_hash": "request_hash",
+    "request_token_sha256": "request_hash",
+    "trial": "trial_index",
+    "repetition": "trial_index",
+    "release": "source_release",
+}
+_CASE_KEY_FIELDS = (
+    "bundle_identity", "bundle_manifest_sha256", "source_release", "source_commit",
+    "model_sha256", "tokenizer_template_sha256", "corpus_sha256", "config_sha256",
+    "case_id", "case_partition", "prompt_hash", "request_hash", "mode", "context_tokens", "sampling",
+    "cache_condition", "trial_index",
+)
+
+
+def case_key(value: Mapping[str, Any]) -> str:
+    """Return the stable identity of one causal benchmark case.
+
+    Operational fields such as status, attempt ID, timestamps and errors are
+    deliberately excluded.  The inputs include the exact request/token hash,
+    release/bundle provenance, cache condition, mode and repetition so a
+    superficially similar request cannot consume another campaign's result.
+    """
+    inputs = _nested_case_inputs(value)
+    normalized: dict[str, Any] = {}
+    for field in _CASE_KEY_FIELDS:
+        item = inputs.get(field)
+        if item is None:
+            for alias, target in _CASE_KEY_ALIASES.items():
+                if target == field and alias in inputs:
+                    item = inputs[alias]
+                    break
+        normalized[field] = item
+    return sha256_json(normalized)
+
+
+def case_key_inputs(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Expose the canonical, serializable fields used by :func:`case_key`."""
+    inputs = _nested_case_inputs(value)
+    return {field: inputs.get(field) for field in _CASE_KEY_FIELDS}
+
+
+def validate_evidence(receipt: Mapping[str, Any]) -> list[str]:
+    """Validate the common pager-evidence-v5 envelope without task knowledge."""
+    errors: list[str] = []
+    if not isinstance(receipt, Mapping):
+        return ["receipt must be an object"]
+    if receipt.get("schema") != EVIDENCE_SCHEMA:
+        errors.append(f"schema must be {EVIDENCE_SCHEMA}")
+    if receipt.get("schema_version") != 1:
+        errors.append("schema_version must be 1")
+    for field in ("task_id", "kind", "procedure"):
+        if not isinstance(receipt.get(field), str) or not receipt[field]:
+            errors.append(f"{field} must be a non-empty string")
+    if receipt.get("result") not in EVIDENCE_RESULTS:
+        errors.append("result must be pass, fail, not_run, or incomplete")
+    provenance = receipt.get("provenance")
+    if not isinstance(provenance, Mapping):
+        errors.append("provenance must be an object")
+    checks = receipt.get("checks")
+    if not isinstance(checks, list):
+        errors.append("checks must be a list")
+    else:
+        for index, check in enumerate(checks):
+            if not isinstance(check, Mapping):
+                errors.append(f"checks[{index}] must be an object")
+                continue
+            if not isinstance(check.get("name"), str) and not isinstance(check.get("id"), str):
+                errors.append(f"checks[{index}] needs name or id")
+            if check.get("status") not in {"pass", "fail", "not_measured"}:
+                errors.append(f"checks[{index}].status is invalid")
+            if not isinstance(check.get("raw_ids", []), list):
+                errors.append(f"checks[{index}].raw_ids must be a list")
+    raw_index = receipt.get("raw_index")
+    raw_ids: set[str] = set()
+    if not isinstance(raw_index, list):
+        errors.append("raw_index must be a list")
+    else:
+        for index, raw in enumerate(raw_index):
+            if not isinstance(raw, Mapping):
+                errors.append(f"raw_index[{index}] must be an object")
+                continue
+            raw_id = raw.get("id")
+            if not isinstance(raw_id, str) or not raw_id:
+                errors.append(f"raw_index[{index}].id must be non-empty")
+            elif raw_id in raw_ids:
+                errors.append(f"raw_index has duplicate id {raw_id}")
+            else:
+                raw_ids.add(raw_id)
+            digest = raw.get("sha256")
+            if not isinstance(digest, str) or len(digest) != 64:
+                errors.append(f"raw_index[{index}].sha256 must be a 64-character hash")
+    failure = receipt.get("failure")
+    if failure is not None and not isinstance(failure, Mapping):
+        errors.append("failure must be null or an object")
+    resume = receipt.get("resume")
+    if not isinstance(resume, Mapping):
+        errors.append("resume must be an object")
+    elif not isinstance(resume.get("command"), (str, list)):
+        errors.append("resume.command must be argv or a string")
+    return errors
+
+
+def classify_timeout(stage: str, *, progress_observed: bool = False) -> str:
+    """Map an expired phase deadline to the stable receipt taxonomy."""
+    if stage == "connect":
+        return "connect_timeout"
+    if stage == "startup":
+        return "startup_timeout"
+    if stage == "prefill":
+        return "prefill_no_progress_timeout"
+    if stage == "decode":
+        return "decode_no_progress_timeout"
+    if stage == "total":
+        return "total_campaign_timeout"
+    raise ValueError(f"unknown timeout stage: {stage}")
+
+
+@dataclass(frozen=True)
+class CampaignDeadlines:
+    """Independent operator-configurable limits for one request/campaign."""
+
+    connect_seconds: float = 10.0
+    startup_seconds: float = 180.0
+    prefill_idle_seconds: float = 300.0
+    decode_idle_seconds: float = 120.0
+    total_seconds: float = 1800.0
+
+    def __post_init__(self) -> None:
+        if any(value <= 0 for value in (
+                self.connect_seconds, self.startup_seconds, self.prefill_idle_seconds,
+                self.decode_idle_seconds, self.total_seconds)):
+            raise ValueError("all campaign deadlines must be positive")
+
+
+def _percentile(values: Sequence[float], percentile: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * percentile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
+
+
+def stream_metrics(send_time: float, chunks: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Compute TTFT/chunk gaps from synthetic or captured monotonic SSE events.
+
+    A chunk's ``token_count`` may exceed one; output count is the sum of those
+    counts, while inter-token fields are explicitly inter-chunk metrics unless
+    per-token timestamps are supplied by the caller.
+    """
+    generated = [chunk for chunk in chunks
+                 if isinstance(chunk.get("timestamp"), (int, float)) and
+                 int(chunk.get("token_count", 0)) > 0]
+    if not generated:
+        return {"ttft_us": None, "completion_tokens": 0,
+                "inter_chunk_p50_us": None, "inter_chunk_p95_us": None,
+                "timing_basis": "no_generated_sse_chunk"}
+    timestamps = [float(chunk["timestamp"]) for chunk in generated]
+    gaps = [(later - earlier) * 1_000_000
+            for earlier, later in zip(timestamps, timestamps[1:])]
+    return {
+        "ttft_us": (timestamps[0] - send_time) * 1_000_000,
+        "completion_tokens": sum(int(chunk.get("token_count", 0)) for chunk in generated),
+        "inter_chunk_p50_us": median(gaps) if gaps else None,
+        "inter_chunk_p95_us": _percentile(gaps, 0.95),
+        "timing_basis": "sse_chunk_timestamps",
+    }
+
+
+class CaseStateStore:
+    """Append-only case events plus an atomic progress checkpoint.
+
+    A completed result is reusable only when its stable case key matches.  A
+    resumed attempt always receives a new attempt ID; interrupted attempts are
+    retained and never enter completed statistics.
+    """
+
+    def __init__(self, root: Path, campaign: Mapping[str, Any], *, resume: bool = False) -> None:
+        self.root = Path(root)
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.manifest_path = self.root / "case-manifest.json"
+        self.events_path = self.root / "case-state.jsonl"
+        self.progress_path = self.root / "progress.json"
+        self.campaign = dict(campaign)
+        self.campaign_hash = sha256_json(self.campaign)
+        if resume:
+            if not self.manifest_path.exists():
+                raise ResumeError("resume requested but case-manifest.json is missing")
+            try:
+                existing = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                raise ResumeError(f"cannot read case manifest: {error}") from error
+            if existing.get("campaign_hash") != self.campaign_hash:
+                raise ResumeError("resume provenance differs from the existing campaign")
+        elif self.events_path.exists() and self.events_path.stat().st_size:
+            raise ResumeError("output already contains case state; use --resume")
+        if not self.manifest_path.exists():
+            _atomic_write_json(self.manifest_path, {
+                "schema": CASE_STATE_SCHEMA, "schema_version": 1,
+                "campaign": self.campaign, "campaign_hash": self.campaign_hash,
+                "created_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+        self.states: dict[str, dict[str, Any]] = {}
+        self.progress: dict[str, Any] = {
+            "stage": "idle", "eta_seconds": None, "last_progress_utc": None,
+            "progress_source": "client checkpoint",
+        }
+        if resume and self.progress_path.exists():
+            try:
+                prior_progress = json.loads(self.progress_path.read_text(encoding="utf-8"))
+                if isinstance(prior_progress.get("progress"), Mapping):
+                    self.progress = dict(prior_progress["progress"])
+            except (OSError, AttributeError, json.JSONDecodeError) as error:
+                raise ResumeError(f"cannot read progress checkpoint: {error}") from error
+        if self.events_path.exists():
+            for line in self.events_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                event = json.loads(line)
+                key = event.get("case_key")
+                if isinstance(key, str):
+                    self.states[key] = event
+        self._checkpoint()
+
+    def _checkpoint(self) -> None:
+        completed = sum(event.get("state") == "completed" and event.get("success") is True
+                        for event in self.states.values())
+        _atomic_write_json(self.progress_path, {
+            "schema": CASE_STATE_SCHEMA, "schema_version": 1,
+            "campaign_hash": self.campaign_hash, "updated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "cases": self.states, "completed_successes": completed,
+            "progress": self.progress,
+        })
+
+    def update_progress(self, *, stage: str, eta_seconds: float | None = None,
+                        source: str = "client checkpoint") -> None:
+        """Persist observable progress independently from hard deadlines."""
+        self.progress = {
+            "stage": stage, "eta_seconds": eta_seconds,
+            "last_progress_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "progress_source": source,
+        }
+        self._checkpoint()
+
+    def _append(self, event: Mapping[str, Any]) -> None:
+        self.events_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.events_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(dict(event), ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        key = str(event["case_key"])
+        self.states[key] = dict(event)
+        self._checkpoint()
+
+    def completed(self, case_key_value: str) -> bool:
+        event = self.states.get(case_key_value)
+        return bool(event and event.get("state") == "completed" and event.get("success") is True)
+
+    def plan(self, case: Mapping[str, Any]) -> str:
+        """Persist a planned case without making it resumable yet."""
+        key = case_key(case)
+        if key not in self.states:
+            self._append({"case_key": key, "state": "planned",
+                          "planned_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                          "case": case_key_inputs(case)})
+        return key
+
+    def start(self, case: Mapping[str, Any]) -> tuple[str, bool]:
+        key = case_key(case)
+        if self.completed(key):
+            return key, True
+        attempt_id = uuid.uuid4().hex
+        self._append({"case_key": key, "attempt_id": attempt_id, "state": "started",
+                      "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                      "case": case_key_inputs(case)})
+        self.update_progress(stage="prefill", eta_seconds=None)
+        return key, False
+
+    def complete(self, case_key_value: str, attempt_id: str, *, success: bool,
+                 record: Mapping[str, Any], raw_paths: Sequence[Path] = ()) -> None:
+        if success:
+            for raw_path in raw_paths:
+                path = Path(raw_path)
+                if not path.exists():
+                    raise ResumeError(f"raw artifact missing before completion: {path}")
+                _fsync_file(path)
+        event = {"case_key": case_key_value, "attempt_id": attempt_id,
+                 "state": "completed", "success": bool(success),
+                 "completed_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                 "record": dict(record)}
+        self._append(event)
+        self.update_progress(stage="completed", eta_seconds=0)
+
+    def interrupted(self, case_key_value: str, attempt_id: str, *, reason: str,
+                    record: Mapping[str, Any] | None = None) -> None:
+        self._append({"case_key": case_key_value, "attempt_id": attempt_id,
+                      "state": "interrupted", "success": False,
+                      "interrupted_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                      "reason": reason, "record": dict(record or {})})
+        self.update_progress(stage="interrupted", eta_seconds=None)
+
+    def completed_records(self) -> list[dict[str, Any]]:
+        return [event["record"] for event in self.states.values()
+                if event.get("state") == "completed" and event.get("success") is True
+                and isinstance(event.get("record"), dict)]
 
 
 @dataclass(frozen=True)
