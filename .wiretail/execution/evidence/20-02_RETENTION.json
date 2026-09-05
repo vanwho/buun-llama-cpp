@@ -1,0 +1,130 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "20-02",
+  "result": "pass_local_deferred_live_checkpoint",
+  "kind": "implementation",
+  "procedure": "per_layer_attention_retention_capacity_relative_policy",
+  "created_utc": "2026-09-05T16:18:27Z",
+  "classification": {
+    "local_correctness": "pass",
+    "local_build_cpu": "pass",
+    "cuda_target_build": "pass",
+    "cuda_page_mass_fixture": "pass",
+    "live_qwen35_focus_shift": "deferred"
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "2135d5aa5f239dcba56f9e5dc7002750ba300911",
+    "source_diff_sha256": "e3a22a9ccf28d164fe1ef1854960a1e5ac77aeafda2053080375de4f1d9fbd17",
+    "worktree": "dirty_expected_task_changes",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "model": null,
+    "model_sha256": null,
+    "corpus": null,
+    "corpus_sha256": null,
+    "config": "build-cuda/CMakeCache.txt",
+    "config_sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1",
+    "build": "build and build-cuda; CUDA architecture 89-real",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; driver 595.84; 16376 MiB total; CUDA fixture compute capability 8.9"
+  },
+  "checks": [
+    {
+      "name": "Global page mass after split merge matches the serial/reference reduction",
+      "status": "pass",
+      "raw_ids": ["test-cuda-fattn-paged-turbo4", "split-page-mass-fixture"]
+    },
+    {
+      "name": "Inventory-aware cold history preserves measured evidence and distinguishes unknown pages",
+      "status": "pass",
+      "raw_ids": ["test-kv-attention-telemetry", "cold-inventory-reconcile"]
+    },
+    {
+      "name": "Routing retrieval remains separate from attention retention",
+      "status": "pass",
+      "raw_ids": ["test-kv-policy", "live-policy-trace"]
+    },
+    {
+      "name": "Layer identity, reuse, sample count, recency, EMA, and peak reach live policy state",
+      "status": "pass",
+      "raw_ids": ["llama-kv-cache", "llama-kv-live-policy", "test-kv-policy"]
+    },
+    {
+      "name": "Capacity-relative pin/share policy, fallback, small H, and hysteresis regressions",
+      "status": "pass",
+      "raw_ids": ["test-kv-policy", "policy-capacity-matrix"]
+    },
+    {
+      "name": "CPU routing, pager, policy, telemetry, and server build regressions",
+      "status": "pass",
+      "raw_ids": ["focused-ctest-5", "cmake-build-llama-server"]
+    },
+    {
+      "name": "Live Qwen35 Turbo4 focus-shift/multi-hop calibration",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "cuda_fixture": {
+      "logical_pages": 4,
+      "selected_rows": 530,
+      "query_heads": 4,
+      "split_partition_capacities": [1, 2, 3],
+      "mass_reference_cases": ["255/528 and equivalent valid-row cases"],
+      "serial_vs_split_mass_tolerance": 0.00001,
+      "timing_ms_observed": {
+        "query_tile_four_q_heads": 19.078,
+        "split_capacity_1": 0.735,
+        "split_capacity_2": 1.484,
+        "split_capacity_3": 1.536,
+        "serial_control_three_q_tokens": 0.734,
+        "split_control_three_q_tokens_capacity_3": 1.561
+      }
+    },
+    "retention": {
+      "state_families": ["ema", "recent_peak", "reuse_frequency", "recency", "sample_count", "last_observed_token"],
+      "unknown_cold_distinct_from_measured_zero": true,
+      "cold_history_preserved_across_clean_eviction": true,
+      "layer_identity_carried": true
+    },
+    "policy": {
+      "capacity_relative": true,
+      "mandatory_pins": ["writable", "speculative", "inflight", "caller_anchor", "sink_anchor"],
+      "unobserved_fallback": "retrieval/candidate evidence remains eligible",
+      "deterministic_tie_breaking": true
+    },
+    "hardware": "NVIDIA GeForce RTX 4080; driver 595.84; 16376 MiB total"
+  },
+  "raw_index": [
+    {"id": "attention-telemetry-source", "path": "src/llama-kv-attention-telemetry.cpp", "sha256": "0ec1906cce35e02ff89755a1ee6552746d4525af26a3c67ee9ac8241b1913759"},
+    {"id": "policy-source", "path": "src/llama-kv-policy.cpp", "sha256": "e2b5d0c8b6c12060584d38b7944cf37b68a19513edd0030c07b357a69ea620b2"},
+    {"id": "live-policy-source", "path": "src/llama-kv-live-policy.cpp", "sha256": "987d7c9d077e4924bac5ac2335eb890272083b3f2e9a8daa4452f1687d2a088e"},
+    {"id": "cache-source", "path": "src/llama-kv-cache.cpp", "sha256": "a29bf57ae71dade593d5f3d9384237dab299ba42b40e29b650d7c06f481d496f"},
+    {"id": "telemetry-test", "path": "build-cuda/bin/test-kv-attention-telemetry", "sha256": "6150cf4f93a2ee9d3c1519b9c7aaa2cbba717d57640fd1c2cde7dc2afb65cf27"},
+    {"id": "policy-test", "path": "build-cuda/bin/test-kv-policy", "sha256": "9fc56e9a44f4c24550df4e522072fd4add906382033dc2fef24da6bafb8728c6"},
+    {"id": "paged-attention-fixture", "path": "build-cuda/bin/test-cuda-fattn-paged-turbo4", "sha256": "4863e3dbdbb407fcbec3697b6c4418fae1aa79bd1061ff6a621c3ca28a13566d"},
+    {"id": "cuda-library", "path": "build-cuda/bin/libggml-cuda.so", "sha256": "69e795525f5fe28a0db387be7dddf453fa39e147dabf7d90be6749df6eacb047"},
+    {"id": "build-config", "path": "build-cuda/CMakeCache.txt", "sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1"}
+  ],
+  "local_verification": [
+    {"command": "cmake --build build --target test-kv-routing-summary test-kv-routing-retrieval test-kv-pager test-kv-policy test-kv-attention-telemetry llama-server -j2", "status": "pass"},
+    {"command": "ctest --test-dir build -R '^test-kv-(routing-summary|routing-retrieval|pager|policy|attention-telemetry)$' --output-on-failure", "status": "5/5 passed"},
+    {"command": "cmake --build build-cuda --target test-kv-attention-telemetry test-kv-policy test-cuda-fattn-paged-turbo4 -j2", "status": "pass"},
+    {"command": "ctest --test-dir build-cuda -R '^test-kv-(attention-telemetry|policy)$' --output-on-failure", "status": "2/2 passed"},
+    {"command": "build-cuda/bin/test-cuda-fattn-paged-turbo4", "status": "pass"},
+    {"command": "git diff --check", "status": "pass"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "No Qwen35 Turbo4 model/corpus fixture is present in this checkout; no live candidate was started.",
+    "model_and_corpus_hashes": "No model-backed run was started; model and corpus hashes remain null.",
+    "live_focus_shift_metrics": "Requires the named live checkpoint: quality, selected rows, transfer rate, and time at equal hot bytes."
+  },
+  "resume": {
+    "command": ["run", "the", "runtime-supported", "Qwen35", "Turbo4", "focus-shift", "and", "multi-hop", "calibration", "when", "the", "fixture", "is", "provisioned"],
+    "next_case": "compare recency-only, query-only, and query-plus-retention at equal hot bytes and capture selected rows, transfer rate, quality, and time",
+    "secrets_omitted": true
+  }
+}

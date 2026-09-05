@@ -652,3 +652,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-20-01`
 - Commit at update: `0dc204584`
 - Summary: Implemented query-driven all-page cold retrieval with per-layer/head summary tables, clean-eviction retention, authenticated identity/coordinate validation, post-fence Qcur capture, and production cold promotion boundary; CPU and CUDA focused regressions pass; Qwen35 live checkpoint deferred because model/corpus fixture is unavailable.
+
+## 2026-09-05T16:20:17+00:00 — 20-02 — done
+
+- Branch: `codex/task-20-02`
+- Commit at update: `2135d5aa5`
+- Summary: Implemented per-layer attention retention, inventory-aware cold history, retrieval/retention separation, and capacity-relative policy; CPU/CUDA focused tests and CUDA global page-mass fixture pass; live Qwen35 focus-shift checkpoint deferred because no model/corpus fixture is present.
