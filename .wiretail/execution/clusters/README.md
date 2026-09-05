@@ -78,5 +78,6 @@ do not override task acceptance or repository instructions.
 | `17f-context-pressure` | 17-12–17-13 | Dynamic acceptance context and physical pager pressure |
 | `17g-quality-oracles` | 17-14 | Exact/native and concurrent correctness oracles |
 | `17h-full-benchmarks` | 17-15–17-17 | Full-context quality, paired speed, and pressured soak |
-| `17i-summary` | 17-18 | Revised phase-17 evidence summary |
+| `17i-full-context` | 17-18 | Full 256K context capacity and residency |
+| `17i-summary` | 17-19 | Revised phase-17 evidence summary |
 | `18a-benchmark-review` | 18-01 | Benchmark-only overall-goal assessment and remediation chaining (Sol High) |

@@ -1440,14 +1440,18 @@ narratives:
   page pressure;
 - `17g-quality-oracles`: repair exact/native and concurrent response correctness before scoring;
 - `17h-full-benchmarks`: rerun full-context quality, apples-to-apples speed, and pressured lifecycle soak;
+- `17i-full-context`: prove the full 262,144-token context with canonical CPU-RAM Turbo4 target backing,
+  ledger-derived hot Turbo4 VRAM pages, GPU Turbo4 MTP, and a non-gating 20K/40K/60K/100K/175K/256K
+  context-speed curve;
 - `17i-summary`: consolidate the revised phase-17 manifests for review.
 
-Tasks `17-08`–`17-18` must preserve raw benchmark roots and hashes while writing only concise manifests and
+Tasks `17-08`–`17-19` must preserve raw benchmark roots and hashes while writing only concise manifests and
 summaries into `.wiretail/execution/evidence/`. Small contexts may be used for startup diagnostics only;
 acceptance runs must cover the corpus-derived ceiling and create physical host/device pressure. They measure
 dynamic context and ledger-derived hot capacity; the historical 77K estimate is not a production constant.
-Phase 17 is complete only when its implementation and revised benchmark tasks have honest pass/block
-decisions and `PHASE17_BENCHMARK_SUMMARY_V2.json/.md` exists.
+The full 262,144-token capacity/residency attempt is mandatory before summary closure. Phase 17 is complete
+only when its implementation and revised benchmark tasks have honest pass/block decisions and
+`PHASE17_BENCHMARK_SUMMARY_V2.json/.md` exists.
 
 ### Phase 18 — benchmark-only overall-goal review
 
