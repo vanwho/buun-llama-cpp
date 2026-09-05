@@ -598,3 +598,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-19-01`
 - Commit at update: `037992eda`
 - Summary: Preallocation geometry and admission now precede selective/exact target cache construction; logical cells remain full-context while one bounded cache-owned Turbo4 slab is borrowed by pager/residency, with checked layer mapping and native-MTP ledger separation. Focused CUDA build/tests and diff checks pass; live Qwen3.8-27B 262144 allocation checkpoint deferred for GPU isolation.
+
+## 2026-09-05T09:09:11+00:00 — 19-02 — done
+
+- Branch: `codex/task-19-02`
+- Commit at update: `54c581e33`
+- Summary: Implemented bounded physical ticket-row writes and generation-safe K/V completion; canonical Turbo4 host capture now supports exact full pages and contiguous tails, rejects speculative holes, refreshes overwritten bytes, and preserves clean-evicted host pages. Focused CUDA build/tests and pager/residency/attention regressions pass; live forced-small-hotset validation deferred because the RTX 4080 was occupied.

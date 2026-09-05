@@ -1,0 +1,92 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "19-02",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "bounded_physical_write_canonical_turbo4_page_boundary",
+  "created_utc": "2026-09-05T09:07:51Z",
+  "provenance": {
+    "source_commit": "54c581e3304754a51ac314591889aeecdb10143d",
+    "source_diff_sha256": "abc77c711ed82b986bb2fafbe3e65ab864518c35efc6196abb1dc76a945065c3",
+    "bundle_manifest_sha256": null,
+    "binary": "build-cuda/bin/test-kv-pager",
+    "binary_sha256": "826f835772706b695ddc6213b0fdce92a5cab6c00457e3f53f872f8a92d1fc9d",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": null,
+    "config_sha256": null,
+    "build": "build-cuda; CUDA architecture 89-real"
+  },
+  "checks": [
+    {
+      "name": "physical slot and intra-page ticket mapping",
+      "status": "pass",
+      "raw_ids": ["pager-source", "pager-test"]
+    },
+    {
+      "name": "generation-safe full K/V completion and stale rejection",
+      "status": "pass",
+      "raw_ids": ["pager-source", "pager-test", "cache-source"]
+    },
+    {
+      "name": "canonical exact Turbo4 bytes for full rewrite and contiguous tail",
+      "status": "pass",
+      "raw_ids": ["catalog-source", "pager-source", "pager-test"]
+    },
+    {
+      "name": "partial-tail padding and speculative-hole rejection",
+      "status": "pass",
+      "raw_ids": ["residency-source", "catalog-source", "pager-test"]
+    },
+    {
+      "name": "clean GPU eviction retains canonical host page",
+      "status": "pass",
+      "raw_ids": ["pager-source", "pager-test"]
+    },
+    {
+      "name": "focused CUDA build and pager/residency/attention regressions",
+      "status": "pass",
+      "raw_ids": ["pager-binary", "residency-binary", "policy-binary"]
+    },
+    {
+      "name": "live forced-small-hotset production slab comparison",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "synthetic_tail_rows": 17,
+    "synthetic_page_rows": 256,
+    "synthetic_host_units": 32,
+    "synthetic_row_bytes": 2,
+    "synthetic_tail_payload_bytes": 1088,
+    "synthetic_gpu_slots": 1,
+    "focused_executables_passed": 10,
+    "ctest_pager_residency_policy_passed": "3/3",
+    "host_transfer": "source tensor rows copied as opaque Turbo4 bytes; no requantization"
+  },
+  "raw_index": [
+    {"id": "cache-source", "path": "src/llama-kv-cache.cpp", "sha256": "58cfbb4a934d91d8f9d60e8fbc9e4ed87df5f64b5c1203d1788dfcd2194caaee"},
+    {"id": "pager-source", "path": "src/llama-kv-pager.cpp", "sha256": "57083c2ae611f2048820d28170b44b42e79c2c58b90c2f5b20c286ac948d5d36"},
+    {"id": "residency-source", "path": "src/llama-kv-residency.cpp", "sha256": "8d673f47fd9d2bd4acb9dda411dd3f63f86a6822f4f7c24735e93a390abd1a49"},
+    {"id": "catalog-source", "path": "src/llama-vbr-artifact-catalog.cpp", "sha256": "7fa917a7ddbd2dc345f789ba7e2740c79b6b74dd881bd8dcc7fa29b8a9ef4622"},
+    {"id": "pager-test", "path": "tests/test-kv-pager.cpp", "sha256": "ae577dcb621deea239902f7e35da62ff14145639de0ed0acf6a8db3fa4eacadc"},
+    {"id": "pager-binary", "path": "build-cuda/bin/test-kv-pager", "sha256": "826f835772706b695ddc6213b0fdce92a5cab6c00457e3f53f872f8a92d1fc9d"},
+    {"id": "residency-binary", "path": "build-cuda/bin/test-kv-residency", "sha256": "ddc61a92ed3d6ba054fdd942ab5c7c190403de1dae3b24a6424f615fc40d209c"},
+    {"id": "policy-binary", "path": "build-cuda/bin/test-kv-policy", "sha256": "aa5017a962a5d74a48be3f14718c9d4f169f92f00c5c1a4e20aa3a321f11ead2"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "RTX 4080 was occupied with 1128 MiB free; no live production slab run was started",
+    "model_and_corpus_hashes": "No model-backed task run was started; model hash and corpus hash are null",
+    "bundle": "No immutable production bundle was built for this local implementation task"
+  },
+  "resume": {
+    "command": ["cmake", "--build", "build-cuda", "--target", "test-kv-pager", "-j2"],
+    "next_case": "19-03 cold-page residency transaction",
+    "secrets_omitted": true
+  }
+}
