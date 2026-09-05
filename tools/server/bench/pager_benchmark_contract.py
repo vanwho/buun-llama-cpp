@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Portable contracts for pager-corpus-v3 and benchmark evidence.
+"""Portable contracts for pager-corpus-v4 and benchmark evidence.
 
 The module deliberately has no server or model dependency.  It is used by the
 corpus generator and by result consumers to reject incomplete evidence rather
@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-CORPUS_SCHEMA = "pager-corpus-v3"
-LEGACY_CORPUS_SCHEMAS = {"pager-corpus-v2"}
+CORPUS_SCHEMA = "pager-corpus-v4"
+LEGACY_CORPUS_SCHEMAS = {"pager-corpus-v2", "pager-corpus-v3"}
 MANIFEST_SCHEMA = 2
 LEGACY_MANIFEST_SCHEMAS = {1}
 PARTITIONS = ("calibration", "held_out")
@@ -59,10 +59,12 @@ def _missing(mapping: dict[str, Any], fields: Iterable[str], prefix: str) -> lis
 
 def validate_corpus(corpus: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    if corpus.get("schema") not in {CORPUS_SCHEMA, *LEGACY_CORPUS_SCHEMAS}:
-        errors.append("schema must be pager-corpus-v3")
-    if corpus.get("schema") == CORPUS_SCHEMA and corpus.get("version") != 3:
-        errors.append("pager-corpus-v3 version must be 3")
+    schema = corpus.get("schema")
+    if schema not in {CORPUS_SCHEMA, *LEGACY_CORPUS_SCHEMAS}:
+        errors.append("schema must be pager-corpus-v4")
+    expected_version = {"pager-corpus-v2": 2, "pager-corpus-v3": 3, CORPUS_SCHEMA: 4}.get(schema)
+    if schema in {CORPUS_SCHEMA, *LEGACY_CORPUS_SCHEMAS} and corpus.get("version") != expected_version:
+        errors.append(f"{schema} version must be {expected_version}")
     if corpus.get("partitions") != list(PARTITIONS):
         errors.append("partitions must be calibration, held_out")
     if not isinstance(corpus.get("model_sha256"), str) or len(corpus["model_sha256"]) != 64:
@@ -88,7 +90,7 @@ def validate_corpus(corpus: dict[str, Any]) -> list[str]:
         if not isinstance(case, dict):
             errors.append(f"{prefix} must be an object")
             continue
-        if corpus.get("schema") == CORPUS_SCHEMA and str(case.get("expected_answer", "")).endswith(" (held-out)"):
+        if schema in {CORPUS_SCHEMA, "pager-corpus-v3"} and str(case.get("expected_answer", "")).endswith(" (held-out)"):
             errors.append(f"{prefix}.expected_answer must not use the legacy held-out suffix")
         partition = case.get("partition")
         partitions.add(str(partition))
@@ -99,6 +101,10 @@ def validate_corpus(corpus: dict[str, Any]) -> list[str]:
             "tokenizer_sha256", "expected_answer", "checker", "score_rule",
             "minimum_score", "context_tokens", "page_distance", "stable_hash",
         ), prefix))
+        if schema == CORPUS_SCHEMA and case.get("model_sha256") != corpus.get("model_sha256"):
+            errors.append(f"{prefix}.model_sha256 does not match corpus provenance")
+        if schema == CORPUS_SCHEMA and case.get("tokenizer_sha256") != corpus.get("tokenizer_sha256"):
+            errors.append(f"{prefix}.tokenizer_sha256 does not match corpus provenance")
         fixture = case.get("fixture")
         if not isinstance(fixture, dict):
             errors.append(f"{prefix}.fixture must contain the supplied facts")
@@ -110,6 +116,9 @@ def validate_corpus(corpus: dict[str, Any]) -> list[str]:
                 for fact in facts:
                     if fact not in case["prompt"]:
                         errors.append(f"{prefix}.fixture fact is absent from prompt")
+        expected_answer = case.get("expected_answer")
+        if schema == CORPUS_SCHEMA and isinstance(case.get("prompt"), str) and isinstance(expected_answer, str) and expected_answer not in case["prompt"]:
+            errors.append(f"{prefix}.expected_answer is absent from prompt")
         token_count = case.get("token_count")
         context_tokens = case.get("context_tokens")
         if not isinstance(token_count, int) or token_count <= 0:
@@ -157,6 +166,8 @@ def validate_corpus(corpus: dict[str, Any]) -> list[str]:
         errors.append("both calibration and held_out partitions are required")
     if ids_by_partition["calibration"] != ids_by_partition["held_out"]:
         errors.append("calibration and held_out must contain the same fixture ids")
+    if schema == CORPUS_SCHEMA and not isinstance(corpus.get("corpus_hash"), str):
+        errors.append("pager-corpus-v4 corpus_hash is required")
     if corpus.get("corpus_hash") and corpus["corpus_hash"] != corpus_hash(cases):
         errors.append("corpus_hash does not match cases")
     return errors
@@ -175,7 +186,7 @@ def validate_manifest(manifest: dict[str, Any], *, legacy_ok: bool = True) -> li
         errors.extend(_missing(manifest, ("run_id", "corpus", "model", "tokenizer", "context", "placement"), "manifest"))
         corpus = manifest.get("corpus")
         if not isinstance(corpus, dict) or corpus.get("schema") != CORPUS_SCHEMA or not corpus.get("corpus_hash"):
-            errors.append("dry-run corpus schema and hash are required")
+            errors.append("dry-run corpus schema pager-corpus-v4 and hash are required")
         for name in ("model", "tokenizer"):
             value = manifest.get(name)
             if not isinstance(value, dict) or len(str(value.get("sha256", ""))) != 64:
@@ -191,7 +202,7 @@ def validate_manifest(manifest: dict[str, Any], *, legacy_ok: bool = True) -> li
     ), "manifest"))
     corpus = manifest.get("corpus")
     if not isinstance(corpus, dict) or corpus.get("schema") != CORPUS_SCHEMA:
-        errors.append("manifest.corpus must identify pager-corpus-v3")
+        errors.append("manifest.corpus must identify pager-corpus-v4")
     model = manifest.get("model")
     tokenizer = manifest.get("tokenizer")
     if not isinstance(model, dict) or not isinstance(model.get("sha256"), str):

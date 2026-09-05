@@ -9,7 +9,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pager_benchmark_contract import validate_corpus, validate_manifest
+from pager_benchmark_contract import CORPUS_SCHEMA, LEGACY_CORPUS_SCHEMAS, validate_corpus, validate_manifest
 
 
 def load(path: Path) -> dict:
@@ -28,7 +28,7 @@ def main() -> int:
     parser.add_argument("--corpus", type=Path)
     args = parser.parse_args()
     manifest = load(args.manifest)
-    if manifest.get("schema") in {"pager-corpus-v2", "pager-corpus-v3"} and "schema_version" not in manifest:
+    if manifest.get("schema") in {CORPUS_SCHEMA, *LEGACY_CORPUS_SCHEMAS} and "schema_version" not in manifest:
         errors = validate_corpus(manifest)
         if errors:
             for error in errors:

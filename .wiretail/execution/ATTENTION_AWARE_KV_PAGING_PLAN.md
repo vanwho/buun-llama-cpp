@@ -1467,7 +1467,10 @@ benchmark conditions, acceptance, recovery paths, and handoff requirements. An e
    service on port 8092. A successful benchmark leaves its tested server/profile loaded by default for
    the next task or retry; restoration is required only when the packet explicitly requests a control or
    revert benchmark, teardown, failed-start recovery, or final cleanup, and the lifecycle state records it;
-7. use passwordless `sudo` non-interactively when the packet calls for controlled service work;
+7. use passwordless `sudo -n` non-interactively when the packet calls for controlled service work;
+   never invoke `systemctl stop/start/restart` directly as the unprivileged agent; prefer the
+   established benchmark/profile harness, which owns the service lifecycle and propagates the
+   non-interactive sudo boundary;
 8. retain raw results under `/srv/ai/paged-kv/results/` and put only summaries/hashes/pointers in Git;
 9. checkpoint after each major sub-gate so a restarted Luna session can resume from evidence;
 10. try distinct diagnosis and repair paths before blocking; never satisfy a gate by disabling it,

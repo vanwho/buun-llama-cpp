@@ -17,7 +17,7 @@ from pager_benchmark_contract import CORPUS_SCHEMA, PARTITIONS, case_hash, corpu
 
 
 CASES = (
-    ("warm-focus", "warm_focus", "Explain the pinned system constraint.", "system anchor: answer only from the supplied context.", 0),
+    ("warm-focus", "warm_focus", "What is the pinned system constraint? Reply with the exact sentence beginning 'The pinned system constraint'.", "The pinned system constraint is to preserve supplied facts and ignore unsupported claims.", 0),
     ("cold-early", "cold_needle", "What is the early retrieval code?", "early-needle-17", 3),
     ("cold-middle", "cold_needle", "What is the middle retrieval code?", "middle-needle-29", 11),
     ("cold-end", "cold_needle", "What is the end retrieval code?", "end-needle-41", 19),
@@ -48,6 +48,36 @@ def count_tokens(prompt: str, command: str | None, model_path: str | None) -> tu
         raise ValueError(f"tokenizer command did not report '{marker}'") from error
 
 
+def pad_prompt(prompt: str, target: int, command: str | None, model_path: str | None) -> tuple[str, int]:
+    """Pad with real tokenizer input to the declared page target."""
+    if not command:
+        padding = max(0, target - len(prompt.split()))
+        padded = prompt + (" tail-padding-v4" + " x" * padding if padding else "")
+        return padded, len(padded.split())
+
+    marker = "\nTAIL padding-v4:"
+    base = prompt + marker
+    base_count, _ = count_tokens(base, command, model_path)
+    if base_count >= target:
+        return base, base_count
+    padding = target - base_count
+    candidate = base + " x" * padding
+    candidate_count, _ = count_tokens(candidate, command, model_path)
+    # Qwen's tokenizer treats each separated x as one token. Keep a bounded
+    # correction loop nevertheless, so a tokenizer update cannot silently
+    # move a fixture across a logical-page boundary.
+    for _ in range(3):
+        delta = target - candidate_count
+        if delta == 0:
+            break
+        if delta > 0:
+            candidate += " x" * delta
+        else:
+            candidate = candidate[:2 * delta]
+        candidate_count, _ = count_tokens(candidate, command, model_path)
+    return candidate, candidate_count
+
+
 def build_prompt(index: int, ident: str, answer: str, question: str, distance: int, partition: str, target: int,
                  tokenizer_command: str | None, tokenizer_model: str | None) -> tuple[str, int, int, int]:
     page_count = (target + 255) // 256
@@ -61,13 +91,10 @@ def build_prompt(index: int, ident: str, answer: str, question: str, distance: i
         else:
             facts = f"Decoy page {page}: stable filler record {index:02d}-{page:03d}; this is not the requested fact."
         pages.append(f"[logical-page {page}/{page_count - 1}]\n{facts}")
-    prompt = (f"pager-corpus-v3/{partition}/{ident}\n"
+    prompt = (f"pager-corpus-v4/{partition}/{ident}\n"
               f"This benchmark context contains {page_count} sealed logical pages.\n"
               + "\n".join(pages) + f"\nQuestion: {question}\nAnswer using the supplied facts only.")
-    token_count, _ = count_tokens(prompt, tokenizer_command, tokenizer_model)
-    if token_count < target:
-        prompt += " tail-padding" + " x" * (target - token_count + 16)
-        token_count, _ = count_tokens(prompt, tokenizer_command, tokenizer_model)
+    prompt, token_count = pad_prompt(prompt, target, tokenizer_command, tokenizer_model)
     return prompt, token_count, page_count, needle_page
 
 
@@ -79,7 +106,7 @@ def build_case(index: int, spec: tuple[str, str, str, str, int], partition: str,
                                                                   target, tokenizer_command, tokenizer_model)
     case: dict[str, object] = {
         "id": ident, "partition": partition, "category": category,
-        "input_construction": "fixed UTF-8 page fixtures; tokenizer-padded logical pages; immutable question",
+        "input_construction": "fixed UTF-8 page fixtures; target-tokenizer-padded logical pages; immutable question",
         "prompt": prompt, "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
         "model_sha256": model, "tokenizer_sha256": tokenizer, "expected_answer": answer,
         "fixture": {"facts": [answer], "needle": answer, "source_page": needle_page},
@@ -101,7 +128,7 @@ def build_corpus(model: str, tokenizer: str, tokenizer_command: str | None = Non
         for partition in PARTITIONS:
             cases.append(build_case(index, spec, partition, model, tokenizer, tokenizer_command, tokenizer_model))
     corpus = {
-        "schema": CORPUS_SCHEMA, "version": 3, "partitions": list(PARTITIONS),
+        "schema": CORPUS_SCHEMA, "version": 4, "partitions": list(PARTITIONS),
         "model_sha256": model, "tokenizer_sha256": tokenizer,
         "construction": "immutable category fixtures and tokenizer-padded logical pages",
         "tokenizer_command": tokenizer_command or "deterministic-whitespace-v1", "cases": cases,
