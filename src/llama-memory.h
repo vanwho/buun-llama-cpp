@@ -110,6 +110,9 @@ struct llama_memory_params {
     // Resolve a simple KV buffer type to this llama_context's main compute backend instance.
     // VBR uses the exact instance to reserve backend-context-owned flash-attention scratch.
     std::function<ggml_backend_t(ggml_backend_buffer_type_t)> compute_backend_for_buft;
+
+    // Borrowed for create_memory(); the owning context retains the plan.
+    const struct llama_kv_pager_snapshot * kv_pager_plan = nullptr;
 };
 
 // TurboQuant dynamic-VBR runtime parameters, threaded from llama_context_params through

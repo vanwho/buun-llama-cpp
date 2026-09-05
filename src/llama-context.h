@@ -357,6 +357,10 @@ struct llama_context {
     // Configuration is copied at the construction boundary; no pager resource
     // is allocated until a later live-storage task consumes this owner.
     llama_kv_pager_config kv_pager;
+    // Admission-time geometry is retained until init_kv_pager() reconciles it
+    // with the allocated cache and graph buffers.
+    llama_kv_pager_snapshot kv_pager_plan_;
+    bool kv_pager_plan_valid_ = false;
 
     // reserve a new backend scheduler (if needed)
     // for example, when:
@@ -655,6 +659,7 @@ private:
     // that differs from the layer it belongs to (usually due to missing backend support)
     void resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs);
     void init_kv_pager();
+    void plan_kv_pager();
     void validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const;
     uint32_t prefill_ubatch_size(uint32_t requested) const noexcept;
     llama_kv_attention_execution_decision prepare_kv_attention_graph(

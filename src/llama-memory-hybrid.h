@@ -80,7 +80,8 @@ public:
                             /* layer filters */
     const layer_filter_cb & filter_attn = nullptr,
     const layer_filter_cb & filter_recr = nullptr,
-    const llama_memory_vbr_params & vbr = {});
+    const llama_memory_vbr_params & vbr = {},
+    const struct llama_kv_pager_snapshot * pager_plan = nullptr);
 
     ~llama_memory_hybrid() = default;
 

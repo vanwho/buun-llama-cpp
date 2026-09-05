@@ -584,6 +584,12 @@ llama_context::llama_context(
         }
     }
 
+    // Geometry and the first admission ledger are deliberately built before
+    // create_memory(). Selective/exact caches consume this bounded plan when
+    // they create their sole physical target slab; logical cells still retain
+    // the complete requested context.
+    plan_kv_pager();
+
     // init the memory module
     if (!hparams.vocab_only) {
         llama_memory_params params_mem = {
@@ -622,6 +628,7 @@ llama_context::llama_context(
                 }
                 return nullptr;
             },
+            /*.kv_pager_plan =*/ kv_pager_plan_valid_ ? &kv_pager_plan_ : nullptr,
         };
 
         memory.reset(model.create_memory(params_mem, cparams));
@@ -1038,6 +1045,136 @@ void llama_context::validate_kv_pager_capability(ggml_type type_k, ggml_type typ
     }
 }
 
+void llama_context::plan_kv_pager() {
+    kv_pager_plan_ = {};
+    kv_pager_plan_valid_ = false;
+    if (cparams.ctx_type == LLAMA_CONTEXT_TYPE_MTP) {
+        return;
+    }
+    if (kv_pager.mode != llama_kv_pager_mode::selective &&
+        kv_pager.mode != llama_kv_pager_mode::exact) {
+        return;
+    }
+
+    ggml_backend_t backend = find_gpu_backend();
+    if (backend == nullptr) {
+        throw std::runtime_error("KV pager preallocation refused: GPU backend");
+    }
+    const ggml_backend_dev_t dev = ggml_backend_get_device(backend);
+    size_t free_bytes = 0;
+    size_t total_bytes = 0;
+    ggml_backend_dev_memory(dev, &free_bytes, &total_bytes);
+    const auto buft = ggml_backend_get_default_buffer_type(backend);
+    const uint64_t alignment = std::max<size_t>(1,
+            ggml_backend_buft_get_alignment(buft));
+
+    llama_kv_pager_geometry geometry;
+    if (!llama_kv_pager_geometry_from_model(model, pager_target_type_k_,
+            pager_target_type_v_, !cparams.flash_attn, kv_pager.page_size,
+            cparams.n_ctx_seq, geometry)) {
+        throw std::runtime_error("KV pager preallocation refused: model geometry");
+    }
+
+    uint64_t model_bytes = 0;
+    for (const auto & [model_buft, bytes] : model.memory_breakdown()) {
+        if (!ggml_backend_buft_is_host(model_buft) &&
+            ggml_backend_buft_get_device(model_buft) == dev) {
+            model_bytes = bytes > UINT64_MAX - model_bytes
+                ? UINT64_MAX : model_bytes + uint64_t(bytes);
+        }
+    }
+    const uint64_t total = uint64_t(total_bytes);
+    const uint64_t occupied = std::min<uint64_t>(total,
+            total - std::min<uint64_t>(total, uint64_t(free_bytes)));
+    const uint64_t unaccounted = occupied > model_bytes
+        ? occupied - model_bytes : 0;
+
+    llama_kv_pager_resources resources;
+    resources.admission.capacity_bytes = total;
+    resources.admission.backend_safe_limit_bytes = total - unaccounted;
+    resources.admission.user_budget_bytes = kv_pager.vram_budget.automatic
+        ? 0 : kv_pager.vram_budget.bytes;
+    resources.admission.weights_bytes = model_bytes;
+    resources.admission.fixed_bytes = 0;
+    resources.admission.graph_bytes = 0;
+    resources.admission.turbo4_scratch_bytes = alignment;
+    resources.admission.staging_bytes = alignment;
+    resources.admission.allocator_guard_bytes = alignment;
+    resources.admission.headroom_bytes = kv_pager.safety_headroom.automatic
+        ? llama_vram_headroom_bytes() : kv_pager.safety_headroom.bytes;
+    resources.admission.requested_context_tokens = cparams.n_ctx_seq;
+    resources.admission.resolved_context_tokens = cparams.n_ctx_seq;
+    resources.admission.mtp_is_turbo4 = true;
+
+    bool mtp_loaded = model.hparams.has_mtp() &&
+        model.layers.size() >= model.hparams.n_layer_all;
+    if (mtp_loaded) {
+        for (uint32_t il = model.hparams.n_layer();
+                il < model.hparams.n_layer_all; ++il) {
+            if (model.layers[il].attn_norm == nullptr) {
+                mtp_loaded = false;
+                break;
+            }
+        }
+    }
+    resources.admission.mtp_present = mtp_loaded;
+    resources.admission.mtp_tokens = mtp_loaded ? cparams.n_ctx_seq : 0;
+    if (mtp_loaded) {
+        resources.admission.mtp_is_turbo4 =
+            pager_target_type_k_ == GGML_TYPE_TURBO4_0 &&
+            pager_target_type_v_ == GGML_TYPE_TURBO4_0 &&
+            llama_context_native_mtp_rows(model, cparams.flash_attn,
+                resources.admission.mtp_k_row_bytes,
+                resources.admission.mtp_v_row_bytes);
+    }
+
+    resources.host_budget_known = true;
+    if (kv_pager.host_budget.automatic) {
+        size_t host_free = 0;
+        size_t host_total = 0;
+        const ggml_backend_dev_t host_dev = ggml_backend_dev_by_type(
+                GGML_BACKEND_DEVICE_TYPE_CPU);
+        if (host_dev == nullptr) {
+            resources.host_budget_known = false;
+        } else {
+            ggml_backend_dev_memory(host_dev, &host_free, &host_total);
+        }
+        resources.host_budget_bytes = uint64_t(host_free);
+    } else {
+        resources.host_budget_bytes = kv_pager.host_budget.bytes;
+    }
+    resources.allocator_granularity = alignment;
+    resources.duplicate_representation_authority = false;
+
+    resources.routing_summary.vector_dim = geometry.key_length;
+    resources.routing_summary.representative_count = 4;
+    const uint64_t logical_pages = (geometry.context_tokens - 1) /
+        geometry.page_tokens + 1;
+    const uint64_t routing_vectors = 4ull * geometry.key_length;
+    const uint64_t routing_per_page = routing_vectors >
+            (UINT64_MAX - sizeof(llama_kv_page_id)) / sizeof(float)
+        ? UINT64_MAX
+        : routing_vectors * sizeof(float) + sizeof(llama_kv_page_id);
+    resources.admission.routing_bytes = routing_per_page != 0 &&
+            logical_pages > UINT64_MAX / routing_per_page
+        ? UINT64_MAX : logical_pages * routing_per_page;
+
+    llama_kv_pager_status status;
+    if (!llama_kv_pager_plan(kv_pager, geometry, resources,
+            kv_pager_plan_, status)) {
+        throw std::runtime_error(format(
+                "KV pager preallocation refused: %s",
+                llama_kv_pager_status_name(status)));
+    }
+    kv_pager_plan_valid_ = true;
+    LLAMA_LOG_INFO("%s: pager preallocation plan: logical=%u physical=%u rows=%llu bytes=%llu mtp_rows=%llu\n",
+            __func__, kv_pager_plan_.logical_page_count,
+            kv_pager_plan_.physical_page_count,
+            (unsigned long long) kv_pager_plan_.physical_rows,
+            (unsigned long long) kv_pager_plan_.physical_bytes,
+            (unsigned long long) kv_pager_plan_.mtp_rows);
+}
+
 void llama_context::init_kv_pager() {
     if (!kv_pager.enabled()) {
         return;
@@ -1167,6 +1304,23 @@ void llama_context::init_kv_pager() {
     }
     resources.allocator_granularity = allocation_granularity;
     resources.duplicate_representation_authority = false;
+    resources.physical_page_cap = kv_pager_plan_valid_
+        ? kv_pager_plan_.physical_page_count : 0;
+
+    // The cache constructed the target slab from the pre-allocation plan. It
+    // is already included in context_bytes, so remove it from the fixed column
+    // before the pager reconciles the same bytes into page capacity.
+    if (attention_cache->pager_storage_tensor() != nullptr) {
+        resources.external_storage_tensor = attention_cache->pager_storage_tensor();
+        resources.external_storage_buffer = attention_cache->pager_storage_buffer();
+        const uint64_t slab_bytes = uint64_t(ggml_nbytes(
+                resources.external_storage_tensor));
+        resources.admission.fixed_bytes = slab_bytes > resources.admission.fixed_bytes
+            ? 0 : resources.admission.fixed_bytes - slab_bytes;
+    } else if (kv_pager.mode == llama_kv_pager_mode::selective ||
+               kv_pager.mode == llama_kv_pager_mode::exact) {
+        throw std::runtime_error("KV pager storage authority is missing from target cache");
+    }
     resources.host_capture_enabled = true;
     resources.host_backend = backend;
     resources.host_source_namespace = uint64_t(

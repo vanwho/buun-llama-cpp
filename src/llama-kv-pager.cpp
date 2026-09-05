@@ -1,5 +1,6 @@
 #include "llama-kv-pager.h"
 #include "llama-vbr-artifact-stage.h"
+#include "llama-model.h"
 
 #include <algorithm>
 #include <array>
@@ -18,6 +19,89 @@ bool add(uint64_t a, uint64_t b, uint64_t & out) noexcept {
 }
 
 } // namespace
+
+bool llama_kv_pager_geometry_from_model(
+        const llama_model & model,
+        ggml_type type_k,
+        ggml_type type_v,
+        bool v_trans,
+        uint32_t page_tokens,
+        uint64_t context_tokens,
+        llama_kv_pager_geometry & output) noexcept {
+    output = {};
+    output.page_tokens = page_tokens;
+    output.context_tokens = context_tokens;
+    if (page_tokens == 0 || context_tokens == 0 ||
+            type_k != GGML_TYPE_TURBO4_0 || type_v != GGML_TYPE_TURBO4_0 ||
+            v_trans) {
+        return false;
+    }
+
+    try {
+        uint64_t offset = 0;
+        const uint32_t n_layer = model.hparams.n_layer();
+        for (uint32_t il = 0; il < n_layer; ++il) {
+            if (!model.hparams.has_kv(il) || model.hparams.is_recr(il)) {
+                continue;
+            }
+
+            const uint32_t n_head_kv = model.hparams.n_head_kv(il);
+            const uint32_t head_k = model.hparams.n_embd_head_k(il);
+            const uint32_t head_v = model.hparams.n_embd_head_v(il);
+            if (n_head_kv == 0 || head_k == 0 || head_v == 0 ||
+                    head_k > 512 || head_v > 512) {
+                return false;
+            }
+            const uint32_t padded_k = ((head_k + 127) / 128) * 128;
+            const uint32_t padded_v = ((head_v + 127) / 128) * 128;
+            if (padded_k > UINT32_MAX / n_head_kv ||
+                    padded_v > UINT32_MAX / n_head_kv) {
+                return false;
+            }
+            const uint64_t k_row = ggml_row_size(
+                    GGML_TYPE_TURBO4_0, uint64_t(padded_k) * n_head_kv);
+            const uint64_t v_row = ggml_row_size(
+                    GGML_TYPE_TURBO4_0, uint64_t(padded_v) * n_head_kv);
+            if (k_row == 0 || v_row == 0 ||
+                    k_row > UINT64_MAX / page_tokens ||
+                    v_row > UINT64_MAX / page_tokens) {
+                return false;
+            }
+            const uint64_t k_bytes = k_row * page_tokens;
+            const uint64_t v_bytes = v_row * page_tokens;
+            if (offset > UINT64_MAX - k_bytes ||
+                    offset + k_bytes > UINT64_MAX - v_bytes ||
+                    output.page_bytes > UINT64_MAX - k_bytes - v_bytes) {
+                return false;
+            }
+
+            if (output.attention_layers == 0) {
+                output.kv_heads = n_head_kv;
+                output.key_length = padded_k;
+                output.value_length = padded_v;
+            }
+            output.model_layer_ids.push_back(il);
+            output.layer_k_offsets.push_back(offset);
+            output.layer_k_page_bytes.push_back(k_bytes);
+            output.layer_v_offsets.push_back(offset + k_bytes);
+            output.layer_v_page_bytes.push_back(v_bytes);
+            output.page_bytes += k_bytes + v_bytes;
+            offset += k_bytes + v_bytes;
+            ++output.attention_layers;
+        }
+        return output.attention_layers != 0 && output.kv_heads != 0 &&
+               output.key_length != 0 && output.value_length != 0 &&
+               output.page_bytes != 0 &&
+               output.model_layer_ids.size() == output.attention_layers &&
+               output.layer_k_offsets.size() == output.attention_layers &&
+               output.layer_v_offsets.size() == output.attention_layers &&
+               output.layer_k_page_bytes.size() == output.attention_layers &&
+               output.layer_v_page_bytes.size() == output.attention_layers;
+    } catch (...) {
+        output = {};
+        return false;
+    }
+}
 
 const char * llama_kv_pager_host_status_name(
         llama_kv_pager_host_status status) noexcept {
@@ -383,6 +467,11 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
     admission.logical_page_count = logical;
     admission.target_page_bytes = geometry.page_bytes;
     admission.user_page_cap = config.hot_pages.automatic ? 0 : config.hot_pages.value;
+    if (resources.physical_page_cap != 0) {
+        admission.user_page_cap = admission.user_page_cap == 0
+            ? resources.physical_page_cap
+            : std::min(admission.user_page_cap, resources.physical_page_cap);
+    }
     admission.allocation_granularity = resources.allocator_granularity;
     const auto result = llama_cache_budget_admit(admission);
     if (result.refusal != llama_cache_budget_admission_refusal::none || !result.accepted) {
@@ -397,6 +486,38 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
     output.physical_page_count = uint32_t(result.admitted_pages);
     output.physical_rows = rows;
     output.physical_bytes = bytes;
+    uint64_t slab_offset = 0;
+    if (output.geometry.layer_k_page_bytes.empty() &&
+        output.geometry.layer_v_page_bytes.empty()) {
+        // Synthetic/legacy geometry used by admission-only callers has no
+        // layer slab map; its page charge remains the complete opaque page.
+        slab_offset = output.physical_bytes;
+    } else if (output.geometry.layer_k_page_bytes.size() !=
+            output.geometry.layer_k_offsets.size() ||
+        output.geometry.layer_v_page_bytes.size() !=
+            output.geometry.layer_v_offsets.size()) {
+        status = llama_kv_pager_status::invalid_geometry;
+        return false;
+    } else {
+        for (size_t i = 0; i < output.geometry.layer_k_offsets.size(); ++i) {
+            const uint64_t k_span = uint64_t(output.physical_page_count) *
+                output.geometry.layer_k_page_bytes[i];
+            const uint64_t v_span = uint64_t(output.physical_page_count) *
+                output.geometry.layer_v_page_bytes[i];
+            if (slab_offset > UINT64_MAX - k_span ||
+                slab_offset + k_span > UINT64_MAX - v_span) {
+                status = llama_kv_pager_status::overflow;
+                return false;
+            }
+            output.geometry.layer_k_offsets[i] = slab_offset;
+            output.geometry.layer_v_offsets[i] = slab_offset + k_span;
+            slab_offset += k_span + v_span;
+        }
+    }
+    if (slab_offset != output.physical_bytes) {
+        status = llama_kv_pager_status::invalid_geometry;
+        return false;
+    }
     output.host_metadata_bytes = resources.host_metadata_bytes;
     output.mtp_rows = resources.admission.mtp_tokens;
     output.host_budget_bytes = resources.host_budget_bytes;
@@ -413,6 +534,7 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
     status = llama_kv_pager_status::invalid_geometry;
     if (!config.enabled()) { status = llama_kv_pager_status::disabled; return nullptr; }
     if (config.mode != llama_kv_pager_mode::observe &&
+        resources.external_storage_tensor == nullptr &&
         (!backend.allocate || !backend.release)) {
         status = llama_kv_pager_status::missing_backend;
         return nullptr;
@@ -440,11 +562,26 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
             output->residency_ = llama_kv_residency_table(0);
             return output;
         }
-        if (!output->backend_.allocate(output->snapshot_.physical_bytes, output->allocation_) ||
+        const bool external = resources.external_storage_tensor != nullptr;
+        if (external) {
+            if (resources.external_storage_buffer == nullptr ||
+                resources.external_storage_tensor->buffer != resources.external_storage_buffer ||
+                resources.external_storage_tensor->type != GGML_TYPE_I8 ||
+                ggml_nbytes(resources.external_storage_tensor) < output->snapshot_.physical_bytes ||
+                ggml_backend_buffer_get_size(resources.external_storage_buffer) < output->snapshot_.physical_bytes) {
+                status = llama_kv_pager_status::allocation;
+                return nullptr;
+            }
+            output->owns_allocation_ = false;
+            output->allocation_.handle = resources.external_storage_buffer;
+            output->allocation_.requested_bytes = output->snapshot_.physical_bytes;
+            output->allocation_.realized_bytes = output->snapshot_.physical_bytes;
+        } else if (!output->backend_.allocate || !output->backend_.release ||
+            !output->backend_.allocate(output->snapshot_.physical_bytes, output->allocation_) ||
             output->allocation_.handle == nullptr || output->allocation_.realized_bytes != output->snapshot_.physical_bytes) {
             const bool allocated = output->allocation_.handle != nullptr;
             const bool mismatch = allocated && output->allocation_.realized_bytes != output->snapshot_.physical_bytes;
-            if (allocated) output->backend_.release(output->allocation_);
+            if (allocated && output->backend_.release) output->backend_.release(output->allocation_);
             status = mismatch ? llama_kv_pager_status::realized_mismatch : llama_kv_pager_status::allocation;
             return nullptr;
         }
@@ -469,9 +606,12 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
                           static_cast<ggml_backend_buffer_t>(
                               output->allocation_.handle),
                           output->snapshot_.physical_page_count,
-                          bytes_per_slot, false }, adapter_status);
+                          bytes_per_slot, false,
+                          resources.external_storage_tensor }, adapter_status);
             if (!output->residency_adapter_) {
-                output->backend_.release(output->allocation_);
+                if (output->owns_allocation_ && output->backend_.release) {
+                    output->backend_.release(output->allocation_);
+                }
                 output->allocation_ = {};
                 status = llama_kv_pager_status::allocation;
                 return nullptr;
@@ -493,7 +633,9 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
                     output->residency_backend_, pool_status);
             if (!output->residency_pool_) {
                 output->residency_adapter_.reset();
-                output->backend_.release(output->allocation_);
+                if (output->owns_allocation_ && output->backend_.release) {
+                    output->backend_.release(output->allocation_);
+                }
                 output->allocation_ = {};
                 status = llama_kv_pager_status::allocation;
                 return nullptr;
@@ -504,7 +646,7 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
             output->host_ = llama_kv_pager_host::create(
                     resources, {}, host_status);
             if (!output->host_) {
-                if (output->backend_.release) {
+                if (output->owns_allocation_ && output->backend_.release) {
                     output->backend_.release(output->allocation_);
                 }
                 output->allocation_ = {};
@@ -523,7 +665,9 @@ llama_kv_pager::~llama_kv_pager() {
     host_.reset();
     residency_pool_.reset();
     residency_adapter_.reset();
-    if (allocation_.handle && backend_.release) backend_.release(allocation_);
+    if (owns_allocation_ && allocation_.handle && backend_.release) {
+        backend_.release(allocation_);
+    }
 }
 
 void llama_kv_pager::set_host_provider(

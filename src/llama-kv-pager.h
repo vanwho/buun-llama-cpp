@@ -15,6 +15,7 @@
 #include <vector>
 
 class vbr_h2d_chunk_ring;
+struct llama_model;
 
 struct llama_kv_pager_geometry {
     uint64_t context_tokens = 0;
@@ -24,17 +25,38 @@ struct llama_kv_pager_geometry {
     uint32_t key_length = 0;
     uint32_t value_length = 0;
     uint64_t page_bytes = 0; // complete opaque K/V page across all attention layers
-    // Byte offsets within one physical slot. Each layer stores all K rows
-    // followed by all V rows, matching the transfer-owner layout.
+    // Byte offsets in the physical slab after admission. Each layer stores all
+    // admitted K rows followed by all admitted V rows, so set_rows has a
+    // regular row stride and the direct kernel uses the per-layer page span.
     std::vector<uint64_t> layer_k_offsets;
     std::vector<uint64_t> layer_v_offsets;
+    std::vector<uint64_t> layer_k_page_bytes;
+    std::vector<uint64_t> layer_v_page_bytes;
+    // Model layer IDs are not necessarily compact attention ordinals in a
+    // hybrid model. Keep the checked map beside the offsets.
+    std::vector<uint32_t> model_layer_ids;
 };
+
+// Construct geometry from model metadata without allocating context-sized
+// tensors. This is the admission-time planner input.
+bool llama_kv_pager_geometry_from_model(
+        const llama_model & model,
+        ggml_type type_k,
+        ggml_type type_v,
+        bool v_trans,
+        uint32_t page_tokens,
+        uint64_t context_tokens,
+        llama_kv_pager_geometry & output) noexcept;
 
 struct llama_kv_pager_resources {
     llama_cache_budget_admission_input admission;
     uint64_t host_budget_bytes = 0;
     uint64_t host_metadata_bytes = 0;
     uint64_t allocator_granularity = 1;
+    // Optional upper bound carried from the pre-allocation plan. It prevents
+    // reconciliation from growing the pager beyond the slab already owned by
+    // the cache.
+    uint64_t physical_page_cap = 0;
     bool host_budget_known = false;
     bool duplicate_representation_authority = false;
 
@@ -53,6 +75,11 @@ struct llama_kv_pager_resources {
     size_t host_chunk_bytes = 0;
     vbr_selected_page_capture_limits host_capture_limits;
     llama_kv_routing_summary_config routing_summary;
+
+    // Selective/exact target storage is constructed by the cache and borrowed
+    // here. The pager must not allocate a second physical target KV backing.
+    ggml_backend_buffer_t external_storage_buffer = nullptr;
+    ggml_tensor * external_storage_tensor = nullptr;
 };
 
 // The cache owns the representation-specific sampler. It is called only at a
@@ -407,6 +434,7 @@ private:
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_page_id page_identity_;
     llama_kv_pager_allocation allocation_;
+    bool owns_allocation_ = true;
     std::vector<page_state> pages_;
     std::vector<int32_t> slot_pages_;
     uint32_t current_page_index_ = UINT32_MAX;

@@ -148,10 +148,11 @@ public:
                llama_memory_t   mem_other,
         const layer_filter_cb & filter,
         const  layer_reuse_cb & reuse,
-        const  layer_share_cb & share = nullptr,
-        const llama_memory_vbr_params & vbr = {},
-        // a model can hold more than one cache, so the tensor names have to stay unique
-                 const char *   name_tag = "");
+                const  layer_share_cb & share = nullptr,
+                const llama_memory_vbr_params & vbr = {},
+                // a model can hold more than one cache, so the tensor names have to stay unique
+                 const char *   name_tag = "",
+                 const struct llama_kv_pager_snapshot * pager_plan = nullptr);
 
     // Compatibility overload for fixed caches that only supply a name tag.
     llama_kv_cache(
@@ -248,6 +249,11 @@ public:
     // Physical VMM mappings and pager buffers must share the most restrictive
     // allocation granularity on this cache's device.
     uint64_t allocation_granularity() const noexcept;
+    ggml_tensor * pager_storage_tensor() const noexcept { return pager_storage_; }
+    ggml_backend_buffer_t pager_storage_buffer() const noexcept {
+        return pager_storage_ != nullptr ? pager_storage_->buffer : nullptr;
+    }
+    uint64_t pager_storage_bytes_per_slot() const noexcept { return pager_bytes_per_slot_; }
     bool pager_geometry(uint32_t page_tokens,
             llama_kv_pager_geometry & output) const noexcept;
     uint32_t get_n_swa()    const { return n_swa; }
@@ -1631,6 +1637,14 @@ private:
     std::shared_ptr<llama_kv_cells_vec> v_cells_impl;
 
     llama_kv_cells_vec & v_cells;
+
+    // Logical cells stay sized to the requested context. Only physical tensor
+    // rows use the bounded pager capacity.
+    uint32_t physical_kv_size_ = 0;
+    uint64_t pager_bytes_per_slot_ = 0;
+    ggml_tensor * pager_storage_ = nullptr;
+    ggml_backend_buffer_type_t pager_storage_buft_ = nullptr;
+    const struct llama_kv_pager_snapshot * pager_plan_ = nullptr;
 
     // maps from a sequence id to a stream id
     std::vector<uint32_t> seq_to_stream;
