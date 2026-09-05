@@ -88,7 +88,7 @@ bool llama_kv_attention_telemetry::snapshot_matches(
     if (snapshot.epoch() != table_epoch_) return false;
     for (uint32_t logical = 0; logical < logical_page_count_; ++logical) {
         const auto & stored = pages_[logical].value;
-        if (!stored.known) continue;
+        if (!stored.known || !stored.resident) continue;
         const auto it = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
                 [&](const auto & page) { return page.id.logical_page == logical; });
         if (it == snapshot.pages().end() || it->id != stored.id) return false;
@@ -108,18 +108,34 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reject_invalid
 
 llama_kv_attention_telemetry_status llama_kv_attention_telemetry::initialize(
         const llama_kv_residency_snapshot & snapshot) noexcept {
+    return initialize(snapshot, snapshot.pages());
+}
+
+llama_kv_attention_telemetry_status llama_kv_attention_telemetry::initialize(
+        const llama_kv_residency_snapshot & snapshot,
+        const std::vector<llama_kv_page_record> & inventory) noexcept {
     if (mode_ == llama_kv_attention_telemetry_mode::off) {
         return llama_kv_attention_telemetry_status::disabled;
     }
     if (snapshot.epoch() == 0 || logical_page_count_ == 0 ||
-        snapshot.pages().size() > pages_.max_size()) {
+        inventory.empty() || inventory.size() > pages_.max_size()) {
         return reject_invalid();
+    }
+    for (const auto & resident : snapshot.pages()) {
+        const auto it = std::find_if(inventory.begin(), inventory.end(),
+                [&](const auto & page) { return page.id == resident.id; });
+        if (it == inventory.end()) return reject_invalid();
     }
     clear();
     table_epoch_ = snapshot.epoch();
-    for (const auto & page : snapshot.pages()) {
+    for (const auto & page : inventory) {
         const bool tail = page.state == llama_kv_page_state::filling_gpu;
-        if (!valid_state(page.state) || !llama_kv_page_id_valid(page.id, tail)) continue;
+        if (!valid_state(page.state) || !llama_kv_page_id_valid(page.id, tail) ||
+            (page.physical_slot == UINT32_MAX &&
+             (page.state != llama_kv_page_state::host_clean || !page.host_valid))) {
+            clear();
+            return reject_invalid();
+        }
         if (!valid_page(page.id.logical_page) || pages_[page.id.logical_page].value.known) {
             clear();
             return reject_invalid();
@@ -128,6 +144,8 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::initialize(
         state = {};
         state.known = true;
         state.id = page.id;
+        state.resident = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+                [&](const auto & resident) { return resident.id == page.id; }) != snapshot.pages().end();
     }
     return llama_kv_attention_telemetry_status::ok;
 }
@@ -141,8 +159,46 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reconcile(
         snapshot.pages().size() > pages_.max_size()) {
         return reject_invalid();
     }
-    if (table_epoch_ == snapshot.epoch() && snapshot_matches(snapshot)) {
-        return llama_kv_attention_telemetry_status::ok;
+    // The graph construction seam only has the physical snapshot. Preserve
+    // previously authenticated host-only identities here; the cache boundary
+    // later calls the inventory overload to replace this conservative view
+    // with the complete catalog.
+    std::vector<llama_kv_page_record> inventory = snapshot.pages();
+    try {
+        for (const auto & old_slot : pages_) {
+            const auto & old = old_slot.value;
+            if (!old.known) continue;
+            const bool logical_reused = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+                    [&](const auto & page) { return page.id.logical_page == old.id.logical_page; }) !=
+                snapshot.pages().end();
+            if (logical_reused) continue;
+            llama_kv_page_record cold;
+            cold.id = old.id;
+            cold.physical_slot = UINT32_MAX;
+            cold.state = llama_kv_page_state::host_clean;
+            cold.host_valid = true;
+            inventory.push_back(cold);
+        }
+    } catch (...) {
+        return reject_invalid();
+    }
+    return reconcile(snapshot, inventory);
+}
+
+llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reconcile(
+        const llama_kv_residency_snapshot & snapshot,
+        const std::vector<llama_kv_page_record> & inventory) noexcept {
+    if (mode_ == llama_kv_attention_telemetry_mode::off) {
+        return llama_kv_attention_telemetry_status::disabled;
+    }
+    if (snapshot.epoch() == 0 || logical_page_count_ == 0 ||
+        inventory.empty() || inventory.size() > pages_.max_size()) {
+        return reject_invalid();
+    }
+    for (const auto & resident : snapshot.pages()) {
+        const auto it = std::find_if(inventory.begin(), inventory.end(),
+                [&](const auto & page) { return page.id == resident.id; });
+        if (it == inventory.end()) return reject_invalid();
     }
 
     std::vector<slot> next;
@@ -151,15 +207,21 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reconcile(
     } catch (...) {
         return reject_invalid();
     }
-    for (const auto & page : snapshot.pages()) {
+    for (const auto & page : inventory) {
         const bool tail = page.state == llama_kv_page_state::filling_gpu;
-        if (!valid_state(page.state) || !llama_kv_page_id_valid(page.id, tail)) continue;
+        if (!valid_state(page.state) || !llama_kv_page_id_valid(page.id, tail) ||
+            (page.physical_slot == UINT32_MAX &&
+             (page.state != llama_kv_page_state::host_clean || !page.host_valid))) {
+            return reject_invalid();
+        }
         if (!valid_page(page.id.logical_page) || next[page.id.logical_page].value.known) {
             return reject_invalid();
         }
         auto & state = next[page.id.logical_page].value;
         state.known = true;
         state.id = page.id;
+        state.resident = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+                [&](const auto & resident) { return resident.id == page.id; }) != snapshot.pages().end();
         const auto & old = pages_[page.id.logical_page].value;
         if (old.known && old.id == page.id) {
             state.observed = old.observed;
@@ -167,6 +229,7 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reconcile(
             state.recent_peak = old.recent_peak;
             state.sample_count = old.sample_count;
             state.frequency = old.frequency;
+            state.last_observed_token = old.last_observed_token;
         }
     }
     pages_.swap(next);
@@ -250,12 +313,14 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
             }
         }
         auto & state = pages_[logical].value;
+        state.resident = true;
         const float normalized = float(sum / double(sample.token_count) / double(sample.layer_count));
         state.normalized_ema = state.observed
             ? ema_alpha_ * normalized + (1.0f - ema_alpha_) * state.normalized_ema
             : normalized;
         state.recent_peak = std::max(peak, peak_decay_ * state.recent_peak);
         state.observed = true;
+        state.last_observed_token = sample.token_index;
         ++state.sample_count;
         if (state.frequency != std::numeric_limits<uint64_t>::max()) ++state.frequency;
     }

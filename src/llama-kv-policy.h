@@ -17,14 +17,18 @@ enum class llama_kv_policy_status : uint8_t {
 
 struct llama_kv_policy_page {
     uint64_t id = 0;
+    uint32_t attention_layer = 0;
     uint64_t age = 0;
     uint64_t recency = 0;
     uint64_t attention_ema_q = 0;
     uint64_t retrieval_hits = 0;
+    uint64_t reuse_count = 0;
     uint64_t dirty_cost = 0;
     uint64_t fault_cost = 0;
     uint64_t recent_peak_q = 0;
     uint64_t hysteresis_q = 0;
+    uint64_t attention_sample_count = 0;
+    uint64_t attention_last_observed = 0;
     bool attention_observed = false;
     bool recent = false;
     bool anchor = false;

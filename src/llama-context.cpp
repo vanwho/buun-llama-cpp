@@ -1432,6 +1432,7 @@ void llama_context::init_kv_pager() {
         telemetry_config.head_count = kv_pager.telemetry_head_count;
         kv_attention_telemetry = std::make_unique<llama_kv_attention_telemetry>(telemetry_config);
     }
+    memory->set_kv_attention_telemetry(kv_attention_telemetry.get());
     const auto & admission = snapshot.admission;
     LLAMA_LOG_INFO(
             "KV pager startup: {%s context_tokens=%" PRIu64
@@ -1894,16 +1895,18 @@ void llama_context::synchronize() {
         kv_attention_execution.complete_one_graph();
     }
 
-    // Keep live table publication after both the scheduler fence and the
-    // existing attention completion bookkeeping boundary.
-    if (memory && target_frontier_committed) {
-        memory->apply_kv_pager_policy();
-    }
-
     // Page-mass is an optional output of the direct CUDA attention node. Read
     // it only after the scheduler fence, then publish against the immutable
     // snapshot captured when that graph was built.
     publish_kv_attention_telemetry();
+
+    // Keep live table publication after both the scheduler fence and the
+    // completed attention-retention publication. Retrieval remains a separate
+    // input: a page selected by the routing index is not thereby observed
+    // attention mass.
+    if (memory && target_frontier_committed) {
+        memory->apply_kv_pager_policy();
+    }
 
     if (kv_attention_wait && t_compute_start_us != 0) {
         kv_attention_execution.record_total_token_us(uint64_t(std::max<int64_t>(

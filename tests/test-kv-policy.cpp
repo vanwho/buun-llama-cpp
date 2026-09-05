@@ -152,6 +152,16 @@ static void test_live_policy_publication() {
     transport.recheck = live_transfer_fake::recheck;
 
     auto boundary = live_boundary(table.snapshot(), live_promotion());
+    llama_kv_live_policy_trace trace;
+    llama_kv_policy_trace policy_trace;
+    std::vector<llama_kv_policy_page> policy_pages;
+    assert(llama_kv_live_policy_build_trace(
+            boundary, trace, policy_trace, policy_pages));
+    assert(policy_pages.size() == boundary.pages.size());
+    // Routing summary selection is retrieval evidence only.  A selected cold
+    // page is still unobserved until completed attention publishes mass.
+    assert(!policy_pages[1].attention_observed);
+    assert(policy_pages[1].attention_layer == 0);
     auto result = llama_kv_live_policy_apply(
         table, *pool, boundary, backend, transport);
     assert(result.status == llama_kv_live_policy_status::committed);

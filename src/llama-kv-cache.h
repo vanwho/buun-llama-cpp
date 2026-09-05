@@ -177,6 +177,8 @@ public:
     ~llama_kv_cache(); // frees the VBR VMM pool (if any); = default otherwise
 
     void set_kv_pager(llama_kv_pager * pager) override;
+    void set_kv_attention_telemetry(
+            llama_kv_attention_telemetry * telemetry) override;
     void seal_kv_pager_pages() override;
     void apply_kv_pager_policy() noexcept override;
     void capture_kv_routing_query(
@@ -1473,6 +1475,7 @@ private:
     // Rows reserved before graph construction. Completion is deliberately
     // separate from apply_ubatch: graph construction/allocation may still fail.
     llama_kv_pager * pager_ = nullptr;
+    llama_kv_attention_telemetry * kv_attention_telemetry_ = nullptr;
     int32_t pager_last_sequence_id_ = -1;
     struct pager_query_capture {
         ggml_tensor * tensor = nullptr;

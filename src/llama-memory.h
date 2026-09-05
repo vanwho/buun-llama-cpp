@@ -12,6 +12,7 @@
 #include <vector>
 
 struct llama_ubatch;
+class llama_kv_attention_telemetry;
 // Internal physical-growth evidence retained across composite memory trees.
 // The public preflight remains scalar, but composites must not sum per-device
 // availability before checking the combined children that share that device.
@@ -232,6 +233,12 @@ struct llama_memory_i {
     // Attach the optional compact attention target after the owning context has
     // finished backend admission. Non-attention memories remain unchanged.
     virtual void set_kv_pager(class llama_kv_pager * /*pager*/) {}
+
+    // Retention evidence is produced after the graph fence and consumed by
+    // the pager boundary. The pointer is non-owning and valid for the memory
+    // context lifetime; non-attention memories ignore it.
+    virtual void set_kv_attention_telemetry(
+            llama_kv_attention_telemetry * /*telemetry*/) {}
 
     // Complete host publication for target pages after the scheduler fence.
     // The graph may write K/V asynchronously, so this must not be performed

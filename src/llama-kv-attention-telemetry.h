@@ -67,12 +67,16 @@ struct llama_kv_attention_telemetry_sample {
 
 struct llama_kv_attention_telemetry_page {
     bool known = false;
+    // Known host-only pages are retained in the inventory but are not
+    // currently resident in the GPU snapshot.
+    bool resident = false;
     bool observed = false;
     llama_kv_page_id id;
     float normalized_ema = 0.0f;
     float recent_peak = 0.0f;
     uint64_t sample_count = 0;
     uint64_t frequency = 0;
+    uint64_t last_observed_token = 0;
 };
 
 struct llama_kv_attention_telemetry_counters {
@@ -107,10 +111,16 @@ public:
 
     llama_kv_attention_telemetry_status initialize(
             const llama_kv_residency_snapshot & snapshot) noexcept;
+    llama_kv_attention_telemetry_status initialize(
+            const llama_kv_residency_snapshot & snapshot,
+            const std::vector<llama_kv_page_record> & inventory) noexcept;
     // Rebind to a new immutable sequence snapshot while preserving scores for
     // page identities that remain identical.
     llama_kv_attention_telemetry_status reconcile(
             const llama_kv_residency_snapshot & snapshot) noexcept;
+    llama_kv_attention_telemetry_status reconcile(
+            const llama_kv_residency_snapshot & snapshot,
+            const std::vector<llama_kv_page_record> & inventory) noexcept;
     llama_kv_attention_telemetry_status publish_completed(
             const llama_kv_residency_snapshot & snapshot,
             const llama_kv_attention_telemetry_sample & sample) noexcept;
