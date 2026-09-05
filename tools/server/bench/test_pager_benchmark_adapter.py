@@ -141,7 +141,8 @@ class AdapterContractTests(unittest.TestCase):
             self.assertEqual("acceptance", config["context"]["mode"])
             self.assertFalse(config["context"]["diagnostic_only"])
             self.assertEqual(22016, config["launcher"]["context"])
-            self.assertEqual(10752, config["launcher"]["prompt_context_words"])
+            self.assertEqual("exact-rendered-token-preflight", config["launcher"]["token_sizing"])
+            self.assertIsNone(config["prompt"]["occupied_prompt_tokens"])
 
     def test_sub_ceiling_requires_explicit_diagnostic_flag(self) -> None:
         with tempfile.TemporaryDirectory() as directory, \

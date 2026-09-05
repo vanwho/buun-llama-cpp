@@ -22,10 +22,13 @@ from urllib.request import Request, urlopen
 from pager_benchmark_contract import (
     CORPUS_SCHEMA,
     ContextResolutionError,
+    PromptFit,
+    fit_prompt,
     corpus_context_ceiling,
     resolve_context,
     validate_corpus,
 )
+from prompt_sizing import ServerPromptRenderer, request_options
 
 
 def sha256_file(path: pathlib.Path) -> str:
@@ -70,11 +73,38 @@ def score_case(case: dict[str, Any], actual: str) -> tuple[bool, str]:
     return passed, "pass" if passed else "answer_mismatch"
 
 
+PADDING_MARKER = "{{PAGER_PADDING}}"
+
+
+def case_prompt_parts(case: dict[str, Any]) -> tuple[str, str, list[str]]:
+    """Split only the generated tail padding from mandatory case content."""
+    prompt = case["prompt"]
+    marker = "\nTAIL padding-v4:"
+    if not isinstance(prompt, str) or marker not in prompt:
+        raise ValueError("case prompt has no explicit padding tail")
+    prefix, padding = prompt.rsplit(marker, 1)
+    facts = list(case.get("fixture", {}).get("facts", []))
+    expected = case.get("expected_answer")
+    if isinstance(expected, str):
+        facts.append(expected)
+    return prefix + marker + PADDING_MARKER, padding, facts
+
+
+def fit_case_prompt(case: dict[str, Any], renderer: ServerPromptRenderer,
+                    desired_occupancy: int, generation_reserve: int) -> PromptFit:
+    template, padding, facts = case_prompt_parts(case)
+    return fit_prompt(
+        [{"role": "user", "content": template}], padding,
+        desired_occupancy, generation_reserve, renderer,
+        padding_marker=PADDING_MARKER, protected_facts=facts,
+    )
+
+
 def build_request(case: dict[str, Any], model: str, max_tokens: int,
-                  seed: int) -> dict[str, Any]:
+                  seed: int, *, fit: PromptFit | None = None) -> dict[str, Any]:
     return {
         "model": model,
-        "messages": [{"role": "user", "content": case["prompt"]}],
+        "messages": fit.messages if fit is not None else [{"role": "user", "content": case["prompt"]}],
         "max_tokens": max_tokens,
         "temperature": 0,
         "seed": seed,
@@ -167,6 +197,11 @@ def main() -> int:
     snapshot = args.output / "corpus.snapshot.json"
     snapshot.write_text(args.corpus.read_text())
     key = read_key(args.api_key_file)
+    renderer = ServerPromptRenderer(
+        args.endpoint, args.model, key,
+        tokenizer_id=corpus.get("tokenizer_sha256"),
+        request_options=request_options(chat_template_kwargs={"enable_thinking": False}),
+    )
     provenance: dict[str, Any] = {
         "schema_version": 1,
         "corpus_schema": corpus["schema"],
@@ -185,6 +220,12 @@ def main() -> int:
         "model_file_sha256": sha256_file(pathlib.Path(args.model_file)) if args.model_file else None,
         "request_timeout_seconds": args.timeout,
         "diagnostic_only": context["diagnostic_only"],
+        "tokenization": {
+            "template_id": renderer.template_id,
+            "tokenizer_id": renderer.tokenizer_id,
+            "authority": "/apply-template followed by /tokenize(add_special=true, parse_special=true)",
+            "word_count_authoritative": False,
+        },
     }
     write_json(args.output / "provenance.json", provenance)
 
@@ -193,8 +234,6 @@ def main() -> int:
     with records_path.open("w") as records_file:
         for index, case in enumerate(corpus["cases"]):
             stem = f"{index:03d}-{case['partition']}-{case['id']}"
-            body = build_request(case, args.model, args.max_tokens, args.seed)
-            write_json(raw / f"{stem}.request.json", body)
             record: dict[str, Any] = {
                 "index": index, "id": case["id"], "partition": case["partition"],
                 "mode": args.mode, "context": resolved_context,
@@ -209,17 +248,45 @@ def main() -> int:
             if case["context_tokens"] > resolved_context:
                 record.update({"status": "skipped_context", "error": "case_exceeds_context"})
             else:
+                try:
+                    fit = fit_case_prompt(case, renderer, resolved_context, args.max_tokens)
+                    body = build_request(case, args.model, args.max_tokens, args.seed, fit=fit)
+                    write_json(raw / f"{stem}.request.json", body)
+                    record.update({
+                        "status": "preflighted",
+                        "template_id": fit.template_id,
+                        "tokenizer_id": fit.tokenizer_id,
+                        "occupied_prompt_tokens": fit.token_count,
+                        "generation_reserve_tokens": args.max_tokens,
+                        "resolved_capacity_tokens": resolved_context,
+                        "fact_offsets": list(fit.fact_offsets),
+                        "request_token_sha256": fit.request_token_sha256,
+                        "padding_characters": fit.padding_characters,
+                    })
+                except (PromptSizingError, ValueError) as error:
+                    record.update({"status": "sizing_error", "error": str(error)})
+                    records.append(record)
+                    records_file.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+                    records_file.flush()
+                    continue
                 status, response, error = request_case(args.endpoint, body, key, args.timeout)
                 if response is not None:
                     write_json(raw / f"{stem}.response.json", response)
-                    actual = answer_text(response)
-                    passed, score_reason = score_case(case, actual)
-                    record.update({
-                        "status": "pass" if passed else "fail",
-                        "score": 1.0 if passed else 0.0,
-                        "score_reason": score_reason,
-                        "actual": actual,
-                    })
+                    usage = response.get("usage") if isinstance(response, dict) else None
+                    actual_prompt_tokens = usage.get("prompt_tokens") if isinstance(usage, dict) else None
+                    record["actual_prompt_tokens"] = actual_prompt_tokens
+                    if actual_prompt_tokens != fit.token_count:
+                        record.update({"status": "token_count_mismatch",
+                                       "error": f"server prompt_tokens={actual_prompt_tokens}, local={fit.token_count}"})
+                    else:
+                        actual = answer_text(response)
+                        passed, score_reason = score_case(case, actual)
+                        record.update({
+                            "status": "pass" if passed else "fail",
+                            "score": 1.0 if passed else 0.0,
+                            "score_reason": score_reason,
+                            "actual": actual,
+                        })
                 else:
                     record.update({"status": "error", "error": error})
                 record["http_status"] = status

@@ -685,18 +685,12 @@ def corpus(variant: str, frozen: dict[str, object] | None = None,
             "validation_errors": errors}
 
 
-def prompt_context_words(context_tokens: int) -> int:
-    """Approximate a tokenizer-sized prompt while reserving wrapper headroom."""
-    return max(1, (context_tokens - 512) // 2)
-
-
 def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str | None,
                   context: dict[str, object], frozen_corpus: dict[str, object],
                   corpus_path: pathlib.Path) -> None:
     output.mkdir(parents=True, exist_ok=True)
     envelope = pager_envelope(variant)
     resolved_context = int(context["resolved"])
-    context_words = prompt_context_words(resolved_context)
     config = {
         "schema_version": 2, "run_id": f"dry-{target}-{variant}",
         "run_timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "target": target,
@@ -718,11 +712,13 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
                      "mode": context["mode"],
                      "diagnostic_only": context["diagnostic_only"],
                      "prompt_context_target_tokens": resolved_context,
-                     "prompt_context_words": context_words,
+                     "token_sizing": "exact-rendered-token-preflight",
                      "mtp": os.environ.get("BENCH_MTP", "native"),
                      "draft_kv": "turbo4"},
         "prompt": {"target_context_tokens": resolved_context,
-                    "synthetic_context_words": context_words,
+                    "occupied_prompt_tokens": None,
+                    "generation_reserve_tokens": None,
+                    "token_sizing": "not_run_dry_run",
                     "tail_tokens": resolved_context % 256},
         "corpus_provenance": {"path": str(corpus_path), "context_ceiling": frozen_corpus["context_ceiling"]},
         "compatibility": {"canonical_runner": os.environ.get("CANONICAL_BENCHMARK_RUNNER"),
@@ -863,7 +859,6 @@ def _main() -> int:
         os.environ["BENCH_PAGE_SIZE"] = str(args.page_size)
         os.environ["BENCH_CONTEXT"] = str(context["resolved"])
         os.environ["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
-        os.environ["BENCH_CONTEXT_WORDS"] = str(prompt_context_words(int(context["resolved"])))
         os.environ["BENCH_MTP"] = args.mtp
         write_dry_run(output, args.target, args.variant, endpoint, context,
                       corpus(variant=args.variant, frozen=frozen_corpus, path=corpus_path),
@@ -911,7 +906,6 @@ def _main() -> int:
     env["BENCH_PAGE_SIZE"] = str(args.page_size)
     env["BENCH_CONTEXT"] = str(context["resolved"])
     env["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
-    env["BENCH_CONTEXT_WORDS"] = str(prompt_context_words(int(context["resolved"])))
     env["BENCH_MTP"] = args.mtp
     # Successful runs remain loaded by default. Explicit control/revert runs
     # opt into restoration; failed runs are restored by the canonical runner.

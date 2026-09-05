@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 
 CORPUS_SCHEMA = "pager-corpus-v4"
@@ -23,6 +25,179 @@ PARTITIONS = ("calibration", "held_out")
 
 class ContextResolutionError(ValueError):
     """Raised when a requested benchmark context cannot be accepted."""
+
+
+class PromptSizingError(ValueError):
+    """Raised when a complete prompt cannot fit its requested token budget."""
+
+
+class MandatoryPromptTooLarge(PromptSizingError):
+    """Raised before HTTP when facts/question/template overhead already overflows."""
+
+
+@dataclass(frozen=True)
+class RenderedPrompt:
+    """One authoritative template render plus the tokenizer result for it."""
+
+    text: str
+    token_ids: tuple[int, ...]
+    template_id: str
+    tokenizer_id: str
+
+
+@dataclass(frozen=True)
+class PromptFit:
+    """Exact request sizing returned by :func:`fit_prompt`."""
+
+    messages: list[dict[str, Any]]
+    rendered_text: str
+    token_ids: tuple[int, ...]
+    token_count: int
+    desired_occupancy: int
+    generation_reserve: int
+    padding_characters: int
+    template_id: str
+    tokenizer_id: str
+    fact_offsets: tuple[dict[str, int | str], ...]
+    request_token_sha256: str
+
+
+def _replace_padding(value: Any, marker: str, padding: str, count: list[int]) -> Any:
+    if isinstance(value, str):
+        occurrences = value.count(marker)
+        count[0] += occurrences
+        return value.replace(marker, padding)
+    if isinstance(value, list):
+        return [_replace_padding(item, marker, padding, count) for item in value]
+    if isinstance(value, dict):
+        return {key: _replace_padding(item, marker, padding, count)
+                for key, item in value.items()}
+    return value
+
+
+def _rendered_prompt(value: RenderedPrompt | Mapping[str, Any]) -> RenderedPrompt:
+    if isinstance(value, RenderedPrompt):
+        return value
+    if not isinstance(value, Mapping):
+        raise PromptSizingError("render_and_tokenize must return RenderedPrompt")
+    try:
+        return RenderedPrompt(
+            text=str(value["text"]),
+            token_ids=tuple(int(token) for token in value["token_ids"]),
+            template_id=str(value["template_id"]),
+            tokenizer_id=str(value["tokenizer_id"]),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise PromptSizingError(
+            "render_and_tokenize must return text, token_ids, template_id, and tokenizer_id"
+        ) from error
+
+
+def _fact_offsets(text: str, facts: Sequence[str]) -> tuple[dict[str, int | str], ...]:
+    offsets: list[dict[str, int | str]] = []
+    cursor = 0
+    for fact in facts:
+        if not isinstance(fact, str) or not fact:
+            raise PromptSizingError("protected facts must be non-empty strings")
+        start = text.find(fact, cursor)
+        if start < 0:
+            raise PromptSizingError(f"protected fact is absent from rendered prompt: {fact!r}")
+        end = start + len(fact)
+        offsets.append({"text": fact, "start": start, "end": end, "unit": "utf8_codepoints"})
+        cursor = end
+    return tuple(offsets)
+
+
+def fit_prompt(
+    messages: Sequence[Mapping[str, Any]],
+    padding: str,
+    desired_occupancy: int,
+    generation_reserve: int,
+    render_and_tokenize: Callable[[list[dict[str, Any]]], RenderedPrompt | Mapping[str, Any]],
+    *,
+    padding_marker: str = "{{PADDING}}",
+    protected_facts: Sequence[str] = (),
+) -> PromptFit:
+    """Fit only a padding marker against an exact rendered-token budget.
+
+    The callable owns the model's chat template and tokenizer.  It must render
+    the complete messages once and return the resulting token IDs.  Binary
+    search changes only the prefix length of ``padding``; message facts and the
+    final question are never edited.  ``desired_occupancy`` includes the
+    reserved output/lookahead tokens.
+    """
+    if desired_occupancy <= 0:
+        raise PromptSizingError("desired_occupancy must be positive")
+    if generation_reserve < 0:
+        raise PromptSizingError("generation_reserve must be non-negative")
+    if generation_reserve >= desired_occupancy:
+        raise PromptSizingError("generation_reserve leaves no prompt-token budget")
+    if not isinstance(padding_marker, str) or not padding_marker:
+        raise PromptSizingError("padding_marker must be non-empty")
+    if not isinstance(padding, str):
+        raise PromptSizingError("padding must be text")
+
+    source_messages = [dict(message) for message in deepcopy(list(messages))]
+    marker_count = [0]
+
+    def evaluate(characters: int) -> RenderedPrompt:
+        marker_count[0] = 0
+        candidate = _replace_padding(source_messages, padding_marker,
+                                     padding[:characters], marker_count)
+        if marker_count[0] != 1:
+            raise PromptSizingError(
+                f"messages must contain padding_marker exactly once (found {marker_count[0]})"
+            )
+        return _rendered_prompt(render_and_tokenize(candidate))
+
+    budget = desired_occupancy - generation_reserve
+    baseline = evaluate(0)
+    if len(baseline.token_ids) > budget:
+        raise MandatoryPromptTooLarge(
+            f"mandatory rendered prompt requires {len(baseline.token_ids)} tokens, "
+            f"but only {budget} remain after reserving {generation_reserve} output tokens"
+        )
+
+    low = 0
+    high = len(padding)
+    best = baseline
+    while low < high:
+        middle = (low + high + 1) // 2
+        candidate = evaluate(middle)
+        if len(candidate.token_ids) <= budget:
+            low = middle
+            best = candidate
+        else:
+            high = middle - 1
+
+    # Token boundaries can make a partial UTF-8/codepoint prefix less useful
+    # than its neighboring prefix.  Walk down only after binary search so the
+    # returned request is always valid even with a non-monotonic tokenizer.
+    while low > 0 and len(best.token_ids) > budget:
+        low -= 1
+        best = evaluate(low)
+    if len(best.token_ids) > budget:
+        raise PromptSizingError("token fitter could not produce a valid padding prefix")
+
+    offsets = _fact_offsets(best.text, protected_facts)
+    token_digest = hashlib.sha256(
+        json.dumps(best.token_ids, separators=(",", ":")).encode("ascii")
+    ).hexdigest()
+    final_messages = _replace_padding(source_messages, padding_marker,
+                                      padding[:low], [0])
+    return PromptFit(
+        messages=final_messages,
+        rendered_text=best.text,
+        token_ids=best.token_ids,
+        token_count=len(best.token_ids),
+        desired_occupancy=desired_occupancy,
+        generation_reserve=generation_reserve,
+        padding_characters=low,
+        template_id=best.template_id,
+        tokenizer_id=best.tokenizer_id,
+        fact_offsets=offsets,
+        request_token_sha256=token_digest,
+    )
 
 REQUIRED_TIMING = (
     "prompt_tokens", "completion_tokens", "prompt_us", "decode_us",

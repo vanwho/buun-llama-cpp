@@ -89,7 +89,8 @@ class PagerSoakContextTests(unittest.TestCase):
             summary = json.loads((pathlib.Path(directory) / "run-summary.json").read_text())
             self.assertEqual(22016, summary["context"]["resolved"])
             self.assertEqual("acceptance", summary["context"]["mode"])
-            self.assertEqual(10752, summary["prompt"]["synthetic_context_words"])
+            self.assertEqual("not_run_dry_run", summary["prompt"]["token_sizing"])
+            self.assertIsNone(summary["prompt"]["occupied_prompt_tokens"])
 
     def test_sub_ceiling_soak_requires_diagnostic_mode(self) -> None:
         with tempfile.TemporaryDirectory() as directory, patch.object(soak.sys, "argv", [
