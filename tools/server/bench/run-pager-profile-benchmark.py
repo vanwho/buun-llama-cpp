@@ -375,14 +375,14 @@ def corpus(variant: str) -> dict[str, object]:
     if corpus_path and corpus_path.exists():
         try:
             frozen = json.loads(corpus_path.read_text())
-            return {"schema": CORPUS_SCHEMA, "name": "pager-corpus-v3", "variant": variant,
+            return {"schema": frozen.get("schema", CORPUS_SCHEMA), "name": frozen.get("schema", CORPUS_SCHEMA), "variant": variant,
                     "description": description, "path": str(corpus_path),
                     "corpus_hash": frozen["corpus_hash"], "cases": len(frozen["cases"]),
                     "model_sha256": frozen["model_sha256"], "tokenizer_sha256": frozen["tokenizer_sha256"],
                     "expected_answers_status": "frozen"}
         except (OSError, KeyError, TypeError, json.JSONDecodeError):
             pass
-    return {"schema": CORPUS_SCHEMA, "name": "pager-corpus-v3", "variant": variant,
+    return {"schema": CORPUS_SCHEMA, "name": CORPUS_SCHEMA, "variant": variant,
             "description": description, "path": str(corpus_path) if corpus_path else None,
             "corpus_hash": None, "cases": 0, "model_sha256": None, "tokenizer_sha256": None,
             "expected_answers_status": "not_configured"}
