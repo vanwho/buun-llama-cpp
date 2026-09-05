@@ -327,6 +327,20 @@ void llama_kv_cache_iswa::seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_ds
     kv_swa ->seq_cp(seq_id_src, seq_id_dst, p0, p1);
 }
 
+bool llama_kv_cache_iswa::try_seq_cp(
+        llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
+    const iswa_forwarded_op forwarded(kv_base.get(), kv_swa.get(),
+            iswa_edit_binding(kv_base.get(), kv_swa.get(), vbr_operation_kind::sequence_edit,
+                              vbr_operation_class::state_api, seq_id_dst, p0, p1));
+    const bool base = kv_base->try_seq_cp(seq_id_src, seq_id_dst, p0, p1);
+    const bool swa  = kv_swa ->try_seq_cp(seq_id_src, seq_id_dst, p0, p1);
+    if (!base || !swa) {
+        (void) kv_base->seq_rm_transient(seq_id_dst, -1, -1);
+        (void) kv_swa ->seq_rm_transient(seq_id_dst, -1, -1);
+    }
+    return base && swa;
+}
+
 bool llama_kv_cache_iswa::try_seq_cp_transient(
         llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
     const iswa_forwarded_op forwarded(kv_base.get(), kv_swa.get(),
@@ -334,6 +348,10 @@ bool llama_kv_cache_iswa::try_seq_cp_transient(
                               vbr_operation_class::state_api, seq_id_dst, p0, p1));
     const bool base = kv_base->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1);
     const bool swa  = kv_swa ->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1);
+    if (!base || !swa) {
+        (void) kv_base->seq_rm_transient(seq_id_dst, -1, -1);
+        (void) kv_swa ->seq_rm_transient(seq_id_dst, -1, -1);
+    }
     return base && swa;
 }
 

@@ -194,8 +194,8 @@ bool llama_memory_hybrid_iswa::try_seq_cp(
         return true;
     }
 
-    const bool removed_recr = mem_recr->seq_rm(seq_id_dst, -1, -1);
-    const bool removed_attn = mem_attn->seq_rm(seq_id_dst, -1, -1);
+    const bool removed_recr = mem_recr->seq_rm_transient(seq_id_dst, -1, -1);
+    const bool removed_attn = mem_attn->seq_rm_transient(seq_id_dst, -1, -1);
     GGML_ASSERT(removed_recr && removed_attn);
     GGML_UNUSED(removed_recr);
     GGML_UNUSED(removed_attn);
@@ -212,7 +212,7 @@ bool llama_memory_hybrid_iswa::try_seq_cp_transient(
         return true;
     }
 
-    const bool removed_recr = mem_recr->seq_rm(seq_id_dst, -1, -1);
+    const bool removed_recr = mem_recr->seq_rm_transient(seq_id_dst, -1, -1);
     const bool removed_attn = mem_attn->seq_rm_transient(seq_id_dst, -1, -1);
     GGML_ASSERT(removed_recr && removed_attn);
     GGML_UNUSED(removed_recr);

@@ -361,6 +361,9 @@ bool llama_memory_hybrid::try_seq_cp(
         return false;
     }
     const bool result = mem_attn->try_seq_cp(seq_id_src, seq_id_dst, p0, p1);
+    if (!result) {
+        (void) mem_recr->seq_rm_transient(seq_id_dst, -1, -1);
+    }
     mutation.finish(result);
     return result;
 }
@@ -377,6 +380,9 @@ bool llama_memory_hybrid::try_seq_cp_transient(
         return false;
     }
     const bool result = mem_attn->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1);
+    if (!result) {
+        (void) mem_recr->seq_rm_transient(seq_id_dst, -1, -1);
+    }
     mutation.finish(result);
     return result;
 }

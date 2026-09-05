@@ -231,6 +231,8 @@ struct llama_kv_pager_mutation {
     // legacy unchecked form used by observers; runtime mutations bind this to
     // the table snapshot they are about to edit.
     uint64_t expected_epoch = 0;
+    // Stage completed write-frontier pin release with the mutation.
+    bool release_sequence_pins = false;
 };
 
 bool llama_kv_pager_plan(
