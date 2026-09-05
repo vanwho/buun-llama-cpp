@@ -610,3 +610,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-19-03`
 - Commit at update: `8a7ecb4e6`
 - Summary: Wired the post-attention live residency boundary with layer-major GGML transfers, canonical host reads, synchronous completion/recheck, pool reconciliation, and deterministic cold-page selection; focused CUDA build/tests pass, while the occupied RTX 4080 deferred the live Qwen round trip.
+
+## 2026-09-05T11:09:59+00:00 — 19-04 — done
+
+- Branch: `codex/task-19-04`
+- Commit at update: `5f020d6d7`
+- Summary: Extended direct Turbo4 paging to native MTP verification for bounded 1-3 query tokens with explicit query/head/page-mass/partial strides; CUDA and routing regressions pass, live model checkpoint deferred.
