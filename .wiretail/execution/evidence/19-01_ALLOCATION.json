@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "task": "19-01",
+  "result": "pass_local_deferred_live",
+  "objective": "preallocation full-context ledger and sole bounded target GPU backing",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "repository_head": "037992eda90ce5575b9e467cdcc8c338b20a38a8",
+    "worktree": "dirty_expected_task_changes",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": null,
+    "model_sha256_status": "not_measured_live",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "gpu_total_mib": 16376,
+    "gpu_free_mib_at_check": 1128,
+    "build": "build-cuda"
+  },
+  "implementation": {
+    "geometry_before_target_allocation": true,
+    "logical_cells_retain_resolved_context": true,
+    "bounded_target_physical_slab": true,
+    "pager_borrows_cache_slab": true,
+    "duplicate_full_target_gpu_backing": false,
+    "native_mtp_independent_reservation": true,
+    "checked_layer_ordinal_map": true,
+    "post_allocation_physical_cap_reconciliation": true
+  },
+  "local_verification": [
+    {"command": "cmake --build build-cuda --target test-cache-budget test-kv-pager test-kv-residency test-kv-policy -j2", "status": "pass"},
+    {"command": "build-cuda/bin/test-cache-budget", "status": "pass"},
+    {"command": "build-cuda/bin/test-kv-pager", "status": "pass"},
+    {"command": "build-cuda/bin/test-kv-residency", "status": "pass"},
+    {"command": "build-cuda/bin/test-kv-policy", "status": "pass"},
+    {"command": "git diff --check", "status": "pass"}
+  ],
+  "deferred_verification": {
+    "status": "not_run_hardware_isolation",
+    "required": true,
+    "reason": "RTX 4080 had 1128 MiB free and was not safe to disturb",
+    "command": "LD_LIBRARY_PATH=build-cuda-test/bin build-cuda-test/bin/test-kv-pager-model --model /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf --mtp native",
+    "paired_control": "--mtp off",
+    "required_measurements": ["logical_context_262144", "GPU_MTP_rows", "target_physical_bytes", "ledger_categories", "short_all_fit_generation"]
+  },
+  "handoff": ".wiretail/execution/handoffs/19-01.md"
+}

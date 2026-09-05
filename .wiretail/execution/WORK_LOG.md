@@ -592,3 +592,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-18-06`
 - Commit at update: `0797c3b83`
 - Summary: Repaired native MTP target-only restore and canonical rollback trims; added synthetic Qwen4 recovery coverage and F5 off/native driver controls. CPU/CUDA builds, Qwen4 synthetic tests, affected CTest, and deterministic F5 passed; live 27B parity/full GPU MTP residency deferred due occupied RTX 4080.
+
+## 2026-09-05T08:47:09+00:00 — 19-01 — done
+
+- Branch: `codex/task-19-01`
+- Commit at update: `037992eda`
+- Summary: Preallocation geometry and admission now precede selective/exact target cache construction; logical cells remain full-context while one bounded cache-owned Turbo4 slab is borrowed by pager/residency, with checked layer mapping and native-MTP ledger separation. Focused CUDA build/tests and diff checks pass; live Qwen3.8-27B 262144 allocation checkpoint deferred for GPU isolation.
