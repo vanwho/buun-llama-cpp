@@ -1,0 +1,73 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "18-04",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "live_telemetry_boundary_and_metric_provenance",
+  "created_utc": "2026-09-05T07:41:05Z",
+  "provenance": {
+    "source_commit": "148a47d4460f9d08e39720d921c6d27c52b9fddc",
+    "source_diff_sha256": "b41f7aa7b84b2eee629155b5d360e71498d679dba20ff3d1c4baee2f262c2061",
+    "bundle_manifest_sha256": null,
+    "binary": "build-cuda/bin/llama-server",
+    "binary_sha256": "4a0e2291df996c79e130f8b52ac029e14f449b4e1cd452f30b35db47f826e022",
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": null,
+    "config_sha256": null
+  },
+  "checks": [
+    {
+      "name": "atomic snapshot and measured ownership fields compile",
+      "status": "pass",
+      "raw_ids": ["context-source", "server-context-source"]
+    },
+    {
+      "name": "route counts cover prefill decode and MTP verification",
+      "status": "pass",
+      "raw_ids": ["execution-source", "execution-test-source"]
+    },
+    {
+      "name": "zero and unknown telemetry contract is deterministic",
+      "status": "pass",
+      "raw_ids": ["contract-source", "adapter-test-source"]
+    },
+    {
+      "name": "focused CUDA build and tests",
+      "status": "pass",
+      "raw_ids": ["built-server", "execution-test-source"]
+    },
+    {
+      "name": "authenticated live metrics scrape",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "ownership": "requested/admitted/allocated/valid/selected fields are exported from admission, realized allocation, residency, and execution metadata",
+    "mtp": "native companion context memory_breakdown supplies observed rows, bytes, codec, and GPU/host classification; pager admission no longer overwrites it",
+    "transfers": "queue, wait, and copy microseconds use scheduler, fence, attention-copy, and residency-transfer observations; missing fields are not zero-filled",
+    "identity": "snapshot_monotonic_us plus request, slot, config, and reset generations are exported together",
+    "acceptance": "emitted, predicted, accepted, and acceptance_denominator are separate counters"
+  },
+  "raw_index": [
+    {"id": "context-source", "path": "src/llama-context.cpp", "sha256": "fcc9c344e786e7e22941e7f32a5eaa3221ade2eeef212a5b8d57194c84b91609"},
+    {"id": "server-context-source", "path": "tools/server/server-context.cpp", "sha256": "8866478cb7e220ec6474a350d4d9fb20d33227a7759af6c27aad25e12d953d96"},
+    {"id": "execution-source", "path": "src/llama-kv-attention-execution.cpp", "sha256": "e14b28739978a74474399c981c08aa56f69344edc0dae918f0279bb759c0ba99"},
+    {"id": "execution-test-source", "path": "tests/test-kv-attention-execution.cpp", "sha256": "36b93a61e053ae5cbe2a5e0d8aa76e1d2064a812e6d147c61674204605546816"},
+    {"id": "contract-source", "path": "tools/server/bench/pager_benchmark_contract.py", "sha256": "e5cfd7f955550c994fa196b7c18c56f78f86da8b44086749b38bdca744e35c64"},
+    {"id": "adapter-test-source", "path": "tools/server/bench/test_pager_benchmark_adapter.py", "sha256": "feb469c150776e770a7c7d746965a043431602d7a391adcf3a13cbc5752493ca"},
+    {"id": "built-server", "path": "build-cuda/bin/llama-server", "sha256": "4a0e2291df996c79e130f8b52ac029e14f449b4e1cd452f30b35db47f826e022"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_scrape": "http://127.0.0.1:8080/metrics returned HTTP 401; no benchmark credential was configured",
+    "model_and_corpus": "not needed for deterministic local implementation checks"
+  },
+  "resume": {
+    "command": ["cmake", "--build", "build-cuda", "--target", "llama-server", "-j2"],
+    "next_task": "18-05",
+    "secrets_omitted": true
+  }
+}

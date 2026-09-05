@@ -574,3 +574,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-18-03`
 - Commit at update: `715202b8e`
 - Summary: Implemented resumable progress-aware campaigns; 45 tests pass and live interruption/resume checkpoints complete without duplicate rows.
+
+## 2026-09-05T07:42:35+00:00 — 18-04 — done
+
+- Branch: `codex/task-18-04`
+- Commit at update: `148a47d44`
+- Summary: Implemented measured KV/MTP telemetry snapshots, phase-separated route and real transfer timing counters, explicit ownership/acceptance fields, Prometheus export, and deterministic no-estimate validation; focused CUDA/Python checks pass; live authenticated scrape deferred.
