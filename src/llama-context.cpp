@@ -822,12 +822,51 @@ llama_context::~llama_context() {
 }
 
 llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
-        const llama_context * native_mtp_context) const noexcept {
+        const llama_context * native_mtp_context,
+        uint64_t request_generation,
+        uint64_t slot_generation,
+        uint64_t config_generation) const noexcept {
     llama_kv_pager_metrics_snapshot result;
     result.enabled = kv_pager.enabled();
     result.mode = kv_pager.mode;
+    result.snapshot_monotonic_us = uint64_t(std::max<int64_t>(0, ggml_time_us()));
+    result.request_generation = request_generation;
+    result.slot_generation = slot_generation;
+    result.config_generation = config_generation;
+    result.reset_epoch = kv_attention_execution.metrics_reset_epoch();
     result.target_type_k = pager_target_type_k_;
     result.target_type_v = pager_target_type_v_;
+    const char * fallback_backend = nullptr;
+    const char * accelerator_backend = nullptr;
+    for (const auto & backend : backend_ptrs) {
+        const auto device = ggml_backend_get_device(backend);
+        if (device == nullptr) {
+            continue;
+        }
+        const auto registration = ggml_backend_dev_backend_reg(device);
+        if (registration != nullptr) {
+            const char * name = ggml_backend_reg_name(registration);
+            if (fallback_backend == nullptr) {
+                fallback_backend = name;
+            }
+            if (ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_GPU ||
+                    ggml_backend_dev_type(device) == GGML_BACKEND_DEVICE_TYPE_IGPU) {
+                accelerator_backend = name;
+                break;
+            }
+        }
+    }
+    try {
+        if (accelerator_backend != nullptr) {
+            result.target_backend = accelerator_backend;
+        } else if (fallback_backend != nullptr) {
+            result.target_backend = fallback_backend;
+        }
+    } catch (...) {
+        // Telemetry is best-effort and noexcept: retain the explicit
+        // not_configured value if a backend name cannot be copied.
+        result.target_backend = "not_configured";
+    }
     result.route = kv_attention_execution.route();
     result.table_epoch = kv_attention_execution.table_epoch();
     result.representation_epoch = kv_attention_execution.representation_epoch();
@@ -862,10 +901,11 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
             all_gpu = all_gpu && gpu;
         }
         result.mtp_bytes = bytes;
-        result.mtp_backend = saw_context && bytes != 0 && all_gpu &&
+        result.mtp_backend = !saw_context ? "not_measured" :
+            all_gpu && bytes != 0 &&
                 result.mtp_type_k == GGML_TYPE_TURBO4_0 &&
                 result.mtp_type_v == GGML_TYPE_TURBO4_0
-            ? "gpu" : "unsupported";
+            ? "gpu" : all_gpu ? "gpu_unqualified" : "host_or_mixed";
     }
 
     if (kv_attention_telemetry) {
@@ -881,16 +921,21 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.page_tokens = snapshot.geometry.page_tokens;
     result.logical_pages = snapshot.logical_page_count;
     result.physical_page_capacity = snapshot.physical_page_count;
+    result.physical_pool_capacity_bytes = snapshot.physical_bytes;
     result.resident_pages = 0;
     result.page_bytes = snapshot.admission.target_page_bytes;
     result.page_charge_bytes = snapshot.admission.page_charge_bytes;
     result.target_bytes = snapshot.realized_bytes;
+    result.target_allocated_bytes = snapshot.realized_bytes;
+    result.live_allocation_peak_bytes = snapshot.realized_bytes;
     result.usable_device_bytes = snapshot.admission.usable_device_bytes;
     result.charged_bytes = snapshot.admission.charged_bytes;
     result.reserved_bytes = snapshot.admission.reserved_bytes;
     result.headroom_bytes = snapshot.admission.headroom_bytes;
-    result.mtp_rows = snapshot.mtp_rows;
-    result.mtp_bytes = snapshot.admission.mtp_bytes;
+    // Native-MTP fields above are observed from the companion context. The
+    // pager admission result is only a requested/reserved estimate and must
+    // never replace an observed allocation (or invent one when no companion
+    // context was supplied).
     result.requested_context_tokens = snapshot.admission.requested_context_tokens;
     result.resolved_context_tokens = snapshot.admission.resolved_context_tokens;
     result.accepted_target_tokens = snapshot.admission.accepted_target_tokens;
@@ -906,11 +951,25 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
 
     const auto residency = kv_pager_owner->residency();
     for (const auto & page : residency.pages()) {
+        const uint64_t valid_rows = page.id.position_begin >= 0 && page.id.position_end > page.id.position_begin
+            ? uint64_t(page.id.position_end - page.id.position_begin) : 0;
+        const uint64_t valid_bytes = snapshot.geometry.page_tokens != 0 &&
+                valid_rows <= snapshot.geometry.page_tokens &&
+                (valid_rows == 0 || snapshot.geometry.page_bytes <= UINT64_MAX / valid_rows)
+            ? (snapshot.geometry.page_bytes * valid_rows) / snapshot.geometry.page_tokens : 0;
         if (page.physical_slot != UINT32_MAX) {
             ++result.resident_pages;
+            result.target_valid_rows = result.target_valid_rows > UINT64_MAX - valid_rows
+                ? UINT64_MAX : result.target_valid_rows + valid_rows;
+            result.target_valid_bytes = result.target_valid_bytes > UINT64_MAX - valid_bytes
+                ? UINT64_MAX : result.target_valid_bytes + valid_bytes;
         }
         if (page.host_valid) {
             ++result.host_pages;
+            result.host_valid_rows = result.host_valid_rows > UINT64_MAX - valid_rows
+                ? UINT64_MAX : result.host_valid_rows + valid_rows;
+            result.host_valid_bytes = result.host_valid_bytes > UINT64_MAX - valid_bytes
+                ? UINT64_MAX : result.host_valid_bytes + valid_bytes;
         }
     }
     if (const auto * host = kv_pager_owner->host_catalog()) {
@@ -918,7 +977,10 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
         result.host_pageable_bytes = host_snapshot.pageable_bytes;
         result.host_metadata_bytes = host_snapshot.metadata_bytes;
         result.host_pinned_bytes = host_snapshot.pinned_bytes;
+        // The catalog's pageable charge is the authoritative host allocation;
+        // valid bytes above describe only committed rows in that allocation.
     }
+    result.target_resident_bytes = kv_pager_owner->resident_bytes();
     result.transfers = kv_pager_owner->transfer_counters();
     result.h2d_transfers = kv_pager_owner->h2d_counters();
     result.d2h_transfers = kv_pager_owner->d2h_counters();
@@ -1637,10 +1699,15 @@ void llama_context::synchronize() {
     }
 
     const bool kv_attention_wait = kv_attention_execution.in_flight_graphs() != 0;
+    const int64_t wait_start_us = ggml_time_us();
     if (kv_attention_wait) {
         kv_attention_execution.record_wait();
     }
     ggml_backend_sched_synchronize(sched.get());
+    if (kv_attention_wait) {
+        kv_attention_execution.record_wait_time_us(uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - wait_start_us)));
+    }
 
     // K/V graph writes are asynchronous on GPU backends.  Host publication
     // therefore belongs after the scheduler fence, otherwise a completed
@@ -1730,9 +1797,11 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         const llama_ubatch & ubatch,
         llama_memory_context_i * mctx,
         llm_graph_type gtype) {
-    const auto phase = ubatch.n_seq_tokens == 1
-        ? llama_kv_attention_execution_phase::decode
-        : llama_kv_attention_execution_phase::prefill;
+    const auto phase = kv_attention_mtp_verification_
+        ? llama_kv_attention_execution_phase::mtp_verify
+        : ubatch.n_seq_tokens == 1
+            ? llama_kv_attention_execution_phase::decode
+            : llama_kv_attention_execution_phase::prefill;
     const uint64_t representation_epoch = mctx ? mctx->get_vbr_epoch() : 0;
 
     uint64_t shape_epoch = 1469598103934665603ull;
@@ -6684,6 +6753,7 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
         sample.page_count = input->direct_telemetry_pages.size();
         sample.d2h_bytes = bytes;
         sample.d2h_time_us = d2h_time_us;
+        kv_attention_execution.record_copy_time_us(d2h_time_us);
         const auto status = kv_attention_telemetry->publish_completed(
                 input->direct_telemetry_snapshot, sample);
         kv_attention_telemetry->record_observe_overhead(uint64_t(std::max<int64_t>(
@@ -6715,7 +6785,10 @@ ggml_status llama_context::graph_compute(
         set_n_threads_fn.second(set_n_threads_fn.first, n_threads);
     }
 
+    const int64_t queue_start_us = ggml_time_us();
     auto status = ggml_backend_sched_graph_compute_async(sched.get(), gf);
+    kv_attention_execution.record_queue_time_us(uint64_t(std::max<int64_t>(
+            0, ggml_time_us() - queue_start_us)));
     if (status != GGML_STATUS_SUCCESS) {
         LLAMA_LOG_ERROR("%s: ggml_backend_sched_graph_compute_async failed with error %d\n", __func__, status);
     }

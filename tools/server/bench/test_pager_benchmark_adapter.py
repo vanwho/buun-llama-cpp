@@ -59,7 +59,8 @@ def telemetry() -> dict[str, object]:
         "router_explore": 2,
         "pin_recent_tokens": 512,
         "prefetch_depth": 2,
-        "route": "selected",
+        "route": "selected direct",
+        "target_backend": "CUDA0",
         "mtp_backend": "gpu",
         "target_type_k": "q4_0",
         "target_type_v": "q4_0",
@@ -75,11 +76,45 @@ def telemetry() -> dict[str, object]:
         "d2h_aligned_bytes": 128,
         "h2d_useful_bytes": 200,
         "h2d_aligned_bytes": 256,
-        "attention_publish_time_us": 7,
-        "attention_d2h_time_us": 8,
+        "queue_time_us": 7,
+        "copy_time_us": 8,
+        "wait_time_us": 9,
         "waits": 1,
-        "resident_pages": 4,
+        "selected_page_count": 4,
+        "target_valid_rows": 1024,
+        "target_valid_bytes": 4096,
+        "target_resident_bytes": 4096,
+        "physical_pool_capacity_bytes": 16384,
+        "target_allocated_bytes": 16384,
+        "live_allocation_peak_bytes": 16384,
+        "host_valid_rows": 512,
+        "host_valid_bytes": 2048,
+        "emitted_tokens": 5,
+        "predicted_tokens": 4,
+        "accepted_tokens": 3,
+        "acceptance_denominator": 4,
+        "prefill_dense_routes": 1,
+        "prefill_reference_routes": 0,
+        "prefill_direct_routes": 0,
+        "decode_dense_routes": 0,
+        "decode_reference_routes": 0,
+        "decode_direct_routes": 2,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_reference_routes": 1,
+        "mtp_verify_direct_routes": 0,
+        "requested_tokens": 16384,
+        "admitted_tokens": 1024,
+        "allocated_bytes": 16384,
+        "valid_rows": 1024,
+        "valid_bytes": 4096,
+        "selected_pages": 4,
+        "snapshot_monotonic_us": 123456,
+        "request_generation": 2,
+        "slot_generation": 3,
+        "config_generation": 1,
+        "reset_epoch": 1,
         "table_epoch": 2,
+        "table_epoch_changes": 1,
         "host_pageable_bytes": 4096,
         "host_pinned_bytes": 1024,
         "mode": "selective",
@@ -120,7 +155,7 @@ class AdapterContractTests(unittest.TestCase):
 
     def test_missing_queue_and_mtp_not_present_are_explicit(self) -> None:
         missing_queue = telemetry()
-        missing_queue.pop("attention_publish_time_us")
+        missing_queue.pop("queue_time_us")
         self.assertIn("queue_us", adapter.missing_pager_fields(missing_queue))
 
         not_present = telemetry()
@@ -128,6 +163,20 @@ class AdapterContractTests(unittest.TestCase):
         envelope = adapter.pager_envelope("short", not_present)
         self.assertEqual(envelope["mtp_placement"], "not_present")
         self.assertEqual(envelope["mtp_backend"], "not_present")
+
+        errors = adapter.validate_live_telemetry(not_present)
+        self.assertIn("mtp_rows_fabricated_without_mtp", errors)
+
+    def test_measured_fields_do_not_use_estimate_or_counter_substitutes(self) -> None:
+        envelope = adapter.pager_envelope("short", telemetry())
+        self.assertEqual(envelope["hot_tokens"], 1024)
+        self.assertEqual(envelope["queue_us"], 7)
+        self.assertEqual(envelope["copy_us"], 8)
+        self.assertEqual(envelope["wait_us"], 9)
+        self.assertEqual(envelope["selected_page_count"], 4)
+        self.assertEqual(envelope["peak_vram_bytes"], 16384)
+        self.assertEqual(envelope["steady_vram_bytes"], 4096)
+        self.assertEqual(envelope["target_placement"], "CUDA0")
 
     def test_dry_run_derives_v4_context_and_acceptance_mode(self) -> None:
         with tempfile.TemporaryDirectory() as directory, \
@@ -246,7 +295,7 @@ class AdapterContractTests(unittest.TestCase):
 
     def test_missing_queue_restores_and_verifies_prior_service(self) -> None:
         missing_queue = telemetry()
-        missing_queue.pop("attention_publish_time_us")
+        missing_queue.pop("queue_time_us")
         with tempfile.TemporaryDirectory() as directory:
             output = pathlib.Path(directory)
             restoration = {"attempted": True, "state": "restored", "profile": "prior", "exit_code": 0}

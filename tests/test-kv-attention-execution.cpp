@@ -127,6 +127,29 @@ static void test_routes_epochs_and_fences() {
     execution.complete_one_graph();
     execution.complete_one_graph();
     assert(execution.in_flight_graphs() == 0);
+
+    const auto & route_metrics = execution.metrics();
+    assert(route_metrics.prefill_routes.selected_reference == 4);
+    assert(route_metrics.decode_routes.selected_direct == 2);
+    assert(route_metrics.selected_page_count == 2);
+    const auto mtp = execution.prepare(selected_decode,
+            llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch);
+    assert(mtp.route == llama_kv_attention_execution_route::selected_reference);
+    assert(execution.metrics().mtp_verify_routes.selected_reference == 1);
+    execution.complete_one_graph();
+    assert(llama_kv_attention_execution_phase_name(
+            llama_kv_attention_execution_phase::mtp_verify) == std::string("mtp_verify"));
+
+    execution.record_wait_time_us(7);
+    execution.record_copy_time_us(11);
+    execution.record_queue_time_us(13);
+    assert(execution.metrics().wait_time_us == 7);
+    assert(execution.metrics().copy_time_us == 11);
+    assert(execution.metrics().queue_time_us == 13);
+    const auto reset_epoch = execution.metrics_reset_epoch();
+    execution.reset_metrics();
+    assert(execution.metrics_reset_epoch() == reset_epoch + 1);
+    assert(execution.metrics().wait_time_us == 0);
 }
 
 static void test_fallbacks_and_graph_key() {

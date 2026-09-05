@@ -27,6 +27,7 @@ from pager_benchmark_contract import (
     corpus_context_ceiling,
     resolve_context,
     validate_corpus,
+    validate_live_telemetry,
 )
 
 
@@ -48,6 +49,19 @@ PAGER_FIELDS = (
     "queue_us", "copy_us", "wait_us", "selected_page_count",
     "attention_table_epoch_changes", "peak_vram_bytes", "steady_vram_bytes",
     "peak_ram_bytes", "steady_ram_bytes", "transfer_ring_bytes",
+    # Explicit live-state fields.  The legacy normalized names above remain
+    # for corpus compatibility, but each maps to a measured field below.
+    "snapshot_monotonic_us", "request_generation", "slot_generation",
+    "config_generation", "reset_epoch", "target_backend", "target_type_v",
+    "physical_pool_capacity_bytes", "target_resident_bytes", "target_valid_rows",
+    "target_valid_bytes", "host_valid_rows", "host_valid_bytes",
+    "target_allocated_bytes", "live_allocation_peak_bytes", "emitted_tokens",
+    "predicted_tokens", "accepted_tokens", "acceptance_denominator",
+    "prefill_dense_routes", "prefill_reference_routes", "prefill_direct_routes",
+    "decode_dense_routes", "decode_reference_routes", "decode_direct_routes",
+    "mtp_verify_dense_routes", "mtp_verify_reference_routes", "mtp_verify_direct_routes",
+    "requested_tokens", "admitted_tokens", "allocated_bytes", "valid_rows",
+    "valid_bytes", "selected_pages",
 )
 
 TRANSIENT_OVERRIDE_NAMES = (
@@ -447,12 +461,12 @@ def read_server_metrics(endpoint: str) -> tuple[dict[str, object] | None, str | 
 
     values: dict[str, object] = {}
     mode = None
-    pattern = re.compile(r"^llamacpp:kv_pager_([a-zA-Z0-9_]+)(?:\{(mode|route|backend|type)=\"([^\"]+)\"\})?\s+([-+0-9.eE]+)$")
+    pattern = re.compile(r"^llamacpp:kv_pager_([a-zA-Z0-9_]+)(?:\{[a-zA-Z0-9_]+=\"([^\"]+)\"\})?\s+([-+0-9.eE]+)$")
     for line in body.splitlines():
         match = pattern.match(line)
         if not match:
             continue
-        name, label_name, label_value, raw = match.groups()
+        name, label_value, raw = match.groups()
         if name == "mode":
             mode = label_value
             continue
@@ -461,7 +475,7 @@ def read_server_metrics(endpoint: str) -> tuple[dict[str, object] | None, str | 
         except ValueError:
             continue
         values[name] = value
-        if label_name and label_value:
+        if label_value:
             values[name] = label_value
     if not values:
         return None, None
@@ -477,7 +491,7 @@ def pager_envelope(variant: str, telemetry: dict[str, object] | None = None) -> 
     telemetry = telemetry or {}
     field_map = {
         "page_size_tokens": "page_tokens", "logical_tokens": "context_tokens",
-        "hot_tokens": "target_bytes", "host_budget_bytes": "host_budget_bytes",
+        "hot_tokens": "target_valid_rows", "host_budget_bytes": "host_budget_bytes",
         "vram_budget_bytes": "vram_budget_bytes", "router_k": "router_top_k",
         "exploration": "router_explore", "recent_window_tokens": "pin_recent_tokens",
         "prefetch_depth": "prefetch_depth", "faults": "faults",
@@ -485,12 +499,29 @@ def pager_envelope(variant: str, telemetry: dict[str, object] | None = None) -> 
         "canceled_stale_transfers": "attention_stale_dropped",
         "d2h_useful_bytes": "d2h_useful_bytes", "d2h_actual_bytes": "d2h_aligned_bytes",
         "h2d_useful_bytes": "h2d_useful_bytes", "h2d_actual_bytes": "h2d_aligned_bytes",
-        "queue_us": "attention_publish_time_us", "copy_us": "attention_d2h_time_us",
-        "wait_us": "waits", "selected_page_count": "resident_pages",
-        "attention_table_epoch_changes": "table_epoch", "peak_vram_bytes": "target_bytes",
-        "steady_vram_bytes": "target_bytes", "peak_ram_bytes": "host_pageable_bytes",
+        "queue_us": "queue_time_us", "copy_us": "copy_time_us",
+        "wait_us": "wait_time_us", "selected_page_count": "selected_page_count",
+        "attention_table_epoch_changes": "table_epoch_changes", "peak_vram_bytes": "live_allocation_peak_bytes",
+        "steady_vram_bytes": "target_resident_bytes", "peak_ram_bytes": "host_pageable_bytes",
         "steady_ram_bytes": "host_pageable_bytes", "transfer_ring_bytes": "host_pinned_bytes",
-        "target_placement": "route", "mtp_placement": "mtp_backend", "kv_codec": "target_type_k",
+        "target_placement": "target_backend", "mtp_placement": "mtp_backend", "kv_codec": "target_type_k",
+        "snapshot_monotonic_us": "snapshot_monotonic_us", "request_generation": "request_generation",
+        "slot_generation": "slot_generation", "config_generation": "config_generation",
+        "reset_epoch": "reset_epoch", "target_backend": "target_backend",
+        "target_type_v": "target_type_v", "physical_pool_capacity_bytes": "physical_pool_capacity_bytes",
+        "target_resident_bytes": "target_resident_bytes", "target_valid_rows": "target_valid_rows",
+        "target_valid_bytes": "target_valid_bytes", "host_valid_rows": "host_valid_rows",
+        "host_valid_bytes": "host_valid_bytes", "target_allocated_bytes": "target_allocated_bytes",
+        "live_allocation_peak_bytes": "live_allocation_peak_bytes", "emitted_tokens": "emitted_tokens",
+        "predicted_tokens": "predicted_tokens", "accepted_tokens": "accepted_tokens",
+        "acceptance_denominator": "acceptance_denominator", "prefill_dense_routes": "prefill_dense_routes",
+        "prefill_reference_routes": "prefill_reference_routes", "prefill_direct_routes": "prefill_direct_routes",
+        "decode_dense_routes": "decode_dense_routes", "decode_reference_routes": "decode_reference_routes",
+        "decode_direct_routes": "decode_direct_routes", "mtp_verify_dense_routes": "mtp_verify_dense_routes",
+        "mtp_verify_reference_routes": "mtp_verify_reference_routes", "mtp_verify_direct_routes": "mtp_verify_direct_routes",
+        "requested_tokens": "requested_tokens", "admitted_tokens": "admitted_tokens",
+        "allocated_bytes": "allocated_bytes", "valid_rows": "valid_rows",
+        "valid_bytes": "valid_bytes", "selected_pages": "selected_pages",
     }
     for field in PAGER_FIELDS:
         source = field_map.get(field)
@@ -509,6 +540,7 @@ def pager_envelope(variant: str, telemetry: dict[str, object] | None = None) -> 
         "mtp_type_v": telemetry.get("mtp_type_v"),
         "target_type_k": telemetry.get("target_type_k"),
         "target_type_v": telemetry.get("target_type_v"),
+        "telemetry_validation_errors": validate_live_telemetry(telemetry),
     })
     return values
 
@@ -1020,6 +1052,11 @@ def _main() -> int:
         missing = missing_pager_fields(telemetry_after)
         if missing:
             validation_errors.append("missing_pager_telemetry:" + ",".join(missing))
+        validation_errors.extend(
+            "invalid_pager_telemetry:" + error
+            for error in validate_live_telemetry(telemetry_after)
+            if error != "telemetry_unavailable"
+        )
 
     restoration: dict[str, object] | None = None
     if canonical_rc != 0 or validation_errors:

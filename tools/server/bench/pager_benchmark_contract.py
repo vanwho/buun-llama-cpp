@@ -36,6 +36,58 @@ TIMEOUT_CLASSES = {
 }
 
 
+LIVE_TELEMETRY_NUMERIC_FIELDS = (
+    "snapshot_monotonic_us", "request_generation", "slot_generation",
+    "config_generation", "reset_epoch", "context_tokens", "page_tokens",
+    "target_valid_rows", "target_valid_bytes", "target_resident_bytes",
+    "physical_pool_capacity_bytes", "target_allocated_bytes",
+    "live_allocation_peak_bytes", "host_valid_rows", "host_valid_bytes",
+    "mtp_rows", "mtp_bytes", "emitted_tokens", "predicted_tokens",
+    "accepted_tokens", "acceptance_denominator",
+)
+
+
+def validate_live_telemetry(value: Mapping[str, Any] | None) -> list[str]:
+    """Validate invariants of one atomic server pager snapshot.
+
+    Missing values remain missing to callers; this validator only rejects a
+    value that is present but contradicts its unit, provenance, or snapshot
+    identity.  In particular, native-MTP admission estimates are not accepted
+    as realized MTP allocation evidence.
+    """
+    if value is None:
+        return ["telemetry_unavailable"]
+    if not isinstance(value, Mapping):
+        return ["telemetry_not_object"]
+    errors: list[str] = []
+    for field in LIVE_TELEMETRY_NUMERIC_FIELDS:
+        item = value.get(field)
+        if item is not None and (not isinstance(item, (int, float)) or isinstance(item, bool)):
+            errors.append(f"{field}_not_numeric")
+        elif isinstance(item, (int, float)) and item < 0:
+            errors.append(f"{field}_negative")
+
+    timestamp = value.get("snapshot_monotonic_us")
+    if isinstance(timestamp, (int, float)) and timestamp == 0:
+        errors.append("snapshot_timestamp_unset")
+    if value.get("mtp_backend") == "not_present":
+        for field in ("mtp_rows", "mtp_bytes"):
+            if value.get(field) not in (None, 0):
+                errors.append(f"{field}_fabricated_without_mtp")
+        for field in ("mtp_type_k", "mtp_type_v"):
+            if value.get(field) not in (None, "not_present"):
+                errors.append(f"{field}_fabricated_without_mtp")
+
+    denominator = value.get("acceptance_denominator")
+    predicted = value.get("predicted_tokens")
+    accepted = value.get("accepted_tokens")
+    if isinstance(denominator, (int, float)) and isinstance(predicted, (int, float)) and denominator != predicted:
+        errors.append("acceptance_denominator_mismatch")
+    if isinstance(accepted, (int, float)) and isinstance(denominator, (int, float)) and accepted > denominator:
+        errors.append("accepted_tokens_exceed_denominator")
+    return errors
+
+
 class ContextResolutionError(ValueError):
     """Raised when a requested benchmark context cannot be accepted."""
 

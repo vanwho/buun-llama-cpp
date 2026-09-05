@@ -3644,13 +3644,30 @@ public:
                     !params_base.speculative.has_external_mtp_sidecar()) {
                 native_mtp = ctx_dft.get();
             }
-            const auto pager = ctx_tgt->get_kv_pager_metrics(native_mtp);
+            uint64_t slot_generation = 0;
+            for (const auto & slot : slots) {
+                slot_generation = std::max(slot_generation,
+                        slot.slot_session_generation);
+            }
+            const auto pager = ctx_tgt->get_kv_pager_metrics(
+                    native_mtp, telemetry_request_generation,
+                    slot_generation, telemetry_config_generation);
             if (pager.enabled) {
+                const uint64_t copy_time_us = pager.execution.copy_time_us >
+                        UINT64_MAX - pager.transfers.transfer_time_us
+                    ? UINT64_MAX
+                    : pager.execution.copy_time_us + pager.transfers.transfer_time_us;
                 result.pager_metrics = {
                     {"status", "ok"},
                     {"mode", pager.mode == llama_kv_pager_mode::observe ? "observe" :
                               pager.mode == llama_kv_pager_mode::selective ? "selective" :
                               pager.mode == llama_kv_pager_mode::exact ? "exact" : "off"},
+                    {"snapshot_monotonic_us", pager.snapshot_monotonic_us},
+                    {"request_generation", pager.request_generation},
+                    {"slot_generation", pager.slot_generation},
+                    {"config_generation", pager.config_generation},
+                    {"reset_epoch", pager.reset_epoch},
+                    {"target_backend", pager.target_backend},
                     {"target_type_k", ggml_type_name(pager.target_type_k)},
                     {"target_type_v", ggml_type_name(pager.target_type_v)},
                     {"route", llama_kv_attention_execution_route_name(pager.route)},
@@ -3658,6 +3675,7 @@ public:
                     {"mtp_type_k", pager.mtp_type_k == GGML_TYPE_COUNT ? "not_present" : ggml_type_name(pager.mtp_type_k)},
                     {"mtp_type_v", pager.mtp_type_v == GGML_TYPE_COUNT ? "not_present" : ggml_type_name(pager.mtp_type_v)},
                     {"page_capacity", pager.physical_page_capacity},
+                    {"physical_pool_capacity_bytes", pager.physical_pool_capacity_bytes},
                     {"table_epoch", pager.table_epoch},
                     {"representation_epoch", pager.representation_epoch},
                     {"shape_epoch", pager.shape_epoch},
@@ -3665,10 +3683,17 @@ public:
                     {"page_tokens", pager.page_tokens},
                     {"logical_pages", pager.logical_pages},
                     {"resident_pages", pager.resident_pages},
+                    {"target_resident_bytes", pager.target_resident_bytes},
+                    {"target_valid_rows", pager.target_valid_rows},
+                    {"target_valid_bytes", pager.target_valid_bytes},
                     {"host_pages", pager.host_pages},
+                    {"host_valid_rows", pager.host_valid_rows},
+                    {"host_valid_bytes", pager.host_valid_bytes},
                     {"page_bytes", pager.page_bytes},
                     {"page_charge_bytes", pager.page_charge_bytes},
                     {"target_bytes", pager.target_bytes},
+                    {"target_allocated_bytes", pager.target_allocated_bytes},
+                    {"live_allocation_peak_bytes", pager.live_allocation_peak_bytes},
                     {"host_pageable_bytes", pager.host_pageable_bytes},
                     {"host_metadata_bytes", pager.host_metadata_bytes},
                     {"host_pinned_bytes", pager.host_pinned_bytes},
@@ -3681,8 +3706,18 @@ public:
                     {"requested_context_tokens", pager.requested_context_tokens},
                     {"resolved_context_tokens", pager.resolved_context_tokens},
                     {"accepted_target_tokens", pager.accepted_target_tokens},
+                    {"requested_tokens", pager.requested_context_tokens},
+                    {"admitted_tokens", pager.accepted_target_tokens},
+                    {"allocated_bytes", pager.target_allocated_bytes},
+                    {"valid_rows", pager.target_valid_rows},
+                    {"valid_bytes", pager.target_valid_bytes},
                     {"admission_accepted", pager.admission_accepted},
                     {"admission_refusal", pager.admission_refusal},
+                    {"emitted_tokens", metrics.predict.count},
+                    {"predicted_tokens", metrics.n_draft_tokens},
+                    {"accepted_tokens", metrics.n_draft_accepted},
+                    {"acceptance_denominator", metrics.n_draft_tokens},
+                    {"acceptance_verification_steps", metrics.n_draft_verif_steps},
                     {"host_budget_bytes", pager.host_budget_bytes},
                     {"vram_budget_bytes", pager.vram_budget_bytes},
                     {"router_top_k", pager.router_top_k},
@@ -3709,12 +3744,56 @@ public:
                     {"graph_submission_count", pager.execution.graph_submission_count},
                     {"graph_completion_count", pager.execution.graph_completion_count},
                     {"waits", pager.execution.waits},
+                    {"wait_time_us", pager.execution.wait_time_us},
+                    {"copy_time_us", copy_time_us},
+                    {"queue_time_us", pager.execution.queue_time_us},
+                    {"table_epoch_changes", pager.execution.table_epoch_changes},
                     {"table_upload_bytes", pager.execution.table_upload_bytes},
                     {"descriptor_prepare_us", pager.execution.descriptor_prepare_us},
                     {"kernel_us", pager.execution.kernel_us},
                     {"total_token_us", pager.execution.total_token_us},
                     {"scratch_high_water_rows", pager.execution.scratch_high_water_rows},
                     {"scratch_high_water_bytes", pager.execution.scratch_high_water_bytes},
+                    {"selected_page_count", pager.execution.selected_page_count},
+                    {"prefill_route_counts", {
+                        {"dense", pager.execution.prefill_routes.dense},
+                        {"observe", pager.execution.prefill_routes.observe},
+                        {"selected_reference", pager.execution.prefill_routes.selected_reference},
+                        {"selected_direct", pager.execution.prefill_routes.selected_direct},
+                        {"exact_reference", pager.execution.prefill_routes.exact_reference},
+                        {"exact_direct", pager.execution.prefill_routes.exact_direct},
+                        {"refusal", pager.execution.prefill_routes.refusal},
+                    }},
+                    {"decode_route_counts", {
+                        {"dense", pager.execution.decode_routes.dense},
+                        {"observe", pager.execution.decode_routes.observe},
+                        {"selected_reference", pager.execution.decode_routes.selected_reference},
+                        {"selected_direct", pager.execution.decode_routes.selected_direct},
+                        {"exact_reference", pager.execution.decode_routes.exact_reference},
+                        {"exact_direct", pager.execution.decode_routes.exact_direct},
+                        {"refusal", pager.execution.decode_routes.refusal},
+                    }},
+                    {"mtp_verify_route_counts", {
+                        {"dense", pager.execution.mtp_verify_routes.dense},
+                        {"observe", pager.execution.mtp_verify_routes.observe},
+                        {"selected_reference", pager.execution.mtp_verify_routes.selected_reference},
+                        {"selected_direct", pager.execution.mtp_verify_routes.selected_direct},
+                        {"exact_reference", pager.execution.mtp_verify_routes.exact_reference},
+                        {"exact_direct", pager.execution.mtp_verify_routes.exact_direct},
+                        {"refusal", pager.execution.mtp_verify_routes.refusal},
+                    }},
+                    {"prefill_dense_routes", pager.execution.prefill_routes.dense},
+                    {"prefill_reference_routes", pager.execution.prefill_routes.selected_reference + pager.execution.prefill_routes.exact_reference},
+                    {"prefill_direct_routes", pager.execution.prefill_routes.selected_direct + pager.execution.prefill_routes.exact_direct},
+                    {"prefill_exact_routes", pager.execution.prefill_routes.exact_reference + pager.execution.prefill_routes.exact_direct},
+                    {"decode_dense_routes", pager.execution.decode_routes.dense},
+                    {"decode_reference_routes", pager.execution.decode_routes.selected_reference + pager.execution.decode_routes.exact_reference},
+                    {"decode_direct_routes", pager.execution.decode_routes.selected_direct + pager.execution.decode_routes.exact_direct},
+                    {"decode_exact_routes", pager.execution.decode_routes.exact_reference + pager.execution.decode_routes.exact_direct},
+                    {"mtp_verify_dense_routes", pager.execution.mtp_verify_routes.dense},
+                    {"mtp_verify_reference_routes", pager.execution.mtp_verify_routes.selected_reference + pager.execution.mtp_verify_routes.exact_reference},
+                    {"mtp_verify_direct_routes", pager.execution.mtp_verify_routes.selected_direct + pager.execution.mtp_verify_routes.exact_direct},
+                    {"mtp_verify_exact_routes", pager.execution.mtp_verify_routes.exact_reference + pager.execution.mtp_verify_routes.exact_direct},
                     {"exact_plan_waves", pager.execution.exact_plan_waves},
                     {"exact_plan_pages", pager.execution.exact_plan_pages},
                     {"exact_resident_pages", pager.execution.exact_resident_pages},
@@ -5548,6 +5627,12 @@ private:
     std::unique_ptr<server_prompt_cache> prompt_cache;
 
     server_metrics metrics;
+
+    // Telemetry identity is carried with each coherent pager snapshot. The
+    // request generation advances at the decode submission boundary; slot and
+    // configuration generations are read from their owning state below.
+    uint64_t telemetry_request_generation = 0;
+    uint64_t telemetry_config_generation = 1;
 
     // queued prompt stats - llama_decode() is async, so the timing is only valid after a sync
     // note: kept out of server_metrics, which is copied as-is into the task result
@@ -19529,7 +19614,17 @@ private:
         int64_t t_verify_elapsed = 0;
         const std::exception_ptr yield_exception =
             queue_tasks.yield_to_queue_capture_exception([&]() {
-            ret = llama_decode(ctx_tgt, batch_view);
+            const bool mtp_verification =
+                params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
+                batch_view.n_tokens > 1;
+            ctx_tgt->set_kv_attention_mtp_verification(mtp_verification);
+            try {
+                ret = llama_decode(ctx_tgt, batch_view);
+            } catch (...) {
+                ctx_tgt->set_kv_attention_mtp_verification(false);
+                throw;
+            }
+            ctx_tgt->set_kv_attention_mtp_verification(false);
             if (ret == 0 && has_output) {
                 llama_synchronize(ctx_tgt);
             }
@@ -20888,6 +20983,9 @@ private:
     // call before submitting a decode, so that the queued prompt stats can be timed
     void metrics_pre_decode() {
         t_decode_start = ggml_time_us();
+        if (telemetry_request_generation != UINT64_MAX) {
+            ++telemetry_request_generation;
+        }
     }
 
     // the batch is submitted, but its compute may not be done yet
