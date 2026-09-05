@@ -1877,11 +1877,14 @@ void llama_context::synchronize() {
                 0, ggml_time_us() - wait_start_us)));
     }
 
-    // K/V graph writes are asynchronous on GPU backends.  Host publication
-    // therefore belongs after the scheduler fence, otherwise a completed
-    // page can be sealed from stale bytes and the next prefill chunk cannot
-    // safely evict it.
-    if (memory) {
+    // Resolve deferred target extents at the same scheduler fence before any
+    // host/page-table publication. A failed terminal commit is an explicit
+    // failed boundary: dependent cold state must not be published.
+    const bool target_frontier_committed = !memory || memory->vbr_commit_submitted();
+
+    // K/V graph writes are asynchronous on GPU backends. Host publication
+    // therefore belongs after the scheduler fence and target commit.
+    if (memory && target_frontier_committed) {
         memory->seal_kv_pager_pages();
     }
 
@@ -1893,7 +1896,7 @@ void llama_context::synchronize() {
 
     // Keep live table publication after both the scheduler fence and the
     // existing attention completion bookkeeping boundary.
-    if (memory) {
+    if (memory && target_frontier_committed) {
         memory->apply_kv_pager_policy();
     }
 
@@ -1905,12 +1908,6 @@ void llama_context::synchronize() {
     if (kv_attention_wait && t_compute_start_us != 0) {
         kv_attention_execution.record_total_token_us(uint64_t(std::max<int64_t>(
                 0, ggml_time_us() - t_compute_start_us)));
-    }
-
-    // The scheduler fence above is the per-family success boundary for the
-    // deferred append/reuse extents — promote submitted -> committed here. No new fences.
-    if (memory) {
-        memory->vbr_commit_submitted();
     }
 
     // FIXME: if multiple single tokens are evaluated without a synchronization,

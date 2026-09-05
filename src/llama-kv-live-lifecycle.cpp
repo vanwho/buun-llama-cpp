@@ -16,7 +16,14 @@ bool same_generation(const llama_kv_live_lifecycle_generation & a,
 
 bool page_matches(const llama_kv_page_id & page,
                   const llama_kv_live_lifecycle_generation & generation) noexcept {
-    return page.session_generation == generation.session_generation &&
+    // A logical-page match alone would let a reused slot or an old
+    // model/codec image enter a new generation.
+    return llama_kv_page_id_valid(page, llama_kv_page_id_is_tail(page)) &&
+           page.page_generation != 0 && page.representation_epoch != 0 &&
+           page.model_identity != 0 && page.topology_identity != 0 &&
+           page.codec_digest != 0 && page.codebook_digest != 0 &&
+           page.rotation_digest != 0 && page.meansub_digest != 0 &&
+           page.session_generation == generation.session_generation &&
            page.sequence_id == generation.sequence_id &&
            page.sequence_generation == generation.sequence_generation;
 }
@@ -140,6 +147,15 @@ llama_kv_live_lifecycle_status llama_kv_live_lifecycle::set_frontier(
     if (!current()) return stopped_ ? llama_kv_live_lifecycle_status::shutdown
                                     : llama_kv_live_lifecycle_status::stale_generation;
     if (!frontier.valid()) return llama_kv_live_lifecycle_status::invalid_argument;
+    // The committed target/recurrent/MTP frontier is monotone within one
+    // operation generation. Speculative proposed tokens may shrink after a
+    // rejection, but an accepted prefix may never move backwards.
+    if (frontier.target_tokens < frontier_.target_tokens ||
+        frontier.recurrent_tokens < frontier_.recurrent_tokens ||
+        frontier.mtp_tokens < frontier_.mtp_tokens ||
+        frontier.speculative_accepted < frontier_.speculative_accepted) {
+        return llama_kv_live_lifecycle_status::stale_generation;
+    }
     frontier_ = frontier;
     return llama_kv_live_lifecycle_status::ready;
 }
@@ -338,7 +354,8 @@ llama_kv_live_lifecycle_result llama_kv_live_lifecycle::apply_policy(
                                  : llama_kv_live_lifecycle_status::stale_generation;
         return output;
     }
-    if (!frontier_.valid() || boundary.snapshot.epoch() == 0 ||
+    if (boundary.version != LLAMA_KV_LIVE_POLICY_VERSION ||
+        !frontier_.valid() || boundary.snapshot.epoch() == 0 ||
         boundary.pages.empty()) {
         output.status = llama_kv_live_lifecycle_status::invalid_argument;
         return output;
@@ -405,6 +422,11 @@ llama_kv_live_lifecycle_status llama_kv_live_lifecycle::rotate(
     }
     cancel_tracked();
     if (hooks_.event && !hooks_.event(hooks_.context, event, generation_)) {
+        // A rejected destructive transition leaves the old image unusable
+        // until the owner starts a fresh operation. This prevents a late
+        // completion from reviving the pre-transition generation.
+        active_ = false;
+        frontier_ = {};
         return llama_kv_live_lifecycle_status::companion_rejected;
     }
     active_ = false;
