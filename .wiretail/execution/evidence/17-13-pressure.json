@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "task": "17-13",
+  "status": "blocked_before_physical_pressure",
+  "acceptance": {
+    "physical_page_movement": "not_demonstrated",
+    "reason": "The resolved-context service crashed before the first long request, so no pager telemetry was emitted."
+  },
+  "attempts": [
+    {
+      "run_id": "17-13-pressure-20260905T025300Z",
+      "resolved_context_tokens": 22016,
+      "target_kv": "turbo4",
+      "native_draft_kv": "gpu/turbo4",
+      "result": "request_rejected_before_execution",
+      "raw_error": "request (22187 tokens) exceeds the available context size (22016 tokens)",
+      "raw_result_sha256": "621785d940ca18694971f69748b5548635486918fd8a7b7770041c3ef1b25c1d",
+      "run_config_sha256": "59c37ae4faef840ce2c02b15945369099d4fd8f41fba87e42bc71781efb63848"
+    },
+    {
+      "run_id": "17-13-pressure-20260905T025900Z",
+      "resolved_context_tokens": 22016,
+      "target_kv": "turbo4",
+      "native_draft_kv": {
+        "placement": "gpu",
+        "type_k": "turbo4",
+        "type_v": "turbo4",
+        "rows": 22016,
+        "bytes": 23379968
+      },
+      "result": "service_segv_before_request",
+      "prompt_words": 10752,
+      "wrapper_headroom_tokens": 512,
+      "request_artifacts": 0,
+      "raw_result_sha256": "2f0f00198327008a000e4b11c0194c0a860cf66c14203fe5dc766d3e69d9b9fa",
+      "journal_sha256": "41eed1ed5d884034bcf9ec150f01fa539603d65885825d88a845bae27e2dd336"
+    }
+  ],
+  "focused_regression": {
+    "prompt_budget": "The adapter now reserves 512 tokenizer tokens when deriving synthetic prompt words, preventing the observed 22187 > 22016 request.",
+    "restoration_identity": "Restoration verification now compares binary, model, context, pager mode, page size, and native draft placement against the pre-run identity instead of trusting profile name and health alone.",
+    "test": "tools/server/bench/test_pager_benchmark_adapter.py::AdapterContractTests::test_restoration_rejects_wrong_runtime_identity"
+  },
+  "raw_probe": {
+    "root": "/srv/ai/paged-kv/results/17-13-pressure-20260905T025900Z",
+    "sha256_manifest": "5104d9b159e5daf3e8f126fa895c0fe7c5376b56729ad10963fd8ec485a3ab6e",
+    "manifest": "raw/SHA256SUMS"
+  },
+  "restored_runtime": {
+    "context_tokens": 16384,
+    "pager_mode": "selective",
+    "page_size_tokens": 256,
+    "native_draft_kv": "gpu/turbo4",
+    "health": 200,
+    "stable_probes": 6,
+    "systemd_restarts_during_probes": 0
+  },
+  "remediation_direction": "Reproduce the 22016-context native Turbo4/GPU startup under a debugger or sanitizer, then fix the crash before rerunning the long-context pressure segment. The existing pager transfer path remains covered by deterministic residency/telemetry tests; live transfer counters cannot be evaluated until the server survives startup and accepts the request."
+}

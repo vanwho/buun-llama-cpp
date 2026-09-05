@@ -21,7 +21,7 @@
       },
       "launcher": {
         "context": 22016,
-        "prompt_context_words": 11008,
+        "prompt_context_words": 10752,
         "mtp": "native",
         "draft_kv": "turbo4"
       }
