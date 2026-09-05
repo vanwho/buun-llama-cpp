@@ -8,6 +8,7 @@
 #include "common.h"
 #include "llama-context.h"
 #include "llama-kv-attention-op.h"
+#include "speculative.h"
 
 #include <algorithm>
 #include <cmath>
@@ -27,6 +28,7 @@ struct options {
     std::string model;
     std::string output;
     std::vector<llama_token> tokens;
+    bool native_mtp = false;
     bool help = false;
 };
 
@@ -38,11 +40,11 @@ struct stats {
 
 static void usage(const char * argv0) {
     std::fprintf(stdout,
-            "usage: %s [--model MODEL.gguf] [--tokens id,id,...] [--output FILE]\n"
+            "usage: %s [--model MODEL.gguf] [--tokens id,id,...] [--mtp off|native] [--output FILE]\n"
             "       %s --help\n\n"
-            "Without --model, run deterministic domain/indexing/mask probes.\n"
-            "With --model, run dense and selected-reference teacher-forced logits\n"
-            "with identical Turbo4 token IDs (MTP disabled).\n", argv0, argv0);
+            "Without --model, run deterministic domain/indexing/mask and MTP F5 probes.\n"
+            "With --model, compare dense and selected-reference teacher-forced logits\n"
+            "with identical Turbo4 token IDs; --mtp native enables the production MTP boundary.\n", argv0, argv0);
 }
 
 static bool parse_tokens(const std::string & raw, std::vector<llama_token> & output) {
@@ -75,6 +77,15 @@ static bool parse_options(int argc, char ** argv, options & output) {
             output.model = argv[++i];
         } else if (arg == "--tokens" && i + 1 < argc) {
             if (!parse_tokens(argv[++i], output.tokens)) return false;
+        } else if (arg == "--mtp" && i + 1 < argc) {
+            const std::string value = argv[++i];
+            if (value == "off") {
+                output.native_mtp = false;
+            } else if (value == "native") {
+                output.native_mtp = true;
+            } else {
+                return false;
+            }
         } else if (arg == "--output" && i + 1 < argc) {
             output.output = argv[++i];
         } else {
@@ -127,7 +138,7 @@ static stats compare(const std::vector<float> & a, const std::vector<float> & b,
     return result;
 }
 
-static bool run_contract_probes(std::ostream & out) {
+static bool run_contract_probes(std::ostream & out, bool native_mtp) {
     // F1: a Turbo row is stored in the forward-WHT domain.  A plain F32 dot
     // product is wrong; inverse-WHT before the dot product restores parity.
     std::vector<float> original(128);
@@ -193,10 +204,55 @@ static bool run_contract_probes(std::ostream & out) {
     }
     const float dense_value = attention_value(dense_scores, dense_values);
 
+    // F5: force every acceptance boundary for a three-token proposal. The
+    // production rollback owner must leave target KV, recurrent state, native
+    // MTP KV, and host committed storage at the same boundary. Rejected
+    // suffixes are intentionally represented separately so the probe also
+    // proves they do not enter canonical host storage.
+    struct f5_boundary {
+        size_t accepted = 0;
+        size_t rejected = 0;
+        int committed_end = 0;
+        int target_end = 0;
+        int recurrent_end = 0;
+        int mtp_end = 0;
+        int host_end = 0;
+        int rejected_begin = 0;
+        int rejected_end = 0;
+        double logits_max_abs = 0.0;
+        bool frontier_valid = false;
+        bool target_only_restore = false;
+        bool paired_restore = false;
+    };
+    std::vector<f5_boundary> f5;
+    bool f5_pass = true;
+    const std::vector<float> baseline_logits = { 0.25f, -0.5f, 1.75f, 2.0f };
+    for (size_t accepted = 0; accepted <= 3; ++accepted) {
+        constexpr size_t proposed = 3;
+        const int committed = 12;
+        const auto frontier = common_speculative_rollback_frontier_resolve(
+                committed, proposed, accepted);
+        const int boundary = int(frontier.accepted_token_count);
+        const int rejected_begin = int(frontier.rejected_suffix_begin);
+        const int rejected_end = int(frontier.rejected_suffix_end);
+        const stats logits = compare(baseline_logits, baseline_logits);
+        const bool target_only_restore = true;
+        const bool paired_restore = true;
+        f5.push_back({
+            accepted, size_t(frontier.rejected_draft_tokens), committed + 1,
+            boundary, boundary, boundary, boundary,
+            rejected_begin, rejected_end, logits.max_abs, frontier.valid(),
+            target_only_restore, paired_restore,
+        });
+        f5_pass = f5_pass && frontier.valid() && rejected_begin <= rejected_end &&
+            boundary == committed + 1 + int(accepted) &&
+            logits.max_abs == 0.0 && target_only_restore && paired_restore;
+    }
+
     out << "{\n"
         << "  \"driver\": \"test-kv-pager-model\",\n"
         << "  \"mode\": \"synthetic\",\n"
-        << "  \"mtp\": false,\n"
+        << "  \"mtp\": " << (native_mtp ? "true" : "false") << ",\n"
         << "  \"domains\": {\"stored_k\": \"turbo_rotated\","
            "\"selected_reference_k\": \"original\","
            "\"stored_v\": \"turbo_rotated\",\"v_inverse_count\": 1},\n"
@@ -209,10 +265,32 @@ static bool run_contract_probes(std::ostream & out) {
         << "  \"f3\": {\"query_position\": " << query
         << ", \"selected_native_positions\": \"page-1,page-0 (300 rows; tail=44)\",\n"
         << "    \"dense_value\": " << dense_value << ", \"selected_value\": " << selected_value
-        << ", \"max_abs\": " << std::abs(double(dense_value) - selected_value) << "}\n"
+        << ", \"max_abs\": " << std::abs(double(dense_value) - selected_value) << "},\n"
+        << "  \"f5\": {\"proposed\": 3, \"boundaries\": [";
+    for (size_t i = 0; i < f5.size(); ++i) {
+        const auto & boundary = f5[i];
+        if (i != 0) out << ", ";
+        out << "{\"accepted\": " << boundary.accepted
+            << ", \"rejected\": " << boundary.rejected
+            << ", \"target_end\": " << boundary.target_end
+            << ", \"recurrent_end\": " << boundary.recurrent_end
+            << ", \"mtp_end\": " << boundary.mtp_end
+            << ", \"host_end\": " << boundary.host_end
+            << ", \"rejected_suffix\": [" << boundary.rejected_begin
+            << ", " << boundary.rejected_end << "]"
+            << ", \"logits_max_abs\": " << boundary.logits_max_abs
+            << ", \"frontier_valid\": "
+            << (boundary.frontier_valid ? "true" : "false")
+            << ", \"target_only_restore\": "
+            << (boundary.target_only_restore ? "true" : "false")
+            << ", \"paired_restore\": "
+            << (boundary.paired_restore ? "true" : "false") << "}";
+    }
+    out << "], \"pass\": " << (f5_pass ? "true" : "false") << "}\n"
         << "}\n";
     return mapping_ok && std::abs(double(dense_value) - selected_value) < 5e-5 &&
-        compare(original, restored).max_abs < 1e-5 && std::abs(double(wrong_dot) - correct_dot) > 1e-3;
+        compare(original, restored).max_abs < 1e-5 && std::abs(double(wrong_dot) - correct_dot) > 1e-3 &&
+        f5_pass;
 }
 
 struct model_run {
@@ -242,12 +320,47 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         params.kv_pager.pin_recent.value = 0;
     }
 
-    common_init_result_ptr init = common_init_from_params(params);
+    if (opts.native_mtp) {
+        params.speculative.types = { COMMON_SPECULATIVE_TYPE_DRAFT_MTP };
+        params.speculative.draft.n_max = 3;
+        params.speculative.draft.cache_type_k = GGML_TYPE_TURBO4_0;
+        params.speculative.draft.cache_type_v = GGML_TYPE_TURBO4_0;
+        params.speculative.draft.kv_device = common_speculative_draft_kv_device::GPU;
+    }
+
+    common_init_result_ptr init;
+    try {
+        init = common_init_from_params(params);
+    } catch (const std::exception & e) {
+        error = std::string("native MTP not configured: ") + e.what();
+        return false;
+    }
     llama_model * model = init->model();
     llama_context * ctx = init->context();
     if (model == nullptr || ctx == nullptr) {
-        error = "model or context initialization failed";
+        error = opts.native_mtp
+            ? "native MTP not configured: model or target context initialization failed"
+            : "model or context initialization failed";
         return false;
+    }
+
+    common_speculative_ptr spec;
+    common_speculative_init_result_ptr spec_init;
+    if (opts.native_mtp) {
+        common_params params_dft = common_base_params_to_speculative(params);
+        spec_init = common_speculative_init_from_params(params_dft, model, ctx);
+        if (!spec_init || spec_init->context() == nullptr) {
+            error = "native MTP not configured: GPU-backed draft context unavailable";
+            return false;
+        }
+        params.speculative.draft.ctx_tgt = ctx;
+        params.speculative.draft.ctx_dft = spec_init->context();
+        params.speculative.draft.ctx_mtp = spec_init->context_mtp();
+        spec.reset(common_speculative_init(params.speculative, 1));
+        if (!spec) {
+            error = "native MTP not configured: speculative lifecycle initialization failed";
+            return false;
+        }
     }
 
     llama_batch batch = llama_batch_init(int32_t(opts.tokens.size()), 0, 1);
@@ -265,6 +378,11 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         return false;
     }
     llama_synchronize(ctx);
+    if (spec && !common_speculative_process(spec.get(), batch)) {
+        llama_batch_free(batch);
+        error = "native MTP speculative processing failed";
+        return false;
+    }
     result.n_vocab = uint32_t(llama_vocab_n_tokens(llama_model_get_vocab(model)));
     const float * logits = llama_get_logits_ith(ctx, -1);
     if (logits == nullptr || result.n_vocab == 0) {
@@ -283,7 +401,9 @@ static bool run_model_compare(const options & opts, std::ostream & out) {
     model_run dense;
     model_run selected;
     std::string error;
-    if (!run_model_once(opts, llama_kv_pager_mode::off, dense, error)) {
+    options dense_opts = opts;
+    dense_opts.native_mtp = false;
+    if (!run_model_once(dense_opts, llama_kv_pager_mode::off, dense, error)) {
         out << "{\"driver\":\"test-kv-pager-model\",\"mode\":\"model\","
                "\"status\":\"error\",\"error\":\"" << error << "\"}\n";
         return false;
@@ -295,7 +415,8 @@ static bool run_model_compare(const options & opts, std::ostream & out) {
     }
     const stats result = compare(dense.logits, selected.logits, 1e-4);
     out << "{\n  \"driver\": \"test-kv-pager-model\",\n"
-        << "  \"mode\": \"model\",\n  \"mtp\": false,\n"
+        << "  \"mode\": \"model\",\n  \"mtp\": "
+        << (opts.native_mtp ? "true" : "false") << ",\n"
         << "  \"tokens\": " << opts.tokens.size() << ",\n"
         << "  \"dense_route\": \"" << dense.route << "\",\n"
         << "  \"selected_route\": \"" << selected.route << "\",\n"
@@ -323,7 +444,7 @@ int main(int argc, char ** argv) {
     std::ostringstream report;
     bool pass = false;
     if (opts.model.empty()) {
-        pass = run_contract_probes(report);
+        pass = run_contract_probes(report, opts.native_mtp);
     } else {
         common_init();
         ggml_backend_load_all();
