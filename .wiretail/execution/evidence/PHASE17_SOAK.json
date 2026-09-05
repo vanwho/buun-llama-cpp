@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "task": "17-10",
+  "decision": "lifecycle_passed_acceptance_blocked",
+  "acceptance": false,
+  "decision_reason": "The 16K selective/native-MTP lifecycle matrix completed without HTTP failures, checkpoint corruption, deadlock, or restart-health loss. Host-page residency and table/graph churn were observed, but no transfer, fault, or eviction counter advanced at this feasible boundary; concurrent model-output behavior also was not a reliable exact-marker oracle. Those sub-gates remain explicitly blocked.",
+  "raw_root": "/srv/ai/paged-kv/results/17-10-soak-20260905T021200Z",
+  "raw_hashes": "SHA256SUMS",
+  "provenance": {
+    "source_tree": "5d5276ca5a166cfeb4a05f016d329503d800ee86",
+    "server_binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "server_binary_sha256": "d306009f51f0ebb554752d9c41fabb51c796f9d708eef977cc3cc09014e361db",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "profile": "qwen38-fast",
+    "profile_config_sha256": "90e8a828ab193628dd344f32ca84d6368ada89a11853b64cf25c741b52778f96",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.84",
+    "gpu_total_mib": 16376,
+    "sampling": {
+      "temperature": 0,
+      "seed": 42
+    },
+    "pager": {
+      "mode": "selective",
+      "page_size_tokens": 256,
+      "context_tokens": 16384,
+      "target_kv": "Turbo4/GPU",
+      "mtp": "native draft-mtp",
+      "draft_kv": "Turbo4/GPU",
+      "slots": 1
+    },
+    "corpus": {
+      "fixture": "tools/server/bench/fixtures/pager-corpus-v4.json",
+      "schema": "pager-corpus-v4",
+      "corpus_hash": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "used_for": "fixture provenance only; lifecycle requests were retained synthetic marker workloads, not scored corpus acceptance"
+    }
+  },
+  "coverage": {
+    "health_before": {
+      "status": "pass",
+      "http": 200,
+      "artifact": "raw/health-before.json"
+    },
+    "long_context_page_waves": {
+      "status": "pass",
+      "requests": 3,
+      "successful_http": 3,
+      "prompt_tokens_observed": 3245,
+      "artifact": "raw/stable-*.request.json raw/stable-*.response.json"
+    },
+    "focus_shifts": {
+      "status": "pass",
+      "requests": 3,
+      "successful_http": 3,
+      "artifact": "raw/focus-*.request.json raw/focus-*.response.json"
+    },
+    "page_churn": {
+      "status": "blocked_no_physical_fault_or_eviction_observed",
+      "requests": 4,
+      "successful_http": 4,
+      "host_pages_peak": 12,
+      "resident_pages_peak": 13,
+      "faults_delta": 0,
+      "evictions_delta": 0,
+      "transfer_submitted_delta": 0,
+      "h2d_useful_bytes_delta": 0,
+      "d2h_useful_bytes_delta": 0,
+      "artifact": "raw/metrics-after-page-waves.txt raw/metrics-pre-restart.txt"
+    },
+    "speculative_rejection": {
+      "status": "pass",
+      "successful_http": 1,
+      "draft_tokens_delta_from_before": 163,
+      "accepted_tokens_delta_from_before": 85,
+      "verification_steps_delta_from_before": 83,
+      "rejection_observed": true,
+      "artifact": "raw/speculative-rejection.response.json raw/service-journal.log"
+    },
+    "cancellation": {
+      "status": "pass",
+      "client_timeout_exit": 124,
+      "slot_idle_after": true,
+      "artifact": "raw/cancel.request.json raw/cancel.result.json raw/slots-after-cancel.json raw/service-journal.log"
+    },
+    "concurrent_request_isolation": {
+      "status": "blocked_output_oracle; transport_and_slot_release_passed",
+      "parallel_requests": 2,
+      "successful_http": 2,
+      "slot_idle_after": true,
+      "original_payload_anomaly": "concurrent-b returned assistant content 'Error: No valid data found.' with HTTP 200; this was retained and not treated as a server error",
+      "marker_retry_http": "2/2",
+      "marker_retry_result": "both returned the same refusal prefix rather than exact requested markers",
+      "artifact": "raw/concurrent-*.response.json raw/concurrent-retry-*.response.json raw/concurrent-results.json raw/concurrent-retry-results.json"
+    },
+    "checkpoint_save_restore": {
+      "status": "pass",
+      "save_http": 200,
+      "erase_http": 200,
+      "restore_http": 200,
+      "saved_tokens": 1965,
+      "restored_tokens": 1965,
+      "bytes": 191143964,
+      "sha256_match": true,
+      "artifact": "raw/slot-roundtrip.json raw/slot-save.sha256.json"
+    },
+    "clear_and_recovery": {
+      "status": "pass",
+      "clear_http": 200,
+      "recovery_http": 200,
+      "final_slot_idle": true,
+      "artifact": "raw/clear-final.record.json raw/recovery.response.json raw/slots-final.json"
+    },
+    "shutdown_restart": {
+      "status": "pass",
+      "restart_rc": 0,
+      "pid_before": 2897889,
+      "pid_after": 2902110,
+      "health_8080": 200,
+      "health_8091": 200,
+      "binary_after": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "profile_after": "qwen38-fast",
+      "artifact": "raw/restart.json raw/identity-before.json raw/identity-after-restart.json raw/health-after-restart.json raw/health-8091-after-restart.json"
+    }
+  },
+  "telemetry": {
+    "status": "complete_raw_snapshots",
+    "logical_pages": 64,
+    "page_bytes": 4325380,
+    "target_bytes": 276824000,
+    "vram_budget_bytes": 1784410000,
+    "host_budget_bytes": 65150000000,
+    "mtp_rows": 16384,
+    "mtp_bytes": 17301500,
+    "pre_restart": {
+      "resident_pages": 7,
+      "host_pages": 6,
+      "host_pageable_bytes": 25952300,
+      "host_pinned_bytes": 0,
+      "table_epoch": 94692,
+      "table_rebuilds": 439
+    },
+    "post_restart_final": {
+      "resident_pages": 1,
+      "host_pages": 0,
+      "host_pageable_bytes": 0,
+      "host_pinned_bytes": 0,
+      "table_epoch": 4940,
+      "table_rebuilds": 27
+    },
+    "zero_delta_counters": [
+      "faults",
+      "prefetch_hits",
+      "evictions",
+      "transfer_submitted",
+      "transfer_event_completions",
+      "transfer_cancellations",
+      "transfer_stale_completions",
+      "h2d_useful_bytes",
+      "d2h_useful_bytes"
+    ],
+    "artifacts": "raw/metrics-before.txt raw/metrics-after-page-waves.txt raw/metrics-after-speculative-rejection.txt raw/metrics-pre-restart.txt raw/metrics-after-restart.txt raw/metrics-final-after-concurrent-retry.txt"
+  },
+  "resources": {
+    "workload_timeline": {
+      "samples": 45,
+      "rss_kib_min": 2490912,
+      "rss_kib_max": 5745132,
+      "gpu_memory_mib_min": 14679,
+      "gpu_memory_mib_max": 14731,
+      "host_pages_max": 12,
+      "host_pageable_bytes_max": 51904500,
+      "host_pinned_bytes_max": 0,
+      "artifact": "raw/resource-timeline.jsonl"
+    },
+    "post_restart_idle": {
+      "samples": 30,
+      "rss_kib_min": 2458052,
+      "rss_kib_max": 2460296,
+      "gpu_memory_mib_min": 14707,
+      "gpu_memory_mib_max": 14707,
+      "host_pages_min": 0,
+      "host_pages_max": 0,
+      "host_pageable_bytes_min": 0,
+      "host_pageable_bytes_max": 0,
+      "host_pinned_bytes_min": 0,
+      "host_pinned_bytes_max": 0,
+      "target_bytes_min": 276824000,
+      "target_bytes_max": 276824000,
+      "interpretation": "30-second post-restart idle plateau; bounded observation, not an unbounded leak proof",
+      "artifact": "raw/resource-idle-after-restart.jsonl"
+    }
+  },
+  "gates": {
+    "lifecycle_matrix": "pass",
+    "checkpoint_integrity": "pass",
+    "cancellation_release": "pass",
+    "restart_health": "pass",
+    "bounded_resource_observation": "pass",
+    "pager_telemetry_capture": "pass",
+    "physical_page_fault_eviction_transfer_churn": "blocked_not_observed_at_feasible_boundary",
+    "concurrent_exact_marker_isolation": "blocked_output_oracle",
+    "phase_17_soak_acceptance": "blocked"
+  },
+  "local_verification": {
+    "focused_cuda_tests": {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R '^(test-(kv-(policy|pager|residency|attention-(telemetry|execution|exact)|routing-(summary|retrieval))|server-prompt-cache|mtp-vocab-trim))$'",
+      "result": "10/10 passed"
+    },
+    "generated_lifecycle_tests": {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R '^(test-generate-models|test-recurrent-state-rollback|test-save-load-state)$'",
+      "result": "3/3 passed"
+    },
+    "harness": [
+      "python3 -m py_compile tools/server/bench/run-pager-soak.py",
+      "git diff --check",
+      "sha256sum -c /srv/ai/paged-kv/results/17-10-soak-20260905T021200Z/SHA256SUMS"
+    ]
+  },
+  "final_state": {
+    "active_profile": "qwen38-fast",
+    "keep_loaded": true,
+    "server_health_8080": 200,
+    "long_memory_health_8091": 200,
+    "server_command_artifact": "raw/final-command.txt",
+    "service_state_artifact": "raw/service-final-state.txt"
+  },
+  "deferred_verification": "No hardware or human action was unavailable. Physical fault/eviction/transfer churn and an exact concurrent response oracle require a follow-up run/profile capable of producing those observations; they are blocked gates, not deferred setup or inferred passes."
+}
