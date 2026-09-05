@@ -129,6 +129,14 @@ and internal include patterns. Follow model/argument loading in
 `tests/test-state-restore-fragmented.cpp`, but do not copy its multi-slot
 semantics. Do not make normal CTest require a downloaded 27B model or server.
 
+"Optional" means opt-in model-backed execution outside default CI, not an
+optional task checkpoint: 18-05 must implement and run it (or extend a proven
+equivalent already present). Start with MTP off and the existing reference/
+single-query direct shapes. 18-06 adds native-MTP controls, 19-04 multiquery
+direct, and 19-06 cold exact execution. Until those owners implement a mode,
+report it unsupported; don't turn the driver's eventual interface into a
+circular requirement to implement every later feature in 18-05.
+
 Driver contract (new private test options, to implement, not current CLI):
 load caller's GGUF; accept the same saved token-ID prefix; select
 dense/reference/direct/exact and MTP policy explicitly; set forced page lists

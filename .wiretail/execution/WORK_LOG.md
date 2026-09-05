@@ -544,3 +544,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-17-02`
 - Commit at update: `f392331c4`
 - Summary: Exported publish timing and complete pager telemetry; bound native-MTP metrics to the measured draft context with explicit placement/type states; focused builds and tests pass.
+
+## 2026-09-05T05:41:24+00:00 — 17-16 — done
+
+- Branch: `codex/task-17-16`
+- Commit at update: `9b7dfb329`
+- Summary: Captured final 17-15 findings in POST17_GAP_INDEX JSON/Markdown, classified setup/runtime/semantic/implementation/performance gaps with raw pointers and successor owners, verified task graph, and preserved healthy runtime.
