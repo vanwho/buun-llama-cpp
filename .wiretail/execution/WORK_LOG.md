@@ -556,3 +556,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-18-01`
 - Commit at update: `b4adad254`
 - Summary: Immutable CUDA runtime identity, startup/crash telemetry fix, bounded lifecycle restoration, live generation and failed-start recovery verified; evidence and handoff recorded.
+
+## 2026-09-05T06:38:31+00:00 — 18-02 — done
+
+- Branch: `codex/task-18-02`
+- Commit at update: `67dc5af9f`
+- Summary: Implemented exact rendered-token prompt sizing with server-authoritative template/tokenization preflight, padding-only fitting, overflow correction, and exact usage accounting across quality, soak, and canonical site runners; local suites and live smoke checks passed.

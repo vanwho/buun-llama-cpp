@@ -1,0 +1,156 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "18-02",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "exact_rendered_token_sizing",
+  "provenance": {
+    "source_commit": "67dc5af9fd49ac1acbe694788176f5ef0fdd0b65",
+    "source_diff_sha256": "049913b98f74da7b8b31c359543bfd1c9212043c7b6ce98180eff0faf740cefa",
+    "bundle_manifest_sha256": "8635372d542cbb38a6a75a31de50e38c77beae3046fc2492400b0a25860cdfda",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_template_sha256": "server template 4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a; tokenizer identity is the target model hash",
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "config_sha256": null
+  },
+  "provenance_unavailable": {
+    "config_sha256": "No separate immutable site configuration artifact was produced",
+    "corpus_declared_tokenizer_hash": "The frozen V4 corpus records the model hash as its tokenizer identity; target-server template/tokenization is authoritative for live counts"
+  },
+  "authority": {
+    "offline_api": "pager_benchmark_contract.fit_prompt(messages, padding, desired_occupancy, generation_reserve, render_and_tokenize)",
+    "live_renderer": "ServerPromptRenderer: POST /apply-template, then POST /tokenize with add_special=true and parse_special=true",
+    "word_count_authoritative": false,
+    "padding_only_mutation": true,
+    "mandatory_facts_and_question_mutated": false
+  },
+  "checks": [
+    {
+      "name": "pure_fitter_boundaries",
+      "status": "pass",
+      "raw_ids": ["test_exact_fitter_accepts_page_tail_boundaries_without_live_kv"],
+      "detail": "Capacities 16384, 22016, and 262144 passed without live KV allocation"
+    },
+    {
+      "name": "prompt_contract_suite",
+      "status": "pass",
+      "raw_ids": ["python_unittest_37_passed"],
+      "detail": "Quality, profile-adapter, and soak suites passed 37 tests"
+    },
+    {
+      "name": "unicode_punctuation_tools_and_offsets",
+      "status": "pass",
+      "raw_ids": ["test_exact_fitter_preserves_facts_unicode_tools_and_offsets"],
+      "detail": "Complete messages, tool content, Unicode/punctuation, protected facts, and rendered offsets were retained"
+    },
+    {
+      "name": "marker_overflow_correction",
+      "status": "pass",
+      "raw_ids": ["test_marker_heavy_53797_overflow_is_fitted_before_submission"],
+      "detail": "The reported 53797-versus-22016 marker-heavy overflow is rejected as padding overflow and corrected by binary-search fitting"
+    },
+    {
+      "name": "live_target_preflight",
+      "status": "pass",
+      "raw_ids": ["live_sizing_receipt", "live_sizing_preflight", "live_sizing_response"],
+      "detail": "HTTP 200 request at capacity 512 had local prompt 32 + reserve 16 and server usage.prompt_tokens 32"
+    },
+    {
+      "name": "site_canonical_preflight",
+      "status": "pass",
+      "raw_ids": ["site_smoke_records", "site_smoke_run_config"],
+      "detail": "Six site requests used exact-rendered-token-preflight; every preflight count matched completion usage at resolved capacity 22016"
+    },
+    {
+      "name": "quality_runner_accounting",
+      "status": "pass",
+      "raw_ids": ["quality_live_records", "quality_live_summary"],
+      "detail": "Two diagnostic corpus requests matched 4088 local and server prompt tokens with 8 reserved inside capacity 4096"
+    },
+    {
+      "name": "syntax_and_diff_checks",
+      "status": "pass",
+      "raw_ids": ["py_compile", "bash_n", "git_diff_check"],
+      "detail": "Python compilation, site shell syntax, and whitespace checks passed"
+    }
+  ],
+  "measurements": {
+    "live_target": {
+      "configured_capacity_tokens": 22016,
+      "diagnostic_request_capacity_tokens": 512,
+      "occupied_prompt_tokens": 32,
+      "generation_reserve_tokens": 16,
+      "server_prompt_tokens": 32,
+      "exact_match": true,
+      "http_status": 200,
+      "unit": "tokens"
+    },
+    "site_smoke": {
+      "configured_capacity_tokens": 77824,
+      "resolved_capacity_tokens": 22016,
+      "requests": 6,
+      "exact_preflight_usage_matches": 6,
+      "request_errors": 0,
+      "unit": "requests/tokens"
+    },
+    "quality_diagnostic": {
+      "resolved_capacity_tokens": 4096,
+      "generation_reserve_tokens": 8,
+      "occupied_prompt_tokens": 4088,
+      "server_prompt_tokens": 4088,
+      "exact_matches": 2,
+      "semantic_answer_score": "not a sizing gate; both short diagnostic answers were below the frozen exact-answer checker"
+    },
+    "legacy_overflow": {
+      "reported_prompt_tokens": 53797,
+      "resolved_capacity_tokens": 22016,
+      "correction": "binary-search only explicit padding after complete render/tokenize; preserve facts and final question",
+      "unit": "tokens"
+    }
+  },
+  "raw_index": [
+    {
+      "id": "live_sizing_receipt",
+      "path": "/srv/ai/paged-kv/results/18-02-sizing-20260905T0845Z/receipt.json",
+      "sha256": "dd0c43949c5e5ba17a887b3de0fee2e56dbd56904291dc8e0d168ff9b1bff74f"
+    },
+    {
+      "id": "live_sizing_preflight",
+      "path": "/srv/ai/paged-kv/results/18-02-sizing-20260905T0845Z/raw/preflight.json",
+      "sha256": "3386a1cb3153316d8f54b27254e4e0991c90c4d1b112913e4439e5f6cf335a16"
+    },
+    {
+      "id": "live_sizing_response",
+      "path": "/srv/ai/paged-kv/results/18-02-sizing-20260905T0845Z/raw/response.http",
+      "sha256": "c11e3f4837efde2441e23a7b9da02131f53bf59fddeb7147c4ab81afe400460f"
+    },
+    {
+      "id": "site_smoke_records",
+      "path": "/srv/ai/paged-kv/results/18-02-site-20260905T0900Z/records.jsonl",
+      "sha256": "46e5491af212015f38983d4cbbb3fb9d4b18ab3288f0d2679567c4ee549a5a06"
+    },
+    {
+      "id": "site_smoke_run_config",
+      "path": "/srv/ai/paged-kv/results/18-02-site-20260905T0900Z/run-config.json",
+      "sha256": "c99bd55c46a8fa33a291c0c493daf12fb337ae89975d951ff8ac56b745ebf76f"
+    },
+    {
+      "id": "quality_live_records",
+      "path": "/srv/ai/paged-kv/results/18-02-quality-live-20260905T0915Z/records.jsonl",
+      "sha256": "b50422dde2a2e03b37a09ce06b18afc6da3fbb186f45aa5ba21643f1dd6dfd4b"
+    },
+    {
+      "id": "quality_live_summary",
+      "path": "/srv/ai/paged-kv/results/18-02-quality-live-20260905T0915Z/summary.json",
+      "sha256": "7b70974b4c8ad26aadfd431db31d14212c6684daf1ca9c83f321b729faf5fcd0"
+    }
+  ],
+  "failure": null,
+  "resume": {
+    "command": ["python3", "tools/server/bench/run-quality-corpus.py", "<corpus>", "<output>", "--endpoint", "<authenticated-server>", "--model", "<model>"],
+    "next_case": "18-03",
+    "secrets_omitted": true
+  },
+  "implementation_owner": null
+}
