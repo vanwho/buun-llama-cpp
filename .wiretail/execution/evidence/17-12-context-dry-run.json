@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "task": "17-12",
+  "fixture": {
+    "path": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "schema": "pager-corpus-v4",
+    "corpus_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "context_ceiling_tokens": 22016
+  },
+  "runs": [
+    {
+      "command": "python3 tools/server/bench/run-pager-profile-benchmark.py fast stable-focus <output> --dry-run",
+      "status": "pass",
+      "context": {
+        "requested": "derived",
+        "resolved": 22016,
+        "source": "corpus_ceiling",
+        "mode": "acceptance",
+        "diagnostic_only": false,
+        "sub_ceiling": false
+      },
+      "launcher": {
+        "context": 22016,
+        "prompt_context_words": 11008,
+        "mtp": "native",
+        "draft_kv": "turbo4"
+      }
+    },
+    {
+      "command": "python3 tools/server/bench/run-pager-soak.py <output> --dry-run",
+      "status": "pass",
+      "context": {
+        "requested": "derived",
+        "resolved": 22016,
+        "source": "corpus_ceiling",
+        "mode": "acceptance",
+        "diagnostic_only": false,
+        "sub_ceiling": false
+      },
+      "prompt": {
+        "target_context_tokens": 22016,
+        "synthetic_context_words": 10752,
+        "tail_tokens": 0
+      },
+      "placement": {
+        "target_kv": "context-sized",
+        "draft_kv": "turbo4",
+        "draft_backend": "gpu"
+      }
+    },
+    {
+      "command": "python3 tools/server/bench/run-pager-soak.py <output> --context 6401 --diagnostic --dry-run",
+      "status": "pass",
+      "context": {
+        "requested": "6401",
+        "resolved": 6401,
+        "source": "explicit",
+        "mode": "diagnostic",
+        "diagnostic_only": true,
+        "sub_ceiling": true
+      },
+      "prompt": {
+        "target_context_tokens": 6401,
+        "synthetic_context_words": 2944,
+        "tail_tokens": 1
+      }
+    },
+    {
+      "command": "python3 tools/server/bench/run-pager-soak.py <output> --context 16384",
+      "status": "rejected",
+      "exit_code": 2,
+      "reason": "context 16384 is below corpus ceiling 22016; use an explicit diagnostic mode for a partial run"
+    },
+    {
+      "command": "python3 tools/server/bench/run-quality-corpus.py <v4> <output> --context 6401 --diagnostic --mode selective",
+      "status": "pass_boundary_test",
+      "context": {
+        "resolved": 6401,
+        "mode": "diagnostic",
+        "diagnostic_only": true
+      },
+      "records": {
+        "cases": 24,
+        "skipped_context": 18,
+        "odd_tail_records": 4
+      }
+    }
+  ],
+  "verification": {
+    "service_contacted": false,
+    "hardware_claimed": false,
+    "purpose": "portable raw harness boundary evidence"
+  }
+}
