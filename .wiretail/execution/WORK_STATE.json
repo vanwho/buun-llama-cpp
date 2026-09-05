@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "17",
-  "current_task": "17-11",
-  "last_updated_utc": "2026-09-05T02:24:26+00:00",
+  "current_task": "17-12",
+  "last_updated_utc": "2026-09-05T02:39:58+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -2273,13 +2273,202 @@
       "id": "17-11",
       "phase": "17",
       "cluster": "17e-benchmark-soak",
-      "title": "Consolidate phase-17 benchmark evidence for review",
+      "title": "Consolidate the initial phase-17 benchmark baseline",
       "packet": ".wiretail/execution/tasks/17-11.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "17-10"
+      ],
+      "commit": "6905b175975711645e9072adc35869f04a9c0c89",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/17-11-attempt-1-20260905T023450Z.jsonl:37",
+            "total_tokens": 3382031,
+            "total_tokens_derived": true,
+            "input_tokens": 3366658,
+            "cached_input_tokens": 3323904,
+            "output_tokens": 15373,
+            "thinking_tokens": 4431
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 3382031,
+          "input_tokens": 3366658,
+          "cached_input_tokens": 3323904,
+          "output_tokens": 15373,
+          "thinking_tokens": 4431
+        }
+      }
+    },
+    {
+      "id": "17-12",
+      "phase": "17",
+      "cluster": "17f-context-pressure",
+      "title": "Make acceptance context and soak inputs dynamic",
+      "packet": ".wiretail/execution/tasks/17-12.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "17-11"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "17-13",
+      "phase": "17",
+      "cluster": "17f-context-pressure",
+      "title": "Produce and validate physical pager pressure",
+      "packet": ".wiretail/execution/tasks/17-13.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "17-12"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "17-14",
+      "phase": "17",
+      "cluster": "17g-quality-oracles",
+      "title": "Repair exact/native and concurrent response oracles",
+      "packet": ".wiretail/execution/tasks/17-14.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "17-13"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "17-15",
+      "phase": "17",
+      "cluster": "17h-full-benchmarks",
+      "title": "Rerun full V4 quality at a contract-valid context",
+      "packet": ".wiretail/execution/tasks/17-15.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "17-14"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "17-16",
+      "phase": "17",
+      "cluster": "17h-full-benchmarks",
+      "title": "Produce apples-to-apples full-context performance evidence",
+      "packet": ".wiretail/execution/tasks/17-16.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "17-15"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "17-17",
+      "phase": "17",
+      "cluster": "17h-full-benchmarks",
+      "title": "Rerun lifecycle soak at the measured pressure boundary",
+      "packet": ".wiretail/execution/tasks/17-17.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "17-16"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "17-18",
+      "phase": "17",
+      "cluster": "17i-summary",
+      "title": "Consolidate the revised phase-17 benchmark summary",
+      "packet": ".wiretail/execution/tasks/17-18.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "17-17"
       ],
       "commit": null,
       "token_usage": {
@@ -2304,7 +2493,7 @@
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
-        "17-11"
+        "17-18"
       ],
       "commit": null,
       "token_usage": {
@@ -2536,15 +2725,28 @@
           "cached_input_tokens": 7642880,
           "output_tokens": 40167,
           "thinking_tokens": 13799
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/17-11-attempt-1-20260905T023450Z.jsonl:37",
+          "total_tokens": 3382031,
+          "total_tokens_derived": true,
+          "input_tokens": 3366658,
+          "cached_input_tokens": 3323904,
+          "output_tokens": 15373,
+          "thinking_tokens": 4431
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 9308724,
-        "input_tokens": 9258339,
-        "cached_input_tokens": 9016832,
-        "output_tokens": 50385,
-        "thinking_tokens": 15071
+        "turns": 3,
+        "total_tokens": 12690755,
+        "input_tokens": 12624997,
+        "cached_input_tokens": 12340736,
+        "output_tokens": 65758,
+        "thinking_tokens": 19502
       }
     },
     "18": {
@@ -2561,12 +2763,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 2,
-      "total_tokens": 9308724,
-      "input_tokens": 9258339,
-      "cached_input_tokens": 9016832,
-      "output_tokens": 50385,
-      "thinking_tokens": 15071
+      "turns": 3,
+      "total_tokens": 12690755,
+      "input_tokens": 12624997,
+      "cached_input_tokens": 12340736,
+      "output_tokens": 65758,
+      "thinking_tokens": 19502
     },
     "source": "Codex turn.completed usage events"
   }

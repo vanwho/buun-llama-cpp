@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "phase": "17",
+  "task": "17-11",
+  "baseline_kind": "initial_corrective_benchmark_baseline",
+  "status": "initial_baseline_not_final_acceptance",
+  "next_corrective_task": "17-12",
+  "provenance": {
+    "runtime_identity": {
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "binary_sha256": "d306009f51f0ebb554752d9c41fabb51c796f9d708eef977cc3cc09014e361db",
+      "corpus_schema": "pager-corpus-v4",
+      "corpus_hash": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+      "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+      "sampling": {"temperature": 0, "seed": 42},
+      "coherent_fields": ["model_sha256", "tokenizer_sha256", "binary_sha256", "corpus_hash", "sampling", "page_size_tokens"],
+      "coherence_gaps": {
+        "repository_head": "17-08 and 17-09 record 817b405f9cde350919fffa6052d80689cdef69ef; 17-10 records 5d5276ca5a166cfeb4a05f016d329503d800ee86",
+        "profile": "17-08 and 17-09 do not record a complete profile identity/config hash; 17-10 records qwen38-fast with config hash 90e8a828ab193628dd344f32ca84d6368ada89a11853b64cf25c741b52778f96",
+        "resolved_context": "17-08 full-corpus ceiling is 22016 tokens, 17-09 diagnostic context is 8192, and 17-10 synthetic lifecycle context is 16384"
+      }
+    },
+    "runs": [
+      {
+        "task": "17-08",
+        "kind": "quality",
+        "repository_head": "817b405f9cde350919fffa6052d80689cdef69ef",
+        "profile": "not fully recorded",
+        "resolved_contexts": "V4 measured 4096..22016; native recovery only 8192",
+        "manifest": ".wiretail/execution/evidence/PHASE17_QUALITY.json",
+        "raw_root": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z",
+        "raw_integrity": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z/SHA256SUMS"
+      },
+      {
+        "task": "17-09",
+        "kind": "performance",
+        "repository_head": "817b405f9cde350919fffa6052d80689cdef69ef",
+        "profile": "qwen38-fast runtime implied; complete profile identity not in manifest",
+        "resolved_contexts": "8192 diagnostic only",
+        "manifest": ".wiretail/execution/evidence/PHASE17_PERFORMANCE.json",
+        "raw_root": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z",
+        "raw_integrity": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/SHA256SUMS"
+      },
+      {
+        "task": "17-10",
+        "kind": "soak",
+        "repository_head": "5d5276ca5a166cfeb4a05f016d329503d800ee86",
+        "profile": "qwen38-fast",
+        "resolved_contexts": "16384 synthetic lifecycle diagnostic only",
+        "manifest": ".wiretail/execution/evidence/PHASE17_SOAK.json",
+        "raw_root": "/srv/ai/paged-kv/results/17-10-soak-20260905T021200Z",
+        "raw_integrity": "/srv/ai/paged-kv/results/17-10-soak-20260905T021200Z/SHA256SUMS"
+      }
+    ],
+    "hardware": "NVIDIA GeForce RTX 4080, driver 595.84, 16376 MiB"
+  },
+  "quality": {
+    "full_v4_cases": 24,
+    "full_v4_context_ceiling_tokens": 22016,
+    "dense_control": {"attempted": 11, "total": 24, "exact_matches": 11, "status": "partial_diagnostic"},
+    "native_recovery_probe": {"context_tokens": 8192, "exact_matches": "0/1", "mtp_rows": 8192, "mtp_bytes": 8781824, "status": "probe_failed_checker"},
+    "native_ladder": {"77824": "startup_failed", "16384": "startup_failed", "8192": "startup_passed"},
+    "parity": {"output": null, "logit": null, "routing_recall": null, "attention_mass": null, "perplexity_delta": null, "kl_divergence": null},
+    "missing": ["full dense matrix", "selected-all reference", "exact reference", "full selective scoring", "MTP quality parity", "ablations"]
+  },
+  "performance": {
+    "context_tokens": 8192,
+    "page_size_tokens": 256,
+    "diagnostic_trials": "10 trials x 3 prompts x 3 successful modes",
+    "decode_p50_tokens_per_second": {"feature_off": 50.063748, "observe_native": 111.00669, "selective_native": 74.225274},
+    "descriptive_ratios": {"selective_over_feature_off": 1.482615, "observe_over_feature_off": 2.217307},
+    "mtp_acceptance": {"observe_native": 0.966667, "selective_native": 0.722222, "feature_off": null},
+    "required_ratios": {"selective_over_ordinary_cpu_kv": null, "selective_over_safe_all_gpu_mtp": null, "three_x_floor": null, "five_x_target": null, "all_gpu_70_percent": null},
+    "exact_native": {"http_status": 500, "status": "failed"},
+    "missing": ["ordinary CPU-KV denominator", "safe all-GPU Turbo4-MTP denominator", "V4 cold needles", "V4 focus shifts", "V4 churn", "canonical full-context performance matrix"]
+  },
+  "soak": {
+    "context_tokens": 16384,
+    "profile": "qwen38-fast selective/native-MTP",
+    "lifecycle": {"primary_requests": 16, "successful_http": 16, "concurrent_retry_requests": 2, "concurrent_retry_http": 2, "checkpoint_sha256_match": true, "cancellation_timeout_exit": 124, "restart_health_8080": 200, "restart_health_8091": 200},
+    "pager_bookkeeping": {"logical_pages": 64, "resident_pages_peak": 13, "host_pages_peak": 12, "host_pageable_bytes_peak": 51904500, "target_bytes": 276824000, "table_rebuilds_before_restart": 439},
+    "physical_transfer_evidence": {"faults": 0, "evictions": 0, "transfer_submitted": 0, "h2d_useful_bytes": 0, "d2h_useful_bytes": 0, "status": "no_positive_transfer_fault_eviction_observation"},
+    "resources": {"workload_samples": 45, "workload_rss_kib": {"min": 2490912, "max": 5745132}, "workload_gpu_memory_mib": {"min": 14679, "max": 14731}, "post_restart_idle_samples": 30, "post_restart_idle_rss_kib": {"min": 2458052, "max": 2460296}, "post_restart_idle_gpu_memory_mib": {"min": 14707, "max": 14707}, "post_restart_idle_host_pages": {"min": 0, "max": 0}, "bounded_observation": true},
+    "concurrent_output_oracle": {"status": "not_deterministic", "anomaly": "one original HTTP-200 payload was Error: No valid data found.; exact-marker retry returned refusal prefixes"}
+  },
+  "goal_checks": [
+    {"goal": "V4 quality parity", "status": "unmeasured", "observed": null, "threshold_or_requirement": "24-case exact/output/logit parity with frozen oracle", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_QUALITY.json#/gates"},
+    {"goal": "Full V4 context coverage", "status": "unmeasured", "observed": "maximum exercised diagnostic context was 16384; corpus ceiling is 22016", "threshold_or_requirement": "exercise the resolved context required by each V4 case through 22016 tokens", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_QUALITY.json#/full_corpus_max_context_tokens"},
+    {"goal": "Native-MTP capacity at corpus context", "status": "unmeasured", "observed": "native MTP started at 8192; 16384 startup failed in the quality ladder but later 16384 soak startup passed under a different runtime state", "threshold_or_requirement": "contract-valid native Turbo4/GPU MTP at the V4 resolved context", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_QUALITY.json#/runs/2"},
+    {"goal": "Required speed floor", "status": "unmeasured", "observed": null, "threshold_or_requirement": "selective warm median decode >= 3x ordinary CPU-KV", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_PERFORMANCE.json#/ratios/selective_over_ordinary_cpu_kv"},
+    {"goal": "5x speed target", "status": "unmeasured", "observed": null, "threshold_or_requirement": "5x ordinary CPU-KV and >=70% comparable safe all-GPU ratio", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_PERFORMANCE.json#/ratios"},
+    {"goal": "MTP placement and acceptance", "status": "measured", "observed": "Turbo4/GPU target and draft placement; diagnostic acceptance 72.2222% selective and 96.6667% observe", "threshold_or_requirement": "native MTP placement must be explicit; acceptance retained as a measured diagnostic, not a quality gate", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_PERFORMANCE.json#/mtp_acceptance"},
+    {"goal": "Pager residency bookkeeping", "status": "measured", "observed": "64 logical pages, peak 13 resident and 12 host pages at 16384 diagnostic context", "threshold_or_requirement": "retain bounded ledger and distinguish resident/host bookkeeping", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_SOAK.json#/telemetry"},
+    {"goal": "Physical pager transfer/fault/eviction path", "status": "unmeasured", "observed": "all relevant counters remained zero; no positive physical transfer/fault/eviction event was captured", "threshold_or_requirement": "positive, contract-valid cold-page/focus/churn transfer telemetry", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_SOAK.json#/telemetry/zero_delta_counters"},
+    {"goal": "Lifecycle safety and bounded resources", "status": "measured", "observed": "checkpoint hash, cancellation release, clear/recovery, restart health, and 30-second idle plateau passed", "threshold_or_requirement": "no stale completion, corruption, deadlock, health loss, or monotonic resource growth", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_SOAK.json#/gates"},
+    {"goal": "Concurrent semantic isolation", "status": "unmeasured", "observed": null, "threshold_or_requirement": "deterministic per-request semantic oracle under concurrent load", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_SOAK.json#/coverage/concurrent_request_isolation"},
+    {"goal": "Overall Turbo4 attention-aware pager goal", "status": "unmeasured", "observed": null, "threshold_or_requirement": "all quality, context, speed, transfer, and lifecycle gates complete", "evidence_pointer": ".wiretail/execution/evidence/PHASE17_BENCHMARK_SUMMARY.json#/blocked_reasons"}
+  ],
+  "raw_roots": [
+    {"task": "17-08", "root": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z", "hash": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z/SHA256SUMS"},
+    {"task": "17-09", "root": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z", "hash": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/SHA256SUMS"},
+    {"task": "17-10", "root": "/srv/ai/paged-kv/results/17-10-soak-20260905T021200Z", "hash": "/srv/ai/paged-kv/results/17-10-soak-20260905T021200Z/SHA256SUMS"}
+  ],
+  "blocked_reasons": [
+    "Full V4 quality matrix stopped after 11/24 dense cases; native 8192 recovery probe failed the frozen exact checker.",
+    "Native MTP capacity was not established at the 22016-token corpus ceiling.",
+    "Ordinary CPU-KV and safe all-GPU Turbo4-MTP denominators were unavailable; 3x, 5x, and 70% ratios are null.",
+    "Short performance runs did not exercise V4 cold/focus/churn transfer paths; soak host-page bookkeeping had zero physical transfer/fault/eviction deltas.",
+    "Concurrent transport and slot release passed, but deterministic semantic output isolation was not established.",
+    "Historical manifests do not provide one coherent repository-head/profile/context identity even though model, tokenizer, binary, corpus, and sampling hashes agree."
+  ]
+}
