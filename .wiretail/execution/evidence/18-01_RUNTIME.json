@@ -1,0 +1,149 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "18-01",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "runtime_identity_startup_crash_lifecycle",
+  "provenance": {
+    "source_commit": "b4adad254758918a9c9a7774e28fa50484afb8be",
+    "source_diff_sha256": "947e6162daf56bfdd82541e30dfcd860621f677c485d26d2b70438e000b49ee8",
+    "bundle_source_diff_sha256": "76fedc0aed92005aa56881e09fa439b9db3e799ea0a686740529eb2af314020b",
+    "bundle_manifest_sha256": "8635372d542cbb38a6a75a31de50e38c77beae3046fc2492400b0a25860cdfda",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "corpus_declared_hash": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "tokenizer_template_sha256": null,
+    "config_sha256": null
+  },
+  "provenance_unavailable": [
+    "tokenizer_template_sha256: the checked-in V4 fixture records the model hash as its tokenizer placeholder",
+    "config_sha256: no separate immutable site configuration artifact was produced"
+  ],
+  "runtime": {
+    "service": "llama-server.service",
+    "profile": "qwen38-fast",
+    "main_pid_after_recovery": 3082150,
+    "executable": "/srv/ai/paged-kv/results/18-01-runtime-bundle-20260905-v3/bundle/bin/llama-server",
+    "bundle_root": "/srv/ai/paged-kv/results/18-01-runtime-bundle-20260905-v3/bundle",
+    "bundle_immutable": true,
+    "bundle_file_count": 23,
+    "context_tokens": 22016,
+    "pager_mode": "selective",
+    "page_size_tokens": 256,
+    "mtp_placement": "gpu",
+    "mtp_type_k": "turbo4",
+    "mtp_type_v": "turbo4",
+    "target_type_k": "turbo4",
+    "target_type_v": "turbo4",
+    "loaded_project_dso_count": 9,
+    "loaded_project_dsos_all_in_bundle": true,
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf"
+  },
+  "checks": [
+    {
+      "id": "cuda_build",
+      "status": "pass",
+      "detail": "llama-server and test-server-mmproj-lifecycle built with Release CUDA configuration, GGML_CUDA=ON, CUDA architecture 89-real"
+    },
+    {
+      "id": "portable_lifecycle_tests",
+      "status": "pass",
+      "detail": "24 adapter and soak contract tests passed"
+    },
+    {
+      "id": "mmproj_lifecycle_regression",
+      "status": "pass",
+      "detail": "test-server-mmproj-lifecycle executable and focused ctest passed; bool pager JSON fields no longer enter numeric telemetry"
+    },
+    {
+      "id": "candidate_startup",
+      "status": "pass",
+      "detail": "immutable v3 bundle started at context 22016 with selective pager, GPU draft placement, and Turbo4 target/MTP K/V"
+    },
+    {
+      "id": "authenticated_idle_endpoints",
+      "status": "pass",
+      "detail": "health, props, and metrics HTTP checks returned 200"
+    },
+    {
+      "id": "short_generation",
+      "status": "pass",
+      "detail": "three measured HTTP-200 generations completed without transport or server errors; decode 61.704-82.720 tok/s and MTP acceptance 50-100%"
+    },
+    {
+      "id": "repeated_metrics_during_generation",
+      "status": "pass",
+      "detail": "five authenticated metrics polls returned HTTP 200 and each contained KV-pager metrics"
+    },
+    {
+      "id": "failed_start_recovery",
+      "status": "pass",
+      "detail": "intentional /bin/false canonical-runner failure classified canonical_runner_failure and restored exact prior profile, command identity, DSOs, and allowlisted transient overrides"
+    },
+    {
+      "id": "post_fix_crash_recurrence",
+      "status": "pass",
+      "detail": "fixed-run journal showed no exception, SIGSEGV, or type-mismatch error; service remained active with NRestarts=0"
+    },
+    {
+      "id": "unrelated_service_isolation",
+      "status": "pass",
+      "detail": "no 8092 reference occurred in the final runtime or recovery receipts"
+    }
+  ],
+  "telemetry": {
+    "logical_tokens": 22016,
+    "page_tokens": 256,
+    "target_bytes": 371982000,
+    "host_budget_bytes": 65150000000,
+    "vram_budget_bytes": 16301500000,
+    "router_top_k": 8,
+    "prefetch_depth": 2,
+    "faults": 0,
+    "evictions": 0,
+    "wait_us": 27,
+    "mtp_rows": 22016,
+    "mtp_bytes": 23248900
+  },
+  "historical_failure_diagnosis": {
+    "status": "fixed",
+    "trigger": "authenticated /metrics request during the prior 22016 runtime",
+    "observed_error": "nlohmann JSON type_error.302: type must be number, but is boolean",
+    "cause": "server-task pager telemetry loop attempted get<double>() for the admission_accepted boolean",
+    "fix": "numeric telemetry loop now admits only JSON numbers; regression fixture covers admission_accepted=true",
+    "debugger_backtrace": "unavailable: no matching coredump/debugger artifact was available"
+  },
+  "raw_index": [
+    {
+      "id": "candidate_lifecycle",
+      "path": "/srv/ai/paged-kv/results/18-01-runtime-20260905T0820Z/lifecycle-state.json",
+      "sha256": "7384ae827ab913d0df3581e2580b0eddc7e28e245b01132e2369a2dba14e2049"
+    },
+    {
+      "id": "candidate_run_config",
+      "path": "/srv/ai/paged-kv/results/18-01-runtime-20260905T0820Z/run-config.json",
+      "sha256": "9fe4286722a9a6d5e15cf3551667ce9f397040dcd04b5c0face0c3139a8c18da"
+    },
+    {
+      "id": "bundle_manifest",
+      "path": "/srv/ai/paged-kv/results/18-01-runtime-20260905T0820Z/bundle-manifest.json",
+      "sha256": "8635372d542cbb38a6a75a31de50e38c77beae3046fc2492400b0a25860cdfda"
+    },
+    {
+      "id": "idle_metrics",
+      "path": "/srv/ai/paged-kv/results/18-01-runtime-20260905T0820Z/raw/explicit-idle-metrics.body",
+      "sha256": "eb63cb901d6787c613404b96dc19c67e498ae6fded88cb2e6d25e51ba9bc4cd1"
+    },
+    {
+      "id": "recovery_lifecycle",
+      "path": "/srv/ai/paged-kv/results/18-01-runtime-recovery-20260905T0828Z/lifecycle-state.json",
+      "sha256": "1900acceb6a2959fcddecb05f00c2dc8ddebfc9fc1caafc9f8f7349dcd48ae55"
+    }
+  ],
+  "resume": {
+    "command": "Use the exact bundle/identity records above; next packet is 18-02 exact rendered-token sizing",
+    "next_case": null,
+    "secrets_omitted": true
+  }
+}

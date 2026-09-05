@@ -550,3 +550,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-17-16`
 - Commit at update: `9b7dfb329`
 - Summary: Captured final 17-15 findings in POST17_GAP_INDEX JSON/Markdown, classified setup/runtime/semantic/implementation/performance gaps with raw pointers and successor owners, verified task graph, and preserved healthy runtime.
+
+## 2026-09-05T06:16:01+00:00 — 18-01 — done
+
+- Branch: `codex/task-18-01`
+- Commit at update: `b4adad254`
+- Summary: Immutable CUDA runtime identity, startup/crash telemetry fix, bounded lifecycle restoration, live generation and failed-start recovery verified; evidence and handoff recorded.
