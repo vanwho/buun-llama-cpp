@@ -670,3 +670,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-20-04`
 - Commit at update: `a530f894d`
 - Summary: Implemented shape-keyed selected-attention graph reuse with bounded mutable descriptor refresh and retained host workspaces; CPU/CUDA-configured focused KV tests pass, live GPU/MTP checkpoint deferred due occupied RTX 4080.
+
+## 2026-09-05T18:19:05+00:00 — 20-05 — done
+
+- Branch: `codex/task-20-05`
+- Commit at update: `a82806442`
+- Summary: Completed selective Turbo4/GPU-MTP calibration boundary, fixed compressed byte-anchor view sizing, recorded live telemetry and bounded quality/exact-control failures, and verified local CUDA tests.
