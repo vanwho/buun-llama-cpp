@@ -454,6 +454,12 @@ public:
     ggml_tensor * direct_query_positions = nullptr;
     ggml_tensor * direct_staging_storage = nullptr;
     ggml_tensor * direct_page_mass = nullptr;
+    // Flat graph-owned F32 storage for split-KV partition states and optional
+    // per-page states.  CUDA selects a runtime partition count no larger than
+    // direct_split_kv_partition_capacity.
+    ggml_tensor * direct_split_kv_scratch = nullptr;
+    uint32_t direct_split_kv_partition_capacity = 0;
+    uint32_t direct_split_kv_page_count = 0;
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_host;
     std::vector<llama_pos> direct_native_positions_host;
     std::vector<uint8_t> direct_native_mask_host;
