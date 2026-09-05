@@ -1,0 +1,71 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "19-05",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "selective_prefill_direct_turbo4_compressed_query_tile",
+  "created_utc": "2026-09-05T12:10:13Z",
+  "provenance": {
+    "source_commit": "5f020d6d7de4a6069c8f61e6553e3b2d3e3e2358",
+    "source_diff_sha256": "d02dbc350d4ec4e63a42276aed01bbdb465cfe6cf1e61fd9a81807b45e6ed7df",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "binary": "build-cuda/bin/libllama.so",
+    "binary_sha256": "de4ab20b2a7a2cb96ab737eac461af294107bd854d7ca807b0fc751724f88ea0",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": null,
+    "config_sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1",
+    "build": "build-cuda; CUDA architecture 89-real",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; compute capability 8.9; 15942 MiB reported by CUDA",
+    "live_process_observed": "Existing llama-server workload retained; no model-backed prefill service was started or disturbed"
+  },
+  "checks": [
+    {"name": "CUDA backend, llama library, direct fixture, and execution test compile", "status": "pass", "raw_ids": ["build", "llama-binary"]},
+    {"name": "one CTA traverses compressed page descriptors once per supported 1/2/3-query tile", "status": "pass", "raw_ids": ["paged-kernel-test"]},
+    {"name": "query-local causal positions exclude future rows across page boundaries and tails", "status": "pass", "raw_ids": ["paged-kernel-test"]},
+    {"name": "page-mass and partial-state query/head strides remain isolated", "status": "pass", "raw_ids": ["paged-kernel-test"]},
+    {"name": "selective prefill routes direct while unsupported four-token and exact-prefill paths remain visible fallbacks", "status": "pass", "raw_ids": ["execution-test"]},
+    {"name": "adjacent KV attention and generic CUDA attention regressions", "status": "pass", "raw_ids": ["attention-ctest", "backend-ops"]},
+    {"name": "model-backed prefill at two occupied lengths with native GPU Turbo4 MTP", "status": "not_measured", "raw_ids": []}
+  ],
+  "measurements": {
+    "focused_build": "cmake --build build-cuda --target test-cuda-fattn-paged-turbo4 test-kv-attention-execution llama -j2: pass",
+    "focused_ctest": "7/7 passed: KV view, routing summary/retrieval, telemetry, execution, exact, and paged CUDA fixture",
+    "cuda_fixture": "query tiles 1, 2, and 3 passed; query tile 4 rejected; page permutation/gap, 17-row tail, causal output, page mass, and partial state passed",
+    "cuda_fixture_timing_ms": 19.154,
+    "route_counters": "host execution fixture: selective prefill direct=4, decode direct=2, MTP verify direct=1; unsupported prompt shape remains selected reference",
+    "scratch_formula": "resident_rows + transfer_rows + router_rows; production bytes = required_rows * (head_dim_k + head_dim_v) * n_head_kv * sizeof(float); direct tile shared state = 3*256 + 8 + optional 6*n_pages floats",
+    "prefill_default": "supported selective Qwen35/Qwen35MOE Turbo4 prompt chunks are capped at three queries; other models and exact mode retain physical-window chunking",
+    "bounded_storage": "direct graph uses compressed page descriptors, native positions/masks, query positions, optional page mass, and resident scratch; no full-logical-context F16 target or unbounded dequant gather is allocated",
+    "backend_ops": "FLASH_ATTN_EXT on CUDA0: 2948/2948 tests passed",
+    "live_model_attention_checksums": null
+  },
+  "raw_index": [
+    {"id": "paged-kernel-header", "path": "ggml/src/ggml-cuda/fattn-paged-turbo4.cuh", "sha256": "cbc03d3c425b1faf8efcce32ca368739a4b67d6ed446598a21d2fce85b846319"},
+    {"id": "paged-kernel", "path": "ggml/src/ggml-cuda/fattn.cu", "sha256": "5270b6ede7c12b6ac42a5feb079aa0344ca6c43fab6c3231a0089ee673bc6ea9"},
+    {"id": "context-source", "path": "src/llama-context.cpp", "sha256": "df94218d0f1a842054808e97560c0b7fe2b09879b09f9a423ea448052641be34"},
+    {"id": "execution-source", "path": "src/llama-kv-attention-execution.cpp", "sha256": "96d91494412c57117f3de627038c7847de45f00154a01031d1c96830202fd1a1"},
+    {"id": "paged-kernel-test-source", "path": "tests/test-cuda-fattn-paged-turbo4.cu", "sha256": "d7cab75bfa24d2885d958acd9af2271b398bc24ec4fbe9bf33c2740935fa02fc"},
+    {"id": "execution-test-source", "path": "tests/test-kv-attention-execution.cpp", "sha256": "8c170b0df954c9cff5415bc73d185d04549dd2f329badc96db67ece0b52e1d00"},
+    {"id": "paged-kernel-test", "path": "build-cuda/bin/test-cuda-fattn-paged-turbo4", "sha256": "a070df1abf36de5695d341d102137968aaada72a4ca29bd84000dabfe424b4f0"},
+    {"id": "execution-test", "path": "build-cuda/bin/test-kv-attention-execution", "sha256": "710ff51e3b1d767d63e2a870297ce9df782b5b9ce7be5bc1e3f2a3e93f76f46f"},
+    {"id": "backend-ops", "path": "build-cuda/bin/test-backend-ops", "sha256": "403323b97fab10efc4b6c7f200375931c28250b91cc8bf3e4d589f5bbb01ab3d"},
+    {"id": "llama-binary", "path": "build-cuda/bin/libllama.so", "sha256": "de4ab20b2a7a2cb96ab737eac461af294107bd854d7ca807b0fc751724f88ea0"},
+    {"id": "build-config", "path": "build-cuda/CMakeCache.txt", "sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The shared RTX 4080 runtime workload was retained; no isolated two-length model-backed prefill/MTP invocation was started.",
+    "model_and_corpus_hashes": "No isolated model-backed task run was started; model and corpus hashes remain null.",
+    "live_attention_checksums": "Requires the isolated Qwen runtime checkpoint; deterministic compressed-page CUDA and host-route checks passed."
+  },
+  "resume": {
+    "command": ["run", "the", "runtime-supported", "Qwen", "two-length", "prefill", "and", "native-MTP", "checkpoint", "on", "an", "isolated", "GPU"],
+    "next_case": "capture prefill progress/time, bounded allocation, direct/reference route counters, and oracle parity at two occupied lengths",
+    "secrets_omitted": true
+  }
+}

@@ -96,7 +96,7 @@ static void test_routes_epochs_and_fences() {
     auto first = execution.prepare(selected_prefill, llama_kv_attention_execution_phase::prefill,
             3, 7, true, scratch);
     assert(first.status == llama_kv_attention_execution_status::ok);
-    assert(first.route == llama_kv_attention_execution_route::selected_reference);
+    assert(first.route == llama_kv_attention_execution_route::selected_direct);
     assert(first.graph_rebuild && execution.in_flight_graphs() == 1);
     execution.complete_one_graph();
 
@@ -129,7 +129,7 @@ static void test_routes_epochs_and_fences() {
     assert(execution.in_flight_graphs() == 0);
 
     const auto & route_metrics = execution.metrics();
-    assert(route_metrics.prefill_routes.selected_reference == 4);
+    assert(route_metrics.prefill_routes.selected_direct == 4);
     assert(route_metrics.decode_routes.selected_direct == 2);
     assert(route_metrics.selected_page_count == 2);
     const auto selected_mtp = metadata(snapshot(), 2, 1);

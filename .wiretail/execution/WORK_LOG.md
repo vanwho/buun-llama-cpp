@@ -616,3 +616,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-19-04`
 - Commit at update: `5f020d6d7`
 - Summary: Extended direct Turbo4 paging to native MTP verification for bounded 1-3 query tokens with explicit query/head/page-mass/partial strides; CUDA and routing regressions pass, live model checkpoint deferred.
+
+## 2026-09-05T12:11:53+00:00 — 19-05 — done
+
+- Branch: `codex/task-19-05`
+- Commit at update: `8395dd0fd`
+- Summary: Implemented bounded three-query direct Turbo4 selective prefill tiles with compressed page traversal and query-local causal masking; local CUDA/host/backend acceptance passed, live two-length Qwen checkpoint deferred due occupied RTX 4080 runtime.

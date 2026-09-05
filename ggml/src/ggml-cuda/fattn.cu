@@ -1295,7 +1295,11 @@ static __device__ __forceinline__ float turbo4_paged_fwht(
     return value * 0.08838834764831845f * d_turbo_wht_signs2_fattn[local];
 }
 
-static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
+// A bounded query tile keeps the page-table traversal and compressed row decode
+// shared by all queries in the tile.  Three queries is the largest shape
+// admitted by the direct graph today; longer prompts are split by the
+// prefill scheduler before graph capture.
+static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
         const float * __restrict__ q,
         const char * __restrict__ k,
         const char * __restrict__ v,
@@ -1309,6 +1313,7 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
         const uint32_t n_rows,
         const uint32_t n_head_q,
         const uint32_t n_head_kv,
+        const uint32_t n_query_tokens,
         const size_t q_head_stride,
         const size_t q_query_stride,
         const size_t output_head_stride,
@@ -1331,8 +1336,9 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
         const bool causal) {
     extern __shared__ float shared[];
 
+    constexpr int max_query_tile = 3;
+
     const int head = blockIdx.x;
-    const int query = blockIdx.y;
     const int tid = threadIdx.x;
     const int group = tid / 128;
     const int local = tid & 127;
@@ -1340,43 +1346,50 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
     const int kv_head = head / gqa_ratio;
 
     float * q_rot = shared;
-    float * reductions = q_rot + 256;
+    float * reductions = q_rot + 256 * max_query_tile;
     float * page_max = reductions + 8;
-    float * page_sum = page_max + n_pages;
+    float * page_sum = page_max + n_pages * max_query_tile;
 
-    const float * q_head = (const float *) ((const char *) q +
-        query * q_query_stride + head * q_head_stride);
-    float * output_head = output == nullptr ? nullptr :
-        (float *) ((char *) output + query * output_query_stride + head * output_head_stride);
+    int64_t query_position[max_query_tile];
+    for (uint32_t query = 0; query < n_query_tokens; ++query) {
+        query_position[query] = query_positions[query];
 
-    // Rotate Q in shared memory, matching the dense Turbo4 fused path.  The
-    // K/V pages stay compressed and are decoded only for the current row.
-    float q_value = q_head[tid] * d_innerq_channel_scale_inv_fattn[local] * d_turbo_wht_signs1_fattn[local];
-    q_value = turbo4_paged_fwht(q_value, q_rot, group, local);
-    q_rot[tid] = q_value;
-    __syncthreads();
+        const float * q_head = (const float *) ((const char *) q +
+            query * q_query_stride + head * q_head_stride);
+        float * q_rot_query = q_rot + query * 256;
+
+        // Rotate every Q in the tile once.  The K/V pages stay compressed and
+        // are decoded once per row below, instead of once per query.
+        float q_value = q_head[tid] * d_innerq_channel_scale_inv_fattn[local] * d_turbo_wht_signs1_fattn[local];
+        q_value = turbo4_paged_fwht(q_value, q_rot_query, group, local);
+        q_rot_query[tid] = q_value;
+        __syncthreads();
+    }
 
     if (reduce_page_mass) {
-        for (uint32_t logical_page = tid; logical_page < page_mass_logical_count; logical_page += blockDim.x) {
-            page_mass[(size_t) query * page_mass_query_stride / sizeof(float) +
-                (size_t) head * page_mass_head_stride / sizeof(float) + logical_page] = 0.0f;
+        for (uint32_t query = 0; query < n_query_tokens; ++query) {
+            for (uint32_t logical_page = tid; logical_page < page_mass_logical_count; logical_page += blockDim.x) {
+                page_mass[(size_t) query * page_mass_query_stride / sizeof(float) +
+                    (size_t) head * page_mass_head_stride / sizeof(float) + logical_page] = 0.0f;
+            }
         }
         if (tid == 0) {
-            for (uint32_t page = 0; page < n_pages; ++page) {
-                page_max[page] = -FLT_MAX;
-                page_sum[page] = 0.0f;
+            for (uint32_t query = 0; query < n_query_tokens; ++query) {
+                for (uint32_t page = 0; page < n_pages; ++page) {
+                    page_max[query * n_pages + page] = -FLT_MAX;
+                    page_sum[query * n_pages + page] = 0.0f;
+                }
             }
         }
         __syncthreads();
     }
 
-    const int64_t query_position = query_positions[query];
     const int64_t row_bytes_k = (int64_t) k_row_stride;
     const int64_t row_bytes_v = (int64_t) v_row_stride;
 
-    float qk_max = -FLT_MAX;
-    float qk_sum = 0.0f;
-    float value_sum = 0.0f;
+    float qk_max[max_query_tile] = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
+    float qk_sum[max_query_tile] = { 0.0f, 0.0f, 0.0f };
+    float value_sum[max_query_tile] = { 0.0f, 0.0f, 0.0f };
 
     for (uint32_t page_index = 0; page_index < n_pages; ++page_index) {
         const ggml_cuda_fattn_turbo4_page page = pages[page_index];
@@ -1387,89 +1400,107 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_decode_kernel(
 
         for (uint32_t row = 0; row < page.row_count; ++row) {
             const uint32_t compact_row = page.compact_row_begin + row;
-            bool valid = compact_row < n_rows && page.native_position_begin <= INT64_MAX - int64_t(row);
+            bool row_valid = compact_row < n_rows && page.native_position_begin <= INT64_MAX - int64_t(row);
             int64_t native_position = page.native_position_begin + row;
-            if (valid && native_positions != nullptr) {
+            if (row_valid && native_positions != nullptr) {
                 native_position = native_positions[compact_row];
             }
-            if (valid && native_mask != nullptr) {
-                valid = native_mask[compact_row] != 0;
-            }
-            if (valid && causal) {
-                valid = native_position <= query_position;
+            if (row_valid && native_mask != nullptr) {
+                row_valid = native_mask[compact_row] != 0;
             }
 
-            float qk = 0.0f;
-            if (valid) {
+            bool valid[max_query_tile] = { false, false, false };
+            bool any_valid = false;
+            for (uint32_t query = 0; query < n_query_tokens; ++query) {
+                valid[query] = row_valid && (!causal || native_position <= query_position[query]);
+                any_valid = any_valid || valid[query];
+            }
+
+            float k_value = 0.0f;
+            float v_value = 0.0f;
+            if (any_valid) {
                 const char * k_row = k_page + row * row_bytes_k;
-                qk = q_rot[tid] * turbo4_paged_value(k_row, tid);
+                const char * v_row = v_page + row * row_bytes_v;
+                k_value = turbo4_paged_value(k_row, tid);
+                v_value = turbo4_paged_value(v_row, tid);
             }
 
-            // Reduce the dot product once per row.  All threads then observe
-            // the same scalar through reductions[0].
-            for (int offset = 16; offset > 0; offset >>= 1) {
-                qk += __shfl_down_sync(0xFFFFFFFFu, qk, offset);
+            for (uint32_t query = 0; query < n_query_tokens; ++query) {
+                float qk = valid[query] ? q_rot[query * 256 + tid] * k_value : 0.0f;
+
+                // Reduce one query's dot product at a time.  The decoded K/V
+                // row above is reused for every valid query in this tile.
+                for (int offset = 16; offset > 0; offset >>= 1) {
+                    qk += __shfl_down_sync(0xFFFFFFFFu, qk, offset);
+                }
+                if ((tid & 31) == 0) {
+                    reductions[tid / 32] = qk;
+                }
+                __syncthreads();
+                if (tid == 0) {
+                    float total = 0.0f;
+                    for (int warp = 0; warp < 8; ++warp) {
+                        total += reductions[warp];
+                    }
+                    reductions[0] = valid[query] ? total * scale : -FLT_MAX;
+                }
+                __syncthreads();
+                qk = reductions[0];
+
+                if (valid[query]) {
+                    const float next_max = fmaxf(qk_max[query], qk);
+                    const float exp_old = qk_max[query] == -FLT_MAX ? 0.0f :
+                        expf(qk_max[query] - next_max);
+                    const float exp_new = expf(qk - next_max);
+                    value_sum[query] = value_sum[query] * exp_old + exp_new * v_value;
+                    qk_sum[query] = qk_sum[query] * exp_old + exp_new;
+                    qk_max[query] = next_max;
+
+                    if (reduce_page_mass && tid == 0) {
+                        const size_t page_state = size_t(query) * n_pages + page_index;
+                        const float page_next_max = fmaxf(page_max[page_state], qk);
+                        const float page_exp_old = page_max[page_state] == -FLT_MAX ? 0.0f :
+                            expf(page_max[page_state] - page_next_max);
+                        const float page_exp_new = expf(qk - page_next_max);
+                        page_sum[page_state] = page_sum[page_state] * page_exp_old + page_exp_new;
+                        page_max[page_state] = page_next_max;
+                    }
+                }
+                __syncthreads();
             }
-            if ((tid & 31) == 0) {
-                reductions[tid / 32] = qk;
+        }
+    }
+
+    for (uint32_t query = 0; query < n_query_tokens; ++query) {
+        if (output != nullptr) {
+            float * output_head = (float *) ((char *) output + query * output_query_stride +
+                head * output_head_stride);
+            output_head[tid] = qk_sum[query] > 0.0f ? value_sum[query] / qk_sum[query] : 0.0f;
+        }
+        if (write_partial_state) {
+            float * state = (float *) ((char *) partial_state + query * partial_state_query_stride +
+                head * partial_state_head_stride);
+            if (tid == 0) {
+                state[0] = qk_sum[query] > 0.0f ? qk_max[query] : -INFINITY;
+                state[1] = qk_sum[query];
             }
+            state[2 + tid] = value_sum[query];
+        }
+
+        if (reduce_page_mass) {
             __syncthreads();
             if (tid == 0) {
-                float total = 0.0f;
-                for (int warp = 0; warp < 8; ++warp) {
-                    total += reductions[warp];
-                }
-                reductions[0] = valid ? total * scale : -FLT_MAX;
-            }
-            __syncthreads();
-            qk = reductions[0];
-
-            if (valid) {
-                const float next_max = fmaxf(qk_max, qk);
-                const float exp_old = qk_max == -FLT_MAX ? 0.0f : expf(qk_max - next_max);
-                const float exp_new = expf(qk - next_max);
-                const char * v_row = v_page + row * row_bytes_v;
-                value_sum = value_sum * exp_old + exp_new * turbo4_paged_value(v_row, tid);
-                qk_sum = qk_sum * exp_old + exp_new;
-                qk_max = next_max;
-
-                if (reduce_page_mass && tid == 0) {
-                    const float page_next_max = fmaxf(page_max[page_index], qk);
-                    const float page_exp_old = page_max[page_index] == -FLT_MAX ? 0.0f :
-                        expf(page_max[page_index] - page_next_max);
-                    const float page_exp_new = expf(qk - page_next_max);
-                    page_sum[page_index] = page_sum[page_index] * page_exp_old + page_exp_new;
-                    page_max[page_index] = page_next_max;
+                for (uint32_t page_index = 0; page_index < n_pages; ++page_index) {
+                    const ggml_cuda_fattn_turbo4_page page = pages[page_index];
+                    const size_t page_state = size_t(query) * n_pages + page_index;
+                    const float mass = qk_sum[query] > 0.0f && page_max[page_state] != -FLT_MAX
+                        ? expf(page_max[page_state] - qk_max[query]) * page_sum[page_state] / qk_sum[query] : 0.0f;
+                    page_mass[(size_t) query * page_mass_query_stride / sizeof(float) +
+                        (size_t) head * page_mass_head_stride / sizeof(float) + page.logical_page] = mass;
                 }
             }
-            __syncthreads();
         }
-    }
-
-    if (output != nullptr) {
-        output_head[tid] = qk_sum > 0.0f ? value_sum / qk_sum : 0.0f;
-    }
-    if (write_partial_state) {
-        float * state = (float *) ((char *) partial_state + query * partial_state_query_stride +
-            head * partial_state_head_stride);
-        if (tid == 0) {
-            state[0] = qk_sum > 0.0f ? qk_max : -INFINITY;
-            state[1] = qk_sum;
-        }
-        state[2 + tid] = value_sum;
-    }
-
-    if (reduce_page_mass) {
         __syncthreads();
-        if (tid == 0) {
-            for (uint32_t page_index = 0; page_index < n_pages; ++page_index) {
-                const ggml_cuda_fattn_turbo4_page page = pages[page_index];
-                const float mass = qk_sum > 0.0f && page_max[page_index] != -FLT_MAX
-                    ? expf(page_max[page_index] - qk_max) * page_sum[page_index] / qk_sum : 0.0f;
-                page_mass[(size_t) query * page_mass_query_stride / sizeof(float) +
-                    (size_t) head * page_mass_head_stride / sizeof(float) + page.logical_page] = mass;
-            }
-        }
     }
 
     GGML_UNUSED(n_head_q);
@@ -1529,21 +1560,24 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
 
     ggml_cuda_set_device(ctx.device);
 
-    const size_t shared_floats = 256 + 8 + (params.reduce_page_mass ? 2 * params.n_pages : 0);
+    constexpr size_t max_query_tile = 3;
+    const size_t shared_floats = 256 * max_query_tile + 8 +
+        (params.reduce_page_mass ? 2 * max_query_tile * params.n_pages : 0);
     const size_t shared_bytes = shared_floats * sizeof(float);
     if (shared_bytes > 48 * 1024) {
-        if (cudaFuncSetAttribute(ggml_cuda_fattn_turbo4_paged_decode_kernel,
+        if (cudaFuncSetAttribute(ggml_cuda_fattn_turbo4_paged_query_tile_kernel,
                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
                                  (int) shared_bytes) != cudaSuccess) {
             return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
         }
     }
 
-    ggml_cuda_fattn_turbo4_paged_decode_kernel<<<dim3(params.n_head_q, params.n_query_tokens, 1), dim3(256, 1, 1),
+    ggml_cuda_fattn_turbo4_paged_query_tile_kernel<<<dim3(params.n_head_q, 1, 1), dim3(256, 1, 1),
                                                    shared_bytes, ctx.stream()>>>(
         params.q, params.k, params.v, params.output, params.pages_device,
         params.native_positions_device, params.native_mask_device, params.query_positions_device,
         params.page_mass, params.n_pages, params.n_rows, params.n_head_q, params.n_head_kv,
+        params.n_query_tokens,
         params.q_head_stride_bytes, params.q_query_stride_bytes,
         params.output_head_stride_bytes, params.output_query_stride_bytes,
         params.k_row_stride_bytes, params.k_head_stride_bytes, params.k_page_stride_bytes,
