@@ -6,10 +6,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
+  "status": "in_progress",
   "current_phase": "17",
   "current_task": "17-08",
-  "last_updated_utc": "2026-09-05T01:06:07+00:00",
+  "last_updated_utc": "2026-09-05T01:22:25+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1247,7 +1247,7 @@
       "cluster": "17d-benchmark-quality",
       "title": "Produce phase-17 quality benchmark evidence",
       "packet": ".wiretail/execution/tasks/17-08.md",
-      "status": "todo",
+      "status": "in_progress",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
