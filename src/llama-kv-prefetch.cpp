@@ -15,6 +15,87 @@ bool add_u64(uint64_t a, uint64_t b, uint64_t & out) noexcept {
 
 } // namespace
 
+llama_kv_prefetch_predictor::llama_kv_prefetch_predictor(
+        uint32_t capacity) noexcept : capacity_(capacity) {
+    try {
+        previous_.reserve(capacity_);
+    } catch (...) {
+        capacity_ = 0;
+    }
+}
+
+bool llama_kv_prefetch_predictor::observe(
+        uint64_t query_generation, uint32_t layer, uint64_t token,
+        const std::vector<llama_kv_prefetch_intent> & ranked) noexcept {
+    if (query_generation == 0 || capacity_ == 0) return false;
+    try {
+        std::vector<llama_kv_prefetch_intent> candidates;
+        candidates.reserve(std::min<size_t>(ranked.size(), capacity_));
+        for (const auto & input : ranked) {
+            if (input.page_id == 0 || input.useful_bytes == 0 ||
+                input.aligned_bytes < input.useful_bytes ||
+                std::find_if(candidates.begin(), candidates.end(),
+                    [&](const auto & value) { return value.page_id == input.page_id; }) !=
+                    candidates.end()) {
+                continue;
+            }
+            auto intent = input;
+            intent.required = false;
+            intent.prediction = false;
+            intent.prediction_useful_counted = false;
+            intent.prediction_hit_counted = false;
+            const auto position = std::find_if(candidates.begin(), candidates.end(),
+                    [&](const auto & value) { return value.priority < intent.priority; });
+            candidates.insert(position, intent);
+            if (candidates.size() > capacity_) candidates.pop_back();
+        }
+        previous_.clear();
+        previous_.reserve(candidates.size());
+        for (const auto & intent : candidates) {
+            previous_.push_back({ intent, query_generation, layer, token });
+        }
+        return true;
+    } catch (...) {
+        previous_.clear();
+        return false;
+    }
+}
+
+std::vector<llama_kv_prefetch_intent> llama_kv_prefetch_predictor::predict(
+        uint64_t generation, uint32_t layer, uint64_t token,
+        uint32_t limit) const noexcept {
+    std::vector<llama_kv_prefetch_intent> result;
+    if (generation == 0 || limit == 0 || previous_.empty()) return result;
+    try {
+        const size_t count = std::min<size_t>(
+                std::min<uint32_t>(limit, capacity_), previous_.size());
+        result.reserve(count);
+        for (const auto & item : previous_) {
+            if (item.layer != layer) continue;
+            auto intent = item.intent;
+            intent.generation = generation;
+            intent.required = false;
+            intent.source_query_generation = item.query_generation;
+            intent.source_query_layer = item.layer;
+            intent.source_query_token = item.token;
+            intent.needed_by_layer = layer;
+            intent.needed_by_token = token;
+            intent.prediction = true;
+            intent.prediction_useful_counted = false;
+            intent.prediction_hit_counted = false;
+            result.push_back(intent);
+            if (result.size() == count) break;
+        }
+    } catch (...) {
+        result.clear();
+    }
+    return result;
+}
+
+void llama_kv_prefetch_predictor::clear() noexcept {
+    previous_.clear();
+}
+
 const char * llama_kv_prefetch_status_name(llama_kv_prefetch_status status) noexcept {
     switch (status) {
         case llama_kv_prefetch_status::ok: return "ok";
@@ -32,6 +113,21 @@ const char * llama_kv_prefetch_status_name(llama_kv_prefetch_status status) noex
         case llama_kv_prefetch_status::shutdown: return "shutdown";
         case llama_kv_prefetch_status::not_ready: return "not_ready";
         case llama_kv_prefetch_status::_count: break;
+    }
+    return "invalid";
+}
+
+const char * llama_kv_prefetch_timeline_kind_name(
+        llama_kv_prefetch_timeline_kind kind) noexcept {
+    switch (kind) {
+        case llama_kv_prefetch_timeline_kind::enqueue: return "enqueue";
+        case llama_kv_prefetch_timeline_kind::needed: return "needed";
+        case llama_kv_prefetch_timeline_kind::copy_begin: return "copy_begin";
+        case llama_kv_prefetch_timeline_kind::copy_end: return "copy_end";
+        case llama_kv_prefetch_timeline_kind::wait: return "wait";
+        case llama_kv_prefetch_timeline_kind::consumed: return "consumed";
+        case llama_kv_prefetch_timeline_kind::cancelled: return "cancelled";
+        case llama_kv_prefetch_timeline_kind::_count: break;
     }
     return "invalid";
 }
@@ -65,10 +161,11 @@ std::unique_ptr<llama_kv_prefetch_scheduler> llama_kv_prefetch_scheduler::create
 llama_kv_prefetch_scheduler::llama_kv_prefetch_scheduler(
         const llama_kv_prefetch_config & config,
         const llama_kv_prefetch_backend & backend)
-    : config_(config), backend_(backend) {
+    : config_(config), backend_(backend), predictor_(config.prefetch_depth) {
     queue_.reserve(config_.max_queued_pages);
     active_.reserve(config_.max_events);
     ready_.reserve(config_.max_pinned_slots);
+    timeline_.reserve(config_.max_timeline_events);
 }
 
 llama_kv_prefetch_scheduler::~llama_kv_prefetch_scheduler() {
@@ -100,10 +197,59 @@ void llama_kv_prefetch_scheduler::mark_failure() noexcept {
     ++counters_.failed;
 }
 
+void llama_kv_prefetch_scheduler::record_timeline(
+        llama_kv_prefetch_timeline_kind kind,
+        const llama_kv_prefetch_intent & intent, uint64_t ticket) noexcept {
+    if (config_.max_timeline_events == 0) return;
+    try {
+        if (timeline_.size() >= config_.max_timeline_events) {
+            timeline_.erase(timeline_.begin());
+        }
+        timeline_.push_back({ kind, intent.page_id, intent.generation, ticket,
+                              now_us(), intent.needed_by_layer,
+                              intent.needed_by_token, intent.table_epoch,
+                              intent.destination_slot, intent.host_offset,
+                              intent.host_bytes });
+    } catch (...) {
+        // Telemetry is bounded and non-authoritative.
+    }
+}
+
+bool llama_kv_prefetch_scheduler::mark_prediction_useful(
+        llama_kv_prefetch_intent & intent) noexcept {
+    if (!intent.prediction || intent.prediction_hit_counted) return false;
+    intent.prediction_hit_counted = true;
+    ++counters_.prediction_hits;
+    return true;
+}
+
+void llama_kv_prefetch_scheduler::complete_prediction_useful(
+        llama_kv_prefetch_intent & intent) noexcept {
+    if (!intent.prediction || !intent.prediction_hit_counted ||
+        intent.prediction_useful_counted) return;
+    intent.prediction_useful_counted = true;
+    if (counters_.prediction_useful_bytes > UINT64_MAX - intent.useful_bytes) {
+        counters_.prediction_useful_bytes = UINT64_MAX;
+    } else {
+        counters_.prediction_useful_bytes += intent.useful_bytes;
+    }
+}
+
+void llama_kv_prefetch_scheduler::mark_prediction_wasted(
+        const llama_kv_prefetch_intent & intent) noexcept {
+    if (!intent.prediction || intent.prediction_useful_counted) return;
+    if (counters_.prediction_wasted_bytes > UINT64_MAX - intent.useful_bytes) {
+        counters_.prediction_wasted_bytes = UINT64_MAX;
+    } else {
+        counters_.prediction_wasted_bytes += intent.useful_bytes;
+    }
+}
+
 bool llama_kv_prefetch_scheduler::erase_queued(
         uint64_t page_id, uint64_t generation) noexcept {
     for (auto it = queue_.begin(); it != queue_.end(); ++it) {
         if (it->page_id != page_id || it->generation != generation) continue;
+        mark_prediction_wasted(*it);
         queued_bytes_ -= it->aligned_bytes;
         queue_.erase(it);
         return true;
@@ -114,6 +260,9 @@ bool llama_kv_prefetch_scheduler::erase_queued(
 bool llama_kv_prefetch_scheduler::cancel_active(size_t index) noexcept {
     if (index >= active_.size()) return false;
     if (backend_.cancel) backend_.cancel(backend_.context, active_[index].ticket);
+    mark_prediction_wasted(active_[index].intent);
+    record_timeline(llama_kv_prefetch_timeline_kind::cancelled,
+                    active_[index].intent, active_[index].ticket);
     ++counters_.cancellations;
     active_.erase(active_.begin() + index);
     return true;
@@ -129,6 +278,7 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
 
         for (auto it = ready_.begin(); it != ready_.end();) {
             if (it->page_id == intent.page_id && it->generation != intent.generation) {
+                mark_prediction_wasted(*it);
                 it = ready_.erase(it);
                 ++counters_.stale_generation_rejects;
             } else {
@@ -137,7 +287,17 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
         }
 
         if (is_ready(intent.page_id, intent.generation)) {
-            if (intent.required) ++counters_.prefetch_hits;
+            if (intent.required) {
+                ++counters_.prefetch_hits;
+                for (auto & ready : ready_) {
+                    if (ready.page_id == intent.page_id &&
+                        ready.generation == intent.generation) {
+                        mark_prediction_useful(ready);
+                        complete_prediction_useful(ready);
+                        break;
+                    }
+                }
+            }
             return llama_kv_prefetch_status::ok;
         }
 
@@ -160,6 +320,7 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
             }
             queued.priority = std::max(queued.priority, intent.priority);
             queued.required = queued.required || intent.required;
+            if (intent.required) mark_prediction_useful(queued);
             if (intent.required) ++counters_.faults;
             return llama_kv_prefetch_status::ok;
         }
@@ -168,6 +329,7 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
             if (active_[i].intent.generation == intent.generation) {
                 active_[i].intent.required = active_[i].intent.required || intent.required;
                 active_[i].intent.priority = std::max(active_[i].intent.priority, intent.priority);
+                if (intent.required) mark_prediction_useful(active_[i].intent);
                 if (intent.required) ++counters_.faults;
                 return llama_kv_prefetch_status::ok;
             }
@@ -183,9 +345,13 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
             new_bytes > config_.max_queued_bytes) {
             return llama_kv_prefetch_status::backpressure;
         }
-        queue_.push_back(intent);
+        const auto position = std::find_if(queue_.begin(), queue_.end(),
+                [&](const auto & value) { return value.priority < intent.priority; });
+        queue_.insert(position, intent);
         queued_bytes_ = new_bytes;
         ++counters_.queued;
+        if (intent.prediction) ++counters_.prediction_requested;
+        record_timeline(llama_kv_prefetch_timeline_kind::enqueue, intent);
         return pump();
     } catch (...) {
         return llama_kv_prefetch_status::not_configured;
@@ -197,7 +363,7 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::pump() noexcept {
     llama_kv_prefetch_status result = llama_kv_prefetch_status::ok;
     try {
         while (!queue_.empty() && active_.size() < config_.max_events &&
-               pinned_slots() <= config_.max_pinned_slots) {
+               pinned_slots() < config_.max_pinned_slots) {
             uint32_t staging_slot = UINT32_MAX;
             for (uint32_t slot = 0; slot < config_.staging_slots; ++slot) {
                 bool used = false;
@@ -214,13 +380,21 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::pump() noexcept {
             if (backend_.host_available &&
                 !backend_.host_available(backend_.context, intent)) {
                 mark_failure();
+                mark_prediction_wasted(intent);
+                record_timeline(llama_kv_prefetch_timeline_kind::cancelled,
+                                intent);
                 result = llama_kv_prefetch_status::host_miss;
                 continue;
             }
             const uint64_t ticket = next_ticket_++;
+            record_timeline(llama_kv_prefetch_timeline_kind::copy_begin,
+                            intent, ticket);
             if (ticket == 0 || !backend_.submit(
                     backend_.context, intent, staging_slot, ticket, true)) {
                 mark_failure();
+                mark_prediction_wasted(intent);
+                record_timeline(llama_kv_prefetch_timeline_kind::cancelled,
+                                intent, ticket);
                 result = llama_kv_prefetch_status::transfer_failed;
                 continue;
             }
@@ -263,36 +437,55 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::prefetch(
     }
 }
 
+bool llama_kv_prefetch_scheduler::observe_query(
+        uint64_t query_generation, uint32_t layer, uint64_t token,
+        const std::vector<llama_kv_prefetch_intent> & ranked) noexcept {
+    return predictor_.observe(query_generation, layer, token, ranked);
+}
+
+std::vector<llama_kv_prefetch_intent> llama_kv_prefetch_scheduler::predict_next(
+        uint64_t generation, uint32_t layer, uint64_t token,
+        uint32_t limit) const noexcept {
+    return predictor_.predict(generation, layer, token, limit);
+}
+
 llama_kv_prefetch_status llama_kv_prefetch_scheduler::advance() noexcept {
     if (stopped_) return llama_kv_prefetch_status::shutdown;
     llama_kv_prefetch_status result = pump();
     try {
         for (size_t i = 0; i < active_.size();) {
-            auto & active = active_[i];
+            const auto active = active_[i];
             const auto state = backend_.poll(backend_.context, active.ticket);
             if (state == llama_kv_prefetch_poll::pending) { ++i; continue; }
-            const auto intent = active.intent;
+            auto intent = active.intent;
             const uint64_t submitted_us = active.submitted_us;
             if (state == llama_kv_prefetch_poll::completed) {
                 if (!backend_.publish_complete(backend_.context, intent)) {
                     mark_failure();
                     result = llama_kv_prefetch_status::transfer_failed;
+                    cancel_active(i);
                 } else {
-                    if (ready_.size() >= config_.max_queued_pages) ready_.erase(ready_.begin());
+                    record_timeline(llama_kv_prefetch_timeline_kind::copy_end,
+                                    intent, active.ticket);
+                    if (intent.prediction) ++counters_.prediction_completed;
+                    complete_prediction_useful(intent);
+                    if (ready_.size() >= config_.max_pinned_slots) ready_.erase(ready_.begin());
                     ready_.push_back(intent);
                     ++counters_.completed;
                     const uint64_t completed_us = now_us();
                     if (completed_us >= submitted_us) counters_.stage_latency_us += completed_us - submitted_us;
+                    active_.erase(active_.begin() + i);
                 }
             } else if (state == llama_kv_prefetch_poll::stale_generation) {
                 ++counters_.stale_generation_rejects;
                 mark_failure();
                 result = llama_kv_prefetch_status::stale_generation;
+                cancel_active(i);
             } else {
                 mark_failure();
                 result = llama_kv_prefetch_status::transfer_failed;
+                cancel_active(i);
             }
-            active_.erase(active_.begin() + i);
         }
         const auto pump_result = pump();
         if (result == llama_kv_prefetch_status::ok) result = pump_result;
@@ -315,6 +508,8 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::cancel(
     }
     for (auto it = ready_.begin(); it != ready_.end();) {
         if (it->page_id == page_id && it->generation == generation) {
+            mark_prediction_wasted(*it);
+            record_timeline(llama_kv_prefetch_timeline_kind::cancelled, *it);
             it = ready_.erase(it);
             found = true;
         } else ++it;
@@ -361,7 +556,19 @@ llama_kv_prefetch_resolution llama_kv_prefetch_scheduler::ensure_ready(
             }
             const auto status = enqueue({ intent.page_id, intent.generation,
                                           intent.useful_bytes, intent.aligned_bytes,
-                                          intent.priority, true });
+                                          intent.priority, true,
+                                          intent.source_query_generation,
+                                          intent.source_query_layer,
+                                          intent.source_query_token,
+                                          intent.needed_by_layer,
+                                          intent.needed_by_token,
+                                          intent.prediction,
+                                          intent.prediction_useful_counted,
+                                          intent.table_epoch,
+                                          intent.destination_slot,
+                                          intent.host_offset,
+                                          intent.host_bytes });
+            record_timeline(llama_kv_prefetch_timeline_kind::needed, intent);
             if (status == llama_kv_prefetch_status::shutdown) {
                 result.readiness = llama_kv_prefetch_readiness::cancelled;
                 return result;
@@ -378,13 +585,25 @@ llama_kv_prefetch_resolution llama_kv_prefetch_scheduler::ensure_ready(
             return result.ready.size() == required_ids.size();
         };
         if (collect()) {
+            for (const auto & intent : required) {
+                record_timeline(llama_kv_prefetch_timeline_kind::consumed, intent);
+            }
             result.readiness = llama_kv_prefetch_readiness::ready;
             return result;
         }
         for (uint32_t step = 0; step < wait_budget_steps; ++step) {
             ++counters_.late_waits;
+            for (const auto & intent : required) {
+                record_timeline(llama_kv_prefetch_timeline_kind::wait, intent);
+            }
             advance();
             if (collect()) {
+                for (const auto & intent : required) {
+                    if (std::find(result.ready.begin(), result.ready.end(), intent.page_id) !=
+                        result.ready.end()) {
+                        record_timeline(llama_kv_prefetch_timeline_kind::consumed, intent);
+                    }
+                }
                 result.readiness = llama_kv_prefetch_readiness::waited_ready;
                 return result;
             }

@@ -215,6 +215,44 @@ llama_kv_live_lifecycle_status llama_kv_live_lifecycle::prefetch(
     }
 }
 
+llama_kv_live_lifecycle_status llama_kv_live_lifecycle::observe_query(
+        uint32_t layer, uint64_t token,
+        const std::vector<llama_kv_prefetch_intent> & ranked) noexcept {
+    if (!current()) return stopped_ ? llama_kv_live_lifecycle_status::shutdown
+                                    : llama_kv_live_lifecycle_status::stale_generation;
+    try {
+        std::vector<llama_kv_prefetch_intent> normalized;
+        normalized.reserve(ranked.size());
+        for (const auto & input : ranked) {
+            if (input.page_id == 0 || input.useful_bytes == 0 ||
+                input.aligned_bytes < input.useful_bytes ||
+                !matches_current(input.generation)) {
+                return llama_kv_live_lifecycle_status::stale_generation;
+            }
+            auto value = input;
+            value.generation = generation_.operation_generation;
+            value.required = false;
+            value.prediction = false;
+            value.prediction_useful_counted = false;
+            value.prediction_hit_counted = false;
+            normalized.push_back(value);
+        }
+        return prefetch_->observe_query(generation_.operation_generation,
+                                         layer, token, normalized)
+            ? llama_kv_live_lifecycle_status::ready
+            : llama_kv_live_lifecycle_status::prefetch_failed;
+    } catch (...) {
+        return llama_kv_live_lifecycle_status::prefetch_failed;
+    }
+}
+
+std::vector<llama_kv_prefetch_intent> llama_kv_live_lifecycle::predict_next(
+        uint32_t layer, uint64_t token, uint32_t limit) const noexcept {
+    if (!current()) return {};
+    return prefetch_->predict_next(generation_.operation_generation,
+                                   layer, token, limit);
+}
+
 llama_kv_live_lifecycle_resolution llama_kv_live_lifecycle::ensure_ready(
         const std::vector<llama_kv_prefetch_intent> & required,
         const std::vector<uint64_t> & previous_hot_set,

@@ -367,6 +367,14 @@ static bool test_live_lifecycle() {
     const auto future = [](uint64_t id, uint32_t priority) {
         return llama_kv_prefetch_intent { id, 0, 8, 10, priority, false };
     };
+    LIVE_CHECK(lifecycle->observe_query(3, 10,
+            { future(100, 1), future(101, 3) }) ==
+           llama_kv_live_lifecycle_status::ready);
+    const auto predicted = lifecycle->predict_next(3, 11, 2);
+    LIVE_CHECK(predicted.size() == 2 && predicted[0].prediction &&
+           predicted[0].page_id == 101 && predicted[1].page_id == 100 &&
+           predicted[0].source_query_token == 10 &&
+           predicted[0].needed_by_token == 11);
     LIVE_CHECK(lifecycle->prefetch({ future(100, 1), future(101, 3), future(100, 9) }) ==
            llama_kv_live_lifecycle_status::ready);
     LIVE_CHECK(prefetch_fake.submitted.size() == 2 && prefetch_fake.submitted[0] == 100 &&
