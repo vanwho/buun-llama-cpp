@@ -1135,14 +1135,14 @@ llama_kv_cache::llama_kv_cache(
                 layer_type_k = vbr_layer_policy.k[il];
                 layer_type_v = vbr_layer_policy.v[il];
             }
-            // Turbo types have no CPU vec_dot kernel. A movable dynamic-VBR side also cannot
-            // degrade on the host because host buffers have no VMM pool. Pin only those sides
-            // at q8_0; preserve an explicitly pinned f16/bf16/q8_0 side in a mixed -ct config.
+            // A movable dynamic-VBR side cannot degrade on the host because host buffers have
+            // no VMM pool. Pin only dynamic-VBR sides at q8_0; static Turbo types use the CPU
+            // reference attention path and must retain their requested representation.
             // The no-alloc fit construction takes this same path, so its host-memory price and
             // the real allocation stay identical.
             if (cpu_bound_kv) {
                 const auto cpu_type = [&](ggml_type type, bool pinned) {
-                    const bool needs_q8 = ggml_type_is_turbo(type) ||
+                    const bool needs_q8 = (vbr_params_.dynamic && ggml_type_is_turbo(type)) ||
                         (vbr_params_.dynamic && !pinned && type == GGML_TYPE_F16);
                     return needs_q8 ? GGML_TYPE_Q8_0 : type;
                 };
@@ -1531,18 +1531,18 @@ llama_kv_cache::llama_kv_cache(
 
     // allocate tensors and initialize the buffers to avoid NaNs in the padding
     for (auto & [buft, ctx] : ctx_map) {
-        // Turbo-typed KV requires a backend exporting the VBR interface (ggml-vbr.h): the codecs
-        // have no CPU decode path (CPU set_rows would call a null from_float; CPU attention can't
-        // read turbo bits). Refuse at init instead of crashing at the first decode. no_alloc
-        // (externally managed KV) is exempt. Under --split-mode tensor the buffer type is the
-        // meta buft: turbo KV is fine there as long as every device underneath supports it.
+        // Turbo-typed KV requires a backend exporting the VBR interface, except for the static
+        // Turbo4 CPU reference path. The latter decodes the canonical bytes through to_float in
+        // CPU flash attention; other Turbo tiers still fail here rather than crashing at decode.
+        // no_alloc (externally managed KV) is exempt. Under --split-mode tensor the buffer type
+        // is the meta buft: turbo KV is fine there as long as every device underneath supports it.
         if (!hparams.no_alloc && llama_vbr_backend_devs_for_buft(buft).empty()) {
             for (ggml_tensor * t = ggml_get_first_tensor(ctx.get()); t != nullptr; t = ggml_get_next_tensor(ctx.get(), t)) {
-                if (ggml_is_turbo_kv_type(t->type)) {
+                if (ggml_is_turbo_kv_type(t->type) && t->type != GGML_TYPE_TURBO4_0) {
                     LLAMA_LOG_ERROR("%s: KV cache type %s (tensor %s) needs a backend with TurboQuant support "
-                            "(currently: CUDA), but its KV buffer type is %s — offload the KV cache to a "
-                            "supported GPU (-ngl on all layers, without --no-kv-offload) or use a standard "
-                            "cache type (f16/q8_0)\n",
+                            "(currently: CUDA; static Turbo4 has a CPU reference path), but its KV buffer "
+                            "type is %s — offload the KV cache to a supported GPU or use a standard cache "
+                            "type (f16/q8_0)\n",
                             __func__, ggml_type_name(t->type), t->name, ggml_backend_buft_name(buft));
                     throw std::runtime_error("turbo KV cache type on a backend without TurboQuant support");
                 }

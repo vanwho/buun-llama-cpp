@@ -9,6 +9,7 @@
 #include "ggml-quants.h"
 #include "ggml-common.h"
 #include "ggml-impl.h"
+#include "ggml-turbo-wht.h"
 
 #if defined(_WIN32)
 #define _USE_MATH_DEFINES // for M_PI
@@ -18,6 +19,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 
 /* ---------- constants ---------- */
 
@@ -122,7 +124,7 @@ static const float MIDPOINTS_8BIT[255] = {
 
 static float turbo_rotation[TURBO_D * TURBO_D];
 static float turbo_rotation_t[TURBO_D * TURBO_D]; /* transpose */
-static int   turbo_rotation_initialized = 0;
+static atomic_int turbo_rotation_initialized = 0;
 
 /* Simple LCG PRNG for deterministic rotation generation */
 static uint64_t turbo_prng_state;
@@ -142,7 +144,17 @@ static double turbo_prng_normal(void) {
 }
 
 static void turbo_init_rotation(void) {
-    if (turbo_rotation_initialized) return;
+    int state = atomic_load_explicit(&turbo_rotation_initialized, memory_order_acquire);
+    if (state == 2) return;
+
+    int expected = 0;
+    if (!atomic_compare_exchange_strong_explicit(
+            &turbo_rotation_initialized, &expected, 1,
+            memory_order_acquire, memory_order_relaxed)) {
+        while (atomic_load_explicit(&turbo_rotation_initialized, memory_order_acquire) != 2) {
+        }
+        return;
+    }
 
     const int d = TURBO_D;
 
@@ -189,7 +201,7 @@ static void turbo_init_rotation(void) {
         }
     }
 
-    turbo_rotation_initialized = 1;
+    atomic_store_explicit(&turbo_rotation_initialized, 2, memory_order_release);
 }
 
 /* ---------- QJL projection matrix (lazy init, seed-based) ---------- */
@@ -456,8 +468,6 @@ size_t quantize_turbo2_tcq(const float * GGML_RESTRICT src, void * GGML_RESTRICT
 /* ---------- TURBO4_0: 4-bit PolarQuant (16 centroids, no QJL) ---------- */
 
 void quantize_row_turbo4_0_ref(const float * GGML_RESTRICT x, block_turbo4_0 * GGML_RESTRICT y, int64_t k) {
-    turbo_init_rotation();
-
     assert(k % QK_TURBO4 == 0);
     const int nb = k / QK_TURBO4;
     const int d  = QK_TURBO4;
@@ -479,9 +489,10 @@ void quantize_row_turbo4_0_ref(const float * GGML_RESTRICT x, block_turbo4_0 * G
             memset(normalized, 0, d * sizeof(float));
         }
 
-        /* Step 2: Rotate */
+        /* Step 2: Rotate into the canonical CUDA FWHT domain. */
         float rotated[TURBO_D];
-        matvec(turbo_rotation, normalized, rotated, d);
+        memcpy(rotated, normalized, sizeof(rotated));
+        ggml_turbo_wht_transform_128(rotated, 0);
 
         /* Step 3: 4-bit quantization — find nearest of 16 centroids */
         uint8_t indices[TURBO_D];
@@ -506,30 +517,25 @@ void quantize_row_turbo4_0_ref(const float * GGML_RESTRICT x, block_turbo4_0 * G
 }
 
 void dequantize_row_turbo4_0(const block_turbo4_0 * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k) {
-    turbo_init_rotation();
-
     assert(k % QK_TURBO4 == 0);
     const int nb = k / QK_TURBO4;
     const int d  = QK_TURBO4;
 
     for (int block = 0; block < nb; block++) {
-        float norm = GGML_FP16_TO_FP32(x[block].norm);
-
-        /* Unpack 4-bit indices and reconstruct in rotated space */
-        float rotated_recon[TURBO_D];
+        /* Unpack 4-bit indices and reconstruct in the stored FWHT domain. */
+        float * dst = y + block * d;
         for (int i = 0; i < d; i++) {
             uint8_t idx = (i & 1) ? (x[block].qs[i / 2] >> 4) : (x[block].qs[i / 2] & 0xF);
-            rotated_recon[i] = CENTROIDS_4BIT[idx];
+            dst[i] = CENTROIDS_4BIT[idx] * GGML_FP16_TO_FP32(x[block].norm);
         }
+    }
+}
 
-        /* Inverse rotate */
-        float * dst = y + block * d;
-        matvec(turbo_rotation_t, rotated_recon, dst, d);
-
-        /* Scale by norm */
-        for (int i = 0; i < d; i++) {
-            dst[i] *= norm;
-        }
+void dequantize_row_turbo4_0_inv_fwht(const block_turbo4_0 * GGML_RESTRICT x, float * GGML_RESTRICT y, int64_t k) {
+    dequantize_row_turbo4_0(x, y, k);
+    assert(k % QK_TURBO4 == 0);
+    for (int64_t block = 0; block < k / QK_TURBO4; ++block) {
+        ggml_turbo_wht_transform_128(y + block * QK_TURBO4, 1);
     }
 }
 
