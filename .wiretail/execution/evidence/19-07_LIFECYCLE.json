@@ -1,0 +1,61 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "19-07",
+  "result": "pass_local_deferred_live_checkpoint",
+  "kind": "implementation",
+  "procedure": "atomic_live_frontier_host_pager_and_state_lifecycle",
+  "created_utc": "2026-09-05T13:44:38Z",
+  "provenance": {
+    "source_commit": "4c9f92d98c96842015fdb75e2ae0c036d26e590f",
+    "source_diff_sha256": "c982e9f56209ab0e50c2dc1c4bd84cd0a855fcb0d6e3699ff92327be12412a08",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "binary": "build/bin/libllama.so",
+    "binary_sha256": "450babba798d980267ccc8c183cdbaed277861e97550cdd960a4ea2981500669",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": null,
+    "config_sha256": "2de0cc81b4f3fc5cb0808c70380c033e85b632b3de6f7faa39afdaa012401c99",
+    "build": "build; CPU backend; host lifecycle compile and tests",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; 16376 MiB total, 14815 MiB used, 1128 MiB free",
+    "live_process_observed": "Existing llama-server workload retained; no model-backed pressure/MTP process was started"
+  },
+  "checks": [
+    {"name": "Lifecycle frontier monotonicity, full identity, version, rollback, cancellation, and single-slot guard", "status": "pass", "raw_ids": ["test-kv-policy"]},
+    {"name": "Pager/residency mutation, stale completion, host seal, and transfer rollback regressions", "status": "pass", "raw_ids": ["core-ctest"]},
+    {"name": "Attention execution/exact graph contracts remain green", "status": "pass", "raw_ids": ["core-ctest"]},
+    {"name": "Recurrent rollback, MTP trim, and prompt checkpoint fault boundaries", "status": "pass", "raw_ids": ["lifecycle-ctest", "prompt-fault-ctest"]},
+    {"name": "Model-backed pressure sequence with speculative first/middle/last rejection and native MTP parity", "status": "not_measured", "raw_ids": []}
+  ],
+  "measurements": {
+    "lifecycle_trace": "submitted=4 completed=1 cancellations=3 useful_bytes=32 aligned_bytes=40 overlap=1 companion_publishes=1 companion_rollbacks=0",
+    "core_ctest": "10/10 passed: server recurrent expansion, kv policy, generated fixture, recurrent rollback, MTP trim, kv residency, kv pager, attention execution, attention exact, prompt cache",
+    "prompt_fault_ctest": "3/3 passed: clone, accounting, and restore-checkpoint fault tests",
+    "atomicity": "rejected companion publication preserves table epoch; rejected clear deactivates the old lifecycle and cancels tracked work; failed VBR terminal commit suppresses dependent pager host/table publication",
+    "unsupported_state_operations": "cross-stream armed/partial seq_cp and invalid seq_keep reject before pager mutation with actionable diagnostics; clear/remove/copy/keep/add preflight VBR reservation",
+    "resource_high_water": "deterministic fake lifecycle exposes bounded queue/event/staging/pinned configuration; no live device plateau was measured",
+    "live_model_attention_checksums": null
+  },
+  "raw_index": [
+    {"id": "lifecycle-source", "path": "src/llama-kv-live-lifecycle.cpp", "sha256": "4f64a34e3fdb9d2f3312d70513623c8fbfa69fe06312fd7339fd24a3dff299cd"},
+    {"id": "cache-source", "path": "src/llama-kv-cache.cpp", "sha256": "dcb22a053ffbc39735809435aada1ba5a2ad3073ac851bdf8ca3860d0ebe5a02"},
+    {"id": "context-source", "path": "src/llama-context.cpp", "sha256": "a18be9cd78014ba364a43f614054a863e49abb9e1f02f247c7697d6522f2180f"},
+    {"id": "lifecycle-test", "path": "build/bin/test-kv-policy", "sha256": "b31163aed394a9968a3d73803150326e5992dbe9a5b8ea190886b833fe95203d"},
+    {"id": "llama-binary", "path": "build/bin/libllama.so", "sha256": "450babba798d980267ccc8c183cdbaed277861e97550cdd960a4ea2981500669"},
+    {"id": "build-config", "path": "build/CMakeCache.txt", "sha256": "2de0cc81b4f3fc5cb0808c70380c033e85b632b3de6f7faa39afdaa012401c99"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The shared RTX 4080 had only 1128 MiB free; no isolated Qwen pressure, speculative rejection, restart, or native-MTP parity run was started.",
+    "model_and_corpus_hashes": "No isolated model-backed run was started; model and corpus hashes remain null.",
+    "live_resource_plateau": "Requires the isolated live run with host/device/pinned/event/descriptor high-water and post-cycle measurements."
+  },
+  "resume": {
+    "command": ["run", "the", "runtime-supported", "single-slot", "Qwen", "forced-pressure", "checkpoint", "with", "speculative", "rejection", "restore", "restart", "and", "native-MTP", "parity", "on", "an", "isolated", "GPU"],
+    "next_case": "capture committed-prefix checksums/generations, host/device/pinned/event/descriptor high-water and plateau after clear/cancel/restore, then compare continuation tokens/logits",
+    "secrets_omitted": true
+  }
+}
