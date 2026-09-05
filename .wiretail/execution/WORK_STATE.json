@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "20",
-  "current_task": "20-07",
-  "last_updated_utc": "2026-09-05T19:01:06+00:00",
+  "current_phase": "21",
+  "current_task": "21-01",
+  "last_updated_utc": "2026-09-05T21:11:45+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3336,22 +3336,36 @@
       "cluster": "20d-controls-release",
       "title": "Freeze a portable reproducible candidate for final measurement",
       "packet": ".wiretail/execution/tasks/20-07.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "20-06"
       ],
-      "commit": null,
+      "commit": "72be6fba0b6b2345788341c9288503da888ee9dc",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/20-07-attempt-1-20260905T190121Z.jsonl:396",
+            "total_tokens": 43175403,
+            "total_tokens_derived": true,
+            "input_tokens": 43096175,
+            "cached_input_tokens": 42471680,
+            "output_tokens": 79228,
+            "thinking_tokens": 20724
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 43175403,
+          "input_tokens": 43096175,
+          "cached_input_tokens": 42471680,
+          "output_tokens": 79228,
+          "thinking_tokens": 20724
         }
       }
     },
@@ -4134,15 +4148,28 @@
           "cached_input_tokens": 35568384,
           "output_tokens": 82942,
           "thinking_tokens": 29273
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/20-07-attempt-1-20260905T190121Z.jsonl:396",
+          "total_tokens": 43175403,
+          "total_tokens_derived": true,
+          "input_tokens": 43096175,
+          "cached_input_tokens": 42471680,
+          "output_tokens": 79228,
+          "thinking_tokens": 20724
         }
       ],
       "totals": {
-        "turns": 6,
-        "total_tokens": 161683035,
-        "input_tokens": 161330127,
-        "cached_input_tokens": 158354176,
-        "output_tokens": 352908,
-        "thinking_tokens": 127588
+        "turns": 7,
+        "total_tokens": 204858438,
+        "input_tokens": 204426302,
+        "cached_input_tokens": 200825856,
+        "output_tokens": 432136,
+        "thinking_tokens": 148312
       }
     },
     "21": {
@@ -4170,12 +4197,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 29,
-      "total_tokens": 605412860,
-      "input_tokens": 604002537,
-      "cached_input_tokens": 592797952,
-      "output_tokens": 1410323,
-      "thinking_tokens": 511822
+      "turns": 30,
+      "total_tokens": 648588263,
+      "input_tokens": 647098712,
+      "cached_input_tokens": 635269632,
+      "output_tokens": 1489551,
+      "thinking_tokens": 532546
     },
     "source": "Codex turn.completed usage events"
   }
