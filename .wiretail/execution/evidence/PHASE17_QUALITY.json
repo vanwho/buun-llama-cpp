@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "task": "17-08",
+  "run_id": "17-08-quality-20260905T032000Z",
+  "decision": "block",
+  "full_corpus_max_context_tokens": 22016,
+  "decision_reason": "The required full V4 quality matrix was not completed. Native Turbo4 MTP failed at 77824 and 16384 token startup because the runtime could not allocate an 82.01 MiB compute buffer with 67.8 MiB free. The distinct 8192-token recovery point started and produced one HTTP 200 probe, but the full corpus reaches 22016 tokens and that probe failed the frozen exact-answer checker. Dense control was interrupted after 11 of 24 cases; selected-all, exact, and full selective comparison were not scored.",
+  "provenance": {
+    "repository_head": "817b405f9cde350919fffa6052d80689cdef69ef",
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus_path": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_schema": "pager-corpus-v4",
+    "corpus_hash": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "corpus_cases": 24,
+    "corpus_partitions": {"calibration": 12, "held_out": 12},
+    "binary_path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "binary_sha256": "d306009f51f0ebb554752d9c41fabb51c796f9d708eef977cc3cc09014e361db",
+    "configuration_sha256": "ce1f2528a63597d4a19639e18c2e87b7c52fd0a12490732c474e9aba16d1189e",
+    "gpu": "NVIDIA GeForce RTX 4080, driver 595.84, 16376 MiB"
+  },
+  "checker": {
+    "type": "exact",
+    "normalization": "whitespace",
+    "minimum_score": 1.0,
+    "thresholds_changed_after_observation": false
+  },
+  "runs": [
+    {
+      "name": "dense-control",
+      "mode": "off",
+      "context_tokens": 16384,
+      "mtp": "off",
+      "status": "partial_diagnostic",
+      "cases_attempted": 11,
+      "responses": 11,
+      "errors": 0,
+      "exact_matches": 11,
+      "calibration_exact": "6/6 attempted",
+      "held_out_exact": "5/5 attempted",
+      "raw": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z/raw/dense-16384"
+    },
+    {
+      "name": "native-recovery-probe",
+      "mode": "selective",
+      "context_tokens": 8192,
+      "mtp": "native Turbo4/GPU",
+      "status": "probe_failed_checker",
+      "cases_attempted": 1,
+      "responses": 1,
+      "errors": 0,
+      "exact_matches": 0,
+      "mtp_rows": 8192,
+      "mtp_bytes": 8781824,
+      "raw": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z/raw/native-8192"
+    },
+    {
+      "name": "native-mtp-ladder",
+      "status": "partial_capacity_recovery",
+      "attempts": [
+        {"context_tokens": 77824, "status": "startup_failed", "reason": "CUDA out of memory allocating 82.01 MiB; free 67.8 MiB"},
+        {"context_tokens": 16384, "status": "startup_failed", "reason": "CUDA out of memory allocating 82.01 MiB; free 67.8 MiB"},
+        {"context_tokens": 8192, "status": "startup_passed", "reason": "GPU Turbo4 MTP reservation committed"}
+      ],
+      "raw": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z/raw/native-mtp-ladder.json"
+    },
+    {"name": "selected-all-reference", "mode": "selective", "status": "blocked_after_dense_control"},
+    {"name": "exact-oracle", "mode": "exact", "status": "blocked_after_dense_control"},
+    {"name": "selective-attention", "mode": "selective", "status": "blocked_after_dense_control"}
+  ],
+  "gates": {
+    "dense_control_full_matrix": {"status": "blocked", "observed": "11/24 cases"},
+    "held_out_task_score": {"status": "blocked", "dense_partial": "5/5 attempted", "selective": null},
+    "dense_selected_all_output_abs": {"status": "not_run", "threshold": 0.00001, "observed": null},
+    "dense_selected_all_logit_abs": {"status": "not_run", "threshold": 0.0001, "observed": null},
+    "routing_recall_at_selected": {"status": "not_available", "threshold": 0.95, "observed": null},
+    "captured_attention_mass": {"status": "not_available", "threshold": 0.95, "observed": null},
+    "perplexity_relative_delta": {"status": "not_run", "threshold": 0.02, "observed": null},
+    "kl_divergence": {"status": "not_run", "threshold": 0.01, "observed": null},
+    "mtp_acceptance": {"status": "not_measured", "observed": null}
+  },
+  "declared_ablations": {
+    "mandatory_pages": "not_run",
+    "recent_region": "not_run",
+    "router": "not_run",
+    "exploration": "not_run",
+    "prefetch": "not_run",
+    "focus_shifts_and_churn": "not_run"
+  },
+  "raw_result_root": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z",
+  "raw_integrity_manifest": "/srv/ai/paged-kv/results/17-08-quality-20260905T032000Z/SHA256SUMS"
+}
