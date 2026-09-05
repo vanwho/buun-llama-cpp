@@ -2,6 +2,7 @@
 #include "llama-graph.h"
 
 #include <cassert>
+#include <cstdio>
 
 static llama_kv_page_record page(uint32_t logical, uint32_t slot, llama_pos end) {
     llama_kv_page_record result;
@@ -197,6 +198,7 @@ static void test_fallbacks_and_graph_key() {
     llm_graph_params a = {};
     a.kv_attention_table_epoch = 1;
     a.kv_attention_content_key = 11;
+    a.kv_attention_layout_key = 12;
     a.kv_attention_representation_epoch = 2;
     a.kv_attention_shape_epoch = 3;
     auto b = a;
@@ -210,6 +212,12 @@ static void test_fallbacks_and_graph_key() {
     assert(!a.allow_reuse(b));
     b = a;
     ++b.kv_attention_content_key;
+    assert(a.allow_reuse(b));
+    b = a;
+    ++b.kv_attention_table_epoch;
+    assert(a.allow_reuse(b));
+    b = a;
+    ++b.kv_attention_layout_key;
     assert(!a.allow_reuse(b));
     execution.complete_one_graph();
 
@@ -242,6 +250,13 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     assert(base.graph_content_key() != grown.graph_content_key());
     assert(base.graph_content_key() != query_changed.graph_content_key());
     assert(base.graph_content_key() != shape_changed.graph_content_key());
+    // Page slots, logical order, and query positions are mutable descriptor
+    // data. Only a dimension/configuration change changes graph layout.
+    assert(base.graph_layout_key() == reordered.graph_layout_key());
+    assert(base.graph_layout_key() == remapped.graph_layout_key());
+    assert(base.graph_layout_key() == query_changed.graph_layout_key());
+    assert(base.graph_layout_key() != grown.graph_layout_key());
+    assert(base.graph_layout_key() != shape_changed.graph_layout_key());
 
     llama_kv_attention_scratch_request scratch;
     scratch.resident_rows = base.get_n_kv();
@@ -267,16 +282,16 @@ static void test_epoch_matrix_and_lifetime_metrics() {
 
     const auto order_change = execution.prepare(reordered,
             llama_kv_attention_execution_phase::decode, 11, 22, false, scratch);
-    assert(order_change.graph_rebuild);
+    assert(!order_change.graph_rebuild);
     const auto slot_change = execution.prepare(remapped,
             llama_kv_attention_execution_phase::decode, 11, 22, false, scratch);
-    assert(slot_change.graph_rebuild);
+    assert(!slot_change.graph_rebuild);
     const auto representation_change = execution.prepare(base,
             llama_kv_attention_execution_phase::decode, 12, 22, false, scratch);
     assert(representation_change.graph_rebuild);
     const auto query_change = execution.prepare(query_changed,
             llama_kv_attention_execution_phase::decode, 12, 22, false, scratch);
-    assert(query_change.graph_rebuild);
+    assert(!query_change.graph_rebuild);
     const auto tail_growth = execution.prepare(grown,
             llama_kv_attention_execution_phase::decode, 12, 22, false, scratch);
     assert(tail_growth.graph_rebuild);
@@ -285,15 +300,24 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     assert(shape_change.graph_rebuild);
 
     const auto & counters = execution.metrics();
-    assert(counters.graph_capture_count == 8);
-    assert(counters.graph_replay_count == 1);
+    assert(counters.graph_capture_count == 5);
+    assert(counters.graph_replay_count == 4);
     assert(counters.graph_rebuild_count == counters.graph_capture_count);
     assert(counters.graph_submission_count == 9);
-    // The immutable direct descriptor is uploaded at capture time. Replaying
-    // the same graph must not re-upload its page table.
+    // The direct descriptor is uploaded at capture time. Replaying the same
+    // layout with changed content must not require another graph capture or
+    // table allocation.
     assert(counters.table_upload_bytes == 2 * (4 * sizeof(uint32_t) + sizeof(int64_t)));
     assert(counters.scratch_high_water_rows == irrelevant_scratch.required_rows());
     assert(counters.scratch_high_water_bytes == irrelevant_scratch.required_bytes());
+    std::printf("kv-attention-profile submissions=%llu captures=%llu replays=%llu "
+                "rebuilds=%llu table_upload_bytes=%llu epoch_changes=%llu\n",
+            (unsigned long long) counters.graph_submission_count,
+            (unsigned long long) counters.graph_capture_count,
+            (unsigned long long) counters.graph_replay_count,
+            (unsigned long long) counters.graph_rebuild_count,
+            (unsigned long long) counters.table_upload_bytes,
+            (unsigned long long) counters.table_epoch_changes);
 
     // Clearing the current key must leave the old immutable view leased. The
     // replacement is visible to later submissions while both leases coexist.

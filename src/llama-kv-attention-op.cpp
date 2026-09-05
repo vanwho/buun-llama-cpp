@@ -8,6 +8,7 @@ struct llama_kv_attention_operator_metadata::state {
     llama_kv_attention_operator_params params;
     llama_kv_attention_view view;
     uint64_t content_key = 0;
+    uint64_t layout_key = 0;
 };
 
 static void attention_key_mix(uint64_t & key, uint64_t value) noexcept {
@@ -19,7 +20,6 @@ static uint64_t attention_content_key(
         const llama_kv_attention_view & view,
         const llama_kv_attention_operator_params & params) noexcept {
     uint64_t key = 1469598103934665603ull;
-    attention_key_mix(key, view.graph_epoch());
     attention_key_mix(key, uint64_t(params.type_k));
     attention_key_mix(key, uint64_t(params.type_v));
     attention_key_mix(key, uint64_t(params.domain_k));
@@ -48,6 +48,29 @@ static uint64_t attention_content_key(
     for (const llama_pos position : params.query_positions) {
         attention_key_mix(key, uint64_t(position));
     }
+    return key == 0 ? 1 : key;
+}
+
+static uint64_t attention_layout_key(
+        const llama_kv_attention_view & view,
+        const llama_kv_attention_operator_params & params) noexcept {
+    uint64_t key = 1469598103934665603ull;
+    attention_key_mix(key, uint64_t(params.type_k));
+    attention_key_mix(key, uint64_t(params.type_v));
+    attention_key_mix(key, uint64_t(params.domain_k));
+    attention_key_mix(key, uint64_t(params.domain_v));
+    attention_key_mix(key, params.head_dim_k);
+    attention_key_mix(key, params.head_dim_v);
+    attention_key_mix(key, params.n_head_q);
+    attention_key_mix(key, params.n_head_kv);
+    attention_key_mix(key, params.n_query_tokens);
+    attention_key_mix(key, params.n_batch);
+    attention_key_mix(key, params.causal ? 1 : 0);
+    attention_key_mix(key, view.pages().size());
+    attention_key_mix(key, view.get_n_kv());
+    attention_key_mix(key, view.native_positions().size());
+    attention_key_mix(key, view.native_mask().size());
+    attention_key_mix(key, params.query_positions.size());
     return key == 0 ? 1 : key;
 }
 
@@ -156,6 +179,7 @@ llama_kv_attention_operator_metadata llama_kv_attention_operator_metadata::build
         state->params = params;
         state->view = view;
         state->content_key = attention_content_key(view, params);
+        state->layout_key = attention_layout_key(view, params);
         status = llama_kv_attention_operator_status::ok;
         return llama_kv_attention_operator_metadata(std::move(state));
     } catch (const std::bad_alloc &) {
@@ -178,6 +202,10 @@ uint64_t llama_kv_attention_operator_metadata::table_epoch() const noexcept {
 
 uint64_t llama_kv_attention_operator_metadata::graph_content_key() const noexcept {
     return state_ ? state_->content_key : 0;
+}
+
+uint64_t llama_kv_attention_operator_metadata::graph_layout_key() const noexcept {
+    return state_ ? state_->layout_key : 0;
 }
 
 uint32_t llama_kv_attention_operator_metadata::get_n_kv() const noexcept {

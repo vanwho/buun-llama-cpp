@@ -713,7 +713,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     mctx->set_input_v_idxs(self_v_idxs, ubatch);
 
     const bool initialize_selected = selected_attention && !selected_static_inputs_initialized;
-    const int64_t selected_input_start = initialize_selected && kv_attention_metrics
+    const bool content_changed = selected_attention && !exact_wave_attention &&
+        selected_content_key != selected_metadata.graph_content_key();
+    const bool update_selected = initialize_selected || content_changed;
+    const int64_t selected_input_start = update_selected && kv_attention_metrics
         ? ggml_time_us() : 0;
 
     if (selected_attention) {
@@ -741,7 +744,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
         } else if (direct_attention) {
             direct_telemetry_published = false;
             direct_telemetry_skipped = false;
-            if (initialize_selected) {
+            if (update_selected) {
                 ggml_backend_tensor_set(direct_pages, direct_pages_host.data(), 0,
                         direct_pages_host.size() * sizeof(direct_pages_host[0]));
                 const auto & positions = selected_metadata.native_positions();
@@ -766,7 +769,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
         } else {
             GGML_ASSERT(self_selected_idxs != nullptr);
             GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
-            if (initialize_selected) {
+            if (update_selected) {
                 ggml_backend_tensor_set(self_selected_idxs, selected_rows.data(), 0,
                         selected_rows.size() * sizeof(selected_rows[0]));
             }
@@ -783,7 +786,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     if (self_kq_mask && self_kq_mask->buffer) {
         if (!selected_attention) {
             mctx->set_input_kq_mask(self_kq_mask, ubatch, cparams.causal_attn);
-        } else if (initialize_selected || (tree_mask && tree_mask->active)) {
+        } else if (update_selected || (tree_mask && tree_mask->active)) {
             GGML_ASSERT(ggml_backend_buffer_is_host(self_kq_mask->buffer));
             const auto & positions = selected_metadata.native_positions();
             const auto & valid = selected_metadata.native_mask();
@@ -812,6 +815,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 fill((float *) self_kq_mask->data);
             }
         }
+    }
+
+    if (selected_attention && !exact_wave_attention && update_selected) {
+        selected_content_key = selected_metadata.graph_content_key();
     }
 
     if (initialize_selected) {
@@ -876,6 +883,19 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         res &= exact_n_rows != 0;
         return res;
     }
+
+    if (selected && !exact_wave) {
+        const auto & metadata = params.kv_attention_metadata;
+        if (!metadata.valid() || !metadata.enabled()) {
+            return false;
+        }
+        if (metadata.graph_content_key() != selected_content_key &&
+                !refresh_selected_data(metadata)) {
+            return false;
+        }
+        selected_metadata = metadata;
+    }
+
     res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams,
             selected ? params.kv_attention_metadata.get_n_kv() : 0);
     if (selected && !direct) {
@@ -905,6 +925,42 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     }
 
     return res;
+}
+
+bool llm_graph_input_attn_kv::refresh_selected_data(
+        const llama_kv_attention_operator_metadata & metadata) {
+    if (!selected_attention || exact_wave_attention || !metadata.valid()) {
+        return false;
+    }
+
+    if (direct_attention) {
+        const auto & pages = metadata.page_table();
+        if (direct_pages == nullptr || direct_native_positions == nullptr ||
+                direct_native_mask == nullptr || direct_query_positions == nullptr ||
+                direct_pages_host.size() != pages.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < pages.size(); ++i) {
+            const auto & page = pages[i];
+            direct_pages_host[i] = {
+                page.logical_page, page.source_physical_slot,
+                page.compact_row_begin, page.row_count,
+                page.native_position_begin };
+        }
+        return metadata.native_positions().size() == size_t(direct_native_positions->ne[0]) &&
+            metadata.native_mask().size() == size_t(direct_native_mask->ne[0]) &&
+            metadata.query_positions().size() == size_t(direct_query_positions->ne[0]);
+    }
+
+    if (self_selected_idxs == nullptr ||
+            metadata.get_n_kv() != uint32_t(self_selected_idxs->ne[0])) {
+        return false;
+    }
+    selected_rows.clear();
+    if (!mctx->selected_attention_rows(metadata.native_positions(), selected_rows)) {
+        return false;
+    }
+    return selected_rows.size() == size_t(self_selected_idxs->ne[0]);
 }
 
 void llm_graph_input_attn_k::set_input(const llama_ubatch * ubatch) {
@@ -1515,6 +1571,7 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
     const auto * mctx = static_cast<const llama_memory_hybrid_context *>(params.mctx);
 
     this->mctx = mctx;
+    inp_attn->mctx = mctx->get_attn();
 
     bool res = true;
 
@@ -1528,6 +1585,17 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
         params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
     res &= inp_attn->selected_attention == selected;
     res &= inp_attn->direct_attention == direct;
+    if (selected && params.kv_attention_exact_plan == nullptr) {
+        const auto & metadata = params.kv_attention_metadata;
+        if (!metadata.valid() || !metadata.enabled()) {
+            return false;
+        }
+        if (metadata.graph_content_key() != inp_attn->selected_content_key &&
+                !inp_attn->refresh_selected_data(metadata)) {
+            return false;
+        }
+        inp_attn->selected_metadata = metadata;
+    }
     res &= can_reuse_kq_mask(inp_attn->self_kq_mask, mctx->get_attn(), params.ubatch, params.cparams,
             selected ? params.kv_attention_metadata.get_n_kv() : 0);
     if (selected && !direct) {

@@ -416,6 +416,12 @@ public:
 
     bool can_reuse(const llm_graph_params & params) override;
 
+    // Refresh only the bounded host-side descriptor data when a reused graph
+    // sees a new residency/content generation. The tensor shapes and backing
+    // addresses are validated by can_reuse before this is called.
+    bool refresh_selected_data(
+            const llama_kv_attention_operator_metadata & metadata);
+
     ggml_tensor * get_k_idxs() const { return self_k_idxs; }
     ggml_tensor * get_v_idxs() const { return self_v_idxs; }
 
@@ -435,9 +441,11 @@ public:
     bool direct_attention = false;
     bool exact_wave_attention = false;
     // Page descriptors, selected row IDs, native positions/masks, and query
-    // positions are immutable for a reusable selected graph.  Dynamic cache
-    // indices and telemetry state are still refreshed on every submission.
+    // positions have stable graph-owned storage. Their values are refreshed
+    // only when the content generation changes; telemetry state is refreshed
+    // at its own cadence.
     bool selected_static_inputs_initialized = false;
+    uint64_t selected_content_key = 0;
     ggml_tensor * self_selected_idxs = nullptr; // I32 [selected physical rows]
     std::vector<int32_t> selected_rows;
     llama_kv_attention_operator_metadata selected_metadata;
@@ -976,11 +984,12 @@ struct llm_graph_params {
 
     llm_graph_result * res;
 
-    // Selected KV page-table contents are immutable for a graph. A non-zero
-    // epoch participates in topology reuse; zero preserves the dense/off
-    // path and adds no page-table input.
+    // The epoch/content key describe mutable selected-KV data. Layout key is
+    // the graph identity; equal layout permits the bounded descriptor inputs
+    // to be refreshed without rebuilding or recapturing the graph.
     uint64_t kv_attention_table_epoch = 0;
     uint64_t kv_attention_content_key = 0;
+    uint64_t kv_attention_layout_key = 0;
     uint64_t kv_attention_representation_epoch = 0;
     uint64_t kv_attention_shape_epoch = 0;
     llama_kv_attention_execution_route kv_attention_route = llama_kv_attention_execution_route::dense;
@@ -1063,8 +1072,7 @@ struct llm_graph_params {
             cvec  == other.cvec  &&
             loras == other.loras &&
             cross == other.cross &&
-            kv_attention_table_epoch == other.kv_attention_table_epoch &&
-            kv_attention_content_key == other.kv_attention_content_key &&
+            kv_attention_layout_key == other.kv_attention_layout_key &&
             kv_attention_representation_epoch == other.kv_attention_representation_epoch &&
             kv_attention_shape_epoch == other.kv_attention_shape_epoch &&
             kv_attention_route == other.kv_attention_route &&

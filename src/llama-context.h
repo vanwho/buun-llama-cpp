@@ -695,6 +695,12 @@ private:
     llama_kv_attention_execution kv_attention_execution;
     bool kv_attention_mtp_verification_ = false;
     std::unique_ptr<llama_kv_attention_telemetry> kv_attention_telemetry;
+    // Reused bounded host workspaces for the selected attention admission
+    // path. They retain capacity across steady-hot decode submissions and are
+    // never sized from the logical context length.
+    std::vector<uint32_t> kv_attention_selected_pages_scratch_;
+    std::vector<llama_pos> kv_attention_query_positions_scratch_;
+    std::vector<int32_t> kv_attention_rows_scratch_;
 
     // decode output (2-dimensional array: [n_outputs][n_vocab])
     buffer_view<float> logits = {nullptr, 0};

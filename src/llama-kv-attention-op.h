@@ -74,12 +74,17 @@ public:
     bool enabled() const noexcept;
     llama_kv_attention_operator_mode mode() const noexcept;
     uint64_t table_epoch() const noexcept;
-    // This is the graph reuse/capture key for selected-page table contents.
+    // This is the residency generation. It identifies the snapshot used by
+    // the mutable descriptor data, not the graph topology.
     uint64_t graph_reuse_key() const noexcept { return table_epoch(); }
-    // Unlike graph_reuse_key(), this also includes the ordered selected-page
-    // contents. Two views may share one residency snapshot epoch while having
-    // different compact page tables.
+    // Content changes are safe to apply to a graph with the same layout. This
+    // key is retained for change detection so a steady-hot submission can
+    // skip descriptor uploads when the page data is unchanged.
     uint64_t graph_content_key() const noexcept;
+    // Shape/layout identity is deliberately independent of residency epoch and
+    // page/query values. It is the key used to decide whether graph storage
+    // can be reused while the bounded descriptor buffers are refreshed.
+    uint64_t graph_layout_key() const noexcept;
     uint32_t get_n_kv() const noexcept;
 
     ggml_type type_k() const noexcept;

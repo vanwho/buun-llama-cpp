@@ -140,6 +140,7 @@ static void test_operator_contract() {
             view, rotated_source, status);
     assert(rotated_metadata.valid());
     assert(rotated_metadata.graph_content_key() != metadata.graph_content_key());
+    assert(rotated_metadata.graph_layout_key() != metadata.graph_layout_key());
     assert(rotated_metadata.domain_k() == llama_kv_attention_representation_domain::turbo_rotated);
     assert(llama_kv_attention_operator_check_backend(
                 GGML_BACKEND_DEVICE_TYPE_CPU, metadata) ==
@@ -172,9 +173,14 @@ static void test_operator_contract() {
 
     llm_graph_params graph_a = {};
     graph_a.kv_attention_table_epoch = view.graph_epoch();
+    graph_a.kv_attention_content_key = metadata.graph_content_key();
+    graph_a.kv_attention_layout_key = metadata.graph_layout_key();
     auto graph_b = graph_a;
     assert(graph_a.allow_reuse(graph_a));
     graph_b.kv_attention_table_epoch++;
+    graph_b.kv_attention_content_key++;
+    assert(graph_a.allow_reuse(graph_b));
+    graph_b.kv_attention_layout_key++;
     assert(!graph_a.allow_reuse(graph_b));
 }
 

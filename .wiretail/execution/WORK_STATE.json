@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "20",
-  "current_task": "20-04",
-  "last_updated_utc": "2026-09-05T16:45:29+00:00",
+  "current_task": "20-05",
+  "last_updated_utc": "2026-09-05T17:13:50+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3219,22 +3219,36 @@
       "cluster": "20b-execution-performance",
       "title": "Remove all-fit and steady-hot overhead from graph and MTP execution",
       "packet": ".wiretail/execution/tasks/20-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "20-03"
       ],
-      "commit": null,
+      "commit": "ce983e4cfa49f43904f50405b89d43bf5d6f7746",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/20-04-attempt-1-20260905T164545Z.jsonl:242",
+            "total_tokens": 24307516,
+            "total_tokens_derived": true,
+            "input_tokens": 24258401,
+            "cached_input_tokens": 23836416,
+            "output_tokens": 49115,
+            "thinking_tokens": 17430
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 24307516,
+          "input_tokens": 24258401,
+          "cached_input_tokens": 23836416,
+          "output_tokens": 49115,
+          "thinking_tokens": 17430
         }
       }
     },
@@ -4053,15 +4067,28 @@
           "cached_input_tokens": 20722944,
           "output_tokens": 58050,
           "thinking_tokens": 20153
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/20-04-attempt-1-20260905T164545Z.jsonl:242",
+          "total_tokens": 24307516,
+          "total_tokens_derived": true,
+          "input_tokens": 24258401,
+          "cached_input_tokens": 23836416,
+          "output_tokens": 49115,
+          "thinking_tokens": 17430
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 79365907,
-        "input_tokens": 79195223,
-        "cached_input_tokens": 77769216,
-        "output_tokens": 170684,
-        "thinking_tokens": 62683
+        "turns": 4,
+        "total_tokens": 103673423,
+        "input_tokens": 103453624,
+        "cached_input_tokens": 101605632,
+        "output_tokens": 219799,
+        "thinking_tokens": 80113
       }
     },
     "21": {
@@ -4089,12 +4116,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 26,
-      "total_tokens": 523095732,
-      "input_tokens": 521867633,
-      "cached_input_tokens": 512212992,
-      "output_tokens": 1228099,
-      "thinking_tokens": 446917
+      "turns": 27,
+      "total_tokens": 547403248,
+      "input_tokens": 546126034,
+      "cached_input_tokens": 536049408,
+      "output_tokens": 1277214,
+      "thinking_tokens": 464347
     },
     "source": "Codex turn.completed usage events"
   }
