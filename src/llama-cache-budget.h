@@ -90,6 +90,12 @@ struct llama_cache_budget_admission_input {
     uint64_t logical_page_count = 0; // required resolved L; zero is not configured
     uint64_t user_page_cap = 0; // optional upper bound; never increases admitted capacity
     uint64_t diagnostic_max_pages = 0; // zero means no diagnostic cap
+    // The request and resolution are carried separately so a caller can prove
+    // that admission did not silently shorten the requested context.  The
+    // pager fills both from its resolved context; other callers may leave the
+    // request unset and use mtp_tokens as the resolved value.
+    uint64_t requested_context_tokens = 0;
+    uint64_t resolved_context_tokens = 0;
     llama_cache_budget_admission_provenance provenance =
         llama_cache_budget_admission_provenance::estimated;
     llama_cache_budget_reconciliation_status reconciliation =
@@ -116,7 +122,11 @@ struct llama_cache_budget_admission_result {
     uint64_t capacity_pages = 0;
     uint64_t capacity_tokens = 0;
     uint64_t admitted_pages = 0;
+    uint64_t requested_context_tokens = 0;
+    uint64_t resolved_context_tokens = 0;
+    uint64_t accepted_target_tokens = 0;
     uint64_t unused_bytes = 0;
+    bool accepted = false;
     llama_cache_budget_admission_provenance provenance =
         llama_cache_budget_admission_provenance::unavailable;
     llama_cache_budget_reconciliation_status reconciliation =
