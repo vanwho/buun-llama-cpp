@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "task": "17-09",
+  "run_id": "17-09-performance-20260905T020000Z",
+  "decision": "block",
+  "decision_reason": "The feasible 8192-token direct probe produced reproducible diagnostic speed data, but it did not produce the required ordinary CPU-KV denominator, safe all-GPU Turbo4-MTP denominator, or long-context V4 cold/focus/churn segments. The exact/native request returned HTTP 500 Compute error. Therefore the 3x floor and 5x/70% targets remain unmeasured rather than passed or failed.",
+  "provenance": {
+    "repository_head": "817b405f9cde350919fffa6052d80689cdef69ef",
+    "binary_path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "binary_sha256": "d306009f51f0ebb554752d9c41fabb51c796f9d708eef977cc3cc09014e361db",
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus_path": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_schema": "pager-corpus-v4",
+    "corpus_hash": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "corpus_cases": 24,
+    "gpu": "NVIDIA GeForce RTX 4080, driver 595.84, 16376 MiB"
+  },
+  "protocol": {
+    "type": "direct_authenticated_http_diagnostic",
+    "canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "canonical_contract": "one discarded 40-token warmup plus three measured 400-token streamed requests per prompt",
+    "deviation": "The available stability probe used ten completed trials per prompt, max_tokens=16, non-streaming JSON, and no separately recorded discarded warmup. It is diagnostic performance evidence, not canonical acceptance evidence.",
+    "prompts": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ],
+    "sampling": {"temperature": 0, "seed": 42, "thinking": "off"},
+    "server_context_tokens": 8192,
+    "page_size_tokens": 256,
+    "trials_per_prompt": 10,
+    "requests_per_successful_mode": 30,
+    "resolved_v4_contexts_exercised": false,
+    "same_binary_model_and_corpus_provenance": true
+  },
+  "runs": [
+    {
+      "name": "feature-off",
+      "mode": "off",
+      "pager": "off",
+      "mtp": "off",
+      "context_tokens": 8192,
+      "status": "complete_diagnostic",
+      "trials": 10,
+      "requests": 30,
+      "errors": 0,
+      "raw": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/off-8192",
+      "summary": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/paired-summary.json#/paired/feature_off"
+    },
+    {
+      "name": "observe-native",
+      "mode": "observe",
+      "pager": "observe",
+      "mtp": "native Turbo4/GPU",
+      "context_tokens": 8192,
+      "status": "complete_diagnostic",
+      "trials": 10,
+      "requests": 30,
+      "errors": 0,
+      "raw": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/observe-native-8192",
+      "summary": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/paired-summary.json#/paired/observe_native"
+    },
+    {
+      "name": "selective-native",
+      "mode": "selective",
+      "pager": "selective",
+      "mtp": "native Turbo4/GPU",
+      "context_tokens": 8192,
+      "status": "complete_diagnostic",
+      "trials": 10,
+      "requests": 30,
+      "errors": 0,
+      "raw": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/selective-native-8192",
+      "summary": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/paired-summary.json#/paired/selective_native"
+    },
+    {
+      "name": "exact-native",
+      "mode": "exact",
+      "pager": "exact",
+      "mtp": "native Turbo4/GPU",
+      "context_tokens": 8192,
+      "status": "http_500_compute_error",
+      "requests": 1,
+      "http_status": 500,
+      "raw": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/exact-native-8192"
+    },
+    {
+      "name": "canonical-off-setup",
+      "status": "runner_setup_failed",
+      "exit_code": 127,
+      "reason": "The managed wrapper interpreted the configured sudo command as the literal executable `sudo -n`; this lifecycle failure is retained and is not counted as a measured request.",
+      "raw": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/off-8192/lifecycle-state.json"
+    }
+  ],
+  "diagnostic_speed": {
+    "source": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/paired-summary.json",
+    "units": {"decode": "tokens/s", "ttft": "ms", "wall": "s", "inter_token": "ms/token"},
+    "p50_decode_tokens_per_second": {"feature_off": 50.063748, "observe_native": 111.00669, "selective_native": 74.225274},
+    "p95_decode_tokens_per_second": {"feature_off": 50.079785, "observe_native": 111.258962, "selective_native": 103.337012},
+    "p99_decode_tokens_per_second": {"feature_off": 50.088537, "observe_native": 111.324679, "selective_native": 103.423249},
+    "p50_ttft_ms": {"feature_off": 37.5805, "observe_native": 38.425, "selective_native": 38.375},
+    "p95_ttft_ms": {"feature_off": 50.10545, "observe_native": 52.48965, "selective_native": 52.1252},
+    "p99_ttft_ms": {"feature_off": 63.72356, "observe_native": 81.87406, "selective_native": 83.32157},
+    "mtp_acceptance": {"feature_off": null, "observe_native": 0.966667, "selective_native": 0.722222}
+  },
+  "ratios": {
+    "selective_native_over_feature_off_p50_decode": 1.482615,
+    "observe_native_over_feature_off_p50_decode": 2.217307,
+    "selective_over_ordinary_cpu_kv": null,
+    "selective_over_safe_all_gpu_mtp": null,
+    "target_3x_floor_achieved": null,
+    "target_5x_achieved": null,
+    "target_all_gpu_70_percent_achieved": null,
+    "reason": "Feature-off is full-GPU K/V with MTP disabled. It is a descriptive diagnostic only and cannot stand in for ordinary CPU-KV offload or a safe all-GPU Turbo4-MTP control. No historical denominator was substituted."
+  },
+  "segments": {
+    "warm_trials": {"status": "complete_diagnostic", "trials_per_prompt": 10, "requests_per_mode": 30},
+    "feature_off": {"status": "complete_diagnostic", "context_tokens": 8192},
+    "cold_needle": {"status": "not_run", "reason": "No V4 long-context sequence after the 8192 native-MTP recovery."},
+    "focus_shift": {"status": "not_run", "reason": "No long-context focus-shift sequence was run."},
+    "churn": {"status": "not_run", "reason": "No long-context churn sequence was run."},
+    "ordinary_cpu_kv": {"status": "not_configured", "reason": "The active profile and direct harness did not expose a CPU-KV-offload configuration."},
+    "safe_all_gpu_mtp": {"status": "not_run", "reason": "No fresh same-context all-GPU Turbo4-MTP denominator was feasible."},
+    "full_v4_performance_matrix": {"status": "not_run", "reason": "17-08 quality gating stopped before full V4 contexts; native MTP was only feasible at 8192 in the observed ladder."}
+  },
+  "resource_ledger": {
+    "selective_metrics": {
+      "context_tokens": 8192,
+      "page_tokens": 256,
+      "logical_pages": 32,
+      "page_capacity": 32,
+      "resident_pages": 1,
+      "host_pages": 0,
+      "target_bytes": 138412000,
+      "mtp_rows": 8192,
+      "mtp_bytes_metrics": 8650750,
+      "mtp_reservation_bytes_startup_log": 8781824,
+      "usable_device_bytes": 1927020000,
+      "charged_bytes": 76816800,
+      "route": "selected reference",
+      "mtp_backend": "gpu",
+      "target_kv": "turbo4",
+      "draft_kv": "turbo4"
+    },
+    "selective_counters": {
+      "faults": 0,
+      "prefetch_hits": 0,
+      "h2d_useful_bytes": 0,
+      "d2h_useful_bytes": 0,
+      "transfer_queued": 0,
+      "transfer_waits": 0,
+      "waits": 221,
+      "overlap_us": 0,
+      "rollback_errors": 0,
+      "attention_samples": 0
+    },
+    "exact_probe_counters": {
+      "plan_waves": 1,
+      "plan_pages": 1,
+      "resident_pages": 1,
+      "cold_pages": 0,
+      "faults": 0,
+      "h2d_useful_bytes": 0,
+      "waits": 0
+    },
+    "resource_snapshots": {
+      "exact_gpu_after": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/exact-native-8192/gpu-after.csv",
+      "exact_ram_after": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/exact-native-8192/ram-after.txt",
+      "restored_selective_gpu": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/runtime-final-gpu.csv",
+      "restored_selective_ram": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/runtime-final-ram.txt"
+    }
+  },
+  "acceptance_gates": {
+    "same_binary_model_corpus_raw_records": {"status": "diagnostic_provenance_complete", "observed": true},
+    "ten_warm_trials": {"status": "complete_diagnostic", "observed": "10 trials x 3 prompts x 3 successful modes"},
+    "mtp_acceptance": {"status": "measured_diagnostic", "selective_native": "260/360 = 72.2222%", "observe_native": "290/300 = 96.6667%", "feature_off": null},
+    "ordinary_cpu_kv_speed_ratio": {"status": "not_available", "ratio": null},
+    "safe_all_gpu_70_percent_ratio": {"status": "not_available", "ratio": null},
+    "three_x_floor": {"status": "not_available", "ratio": null},
+    "five_x_target": {"status": "not_available", "ratio": null},
+    "cold_needle_focus_shift_churn": {"status": "not_run", "ratio": null},
+    "exact_reference": {"status": "failed_http_500", "ratio": null}
+  },
+  "failed_hypotheses": [
+    {
+      "hypothesis": "The canonical managed wrapper can be used unchanged for the direct off probe.",
+      "result": "failed setup with exit 127 because `sudo -n` was treated as one executable; direct authenticated probing was used for diagnostic evidence.",
+      "raw": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/off-8192/lifecycle-state.json"
+    },
+    {
+      "hypothesis": "Exact/native at the feasible 8192 context gives a usable reference response.",
+      "result": "failed with HTTP 500 Compute error; response and metrics are retained.",
+      "raw": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/exact-native-8192"
+    },
+    {
+      "hypothesis": "Short 8192-token probes exercise the V4 pager transfer path.",
+      "result": "not demonstrated: prompt inputs were approximately 30 tokens, telemetry showed zero host pages and zero H2D/D2H transfer bytes; long-context cold/focus/churn probes remain required.",
+      "raw": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/telemetry-summary.json"
+    }
+  ],
+  "raw_result_root": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z",
+  "raw_integrity_manifest": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/SHA256SUMS",
+  "deferred_verification": "Required CPU-KV, safe all-GPU Turbo4-MTP, and long-context V4 performance comparisons remain deferred. Follow-up should use the canonical runner with a correctly split non-interactive sudo configuration, preserve the same binary/model/corpus hashes, descend the measured native-MTP context ladder as needed, and capture complete cold/focus/churn transfer telemetry before evaluating the 3x and 5x/70% gates."
+}

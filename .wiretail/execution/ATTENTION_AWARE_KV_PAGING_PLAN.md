@@ -1481,6 +1481,10 @@ benchmark conditions, acceptance, recovery paths, and handoff requirements. An e
     corrective work may not be deferred. Phase 18 may create a measured remediation phase instead of
     declaring an unproven overall success;
 12. leave GitHub issues, PR creation, descriptions, replies, and merges to a human under `CONTRIBUTING.md`.
+13. preserve every Codex `turn.completed` usage event when present. Record the turn under its task and
+    aggregate totals by phase and project for total, input, cached-input, output, and thinking/reasoning
+    tokens. If Codex omits total, derive it only as input plus output and mark the derivation; never
+    invent usage for a turn that reports none.
 
 The outer runner owns task branches, implementation-versus-execution commits, pushes to the user's fork,
 and merges into the plan branch in `auto` mode. New implementation commits exclude `.wiretail/execution/**`;
