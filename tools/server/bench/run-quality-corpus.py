@@ -19,7 +19,13 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from pager_benchmark_contract import CORPUS_SCHEMA, validate_corpus
+from pager_benchmark_contract import (
+    CORPUS_SCHEMA,
+    ContextResolutionError,
+    corpus_context_ceiling,
+    resolve_context,
+    validate_corpus,
+)
 
 
 def sha256_file(path: pathlib.Path) -> str:
@@ -62,10 +68,6 @@ def score_case(case: dict[str, Any], actual: str) -> tuple[bool, str]:
     else:
         return False, "unsupported_checker"
     return passed, "pass" if passed else "answer_mismatch"
-
-
-def corpus_context_ceiling(corpus: dict[str, Any]) -> int:
-    return max(int(case["context_tokens"]) for case in corpus["cases"])
 
 
 def build_request(case: dict[str, Any], model: str, max_tokens: int,
@@ -121,8 +123,8 @@ def main() -> int:
                         help="OpenAI-compatible /v1/chat/completions URL")
     parser.add_argument("--model", required=True)
     parser.add_argument("--api-key-file")
-    parser.add_argument("--context", type=int, required=True,
-                        help="resolved server context for this run")
+    parser.add_argument("--context", default="derived",
+                        help="derived corpus ceiling or explicit token count")
     parser.add_argument("--mode", required=True,
                         help="dense, selected-all, exact, or selective")
     parser.add_argument("--binary")
@@ -131,11 +133,12 @@ def main() -> int:
                         help="per-request timeout in seconds (default: 60)")
     parser.add_argument("--max-tokens", type=int, default=32)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--diagnostic-incomplete", action="store_true",
-                        help="record out-of-context cases as skipped diagnostics")
+    parser.add_argument("--diagnostic", "--diagnostic-incomplete", dest="diagnostic",
+                        action="store_true",
+                        help="explicitly record a sub-ceiling run as diagnostic-only")
     args = parser.parse_args()
-    if args.context <= 0 or args.timeout <= 0 or args.max_tokens <= 0:
-        parser.error("context, timeout, and max-tokens must be positive")
+    if args.timeout <= 0 or args.max_tokens <= 0:
+        parser.error("timeout and max-tokens must be positive")
 
     try:
         corpus = json.loads(args.corpus.read_text())
@@ -150,11 +153,13 @@ def main() -> int:
         print(f"quality runner requires {CORPUS_SCHEMA}", file=sys.stderr)
         return 2
     ceiling = corpus_context_ceiling(corpus)
-    if args.context < ceiling and not args.diagnostic_incomplete:
-        print(f"context {args.context} cannot cover corpus ceiling {ceiling}; "
-              "choose a larger resolved context or use --diagnostic-incomplete",
-              file=sys.stderr)
+    try:
+        context = resolve_context(args.context, ceiling,
+                                  diagnostic=args.diagnostic)
+    except ContextResolutionError as error:
+        print(f"invalid benchmark context: {error}", file=sys.stderr)
         return 2
+    resolved_context = context["resolved"]
 
     args.output.mkdir(parents=True, exist_ok=True)
     raw = args.output / "raw"
@@ -169,7 +174,8 @@ def main() -> int:
         "model_sha256": corpus.get("model_sha256"),
         "tokenizer_sha256": corpus.get("tokenizer_sha256"),
         "mode": args.mode,
-        "context": args.context,
+        "context": resolved_context,
+        "context_resolution": context,
         "corpus_context_ceiling": ceiling,
         "endpoint": args.endpoint,
         "model": args.model,
@@ -178,7 +184,7 @@ def main() -> int:
         "model_file": str(pathlib.Path(args.model_file).resolve()) if args.model_file else None,
         "model_file_sha256": sha256_file(pathlib.Path(args.model_file)) if args.model_file else None,
         "request_timeout_seconds": args.timeout,
-        "diagnostic_incomplete": args.diagnostic_incomplete,
+        "diagnostic_only": context["diagnostic_only"],
     }
     write_json(args.output / "provenance.json", provenance)
 
@@ -191,13 +197,16 @@ def main() -> int:
             write_json(raw / f"{stem}.request.json", body)
             record: dict[str, Any] = {
                 "index": index, "id": case["id"], "partition": case["partition"],
-                "mode": args.mode, "context": args.context,
+                "mode": args.mode, "context": resolved_context,
+                "context_resolution": context,
                 "context_tokens": case["context_tokens"],
+                "token_count": case["token_count"],
+                "tail_tokens": case["tail_tokens"],
                 "request_file": f"raw/{stem}.request.json",
                 "status": "pending",
             }
             started = time.monotonic()
-            if case["context_tokens"] > args.context:
+            if case["context_tokens"] > resolved_context:
                 record.update({"status": "skipped_context", "error": "case_exceeds_context"})
             else:
                 status, response, error = request_case(args.endpoint, body, key, args.timeout)
@@ -223,7 +232,8 @@ def main() -> int:
     summary = {
         "schema_version": 1,
         "mode": args.mode,
-        "context": args.context,
+        "context": resolved_context,
+        "context_resolution": context,
         "corpus_cases": len(records),
         "completed": len(completed),
         "passed": sum(record["status"] == "pass" for record in records),
@@ -234,7 +244,7 @@ def main() -> int:
                   if completed else None),
         "decision": "pass" if len(completed) == len(records) and
                     all(record["status"] == "pass" for record in records) else "fail",
-        "diagnostic_only": args.diagnostic_incomplete or args.context < ceiling,
+        "diagnostic_only": context["diagnostic_only"],
     }
     write_json(args.output / "summary.json", summary)
     (args.output / "SHA256SUMS").write_text(

@@ -28,7 +28,7 @@ def identity(profile: str, pid: int, *, binary: str = "/opt/llama-server") -> di
         "pid": pid,
         "binary": binary,
         "model": "/models/qwen.gguf",
-        "context": "16384",
+        "context": "22016",
         "pager_mode": "selective",
         "page_size_tokens": "256",
         "mtp_placement": "gpu",
@@ -127,6 +127,39 @@ class AdapterContractTests(unittest.TestCase):
         envelope = adapter.pager_envelope("short", not_present)
         self.assertEqual(envelope["mtp_placement"], "not_present")
         self.assertEqual(envelope["mtp_backend"], "not_present")
+
+    def test_dry_run_derives_v4_context_and_acceptance_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(adapter.os.environ, {}, clear=True), \
+                patch.object(adapter.sys, "argv", [
+                    "run-pager-profile-benchmark.py", "fast", "stable-focus",
+                    directory, "--dry-run"]):
+            self.assertEqual(0, adapter.main())
+            config = json.loads((pathlib.Path(directory) / "run-config.json").read_text())
+            self.assertEqual(22016, config["context"]["resolved"])
+            self.assertEqual("acceptance", config["context"]["mode"])
+            self.assertFalse(config["context"]["diagnostic_only"])
+            self.assertEqual(22016, config["launcher"]["context"])
+            self.assertEqual(11008, config["launcher"]["prompt_context_words"])
+
+    def test_sub_ceiling_requires_explicit_diagnostic_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(adapter.os.environ, {}, clear=True), \
+                patch.object(adapter.sys, "argv", [
+                    "run-pager-profile-benchmark.py", "fast", "stable-focus",
+                    directory, "--dry-run", "--context", "16384"]):
+            self.assertEqual(2, adapter.main())
+
+    def test_diagnostic_dry_run_records_odd_tail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(adapter.os.environ, {}, clear=True), \
+                patch.object(adapter.sys, "argv", [
+                    "run-pager-profile-benchmark.py", "fast", "stable-focus",
+                    directory, "--dry-run", "--context", "6401", "--diagnostic"]):
+            self.assertEqual(0, adapter.main())
+            config = json.loads((pathlib.Path(directory) / "run-config.json").read_text())
+            self.assertEqual(1, config["prompt"]["tail_tokens"])
+            self.assertTrue(config["context"]["diagnostic_only"])
 
     def test_http_401_and_403_are_non_secret_auth_errors(self) -> None:
         for status in (401, 403):

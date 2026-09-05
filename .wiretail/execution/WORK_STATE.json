@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "17",
-  "current_task": "17-12",
-  "last_updated_utc": "2026-09-05T02:39:58+00:00",
+  "current_task": "17-13",
+  "last_updated_utc": "2026-09-05T02:50:49+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -17,7 +17,7 @@
     "cluster_context_dir": ".wiretail/execution/clusters",
     "default_model": "gpt-5.6-luna",
     "default_reasoning": "high",
-    "task_model_policy": "all current and generated tasks use Luna High unless an explicit operator override is supplied",
+    "task_model_policy": "all current and generated tasks use Luna High unless an explicit task recommendation or operator override is supplied; 18-01 uses Sol High for the final assessment",
     "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
@@ -2314,22 +2314,36 @@
       "cluster": "17f-context-pressure",
       "title": "Make acceptance context and soak inputs dynamic",
       "packet": ".wiretail/execution/tasks/17-12.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "17-11"
       ],
-      "commit": null,
+      "commit": "38df820e9506bb19530d2ad37bcd8cbc4deec423",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/17-12-attempt-1-20260905T024013Z.jsonl:113",
+            "total_tokens": 6370894,
+            "total_tokens_derived": true,
+            "input_tokens": 6338802,
+            "cached_input_tokens": 6140928,
+            "output_tokens": 32092,
+            "thinking_tokens": 13582
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 6370894,
+          "input_tokens": 6338802,
+          "cached_input_tokens": 6140928,
+          "output_tokens": 32092,
+          "thinking_tokens": 13582
         }
       }
     },
@@ -2491,7 +2505,7 @@
       "packet": ".wiretail/execution/tasks/18-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Sol High",
       "depends_on": [
         "17-18"
       ],
@@ -2738,15 +2752,28 @@
           "cached_input_tokens": 3323904,
           "output_tokens": 15373,
           "thinking_tokens": 4431
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/17-12-attempt-1-20260905T024013Z.jsonl:113",
+          "total_tokens": 6370894,
+          "total_tokens_derived": true,
+          "input_tokens": 6338802,
+          "cached_input_tokens": 6140928,
+          "output_tokens": 32092,
+          "thinking_tokens": 13582
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 12690755,
-        "input_tokens": 12624997,
-        "cached_input_tokens": 12340736,
-        "output_tokens": 65758,
-        "thinking_tokens": 19502
+        "turns": 4,
+        "total_tokens": 19061649,
+        "input_tokens": 18963799,
+        "cached_input_tokens": 18481664,
+        "output_tokens": 97850,
+        "thinking_tokens": 33084
       }
     },
     "18": {
@@ -2763,12 +2790,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 3,
-      "total_tokens": 12690755,
-      "input_tokens": 12624997,
-      "cached_input_tokens": 12340736,
-      "output_tokens": 65758,
-      "thinking_tokens": 19502
+      "turns": 4,
+      "total_tokens": 19061649,
+      "input_tokens": 18963799,
+      "cached_input_tokens": 18481664,
+      "output_tokens": 97850,
+      "thinking_tokens": 33084
     },
     "source": "Codex turn.completed usage events"
   }
