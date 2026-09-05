@@ -76,6 +76,27 @@ int main() {
     assert(store.score(snap, { 0, 1, 0 }, 1).status ==
            llama_kv_routing_summary_status::invalid_argument);
 
+    // A cold host record is part of the logical index even though it is not in
+    // the residency snapshot. Its summary survives the residency-only view.
+    auto complete_inventory = snap.pages();
+    auto cold_page = make_page(3, UINT32_MAX, 900);
+    cold_page.state = llama_kv_page_state::host_clean;
+    cold_page.host_valid = true;
+    complete_inventory.push_back(cold_page);
+    auto complete_inputs = inputs;
+    complete_inputs.push_back(input(cold_page, 9.0f));
+    const auto complete = llama_kv_routing_summary_store::build(
+            snap, complete_inventory, complete_inputs, config, status);
+    assert(status == llama_kv_routing_summary_status::ok && complete.valid());
+    assert(complete.accounting().page_count == 4);
+    const auto complete_ranked = complete.score(
+            snap, complete_inventory, { 1, 0, 0, 0 }, 4);
+    assert(complete_ranked.status == llama_kv_routing_summary_status::ok);
+    assert(complete_ranked.pages_scored == 4);
+    assert(complete.contains(3));
+    auto retained = complete.reconcile(snap, complete_inventory, status);
+    assert(status == llama_kv_routing_summary_status::ok && retained.contains(3));
+
     // Equal scores use logical page as the stable tie breaker.
     std::vector<float> zero(4, 0.0f);
     const auto ties = store.score(snap, zero, 3);

@@ -242,6 +242,13 @@ struct llama_memory_i {
     // completion bookkeeping has crossed the scheduler fence.
     virtual void apply_kv_pager_policy() {}
 
+    // Graph construction records the final projected/positioned Q tensor for
+    // the pager's post-fence routing boundary. Non-attention memories ignore
+    // this hook; the cache reads the tensor only after scheduler completion.
+    virtual void capture_kv_routing_query(
+            ggml_tensor * /* tensor */, int /* layer */,
+            const llama_ubatch & /* ubatch */) {}
+
     // split the input batch into a set of ubatches and verify that they can fit into the cache
     // return a context object containing the ubatches and memory state required to process them
     // check the llama_memory_context_i::get_status() for the result

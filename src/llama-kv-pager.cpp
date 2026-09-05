@@ -6,6 +6,7 @@
 #include <array>
 #include <limits>
 #include <new>
+#include <utility>
 
 namespace {
 bool mul(uint64_t a, uint64_t b, uint64_t & out) noexcept {
@@ -901,11 +902,81 @@ void llama_kv_pager::set_routing_summary_provider(
     routing_summary_provider_ = provider;
 }
 
+llama_kv_routing_page_inventory llama_kv_pager::routing_inventory() const noexcept {
+    llama_kv_routing_page_inventory output;
+    try {
+        output = residency_.snapshot().pages();
+        if (!host_) return output;
+        for (const auto & host_page : host_->pages()) {
+            const auto & id = host_page.page.identity;
+            const auto existing = std::find_if(output.begin(), output.end(),
+                    [&](const auto & page) {
+                return page.id.session_generation == id.session_generation &&
+                       page.id.sequence_id == id.sequence_id &&
+                       page.id.sequence_generation == id.sequence_generation &&
+                       page.id.logical_page == id.logical_page;
+            });
+            if (existing != output.end()) continue;
+            llama_kv_page_record page;
+            page.id = id;
+            page.physical_slot = UINT32_MAX;
+            page.state = llama_kv_page_state::host_clean;
+            page.host_valid = true;
+            page.dirty = false;
+            output.push_back(page);
+        }
+        std::sort(output.begin(), output.end(), [](const auto & lhs, const auto & rhs) {
+            if (lhs.id.sequence_id != rhs.id.sequence_id) {
+                return lhs.id.sequence_id < rhs.id.sequence_id;
+            }
+            return lhs.id.logical_page < rhs.id.logical_page;
+        });
+    } catch (...) {
+        output.clear();
+    }
+    return output;
+}
+
+std::vector<llama_kv_routing_summary_config>
+llama_kv_pager::routing_summary_configs() const noexcept {
+    std::vector<llama_kv_routing_summary_config> output;
+    try {
+        const uint32_t layers = snapshot_.geometry.attention_layers;
+        const uint32_t heads = snapshot_.geometry.kv_heads;
+        if (layers == 0 || heads == 0) {
+            output.push_back(routing_summary_config_);
+            return output;
+        }
+        output.reserve(size_t(layers) * heads);
+        for (uint32_t layer = 0; layer < layers; ++layer) {
+            for (uint32_t head = 0; head < heads; ++head) {
+                auto config = routing_summary_config_;
+                config.layer_index = layer;
+                config.head_index = head;
+                output.push_back(config);
+            }
+        }
+    } catch (...) {
+        output.clear();
+    }
+    return output;
+}
+
 void llama_kv_pager::reconcile_routing_summaries() noexcept {
     llama_kv_routing_summary_status status;
-    auto next = routing_summaries_.reconcile(residency_.snapshot(), status);
+    const auto snapshot = residency_.snapshot();
+    const auto inventory = routing_inventory();
+    auto next = routing_summaries_.reconcile(snapshot, inventory, status);
     if (status == llama_kv_routing_summary_status::ok) {
         routing_summaries_ = std::move(next);
+    }
+    for (const auto & config : routing_summary_configs()) {
+        auto * current = routing_summary_index_.find(config.layer_index, config.head_index);
+        if (current == nullptr || !current->valid()) continue;
+        auto reconciled = current->reconcile(snapshot, inventory, status);
+        if (status == llama_kv_routing_summary_status::ok) {
+            routing_summary_index_.set(std::move(reconciled));
+        }
     }
 }
 
@@ -955,18 +1026,19 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
         const bool needs_host_seal = host_ != nullptr && !page.record.host_valid;
         if (!needs_host_seal && routing_summary_provider_.build == nullptr) continue;
         const auto previous = page.record;
-        llama_kv_routing_page_input summary_input;
-        const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
-            std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
-                        [](uint8_t value) { return value != 0; });
-        if (!full && host_ == nullptr) {
-            continue;
-        }
-        if (full && routing_summary_provider_.build != nullptr && !routing_summary_provider_.build(
-                routing_summary_provider_.context, page.record, routing_summary_config_, summary_input)) {
-            if (!needs_host_seal) continue;
-            page.record = previous;
-            continue;
+        std::vector<std::pair<llama_kv_routing_summary_config,
+                              llama_kv_routing_page_input>> summary_inputs;
+        if (routing_summary_provider_.build != nullptr) {
+            for (const auto & config : routing_summary_configs()) {
+                llama_kv_routing_page_input summary_input;
+                if (!routing_summary_provider_.build(
+                        routing_summary_provider_.context, page.record, config, summary_input)) {
+                    summary_inputs.clear();
+                    break;
+                }
+                summary_inputs.push_back({ config, std::move(summary_input) });
+            }
+            if (summary_inputs.empty() && !needs_host_seal) continue;
         }
         if (needs_host_seal) {
             page.record.state = llama_kv_page_state::sealing_host;
@@ -990,20 +1062,37 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                 continue;
             }
         }
-        if (!full || routing_summary_provider_.build == nullptr) {
+        if (routing_summary_provider_.build == nullptr) {
             ++sealed;
             continue;
         }
-        llama_kv_routing_summary_status summary_status;
-        auto next = routing_summaries_.update_page(
-                residency_.snapshot(), summary_input, routing_summary_config_, summary_status);
-        if (summary_status != llama_kv_routing_summary_status::ok) {
+        const auto inventory = routing_inventory();
+        bool summary_failed = false;
+        bool first_summary = true;
+        for (auto & input : summary_inputs) {
+            llama_kv_routing_summary_status summary_status;
+            auto * indexed = routing_summary_index_.find(
+                    input.first.layer_index, input.first.head_index);
+            llama_kv_routing_summary_store current = indexed != nullptr
+                ? *indexed : llama_kv_routing_summary_store{};
+            auto next = current.update_page(
+                    residency_.snapshot(), inventory, input.second, input.first, summary_status);
+            if (summary_status != llama_kv_routing_summary_status::ok) {
+                summary_failed = true;
+                break;
+            }
+            if (first_summary) {
+                routing_summaries_ = next;
+                first_summary = false;
+            }
+            routing_summary_index_.set(std::move(next));
+        }
+        if (summary_failed) {
             page.record = previous;
             (void) publish_page(page);
             if (host_) (void) host_->invalidate(previous.id);
             continue;
         }
-        routing_summaries_ = std::move(next);
         ++sealed;
     }
     return sealed;
@@ -1011,10 +1100,9 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
 
 bool llama_kv_pager::invalidate_host_page(
         const llama_kv_page_id & page) noexcept {
-    llama_kv_routing_summary_status status;
-    auto next = routing_summaries_.reconcile(residency_.snapshot(), status);
-    if (status == llama_kv_routing_summary_status::ok) routing_summaries_ = std::move(next);
-    return !host_ || host_->invalidate(page);
+    const bool invalidated = !host_ || host_->invalidate(page);
+    reconcile_routing_summaries();
+    return invalidated;
 }
 
 void llama_kv_pager::bind_representation_identity(
