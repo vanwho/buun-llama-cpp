@@ -410,7 +410,8 @@ private:
     };
 
     llama_kv_pager_write_status publish_page(page_state & page) noexcept;
-    llama_kv_pager_write_status erase_page(page_state & page) noexcept;
+    llama_kv_pager_write_status erase_page(page_state & page,
+            bool preserve_host = false) noexcept;
     void reconcile_routing_summaries() noexcept;
     page_state * find_page(int32_t sequence_id, uint32_t logical_page) noexcept;
     const page_state * find_page(int32_t sequence_id, uint32_t logical_page) const noexcept;

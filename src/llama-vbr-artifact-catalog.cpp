@@ -92,8 +92,11 @@ vbr_selected_page_host_key selected_page_host_key(
 bool page_payload_valid(const vbr_selected_page_descriptor & page,
                         uint64_t & payload,
                         uint64_t & metadata) noexcept {
-    if (page.tail || page.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
-        page.positions.size() != VBR_GENERATION_PAGE_CELLS ||
+    if (page.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+        page.positions.empty() ||
+        page.positions.size() > VBR_GENERATION_PAGE_CELLS ||
+        (page.tail && page.positions.size() == VBR_GENERATION_PAGE_CELLS) ||
+        (!page.tail && page.positions.size() != VBR_GENERATION_PAGE_CELLS) ||
         page.payload_bytes == 0) {
         return false;
     }
@@ -112,6 +115,7 @@ bool page_payload_valid(const vbr_selected_page_descriptor & page,
             unit.bytes->size() != unit.transfer.bytes ||
             unit.row_bytes == 0 ||
             unit.valid_rows == 0 ||
+            unit.valid_rows != page.positions.size() ||
             unit.valid_rows > UINT64_MAX / unit.row_bytes ||
             unit.bytes->size() != unit.row_bytes * uint64_t(unit.valid_rows) ||
             unit.representation.current_type != GGML_TYPE_TURBO4_0 ||
@@ -188,7 +192,7 @@ vbr_selected_page_host_result llama_vbr_selected_page_host_catalog::publish(
             std::lock_guard<std::mutex> lock(impl_->mutex);
             for (const auto & page : capture.pages()) {
                 uint64_t payload = 0, metadata = 0;
-                if (!llama_kv_page_id_valid(page.identity, false) ||
+                if (!llama_kv_page_id_valid(page.identity, page.tail) ||
                     !page_payload_valid(page, payload, metadata)) {
                     result.status = page.tail ?
                         vbr_selected_page_host_status::stale_identity :

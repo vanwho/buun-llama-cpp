@@ -252,7 +252,8 @@ llama_kv_pager_host_result llama_kv_pager_host::seal(
         result.status = llama_kv_pager_host_status::not_configured;
         return result;
     }
-    if (!llama_kv_page_id_valid(page.id, false) || page.physical_slot == UINT32_MAX ||
+    if (!llama_kv_page_id_valid(page.id, llama_kv_page_id_is_tail(page.id)) ||
+        page.physical_slot == UINT32_MAX ||
         page.state == llama_kv_page_state::absent || page.pin_count != 0) {
         result.status = llama_kv_pager_host_status::invalid_page;
         return result;
@@ -696,15 +697,15 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
     // This method is entered after the context fence and is the first point at
     // which that pin may be released safely.
     for (auto & page : pages_) {
-        if (!page.present || page.record.pin_count == 0 ||
-            page.valid_rows.size() != snapshot_.geometry.page_tokens ||
-            !std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
-                         [](uint8_t value) { return value != 0; })) {
+        if (!page.present || page.record.pin_count == 0) {
             continue;
         }
         const auto previous = page.record;
         page.record.pin_count = 0;
-        if (page.record.state == llama_kv_page_state::filling_gpu) {
+        const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+            std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                        [](uint8_t value) { return value != 0; });
+        if (full && page.record.state == llama_kv_page_state::filling_gpu) {
             page.record.state = llama_kv_page_state::gpu_dirty;
         }
         if (publish_page(page) != llama_kv_pager_write_status::ok) {
@@ -718,18 +719,32 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
     uint32_t sealed = 0;
     for (auto & page : pages_) {
         if (!page.present || page.record.pin_count != 0 ||
-            page.valid_rows.size() != snapshot_.geometry.page_tokens ||
-            !std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
-                         [](uint8_t value) { return value != 0; }) ||
-            (page.record.state != llama_kv_page_state::gpu_dirty &&
+            page.valid_rows.empty() ||
+            page.record.id.position_end <= page.record.id.position_begin ||
+            (page.record.state != llama_kv_page_state::filling_gpu &&
+             page.record.state != llama_kv_page_state::gpu_dirty &&
              page.record.state != llama_kv_page_state::gpu_host_clean)) {
+            continue;
+        }
+        const uint64_t end_row = uint64_t(page.record.id.position_end) -
+            uint64_t(page.record.id.position_begin);
+        if (end_row > page.valid_rows.size() ||
+            !std::all_of(page.valid_rows.begin(),
+                         page.valid_rows.begin() + end_row,
+                         [](uint8_t value) { return value != 0; })) {
             continue;
         }
         const bool needs_host_seal = host_ != nullptr && !page.record.host_valid;
         if (!needs_host_seal && routing_summary_provider_.build == nullptr) continue;
         const auto previous = page.record;
         llama_kv_routing_page_input summary_input;
-        if (routing_summary_provider_.build != nullptr && !routing_summary_provider_.build(
+        const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+            std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                        [](uint8_t value) { return value != 0; });
+        if (!full && host_ == nullptr) {
+            continue;
+        }
+        if (full && routing_summary_provider_.build != nullptr && !routing_summary_provider_.build(
                 routing_summary_provider_.context, page.record, routing_summary_config_, summary_input)) {
             if (!needs_host_seal) continue;
             page.record = previous;
@@ -757,7 +772,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                 continue;
             }
         }
-        if (routing_summary_provider_.build == nullptr) {
+        if (!full || routing_summary_provider_.build == nullptr) {
             ++sealed;
             continue;
         }
@@ -827,7 +842,8 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
     return llama_kv_pager_write_status::ok;
 }
 
-llama_kv_pager_write_status llama_kv_pager::erase_page(page_state & page) noexcept {
+llama_kv_pager_write_status llama_kv_pager::erase_page(
+        page_state & page, bool preserve_host) noexcept {
     if (!page.present) return llama_kv_pager_write_status::ok;
     auto tx = residency_.begin();
     // The in-memory record may have just had its pin count or valid range changed
@@ -848,7 +864,7 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(page_state & page) noexce
     if (page.record.physical_slot < slot_pages_.size()) {
         slot_pages_[page.record.physical_slot] = -1;
     }
-    if (host_) {
+    if (host_ && !preserve_host) {
         (void) host_->invalidate(page.record.id);
     }
     reconcile_routing_summaries();
@@ -940,6 +956,14 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     if (page != nullptr && page->record.id.sequence_generation != sequence_generation) {
         return llama_kv_pager_write_status::stale_generation;
     }
+    if (page != nullptr && page->record.host_valid && host_ &&
+        !host_->invalidate(page->record.id)) {
+        return llama_kv_pager_write_status::transaction;
+    }
+    if (page != nullptr && page->record.host_valid) {
+        page->record.host_valid = false;
+        page->record.dirty = true;
+    }
 
     release_current_pin(page);
     bool created = false;
@@ -954,7 +978,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
                 if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
                     (candidate->record.state == llama_kv_page_state::host_clean ||
                      candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
-                    if (erase_page(*candidate) != llama_kv_pager_write_status::ok) {
+                    if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
                         return llama_kv_pager_write_status::transaction;
                     }
                     slot = i;
@@ -998,7 +1022,10 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     const uint64_t end = std::min<uint64_t>(snapshot_.geometry.context_tokens,
             uint64_t(page->record.id.position_begin) + end_row);
     page->record.id.position_end = llama_pos(end);
-    page->record.state = end_row == snapshot_.geometry.page_tokens
+    const bool full = page->valid_rows.size() == snapshot_.geometry.page_tokens &&
+        std::all_of(page->valid_rows.begin(), page->valid_rows.end(),
+                    [](uint8_t value) { return value != 0; });
+    page->record.state = full
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.host_valid = false;
     page->record.dirty = true;
@@ -1098,7 +1125,10 @@ llama_kv_pager_write_status llama_kv_pager::cancel_write(
         if (page->valid_rows[i]) end_row = i + 1;
     }
     page->record.id.position_end = page->record.id.position_begin + llama_pos(end_row);
-    page->record.state = end_row == page->valid_rows.size()
+    const bool full = page->valid_rows.size() == snapshot_.geometry.page_tokens &&
+        std::all_of(page->valid_rows.begin(), page->valid_rows.end(),
+                    [](uint8_t value) { return value != 0; });
+    page->record.state = full
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.dirty = true;
     return publish_page(*page);
@@ -1283,7 +1313,10 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                         page = {};
                     } else {
                         page.record.id.position_end = page.record.id.position_begin + llama_pos(end_row);
-                        page.record.state = end_row == page.valid_rows.size()
+                        const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+                            std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                                        [](uint8_t value) { return value != 0; });
+                        page.record.state = full
                             ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
                         page.record.id.page_generation = uint32_t(++mutation_generation_);
                         page.record.host_valid = false;

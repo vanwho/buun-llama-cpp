@@ -51,9 +51,11 @@ struct llama_kv_page_id {
 bool operator==(const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) noexcept;
 bool operator!=(const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) noexcept;
 
-// `tail` is true only for the current partially-filled write page. Sealed pages
-// must contain exactly VBR_GENERATION_PAGE_CELLS positions.
+// `tail` is true for a committed page with fewer than
+// VBR_GENERATION_PAGE_CELLS positions. A tail may remain canonical after GPU
+// eviction; padding never becomes a valid position.
 bool llama_kv_page_id_valid(const llama_kv_page_id & id, bool tail) noexcept;
+bool llama_kv_page_id_is_tail(const llama_kv_page_id & id) noexcept;
 uint32_t llama_kv_page_count(uint32_t logical_cells) noexcept;
 
 struct llama_kv_page_record {

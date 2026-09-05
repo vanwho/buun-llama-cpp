@@ -140,7 +140,7 @@ bool llama_kv_live_policy_build_trace(
         for (size_t page_index = 0; page_index < boundary.pages.size(); ++page_index) {
             const auto & page = boundary.pages[page_index];
             if (!llama_kv_page_id_valid(page.record.id,
-                    page.record.state == llama_kv_page_state::filling_gpu) ||
+                    llama_kv_page_id_is_tail(page.record.id)) ||
                 (page.record.physical_slot == UINT32_MAX &&
                  page.record.state != llama_kv_page_state::host_clean)) return false;
             auto & bucket = identity_buckets[identity_hash(page.record.id)];

@@ -2227,7 +2227,10 @@ void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
     }
     if (graph_succeeded) {
         for (const auto & ticket : pager_pending_writes_) {
-            (void) pager_->complete_write(ticket, segments, true);
+            if (pager_->complete_write(ticket, segments, true) !=
+                    llama_kv_pager_write_status::ok) {
+                pager_write_failure_ = true;
+            }
         }
     } else {
         // Reverse order makes duplicate logical positions cancel correctly: the
@@ -2252,7 +2255,9 @@ bool llama_kv_cache::pager_host_prepare(
     auto * cache = static_cast<llama_kv_cache *>(context);
     if (cache == nullptr || cache->pager_ == nullptr ||
         cache->layers.size() < VBR_SELECTED_PAGE_TARGET_LAYERS ||
-        page.id.position_end - page.id.position_begin != llama_pos(VBR_GENERATION_PAGE_CELLS)) {
+        page.id.position_begin < 0 ||
+        page.id.position_end <= page.id.position_begin ||
+        page.id.position_end - page.id.position_begin > llama_pos(VBR_GENERATION_PAGE_CELLS)) {
         return false;
     }
     request = {};
@@ -2265,9 +2270,11 @@ bool llama_kv_cache::pager_host_prepare(
     }
     vbr_selected_page_range range;
     range.identity = page.id;
-    range.positions.resize(VBR_GENERATION_PAGE_CELLS);
-    range.physical_cells.resize(VBR_GENERATION_PAGE_CELLS);
-    for (uint32_t i = 0; i < VBR_GENERATION_PAGE_CELLS; ++i) {
+    const uint32_t count = uint32_t(page.id.position_end - page.id.position_begin);
+    range.tail = count != VBR_GENERATION_PAGE_CELLS;
+    range.positions.resize(count);
+    range.physical_cells.resize(count);
+    for (uint32_t i = 0; i < count; ++i) {
         range.positions[i] = page.id.position_begin + llama_pos(i);
         const uint64_t physical = uint64_t(page.physical_slot) *
                 VBR_GENERATION_PAGE_CELLS + i;
@@ -2296,7 +2303,7 @@ bool llama_kv_cache::pager_host_prepare(
         const uint64_t physical = uint64_t(page.physical_slot) *
                 VBR_GENERATION_PAGE_CELLS;
         if (row_bytes == 0 || rows > UINT32_MAX ||
-            physical + VBR_GENERATION_PAGE_CELLS > rows ||
+            physical + count > rows ||
             stream_bytes / row_bytes != rows) {
             return false;
         }
@@ -4185,6 +4192,9 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
         return;
+    }
+    if (commit && pager_write_failure_) {
+        throw std::runtime_error("KV pager write completion previously failed");
     }
 
     // keep track of the max sequence position that we would overwrite with this ubatch
