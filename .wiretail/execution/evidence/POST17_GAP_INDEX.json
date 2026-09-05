@@ -1,0 +1,448 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "17-16",
+  "result": "pass",
+  "kind": "review",
+  "procedure": "post17_gap_index",
+  "created_utc": "2026-09-05T05:41:24Z",
+  "source_campaign": "17-15-quality-20260905T052900Z",
+  "provenance": {
+    "source_commit": "23411197aa446e4766ce921160ebe2e33cf53992",
+    "current_repository_head": "9b7dfb329624fc736b453223241f11121c368241",
+    "source_diff_sha256": null,
+    "bundle_manifest_sha256": null,
+    "run_artifact_manifest_sha256": "2ff99c7eec5510e56cc9d32e519c2eab480871523f7aae1fd1ec39bfb5b47990",
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "binary_sha256": "404622c75944d27c054c0dcf48919d5af0793c35c95758347c011637f023b790",
+    "model_file": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "config_sha256": null,
+    "config_sha256_by_mode": {
+      "dense": "7cf96f5554070e8266b9e829fd153eba682bbccff7df84ede9ec912a0afd7d56",
+      "selected-all": "d0ade1871fd1dd2e8fdfa8a4392d6594b7d341b494924964bf6145758e73b5d3",
+      "exact": "e210daf82ba7b6ffb1b81b37b2a2c023c00fcba12e290885d1d304593ef1dd15",
+      "selective": "d0ade1871fd1dd2e8fdfa8a4392d6594b7d341b494924964bf6145758e73b5d3"
+    },
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "gpu_total_mib": 16376,
+    "provenance_unavailable": {
+      "source_diff_sha256": "17-15 did not emit a source-diff manifest",
+      "bundle_manifest_sha256": "17-15 recorded the executable hash but not an immutable executable-plus-DSO bundle manifest",
+      "tokenizer_template_sha256": "the run recorded tokenizer/model identity but not a separate chat-template artifact hash",
+      "config_sha256": "four mode-specific command hashes are recorded instead"
+    }
+  },
+  "checks": [
+    {
+      "name": "17-15 summary and all mode records are present",
+      "status": "pass",
+      "raw_ids": ["phase17-quality-summary", "dense-records", "selected-all-records", "exact-records", "selective-records"]
+    },
+    {
+      "name": "resolved context and actual case sizes are retained",
+      "status": "pass",
+      "raw_ids": ["dense-recent-control-022", "selected-all-recent-control-022"]
+    },
+    {
+      "name": "startup identity and stability are recorded",
+      "status": "pass",
+      "raw_ids": ["startup-gate", "startup-identity", "startup-journal"]
+    },
+    {
+      "name": "physical residency and transfer telemetry",
+      "status": "not_measured",
+      "raw_ids": ["metrics-final", "resource-timeline"]
+    },
+    {
+      "name": "next task and final reviewer remain in the task graph",
+      "status": "pass",
+      "raw_ids": []
+    }
+  ],
+  "raw_index": [
+    {
+      "id": "phase17-quality-summary",
+      "path": ".wiretail/execution/evidence/PHASE17_QUALITY_V2.json",
+      "sha256": "8fb9282f91228bc369aa8bcc8f1f00f04efafb2785c23d0eed61f380eb2d0c78"
+    },
+    {
+      "id": "phase17-quality-summary-md",
+      "path": ".wiretail/execution/evidence/PHASE17_QUALITY_V2.md",
+      "sha256": "64681f06f3a06c9d9134f725c58081d00c3d56000ad53d4bb79ddd70d608ee74"
+    },
+    {
+      "id": "campaign-provenance",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/provenance.json",
+      "sha256": "0fce86c42f69e33e2aa3032c1785e3351c34eac709f6a711a4203cafd1ba8ba7"
+    },
+    {
+      "id": "campaign-checksums",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/SHA256SUMS",
+      "sha256": "2ff99c7eec5510e56cc9d32e519c2eab480871523f7aae1fd1ec39bfb5b47990"
+    },
+    {
+      "id": "startup-gate",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/raw/startup.json",
+      "sha256": "585aa5d7fa436a127b34da9e4fd03caaca531bec1279ed04286192e9d5d2deb1"
+    },
+    {
+      "id": "startup-identity",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/raw/identity-after-startup.json",
+      "sha256": "c09200fe2cf9469803deba2aba0db4c426341bf5ed6090a0bce241f72ded627c"
+    },
+    {
+      "id": "startup-journal",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/raw/startup.journal.txt",
+      "sha256": "754a45be226da0b68cb05adb16fd28f452242f52c2ab892d3f1b8db8115d94d4"
+    },
+    {
+      "id": "metrics-final",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/raw/metrics-final.txt",
+      "sha256": "9bc2620d4e304329a9558063d93b230a311fe0d01692916aa859360e881c5774"
+    },
+    {
+      "id": "resource-timeline",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/raw/resource-timeline.jsonl",
+      "sha256": "3941748fa7c87dd0ed20438d7b16d8cc7c99d7e590c89657e908f6f4d0d858f9"
+    },
+    {
+      "id": "dense-recent-control-022",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/quality/dense/raw/022-calibration-recent-control.response.json",
+      "sha256": "1cc7d947443b584171cb941bda90880659cd89055e7fab52169ffa01c9c858bd"
+    },
+    {
+      "id": "selected-all-warm-focus-000",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/quality/selected-all/raw/000-calibration-warm-focus.response.json",
+      "sha256": "20023671e56541104a4c26e4d9723cbef743f1d996abb170153d10ae5b0d63a8"
+    },
+    {
+      "id": "selected-all-focus-shift-018",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/quality/selected-all/raw/018-calibration-focus-shift.request.json",
+      "sha256": "3dadc8796fe464438e5d533344e53b8be755c6cfd73d5cb02599cda838e44097"
+    },
+    {
+      "id": "selected-all-churn-020",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/quality/selected-all/raw/020-calibration-churn.request.json",
+      "sha256": "dc3b990c605c47850c94f9a3f49ab7d497127d26343a8f3ba9a8f14c4e9f0604"
+    },
+    {
+      "id": "exact-warm-focus-000",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/quality/exact/raw/000-calibration-warm-focus.response.json",
+      "sha256": "a8bebc831b48cda6581e7f646442e7da4100dd30820e5000a793c23c9daf22e8"
+    },
+    {
+      "id": "exact-recent-control-022",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/quality/exact/raw/022-calibration-recent-control.response.json",
+      "sha256": "1cc7d947443b584171cb941bda90880659cd89055e7fab52169ffa01c9c858bd"
+    },
+    {
+      "id": "selected-all-records",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/quality/selected-all/records.jsonl",
+      "sha256": "ff3ace20ed712513362d6b2c8e53245bd630c5a6adae8f8f39279a448ad0f6d6"
+    },
+    {
+      "id": "exact-records",
+      "path": "/srv/ai/paged-kv/results/17-15-quality-20260905T052900Z/quality/exact/records.jsonl",
+      "sha256": "220eb492a2a0d8ed799dbc794dd2c0d75378c6e2c085dace72f4cd1cc405385f"
+    }
+  ],
+  "measurements": {
+    "model": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "corpus": "pager-corpus-v4",
+    "corpus_cases": 24,
+    "page_size_tokens": 256,
+    "n_ctx_configured": 22016,
+    "n_ctx_resolved_per_sequence": 22016,
+    "actual_case_token_sizes": [4096, 5120, 6401, 8192, 9473, 11264, 12800, 14592, 16128, 17920, 19968, 22016],
+    "server_reported_recent_control_prompt_tokens": 22028,
+    "generation_budget_tokens": 32,
+    "sampling": {
+      "temperature": 0,
+      "seed": 42,
+      "thinking": false
+    },
+    "modes": [
+      {
+        "mode": "dense",
+        "pager": "off",
+        "target_kv": "turbo4/turbo4",
+        "mtp": "off",
+        "records": 24,
+        "completed": 24,
+        "http_200": 22,
+        "answer_pass": 22,
+        "http_400": 2,
+        "invalid_setup_case_ids": ["022-calibration-recent-control", "023-held_out-recent-control"]
+      },
+      {
+        "mode": "selected-all",
+        "pager": "selective",
+        "target_kv": "turbo4/turbo4",
+        "hot_pages_requested": 86,
+        "mtp": "draft-mtp",
+        "mtp_kv": "turbo4/turbo4",
+        "mtp_device": "gpu",
+        "mtp_rows_configured": 22016,
+        "mtp_n_max": 2,
+        "records": 24,
+        "completed": 20,
+        "http_200_answer_mismatches": 18,
+        "timeouts": 4,
+        "http_400": 2,
+        "incomplete_case_ids": ["018-calibration-focus-shift", "019-held_out-focus-shift", "020-calibration-churn", "021-held_out-churn"],
+        "invalid_setup_case_ids": ["022-calibration-recent-control", "023-held_out-recent-control"],
+        "page_coverage_verified": false
+      },
+      {
+        "mode": "exact",
+        "pager": "exact",
+        "target_kv": "turbo4/turbo4",
+        "mtp": "draft-mtp",
+        "mtp_kv": "turbo4/turbo4",
+        "mtp_device": "gpu",
+        "mtp_rows_configured": 22016,
+        "mtp_n_max": 2,
+        "records": 24,
+        "completed": 24,
+        "http_501": 22,
+        "http_400": 2,
+        "capability": "unsupported",
+        "capability_message": "exact attention is not configured: exact page-wave coverage rejected: invalid_page",
+        "invalid_setup_case_ids": ["022-calibration-recent-control", "023-held_out-recent-control"]
+      },
+      {
+        "mode": "selective",
+        "pager": "selective",
+        "target_kv": "turbo4/turbo4",
+        "hot_pages_requested": "automatic",
+        "mtp": "draft-mtp",
+        "mtp_kv": "turbo4/turbo4",
+        "mtp_device": "gpu",
+        "mtp_rows_configured": 22016,
+        "mtp_n_max": 2,
+        "records": 24,
+        "completed": 20,
+        "http_200_answer_mismatches": 18,
+        "timeouts": 4,
+        "http_400": 2,
+        "page_coverage_verified": false
+      }
+    ],
+    "mtp_observed_sample": {
+      "raw_id": "selected-all-warm-focus-000",
+      "draft_n": 23,
+      "draft_n_accepted": 19,
+      "interpretation": "one response-level observation; not a full MTP acceptance/placement metric"
+    },
+    "startup": {
+      "status": "passed",
+      "stable_seconds": 90.578,
+      "health_samples": 94,
+      "identity_samples": 94,
+      "systemd_stable": true,
+      "restarts_during_gate": 0,
+      "target_kv": "turbo4/turbo4",
+      "native_mtp_kv": "turbo4/turbo4",
+      "native_mtp_device": "gpu",
+      "prior_sigsegv": "not_reproduced",
+      "debugger_backtrace": "unavailable; coredumpctl not installed and prior core collection was disabled"
+    },
+    "physical_transfers": {
+      "status": "not_measured",
+      "resident_pages": null,
+      "host_pages": null,
+      "h2d_bytes": null,
+      "d2h_bytes": null,
+      "faults": null,
+      "evictions": null,
+      "reason": "/metrics returned HTTP 500: json.exception.type_error.302 (number expected, boolean supplied); resource timeline pager objects are empty"
+    },
+    "resource_samples": {
+      "count": 45,
+      "gpu_memory_mib_min": 393,
+      "gpu_memory_mib_max": 14889,
+      "rss_kib_min": 1054968,
+      "rss_kib_max": 3112844,
+      "interpretation": "process-level samples only; no pager ownership or transfer claim"
+    }
+  },
+  "gaps": [
+    {
+      "id": "runtime-identity-and-prior-crash",
+      "symptom": "The prior 22016 startup SIGSEGV was not reproduced; the final gate was stable, but no backtrace exists.",
+      "classification": "runtime_fault_not_reproduced",
+      "evidence": ["startup-gate", "startup-identity", "startup-journal"],
+      "source_symbols": ["tools/server/bench/run-pager-soak.py::managed_runtime_state", "tools/server/bench/run-pager-soak.py::restore_previous_runtime"],
+      "owning_tasks": ["18-01"],
+      "smallest_reproducer": "one immutable 22016 startup, health/props/metrics probe, and one short generation",
+      "next_experiment": "18-01: freeze executable plus loaded DSO identity, repeat the single startup and short generation, and preserve crash artifacts before any restore."
+    },
+    {
+      "id": "rendered-context-overflow",
+      "symptom": "Recent-control requests were rendered as 22028 prompt tokens against n_ctx=22016 and received HTTP 400.",
+      "classification": "invalid_setup",
+      "evidence": ["dense-recent-control-022", "selected-all-recent-control-022", "exact-recent-control-022"],
+      "source_symbols": ["tools/server/bench/run-quality-corpus.py::build_request", "tools/server/bench/run-pager-profile-benchmark.py::prompt_context_words", "tools/server/bench/run-pager-soak.py::Soak"],
+      "owning_tasks": ["18-02"],
+      "smallest_reproducer": "022-calibration-recent-control and 023-held_out-recent-control",
+      "next_experiment": "18-02: count the fully rendered chat request with the target tokenizer, reserve generation/lookahead headroom, and rerun only these two boundary cases."
+    },
+    {
+      "id": "selected-all-answer-mismatch",
+      "symptom": "The selected-all label produced 18 HTTP-200 answer mismatches, including the 4096-token warm-focus sentinel; all-page coverage was not verified.",
+      "classification": "numerical_semantic_mismatch",
+      "evidence": ["selected-all-warm-focus-000", "selected-all-records"],
+      "source_symbols": ["llm_graph_context::build_attn", "llama_context::prepare_kv_attention_graph", "ggml_get_rows", "dequantize_turbo4_0", "ggml_cuda_flash_attn_ext_paged_turbo4"],
+      "owning_tasks": ["18-05"],
+      "smallest_reproducer": "000-calibration-warm-focus, selected-all, MTP-off, identical token IDs to dense",
+      "next_experiment": "18-05: capture first-divergent all-selected layer logits with MTP off, verify every full-attention logical row is selected, then test the Turbo4 K/Q coordinate transform before any sparse-policy tuning."
+    },
+    {
+      "id": "native-mtp-parity",
+      "symptom": "Native Turbo4/GPU MTP placement is startup-confirmed and one response reports 23 proposed/19 accepted tokens, but full accepted-prefix and rollback parity was not measured.",
+      "classification": "not_measured_semantic_risk",
+      "evidence": ["startup-journal", "selected-all-warm-focus-000"],
+      "source_symbols": ["common/speculative.cpp", "llama_context::prepare_kv_attention_graph", "llama_context::get_kv_pager_metrics"],
+      "owning_tasks": ["18-06"],
+      "smallest_reproducer": "one fixed warm-focus prefix with native MTP off/on and one- or two-token verify/reject",
+      "next_experiment": "18-06: compare target logits and accepted-prefix traces with MTP off/on, then exercise first/middle/last rejection and target-only versus target+draft restore."
+    },
+    {
+      "id": "timeout-and-progress-boundary",
+      "symptom": "Focus-shift and churn rows at 17920/19968 tokens timed out at 300 seconds without a completed response.",
+      "classification": "incomplete_runtime_observation",
+      "evidence": ["selected-all-focus-shift-018", "selected-all-churn-020"],
+      "source_symbols": ["tools/server/bench/run-quality-corpus.py::request_case", "tools/server/bench/run-quality-corpus.py::main"],
+      "owning_tasks": ["18-03"],
+      "smallest_reproducer": "018-calibration-focus-shift at 17920 tokens with a stage-aware timeout and slot-drain check",
+      "next_experiment": "18-03: rerun one case with connect/startup/prefill/decode/campaign deadlines, server progress polling, append-only checkpointing, and explicit post-timeout slot cleanup."
+    },
+    {
+      "id": "metrics-contract",
+      "symptom": "The metrics endpoint returned HTTP 500 because a boolean was serialized where a number was expected; pager fields were empty.",
+      "classification": "missing_measurement_implementation",
+      "evidence": ["metrics-final", "resource-timeline"],
+      "source_symbols": ["llama_context::get_kv_pager_metrics", "llama_context::init_kv_pager", "tools/server/server-context.cpp"],
+      "owning_tasks": ["18-04"],
+      "smallest_reproducer": "one healthy 8080 runtime followed by a single authenticated /metrics request",
+      "next_experiment": "18-04: assign ownership for requested/admitted/allocated/valid/selected fields, fix the type contract, and verify one short generation reports actual target/MTP/residency/route values."
+    },
+    {
+      "id": "exact-page-wave-capability",
+      "symptom": "Exact mode returned the supported HTTP 501 refusal for 22 cases: exact page-wave callbacks are not configured.",
+      "classification": "missing_implementation",
+      "evidence": ["exact-warm-focus-000", "exact-records"],
+      "source_symbols": ["llama_context::prepare_kv_attention_graph", "llama_kv_attention_exact", "ggml_cuda_flash_attn_ext_paged_turbo4"],
+      "owning_tasks": ["19-06"],
+      "smallest_reproducer": "000-calibration-warm-focus in exact mode; 501 occurs before answer scoring",
+      "next_experiment": "19-06: execute one bounded cold page wave inside one attention layer, merge online-softmax partial states on GPU, and rerun the same 4096-token exact sentinel."
+    },
+    {
+      "id": "physical-authority-and-admission",
+      "symptom": "The final run has process memory samples but no proof that context-sized target allocations were removed, that the residency slab is the sole hot authority, or that admission preceded allocation.",
+      "classification": "missing_implementation",
+      "evidence": ["resource-timeline", "metrics-final"],
+      "source_symbols": ["llama_context::init_kv_pager", "llama_kv_cache::pager_geometry", "llama_kv_cache_context::selected_attention_rows"],
+      "owning_tasks": ["19-01", "19-02"],
+      "smallest_reproducer": "two-page synthetic cache with a poisoned old slot, fresh slab, and permuted logical-to-physical mapping",
+      "next_experiment": "19-01/02: emit the pre-allocation byte ledger, bind graph K/V writes and direct reads to one physical slot mapping, and compare Turbo4 bytes before model outputs."
+    },
+    {
+      "id": "live-residency-transactions",
+      "symptom": "No final evidence connects a live request to apply_live_policy, completed H2D/D2H events, page-table publication, and a cold-page round trip.",
+      "classification": "missing_implementation",
+      "evidence": ["metrics-final", "resource-timeline"],
+      "source_symbols": ["llama_kv_pager::apply_live_policy", "llama_kv_residency_transaction", "llama_kv_residency_transfer", "llama_context::prepare_kv_attention_graph"],
+      "owning_tasks": ["19-03", "19-07"],
+      "smallest_reproducer": "single sequence with occupied two-page history, one deliberately small test hot budget, eviction, and promotion",
+      "next_experiment": "19-03: instrument one manually selected page through reserve, write/seal, eviction, H2D event completion, identity recheck, and publication; require host checksum and useful-byte evidence."
+    },
+    {
+      "id": "query-shape-and-paged-performance",
+      "symptom": "The direct route is currently a correctness-first decode shape and the long selected rows timed out; no qualified multiquery/prefill or split-KV timing exists.",
+      "classification": "performance_finding_not_yet_measured",
+      "evidence": ["selected-all-focus-shift-018", "selected-all-churn-020"],
+      "source_symbols": ["ggml_cuda_fattn_turbo4_paged_decode_kernel", "ggml_cuda_flash_attn_ext_paged_turbo4", "llama_kv_attention_execution"],
+      "owning_tasks": ["19-04", "19-05", "19-09", "20-04"],
+      "smallest_reproducer": "one multiquery verify block and one bounded prefill tile with a small selected page set",
+      "next_experiment": "19-04/05/09: capture actual query shape, page/tail layout, kernel time and transfer time, then compare direct multiquery/tiled/split-KV dispatch without using the 300-second campaign timeout as throughput."
+    },
+    {
+      "id": "layer-aware-cold-retrieval",
+      "symptom": "Selected-all is a client/mode label only; there is no verified per-layer query-to-all-page routing recall or retention evidence.",
+      "classification": "missing_implementation",
+      "evidence": ["selected-all-warm-focus-000", "resource-timeline"],
+      "source_symbols": ["llama_context::prepare_kv_attention_graph", "llama_kv_pager::apply_live_policy", "llama_kv_cache_context::selected_attention_rows"],
+      "owning_tasks": ["20-01", "20-02", "20-03"],
+      "smallest_reproducer": "one cold distant fact with per-layer Q after projection and an all-page summary index",
+      "next_experiment": "20-01: score all committed host pages in the real query/rotation domain, transfer only candidate IDs, and prove one previously cold page enters attention before adding retention or lookahead."
+    }
+  ],
+  "strategy_reconciliation": [
+    {
+      "observation": "17-09 all-fit selective had zero physical traffic",
+      "status": "still_diagnostic",
+      "final_17_15_check": "not remeasured; final /metrics failed, so no traffic claim is made",
+      "owner": ["18-05", "20-04"]
+    },
+    {
+      "observation": "17-10 16K soak had about 3245 occupied tokens and zero transfers",
+      "status": "still_lifecycle_only",
+      "final_17_15_check": "not promoted to physical-pressure evidence; final pager fields were empty",
+      "owner": ["19-03", "21-04"]
+    },
+    {
+      "observation": "17-13 native 22016 startup SIGSEGV",
+      "status": "not_reproduced",
+      "final_17_15_check": "startup gate stable for 90.578 seconds with zero gate restarts; diagnostic remains open",
+      "owner": ["18-01", "18-06"]
+    },
+    {
+      "observation": "17-15 soak word-count padding could request about 53797 tokens against 22016",
+      "status": "confirmed_as_sizing_risk",
+      "final_17_15_check": "quality boundary independently reports 22028 rendered prompt tokens against 22016; exact token accounting remains required",
+      "owner": ["18-02"]
+    }
+  ],
+  "task_graph": {
+    "next_task": "18-01",
+    "next_task_status": "todo",
+    "final_reviewer": "22-01",
+    "final_reviewer_status": "todo",
+    "future_packets_on_checkpoint_path": true,
+    "checked_paths": [
+      ".wiretail/execution/tasks/18-01.md",
+      ".wiretail/execution/tasks/18-02.md",
+      ".wiretail/execution/tasks/19-01.md",
+      ".wiretail/execution/tasks/20-01.md",
+      ".wiretail/execution/tasks/21-01.md",
+      ".wiretail/execution/tasks/22-01.md",
+      ".wiretail/execution/clusters/18a-runtime-experiments.md",
+      ".wiretail/execution/clusters/22a-benchmark-review.md"
+    ],
+    "unchanged_future_task_records": true
+  },
+  "retained_runtime": {
+    "status": "healthy_candidate_retained_at_17_15_exit",
+    "service": "llama-server.service",
+    "main_pid": 3007755,
+    "systemd_result": "success",
+    "restart_count": 0,
+    "source": ".wiretail/execution/handoffs/17-15.md",
+    "lifecycle_action_in_17_16": "none"
+  },
+  "resume": {
+    "command": [
+      "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp",
+      "python3",
+      ".wiretail/execution/tasks/18-01.md"
+    ],
+    "next_case": "single immutable 22016 startup and short-generation diagnostic",
+    "note": "The command is a packet instruction, not an executable command; 18-01 owns the concrete site runner invocation."
+  },
+  "implementation_owner": "18-01 through 22-01 as listed per gap"
+}

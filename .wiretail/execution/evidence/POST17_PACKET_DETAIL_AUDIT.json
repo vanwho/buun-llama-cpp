@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "kind": "plan_detail_audit",
+  "date": "2026-09-05",
+  "scope": "Post-17 packet instructions and context only",
+  "state_task_count": 122,
+  "detailed_packet_count": 30,
+  "cluster_count": 15,
+  "max_tasks_per_cluster": 3,
+  "packet_word_count_range_at_validation": [743, 1021],
+  "documents": [
+    "EXECUTION_COOKBOOK.md",
+    "IMPLEMENTATION_CONTRACTS.md",
+    "tasks/17-16.md through tasks/22-01.md (30 scheduled packets)"
+  ],
+  "validation": {
+    "state_helper": "pass:122 tasks",
+    "all_recipe_section_links": "pass:30 packets",
+    "cluster_paths_and_size": "pass:15 clusters",
+    "models_unchanged": true,
+    "task_17_15_packet_unchanged": true,
+    "completed_records_before_17_15_unchanged": true,
+    "aggregate_usage_matched_HEAD_at_validation": true,
+    "git_diff_check": "pass"
+  },
+  "concurrent_runner": {
+    "task_17_15": "completed by independent runner during audit",
+    "current_task_at_validation": "17-16",
+    "branch_at_validation": "plan/attention-aware-kv-paging",
+    "branch_switch_by_auditor": false,
+    "service_change_by_auditor": false
+  },
+  "runtime_benchmarks_run": false,
+  "wiretail_defaults_changed": false,
+  "remaining_risk": "Detailed recipes do not guarantee complex CUDA/graph implementation success; retain High reasoning, numerical/live checkpoints and recovery assessments."
+}
