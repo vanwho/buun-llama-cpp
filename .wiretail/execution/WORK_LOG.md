@@ -682,3 +682,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-20-06`
 - Commit at update: `0b593fae0`
 - Summary: Implemented canonical CPU Turbo4 reference attention and static CPU-KV admission; verified CUDA/CPU backend parity, same-prefix 4096-token controls at 70 and 1898 occupied tokens with native GPU Turbo4 MTP, and an independent 98304-token all-GPU safe ceiling. Receipt and handoff updated; 20-07 remains unchanged.
+
+## 2026-09-05T21:09:58+00:00 — 20-07 — done
+
+- Branch: `codex/task-20-07`
+- Commit at update: `72be6fba0`
+- Summary: Frozen portable CUDA/Turbo4 candidate; clean build and generated docs/assets pass; CPU/CUDA/pager regressions pass; exact bundle identity, three-case selected-all sentinel, campaign/resume commands, code-slice map, and release receipt recorded.
