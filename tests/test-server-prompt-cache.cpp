@@ -2891,6 +2891,16 @@ void test_lifecycle_full_cache_rotates() {
           server_cache_destruction_execution::prepared_release);
 }
 
+void test_exact_refusal_wire_response() {
+    const json response = format_error_response(
+        "exact attention is not configured: exact CUDA page-wave callbacks are not configured",
+        ERROR_TYPE_NOT_SUPPORTED);
+    CHECK(response.at("code").get<int>() == 501);
+    CHECK(response.at("type").get<std::string>() == "not_supported_error");
+    CHECK(response.at("message").get<std::string>().find("exact attention") !=
+          std::string::npos);
+}
+
 void test_lifecycle_restore_retains_immutable_source() {
     server_cache_authority authority;
     configure_host_accounting(authority, true);
@@ -5392,6 +5402,7 @@ int main(int argc, char ** argv) {
         return failures == 0 ? 0 : 1;
     }
     test_lifecycle_full_cache_rotates();
+    test_exact_refusal_wire_response();
     test_slot_pager_lifecycle_generation();
     test_idle_capture_session_cancellation();
     test_idle_capture_refuses_active_queue_yield();

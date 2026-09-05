@@ -45,6 +45,109 @@ def safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
 
 
+def completion_content(response: object) -> str | None:
+    if not isinstance(response, dict):
+        return None
+    choices = response.get("choices")
+    if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], dict):
+        return None
+    message = choices[0].get("message")
+    if not isinstance(message, dict) or not isinstance(message.get("content"), str):
+        return None
+    return message["content"]
+
+
+def classify_completion_response(status: int, error: str | None, response: object,
+                                 expected_marker: str | None = None) -> dict[str, object]:
+    """Classify an HTTP response without treating HTTP 200 as semantic success."""
+    if status != 200:
+        return {
+            "transport_status": "error",
+            "semantic_status": "not_evaluated",
+            "marker_status": "not_evaluated",
+            "error": error or f"HTTP status {status}",
+        }
+
+    content = completion_content(response)
+    if content is None:
+        semantic_status = "malformed_response"
+    elif content.lstrip().startswith("Error:"):
+        semantic_status = "server_semantic_error"
+    else:
+        semantic_status = "ok"
+
+    if expected_marker is None:
+        marker_status = "not_requested"
+    elif semantic_status != "ok":
+        marker_status = "not_evaluated"
+    else:
+        marker_status = "exact" if content.strip() == expected_marker else "mismatch"
+
+    return {
+        "transport_status": "ok",
+        "semantic_status": semantic_status,
+        "marker_status": marker_status,
+        "error": error,
+        "assistant_content": content,
+    }
+
+
+def marker_grammar(marker: str) -> str:
+    if not re.fullmatch(r"[A-Z0-9_]+", marker):
+        raise ValueError(f"invalid oracle marker: {marker}")
+    return f'root ::= "{marker}"'
+
+
+def build_concurrent_oracle(available_slot_ids: list[int],
+                            concurrent_results: list[dict[str, object]]) -> dict[str, object]:
+    """Summarize concurrency without upgrading transport success to correctness."""
+    independent_slots = len(available_slot_ids) >= 2
+    blockers = []
+    if not independent_slots:
+        blockers.append("requires_at_least_two_independent_slots")
+    for result in concurrent_results:
+        label = result.get("label", "unknown")
+        if result.get("transport_status") != "ok":
+            blockers.append(f"{label}:transport_failed")
+        if result.get("semantic_status") != "ok":
+            blockers.append(f"{label}:semantic_{result.get('semantic_status', 'unknown')}")
+        if result.get("marker_status") != "exact":
+            blockers.append(f"{label}:marker_{result.get('marker_status', 'unknown')}")
+    return {
+        "schema_version": 1,
+        "status": "passed" if not blockers else "blocked",
+        "blockers": blockers,
+        "isolation": {
+            "required": True,
+            "independent_slots": independent_slots,
+            "available_slot_ids": available_slot_ids,
+            "assigned_slot_ids": [result.get("slot_id") for result in concurrent_results],
+            "blocker": None if independent_slots else "requires_at_least_two_independent_slots",
+        },
+        "transport": all(result.get("transport_status") == "ok" for result in concurrent_results),
+        "semantic": all(result.get("semantic_status") == "ok" for result in concurrent_results),
+        "exact_markers": all(result.get("marker_status") == "exact" for result in concurrent_results),
+        "requests": concurrent_results,
+    }
+
+
+def classify_startup_probe(health: object, restart_rc: int) -> str:
+    """Classify startup before any corpus request or telemetry loop begins."""
+    if isinstance(health, dict) and all(health.get(port) is True for port in ("8080", "8091")):
+        return "ready"
+    if restart_rc != 0:
+        return "restart_failed"
+    return "runtime_crash_or_unavailable"
+
+
+def write_raw_manifest(soak: "Soak") -> None:
+    sums = []
+    for path in sorted(soak.raw.iterdir()):
+        if path.is_file():
+            sums.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  raw/{path.name}")
+    (soak.root / "SHA256SUMS").write_text("\n".join(sums) + "\n")
+
+
 class Soak:
     def __init__(self, root: pathlib.Path, endpoint: str, key: str, model: str,
                  slot_dir: pathlib.Path, context: int,
@@ -73,7 +176,8 @@ class Soak:
         (self.raw / name).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
 
     def request(self, label: str, content: str, max_tokens: int = 8,
-                timeout: float = 180.0) -> dict[str, object]:
+                timeout: float = 180.0, *, expected_marker: str | None = None,
+                slot_id: int | None = None) -> dict[str, object]:
         payload = {
             "model": self.model,
             "messages": [
@@ -86,6 +190,10 @@ class Soak:
             "stream": False,
             "chat_template_kwargs": {"enable_thinking": False},
         }
+        if expected_marker is not None:
+            payload["grammar"] = marker_grammar(expected_marker)
+        if slot_id is not None:
+            payload["id_slot"] = slot_id
         stem = safe_name(label)
         self.write_json(f"{stem}.request.json", payload)
         started = time.monotonic()
@@ -111,11 +219,16 @@ class Soak:
             parsed: object = json.loads(body) if body else None
         except json.JSONDecodeError:
             parsed = body
+        (self.raw / f"{stem}.response.body").write_text(body)
         if body:
             self.write_json(f"{stem}.response.json", parsed)
         (self.raw / f"{stem}.http").write_text(f"{status}\n")
         record = {"label": label, "status": status, "elapsed_s": elapsed,
-                  "error": error, "response_json": parsed if isinstance(parsed, dict) else None}
+                  "error": error, "response_json": parsed if isinstance(parsed, dict) else None,
+                  "expected_marker": expected_marker, "slot_id": slot_id,
+                  "response_body_file": f"raw/{stem}.response.body"}
+        record.update(classify_completion_response(
+            status, error, parsed, expected_marker))
         with self._records_lock:
             self.records.append(record)
         return record
@@ -281,7 +394,7 @@ def write_dry_run(output: pathlib.Path, corpus_path: pathlib.Path,
                       "mode": context["mode"]}, sort_keys=True))
 
 
-def restart(soak: Soak, label: str = "restart") -> dict[str, object]:
+def restart(soak: Soak, label: str = "restart", probe_seconds: int = 180) -> dict[str, object]:
     values = {
         "AI_BENCHMARK_CLEAN": "0", "AI_BENCHMARK_CONTEXT": str(soak.context),
         "AI_BENCHMARK_KV_PAGER": "selective", "AI_BENCHMARK_PAGE_SIZE": "256",
@@ -296,7 +409,8 @@ def restart(soak: Soak, label: str = "restart") -> dict[str, object]:
     restart_result = subprocess.run(["sudo", "systemctl", "restart", "llama-server.service"],
                                     capture_output=True, text=True, check=False)
     health = {"8080": False, "8091": False}
-    for _ in range(180):
+    deadline = time.monotonic() + probe_seconds
+    while time.monotonic() < deadline:
         for port, url in (("8080", soak.endpoint.split("/v1/")[0] + "/health"),
                           ("8091", "http://127.0.0.1:8091/health")):
             if not health[port]:
@@ -309,12 +423,39 @@ def restart(soak: Soak, label: str = "restart") -> dict[str, object]:
         if all(health.values()):
             break
         time.sleep(1)
+    systemd = subprocess.run(
+        ["systemctl", "show", "llama-server.service", "--no-pager",
+         "--property=ActiveState,SubState,Result,ExecMainCode,ExecMainStatus,NRestarts"],
+        capture_output=True, text=True, check=False)
+    journal = subprocess.run(
+        ["journalctl", "-u", "llama-server.service", "-n", "200", "--no-pager", "-o", "short-iso"],
+        capture_output=True, text=True, check=False)
+    kernel = subprocess.run(
+        ["journalctl", "-k", "-n", "200", "--no-pager", "-o", "short-iso"],
+        capture_output=True, text=True, check=False)
+    systemd_path = soak.raw / f"{safe_name(label)}.systemd.txt"
+    journal_path = soak.raw / f"{safe_name(label)}.journal.txt"
+    kernel_path = soak.raw / f"{safe_name(label)}.kernel.txt"
+    systemd_path.write_text(systemd.stdout + systemd.stderr)
+    journal_path.write_text(journal.stdout + journal.stderr)
+    kernel_path.write_text(kernel.stdout + kernel.stderr)
     clear_result = subprocess.run(
         ["sudo", "systemctl", "unset-environment", *values.keys()],
         capture_output=True, text=True, check=False)
     result = {"set_rc": set_result.returncode, "restart_rc": restart_result.returncode,
               "restart_stderr": restart_result.stderr, "health": health,
-              "clear_rc": clear_result.returncode, "elapsed_s": time.monotonic() - start}
+              "clear_rc": clear_result.returncode, "elapsed_s": time.monotonic() - start,
+              "probe_seconds": probe_seconds,
+              "classification": classify_startup_probe(health, restart_result.returncode),
+              "systemd": {"returncode": systemd.returncode, "stdout": systemd.stdout,
+                          "stderr": systemd.stderr},
+              "journal": {"returncode": journal.returncode, "stdout": journal.stdout,
+                          "stderr": journal.stderr},
+              "kernel": {"returncode": kernel.returncode, "stdout": kernel.stdout,
+                         "stderr": kernel.stderr},
+              "diagnostic_files": {"systemd": f"raw/{systemd_path.name}",
+                                   "journal": f"raw/{journal_path.name}",
+                                   "kernel": f"raw/{kernel_path.name}"}}
     result["phase"] = label
     soak.write_json(f"{label}.json", result)
     return result
@@ -376,7 +517,24 @@ def main() -> int:
     soak.metrics("before")
     soak.get("health-before", "/health")
     soak.get("slots-before", "/slots")
-    startup_result = restart(soak, "startup")
+    startup_result = restart(soak, "startup", probe_seconds=180)
+    if startup_result["classification"] != "ready":
+        # Do not turn a post-listen crash into missing telemetry or spend the
+        # corpus budget retrying an unstable service. Keep the bounded probe,
+        # systemd state, and journal in the run directory for diagnosis.
+        soak.write_json("records.json", soak.records)
+        soak.write_json("run-summary.json", {
+            "schema_version": 1,
+            "status": "blocked_startup",
+            "context": soak.context_resolution,
+            "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
+                           "draft_backend": "gpu", "context_tokens": soak.context},
+            "startup": startup_result,
+            "records": soak.records,
+        })
+        write_raw_manifest(soak)
+        print(f"startup probe blocked: {startup_result['classification']}", file=sys.stderr)
+        return 3
     soak.identity("after-startup")
     soak.metrics("after-startup")
     stop = threading.Event()
@@ -423,13 +581,32 @@ def main() -> int:
                                             "timeout_expected": cancel.returncode == 124})
     soak.wait_idle("slots-after-cancel")
 
-    # Concurrent requests share one managed slot.  The server must serialize
-    # them without mixing the distinct markers or leaving the slot busy.
+    # Pin concurrent requests to independent slots when the service exposes
+    # them. A one-slot service is still probed, but it cannot provide an
+    # isolation claim; the machine-readable oracle records that blocker.
+    slots_before_concurrent = soak.get("slots-before-concurrent", "/slots")
+    slot_payload = slots_before_concurrent.get("response_json")
+    available_slot_ids = []
+    if isinstance(slot_payload, list):
+        for item in slot_payload:
+            if isinstance(item, dict) and isinstance(item.get("id"), int):
+                available_slot_ids.append(int(item["id"]))
+    independent_slots = len(available_slot_ids) >= 2
+    concurrent_specs = (
+        ("concurrent-a", "CONCURRENT_A"),
+        ("concurrent-b", "CONCURRENT_B"),
+    )
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(soak.request, label, words(label, soak.prompt_words, label), 8, 180)
-                   for label in ("concurrent-a", "concurrent-b")]
-        concurrent_results = [future.result() for future in futures]
+        futures = [pool.submit(
+            soak.request, label,
+            f"Reply with exactly the marker {marker} and no other text.",
+            8, 180, expected_marker=marker,
+            slot_id=available_slot_ids[index] if independent_slots else None)
+                   for index, (label, marker) in enumerate(concurrent_specs)]
+    concurrent_results = [future.result() for future in futures]
     soak.write_json("concurrent-results.json", concurrent_results)
+    concurrent_oracle = build_concurrent_oracle(available_slot_ids, concurrent_results)
+    soak.write_json("concurrent-oracle.json", concurrent_oracle)
     soak.wait_idle("slots-after-concurrent")
 
     # Save/erase/restore is checked by both server counters and the immutable
@@ -509,11 +686,7 @@ def main() -> int:
              "startup": startup_result, "restart": restart_result, "records": soak.records}
     soak.write_json("records.json", soak.records)
     soak.write_json("run-summary.json", final)
-    sums = []
-    for path in sorted(soak.raw.iterdir()):
-        if path.is_file():
-            sums.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  raw/{path.name}")
-    (soak.root / "SHA256SUMS").write_text("\n".join(sums) + "\n")
+    write_raw_manifest(soak)
     return 0
 
 

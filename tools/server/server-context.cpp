@@ -19598,6 +19598,7 @@ private:
             }
             {
                 std::string err;
+                error_type err_type = ERROR_TYPE_SERVER;
 
                 if (n_batch == 1 && ret == 1) {
                     // TODO: try to terminate only the largest active slot/sequence and continue with the rest
@@ -19611,7 +19612,22 @@ private:
 
                 if (ret < -1) {
                     // TODO: update slot state based on llama_memory_seq_pos_min() and llama_memory_seq_pos_max()
-                    err = "Compute error.";
+                    // Exact attention deliberately fails closed when the
+                    // graph cannot provide its page-wave callbacks.  Keep
+                    // that refusal distinct from a failed compute: callers
+                    // need a supported, machine-readable response rather
+                    // than an HTTP 500 that looks like a runtime fault.
+                    const auto pager = ctx_tgt != nullptr
+                        ? ctx_tgt->get_kv_pager_metrics()
+                        : llama_kv_pager_metrics_snapshot {};
+                    if (pager.mode == llama_kv_pager_mode::exact &&
+                        !pager.execution.exact_refusal_reason.empty()) {
+                        err = "exact attention is not configured: " +
+                            pager.execution.exact_refusal_reason;
+                        err_type = ERROR_TYPE_NOT_SUPPORTED;
+                    } else {
+                        err = "Compute error.";
+                    }
                 }
 
                 // TODO: handle ret == 2 (abort) when we start aborting
@@ -19623,7 +19639,7 @@ private:
 
                     for (auto & slot : slots) {
                         if (slot.is_processing()) {
-                            send_error(slot, err);
+                            send_error(slot, err, err_type);
                             slot.release();
 
                             // note: it's complicated to keep track of how much of the current batch has been

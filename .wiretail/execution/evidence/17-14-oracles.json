@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "task": "17-14",
+  "status": "complete_with_deferred_live_exact",
+  "resolved_context_tokens": 22016,
+  "exact_native": {
+    "prior_raw_root": "/srv/ai/paged-kv/results/17-09-performance-20260905T020000Z/raw/exact-native-8192",
+    "prior_http_status": 500,
+    "prior_response": {
+      "code": 500,
+      "type": "server_error",
+      "message": "Compute error."
+    },
+    "isolated_refusal": "exact CUDA page-wave callbacks are not configured",
+    "boundary": "exact attention refusal is returned through the server decode error boundary",
+    "wire_contract": {
+      "http_status": 501,
+      "error_type": "not_supported_error",
+      "message_prefix": "exact attention is not configured:"
+    },
+    "raw_sha256": {
+      "http.txt": "091350bc0440719db49152364c99b3952b3e8e90e8543b8fc41af27592f335a6",
+      "response.json": "b1c5463d78dd9b48225c372a685f3752b19c9c5a0f2de44fde6ba50becf2600e",
+      "service-journal.log": "3a6ed7a5f489b62bf9996ebdd1cb692d0a1a374d21928c3c55b6ede8eeedccae"
+    }
+  },
+  "concurrent": {
+    "prior_raw_root": "/srv/ai/paged-kv/results/17-10-soak-20260905T021200Z/raw",
+    "prior_http_statuses": [200, 200],
+    "prior_assistant_content": ["42", "Error: No valid data found.\n"],
+    "oracle_contract": {
+      "independent_slots_required": true,
+      "marker_grammar": "one literal marker per request",
+      "status_values": ["passed", "blocked"],
+      "blocker_fields": ["transport", "semantic", "exact_markers", "isolation"]
+    },
+    "prior_raw_sha256": {
+      "concurrent-results.json": "604a6c475635e08ebea5cc38c5ed5982741d1753072c623bfd1f79bb44e874c0",
+      "concurrent-a.response.json": "08d8603a6955b20247e591e469d893757c9fe9619989ef559c3724875f7e2436",
+      "concurrent-b.response.json": "ad75e909bf276fbdf5c253d0753b8f8f0bd2b67486072bd0155774cd5154f4ce"
+    }
+  },
+  "startup_probe": {
+    "resolved_context_probe_is_bounded": true,
+    "pre_corpus_gate": true,
+    "unhealthy_service_classification": "runtime_crash_or_unavailable",
+    "post_listen_crash_evidence": "/srv/ai/paged-kv/results/17-13-pressure-20260905T025900Z/raw/service-journal-20260905T025900Z.log",
+    "live_resolved_context_rerun": "deferred"
+  },
+  "verification": {
+    "python_unit_tests": "10/10 passed",
+    "python_compile": "passed",
+    "server_prompt_cache_binary": "passed",
+    "server_prompt_cache_ctest_selection": "4/4 passed",
+    "git_diff_check": "passed"
+  }
+}
