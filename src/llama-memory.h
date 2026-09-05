@@ -319,7 +319,10 @@ struct llama_memory_i {
             const char * /*owner*/, vbr_operation_id /*operation_id*/) {}
     // Promote deferred (submitted) extent entries at the context's existing synchronize
     // boundary. Inert for non-VBR memories; composites forward to their attention child.
-    virtual void vbr_commit_submitted() {}
+    // False means a submitted target extent failed its terminal commit. The
+    // caller must suppress dependent host/page-table publication at this
+    // boundary.
+    virtual bool vbr_commit_submitted() { return true; }
     // Resolve in-flight decode operations once the decode outcome is known.
     virtual void vbr_decode_ops_finish(bool /*ok*/) {}
     // Composite wrappers mint one operation per logical mutation and adopt

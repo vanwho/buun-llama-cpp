@@ -835,9 +835,10 @@ const llama_kv_cache_context * llama_kv_cache_iswa_context::get_swa()  const {
     return static_cast<const llama_kv_cache_context *>(ctx_swa.get());
 }
 
-void llama_kv_cache_iswa::vbr_commit_submitted() {
-    kv_base->vbr_commit_submitted();
-    kv_swa ->vbr_commit_submitted();
+bool llama_kv_cache_iswa::vbr_commit_submitted() {
+    const bool base_ok = kv_base->vbr_commit_submitted();
+    const bool swa_ok = kv_swa->vbr_commit_submitted();
+    return base_ok && swa_ok;
 }
 
 void llama_kv_cache_iswa::vbr_decode_ops_finish(bool ok) {

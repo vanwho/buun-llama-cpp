@@ -628,3 +628,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-19-06`
 - Commit at update: `895ff7bdd`
 - Summary: Implemented bounded exact GPU page-wave graph with device online-state merge, compact cold staging, coverage telemetry, and deterministic CPU/CUDA verification; live model checkpoint deferred because the shared RTX 4080 workload was retained.
+
+## 2026-09-05T13:46:12+00:00 — 19-07 — done
+
+- Branch: `codex/task-19-07`
+- Commit at update: `4c9f92d98`
+- Summary: Implemented atomic lifecycle guards, pre-mutation VBR reservations, commit-before-pager publication, deterministic lifecycle regressions, and deferred live GPU receipt.

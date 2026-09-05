@@ -2927,15 +2927,20 @@ void llama_kv_cache::vbr_shared_scratch_detach() {
 }
 
 void llama_kv_cache::clear(bool data) {
+    vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, -1, 0, std::numeric_limits<llama_pos>::max());
+    const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
+    if (vbr_generation_tracker_mut() != nullptr && !mutation_op.active()) {
+        LLAMA_LOG_ERROR("clear(): VBR operation reservation failed; cache remains unchanged\n");
+        return;
+    }
     if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
             llama_kv_pager_mutation_kind::clear, -1, -1, 0,
             std::numeric_limits<llama_pos>::max(), 0, 0,
             pager_->residency().epoch() }) != llama_kv_pager_write_status::ok) {
+        mutation_op.poison();
         return;
     }
-    vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
-            vbr_operation_class::state_api, -1, 0, std::numeric_limits<llama_pos>::max());
-    const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
     for (uint32_t s = 0; s < n_stream; ++s) {
         v_cells[s].reset();
         v_heads[s] = 0;
@@ -3042,6 +3047,13 @@ bool llama_kv_cache::seq_rm_impl(
     }
 
     const bool commit = mode != seq_rm_mode::dry_run;
+    vbr_mutation_op mutation_op(commit ? this : nullptr, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id, p0, p1);
+    const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
+    if (commit && vbr_generation_tracker_mut() != nullptr && !mutation_op.active()) {
+        LLAMA_LOG_ERROR("seq_rm(): VBR operation reservation failed; cache remains unchanged\n");
+        return false;
+    }
     if (commit && pager_ != nullptr && pager_->snapshot().physical_page_count != 0) {
         const uint64_t pager_epoch = pager_->residency().epoch();
         const auto pager_status = pager_->mutate({
@@ -3049,6 +3061,7 @@ bool llama_kv_cache::seq_rm_impl(
             p0, p1, 0, 0, pager_epoch,
             mode == seq_rm_mode::nested_commit || remove_all });
         if (pager_status != llama_kv_pager_write_status::ok) {
+            mutation_op.poison();
             return false;
         }
     }
@@ -3056,9 +3069,6 @@ bool llama_kv_cache::seq_rm_impl(
     // VBR mutation scope: authenticated (sequence_edit, seq, [p0,p1)). Generic seq_rm remains
     // membership-only state_api (not provenance-bearing); the destructive §7.5 classes arrive
     // with the classed server paths in the mutation coordinator commit.
-    vbr_mutation_op mutation_op(commit ? this : nullptr, vbr_operation_kind::sequence_edit,
-            vbr_operation_class::state_api, seq_id, p0, p1);
-    const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
     bool changed = false;
 
     if (seq_id >= 0) {
@@ -3198,17 +3208,39 @@ bool llama_kv_cache::seq_cp_impl(
 
     vbr_normalize_edit_range(p0, p1);  // Canonical range before the scope.
 
-    if (seq_id_src != seq_id_dst && pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
-            llama_kv_pager_mutation_kind::copy, seq_id_src, seq_id_dst,
-            p0, p1, 0, 0, pager_->residency().epoch() }) != llama_kv_pager_write_status::ok) {
-        return false;
+    // Cross-stream copies are only implemented for the full-cache, unarmed
+    // path below. Reject them before touching the pager; otherwise a pager
+    // copy could publish a destination image and the later unsupported path
+    // would leave target and host state split.
+    if (s0 != s1) {
+        if (vbr_generation_tracker_mut() != nullptr) {
+            LLAMA_LOG_ERROR("seq_cp(): cross-stream copies are unavailable while VBR is armed\n");
+            return false;
+        }
+        const bool full_range = (p0 <= 0 || p0 >= (llama_pos) get_size() - 1) &&
+            (p1 <= 0 || p1 >= (llama_pos) get_size() - 1);
+        if (!full_range) {
+            LLAMA_LOG_ERROR("seq_cp(): cross-stream copies require the full KV range\n");
+            return false;
+        }
     }
 
-    // VBR mutation scope. Cross-stream copies additionally reserve recovery and carry the
-    // source-stability token; that wiring rides the sc_info pending owner below.
+    // Reserve the VBR operation before the pager copy. A refusal must not
+    // leave a destination page image without a corresponding target ledger.
     vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
             vbr_operation_class::state_api, seq_id_dst, p0, p1);
     const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
+    if (vbr_generation_tracker_mut() != nullptr && !mutation_op.active()) {
+        LLAMA_LOG_ERROR("seq_cp(): VBR operation reservation failed; cache remains unchanged\n");
+        return false;
+    }
+
+    if (seq_id_src != seq_id_dst && pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
+            llama_kv_pager_mutation_kind::copy, seq_id_src, seq_id_dst,
+            p0, p1, 0, 0, pager_->residency().epoch() }) != llama_kv_pager_write_status::ok) {
+        mutation_op.poison();
+        return false;
+    }
 
     if (s0 == s1) {
         // since both sequences are in the same stream, no data copy is necessary
@@ -3249,13 +3281,6 @@ bool llama_kv_cache::seq_cp_impl(
 
     // cross-stream sequence copies require to copy the actual buffer data
 
-    // Deferred-copy fence (pending owner through stream_copy_info, commit at byte-copy
-    // completion) is NOT implemented — it is structurally unreachable because armed VBR
-    // requires n_stream == 1. Fail loudly if that invariant ever breaks rather than let a
-    // cross-stream copy close its operation before bytes land (design finding R3-4).
-    GGML_ASSERT(vbr_generation_tracker_mut() == nullptr &&
-                "cross-stream seq_cp under armed VBR requires the pending-owner fence");
-
     bool is_full = true;
 
     if (p0 > 0 && p0 < (int) get_size() - 1) {
@@ -3266,7 +3291,10 @@ bool llama_kv_cache::seq_cp_impl(
         is_full = false;
     }
 
-    GGML_ASSERT(is_full && "seq_cp() is only supported for full KV buffers");
+    if (!is_full) {
+        LLAMA_LOG_ERROR("seq_cp(): cross-stream copies require the full KV range\n");
+        return false;
+    }
 
     // enqueue the copy operation - the buffer copy will be performed during the next update
     sc_info.ssrc.push_back(s0);
@@ -3330,6 +3358,14 @@ void llama_kv_cache::seq_keep(llama_seq_id seq_id) {
         return;
     }
 
+    // Validate before the pager mutation below. An invalid keep request must
+    // be a pure rejection rather than a partially cleared host/page-table
+    // image.
+    if (seq_id < 0 || (size_t) seq_id >= seq_to_stream.size()) {
+        LLAMA_LOG_ERROR("seq_keep(): sequence id %d is outside the configured sequence range\n", seq_id);
+        return;
+    }
+
     // VBR mutation scope: whole-range membership edit. The manifest declares the sequence.
     // Wildcard: keep removes membership from every sequence except the kept one, so
     // per-cell stamps carry whichever sequence remains (or none) — a single-seq claim would
@@ -3337,15 +3373,18 @@ void llama_kv_cache::seq_keep(llama_seq_id seq_id) {
     vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
             vbr_operation_class::state_api, -1, 0, std::numeric_limits<llama_pos>::max());
     const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
+    if (vbr_generation_tracker_mut() != nullptr && !mutation_op.active()) {
+        LLAMA_LOG_ERROR("seq_keep(): VBR operation reservation failed; cache remains unchanged\n");
+        return;
+    }
 
     if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
             llama_kv_pager_mutation_kind::keep, seq_id, -1, 0,
             std::numeric_limits<llama_pos>::max(), 0, 0,
             pager_->residency().epoch() }) != llama_kv_pager_write_status::ok) {
+        mutation_op.poison();
         return;
     }
-
-    GGML_ASSERT(seq_id >= 0 && (size_t) seq_id < seq_to_stream.size());
 
     const uint32_t stream = seq_to_stream[seq_id];
     auto & cells = v_cells[stream];
@@ -3426,16 +3465,23 @@ void llama_kv_cache::seq_add_impl(
     auto & cells = v_cells[stream];
     auto & head  = v_heads[stream];
     vbr_normalize_edit_range(p0, p1);  // Canonical range before the scope.
+
+    // Establish the operation/recovery boundary before changing pager
+    // identities. A reservation refusal must not leave a shifted host image.
+    vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
+            vbr_operation_class::state_api, seq_id, p0, p1);
+    const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
+    if (vbr_generation_tracker_mut() != nullptr && !mutation_op.active()) {
+        LLAMA_LOG_ERROR("seq_add(): VBR operation reservation failed; cache remains unchanged\n");
+        return;
+    }
     if (pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
             llama_kv_pager_mutation_kind::shift, seq_id, -1, p0, p1, shift, 0,
             pager_->residency().epoch() }) !=
             llama_kv_pager_write_status::ok) {
+        mutation_op.poison();
         return;
     }
-    // VBR mutation scope: position shift is a dependency-changing edit over [p0,p1).
-    vbr_mutation_op mutation_op(this, vbr_operation_kind::sequence_edit,
-            vbr_operation_class::state_api, seq_id, p0, p1);
-    const vbr_mutation_op::success_on_return mutation_ok(mutation_op);
     auto generation_event = vbr_generation_begin(
             vbr_mutation_registrant::seq_add, vbr_operation_class::state_api, stream,
             vbr_generation_stamp_kind::dependency, true);
@@ -4647,13 +4693,12 @@ static void vbr_fail_extent_set(
         vbr_generation_tracker * tracker,
         std::array<vbr_extent_handle, vbr_operation_binding::MAX_TARGETS> & extents);
 
-void llama_kv_cache::vbr_commit_submitted() {
+bool llama_kv_cache::vbr_commit_submitted() {
     if (other) {
-        other->vbr_commit_submitted();
-        return;
+        return other->vbr_commit_submitted();
     }
     if (vbr_awaiting_commit_.empty()) {
-        return;
+        return true;
     }
     // The sync fence delivers the terminal result to each pending owner. Commit
     // success closes the operation committed and releases recovery; a failed commit (slab
@@ -4661,6 +4706,7 @@ void llama_kv_cache::vbr_commit_submitted() {
     // silent vanish. Every per-target handle commits; one failure fails the
     // owner and every remaining handle.
     auto * tracker = vbr_generation_tracker_mut();
+    bool all_committed = true;
     for (auto & pending : vbr_awaiting_commit_) {
         bool committed = true;
         if (tracker != nullptr) {
@@ -4677,6 +4723,7 @@ void llama_kv_cache::vbr_commit_submitted() {
                 vbr_fail_extent_set(tracker, pending.extents);
             }
         }
+        all_committed = all_committed && committed;
         if (pending.recovery_index >= 0 && committed) {
             vbr_recovery_release_unused(pending.recovery_index, pending.operation_id);
         }
@@ -4690,6 +4737,7 @@ void llama_kv_cache::vbr_commit_submitted() {
         }
     }
     vbr_awaiting_commit_.clear();
+    return all_committed;
 }
 
 // padded cell watermark: the extent get_n_kv derives read views from (256 = the fattn padding

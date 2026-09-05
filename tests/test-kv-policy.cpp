@@ -16,6 +16,12 @@ static llama_kv_page_id live_page_id(uint32_t logical) {
     id.logical_page = logical;
     id.page_generation = logical + 1;
     id.representation_epoch = 1;
+    id.model_identity = 1;
+    id.topology_identity = 1;
+    id.codec_digest = 1;
+    id.codebook_digest = 1;
+    id.rotation_digest = 1;
+    id.meansub_digest = 1;
     id.position_begin = llama_pos(logical * 256);
     id.position_end = id.position_begin + 256;
     return id;
@@ -285,6 +291,7 @@ struct fake_live_lifecycle_hooks {
     uint32_t companion_rollbacks = 0;
     uint32_t lifecycle_events = 0;
     bool reject_publish = false;
+    bool reject_event = false;
 
     static bool publish(void * opaque,
             const llama_kv_live_lifecycle_generation &,
@@ -302,8 +309,9 @@ struct fake_live_lifecycle_hooks {
 
     static bool event(void * opaque, llama_kv_live_lifecycle_event,
             const llama_kv_live_lifecycle_generation &) noexcept {
-        ++static_cast<fake_live_lifecycle_hooks *>(opaque)->lifecycle_events;
-        return true;
+        auto & fake = *static_cast<fake_live_lifecycle_hooks *>(opaque);
+        ++fake.lifecycle_events;
+        return !fake.reject_event;
     }
 };
 
@@ -338,6 +346,12 @@ static bool test_live_lifecycle() {
     LIVE_CHECK(lifecycle->start({ 1, 0, 1, 1 }) == llama_kv_live_lifecycle_status::ready);
     LIVE_CHECK(lifecycle->set_frontier({ 1, 1, 1, 2, 1, 1 }) ==
            llama_kv_live_lifecycle_status::ready);
+    const auto committed_frontier = lifecycle->frontier();
+    LIVE_CHECK(lifecycle->set_frontier({ 0, 0, 0, 1, 0, 1 }) ==
+           llama_kv_live_lifecycle_status::stale_generation);
+    LIVE_CHECK(lifecycle->frontier().target_tokens == committed_frontier.target_tokens &&
+           lifecycle->frontier().speculative_accepted ==
+               committed_frontier.speculative_accepted);
 
     prefetch_fake.attention_active = true;
     const auto future = [](uint64_t id, uint32_t priority) {
@@ -412,6 +426,20 @@ static bool test_live_lifecycle() {
     LIVE_CHECK(!rejected_result.policy.published && rejected_result.companion_rolled_back);
     LIVE_CHECK(rejected_table.snapshot().epoch() == 1 && rejected_hooks_fake.companion_rollbacks == 1);
 
+    auto incomplete = live_boundary(table.snapshot(), live_promotion());
+    incomplete.pages.front().record.id.model_identity = 0;
+    const auto incomplete_result = lifecycle->apply_policy(
+            table, *pool, incomplete, pool_backend, transport);
+    LIVE_CHECK(incomplete_result.status == llama_kv_live_lifecycle_status::stale_generation);
+    LIVE_CHECK(table.snapshot().epoch() == 2 && hooks_fake.companion_publishes == 1);
+
+    auto wrong_version = live_boundary(table.snapshot(), live_promotion());
+    wrong_version.version++;
+    const auto wrong_version_result = lifecycle->apply_policy(
+            table, *pool, wrong_version, pool_backend, transport);
+    LIVE_CHECK(wrong_version_result.status == llama_kv_live_lifecycle_status::invalid_argument);
+    LIVE_CHECK(table.snapshot().epoch() == 2);
+
     LIVE_CHECK(lifecycle->prefetch({ future(103, 1) }) == llama_kv_live_lifecycle_status::ready);
     const auto cancelled_before = prefetch_fake.cancelled.size();
     const auto published_before_reuse = prefetch_fake.published.size();
@@ -442,6 +470,22 @@ static bool test_live_lifecycle() {
     LIVE_CHECK(llama_kv_live_lifecycle::create(
             llama_kv_live_lifecycle_config { 2, {} }, backend, hooks, status) == nullptr);
     LIVE_CHECK(status == llama_kv_live_lifecycle_status::unsupported_slots);
+
+    fake_live_lifecycle_hooks failed_event_fake;
+    failed_event_fake.reject_event = true;
+    auto failed_event_hooks = hooks;
+    failed_event_hooks.context = &failed_event_fake;
+    auto failed_event = llama_kv_live_lifecycle::create(
+            config, backend, failed_event_hooks, status);
+    LIVE_CHECK(failed_event && failed_event->start({ 1, 0, 1, 1 }) ==
+           llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(failed_event->set_frontier({ 1, 1, 1, 1, 1, 0 }) ==
+           llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(failed_event->prefetch({ future(105, 1) }) ==
+           llama_kv_live_lifecycle_status::ready);
+    LIVE_CHECK(failed_event->clear() == llama_kv_live_lifecycle_status::companion_rejected);
+    LIVE_CHECK(!failed_event->active() && failed_event->frontier().target_tokens == 0);
+    LIVE_CHECK(failed_event->advance() == llama_kv_live_lifecycle_status::stale_generation);
 #undef LIVE_CHECK
     return true;
 }

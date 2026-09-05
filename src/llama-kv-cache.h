@@ -1476,7 +1476,9 @@ private:
   public:
     // Promote submitted extents to committed. Called from the context's existing synchronize
     // point — never introduces a new fence (Rev 5.1). No-op when nothing is pending.
-    void vbr_commit_submitted();
+    // Returns false when any submitted extent failed its terminal commit. The
+    // caller must then suppress pager host/table publication for that fence.
+    bool vbr_commit_submitted() override;
     // Resolve in-flight decode operations at the decode boundary where the
     // outcome is known. ok=true: extents -> submitted, ops close committed. ok=false: extents
     // fail, ops close failed (autorecording their reserved recovery slots).
