@@ -634,3 +634,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-19-07`
 - Commit at update: `4c9f92d98`
 - Summary: Implemented atomic lifecycle guards, pre-mutation VBR reservations, commit-before-pager publication, deterministic lifecycle regressions, and deferred live GPU receipt.
+
+## 2026-09-05T13:55:34+00:00 — 19-08 — done
+
+- Branch: `codex/task-19-08`
+- Commit at update: `2225b8b33`
+- Summary: Added and passed the deterministic 262144-token pager admission proof; official exact-context harness preflight resolved 262144; pager/attention regressions 9/9 and benchmark contract suite 46/46 passed. Deferred populated live host-backed GPU/MTP checkpoint because the shared RTX 4080 had 1128 MiB free and the healthy 22016-token service was preserved.

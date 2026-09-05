@@ -1,0 +1,159 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "19-08",
+  "result": "pass_local_deferred_live_checkpoint",
+  "kind": "measurement",
+  "procedure": "262144_token_admission_and_host_backing_preflight",
+  "created_utc": "2026-09-05T13:52:46Z",
+  "provenance": {
+    "source_commit": "2225b8b33db2b6954d947b6aec7e611d7bd255a3",
+    "source_diff_sha256": "99e2e6f76e087058c3c3e625684abb72496eaf2b3502d7861b939e0e8f87d3a1",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "binary": "build/bin/libllama.so",
+    "binary_sha256": "57e407f4697b4972985db6c39a6528ff3b1fbeaa8b03d9872ee8980530d032cb",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "config_sha256": "2de0cc81b4f3fc5cb0808c70380c033e85b632b3de6f7faa39afdaa012401c99",
+    "build": "build; CPU backend; pager planner regression and adjacent contracts",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; compute capability 8.9; 16376 MiB total, 14815 MiB used, 1128 MiB free",
+    "live_process_observed": "Existing llama-server retained at 22,016 tokens; no 256K candidate was started or disturbed"
+  },
+  "checks": [
+    {
+      "name": "262144-token logical admission with bounded physical hot pages and full MTP rows",
+      "status": "pass",
+      "raw_ids": ["test-kv-pager", "full-256k-capacity-plan"]
+    },
+    {
+      "name": "Official benchmark launcher resolves explicit 262144 acceptance context",
+      "status": "pass",
+      "raw_ids": ["dry-run-run-config", "dry-run-parameters"]
+    },
+    {
+      "name": "Pager, residency, policy, routing, and attention regressions",
+      "status": "pass",
+      "raw_ids": ["focused-ctest"]
+    },
+    {
+      "name": "Benchmark adapter, soak, quality, and resume contract suite",
+      "status": "pass",
+      "raw_ids": ["python-unittest-46"]
+    },
+    {
+      "name": "Populated live 256K model run with host canonical checksums, eviction/promotion, and native GPU MTP",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "planner": {
+      "requested_context_tokens": 262144,
+      "resolved_context_tokens": 262144,
+      "page_size_tokens": 256,
+      "logical_page_count": 1024,
+      "physical_hot_page_cap": 4,
+      "physical_rows": 1024,
+      "physical_bytes": 512,
+      "host_metadata_bytes": 98304,
+      "host_budget_bytes": 1048576,
+      "mtp_rows": 262144,
+      "mtp_bytes": 524288,
+      "accepted_physical_target_tokens": 1024,
+      "target_page_type": "Turbo4 synthetic planner geometry",
+      "device_allocation": "bounded admission-only plan; no context-sized allocation"
+    },
+    "launcher_preflight": {
+      "requested_context_tokens": 262144,
+      "resolved_context_tokens": 262144,
+      "mode": "acceptance",
+      "diagnostic_only": false,
+      "corpus_context_ceiling_tokens": 22016,
+      "page_size_tokens": 256,
+      "mtp": "native",
+      "draft_kv": "turbo4",
+      "service_contacted": false,
+      "result_dir": "/srv/ai/paged-kv/results/19-08-256k-dry-run-23kOlF"
+    },
+    "live_runtime": {
+      "service_active": true,
+      "service_main_pid": 3129857,
+      "service_restarts": 0,
+      "service_context_tokens": 22016,
+      "gpu_free_mib": 1128,
+      "occupied_prompt_tokens": null,
+      "host_valid_rows": null,
+      "target_valid_rows": null,
+      "host_canonical_checksums": null,
+      "evictions": null,
+      "promotions": null,
+      "continuation_tokens": null
+    }
+  },
+  "raw_index": [
+    {
+      "id": "full-256k-capacity-plan",
+      "path": "tests/test-kv-pager.cpp",
+      "sha256": "d0b66b3e426811cda8a7ba2bee69eaf029411bfe73b7491b3e337c155cd4b699"
+    },
+    {
+      "id": "test-kv-pager",
+      "path": "build/bin/test-kv-pager",
+      "sha256": "003ed303a790c69374d3f32fdba808c8842201e9b30c825434e09fbce43e3cb3"
+    },
+    {
+      "id": "llama-binary",
+      "path": "build/bin/libllama.so",
+      "sha256": "57e407f4697b4972985db6c39a6528ff3b1fbeaa8b03d9872ee8980530d032cb"
+    },
+    {
+      "id": "build-config",
+      "path": "build/CMakeCache.txt",
+      "sha256": "2de0cc81b4f3fc5cb0808c70380c033e85b632b3de6f7faa39afdaa012401c99"
+    },
+    {
+      "id": "corpus",
+      "path": "tools/server/bench/fixtures/pager-corpus-v4.json",
+      "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"
+    },
+    {
+      "id": "dry-run-run-config",
+      "path": "/srv/ai/paged-kv/results/19-08-256k-dry-run-23kOlF/run-config.json",
+      "sha256": "ee1c6a483dcdf020d3ad3fef4e755e0ab120a3423d756c60dea3c1f943538254"
+    },
+    {
+      "id": "dry-run-parameters",
+      "path": "/srv/ai/paged-kv/results/19-08-256k-dry-run-23kOlF/parameters.txt",
+      "sha256": "a45c138b9670c9017a3df177869f9e19196b943cb08d50df091652a0a54cb518"
+    }
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The shared RTX 4080 had only 1128 MiB free while the existing 22016-token service was healthy. No isolated 262144-token candidate was started because doing so would disturb the owned workload and could not provide a valid full-capacity checkpoint.",
+    "populated_history": "Near-full rendered prompt occupancy, host row population, canonical checksums, clean eviction/promotion, and continuation retrieval require the isolated live candidate.",
+    "native_mtp_runtime": "The planner and launcher retain native Turbo4 MTP provenance, but GPU draft buffers and runtime MTP rows were not measured in the unavailable live run.",
+    "model_hash": "The model path and size were recorded; a full model SHA-256 was not computed for this deferred, non-model-backed run."
+  },
+  "resume": {
+    "command": [
+      "python3",
+      "tools/server/bench/run-pager-profile-benchmark.py",
+      "fast",
+      "short",
+      "<durable-result-dir>",
+      "--mode",
+      "exact",
+      "--context",
+      "262144",
+      "--mtp",
+      "native",
+      "--resume"
+    ],
+    "next_case": "On an isolated GPU, start the supported single-slot candidate at -c 262144 with -ctk turbo4 -ctv turbo4 and --spec-draft-kv-device gpu, verify all four Turbo4 GPU MTP buffers and equal resolved rows, then run exact rendered near-full prefill and the cold-fact eviction/promotion continuation while preserving durable progress.",
+    "secrets_omitted": true
+  }
+}
