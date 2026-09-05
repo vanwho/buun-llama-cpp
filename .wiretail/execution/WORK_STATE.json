@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "19",
-  "current_task": "19-06",
-  "last_updated_utc": "2026-09-05T12:12:25+00:00",
+  "current_task": "19-07",
+  "last_updated_utc": "2026-09-05T13:24:25+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -2946,22 +2946,36 @@
       "cluster": "19b-paged-kernels",
       "title": "Implement the live exact GPU page-wave reference",
       "packet": ".wiretail/execution/tasks/19-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "19-05"
       ],
-      "commit": null,
+      "commit": "b513cd7ae7c90e08560133986a33cff14e7b9736",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/19-06-attempt-1-20260905T121240Z.jsonl:306",
+            "total_tokens": 45829066,
+            "total_tokens_derived": true,
+            "input_tokens": 45752477,
+            "cached_input_tokens": 45018112,
+            "output_tokens": 76589,
+            "thinking_tokens": 32335
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 45829066,
+          "input_tokens": 45752477,
+          "cached_input_tokens": 45018112,
+          "output_tokens": 76589,
+          "thinking_tokens": 32335
         }
       }
     },
@@ -3852,15 +3866,28 @@
           "cached_input_tokens": 17216000,
           "output_tokens": 28918,
           "thinking_tokens": 8232
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/19-06-attempt-1-20260905T121240Z.jsonl:306",
+          "total_tokens": 45829066,
+          "total_tokens_derived": true,
+          "input_tokens": 45752477,
+          "cached_input_tokens": 45018112,
+          "output_tokens": 76589,
+          "thinking_tokens": 32335
         }
       ],
       "totals": {
-        "turns": 5,
-        "total_tokens": 112149643,
-        "input_tokens": 111895798,
-        "cached_input_tokens": 109754368,
-        "output_tokens": 253845,
-        "thinking_tokens": 95781
+        "turns": 6,
+        "total_tokens": 157978709,
+        "input_tokens": 157648275,
+        "cached_input_tokens": 154772480,
+        "output_tokens": 330434,
+        "thinking_tokens": 128116
       }
     },
     "20": {
@@ -3899,12 +3926,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 19,
-      "total_tokens": 330699197,
-      "input_tokens": 329849098,
-      "cached_input_tokens": 323684608,
-      "output_tokens": 850099,
-      "thinking_tokens": 302113
+      "turns": 20,
+      "total_tokens": 376528263,
+      "input_tokens": 375601575,
+      "cached_input_tokens": 368702720,
+      "output_tokens": 926688,
+      "thinking_tokens": 334448
     },
     "source": "Codex turn.completed usage events"
   }
