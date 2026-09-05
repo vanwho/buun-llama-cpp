@@ -6,7 +6,7 @@ for consecutive tasks in the cluster.
 
 Global rules for every packet:
 
-1. Work primarily in `/srv/repos/vanwho/buun-llama-cpp`. A phase 08–14 packet may also explicitly
+1. Work primarily in `/srv/repos/vanwho/buun-llama-cpp`. A live implementation/benchmark packet may also explicitly
    authorize server-specific benchmark corpus/config/script edits under `/srv/ai/benchmarks` and raw
    outputs under `/srv/ai/paged-kv/results`; inspect that repository's instructions and dirty state
    first, preserve unrelated work, and never put those machine paths in production source.
@@ -14,10 +14,11 @@ Global rules for every packet:
    Buun tree has no `AGENTS.md`; do not assume that remains true after an upstream sync.
 3. Preserve unrelated dirty work. Never alter or clean `/srv/ai/paged-kv/repos/buun-llama-cpp`.
 4. Do not create GitHub issues/PRs, write their descriptions/replies, push, merge, or invent human
-   approval. The user permits iterative commits in `vanwho/*`, but the clustered runner uses manual Git
-   mode and leaves reviewable commits/pushes to a human or an explicitly authorized outer agent.
-5. Prefer internal APIs and existing source/test files. Do not add a new test file without maintainer
-   approval recorded in the task handoff.
+   approval. The user permits iterative commits in `vanwho/*`; manual Git mode applies only when
+   explicitly configured. The current outer runner uses auto mode and owns fork
+   commits/pushes/merges. Task agents must not race that Git owner or publish upstream prose.
+5. Prefer internal APIs and existing source/test files. Extend existing regression tests first;
+   add a focused new test only when justified by the actual contribution rules and explain why.
 6. Never claim a CUDA, benchmark, quality, or hardware result without raw output. Missing reference
    hardware blocks a hardware acceptance task; it does not block pure/fake-backend work.
 7. Keep feature-disabled behavior unchanged and make unsupported configurations fail closed.
@@ -38,21 +39,27 @@ Global rules for every packet:
    Before retry 3, the next-tier/high assessment uses `luna -> terra -> sol` (Sol remains the ceiling); retry
    3 also uses the original task model/reasoning with no retry prefix. Do not treat the first failed command
    as a sufficient blocker.
-11. For phases 08–17, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
+11. For all live phases, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
     the trained model context is not an allocation floor. No production default may encode a fixed hot
     token/page count. Historical benchmark artifacts may retain their measured configuration names.
-12. Required model-backed phase 17 corrective gates cannot be deferred. A failing result starts diagnosis and
-    repair through the owning implementation task; it is not converted to a documentation success. Phase 18
-    reviews only the compact phase-17 (or later remediation-phase) benchmark summary and creates the next
-    measured remediation chain when the overall goal is not reached.
+12. After 17-15, use POST17_IMPLEMENTATION_STRATEGY.md, the packet's TECHNICAL_CHANGE_SPEC.md sections,
+    and BENCHMARK_PROTOCOL_V5.md instead of historical acceptance ledgers. 17-16 bridges the evidence;
+    phases 18–20 implement repairs; phase 21 measures; 22-01 (Sol High) reviews only that compact summary
+    and creates another measured remediation/review chain if needed. Implementation must demonstrate
+    its live behavior, not merely report an unsupported callback. Evidence tasks may honestly finish
+    with negative findings, but cannot promote them as overall-goal success.
 13. Live benchmark tasks may stop/restart the active Qwen service using passwordless sudo and the
     established profile scripts. Capture the starting profile and verify ports 8080 and 8091. A
     successful benchmark keeps its tested server/profile loaded for the next task or retry by default;
     restore only when the packet explicitly requests a control/revert benchmark, teardown, failed-start
     recovery, or final cleanup, and record the lifecycle decision. Never stop or reconfigure the unrelated
     service on port 8092.
-14. Performance tasks preserve raw before/after results for every attempted optimization. They test at
-    least three evidence-driven repair hypotheses before blocking on the final 3x speed floor.
+14. Performance tasks preserve raw before/after results for every attempted optimization. The historical
+    3x/5x/70% speed numbers are findings, not gates. Investigate measured bottlenecks with distinct
+    hypotheses; do not block solely on a throughput threshold or silently change the three prompts.
+    The six 20K/40K/60K/100K/175K/256K coordinates are for the final results campaign only, after
+    functionality works. Other tests choose the smallest appropriate context/occupancy/hot budget
+    for their own purpose; no task must replay that entire ladder as a routine gate.
 
 15. If Codex reports `codex_core::tools::router` or `apply_patch verification failed`, treat it as a
     patch-anchor/context failure. Re-read the current file and exact surrounding lines with `rg`/`sed`,
@@ -61,6 +68,16 @@ Global rules for every packet:
     retrying an anchor that is no longer present. The runner records this signal, rotates the session
     before the next substantive attempt, and injects the same recovery direction into the retry and
     High-reasoning assessment prompts.
+
+16. Every post-17 packet has a concrete recipe. Read its named sections of
+    `EXECUTION_COOKBOOK.md` and `IMPLEMENTATION_CONTRACTS.md` once per cluster.
+    Use the prescribed minimal fixture/checkpoint before a live campaign;
+    export actual new symbols, layout/domain/ownership contracts and tested
+    commands in the handoff. A proposed CLI/API is work to implement, not an
+    already supported option. The shared model-parity driver is owned by 18-05;
+    later parity tasks extend it rather than invent another diagnostic loop.
+    Implementation receipts must pass their named live checks; truthful negative
+    benchmark receipts are allowed only where the evidence packet says so.
 
 Suggested handoff skeleton:
 

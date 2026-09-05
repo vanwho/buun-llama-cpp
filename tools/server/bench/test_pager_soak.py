@@ -73,6 +73,10 @@ class PagerSoakContextTests(unittest.TestCase):
     def test_startup_probe_classifies_unhealthy_service_before_soak(self) -> None:
         self.assertEqual("ready", soak.classify_startup_probe(
             {"8080": True, "8091": True}, 0))
+        self.assertEqual("ready", soak.classify_startup_probe(
+            {"8080": True}, 0))
+        self.assertEqual("runtime_crash_or_unavailable", soak.classify_startup_probe(
+            {"8080": True}, 0, identity_stable=False))
         self.assertEqual("runtime_crash_or_unavailable", soak.classify_startup_probe(
             {"8080": False, "8091": False}, 0))
         self.assertEqual("restart_failed", soak.classify_startup_probe(

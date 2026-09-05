@@ -1,10 +1,41 @@
 # Qwen3.8 256K attention-aware Turbo4 KV paging plan
 
-Status: corrective execution phase ready, revised 2026-09-04
+Status: post-17 implementation revision scheduled, revised 2026-09-05
 Canonical worktree: `/srv/repos/vanwho/buun-llama-cpp`
 Pinned Buun base: `cb703be37e3628dadb71912f3b3b25b82090555b`
 Compared llama.cpp base: `67a17c17caa95742186f8b1ecadd1b5abd6d5ebb`
 Execution state: `.wiretail/execution/WORK_STATE.json`
+
+## Current execution authority — after the running 17-15
+
+Read [POST17_IMPLEMENTATION_STRATEGY.md](POST17_IMPLEMENTATION_STRATEGY.md)
+first. It records the current evidence, architecture decisions and phase order.
+[TECHNICAL_CHANGE_SPEC.md](TECHNICAL_CHANGE_SPEC.md) gives exact source seams,
+buffer/index contracts, kernel and graph changes, and testable hypotheses.
+[EXECUTION_COOKBOOK.md](EXECUTION_COOKBOOK.md) provides verified entrypoints,
+minimal fixtures, a reusable live parity harness contract and common receipts.
+[IMPLEMENTATION_CONTRACTS.md](IMPLEMENTATION_CONTRACTS.md) settles internal
+ownership, strides, execution boundaries and incremental implementation order.
+Every future task has a concrete execution recipe pointing to its needed sections.
+[BENCHMARK_PROTOCOL_V5.md](BENCHMARK_PROTOCOL_V5.md) defines token-aware,
+resumable experiments and the original-three-prompt speed curve through 256K.
+These documents supersede conflicting old execution directions below.
+
+The six context coordinates are a **final results curve only**, after the
+functionality works. Development/repair tasks choose the context appropriate
+to their particular invariant or bottleneck, not a repeated six-point ladder.
+
+17-15 is not changed or interrupted. 17-16 is now a compact transition task;
+phases 18–20 repair and advance the implementation; phase 21 measures it; the
+benchmark-only Sol High review moves from old 18-01 to **22-01**. Unstarted old
+17-16–17-19/18-01 contents are archived, not marked complete. Speed ratios are
+findings, not the historical 3x/5x/70% acceptance gates. All target/draft K/V
+remains Turbo4; MTP stays GPU resident at the resolved full context. YaRN is a
+conditional stretch only after the base 262,144 goal is demonstrated.
+
+Sections with earlier task IDs below retain design/history context, not an
+instruction to replay their acceptance ledgers. Active packets and dependencies
+come only from WORK_STATE.json.
 
 ## 1. Outcome
 
@@ -21,7 +52,8 @@ maximum context, in which:
   resident in VRAM, and is never selected as a paging victim;
 - recurrent/linear-attention state remains exact and GPU-resident;
 - a small all-page routing index can recall relevant cold pages;
-- selected target pages are compacted into a bounded physical working set before Turbo4 flash attention;
+- selected target pages occupy a bounded physical slot working set consumed directly by Turbo4 flash
+  attention; no full-cache or hotset-sized F16/F32 gather is the performance path;
 - transfers are page-batched and asynchronous, so a focused workload is much faster than ordinary
   `--no-kv-offload` execution.
 
@@ -81,7 +113,8 @@ Four operating modes are part of the contract from day one, although `exact` is 
   cold page partitions.
 
 At small contexts, dense Turbo4 and selected-all-pages execution are the early correctness oracles. The
-full-context exact implementation comes only after selective mode meets its quality/speed gates. Its
+full-context exact implementation follows corrected selective storage/kernel foundations and precedes
+final long-context quality calibration; it does not wait for a numeric speed gate. Its
 minimum implementation streams cold Turbo4 page waves through bounded GPU staging and merges `(max,
 sum_exp, weighted_value)` states. A CPU/GPU split may replace the cold branch once a correct CPU Turbo4
 attention primitive exists. Exact mode is expected to be slow; it proves storage/page-table correctness
@@ -1042,7 +1075,7 @@ handoff; **provisional API** may change before upstream review without changing 
 | ID | Status | Decision and reason | Implementation consequence | Owning tasks |
 | --- | --- | --- | --- | --- |
 | D01 | Locked | Scope is Qwen3.8-27B/qwen35 on the reference RTX 4080 first. Genericity before proof would multiply lifecycle and kernel risk. | Fail closed on other geometry/backends; no claim of generic support. | 00-02, 01-03, 03-03, 06-04 |
-| D02 | Locked | Logical pages contain 256 tokens across all 16 target attention layers and both K/V sides. This matches Buun's generation granularity and gives a 4.125-MiB reference transfer. | One target residency decision and generation per cross-layer page; 1,024 logical pages at 256K. | 01-02, 02-01, 02-05 |
+| D02 | Revised post-17 | Start with 256-token cross-layer storage groups; geometry and model-layer-to-attention-ordinal mapping are runtime derived. Selection/score ownership is per layer/group; finer transfers require measured benefit. | Reuse existing capture granularity without confusing model IDs with compact offset indices. | 18-05, 19-02, 20-01–20-02; technical T1/T8 |
 | D03 | Locked | VBR answers “what representation?”; the pager answers “where resident?”. Combining them creates ambiguous authority. | Separate `llama_kv_*` pager/controller and backend residency pool, sharing low-level VMM/events/descriptors under one composite transaction. | 01-01, 01-02, 02-03, 02-04 |
 | D04 | Locked | Draft KV placement must be independent before pager work because target CPU placement currently leaks into draft context construction. | Add one tri-state draft policy in both fork worktrees; `auto` preserves legacy behavior. | 00-05, 05-02 |
 | D05 | Locked initially | Target and MTP K/V remain Turbo4. Dynamic VBR precision changes are not combined with initial paging. | Direct Turbo4 storage/transfers/FA; representation epoch still guards future cooperation. | 02-01–03-04, 05-02 |
@@ -1059,13 +1092,13 @@ handoff; **provisional API** may change before upstream review without changing 
 | D16 | Locked | Off mode and existing prompt artifacts must remain compatible; state/server/MTP/recurrent changes publish as one generation-safe operation. | Fail closed on stale identity, rollback every partial operation, and test cancellation/slot reuse/checkpoints. | 02-04, 05-01–06-02 |
 | D17 | Locked | Upstreamability requires small connected branches and repository conventions. | Generic draft placement first; page core, backing, FA, telemetry, policy, integration, and exact work remain separate; no giant initial PR. | 00-05, 07-01, 07-02 |
 | D18 | Locked | Performance claims use the existing `/srv/ai/benchmarks` result contract and same model/corpus controls. | Preserve historical raw manifests; new comparisons use same-context CPU KV, an automatically discovered safe all-GPU control, observe, selective focus/needle/churn, and exact separately. | 08-04–08-05, 12-02, 14-03–14-05 |
-| D19 | Locked | All current and generated task execution uses Luna High by default, except the final benchmark-only 18-01 reviewer, which uses Sol High. Three bounded substantive retries are allowed: retry 1 is a direct artifact-aware prefix only; retry 2 receives a same-family High assessment; retry 3 receives the next family from `luna -> terra -> sol` in High mode. | `WORK_STATE.json` retains Luna High recommendations for implementation/benchmark tasks and a Sol High recommendation for 18-01; the runner records recovery count under ignored run state, promotes only the separate assessment model, and keeps every task retry on its original task model/reasoning. | 00-01–18-01 and any generated remediation chain |
+| D19 | Current | Implementation/benchmark tasks remain Luna High; final summary-only 22-01 and generated reviewers use Sol High. Tool defaults and retry behavior are unchanged. | Three substantive retries use original task model with configured assessment escalation; preserve token accounting. | All active post-17 tasks |
 | D20 | Locked | Acceptance is Qwen3.8-on-reference-machine-specific, but committed implementation must remain portable Buun/llama code. | Keep server paths, profiles, service/PID/port facts, model filenames, GPU assumptions, and mutable benchmark data outside production source; express geometry through runtime metadata/capability and injected configuration, and scan changed files before upstream slicing. | 00-02, 01-01–06-05, 07-01–07-02 |
 | D21 | Locked | Hot target capacity is a runtime result, never a named token/page target. | Compute `H=floor(usable_after_all_reservations/page_charge)`, clamp to logical pages, expose the complete ledger, and permit only user-supplied upper bounds. | 08-03, 09-01–09-02, 12-02, 14-02 |
 | D22 | Locked | Auto policy allocation scales with admitted `H`; absolute page counts are valid only as explicit test inputs. | Mandatory pages consume exact capacity first; recent/history/transient shares use calibrated ratios/minima and fail on mandatory overflow. | 08-03, 11-04, 13-05 |
 | D23 | Locked | Native MTP KV capacity always equals the resolved target per-sequence context for the run. | Never use `n_ctx_train` as an MTP allocation floor; reject conflicting native-MTP `-cd`, reserve actual Turbo4 bytes first, and verify every MTP KV buffer is GPU-backed. | 08-02, 09-02, 14-02 |
-| D24 | Locked | The first 33 tasks delivered tested components, not a live pager product. | Phases 08–17 must wire real model storage, CUDA transfers, attention, routing, telemetry, policy, lifecycle, CLI, benchmarks, and corrective evidence; phase 18 assesses only the resulting benchmark summary and may generate another measured remediation chain. | 08-01–18-01 and generated remediation phases |
-| D25 | Locked | Speed is the primary optimization objective after correctness and frozen quality floors. | Require at least 3x warm-focused decode over same-context ordinary CPU KV, target 5x, retain at least 70% of the comparable safe all-GPU control, and report fault/churn tails without averaging them away. | 08-04, 13-01–14-05 |
+| D24 | Current | Completed foundation/earlier tasks are not proof that all live paths work. | 17-16 bridges final running findings; 18–20 repair and advance; 21 measures; 22-01 reviews only the compact summary and creates a fresh measured remediation chain if needed. | 17-16–22-01 |
+| D25 | Superseded speed gates | Speed remains the main optimization objective, but 3x/5x CPU-KV and 70% all-GPU ratios are findings, not pass/fail thresholds. Correctness cannot be traded away silently. | Run the original three prompts across token-counted 20K/40K/60K/100K/175K/256K coordinates; report actual occupancy, matched MTP/codec controls and real paging. | BENCHMARK_PROTOCOL_V5.md; 21-01–22-01 |
 
 ### 17.1 Deliberately unresolved choices
 
