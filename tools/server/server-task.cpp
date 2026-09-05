@@ -1679,8 +1679,8 @@ std::string server_task_result_metrics::to_metrics() {
                        << "=\"" << value << "\"} 1\n";
         }
         for (const auto & item : metrics.pager_metrics.items()) {
-            if (item.key() == "status" || item.value().is_string() ||
-                item.value().is_null() || item.key() == "mode") {
+            if (item.key() == "status" || !item.value().is_number() ||
+                item.key() == "mode") {
                 continue;
             }
             prometheus << "# HELP llamacpp:kv_pager_" << item.key()

@@ -8,6 +8,7 @@ adapter only adds a stable pager/corpus envelope to its existing artifacts.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -49,6 +50,15 @@ PAGER_FIELDS = (
     "peak_ram_bytes", "steady_ram_bytes", "transfer_ring_bytes",
 )
 
+TRANSIENT_OVERRIDE_NAMES = (
+    "AI_BENCHMARK_CLEAN", "AI_BENCHMARK_CONTEXT", "AI_BENCHMARK_KV_PAGER",
+    "AI_BENCHMARK_PAGE_SIZE", "AI_BENCHMARK_DEVICE", "AI_BENCHMARK_MTP",
+    "AI_BENCHMARK_SERVER_BIN", "AI_BENCHMARK_KV_HOT_PAGES",
+    "AI_BENCHMARK_KV_VRAM_BUDGET", "AI_BENCHMARK_KV_HOST_BUDGET",
+    "AI_BENCHMARK_KV_SAFETY_HEADROOM", "AI_BENCHMARK_KV_PIN_RECENT",
+)
+DEFAULT_LIFECYCLE_LOCK = "/tmp/ai-pager-benchmark.lock"
+
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
@@ -81,6 +91,57 @@ def _managed_server_pid() -> int | None:
         return None
 
 
+def _sudo_argv() -> list[str]:
+    """Return the lifecycle command prefix with non-interactive sudo."""
+    configured = os.environ.get("BENCH_SUDO")
+    return shlex.split(configured) if configured else ["sudo", "-n"]
+
+
+def transient_overrides(service: str | None = None) -> dict[str, str] | None:
+    """Read only the allowlisted manager overrides used by the site launcher.
+
+    ``systemctl show-environment`` can expose arbitrary environment values. Restricting
+    the result to benchmark controls keeps credentials and unrelated service
+    configuration out of receipts while retaining an exact restore set.
+    """
+    result = subprocess.run(
+        ["systemctl", "show-environment"],
+        capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        return None
+    values: dict[str, str] = {}
+    try:
+        tokens = shlex.split(result.stdout.strip())
+    except ValueError:
+        return None
+    allowed = set(TRANSIENT_OVERRIDE_NAMES)
+    for token in tokens:
+        name, separator, value = token.partition("=")
+        if separator and name in allowed:
+            values[name] = value
+    return values
+
+
+def _proc_maps(pid: int) -> list[str]:
+    try:
+        lines = pathlib.Path(f"/proc/{pid}/maps").read_text(errors="replace").splitlines()
+    except OSError:
+        return []
+    paths = set()
+    for line in lines:
+        fields = line.split(maxsplit=5)
+        if len(fields) == 6 and fields[5].startswith("/"):
+            paths.add(fields[5].removesuffix(" (deleted)"))
+    return sorted(paths)
+
+
+def _loaded_project_dsos(map_paths: list[str]) -> list[str]:
+    prefixes = ("libggml", "libllama", "libmtmd", "llama-server")
+    return sorted(path for path in map_paths
+                  if pathlib.Path(path).name.startswith(prefixes))
+
+
 def _command_value(command: list[str], option: str) -> str | None:
     try:
         index = command.index(option)
@@ -99,10 +160,12 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
     pid = _managed_server_pid() if pid is None else pid
     command: list[str] = []
     binary = None
+    map_paths: list[str] = []
     if pid is not None:
         try:
             command = [part for part in pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0") if part]
-            binary = str(pathlib.Path(f"/proc/{pid}/exe").resolve())
+            binary = os.path.realpath(f"/proc/{pid}/exe").removesuffix(" (deleted)")
+            map_paths = _proc_maps(pid)
         except (OSError, UnicodeDecodeError):
             pid = None
     model = _command_value(command, "-m")
@@ -115,7 +178,9 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
     mtp = _command_value(command, "--spec-draft-kv-device") or "not_present"
     return {
         "profile": profile,
+        "main_pid": pid,
         "pid": pid,
+        "exe": binary,
         "binary": binary,
         "command": shlex.join(command) if command else None,
         "model": model,
@@ -125,6 +190,13 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
         "mtp_placement": mtp,
         "mtp_type_k": _command_value(command, "--spec-draft-type-k") or "not_present",
         "mtp_type_v": _command_value(command, "--spec-draft-type-v") or "not_present",
+        "proc_maps": map_paths,
+        "loaded_dsos": _loaded_project_dsos(map_paths),
+        "hot_pages": _command_value(command, "--kv-hot-pages"),
+        "vram_budget": _command_value(command, "--kv-vram-budget"),
+        "host_budget": _command_value(command, "--kv-host-budget"),
+        "safety_headroom": _command_value(command, "--kv-safety-headroom"),
+        "pin_recent": _command_value(command, "--kv-pin-recent"),
     }
 
 
@@ -161,6 +233,7 @@ def service_snapshot(endpoint: str | None) -> dict[str, object]:
         services = []
     return {"profile": profile, "pid": pid, "command": identity["command"],
             "identity": identity, "health": health,
+            "transient_overrides": transient_overrides(),
             "running_services": [line.split()[0] for line in services if line.split()]}
 
 
@@ -172,25 +245,60 @@ def identity_mismatches(observed: dict[str, object], expected: dict[str, object]
         for field in ("mtp_type_k", "mtp_type_v"):
             if observed.get(field) != "turbo4":
                 errors.append(field)
+    if "loaded_dsos" in expected and observed.get("loaded_dsos") != expected.get("loaded_dsos"):
+        errors.append("loaded_dsos")
+    for field in ("hot_pages", "vram_budget", "host_budget", "safety_headroom", "pin_recent"):
+        if field in expected and observed.get(field) != expected.get(field):
+            errors.append(field)
     return errors
 
 
-def restore_profile(profile: str | None) -> dict[str, object]:
+def _restore_transient_overrides(overrides: dict[str, str] | None) -> dict[str, object]:
+    if overrides is None:
+        return {"state": "not_observed"}
+    sudo = _sudo_argv()
+    service = os.environ.get("LLAMA_SERVICE_NAME", "llama-server.service")
+    unset = subprocess.run(
+        sudo + ["systemctl", "unset-environment", *TRANSIENT_OVERRIDE_NAMES],
+        capture_output=True, text=True, check=False,
+    )
+    if unset.returncode != 0:
+        return {"state": "unset_failed", "exit_code": unset.returncode}
+    if not overrides:
+        return {"state": "restored", "values": {}}
+    set_result = subprocess.run(
+        sudo + ["systemctl", "set-environment"] +
+        [f"{name}={value}" for name, value in overrides.items()],
+        capture_output=True, text=True, check=False,
+    )
+    return {"state": "restored" if set_result.returncode == 0 else "set_failed",
+            "exit_code": set_result.returncode, "service": service,
+            "values": dict(overrides)}
+
+
+def restore_profile(profile: str | None,
+                    overrides: dict[str, str] | None = None) -> dict[str, object]:
     """Re-enter the established profile activation path, safely and repeatably."""
+    override_result = _restore_transient_overrides(overrides)
     if not profile:
-        return {"attempted": False, "state": "no_prior_profile"}
+        return {"attempted": False, "state": "no_prior_profile",
+                "transient_overrides": override_result}
     activator = os.environ.get("LLAMA_PROFILE_ACTIVATOR")
     if not activator:
-        return {"attempted": False, "state": "activator_not_configured"}
-    sudo = shlex.split(os.environ.get("BENCH_SUDO", "sudo"))
+        return {"attempted": False, "state": "activator_not_configured",
+                "transient_overrides": override_result}
+    sudo = _sudo_argv()
     command = sudo + [activator, profile]
     try:
         result = subprocess.run(command, check=False, stdout=subprocess.DEVNULL,
                                 stderr=subprocess.DEVNULL)
     except OSError as error:
-        return {"attempted": True, "state": "activation_error", "error": str(error)}
-    return {"attempted": True, "state": "restored" if result.returncode == 0 else "restore_failed",
-            "exit_code": result.returncode, "profile": profile}
+        return {"attempted": True, "state": "activation_error", "error": str(error),
+                "transient_overrides": override_result}
+    state = "restored" if result.returncode == 0 and override_result["state"] in {"restored", "not_observed"} else "restore_failed"
+    return {"attempted": True, "state": state,
+            "exit_code": result.returncode, "profile": profile,
+            "transient_overrides": override_result}
 
 
 def healthy(snapshot: dict[str, object]) -> bool:
@@ -246,6 +354,12 @@ def verify_restoration(before: dict[str, object], after: dict[str, object],
             if mismatches:
                 errors.append("restore_verification_failed:identity:" +
                               ",".join(mismatches))
+
+    before_overrides = before.get("transient_overrides")
+    after_overrides = after.get("transient_overrides")
+    if isinstance(before_overrides, dict):
+        if not isinstance(after_overrides, dict) or after_overrides != before_overrides:
+            errors.append("restore_verification_failed:transient_overrides")
 
     before_pid = before.get("pid")
     after_pid = after.get("pid")
@@ -387,6 +501,146 @@ def pager_envelope(variant: str, telemetry: dict[str, object] | None = None) -> 
 def missing_pager_fields(telemetry: dict[str, object] | None) -> list[str]:
     envelope = pager_envelope("validation", telemetry)
     return [field for field in PAGER_FIELDS if envelope.get(field) is None]
+
+
+class LifecycleLock:
+    """A bounded single owner for service-mutating benchmark operations."""
+
+    def __init__(self) -> None:
+        self.path = pathlib.Path(os.environ.get("PAGER_LIFECYCLE_LOCK", DEFAULT_LIFECYCLE_LOCK))
+        self.handle: object | None = None
+
+    def acquire(self, timeout: float = 30.0) -> bool:
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            handle = self.path.open("a+")
+        except OSError:
+            return False
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.handle = handle
+                return True
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    handle.close()
+                    return False
+                time.sleep(0.1)
+            except OSError:
+                handle.close()
+                return False
+
+    def release(self) -> None:
+        if self.handle is None:
+            return
+        handle = self.handle
+        self.handle = None
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)  # type: ignore[union-attr]
+        finally:
+            handle.close()  # type: ignore[union-attr]
+
+
+def _sha256_file(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _build_id(path: pathlib.Path) -> str | None:
+    try:
+        result = subprocess.run(["readelf", "-n", str(path)], capture_output=True,
+                                text=True, check=False)
+    except OSError:
+        return None
+    for line in result.stdout.splitlines():
+        if "Build ID:" in line:
+            return line.split("Build ID:", 1)[1].strip()
+    return None
+
+
+def write_bundle_manifest(output: pathlib.Path, server_bin: str | None) -> dict[str, object] | None:
+    """Record the immutable bundle that the site launcher is asked to use."""
+    if not server_bin:
+        return None
+    output.mkdir(parents=True, exist_ok=True)
+    executable = pathlib.Path(server_bin).resolve()
+    root_text = os.environ.get("PAGER_BUNDLE_ROOT")
+    root = pathlib.Path(root_text).resolve() if root_text else executable.parent.parent
+    try:
+        executable.relative_to(root)
+    except ValueError:
+        raise ValueError("candidate executable is outside PAGER_BUNDLE_ROOT")
+    if not executable.is_file():
+        raise ValueError(f"candidate executable is not a regular file: {executable}")
+    files: list[dict[str, object]] = []
+    writable_files: list[str] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.is_symlink():
+            continue
+        relative = path.relative_to(root)
+        if path.stat().st_mode & 0o222:
+            writable_files.append(str(relative))
+        files.append({"path": str(relative), "sha256": _sha256_file(path),
+                      "size": path.stat().st_size, "build_id": _build_id(path)})
+    if writable_files:
+        raise ValueError("candidate bundle is writable: " + ", ".join(writable_files[:4]))
+    manifest: dict[str, object] = {
+        "schema_version": 1,
+        "immutable": True,
+        "root": str(root),
+        "executable": str(executable.relative_to(root)),
+        "library_path": str(executable.parent),
+        "source_commit": _git_value(["rev-parse", "HEAD"]),
+        "source_diff_sha256": _git_diff_hash(),
+        "files": files,
+    }
+    path = output / "bundle-manifest.json"
+    path.write_text(json.dumps(manifest, indent=2) + "\n")
+    manifest["manifest_path"] = str(path)
+    manifest["manifest_sha256"] = _sha256_file(path)
+    return manifest
+
+
+def _git_value(command: list[str]) -> str | None:
+    try:
+        result = subprocess.run(["git", *command], capture_output=True, text=True, check=False)
+    except OSError:
+        return None
+    value = result.stdout.strip()
+    return value if result.returncode == 0 and value else None
+
+
+def _git_diff_hash() -> str | None:
+    try:
+        result = subprocess.run(["git", "diff", "--binary"], capture_output=True, check=False)
+    except OSError:
+        return None
+    return hashlib.sha256(result.stdout).hexdigest() if result.returncode == 0 else None
+
+
+def bundle_identity_errors(identity: dict[str, object], manifest: dict[str, object] | None) -> list[str]:
+    if manifest is None:
+        return []
+    root = pathlib.Path(str(manifest["root"]))
+    expected = {str((root / str(item["path"])).resolve())
+                for item in manifest.get("files", []) if isinstance(item, dict) and "path" in item}
+    errors: list[str] = []
+    binary = identity.get("binary")
+    if isinstance(binary, str) and str(pathlib.Path(binary).resolve()) not in expected:
+        errors.append("bundle_executable_not_manifested")
+    observed = identity.get("loaded_dsos")
+    if isinstance(observed, list):
+        outside = [path for path in observed if isinstance(path, str) and
+                   str(pathlib.Path(path).resolve()) not in expected]
+        if outside:
+            errors.append("bundle_loaded_dso_outside_manifest")
+    elif expected:
+        errors.append("bundle_loaded_dso_identity_missing")
+    return errors
 
 
 DEFAULT_CORPUS = pathlib.Path(__file__).with_name("fixtures") / "pager-corpus-v4.json"
@@ -566,7 +820,7 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
         summary_path.write_text(json.dumps(summary, indent=2) + "\n")
 
 
-def main() -> int:
+def _main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", choices=("fast", "big"))
     parser.add_argument("variant", choices=tuple(VARIANTS))
@@ -625,6 +879,12 @@ def main() -> int:
         print("pager benchmark: missing required configuration: " + ", ".join(missing), file=sys.stderr)
         return 2
     output.mkdir(parents=True, exist_ok=True)
+    bundle_manifest: dict[str, object] | None = None
+    try:
+        bundle_manifest = write_bundle_manifest(output, os.environ.get("BENCH_SERVER_BIN"))
+    except (OSError, ValueError) as error:
+        print(f"pager benchmark: invalid immutable candidate bundle: {error}", file=sys.stderr)
+        return 2
     before = service_snapshot(endpoint)
     telemetry_before, telemetry_before_error = read_server_metrics(endpoint)
     if telemetry_before_error:
@@ -706,12 +966,16 @@ def main() -> int:
         # The canonical runner restores its own failed attempts. This second,
         # idempotent call covers failures discovered only by this adapter after
         # the runner returned success, and covers a runner startup exception.
-        restoration = restore_profile(before.get("profile"))
+        restoration = restore_profile(before.get("profile"), before.get("transient_overrides"))
         after = service_snapshot(endpoint)
         validation_errors.extend(verify_restoration(before, after, restoration))
 
     if (output / "run-config.json").exists():
         try:
+            if bundle_manifest is not None:
+                config = json.loads((output / "run-config.json").read_text())
+                config["runtime_bundle"] = bundle_manifest
+                (output / "run-config.json").write_text(json.dumps(config, indent=2) + "\n")
             enrich(output, args.target, args.variant, before, after, telemetry_after,
                    validation_errors, restoration, canonical_rc, context)
         except (OSError, TypeError, json.JSONDecodeError):
@@ -748,6 +1012,22 @@ def main() -> int:
     if canonical_rc != 0:
         return canonical_rc
     return 1 if validation_errors else 0
+
+
+def main() -> int:
+    # Dry runs do not mutate a service and do not need to contend with a live
+    # benchmark. Every live path, including adapter-side restoration, shares
+    # the same bounded owner so two callers cannot restart the service at once.
+    if "--dry-run" in sys.argv:
+        return _main()
+    lock = LifecycleLock()
+    if not lock.acquire():
+        print("pager benchmark: lifecycle lock is busy or unavailable", file=sys.stderr)
+        return 75
+    try:
+        return _main()
+    finally:
+        lock.release()
 
 
 if __name__ == "__main__":
