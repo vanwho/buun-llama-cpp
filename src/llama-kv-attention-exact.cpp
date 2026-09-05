@@ -223,6 +223,8 @@ llama_kv_attention_exact_wave_plan llama_kv_attention_exact_wave_plan::build(
         output.visited_.assign(page_count, 0);
         output.expected_.assign(page_count, 0);
         output.ledger_.logical_page_count = page_count;
+        output.pages_per_wave_ = config.pages_per_wave;
+        output.page_bytes_ = config.page_bytes;
 
         for (size_t i = 0; i < sorted.size(); ++i) {
             const auto & page = sorted[i];

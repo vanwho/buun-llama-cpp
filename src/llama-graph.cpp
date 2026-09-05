@@ -28,6 +28,7 @@
 #include <map>
 #include <mutex>
 #include <numeric>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -716,7 +717,28 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
         ? ggml_time_us() : 0;
 
     if (selected_attention) {
-        if (direct_attention) {
+        if (exact_wave_attention) {
+            direct_telemetry_published = false;
+            if (!direct_native_positions_host.empty()) {
+                ggml_backend_tensor_set(direct_native_positions,
+                        direct_native_positions_host.data(), 0,
+                        direct_native_positions_host.size() * sizeof(direct_native_positions_host[0]));
+                ggml_backend_tensor_set(direct_native_mask, direct_native_mask_host.data(), 0,
+                        direct_native_mask_host.size());
+            }
+            if (ubatch->pos != nullptr) {
+                direct_query_positions_host.resize(ubatch->n_tokens);
+                for (uint32_t token = 0; token < ubatch->n_tokens; ++token) {
+                    direct_query_positions_host[token] = ubatch->pos[token * ubatch->n_pos];
+                }
+                ggml_backend_tensor_set(direct_query_positions, direct_query_positions_host.data(), 0,
+                        direct_query_positions_host.size() * sizeof(direct_query_positions_host[0]));
+            }
+            for (auto & wave : exact_waves) {
+                ggml_backend_tensor_set(wave.pages, wave.pages_host.data(), 0,
+                        wave.pages_host.size() * sizeof(wave.pages_host[0]));
+            }
+        } else if (direct_attention) {
             direct_telemetry_published = false;
             direct_telemetry_skipped = false;
             if (initialize_selected) {
@@ -838,13 +860,22 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     res &= self_k_idxs->ne[0] == params.ubatch.n_tokens;
   //res &= self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
 
-    const bool selected = params.kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
+    const bool exact_wave = params.kv_attention_exact_plan != nullptr;
+    const bool selected = exact_wave ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_reference ||
         params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
         params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
-    const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
+    const bool direct = exact_wave ||
+        params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
         params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
     res &= selected_attention == selected;
     res &= direct_attention == direct;
+    if (exact_wave) {
+        res &= exact_wave_attention && exact_graph_plan == params.kv_attention_exact_plan;
+        res &= !exact_waves.empty() && direct_staging_storage != nullptr;
+        res &= exact_n_rows != 0;
+        return res;
+    }
     res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams,
             selected ? params.kv_attention_metadata.get_n_kv() : 0);
     if (selected && !direct) {
@@ -1968,6 +1999,7 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
     tree_n_recurrent_layers   (params.tree_n_recurrent_layers),
     kv_attention_metadata(params.kv_attention_metadata),
     kv_attention_route(params.kv_attention_route),
+    kv_attention_exact_plan(params.kv_attention_exact_plan),
     kv_attention_metrics(params.kv_attention_metrics),
     kv_attention_telemetry(params.kv_attention_telemetry),
     samplers         (params.samplers),
@@ -3300,6 +3332,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
     const llama_tree_mask * tree_mask = nullptr,
     const llama_kv_attention_operator_metadata * selected_metadata = nullptr,
     bool direct_attention = false,
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> exact_graph_plan = nullptr,
     llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr,
     llama_kv_attention_telemetry * kv_attention_telemetry = nullptr) {
 
@@ -3461,6 +3494,206 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         }
     }
 
+    if (exact_graph_plan != nullptr && exact_graph_plan->coverage != nullptr) {
+        if (selected_metadata != nullptr) {
+            throw std::runtime_error("exact page-wave graph cannot share selected metadata");
+        }
+        const auto * pager = mctx_cur->get_kv_pager();
+        if (pager == nullptr || pager->residency_storage_tensor() == nullptr ||
+            exact_graph_plan->page_bytes == 0 || exact_graph_plan->page_tokens == 0) {
+            throw std::runtime_error("exact page-wave graph has no pager staging boundary");
+        }
+        inp->selected_attention = true;
+        inp->direct_attention = true;
+        inp->exact_wave_attention = true;
+        inp->exact_graph_plan = exact_graph_plan;
+        inp->direct_storage = pager->residency_storage_tensor();
+        inp->direct_bytes_per_slot = pager->residency_bytes_per_slot();
+        const auto & geometry = pager->snapshot().geometry;
+        inp->direct_layer_k_offsets = geometry.layer_k_offsets;
+        inp->direct_layer_v_offsets = geometry.layer_v_offsets;
+        inp->direct_layer_ids = geometry.model_layer_ids;
+        if (inp->direct_layer_k_offsets.size() != geometry.attention_layers ||
+            inp->direct_layer_v_offsets.size() != geometry.attention_layers ||
+            inp->direct_layer_ids.size() != geometry.attention_layers ||
+            geometry.layer_k_page_bytes.size() != geometry.attention_layers ||
+            geometry.layer_v_page_bytes.size() != geometry.attention_layers) {
+            throw std::runtime_error("exact page-wave graph has incomplete layer geometry");
+        }
+
+        const uint32_t staging_pages = std::max<uint64_t>(1,
+                exact_graph_plan->coverage->ledger().peak_staging_pages);
+        inp->exact_staging_layer_k_offsets.resize(geometry.layer_k_page_bytes.size());
+        inp->exact_staging_layer_v_offsets.resize(geometry.layer_v_page_bytes.size());
+        uint64_t staging_bytes = 0;
+        for (size_t layer = 0; layer < geometry.layer_k_page_bytes.size(); ++layer) {
+            const uint64_t k_bytes = geometry.layer_k_page_bytes[layer];
+            const uint64_t v_bytes = geometry.layer_v_page_bytes[layer];
+            if (k_bytes == 0 || v_bytes == 0 ||
+                staging_bytes > std::numeric_limits<uint64_t>::max() -
+                    uint64_t(staging_pages) * k_bytes) {
+                throw std::runtime_error("exact page-wave staging K geometry overflows");
+            }
+            inp->exact_staging_layer_k_offsets[layer] = staging_bytes;
+            staging_bytes += uint64_t(staging_pages) * k_bytes;
+            if (staging_bytes > std::numeric_limits<uint64_t>::max() -
+                    uint64_t(staging_pages) * v_bytes) {
+                throw std::runtime_error("exact page-wave staging V geometry overflows");
+            }
+            inp->exact_staging_layer_v_offsets[layer] = staging_bytes;
+            staging_bytes += uint64_t(staging_pages) * v_bytes;
+        }
+        if (staging_bytes != uint64_t(staging_pages) * exact_graph_plan->page_bytes) {
+            throw std::runtime_error("exact page-wave staging geometry is inconsistent");
+        }
+        if (staging_bytes == 0 || staging_bytes > uint64_t(std::numeric_limits<int64_t>::max())) {
+            throw std::runtime_error("exact page-wave staging window overflows");
+        }
+        inp->exact_staging_pages = staging_pages;
+        inp->direct_staging_storage = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                int64_t(staging_bytes));
+        if (inp->direct_staging_storage == nullptr) {
+            throw std::runtime_error("failed to create exact page-wave staging slab");
+        }
+        ggml_set_input(inp->direct_staging_storage);
+
+        const auto storage_device = ggml_backend_buft_get_device(
+                ggml_backend_buffer_get_type(inp->direct_storage->buffer));
+        ggml_backend_t direct_backend = nullptr;
+        for (int i = 0; i < ggml_backend_sched_get_n_backends(sched); ++i) {
+            ggml_backend_t candidate = ggml_backend_sched_get_backend(sched, i);
+            if (candidate && ggml_backend_get_device(candidate) == storage_device) {
+                direct_backend = candidate;
+                break;
+            }
+        }
+        if (direct_backend == nullptr) {
+            throw std::runtime_error("exact page-wave CUDA backend is unavailable");
+        }
+        ggml_backend_sched_set_tensor_backend(sched, inp->direct_staging_storage, direct_backend);
+
+        // Build one compact logical-row array in the immutable plan order.
+        // Every descriptor points into this array; tails and causal positions
+        // are retained explicitly instead of inferred from physical slots.
+        std::vector<llama_kv_page_record> records = pager->exact_page_records(
+                exact_graph_plan->sequence_id);
+        std::vector<const llama_kv_page_record *> by_logical(
+                exact_graph_plan->coverage->logical_page_count(), nullptr);
+        for (const auto & record : records) {
+            if (record.id.logical_page < by_logical.size()) {
+                by_logical[record.id.logical_page] = &record;
+            }
+        }
+        std::vector<llama_pos> exact_positions;
+        for (const auto & wave : exact_graph_plan->coverage->waves()) {
+            for (const auto & page : wave.pages) {
+                if (page.logical_page >= by_logical.size() || by_logical[page.logical_page] == nullptr) {
+                    throw std::runtime_error("exact page-wave record disappeared during graph build");
+                }
+                for (uint32_t row = 0; row < page.valid_tokens; ++row) {
+                    if (page.native_position_begin >
+                            std::numeric_limits<llama_pos>::max() - llama_pos(row)) {
+                        throw std::runtime_error("exact page-wave native position overflow");
+                    }
+                    exact_positions.push_back(page.native_position_begin + llama_pos(row));
+                }
+            }
+        }
+        if (exact_positions.empty() || exact_positions.size() > UINT32_MAX) {
+            throw std::runtime_error("exact page-wave graph has no bounded logical rows");
+        }
+        inp->exact_n_rows = uint32_t(exact_positions.size());
+        inp->direct_native_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                exact_positions.size());
+        inp->direct_native_mask = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                exact_positions.size());
+        inp->direct_query_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                ubatch.n_tokens);
+        ggml_set_input(inp->direct_native_positions);
+        ggml_set_input(inp->direct_native_mask);
+        ggml_set_input(inp->direct_query_positions);
+        ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_positions, direct_backend);
+        ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
+        ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
+        inp->direct_native_positions_host = std::move(exact_positions);
+        inp->direct_native_mask_host.assign(inp->exact_n_rows, 1);
+        inp->direct_query_positions_host.reserve(ubatch.n_tokens);
+        for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+            inp->direct_query_positions_host.push_back(ubatch.pos[token * ubatch.n_pos]);
+        }
+
+        uint32_t compact_row_begin = 0;
+        for (const auto & wave : exact_graph_plan->coverage->waves()) {
+            llm_graph_input_attn_kv::exact_wave_input wave_input;
+            wave_input.pages_host.reserve(wave.pages.size());
+            const bool cold = wave.contains_cold_pages;
+            for (size_t page_index = 0; page_index < wave.pages.size(); ++page_index) {
+                const auto & page = wave.pages[page_index];
+                uint32_t source_slot = page.physical_slot;
+                if (cold) source_slot = uint32_t(page_index);
+                wave_input.pages_host.push_back({ page.logical_page, source_slot,
+                        compact_row_begin, page.valid_tokens, page.native_position_begin });
+                compact_row_begin += page.valid_tokens;
+            }
+            if (cold) {
+                wave_input.host_upload.assign(size_t(staging_bytes), 0);
+                const auto & host_pages = pager->host_catalog() != nullptr
+                    ? pager->host_catalog()->pages() : std::vector<vbr_selected_page_host_view>{};
+                for (size_t page_index = 0; page_index < wave.pages.size(); ++page_index) {
+                    const auto & page = wave.pages[page_index];
+                    const llama_kv_page_record * record = by_logical[page.logical_page];
+                    const auto host = std::find_if(host_pages.begin(), host_pages.end(),
+                            [&](const auto & value) { return value.page.identity == record->id; });
+                    if (host == host_pages.end()) {
+                        throw std::runtime_error("exact cold page has no canonical host payload");
+                    }
+                    for (const auto & unit : host->page.units) {
+                        if (unit.layer >= geometry.layer_k_page_bytes.size() || !unit.bytes ||
+                            unit.valid_rows == 0 || unit.row_bytes == 0 ||
+                            unit.bytes->size() != uint64_t(unit.valid_rows) * unit.row_bytes) {
+                            throw std::runtime_error("exact cold page has invalid host unit");
+                        }
+                        const bool value = unit.side == vbr_artifact_side::value;
+                        const uint64_t layer_offset = value
+                            ? inp->exact_staging_layer_v_offsets[unit.layer]
+                            : inp->exact_staging_layer_k_offsets[unit.layer];
+                        const uint64_t layer_bytes = value
+                            ? geometry.layer_v_page_bytes[unit.layer]
+                            : geometry.layer_k_page_bytes[unit.layer];
+                        const uint64_t page_offset = uint64_t(page_index) *
+                            (value ? geometry.layer_v_page_bytes[unit.layer]
+                                   : geometry.layer_k_page_bytes[unit.layer]);
+                        if (page_index >= staging_pages || unit.bytes->size() > layer_bytes ||
+                            layer_offset > wave_input.host_upload.size() ||
+                            page_offset > wave_input.host_upload.size() - layer_offset ||
+                            unit.bytes->size() > wave_input.host_upload.size() -
+                                layer_offset - page_offset) {
+                            throw std::runtime_error("exact cold page host unit exceeds staging window");
+                        }
+                        if (!unit.bytes->read(0, wave_input.host_upload.data() + page_offset + layer_offset,
+                                size_t(unit.bytes->size()))) {
+                            throw std::runtime_error("exact cold page host read failed");
+                        }
+                    }
+                }
+            }
+            wave_input.pages = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                    int64_t(wave_input.pages_host.size() * sizeof(wave_input.pages_host[0])));
+            ggml_set_input(wave_input.pages);
+            ggml_backend_sched_set_tensor_backend(sched, wave_input.pages, direct_backend);
+            inp->exact_waves.push_back(std::move(wave_input));
+        }
+        if (kv_attention_metrics != nullptr) {
+            auto ledger = exact_graph_plan->coverage->ledger();
+            ledger.pages_visited = 0;
+            for (const auto & wave : exact_graph_plan->coverage->waves()) {
+                ledger.pages_visited += wave.pages.size();
+            }
+            ledger.valid_tokens = compact_row_begin;
+            kv_attention_metrics->record_exact_ledger(ledger);
+        }
+    }
+
     {
         GGML_ASSERT(hparams.swa_type == LLAMA_SWA_TYPE_NONE && "Use llama_kv_cache_iswa for SWA");
 
@@ -3468,7 +3701,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         inp->self_v_idxs = mctx_cur->build_input_v_idxs(ctx0, ubatch);
 
         inp->self_kq_mask = build_attn_inp_kq_mask(ctx0, mctx_cur, ubatch, cparams,
-                inp->selected_attention ? selected_metadata->get_n_kv() : 0);
+                inp->exact_wave_attention ? inp->exact_n_rows :
+                    inp->selected_attention ? selected_metadata->get_n_kv() : 0);
         inp->self_kq_mask_cnv = inp->self_kq_mask;
     }
 
@@ -3498,6 +3732,7 @@ llm_graph_input_attn_kv * llm_graph_context::build_attn_inp_kv() const {
                 ? &kv_attention_metadata : nullptr,
             kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
             kv_attention_route == llama_kv_attention_execution_route::exact_direct,
+            kv_attention_exact_plan,
             kv_attention_metrics, kv_attention_telemetry);
 
     return (llm_graph_input_attn_kv *) res->add_input(std::move(inp));
@@ -3554,7 +3789,81 @@ ggml_tensor * llm_graph_context::build_attn(
 
     ggml_tensor * cur = nullptr;
 
-    if (inp->direct_attention) {
+    if (inp->exact_wave_attention) {
+        GGML_ASSERT(inp->direct_staging_storage != nullptr);
+        const auto * pager = inp->mctx->get_kv_pager();
+        if (pager == nullptr || inp->exact_waves.empty()) {
+            throw std::runtime_error("exact page-wave graph has no wave inputs");
+        }
+        if (il < 0) {
+            throw std::runtime_error("exact page-wave attention received a negative layer id");
+        }
+        const auto layer_it = std::find(inp->direct_layer_ids.begin(),
+                inp->direct_layer_ids.end(), uint32_t(il));
+        if (layer_it == inp->direct_layer_ids.end()) {
+            throw std::runtime_error("exact page-wave layer is not a cache attention layer");
+        }
+        const size_t layer_ordinal = size_t(layer_it - inp->direct_layer_ids.begin());
+        if (layer_ordinal >= inp->direct_layer_k_offsets.size() ||
+            layer_ordinal >= inp->direct_layer_v_offsets.size() ||
+            layer_ordinal >= inp->exact_staging_layer_k_offsets.size() ||
+            layer_ordinal >= inp->exact_staging_layer_v_offsets.size()) {
+            throw std::runtime_error("exact page-wave layer mapping is out of range");
+        }
+        GGML_ASSERT(k->type == GGML_TYPE_TURBO4_0 && v->type == GGML_TYPE_TURBO4_0);
+        ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
+            ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
+        ggml_tensor * previous_state = nullptr;
+        ggml_tensor * final_output = nullptr;
+        const auto & geometry = pager->snapshot().geometry;
+        for (size_t wave_index = 0; wave_index < inp->exact_waves.size(); ++wave_index) {
+            auto & wave = inp->exact_waves[wave_index];
+            const bool cold = inp->exact_graph_plan->coverage->waves()[wave_index].contains_cold_pages;
+            ggml_tensor * storage = cold ? inp->direct_staging_storage : inp->direct_storage;
+            const uint64_t k_offset = cold ? inp->exact_staging_layer_k_offsets[layer_ordinal]
+                                           : inp->direct_layer_k_offsets[layer_ordinal];
+            const uint64_t v_offset = cold ? inp->exact_staging_layer_v_offsets[layer_ordinal]
+                                           : inp->direct_layer_v_offsets[layer_ordinal];
+            ggml_tensor * k_raw = ggml_view_1d(ctx0, storage, 1, k_offset);
+            ggml_tensor * v_raw = ggml_view_1d(ctx0, storage, 1, v_offset);
+            if (k_raw == nullptr || v_raw == nullptr) {
+                throw std::runtime_error("exact page-wave storage view failed");
+            }
+            k_raw->nb[1] = ggml_row_size(k->type, k->ne[0]);
+            k_raw->nb[2] = ggml_row_size(k->type, n_embd_head_k);
+            k_raw->nb[3] = geometry.layer_k_page_bytes[layer_ordinal];
+            v_raw->nb[1] = ggml_row_size(v->type, v->ne[0]);
+            v_raw->nb[2] = ggml_row_size(v->type, n_embd_head_v);
+            v_raw->nb[3] = geometry.layer_v_page_bytes[layer_ordinal];
+
+            ggml_flash_attn_ext_paged_turbo4_params wave_params = {};
+            wave_params.head_dim_k = uint32_t(n_embd_head_k);
+            wave_params.head_dim_v = uint32_t(n_embd_head_v);
+            wave_params.n_head_kv = uint32_t(n_head_kv);
+            wave_params.scale = kq_scale;
+            wave_params.causal = true;
+            wave_params.partial_state = previous_state;
+            wave_params.partial_state_accumulate = previous_state != nullptr;
+            wave_params.partial_state_output = wave_index + 1 < inp->exact_waves.size();
+            if (cold && !wave.host_upload.empty()) {
+                wave_params.host_upload = wave.host_upload.data();
+                wave_params.host_upload_bytes = wave.host_upload.size();
+            }
+            ggml_tensor * current = ggml_flash_attn_ext_paged_turbo4(
+                    ctx0, q_direct, k_raw, v_raw, storage, wave.pages,
+                    inp->direct_native_positions, inp->direct_native_mask,
+                    inp->direct_query_positions, &wave_params,
+                    wave.pages_host.data());
+            ggml_build_forward_expand(gf, current);
+            previous_state = wave_params.partial_state_output ? current : nullptr;
+            final_output = current;
+        }
+        GGML_ASSERT(final_output != nullptr);
+        cur = ggml_reshape_2d(ctx0, final_output,
+                final_output->ne[0] * final_output->ne[1],
+                final_output->ne[2] * final_output->ne[3]);
+        cb(cur, "kqv_out_exact_wave", il);
+    } else if (inp->direct_attention) {
         GGML_ASSERT(inp->direct_storage != nullptr);
         if (il < 0) {
             throw std::runtime_error("direct paged attention received a negative model layer id");
@@ -4413,6 +4722,7 @@ llm_graph_input_mem_hybrid * llm_graph_context::build_inp_mem_hybrid() const {
                 ? &kv_attention_metadata : nullptr,
             kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
             kv_attention_route == llama_kv_attention_execution_route::exact_direct,
+            kv_attention_exact_plan,
             kv_attention_metrics, kv_attention_telemetry);
 
     auto inp = std::make_unique<llm_graph_input_mem_hybrid>(cparams, std::move(inp_attn), std::move(inp_rs), mctx_cur);

@@ -2514,6 +2514,18 @@ extern "C" {
         int64_t  native_position_begin;
     };
 
+    // Lifetime-owned graph metadata for the paged CUDA node. The page table
+    // remains host-validated; host_upload is optional and is used only by an
+    // exact cold-wave node to fill its private staging slab.
+    struct ggml_flash_attn_ext_paged_turbo4_extra {
+        uint64_t    magic;
+        const void * pages_host;
+        const void * host_upload;
+        size_t      host_upload_bytes;
+    };
+
+#define GGML_FLASH_ATTN_EXT_PAGED_TURBO4_EXTRA_MAGIC UINT64_C(0x5034345041474545)
+
     struct ggml_flash_attn_ext_paged_turbo4_params {
         uint32_t head_dim_k;
         uint32_t head_dim_v;
@@ -2524,6 +2536,19 @@ extern "C" {
         // output. The CUDA kernel writes page-level softmax mass without
         // exposing an attention matrix to the host.
         struct ggml_tensor * page_mass;
+        // Optional previous unnormalized state.  When present, the CUDA
+        // backend merges this wave into the state with online-softmax
+        // rescaling before either writing a state result or normalizing.
+        struct ggml_tensor * partial_state;
+        // A partial-state result has shape [2 + head_dim_v, query_heads,
+        // query_tokens, 1] and is consumed by the next wave node.  The final
+        // node leaves this false and returns the ordinary attention output.
+        bool partial_state_output;
+        bool partial_state_accumulate;
+        // Optional immutable host payload for one exact cold wave.  The
+        // graph owner retains this memory until the node has completed.
+        const void * host_upload;
+        size_t host_upload_bytes;
     };
 
     GGML_API struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(

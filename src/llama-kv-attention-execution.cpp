@@ -231,7 +231,8 @@ bool llama_kv_attention_execution::same_graph(
     return have_graph_ && metadata.graph_content_key() == metadata_.graph_content_key() &&
            metadata.table_epoch() == table_epoch_ &&
            phase == phase_ && representation_epoch == representation_epoch_ &&
-           shape_epoch == shape_epoch_ && route == route_;
+           shape_epoch == shape_epoch_ && route == route_ &&
+           exact_graph_plan_.get() == graph_plan_.get();
 }
 
 llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
@@ -334,6 +335,7 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         table_epoch_ = metadata.table_epoch();
         representation_epoch_ = representation_epoch;
         shape_epoch_ = shape_epoch;
+        graph_plan_ = exact_graph_plan_;
         have_graph_ = true;
         graph_fences_.push_back(metadata.acquire_graph_fence());
     }
@@ -415,4 +417,6 @@ void llama_kv_attention_execution::clear() noexcept {
     phase_ = llama_kv_attention_execution_phase::prefill;
     table_epoch_ = representation_epoch_ = shape_epoch_ = 0;
     have_graph_ = false;
+    exact_graph_plan_.reset();
+    graph_plan_.reset();
 }

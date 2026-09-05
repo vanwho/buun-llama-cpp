@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 // Exact attention is intentionally an internal reference seam.  A partial is
@@ -133,6 +134,9 @@ public:
 
     bool valid() const noexcept { return valid_; }
     uint32_t logical_page_count() const noexcept { return ledger_.logical_page_count; }
+    uint32_t pages_per_wave() const noexcept { return pages_per_wave_; }
+    uint32_t staging_slots() const noexcept { return staging_slots_; }
+    uint64_t page_bytes() const noexcept { return page_bytes_; }
     const std::vector<llama_kv_attention_exact_wave> & waves() const noexcept { return waves_; }
     const llama_kv_attention_exact_ledger & ledger() const noexcept { return ledger_; }
 
@@ -147,7 +151,9 @@ private:
     bool valid_ = false;
     llama_kv_attention_exact_schedule schedule_ =
         llama_kv_attention_exact_schedule::serial;
+    uint32_t pages_per_wave_ = 1;
     uint32_t staging_slots_ = 1;
+    uint64_t page_bytes_ = 0;
     std::vector<uint8_t> visited_;
     // `logical_page_count` is the logical address span, not the number of
     // records.  Host catalogs may intentionally omit a logical page (for
@@ -156,6 +162,16 @@ private:
     std::vector<uint8_t> expected_;
     std::vector<llama_kv_attention_exact_wave> waves_;
     llama_kv_attention_exact_ledger ledger_;
+};
+
+// Lifetime-owned graph binding for the noncaptured exact path.  The coverage
+// plan is immutable while a graph is being built/submitted; the graph input
+// owns the concrete descriptor and host-payload vectors derived from it.
+struct llama_kv_attention_exact_graph_plan {
+    std::shared_ptr<const llama_kv_attention_exact_wave_plan> coverage;
+    int32_t sequence_id = -1;
+    uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS;
+    uint64_t page_bytes = 0;
 };
 
 struct llama_kv_attention_exact_backend {
