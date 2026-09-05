@@ -187,6 +187,69 @@ def restore_profile(profile: str | None) -> dict[str, object]:
             "exit_code": result.returncode, "profile": profile}
 
 
+def healthy(snapshot: dict[str, object]) -> bool:
+    value = snapshot.get("health")
+    return isinstance(value, dict) and value.get("http_code") == 200
+
+
+def failure_class(canonical_rc: int | None, errors: list[str]) -> str | None:
+    """Classify a failed boundary while retaining every individual error."""
+    if canonical_rc is not None and canonical_rc != 0:
+        return "canonical_runner_failure"
+    if any(error.startswith("restoration_") or error.startswith("restore_")
+           for error in errors):
+        return "restoration_failure"
+    if any("authentication" in error for error in errors):
+        return "authentication_configuration"
+    if any(error.startswith("runtime_identity_mismatch") for error in errors):
+        return "runtime_identity_mismatch"
+    if any(error.startswith("missing_pager_telemetry") for error in errors):
+        return "missing_runtime_telemetry"
+    if any(error.startswith("request_contract_failure") or
+           error.startswith("missing_record_") or
+           error.startswith("malformed_records") for error in errors):
+        return "benchmark_record_failure"
+    return "adapter_validation_failure" if errors else None
+
+
+def verify_restoration(before: dict[str, object], after: dict[str, object],
+                       restoration: dict[str, object]) -> list[str]:
+    """Verify the managed profile, PID, and health after cleanup."""
+    errors: list[str] = []
+    state = restoration.get("state")
+    if state == "activator_not_configured":
+        errors.append("restoration_not_configured")
+    elif state in {"restore_failed", "activation_error"}:
+        errors.append("restoration_failed:" + str(state))
+
+    before_profile = before.get("profile")
+    if before_profile and after.get("profile") != before_profile:
+        errors.append("restore_verification_failed:profile")
+
+    before_pid = before.get("pid")
+    after_pid = after.get("pid")
+    if before_pid is not None:
+        # Activation may restart the service, so a new PID is valid. Verify
+        # that the managed service did return and that the identity snapshot
+        # reports the same live PID instead of comparing numeric reuse.
+        identity = after.get("identity")
+        identity_pid = identity.get("pid") if isinstance(identity, dict) else None
+        if not isinstance(after_pid, int) or after_pid <= 0 or identity_pid != after_pid:
+            errors.append("restore_verification_failed:pid")
+
+    # A service that was healthy before the candidate run must be healthy
+    # after restoration. A previously absent service is allowed to remain
+    # stopped and is recorded explicitly.
+    if healthy(before) and not healthy(after):
+        errors.append("restore_verification_failed:health")
+    if state == "no_prior_profile":
+        if not healthy(after) and after.get("pid") is None:
+            restoration["state"] = "known_stopped"
+        else:
+            errors.append("restoration_failed:no_prior_profile")
+    return errors
+
+
 def record_validation_errors(output: pathlib.Path) -> list[str]:
     records_path = output / "records.jsonl"
     if not records_path.exists():
@@ -366,7 +429,8 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
 
 
 def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, object], after: dict[str, object], telemetry: dict[str, object] | None,
-           validation_errors: list[str], restoration: dict[str, object] | None) -> None:
+           validation_errors: list[str], restoration: dict[str, object] | None,
+           canonical_rc: int | None) -> None:
     config_path = output / "run-config.json"
     config = json.loads(config_path.read_text())
     config["pager"] = pager_envelope(variant, telemetry)
@@ -383,6 +447,9 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
     config["lifecycle"] = {
         "policy": "restore-on-request-or-failure; keep-loaded-on-success",
         "resume_usable": not validation_errors and bool(after.get("health") and after["health"].get("http_code") == 200),
+        "canonical_exit_code": canonical_rc,
+        "adapter_validation": "passed" if not validation_errors else "failed",
+        "failure_class": failure_class(canonical_rc, validation_errors),
         "active_profile_after_run": after.get("profile"),
         "validation_errors": validation_errors,
         "restoration": restoration,
@@ -392,6 +459,9 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
         "policy": config["lifecycle"]["policy"],
         "resume_usable": config["lifecycle"]["resume_usable"],
         "restore_requested": restore_requested,
+        "canonical_exit_code": canonical_rc,
+        "adapter_validation": "passed" if not validation_errors else "failed",
+        "failure_class": failure_class(canonical_rc, validation_errors),
         "profile_before": before.get("profile"),
         "profile_after": after.get("profile"),
         "health_after": after.get("health"),
@@ -472,6 +542,9 @@ def main() -> int:
         (output / "lifecycle-state.json").write_text(json.dumps({
             "schema_version": 1,
             "policy": "restore-on-request-or-failure; keep-loaded-on-success",
+            "canonical_exit_code": None,
+            "adapter_validation": "failed",
+            "failure_class": "authentication_configuration",
             "profile_before": before.get("profile"),
             "profile_after": before.get("profile"),
             "identity_before": before.get("identity"),
@@ -508,6 +581,8 @@ def main() -> int:
     if runner_error:
         validation_errors.append(runner_error)
     canonical_rc = result.returncode if result is not None else 1
+    if canonical_rc != 0:
+        validation_errors.append(f"canonical_runner_exit:{canonical_rc}")
     config: dict[str, object] | None = None
     if (output / "run-config.json").exists():
         try:
@@ -541,26 +616,21 @@ def main() -> int:
         # idempotent call covers failures discovered only by this adapter after
         # the runner returned success, and covers a runner startup exception.
         restoration = restore_profile(before.get("profile"))
-        if restoration.get("state") == "activator_not_configured":
-            validation_errors.append("restoration_not_configured")
         after = service_snapshot(endpoint)
-        stopped = after.get("identity", {}).get("pid") is None and not (
-            after.get("health") and after["health"].get("http_code") == 200
-        )
-        if stopped:
-            restoration["state"] = "known_stopped"
-        elif before.get("profile") and after.get("profile") != before.get("profile"):
-            validation_errors.append("restore_verification_failed")
+        validation_errors.extend(verify_restoration(before, after, restoration))
 
     if (output / "run-config.json").exists():
         try:
             enrich(output, args.target, args.variant, before, after, telemetry_after,
-                   validation_errors, restoration)
+                   validation_errors, restoration, canonical_rc)
         except (OSError, TypeError, json.JSONDecodeError):
             validation_errors.append("malformed_run_artifacts")
             (output / "lifecycle-state.json").write_text(json.dumps({
                 "schema_version": 1,
                 "policy": "restore-on-request-or-failure; keep-loaded-on-success",
+                "canonical_exit_code": canonical_rc,
+                "adapter_validation": "failed",
+                "failure_class": failure_class(canonical_rc, validation_errors),
                 "profile_before": before.get("profile"),
                 "profile_after": after.get("profile"),
                 "identity_before": before.get("identity"),
@@ -572,6 +642,9 @@ def main() -> int:
         (output / "lifecycle-state.json").write_text(json.dumps({
             "schema_version": 1,
             "policy": "restore-on-request-or-failure; keep-loaded-on-success",
+            "canonical_exit_code": canonical_rc,
+            "adapter_validation": "failed",
+            "failure_class": failure_class(canonical_rc, validation_errors),
             "profile_before": before.get("profile"),
             "profile_after": after.get("profile"),
             "identity_before": before.get("identity"),
