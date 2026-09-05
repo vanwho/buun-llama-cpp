@@ -74,5 +74,9 @@ do not override task acceptance or repository instructions.
 | `17b-mtp-capacity` | 17-04–17-05 | Dynamic Turbo4 MTP admission and rollback atomicity |
 | `17c-corpus-exact` | 17-06–17-07 | Fact-bearing corpus and exact/selected-all reference |
 | `17d-benchmark-quality` | 17-08–17-09 | Model-backed quality and paired performance evidence |
-| `17e-benchmark-soak` | 17-10–17-11 | Soak campaign and compact benchmark summary |
+| `17e-benchmark-soak` | 17-10–17-11 | Initial soak campaign and compact benchmark summary |
+| `17f-context-pressure` | 17-12–17-13 | Dynamic acceptance context and physical pager pressure |
+| `17g-quality-oracles` | 17-14 | Exact/native and concurrent correctness oracles |
+| `17h-full-benchmarks` | 17-15–17-17 | Full-context quality, paired speed, and pressured soak |
+| `17i-summary` | 17-18 | Revised phase-17 evidence summary |
 | `18a-benchmark-review` | 18-01 | Benchmark-only overall-goal assessment and remediation chaining |

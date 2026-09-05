@@ -1435,16 +1435,23 @@ narratives:
 - `17b-mtp-capacity`: dynamic VRAM admission for target/draft Turbo4 and speculative rollback atomicity;
 - `17c-corpus-exact`: fact-bearing multi-page corpus and exact/selected-all correctness reference;
 - `17d-benchmark-quality`: model-backed quality campaign;
-- `17e-benchmark-soak`: paired performance, endurance, and compact evidence consolidation.
+- `17e-benchmark-soak`: initial paired performance, endurance, and compact evidence consolidation;
+- `17f-context-pressure`: remove the accidental 16K acceptance boundary and force measurable physical
+  page pressure;
+- `17g-quality-oracles`: repair exact/native and concurrent response correctness before scoring;
+- `17h-full-benchmarks`: rerun full-context quality, apples-to-apples speed, and pressured lifecycle soak;
+- `17i-summary`: consolidate the revised phase-17 manifests for review.
 
-Tasks `17-08`–`17-11` must preserve raw benchmark roots and hashes while writing only concise manifests and
-summaries into `.wiretail/execution/evidence/`. They measure dynamic context and ledger-derived hot capacity;
-the historical 77K estimate is not a production constant. Phase 17 is complete only when its implementation
-and benchmark tasks have honest pass/block decisions and `PHASE17_BENCHMARK_SUMMARY.json/.md` exists.
+Tasks `17-08`–`17-18` must preserve raw benchmark roots and hashes while writing only concise manifests and
+summaries into `.wiretail/execution/evidence/`. Small contexts may be used for startup diagnostics only;
+acceptance runs must cover the corpus-derived ceiling and create physical host/device pressure. They measure
+dynamic context and ledger-derived hot capacity; the historical 77K estimate is not a production constant.
+Phase 17 is complete only when its implementation and revised benchmark tasks have honest pass/block
+decisions and `PHASE17_BENCHMARK_SUMMARY_V2.json/.md` exists.
 
 ### Phase 18 — benchmark-only overall-goal review
 
-`18-01` reads the phase-17 compact summary and raw pointers, not every prior phase's acceptance files or
+`18-01` reads the revised phase-17 compact summary and raw pointers, not every prior phase's acceptance files or
 handoffs. It writes `PHASE18_REVIEW.json/.md` with quality, speed, MTP placement, residency, dynamic-context,
 and soak findings and a direct `goal_reached`, `partially_reached`, or `not_reached` verdict. If the goal is not
 reached, it creates a new measured-gap remediation phase (normally 19), repeats implementation tasks required
