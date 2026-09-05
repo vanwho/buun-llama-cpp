@@ -1,0 +1,137 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "20-06",
+  "result": "pass",
+  "kind": "implementation_and_measurement",
+  "procedure": "ordinary_cpu_kv_gpu_mtp_control",
+  "created_utc": "2026-09-05T19:00:00Z",
+  "classification": {
+    "cpu_turbo4_reference_attention": "pass",
+    "cpu_kv_gpu_mtp_startup": "pass",
+    "same_prefix_small_control": "pass",
+    "same_prefix_pressured_control": "pass",
+    "all_gpu_turbo4_mtp_capacity_ledger": "pass",
+    "canonical_runner_off_mode_artifact": "not_configured"
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "0b593fae042615a27b1705c45b6ba89062629f14",
+    "source_diff_sha256": "a604a164b7dbbb5502a5bfd85c6ebf9c00e1d4d341d20d366ac3f4f099a8a392",
+    "model": "/srv/ai/models/text/current.gguf -> /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "bundle": "/srv/ai/paged-kv/results/20-06-runtime-bundle-20260905T210000Z",
+    "server_binary_sha256": "5aad03c27ffd44e8516d6500b23c8566aa87165c84cc1f93e90760732ddc23d7",
+    "bundle_files_sha256": {
+      "libggml-base.so.0.22.0": "454cc09d178ddd8f32962b6b82d6185827a8d6dfa061816376c06896ea24636a",
+      "libggml-cpu.so.0.22.0": "bee3ea4ac6d32aeddd7db6ea6ba944286313a0c67a4bcbcdb9d3132bf9989e5a",
+      "libggml-cuda.so.0.22.0": "69e795525f5fe28a0db387be7dddf453fa39e147dabf7d90be6749df6eacb047",
+      "libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+      "libllama.so.0.3.0": "ea7feb9cc0469cd003690a45dd17ee5a0f64276ad672189b49f754e9f3a7082b",
+      "libllama-common.so.0.3.0": "5a02bf06a9f42013ebeae48456768f9c99b7a7f7921abb98a1c9ab4fb5d4a154",
+      "libllama-server-impl.so": "4aa3a889393def36fbe999089d662eb833e078fcfaa342807b2e3cab309ae0a3"
+    },
+    "hardware": "NVIDIA GeForce RTX 4080, CUDA 0, AMD Ryzen 9 7950X3D; service 8080; unrelated 8092 untouched",
+    "bundle_manifest_sha256": null,
+    "config_sha256": null
+  },
+  "runtime_contract": {
+    "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+    "target_model_execution": "GPU layers (-ngl 999), recurrent/model execution retained on CUDA",
+    "cpu_kv_command_difference": "--no-kv-offload",
+    "target_cache_types": ["turbo4", "turbo4"],
+    "draft_kv_device": "gpu",
+    "draft_cache_types": ["turbo4", "turbo4"],
+    "draft_rows_small_and_pressured": 4096,
+    "draft_bytes_small_and_pressured": 4456448,
+    "draft_backend": "CUDA0",
+    "logical_context_small_and_pressured": 4096,
+    "sampling": {"temperature": 0, "seed": 42, "stream": false},
+    "cache_settings": {"pager": "off", "page_size_tokens": 256, "cache_ram_mib": 0, "ctx_checkpoints": 0, "cache_idle_slots": false}
+  },
+  "checks": [
+    {"name": "CPU FLASH_ATTN_EXT executes matched Turbo4 K/V without null vec_dot", "status": "pass", "raw_ids": ["cpu-backend-turbo4", "cuda-backend-turbo4"]},
+    {"name": "CPU Turbo4 cache retains canonical signed-FWHT representation and inverse K decode", "status": "pass", "raw_ids": ["cpu-runtime-log", "cuda-backend-turbo4"]},
+    {"name": "CPU-KV/GPU-MTP startup has no codec fallback and commits draft Turbo4 rows on CUDA0", "status": "pass", "raw_ids": ["cpu-runtime-log"]},
+    {"name": "Same-prefix small and pressured outputs match all-GPU controls", "status": "pass", "raw_ids": ["small-cpu-response", "small-gpu-response", "pressured-cpu-response", "pressured-gpu-response"]},
+    {"name": "Independent all-GPU capacity ledger", "status": "pass", "raw_ids": ["max-98304", "max-114688", "max-131072"]},
+    {"name": "Relevant KV/pager regression tests and CUDA paged Turbo4 test", "status": "pass", "raw_ids": ["local-tests"]}
+  ],
+  "measurements": {
+    "same_prefix": {
+      "prompt": "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "sampling": {"temperature": 0, "seed": 42, "max_tokens": 40},
+      "small": {
+        "prompt_tokens": 70,
+        "completion_tokens": 40,
+        "all_gpu_wall_seconds": 0.526939648,
+        "cpu_kv_wall_seconds": 1.649380096,
+        "cpu_mtp_draft_tokens": 28,
+        "cpu_mtp_accepted_tokens": 24,
+        "message_exact": true
+      },
+      "pressured": {
+        "prompt_tokens": 1898,
+        "completion_tokens": 8,
+        "all_gpu_wall_seconds": 1.169011712,
+        "cpu_kv_wall_seconds": 2.92276864,
+        "all_gpu_prompt_seconds": 1.05988,
+        "cpu_kv_prompt_seconds": 2.646803,
+        "all_gpu_mtp_draft_tokens": 4,
+        "all_gpu_mtp_accepted_tokens": 4,
+        "cpu_kv_mtp_draft_tokens": 4,
+        "cpu_kv_mtp_accepted_tokens": 4,
+        "message_exact": true,
+        "prefix_generation": "deterministic repeated sentence; raw request JSON retained"
+      }
+    },
+    "capacity_ledger": {
+      "device_total_mib": 16376,
+      "before_mib": 148,
+      "tested": [
+        {"context_tokens": 77824, "status": "healthy", "after_mib": 15457, "draft_mtp_rows": 77824, "draft_mtp_bytes": 82313216},
+        {"context_tokens": 98304, "status": "healthy", "after_mib": 15817, "draft_mtp_rows": 98304, "draft_mtp_bytes": 103940096},
+        {"context_tokens": 114688, "status": "oom", "error": "cudaMalloc failed allocating 115.62 MiB for KV cache"},
+        {"context_tokens": 131072, "status": "oom", "error": "cudaMalloc failed allocating 448.88 MiB for rs cache"}
+      ],
+      "safe_maximum_tokens": 98304,
+      "denominator_note": "98304 is the largest tested healthy all-GPU Turbo4+native-MTP context; 114688 and 131072 are explicit unavailable denominators."
+    },
+    "service_final": {"active": true, "substate": "running", "n_restarts": 0, "context_tokens": 98304, "pager": "off", "target": "CUDA Turbo4", "mtp": "GPU Turbo4"}
+  },
+  "raw_index": [
+    {"id": "cpu-runtime-log", "path": "/srv/ai/paged-kv/results/20-06-controls-cpu-kv-mtp-gpu-20260905T210000Z/raw/server-final4.log", "sha256": "3c25a88ae343df5337fb6b25cfc95a8c219df6b24c702bdc82ff89b9b183575a"},
+    {"id": "small-cpu-response", "path": "/srv/ai/paged-kv/results/20-06-controls-cpu-kv-mtp-gpu-20260905T210000Z/raw/small3/response.json", "sha256": "8cb0db89d058d6c6343c156a5104a97471db0fbea444d1cac4a3ba570e11c36f"},
+    {"id": "small-gpu-response", "path": "/srv/ai/paged-kv/results/20-06-controls-allgpu-20260905T210000Z-rerun/raw/direct-same-prefix/response.json", "sha256": "68d7e1c836de81b1189153ed33d36040e13ce221c13b5bf622e0eae584765523"},
+    {"id": "pressured-cpu-response", "path": "/srv/ai/paged-kv/results/20-06-controls-cpu-kv-mtp-gpu-20260905T210000Z/raw/pressured/response.json", "sha256": "55d2a957010cc5efb7d0cbc74ee1bee28636af09377ca34a8866b0033dce1eb6"},
+    {"id": "pressured-gpu-response", "path": "/srv/ai/paged-kv/results/20-06-controls-allgpu-20260905T210000Z-rerun/raw/pressured/response.json", "sha256": "fb0eb2de1c209a035938d84625e13cee123f45eccfdd9b8b4237f7df8ff9ec79"},
+    {"id": "max-98304", "path": "/srv/ai/paged-kv/results/20-06-controls-allgpu-20260905T210000Z-rerun/raw/maximum-98304", "sha256": "b27c5fc9685f7cee38d9b538a9318a3a4bc84f00c31ffc158cf66dbdddca8ec6"},
+    {"id": "max-114688", "path": "/srv/ai/paged-kv/results/20-06-controls-allgpu-20260905T210000Z-rerun/raw/maximum-114688/server.log", "sha256": "029dd4d5cebe05ece0b9fe381727f539aa4f13eb0a32bb4090a7a790ed141778"},
+    {"id": "max-131072", "path": "/srv/ai/paged-kv/results/20-06-controls-allgpu-20260905T210000Z-rerun/raw/maximum-131072/server.log", "sha256": "220c7c755c6aac8f7729fe125aff1d471524bfeb161cff80ed5d2c40813aee15"},
+    {"id": "local-tests", "path": "build-cuda/bin/test-backend-ops; build-cuda/bin/test-cuda-fattn-paged-turbo4; ctest -R test-kv-(pager|residency|policy)", "sha256": null}
+  ],
+  "local_verification": [
+    {"command": "cmake --build build-cuda --target ggml-base ggml-cpu llama-server test-backend-ops -j2", "status": "pass"},
+    {"command": "build-cuda/bin/test-backend-ops test -b CPU -o FLASH_ATTN_EXT -p 'turbo4'", "status": "pass; repeated twice"},
+    {"command": "build-cuda/bin/test-backend-ops test -b CUDA0 -o FLASH_ATTN_EXT -p 'turbo4'", "status": "pass; CPU reference comparison"},
+    {"command": "build-cuda/bin/test-cuda-fattn-paged-turbo4", "status": "pass"},
+    {"command": "ctest --test-dir build-cuda --output-on-failure -R '^test-kv-(pager|residency|policy)$'", "status": "3/3 passed"},
+    {"command": "git diff --check", "status": "pass"},
+    {"command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate", "status": "pending until state completion update"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "canonical_runner_off_mode_artifact": "The site adapter labels mode=off as not_configured and does not validate pager telemetry for an off run; the exact server CLI, authenticated responses, counters, startup logs and identity were retained as the live control evidence.",
+    "quality": "This task measures same-prefix control equivalence and timing, not corpus answer quality or PPL.",
+    "hardware": "No unavailable hardware check; live RTX 4080/CUDA verification completed."
+  },
+  "resume": {
+    "command": "Reuse /srv/ai/paged-kv/results/20-06-runtime-bundle-20260905T210000Z and the saved request JSONs; next task may use the managed 98304-token all-GPU candidate.",
+    "next_case": "phase-21 final measurement; preserve 98304 safe all-GPU denominator and 4096 diagnostic controls",
+    "secrets_omitted": true
+  },
+  "implementation_owner": "ggml/src/ggml-cpu/ops.cpp and ggml/src/ggml-turbo-quant.c; CPU Turbo4 cache admission in src/llama-kv-cache.cpp"
+}
