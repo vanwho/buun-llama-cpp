@@ -5333,6 +5333,10 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         return nullptr;
     }
 
+    if (memory) {
+        memory->capture_kv_routing_query(nullptr, -1, ubatch);
+    }
+
     const auto attention_decision = prepare_kv_attention_graph(ubatch, mctx, gtype);
     if (!attention_decision.accepted()) {
         if (mctx) mctx->finish(false);
@@ -7021,6 +7025,13 @@ llm_graph_cb llama_context::graph_get_cb() const {
             ggml_format_name(cur, "%s-%d", name, il);
         } else {
             ggml_set_name(cur, name);
+        }
+
+        // Qcur is emitted after the model-specific position transform. Keep
+        // the tensor handle beside its runtime layer ordinal; the cache reads
+        // the completed value only at the existing post-fence policy boundary.
+        if (strcmp(name, "Qcur") == 0 && memory) {
+            memory->capture_kv_routing_query(cur, il, ubatch);
         }
 
         // - norm may be automatically assigned to the backend of the previous layer, increasing data transfer between backends

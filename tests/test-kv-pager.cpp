@@ -679,9 +679,10 @@ int main() {
         assert(summary_pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
         assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
     }
-    assert(summary_pager->seal_ready_pages() == 1);
+    assert(summary_pager->seal_ready_pages() == 2);
     assert(summary_pager->routing_summaries().valid());
-    assert(summary_pager->routing_summary_accounting().source_rows == 4);
+    assert(summary_pager->routing_summary_index().table_count() == 16 * 4);
+    assert(summary_pager->routing_summary_accounting().source_rows == 8);
     std::vector<float> summary_query(256, 0.0f);
     summary_query[0] = 1.0f;
     const auto summary_scores = summary_pager->routing_summaries().score(

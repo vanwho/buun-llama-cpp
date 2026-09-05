@@ -38,6 +38,7 @@ struct llama_kv_routing_query {
     llama_pos position = -1;
     uint32_t layer_index = 0;
     uint32_t head_index = 0;
+    uint64_t coordinate_identity = 0;
 };
 
 // Page attributes are supplied by the controller/application at the decode
@@ -112,6 +113,7 @@ struct llama_kv_routing_retrieval_result {
     llama_pos position = -1;
     uint32_t layer_index = 0;
     uint32_t head_index = 0;
+    uint64_t coordinate_identity = 0;
     std::vector<llama_kv_routing_retrieval_entry> selected;
     llama_kv_routing_retrieval_metrics metrics;
 };
@@ -122,6 +124,15 @@ struct llama_kv_routing_retrieval_result {
 // top-K, and a deterministic rotating exploration slice.
 llama_kv_routing_retrieval_result llama_kv_routing_retrieve(
         const llama_kv_residency_snapshot & snapshot,
+        const llama_kv_routing_summary_store & summaries,
+        const llama_kv_routing_query & query,
+        const llama_kv_routing_retrieval_config & config,
+        const std::vector<llama_kv_routing_page_attributes> & attributes,
+        const std::vector<llama_kv_page_id> & previous_target = {}) noexcept;
+
+llama_kv_routing_retrieval_result llama_kv_routing_retrieve(
+        const llama_kv_residency_snapshot & snapshot,
+        const llama_kv_routing_page_inventory & inventory,
         const llama_kv_routing_summary_store & summaries,
         const llama_kv_routing_query & query,
         const llama_kv_routing_retrieval_config & config,

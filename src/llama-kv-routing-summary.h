@@ -38,6 +38,9 @@ struct llama_kv_routing_summary_config {
     llama_kv_routing_summary_form form = llama_kv_routing_summary_form::representatives;
     uint32_t layer_index = 0;
     uint32_t head_index = 0;
+    // Identity of the projected/position-transformed query and key
+    // coordinate system. Zero retains the legacy untagged fixture form.
+    uint64_t coordinate_identity = 0;
 };
 
 // rows contains rotated K rows for one page, in row-major order.  A tail may
@@ -85,12 +88,24 @@ struct llama_kv_routing_summary_accounting {
     uint64_t content_hash = 0;
 };
 
+// The residency snapshot is only the hot view.  Retrieval uses this complete
+// logical inventory, whose cold records have physical_slot == UINT32_MAX and
+// are authenticated by the host catalog.
+using llama_kv_routing_page_inventory = std::vector<llama_kv_page_record>;
+
 class llama_kv_routing_summary_store {
 public:
     llama_kv_routing_summary_store() = default;
 
     static llama_kv_routing_summary_store build(
             const llama_kv_residency_snapshot & snapshot,
+            const std::vector<llama_kv_routing_page_input> & inputs,
+            const llama_kv_routing_summary_config & config,
+            llama_kv_routing_summary_status & status) noexcept;
+
+    static llama_kv_routing_summary_store build(
+            const llama_kv_residency_snapshot & snapshot,
+            const llama_kv_routing_page_inventory & inventory,
             const std::vector<llama_kv_routing_page_input> & inputs,
             const llama_kv_routing_summary_config & config,
             llama_kv_routing_summary_status & status) noexcept;
@@ -105,6 +120,15 @@ public:
         return build(snapshot, inputs, config, status);
     }
 
+    static llama_kv_routing_summary_store update(
+            const llama_kv_residency_snapshot & snapshot,
+            const llama_kv_routing_page_inventory & inventory,
+            const std::vector<llama_kv_routing_page_input> & inputs,
+            const llama_kv_routing_summary_config & config,
+            llama_kv_routing_summary_status & status) noexcept {
+        return build(snapshot, inventory, inputs, config, status);
+    }
+
     // Copy-on-write update for one sealed page. Existing summaries are not
     // reread or rebuilt; only the supplied sampled rows are materialized.
     llama_kv_routing_summary_store update_page(
@@ -113,10 +137,22 @@ public:
             const llama_kv_routing_summary_config & config,
             llama_kv_routing_summary_status & status) const noexcept;
 
+    llama_kv_routing_summary_store update_page(
+            const llama_kv_residency_snapshot & snapshot,
+            const llama_kv_routing_page_inventory & inventory,
+            const llama_kv_routing_page_input & input,
+            const llama_kv_routing_summary_config & config,
+            llama_kv_routing_summary_status & status) const noexcept;
+
     // Drop summaries whose page identity is no longer current. The returned
     // store is still tied to the new table epoch and can accept later seals.
     llama_kv_routing_summary_store reconcile(
             const llama_kv_residency_snapshot & snapshot,
+            llama_kv_routing_summary_status & status) const noexcept;
+
+    llama_kv_routing_summary_store reconcile(
+            const llama_kv_residency_snapshot & snapshot,
+            const llama_kv_routing_page_inventory & inventory,
             llama_kv_routing_summary_status & status) const noexcept;
 
     llama_kv_routing_summary_store invalidate_page(
@@ -131,12 +167,19 @@ public:
     uint64_t snapshot_epoch() const noexcept { return snapshot_epoch_; }
     uint32_t layer_index() const noexcept { return layer_index_; }
     uint32_t head_index() const noexcept { return head_index_; }
+    uint64_t coordinate_identity() const noexcept { return coordinate_identity_; }
     llama_kv_routing_summary_form form() const noexcept { return form_; }
     uint64_t content_hash() const noexcept { return accounting_.content_hash; }
     const llama_kv_routing_summary_accounting & accounting() const noexcept { return accounting_; }
 
     llama_kv_routing_score_result score(
             const llama_kv_residency_snapshot & snapshot,
+            const std::vector<float> & query,
+            uint32_t top_k) const noexcept;
+
+    llama_kv_routing_score_result score(
+            const llama_kv_residency_snapshot & snapshot,
+            const llama_kv_routing_page_inventory & inventory,
             const std::vector<float> & query,
             uint32_t top_k) const noexcept;
 
@@ -158,8 +201,31 @@ private:
     uint32_t vector_dim_ = 0;
     uint32_t layer_index_ = 0;
     uint32_t head_index_ = 0;
+    uint64_t coordinate_identity_ = 0;
     llama_kv_routing_summary_form form_ = llama_kv_routing_summary_form::representatives;
     uint64_t allocation_granularity_ = 1;
     std::vector<page> pages_;
     llama_kv_routing_summary_accounting accounting_;
+};
+
+// Runtime attention ordinal/group index. Each entry owns an immutable table
+// for one projected K coordinate system; page identity and generation remain
+// inside the table rather than being keyed by residency epoch.
+class llama_kv_routing_summary_index {
+public:
+    const llama_kv_routing_summary_store * find(
+            uint32_t layer_index, uint32_t head_index) const noexcept;
+    llama_kv_routing_summary_store * find(
+            uint32_t layer_index, uint32_t head_index) noexcept;
+    void set(llama_kv_routing_summary_store store) noexcept;
+    uint64_t charged_bytes() const noexcept;
+    uint32_t table_count() const noexcept { return uint32_t(entries_.size()); }
+
+private:
+    struct entry {
+        uint32_t layer_index = 0;
+        uint32_t head_index = 0;
+        llama_kv_routing_summary_store store;
+    };
+    std::vector<entry> entries_;
 };

@@ -646,3 +646,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-19-09`
 - Commit at update: `bfd866fb3`
 - Summary: Implemented bounded split-KV Turbo4 paged attention with device-side [m,l,o] merge, graph-owned scratch, global page-mass normalization, CUDA parity fixture, graph build, and local regression evidence; live native-MTP/end-to-end verification deferred.
+
+## 2026-09-05T15:59:12+00:00 — 20-01 — done
+
+- Branch: `codex/task-20-01`
+- Commit at update: `0dc204584`
+- Summary: Implemented query-driven all-page cold retrieval with per-layer/head summary tables, clean-eviction retention, authenticated identity/coordinate validation, post-fence Qcur capture, and production cold promotion boundary; CPU and CUDA focused regressions pass; Qwen35 live checkpoint deferred because model/corpus fixture is unavailable.

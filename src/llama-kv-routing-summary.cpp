@@ -24,6 +24,41 @@ bool valid_state(llama_kv_page_state state) {
     return state != llama_kv_page_state::absent && state != llama_kv_page_state::invalid;
 }
 
+bool valid_inventory_record(const llama_kv_page_record & record) {
+    const bool tail = llama_kv_page_id_is_tail(record.id);
+    if (!valid_state(record.state) || !llama_kv_page_id_valid(record.id, tail)) return false;
+    if (record.physical_slot == UINT32_MAX) {
+        return record.state == llama_kv_page_state::host_clean && record.host_valid;
+    }
+    return true;
+}
+
+bool same_logical(const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) {
+    return lhs.session_generation == rhs.session_generation &&
+           lhs.sequence_id == rhs.sequence_id &&
+           lhs.sequence_generation == rhs.sequence_generation &&
+           lhs.logical_page == rhs.logical_page;
+}
+
+bool inventory_matches_snapshot(
+        const llama_kv_residency_snapshot & snapshot,
+        const llama_kv_routing_page_inventory & inventory) {
+    for (size_t i = 0; i < inventory.size(); ++i) {
+        if (!valid_inventory_record(inventory[i])) return false;
+        for (size_t j = i + 1; j < inventory.size(); ++j) {
+            if (same_logical(inventory[i].id, inventory[j].id)) return false;
+        }
+    }
+    for (const auto & resident : snapshot.pages()) {
+        if (!valid_inventory_record(resident)) continue;
+        const auto it = std::find_if(inventory.begin(), inventory.end(),
+                [&](const auto & record) { return same_logical(record.id, resident.id); });
+        if (it == inventory.end() || it->id != resident.id ||
+            it->physical_slot != resident.physical_slot) return false;
+    }
+    return true;
+}
+
 bool valid_form(llama_kv_routing_summary_form form) {
     return form == llama_kv_routing_summary_form::representatives ||
            form == llama_kv_routing_summary_form::centroid_upper_bound;
@@ -146,10 +181,20 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
         const std::vector<llama_kv_routing_page_input> & inputs,
         const llama_kv_routing_summary_config & config,
         llama_kv_routing_summary_status & status) noexcept {
+    return build(snapshot, snapshot.pages(), inputs, config, status);
+}
+
+llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
+        const llama_kv_residency_snapshot & snapshot,
+        const llama_kv_routing_page_inventory & inventory,
+        const std::vector<llama_kv_routing_page_input> & inputs,
+        const llama_kv_routing_summary_config & config,
+        llama_kv_routing_summary_status & status) noexcept {
     status = llama_kv_routing_summary_status::invalid_argument;
     llama_kv_routing_summary_store result;
     const auto start = std::chrono::steady_clock::now();
-    if (snapshot.epoch() == 0 || config.representative_count < 4 || config.representative_count > 8 ||
+    if (snapshot.epoch() == 0 || inventory.empty() || !inventory_matches_snapshot(snapshot, inventory) ||
+        config.representative_count < 4 || config.representative_count > 8 ||
         config.vector_dim == 0 || config.allocation_granularity == 0 || !valid_form(config.form)) return result;
     try {
         result.snapshot_epoch_ = snapshot.epoch();
@@ -157,6 +202,8 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
         result.vector_dim_ = config.vector_dim;
         result.layer_index_ = config.layer_index;
         result.head_index_ = config.head_index;
+        result.coordinate_identity_ = config.coordinate_identity != 0
+            ? config.coordinate_identity : inventory.front().id.rotation_digest;
         result.form_ = config.form;
         result.allocation_granularity_ = config.allocation_granularity;
         for (size_t i = 0; i < inputs.size(); ++i) {
@@ -168,15 +215,15 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
             }
         }
         for (const auto & input : inputs) {
-            const auto it = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+            const auto it = std::find_if(inventory.begin(), inventory.end(),
                     [&](const auto & record) { return record.id == input.id; });
-            if (it == snapshot.pages().end()) {
+            if (it == inventory.end()) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
             }
         }
-        for (const auto & record : snapshot.pages()) {
-            const bool tail = record.state == llama_kv_page_state::filling_gpu;
+        for (const auto & record : inventory) {
+            const bool tail = llama_kv_page_id_is_tail(record.id);
             if (!valid_state(record.state) || !llama_kv_page_id_valid(record.id, tail)) continue;
             const auto it = std::find_if(inputs.begin(), inputs.end(), [&](const auto & input) {
                 return input.id == record.id;
@@ -217,19 +264,30 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
         const llama_kv_routing_page_input & input,
         const llama_kv_routing_summary_config & config,
         llama_kv_routing_summary_status & status) const noexcept {
+    return update_page(snapshot, snapshot.pages(), input, config, status);
+}
+
+llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
+        const llama_kv_residency_snapshot & snapshot,
+        const llama_kv_routing_page_inventory & inventory,
+        const llama_kv_routing_page_input & input,
+        const llama_kv_routing_summary_config & config,
+        llama_kv_routing_summary_status & status) const noexcept {
     status = llama_kv_routing_summary_status::invalid_argument;
     const auto start = std::chrono::steady_clock::now();
-    if (snapshot.epoch() == 0 || config.representative_count < 4 || config.representative_count > 8 ||
+    if (snapshot.epoch() == 0 || !inventory_matches_snapshot(snapshot, inventory) ||
+        config.representative_count < 4 || config.representative_count > 8 ||
         config.vector_dim == 0 || config.allocation_granularity == 0 || !valid_form(config.form)) return {};
     if (!pages_.empty() && (representative_count_ != config.representative_count || vector_dim_ != config.vector_dim ||
-        layer_index_ != config.layer_index || head_index_ != config.head_index || form_ != config.form)) {
+        layer_index_ != config.layer_index || head_index_ != config.head_index || form_ != config.form ||
+        (config.coordinate_identity != 0 && coordinate_identity_ != config.coordinate_identity))) {
         status = llama_kv_routing_summary_status::stale_summary;
         return {};
     }
     try {
-        const auto record = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+        const auto record = std::find_if(inventory.begin(), inventory.end(),
                 [&](const auto & page) { return page.id == input.id; });
-        if (record == snapshot.pages().end()) {
+        if (record == inventory.end()) {
             status = llama_kv_routing_summary_status::stale_summary;
             return {};
         }
@@ -239,7 +297,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
             return {};
         }
         llama_kv_routing_summary_status reconcile_status;
-        llama_kv_routing_summary_store result = reconcile(snapshot, reconcile_status);
+        llama_kv_routing_summary_store result = reconcile(snapshot, inventory, reconcile_status);
         if (reconcile_status != llama_kv_routing_summary_status::ok) {
             status = reconcile_status;
             return {};
@@ -249,6 +307,8 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
         result.vector_dim_ = config.vector_dim;
         result.layer_index_ = config.layer_index;
         result.head_index_ = config.head_index;
+        result.coordinate_identity_ = config.coordinate_identity != 0
+            ? config.coordinate_identity : result.coordinate_identity_;
         result.form_ = config.form;
         result.allocation_granularity_ = config.allocation_granularity;
         page summary;
@@ -285,8 +345,15 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
 llama_kv_routing_summary_store llama_kv_routing_summary_store::reconcile(
         const llama_kv_residency_snapshot & snapshot,
         llama_kv_routing_summary_status & status) const noexcept {
+    return reconcile(snapshot, snapshot.pages(), status);
+}
+
+llama_kv_routing_summary_store llama_kv_routing_summary_store::reconcile(
+        const llama_kv_residency_snapshot & snapshot,
+        const llama_kv_routing_page_inventory & inventory,
+        llama_kv_routing_summary_status & status) const noexcept {
     status = llama_kv_routing_summary_status::invalid_argument;
-    if (snapshot.epoch() == 0) return {};
+    if (snapshot.epoch() == 0 || !inventory_matches_snapshot(snapshot, inventory)) return {};
     try {
         llama_kv_routing_summary_store result = *this;
         result.snapshot_epoch_ = snapshot.epoch();
@@ -294,9 +361,9 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::reconcile(
         const uint64_t before = result.pages_.size();
         result.pages_.erase(std::remove_if(result.pages_.begin(), result.pages_.end(),
                 [&](const auto & summary) {
-                    const auto it = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
-                            [&](const auto & page) { return page.id.logical_page == summary.id.logical_page; });
-                    return it == snapshot.pages().end() || it->id != summary.id;
+                    const auto it = std::find_if(inventory.begin(), inventory.end(),
+                            [&](const auto & page) { return same_logical(page.id, summary.id); });
+                    return it == inventory.end() || it->id != summary.id;
                 }), result.pages_.end());
         result.rebuild_accounting({}, std::chrono::steady_clock::now());
         result.accounting_.invalidation_count = accounting_.invalidation_count + before - result.pages_.size();
@@ -385,6 +452,7 @@ void llama_kv_routing_summary_store::rebuild_accounting(
     hash = hash_mix(hash, uint32_t(form_));
     hash = hash_mix(hash, layer_index_);
     hash = hash_mix(hash, head_index_);
+    hash = hash_mix(hash, coordinate_identity_);
     for (const auto & page : pages_) {
         hash = hash_id(hash, page.id);
         for (const float value : page.vectors) hash = hash_float(hash, value);
@@ -396,17 +464,27 @@ void llama_kv_routing_summary_store::rebuild_accounting(
 llama_kv_routing_score_result llama_kv_routing_summary_store::score(
         const llama_kv_residency_snapshot & snapshot,
         const std::vector<float> & query, uint32_t top_k) const noexcept {
+    return score(snapshot, snapshot.pages(), query, top_k);
+}
+
+llama_kv_routing_score_result llama_kv_routing_summary_store::score(
+        const llama_kv_residency_snapshot & snapshot,
+        const llama_kv_routing_page_inventory & inventory,
+        const std::vector<float> & query, uint32_t top_k) const noexcept {
     llama_kv_routing_score_result result;
     result.summary_epoch = snapshot_epoch_;
-    if (!valid() || snapshot.epoch() != snapshot_epoch_ || query.size() != vector_dim_) {
+    if (!valid() || !inventory_matches_snapshot(snapshot, inventory) || query.size() != vector_dim_) {
         result.status = llama_kv_routing_summary_status::stale_summary;
         if (query.size() != vector_dim_) result.status = llama_kv_routing_summary_status::invalid_argument;
         return result;
     }
     for (const auto & summary_page : pages_) {
-        const auto it = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
-                [&](const auto & record) { return record.id.logical_page == summary_page.id.logical_page; });
-        if (it == snapshot.pages().end() || it->id != summary_page.id) {
+        const auto it = std::find_if(inventory.begin(), inventory.end(),
+                [&](const auto & record) { return same_logical(record.id, summary_page.id); });
+        // A pager may retain one index across sequences. Pages outside this
+        // query's sequence are ignored; a matching logical page with a new
+        // authenticated identity is stale evidence and must fail closed.
+        if (it != inventory.end() && it->id != summary_page.id) {
             result.status = llama_kv_routing_summary_status::stale_summary;
             return result;
         }
@@ -415,7 +493,7 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
     // intentionally absent from the router. Every other live page must have a
     // current summary; silently scoring a subset would make a cold page
     // permanently undiscoverable.
-    for (const auto & record : snapshot.pages()) {
+    for (const auto & record : inventory) {
         const bool tail = record.state == llama_kv_page_state::filling_gpu;
         if (!valid_state(record.state) || !llama_kv_page_id_valid(record.id, tail) || tail) continue;
         const bool found = std::find_if(pages_.begin(), pages_.end(),
@@ -432,6 +510,9 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
         for (float value : query) query_sum += double(value) * value;
         const float query_norm = float(std::sqrt(query_sum));
         for (const auto & page : pages_) {
+            const auto in_inventory = std::find_if(inventory.begin(), inventory.end(),
+                    [&](const auto & record) { return record.id == page.id; });
+            if (in_inventory == inventory.end()) continue;
             const uint32_t vector_count = form_ == llama_kv_routing_summary_form::representatives
                 ? representative_count_ : 1;
             float best = -std::numeric_limits<float>::infinity();
@@ -457,4 +538,52 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
     result.latency_us = uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::steady_clock::now() - start).count());
     return result;
+}
+
+const llama_kv_routing_summary_store * llama_kv_routing_summary_index::find(
+        uint32_t layer_index, uint32_t head_index) const noexcept {
+    const auto it = std::find_if(entries_.begin(), entries_.end(),
+            [&](const auto & entry) {
+        return entry.layer_index == layer_index && entry.head_index == head_index;
+    });
+    return it == entries_.end() ? nullptr : &it->store;
+}
+
+llama_kv_routing_summary_store * llama_kv_routing_summary_index::find(
+        uint32_t layer_index, uint32_t head_index) noexcept {
+    const auto it = std::find_if(entries_.begin(), entries_.end(),
+            [&](const auto & entry) {
+        return entry.layer_index == layer_index && entry.head_index == head_index;
+    });
+    return it == entries_.end() ? nullptr : &it->store;
+}
+
+void llama_kv_routing_summary_index::set(
+        llama_kv_routing_summary_store store) noexcept {
+    const uint32_t layer = store.layer_index();
+    const uint32_t head = store.head_index();
+    try {
+        auto it = std::find_if(entries_.begin(), entries_.end(),
+                [&](const auto & entry) {
+            return entry.layer_index == layer && entry.head_index == head;
+        });
+        if (it == entries_.end()) {
+            entries_.push_back({ layer, head, std::move(store) });
+        } else {
+            it->store = std::move(store);
+        }
+    } catch (...) {
+        // The index is an observability/cache layer. The owning pager retains
+        // the previous table when an accounting update cannot be published.
+    }
+}
+
+uint64_t llama_kv_routing_summary_index::charged_bytes() const noexcept {
+    uint64_t total = 0;
+    for (const auto & entry : entries_) {
+        const uint64_t bytes = entry.store.accounting().charged_bytes;
+        if (bytes > UINT64_MAX - total) return UINT64_MAX;
+        total += bytes;
+    }
+    return total;
 }

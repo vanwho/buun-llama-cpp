@@ -374,6 +374,12 @@ public:
     const llama_kv_routing_summary_accounting & routing_summary_accounting() const noexcept {
         return routing_summaries_.accounting();
     }
+    const llama_kv_routing_summary_index & routing_summary_index() const noexcept {
+        return routing_summary_index_;
+    }
+    uint64_t routing_summary_index_bytes() const noexcept {
+        return routing_summary_index_.charged_bytes();
+    }
 
     // The pager table remains the logical authority; these are the real
     // backend-owned slot/event doors used by the residency transfer owner.
@@ -417,6 +423,8 @@ private:
     llama_kv_pager_write_status publish_page(page_state & page) noexcept;
     llama_kv_pager_write_status erase_page(page_state & page,
             bool preserve_host = false) noexcept;
+    llama_kv_routing_page_inventory routing_inventory() const noexcept;
+    std::vector<llama_kv_routing_summary_config> routing_summary_configs() const noexcept;
     void reconcile_routing_summaries() noexcept;
     void reconcile_live_target(
             const std::vector<llama_kv_page_record> & target) noexcept;
@@ -440,6 +448,7 @@ private:
     llama_kv_routing_summary_config routing_summary_config_;
     llama_kv_pager_routing_summary_provider routing_summary_provider_;
     llama_kv_routing_summary_store routing_summaries_;
+    llama_kv_routing_summary_index routing_summary_index_;
     llama_kv_page_id page_identity_;
     llama_kv_pager_allocation allocation_;
     bool owns_allocation_ = true;

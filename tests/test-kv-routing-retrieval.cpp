@@ -159,6 +159,63 @@ int main() {
     invalid_query.values = { 1.0f };
     assert(llama_kv_routing_retrieve(snapshot, summaries, invalid_query, config, attributes).status ==
            llama_kv_routing_retrieval_status::invalid_argument);
+    auto transformed_query = query;
+    transformed_query.coordinate_identity = 29;
+    auto coordinate_config = config;
+    coordinate_config.capacity_pages = 6;
+    assert(llama_kv_routing_retrieve(snapshot, summaries, transformed_query,
+            coordinate_config, attributes).status ==
+           llama_kv_routing_retrieval_status::ok);
+    transformed_query.coordinate_identity = 30;
+    assert(llama_kv_routing_retrieve(snapshot, summaries, transformed_query,
+            coordinate_config, attributes).status ==
+           llama_kv_routing_retrieval_status::stale_query);
+
+    // The retrieval boundary consumes the complete host-backed inventory, not
+    // just the currently resident pages. The cold page is therefore eligible
+    // for summary selection and carries its authenticated identity through the
+    // result.
+    llama_kv_residency_table cold_table(8);
+    auto cold_tx = cold_table.begin();
+    for (uint32_t logical = 0; logical < 6; ++logical) {
+        if (logical == 2) continue;
+        assert(cold_table.replace(cold_tx, make_page(logical,
+                logical == 5 ? llama_kv_page_state::filling_gpu
+                             : llama_kv_page_state::gpu_host_clean)) ==
+               llama_kv_residency_status::ok);
+    }
+    assert(cold_table.publish(cold_tx) == llama_kv_residency_status::ok);
+    const auto cold_snapshot = cold_table.snapshot();
+    auto cold_record = make_page(2, llama_kv_page_state::gpu_host_clean, 1);
+    cold_record.physical_slot = UINT32_MAX;
+    cold_record.state = llama_kv_page_state::host_clean;
+    cold_record.host_valid = true;
+    auto cold_inventory = cold_snapshot.pages();
+    cold_inventory.push_back(cold_record);
+    std::vector<llama_kv_routing_page_input> cold_inputs;
+    for (const auto & page : cold_inventory) {
+        cold_inputs.push_back(input(page, page.id.logical_page == 2 ? 10.0f : 1.0f));
+    }
+    const auto cold_summaries = llama_kv_routing_summary_store::build(
+            cold_snapshot, cold_inventory, cold_inputs, summary_config, summary_status);
+    assert(summary_status == llama_kv_routing_summary_status::ok && cold_summaries.valid());
+    auto cold_query = query;
+    cold_query.table_epoch = cold_snapshot.epoch();
+    std::vector<llama_kv_routing_page_attributes> cold_attributes(cold_inventory.size());
+    for (size_t i = 0; i < cold_inventory.size(); ++i) {
+        cold_attributes[i].id = cold_inventory[i].id;
+    }
+    auto cold_config = config;
+    cold_config.capacity_pages = uint32_t(cold_inventory.size());
+    cold_config.summary_top_k = uint32_t(cold_inventory.size());
+    cold_config.exploration_pages = 0;
+    const auto cold_selected = llama_kv_routing_retrieve(
+            cold_snapshot, cold_inventory, cold_summaries, cold_query,
+            cold_config, cold_attributes);
+    assert(cold_selected.status == llama_kv_routing_retrieval_status::ok);
+    assert(cold_selected.metrics.valid_pages == cold_inventory.size());
+    assert(cold_selected.metrics.summary_pages_scored == cold_inventory.size());
+    assert(contains(cold_selected, 2, llama_kv_routing_retrieval_reason::summary));
 
     // Exploration rotates over the same deterministic logical order.
     std::vector<llama_kv_routing_page_attributes> no_attributes;

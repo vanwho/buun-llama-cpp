@@ -179,6 +179,9 @@ public:
     void set_kv_pager(llama_kv_pager * pager) override;
     void seal_kv_pager_pages() override;
     void apply_kv_pager_policy() noexcept override;
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
 
@@ -649,6 +652,8 @@ private:
         void * context,
         const vbr_selected_page_capture_snapshot & snapshot) noexcept;
     void apply_pager_live_policy() noexcept;
+    void collect_pager_routing_queries(
+            std::vector<llama_kv_routing_query> & output) noexcept;
     bool vbr_capture_stability_matches(
         const vbr_capture_stability_token & token) const noexcept;
     bool vbr_capture_generation_record(
@@ -1469,6 +1474,15 @@ private:
     // separate from apply_ubatch: graph construction/allocation may still fail.
     llama_kv_pager * pager_ = nullptr;
     int32_t pager_last_sequence_id_ = -1;
+    struct pager_query_capture {
+        ggml_tensor * tensor = nullptr;
+        int layer = -1;
+        int32_t sequence_id = -1;
+        llama_pos position = -1;
+        uint64_t token_index = 0;
+    };
+    std::vector<pager_query_capture> pager_query_captures_;
+    uint64_t pager_query_generation_ = 0;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;
     uint64_t pager_host_controller_generation_ = 1;
