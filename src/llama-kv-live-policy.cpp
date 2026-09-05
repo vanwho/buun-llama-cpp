@@ -183,14 +183,18 @@ bool llama_kv_live_policy_build_trace(
             const uint32_t id = uint32_t(i + 1);
             llama_kv_policy_page page;
             page.id = id;
+            page.attention_layer = source.attention_layer;
             page.age = source.age;
             page.recency = source.recency;
             page.attention_ema_q = source.attention_ema_q;
             page.retrieval_hits = source.retrieval_hits;
+            page.reuse_count = source.reuse_count;
             page.dirty_cost = source.dirty_cost;
             page.fault_cost = source.fault_cost;
             page.recent_peak_q = source.recent_peak_q;
             page.hysteresis_q = source.hysteresis_q;
+            page.attention_sample_count = source.attention_sample_count;
+            page.attention_last_observed = source.attention_last_observed;
             page.attention_observed = source.attention_observed;
             page.recent = source.recent;
             page.anchor = source.anchor;
@@ -205,6 +209,7 @@ bool llama_kv_live_policy_build_trace(
             const auto * retrieval = find_retrieval(boundary.retrieval, source.record.id);
             llama_kv_live_policy_trace_page trace_page;
             trace_page.id = source.record.id;
+            trace_page.attention_layer = source.attention_layer;
             trace_page.resident = page.resident;
             trace_page.host_valid = source.record.host_valid;
             trace_page.policy_id = id;
@@ -217,7 +222,7 @@ bool llama_kv_live_policy_build_trace(
             if (boundary.has_write_page && source.record.id == boundary.write_page) {
                 write_policy_id = id;
             }
-            const bool mandatory = page.current || page.recent || page.anchor || page.application_pin ||
+            const bool mandatory = page.current || page.anchor || page.application_pin ||
                 page.inflight_pin || page.speculative_pin ||
                 (boundary.has_write_page && source.record.id == boundary.write_page);
             output.mandatory_pages += mandatory;
@@ -325,7 +330,7 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
         boundary.previous_target.size() == output.policy.target.size()) {
         bool safe = true;
         for (const auto & page : boundary.pages) {
-            const bool mandatory = page.current || page.recent || page.anchor || page.application_pin ||
+            const bool mandatory = page.current || page.anchor || page.application_pin ||
                 page.inflight_pin || page.record.pin_count != 0 || page.speculative_pin ||
                 (boundary.has_write_page && page.record.id == boundary.write_page);
             if (mandatory && !contains_id(boundary.previous_target, page.record.id)) safe = false;

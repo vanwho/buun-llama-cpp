@@ -32,7 +32,9 @@ bool colder(const llama_kv_policy_page & a, const llama_kv_policy_page & b) {
     if (a.attention_observed && a.attention_ema_q != b.attention_ema_q) {
         return a.attention_ema_q < b.attention_ema_q;
     }
-    if (a.retrieval_hits != b.retrieval_hits) return a.retrieval_hits < b.retrieval_hits;
+    const uint64_t a_reuse = a.reuse_count != 0 ? a.reuse_count : a.retrieval_hits;
+    const uint64_t b_reuse = b.reuse_count != 0 ? b.reuse_count : b.retrieval_hits;
+    if (a_reuse != b_reuse) return a_reuse < b_reuse;
     if (a.recent != b.recent) return a.recent;
     if (a.dirty_cost != b.dirty_cost) return a.dirty_cost > b.dirty_cost;
     if (a.age != b.age) return a.age > b.age;
@@ -135,7 +137,10 @@ quota_split resolve_quotas(
 }
 
 bool controller_pinned(const llama_kv_policy_page & page) {
-    return page.current || page.recent || page.anchor || page.application_pin || page.inflight_pin ||
+    // Recent and structural evidence are capacity-relative choices, not
+    // mandatory pins. Only the active write/current page, caller/sink
+    // anchors, and lifecycle pins consume H before quotas are resolved.
+    return page.current || page.anchor || page.application_pin || page.inflight_pin ||
            page.speculative_pin;
 }
 
@@ -219,7 +224,8 @@ llama_kv_policy_decision llama_kv_policy_decide(
         for (const auto & page : trace.pages) {
             max_ema = std::max(max_ema, page.attention_ema_q);
             max_peak = std::max(max_peak, page.recent_peak_q);
-            max_frequency = std::max(max_frequency, page.retrieval_hits);
+            max_frequency = std::max(max_frequency,
+                    page.reuse_count != 0 ? page.reuse_count : page.retrieval_hits);
             max_recency = std::max(max_recency, page.recency);
             max_fault = std::max(max_fault, page.fault_cost);
             max_dirty = std::max(max_dirty, page.dirty_cost);
@@ -234,7 +240,8 @@ llama_kv_policy_decision llama_kv_policy_decide(
                     config.attention_ema_weight) +
                 weighted_normalized(page.recent_peak_q, max_peak,
                     config.recent_peak_weight) +
-                weighted_normalized(page.retrieval_hits, max_frequency,
+                weighted_normalized(page.reuse_count != 0 ? page.reuse_count : page.retrieval_hits,
+                        max_frequency,
                     config.frequency_weight) +
                 weighted_normalized(page.recency, max_recency,
                     config.recency_weight) + page.hysteresis_q;

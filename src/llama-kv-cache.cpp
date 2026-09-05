@@ -2209,6 +2209,11 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     });
 }
 
+void llama_kv_cache::set_kv_attention_telemetry(
+        llama_kv_attention_telemetry * telemetry) {
+    kv_attention_telemetry_ = telemetry;
+}
+
 void llama_kv_cache::capture_kv_routing_query(
         ggml_tensor * tensor, int layer, const llama_ubatch & ubatch) {
     if (tensor == nullptr && layer < 0) {
@@ -2329,6 +2334,13 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         const auto snapshot = pager_->residency(pager_last_sequence_id_);
         auto inventory = pager_->exact_page_records(pager_last_sequence_id_);
         if (snapshot.epoch() == 0 || inventory.empty()) return;
+        if (kv_attention_telemetry_ != nullptr) {
+            const auto retention_status = kv_attention_telemetry_->reconcile(snapshot, inventory);
+            if (retention_status != llama_kv_attention_telemetry_status::ok) {
+                LLAMA_LOG_DEBUG("%s: attention retention unavailable: %s\n", __func__,
+                        llama_kv_attention_telemetry_status_name(retention_status));
+            }
+        }
 
         std::vector<llama_kv_routing_query> queries;
         collect_pager_routing_queries(queries);
@@ -2419,14 +2431,33 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             page.recency = record.id.logical_page;
             page.fault_cost = page.record.physical_slot == UINT32_MAX ? 1 : 0;
             page.dirty_cost = page.record.dirty ? 1 : 0;
+            page.attention_layer = kv_attention_telemetry_ != nullptr
+                ? kv_attention_telemetry_->layer_index() : 0;
+            if (kv_attention_telemetry_ != nullptr) {
+                llama_kv_attention_telemetry_page retention;
+                if (kv_attention_telemetry_->page_state(
+                        record.id.logical_page, retention) &&
+                    retention.id == record.id && retention.observed) {
+                    const auto quantize = [](float value) {
+                        if (!std::isfinite(value) || value <= 0.0f) return uint64_t(0);
+                        const double scaled = double(value) * 1000000.0;
+                        return scaled >= double(UINT64_MAX)
+                            ? UINT64_MAX : uint64_t(scaled + 0.5);
+                    };
+                    page.attention_observed = true;
+                    page.attention_ema_q = quantize(retention.normalized_ema);
+                    page.recent_peak_q = quantize(retention.recent_peak);
+                    page.reuse_count = retention.frequency;
+                    page.attention_sample_count = retention.sample_count;
+                    page.attention_last_observed = retention.last_observed_token;
+                    page.recency = retention.last_observed_token;
+                }
+            }
             const auto selected_entry = std::find_if(
                     boundary.retrieval.selected.begin(),
                     boundary.retrieval.selected.end(),
                     [&](const auto & entry) { return entry.id == record.id; });
             if (selected_entry != boundary.retrieval.selected.end()) {
-                page.attention_observed = true;
-                page.attention_ema_q = selected_entry->score_available
-                    ? std::max(0.0f, selected_entry->score) : 0.0f;
                 if (selected_entry->reason == llama_kv_routing_retrieval_reason::recent) {
                     page.recent = true;
                 }

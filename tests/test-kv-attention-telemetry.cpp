@@ -71,6 +71,7 @@ int main() {
     assert(telemetry.publish_completed(snapshot, sample) == llama_kv_attention_telemetry_status::ok);
     llama_kv_attention_telemetry_page page;
     assert(telemetry.page_state(0, page) && page.observed);
+    assert(page.resident && page.sample_count == 1 && page.last_observed_token == 0);
     assert(std::fabs(page.normalized_ema - 0.375f) < 1.0e-6f);
     assert(std::fabs(page.recent_peak - 0.375f) < 1.0e-6f);
     assert(telemetry.page_state(2, page) && page.observed);
@@ -168,5 +169,34 @@ int main() {
     assert(rebound.reconcile(changed) == llama_kv_attention_telemetry_status::ok);
     assert(rebound.page_state(0, page) && !page.observed);
     assert(rebound.page_state(1, page) && page.observed);
+
+    // Inventory-aware reconciliation retains measured evidence for a cleanly
+    // evicted page without making it a resident observation. Retrieval may
+    // still select this page later, but it must not manufacture attention mass.
+    auto inventory = snapshot.pages();
+    auto cold = make_page(3, UINT32_MAX, 1024);
+    cold.state = llama_kv_page_state::host_clean;
+    inventory.push_back(cold);
+    llama_kv_attention_telemetry retained(config);
+    assert(retained.initialize(snapshot, inventory) == llama_kv_attention_telemetry_status::ok);
+    sample = make_sample(snapshot, mass.data(), snapshot.pages().size());
+    sample.token_index = 4;
+    assert(retained.publish_completed(snapshot, sample) == llama_kv_attention_telemetry_status::ok);
+    llama_kv_residency_table evicted_table(8);
+    auto evicted_tx = evicted_table.begin();
+    assert(evicted_table.replace(evicted_tx, make_page(1, 1, 512)) == llama_kv_residency_status::ok);
+    assert(evicted_table.replace(evicted_tx, make_page(2, 7, 700)) == llama_kv_residency_status::ok);
+    assert(evicted_table.publish(evicted_tx) == llama_kv_residency_status::ok);
+    auto evicted_inventory = inventory;
+    evicted_inventory[0].physical_slot = UINT32_MAX;
+    evicted_inventory[0].state = llama_kv_page_state::host_clean;
+    assert(retained.reconcile(evicted_table.snapshot()) ==
+            llama_kv_attention_telemetry_status::ok);
+    assert(retained.page_state(0, page) && page.observed && !page.resident);
+    assert(retained.reconcile(evicted_table.snapshot(), evicted_inventory) ==
+            llama_kv_attention_telemetry_status::ok);
+    assert(retained.page_state(0, page) && page.observed && !page.resident &&
+           page.sample_count == 1 && page.last_observed_token == 4);
+    assert(retained.page_state(3, page) && page.known && !page.observed && !page.resident);
     return 0;
 }
