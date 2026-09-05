@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "17",
-  "current_task": "17-03",
-  "last_updated_utc": "2026-09-04T23:55:32+00:00",
+  "current_task": "17-04",
+  "last_updated_utc": "2026-09-05T00:04:55+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1177,13 +1177,13 @@
       "cluster": "17a-harness-contract",
       "title": "Make the benchmark adapter contract-safe",
       "packet": ".wiretail/execution/tasks/17-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "17-02"
       ],
-      "commit": null
+      "commit": "caeb5981c26cfa517b29b2693c410e623569186d"
     },
     {
       "id": "17-04",

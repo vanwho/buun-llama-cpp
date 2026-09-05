@@ -170,6 +170,15 @@ canonical runner returns success but adapter validation rejects telemetry,
 health, records, or identity, the adapter invokes the configured activator and
 verifies the prior profile again. Cleanup is safe to repeat.
 
+`canonical_exit_code` and `adapter_validation` are recorded independently, so
+a canonical benchmark failure cannot be mistaken for a harness validation
+failure. Failed manifests also include `failure_class` (for example,
+`canonical_runner_failure`, `missing_runtime_telemetry`,
+`runtime_identity_mismatch`, `authentication_configuration`, or
+`restoration_failure`) plus the complete `validation_errors` list. Raw
+`records.jsonl`, `run-config.json`, and lifecycle state remain available for
+diagnosis.
+
 The lifecycle manifest records a requested candidate identity and the observed
 managed-service identity: profile, systemd MainPID, executable, model,
 context, pager mode/page size, and native-MTP placement/types. Identity is
