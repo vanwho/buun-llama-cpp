@@ -586,3 +586,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-18-05`
 - Commit at update: `a83e18860`
 - Summary: Turbo4 selected K domain and compact layer mapping repaired; deterministic parity driver and focused CPU/CUDA checks pass; live 27B target comparison deferred because only 1128 MiB GPU memory was free.
+
+## 2026-09-05T08:18:54+00:00 — 18-06 — done
+
+- Branch: `codex/task-18-06`
+- Commit at update: `0797c3b83`
+- Summary: Repaired native MTP target-only restore and canonical rollback trims; added synthetic Qwen4 recovery coverage and F5 off/native driver controls. CPU/CUDA builds, Qwen4 synthetic tests, affected CTest, and deterministic F5 passed; live 27B parity/full GPU MTP residency deferred due occupied RTX 4080.

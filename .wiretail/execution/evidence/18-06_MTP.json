@@ -1,0 +1,111 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "18-06",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "native_mtp_verify_restore_and_f5_frontier_parity",
+  "created_utc": "2026-09-05T08:17:02Z",
+  "provenance": {
+    "source_commit": "0797c3b835c9c00fa26f2b76c2b91610bc5235d1",
+    "source_diff_sha256": "9839c3cbadba58a4e12faf604f320c0e367e30beb0c2e5f584d52e2d657e7a7b",
+    "bundle_manifest_sha256": null,
+    "binary": "build-cuda-test/bin/test-llama-archs",
+    "binary_sha256": "fb00ca284b1fecdab606d3eb326d1ea7e9c2fb275e3005044b827f80f5b7dc9e",
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": null,
+    "config_sha256": null
+  },
+  "upstream_integration": {
+    "self_contained_mtp": "equivalent logic was already present in the current fork; ancestry check confirms 6690273bf is not an ancestor",
+    "target_only_restore": "focused recovery from c9c52d718 was integrated; ancestry check confirms c9c52d718 is not an ancestor",
+    "unrelated_upstream_deletions": "not copied"
+  },
+  "checks": [
+    {
+      "name": "synthetic Qwen4 native MTP sidecar and target handoff",
+      "status": "pass",
+      "raw_ids": ["qwen4exp-cpu-test", "qwen4exp-cuda-test"]
+    },
+    {
+      "name": "target-only restore clears draft KV and reseeds verified carry",
+      "status": "pass",
+      "raw_ids": ["qwen4exp-cpu-test", "qwen4exp-cuda-test", "speculative-source"]
+    },
+    {
+      "name": "F5 proposed length 3, acceptance counts 0/1/2/3, rollback frontier",
+      "status": "pass",
+      "raw_ids": ["mtp-driver-source", "mtp-driver-cuda-binary"]
+    },
+    {
+      "name": "save/load, recurrent rollback, and MTP lifecycle regressions",
+      "status": "pass",
+      "raw_ids": ["save-load-test", "recurrent-test", "mtp-lifecycle-test"]
+    },
+    {
+      "name": "native MTP model-backed off/on target-logit parity",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "full context-sized GPU-resident Turbo4 draft K/V on live target",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "f5_driver": {
+      "command": "build-cuda-test/bin/test-kv-pager-model --mtp native --output /tmp/mtp-f5-cuda-final.json",
+      "mode": "synthetic",
+      "mtp": true,
+      "proposed": 3,
+      "acceptance_counts": [0, 1, 2, 3],
+      "boundaries": [13, 14, 15, 16],
+      "target_recurrent_mtp_host_equal": true,
+      "rejected_suffixes_absent_from_host": true,
+      "target_only_restore": true,
+      "paired_restore": true,
+      "logits_max_abs_after_rollback": 0.0,
+      "frontier_resolver_valid": true,
+      "exit_code": 0
+    },
+    "qwen4exp_recovery": {
+      "target_prefix": [5, 6],
+      "target_only_restore_batch": [7],
+      "resume_batch": [8],
+      "draft_frontier_before_restore": 1,
+      "draft_frontier_after_target_only_recovery": -1,
+      "draft_frontier_after_resume": 3,
+      "carry_payload_matches_verified_target_row": true,
+      "exit_code_cpu": 0,
+      "exit_code_cuda": 0
+    },
+    "focused_tests": "ctest --test-dir build --output-on-failure -R 'test-mtp-vocab-trim|test-save-load-state|test-recurrent-state-rollback$': 4/4 passed",
+    "builds": "CPU and CUDA targets test-llama-archs and test-kv-pager-model built successfully",
+    "synthetic_cuda_qwen4": "test-llama-archs -a qwen4exp -s 123: passed; NVIDIA RTX 4080 synthetic path NMSE 8.90e-08"
+  },
+  "raw_index": [
+    {"id": "speculative-source", "path": "common/speculative.cpp", "sha256": "23926a74be3a88e572f8d1a7d66e44b2319e9a17f4e1902e310c9bf54e7ac4c3"},
+    {"id": "mtp-driver-source", "path": "tests/test-kv-pager-model.cpp", "sha256": "4efce6d73a7d029ff5a808e0f14098aa7973d164d97ce5100abf2a53e8bc109e"},
+    {"id": "arch-test-source", "path": "tests/test-llama-archs.cpp", "sha256": "cb149ee8577b92b1b49304dcbce9d431cef02db14ae921dd5264307e42a8c5a4"},
+    {"id": "qwen4exp-cpu-test", "path": "build/bin/test-llama-archs", "sha256": "ef70f46adc01281c044010c01d15431ee87a1c9a8f4065535ffe625349cfceb9"},
+    {"id": "qwen4exp-cuda-test", "path": "build-cuda-test/bin/test-llama-archs", "sha256": "fb00ca284b1fecdab606d3eb326d1ea7e9c2fb275e3005044b827f80f5b7dc9e"},
+    {"id": "mtp-driver-cpu-binary", "path": "build/bin/test-kv-pager-model", "sha256": "5fc108c126a709e5c72b3ce8f9b65d2075677ed1a4986a9a2b8f6abe95f1271b"},
+    {"id": "mtp-driver-cuda-binary", "path": "build-cuda-test/bin/test-kv-pager-model", "sha256": "924b5ee843c0ab64854c1a606872681af2cc67314371b2427f2e077f44701586"},
+    {"id": "mtp-lifecycle-test", "path": "build/bin/test-mtp-vocab-trim", "sha256": "e6dae662aa1f0bb5dbad0fd2cf1466b62328db888fedd6531a769d556e0339f2"},
+    {"id": "save-load-test", "path": "build/bin/test-save-load-state", "sha256": "367b7c130d62d406723d8c4d078ce2dc6b3cde6f3e894c04f668ea68f9800ba4"},
+    {"id": "recurrent-test", "path": "build/bin/test-recurrent-state-rollback", "sha256": "c124de8f36d4a30a6a6eae803d1404eae4a0fac04d255659649adeeb67c5c1a5"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The required /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf is present, but the existing live workload left only about 1128 MiB free on the RTX 4080. No live model context was started or disturbed.",
+    "model_and_corpus_hashes": "No model-backed run was started; deterministic synthetic fixtures provide the local evidence.",
+    "gpu_mtp_residency": "The synthetic CUDA fixture verifies the graph and recovery path, not full context-sized live draft allocation. Later verification must inspect the realized context memory breakdown and Turbo4 device placement."
+  },
+  "resume": {
+    "command": ["LD_LIBRARY_PATH=build-cuda-test/bin", "build-cuda-test/bin/test-kv-pager-model", "--model", "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "--mtp", "native"],
+    "next_task": "19-01",
+    "secrets_omitted": true
+  }
+}
