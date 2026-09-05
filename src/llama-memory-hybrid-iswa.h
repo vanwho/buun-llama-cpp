@@ -51,6 +51,9 @@ public:
     void seal_kv_pager_pages() override {
         mem_attn->seal_kv_pager_pages();
     }
+    void apply_kv_pager_policy() noexcept override {
+        mem_attn->apply_kv_pager_policy();
+    }
 
     //
     // llama_memory_i

@@ -206,7 +206,16 @@ llama_kv_residency_ggml_adapter::llama_kv_residency_ggml_adapter(
       bytes_per_slot_(config.bytes_per_slot),
       force_synchronous_(config.force_synchronous),
       storage_tensor_(config.external_storage),
-      external_storage_(config.external_storage != nullptr) {}
+      external_storage_(config.external_storage != nullptr) {
+    run_offsets_.reserve(config.layer_k_offsets.size() + config.layer_v_offsets.size());
+    run_page_bytes_.reserve(config.layer_k_page_bytes.size() + config.layer_v_page_bytes.size());
+    for (size_t i = 0; i < config.layer_k_offsets.size(); ++i) {
+        run_offsets_.push_back(config.layer_k_offsets[i]);
+        run_page_bytes_.push_back(config.layer_k_page_bytes[i]);
+        run_offsets_.push_back(config.layer_v_offsets[i]);
+        run_page_bytes_.push_back(config.layer_v_page_bytes[i]);
+    }
+}
 
 llama_kv_residency_ggml_adapter::~llama_kv_residency_ggml_adapter() {
     drain();
@@ -227,6 +236,16 @@ llama_kv_residency_ggml_adapter::create(
         (config.external_storage->type != GGML_TYPE_I8 ||
          ggml_nbytes(config.external_storage) <
              size_t(config.bytes_per_slot * config.slot_capacity))) {
+        return nullptr;
+    }
+    const bool has_layer_geometry = !config.layer_k_offsets.empty() ||
+        !config.layer_v_offsets.empty() || !config.layer_k_page_bytes.empty() ||
+        !config.layer_v_page_bytes.empty();
+    if (has_layer_geometry &&
+        (config.page_tokens == 0 || config.layer_k_offsets.size() != config.layer_v_offsets.size() ||
+         config.layer_k_offsets.size() != config.layer_k_page_bytes.size() ||
+         config.layer_k_offsets.size() != config.layer_v_page_bytes.size() ||
+         config.layer_k_offsets.size() > VBR_SELECTED_PAGE_TARGET_LAYERS)) {
         return nullptr;
     }
     try {
@@ -250,8 +269,9 @@ bool llama_kv_residency_ggml_adapter::initialize_slots() noexcept {
     try {
         const size_t bytes = size_t(bytes_per_slot_ * slot_capacity_);
         const size_t overhead = ggml_tensor_overhead();
-        if (overhead == 0 || slot_capacity_ + 1 > SIZE_MAX/overhead) return false;
-        tensor_context_ = ggml_init({ size_t(slot_capacity_ + 1)*overhead,
+        const size_t tensor_count = size_t(slot_capacity_) + 1 + run_offsets_.size();
+        if (overhead == 0 || tensor_count > SIZE_MAX/overhead) return false;
+        tensor_context_ = ggml_init({ tensor_count*overhead,
                                       nullptr, true });
         if (!tensor_context_) return false;
         void * base = ggml_backend_buffer_get_base(buffer_);
@@ -281,6 +301,25 @@ bool llama_kv_residency_ggml_adapter::initialize_slots() noexcept {
             }
             slot_tensors_.push_back(tensor);
         }
+        if (!run_offsets_.empty()) {
+            run_tensors_.reserve(run_offsets_.size());
+            for (size_t i = 0; i < run_offsets_.size(); ++i) {
+                const uint64_t span = uint64_t(slot_capacity_) * run_page_bytes_[i];
+                if (run_page_bytes_[i] == 0 || run_offsets_[i] > bytes ||
+                    span > bytes - run_offsets_[i]) {
+                    release_slots();
+                    return false;
+                }
+                auto * tensor = ggml_view_1d(
+                        tensor_context_, storage_tensor_, int64_t(span),
+                        size_t(run_offsets_[i]));
+                if (!tensor || ggml_backend_view_init(tensor) != GGML_STATUS_SUCCESS) {
+                    release_slots();
+                    return false;
+                }
+                run_tensors_.push_back(tensor);
+            }
+        }
         return slot_tensors_.size() == slot_capacity_;
     } catch (...) {
         release_slots();
@@ -292,6 +331,7 @@ void llama_kv_residency_ggml_adapter::release_slots() noexcept {
     pending_.clear();
     mapped_.clear();
     slot_tensors_.clear();
+    run_tensors_.clear();
     if (!external_storage_) {
         storage_tensor_ = nullptr;
     }
@@ -313,6 +353,7 @@ llama_kv_residency_ggml_adapter::pool_backend() noexcept {
         &llama_kv_residency_ggml_adapter::complete_copy,
         &llama_kv_residency_ggml_adapter::cancel_copy,
         backend_, &llama_kv_residency_ggml_adapter::slot_tensor,
+        &llama_kv_residency_ggml_adapter::run_tensor,
     };
 }
 
@@ -364,6 +405,18 @@ ggml_tensor * llama_kv_residency_ggml_adapter::slot_tensor(
     auto * self = static_cast<llama_kv_residency_ggml_adapter *>(context);
     return self && slot < self->slot_tensors_.size()
         ? self->slot_tensors_[slot] : nullptr;
+}
+
+ggml_tensor * llama_kv_residency_ggml_adapter::run_tensor(
+        void * context,
+        const llama_kv_residency_completion &,
+        const llama_kv_residency_transfer_run & run) noexcept {
+    auto * self = static_cast<llama_kv_residency_ggml_adapter *>(context);
+    if (!self || run.layer >= VBR_SELECTED_PAGE_TARGET_LAYERS || run.side > 1) {
+        return nullptr;
+    }
+    const size_t index = size_t(run.layer) * 2 + run.side;
+    return index < self->run_tensors_.size() ? self->run_tensors_[index] : nullptr;
 }
 
 bool llama_kv_residency_ggml_adapter::issue(
@@ -734,6 +787,76 @@ uint32_t llama_kv_residency_pool::pending_events() const noexcept {
     return impl_->pending_events;
 }
 
+llama_kv_residency_pool_status llama_kv_residency_pool::reconcile(
+        const llama_kv_residency_snapshot & snapshot) noexcept {
+    if (!impl_ || !impl_->backend.map_slot || !impl_->backend.drop_slot ||
+        snapshot.slot_capacity() != impl_->config.slot_capacity ||
+        pending_events() != 0) {
+        return llama_kv_residency_pool_status::not_configured;
+    }
+    try {
+        const auto desired_at = [&](uint32_t slot) {
+            return std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+                    [slot](const auto & page) { return page.physical_slot == slot; });
+        };
+        for (uint32_t slot = 0; slot < impl_->slots.size(); ++slot) {
+            llama_kv_page_id mapped_page;
+            bool mapped = false;
+            {
+                std::lock_guard<std::mutex> lock(impl_->mutex);
+                mapped = impl_->slots[slot].mapped;
+                if (mapped) mapped_page = impl_->slots[slot].page;
+            }
+            const auto desired = desired_at(slot);
+            if (!mapped || (desired != snapshot.pages().end() && desired->id == mapped_page)) {
+                continue;
+            }
+            if (!impl_->backend.drop_slot(impl_->backend.context, slot)) {
+                return llama_kv_residency_pool_status::backend_unavailable;
+            }
+            std::lock_guard<std::mutex> lock(impl_->mutex);
+            if (impl_->slots[slot].mapped && impl_->slots[slot].page == mapped_page) {
+                impl_->slots[slot] = {};
+                if (impl_->mapped_slots != 0) --impl_->mapped_slots;
+            }
+        }
+        for (const auto & page : snapshot.pages()) {
+            if (page.physical_slot == UINT32_MAX ||
+                page.physical_slot >= impl_->slots.size()) continue;
+            const uint32_t slot = page.physical_slot;
+            bool already = false;
+            {
+                std::lock_guard<std::mutex> lock(impl_->mutex);
+                if (impl_->slots[slot].mapped) {
+                    if (impl_->slots[slot].page != page.id) {
+                        return llama_kv_residency_pool_status::slot_unavailable;
+                    }
+                    impl_->slots[slot].host_valid = page.host_valid;
+                    impl_->slots[slot].dirty = page.dirty;
+                    already = true;
+                }
+            }
+            if (already) continue;
+            if (!impl_->backend.map_slot(impl_->backend.context, slot)) {
+                return llama_kv_residency_pool_status::backend_unavailable;
+            }
+            std::lock_guard<std::mutex> lock(impl_->mutex);
+            if (impl_->slots[slot].mapped || impl_->slots[slot].reserved) {
+                (void) impl_->backend.drop_slot(impl_->backend.context, slot);
+                return llama_kv_residency_pool_status::slot_unavailable;
+            }
+            impl_->slots[slot].mapped = true;
+            impl_->slots[slot].host_valid = page.host_valid;
+            impl_->slots[slot].dirty = page.dirty;
+            impl_->slots[slot].page = page.id;
+            ++impl_->mapped_slots;
+        }
+        return llama_kv_residency_pool_status::ok;
+    } catch (...) {
+        return llama_kv_residency_pool_status::internal_error;
+    }
+}
+
 llama_kv_residency_pool_status llama_kv_residency_pool::reserve(
         const llama_kv_residency_transfer_plan & plan,
         uint64_t staging_capacity,
@@ -987,6 +1110,46 @@ llama_kv_residency_pool_status llama_kv_residency_pool::drop_logical_page(
     return llama_kv_residency_pool_status::ok;
 }
 
+llama_kv_residency_pool_status llama_kv_residency_pool::restore_logical_page(
+        const llama_kv_page_record & page) noexcept {
+    if (!impl_ || !impl_->backend.map_slot || !impl_->backend.drop_slot ||
+        page.physical_slot >= impl_->slots.size()) {
+        return llama_kv_residency_pool_status::not_configured;
+    }
+    try {
+        {
+            std::lock_guard<std::mutex> lock(impl_->mutex);
+            if (impl_->slots[page.physical_slot].mapped) {
+                auto & slot = impl_->slots[page.physical_slot];
+                if (slot.page != page.id) return llama_kv_residency_pool_status::slot_unavailable;
+                slot.host_valid = page.host_valid;
+                slot.dirty = page.dirty;
+                return llama_kv_residency_pool_status::ok;
+            }
+            if (impl_->slots[page.physical_slot].reserved) {
+                return llama_kv_residency_pool_status::slot_unavailable;
+            }
+        }
+        if (!impl_->backend.map_slot(impl_->backend.context, page.physical_slot)) {
+            return llama_kv_residency_pool_status::backend_unavailable;
+        }
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        auto & slot = impl_->slots[page.physical_slot];
+        if (slot.mapped || slot.reserved) {
+            (void) impl_->backend.drop_slot(impl_->backend.context, page.physical_slot);
+            return llama_kv_residency_pool_status::slot_unavailable;
+        }
+        slot.mapped = true;
+        slot.host_valid = page.host_valid;
+        slot.dirty = page.dirty;
+        slot.page = page.id;
+        ++impl_->mapped_slots;
+        return llama_kv_residency_pool_status::ok;
+    } catch (...) {
+        return llama_kv_residency_pool_status::internal_error;
+    }
+}
+
 llama_kv_residency_pool_status llama_kv_residency_pool::mark_dirty(
         const llama_kv_page_id & page, bool dirty) noexcept {
     if (!impl_) return llama_kv_residency_pool_status::not_configured;
@@ -1026,7 +1189,7 @@ llama_kv_residency_transfer_result llama_kv_residency_execute_transfer(
     result.counters.copied_aligned_bytes = plan.aligned_bytes;
     try {
     const bool tensor_route = backend.backend != nullptr &&
-        backend.slot_tensor != nullptr;
+        (backend.slot_tensor != nullptr || backend.run_tensor != nullptr);
     if (!claim.active() || claim.reserved_events() != plan.event_count ||
         plan.direction >= llama_kv_residency_transfer_direction::_count ||
         plan.pages.empty() || plan.runs.empty() ||
@@ -1111,8 +1274,13 @@ llama_kv_residency_transfer_result llama_kv_residency_execute_transfer(
             if (tensor_route) {
                 transfer.backend = backend.backend;
                 transfer.device = ggml_backend_get_device(backend.backend);
-                transfer.destination = backend.slot_tensor(
-                        backend.context, page.physical_slot);
+                transfer.destination = backend.run_tensor
+                    ? backend.run_tensor(backend.context, context.completion, run)
+                    : nullptr;
+                if (!transfer.destination && backend.slot_tensor) {
+                    transfer.destination = backend.slot_tensor(
+                            backend.context, page.physical_slot);
+                }
                 transfer.destination_offset = run.device_offset;
                 transfer.fake = {};
                 if (!transfer.destination) {
@@ -1142,8 +1310,13 @@ llama_kv_residency_transfer_result llama_kv_residency_execute_transfer(
             if (tensor_route) {
                 source.backend = backend.backend;
                 source.device = ggml_backend_get_device(backend.backend);
-                source.tensor = backend.slot_tensor(
-                        backend.context, page.physical_slot);
+                source.tensor = backend.run_tensor
+                    ? backend.run_tensor(backend.context, context.completion, run)
+                    : nullptr;
+                if (!source.tensor && backend.slot_tensor) {
+                    source.tensor = backend.slot_tensor(
+                            backend.context, page.physical_slot);
+                }
                 source.tensor_offset = run.device_offset;
                 if (!source.tensor) {
                     result.status = llama_kv_residency_pool_status::backend_unavailable;

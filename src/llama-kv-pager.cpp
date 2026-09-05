@@ -361,6 +361,99 @@ std::vector<llama_kv_page_record> llama_kv_pager::exact_page_records(
     return output;
 }
 
+namespace {
+
+struct live_transfer_context {
+    llama_kv_pager * pager = nullptr;
+    llama_kv_residency_pool * pool = nullptr;
+    uint64_t epoch = 0;
+    std::vector<vbr_selected_page_host_view> host_pages;
+    std::vector<llama_kv_page_record> desired;
+};
+
+const vbr_selected_page_host_view * live_host_page(
+        const live_transfer_context & context, uint32_t page_index) noexcept {
+    if (page_index >= context.host_pages.size()) return nullptr;
+    return &context.host_pages[page_index];
+}
+
+bool live_host_read(void * opaque, uint32_t page_index, uint64_t offset,
+        uint8_t * destination, size_t size) noexcept {
+    auto * context = static_cast<live_transfer_context *>(opaque);
+    const auto * page = context != nullptr ? live_host_page(*context, page_index) : nullptr;
+    if (!page || !destination || size == 0) return false;
+    uint64_t cursor = 0;
+    for (const auto & unit : page->page.units) {
+        if (!unit.bytes) return false;
+        if (offset < cursor + unit.bytes->size()) {
+            const uint64_t local = offset - cursor;
+            if (local > unit.bytes->size() || size > unit.bytes->size() - local) return false;
+            return unit.bytes->read(local, destination, size);
+        }
+        if (cursor > UINT64_MAX - unit.bytes->size()) return false;
+        cursor += unit.bytes->size();
+    }
+    return false;
+}
+
+bool live_has_host(void * opaque, const llama_kv_page_id & id,
+        uint64_t useful_bytes) noexcept {
+    auto * context = static_cast<live_transfer_context *>(opaque);
+    if (!context) return false;
+    for (const auto & page : context->host_pages) {
+        if (page.page.identity != id) continue;
+        uint64_t bytes = 0;
+        for (const auto & unit : page.page.units) {
+            if (!unit.bytes || unit.bytes->size() > UINT64_MAX - bytes) return false;
+            bytes += unit.bytes->size();
+        }
+        return bytes == useful_bytes;
+    }
+    return false;
+}
+
+bool live_recheck_transfer(void * opaque,
+        const llama_kv_residency_completion & completion) noexcept {
+    auto * context = static_cast<live_transfer_context *>(opaque);
+    if (!context || !context->pager || context->pager->residency().epoch() != context->epoch) {
+        return false;
+    }
+    return std::any_of(context->desired.begin(), context->desired.end(),
+            [&](const auto & page) {
+                return page.id == completion.page &&
+                    page.physical_slot == completion.physical_slot;
+            });
+}
+
+bool live_drop(void * opaque, const llama_kv_page_record & page) noexcept {
+    auto * context = static_cast<live_transfer_context *>(opaque);
+    if (!context || !context->pool) return false;
+    bool dropped = false;
+    const auto status = context->pool->drop_logical_page(page.id, dropped);
+    return status == llama_kv_residency_pool_status::ok && dropped;
+}
+
+bool live_restore(void * opaque, const llama_kv_page_record & page) noexcept {
+    auto * context = static_cast<live_transfer_context *>(opaque);
+    return context && context->pool &&
+        context->pool->restore_logical_page(page) == llama_kv_residency_pool_status::ok;
+}
+
+bool live_recheck_table(void * opaque, uint64_t epoch,
+        const std::vector<llama_kv_page_record> & desired) noexcept {
+    auto * context = static_cast<live_transfer_context *>(opaque);
+    if (!context || !context->pager || !context->pool ||
+        context->pager->residency().epoch() != epoch) return false;
+    for (const auto & page : desired) {
+        uint32_t slot = UINT32_MAX;
+        if (!context->pool->find_logical_page(page.id, slot) ||
+            slot != page.physical_slot) return false;
+    }
+    return true;
+}
+
+} // namespace
+
 const char * llama_kv_pager_status_name(llama_kv_pager_status status) noexcept {
     switch (status) {
         case llama_kv_pager_status::ok: return "ok";
@@ -377,6 +470,64 @@ const char * llama_kv_pager_status_name(llama_kv_pager_status status) noexcept {
     return "invalid";
 }
 
+void llama_kv_pager::reconcile_live_target(
+        const std::vector<llama_kv_page_record> & target) noexcept {
+    try {
+        llama_kv_page_id old_current;
+        bool had_current = current_page_index_ < pages_.size() &&
+            pages_[current_page_index_].present;
+        if (had_current) old_current = pages_[current_page_index_].record.id;
+        std::fill(slot_pages_.begin(), slot_pages_.end(), -1);
+        current_page_index_ = UINT32_MAX;
+        for (const auto & page : target) {
+            page_state * state = nullptr;
+            for (auto & candidate : pages_) {
+                if (candidate.present && candidate.record.id == page.id) {
+                    state = &candidate;
+                    break;
+                }
+            }
+            if (state == nullptr) {
+                for (auto & candidate : pages_) {
+                    if (!candidate.present) {
+                        state = &candidate;
+                        break;
+                    }
+                }
+            }
+            if (state == nullptr) {
+                pages_.push_back({});
+                state = &pages_.back();
+            }
+            state->record = page;
+            state->present = true;
+            state->completed_segments = snapshot_.geometry.attention_layers * 2;
+            const uint32_t rows = uint32_t(std::min<uint64_t>(
+                    snapshot_.geometry.page_tokens,
+                    uint64_t(std::max<llama_pos>(0,
+                        page.id.position_end - page.id.position_begin))));
+            state->valid_rows.assign(snapshot_.geometry.page_tokens, 0);
+            std::fill(state->valid_rows.begin(), state->valid_rows.begin() + rows, 1);
+            if (page.physical_slot < slot_pages_.size()) {
+                slot_pages_[page.physical_slot] = int32_t(state - pages_.data());
+            }
+            if (had_current && page.id == old_current) {
+                current_page_index_ = uint32_t(state - pages_.data());
+            }
+        }
+        for (auto & state : pages_) {
+            if (!state.present) continue;
+            const bool retained = std::any_of(target.begin(), target.end(),
+                    [&](const auto & page) { return page.id == state.record.id; });
+            if (!retained) state = {};
+        }
+    } catch (...) {
+        // The immutable residency table remains authoritative if host-side
+        // mirror maintenance cannot allocate; the next quiet boundary retries
+        // reconciliation before issuing another transaction.
+    }
+}
+
 llama_kv_live_policy_result llama_kv_pager::apply_live_policy(
         const llama_kv_live_policy_boundary & boundary,
         const llama_kv_residency_transfer_transport & transport,
@@ -390,6 +541,9 @@ llama_kv_live_policy_result llama_kv_pager::apply_live_policy(
     output = llama_kv_live_policy_apply(
             residency_, *residency_pool_, boundary, residency_backend_,
             transport, hooks);
+    if (output.published) {
+        reconcile_live_target(output.target_pages);
+    }
     const auto add = [](uint64_t & target, uint64_t value) {
         target = value > std::numeric_limits<uint64_t>::max() - target
             ? std::numeric_limits<uint64_t>::max() : target + value;
@@ -427,6 +581,63 @@ llama_kv_live_policy_result llama_kv_pager::apply_live_policy(
     add(promotion_pages_, output.transaction.loaded_pages);
     add(eviction_pages_, output.transaction.dropped_pages);
     return output;
+}
+
+llama_kv_live_policy_result llama_kv_pager::apply_live_policy(
+        const llama_kv_live_policy_boundary & boundary) noexcept {
+    llama_kv_live_policy_result output;
+    if (!snapshot_.initialized || !residency_pool_ || !host_ ||
+        !residency_adapter_ || !upload_ring()) {
+        output.status = llama_kv_live_policy_status::not_configured;
+        output.base_epoch = residency_.snapshot().epoch();
+        return output;
+    }
+    if (residency_pool_->reconcile(residency_.snapshot()) !=
+            llama_kv_residency_pool_status::ok) {
+        output.status = llama_kv_live_policy_status::transaction_failed;
+        output.base_epoch = residency_.snapshot().epoch();
+        return output;
+    }
+    live_transfer_context context;
+    context.pager = this;
+    context.pool = residency_pool_.get();
+    context.epoch = boundary.snapshot.epoch();
+    try {
+        const auto host_pages = host_->pages();
+        for (const auto & transfer : boundary.transaction.transfers) {
+            if (transfer.direction != llama_kv_residency_transfer_direction::h2d_promotion) continue;
+            for (const auto & page : transfer.pages) {
+                const auto found = std::find_if(host_pages.begin(), host_pages.end(),
+                        [&](const auto & value) { return value.page.identity == page.page; });
+                if (found == host_pages.end()) {
+                    output.status = llama_kv_live_policy_status::missing_host_source;
+                    output.base_epoch = residency_.snapshot().epoch();
+                    return output;
+                }
+                context.host_pages.push_back(*found);
+                context.desired.push_back({ page.page, page.physical_slot,
+                        llama_kv_page_state::gpu_host_clean, true, false, 0 });
+            }
+        }
+        llama_kv_residency_transfer_transport transport;
+        transport.upload_ring = upload_ring();
+        transport.force_synchronous = true;
+        transport.context = &context;
+        transport.host_read = live_host_read;
+        transport.recheck = live_recheck_transfer;
+
+        llama_kv_residency_transaction_hooks hooks;
+        hooks.context = &context;
+        hooks.drop_clean = live_drop;
+        hooks.restore_clean = live_restore;
+        hooks.has_clean_host = live_has_host;
+        hooks.recheck = live_recheck_table;
+        return apply_live_policy(boundary, transport, hooks);
+    } catch (...) {
+        output.status = llama_kv_live_policy_status::transaction_failed;
+        output.base_epoch = residency_.snapshot().epoch();
+        return output;
+    }
 }
 
 const char * llama_kv_pager_write_status_name(llama_kv_pager_write_status status) noexcept {
@@ -601,14 +812,21 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
                 ? output->snapshot_.physical_bytes /
                     output->snapshot_.physical_page_count : 0;
             llama_kv_residency_ggml_status adapter_status;
+            llama_kv_residency_ggml_adapter_config adapter_config;
+            adapter_config.backend = resources.host_backend;
+            adapter_config.buffer = static_cast<ggml_backend_buffer_t>(
+                    output->allocation_.handle);
+            adapter_config.slot_capacity = output->snapshot_.physical_page_count;
+            adapter_config.bytes_per_slot = bytes_per_slot;
+            adapter_config.external_storage = resources.external_storage_tensor;
+            adapter_config.page_tokens = output->snapshot_.geometry.page_tokens;
+            adapter_config.layer_k_offsets = output->snapshot_.geometry.layer_k_offsets;
+            adapter_config.layer_v_offsets = output->snapshot_.geometry.layer_v_offsets;
+            adapter_config.layer_k_page_bytes = output->snapshot_.geometry.layer_k_page_bytes;
+            adapter_config.layer_v_page_bytes = output->snapshot_.geometry.layer_v_page_bytes;
             output->residency_adapter_ =
                     llama_kv_residency_ggml_adapter::create(
-                        { resources.host_backend,
-                          static_cast<ggml_backend_buffer_t>(
-                              output->allocation_.handle),
-                          output->snapshot_.physical_page_count,
-                          bytes_per_slot, false,
-                          resources.external_storage_tensor }, adapter_status);
+                        adapter_config, adapter_status);
             if (!output->residency_adapter_) {
                 if (output->owns_allocation_ && output->backend_.release) {
                     output->backend_.release(output->allocation_);

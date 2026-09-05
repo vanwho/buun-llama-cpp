@@ -390,6 +390,11 @@ public:
             const llama_kv_live_policy_boundary & boundary,
             const llama_kv_residency_transfer_transport & transport,
             const llama_kv_residency_transaction_hooks & hooks = {}) noexcept;
+    // Production boundary: bind the pager-owned upload ring, canonical host
+    // inventory, layer-aware GGML adapter, and synchronous completion/recheck
+    // hooks for one complete policy request.
+    llama_kv_live_policy_result apply_live_policy(
+            const llama_kv_live_policy_boundary & boundary) noexcept;
 
     ggml_tensor * residency_storage_tensor() const noexcept {
         return residency_adapter_ ? residency_adapter_->storage_tensor() : nullptr;
@@ -413,6 +418,8 @@ private:
     llama_kv_pager_write_status erase_page(page_state & page,
             bool preserve_host = false) noexcept;
     void reconcile_routing_summaries() noexcept;
+    void reconcile_live_target(
+            const std::vector<llama_kv_page_record> & target) noexcept;
     page_state * find_page(int32_t sequence_id, uint32_t logical_page) noexcept;
     const page_state * find_page(int32_t sequence_id, uint32_t logical_page) const noexcept;
     page_state * find_slot(uint32_t slot) noexcept;

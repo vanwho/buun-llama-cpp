@@ -355,6 +355,30 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
     std::vector<bool> used(pool.slot_capacity(), false);
     std::vector<llama_kv_page_record> desired;
     desired.reserve(output.policy.target.size());
+    // Preserve the physical slots of pages that remain resident before
+    // assigning a slot to a cold promotion. This permits an occupied pool to
+    // replace a victim without accidentally assigning the new page to a slot
+    // still owned by a retained page.
+    for (const uint64_t policy_id : output.policy.target) {
+        if (policy_id == 0 || policy_id > output.trace.pages.size()) {
+            output.status = llama_kv_live_policy_status::unavailable_inventory;
+            return output;
+        }
+        const auto & trace_page = output.trace.pages[size_t(policy_id - 1)];
+        const auto * source = find_page(boundary.pages, trace_page.id);
+        if (source == nullptr) {
+            output.status = llama_kv_live_policy_status::unavailable_inventory;
+            return output;
+        }
+        if (source->record.physical_slot != UINT32_MAX) {
+            if (source->record.physical_slot >= used.size() ||
+                used[source->record.physical_slot]) {
+                output.status = llama_kv_live_policy_status::invalid_argument;
+                return output;
+            }
+            used[source->record.physical_slot] = true;
+        }
+    }
     for (const uint64_t policy_id : output.policy.target) {
         if (policy_id == 0 || policy_id > output.trace.pages.size()) {
             output.status = llama_kv_live_policy_status::unavailable_inventory;
@@ -368,11 +392,10 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
         }
         llama_kv_page_record record = source->record;
         if (record.physical_slot != UINT32_MAX) {
-            if (record.physical_slot >= used.size() || used[record.physical_slot]) {
+            if (record.physical_slot >= used.size()) {
                 output.status = llama_kv_live_policy_status::invalid_argument;
                 return output;
             }
-            used[record.physical_slot] = true;
         } else {
             uint32_t slot = UINT32_MAX;
             for (uint32_t i = 0; i < used.size(); ++i) {
