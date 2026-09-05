@@ -664,3 +664,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-20-03`
 - Commit at update: `f9e274ada`
 - Summary: Bounded predictive promotion scheduler, lifecycle lookahead boundary, deterministic async/failure tests, CPU/CUDA verification, and overlap receipt complete; live Qwen cold/warm checkpoint deferred.
+
+## 2026-09-05T17:11:49+00:00 — 20-04 — done
+
+- Branch: `codex/task-20-04`
+- Commit at update: `a530f894d`
+- Summary: Implemented shape-keyed selected-attention graph reuse with bounded mutable descriptor refresh and retained host workspaces; CPU/CUDA-configured focused KV tests pass, live GPU/MTP checkpoint deferred due occupied RTX 4080.

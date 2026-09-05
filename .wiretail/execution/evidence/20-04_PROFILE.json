@@ -1,0 +1,123 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "20-04",
+  "result": "pass_local_deferred_live",
+  "kind": "implementation_and_measurement",
+  "procedure": "shape-keyed selected-attention graph reuse with bounded mutable descriptors",
+  "created_utc": "2026-09-05T17:09:41Z",
+  "classification": {
+    "local_cpu_build_and_tests": "pass",
+    "local_cuda_configured_build_and_tests": "pass",
+    "content_only_graph_reuse": "pass",
+    "shape_change_graph_rebuild": "pass",
+    "forced_paged_direct_kernel_hardware_run": "deferred",
+    "matched_live_three_prompt_and_warm_pressure": "deferred"
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "a530f894dd3396e94e1f7d3931e1b41b067b79ad",
+    "source_diff_sha256": "c628d0fe5e5736cd1e2418552b7dc334401466ca1f483ba38c06148aad7a3bf5",
+    "worktree": "dirty_expected_task_changes",
+    "bundle": "/srv/ai/paged-kv/results/18-01-runtime-bundle-20260905-v3/bundle",
+    "bundle_manifest_sha256": null,
+    "model": "/srv/ai/models/text/current.gguf -> /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": null,
+    "corpus": null,
+    "corpus_sha256": null,
+    "config": "build-cuda/CMakeCache.txt; CUDA architecture 89-real",
+    "config_sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; driver 595.84; 16376 MiB total; 1128 MiB free; compute capability 8.9"
+  },
+  "checks": [
+    {
+      "name": "layout key ignores page epoch, page order/slot values, and query values while retaining shape/configuration",
+      "status": "pass",
+      "raw_ids": ["kv-attention-view", "kv-attention-execution"]
+    },
+    {
+      "name": "content-only page permutation, slot remap, and query-position update replay the graph",
+      "status": "pass",
+      "raw_ids": ["kv-attention-execution"]
+    },
+    {
+      "name": "tail growth, query-shape change, representation change, route change, and rollback rebuild safely",
+      "status": "pass",
+      "raw_ids": ["kv-attention-execution"]
+    },
+    {
+      "name": "CPU focused KV view/telemetry/execution/exact regression matrix",
+      "status": "pass",
+      "raw_ids": ["cpu-ctest"]
+    },
+    {
+      "name": "CUDA-configured focused KV view/telemetry/execution/exact regression matrix",
+      "status": "pass",
+      "raw_ids": ["cuda-ctest"]
+    },
+    {
+      "name": "live Qwen MTP parity, forced-paged CUDA kernel, and three-prompt warm-pressure protocol",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "deterministic_graph_fixture": {
+      "submissions": 9,
+      "graph_captures": 5,
+      "graph_replays": 4,
+      "graph_rebuilds": 5,
+      "table_upload_bytes": 48,
+      "table_epoch_changes": 2,
+      "layout_only_reuse_cases": 3,
+      "shape_or_configuration_rebuild_cases": 2,
+      "phase_coverage": ["prefill", "decode", "mtp_verify"],
+      "route_coverage": ["selected_direct", "selected_reference", "exact_direct", "exact_reference", "observe", "dense", "refusal"]
+    },
+    "production_changes": {
+      "graph_identity": "layout key plus phase/representation/shape/route/device-compatible inputs",
+      "mutable_data": "page descriptors, physical row IDs, native positions/mask, query positions, and selected attention mask",
+      "steady_hot_behavior": "stable graph-owned capacities; no selected descriptor tensor upload when content key is unchanged",
+      "direct_descriptor_lifetime": "page host vector capacity is fixed at graph build and updated in place before a reused submission",
+      "context_workspaces": "selected page IDs, query positions, and reference row IDs retain bounded capacity",
+      "direct_all_fit_validation": "reference row lookup is skipped when the qualified direct physical-slab route is selected",
+      "off_behavior": "pager selection path remains bypassed for non-selective modes"
+    },
+    "live": {
+      "before_after_wall_time": null,
+      "mtp_acceptance": null,
+      "attention_checksum": null,
+      "warm_repeat_upload_bytes": null
+    }
+  },
+  "raw_index": [
+    {"id": "kv-attention-op-source", "path": "src/llama-kv-attention-op.cpp", "sha256": "22c75519f53b82fb9a34fef81a89afdce98409ff41002d2fe5d2253fe7691911"},
+    {"id": "kv-attention-op-header", "path": "src/llama-kv-attention-op.h", "sha256": "5db5bef195235ceff04a029ea6d73fdf675dd6296f1fc8651cfa9efff05c6d32"},
+    {"id": "graph-source", "path": "src/llama-graph.cpp", "sha256": "1d3296397498c3751d3a0e4bb723a696bfbb909740fd5189ae39eebf55243295"},
+    {"id": "context-source", "path": "src/llama-context.cpp", "sha256": "97e4ab0b1c1c86f6a37ffac8d8d2378004191ef1073625a585f39272eee2b9a1"},
+    {"id": "execution-test", "path": "tests/test-kv-attention-execution.cpp", "sha256": "97d37e76b8114086bb875369cb2e2e191fe38bd3c341fec390d9db3e2519a35a"},
+    {"id": "view-test", "path": "tests/test-kv-attention-view.cpp", "sha256": "219af9b44e68ad8d245ebbd204615cff632b16a18e490da830c27de0a688743a"},
+    {"id": "cpu-execution-binary", "path": "build/bin/test-kv-attention-execution", "sha256": "7b4656c41a4c7d696253df0197f39a248fa433f20f47975881d306f5c5715818"},
+    {"id": "cuda-execution-binary", "path": "build-cuda/bin/test-kv-attention-execution", "sha256": "7e754fe3139947e395e6e8cbbcfd6b63e35f3a5bc901041afab7ca9afe4221bc"},
+    {"id": "cuda-build-config", "path": "build-cuda/CMakeCache.txt", "sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1"}
+  ],
+  "local_verification": [
+    {"command": "cmake --build build -j2 --target test-kv-attention-view test-kv-attention-execution", "status": "pass"},
+    {"command": "cmake --build build-cuda -j2 --target test-kv-attention-view test-kv-attention-execution", "status": "pass"},
+    {"command": "ctest --test-dir build --output-on-failure -R '^test-kv-attention-(view|execution|telemetry|exact)$'", "status": "4/4 passed"},
+    {"command": "ctest --test-dir build-cuda --output-on-failure -R '^test-kv-attention-(view|execution|telemetry|exact)$'", "status": "4/4 passed"},
+    {"command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate", "status": "Valid state: 122 tasks"},
+    {"command": "git diff --check", "status": "pass"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The RTX 4080 had 1128 MiB free while an existing qwen38-fast-turbo4-mtp llama-server occupied the GPU; no live process was disturbed.",
+    "model_and_corpus": "The Qwen3.8 model is present, but no isolated Qwen35 live fixture/corpus was available for this task checkpoint; hashes remain null.",
+    "cuda_hardware_and_quality": "Requires isolated forced-paged/direct-kernel execution plus matched selective/observe/off MTP acceptance and checksum protocol."
+  },
+  "resume": {
+    "next_case": "After GPU isolation and Qwen35 fixture provisioning, run the forced-paged parity case, then the matched three-prompt and warm-pressure protocol with route and MTP acceptance counters.",
+    "secrets_omitted": true
+  }
+}
