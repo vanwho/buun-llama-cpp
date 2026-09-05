@@ -1,6 +1,7 @@
 #include "llama-kv-attention-exact.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <new>
@@ -189,9 +190,21 @@ llama_kv_attention_exact_wave_plan llama_kv_attention_exact_wave_plan::build(
         llama_kv_attention_exact_status & status) noexcept {
     llama_kv_attention_exact_wave_plan output;
     status = llama_kv_attention_exact_status::invalid_argument;
+    if (pages.empty() || pages.size() > 1024 || config.pages_per_wave == 0 ||
+        config.staging_slots == 0 ||
+        (config.schedule == llama_kv_attention_exact_schedule::double_buffered &&
+            config.staging_slots < 2)) {
+        return output;
+    }
+    uint32_t largest_logical_page = 0;
+    for (const auto & page : pages) {
+        if (page.id.logical_page == UINT32_MAX) return output;
+        largest_logical_page = std::max(largest_logical_page, page.id.logical_page);
+    }
+    if (largest_logical_page == UINT32_MAX) return output;
     const uint32_t page_count = config.logical_page_count == 0
-        ? uint32_t(pages.size()) : config.logical_page_count;
-    if (pages.empty() || pages.size() != page_count || page_count > 1024 ||
+        ? largest_logical_page + 1 : config.logical_page_count;
+    if (page_count == 0 || page_count > 1024 || pages.size() > page_count ||
         config.pages_per_wave == 0 || config.staging_slots == 0 ||
         (config.schedule == llama_kv_attention_exact_schedule::double_buffered &&
             config.staging_slots < 2)) {
@@ -208,9 +221,10 @@ llama_kv_attention_exact_wave_plan llama_kv_attention_exact_wave_plan::build(
             return a.id.logical_page < b.id.logical_page;
         });
         output.visited_.assign(page_count, 0);
+        output.expected_.assign(page_count, 0);
         output.ledger_.logical_page_count = page_count;
 
-        for (uint32_t i = 0; i < page_count; ++i) {
+        for (size_t i = 0; i < sorted.size(); ++i) {
             const auto & page = sorted[i];
             if (page.id.logical_page >= page_count) {
                 status = llama_kv_attention_exact_status::invalid_page;
@@ -230,7 +244,8 @@ llama_kv_attention_exact_wave_plan llama_kv_attention_exact_wave_plan::build(
                 return output;
             }
             if (page.resident) {
-                const auto * resident = find_page(resident_snapshot, i);
+                const auto * resident = find_page(
+                        resident_snapshot, page.id.logical_page);
                 if (resident == nullptr || resident->id != page.id ||
                     resident->physical_slot != page.physical_slot ||
                     !resident_state(resident->state)) {
@@ -246,7 +261,7 @@ llama_kv_attention_exact_wave_plan llama_kv_attention_exact_wave_plan::build(
                 status = llama_kv_attention_exact_status::invalid_page;
                 return output;
             }
-            output.visited_[i] = 0;
+            output.expected_[page.id.logical_page] = 1;
             if (!add_u64(output.ledger_.valid_tokens, page.valid_tokens, output.ledger_.valid_tokens)) {
                 status = llama_kv_attention_exact_status::overflow;
                 return output;
@@ -259,7 +274,7 @@ llama_kv_attention_exact_wave_plan llama_kv_attention_exact_wave_plan::build(
         // are then batched by logical order; this makes output independent of
         // selected physical slots and of wave size.
         std::vector<llama_kv_attention_exact_page> ordered;
-        ordered.reserve(page_count);
+        ordered.reserve(sorted.size());
         for (const auto & page : sorted) if (page.resident) ordered.push_back(page);
         const uint32_t hot_begin = uint32_t(ordered.size());
         for (const auto & page : sorted) if (!page.resident) ordered.push_back(page);
@@ -282,8 +297,9 @@ llama_kv_attention_exact_wave_plan llama_kv_attention_exact_wave_plan::build(
 
         uint32_t wave_index = 0;
         if (hot_begin != 0) append_wave(wave_index++, 0, hot_begin, false);
-        for (uint32_t begin = hot_begin; begin < page_count; begin += config.pages_per_wave) {
-            const uint32_t end = std::min(page_count, begin + config.pages_per_wave);
+        for (uint32_t begin = hot_begin; begin < ordered.size(); begin += config.pages_per_wave) {
+            const uint32_t end = std::min(uint32_t(ordered.size()),
+                    begin + config.pages_per_wave);
             append_wave(wave_index++, begin, end, true);
         }
         output.ledger_.waves = output.waves_.size();
@@ -317,7 +333,9 @@ llama_kv_attention_exact_wave_plan llama_kv_attention_exact_wave_plan::build(
 llama_kv_attention_exact_status llama_kv_attention_exact_wave_plan::record_visit(
         uint32_t logical_page) noexcept {
     if (!valid_) return llama_kv_attention_exact_status::invalid_argument;
-    if (logical_page >= visited_.size()) return llama_kv_attention_exact_status::invalid_page;
+    if (logical_page >= visited_.size() || expected_[logical_page] == 0) {
+        return llama_kv_attention_exact_status::invalid_page;
+    }
     if (visited_[logical_page] != 0) {
         ++ledger_.duplicate_pages;
         return llama_kv_attention_exact_status::duplicate_page;
@@ -329,8 +347,8 @@ llama_kv_attention_exact_status llama_kv_attention_exact_wave_plan::record_visit
 
 llama_kv_attention_exact_status llama_kv_attention_exact_wave_plan::finish() noexcept {
     if (!valid_) return llama_kv_attention_exact_status::invalid_argument;
-    for (const uint8_t visited : visited_) {
-        if (visited == 0) {
+    for (size_t i = 0; i < visited_.size(); ++i) {
+        if (expected_[i] != 0 && visited_[i] == 0) {
             ++ledger_.missing_pages;
             return llama_kv_attention_exact_status::missing_page;
         }
@@ -350,6 +368,16 @@ llama_kv_attention_exact_status llama_kv_attention_exact_executor::execute(
     output = {};
     bool have_output = false;
     bool next_wave_preuploaded = false;
+    const auto record_transfer_time = [&](std::chrono::steady_clock::time_point start) {
+        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - start).count();
+        if (elapsed > 0) {
+            const uint64_t value = uint64_t(elapsed);
+            plan.ledger_.h2d_transfer_time_us = value >
+                UINT64_MAX - plan.ledger_.h2d_transfer_time_us
+                ? UINT64_MAX : plan.ledger_.h2d_transfer_time_us + value;
+        }
+    };
     for (size_t wave_index = 0; wave_index < plan.waves().size(); ++wave_index) {
         const auto & wave = plan.waves()[wave_index];
         if (wave.pages.empty() || (wave.contains_cold_pages &&
@@ -361,15 +389,19 @@ llama_kv_attention_exact_status llama_kv_attention_exact_executor::execute(
             if (!next_wave_preuploaded) {
                 const bool asynchronous = plan.schedule_ ==
                     llama_kv_attention_exact_schedule::double_buffered;
+                const auto transfer_start = std::chrono::steady_clock::now();
                 if (!backend.upload_cold_wave(backend.context, wave, wave.staging_slot, asynchronous)) {
                     return llama_kv_attention_exact_status::not_configured;
                 }
+                record_transfer_time(transfer_start);
             }
             next_wave_preuploaded = false;
             ++plan.ledger_.waits;
+            const auto wait_start = std::chrono::steady_clock::now();
             if (!backend.wait_wave(backend.context, wave)) {
                 return llama_kv_attention_exact_status::not_configured;
             }
+            record_transfer_time(wait_start);
         }
         llama_kv_attention_online_state partial;
         if (!backend.compute_wave(backend.context, wave, partial)) {
@@ -394,9 +426,11 @@ llama_kv_attention_exact_status llama_kv_attention_exact_executor::execute(
             wave_index + 1 < plan.waves().size() &&
             plan.waves()[wave_index + 1].contains_cold_pages) {
             const auto & next = plan.waves()[wave_index + 1];
+            const auto transfer_start = std::chrono::steady_clock::now();
             if (!backend.upload_cold_wave(backend.context, next, next.staging_slot, true)) {
                 return llama_kv_attention_exact_status::not_configured;
             }
+            record_transfer_time(transfer_start);
             next_wave_preuploaded = true;
         }
     }

@@ -44,6 +44,29 @@ static llama_kv_residency_snapshot resident_snapshot() {
     return table.snapshot();
 }
 
+static void test_sparse_logical_inventory() {
+    auto pages = all_pages();
+    pages.erase(pages.begin() + 3); // logical page 1 is an intentional gap.
+
+    llama_kv_attention_exact_config config;
+    config.logical_page_count = 4;
+    config.pages_per_wave = 1;
+    config.staging_slots = 1;
+    config.page_bytes = 100;
+    llama_kv_attention_exact_status status;
+    auto plan = llama_kv_attention_exact_wave_plan::build(
+        pages, resident_snapshot(), config, status);
+    assert(status == llama_kv_attention_exact_status::ok && plan.valid());
+    assert(plan.ledger().logical_page_count == 4);
+    assert(plan.ledger().resident_pages == 2 && plan.ledger().cold_pages == 1);
+    assert(plan.ledger().valid_tokens == 529);
+    assert(plan.record_visit(1) == llama_kv_attention_exact_status::invalid_page);
+    assert(plan.record_visit(0) == llama_kv_attention_exact_status::ok);
+    assert(plan.record_visit(2) == llama_kv_attention_exact_status::ok);
+    assert(plan.record_visit(3) == llama_kv_attention_exact_status::ok);
+    assert(plan.finish() == llama_kv_attention_exact_status::ok);
+}
+
 static void test_merge_against_direct() {
     const float logits[] = { -100.0f, 2.0f, -3.0f, 100.0f };
     const float values[] = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f };
@@ -247,6 +270,7 @@ static void test_exact_execution_route() {
 
 int main() {
     test_merge_against_direct();
+    test_sparse_logical_inventory();
     test_plan_and_executor();
     test_coverage_failures();
     test_large_page_coverage();

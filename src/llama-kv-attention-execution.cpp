@@ -79,6 +79,7 @@ const char * llama_kv_attention_execution_status_name(
 
 void llama_kv_attention_execution_metrics::record_exact_ledger(
         const llama_kv_attention_exact_ledger & ledger) noexcept {
+    exact_refusal_reason.clear();
     exact_plan_waves = ledger.waves;
     exact_plan_pages = ledger.logical_page_count;
     exact_resident_pages = ledger.resident_pages;
@@ -86,12 +87,22 @@ void llama_kv_attention_execution_metrics::record_exact_ledger(
     exact_pages_visited = ledger.pages_visited;
     exact_h2d_useful_bytes = ledger.h2d_useful_bytes;
     exact_h2d_aligned_bytes = ledger.h2d_aligned_bytes;
+    exact_h2d_transfer_time_us = ledger.h2d_transfer_time_us;
     exact_waits = ledger.waits;
     exact_peak_staging_pages = ledger.peak_staging_pages;
     exact_duplicate_pages = ledger.duplicate_pages;
     exact_missing_pages = ledger.missing_pages;
     exact_stale_pages = ledger.stale_pages;
     exact_faults = ledger.cold_pages;
+}
+
+void llama_kv_attention_execution_metrics::record_exact_refusal(
+        const std::string & reason) noexcept {
+    try {
+        exact_refusal_reason = reason;
+    } catch (...) {
+        exact_refusal_reason.clear();
+    }
 }
 
 uint64_t llama_kv_attention_scratch_request::required_rows() const noexcept {
