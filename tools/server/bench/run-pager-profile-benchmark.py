@@ -232,6 +232,21 @@ def verify_restoration(before: dict[str, object], after: dict[str, object],
     if before_profile and after.get("profile") != before_profile:
         errors.append("restore_verification_failed:profile")
 
+    # The profile name alone is not sufficient: an activation script can
+    # return success while leaving a different binary or context running.
+    # Compare the managed runtime contract after the restart so failed
+    # pressure probes cannot report a false restoration success.
+    before_identity = before.get("identity")
+    after_identity = after.get("identity")
+    if isinstance(before_identity, dict):
+        if not isinstance(after_identity, dict):
+            errors.append("restore_verification_failed:identity")
+        else:
+            mismatches = identity_mismatches(after_identity, before_identity)
+            if mismatches:
+                errors.append("restore_verification_failed:identity:" +
+                              ",".join(mismatches))
+
     before_pid = before.get("pid")
     after_pid = after.get("pid")
     if before_pid is not None:
@@ -417,8 +432,8 @@ def corpus(variant: str, frozen: dict[str, object] | None = None,
 
 
 def prompt_context_words(context_tokens: int) -> int:
-    """Approximate a tokenizer-sized synthetic prompt without a fixed default."""
-    return max(1, context_tokens // 2)
+    """Approximate a tokenizer-sized prompt while reserving wrapper headroom."""
+    return max(1, (context_tokens - 512) // 2)
 
 
 def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str | None,

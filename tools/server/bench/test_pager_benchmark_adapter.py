@@ -140,7 +140,7 @@ class AdapterContractTests(unittest.TestCase):
             self.assertEqual("acceptance", config["context"]["mode"])
             self.assertFalse(config["context"]["diagnostic_only"])
             self.assertEqual(22016, config["launcher"]["context"])
-            self.assertEqual(11008, config["launcher"]["prompt_context_words"])
+            self.assertEqual(10752, config["launcher"]["prompt_context_words"])
 
     def test_sub_ceiling_requires_explicit_diagnostic_flag(self) -> None:
         with tempfile.TemporaryDirectory() as directory, \
@@ -176,6 +176,14 @@ class AdapterContractTests(unittest.TestCase):
         mismatches = adapter.identity_mismatches(
             identity("candidate", 202, binary="/opt/other-server"), identity("candidate", 202))
         self.assertIn("binary", mismatches)
+
+    def test_restoration_rejects_wrong_runtime_identity(self) -> None:
+        errors = adapter.verify_restoration(
+            snapshot("prior", 101),
+            snapshot("prior", 303, binary="/opt/other-server"),
+            {"attempted": True, "state": "restored", "profile": "prior", "exit_code": 0},
+        )
+        self.assertIn("restore_verification_failed:identity:binary", errors)
 
     def test_success_keeps_candidate_loaded_and_separates_statuses(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
