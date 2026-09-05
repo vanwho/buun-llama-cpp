@@ -1,0 +1,94 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "19-03",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "production_live_residency_transaction_layer_major_cold_page_boundary",
+  "created_utc": "2026-09-05T09:35:39Z",
+  "provenance": {
+    "source_commit": "8a7ecb4e69242f4dae7f9d078a725e229144814c",
+    "source_diff_sha256": "ebd1548bd070dc566778a60b1f52d5677563535d78b7ad1c4fc37576062c510e",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "binary": "build-cuda/bin/libllama.so",
+    "binary_sha256": "a7248df61cfa1c030c4f5d9d2bab7d47c422ec6b8bfb75014887a515210bbb6d",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": null,
+    "config_sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1",
+    "build": "build-cuda; CUDA architecture 89-real",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; 16376 MiB total; 1128 MiB free",
+    "live_process_observed": "/srv/ai/paged-kv/results/18-01-runtime-bundle-20260905-v3/bundle/bin/llama-server; 14660 MiB"
+  },
+  "checks": [
+    {
+      "name": "real decode/ubatch safe-boundary caller reaches live policy",
+      "status": "pass",
+      "raw_ids": ["context-source", "cache-source", "pager-source"]
+    },
+    {
+      "name": "layer-major GGML run view writes the cache slab consumed by attention",
+      "status": "pass",
+      "raw_ids": ["residency-source", "residency-test", "llama-binary"]
+    },
+    {
+      "name": "pool reconciliation, physical-slot reuse, and table recheck",
+      "status": "pass",
+      "raw_ids": ["residency-source", "residency-test", "pager-source"]
+    },
+    {
+      "name": "backpressure, map/copy failure, generation cancellation, and refusal routing",
+      "status": "pass",
+      "raw_ids": ["residency-source", "policy-test", "pager-test"]
+    },
+    {
+      "name": "focused CUDA build and pager/residency/policy regressions",
+      "status": "pass",
+      "raw_ids": ["pager-binary", "residency-binary", "policy-binary"]
+    },
+    {
+      "name": "live Qwen cold-page round trip with CUDA event and attention checksum",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "focused_ctest": "3/3 passed",
+    "direct_policy_trace": "submitted=4 completed=1 late_waits=0 cancellations=3 useful_bytes=32 aligned_bytes=40 overlap=1 companion_publishes=1 companion_rollbacks=0",
+    "layer_major_run_fixture": "CPU GGML adapter; K offsets [0,64], V offsets [32,96], page bytes 32, page_tokens 2; layer-1/value destination matched bytes 1..8",
+    "production_call_chain": "llama_context::synchronize -> apply_kv_pager_policy -> llama_kv_cache::apply_pager_live_policy -> llama_kv_pager::apply_live_policy -> llama_kv_residency_execute_transaction -> llama_kv_residency_execute_transfer -> vbr_h2d_chunk_ring::stream -> GGML run_tensor",
+    "live_h2d_useful_bytes": null,
+    "live_cuda_event": null,
+    "live_original_host_attention_checksums": null,
+    "live_warm_repeat_upload_bytes": null
+  },
+  "raw_index": [
+    {"id": "context-source", "path": "src/llama-context.cpp", "sha256": "9cc226d6584009b77e3b0a04c48add61aba3c62b863b87baa2c55d0079e45749"},
+    {"id": "cache-source", "path": "src/llama-kv-cache.cpp", "sha256": "3b5ddb0467fa4ee3a806ca0163fca8b09ee234ef949adc6239344ef42a29fdc6"},
+    {"id": "pager-source", "path": "src/llama-kv-pager.cpp", "sha256": "4c085276f6a476e54a0099c8ec02d697b634c67789a4b585cf748115241d348d"},
+    {"id": "residency-source", "path": "src/llama-kv-residency-transfer.cpp", "sha256": "1752c0ac2cf941d6b418c588b06101e835995f3fe072d75df9dd1310b1cbb5c9"},
+    {"id": "residency-header", "path": "src/llama-kv-residency-transfer.h", "sha256": "f62eaffcb42a510ee8bcaa7f0d534eeffb23d038ba63f555f3efdc9d7c9feeb3"},
+    {"id": "policy-source", "path": "src/llama-kv-live-policy.cpp", "sha256": "211214e7505b08d8b4093206ccaaa5005c7c9ea1c2c420e3f45a2433006a331a"},
+    {"id": "residency-test", "path": "tests/test-kv-residency.cpp", "sha256": "c1f9e594a1611df77688856118a1b9119fe35d33dac1acf550c13163b8866d69"},
+    {"id": "pager-test", "path": "build-cuda/bin/test-kv-pager", "sha256": "0ad07df67db5b99dd96a57cf7b3f1f8d91b8d20f64984d7fa3e1e689ed605202"},
+    {"id": "residency-binary", "path": "build-cuda/bin/test-kv-residency", "sha256": "c9ee5414ccbeb5f813b6c4b16725d83aa465f9afb1fb0c9e1a7a35ed2954a136"},
+    {"id": "policy-test", "path": "build-cuda/bin/test-kv-policy", "sha256": "7999293d5407b581bceb4fc30e41ca79d0e40b980fe38295271b5470f7235310"},
+    {"id": "llama-binary", "path": "build-cuda/bin/libllama.so", "sha256": "a7248df61cfa1c030c4f5d9d2bab7d47c422ec6b8bfb75014887a515210bbb6d"},
+    {"id": "build-config", "path": "build-cuda/CMakeCache.txt", "sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The RTX 4080 was occupied by the existing llama-server with 1128 MiB free; no model-backed cold-page run was started or disturbed.",
+    "model_and_corpus_hashes": "No model-backed task run was started; model hash and corpus hash remain null.",
+    "bundle": "No immutable production bundle was built for this local implementation task.",
+    "attention_checksum_and_warm_upload": "Requires the isolated live Qwen execution described in the task packet."
+  },
+  "resume": {
+    "command": ["cmake", "--build", "build-cuda", "--target", "llama", "test-kv-pager", "test-kv-residency", "test-kv-policy", "-j2"],
+    "next_case": "isolated CUDA/model cold-page round trip with forced small hot budget",
+    "secrets_omitted": true
+  }
+}

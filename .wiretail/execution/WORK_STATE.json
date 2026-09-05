@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "19",
-  "current_task": "19-03",
-  "last_updated_utc": "2026-09-05T09:10:07+00:00",
+  "current_task": "19-04",
+  "last_updated_utc": "2026-09-05T09:37:45+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -2829,22 +2829,36 @@
       "cluster": "19a-physical-storage",
       "title": "Wire live residency transactions and prove a cold-page round trip",
       "packet": ".wiretail/execution/tasks/19-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "19-02"
       ],
-      "commit": null,
+      "commit": "fe41e735341e487447ea5174b957b4881bdac73a",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/19-03-attempt-1-20260905T091023Z.jsonl:226",
+            "total_tokens": 22101841,
+            "total_tokens_derived": true,
+            "input_tokens": 22044154,
+            "cached_input_tokens": 21658368,
+            "output_tokens": 57687,
+            "thinking_tokens": 22817
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 22101841,
+          "input_tokens": 22044154,
+          "cached_input_tokens": 21658368,
+          "output_tokens": 57687,
+          "thinking_tokens": 22817
         }
       }
     },
@@ -3771,15 +3785,28 @@
           "cached_input_tokens": 19164416,
           "output_tokens": 44921,
           "thinking_tokens": 18051
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/19-03-attempt-1-20260905T091023Z.jsonl:226",
+          "total_tokens": 22101841,
+          "total_tokens_derived": true,
+          "input_tokens": 22044154,
+          "cached_input_tokens": 21658368,
+          "output_tokens": 57687,
+          "thinking_tokens": 22817
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 40238457,
-        "input_tokens": 40131246,
-        "cached_input_tokens": 39301120,
-        "output_tokens": 107211,
-        "thinking_tokens": 44901
+        "turns": 3,
+        "total_tokens": 62340298,
+        "input_tokens": 62175400,
+        "cached_input_tokens": 60959488,
+        "output_tokens": 164898,
+        "thinking_tokens": 67718
       }
     },
     "20": {
@@ -3818,12 +3845,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 16,
-      "total_tokens": 258788011,
-      "input_tokens": 258084546,
-      "cached_input_tokens": 253231360,
-      "output_tokens": 703465,
-      "thinking_tokens": 251233
+      "turns": 17,
+      "total_tokens": 280889852,
+      "input_tokens": 280128700,
+      "cached_input_tokens": 274889728,
+      "output_tokens": 761152,
+      "thinking_tokens": 274050
     },
     "source": "Codex turn.completed usage events"
   }

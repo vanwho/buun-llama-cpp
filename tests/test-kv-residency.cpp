@@ -502,6 +502,85 @@ static void test_ggml_adapter_borrowed_storage() {
     ggml_backend_free(backend);
 }
 
+static void test_pool_reconcile_and_layer_major_run_view() {
+    fake_transfer_backend fake;
+    llama_kv_residency_pool_backend backend {
+        &fake, fake_transfer_backend::reserve_slots,
+        fake_transfer_backend::release_slots, fake_transfer_backend::map_slot,
+        fake_transfer_backend::drop_slot, fake_transfer_backend::issue,
+        fake_transfer_backend::complete, fake_transfer_backend::cancel,
+    };
+    llama_kv_residency_pool_status status;
+    auto pool = llama_kv_residency_pool::create(
+            { 2, 64, 4, 4, 1024 }, backend, status);
+    assert(pool && status == llama_kv_residency_pool_status::ok);
+    llama_kv_residency_table table(2);
+    auto tx = table.begin();
+    assert(table.replace(tx, resident(0, 0)) == llama_kv_residency_status::ok);
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    assert(pool->reconcile(table.snapshot()) == llama_kv_residency_pool_status::ok);
+    assert(pool->mapped_slots() == 1 && fake.map_calls == 1);
+
+    tx = table.begin();
+    assert(table.erase(tx, page(0)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, resident(1, 1)) == llama_kv_residency_status::ok);
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    assert(pool->reconcile(table.snapshot()) == llama_kv_residency_pool_status::ok);
+    uint32_t slot = UINT32_MAX;
+    assert(pool->mapped_slots() == 1 && pool->find_logical_page(page(1), slot) && slot == 1);
+
+    ggml_backend_t cpu = ggml_backend_cpu_init();
+    assert(cpu != nullptr);
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_buffer(cpu, 256);
+    assert(buffer != nullptr);
+    llama_kv_residency_ggml_adapter_config config;
+    config.backend = cpu;
+    config.buffer = buffer;
+    config.slot_capacity = 2;
+    config.bytes_per_slot = 128;
+    config.layer_k_offsets = { 0, 64 };
+    config.layer_v_offsets = { 32, 96 };
+    config.layer_k_page_bytes = { 32, 32 };
+    config.layer_v_page_bytes = { 32, 32 };
+    config.page_tokens = 2;
+    llama_kv_residency_ggml_status adapter_status;
+    auto adapter = llama_kv_residency_ggml_adapter::create(config, adapter_status);
+    assert(adapter && adapter_status == llama_kv_residency_ggml_status::ok);
+    auto layer_backend = adapter->pool_backend();
+    auto layer_pool = llama_kv_residency_pool::create(
+            { 2, 128, 4, 4, 1024 }, layer_backend, status);
+    assert(layer_pool);
+    llama_kv_residency_transfer_page layer_page;
+    layer_page.page = page(0);
+    layer_page.physical_slot = 1;
+    layer_page.table_epoch = 1;
+    layer_page.runs.push_back({ UINT32_MAX, 0, 1, 1, 2, 2, 4, 0, 32 });
+    llama_kv_residency_transfer_plan plan;
+    assert(llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            { layer_page }, 4, {}, plan));
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    assert(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &fake;
+    transport.host_read = fake_transfer_backend::host_read;
+    transport.recheck = fake_transfer_backend::recheck;
+    llama_kv_residency_transfer_claim claim;
+    assert(layer_pool->reserve(plan, 32, {}, claim) == llama_kv_residency_pool_status::ok);
+    assert(llama_kv_residency_execute_transfer(
+            *layer_pool, plan, claim, layer_backend, transport).status ==
+            llama_kv_residency_pool_status::ok);
+    const auto * base = static_cast<const uint8_t *>(
+            ggml_backend_buffer_get_base(buffer));
+    for (size_t i = 0; i < 8; ++i) assert(base[128 + i] == uint8_t(i + 1));
+    layer_pool.reset();
+    adapter.reset();
+    ggml_backend_buffer_free(buffer);
+    ggml_backend_free(cpu);
+}
+
 static void test_transfer_rollback_and_stale_completion() {
     fake_transfer_backend fake;
     llama_kv_residency_pool_backend backend {
@@ -929,6 +1008,7 @@ int main() {
     test_batched_transfer_pool();
     test_ggml_adapter_tensor_route();
     test_ggml_adapter_borrowed_storage();
+    test_pool_reconcile_and_layer_major_run_view();
     test_transfer_rollback_and_stale_completion();
     test_residency_transaction();
     test_reseal_before_eviction();

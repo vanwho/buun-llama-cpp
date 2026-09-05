@@ -238,6 +238,10 @@ struct llama_memory_i {
     // from the graph-submission callback itself.
     virtual void seal_kv_pager_pages() {}
 
+    // Apply the sealed live residency target after the existing attention
+    // completion bookkeeping has crossed the scheduler fence.
+    virtual void apply_kv_pager_policy() {}
+
     // split the input batch into a set of ubatches and verify that they can fit into the cache
     // return a context object containing the ubatches and memory state required to process them
     // check the llama_memory_context_i::get_status() for the result

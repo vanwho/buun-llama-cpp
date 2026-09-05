@@ -2215,6 +2215,201 @@ void llama_kv_cache::seal_kv_pager_pages() {
     }
 }
 
+void llama_kv_cache::apply_kv_pager_policy() noexcept {
+    apply_pager_live_policy();
+}
+
+void llama_kv_cache::apply_pager_live_policy() noexcept {
+    if (pager_ == nullptr || pager_->snapshot().physical_page_count == 0 ||
+        pager_last_sequence_id_ < 0) {
+        return;
+    }
+    try {
+        const auto snapshot = pager_->residency();
+        auto inventory = pager_->exact_page_records(pager_last_sequence_id_);
+        if (snapshot.epoch() == 0 || inventory.empty()) return;
+
+        const auto host_pages = pager_->host_catalog()
+            ? pager_->host_catalog()->pages()
+            : std::vector<vbr_selected_page_host_view>{};
+        const auto has_host = [&](const llama_kv_page_id & id) {
+            return std::find_if(host_pages.begin(), host_pages.end(),
+                    [&](const auto & page) { return page.page.identity == id; });
+        };
+
+        llama_kv_live_policy_boundary boundary;
+        boundary.snapshot = snapshot;
+        boundary.hot_capacity = snapshot.slot_capacity();
+        boundary.logical_page_count = pager_->snapshot().logical_page_count;
+        boundary.policy = llama_kv_policy_release_defaults(boundary.hot_capacity);
+        boundary.transaction.staging_capacity = pager_->upload_ring()
+            ? pager_->upload_ring()->capacity_bytes() : 0;
+        boundary.previous_target.reserve(snapshot.pages().size());
+        for (const auto & page : snapshot.pages()) {
+            boundary.previous_target.push_back(page.id);
+        }
+
+        uint32_t selected_logical = UINT32_MAX;
+        for (const auto & record : inventory) {
+            if (record.physical_slot == UINT32_MAX && record.host_valid) {
+                selected_logical = record.id.logical_page;
+                break;
+            }
+        }
+        if (selected_logical == UINT32_MAX) {
+            for (auto it = inventory.rbegin(); it != inventory.rend(); ++it) {
+                if (it->physical_slot != UINT32_MAX) {
+                    selected_logical = it->id.logical_page;
+                    break;
+                }
+            }
+        }
+        if (selected_logical == UINT32_MAX) {
+            return;
+        }
+        llama_kv_page_id selected_id;
+        for (const auto & record : inventory) {
+            llama_kv_live_policy_page page;
+            page.record = record;
+            const auto host = has_host(record.id);
+            page.record.host_valid = host != host_pages.end();
+            if (page.record.physical_slot == UINT32_MAX) {
+                page.record.state = llama_kv_page_state::host_clean;
+                page.record.dirty = false;
+            }
+            page.age = record.id.logical_page;
+            page.recency = record.id.logical_page;
+            page.fault_cost = page.record.physical_slot == UINT32_MAX ? 1 : 0;
+            page.dirty_cost = page.record.dirty ? 1 : 0;
+            if (record.id.logical_page == selected_logical) {
+                selected_id = record.id;
+                // This is the deterministic diagnostic selection used until
+                // attention-aware query scoring supplies real retrieval data.
+                page.recent = true;
+                page.attention_observed = true;
+                page.attention_ema_q = 1;
+                boundary.retrieval.selected.push_back({
+                    record.id, llama_kv_routing_retrieval_reason::recent,
+                    1.0f, true, false, 0,
+                });
+            }
+            boundary.pages.push_back(std::move(page));
+        }
+        boundary.retrieval.status = llama_kv_routing_retrieval_status::ok;
+        boundary.retrieval.table_epoch = snapshot.epoch();
+        boundary.retrieval.sequence_id = pager_last_sequence_id_;
+        boundary.retrieval.sequence_generation = 1;
+        boundary.retrieval.session_generation = selected_id.session_generation;
+
+        // Ask the same diagnostic policy for its target order so the transfer
+        // destination exactly matches the policy's occupied-slot assignment.
+        uint32_t selected_slot = UINT32_MAX;
+        std::vector<bool> used(boundary.hot_capacity, false);
+        bool policy_target_bound = false;
+        llama_kv_live_policy_trace policy_trace;
+        llama_kv_policy_trace policy_input;
+        std::vector<llama_kv_policy_page> policy_pages;
+        if (llama_kv_live_policy_build_trace(
+                boundary, policy_trace, policy_input, policy_pages)) {
+            policy_input.pages = policy_pages;
+            std::vector<uint64_t> previous_policy_target;
+            for (const auto & id : boundary.previous_target) {
+                const auto found = std::find_if(policy_trace.pages.begin(), policy_trace.pages.end(),
+                        [&](const auto & page) { return page.id == id; });
+                if (found != policy_trace.pages.end()) previous_policy_target.push_back(found->policy_id);
+            }
+            const auto decision = llama_kv_policy_decide(
+                    policy_input, boundary.policy, previous_policy_target);
+            policy_target_bound = true;
+            for (const auto policy_id : decision.target) {
+                if (policy_id == 0 || policy_id > policy_trace.pages.size()) continue;
+                const auto & id = policy_trace.pages[size_t(policy_id - 1)].id;
+                const auto found = std::find_if(boundary.pages.begin(), boundary.pages.end(),
+                        [&](const auto & page) { return page.record.id == id; });
+                if (found != boundary.pages.end() && found->record.physical_slot != UINT32_MAX &&
+                    found->record.physical_slot < used.size()) {
+                    used[found->record.physical_slot] = true;
+                }
+            }
+        }
+        if (policy_target_bound) {
+            for (uint32_t slot = 0; slot < used.size(); ++slot) {
+                if (!used[slot]) { selected_slot = slot; break; }
+            }
+        }
+        if (selected_slot != UINT32_MAX && selected_id.logical_page != UINT32_MAX &&
+            selected_id != llama_kv_page_id{}) {
+            const auto selected_host = has_host(selected_id);
+            if (selected_host != host_pages.end() &&
+                std::find_if(boundary.previous_target.begin(), boundary.previous_target.end(),
+                    [&](const auto & id) { return id == selected_id; }) == boundary.previous_target.end()) {
+                llama_kv_residency_transfer_page transfer_page;
+                transfer_page.page = selected_id;
+                transfer_page.table_epoch = snapshot.epoch();
+                transfer_page.physical_slot = selected_slot;
+                uint64_t host_offset = 0;
+                const auto & geometry = pager_->snapshot().geometry;
+                for (const auto & unit : selected_host->page.units) {
+                    if (unit.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+                        unit.layer >= VBR_SELECTED_PAGE_TARGET_LAYERS || !unit.bytes ||
+                        unit.layer >= geometry.layer_k_page_bytes.size() ||
+                        unit.layer >= geometry.layer_v_page_bytes.size() ||
+                        unit.valid_rows == 0 || unit.row_bytes == 0) {
+                        boundary.transaction.transfers.clear();
+                        break;
+                    }
+                    const bool value = unit.side == vbr_artifact_side::value;
+                    const size_t layer = unit.layer;
+                    const uint64_t page_bytes = value
+                        ? geometry.layer_v_page_bytes[layer]
+                        : geometry.layer_k_page_bytes[layer];
+                    const uint64_t layer_offset = value
+                        ? geometry.layer_v_offsets[layer]
+                        : geometry.layer_k_offsets[layer];
+                    if (unit.bytes->size() != uint64_t(unit.valid_rows) * unit.row_bytes ||
+                        uint64_t(unit.valid_rows) * unit.row_bytes > page_bytes ||
+                        uint64_t(selected_slot) > UINT64_MAX / page_bytes ||
+                        layer_offset > UINT64_MAX - uint64_t(selected_slot) * page_bytes) {
+                        boundary.transaction.transfers.clear();
+                        break;
+                    }
+                    llama_kv_residency_transfer_run run;
+                    run.lane = 0;
+                    run.layer = uint32_t(layer);
+                    run.side = value ? 1 : 0;
+                    run.first_physical_row = selected_slot * geometry.page_tokens;
+                    run.row_count = unit.valid_rows;
+                    run.row_bytes = unit.row_bytes;
+                    run.host_offset = host_offset;
+                    run.device_offset = uint64_t(selected_slot) * page_bytes;
+                    transfer_page.runs.push_back(run);
+                    host_offset += unit.bytes->size();
+                }
+                if (transfer_page.runs.size() == selected_host->page.units.size() &&
+                    !transfer_page.runs.empty()) {
+                    llama_kv_residency_transfer_plan plan;
+                    if (llama_kv_residency_build_transfer_plan(
+                            llama_kv_residency_transfer_direction::h2d_promotion,
+                            { transfer_page },
+                            1,
+                            {}, plan)) {
+                        boundary.transaction.transfers.push_back(std::move(plan));
+                    }
+                }
+            }
+        }
+        const auto result = pager_->apply_live_policy(boundary);
+        if (result.status != llama_kv_live_policy_status::committed &&
+            result.status != llama_kv_live_policy_status::no_change &&
+            result.status != llama_kv_live_policy_status::safe_fallback) {
+            LLAMA_LOG_DEBUG("%s: live policy boundary refused: %s\n", __func__,
+                    llama_kv_live_policy_status_name(result.status));
+        }
+    } catch (...) {
+        LLAMA_LOG_DEBUG("%s: live policy boundary unavailable\n", __func__);
+    }
+}
+
 void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
     if (pager_ == nullptr || pager_pending_writes_.empty()) {
         return;
@@ -4213,6 +4408,7 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
             for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
                 llama_kv_pager_write_ticket ticket;
                 const llama_seq_id sequence_id = ubatch.seq_id[i][0];
+                pager_last_sequence_id_ = sequence_id;
                 const auto write_status = pager_->begin_write(sequence_id, 0, ubatch.pos[i], ticket);
                 if (write_status != llama_kv_pager_write_status::ok) {
                     throw std::runtime_error(std::string("KV pager write reservation failed: ") +

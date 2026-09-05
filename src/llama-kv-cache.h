@@ -178,6 +178,7 @@ public:
 
     void set_kv_pager(llama_kv_pager * pager) override;
     void seal_kv_pager_pages() override;
+    void apply_kv_pager_policy() noexcept override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
 
@@ -647,6 +648,7 @@ private:
     static void pager_host_snapshot_release(
         void * context,
         const vbr_selected_page_capture_snapshot & snapshot) noexcept;
+    void apply_pager_live_policy() noexcept;
     bool vbr_capture_stability_matches(
         const vbr_capture_stability_token & token) const noexcept;
     bool vbr_capture_generation_record(
@@ -1466,6 +1468,7 @@ private:
     // Rows reserved before graph construction. Completion is deliberately
     // separate from apply_ubatch: graph construction/allocation may still fail.
     llama_kv_pager * pager_ = nullptr;
+    int32_t pager_last_sequence_id_ = -1;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;
     uint64_t pager_host_controller_generation_ = 1;

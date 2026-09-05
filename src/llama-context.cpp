@@ -1877,6 +1877,12 @@ void llama_context::synchronize() {
         kv_attention_execution.complete_one_graph();
     }
 
+    // Keep live table publication after both the scheduler fence and the
+    // existing attention completion bookkeeping boundary.
+    if (memory) {
+        memory->apply_kv_pager_policy();
+    }
+
     // Page-mass is an optional output of the direct CUDA attention node. Read
     // it only after the scheduler fence, then publish against the immutable
     // snapshot captured when that graph was built.

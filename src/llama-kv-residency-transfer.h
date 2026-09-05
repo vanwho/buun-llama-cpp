@@ -135,6 +135,12 @@ struct llama_kv_residency_pool_backend {
     // preserves the positional initializer contract of the fake backend.
     ggml_backend_t backend = nullptr;
     ggml_tensor * (*slot_tensor)(void * context, uint32_t slot) noexcept = nullptr;
+    // Layer-major cache slabs need a view selected by the transfer run rather
+    // than one contiguous view per physical page. Optional for legacy fakes.
+    ggml_tensor * (*run_tensor)(
+        void * context,
+        const llama_kv_residency_completion & completion,
+        const llama_kv_residency_transfer_run & run) noexcept = nullptr;
 };
 
 enum class llama_kv_residency_ggml_status : uint8_t {
@@ -157,6 +163,14 @@ struct llama_kv_residency_ggml_adapter_config {
     bool force_synchronous = false;
     // Optional cache-owned slab. Only borrowed slot views are created when set.
     ggml_tensor * external_storage = nullptr;
+    // Optional layer-major slab geometry. When present, run_tensor() returns
+    // a byte view for the selected layer/side, allowing a transfer to address
+    // the exact tensor storage consumed by attention.
+    uint32_t page_tokens = 0;
+    std::vector<uint64_t> layer_k_offsets;
+    std::vector<uint64_t> layer_v_offsets;
+    std::vector<uint64_t> layer_k_page_bytes;
+    std::vector<uint64_t> layer_v_page_bytes;
 };
 
 // Owns the slot tensor views and backend events for one compact residency
@@ -203,6 +217,9 @@ private:
     ggml_tensor * storage_tensor_ = nullptr;
     bool external_storage_ = false;
     std::vector<ggml_tensor *> slot_tensors_;
+    std::vector<ggml_tensor *> run_tensors_;
+    std::vector<uint64_t> run_offsets_;
+    std::vector<uint64_t> run_page_bytes_;
     std::vector<uint8_t> mapped_;
     std::vector<pending_event> pending_;
 
@@ -230,6 +247,10 @@ private:
     static bool complete_copy(void * context, uint64_t ticket) noexcept;
     static void cancel_copy(void * context, uint64_t ticket) noexcept;
     static ggml_tensor * slot_tensor(void * context, uint32_t slot) noexcept;
+    static ggml_tensor * run_tensor(
+        void * context,
+        const llama_kv_residency_completion & completion,
+        const llama_kv_residency_transfer_run & run) noexcept;
 };
 
 struct llama_kv_residency_catalog_reservation {
@@ -332,6 +353,13 @@ public:
     uint64_t resident_bytes() const noexcept;
     uint32_t pending_events() const noexcept;
 
+    // Reconcile direct cache-slab writes with the transaction pool at a quiet
+    // graph boundary. This is the bridge for pages written by ggml before the
+    // first live promotion transaction; it also removes stale mappings left
+    // by a pager-side eviction.
+    llama_kv_residency_pool_status reconcile(
+        const llama_kv_residency_snapshot & snapshot) noexcept;
+
     llama_kv_residency_pool_status reserve(
         const llama_kv_residency_transfer_plan & plan,
         uint64_t staging_capacity,
@@ -348,6 +376,8 @@ public:
     llama_kv_residency_pool_status drop_logical_page(
         const llama_kv_page_id & page,
         bool & dropped) noexcept;
+    llama_kv_residency_pool_status restore_logical_page(
+        const llama_kv_page_record & page) noexcept;
     llama_kv_residency_pool_status mark_dirty(
         const llama_kv_page_id & page, bool dirty) noexcept;
     bool find_logical_page(
