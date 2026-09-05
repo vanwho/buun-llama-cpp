@@ -1,0 +1,143 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "19-09",
+  "result": "pass_local_deferred_live_checkpoint",
+  "kind": "measurement",
+  "procedure": "bounded_split_kv_attention_cuda_fixture_and_graph_build",
+  "created_utc": "2026-09-05T15:12:18Z",
+  "classification": {
+    "local_correctness": "pass",
+    "local_build": "pass",
+    "kernel_measurement": "observed_not_gate",
+    "live_native_mtp": "deferred",
+    "end_to_end_decode": "deferred"
+  },
+  "provenance": {
+    "source_commit": "bfd866fb308b0da5ceac122275d1a806cfd33ed4",
+    "source_diff_sha256": "71da5f7b4202c4ff367df65f0f0e5bc22094e0529f479aa77d7596b7e72820eb",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "binary": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "binary_sha256": "42dee80e47acbd251e0fe19d122f68b659a74161b3d240c84f0f303dcdc3a98f",
+    "cuda_library": "build-cuda/bin/libggml-cuda.so",
+    "cuda_library_sha256": "97946db6a70c6da0e0654d10dae27ac88d0a336ac097a03c176a2bd3a3768ce5",
+    "model": null,
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus": null,
+    "corpus_sha256": null,
+    "config": "build-cuda/CMakeCache.txt",
+    "config_sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1",
+    "build": "build-cuda; CUDA graph build; RTX 4080 sm_89",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; compute capability 8.9; 16376 MiB total, 14815 MiB used, 1128 MiB free",
+    "live_process_observed": "No live candidate was started or contacted; the existing workload was preserved"
+  },
+  "checks": [
+    {
+      "name": "Paged Turbo4 serial oracle versus split-KV capacities 1, 2, and 3",
+      "status": "pass",
+      "raw_ids": ["test-cuda-fattn-paged-turbo4", "split-kv-fixture"]
+    },
+    {
+      "name": "Tails, gaps, logical-page permutation, physical-page permutation, masks, causal positions, multiquery canaries, partial states, and cold upload",
+      "status": "pass",
+      "raw_ids": ["test-cuda-fattn-paged-turbo4"]
+    },
+    {
+      "name": "Global page mass after split merge matches serial mass",
+      "status": "pass",
+      "raw_ids": ["split-page-mass-fixture"]
+    },
+    {
+      "name": "Graph integration target including llama-graph.cpp",
+      "status": "pass",
+      "raw_ids": ["cmake-build-llama-server"]
+    },
+    {
+      "name": "Pager, routing, telemetry, attention-view, execution, and exact regressions",
+      "status": "pass",
+      "raw_ids": ["focused-ctest-7"]
+    },
+    {
+      "name": "Benchmark adapter, soak, quality, and resume contracts",
+      "status": "pass",
+      "raw_ids": ["python-unittest-46"]
+    },
+    {
+      "name": "Live native-MTP parity, acceptance, pressure case, and end-to-end overhead",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "fixture_shape": {
+      "selected_rows": 530,
+      "logical_pages": 4,
+      "physical_pages": 8,
+      "query_tokens": 3,
+      "query_heads": 4,
+      "kv_heads": 1,
+      "head_dim": 256,
+      "scratch_capacity": 3,
+      "scratch_bytes": 38304,
+      "active_partitions_at_capacity_3": 3,
+      "partition_rule": "min(capacity, logical_pages, ceil(selected_rows/256), runtime device limit)"
+    },
+    "kernel_only_ms": {
+      "serial_control_three_query_tokens": 0.734,
+      "split_requested_capacity_1": 0.736,
+      "split_requested_capacity_2": 1.463,
+      "split_requested_capacity_3": 1.556,
+      "split_control_capacity_3": 1.514,
+      "note": "CUDA-event timings cover device launches only. The first serial timing in the raw output includes first-use compilation and is not used for comparison; the same-shape warm control is the comparable observation."
+    },
+    "correctness": {
+      "output_max_error_assertion": 0.000002,
+      "page_mass_max_error_assertion": 0.00001,
+      "normalization": "partition [m,l,o] states are merged before output and page mass is divided by the global denominator",
+      "empty_state": "all-masked states remain finite at output and use -INFINITY,0 for state maxima/sums"
+    },
+    "dispatch": {
+      "serial_oracle": "retained for capacity-one/small-shape fallback and debug comparison",
+      "split_path": "bounded graph-owned F32 scratch; runtime shape/device selection; device merge launch",
+      "tiled_mma_alternative": "not measured; no compatible page-addressing variant was available in this task's local paged primitive",
+      "end_to_end_share": null
+    }
+  },
+  "raw_output": "ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15942 MiB):\\n  Device 0: NVIDIA GeForce RTX 4080, compute capability 8.9, VMM: yes, VRAM: 15942 MiB\\npaged Turbo4 query tile: 18.759 ms (four Q heads, 530 selected rows)\\npaged Turbo4 split-KV: 0.736 ms (requested capacity 1)\\npaged Turbo4 split-KV: 1.463 ms (requested capacity 2)\\npaged Turbo4 split-KV: 1.556 ms (requested capacity 3)\\npaged Turbo4 serial control: 0.734 ms (three Q tokens, 530 selected rows)\\npaged Turbo4 split control: 1.514 ms (three Q tokens, 530 selected rows, capacity 3)\\n",
+  "raw_index": [
+    {
+      "id": "split-kv-fixture",
+      "path": "tests/test-cuda-fattn-paged-turbo4.cu",
+      "sha256": "b0664b6f01ee042389f7cdbf151831ab9b3c12100071fbf81d8778e70c8da4e3"
+    },
+    {
+      "id": "test-cuda-fattn-paged-turbo4",
+      "path": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "sha256": "42dee80e47acbd251e0fe19d122f68b659a74161b3d240c84f0f303dcdc3a98f"
+    },
+    {
+      "id": "cmake-build-llama-server",
+      "path": "build-cuda/bin/llama-server",
+      "sha256": "5a9307f53910f72878f4597db058fa37c57c23a4570a38b0d74a079ffebade3c"
+    },
+    {
+      "id": "focused-ctest-7",
+      "path": "build-cuda/bin/test-kv-attention-exact",
+      "sha256": "640e08a5069210e5f72579d7311d0707019f4dae5a6e5e14e07f8cba1e67b424"
+    }
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The shared RTX 4080 had 1128 MiB free and an existing workload was retained; no isolated 262144-token candidate was started.",
+    "native_mtp_runtime": "No model-backed native-MTP target/draft run was performed, so acceptance, hot-set occupancy, and draft-buffer identity are not claimed.",
+    "end_to_end": "No live server benchmark was run; host scheduling, MTP, and graph overhead are therefore not represented by the CUDA-event measurements.",
+    "tiled_mma": "The local paged Turbo4 primitive has no page-addressing tiled/MMA adapter exposed for a controlled comparison in this task."
+  },
+  "resume": {
+    "command": null,
+    "next_case": "On an isolated GPU, run the supported native-MTP exact and pressure checkpoint with identical model, corpus, context, hot-set, and telemetry settings; compare target/draft parity, end-to-end decode share, and split-KV versus serial/tiled dispatch at the native verify shape.",
+    "secrets_omitted": true
+  }
+}

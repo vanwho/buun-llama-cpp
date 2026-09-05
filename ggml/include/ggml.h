@@ -2549,6 +2549,13 @@ extern "C" {
         // graph owner retains this memory until the node has completed.
         const void * host_upload;
         size_t host_upload_bytes;
+        // Optional flat F32 device scratch for split-KV attention.  It is
+        // owned by the graph input and contains bounded partition state plus
+        // page-state scratch; the CUDA backend derives its sub-layout from
+        // the active query/head shape and these two capacities.
+        struct ggml_tensor * split_kv_scratch;
+        uint32_t split_kv_partition_capacity;
+        uint32_t split_kv_page_count;
     };
 
     GGML_API struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(

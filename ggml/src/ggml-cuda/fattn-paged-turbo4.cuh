@@ -97,6 +97,21 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     size_t partial_state_input_head_stride_bytes = 0;
     size_t partial_state_input_query_stride_bytes = 0;
 
+    // Optional split-KV scratch.  The state layout is
+    // [partition][query][head][m, l, o[head_dim_v]].  Page-state scratch is
+    // [partition][query][head][logical_page][m, l] and is only consumed when
+    // page-mass telemetry is enabled.  Both buffers are bounded by the
+    // caller-provided partition capacity; the dispatcher may use fewer
+    // partitions after inspecting the active shape and device.
+    float * split_kv_scratch = nullptr;
+    size_t split_kv_partition_stride_bytes = 0;
+    float * split_kv_page_state = nullptr;
+    size_t split_kv_page_state_head_stride_bytes = 0;
+    size_t split_kv_page_state_query_stride_bytes = 0;
+    size_t split_kv_page_state_partition_stride_bytes = 0;
+    uint32_t split_kv_partition_capacity = 0;
+    uint32_t split_kv_page_count = 0;
+
     uint32_t n_pages = 0;
     uint32_t n_physical_pages = 0;
     uint32_t n_rows = 0;
@@ -118,10 +133,12 @@ struct ggml_cuda_fattn_turbo4_paged_params {
 
 // Correctness-first direct page/query-tile attention. The initial qualified
 // geometry is causal, batch 1, one to three query tokens, head width 256, and
-// GQA ratio 4. One CTA traverses each compressed page list once per tile and
-// reuses decoded K/V rows across the tile's queries. The output remains in the
-// Turbo V rotated domain, matching the existing dense Turbo4 FA contract; the
-// graph-level inverse WHT and mean restoration remain outside this primitive.
+// GQA ratio 4. The serial oracle uses one CTA to traverse each compressed page
+// list once per tile and reuses decoded K/V rows across the tile's queries.
+// Qualified large-row calls use bounded split-KV CTAs and a device-side
+// unnormalized-state merge; the output remains in the Turbo V rotated domain,
+// matching the existing dense Turbo4 FA contract. The graph-level inverse WHT
+// and mean restoration remain outside this primitive.
 ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         ggml_backend_cuda_context & ctx,
         const ggml_cuda_fattn_turbo4_paged_params & params) noexcept;

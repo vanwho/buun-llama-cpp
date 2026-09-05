@@ -39,20 +39,22 @@ int main() {
 
     constexpr uint32_t n_head_q = 4;
     constexpr uint32_t n_head_kv = 1;
-    constexpr uint32_t n_pages = 3;
-    constexpr uint32_t n_rows = 529;
+    constexpr uint32_t n_pages = 4;
+    constexpr uint32_t n_rows = 530;
     constexpr uint32_t max_query_tokens = 3;
     constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
     constexpr size_t page_stride = 256 * row_bytes;
     constexpr uint32_t n_physical_pages = 8;
 
     // The selected order is logical 3, 0, 1 while physical slots are 5, 1, 7.
-    // Logical page 2 is absent, the final selected page is a 17-row tail, and
-    // native positions are supplied in compact order rather than physical order.
+    // Logical page 2 is a one-row tail, the final selected page is a 17-row
+    // tail, and native positions are supplied in compact order rather than
+    // physical order.
     const ggml_cuda_fattn_turbo4_page pages[n_pages] = {
         { 3, 5,   0,  17, 768 },
         { 0, 1,  17, 256,   0 },
         { 1, 7, 273, 256, 256 },
+        { 2, 3, 529,   1, 512 },
     };
     assert(ggml_cuda_fattn_turbo4_page_table_valid(pages, n_pages, n_rows));
 
@@ -61,9 +63,11 @@ int main() {
     fill_turbo4_page(k_host, 5 * page_stride, 8);
     fill_turbo4_page(k_host, 1 * page_stride, 8);
     fill_turbo4_page(k_host, 7 * page_stride, 8);
+    fill_turbo4_page(k_host, 3 * page_stride, 8);
     fill_turbo4_page(v_host, 5 * page_stride, 8);
     fill_turbo4_page(v_host, 1 * page_stride, 9);
     fill_turbo4_page(v_host, 7 * page_stride, 10);
+    fill_turbo4_page(v_host, 3 * page_stride, 11);
 
     std::vector<float> q_host(max_query_tokens * n_head_q * 256, 0.0f);
     std::vector<int64_t> native_positions;
@@ -72,7 +76,8 @@ int main() {
     for (uint32_t row = 0; row < 17; ++row) native_positions.push_back(768 + row);
     for (uint32_t row = 0; row < 256; ++row) native_positions.push_back(row);
     for (uint32_t row = 0; row < 256; ++row) native_positions.push_back(256 + row);
-    native_positions.back() = 1200; // causal rejection must use native metadata.
+    native_positions.push_back(512);
+    native_positions[528] = 1200; // causal rejection must use native metadata.
     native_mask[17] = 0;            // mask one compact row in the permuted page.
     const int64_t query_positions_host[max_query_tokens] = { 1000, 1100, 1200 };
 
@@ -155,7 +160,7 @@ int main() {
     cuda_check(cudaEventSynchronize(timing_stop), "timing stop synchronize");
     float elapsed_ms = 0.0f;
     cuda_check(cudaEventElapsedTime(&elapsed_ms, timing_start, timing_stop), "timing readback");
-    std::fprintf(stderr, "paged Turbo4 query tile: %.3f ms (four Q heads, 529 selected rows)\n", elapsed_ms);
+    std::fprintf(stderr, "paged Turbo4 query tile: %.3f ms (four Q heads, 530 selected rows)\n", elapsed_ms);
     cuda_check(cudaDeviceSynchronize(), "direct page attention");
     std::vector<float> output_without_mass(q_host.size());
     cuda_check(cudaMemcpy(output_without_mass.data(), output_device, output_without_mass.size() * sizeof(float), cudaMemcpyDeviceToHost), "output readback");
@@ -163,8 +168,9 @@ int main() {
     constexpr float c8 = 0.011353f;
     constexpr float c9 = 0.034311f;
     constexpr float c10 = 0.058069f;
-    const float expected_527 = (17.0f * c8 + 255.0f * c9 + 255.0f * c10) / 527.0f;
-    const float expected_528 = (17.0f * c8 + 255.0f * c9 + 256.0f * c10) / 528.0f;
+    constexpr float c11 = 0.083365f;
+    const float expected_528 = (17.0f * c8 + 255.0f * c9 + 255.0f * c10 + c11) / 528.0f;
+    const float expected_529 = (17.0f * c8 + 255.0f * c9 + 256.0f * c10 + c11) / 529.0f;
 
     // Multiquery verification uses one CTA per head/query tile. Verify each
     // query's causal position and guard the following output query with a
@@ -184,7 +190,7 @@ int main() {
                 for (uint32_t d = 0; d < 256; ++d) {
                     const size_t index = (size_t(query) * n_head_q + head) * 256 + d;
                     if (query < query_count) {
-                        const float expected = query == 2 ? expected_528 : expected_527;
+                        const float expected = query == 2 ? expected_529 : expected_528;
                         assert(std::fabs(multiquery_output[index] - expected) < 2.0e-6f);
                     } else {
                         assert(multiquery_output[index] == -12345.0f);
@@ -235,8 +241,8 @@ int main() {
         assert(output_without_mass[i] == output_with_mass[i]);
     }
     for (uint32_t query = 0; query < max_query_tokens; ++query) {
-        const float expected = query == 2 ? expected_528 : expected_527;
-        const float denominator = query == 2 ? 528.0f : 527.0f;
+        const float expected = query == 2 ? expected_529 : expected_528;
+        const float denominator = query == 2 ? 529.0f : 528.0f;
         for (uint32_t head = 0; head < n_head_q; ++head) {
             for (uint32_t d = 0; d < 256; ++d) {
                 const size_t index = (size_t(query) * n_head_q + head) * 256 + d;
@@ -246,10 +252,109 @@ int main() {
             assert(std::fabs(page_mass[mass_base + 0] - 255.0f / denominator) < 1.0e-5f);
             const float expected_page1 = query == 2 ? 256.0f : 255.0f;
             assert(std::fabs(page_mass[mass_base + 1] - expected_page1 / denominator) < 1.0e-5f);
-            assert(std::fabs(page_mass[mass_base + 2] - 0.0f) < 1.0e-6f);
+            assert(std::fabs(page_mass[mass_base + 2] - 1.0f / denominator) < 1.0e-5f);
             assert(std::fabs(page_mass[mass_base + 3] - 17.0f / denominator) < 1.0e-5f);
         }
     }
+
+    // The split-KV path uses the same [m,l,o] contract as exact page waves.
+    // Exercise the serial fallback, two partitions, and the shape-selected
+    // three-partition case against the serial result, including global page
+    // mass after the merge.
+    constexpr uint32_t split_capacity = 3;
+    constexpr uint32_t split_page_count = n_pages;
+    const size_t split_state_head_stride = (2 + 256) * sizeof(float);
+    const size_t split_state_query_stride = n_head_q * split_state_head_stride;
+    const size_t split_state_partition_stride = max_query_tokens * split_state_query_stride;
+    const size_t split_page_head_stride = split_page_count * 2 * sizeof(float);
+    const size_t split_page_query_stride = n_head_q * split_page_head_stride;
+    const size_t split_page_partition_stride = max_query_tokens * split_page_query_stride;
+    float * split_state_device = nullptr;
+    float * split_page_state_device = nullptr;
+    cuda_check(cudaMalloc(&split_state_device,
+        split_capacity * split_state_partition_stride), "split state allocation");
+    cuda_check(cudaMalloc(&split_page_state_device,
+        split_capacity * split_page_partition_stride), "split page state allocation");
+    const std::vector<float> serial_mass = page_mass;
+    const std::vector<float> serial_output = output_with_mass;
+    params.split_kv_scratch = split_state_device;
+    params.split_kv_partition_stride_bytes = split_state_partition_stride;
+    params.split_kv_page_state = split_page_state_device;
+    params.split_kv_page_state_head_stride_bytes = split_page_head_stride;
+    params.split_kv_page_state_query_stride_bytes = split_page_query_stride;
+    params.split_kv_page_state_partition_stride_bytes = split_page_partition_stride;
+    params.split_kv_partition_capacity = split_capacity;
+    params.split_kv_page_count = split_page_count;
+    for (uint32_t requested_partitions = 1; requested_partitions <= split_capacity; ++requested_partitions) {
+        params.split_kv_partition_capacity = requested_partitions;
+        cuda_check(cudaEventRecord(timing_start, stream), "split timing start record");
+        assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+        cuda_check(cudaEventRecord(timing_stop, stream), "split timing stop record");
+        cuda_check(cudaEventSynchronize(timing_stop), "split timing stop synchronize");
+        float split_elapsed_ms = 0.0f;
+        cuda_check(cudaEventElapsedTime(&split_elapsed_ms, timing_start, timing_stop), "split timing readback");
+        std::fprintf(stderr, "paged Turbo4 split-KV: %.3f ms (requested capacity %u)\n",
+            split_elapsed_ms, requested_partitions);
+        cuda_check(cudaDeviceSynchronize(), "split-KV page attention");
+        std::vector<float> split_output(output_with_mass.size());
+        std::vector<float> split_mass(page_mass.size());
+        cuda_check(cudaMemcpy(split_output.data(), output_device,
+            split_output.size() * sizeof(float), cudaMemcpyDeviceToHost), "split output readback");
+        cuda_check(cudaMemcpy(split_mass.data(), page_mass_device,
+            split_mass.size() * sizeof(float), cudaMemcpyDeviceToHost), "split mass readback");
+        for (size_t i = 0; i < serial_output.size(); ++i) {
+            assert(std::fabs(split_output[i] - serial_output[i]) < 2.0e-6f);
+        }
+        for (size_t i = 0; i < serial_mass.size(); ++i) {
+            assert(std::fabs(split_mass[i] - serial_mass[i]) < 1.0e-5f);
+        }
+    }
+
+    // Capture a same-shape serial control after CUDA module warm-up.  The
+    // first timing above includes first-use compilation on some drivers, so
+    // this pair is the useful kernel-only comparison for the receipt.
+    params.split_kv_scratch = nullptr;
+    params.split_kv_partition_stride_bytes = 0;
+    params.split_kv_page_state = nullptr;
+    params.split_kv_page_state_head_stride_bytes = 0;
+    params.split_kv_page_state_query_stride_bytes = 0;
+    params.split_kv_page_state_partition_stride_bytes = 0;
+    params.split_kv_partition_capacity = 0;
+    params.split_kv_page_count = 0;
+    cuda_check(cudaEventRecord(timing_start, stream), "serial comparison timing start record");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaEventRecord(timing_stop, stream), "serial comparison timing stop record");
+    cuda_check(cudaEventSynchronize(timing_stop), "serial comparison timing stop synchronize");
+    float serial_comparison_ms = 0.0f;
+    cuda_check(cudaEventElapsedTime(&serial_comparison_ms, timing_start, timing_stop), "serial comparison timing readback");
+    std::fprintf(stderr, "paged Turbo4 serial control: %.3f ms (three Q tokens, 530 selected rows)\n",
+        serial_comparison_ms);
+
+    params.split_kv_scratch = split_state_device;
+    params.split_kv_partition_stride_bytes = split_state_partition_stride;
+    params.split_kv_page_state = split_page_state_device;
+    params.split_kv_page_state_head_stride_bytes = split_page_head_stride;
+    params.split_kv_page_state_query_stride_bytes = split_page_query_stride;
+    params.split_kv_page_state_partition_stride_bytes = split_page_partition_stride;
+    params.split_kv_partition_capacity = split_capacity;
+    params.split_kv_page_count = split_page_count;
+    cuda_check(cudaEventRecord(timing_start, stream), "split comparison timing start record");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaEventRecord(timing_stop, stream), "split comparison timing stop record");
+    cuda_check(cudaEventSynchronize(timing_stop), "split comparison timing stop synchronize");
+    float split_comparison_ms = 0.0f;
+    cuda_check(cudaEventElapsedTime(&split_comparison_ms, timing_start, timing_stop), "split comparison timing readback");
+    std::fprintf(stderr, "paged Turbo4 split control: %.3f ms (three Q tokens, 530 selected rows, capacity 3)\n",
+        split_comparison_ms);
+
+    params.split_kv_scratch = nullptr;
+    params.split_kv_partition_stride_bytes = 0;
+    params.split_kv_page_state = nullptr;
+    params.split_kv_page_state_head_stride_bytes = 0;
+    params.split_kv_page_state_query_stride_bytes = 0;
+    params.split_kv_page_state_partition_stride_bytes = 0;
+    params.split_kv_partition_capacity = 0;
+    params.split_kv_page_count = 0;
 
     // The exact page-wave path consumes unnormalized [m, l, o] state. It may
     // omit the normalized output entirely, which keeps each cold wave's
@@ -271,7 +376,7 @@ int main() {
             const float * state = partial_state.data() +
                 (size_t(query) * n_head_q + head) * (2 + 256);
             assert(std::fabs(state[0]) < 1.0e-6f);
-            assert(std::fabs(state[1] - (query == 2 ? 528.0f : 527.0f)) < 1.0e-4f);
+            assert(std::fabs(state[1] - (query == 2 ? 529.0f : 528.0f)) < 1.0e-4f);
             for (uint32_t d = 0; d < 256; ++d) assert(std::isfinite(state[2 + d]));
         }
     }
@@ -333,8 +438,10 @@ int main() {
         merged_output.size() * sizeof(float), cudaMemcpyDeviceToHost), "merged output readback");
     cuda_check(cudaMemcpy(partial_state.data(), partial_state_device,
         partial_state.size() * sizeof(float), cudaMemcpyDeviceToHost), "merged state readback");
+    const float merged_expected_527 = (17.0f * c8 + 255.0f * c9 + 255.0f * c10) / 527.0f;
+    const float merged_expected_528 = (17.0f * c8 + 255.0f * c9 + 256.0f * c10) / 528.0f;
     for (uint32_t query = 0; query < max_query_tokens; ++query) {
-        const float expected = query == 2 ? expected_528 : expected_527;
+        const float expected = query == 2 ? merged_expected_528 : merged_expected_527;
         for (uint32_t head = 0; head < n_head_q; ++head) {
             const float * state = partial_state.data() +
                 (size_t(query) * n_head_q + head) * (2 + 256);
@@ -347,6 +454,9 @@ int main() {
         }
     }
     cudaFree(second_wave_pages_device);
+
+    cudaFree(split_page_state_device);
+    cudaFree(split_state_device);
 
     cudaEventDestroy(timing_stop);
     cudaEventDestroy(timing_start);

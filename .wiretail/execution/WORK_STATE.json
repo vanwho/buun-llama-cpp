@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "19",
-  "current_task": "19-09",
-  "last_updated_utc": "2026-09-05T13:56:04+00:00",
+  "current_phase": "20",
+  "current_task": "20-01",
+  "last_updated_utc": "2026-09-05T15:15:10+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3063,22 +3063,36 @@
       "cluster": "19d-parallel-attention",
       "title": "Replace serial paged decode scans with parallel split-KV attention",
       "packet": ".wiretail/execution/tasks/19-09.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "19-08"
       ],
-      "commit": null,
+      "commit": "0fa95afaa6e2a8d892f87f046082cfaab33ba7d9",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/19-09-attempt-1-20260905T135620Z.jsonl:235",
+            "total_tokens": 44171306,
+            "total_tokens_derived": true,
+            "input_tokens": 44100744,
+            "cached_input_tokens": 43437312,
+            "output_tokens": 70562,
+            "thinking_tokens": 28350
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 44171306,
+          "input_tokens": 44100744,
+          "cached_input_tokens": 43437312,
+          "output_tokens": 70562,
+          "thinking_tokens": 28350
         }
       }
     },
@@ -3933,15 +3947,28 @@
           "cached_input_tokens": 4050688,
           "output_tokens": 18813,
           "thinking_tokens": 7124
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/19-09-attempt-1-20260905T135620Z.jsonl:235",
+          "total_tokens": 44171306,
+          "total_tokens_derived": true,
+          "input_tokens": 44100744,
+          "cached_input_tokens": 43437312,
+          "output_tokens": 70562,
+          "thinking_tokens": 28350
         }
       ],
       "totals": {
-        "turns": 8,
-        "total_tokens": 181008965,
-        "input_tokens": 180618366,
-        "cached_input_tokens": 177076224,
-        "output_tokens": 390599,
-        "thinking_tokens": 149552
+        "turns": 9,
+        "total_tokens": 225180271,
+        "input_tokens": 224719110,
+        "cached_input_tokens": 220513536,
+        "output_tokens": 461161,
+        "thinking_tokens": 177902
       }
     },
     "20": {
@@ -3980,12 +4007,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 22,
-      "total_tokens": 399558519,
-      "input_tokens": 398571666,
-      "cached_input_tokens": 391006464,
-      "output_tokens": 986853,
-      "thinking_tokens": 355884
+      "turns": 23,
+      "total_tokens": 443729825,
+      "input_tokens": 442672410,
+      "cached_input_tokens": 434443776,
+      "output_tokens": 1057415,
+      "thinking_tokens": 384234
     },
     "source": "Codex turn.completed usage events"
   }

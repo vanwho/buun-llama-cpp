@@ -5745,6 +5745,9 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     op_params[5] = (int32_t) params->n_head_kv;
     op_params[6] = params->partial_state_accumulate ? 1 : 0;
     op_params[7] = params->partial_state_output ? 1 : 0;
+    op_params[8] = params->split_kv_scratch != NULL ? 1 : 0;
+    op_params[9] = (int32_t) params->split_kv_partition_capacity;
+    op_params[10] = (int32_t) params->split_kv_page_count;
 
     int64_t ne[4] = {
         params->partial_state_output ? 2 + params->head_dim_v : params->head_dim_v,
@@ -5761,7 +5764,12 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     result->src[6] = query_positions;
     result->src[7] = storage;
     result->src[8] = params->page_mass;
-    result->src[9] = params->partial_state;
+    // src[9] is the previous wave state for exact attention, or the bounded
+    // split-KV scratch for ordinary direct attention.  These modes are
+    // mutually exclusive and op_params[8] records which layout is present.
+    GGML_ASSERT(params->partial_state == NULL || params->split_kv_scratch == NULL);
+    result->src[9] = params->partial_state != NULL
+        ? params->partial_state : params->split_kv_scratch;
 
     // This is immutable graph metadata, not a backend allocation.  The graph
     // input object owns the pointed-to vectors and optional upload payload for

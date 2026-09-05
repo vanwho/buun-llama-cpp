@@ -885,6 +885,8 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     if (direct) {
         res &= direct_pages != nullptr && direct_native_positions != nullptr &&
             direct_native_mask != nullptr && direct_query_positions != nullptr;
+        res &= direct_split_kv_scratch != nullptr && direct_split_kv_partition_capacity != 0 &&
+            direct_split_kv_page_count != 0;
         res &= direct_pages->ne[0] == int64_t(
                 params.kv_attention_metadata.page_table().size() *
                 sizeof(ggml_flash_attn_ext_paged_turbo4_page));
@@ -3428,6 +3430,37 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, direct_backend);
 
+            // Reserve a bounded flat scratch arena once per reusable graph.
+            // The CUDA dispatcher chooses the active partition count at
+            // submission time; the arena is sized from the selected rows and
+            // resolved logical page span, not from a server-specific SM
+            // count.  The page-state suffix is used only when telemetry is
+            // enabled, but keeping it in the same input preserves the graph
+            // key while cadence changes.
+            const uint32_t split_rows = selected_metadata->get_n_kv();
+            const uint32_t split_queries = uint32_t(selected_metadata->n_query_tokens());
+            const uint32_t split_pages = pager->snapshot().logical_page_count;
+            uint32_t split_heads = uint32_t(std::max<int64_t>(1, hparams.n_head()));
+            for (const uint32_t layer_id : inp->direct_layer_ids) {
+                split_heads = std::max(split_heads, uint32_t(hparams.n_head(layer_id)));
+            }
+            const uint32_t split_capacity = std::min<uint32_t>(16,
+                    std::max<uint32_t>(1, (split_rows + 255) / 256));
+            const uint64_t state_values = uint64_t(split_capacity) * split_queries * split_heads *
+                (2 + selected_metadata->head_dim_v());
+            const uint64_t page_values = uint64_t(split_capacity) * split_queries * split_heads *
+                split_pages * 2;
+            if (split_pages == 0 || state_values > uint64_t(INT64_MAX) - page_values) {
+                throw std::runtime_error("split-KV scratch geometry overflows");
+            }
+            inp->direct_split_kv_partition_capacity = split_capacity;
+            inp->direct_split_kv_page_count = split_pages;
+            inp->direct_split_kv_scratch = ggml_new_tensor_1d(ctx0, GGML_TYPE_F32,
+                    int64_t(state_values + page_values));
+            ggml_set_input(inp->direct_split_kv_scratch);
+            ggml_set_name(inp->direct_split_kv_scratch, "kv_direct_split_kv_scratch");
+            ggml_backend_sched_set_tensor_backend(sched, inp->direct_split_kv_scratch, direct_backend);
+
             // The CUDA reduction writes one F32 vector per query head. Keep a
             // single configured layer and the resolved logical-page bound so
             // device storage scales with L, never with K/V or an attention
@@ -3909,6 +3942,9 @@ ggml_tensor * llm_graph_context::build_attn(
         direct_params.scale = kq_scale;
         direct_params.causal = true;
         direct_params.page_mass = telemetry_page_mass;
+        direct_params.split_kv_scratch = inp->direct_split_kv_scratch;
+        direct_params.split_kv_partition_capacity = inp->direct_split_kv_partition_capacity;
+        direct_params.split_kv_page_count = inp->direct_split_kv_page_count;
         ggml_tensor * direct = ggml_flash_attn_ext_paged_turbo4(
                 ctx0, q_direct, k_raw, v_raw, inp->direct_storage,
                 inp->direct_pages, inp->direct_native_positions,
