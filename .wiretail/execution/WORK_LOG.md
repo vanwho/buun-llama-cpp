@@ -604,3 +604,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-19-02`
 - Commit at update: `54c581e33`
 - Summary: Implemented bounded physical ticket-row writes and generation-safe K/V completion; canonical Turbo4 host capture now supports exact full pages and contiguous tails, rejects speculative holes, refreshes overwritten bytes, and preserves clean-evicted host pages. Focused CUDA build/tests and pager/residency/attention regressions pass; live forced-small-hotset validation deferred because the RTX 4080 was occupied.
+
+## 2026-09-05T09:37:28+00:00 — 19-03 — done
+
+- Branch: `codex/task-19-03`
+- Commit at update: `8a7ecb4e6`
+- Summary: Wired the post-attention live residency boundary with layer-major GGML transfers, canonical host reads, synchronous completion/recheck, pool reconciliation, and deterministic cold-page selection; focused CUDA build/tests pass, while the occupied RTX 4080 deferred the live Qwen round trip.
