@@ -228,8 +228,7 @@ bool llama_kv_attention_execution::same_graph(
         uint64_t representation_epoch,
         uint64_t shape_epoch,
         llama_kv_attention_execution_route route) const noexcept {
-    return have_graph_ && metadata.graph_content_key() == metadata_.graph_content_key() &&
-           metadata.table_epoch() == table_epoch_ &&
+    return have_graph_ && metadata.graph_layout_key() == metadata_.graph_layout_key() &&
            phase == phase_ && representation_epoch == representation_epoch_ &&
            shape_epoch == shape_epoch_ && route == route_ &&
            exact_graph_plan_.get() == graph_plan_.get();

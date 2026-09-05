@@ -2306,8 +2306,9 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         return refuse("selected logical pages exceed admitted hot capacity");
     }
 
-    std::vector<uint32_t> selected_pages;
+    auto & selected_pages = kv_attention_selected_pages_scratch_;
     try {
+        selected_pages.clear();
         selected_pages.reserve(pager_snapshot.pages().size());
         for (const auto & page : pager_snapshot.pages()) {
             if (page.id.sequence_id != sequence_id || page.physical_slot == UINT32_MAX ||
@@ -2343,24 +2344,27 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     op_params.n_query_tokens = ubatch.n_tokens;
     op_params.n_batch = 1;
     op_params.causal = cparams.causal_attn;
-    op_params.query_positions.reserve(ubatch.n_tokens);
+    auto & query_positions = kv_attention_query_positions_scratch_;
+    query_positions.clear();
+    query_positions.reserve(ubatch.n_tokens);
     for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
         // M-RoPE stores n_pos coordinates per token.  The first coordinate is
         // the causal sequence position; the remaining coordinates describe
         // spatial/auxiliary axes and are not part of the KV row identity.
-        op_params.query_positions.push_back(ubatch.pos[token * ubatch.n_pos]);
+        query_positions.push_back(ubatch.pos[token * ubatch.n_pos]);
     }
+    // Transfer the retained allocation into the short-lived parameter object
+    // without allocating a second query-position buffer. build() copies the
+    // immutable payload into the submitted metadata; swap it back immediately
+    // so the next hot submission reuses the same capacity.
+    op_params.query_positions.swap(query_positions);
 
     llama_kv_attention_operator_status op_status;
     const auto metadata = llama_kv_attention_operator_metadata::build(
             view, op_params, op_status);
+    query_positions.swap(op_params.query_positions);
     if (!metadata.valid()) {
         return refuse(llama_kv_attention_operator_status_name(op_status));
-    }
-
-    std::vector<int32_t> rows;
-    if (!attention->selected_attention_rows(metadata.native_positions(), rows)) {
-        return refuse("selected page positions are not present in the cache view");
     }
 
     llama_kv_attention_scratch_request scratch;
@@ -2394,6 +2398,16 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         model.hparams.f_max_alibi_bias == 0.0f && !model.hparams.attn_soft_cap &&
         pager.snapshot().geometry.layer_k_offsets.size() == pager.snapshot().geometry.attention_layers &&
         pager.snapshot().geometry.layer_v_offsets.size() == pager.snapshot().geometry.attention_layers;
+    // The direct kernel addresses the persistent physical slab and does not
+    // need a second logical-row lookup. Keep the reference-only validation
+    // off the all-fit hot path; build_attn_inp_kv performs the same bounded
+    // lookup when the reference route is actually selected.
+    if (!direct_capable) {
+        auto & rows = kv_attention_rows_scratch_;
+        if (!attention->selected_attention_rows(metadata.native_positions(), rows)) {
+            return refuse("selected page positions are not present in the cache view");
+        }
+    }
     return prepare_kv_attention(metadata, phase, representation_epoch, shape_epoch,
             direct_capable, scratch);
 }
@@ -6901,6 +6915,7 @@ llm_graph_params llama_context::graph_params(
         /*.res         =*/ res,
         /*.kv_attention_table_epoch =*/ kv_attention_execution.table_epoch(),
         /*.kv_attention_content_key =*/ kv_attention_execution.metadata().graph_content_key(),
+        /*.kv_attention_layout_key =*/ kv_attention_execution.metadata().graph_layout_key(),
         /*.kv_attention_representation_epoch =*/ kv_attention_execution.representation_epoch(),
         /*.kv_attention_shape_epoch =*/ kv_attention_execution.shape_epoch(),
         /*.kv_attention_route =*/ kv_attention_execution.route(),
