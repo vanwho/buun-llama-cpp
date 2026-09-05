@@ -1,0 +1,115 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "18-05",
+  "result": "pass",
+  "kind": "implementation",
+  "procedure": "turbo4_selected_dense_parity_boundary",
+  "created_utc": "2026-09-05T08:02:02Z",
+  "provenance": {
+    "source_commit": "a83e188602b3124fc88d485273842ecb9c3aca60",
+    "source_diff_sha256": "a6966d6986db8576261bf37de27171f3d9bc596adbb01c125483bc1d221c3a94",
+    "bundle_manifest_sha256": null,
+    "binary": "build-cuda-test/bin/test-kv-pager-model",
+    "binary_sha256": "4c1b16972103c2b272d32edd6788a0e73587f115fc1698746743e5ef96ed117b",
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": null,
+    "config_sha256": null
+  },
+  "checks": [
+    {
+      "name": "F1 Turbo4 stored-domain dot-product probe",
+      "status": "pass",
+      "raw_ids": ["parity-driver-source", "parity-driver-cuda-binary"]
+    },
+    {
+      "name": "selected-reference K inverse FWHT and exactly-once V inverse boundary",
+      "status": "pass",
+      "raw_ids": ["graph-source", "qwen4exp-domain-reference"]
+    },
+    {
+      "name": "F2 non-contiguous model-layer to compact pager ordinal mapping",
+      "status": "pass",
+      "raw_ids": ["graph-source", "cache-context-source", "parity-driver-source"]
+    },
+    {
+      "name": "F3 permuted pages, causal positions, and partial tail",
+      "status": "pass",
+      "raw_ids": ["parity-driver-source", "parity-driver-cuda-binary"]
+    },
+    {
+      "name": "focused CPU and CUDA builds/tests",
+      "status": "pass",
+      "raw_ids": ["attention-view-test", "attention-execution-test", "attention-exact-test", "cuda-direct-test"]
+    },
+    {
+      "name": "named live target dense/reference/direct teacher-forced comparison",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "driver": {
+      "command": "build-cuda-test/bin/test-kv-pager-model",
+      "mode": "synthetic",
+      "mtp": false,
+      "tokens": 300,
+      "domains": {
+        "stored_k": "turbo_rotated",
+        "selected_reference_k": "original",
+        "stored_v": "turbo_rotated",
+        "v_inverse_count": 1
+      },
+      "f1": {
+        "wrong_dot": -6.32243,
+        "correct_dot": 76.1587,
+        "restored_max_abs": 2.98023e-07
+      },
+      "f2": {
+        "model_layer_ids": [0, 3, 7, 11],
+        "selected_model_layer": 7,
+        "compact_ordinal": 2,
+        "offset": 2017
+      },
+      "f3": {
+        "query_position": 257,
+        "selected_page_order": [1, 0],
+        "selected_rows": 300,
+        "tail_rows": 44,
+        "dense_value": 247.492,
+        "selected_value": 247.492,
+        "max_abs": 1.52588e-05
+      }
+    },
+    "focused_tests": "test-kv-pager, test-kv-attention-view, test-kv-routing-retrieval, test-kv-attention-execution, test-kv-attention-exact: 5/5 passed",
+    "cuda_direct_fixture": "paged Turbo4 decode, four Q heads, 529 selected rows: exit 0",
+    "production_direct_binding": "compact model-layer mapping fixed; separate cpy_k/cpy_v versus direct_storage authority remains an explicit I7 risk boundary"
+  },
+  "raw_index": [
+    {"id": "graph-source", "path": "src/llama-graph.cpp", "sha256": "6fc7882229d4bc28d591df82893adbf47b1715b5480daeb35d2cb9ee241123d7"},
+    {"id": "graph-header", "path": "src/llama-graph.h", "sha256": "4b311e824d70f787070e04ff86486a2cc65f1534cf44d7dcfc016f9ee63c500a"},
+    {"id": "context-source", "path": "src/llama-context.cpp", "sha256": "831b02fb02212649c317f4180a3c78005459d581fdf5d0d625cffdf6889d26f6"},
+    {"id": "cache-context-source", "path": "src/llama-kv-cache.cpp", "sha256": "7338aae9febb7c5d1a623c07fb2fec891bd59db53010e23260fb66b430862d8c"},
+    {"id": "operator-header", "path": "src/llama-kv-attention-op.h", "sha256": "5bd2fb0619f94e2f6389ece99794b7202478021729bb8a8a6bff7e2bb89756da"},
+    {"id": "operator-source", "path": "src/llama-kv-attention-op.cpp", "sha256": "0896e0fa8e2e289f07da04476a80e419b098c9c3031006cd7a68159e8b98d138"},
+    {"id": "parity-driver-source", "path": "tests/test-kv-pager-model.cpp", "sha256": "e82e7a8e9420f6427cf39dfd2654e74218adc3b15fdc16b2d042935cb66e2db5"},
+    {"id": "parity-driver-cuda-binary", "path": "build-cuda-test/bin/test-kv-pager-model", "sha256": "4c1b16972103c2b272d32edd6788a0e73587f115fc1698746743e5ef96ed117b"},
+    {"id": "attention-view-test", "path": "build/bin/test-kv-attention-view", "sha256": "c8ddac810c9f9166ef32ecd06dcf643fc66fd506ee07678ddd9aaa17c75b4f1a"},
+    {"id": "attention-execution-test", "path": "build/bin/test-kv-attention-execution", "sha256": "5b1592f7b26f18d0fcd6d5c265f032af59969984f9f172110f01fa57469ba957"},
+    {"id": "attention-exact-test", "path": "build/bin/test-kv-attention-exact", "sha256": "96ee2fc31b99bdb4c3bc32786c64af5367a51dfeaf3b9571ac4b9eb5e6f3edb0"},
+    {"id": "cuda-direct-test", "path": "build-cuda-test/bin/test-cuda-fattn-paged-turbo4", "sha256": "5ba1e29cae063fe68cffbb696e50e55d438c0bd35f812cd23fb36b8fa3576c60"},
+    {"id": "qwen4exp-domain-reference", "path": "src/models/qwen4exp.cpp", "sha256": "ea82320be017fdcb8741a86d05d5fbc544b7c5f2827354a2271bcfa0d28a57ee"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The required /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf is present (14252845984 bytes), but the RTX 4080 had 1128 MiB free while the existing live workload occupied the device. No live model context was started or disturbed.",
+    "model_and_corpus_hashes": "No model-backed run was started; the synthetic driver and focused CUDA fixture are the reproducible local evidence.",
+    "innerq_non_identity": "The selected reference carries stored-versus-original domain metadata and applies the canonical inverse FWHT; calibrated non-identity CUDA InnerQ scales require a graph-visible scale tensor and remain deferred rather than being silently certified."
+  },
+  "resume": {
+    "command": ["LD_LIBRARY_PATH=build-cuda-test/bin", "build-cuda-test/bin/test-kv-pager-model", "--model", "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf"],
+    "next_task": "18-06",
+    "secrets_omitted": true
+  }
+}

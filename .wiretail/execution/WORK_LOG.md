@@ -580,3 +580,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-18-04`
 - Commit at update: `148a47d44`
 - Summary: Implemented measured KV/MTP telemetry snapshots, phase-separated route and real transfer timing counters, explicit ownership/acceptance fields, Prometheus export, and deterministic no-estimate validation; focused CUDA/Python checks pass; live authenticated scrape deferred.
+
+## 2026-09-05T08:04:00+00:00 — 18-05 — done
+
+- Branch: `codex/task-18-05`
+- Commit at update: `a83e18860`
+- Summary: Turbo4 selected K domain and compact layer mapping repaired; deterministic parity driver and focused CPU/CUDA checks pass; live 27B target comparison deferred because only 1128 MiB GPU memory was free.
