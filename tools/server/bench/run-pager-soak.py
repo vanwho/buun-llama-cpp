@@ -27,10 +27,14 @@ from urllib.request import Request, urlopen
 from pager_benchmark_contract import (
     CORPUS_SCHEMA,
     ContextResolutionError,
+    PromptFit,
+    PromptSizingError,
     corpus_context_ceiling,
+    fit_prompt,
     resolve_context,
     validate_corpus,
 )
+from prompt_sizing import ServerPromptRenderer, request_options
 
 
 DEFAULT_CORPUS = pathlib.Path(__file__).with_name("fixtures") / "pager-corpus-v4.json"
@@ -42,6 +46,15 @@ TRANSIENT_OVERRIDE_NAMES = (
     "AI_BENCHMARK_KV_SAFETY_HEADROOM", "AI_BENCHMARK_KV_PIN_RECENT",
 )
 DEFAULT_LIFECYCLE_LOCK = "/tmp/ai-pager-benchmark.lock"
+PADDING_MARKER = "{{PAGER_PADDING}}"
+
+
+class PromptCandidate:
+    def __init__(self, template: str, padding: str,
+                 protected_facts: tuple[str, ...] = ()) -> None:
+        self.template = template
+        self.padding = padding
+        self.protected_facts = protected_facts
 
 
 def sudo_argv() -> list[str]:
@@ -240,10 +253,14 @@ class Soak:
         self.context = context
         self.context_resolution = context_resolution
         self.corpus = corpus
-        # The synthetic marker uses a stable two-token-ish word shape. Keep
-        # its size tied to the resolved context while leaving headroom for the
-        # system/question wrapper and completion.
-        self.prompt_words = max(640, (context - 512) // 2)
+        # This is only an upper-bound padding hint. Admission is decided by the
+        # model's rendered token IDs, never by this legacy word-shaped input.
+        self.padding_hint_words = max(640, (context - 512) // 2)
+        self.renderer = ServerPromptRenderer(
+            endpoint, model, key,
+            tokenizer_id=os.environ.get("PAGER_TOKENIZER_SHA256"),
+            request_options=request_options(chat_template_kwargs={"enable_thinking": False}),
+        )
         self.records: list[dict[str, object]] = []
         self._records_lock = threading.Lock()
 
@@ -253,15 +270,34 @@ class Soak:
     def write_json(self, name: str, value: object) -> None:
         (self.raw / name).write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
 
-    def request(self, label: str, content: str, max_tokens: int = 8,
+    def fit_candidate(self, candidate: PromptCandidate | str, max_tokens: int,
+                      *, include_system: bool = True) -> PromptFit:
+        if isinstance(candidate, str):
+            candidate = PromptCandidate(candidate + PADDING_MARKER, "")
+        messages: list[dict[str, object]] = []
+        if include_system:
+            messages.append({"role": "system", "content": "Answer only from the supplied context."})
+        messages.append({"role": "user", "content": candidate.template})
+        return fit_prompt(messages, candidate.padding, self.context, max_tokens,
+                          self.renderer, padding_marker=PADDING_MARKER,
+                          protected_facts=candidate.protected_facts)
+
+    def request(self, label: str, content: PromptCandidate | str, max_tokens: int = 8,
                 timeout: float = 180.0, *, expected_marker: str | None = None,
                 slot_id: int | None = None) -> dict[str, object]:
+        try:
+            fit = self.fit_candidate(content, max_tokens)
+        except (PromptSizingError, ValueError) as error:
+            record = {"label": label, "status": "sizing_error", "elapsed_s": 0.0,
+                      "error": str(error), "expected_marker": expected_marker,
+                      "slot_id": slot_id, "resolved_capacity_tokens": self.context,
+                      "generation_reserve_tokens": max_tokens}
+            with self._records_lock:
+                self.records.append(record)
+            return record
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": "Answer only from the supplied context."},
-                {"role": "user", "content": content},
-            ],
+            "messages": fit.messages,
             "max_tokens": max_tokens,
             "temperature": 0,
             "seed": 42,
@@ -304,7 +340,20 @@ class Soak:
         record = {"label": label, "status": status, "elapsed_s": elapsed,
                   "error": error, "response_json": parsed if isinstance(parsed, dict) else None,
                   "expected_marker": expected_marker, "slot_id": slot_id,
-                  "response_body_file": f"raw/{stem}.response.body"}
+                  "response_body_file": f"raw/{stem}.response.body",
+                  "template_id": fit.template_id, "tokenizer_id": fit.tokenizer_id,
+                  "occupied_prompt_tokens": fit.token_count,
+                  "generation_reserve_tokens": max_tokens,
+                  "resolved_capacity_tokens": self.context,
+                  "fact_offsets": list(fit.fact_offsets),
+                  "request_token_sha256": fit.request_token_sha256,
+                  "padding_characters": fit.padding_characters}
+        usage = parsed.get("usage") if isinstance(parsed, dict) else None
+        actual_prompt_tokens = usage.get("prompt_tokens") if isinstance(usage, dict) else None
+        record["actual_prompt_tokens"] = actual_prompt_tokens
+        if status == 200 and actual_prompt_tokens != fit.token_count:
+            record["status"] = "token_count_mismatch"
+            record["error"] = f"server prompt_tokens={actual_prompt_tokens}, local={fit.token_count}"
         record.update(classify_completion_response(
             status, error, parsed, expected_marker))
         with self._records_lock:
@@ -451,8 +500,12 @@ class Soak:
         return last
 
 
-def words(prefix: str, count: int, focus: str) -> str:
-    return " ".join(f"{prefix}-{i % 64:02d}" for i in range(count)) + f" Focus marker {focus}. Preserve the supplied facts and answer briefly."
+def words(prefix: str, count: int, focus: str) -> PromptCandidate:
+    padding = " ".join(f"{prefix}-{i % 64:02d}" for i in range(count))
+    template = (f"The supplied context is authoritative for {focus}.\n"
+                f"{PADDING_MARKER}\n"
+                f"Focus marker {focus}. Preserve the supplied facts and answer briefly.")
+    return PromptCandidate(template, padding, (f"Focus marker {focus}.",))
 
 
 def load_corpus(path: pathlib.Path) -> tuple[dict[str, object] | None, list[str]]:
@@ -480,7 +533,9 @@ def write_dry_run(output: pathlib.Path, corpus_path: pathlib.Path,
                     "corpus_hash": corpus.get("corpus_hash"),
                     "context_ceiling": corpus_context_ceiling(corpus)},
         "prompt": {"target_context_tokens": resolved,
-                   "synthetic_context_words": max(640, (resolved - 512) // 2),
+                   "token_sizing": "not_run_dry_run",
+                   "occupied_prompt_tokens": None,
+                   "generation_reserve_tokens": None,
                    "tail_tokens": resolved % 256},
         "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
                        "draft_backend": "gpu", "context_tokens": resolved},
@@ -802,7 +857,8 @@ def _main() -> int:
         "corpus": soak.corpus,
         "context": context,
         "prompt": {"target_context_tokens": soak.context,
-                    "synthetic_context_words": soak.prompt_words,
+                    "token_sizing": "exact-rendered-token-preflight",
+                    "legacy_padding_hint_words": soak.padding_hint_words,
                     "tail_tokens": soak.context % 256},
         "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
                        "draft_backend": "gpu", "context_tokens": soak.context},
@@ -853,18 +909,20 @@ def _main() -> int:
         ("churn-03", "churn-c", "churn-c"),
         ("churn-04", "churn-d", "churn-d"),
     ):
-        soak.request(label, words(prefix, soak.prompt_words, focus))
+        soak.request(label, words(prefix, soak.padding_hint_words, focus))
 
     soak.metrics("after-page-waves")
     soak.get("slots-after-page-waves", "/slots")
-    soak.request("speculative-rejection", words("rejection", soak.prompt_words, "speculative-rejection"), max_tokens=128)
+    soak.request("speculative-rejection", words("rejection", soak.padding_hint_words, "speculative-rejection"), max_tokens=128)
     soak.metrics("after-speculative-rejection")
 
     # A bounded client cancellation must release the single active slot.  The
     # request and command result are retained separately from normal records.
+    cancel_fit = soak.fit_candidate(words("cancel", soak.padding_hint_words, "cancel"), 128,
+                                    include_system=False)
     cancel_payload = {
         "model": soak.model,
-        "messages": [{"role": "user", "content": words("cancel", soak.prompt_words, "cancel")}],
+        "messages": cancel_fit.messages,
         "max_tokens": 128, "temperature": 0, "seed": 42, "stream": False,
     }
     soak.write_json("cancel.request.json", cancel_payload)
@@ -951,10 +1009,10 @@ def _main() -> int:
     soak.write_json("slot-roundtrip.json", {"save": save, "erase": erase, "restore": restore_result,
                                             "saved_sha256": saved_hash, "restored_sha256": restored_hash,
                                             "sha256_match": saved_hash is not None and saved_hash == restored_hash})
-    soak.request("post-restore", words("post-restore", soak.prompt_words, "post-restore"))
+    soak.request("post-restore", words("post-restore", soak.padding_hint_words, "post-restore"))
     clear = post_slot("clear-final", "erase")
     soak.write_json("clear-final.record.json", clear)
-    soak.request("recovery", words("recovery", soak.prompt_words, "recovery"))
+    soak.request("recovery", words("recovery", soak.padding_hint_words, "recovery"))
     soak.get("slots-before-restart", "/slots")
     soak.metrics("pre-restart")
 
@@ -964,7 +1022,7 @@ def _main() -> int:
     soak.get_url("health-8091-after-restart", "http://127.0.0.1:8091/health")
     soak.get("slots-after-restart", "/slots")
     soak.metrics("after-restart")
-    soak.request("post-restart-recovery", words("restart-recovery", soak.prompt_words, "restart-recovery"))
+    soak.request("post-restart-recovery", words("restart-recovery", soak.padding_hint_words, "restart-recovery"))
     soak.get("slots-final", "/slots")
     soak.metrics("final")
     stop.set()
@@ -975,7 +1033,8 @@ def _main() -> int:
              "context_tokens": soak.context, "page_size_tokens": 256,
              "context": soak.context_resolution, "diagnostic_only": soak.context_resolution["diagnostic_only"],
              "prompt": {"target_context_tokens": soak.context,
-                        "synthetic_context_words": soak.prompt_words,
+                        "token_sizing": "exact-rendered-token-preflight",
+                        "legacy_padding_hint_words": soak.padding_hint_words,
                         "tail_tokens": soak.context % 256},
              "corpus": soak.corpus,
              "placement": {"target_kv": "context-sized", "draft_kv": "turbo4",
