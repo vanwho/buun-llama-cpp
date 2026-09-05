@@ -14040,6 +14040,10 @@ ggml_type llama_kv_cache_context::type_v() const {
     return kv->type_v();
 }
 
+std::vector<uint32_t> llama_kv_cache_context::get_layer_ids() const {
+    return kv != nullptr ? kv->get_layer_ids() : std::vector<uint32_t>{};
+}
+
 ggml_tensor * llama_kv_cache_context::get_k(ggml_context * ctx, int32_t il) const {
     uint32_t source_rows = n_kv;
     if (const auto * pager = kv->get_kv_pager()) {

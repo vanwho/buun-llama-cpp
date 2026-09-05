@@ -3329,9 +3329,18 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             const auto & geometry = pager->snapshot().geometry;
             inp->direct_layer_k_offsets = geometry.layer_k_offsets;
             inp->direct_layer_v_offsets = geometry.layer_v_offsets;
+            inp->direct_layer_ids = mctx_cur->get_layer_ids();
+            bool duplicate_layer_id = false;
+            for (size_t i = 0; i < inp->direct_layer_ids.size() && !duplicate_layer_id; ++i) {
+                duplicate_layer_id = std::find(inp->direct_layer_ids.begin(),
+                        inp->direct_layer_ids.begin() + i, inp->direct_layer_ids[i]) !=
+                        inp->direct_layer_ids.begin() + i;
+            }
             if (inp->direct_bytes_per_slot == 0 ||
                 inp->direct_layer_k_offsets.empty() ||
-                inp->direct_layer_k_offsets.size() != inp->direct_layer_v_offsets.size()) {
+                inp->direct_layer_k_offsets.size() != inp->direct_layer_v_offsets.size() ||
+                inp->direct_layer_ids.size() != inp->direct_layer_k_offsets.size() ||
+                duplicate_layer_id) {
                 throw std::runtime_error("direct paged attention has incomplete slot geometry");
             }
             inp->direct_pages_host.reserve(selected_metadata->page_table().size());
@@ -3540,17 +3549,28 @@ ggml_tensor * llm_graph_context::build_attn(
 
     if (inp->direct_attention) {
         GGML_ASSERT(inp->direct_storage != nullptr);
-        GGML_ASSERT(il >= 0 && size_t(il) < inp->direct_layer_k_offsets.size());
-        GGML_ASSERT(size_t(il) < inp->direct_layer_v_offsets.size());
+        if (il < 0) {
+            throw std::runtime_error("direct paged attention received a negative model layer id");
+        }
+        const auto layer_it = std::find(inp->direct_layer_ids.begin(),
+                inp->direct_layer_ids.end(), uint32_t(il));
+        if (layer_it == inp->direct_layer_ids.end()) {
+            throw std::runtime_error("direct paged attention model layer is not a cache attention layer");
+        }
+        const size_t layer_ordinal = size_t(layer_it - inp->direct_layer_ids.begin());
+        if (layer_ordinal >= inp->direct_layer_k_offsets.size() ||
+            layer_ordinal >= inp->direct_layer_v_offsets.size()) {
+            throw std::runtime_error("direct paged attention layer mapping is out of range");
+        }
         GGML_ASSERT(v->type == GGML_TYPE_TURBO4_0 && k->type == GGML_TYPE_TURBO4_0);
 
         // The pager slot is laid out as full interleaved token rows. The
         // direct kernel addresses one KV head within each row, so these views
         // describe row/head/page strides without copying or repacking bytes.
         ggml_tensor * k_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
-                inp->direct_layer_k_offsets[size_t(il)]);
+                inp->direct_layer_k_offsets[layer_ordinal]);
         ggml_tensor * v_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
-                inp->direct_layer_v_offsets[size_t(il)]);
+                inp->direct_layer_v_offsets[layer_ordinal]);
         GGML_ASSERT(k_raw && v_raw);
         k_raw->nb[1] = ggml_row_size(k->type, k->ne[0]);
         k_raw->nb[2] = ggml_row_size(k->type, inp->selected_metadata.head_dim_k());
@@ -3601,6 +3621,18 @@ ggml_tensor * llm_graph_context::build_attn(
         };
 
         k = build_selected_rows(k, "kv_selected_k");
+        // GET_ROWS dequantizes Turbo4 K to F32 coefficients, but those
+        // coefficients are still in the cache's forward-FWHT domain.  The
+        // ordinary MHA reference has no Turbo provenance and therefore does
+        // not rotate Q on its behalf.  Restore K to the original domain once,
+        // matching the dense Turbo FA decoder.  The CUDA FA path also applies
+        // the calibrated InnerQ inverse channel scale as part of its fused
+        // decode; the generic graph WHT is the canonical transform here and
+        // the scale must remain identity unless a graph-visible calibration
+        // tensor is supplied by that backend.
+        if (ggml_is_turbo_kv_type(mctx_cur->type_k())) {
+            k = ggml_turbo_wht(ctx0, ggml_cont(ctx0, k), 1);
+        }
         v = build_selected_rows(v, "kv_selected_v");
     }
 

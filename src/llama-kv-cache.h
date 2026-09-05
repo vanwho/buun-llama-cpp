@@ -1773,6 +1773,7 @@ public:
 
     ggml_type type_k() const;
     ggml_type type_v() const;
+    std::vector<uint32_t> get_layer_ids() const;
 
     // get views of the current state of the cache
     ggml_tensor * get_k(ggml_context * ctx, int32_t il) const;

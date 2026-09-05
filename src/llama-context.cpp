@@ -1975,6 +1975,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 op_params.mode = llama_kv_attention_operator_mode::selective;
                 op_params.type_k = attention->type_k();
                 op_params.type_v = attention->type_v();
+                op_params.domain_k = llama_kv_attention_representation_domain::turbo_rotated;
+                op_params.domain_v = llama_kv_attention_representation_domain::turbo_rotated;
                 op_params.page_tokens = kv_pager.page_size;
                 op_params.head_dim_k = model.hparams.n_embd_head_k();
                 op_params.head_dim_v = model.hparams.n_embd_head_v();
@@ -2121,6 +2123,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     op_params.mode = llama_kv_attention_operator_mode::selective;
     op_params.type_k = attention->type_k();
     op_params.type_v = attention->type_v();
+    op_params.domain_k = llama_kv_attention_representation_domain::turbo_rotated;
+    op_params.domain_v = llama_kv_attention_representation_domain::turbo_rotated;
     op_params.page_tokens = kv_pager.page_size;
     op_params.head_dim_k = model.hparams.n_embd_head_k();
     op_params.head_dim_v = model.hparams.n_embd_head_v();

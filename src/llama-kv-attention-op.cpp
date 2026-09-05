@@ -22,6 +22,8 @@ static uint64_t attention_content_key(
     attention_key_mix(key, view.graph_epoch());
     attention_key_mix(key, uint64_t(params.type_k));
     attention_key_mix(key, uint64_t(params.type_v));
+    attention_key_mix(key, uint64_t(params.domain_k));
+    attention_key_mix(key, uint64_t(params.domain_v));
     attention_key_mix(key, params.head_dim_k);
     attention_key_mix(key, params.head_dim_v);
     attention_key_mix(key, params.n_head_q);
@@ -188,6 +190,14 @@ ggml_type llama_kv_attention_operator_metadata::type_k() const noexcept {
 
 ggml_type llama_kv_attention_operator_metadata::type_v() const noexcept {
     return state_ ? state_->params.type_v : GGML_TYPE_COUNT;
+}
+
+llama_kv_attention_representation_domain llama_kv_attention_operator_metadata::domain_k() const noexcept {
+    return state_ ? state_->params.domain_k : llama_kv_attention_representation_domain::original;
+}
+
+llama_kv_attention_representation_domain llama_kv_attention_operator_metadata::domain_v() const noexcept {
+    return state_ ? state_->params.domain_v : llama_kv_attention_representation_domain::original;
 }
 
 uint32_t llama_kv_attention_operator_metadata::head_dim_k() const noexcept { return state_ ? state_->params.head_dim_k : 0; }
