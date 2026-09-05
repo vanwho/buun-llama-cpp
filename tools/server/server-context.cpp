@@ -20264,10 +20264,21 @@ private:
                     auto * mem = llama_get_memory(ctx_tgt);
 
                     if (all_accepted) {
-                        server_cache_transient_seq_rm_impl(
-                            mem, seq_backup, -1, -1);
-                        server_cache_transient_seq_rm_impl(
-                            mem, slot.id, slot.prompt.tokens.pos_next(), -1);
+                        const bool backup_removed =
+                            server_cache_transient_seq_rm_impl(mem, seq_backup, -1, -1);
+                        const bool suffix_removed =
+                            server_cache_transient_seq_rm_impl(
+                                mem, slot.id, slot.prompt.tokens.pos_next(), -1);
+                        if (!backup_removed || !suffix_removed) {
+                            SLT_ERR(slot, "%s\n", "failed to commit accepted speculative target; resetting slot");
+                            send_error(slot, "Compute error committing speculative tokens");
+                            slot.release();
+                            slot.mandatory_recovery_reset(
+                                server_cache_destruction_reason::restore_failure);
+                            slot.has_draft_backup = false;
+                            slot.seq_id_backup = -1;
+                            return;
+                        }
                     } else {
                         const int n_past_before = slot.n_tokens_before_draft;
 
@@ -20290,8 +20301,17 @@ private:
                             slot.seq_id_backup = -1;
                             return;
                         } else {
-                            server_cache_transient_seq_rm_impl(
-                                mem, seq_backup, -1, -1);
+                            if (!server_cache_transient_seq_rm_impl(
+                                    mem, seq_backup, -1, -1)) {
+                                SLT_ERR(slot, "%s\n", "failed to retire speculative backup; resetting slot");
+                                send_error(slot, "Compute error retiring speculative backup");
+                                slot.release();
+                                slot.mandatory_recovery_reset(
+                                    server_cache_destruction_reason::restore_failure);
+                                slot.has_draft_backup = false;
+                                slot.seq_id_backup = -1;
+                                return;
+                            }
 
                             const int n_reeval = int(
                                 rollback_frontier.accepted_token_count) -
@@ -20341,10 +20361,19 @@ private:
                 return;
             }
 
-            common_speculative_rollback_dft(
-                slot.get_spec(), slot.id,
-                llama_pos(rollback_frontier.accepted_token_count),
-                (uint16_t) rollback_frontier.accepted_draft_tokens);
+            if (!common_speculative_rollback_dft(
+                    slot.get_spec(), slot.id,
+                    llama_pos(rollback_frontier.accepted_token_count),
+                    (uint16_t) rollback_frontier.accepted_draft_tokens)) {
+                // The draft context must reach the same committed frontier as
+                // the target before any accepted token is published.
+                SLT_ERR(slot, "%s\n", "failed to roll back speculative draft; resetting slot");
+                send_error(slot, "Compute error rolling back speculative draft");
+                slot.release();
+                slot.mandatory_recovery_reset(
+                    server_cache_destruction_reason::restore_failure);
+                return;
+            }
 
             for (size_t i = 0; i < ids.size(); ++i) {
                 completion_token_output result;
@@ -20600,8 +20629,15 @@ private:
                     }
                 }
 
-                server_cache_transient_seq_rm_impl(
-                    mem, slot.id, committed, committed + draft_len);
+                if (!server_cache_transient_seq_rm_impl(
+                        mem, slot.id, committed, committed + draft_len)) {
+                    SRV_ERR("diffusion draft rollback failed at position %d\n", committed);
+                    send_error(slot, "Compute error rolling back diffusion draft");
+                    slot.release();
+                    slot.mandatory_recovery_reset(
+                        server_cache_destruction_reason::restore_failure);
+                    return;
+                }
 
                 // VERIFY: causal — single pass with draft tokens
                 llama_set_causal_attn(ctx_tgt, true);
@@ -20677,9 +20713,17 @@ private:
                 }
 
                 if (n_accept < draft_len) {
-                    server_cache_transient_seq_rm_impl(
-                        mem, slot.id, committed + n_accept,
-                        committed + draft_len);
+                    if (!server_cache_transient_seq_rm_impl(
+                            mem, slot.id, committed + n_accept,
+                            committed + draft_len)) {
+                        SRV_ERR("diffusion suffix rollback failed at position %d\n",
+                                committed + n_accept);
+                        send_error(slot, "Compute error rolling back diffusion suffix");
+                        slot.release();
+                        slot.mandatory_recovery_reset(
+                            server_cache_destruction_reason::restore_failure);
+                        return;
+                    }
                 }
 
                 // BONUS: decode one token — produces new prev_logits for next cycle

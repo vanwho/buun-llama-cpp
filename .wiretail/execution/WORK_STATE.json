@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "17",
-  "current_task": "17-05",
-  "last_updated_utc": "2026-09-05T00:23:03+00:00",
+  "current_task": "17-06",
+  "last_updated_utc": "2026-09-05T00:40:07+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1205,13 +1205,13 @@
       "cluster": "17b-mtp-capacity",
       "title": "Repair speculative rollback and page-generation atomicity",
       "packet": ".wiretail/execution/tasks/17-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "17-04"
       ],
-      "commit": null
+      "commit": "b26e3b6da38805589d2262dbd2ef5c105bb0b16e"
     },
     {
       "id": "17-06",

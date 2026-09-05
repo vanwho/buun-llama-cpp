@@ -2861,8 +2861,11 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         // requires the stored position to be no greater than the incoming one.
         for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
             if (i_batch_beg[seq_id] >= 0) {
-                llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id,
-                    batch_in.pos[i_batch_beg[seq_id]], -1);
+                if (!llama_memory_seq_rm_transient(llama_get_memory(ctx_dft), seq_id,
+                        batch_in.pos[i_batch_beg[seq_id]], -1)) {
+                    SPC_ERR("failed to trim draft sequence %d before verification\n", (int) seq_id);
+                    return false;
+                }
             }
         }
 
@@ -2915,7 +2918,11 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                         if (i_batch_beg[seq_id] < 0) {
                             continue;
                         }
-                        llama_memory_seq_rm(mem_dft, seq_id, batch_in.pos[i_batch_beg[seq_id]], -1);
+                        if (!llama_memory_seq_rm_transient(
+                                mem_dft, seq_id, batch_in.pos[i_batch_beg[seq_id]], -1)) {
+                            SPC_ERR("failed to trim chained draft sequence %d\n", (int) seq_id);
+                            return false;
+                        }
                     }
                     llama_set_nextn_layer_offset(ctx_dft, head);
                 }
@@ -2986,7 +2993,12 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             // Truncate stale draft positions: process() only cleans sequences
             // present in the verify batch, so a previous draft() may have
             // advanced this sequence past dp.n_past.
-            llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, dp.n_past, -1);
+            if (!llama_memory_seq_rm_transient(
+                    llama_get_memory(ctx_dft), seq_id, dp.n_past, -1)) {
+                SPC_ERR("failed to trim draft sequence %d before drafting\n", (int) seq_id);
+                dp.drafting = false;
+                continue;
+            }
 
             n_drafting++;
             drafting[seq_id] = true;
@@ -3015,7 +3027,12 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                 auto * mem_dft = llama_get_memory(ctx_dft);
                 for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
                     if (drafting[seq_id]) {
-                        llama_memory_seq_rm(mem_dft, seq_id, dparams[seq_id].n_past, -1);
+                        if (!llama_memory_seq_rm_transient(
+                                mem_dft, seq_id, dparams[seq_id].n_past, -1)) {
+                            SPC_ERR("failed to trim chained draft sequence %d\n", (int) seq_id);
+                            drafting[seq_id] = false;
+                            n_drafting--;
+                        }
                     }
                 }
                 llama_set_nextn_layer_offset(ctx_dft, i);
@@ -6895,18 +6912,22 @@ void common_speculative_update_logits(
     common_speculative_update_logits(spec, 0, ctx, batch_tokens, n_accepted);
 }
 
-void common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t n_accepted) {
+bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t n_accepted) {
     if (spec == nullptr) {
-        return;
+        return true;
     }
     for (auto & impl : spec->impls) {
         if (impl->type == COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
             auto * mtp = static_cast<common_speculative_impl_draft_mtp *>(impl.get());
             auto * ctx_dft = mtp->params.ctx_dft;
-            llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1);
+            if (ctx_dft == nullptr ||
+                    !llama_memory_seq_rm_transient(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
+                return false;
+            }
             mtp->accept(seq_id, n_accepted, false);
         }
     }
+    return true;
 }
 
 void common_speculative_flush_prefill(common_speculative * spec) {

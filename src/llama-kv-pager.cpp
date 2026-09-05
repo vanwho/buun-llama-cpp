@@ -990,8 +990,25 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         auto next_slots = slot_pages_;
         uint32_t next_current = current_page_index_;
 
+        if (mutation.release_sequence_pins) {
+            for (auto & page : next) {
+                if (!page.present ||
+                        (mutation.sequence_id >= 0 &&
+                         page.record.id.sequence_id != mutation.sequence_id)) {
+                    continue;
+                }
+                page.record.pin_count = 0;
+                if (page.record.state == llama_kv_page_state::filling_gpu &&
+                        page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+                        std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                                    [](uint8_t value) { return value != 0; })) {
+                    page.record.state = llama_kv_page_state::gpu_dirty;
+                }
+            }
+        }
+
         const auto selected = [&](const page_state & page, int32_t sequence) {
-            return page.present && page.record.id.sequence_id == sequence &&
+            return page.present && (sequence < 0 || page.record.id.sequence_id == sequence) &&
                 (mutation.sequence_generation == 0 ||
                  page.record.id.sequence_generation == mutation.sequence_generation);
         };
@@ -1002,7 +1019,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
             return page.record.id.position_end > begin && page.record.id.position_begin < end;
         };
         const auto reject_pinned = [&](const auto & predicate) {
-            for (const auto & page : pages_) {
+            for (const auto & page : next) {
                 if (page.present && page.record.pin_count != 0 && predicate(page)) {
                     return true;
                 }
@@ -1075,7 +1092,11 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
             const llama_pos begin = mutation.position_begin;
             const llama_pos end = mutation.position_end > begin
                 ? mutation.position_end : std::numeric_limits<llama_pos>::max();
-            if (mutation.sequence_id < 0) return llama_kv_pager_write_status::invalid_position;
+            if (mutation.sequence_id < 0 &&
+                    mutation.kind != llama_kv_pager_mutation_kind::remove &&
+                    mutation.kind != llama_kv_pager_mutation_kind::rewind) {
+                return llama_kv_pager_write_status::invalid_position;
+            }
             if (reject_pinned([&](const page_state & page) {
                     return selected(page, mutation.sequence_id) && overlaps(page);
                 })) {
@@ -1151,6 +1172,21 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
 
         auto tx = residency_.begin();
         const auto old_pages = tx.pages();
+        if (mutation.release_sequence_pins) {
+            for (const auto & old : old_pages) {
+                if ((mutation.sequence_id >= 0 &&
+                         old.id.sequence_id != mutation.sequence_id) ||
+                        old.pin_count == 0) {
+                    continue;
+                }
+                auto released = old;
+                released.pin_count = 0;
+                if (residency_.update(tx, released) != llama_kv_residency_status::ok) {
+                    residency_.rollback(tx);
+                    return llama_kv_pager_write_status::transaction;
+                }
+            }
+        }
         std::vector<llama_kv_page_id> host_invalidations;
         const auto add_host_invalidation = [&](const llama_kv_page_id & id) {
             if (!host_) return;
@@ -1161,7 +1197,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         };
         const auto host_selected = [&](const llama_kv_page_id & id,
                                        int32_t sequence) {
-            return id.sequence_id == sequence &&
+            return (sequence < 0 || id.sequence_id == sequence) &&
                 (mutation.sequence_generation == 0 ||
                  id.sequence_generation == mutation.sequence_generation);
         };

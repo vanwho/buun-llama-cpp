@@ -263,11 +263,16 @@ bool llama_memory_hybrid_idx::try_seq_cp(
     }
 
     if (!get_mem_attn()->try_seq_cp(seq_id_src, seq_id_dst, p0, p1)) {
+        (void) get_mem_recr()->seq_rm_transient(seq_id_dst, -1, -1);
         mutation.finish(false);
         return false;
     }
 
     const bool result = !mem_idx || mem_idx->try_seq_cp(seq_id_src, seq_id_dst, p0, p1);
+    if (!result) {
+        (void) get_mem_attn()->seq_rm_transient(seq_id_dst, -1, -1);
+        (void) get_mem_recr()->seq_rm_transient(seq_id_dst, -1, -1);
+    }
     mutation.finish(result);
     return result;
 }
@@ -285,11 +290,16 @@ bool llama_memory_hybrid_idx::try_seq_cp_transient(
     }
 
     if (!get_mem_attn()->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1)) {
+        (void) get_mem_recr()->seq_rm_transient(seq_id_dst, -1, -1);
         mutation.finish(false);
         return false;
     }
 
     const bool result = !mem_idx || mem_idx->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1);
+    if (!result) {
+        (void) get_mem_attn()->seq_rm_transient(seq_id_dst, -1, -1);
+        (void) get_mem_recr()->seq_rm_transient(seq_id_dst, -1, -1);
+    }
     mutation.finish(result);
     return result;
 }

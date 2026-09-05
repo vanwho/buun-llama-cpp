@@ -210,6 +210,8 @@ public:
     bool seq_rm_transient(llama_seq_id seq_id,                       llama_pos p0, llama_pos p1) override;
     bool seq_rm_attn_transient(llama_seq_id seq_id,                  llama_pos p0, llama_pos p1) override;
     void seq_cp  (llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) override;
+    bool try_seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
+                    llama_pos p0, llama_pos p1) override;
     bool try_seq_cp_transient(
             llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) override;
     void seq_keep(llama_seq_id seq_id)                                                          override;
@@ -1277,7 +1279,7 @@ private:
     void     vbr_attention_content_changed(
             const std::array<bool, LLAMA_MAX_SEQ> & affected); // one atomic multi-sequence edit
     bool     seq_rm_impl(llama_seq_id seq_id, llama_pos p0, llama_pos p1, seq_rm_mode mode);
-    void     seq_cp_impl(
+    bool     seq_cp_impl(
             llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
             llama_pos p0, llama_pos p1, bool publish_lineage);
     vbr_generation_tracker *       vbr_generation_tracker_mut();

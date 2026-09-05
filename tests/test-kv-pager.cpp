@@ -351,6 +351,19 @@ static void test_pager_host_mutation() {
     assert(pager->host_catalog()->snapshot().live_pages == 1);
     assert(pager->exact_page_records(0).size() == 1);
 
+    const uint64_t stale_epoch = pager->residency().epoch();
+    llama_kv_pager_write_ticket release_ticket;
+    assert(pager->begin_write(0, 1, 0, release_ticket) ==
+        llama_kv_pager_write_status::ok);
+    assert(pager->residency().pages()[0].pin_count == 1);
+    // A stale rollback must not release the frontier as a side effect. The
+    // release is staged with a successful mutation instead.
+    assert(pager->mutate({
+            llama_kv_pager_mutation_kind::remove, 0, -1, 0, 1, 0, 1,
+            stale_epoch - 1, true }) == llama_kv_pager_write_status::stale_generation);
+    assert(pager->residency().pages()[0].pin_count == 1);
+    assert(pager->cancel_write(release_ticket) == llama_kv_pager_write_status::ok);
+
     const uint64_t epoch = pager->residency().epoch();
     assert(pager->mutate({
             llama_kv_pager_mutation_kind::remove, 0, -1, 0, 256, 0, 1,
@@ -361,11 +374,10 @@ static void test_pager_host_mutation() {
     // that edit, even when the physical page is reused in place.
     llama_kv_pager_write_ticket stale_ticket;
     assert(pager->begin_write(0, 1, 0, stale_ticket) == llama_kv_pager_write_status::ok);
-    pager->release_sequence_pins(0); // post-fence cancellation boundary
     const uint32_t old_page_generation = stale_ticket.page_generation;
     assert(pager->mutate({
             llama_kv_pager_mutation_kind::remove, 0, -1, 0, 1, 0, 1,
-            pager->residency().epoch() }) == llama_kv_pager_write_status::ok);
+            pager->residency().epoch(), true }) == llama_kv_pager_write_status::ok);
     assert(pager->residency().pages()[0].id.page_generation != old_page_generation);
     assert(pager->complete_write(stale_ticket, 32, true) ==
         llama_kv_pager_write_status::stale_generation);

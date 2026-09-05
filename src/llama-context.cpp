@@ -4181,12 +4181,16 @@ bool llama_context::dflash_rollback(llama_seq_id seq_id, llama_seq_id seq_backup
     if (tree_bufs.n_tokens > 0) {
         // Tree mode: branch tokens may have polluted KV at accepted positions.
         // Remove ALL entries from n_past_before onwards and restore from backup.
-        mem_attn->seq_rm_transient(seq_id, n_past_before, -1);
-        mem_attn->try_seq_cp_transient(seq_backup, seq_id, n_past_before, -1);
+        if (!mem_attn->seq_rm_transient(seq_id, n_past_before, -1) ||
+                !mem_attn->try_seq_cp_transient(seq_backup, seq_id, n_past_before, -1)) {
+            return false;
+        }
     } else {
         // Flat mode: no duplicate entries at same position, safe to keep accepted KV
         int kv_keep_pos = n_past_before + n_accepted;
-        mem_attn->seq_rm_transient(seq_id, kv_keep_pos, -1);
+        if (!mem_attn->seq_rm_transient(seq_id, kv_keep_pos, -1)) {
+            return false;
+        }
     }
 
     // Recurrent state: restore from backup, then tape replay. Keep the backup
@@ -4205,7 +4209,9 @@ bool llama_context::dflash_rollback(llama_seq_id seq_id, llama_seq_id seq_backup
         return false;
     }
 
-    mem_attn->seq_rm_transient(seq_backup, -1, -1);
+    if (!mem_attn->seq_rm_transient(seq_backup, -1, -1)) {
+        return false;
+    }
     mem_recr->seq_rm(seq_backup, -1, -1);
     return true;
 }

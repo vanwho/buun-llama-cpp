@@ -2768,17 +2768,11 @@ bool llama_kv_cache::seq_rm_impl(
 
     const bool commit = mode != seq_rm_mode::dry_run;
     if (commit && pager_ != nullptr && pager_->snapshot().physical_page_count != 0) {
-        // A speculative suffix is removed only after the target graph fence,
-        // but its partial page can still carry the write-frontier pin. Release
-        // that completed frontier before the atomic pager mutation; direct
-        // pager callers still get the all-pinned guard for in-flight work.
-        if (mode == seq_rm_mode::nested_commit || remove_all) {
-            pager_->release_sequence_pins(seq_id);
-        }
         const uint64_t pager_epoch = pager_->residency().epoch();
         const auto pager_status = pager_->mutate({
-            llama_kv_pager_mutation_kind::remove, seq_id < 0 ? 0 : seq_id, -1,
-            p0, p1, 0, 0, pager_epoch });
+            llama_kv_pager_mutation_kind::remove, seq_id, -1,
+            p0, p1, 0, 0, pager_epoch,
+            mode == seq_rm_mode::nested_commit || remove_all });
         if (pager_status != llama_kv_pager_write_status::ok) {
             return false;
         }
@@ -2900,21 +2894,25 @@ bool llama_kv_cache::seq_rm_impl(
 }
 
 void llama_kv_cache::seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
-    seq_cp_impl(seq_id_src, seq_id_dst, p0, p1, true);
+    (void) seq_cp_impl(seq_id_src, seq_id_dst, p0, p1, true);
+}
+
+bool llama_kv_cache::try_seq_cp(
+        llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
+    return seq_cp_impl(seq_id_src, seq_id_dst, p0, p1, true);
 }
 
 bool llama_kv_cache::try_seq_cp_transient(
         llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
-    seq_cp_impl(seq_id_src, seq_id_dst, p0, p1, false);
-    return true;
+    return seq_cp_impl(seq_id_src, seq_id_dst, p0, p1, false);
 }
 
-void llama_kv_cache::seq_cp_impl(
+bool llama_kv_cache::seq_cp_impl(
         llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
         llama_pos p0, llama_pos p1, bool publish_lineage) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
-        return;
+        return false;
     }
 
     GGML_ASSERT(seq_id_src >= 0 && (size_t) seq_id_src < seq_to_stream.size());
@@ -2928,7 +2926,7 @@ void llama_kv_cache::seq_cp_impl(
     if (seq_id_src != seq_id_dst && pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && pager_->mutate({
             llama_kv_pager_mutation_kind::copy, seq_id_src, seq_id_dst,
             p0, p1, 0, 0, pager_->residency().epoch() }) != llama_kv_pager_write_status::ok) {
-        return;
+        return false;
     }
 
     // VBR mutation scope. Cross-stream copies additionally reserve recovery and carry the
@@ -2947,7 +2945,7 @@ void llama_kv_cache::seq_cp_impl(
                 vbr_generation_stamp_kind::membership);
 
         if (seq_id_src == seq_id_dst) {
-                return;
+                return true;
         }
 
         bool changed = false;
@@ -2971,7 +2969,7 @@ void llama_kv_cache::seq_cp_impl(
             vbr_attention_content_changed(seq_id_dst);
         }
 
-        return;
+        return true;
     }
 
     // cross-stream sequence copies require to copy the actual buffer data
@@ -3043,6 +3041,8 @@ void llama_kv_cache::seq_cp_impl(
     if (publish_lineage && changed) {
         vbr_attention_content_changed(seq_id_dst);
     }
+
+    return true;
 
     //for (uint32_t s = 0; s < n_stream; ++s) {
     //    LLAMA_LOG_WARN("%s: seq %d: min = %d, max = %d\n", __func__, s, v_cells[s].seq_pos_min(s), v_cells[s].seq_pos_max(s));
