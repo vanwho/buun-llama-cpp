@@ -74,3 +74,9 @@ also requires every task's cluster context file.
 In manual mode, the runner must not author commits, push, merge, create issues, or create pull requests. In
 auto mode it may commit/push/merge only on the configured `vanwho/*` fork; a human owns upstream-facing
 prose, PR creation/replies, and merges.
+
+When Codex reports usage on a `turn.completed` event, Wiretail persists the
+turn under that task and aggregates it by phase and project in `WORK_STATE.json`.
+Recorded fields are total, input, cached-input, output, and thinking/reasoning
+tokens. If Codex omits total, Wiretail derives it as input plus output and
+marks the turn with `total_tokens_derived`.

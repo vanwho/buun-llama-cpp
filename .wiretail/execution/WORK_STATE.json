@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "17",
-  "current_task": "17-09",
-  "last_updated_utc": "2026-09-05T01:48:05+00:00",
+  "current_task": "17-10",
+  "last_updated_utc": "2026-09-05T02:04:40+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18,6 +18,7 @@
     "default_model": "gpt-5.6-luna",
     "default_reasoning": "high",
     "task_model_policy": "all current and generated tasks use Luna High unless an explicit operator override is supplied",
+    "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
     "block_recovery_attempts": 3,
@@ -67,7 +68,18 @@
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [],
-      "commit": "93ee20e2de2f3d309136eaea57dccbc652e4782b"
+      "commit": "93ee20e2de2f3d309136eaea57dccbc652e4782b",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "00-02",
@@ -81,7 +93,18 @@
       "depends_on": [
         "00-01"
       ],
-      "commit": "6de47d6ffdaa2bf6bff76024067bf68c861b9353"
+      "commit": "6de47d6ffdaa2bf6bff76024067bf68c861b9353",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "00-03",
@@ -95,7 +118,18 @@
       "depends_on": [
         "00-02"
       ],
-      "commit": "ad8ebd1feada2cfaebbed040d9188f5e2a80c961"
+      "commit": "ad8ebd1feada2cfaebbed040d9188f5e2a80c961",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "00-04",
@@ -109,7 +143,18 @@
       "depends_on": [
         "00-02"
       ],
-      "commit": "9e4e1010099ee6409902ee9e1cbc1cae34ef5fe5"
+      "commit": "9e4e1010099ee6409902ee9e1cbc1cae34ef5fe5",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "00-05",
@@ -124,7 +169,18 @@
         "00-03",
         "00-04"
       ],
-      "commit": "8b13597b24f2792e12da4c1967752b1dae901d53"
+      "commit": "8b13597b24f2792e12da4c1967752b1dae901d53",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "01-01",
@@ -140,7 +196,18 @@
         "00-04",
         "00-05"
       ],
-      "commit": "175ec305fef99c9beeaa2c405bb79e0bc5ee9436"
+      "commit": "175ec305fef99c9beeaa2c405bb79e0bc5ee9436",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "01-02",
@@ -154,7 +221,18 @@
       "depends_on": [
         "01-01"
       ],
-      "commit": "f02add48e012527371e4626e2411f4cf1f041f8d"
+      "commit": "f02add48e012527371e4626e2411f4cf1f041f8d",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "01-03",
@@ -168,7 +246,18 @@
       "depends_on": [
         "01-01"
       ],
-      "commit": "b36ee8e99603d4e87d8d473788aadd4528f467fd"
+      "commit": "b36ee8e99603d4e87d8d473788aadd4528f467fd",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "01-04",
@@ -183,7 +272,18 @@
         "01-02",
         "01-03"
       ],
-      "commit": "4c8975ddf80e9299cc44a36f2182542fa992eaab"
+      "commit": "4c8975ddf80e9299cc44a36f2182542fa992eaab",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "02-01",
@@ -197,7 +297,18 @@
       "depends_on": [
         "01-04"
       ],
-      "commit": "45a1a795a91f771d9674681b6c85a39b26b0d9d3"
+      "commit": "45a1a795a91f771d9674681b6c85a39b26b0d9d3",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "02-02",
@@ -211,7 +322,18 @@
       "depends_on": [
         "02-01"
       ],
-      "commit": "e531addc23916ef1f4b66324c0daaeec9ea3ae06"
+      "commit": "e531addc23916ef1f4b66324c0daaeec9ea3ae06",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "02-03",
@@ -226,7 +348,18 @@
         "02-01",
         "02-02"
       ],
-      "commit": "ea12da5d08bfaca54fe3676dbedc2842255de80a"
+      "commit": "ea12da5d08bfaca54fe3676dbedc2842255de80a",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "02-04",
@@ -240,7 +373,18 @@
       "depends_on": [
         "02-03"
       ],
-      "commit": "4a81b10bf8282331b4033966e6b5ab4a524da4a6"
+      "commit": "4a81b10bf8282331b4033966e6b5ab4a524da4a6",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "02-05",
@@ -254,7 +398,18 @@
       "depends_on": [
         "02-04"
       ],
-      "commit": "ab8e08920ce2d7a810317ac70fd94a2cfd7b44b5"
+      "commit": "ab8e08920ce2d7a810317ac70fd94a2cfd7b44b5",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "03-01",
@@ -268,7 +423,18 @@
       "depends_on": [
         "02-05"
       ],
-      "commit": "d8224c7338361689c06ffa2466e6a2719c46b6fb"
+      "commit": "d8224c7338361689c06ffa2466e6a2719c46b6fb",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "03-02",
@@ -282,7 +448,18 @@
       "depends_on": [
         "03-01"
       ],
-      "commit": "f2908b775d7465de7772e9893b62bd2c9d565244"
+      "commit": "f2908b775d7465de7772e9893b62bd2c9d565244",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "03-03",
@@ -296,7 +473,18 @@
       "depends_on": [
         "03-02"
       ],
-      "commit": "3c5458f8ab88a62ab411d319e3bf2860e2bfad47"
+      "commit": "3c5458f8ab88a62ab411d319e3bf2860e2bfad47",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "03-04",
@@ -310,7 +498,18 @@
       "depends_on": [
         "03-03"
       ],
-      "commit": "122f29e63176434db74edcc9a713c9596e67b71f"
+      "commit": "122f29e63176434db74edcc9a713c9596e67b71f",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "04-01",
@@ -324,7 +523,18 @@
       "depends_on": [
         "03-04"
       ],
-      "commit": "3ac062c330741b502843f4bde034b50d004dd2bf"
+      "commit": "3ac062c330741b502843f4bde034b50d004dd2bf",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "04-02",
@@ -338,7 +548,18 @@
       "depends_on": [
         "03-04"
       ],
-      "commit": "f340a5ff43f31d4c6ba088fe0927c60ce968ad03"
+      "commit": "f340a5ff43f31d4c6ba088fe0927c60ce968ad03",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "04-03",
@@ -353,7 +574,18 @@
         "04-01",
         "04-02"
       ],
-      "commit": "cda8d1c10e3b33b78b94a06f494ae1b86d7278c7"
+      "commit": "cda8d1c10e3b33b78b94a06f494ae1b86d7278c7",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "04-04",
@@ -367,7 +599,18 @@
       "depends_on": [
         "04-03"
       ],
-      "commit": "0d398d6b5abde0e6b8e3d582daa3e0e65d038422"
+      "commit": "0d398d6b5abde0e6b8e3d582daa3e0e65d038422",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "05-01",
@@ -381,7 +624,18 @@
       "depends_on": [
         "04-04"
       ],
-      "commit": "e801caadb4f64612dd5cd92efac6cdd792d3369f"
+      "commit": "e801caadb4f64612dd5cd92efac6cdd792d3369f",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "05-02",
@@ -397,7 +651,18 @@
         "01-03",
         "05-01"
       ],
-      "commit": "824e18cae174f33ad826647057f78ddaced1b5d1"
+      "commit": "824e18cae174f33ad826647057f78ddaced1b5d1",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "05-03",
@@ -412,7 +677,18 @@
         "05-01",
         "05-02"
       ],
-      "commit": "0156ae6aac7a14c8c0c70ec6a31711ba156a168b"
+      "commit": "0156ae6aac7a14c8c0c70ec6a31711ba156a168b",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "05-04",
@@ -426,7 +702,18 @@
       "depends_on": [
         "05-03"
       ],
-      "commit": "ede62ff96e9c5b4861fa83510a9125f18512bf05"
+      "commit": "ede62ff96e9c5b4861fa83510a9125f18512bf05",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "06-01",
@@ -440,7 +727,18 @@
       "depends_on": [
         "05-04"
       ],
-      "commit": "5d9584c9c1262372701bedda19f4e46435bf8f4d"
+      "commit": "5d9584c9c1262372701bedda19f4e46435bf8f4d",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "06-02",
@@ -454,7 +752,18 @@
       "depends_on": [
         "06-01"
       ],
-      "commit": "bfc536912fb81252b3ef7eb47f861fae158d5856"
+      "commit": "bfc536912fb81252b3ef7eb47f861fae158d5856",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "06-03",
@@ -468,7 +777,18 @@
       "depends_on": [
         "06-01"
       ],
-      "commit": "66ccb68e93173412dd694f46a0dff10e22c24807"
+      "commit": "66ccb68e93173412dd694f46a0dff10e22c24807",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "06-04",
@@ -483,7 +803,18 @@
         "06-02",
         "06-03"
       ],
-      "commit": "b535f5144d092051b3e99d7c374c11896d668f35"
+      "commit": "b535f5144d092051b3e99d7c374c11896d668f35",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "06-05",
@@ -497,7 +828,18 @@
       "depends_on": [
         "06-04"
       ],
-      "commit": "76ac9366d6d005a1903ee53fb24575da429e02b9"
+      "commit": "76ac9366d6d005a1903ee53fb24575da429e02b9",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "07-01",
@@ -511,7 +853,18 @@
       "depends_on": [
         "06-05"
       ],
-      "commit": "8ac64b1714b1f4c29898a3450619e8d53df295cb"
+      "commit": "8ac64b1714b1f4c29898a3450619e8d53df295cb",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "07-02",
@@ -525,7 +878,18 @@
       "depends_on": [
         "07-01"
       ],
-      "commit": "475ed8374cde7fa46dbd38dd817d4e486f420c3a"
+      "commit": "475ed8374cde7fa46dbd38dd817d4e486f420c3a",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "08-01",
@@ -539,7 +903,18 @@
       "depends_on": [
         "07-02"
       ],
-      "commit": "a0d028f26ae36516d528c698d09553ce9a935a94"
+      "commit": "a0d028f26ae36516d528c698d09553ce9a935a94",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "08-02",
@@ -553,7 +928,18 @@
       "depends_on": [
         "08-01"
       ],
-      "commit": "c242dd746a0ad8321c0bc8b56f5a9ac914376de4"
+      "commit": "c242dd746a0ad8321c0bc8b56f5a9ac914376de4",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "08-03",
@@ -567,7 +953,18 @@
       "depends_on": [
         "08-02"
       ],
-      "commit": "630256e890c3d4d52b98f8be20d0ecba34a924ec"
+      "commit": "630256e890c3d4d52b98f8be20d0ecba34a924ec",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "08-04",
@@ -581,7 +978,18 @@
       "depends_on": [
         "08-03"
       ],
-      "commit": "ff5107d4763b1f55f56c1667802ef27db3b4333c"
+      "commit": "ff5107d4763b1f55f56c1667802ef27db3b4333c",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "08-05",
@@ -595,7 +1003,18 @@
       "depends_on": [
         "08-04"
       ],
-      "commit": "b3152a6a0d6f399cbad74272defcbcbe85d353d8"
+      "commit": "b3152a6a0d6f399cbad74272defcbcbe85d353d8",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "09-01",
@@ -609,7 +1028,18 @@
       "depends_on": [
         "08-05"
       ],
-      "commit": "4c36ba20083a842202070e75b76cbf9e8cbd482d"
+      "commit": "4c36ba20083a842202070e75b76cbf9e8cbd482d",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "09-02",
@@ -623,7 +1053,18 @@
       "depends_on": [
         "09-01"
       ],
-      "commit": "15346779b649ec7fde83e8e31294372e03c26d6a"
+      "commit": "15346779b649ec7fde83e8e31294372e03c26d6a",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "09-03",
@@ -637,7 +1078,18 @@
       "depends_on": [
         "09-02"
       ],
-      "commit": "39adfde835ca8d7f87d6c33a1b0e36464cc6ea19"
+      "commit": "39adfde835ca8d7f87d6c33a1b0e36464cc6ea19",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "09-04",
@@ -651,7 +1103,18 @@
       "depends_on": [
         "09-03"
       ],
-      "commit": "ca2650c72cc7d7bbf35b43bc7d2e6801fa3f64ef"
+      "commit": "ca2650c72cc7d7bbf35b43bc7d2e6801fa3f64ef",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "09-05",
@@ -665,7 +1128,18 @@
       "depends_on": [
         "09-04"
       ],
-      "commit": "59fbbb4ee97f3f780cd70d4aa9ca1625f299b5b0"
+      "commit": "59fbbb4ee97f3f780cd70d4aa9ca1625f299b5b0",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "10-01",
@@ -679,7 +1153,18 @@
       "depends_on": [
         "09-05"
       ],
-      "commit": "71bf9ac4948f2df9631b970cf94ca83bae0e6064"
+      "commit": "71bf9ac4948f2df9631b970cf94ca83bae0e6064",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "10-02",
@@ -693,7 +1178,18 @@
       "depends_on": [
         "10-01"
       ],
-      "commit": "0b88846cbc5fb516a5ac19a6106ac09b1694b86b"
+      "commit": "0b88846cbc5fb516a5ac19a6106ac09b1694b86b",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "10-03",
@@ -707,7 +1203,18 @@
       "depends_on": [
         "10-02"
       ],
-      "commit": "e59eb3f7380cbb69d06104c95c74866dc107fc6e"
+      "commit": "e59eb3f7380cbb69d06104c95c74866dc107fc6e",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "10-04",
@@ -721,7 +1228,18 @@
       "depends_on": [
         "10-03"
       ],
-      "commit": "70247ed7ac095769ef9f822c52835d001650b5e4"
+      "commit": "70247ed7ac095769ef9f822c52835d001650b5e4",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "10-05",
@@ -735,7 +1253,18 @@
       "depends_on": [
         "10-04"
       ],
-      "commit": "45e2096961c024969bf411c9197a0c2e33078229"
+      "commit": "45e2096961c024969bf411c9197a0c2e33078229",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "11-01",
@@ -749,7 +1278,18 @@
       "depends_on": [
         "10-05"
       ],
-      "commit": "27efb0e0a5e8457217b47b68009c3b3c4020fb6c"
+      "commit": "27efb0e0a5e8457217b47b68009c3b3c4020fb6c",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "11-02",
@@ -763,7 +1303,18 @@
       "depends_on": [
         "11-01"
       ],
-      "commit": "9c92e5a77ea27b3cd4463f17b89ad8bfb7cb0d00"
+      "commit": "9c92e5a77ea27b3cd4463f17b89ad8bfb7cb0d00",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "11-03",
@@ -777,7 +1328,18 @@
       "depends_on": [
         "11-02"
       ],
-      "commit": "ef6e59c6f5d01525656a0a67acd3df038f7c25b3"
+      "commit": "ef6e59c6f5d01525656a0a67acd3df038f7c25b3",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "11-04",
@@ -791,7 +1353,18 @@
       "depends_on": [
         "11-03"
       ],
-      "commit": "d838f6eb0293298ce8e4b7c943998894e6d88ce7"
+      "commit": "d838f6eb0293298ce8e4b7c943998894e6d88ce7",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "11-05",
@@ -805,7 +1378,18 @@
       "depends_on": [
         "11-04"
       ],
-      "commit": "7aff8460275d5d31e070e61c4441accd37a5fbf8"
+      "commit": "7aff8460275d5d31e070e61c4441accd37a5fbf8",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "12-01",
@@ -819,7 +1403,18 @@
       "depends_on": [
         "11-05"
       ],
-      "commit": "e5be946675679d93a711e2133a787c0a5baa37d5"
+      "commit": "e5be946675679d93a711e2133a787c0a5baa37d5",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "12-02",
@@ -833,7 +1428,18 @@
       "depends_on": [
         "12-01"
       ],
-      "commit": "396981d666bc608113124ef1dfef7a4971d0e861"
+      "commit": "396981d666bc608113124ef1dfef7a4971d0e861",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "12-03",
@@ -847,7 +1453,18 @@
       "depends_on": [
         "12-02"
       ],
-      "commit": "13ac2195824f552910693342e3777df36ebb98a6"
+      "commit": "13ac2195824f552910693342e3777df36ebb98a6",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "13-01",
@@ -861,7 +1478,18 @@
       "depends_on": [
         "12-03"
       ],
-      "commit": "28ccd876d475626de61ebbfade8096ccbddf1536"
+      "commit": "28ccd876d475626de61ebbfade8096ccbddf1536",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "13-02",
@@ -875,7 +1503,18 @@
       "depends_on": [
         "13-01"
       ],
-      "commit": "c31a4b2af9a4d65fcf187e5caff04954b114f354"
+      "commit": "c31a4b2af9a4d65fcf187e5caff04954b114f354",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "13-03",
@@ -889,7 +1528,18 @@
       "depends_on": [
         "13-02"
       ],
-      "commit": "2da10d15719ae937272be6e6eb4afcbf6430b4b0"
+      "commit": "2da10d15719ae937272be6e6eb4afcbf6430b4b0",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "13-04",
@@ -903,7 +1553,18 @@
       "depends_on": [
         "13-03"
       ],
-      "commit": "e9e73c63257b2ae09bfc05305fa4aa393c2e39ef"
+      "commit": "e9e73c63257b2ae09bfc05305fa4aa393c2e39ef",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "13-05",
@@ -917,7 +1578,18 @@
       "depends_on": [
         "13-04"
       ],
-      "commit": "1e38028802bcf4e69cc72d413b0760eb6a3bed0d"
+      "commit": "1e38028802bcf4e69cc72d413b0760eb6a3bed0d",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "14-01",
@@ -931,7 +1603,18 @@
       "depends_on": [
         "13-05"
       ],
-      "commit": "f118f270b4a298500d9675dd688eed3dab374976"
+      "commit": "f118f270b4a298500d9675dd688eed3dab374976",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "14-02",
@@ -945,7 +1628,18 @@
       "depends_on": [
         "14-01"
       ],
-      "commit": "281ff43345aae0936b67aad444d508c8fbc3f4fb"
+      "commit": "281ff43345aae0936b67aad444d508c8fbc3f4fb",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "14-03",
@@ -959,7 +1653,18 @@
       "depends_on": [
         "14-02"
       ],
-      "commit": "8ae95b618581638c6d73d33168dfdade89fd6008"
+      "commit": "8ae95b618581638c6d73d33168dfdade89fd6008",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "14-04",
@@ -973,7 +1678,18 @@
       "depends_on": [
         "14-03"
       ],
-      "commit": "0361d253d1f9786471e9ae06e233c7287c0cf23a"
+      "commit": "0361d253d1f9786471e9ae06e233c7287c0cf23a",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "14-05",
@@ -987,7 +1703,18 @@
       "depends_on": [
         "14-04"
       ],
-      "commit": "fcc4fde89ecb0445125fc7e5992722c34f1d0b72"
+      "commit": "fcc4fde89ecb0445125fc7e5992722c34f1d0b72",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-01",
@@ -1001,7 +1728,18 @@
       "depends_on": [
         "14-05"
       ],
-      "commit": "0db11f6d0ab66807bd106dc639f818035961d971"
+      "commit": "0db11f6d0ab66807bd106dc639f818035961d971",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-02",
@@ -1015,7 +1753,18 @@
       "depends_on": [
         "15-01"
       ],
-      "commit": "b2e07390e8ab1f814806db1329a2ecf49050febd"
+      "commit": "b2e07390e8ab1f814806db1329a2ecf49050febd",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-03",
@@ -1029,7 +1778,18 @@
       "depends_on": [
         "15-02"
       ],
-      "commit": "f73d22c2ea2da5f56014a967117c2c528734fada"
+      "commit": "f73d22c2ea2da5f56014a967117c2c528734fada",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-04",
@@ -1043,7 +1803,18 @@
       "depends_on": [
         "15-03"
       ],
-      "commit": "4a46aa5d3db5bf03b7714821d4f3f0a39811258a"
+      "commit": "4a46aa5d3db5bf03b7714821d4f3f0a39811258a",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-05",
@@ -1057,7 +1828,18 @@
       "depends_on": [
         "15-04"
       ],
-      "commit": "18a8d3e45378f8599ea139e865344b329bd6985a"
+      "commit": "18a8d3e45378f8599ea139e865344b329bd6985a",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-06",
@@ -1071,7 +1853,18 @@
       "depends_on": [
         "15-05"
       ],
-      "commit": "00ba110edd9357bd80beeb6be571ae4b8c58af64"
+      "commit": "00ba110edd9357bd80beeb6be571ae4b8c58af64",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-07",
@@ -1085,7 +1878,18 @@
       "depends_on": [
         "15-06"
       ],
-      "commit": "63146a0f6be39e9ec3a71eecf954ecc906526a73"
+      "commit": "63146a0f6be39e9ec3a71eecf954ecc906526a73",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-08",
@@ -1099,7 +1903,18 @@
       "depends_on": [
         "15-07"
       ],
-      "commit": "42ae6cdef146b1e79555849c68846b4e1869d629"
+      "commit": "42ae6cdef146b1e79555849c68846b4e1869d629",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "15-09",
@@ -1113,7 +1928,18 @@
       "depends_on": [
         "15-08"
       ],
-      "commit": "23ccbecf2b3f73056abf2dffb15c79aa3dc815cf"
+      "commit": "23ccbecf2b3f73056abf2dffb15c79aa3dc815cf",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "16-01",
@@ -1127,7 +1953,18 @@
       "depends_on": [
         "15-09"
       ],
-      "commit": "aedec149b252459d83202b4321cc08ed07a6440b"
+      "commit": "aedec149b252459d83202b4321cc08ed07a6440b",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "16-02",
@@ -1141,7 +1978,18 @@
       "depends_on": [
         "16-01"
       ],
-      "commit": "8f29f45c2b54340b2c69c5416080bdd53485924a"
+      "commit": "8f29f45c2b54340b2c69c5416080bdd53485924a",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-01",
@@ -1155,7 +2003,18 @@
       "depends_on": [
         "16-02"
       ],
-      "commit": "b703159f178216e2e2a826ca39030e7c085c41e6"
+      "commit": "b703159f178216e2e2a826ca39030e7c085c41e6",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-02",
@@ -1169,7 +2028,18 @@
       "depends_on": [
         "17-01"
       ],
-      "commit": "c260c8eaf7ba40c90f8f7216a16ac21d3f10a3d0"
+      "commit": "c260c8eaf7ba40c90f8f7216a16ac21d3f10a3d0",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-03",
@@ -1183,7 +2053,18 @@
       "depends_on": [
         "17-02"
       ],
-      "commit": "caeb5981c26cfa517b29b2693c410e623569186d"
+      "commit": "caeb5981c26cfa517b29b2693c410e623569186d",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-04",
@@ -1197,7 +2078,18 @@
       "depends_on": [
         "17-03"
       ],
-      "commit": "71fb68c255cf65d302a10d00d38d417a5875fea0"
+      "commit": "71fb68c255cf65d302a10d00d38d417a5875fea0",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-05",
@@ -1211,7 +2103,18 @@
       "depends_on": [
         "17-04"
       ],
-      "commit": "b26e3b6da38805589d2262dbd2ef5c105bb0b16e"
+      "commit": "b26e3b6da38805589d2262dbd2ef5c105bb0b16e",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-06",
@@ -1225,7 +2128,18 @@
       "depends_on": [
         "17-05"
       ],
-      "commit": "341e74d3d55e614360ad9baf733dc99553348172"
+      "commit": "341e74d3d55e614360ad9baf733dc99553348172",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-07",
@@ -1239,7 +2153,18 @@
       "depends_on": [
         "17-06"
       ],
-      "commit": "85ebb5370533bf5f7baa2f513ccdb3ee80f5761c"
+      "commit": "85ebb5370533bf5f7baa2f513ccdb3ee80f5761c",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-08",
@@ -1253,7 +2178,18 @@
       "depends_on": [
         "17-07"
       ],
-      "commit": "817b405f9cde350919fffa6052d80689cdef69ef"
+      "commit": "817b405f9cde350919fffa6052d80689cdef69ef",
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-09",
@@ -1261,13 +2197,38 @@
       "cluster": "17d-benchmark-quality",
       "title": "Produce phase-17 performance benchmark evidence",
       "packet": ".wiretail/execution/tasks/17-09.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "17-08"
       ],
-      "commit": null
+      "commit": "05d57b35ba7ccf1e9a18944392bbdd76892ab3ef",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/17-09-attempt-1-20260905T020109Z.jsonl:32",
+            "total_tokens": 1408066,
+            "total_tokens_derived": true,
+            "input_tokens": 1397848,
+            "cached_input_tokens": 1373952,
+            "output_tokens": 10218,
+            "thinking_tokens": 1272
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 1408066,
+          "input_tokens": 1397848,
+          "cached_input_tokens": 1373952,
+          "output_tokens": 10218,
+          "thinking_tokens": 1272
+        }
+      }
     },
     {
       "id": "17-10",
@@ -1281,7 +2242,18 @@
       "depends_on": [
         "17-09"
       ],
-      "commit": null
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "17-11",
@@ -1295,7 +2267,18 @@
       "depends_on": [
         "17-10"
       ],
-      "commit": null
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     },
     {
       "id": "18-01",
@@ -1309,8 +2292,255 @@
       "depends_on": [
         "17-11"
       ],
-      "commit": null
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     }
   ],
-  "last_checkpoint_commit": "2c03d7db0613dd52f29c0880fd390167c0483603"
+  "last_checkpoint_commit": "2c03d7db0613dd52f29c0880fd390167c0483603",
+  "phase_token_usage": {
+    "00": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "01": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "02": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "03": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "04": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "05": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "06": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "07": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "08": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "09": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "10": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "11": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "12": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "13": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "14": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "15": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "16": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "17": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/17-09-attempt-1-20260905T020109Z.jsonl:32",
+          "total_tokens": 1408066,
+          "total_tokens_derived": true,
+          "input_tokens": 1397848,
+          "cached_input_tokens": 1373952,
+          "output_tokens": 10218,
+          "thinking_tokens": 1272
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 1408066,
+        "input_tokens": 1397848,
+        "cached_input_tokens": 1373952,
+        "output_tokens": 10218,
+        "thinking_tokens": 1272
+      }
+    },
+    "18": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    }
+  },
+  "token_usage": {
+    "totals": {
+      "turns": 1,
+      "total_tokens": 1408066,
+      "input_tokens": 1397848,
+      "cached_input_tokens": 1373952,
+      "output_tokens": 10218,
+      "thinking_tokens": 1272
+    },
+    "source": "Codex turn.completed usage events"
+  }
 }
