@@ -658,3 +658,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-20-02`
 - Commit at update: `2135d5aa5`
 - Summary: Implemented per-layer attention retention, inventory-aware cold history, retrieval/retention separation, and capacity-relative policy; CPU/CUDA focused tests and CUDA global page-mass fixture pass; live Qwen35 focus-shift checkpoint deferred because no model/corpus fixture is present.
+
+## 2026-09-05T16:43:51+00:00 — 20-03 — done
+
+- Branch: `codex/task-20-03`
+- Commit at update: `f9e274ada`
+- Summary: Bounded predictive promotion scheduler, lifecycle lookahead boundary, deterministic async/failure tests, CPU/CUDA verification, and overlap receipt complete; live Qwen cold/warm checkpoint deferred.

@@ -138,6 +138,15 @@ public:
     // intent with the current operation generation before queueing.
     llama_kv_live_lifecycle_status prefetch(
             const std::vector<llama_kv_prefetch_intent> & ranked) noexcept;
+    // Prediction is lookahead evidence only. The lifecycle stamps the
+    // observed query with the active operation generation; callers must still
+    // pass authoritative pages to ensure_ready() before attention consumes.
+    llama_kv_live_lifecycle_status observe_query(
+            uint32_t layer, uint64_t token,
+            const std::vector<llama_kv_prefetch_intent> & ranked) noexcept;
+    std::vector<llama_kv_prefetch_intent> predict_next(
+            uint32_t layer, uint64_t token,
+            uint32_t limit = UINT32_MAX) const noexcept;
     llama_kv_live_lifecycle_resolution ensure_ready(
             const std::vector<llama_kv_prefetch_intent> & required,
             const std::vector<uint64_t> & previous_hot_set,

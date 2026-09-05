@@ -1,0 +1,140 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "20-03",
+  "result": "pass_local_deferred_live",
+  "kind": "implementation_and_measurement",
+  "procedure": "bounded_predictive_page_promotion_scheduler_with_authoritative_readiness",
+  "created_utc": "2026-09-05T16:44:53Z",
+  "classification": {
+    "local_scheduler_correctness": "pass",
+    "local_cpu_build_and_tests": "pass",
+    "local_cuda_build_and_tests": "pass",
+    "deterministic_async_overlap": "pass",
+    "live_qwen_cold_trace": "deferred",
+    "warm_zero_copy_trace": "deferred"
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "f9e274adab9c41eba8f0e520e39292c4af28fa3a",
+    "source_diff_sha256": "713d6298bb546c43c63125672bce9cd2ef778840b16020e3dacd1464f1509316",
+    "worktree": "dirty_expected_task_changes",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "model": null,
+    "model_sha256": null,
+    "corpus": null,
+    "corpus_sha256": null,
+    "config": "build-cuda/CMakeCache.txt",
+    "config_sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1",
+    "build": "build and build-cuda; CUDA architecture 89-real",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; driver 595.84; 16376 MiB total; 1128 MiB free; compute capability 8.9"
+  },
+  "checks": [
+    {
+      "name": "bounded previous-query predictor preserves rank and provenance",
+      "status": "pass",
+      "raw_ids": ["prefetch-test", "lifecycle-test"]
+    },
+    {
+      "name": "out-of-order completion publishes only complete pages and required pages wait",
+      "status": "pass",
+      "raw_ids": ["prefetch-test"]
+    },
+    {
+      "name": "event, staging, pinned-slot, and queued-byte saturation remain bounded",
+      "status": "pass",
+      "raw_ids": ["prefetch-test", "policy-test"]
+    },
+    {
+      "name": "stale/cancelled/failed speculative transfers are removed and not useful hits",
+      "status": "pass",
+      "raw_ids": ["prefetch-test", "policy-test"]
+    },
+    {
+      "name": "enqueue/copy begin/copy end/needed/wait/consumed timeline is bounded",
+      "status": "pass",
+      "raw_ids": ["prefetch-test"]
+    },
+    {
+      "name": "CPU and CUDA focused KV regression matrix",
+      "status": "pass",
+      "raw_ids": ["cpu-ctest", "cuda-ctest"]
+    },
+    {
+      "name": "live cold promotion with correlated CUDA event, attention checksum, and warm repeat",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "fake_scheduler": {
+      "max_queued_pages": 4,
+      "max_queued_bytes": 80,
+      "max_events": 2,
+      "max_pinned_slots": 3,
+      "staging_slots": 2,
+      "timeline_events": 64,
+      "prediction_capacity": 2,
+      "prediction_rank": [11, 12],
+      "completion_order": [2, 1],
+      "prediction_requested": 5,
+      "prediction_completed": 2,
+      "prediction_hits": 3,
+      "prediction_useful_bytes": 16,
+      "prediction_wasted_bytes_at_least": 16,
+      "saturation": ["event_full", "backpressure"],
+      "failed_publication_readiness": "fallback_larger_union"
+    },
+    "production_boundary": {
+      "lifecycle_observe_and_predict": "available",
+      "current_query_authority": "ensure_ready required set",
+      "transfer_identity": "page, generation, table epoch, destination slot, host span",
+      "completion_publication": "only after backend poll completed and publish succeeds",
+      "baseline": "llama_kv_pager live-policy adapter remains explicitly synchronous until isolated live overlap is measured",
+      "coalescing": "existing VBR run/chunk planning remains the transfer-level coalescing boundary; distinct page identities are not merged by the scheduler"
+    },
+    "live": {
+      "useful_bytes": null,
+      "aligned_bytes": null,
+      "copy_begin_end_overlap": null,
+      "attention_checksum": null,
+      "warm_repeat_upload_bytes": null,
+      "before_after_wall_time": null
+    }
+  },
+  "raw_index": [
+    {"id": "prefetch-header", "path": "src/llama-kv-prefetch.h", "sha256": "7d94a7035e9e6c684af46adf9709438f5b3c11136da2fad36f134221a163f9e8"},
+    {"id": "prefetch-source", "path": "src/llama-kv-prefetch.cpp", "sha256": "b1396efcd04adbf79ce56e1e879a9bf58276fcc8cdc97aca62c5806e6f27f6d8"},
+    {"id": "lifecycle-header", "path": "src/llama-kv-live-lifecycle.h", "sha256": "2137152ae064649bc996ae06b5569c94062f3e679cf5e8b2e8ca7d23df9344e2"},
+    {"id": "lifecycle-source", "path": "src/llama-kv-live-lifecycle.cpp", "sha256": "78951c36466aa6138e57daa4e27750003d49ea48b796628d4ae5097bbfd34baa"},
+    {"id": "prefetch-test", "path": "tests/test-kv-prefetch.cpp", "sha256": "c314c8c0d1c15a5e3de9ff8b41b3325c00ef80b499206ea793c0c1afba66492f"},
+    {"id": "policy-test", "path": "tests/test-kv-policy.cpp", "sha256": "190cc32a45e28464830dbab1248dccf6a0ab95d9ee3c0fc119d031f5324f8361"},
+    {"id": "tests-cmake", "path": "tests/CMakeLists.txt", "sha256": "180bdd49a2e512733cebefa336808e6c7466980dda01b928604ef63beb41bb29"},
+    {"id": "cpu-prefetch-test", "path": "build/bin/test-kv-prefetch", "sha256": "b902c4c40c7af562f70dbd02c5d6e5c13efb6fd4616862ece6b882cb997f4fa7"},
+    {"id": "cuda-prefetch-test", "path": "build-cuda/bin/test-kv-prefetch", "sha256": "7b1a2aee0ad1061316cdb9fdc20805080e088fc83f4259769a48e966adab7f26"},
+    {"id": "cpu-policy-test", "path": "build/bin/test-kv-policy", "sha256": "e8c78b2f5df50e626f4f96f336d7c757e7d9865cd5589e39b1f94cf506bcf0a0"},
+    {"id": "cuda-policy-test", "path": "build-cuda/bin/test-kv-policy", "sha256": "988f0672320562129039d8efcd887335e88aa1230f1a0e3a4812f86195e5a3e1"},
+    {"id": "cpu-library", "path": "build/bin/libllama.so", "sha256": "4b6f11b0bece2794d19d7e09fed14f2b57b2826b1bdca324b9925d081f154b24"},
+    {"id": "cuda-library", "path": "build-cuda/bin/libllama.so", "sha256": "eb4518523a4801470a674a1060a6825acdd431da277d1d4a76d10ea0aedff0c0"},
+    {"id": "build-config", "path": "build-cuda/CMakeCache.txt", "sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1"}
+  ],
+  "local_verification": [
+    {"command": "cmake --build build --target test-kv-prefetch test-kv-policy test-kv-residency test-kv-pager test-kv-routing-summary test-kv-routing-retrieval llama-server -j2", "status": "pass"},
+    {"command": "cmake --build build-cuda --target test-kv-prefetch test-kv-policy test-kv-residency test-kv-pager test-kv-routing-summary test-kv-routing-retrieval -j2", "status": "pass"},
+    {"command": "ctest --test-dir build -R '^test-kv-(prefetch|policy|residency|pager|routing-summary|routing-retrieval)$' --output-on-failure", "status": "6/6 passed"},
+    {"command": "ctest --test-dir build-cuda -R '^test-kv-(prefetch|policy|residency|pager|routing-summary|routing-retrieval)$' --output-on-failure", "status": "6/6 passed"},
+    {"command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate", "status": "Valid state: 122 tasks"},
+    {"command": "git diff --check", "status": "pass"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The RTX 4080 had 1128 MiB free and an existing qwen38-fast-turbo4-mtp llama-server occupied the device; no live process was disturbed.",
+    "model_and_corpus_hashes": "No isolated Qwen35 model/corpus fixture was available for this task run; model and corpus hashes remain null.",
+    "live_overlap_and_quality": "Requires the isolated cold-promotion run with event timeline, attention checksum, and warm repetition."
+  },
+  "resume": {
+    "next_case": "after GPU isolation and fixture provisioning, run the runtime-supported cold-promotion trace, then the same-history synchronous/async comparison and warm zero-copy repeat",
+    "secrets_omitted": true
+  }
+}
