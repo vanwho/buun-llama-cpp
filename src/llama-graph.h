@@ -433,6 +433,7 @@ public:
     // lifetime for the graph.
     bool selected_attention = false;
     bool direct_attention = false;
+    bool exact_wave_attention = false;
     // Page descriptors, selected row IDs, native positions/masks, and query
     // positions are immutable for a reusable selected graph.  Dynamic cache
     // indices and telemetry state are still refreshed on every submission.
@@ -451,8 +452,21 @@ public:
     ggml_tensor * direct_native_positions = nullptr;
     ggml_tensor * direct_native_mask = nullptr;
     ggml_tensor * direct_query_positions = nullptr;
+    ggml_tensor * direct_staging_storage = nullptr;
     ggml_tensor * direct_page_mass = nullptr;
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_host;
+    std::vector<llama_pos> direct_native_positions_host;
+    std::vector<uint8_t> direct_native_mask_host;
+    std::vector<llama_pos> direct_query_positions_host;
+    struct exact_wave_input {
+        ggml_tensor * pages = nullptr;
+        std::vector<ggml_flash_attn_ext_paged_turbo4_page> pages_host;
+        std::vector<uint8_t> host_upload;
+    };
+    std::vector<exact_wave_input> exact_waves;
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> exact_graph_plan;
+    uint32_t exact_n_rows = 0;
+    uint32_t exact_staging_pages = 0;
     std::vector<llama_kv_page_record> direct_telemetry_pages;
     llama_kv_residency_snapshot direct_telemetry_snapshot;
     uint64_t direct_telemetry_token_index = 0;
@@ -460,6 +474,11 @@ public:
     bool direct_telemetry_skipped = false;
     std::vector<uint64_t> direct_layer_k_offsets;
     std::vector<uint64_t> direct_layer_v_offsets;
+    // Cold waves use a compact layer-major staging slab whose offsets are
+    // derived from the bounded staging-page count, not from the resident
+    // pager's physical-slot count.
+    std::vector<uint64_t> exact_staging_layer_k_offsets;
+    std::vector<uint64_t> exact_staging_layer_v_offsets;
     // Pager geometry is indexed by compact attention-layer ordinal, while
     // build_attn() is called with the model layer ID.  Retain the explicit
     // mapping captured with the graph input; hybrid models have gaps and must
@@ -960,6 +979,7 @@ struct llm_graph_params {
     uint64_t kv_attention_shape_epoch = 0;
     llama_kv_attention_execution_route kv_attention_route = llama_kv_attention_execution_route::dense;
     llama_kv_attention_operator_metadata kv_attention_metadata;
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> kv_attention_exact_plan;
     llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr;
     llama_kv_attention_telemetry * kv_attention_telemetry = nullptr;
 
@@ -1042,6 +1062,7 @@ struct llm_graph_params {
             kv_attention_representation_epoch == other.kv_attention_representation_epoch &&
             kv_attention_shape_epoch == other.kv_attention_shape_epoch &&
             kv_attention_route == other.kv_attention_route &&
+            kv_attention_exact_plan.get() == other.kv_attention_exact_plan.get() &&
             kv_attention_telemetry == other.kv_attention_telemetry &&
             (tree_parent_ids != nullptr) == (other.tree_parent_ids != nullptr);
     }
@@ -1222,6 +1243,7 @@ struct llm_graph_context {
 
     const llama_kv_attention_operator_metadata & kv_attention_metadata;
     const llama_kv_attention_execution_route kv_attention_route;
+    const std::shared_ptr<const llama_kv_attention_exact_graph_plan> kv_attention_exact_plan;
     llama_kv_attention_execution_metrics * const kv_attention_metrics;
     llama_kv_attention_telemetry * const kv_attention_telemetry;
 

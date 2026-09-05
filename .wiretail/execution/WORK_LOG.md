@@ -622,3 +622,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-19-05`
 - Commit at update: `8395dd0fd`
 - Summary: Implemented bounded three-query direct Turbo4 selective prefill tiles with compressed page traversal and query-local causal masking; local CUDA/host/backend acceptance passed, live two-length Qwen checkpoint deferred due occupied RTX 4080 runtime.
+
+## 2026-09-05T13:23:56+00:00 — 19-06 — done
+
+- Branch: `codex/task-19-06`
+- Commit at update: `895ff7bdd`
+- Summary: Implemented bounded exact GPU page-wave graph with device online-state merge, compact cold staging, coverage telemetry, and deterministic CPU/CUDA verification; live model checkpoint deferred because the shared RTX 4080 workload was retained.

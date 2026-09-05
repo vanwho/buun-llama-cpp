@@ -1475,17 +1475,20 @@ uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
     const uint32_t physical_bound = llama_kv_attention_prefill_chunk_size(
             requested, snapshot.physical_page_count,
             snapshot.geometry.page_tokens);
-    const bool turbo4_selective_prefill = kv_pager.mode == llama_kv_pager_mode::selective &&
+    const bool turbo4_paged_prefill =
+        (kv_pager.mode == llama_kv_pager_mode::selective ||
+         kv_pager.mode == llama_kv_pager_mode::exact) &&
         cparams.flash_attn &&
         (model.arch == LLM_ARCH_QWEN35 || model.arch == LLM_ARCH_QWEN35MOE) &&
         model.hparams.n_embd_head_k() == 256 && model.hparams.n_embd_head_v() == 256 &&
         model.hparams.n_head_kv() != 0 &&
         model.hparams.n_head() == model.hparams.n_head_kv() * 4;
     // The direct Turbo4 page kernel is a bounded three-query tile. Keep the
-    // supported selective path no larger than both the admitted physical
-    // window and the kernel tile; other models and exact mode retain their
-    // existing physical-window bound and reference implementation.
-    return turbo4_selective_prefill ? std::min<uint32_t>(3, physical_bound) : physical_bound;
+    // supported paged path no larger than both the admitted physical window
+    // and the kernel tile. This also gives exact page-wave prefill a bounded
+    // query tile; native-MTP verification already supplies its own small
+    // verification blocks.
+    return turbo4_paged_prefill ? std::min<uint32_t>(3, physical_bound) : physical_bound;
 }
 
 void llama_context::resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs) {
@@ -1988,6 +1991,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
 
     const llama_kv_attention_scratch_request empty_scratch;
     if (kv_pager.mode == llama_kv_pager_mode::exact) {
+        kv_attention_execution.set_exact_graph_plan(nullptr);
         kv_attention_execution.metrics_mutable().record_exact_ledger({});
         auto refuse_exact = [&](llama_kv_attention_execution_status status,
                                 const std::string & reason) {
@@ -2005,11 +2009,11 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             return result;
         };
 
-        // Exact attention is a page-wave route, not a dense graph hint.  The
-        // graph builder currently has no node that can suspend at each layer,
-        // stage a cold page, and merge its (m,l,o) partial.  Build and publish
-        // the complete immutable coverage ledger here so an unavailable
-        // backend fails closed instead of silently executing dense attention.
+        // Exact attention is a page-wave route, not a dense graph hint. Build
+        // and publish the complete immutable coverage ledger here; the graph
+        // builder binds its bounded staging slab and per-layer (m,l,o) nodes
+        // from this plan, while an unavailable backend still fails closed
+        // instead of silently executing dense attention.
         if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
             (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
             !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
@@ -2102,7 +2106,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             config.schedule = llama_kv_attention_exact_schedule::serial;
 
             llama_kv_attention_exact_status exact_status;
-            const auto plan = llama_kv_attention_exact_wave_plan::build(
+            auto plan = llama_kv_attention_exact_wave_plan::build(
                     pages, resident_snapshot, config, exact_status);
             kv_attention_execution.metrics_mutable().record_exact_ledger(plan.ledger());
             if (!plan.valid()) {
@@ -2119,12 +2123,9 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                     (unsigned long long) plan.ledger().peak_staging_pages);
 
             // The direct Turbo4 node is the production exact binding for the
-            // resident case: its page table covers the complete logical
+            // resident decode case: its page table covers the complete logical
             // inventory, its native mask is causal-position based, and its
             // page-mass reduction is published only after the scheduler fence.
-            // Cold waves still require a graph boundary between upload and
-            // per-layer online-state merge; do not turn those into a dense
-            // fallback or pretend the planner itself performed H2D work.
             if (plan.ledger().cold_pages == 0 &&
                 (phase == llama_kv_attention_execution_phase::decode ||
                  phase == llama_kv_attention_execution_phase::mtp_verify) &&
@@ -2214,6 +2215,38 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 return refuse_exact(llama_kv_attention_execution_status::not_configured,
                         "exact resident Turbo4 direct backend is unavailable");
             }
+
+            // Cold and prompt exact attention use a bounded sequence of graph
+            // nodes inside each layer.  The first node consumes Q and the
+            // selected page wave, intermediate nodes carry the device-owned
+            // (m,l,o) state, and the last node normalizes before the existing
+            // inverse transform/output projection.  Keep the coverage plan in
+            // the execution owner so it outlives graph construction and any
+            // in-flight scheduler submission.
+            auto coverage = std::make_shared<llama_kv_attention_exact_wave_plan>(
+                    std::move(plan));
+            auto graph_plan = std::make_shared<llama_kv_attention_exact_graph_plan>();
+            graph_plan->coverage = std::move(coverage);
+            graph_plan->sequence_id = sequence_id;
+            graph_plan->page_tokens = pager_geometry.geometry.page_tokens;
+            graph_plan->page_bytes = pager_geometry.geometry.page_bytes;
+            kv_attention_execution.set_exact_graph_plan(std::move(graph_plan));
+
+            llama_kv_attention_scratch_request scratch;
+            scratch.transfer_rows = kv_attention_execution.metrics().exact_peak_staging_pages *
+                uint64_t(pager_geometry.geometry.page_tokens);
+            scratch.bytes_per_row = pager_geometry.geometry.page_bytes > 0 &&
+                pager_geometry.geometry.page_tokens > 0
+                ? size_t(pager_geometry.geometry.page_bytes /
+                    pager_geometry.geometry.page_tokens) : 0;
+            auto result = prepare_kv_attention({}, phase, representation_epoch,
+                    shape_epoch, false, scratch);
+            if (result.status == llama_kv_attention_execution_status::ok) {
+                result.reason = "exact GPU page-wave graph";
+                return result;
+            }
+            return refuse_exact(llama_kv_attention_execution_status::not_configured,
+                    "exact GPU page-wave graph admission failed");
         } catch (...) {
             return refuse_exact(llama_kv_attention_execution_status::overflow,
                     "exact attention page-wave metadata allocation failed");
@@ -6868,6 +6901,7 @@ llm_graph_params llama_context::graph_params(
         /*.kv_attention_shape_epoch =*/ kv_attention_execution.shape_epoch(),
         /*.kv_attention_route =*/ kv_attention_execution.route(),
         /*.kv_attention_metadata =*/ kv_attention_execution.metadata(),
+        /*.kv_attention_exact_plan =*/ kv_attention_execution.exact_graph_plan(),
         /*.kv_attention_metrics =*/ &kv_attention_execution.metrics_mutable(),
         /*.kv_attention_telemetry =*/ kv_attention_telemetry.get(),
     };

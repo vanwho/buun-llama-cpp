@@ -1330,9 +1330,13 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
         float * partial_state,
         const size_t partial_state_head_stride,
         const size_t partial_state_query_stride,
+        const float * partial_state_input,
+        const size_t partial_state_input_head_stride,
+        const size_t partial_state_input_query_stride,
         const float scale,
         const bool reduce_page_mass,
         const bool write_partial_state,
+        const bool merge_partial_state,
         const bool causal) {
     extern __shared__ float shared[];
 
@@ -1472,6 +1476,37 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
     }
 
     for (uint32_t query = 0; query < n_query_tokens; ++query) {
+        float merged_max = qk_sum[query] > 0.0f ? qk_max[query] : -INFINITY;
+        float merged_sum = qk_sum[query];
+        float previous_value = 0.0f;
+        if (merge_partial_state) {
+            const float * previous = (const float *) ((const char *) partial_state_input +
+                query * partial_state_input_query_stride + head * partial_state_input_head_stride);
+            previous_value = previous[2 + tid];
+            if (tid == 0) {
+                const float previous_max = previous[0];
+                const float previous_sum = previous[1];
+                merged_max = fmaxf(previous_max, merged_max);
+                const float previous_scale = previous_sum > 0.0f && previous_max != -INFINITY
+                    ? expf(previous_max - merged_max) : 0.0f;
+                const float current_scale = qk_sum[query] > 0.0f && qk_max[query] != -INFINITY
+                    ? expf(qk_max[query] - merged_max) : 0.0f;
+                merged_sum = previous_sum * previous_scale + qk_sum[query] * current_scale;
+                reductions[0] = merged_max;
+                reductions[1] = merged_sum;
+                reductions[2] = previous_scale;
+                reductions[3] = current_scale;
+            }
+            __syncthreads();
+            merged_max = reductions[0];
+            merged_sum = reductions[1];
+            const float previous_scale = reductions[2];
+            const float current_scale = reductions[3];
+            value_sum[query] = previous_value * previous_scale + value_sum[query] * current_scale;
+            qk_max[query] = merged_max;
+            qk_sum[query] = merged_sum;
+            __syncthreads();
+        }
         if (output != nullptr) {
             float * output_head = (float *) ((char *) output + query * output_query_stride +
                 head * output_head_stride);
@@ -1539,6 +1574,12 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
              params.partial_state_head_stride_bytes % sizeof(float) != 0 ||
              params.partial_state_head_stride_bytes / sizeof(float) < 2 + params.head_dim_v ||
              params.partial_state_query_stride_bytes < params.partial_state_head_stride_bytes * params.n_head_q)) ||
+        (params.merge_partial_state &&
+            (params.partial_state_input == nullptr ||
+             params.partial_state_input_head_stride_bytes % sizeof(float) != 0 ||
+             params.partial_state_input_head_stride_bytes / sizeof(float) < 2 + params.head_dim_v ||
+             params.partial_state_input_query_stride_bytes <
+                 params.partial_state_input_head_stride_bytes * params.n_head_q)) ||
         !std::isfinite(params.scale) || !params.causal) {
         return ggml_cuda_fattn_turbo4_paged_status::unsupported_shape;
     }
@@ -1558,7 +1599,19 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         }
     }
 
+    if (params.host_upload != nullptr) {
+        if (params.upload_destination == nullptr || params.host_upload_bytes == 0 ||
+            params.host_upload_bytes > params.upload_capacity_bytes) {
+            return ggml_cuda_fattn_turbo4_paged_status::invalid_argument;
+        }
+    }
+
     ggml_cuda_set_device(ctx.device);
+    if (params.host_upload != nullptr && cudaMemcpyAsync(
+            params.upload_destination, params.host_upload, params.host_upload_bytes,
+            cudaMemcpyHostToDevice, ctx.stream()) != cudaSuccess) {
+        return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
+    }
 
     constexpr size_t max_query_tile = 3;
     const size_t shared_floats = 256 * max_query_tile + 8 +
@@ -1584,8 +1637,11 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         params.v_row_stride_bytes, params.v_head_stride_bytes, params.v_page_stride_bytes,
         params.page_mass_head_stride_bytes, params.page_mass_query_stride_bytes,
         params.page_mass_logical_count, params.partial_state, params.partial_state_head_stride_bytes,
-        params.partial_state_query_stride_bytes, params.scale,
-        params.reduce_page_mass, params.write_partial_state, params.causal);
+        params.partial_state_query_stride_bytes,
+        params.partial_state_input, params.partial_state_input_head_stride_bytes,
+        params.partial_state_input_query_stride_bytes, params.scale,
+        params.reduce_page_mass, params.write_partial_state,
+        params.merge_partial_state, params.causal);
 
     return cudaGetLastError() == cudaSuccess
         ? ggml_cuda_fattn_turbo4_paged_status::ok
@@ -1623,15 +1679,20 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
     const ggml_tensor * queries = dst->src[6];
     const ggml_tensor * storage = dst->src[7];
     const ggml_tensor * page_mass = dst->src[8];
+    const auto * extra = static_cast<const ggml_flash_attn_ext_paged_turbo4_extra *>(dst->extra);
     const uint32_t head_dim_k = uint32_t(ggml_get_op_params_i32(dst, 1));
     const uint32_t head_dim_v = uint32_t(ggml_get_op_params_i32(dst, 2));
     const uint32_t n_head_kv = uint32_t(ggml_get_op_params_i32(dst, 5));
     const float scale = ggml_get_op_params_f32(dst, 3);
     const bool causal = ggml_get_op_params_i32(dst, 4) != 0;
+    const bool state_output = ggml_get_op_params_i32(dst, 7) != 0;
+    const ggml_tensor * partial_state = dst->src[9];
     const size_t pages_bytes = ggml_nbytes(pages);
     const size_t positions_count = size_t(positions->ne[0]);
     const size_t storage_bytes = ggml_nbytes(storage);
-    if (q->type != GGML_TYPE_F32 || k->type != GGML_TYPE_I8 ||
+    if (extra->magic != GGML_FLASH_ATTN_EXT_PAGED_TURBO4_EXTRA_MAGIC ||
+        extra->pages_host == nullptr ||
+        q->type != GGML_TYPE_F32 || k->type != GGML_TYPE_I8 ||
         v->type != GGML_TYPE_I8 || storage->type != GGML_TYPE_I8 || pages->type != GGML_TYPE_I8 ||
         positions->type != GGML_TYPE_I64 || mask->type != GGML_TYPE_I8 ||
         queries->type != GGML_TYPE_I64 || dst->type != GGML_TYPE_F32 ||
@@ -1642,7 +1703,8 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
                                   page_mass->nb[1] < size_t(page_mass->ne[0]) * sizeof(float))) ||
         q->ne[0] != head_dim_k || q->ne[1] <= 0 || q->ne[2] == 0 || q->ne[2] > 3 || q->ne[3] != 1 ||
         n_head_kv == 0 || q->ne[1] != int64_t(n_head_kv) * 4 ||
-        dst->ne[0] != head_dim_v || dst->ne[1] != q->ne[1] ||
+        (state_output ? dst->ne[0] != int64_t(2 + head_dim_v) : dst->ne[0] != head_dim_v) ||
+        dst->ne[1] != q->ne[1] ||
         dst->ne[2] != q->ne[2] || dst->ne[3] != q->ne[3] ||
         positions->ne[0] <= 0 || mask->ne[0] != positions->ne[0] ||
         queries->ne[0] != q->ne[2] || pages_bytes % sizeof(ggml_cuda_fattn_turbo4_page) != 0 ||
@@ -1651,6 +1713,12 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
         storage_bytes == 0 || storage_bytes % k->nb[3] != 0 ||
         storage_bytes % v->nb[3] != 0 || pages_bytes / sizeof(ggml_cuda_fattn_turbo4_page) > UINT32_MAX ||
         positions_count > UINT32_MAX || storage_bytes / k->nb[3] > UINT32_MAX ||
+        (partial_state != nullptr &&
+            (partial_state->type != GGML_TYPE_F32 ||
+             partial_state->ne[0] != int64_t(2 + head_dim_v) ||
+             partial_state->ne[1] != q->ne[1] || partial_state->ne[2] != q->ne[2] ||
+             partial_state->ne[3] != q->ne[3] ||
+             partial_state->nb[1] < size_t(2 + head_dim_v) * sizeof(float))) ||
         !std::isfinite(scale) || !causal) {
         return false;
     }
@@ -1660,7 +1728,7 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
     const uint32_t n_physical = uint32_t(storage_bytes / k->nb[3]);
     return n_pages != 0 && n_rows != 0 && n_physical != 0 &&
         ggml_cuda_fattn_turbo4_page_table_valid(
-            static_cast<const ggml_cuda_fattn_turbo4_page *>(dst->extra),
+            static_cast<const ggml_cuda_fattn_turbo4_page *>(extra->pages_host),
             n_pages, n_rows, 256, n_physical);
 }
 
@@ -1672,11 +1740,17 @@ bool ggml_cuda_flash_attn_ext_paged_turbo4_supported(
     const ggml_tensor * k = dst->src[1];
     const ggml_tensor * v = dst->src[2];
     const ggml_tensor * q = dst->src[0];
+    const uint32_t head_dim_v = uint32_t(ggml_get_op_params_i32(dst, 2));
     const uint32_t n_head_kv = uint32_t(ggml_get_op_params_i32(dst, 5));
-    return q->ne[0] == 256 && dst->ne[0] == 256 && n_head_kv != 0 &&
+    const bool state_output = ggml_get_op_params_i32(dst, 7) != 0;
+    const ggml_tensor * partial_state = dst->src[9];
+    return q->ne[0] == 256 && (state_output ? dst->ne[0] == 258 : dst->ne[0] == 256) &&
+        (!state_output || partial_state == nullptr || partial_state->type == GGML_TYPE_F32) &&
+        n_head_kv != 0 &&
         q->ne[1] == int64_t(n_head_kv) * 4 &&
         q->ne[2] >= 1 && q->ne[2] <= 3 &&
-        q->nb[1] >= 256 * sizeof(float) && dst->nb[1] >= 256 * sizeof(float) &&
+        q->nb[1] >= 256 * sizeof(float) &&
+        dst->nb[1] >= size_t(state_output ? 2 + head_dim_v : 256) * sizeof(float) &&
         k->nb[1] >= 2 * sizeof(block_turbo4_0) &&
         v->nb[1] >= 2 * sizeof(block_turbo4_0) &&
         k->nb[3] / k->nb[1] >= 256 && v->nb[3] / v->nb[1] >= 256;
@@ -1693,9 +1767,12 @@ void ggml_cuda_flash_attn_ext_paged_turbo4(
     const ggml_tensor * queries = dst->src[6];
     const ggml_tensor * storage = dst->src[7];
     const ggml_tensor * page_mass = dst->src[8];
+    const ggml_tensor * partial_state = dst->src[9];
+    const auto * extra = static_cast<const ggml_flash_attn_ext_paged_turbo4_extra *>(dst->extra);
     ggml_cuda_fattn_turbo4_paged_params params;
     params.q = static_cast<const float *>(q->data);
-    params.output = static_cast<float *>(dst->data);
+    const bool state_output = ggml_get_op_params_i32(dst, 7) != 0;
+    params.output = state_output ? nullptr : static_cast<float *>(dst->data);
     params.q_head_stride_bytes = q->nb[1];
     params.q_query_stride_bytes = q->nb[2];
     params.output_head_stride_bytes = dst->nb[1];
@@ -1713,7 +1790,7 @@ void ggml_cuda_flash_attn_ext_paged_turbo4(
     params.v_row_stride_bytes = v->nb[1];
     params.v_head_stride_bytes = v->nb[2];
     params.v_page_stride_bytes = v->nb[3];
-    params.pages_host = static_cast<const ggml_cuda_fattn_turbo4_page *>(dst->extra);
+    params.pages_host = static_cast<const ggml_cuda_fattn_turbo4_page *>(extra->pages_host);
     params.pages_device = static_cast<const ggml_cuda_fattn_turbo4_page *>(pages->data);
     params.native_positions_device = static_cast<const int64_t *>(positions->data);
     params.native_mask_device = static_cast<const uint8_t *>(mask->data);
@@ -1727,6 +1804,24 @@ void ggml_cuda_flash_attn_ext_paged_turbo4(
     params.n_batch = uint32_t(q->ne[3]);
     params.scale = ggml_get_op_params_f32(dst, 3);
     params.causal = ggml_get_op_params_i32(dst, 4) != 0;
+    params.write_partial_state = state_output;
+    if (state_output) {
+        params.partial_state = static_cast<float *>(dst->data);
+        params.partial_state_head_stride_bytes = dst->nb[1];
+        params.partial_state_query_stride_bytes = dst->nb[2];
+    }
+    params.merge_partial_state = ggml_get_op_params_i32(dst, 6) != 0 && partial_state != nullptr;
+    if (partial_state != nullptr) {
+        params.partial_state_input = static_cast<const float *>(partial_state->data);
+        params.partial_state_input_head_stride_bytes = partial_state->nb[1];
+        params.partial_state_input_query_stride_bytes = partial_state->nb[2];
+    }
+    if (extra->host_upload != nullptr) {
+        params.host_upload = extra->host_upload;
+        params.host_upload_bytes = extra->host_upload_bytes;
+        params.upload_destination = static_cast<char *>(storage->data);
+        params.upload_capacity_bytes = ggml_nbytes(storage);
+    }
     if (page_mass != nullptr) {
         params.page_mass = static_cast<float *>(page_mass->data);
         params.page_mass_head_stride_bytes = page_mass->nb[1];

@@ -5732,6 +5732,7 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     GGML_ASSERT(query_positions->type == GGML_TYPE_I64);
     GGML_ASSERT(params->head_dim_k > 0 && params->head_dim_v > 0 && params->n_head_kv > 0);
     GGML_ASSERT(params->page_mass == NULL || params->page_mass->type == GGML_TYPE_F32);
+    GGML_ASSERT(params->partial_state == NULL || params->partial_state->type == GGML_TYPE_F32);
 
     // The direct backend consumes these fields from the source tensor views;
     // only the fixed geometry and scale need to be carried in op_params.
@@ -5742,8 +5743,12 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     memcpy((float *) op_params + 3, &params->scale, sizeof(float));
     op_params[4] = params->causal ? 1 : 0;
     op_params[5] = (int32_t) params->n_head_kv;
+    op_params[6] = params->partial_state_accumulate ? 1 : 0;
+    op_params[7] = params->partial_state_output ? 1 : 0;
 
-    int64_t ne[4] = { params->head_dim_v, q->ne[1], q->ne[2], q->ne[3] };
+    int64_t ne[4] = {
+        params->partial_state_output ? 2 + params->head_dim_v : params->head_dim_v,
+        q->ne[1], q->ne[2], q->ne[3] };
     struct ggml_tensor * result = ggml_new_tensor(ctx, GGML_TYPE_F32, 4, ne);
     ggml_set_op_params(result, op_params, sizeof(op_params));
     result->op = GGML_OP_FLASH_ATTN_EXT;
@@ -5756,9 +5761,23 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     result->src[6] = query_positions;
     result->src[7] = storage;
     result->src[8] = params->page_mass;
+    result->src[9] = params->partial_state;
+
     // This is immutable graph metadata, not a backend allocation.  The graph
-    // input object owns the pointed-to vector for the lifetime of the node.
-    result->extra = (void *) (uintptr_t) pages_host;
+    // input object owns the pointed-to vectors and optional upload payload for
+    // the lifetime of the node.  Keep it in the GGML context so the node does
+    // not carry an unowned pointer through op_params.
+    struct ggml_object * extra_object = ggml_new_object(
+            ctx, GGML_OBJECT_TYPE_WORK_BUFFER, sizeof(struct ggml_flash_attn_ext_paged_turbo4_extra));
+    GGML_ASSERT(extra_object != NULL);
+    struct ggml_flash_attn_ext_paged_turbo4_extra * extra =
+        (struct ggml_flash_attn_ext_paged_turbo4_extra *)
+        ((char *) ctx->mem_buffer + extra_object->offs);
+    extra->magic = GGML_FLASH_ATTN_EXT_PAGED_TURBO4_EXTRA_MAGIC;
+    extra->pages_host = pages_host;
+    extra->host_upload = params->host_upload;
+    extra->host_upload_bytes = params->host_upload_bytes;
+    result->extra = extra;
     return result;
 }
 

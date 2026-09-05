@@ -225,6 +225,13 @@ public:
     void complete_one_graph() noexcept;
     void clear() noexcept;
 
+    void set_exact_graph_plan(
+            std::shared_ptr<const llama_kv_attention_exact_graph_plan> plan) noexcept {
+        exact_graph_plan_ = std::move(plan);
+    }
+    const std::shared_ptr<const llama_kv_attention_exact_graph_plan> &
+    exact_graph_plan() const noexcept { return exact_graph_plan_; }
+
     const llama_kv_attention_execution_metrics & metrics() const noexcept { return metrics_; }
     uint64_t metrics_reset_epoch() const noexcept { return metrics_reset_epoch_; }
     llama_kv_attention_execution_metrics & metrics_mutable() const noexcept { return metrics_; }
@@ -261,6 +268,8 @@ private:
     uint64_t representation_epoch_ = 0;
     uint64_t shape_epoch_ = 0;
     bool have_graph_ = false;
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> exact_graph_plan_;
+    std::shared_ptr<const llama_kv_attention_exact_graph_plan> graph_plan_;
     std::vector<llama_kv_attention_view::graph_fence> graph_fences_;
     mutable llama_kv_attention_execution_metrics metrics_;
     uint64_t metrics_reset_epoch_ = 0;

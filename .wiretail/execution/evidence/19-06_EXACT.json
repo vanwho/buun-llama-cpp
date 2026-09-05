@@ -1,0 +1,69 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "19-06",
+  "result": "pass_local_deferred_live_checkpoint",
+  "kind": "implementation",
+  "procedure": "exact_gpu_page_wave_reference_with_device_online_state_merge",
+  "created_utc": "2026-09-05T13:22:03Z",
+  "provenance": {
+    "source_commit": "895ff7bdd97f6665dadc9678522daf62f4579a00",
+    "source_diff_sha256": "1309ab19d4a189f4f410741988abae74d28effa3c4a3ecb3935ca9cbb3e40a1d",
+    "bundle_manifest_sha256": null,
+    "bundle": null,
+    "binary": "build-cuda/bin/libllama.so",
+    "binary_sha256": "2d868a484c85294fcd2f3adba74868e205fe7b441ccf64f0f166171aa003baf4",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_size_bytes": 14252845984,
+    "model_sha256": null,
+    "tokenizer_template_sha256": null,
+    "corpus_sha256": null,
+    "config_sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1",
+    "build": "build-cuda; CUDA architecture 89-real",
+    "hardware_observed": "NVIDIA GeForce RTX 4080; compute capability 8.9; 16376 MiB total, 14815 MiB used, 1128 MiB free",
+    "live_process_observed": "Existing llama-server workload retained; no model-backed prefill/MTP process was started or disturbed"
+  },
+  "checks": [
+    {"name": "CUDA/library build for exact graph binding and paged fixture", "status": "pass", "raw_ids": ["focused-build"]},
+    {"name": "CPU exact online-state merge, empty partition, and coverage oracle", "status": "pass", "raw_ids": ["exact-ctest"]},
+    {"name": "CUDA query tile dense oracle with tails, permutation, causal native positions, and page mass", "status": "pass", "raw_ids": ["paged-kernel-test"]},
+    {"name": "CUDA split-wave device [m,l,o] merge matches dense output", "status": "pass", "raw_ids": ["paged-kernel-test"]},
+    {"name": "CUDA explicit host-upload staging boundary", "status": "pass", "raw_ids": ["paged-kernel-test"]},
+    {"name": "CUDA FLASH_ATTN_EXT regression suite", "status": "pass", "raw_ids": ["backend-ops"]},
+    {"name": "Model-backed exact cold prefill at two lengths with native MTP off/on", "status": "not_measured", "raw_ids": []}
+  ],
+  "measurements": {
+    "focused_build": "cmake --build build-cuda --target llama test-kv-attention-exact test-cuda-fattn-paged-turbo4 -j8: pass",
+    "focused_ctest": "3/3 passed: test-kv-attention-execution, test-kv-attention-exact, test-cuda-fattn-paged-turbo4",
+    "cuda_fixture": "one/all resident compressed page waves, 1/2/3 query tiles, 17-row tail, reordered logical/physical pages, native causal metadata, page mass, partial state, split-wave merge, and host upload passed",
+    "cuda_fixture_timing_ms": 19.077,
+    "backend_ops": "FLASH_ATTN_EXT on CUDA0: 2948/2948 tests passed; CPU backend skipped by the command",
+    "graph_binding": "exact route publishes an immutable coverage plan; each attention layer emits one paged node per bounded wave, cold nodes upload into a separate compact layer-major staging slab, intermediate nodes carry [m,l,o], and only the final node normalizes",
+    "coverage": "graph binding validates every planned logical page and records exact pages_visited/valid_tokens from the immutable wave plan; compact rows retain page tails and native positions",
+    "bounded_storage": "cold staging is peak_staging_pages * page_bytes with layer-major offsets derived from the staging count; no full logical-context F16 target or CPU compute_wave result is used",
+    "live_model_attention_checksums": null
+  },
+  "raw_index": [
+    {"id": "paged-kernel", "path": "ggml/src/ggml-cuda/fattn.cu", "sha256": "5eb1123d5631d558f4e574801f5b047f3b03928da570a398e078413c9c1ce287"},
+    {"id": "paged-kernel-header", "path": "ggml/src/ggml-cuda/fattn-paged-turbo4.cuh", "sha256": "1d4805bfce7e9348670fae1b5af390f60b8433daf5b6cb5633c29639a3ecfcf0"},
+    {"id": "ggml-op-source", "path": "ggml/src/ggml.c", "sha256": "b3a89c9f683484af5662beecece6bf27ae4396af794859db4583e60b53d3dd3d"},
+    {"id": "graph-source", "path": "src/llama-graph.cpp", "sha256": "1475828882fc209bb84127e2052b1f4c36d439603a45350976a451c42b9c727c"},
+    {"id": "context-source", "path": "src/llama-context.cpp", "sha256": "efd14abb2ca26e83617e8a478eceacf52a7af57e87325ed4d12ceba7669db7e7"},
+    {"id": "paged-kernel-test", "path": "build-cuda/bin/test-cuda-fattn-paged-turbo4", "sha256": "67afc2254bcbf3149cc22a346c3499074e93bf4ded7979508f406363ee895ab8"},
+    {"id": "exact-test", "path": "build-cuda/bin/test-kv-attention-exact", "sha256": "640e08a5069210e5f72579d7311d0707019f4dae5a6e5e14e07f8cba1e67b424"},
+    {"id": "execution-test", "path": "build-cuda/bin/test-kv-attention-execution", "sha256": "6e30b0deaf5f05ce04ffe4dc3fc06c56e44cfc6980008448188356fa4619e56b"},
+    {"id": "llama-binary", "path": "build-cuda/bin/libllama.so", "sha256": "2d868a484c85294fcd2f3adba74868e205fe7b441ccf64f0f166171aa003baf4"},
+    {"id": "build-config", "path": "build-cuda/CMakeCache.txt", "sha256": "790dbedc237bed9e82d71d96723e60ae45bc96337ab4580bc75ef2a216a5bae1"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_target": "The shared RTX 4080 workload occupied 14815 MiB of 16376 MiB at verification time; no isolated two-length model-backed exact prefill/MTP run was started.",
+    "model_and_corpus_hashes": "No isolated model-backed run was started; model and corpus hashes remain null.",
+    "live_attention_checksums": "Requires the isolated Qwen runtime checkpoint; deterministic CUDA wave/merge and CPU oracle checks passed."
+  },
+  "resume": {
+    "command": ["run", "the", "runtime-supported", "Qwen", "two-length", "exact", "cold-prefill", "and", "native-MTP", "checkpoint", "on", "an", "isolated", "GPU"],
+    "next_case": "capture route/coverage counters, staging allocation and H2D timings, then compare exact logits with dense at identical token IDs",
+    "secrets_omitted": true
+  }
+}

@@ -93,6 +93,9 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     float * partial_state = nullptr;
     size_t partial_state_head_stride_bytes = 0;
     size_t partial_state_query_stride_bytes = 0;
+    const float * partial_state_input = nullptr;
+    size_t partial_state_input_head_stride_bytes = 0;
+    size_t partial_state_input_query_stride_bytes = 0;
 
     uint32_t n_pages = 0;
     uint32_t n_physical_pages = 0;
@@ -105,7 +108,12 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     float scale = 0.0f;
     bool reduce_page_mass = false;
     bool write_partial_state = false;
+    bool merge_partial_state = false;
     bool causal = true;
+    const void * host_upload = nullptr;
+    size_t host_upload_bytes = 0;
+    char * upload_destination = nullptr;
+    size_t upload_capacity_bytes = 0;
 };
 
 // Correctness-first direct page/query-tile attention. The initial qualified

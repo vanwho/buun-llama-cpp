@@ -276,6 +276,78 @@ int main() {
         }
     }
 
+    // Split the same logical coverage into two waves and merge the first
+    // device-owned [m,l,o] state into the second wave.  The second descriptor
+    // list starts at compact row 17, so this also checks that merge uses the
+    // supplied logical row spans rather than assuming every wave starts at 0.
+    params.pages_host = pages;
+    params.pages_device = pages_device;
+    params.n_pages = 1;
+    params.n_rows = 17;
+    params.partial_state_input = nullptr;
+    params.merge_partial_state = false;
+    params.output = nullptr;
+    params.output_head_stride_bytes = 0;
+    params.output_query_stride_bytes = 0;
+    // Exercise the explicit noncaptured cold-upload boundary. The fixture
+    // payload is identical to the resident backing, so the numerical oracle
+    // remains unchanged while the H2D staging copy is still required.
+    params.host_upload = k_host.data();
+    params.host_upload_bytes = k_host.size();
+    params.upload_destination = k_device;
+    params.upload_capacity_bytes = k_host.size();
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaDeviceSynchronize(), "first split wave state");
+
+    const ggml_cuda_fattn_turbo4_page second_wave_pages[2] = {
+        { 0, 1, 0, 256, 0 },
+        { 1, 7, 256, 256, 256 },
+    };
+    ggml_cuda_fattn_turbo4_page * second_wave_pages_device = nullptr;
+    cuda_check(cudaMalloc(&second_wave_pages_device, sizeof(second_wave_pages)),
+        "second wave page table allocation");
+    cuda_check(cudaMemcpy(second_wave_pages_device, second_wave_pages,
+        sizeof(second_wave_pages), cudaMemcpyHostToDevice), "second wave page table copy");
+    params.pages_host = second_wave_pages;
+    params.pages_device = second_wave_pages_device;
+    params.n_pages = 2;
+    params.n_rows = 512;
+    params.native_positions_device += 17;
+    params.native_mask_device += 17;
+    params.partial_state_input = partial_state_device;
+    params.partial_state_input_head_stride_bytes = params.partial_state_head_stride_bytes;
+    params.partial_state_input_query_stride_bytes = params.partial_state_query_stride_bytes;
+    params.merge_partial_state = true;
+    params.output = output_device;
+    params.output_head_stride_bytes = 256 * sizeof(float);
+    params.output_query_stride_bytes = n_head_q * params.output_head_stride_bytes;
+    const auto merged_status = ggml_cuda_flash_attn_ext_paged_turbo4(backend, params);
+    if (merged_status != ggml_cuda_fattn_turbo4_paged_status::ok) {
+        std::fprintf(stderr, "merged split wave status: %s\n",
+            ggml_cuda_fattn_turbo4_paged_status_name(merged_status));
+        std::abort();
+    }
+    cuda_check(cudaDeviceSynchronize(), "merged split wave state");
+    std::vector<float> merged_output(q_host.size());
+    cuda_check(cudaMemcpy(merged_output.data(), output_device,
+        merged_output.size() * sizeof(float), cudaMemcpyDeviceToHost), "merged output readback");
+    cuda_check(cudaMemcpy(partial_state.data(), partial_state_device,
+        partial_state.size() * sizeof(float), cudaMemcpyDeviceToHost), "merged state readback");
+    for (uint32_t query = 0; query < max_query_tokens; ++query) {
+        const float expected = query == 2 ? expected_528 : expected_527;
+        for (uint32_t head = 0; head < n_head_q; ++head) {
+            const float * state = partial_state.data() +
+                (size_t(query) * n_head_q + head) * (2 + 256);
+            assert(std::fabs(state[1] - (query == 2 ? 528.0f : 527.0f)) < 1.0e-4f);
+            for (uint32_t d = 0; d < 256; ++d) {
+                const size_t index = (size_t(query) * n_head_q + head) * 256 + d;
+                assert(std::fabs(merged_output[index] - expected) < 2.0e-6f);
+                assert(std::isfinite(state[2 + d]));
+            }
+        }
+    }
+    cudaFree(second_wave_pages_device);
+
     cudaEventDestroy(timing_stop);
     cudaEventDestroy(timing_start);
     cudaFree(page_mass_device);
