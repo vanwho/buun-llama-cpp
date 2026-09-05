@@ -219,7 +219,7 @@ llama_kv_residency_execute_transaction(
         for (size_t i = 0; i < desired.size(); ++i) {
             const auto & page = desired[i];
             if (!llama_kv_page_id_valid(
-                        page.id, page.state == llama_kv_page_state::filling_gpu) ||
+                        page.id, llama_kv_page_id_is_tail(page.id)) ||
                 page.physical_slot >= pool.slot_capacity() ||
                 page.state == llama_kv_page_state::absent ||
                 page.state == llama_kv_page_state::invalid ||

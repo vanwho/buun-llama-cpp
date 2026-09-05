@@ -1652,6 +1652,11 @@ private:
     // pending stream copies that will be applied during the next update
     stream_copy_info sc_info;
 
+    // A graph-success boundary must not silently discard a stale/failed pager
+    // completion. The next cache mutation fails closed until the owner is
+    // rebuilt or explicitly cleared.
+    bool pager_write_failure_ = false;
+
     std::vector<kv_layer> layers;
 
     // Dynamic VBR shared KV pools — one per KV buffer

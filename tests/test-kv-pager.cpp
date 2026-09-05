@@ -103,9 +103,11 @@ struct host_page_fixture {
         }
         vbr_selected_page_range range;
         range.identity = page.id;
-        range.positions.resize(VBR_GENERATION_PAGE_CELLS);
-        range.physical_cells.resize(VBR_GENERATION_PAGE_CELLS);
-        for (uint32_t i = 0; i < VBR_GENERATION_PAGE_CELLS; ++i) {
+        const uint32_t count = uint32_t(page.id.position_end - page.id.position_begin);
+        range.tail = count != VBR_GENERATION_PAGE_CELLS;
+        range.positions.resize(count);
+        range.physical_cells.resize(count);
+        for (uint32_t i = 0; i < count; ++i) {
             range.positions[i] = page.id.position_begin + llama_pos(i);
             range.physical_cells[i] =
                     page.physical_slot * VBR_GENERATION_PAGE_CELLS + i;
@@ -350,6 +352,72 @@ static void test_pager_host_mutation() {
     assert(pager->residency().pages()[0].pin_count == 0);
     assert(pager->host_catalog()->snapshot().live_pages == 1);
     assert(pager->exact_page_records(0).size() == 1);
+
+    uint8_t prior_byte = 0;
+    assert(pager->host_catalog()->pages()[0].page.units[0].bytes->read(
+            0, &prior_byte, 1));
+    fixture.storage[0][0] ^= 0x5a;
+    assert(fixture.storage[0][0] != prior_byte);
+    assert(pager->begin_write(0, 1, 0, ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    assert(pager->seal_ready_pages() == 1);
+    const auto rewritten_pages = pager->host_catalog()->pages();
+    assert(rewritten_pages.size() == 1);
+    uint8_t rewritten_byte = 0;
+    assert(rewritten_pages[0].page.units[0].bytes->read(0, &rewritten_byte, 1));
+    assert(rewritten_byte == fixture.storage[0][0]);
+
+    // A completed tail is sealed with only its committed rows. It must be
+    // readable from the canonical catalog without turning padding into valid
+    // positions, and a clean replacement must leave that host page alive.
+    llama_kv_pager_config tail_config = config;
+    tail_config.hot_pages.automatic = false;
+    tail_config.hot_pages.value = 1;
+    auto tail_pager = llama_kv_pager::create(
+            tail_config, geometry(512), host_resources, backend, status);
+    assert(tail_pager && status == llama_kv_pager_status::ok);
+    tail_pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    tail_pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+    for (llama_pos position = 0; position < 17; ++position) {
+        assert(tail_pager->begin_write(0, 1, position, ticket) ==
+                llama_kv_pager_write_status::ok);
+        assert(tail_pager->complete_write(ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    fixture.snapshot.pages[0] = tail_pager->residency().pages()[0].id;
+    assert(tail_pager->seal_ready_pages() == 1);
+    const auto tail_pages = tail_pager->host_catalog()->pages();
+    assert(tail_pages.size() == 1);
+    assert(tail_pages[0].page.tail);
+    assert(tail_pages[0].page.positions.size() == 17);
+    assert(tail_pages[0].page.units.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    for (const auto & unit : tail_pages[0].page.units) {
+        assert(unit.valid_rows == 17);
+        assert(unit.bytes && unit.bytes->size() == 17 * host_page_fixture::row_bytes);
+    }
+    const auto cold_tail_id = tail_pages[0].page.identity;
+    assert(tail_pager->begin_write(0, 1, 256, ticket) ==
+            llama_kv_pager_write_status::ok);
+    const auto retained_tail_pages = tail_pager->host_catalog()->pages();
+    assert(retained_tail_pages.size() == 1);
+    assert(retained_tail_pages[0].page.identity == cold_tail_id);
+    assert(retained_tail_pages[0].page.tail);
+    assert(tail_pager->cancel_write(ticket) == llama_kv_pager_write_status::ok);
+
+    auto hole_pager = llama_kv_pager::create(
+            tail_config, geometry(512), host_resources, backend, status);
+    assert(hole_pager && status == llama_kv_pager_status::ok);
+    hole_pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    hole_pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+    llama_kv_pager_write_ticket hole_ticket;
+    for (llama_pos position : { llama_pos(0), llama_pos(2) }) {
+        assert(hole_pager->begin_write(0, 1, position, hole_ticket) ==
+                llama_kv_pager_write_status::ok);
+        assert(hole_pager->complete_write(hole_ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    assert(hole_pager->seal_ready_pages() == 0);
+    assert(hole_pager->host_catalog()->snapshot().live_pages == 0);
 
     const uint64_t stale_epoch = pager->residency().epoch();
     llama_kv_pager_write_ticket release_ticket;

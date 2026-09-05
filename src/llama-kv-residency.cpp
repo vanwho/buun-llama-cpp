@@ -34,6 +34,12 @@ bool llama_kv_page_id_valid(const llama_kv_page_id & id, bool tail) noexcept {
     return id.logical_page == uint32_t(id.position_begin / page_size);
 }
 
+bool llama_kv_page_id_is_tail(const llama_kv_page_id & id) noexcept {
+    return id.position_end > id.position_begin &&
+        uint64_t(id.position_end) - uint64_t(id.position_begin) <
+            VBR_GENERATION_PAGE_CELLS;
+}
+
 uint32_t llama_kv_page_count(uint32_t cells) noexcept {
     constexpr uint32_t size = VBR_GENERATION_PAGE_CELLS;
     return cells == 0 ? 0 : (cells - 1) / size + 1;
@@ -94,7 +100,7 @@ llama_kv_residency_transaction llama_kv_residency_table::begin() const noexcept 
 llama_kv_residency_status llama_kv_residency_table::replace(
         llama_kv_residency_transaction & tx, const llama_kv_page_record & page) const noexcept {
     if (!tx.active_) return llama_kv_residency_status::transaction_closed;
-    if (!llama_kv_page_id_valid(page.id, page.state == llama_kv_page_state::filling_gpu))
+    if (!llama_kv_page_id_valid(page.id, llama_kv_page_id_is_tail(page.id)))
         return llama_kv_residency_status::invalid_position_range;
     if (page.physical_slot >= tx.slot_capacity_) return llama_kv_residency_status::out_of_range;
     for (const auto & existing : tx.pages_) {
@@ -126,7 +132,7 @@ llama_kv_residency_status llama_kv_residency_table::erase(
 llama_kv_residency_status llama_kv_residency_table::update(
         llama_kv_residency_transaction & tx, const llama_kv_page_record & page) const noexcept {
     if (!tx.active_) return llama_kv_residency_status::transaction_closed;
-    if (!llama_kv_page_id_valid(page.id, page.state == llama_kv_page_state::filling_gpu)) {
+    if (!llama_kv_page_id_valid(page.id, llama_kv_page_id_is_tail(page.id))) {
         return llama_kv_residency_status::invalid_position_range;
     }
     auto it = std::find_if(tx.pages_.begin(), tx.pages_.end(), [&](const auto & existing) {
