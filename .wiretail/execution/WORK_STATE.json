@@ -8,8 +8,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "17",
-  "current_task": "17-07",
-  "last_updated_utc": "2026-09-05T00:55:47+00:00",
+  "current_task": "17-08",
+  "last_updated_utc": "2026-09-05T01:06:07+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -1233,13 +1233,13 @@
       "cluster": "17c-corpus-exact",
       "title": "Complete exact page-wave and selected-all reference paths",
       "packet": ".wiretail/execution/tasks/17-07.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "17-06"
       ],
-      "commit": null
+      "commit": "85ebb5370533bf5f7baa2f513ccdb3ee80f5761c"
     },
     {
       "id": "17-08",
