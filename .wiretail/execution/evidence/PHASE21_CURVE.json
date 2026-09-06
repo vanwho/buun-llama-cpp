@@ -1,0 +1,120 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "21-07",
+  "kind": "final_three_prompt_context_curve",
+  "procedure": "automatic_hot_budget_startup_ladder_and_contextual_three_prompt_curve",
+  "created_utc": "2026-09-06T05:35:00Z",
+  "task": "21-07",
+  "result": "incomplete",
+  "status": "incomplete_no_completed_speed_rows",
+  "decision": "recorded_findings",
+  "decision_reason": "Automatic budget-derived startup passed through 100K, but the first contextual 20K warmup reached only 3072/19600 prompt tokens in 134.30 seconds and was cancelled without a response. Automatic startup failed at 175K and 262144. No shorter or fixed-four-page speed substitute was used.",
+  "provenance": {
+    "repository_head": "c3bcb18ed8a5cc4f16fc815ed7fb33f3de469673",
+    "repository_worktree": "dirty_measurement_driver_only",
+    "server_binary": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server",
+    "server_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_schema": "pager-corpus-v4",
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.84",
+    "gpu_total_mib": 16376,
+    "page_size_tokens": 256,
+    "target_kv": "Turbo4",
+    "mtp_kv": "Turbo4",
+    "mtp_placement": "GPU",
+    "sampling": {"temperature": 0, "seed": 42, "thinking": "off"},
+    "curve_driver": "tools/server/bench/run-final-curve.py",
+    "questions": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ]
+  },
+  "protocol": {
+    "nominal_contexts": [20000, 40000, 60000, 100000, 175000, 262144],
+    "generation_reserve_tokens": 400,
+    "warmups_per_question": 1,
+    "warmup_output_tokens": 40,
+    "measured_trials_per_question": 3,
+    "measured_output_tokens": 400,
+    "stream": true,
+    "cache_condition": "prepared_warm_after_discarded_warmup",
+    "context_material": "deterministic neutral segments prepended before each unchanged question; no answer leakage",
+    "hot_policy": "automatic budget-derived hot pages",
+    "endpoint": "http://127.0.0.1:8080",
+    "raw_startup_root": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z",
+    "raw_curve_root": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z"
+  },
+  "checks": [
+    {"name": "Frozen bundle/model/corpus identity", "status": "pass", "raw_ids": ["binary", "model", "corpus"]},
+    {"name": "Automatic startup ladder through 100K", "status": "pass", "raw_ids": ["startup-20k", "startup-40k", "startup-60k", "startup-100k"]},
+    {"name": "175K and 262144 automatic startup", "status": "fail", "raw_ids": ["startup-175k-journal", "startup-262k-journal"]},
+    {"name": "20K contextual warmup and three-trial curve", "status": "not_measured", "raw_ids": ["curve-20k-campaign", "curve-20k-prompt"]},
+    {"name": "Per-question medians, movement, and route evidence", "status": "not_measured", "raw_ids": []},
+    {"name": "Restored 262K candidate health", "status": "pass", "raw_ids": ["restored-process"]}
+  ],
+  "startup_ladder": [
+    {"requested_context": 20000, "status": "pass_startup_only", "logical_pages": 79, "physical_pool_capacity_bytes": 341705000, "target_allocated_bytes": 341705000, "mtp_rows": 20224, "mtp_bytes": 21487616, "target_backend": "CUDA", "target_type_k": "turbo4", "target_type_v": "turbo4", "raw_metrics": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/20000/metrics.txt"},
+    {"requested_context": 40000, "status": "pass_startup_only", "logical_pages": 157, "physical_pool_capacity_bytes": 679084000, "target_allocated_bytes": 679084000, "mtp_rows": 40192, "mtp_bytes": 42573824, "target_backend": "CUDA", "target_type_k": "turbo4", "target_type_v": "turbo4", "raw_metrics": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/40000/metrics.txt"},
+    {"requested_context": 60000, "status": "pass_startup_only", "logical_pages": 235, "physical_pool_capacity_bytes": 1016460000, "target_allocated_bytes": 1016460000, "mtp_rows": 60160, "mtp_bytes": 63660032, "target_backend": "CUDA", "target_type_k": "turbo4", "target_type_v": "turbo4", "raw_metrics": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/60000/metrics.txt"},
+    {"requested_context": 100000, "status": "pass_startup_only", "logical_pages": 391, "physical_pool_capacity_bytes": 1691220000, "target_allocated_bytes": 1691220000, "mtp_rows": 100096, "mtp_bytes": 105832448, "target_backend": "CUDA", "target_type_k": "turbo4", "target_type_v": "turbo4", "raw_metrics": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/100000/metrics.txt"},
+    {"requested_context": 175000, "status": "runtime_fault_startup", "reason": "failed recurrent-state allocation; repeated CUDA allocation failure for a 470679552-byte buffer", "raw_journal": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/175000/journal.txt"},
+    {"requested_context": 262144, "status": "runtime_fault_startup", "reason": "failed CUDA compute-buffer allocation; repeated allocation failure for a 198189312-byte buffer", "raw_journal": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/262144/journal.txt"}
+  ],
+  "curve_rows": [
+    {"requested_context": 20000, "startup_status": "pass_startup_only", "measurement_status": "incomplete", "measurement_reason": "Discarded warmup reached 3072/19600 prompt tokens in 134.30 seconds and was cancelled with no HTTP response; measured trials did not start.", "actual_occupied_tokens": null, "per_question": [{"question_index": 0, "measured_trials": 0, "median_pp_tok_s": null, "median_tg_tok_s": null, "median_ttft_ms": null, "dispersion": null}, {"question_index": 1, "measured_trials": 0, "median_pp_tok_s": null, "median_tg_tok_s": null, "median_ttft_ms": null, "dispersion": null}, {"question_index": 2, "measured_trials": 0, "median_pp_tok_s": null, "median_tg_tok_s": null, "median_ttft_ms": null, "dispersion": null}], "route_fractions": null, "movement": null, "raw": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z"},
+    {"requested_context": 40000, "startup_status": "pass_startup_only", "measurement_status": "not_measured", "measurement_reason": "Campaign stopped after 20K prefill failure; no unlike context was substituted.", "actual_occupied_tokens": null, "per_question": null, "route_fractions": null, "movement": null},
+    {"requested_context": 60000, "startup_status": "pass_startup_only", "measurement_status": "not_measured", "measurement_reason": "Campaign stopped after 20K prefill failure; no unlike context was substituted.", "actual_occupied_tokens": null, "per_question": null, "route_fractions": null, "movement": null},
+    {"requested_context": 100000, "startup_status": "pass_startup_only", "measurement_status": "not_measured", "measurement_reason": "Campaign stopped after 20K prefill failure; no unlike context was substituted.", "actual_occupied_tokens": null, "per_question": null, "route_fractions": null, "movement": null},
+    {"requested_context": 175000, "startup_status": "runtime_fault_startup", "measurement_status": "not_measured", "measurement_reason": "Automatic native-MTP startup failed before readiness.", "actual_occupied_tokens": null, "per_question": null, "route_fractions": null, "movement": null},
+    {"requested_context": 262144, "startup_status": "runtime_fault_startup", "measurement_status": "not_measured", "measurement_reason": "Automatic native-MTP startup failed before readiness.", "actual_occupied_tokens": null, "per_question": null, "route_fractions": null, "movement": null}
+  ],
+  "diagnostic_tables": {
+    "prepared_warm": {"status": "incomplete", "completed_measured_trials": 0, "reason": "First 20K warmup did not complete."},
+    "cold_load": {"status": "not_run", "reason": "No completed prepared-warm point existed."},
+    "fixed_262k_growing_history": {"status": "not_run", "reason": "Existing 21-06 fixed-four-page allocation/timeout is not speed evidence and was not pooled."}
+  },
+  "telemetry_contract": {
+    "startup_fields": ["logical_pages", "physical_pool_capacity_bytes", "target_allocated_bytes", "mtp_rows", "target_type_k", "target_type_v", "mtp_backend"],
+    "actual_occupied_tokens": null,
+    "host_rows": null,
+    "selected_rows": null,
+    "h2d_bytes": null,
+    "d2h_bytes": null,
+    "faults": null,
+    "queue_us": null,
+    "copy_us": null,
+    "wait_us": null,
+    "graph_launches": null,
+    "memory_peaks": null,
+    "reason": "No completed contextual trial produced before/after movement telemetry; startup zeroes are not interpreted as no-transfer evidence."
+  },
+  "restored_candidate": {"status": "healthy", "context": 262144, "hot_pages": 4, "pager_mode": "selective", "target_kv": "turbo4", "mtp_kv": "turbo4", "mtp_placement": "gpu", "mtp_rows": 262144, "pid": 3742204, "counted_as_curve_row": false},
+  "raw_integrity": {
+    "startup_metrics_sha256": {"20000": "65e01d83b1454d8b0c6a111124fbbd0a18c3eddd8eb6423fc3c6422a11ba9756", "40000": "29cf06adfc40e7c6933ada9fac31a35b87d103347fa42e0e7aa5054e1455c5e8", "60000": "6f98d856ec02680aefae10548c286c323f99b928b7737f6cbd617f1ffc429f19", "100000": "afa32bb9b46b1cf5f2fbb3a590ee89c38a7560d8c03f971f06dcbd9a15e9f157"},
+    "curve_campaign_sha256": "77d9238c28de948e8ca3d11f880cce2f07a771e45d0cb0c57826f117805792b2",
+    "incomplete_prompt_sha256": "83a03ea232af5181805e9b7ae553bb64acfd521843ae654a8c11f9f7727f2fe3"
+  },
+  "raw_index": [
+    {"id": "binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "startup-20k", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/20000/metrics.txt", "sha256": "65e01d83b1454d8b0c6a111124fbbd0a18c3eddd8eb6423fc3c6422a11ba9756"},
+    {"id": "startup-40k", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/40000/metrics.txt", "sha256": "29cf06adfc40e7c6933ada9fac31a35b87d103347fa42e0e7aa5054e1455c5e8"},
+    {"id": "startup-60k", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/60000/metrics.txt", "sha256": "6f98d856ec02680aefae10548c286c323f99b928b7737f6cbd617f1ffc429f19"},
+    {"id": "startup-100k", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/100000/metrics.txt", "sha256": "afa32bb9b46b1cf5f2fbb3a590ee89c38a7560d8c03f971f06dcbd9a15e9f157"},
+    {"id": "startup-175k-journal", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/175000/journal.txt", "sha256": "7c49c042d61f803a1e408a479680d3cca87f573a1575f410bbfb1dff31283240"},
+    {"id": "startup-262k-journal", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/262144/journal.txt", "sha256": "722c993144ebed94fd81b5ff0a51856886f710fa67749157b708286b9f79042d"},
+    {"id": "curve-20k-campaign", "path": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z/campaign.json", "sha256": "77d9238c28de948e8ca3d11f880cce2f07a771e45d0cb0c57826f117805792b2"},
+    {"id": "curve-20k-prompt", "path": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z/prompt-0.txt", "sha256": "83a03ea232af5181805e9b7ae553bb64acfd521843ae654a8c11f9f7727f2fe3"},
+    {"id": "restored-process", "path": "/proc/3742204/cmdline", "sha256": "07090f5ed3b2ea018afa9250719a7fc0dfcb6763a7a8daa5ac933d0ee9c3438b"}
+  ],
+  "failure": {"classification": "prefill_and_automatic_capacity_incomplete", "details": ["No contextual measured trial completed.", "Automatic 175K recurrent-state allocation failed.", "Automatic 262144 compute-buffer allocation failed."], "no_quality_claim": true},
+  "resume": {"command": "Restart the exact bundle with the same sampling/context contract after repairing prefill and automatic allocation; resume only matching completed case keys.", "checkpoint": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z/progress.json", "secrets_omitted": true, "successful_profile_left_loaded": true},
+  "deferred_verification": ["All six per-question three-trial speed measurements and timing/route/movement/resource fields.", "Cold-load and fixed-262K growing-history diagnostics.", "Automatic 175K and 262144 startup allocation repair.", "CPU-KV and all-GPU matched controls, which belong to 21-08."]
+}
