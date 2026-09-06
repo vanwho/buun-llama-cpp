@@ -694,3 +694,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-21-10`
 - Commit at update: `1127618b7`
 - Summary: Recorded not_attempted_base_goal_unmet: the 21-06 base 256K functionality gate was not demonstrated, so YaRN was intentionally not run.
+
+## 2026-09-06T06:14:39+00:00 — 21-11 — done
+
+- Branch: `codex/task-21-11`
+- Commit at update: `1b27405ef`
+- Summary: Consolidated phase-21 receipts into a provenance-gated summary; overall base goal remains not demonstrated and YaRN remains gated.
