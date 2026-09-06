@@ -34,6 +34,10 @@ enum class llama_kv_attention_execution_route : uint8_t {
     refusal,
 };
 
+// Keep the direct Turbo4 pager kernel page-friendly and bounded. Larger valid
+// selected shapes remain on the explicit reference route.
+constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 16;
+
 const char * llama_kv_attention_execution_mode_name(
         llama_kv_attention_execution_mode mode) noexcept;
 const char * llama_kv_attention_execution_phase_name(
@@ -73,7 +77,8 @@ struct llama_kv_attention_scratch_request {
 uint32_t llama_kv_attention_prefill_chunk_size(
         uint32_t configured_ubatch,
         uint32_t physical_page_count,
-        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS) noexcept;
+        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
+        uint32_t query_tile = 0) noexcept;
 
 struct llama_kv_attention_execution_decision {
     llama_kv_attention_execution_status status = llama_kv_attention_execution_status::disabled;

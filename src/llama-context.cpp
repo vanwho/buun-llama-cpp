@@ -1459,6 +1459,49 @@ void llama_context::init_kv_pager() {
             llama_cache_budget_admission_refusal_name(admission.refusal));
 }
 
+static uint64_t prefill_page_number(llama_pos position, uint32_t page_tokens) noexcept {
+    if (position < 0 || page_tokens == 0) {
+        return UINT64_MAX;
+    }
+    return uint64_t(position) / page_tokens;
+}
+
+static bool prefill_page_wave_boundary(
+        const llama_ubatch & current,
+        uint32_t page_tokens) noexcept {
+    // The ordinary Qwen prompt path is one sequence with one position per
+    // token. Be conservative for other layouts so page publication cannot be
+    // delayed across an unknown boundary.
+    if (current.n_tokens == 0 || current.pos == nullptr || current.n_pos == 0 ||
+        current.n_seqs_unq != 1 || current.n_seq_tokens != current.n_tokens) {
+        return true;
+    }
+
+    uint64_t previous_page = prefill_page_number(current.pos[0], page_tokens);
+    if (previous_page == UINT64_MAX) {
+        return true;
+    }
+    llama_pos previous_position = current.pos[0];
+    for (uint32_t token = 1; token < current.n_tokens; ++token) {
+        const llama_pos position = current.pos[token * current.n_pos];
+        const uint64_t page = prefill_page_number(position, page_tokens);
+        if (page == UINT64_MAX || page != previous_page ||
+            position != previous_position + 1) {
+            return true;
+        }
+        previous_page = page;
+        previous_position = position;
+    }
+
+    if (previous_position == std::numeric_limits<llama_pos>::max()) {
+        return true;
+    }
+    // A normal prompt tile is contiguous. Fence at the end of a page before
+    // advancing the memory context, so the next ubatch cannot observe an
+    // incompletely sealed page. Unknown layouts were rejected above.
+    return prefill_page_number(previous_position + 1, page_tokens) != previous_page;
+}
+
 uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
     if (requested == 0 || kv_pager.mode == llama_kv_pager_mode::off ||
         kv_pager.mode == llama_kv_pager_mode::observe || !kv_pager_owner) {
@@ -1484,12 +1527,13 @@ uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
         model.hparams.n_embd_head_k() == 256 && model.hparams.n_embd_head_v() == 256 &&
         model.hparams.n_head_kv() != 0 &&
         model.hparams.n_head() == model.hparams.n_head_kv() * 4;
-    // The direct Turbo4 page kernel is a bounded three-query tile. Keep the
-    // supported paged path no larger than both the admitted physical window
-    // and the kernel tile. This also gives exact page-wave prefill a bounded
-    // query tile; native-MTP verification already supplies its own small
-    // verification blocks.
-    return turbo4_paged_prefill ? std::min<uint32_t>(3, physical_bound) : physical_bound;
+    // Keep each graph bounded to a page-friendly Turbo4 query tile. Several
+    // tiles can be submitted before the page-boundary fence in decode().
+    return turbo4_paged_prefill
+        ? llama_kv_attention_prefill_chunk_size(requested,
+                snapshot.physical_page_count, snapshot.geometry.page_tokens,
+                LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE)
+        : physical_bound;
 }
 
 void llama_context::resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs) {
@@ -2129,7 +2173,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             if (plan.ledger().cold_pages == 0 &&
                 (phase == llama_kv_attention_execution_phase::decode ||
                  phase == llama_kv_attention_execution_phase::mtp_verify) &&
-                ubatch.n_tokens >= 1 && ubatch.n_tokens <= 3 &&
+                ubatch.n_tokens >= 1 &&
+                ubatch.n_tokens <= LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE &&
                 ubatch.n_seq_tokens == ubatch.n_tokens) {
                 std::vector<uint32_t> all_pages;
                 all_pages.reserve(records.size());
@@ -2193,7 +2238,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                     metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
                     metadata.type_v() == GGML_TYPE_TURBO4_0 &&
                     metadata.head_dim_k() == 256 && metadata.head_dim_v() == 256 &&
-                    metadata.n_query_tokens() >= 1 && metadata.n_query_tokens() <= 3 &&
+                    metadata.n_query_tokens() >= 1 &&
                     metadata.n_batch() == 1 &&
                     metadata.n_head_kv() != 0 &&
                     metadata.n_head_q() / metadata.n_head_kv() == 4 &&
@@ -2385,7 +2430,6 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     const bool direct_shape = metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
         metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
         metadata.head_dim_v() == 256 && metadata.n_query_tokens() >= 1 &&
-        metadata.n_query_tokens() <= 3 &&
         metadata.n_batch() == 1 && metadata.n_head_kv() != 0 &&
         metadata.n_head_q() / metadata.n_head_kv() == 4 &&
         metadata.n_head_q() % metadata.n_head_kv() == 0;
@@ -5915,7 +5959,7 @@ int llama_context::decode(const llama_batch & batch_inp) {
     // otherwise leave only the last ubatch's hiddens in layer_hiddens).
     dflash_reset_hidden_capture();
 
-    do {
+    while (true) {
         const auto & ubatch = mctx->get_ubatch();
 
         // DFlash: hand the eval callback this ubatch so it can route hidden-state
@@ -6253,14 +6297,23 @@ int llama_context::decode(const llama_batch & batch_inp) {
         n_outputs_prev += n_outputs;
         n_tokens_prev  += ubatch.n_tokens;
 
-        // Each prompt chunk owns a bounded set of physical rows.  Wait before
-        // preparing the next chunk so completed K/V pages can be authenticated
-        // in host RAM and become clean eviction victims.  Decode keeps the
-        // existing asynchronous submission behavior.
-        if (bounded_pager_prefill) {
+        // Keep several query tiles in flight within a page. Synchronize only
+        // when the current tile crosses into a new logical page (or at the
+        // final tile), so host sealing and policy updates remain page-boundary
+        // operations rather than one fence per tile.
+        const bool page_wave_boundary = bounded_pager_prefill &&
+            prefill_page_wave_boundary(ubatch, kv_pager.page_size);
+        if (page_wave_boundary) {
             synchronize();
         }
-    } while (mctx->next());
+        const bool has_next = mctx->next();
+        if (!has_next) {
+            if (bounded_pager_prefill && !page_wave_boundary) {
+                synchronize();
+            }
+            break;
+        }
+    }
 
     // set to total number of outputs in the batch, for use in llama_get_logits_ith
     n_outputs = n_outputs_all;

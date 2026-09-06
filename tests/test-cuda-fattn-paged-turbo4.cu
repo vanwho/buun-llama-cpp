@@ -41,7 +41,7 @@ int main() {
     constexpr uint32_t n_head_kv = 1;
     constexpr uint32_t n_pages = 4;
     constexpr uint32_t n_rows = 530;
-    constexpr uint32_t max_query_tokens = 3;
+    constexpr uint32_t max_query_tokens = GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS;
     constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
     constexpr size_t page_stride = 256 * row_bytes;
     constexpr uint32_t n_physical_pages = 8;
@@ -79,7 +79,12 @@ int main() {
     native_positions.push_back(512);
     native_positions[528] = 1200; // causal rejection must use native metadata.
     native_mask[17] = 0;            // mask one compact row in the permuted page.
-    const int64_t query_positions_host[max_query_tokens] = { 1000, 1100, 1200 };
+    int64_t query_positions_host[max_query_tokens] = {};
+    query_positions_host[0] = 1000;
+    query_positions_host[1] = 1100;
+    for (uint32_t query = 2; query < max_query_tokens; ++query) {
+        query_positions_host[query] = 1200;
+    }
 
     float * q_device = nullptr;
     char * k_device = nullptr;
@@ -190,7 +195,7 @@ int main() {
                 for (uint32_t d = 0; d < 256; ++d) {
                     const size_t index = (size_t(query) * n_head_q + head) * 256 + d;
                     if (query < query_count) {
-                        const float expected = query == 2 ? expected_529 : expected_528;
+                        const float expected = query >= 2 ? expected_529 : expected_528;
                         assert(std::fabs(multiquery_output[index] - expected) < 2.0e-6f);
                     } else {
                         assert(multiquery_output[index] == -12345.0f);
@@ -199,7 +204,9 @@ int main() {
             }
         }
     }
-    params.n_query_tokens = 4;
+    params.n_query_tokens = max_query_tokens + 1;
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::unsupported_shape);
+    params.n_query_tokens = 32;
     assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::unsupported_shape);
     params.n_query_tokens = 1;
 
@@ -241,8 +248,8 @@ int main() {
         assert(output_without_mass[i] == output_with_mass[i]);
     }
     for (uint32_t query = 0; query < max_query_tokens; ++query) {
-        const float expected = query == 2 ? expected_529 : expected_528;
-        const float denominator = query == 2 ? 529.0f : 528.0f;
+        const float expected = query >= 2 ? expected_529 : expected_528;
+        const float denominator = query >= 2 ? 529.0f : 528.0f;
         for (uint32_t head = 0; head < n_head_q; ++head) {
             for (uint32_t d = 0; d < 256; ++d) {
                 const size_t index = (size_t(query) * n_head_q + head) * 256 + d;
@@ -250,7 +257,7 @@ int main() {
             }
             const size_t mass_base = (size_t(query) * n_head_q + head) * 4;
             assert(std::fabs(page_mass[mass_base + 0] - 255.0f / denominator) < 1.0e-5f);
-            const float expected_page1 = query == 2 ? 256.0f : 255.0f;
+            const float expected_page1 = query >= 2 ? 256.0f : 255.0f;
             assert(std::fabs(page_mass[mass_base + 1] - expected_page1 / denominator) < 1.0e-5f);
             assert(std::fabs(page_mass[mass_base + 2] - 1.0f / denominator) < 1.0e-5f);
             assert(std::fabs(page_mass[mass_base + 3] - 17.0f / denominator) < 1.0e-5f);
@@ -327,7 +334,7 @@ int main() {
     cuda_check(cudaEventSynchronize(timing_stop), "serial comparison timing stop synchronize");
     float serial_comparison_ms = 0.0f;
     cuda_check(cudaEventElapsedTime(&serial_comparison_ms, timing_start, timing_stop), "serial comparison timing readback");
-    std::fprintf(stderr, "paged Turbo4 serial control: %.3f ms (three Q tokens, 530 selected rows)\n",
+    std::fprintf(stderr, "paged Turbo4 serial control: %.3f ms (sixteen Q tokens, 530 selected rows)\n",
         serial_comparison_ms);
 
     params.split_kv_scratch = split_state_device;
@@ -344,7 +351,7 @@ int main() {
     cuda_check(cudaEventSynchronize(timing_stop), "split comparison timing stop synchronize");
     float split_comparison_ms = 0.0f;
     cuda_check(cudaEventElapsedTime(&split_comparison_ms, timing_start, timing_stop), "split comparison timing readback");
-    std::fprintf(stderr, "paged Turbo4 split control: %.3f ms (three Q tokens, 530 selected rows, capacity 3)\n",
+    std::fprintf(stderr, "paged Turbo4 split control: %.3f ms (sixteen Q tokens, 530 selected rows, capacity 16)\n",
         split_comparison_ms);
 
     params.split_kv_scratch = nullptr;
@@ -376,7 +383,7 @@ int main() {
             const float * state = partial_state.data() +
                 (size_t(query) * n_head_q + head) * (2 + 256);
             assert(std::fabs(state[0]) < 1.0e-6f);
-            assert(std::fabs(state[1] - (query == 2 ? 529.0f : 528.0f)) < 1.0e-4f);
+            assert(std::fabs(state[1] - (query >= 2 ? 529.0f : 528.0f)) < 1.0e-4f);
             for (uint32_t d = 0; d < 256; ++d) assert(std::isfinite(state[2 + d]));
         }
     }
@@ -441,11 +448,11 @@ int main() {
     const float merged_expected_527 = (17.0f * c8 + 255.0f * c9 + 255.0f * c10) / 527.0f;
     const float merged_expected_528 = (17.0f * c8 + 255.0f * c9 + 256.0f * c10) / 528.0f;
     for (uint32_t query = 0; query < max_query_tokens; ++query) {
-        const float expected = query == 2 ? merged_expected_528 : merged_expected_527;
+        const float expected = query >= 2 ? merged_expected_528 : merged_expected_527;
         for (uint32_t head = 0; head < n_head_q; ++head) {
             const float * state = partial_state.data() +
                 (size_t(query) * n_head_q + head) * (2 + 256);
-            assert(std::fabs(state[1] - (query == 2 ? 528.0f : 527.0f)) < 1.0e-4f);
+            assert(std::fabs(state[1] - (query >= 2 ? 528.0f : 527.0f)) < 1.0e-4f);
             for (uint32_t d = 0; d < 256; ++d) {
                 const size_t index = (size_t(query) * n_head_q + head) * 256 + d;
                 assert(std::fabs(merged_output[index] - expected) < 2.0e-6f);
