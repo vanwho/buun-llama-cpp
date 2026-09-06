@@ -1,0 +1,423 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "21-11",
+  "result": "incomplete",
+  "kind": "phase_21_compact_benchmark_summary",
+  "procedure": "receipt_only_provenance_gated_assessment",
+  "created_utc": "2026-09-06T06:08:42Z",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "target_bundle": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+    "target_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "source": "compact phase-21 receipts; outer runner owns git"
+  },
+  "overall_assessment": {
+    "status": "not_demonstrated",
+    "conclusion": "The Turbo4 selective pager base goal is not demonstrated: exact 262144-token allocation and allocation-only GPU MTP worked in a fixed-four-page recovery, but budget-derived admission failed, near-full population timed out, retrieval and continuation were not measured, and physical paging movement was not correlated.",
+    "speed_gate": "not_demonstrated",
+    "stretch_gate": "not_attempted_base_goal_unmet",
+    "raw_ids": ["receipt-21-06", "21-06-population-summary", "receipt-21-10"]
+  },
+  "summary_scope": {
+    "consumed_receipts": [
+      "receipt-21-01",
+      "receipt-21-04",
+      "receipt-21-05",
+      "receipt-21-06",
+      "receipt-21-07",
+      "receipt-21-08",
+      "receipt-21-09",
+      "receipt-21-10"
+    ],
+    "policy": "Only compact phase-21 receipts and their indexed raw artifacts are used. Historical acceptance audits are not replayed.",
+    "raw_ids": ["receipt-21-01", "receipt-21-04", "receipt-21-05", "receipt-21-06", "receipt-21-07", "receipt-21-08", "receipt-21-09", "receipt-21-10"]
+  },
+  "provenance_validation": {
+    "status": "validated_with_explicit_exclusions",
+    "accepted_target_identity": {
+      "bundle_root": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+      "bundle_manifest_sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401",
+      "server_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+      "corpus_declared_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+      "runtime_chat_template_sha256": "e6cd775ad62be0d2c7c84bb85842ba6a7c4c00a825e23bbe762d22c710c515bf",
+      "quality_template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+      "profile_policy_sha256": "90e8a828ab193628dd344f32ca84d6368ada89a11853b64cf25c741b52778f96",
+      "raw_ids": ["receipt-21-01", "curve-binary", "curve-model", "curve-corpus", "soak-bundle-manifest"]
+    },
+    "checks": [
+      {
+        "name": "Release bundle and server binary",
+        "status": "pass_with_scope",
+        "detail": "The accepted curve, controls, and soak receipts agree on the 20-07 bundle and binary SHA-256. 21-06 also records differing bundle-source and binary-reported commit labels; those labels are not used to merge artifacts, and the binary hash/bundle identity remains the matching key.",
+        "raw_ids": ["curve-binary", "controls-target-binary", "soak-server-binary", "soak-bundle-manifest", "receipt-21-06"]
+      },
+      {
+        "name": "Model and tokenizer identity",
+        "status": "pass",
+        "detail": "The accepted target receipts use the same pinned Qwen model SHA-256; 21-06 also records the tokenizer hash equal to that pinned file hash.",
+        "raw_ids": ["curve-model", "controls-target-model", "soak-model", "receipt-21-06"]
+      },
+      {
+        "name": "Corpus and template identity",
+        "status": "pass_with_scope",
+        "detail": "The accepted target corpus file hash is consistent. Runtime chat-template SHA and quality-template ID are retained as distinct contract fields; no incompatible template is promoted, but later receipts do not independently re-emit both template fields.",
+        "raw_ids": ["curve-corpus", "controls-target-corpus", "soak-corpus", "receipt-21-01", "receipt-21-06"]
+      },
+      {
+        "name": "Configuration identity",
+        "status": "pass_with_scope",
+        "detail": "Target contracts consistently require 256-token pages, CUDA, Turbo4 target K/V, GPU Turbo4 MTP, temperature 0, seed 42, and automatic hot-page policy where applicable; the profile-policy hash is recorded by 21-01.",
+        "raw_ids": ["receipt-21-01", "receipt-21-06", "receipt-21-07", "receipt-21-09"]
+      },
+      {
+        "name": "Mixed binaries and missing telemetry rejected",
+        "status": "pass",
+        "detail": "The 21-05 managed-service candidate, current 22016-token sentinel, and 20-06 historical controls are excluded from target/control claims because release, corpus, context, or pager telemetry identity is unavailable or mismatched. Missing movement and route fields remain null/not measured.",
+        "raw_ids": ["receipt-21-05", "controls-current-control-config", "controls-historical-controls", "receipt-21-07", "receipt-21-06"]
+      }
+    ],
+    "excluded_inputs": [
+      {
+        "input": "21-05 managed-service quality candidate",
+        "reason": "Release manifest unavailable; required pager route and movement telemetry refused, so no quality score was promoted.",
+        "raw_ids": ["receipt-21-05", "quality-live-preflight"]
+      },
+      {
+        "input": "20-06 historical controls",
+        "reason": "Different release, corpus, logical context, and protocol; retained only as explicitly unpaired diagnostics.",
+        "raw_ids": ["controls-historical-controls"]
+      },
+      {
+        "input": "Current-binary 22016-token sentinel",
+        "reason": "Different declared corpus hash/context and only one complete record; not a target/control denominator.",
+        "raw_ids": ["controls-current-control-config", "controls-current-control-record"]
+      }
+    ]
+  },
+  "runtime_contract": {
+    "logical_context_tokens": 262144,
+    "page_size_tokens": 256,
+    "target_backend": "CUDA",
+    "target_kv": ["turbo4", "turbo4"],
+    "target_backing": "canonical CPU Turbo4 backing with a selective GPU hot set",
+    "mtp": {
+      "backend": "GPU",
+      "placement": "GPU",
+      "kv": ["turbo4", "turbo4"],
+      "native": true
+    },
+    "sampling": {"temperature": 0, "seed": 42, "thinking": "off"},
+    "raw_ids": ["receipt-21-06", "receipt-21-07", "receipt-21-09"]
+  },
+  "base_256k": {
+    "allocation": {
+      "status": "pass_with_recovery",
+      "logical_context_tokens": 262144,
+      "logical_pages": 1024,
+      "target_allocated_bytes": 17301500,
+      "physical_pool_capacity_bytes": 17301500,
+      "host_budget_bytes": 65150000000,
+      "vram_budget_bytes": 16300500000,
+      "automatic_hot_pages": "failed_cuda_oom",
+      "fixed_recovery_hot_pages": 4,
+      "raw_ids": ["21-06-allocation-run-config", "21-06-allocation-records"]
+    },
+    "population": {
+      "status": "incomplete_timeout",
+      "local_prompt_tokens": 262136,
+      "generation_reserve_tokens": 8,
+      "server_tokens_processed_at_timeout": 15360,
+      "elapsed_seconds": 1200.0778666429687,
+      "response": null,
+      "raw_ids": ["21-06-population-summary", "21-06-population-slots", "21-06-population-metrics"]
+    },
+    "retrieval": {
+      "status": "not_measured",
+      "early": null,
+      "middle": null,
+      "late": null,
+      "recent": null,
+      "raw_ids": ["receipt-21-06"]
+    },
+    "continuation": {
+      "status": "not_measured",
+      "focus_shift": null,
+      "short_continuation": null,
+      "raw_ids": ["receipt-21-06"]
+    },
+    "goal_gate": {
+      "status": "fail",
+      "base_goal_demonstrated": false,
+      "shorter_context_substitute_used": false,
+      "raw_ids": ["receipt-21-06", "21-06-population-summary"]
+    }
+  },
+  "placement_and_paging": {
+    "target_and_draft_codecs": {
+      "status": "observed",
+      "target_k": "Turbo4",
+      "target_v": "Turbo4",
+      "draft_k": "Turbo4",
+      "draft_v": "Turbo4",
+      "raw_ids": ["receipt-21-01", "receipt-21-06", "receipt-21-07", "receipt-21-09"]
+    },
+    "gpu_mtp": {
+      "status": "pass_for_allocation_and_bounded_request",
+      "allocation_rows": 262144,
+      "allocation_bytes": 276955000,
+      "population_and_generation_proof": false,
+      "raw_ids": ["21-06-allocation-records", "soak-stable-01-response"]
+    },
+    "canonical_host_backing": {
+      "status": "configured_and_observed_bounded_only",
+      "pressure_context_tokens": 6401,
+      "logical_pages": 26,
+      "host_pages_high_water": 3,
+      "host_valid_rows_high_water": 768,
+      "host_valid_bytes_high_water": 12976100,
+      "full_262k_population_proof": false,
+      "raw_ids": ["receipt-21-06", "soak-resource-timeline", "receipt-21-09"]
+    },
+    "hot_capacity": {
+      "status": "observed_fixed_recovery_and_pressure_only",
+      "pages": 4,
+      "pressure_condition": "26 logical pages exceeded four physical hot pages",
+      "budget_derived_full_context_capacity": "not_demonstrated",
+      "raw_ids": ["receipt-21-06", "soak-resource-timeline", "receipt-21-09"]
+    },
+    "routes_and_movement": {
+      "route_status": "recorded_without_physical_paging_proof",
+      "observed_route_counters": {
+        "prefill_reference_routes": 1,
+        "decode_reference_routes": 19,
+        "mtp_verify_reference_routes": 19,
+        "exact_cold_pages": 0,
+        "exact_pages_visited": 0
+      },
+      "movement_counters": {
+        "h2d_useful_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "faults": 0,
+        "evictions": 0,
+        "transfer_submitted": 0,
+        "transfer_event_completions": 0
+      },
+      "page_identity_correlation": null,
+      "checksum_correlation": null,
+      "event_fence_correlation": null,
+      "interpretation": "Zero movement counters are observations only. No logical-page, host-checksum, promotion, physical-slot, or fence correlation is claimed.",
+      "raw_ids": ["receipt-21-01", "receipt-21-06", "soak-resource-timeline", "soak-stable-01-response", "soak-metrics-089"]
+    }
+  },
+  "quality": {
+    "status": "bounded_only; full_goal_not_measured",
+    "bounded_sentinels": {
+      "dense_all_fit_warm": {"completed": 1, "passed": 1, "failed": 0},
+      "selected_all": {"completed": 6, "passed": 6, "failed": 0},
+      "selective_stopped": {"records": 19, "passed": 8, "failed": 11, "stop_reason": "competing/focus answer mismatch"},
+      "raw_ids": ["receipt-21-01"]
+    },
+    "full_262k_retrieval_quality": {
+      "status": "not_measured",
+      "reason": "Population timed out before any answer; no model-quality failure is inferred.",
+      "raw_ids": ["receipt-21-06", "21-06-population-summary"]
+    },
+    "telemetry_gated_quality_matrix": {
+      "status": "not_measured",
+      "reason": "The 21-05 live preflight lacked required route and movement telemetry.",
+      "raw_ids": ["receipt-21-05", "quality-live-preflight"]
+    }
+  },
+  "context_curve": {
+    "status": "startup_only_no_speed_curve",
+    "rows": [
+      {"context_tokens": 20000, "status": "startup_pass", "logical_pages": 79, "mtp_rows": 20224, "raw_ids": ["curve-startup-20000"]},
+      {"context_tokens": 40000, "status": "startup_pass", "logical_pages": 157, "mtp_rows": 40192, "raw_ids": ["curve-startup-40000"]},
+      {"context_tokens": 60000, "status": "startup_pass", "logical_pages": 235, "mtp_rows": 60160, "raw_ids": ["curve-startup-60000"]},
+      {"context_tokens": 100000, "status": "startup_pass", "logical_pages": 391, "mtp_rows": 100096, "raw_ids": ["curve-startup-100000"]},
+      {"context_tokens": 175000, "status": "startup_failed", "reason": "recurrent-state allocation", "raw_ids": ["curve-startup-175k-journal"]},
+      {"context_tokens": 262144, "status": "startup_failed", "reason": "CUDA compute-buffer allocation", "raw_ids": ["curve-startup-262k-journal"]}
+    ],
+    "warmup": {
+      "status": "incomplete",
+      "rendered_prompt_tokens": 19600,
+      "processed_tokens": 3072,
+      "elapsed_seconds": 134.30,
+      "completed_trials": 0,
+      "raw_ids": ["curve-20k-campaign", "curve-20k-prompt"]
+    },
+    "speed_rows": null,
+    "movement_and_route_rows": null,
+    "raw_ids": ["receipt-21-07"]
+  },
+  "matched_controls": {
+    "status": "not_measured",
+    "completed_target_rows": 0,
+    "paired_control_rows": 0,
+    "cpu_kv_gpu_mtp": {"status": "unavailable_for_pairing", "ratio": null},
+    "all_gpu_turbo4_mtp": {"status": "unavailable_for_pairing", "ratio": null},
+    "observe": {"status": "not_measured", "ratio": null},
+    "mtp_off": {"status": "not_measured", "ratio": null},
+    "rule": "No target row or identity mismatch produces null; no shorter or historical run is promoted.",
+    "raw_ids": ["receipt-21-08", "controls-curve-evidence", "controls-current-control-config", "controls-historical-controls"]
+  },
+  "bounded_soak": {
+    "status": "incomplete_abort",
+    "context_tokens": 6401,
+    "logical_pages": 26,
+    "hot_pages": 4,
+    "warm_focus": {
+      "completed_requests": 1,
+      "occupied_prompt_tokens": 6393,
+      "completion_tokens": 6,
+      "wall_seconds": 348.2877993530128,
+      "mtp_draft_tokens": 4,
+      "mtp_accepted_tokens": 4,
+      "raw_ids": ["soak-stable-01-response"]
+    },
+    "failure": {
+      "class": "runtime_abort_during_checkpoint_save",
+      "assertion": "ggml_backend_tensor_get: offset + size <= ggml_nbytes(tensor)",
+      "raw_ids": ["soak-stable-02-response", "soak-restored-systemd"]
+    },
+    "not_measured": [
+      "known cold-page promotion",
+      "page/checksum/fence correlation",
+      "early/middle/late focus shift",
+      "sustained churn",
+      "cancellation/drain",
+      "checkpoint restore",
+      "slot reuse",
+      "post-soak restart"
+    ],
+    "restoration": "The exact 262144-token fixed-four-page profile was restored healthy; this does not repair or pass the soak.",
+    "raw_ids": ["receipt-21-09", "soak-resource-timeline", "soak-restored-command", "soak-restored-systemd"]
+  },
+  "yarn": {
+    "status": "not_attempted_base_goal_unmet",
+    "requested_context_tokens": null,
+    "position_metadata": null,
+    "occupancy": null,
+    "memory": null,
+    "quality": null,
+    "speed": null,
+    "raw_ids": ["receipt-21-10", "yarn-base-256k-receipt"]
+  },
+  "ranked_bottlenecks": [
+    {
+      "rank": 1,
+      "finding": "Long-context prefill/context execution is the first measured blocker.",
+      "evidence": "The 20K warmup processed 3072 of 19600 prompt tokens in 134.30 seconds without a response; the 262K population later processed 15360 tokens in 1200.0778666429687 seconds without a response.",
+      "confidence": "high",
+      "causal_isolation": "not possible without a completed matched target/control row",
+      "raw_ids": ["curve-20k-campaign", "21-06-population-summary"]
+    },
+    {
+      "rank": 2,
+      "finding": "Native-MTP high-context allocation headroom and automatic hot-budget admission are blockers.",
+      "evidence": "Automatic startup failed at 175K and 262144, and the 262K auto hot-page attempt hit CUDA OOM while fixed four pages recovered allocation.",
+      "confidence": "high",
+      "causal_isolation": "Allocation failures identify the blocked stage, not a speed share.",
+      "raw_ids": ["curve-startup-175k-journal", "curve-startup-262k-journal", "receipt-21-06"]
+    },
+    {
+      "rank": 3,
+      "finding": "Checkpoint-save lifecycle failure aborts repeated pressure work.",
+      "evidence": "The second equal-work 6401-token request hit the tensor bounds assertion and disconnected; the harness stopped before promotion and lifecycle correlation.",
+      "confidence": "high",
+      "causal_isolation": "The assertion identifies the observed lifecycle failure; it does not establish a general paging-transfer cause.",
+      "raw_ids": ["soak-stable-02-response", "soak-restored-systemd"]
+    },
+    {
+      "rank": 4,
+      "finding": "Pager, transfer, and synchronization cost cannot be separated from model compute.",
+      "evidence": "There are no completed release-matched target/control rows and no correlated physical movement telemetry; zero counters are not interpreted as no movement.",
+      "confidence": "high",
+      "causal_isolation": "Measurement limitation",
+      "raw_ids": ["receipt-21-08", "receipt-21-07", "receipt-21-09"]
+    }
+  ],
+  "checks": [
+    {"name": "Target provenance and exclusion policy", "status": "pass", "raw_ids": ["receipt-21-01", "receipt-21-07", "receipt-21-08", "receipt-21-09"]},
+    {"name": "Base 256K allocation", "status": "pass", "raw_ids": ["21-06-allocation-run-config", "21-06-allocation-records"]},
+    {"name": "Base 256K population, retrieval, and continuation", "status": "fail", "raw_ids": ["21-06-population-summary", "receipt-21-06"]},
+    {"name": "Turbo4 target/draft codecs and GPU MTP placement", "status": "pass", "raw_ids": ["receipt-21-06", "21-06-allocation-records", "soak-stable-01-response"]},
+    {"name": "Physical paging movement proof", "status": "not_measured", "raw_ids": ["soak-metrics-089", "receipt-21-09"]},
+    {"name": "Three-prompt speed curve", "status": "not_measured", "raw_ids": ["receipt-21-07", "curve-20k-campaign"]},
+    {"name": "Matched controls", "status": "not_measured", "raw_ids": ["receipt-21-08", "controls-curve-evidence"]},
+    {"name": "YaRN stretch", "status": "not_measured", "raw_ids": ["receipt-21-10", "yarn-base-256k-receipt"]}
+  ],
+  "failure": {
+    "class": "base_functionality_and_measurement_incomplete",
+    "summary": "The receipts establish constrained allocation and bounded diagnostics but do not establish full-context population, retrieval, continuation, physical page movement, a completed speed curve, or matched controls.",
+    "raw_ids": ["receipt-21-06", "receipt-21-07", "receipt-21-08", "receipt-21-09"]
+  },
+  "raw_index": [
+    {"id": "receipt-21-01", "path": ".wiretail/execution/evidence/PHASE21_CAPABILITY.json", "sha256": "a7e422f72175a1a0ade7cb3247469e96261fb8803ac0395c1538850bc131b9cb"},
+    {"id": "receipt-21-04", "path": ".wiretail/execution/evidence/PHASE21_HARNESS.json", "sha256": "aaec4aa420da0313d508eb3c29f5a86293dbad7cd44a04501127c1924cacc4f6"},
+    {"id": "receipt-21-05", "path": ".wiretail/execution/evidence/PHASE21_QUALITY.json", "sha256": "4214269936a5e75125781ac391b54131d9be7416d26839e16a315ce1c0c2932f"},
+    {"id": "receipt-21-06", "path": ".wiretail/execution/evidence/PHASE21_FULL256K.json", "sha256": "e6e4659aa3d5d3be9fdfca2e1b5296f7a401e52c5ec732a278daaa62df0deeda"},
+    {"id": "receipt-21-07", "path": ".wiretail/execution/evidence/PHASE21_CURVE.json", "sha256": "ee1a39145990b5f3f55ec5c68050460af26efd9794dc7846a1b0064433b0ab90"},
+    {"id": "receipt-21-08", "path": ".wiretail/execution/evidence/PHASE21_CONTROLS.json", "sha256": "82889c8742fdeb5dd0ffee0d79ee0ebae754f224088e5d122b75ad75a964b2cd"},
+    {"id": "receipt-21-09", "path": ".wiretail/execution/evidence/PHASE21_SOAK.json", "sha256": "ca66a3b3fc0629d60798876a7cd32cf89b262c36877ac94557887c213180ece1"},
+    {"id": "receipt-21-10", "path": ".wiretail/execution/evidence/PHASE21_YARN.json", "sha256": "0bd8309534f14f57618f58803d73fa02cabded9cde515090d03a01c3519529cb"},
+    {"id": "corpus-fixture", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "curve-binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "curve-model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "curve-corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "controls-target-binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "controls-target-model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "controls-target-corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "soak-bundle-manifest", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/bundle-manifest.json", "sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401"},
+    {"id": "soak-server-binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "soak-model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "soak-corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "21-06-allocation-run-config", "path": "/srv/ai/paged-kv/results/21-06-allocation-fixed4-20260906T045000Z/run-config.json", "sha256": "ace8dbc4979be654fee9ae941bd3bf92da1bbb4c9a42ca249073bc8863c565f3"},
+    {"id": "21-06-allocation-records", "path": "/srv/ai/paged-kv/results/21-06-allocation-fixed4-20260906T045000Z/records.jsonl", "sha256": "e276a5a846f36b480a3415d04f329bfabeb5389985f9cf0ede3efa530c2ca28a"},
+    {"id": "21-06-population-summary", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/raw/population-summary.json", "sha256": "a5a9a8c23a68c3fb391be91a081ea52446f4c301e2fb672ea4cc4291cf6b6218"},
+    {"id": "21-06-population-metrics", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/raw/metrics-after-near-full-population.txt", "sha256": "446c0bc1740fc63f9ecba8853c3673fb576b2e1182346219eaa64d6186801970"},
+    {"id": "21-06-population-slots", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/raw/slots-after-near-full-population.json", "sha256": "1ab201ae6e032b9ff99e232b97ca0b954d8ad068b94b539d84a20b8189d2d49e"},
+    {"id": "21-06-population-records", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/records.jsonl", "sha256": "f6b5404dcd571a7a27720b4e75433979eef929fd38f646b1e9178cb4c5041c50"},
+    {"id": "curve-startup-20000", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/20000/metrics.txt", "sha256": "65e01d83b1454d8b0c6a111124fbbd0a18c3eddd8eb6423fc3c6422a11ba9756"},
+    {"id": "curve-startup-40000", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/40000/metrics.txt", "sha256": "29cf06adfc40e7c6933ada9fac31a35b87d103347fa42e0e7aa5054e1455c5e8"},
+    {"id": "curve-startup-60000", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/60000/metrics.txt", "sha256": "6f98d856ec02680aefae10548c286c323f99b928b7737f6cbd617f1ffc429f19"},
+    {"id": "curve-startup-100000", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/100000/metrics.txt", "sha256": "afa32bb9b46b1cf5f2fbb3a590ee89c38a7560d8c03f971f06dcbd9a15e9f157"},
+    {"id": "curve-startup-175k-journal", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/175000/journal.txt", "sha256": "7c49c042d61f803a1e408a479680d3cca87f573a1575f410bbfb1dff31283240"},
+    {"id": "curve-startup-262k-journal", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/262144/journal.txt", "sha256": "722c993144ebed94fd81b5ff0a51856886f710fa67749157b708286b9f79042d"},
+    {"id": "curve-20k-campaign", "path": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z/campaign.json", "sha256": "77d9238c28de948e8ca3d11f880cce2f07a771e45d0cb0c57826f117805792b2"},
+    {"id": "curve-20k-prompt", "path": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z/prompt-0.txt", "sha256": "83a03ea232af5181805e9b7ae553bb64acfd521843ae654a8c11f9f7727f2fe3"},
+    {"id": "soak-resource-timeline", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/resource-timeline.jsonl", "sha256": "9863facc5a1c6ef4e5769498110d0c1e836a57cd841d19e56c08ef9dd93d7775"},
+    {"id": "soak-stable-01-response", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/stable-01.response.json", "sha256": "db5cb6c90a7d182c314df2e7181ee8576f36260a2976c00af1932b0fde8349d1"},
+    {"id": "soak-stable-02-response", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/stable-02.response.body", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+    {"id": "soak-restored-command", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/restored-command.txt", "sha256": "19ddef1ffcde08edaba92e0a14bb9f5ff93b002bea06370887e8739e215c71ee"},
+    {"id": "soak-restored-systemd", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/restored-systemd.txt", "sha256": "6953c0ce138326e9e84d18b2f207d97f9f3140f47722f6a7368859caba209361"},
+    {"id": "soak-metrics-089", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/metrics-sample-089.txt", "sha256": "9ef79161b39ec619ea88fea680964c104406262549c917aeed6e19112e123be4"},
+    {"id": "controls-curve-evidence", "path": ".wiretail/execution/evidence/PHASE21_CURVE.json", "sha256": "ee1a39145990b5f3f55ec5c68050460af26efd9794dc7846a1b0064433b0ab90"},
+    {"id": "controls-current-control-config", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/live-candidate-sentinel-v2/run-config.json", "sha256": "b42689d6714a93ee7f58fa65d16bac882cac427f8cd61ef78f230c0eb9137a6f"},
+    {"id": "controls-current-control-record", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/live-candidate-sentinel-v2/records.jsonl", "sha256": "26bac773735816dd1eac9677493baf288f0b6935f1b22c05dc447a84e10f6d10"},
+    {"id": "controls-historical-controls", "path": ".wiretail/execution/evidence/20-06_CONTROLS.json", "sha256": "43a0cee86608c67e8cbe1893834634d6f9a91492b0007f3ffbc7a9ea792cf463"},
+    {"id": "quality-live-preflight", "path": ".wiretail/execution/evidence/PHASE21_QUALITY.live-preflight.json", "sha256": "4446fef3e2cd1ca847fa131841099c324e218a9b9cddc3c43746ba7da67d7f6a"},
+    {"id": "yarn-base-256k-receipt", "path": ".wiretail/execution/evidence/PHASE21_FULL256K.json", "sha256": "e6e4659aa3d5d3be9fdfca2e1b5296f7a401e52c5ec732a278daaa62df0deeda"}
+  ],
+  "resume": {
+    "command": "Repair the ranked base blockers, then rerun the explicit phase-21 acceptance protocols with the same target identity before revisiting any optional YaRN work.",
+    "secrets_omitted": true,
+    "next_required_gate": "base_goal_demonstrated=true and release-matched target rows exist before speed/control claims"
+  },
+  "deferred_verification": {
+    "required": true,
+    "items": [
+      "Repair automatic hot-budget admission and native-MTP high-context allocation.",
+      "Complete near-262K population with generation headroom, early/middle/late/recent retrieval, focus shift, and continuation.",
+      "Repair checkpoint-save assertion and correlate page IDs, host checksums, physical slots, transfer events, and fences under pressure.",
+      "Complete the six-context three-prompt speed curve and release-matched CPU-KV/GPU-MTP and dense all-GPU controls.",
+      "Revisit YaRN only after the base gate is proven."
+    ],
+    "hardware_or_human_action": "No unavailable hardware, hosted service, or human action caused the missing evidence; the remaining work is local runtime repair and measurement."
+  }
+}
