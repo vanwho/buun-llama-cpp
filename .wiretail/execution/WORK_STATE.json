@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "24",
-  "current_task": "24-01",
-  "last_updated_utc": "2026-09-06T08:24:39+00:00",
+  "current_phase": "25",
+  "current_task": "25-01",
+  "last_updated_utc": "2026-09-06T08:36:44+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "test_context_policy": "development tests use purpose-appropriate context, occupancy and test hot budget; the six 20K/40K/60K/100K/175K/256K coordinates are only final results collection after functionality works, never routine phase/task gates",
     "speed_target": "annotate historical 3x/5x CPU KV and 70% comparable all-GPU comparisons without gating completion of measurement tasks",
     "full_context_proof": "262144 resolved target and GPU Turbo4 MTP rows, near-full token-counted occupancy with generation headroom, canonical CPU backing and bounded hot VRAM with real transfers",
-    "required_final_status": "Phase 21 produced an incomplete compact summary; 22-01 Sol High assesses only that summary, schedules phase 23 measured repair/remeasurement, and 24-01 Sol High reviews only the new phase-23 summary",
+    "required_final_status": "Phase 24 found the phase-23 goal not reached and schedules phase 25 to own a coherent repaired deployment and live remeasurement; 26-01 Sol High reviews only the resulting phase-25 summary",
     "stretch_goal": "YaRN beyond 256K is conditional on proven base capability and separately reported, never an excuse to shrink or disable Turbo4 GPU MTP"
   },
   "external_gates": [
@@ -4272,11 +4272,250 @@
       "cluster": "24a-benchmark-review",
       "title": "Independently assess the phase-23 benchmark summary",
       "packet": ".wiretail/execution/tasks/24-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Sol High",
       "depends_on": [
         "23-11"
+      ],
+      "commit": "badbb7a7abb71733fdeb21058d0364b1ebde63b1",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-sol",
+            "reasoning": "high",
+            "source": ".wiretail/build/24-01-attempt-1-20260906T082501Z.jsonl:71",
+            "total_tokens": 2811031,
+            "total_tokens_derived": true,
+            "input_tokens": 2780556,
+            "cached_input_tokens": 2663168,
+            "output_tokens": 30475,
+            "thinking_tokens": 7492
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 2811031,
+          "input_tokens": 2780556,
+          "cached_input_tokens": 2663168,
+          "output_tokens": 30475,
+          "thinking_tokens": 7492
+        }
+      }
+    },
+    {
+      "id": "25-01",
+      "phase": "25",
+      "cluster": "25a-runtime-proof",
+      "title": "Own and deploy the immutable repaired runtime",
+      "packet": ".wiretail/execution/tasks/25-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "24-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-02",
+      "phase": "25",
+      "cluster": "25a-runtime-proof",
+      "title": "Prove occupied 262,144-token paging and GPU MTP",
+      "packet": ".wiretail/execution/tasks/25-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-03",
+      "phase": "25",
+      "cluster": "25b-quality-lifecycle",
+      "title": "Measure cold identity, parity and quality tradeoffs",
+      "packet": ".wiretail/execution/tasks/25-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-02"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-04",
+      "phase": "25",
+      "cluster": "25b-quality-lifecycle",
+      "title": "Prove physical paging and lifecycle stability",
+      "packet": ".wiretail/execution/tasks/25-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-03"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-05",
+      "phase": "25",
+      "cluster": "25c-performance",
+      "title": "Measure the repaired six-point Turbo4 curve",
+      "packet": ".wiretail/execution/tasks/25-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-04"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-06",
+      "phase": "25",
+      "cluster": "25c-performance",
+      "title": "Measure release-matched controls and bottlenecks",
+      "packet": ".wiretail/execution/tasks/25-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-05"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-07",
+      "phase": "25",
+      "cluster": "25d-stretch-summary",
+      "title": "Re-evaluate conditional YaRN stretch",
+      "packet": ".wiretail/execution/tasks/25-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-06"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-08",
+      "phase": "25",
+      "cluster": "25d-stretch-summary",
+      "title": "Consolidate phase-25 benchmark evidence",
+      "packet": ".wiretail/execution/tasks/25-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-07"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "26-01",
+      "phase": "26",
+      "cluster": "26a-benchmark-review",
+      "title": "Independently assess the phase-25 benchmark summary",
+      "packet": ".wiretail/execution/tasks/26-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Sol High",
+      "depends_on": [
+        "25-08"
       ],
       "commit": null,
       "token_usage": {
@@ -5255,6 +5494,42 @@
       }
     },
     "24": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-sol",
+          "reasoning": "high",
+          "source": ".wiretail/build/24-01-attempt-1-20260906T082501Z.jsonl:71",
+          "total_tokens": 2811031,
+          "total_tokens_derived": true,
+          "input_tokens": 2780556,
+          "cached_input_tokens": 2663168,
+          "output_tokens": 30475,
+          "thinking_tokens": 7492
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 2811031,
+        "input_tokens": 2780556,
+        "cached_input_tokens": 2663168,
+        "output_tokens": 30475,
+        "thinking_tokens": 7492
+      }
+    },
+    "25": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "26": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -5268,12 +5543,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 53,
-      "total_tokens": 840602464,
-      "input_tokens": 838486398,
-      "cached_input_tokens": 821986304,
-      "output_tokens": 2116066,
-      "thinking_tokens": 730080
+      "turns": 54,
+      "total_tokens": 843413495,
+      "input_tokens": 841266954,
+      "cached_input_tokens": 824649472,
+      "output_tokens": 2146541,
+      "thinking_tokens": 737572
     },
     "source": "Codex turn.completed usage events"
   }

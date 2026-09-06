@@ -1,0 +1,278 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "24-01",
+  "result": "pass",
+  "kind": "review",
+  "procedure": "phase_summary_benchmark_only_review",
+  "created_utc": "2026-09-06T08:28:36Z",
+  "reviewed_phase": "23",
+  "summary_sha256": "0809c8eb91aaf703a5dbc0d595ec6e02263ad4c0c5e0aa39c6a9f9f132060af1",
+  "provenance": {
+    "review_source_commit": "badbb7a7abb71733fdeb21058d0364b1ebde63b1",
+    "source_diff_sha256": null,
+    "reviewed_summary_repository_head": "9a0987ecfca77c68e09b7288f224cfc0f7d0e4fd",
+    "required_repaired_source_commit": "e981d13e846ca98100118cc92c502f4d37dba99f",
+    "candidate_binary_sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f",
+    "candidate_dso_sha256": {
+      "libggml_cuda": "ff0fe499f248897c4213ecc7a77afe8f153adb2cfb467bd1184291e0ee48140b",
+      "libllama": "31ef8b1f1d2950e0f740e8281c8fd2d0ec2953405e1291a6ad8892f126f5ed9f",
+      "libllama_server_impl": "aa1ce42a4098b7b35062a3712715269144584860ad7c8eda3a42e54900f89e30"
+    },
+    "candidate_deployed": false,
+    "preserved_bundle_manifest_sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401",
+    "preserved_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "runtime_chat_template_sha256": null,
+    "config_sha256": null,
+    "hardware": "NVIDIA GeForce RTX 4080; CUDA 12.4.131; architecture 89-real"
+  },
+  "provenance_unavailable": {
+    "source_diff_sha256": "This benchmark-only review changes execution metadata and launches no production build.",
+    "runtime_chat_template_sha256": "No repaired phase-23 candidate was deployed.",
+    "config_sha256": "No immutable phase-23 target configuration was launched."
+  },
+  "provenance_review": {
+    "status": "measured",
+    "summary_hash_match": true,
+    "common_contract_valid": true,
+    "representative_raw_hashes_match": true,
+    "representative_raw_count": 22,
+    "mixed_runtime_rejected": true,
+    "finding": "The summary and representative indexed artifacts are intact. The repaired local executable and DSOs are a different identity from the preserved deployed bundle, and absent template/configuration identity is correctly rejected rather than borrowed from historical evidence.",
+    "raw_ids": [
+      "phase23_summary_json",
+      "phase23_summary_md",
+      "receipt_23_01",
+      "receipt_23_02",
+      "receipt_23_03",
+      "receipt_23_04",
+      "receipt_23_05",
+      "receipt_23_06",
+      "receipt_23_07",
+      "receipt_23_08",
+      "receipt_23_09",
+      "receipt_23_10",
+      "candidate_binary",
+      "candidate_libggml_cuda",
+      "candidate_libllama",
+      "candidate_server_impl",
+      "deployed_binary",
+      "deployed_bundle_manifest",
+      "target_model",
+      "target_corpus",
+      "quality_runtime",
+      "prefill_20k_metrics"
+    ]
+  },
+  "goal_checks": [
+    {
+      "id": "summary_hash_and_indexed_provenance",
+      "status": "measured",
+      "finding": "The phase-23 JSON SHA-256 is 0809c8eb91aaf703a5dbc0d595ec6e02263ad4c0c5e0aa39c6a9f9f132060af1; its common contract passes and all 22 independently sampled index entries match.",
+      "raw_ids": ["phase23_summary_json", "phase23_summary_md"]
+    },
+    {
+      "id": "coherent_repaired_runtime_provenance",
+      "status": "failed",
+      "finding": "The repaired candidate was not deployed, its binary differs from the preserved runtime, and phase 23 has neither a repaired runtime template hash nor a configuration hash.",
+      "raw_ids": ["receipt_23_05", "receipt_23_07", "candidate_binary", "deployed_binary", "deployed_bundle_manifest"]
+    },
+    {
+      "id": "full_262144_allocation_and_occupancy",
+      "status": "failed",
+      "finding": "Only deterministic 262144-token geometry was measured. Automatic production allocation and the requested 262136-token occupied population were not run, so the composite base gate failed.",
+      "raw_ids": ["receipt_23_06"]
+    },
+    {
+      "id": "canonical_cpu_turbo4_backing",
+      "status": "not_measured",
+      "finding": "No repaired production run emitted canonical host-valid Turbo4 rows or bytes at near-full occupancy.",
+      "raw_ids": ["receipt_23_06", "receipt_23_09"]
+    },
+    {
+      "id": "budget_derived_bounded_gpu_target_pages",
+      "status": "not_measured",
+      "finding": "Admission/retry fixtures passed, but no production allocation reported a reconciled byte ledger, derived hot pages, physical pool charge, or warmup peak.",
+      "raw_ids": ["receipt_23_01", "receipt_23_06"]
+    },
+    {
+      "id": "attention_driven_cold_retrieval",
+      "status": "not_measured",
+      "finding": "The fake multi-page transaction measured candidate selection, H2D construction, publication and rollback, but no production query linked a cold logical page through checksum, event/fence, slot/generation, route and answer.",
+      "raw_ids": ["receipt_23_04", "receipt_23_09"]
+    },
+    {
+      "id": "full_context_gpu_turbo4_mtp",
+      "status": "not_measured",
+      "finding": "No fresh 262144-context allocation observed native MTP K/V as Turbo4, exactly 262144 rows, and GPU residency through occupied-context continuation.",
+      "raw_ids": ["receipt_23_06"]
+    },
+    {
+      "id": "lossless_identity_selected_all_exact_parity",
+      "status": "not_measured",
+      "finding": "Production selected-all and exact denominators are both zero; no cold-page identity chain or full-context lossless result exists.",
+      "raw_ids": ["receipt_23_05", "receipt_23_06"]
+    },
+    {
+      "id": "quality_tradeoffs",
+      "status": "not_measured",
+      "finding": "All 72 planned exact, selected-all and selective requests remained unexecuted, and the frozen corpus contains no multi-hop family.",
+      "raw_ids": ["receipt_23_05", "target_corpus"]
+    },
+    {
+      "id": "physical_pressure_and_lifecycle_soak",
+      "status": "not_measured",
+      "finding": "No repaired-bundle soak segment ran, so movement correlation, churn, cancellation/drain, checkpoint restore, restart, slot reuse, and resource plateau are absent.",
+      "raw_ids": ["receipt_23_09"]
+    },
+    {
+      "id": "speed_curve_and_matched_controls",
+      "status": "not_measured",
+      "finding": "The six-point curve has zero target rows and controls have zero pairs. No speed ratio or component bottleneck is measurable; 3x/5x/70% remain annotations only.",
+      "raw_ids": ["receipt_23_07", "receipt_23_08", "prefill_20k_metrics"]
+    },
+    {
+      "id": "yarn_stretch",
+      "status": "not_measured",
+      "finding": "The optional stretch was correctly skipped because the base goal was not demonstrated and does not affect the verdict.",
+      "raw_ids": ["receipt_23_10"]
+    }
+  ],
+  "quality_result": {
+    "status": "not_measured",
+    "planned_requests": 72,
+    "executed_requests": 0,
+    "exact": "0/0",
+    "selected_all": "0/0",
+    "selective": "0/0",
+    "multi_hop": "absent_from_corpus",
+    "interpretation": "No quality or reversible sparsity tradeoff can be scored from a zero denominator."
+  },
+  "performance_result": {
+    "status": "not_measured",
+    "valid_target_rows": 0,
+    "paired_control_rows": 0,
+    "speed_verdict": "No actual phase-23 curve or bottleneck decomposition exists. The historical comparison targets are findings, not gates, and are not used as substitutes.",
+    "historical_threshold_policy": "3x/5x CPU-KV and 70% all-GPU comparisons remain annotations, not pass gates."
+  },
+  "soak_result": {
+    "status": "not_measured",
+    "completed_segments": 0,
+    "cold_promotion_correlation": "not_measured",
+    "resource_lifecycle": "not_measured"
+  },
+  "verdict": "not_reached",
+  "verdict_reason": "Phase 23 validates several deterministic repairs but does not deploy their coherent product bundle. Every hard live requirement—262144 occupied context, CPU-canonical backing, derived hot pages, GPU Turbo4 MTP, production cold retrieval, parity, quality, soak, and speed/control rows—either failed as a composite gate or was not measured.",
+  "ranked_gaps": [
+    {
+      "rank": 1,
+      "gap": "No benchmark-owned immutable repaired deployment or complete telemetry preflight.",
+      "hypothesis": "The phase-23 cascade stopped because no task owned a safe lifecycle transition and immutable executable-plus-DSO launch; once ownership, staging and telemetry are one atomic preflight, downstream requests can run without mixing the preserved runtime.",
+      "source_owner": "tools/server/bench runtime lifecycle and bundle manifest code; server pager telemetry endpoint/adapter",
+      "minimal_reproducer": "Stage the repaired binary and loader-resolved DSOs, launch it on a task-owned free loopback port after an ownership audit, verify /proc executable/maps against the manifest, and send one exact, one selected-all and one forced-paged request.",
+      "measurement_change": "A single bundle/model/template/config identity and all required request telemetry fields are present for three requests; no historical endpoint contributes a row.",
+      "owning_task": "25-01",
+      "raw_ids": ["receipt_23_05", "receipt_23_07", "candidate_binary", "deployed_binary"]
+    },
+    {
+      "rank": 2,
+      "gap": "The repaired admission and residency path has no occupied 262144-token production proof.",
+      "hypothesis": "With the coherent repaired bundle loaded, the repaired admission ledger can derive a nonzero safe hot pool while retaining exact logical context and full native-MTP rows, and resumable bounded prefill can reach 262136 occupied tokens.",
+      "source_owner": "llama_context::init_kv_pager, cache-budget admission/retry, bounded prefill, host seal and native-MTP allocation",
+      "minimal_reproducer": "Fresh automatic 262144 startup followed by checkpointed population to 262136 tokens, early/middle/late/recent/focus retrieval, and an eight-token continuation.",
+      "measurement_change": "One production receipt jointly records 1024 logical pages, near-full occupancy, canonical host rows, reconciled derived hot pages, useful movement, retrieval answers, and exactly 262144 GPU Turbo4 MTP rows.",
+      "owning_task": "25-02",
+      "raw_ids": ["receipt_23_01", "receipt_23_03", "receipt_23_06"]
+    },
+    {
+      "rank": 3,
+      "gap": "Production cold retrieval, exact/selected-all parity and multi-hop quality have no denominator.",
+      "hypothesis": "The authenticated multi-page transaction and Qwen 24:4 direct route will preserve selected-all/exact parity and retrieve a cold needle in production once complete telemetry is captured; a deterministic multi-hop record can expose selection-quality loss not covered by pager-corpus-v4.",
+      "source_owner": "finish_pager_batch/apply_live_policy and selected-table publication; tools/server/bench corpus generator and quality scorer",
+      "minimal_reproducer": "A 6K-8K four-hot-page exact/selected-all/selective sequence with known early and multi-hop cold needles before the full frozen quality matrix.",
+      "measurement_change": "Nonzero exact/selected-all/selective denominators plus page/checksum/event/fence/slot/generation/route/answer correlation and a newly hashed multi-hop corpus row.",
+      "owning_task": "25-03",
+      "raw_ids": ["receipt_23_04", "receipt_23_05"]
+    },
+    {
+      "rank": 4,
+      "gap": "Checkpoint/promotion lifecycle and resource plateau were never exercised on the repaired runtime.",
+      "hypothesis": "Physical-identity checkpoint serialization and transactional promotion fixes survive repeated occupied-greater-than-hot cycles without stale publication, bounds faults, state loss or resource growth.",
+      "source_owner": "llama_context::state_seq_get_data, paged KV checkpoint views, transfer lifecycle and run-pager-soak.py",
+      "minimal_reproducer": "Three equal-work save/restore/continuation cycles with forced promotion, cancellation/drain and slot reuse before the full segmented soak.",
+      "measurement_change": "All lifecycle segments correlate identity and movement and show bounded before/high-water/after resources with no fault or state loss.",
+      "owning_task": "25-04",
+      "raw_ids": ["receipt_23_02", "receipt_23_04", "receipt_23_09"]
+    },
+    {
+      "rank": 5,
+      "gap": "No speed curve, matched controls or measured bottleneck follows the Qwen direct-route repair.",
+      "hypothesis": "The repaired GQA-6 direct-route admission produces observable selected_direct work on the coherent bundle, allowing completed context rows and matched controls to separate model, pager, transfer and synchronization costs.",
+      "source_owner": "prepare_kv_attention_graph, CUDA paged Turbo4 dispatcher, graph reuse telemetry and final-curve/control drivers",
+      "minimal_reproducer": "Matched 4K/8K direct-route smoke and one 20K warmup before the six-point original-three-prompt campaign.",
+      "measurement_change": "Completed target rows and release-matched control pairs report pp/tg, wall time, route fractions, movement, graph reuse, memory, variability and bottleneck shares.",
+      "owning_tasks": ["25-05", "25-06"],
+      "raw_ids": ["receipt_23_03", "receipt_23_07", "receipt_23_08", "prefill_20k_metrics"]
+    }
+  ],
+  "next_phase": {
+    "phase": "25",
+    "first_task": "25-01",
+    "implementation_and_gate_tasks": ["25-01", "25-02", "25-03", "25-04"],
+    "measurement_tasks": ["25-05", "25-06", "25-07", "25-08"],
+    "benchmark_only_review": "26-01",
+    "review_model": "Sol High"
+  },
+  "checks": [
+    {"name": "Phase-23 summary hash, common contract and representative raw hashes", "status": "pass", "raw_ids": ["phase23_summary_json", "phase23_summary_md"]},
+    {"name": "Repaired immutable runtime provenance", "status": "fail", "raw_ids": ["receipt_23_05", "receipt_23_07", "candidate_binary", "deployed_binary"]},
+    {"name": "262144 allocation and occupied-context functionality", "status": "fail", "raw_ids": ["receipt_23_06"]},
+    {"name": "CPU-canonical Turbo4, derived hot pages and full-context GPU Turbo4 MTP", "status": "not_measured", "raw_ids": ["receipt_23_01", "receipt_23_06"]},
+    {"name": "Production cold retrieval and lossless parity", "status": "not_measured", "raw_ids": ["receipt_23_04", "receipt_23_05", "receipt_23_09"]},
+    {"name": "Quality tradeoffs", "status": "not_measured", "raw_ids": ["receipt_23_05"]},
+    {"name": "Physical movement and lifecycle soak", "status": "not_measured", "raw_ids": ["receipt_23_09"]},
+    {"name": "Speed curve and matched controls", "status": "not_measured", "raw_ids": ["receipt_23_07", "receipt_23_08"]},
+    {"name": "Actionable phase-25 chain and phase-26 review", "status": "pass", "raw_ids": ["phase23_summary_json"]}
+  ],
+  "raw_index": [
+    {"id": "phase23_summary_json", "path": ".wiretail/execution/evidence/PHASE23_BENCHMARK_SUMMARY.json", "sha256": "0809c8eb91aaf703a5dbc0d595ec6e02263ad4c0c5e0aa39c6a9f9f132060af1"},
+    {"id": "phase23_summary_md", "path": ".wiretail/execution/evidence/PHASE23_BENCHMARK_SUMMARY.md", "sha256": "51728d2b85be2e6cd4350ba1614debb5b771ecf6430f68b405fbdcd6a614dae1"},
+    {"id": "receipt_23_01", "path": ".wiretail/execution/evidence/PHASE23_ADMISSION.json", "sha256": "87682d8ca64f725dee48f2c5b976b19eb811aa8a776ed5812d014c634856a2bc"},
+    {"id": "receipt_23_02", "path": ".wiretail/execution/evidence/PHASE23_CHECKPOINT.json", "sha256": "39afd255f7db2e2b9581f4a893007d0e48581122baf183198a6edb9e855c126f"},
+    {"id": "receipt_23_03", "path": ".wiretail/execution/evidence/PHASE23_PREFILL.json", "sha256": "ce206f7bf27090407420c75f7c8c0c460118e4971cd41a0008571d4554e65ae1"},
+    {"id": "receipt_23_04", "path": ".wiretail/execution/evidence/PHASE23_RESIDENCY.json", "sha256": "c1e68734085c124ed35614f7036654b90a9f8f8924a13fa2862b08e4da1e0c0b"},
+    {"id": "receipt_23_05", "path": ".wiretail/execution/evidence/PHASE23_QUALITY.json", "sha256": "626dfa5a4372fe65c01dfaa241d45d3494bd4e8ed706ed2d58aa5f428278511d"},
+    {"id": "receipt_23_06", "path": ".wiretail/execution/evidence/PHASE23_FULL256K.json", "sha256": "fa39c24432c225cc4e26468b5c16477c2f47c1c7deb28d51ae8f05c5b56572e5"},
+    {"id": "receipt_23_07", "path": ".wiretail/execution/evidence/PHASE23_CURVE.json", "sha256": "21bb7d95a723dda3a187515f8dd097904da5b69a833347df3778e931c1ffa8d6"},
+    {"id": "receipt_23_08", "path": ".wiretail/execution/evidence/PHASE23_CONTROLS.json", "sha256": "90198c2575b9caa7d02b4d7135d894345edc0b927dab164d41d44d6a10dd92bd"},
+    {"id": "receipt_23_09", "path": ".wiretail/execution/evidence/PHASE23_SOAK.json", "sha256": "929626cf8911ea41d462b4d27bba20657d3e523130da334966f508f3ab50eced"},
+    {"id": "receipt_23_10", "path": ".wiretail/execution/evidence/PHASE23_YARN.json", "sha256": "c857d5497852e09f1e02c0fe3999515d3cbb7fb9bc9911d44711030a532b0f84"},
+    {"id": "candidate_binary", "path": "build-cuda/bin/llama-server", "sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f"},
+    {"id": "candidate_libggml_cuda", "path": "build-cuda/bin/libggml-cuda.so.0.22.0", "sha256": "ff0fe499f248897c4213ecc7a77afe8f153adb2cfb467bd1184291e0ee48140b"},
+    {"id": "candidate_libllama", "path": "build-cuda/bin/libllama.so.0.3.0", "sha256": "31ef8b1f1d2950e0f740e8281c8fd2d0ec2953405e1291a6ad8892f126f5ed9f"},
+    {"id": "candidate_server_impl", "path": "build-cuda/bin/libllama-server-impl.so", "sha256": "aa1ce42a4098b7b35062a3712715269144584860ad7c8eda3a42e54900f89e30"},
+    {"id": "deployed_binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "deployed_bundle_manifest", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/bundle-manifest.json", "sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401"},
+    {"id": "target_model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "target_corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "quality_runtime", "path": ".wiretail/execution/evidence/PHASE23_QUALITY.runtime.md", "sha256": "11d685cb5cca7be09da11b6a9cc6bc8edc7cc9c732cb019c695a3a0871367ab0"},
+    {"id": "prefill_20k_metrics", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/20000/metrics.txt", "sha256": "65e01d83b1454d8b0c6a111124fbbd0a18c3eddd8eb6423fc3c6422a11ba9756"}
+  ],
+  "failure": null,
+  "resume": {
+    "command": "Outer runner starts 25-01; establish a benchmark-owned immutable repaired bundle and pass the three-mode telemetry preflight before any campaign row is accepted.",
+    "next_case": "25-01 immutable bundle identity and exact/selected-all/forced-paged telemetry preflight",
+    "secrets_omitted": true
+  },
+  "implementation_owner": null,
+  "deferred_verification": {
+    "required": true,
+    "items": [
+      "Phase 25 must deploy the coherent repaired bundle and execute the scheduled full-context, quality, soak, curve and control measurements.",
+      "Phase 26 must independently review only the compact phase-25 summary."
+    ],
+    "hardware_or_human_action": "No unavailable hardware, credentials, hosted service or human upstream action explains the missing phase-23 evidence; the next task owns a safe local runtime lifecycle transition while preserving port 8092 and unowned processes."
+  }
+}
