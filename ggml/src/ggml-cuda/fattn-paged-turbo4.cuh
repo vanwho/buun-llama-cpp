@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+constexpr uint32_t GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS = 16;
+
 // Device-side description of one selected Turbo4 page.  Keep this established
 // CUDA-facing type distinct from the backend-neutral GGML graph descriptor so
 // the raw CUDA API retains its existing C++ ABI. Both descriptors have the
@@ -132,7 +134,7 @@ struct ggml_cuda_fattn_turbo4_paged_params {
 };
 
 // Correctness-first direct page/query-tile attention. The initial qualified
-// geometry is causal, batch 1, one to three query tokens, head width 256, and
+// geometry is causal, batch 1, one to sixteen query tokens, head width 256, and
 // GQA ratio 4. The serial oracle uses one CTA to traverse each compressed page
 // list once per tile and reuses decoded K/V rows across the tile's queries.
 // Qualified large-row calls use bounded split-KV CTAs and a device-side

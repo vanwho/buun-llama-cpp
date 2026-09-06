@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "task_id": "21-02",
+  "title": "bounded Turbo4 page-wave prefill",
+  "decision": "implementation_pass_speed_goal_not_claimed",
+  "hypothesis": "The three-query prefill cap and synchronize-after-every-ubatch policy serialized paged prefill and caused the observed sub-20-token/s selective path.",
+  "changed_variable": {
+    "query_tile": {
+      "before": 3,
+      "direct_tile": 16,
+      "larger_tile": 32,
+      "larger_tile_route": "explicit selected-reference fallback"
+    },
+    "synchronization": "fence before advancing at contiguous page ends and once at the final tile; no fence between tiles within a page wave",
+    "page_size_tokens": 256
+  },
+  "implementation": {
+    "prefill_planner": "bounded Turbo4 query tiles use the physical page budget and a 16-token direct-kernel limit",
+    "cuda_kernel": "Turbo4 paged query-tile validation, shared memory, online-softmax state, causal mask, and dispatcher support 1..16 queries",
+    "fallback": "unsupported direct query tiles remain selected-reference and expose reason 'bounded Turbo4 selected reference for unsupported direct query tile'",
+    "live_capability": "The model-backed selective probe did not satisfy the direct live capability predicate, so the measured live route was selected-reference; no direct speed claim is made."
+  },
+  "tests": [
+    {
+      "command": "cmake --build build-cuda --target test-kv-attention-execution test-cuda-fattn-paged-turbo4 llama-server -j2",
+      "status": "pass"
+    },
+    {
+      "command": "build-cuda/bin/test-kv-attention-execution && build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "status": "pass",
+      "coverage": "planner tiles 1/3/8/16/32, selected-reference reason, CUDA query tiles through 16, unsupported 17/32, page tails, logical gaps, native positions/masks, page mass, partial state, and split-wave merge"
+    },
+    {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R '^test-(kv-pager|kv-attention-view|kv-attention-telemetry|kv-attention-execution|kv-attention-exact|cuda-fattn-paged-turbo4)$'",
+      "status": "pass",
+      "result": "6/6"
+    },
+    {
+      "command": "python3 -m unittest discover -s tools/server/bench -p 'test_*.py'",
+      "status": "pass",
+      "result": "46 tests"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass"
+    }
+  ],
+  "benchmark": {
+    "binary": "build-cuda/bin/llama-server",
+    "model": "/srv/ai/models/text/current.gguf",
+    "request": "single deterministic x-token prompt, max_tokens=1, temperature=0, seed=42, native GPU MTP, context 22016, page size 256",
+    "raw_root": "/tmp/21-02-prefill-wave",
+    "rows": [
+      {
+        "mode": "off",
+        "prompt_target": 4096,
+        "prompt_tokens": 4148,
+        "prompt_ms": 2248.071,
+        "prompt_tokens_per_second": 1845.137,
+        "gpu_samples": 11,
+        "gpu_avg_percent": 80.36,
+        "gpu_max_percent": 100,
+        "graphs": null,
+        "synchronizations": null,
+        "sync_time_us": null,
+        "route": "dense/off",
+        "raw": "/tmp/21-02-prefill-wave/off-4096"
+      },
+      {
+        "mode": "off",
+        "prompt_target": 8192,
+        "prompt_tokens": 8244,
+        "prompt_ms": 4350.751,
+        "prompt_tokens_per_second": 1894.845,
+        "gpu_samples": 20,
+        "gpu_avg_percent": 85.0,
+        "gpu_max_percent": 100,
+        "graphs": null,
+        "synchronizations": null,
+        "sync_time_us": null,
+        "route": "dense/off",
+        "raw": "/tmp/21-02-prefill-wave/off-8192"
+      },
+      {
+        "mode": "observe",
+        "prompt_target": 4096,
+        "prompt_tokens": 4148,
+        "prompt_ms": 2245.721,
+        "prompt_tokens_per_second": 1847.068,
+        "gpu_samples": 11,
+        "gpu_avg_percent": 81.82,
+        "gpu_max_percent": 100,
+        "graphs": 18,
+        "graph_completions": 18,
+        "synchronizations": 6,
+        "sync_time_us": 192666,
+        "route": "observe",
+        "raw": "/tmp/21-02-prefill-wave/observe-4096"
+      },
+      {
+        "mode": "observe",
+        "prompt_target": 8192,
+        "prompt_tokens": 8244,
+        "prompt_ms": 4337.243,
+        "prompt_tokens_per_second": 1900.747,
+        "gpu_samples": 20,
+        "gpu_avg_percent": 97.0,
+        "gpu_max_percent": 100,
+        "graphs": 51,
+        "graph_completions": 51,
+        "synchronizations": 15,
+        "sync_time_us": 570891,
+        "route": "observe",
+        "raw": "/tmp/21-02-prefill-wave/observe-8192"
+      },
+      {
+        "mode": "selective",
+        "prompt_target": 4096,
+        "prompt_tokens": 4148,
+        "prompt_ms": 288193.385,
+        "prompt_tokens_per_second": 14.393,
+        "gpu_samples": 1306,
+        "gpu_avg_percent": 4.19,
+        "gpu_max_percent": 97,
+        "graphs": 18,
+        "graph_completions": 18,
+        "synchronizations": 18,
+        "sync_time_us": 59926,
+        "route": "selected reference",
+        "prefill_reference_routes": 1,
+        "prefill_direct_routes": 0,
+        "raw": "/tmp/21-02-prefill-wave/selective-fixed-4096"
+      },
+      {
+        "mode": "selective",
+        "prompt_target": 8192,
+        "prompt_tokens": 8244,
+        "status": "timeout",
+        "timeout_seconds": 750,
+        "last_progress_tokens": 5120,
+        "last_progress_tokens_per_second": 10.5,
+        "gpu_samples": 2296,
+        "route": "selected reference",
+        "prefill_reference_routes": 1,
+        "prefill_direct_routes": 0,
+        "raw": "/tmp/21-02-prefill-wave/selective-fixed-8192/timeout.json"
+      }
+    ],
+    "interpretation": "The page-wave fence is bounded by page waves (18 waits for 4148 tokens) rather than one wait per token. Selective remains a slow reference fallback on this live model; this task does not claim the speed target."
+  },
+  "runtime_restore": {
+    "status": "pass",
+    "health": "ok",
+    "binary": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server",
+    "context": 262144,
+    "pager": "selective",
+    "page_size": 256,
+    "hot_pages": 4,
+    "mtp": "native GPU Turbo4",
+    "raw": "/tmp/21-02-prefill-wave/restored-health.json"
+  },
+  "deferred": [
+    "A direct live-model route was not observable because the existing runtime capability predicate rejected the model-backed direct binding; 21-03 owns cold-page promotion/selective routing follow-up.",
+    "The 8K selective reference probe exceeded its explicit 750-second diagnostic bound; no selective 8K throughput or correctness result is claimed.",
+    "No corpus campaign was run; full-context and production-quality measurements remain later-task work."
+  ]
+}

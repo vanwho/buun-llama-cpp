@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "21",
-  "current_task": "21-02",
-  "last_updated_utc": "2026-09-06T03:01:05+00:00",
+  "current_task": "21-03",
+  "last_updated_utc": "2026-09-06T03:56:21+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3414,22 +3414,36 @@
       "cluster": "21a-quality-curve",
       "title": "Remove serialized three-token paged prefill",
       "packet": ".wiretail/execution/tasks/21-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "21-01"
       ],
-      "commit": null,
+      "commit": "af690fcbddb257d080b5e2d11bb7673d9b0f30c1",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/21-02-attempt-1-20260906T030123Z.jsonl:278",
+            "total_tokens": 31583908,
+            "total_tokens_derived": true,
+            "input_tokens": 31519612,
+            "cached_input_tokens": 31048448,
+            "output_tokens": 64296,
+            "thinking_tokens": 25112
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 31583908,
+          "input_tokens": 31519612,
+          "cached_input_tokens": 31048448,
+          "output_tokens": 64296,
+          "thinking_tokens": 25112
         }
       }
     },
@@ -4325,15 +4339,28 @@
           "cached_input_tokens": 15915008,
           "output_tokens": 37086,
           "thinking_tokens": 11692
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/21-02-attempt-1-20260906T030123Z.jsonl:278",
+          "total_tokens": 31583908,
+          "total_tokens_derived": true,
+          "input_tokens": 31519612,
+          "cached_input_tokens": 31048448,
+          "output_tokens": 64296,
+          "thinking_tokens": 25112
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 16303695,
-        "input_tokens": 16266609,
-        "cached_input_tokens": 15915008,
-        "output_tokens": 37086,
-        "thinking_tokens": 11692
+        "turns": 2,
+        "total_tokens": 47887603,
+        "input_tokens": 47786221,
+        "cached_input_tokens": 46963456,
+        "output_tokens": 101382,
+        "thinking_tokens": 36804
       }
     },
     "22": {
@@ -4350,12 +4377,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 31,
-      "total_tokens": 664891958,
-      "input_tokens": 663365321,
-      "cached_input_tokens": 651184640,
-      "output_tokens": 1526637,
-      "thinking_tokens": 544238
+      "turns": 32,
+      "total_tokens": 696475866,
+      "input_tokens": 694884933,
+      "cached_input_tokens": 682233088,
+      "output_tokens": 1590933,
+      "thinking_tokens": 569350
     },
     "source": "Codex turn.completed usage events"
   }

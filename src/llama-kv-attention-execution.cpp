@@ -23,7 +23,7 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
     return metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
            metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
            metadata.head_dim_v() == 256 && metadata.n_query_tokens() >= 1 &&
-           metadata.n_query_tokens() <= 3 &&
+           metadata.n_query_tokens() <= LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE &&
            metadata.n_batch() == 1 && metadata.n_head_kv() != 0 &&
            metadata.n_head_q() / metadata.n_head_kv() == 4 &&
            metadata.n_head_q() % metadata.n_head_kv() == 0;
@@ -151,13 +151,16 @@ size_t llama_kv_attention_scratch_request::required_bytes() const noexcept {
 uint32_t llama_kv_attention_prefill_chunk_size(
         uint32_t configured_ubatch,
         uint32_t physical_page_count,
-        uint32_t page_tokens) noexcept {
+        uint32_t page_tokens,
+        uint32_t query_tile) noexcept {
     if (configured_ubatch == 0 || physical_page_count == 0 || page_tokens == 0) {
         return configured_ubatch;
     }
     const uint64_t rows = uint64_t(physical_page_count) * page_tokens;
+    const uint64_t bounded_rows = std::min<uint64_t>(rows, std::numeric_limits<uint32_t>::max());
+    const uint64_t bounded_tile = query_tile == 0 ? bounded_rows : query_tile;
     return uint32_t(std::min<uint64_t>(configured_ubatch,
-            std::min<uint64_t>(rows, std::numeric_limits<uint32_t>::max())));
+            std::min<uint64_t>(bounded_rows, bounded_tile)));
 }
 
 llama_kv_attention_execution_status llama_kv_attention_prefill_admission::append(
@@ -289,7 +292,9 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
             ? phase == llama_kv_attention_execution_phase::prefill
                 ? "qualified Turbo4 selective prefill query tile"
                 : "qualified Turbo4 decode"
-            : "compact selected reference";
+            : direct_capable && !direct_shape(metadata)
+                ? "bounded Turbo4 selected reference for unsupported direct query tile"
+                : "compact selected reference";
         result.table_epoch = metadata.table_epoch();
     }
 

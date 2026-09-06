@@ -79,6 +79,9 @@ static void test_prefill_admission() {
     assert(llama_kv_attention_prefill_chunk_size(4096, 2) == 512);
     assert(llama_kv_attention_prefill_chunk_size(4096, 0) == 4096);
     assert(llama_kv_attention_prefill_chunk_size(4096, 2, 128) == 256);
+    assert(llama_kv_attention_prefill_chunk_size(4096, 2, 256, 16) == 16);
+    assert(llama_kv_attention_prefill_chunk_size(8, 2, 256, 16) == 8);
+    assert(llama_kv_attention_prefill_chunk_size(4096, 2, 256, 32) == 32);
     assert(llama_kv_attention_prefill_chunk_size(0, 2) == 0);
 }
 
@@ -164,10 +167,26 @@ static void test_fallbacks_and_graph_key() {
     assert(reference.route == llama_kv_attention_execution_route::selected_reference);
     execution.complete_one_graph();
 
-    auto prompt_shape = metadata(snapshot(), 4, 1);
+    auto prompt_shape = metadata(snapshot(), 32, 1);
     auto prompt_reference = execution.prepare(prompt_shape,
             llama_kv_attention_execution_phase::decode, 1, 1, true, scratch);
     assert(prompt_reference.route == llama_kv_attention_execution_route::selected_reference);
+    execution.complete_one_graph();
+
+    auto tile16 = execution.prepare(metadata(snapshot(), 16, 1),
+            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
+    assert(tile16.route == llama_kv_attention_execution_route::selected_direct);
+    execution.complete_one_graph();
+
+    auto tile3 = execution.prepare(metadata(snapshot(), 3, 1),
+            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
+    assert(tile3.route == llama_kv_attention_execution_route::selected_direct);
+    execution.complete_one_graph();
+
+    auto tile32 = execution.prepare(metadata(snapshot(), 32, 1),
+            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
+    assert(tile32.route == llama_kv_attention_execution_route::selected_reference);
+    assert(tile32.reason.find("unsupported direct query tile") != std::string::npos);
     execution.complete_one_graph();
 
     llama_kv_attention_execution observing(llama_kv_attention_execution_mode::observe);
