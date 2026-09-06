@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "23",
-  "current_task": "23-10",
-  "last_updated_utc": "2026-09-06T08:09:03+00:00",
+  "current_task": "23-11",
+  "last_updated_utc": "2026-09-06T08:12:31+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -4194,22 +4194,36 @@
       "cluster": "23d-stretch-summary",
       "title": "Re-evaluate conditional YaRN stretch",
       "packet": ".wiretail/execution/tasks/23-10.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "23-09"
       ],
-      "commit": null,
+      "commit": "96d4ea2cc67f887f33f98868ffa5df71bbb27909",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/23-10-attempt-1-20260906T080921Z.jsonl:37",
+            "total_tokens": 749744,
+            "total_tokens_derived": true,
+            "input_tokens": 742223,
+            "cached_input_tokens": 686080,
+            "output_tokens": 7521,
+            "thinking_tokens": 1439
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 749744,
+          "input_tokens": 742223,
+          "cached_input_tokens": 686080,
+          "output_tokens": 7521,
+          "thinking_tokens": 1439
         }
       }
     },
@@ -5189,15 +5203,28 @@
           "cached_input_tokens": 1820160,
           "output_tokens": 11056,
           "thinking_tokens": 1387
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/23-10-attempt-1-20260906T080921Z.jsonl:37",
+          "total_tokens": 749744,
+          "total_tokens_derived": true,
+          "input_tokens": 742223,
+          "cached_input_tokens": 686080,
+          "output_tokens": 7521,
+          "thinking_tokens": 1439
         }
       ],
       "totals": {
-        "turns": 9,
-        "total_tokens": 61091991,
-        "input_tokens": 60881371,
-        "cached_input_tokens": 59058688,
-        "output_tokens": 210620,
-        "thinking_tokens": 67863
+        "turns": 10,
+        "total_tokens": 61841735,
+        "input_tokens": 61623594,
+        "cached_input_tokens": 59744768,
+        "output_tokens": 218141,
+        "thinking_tokens": 69302
       }
     },
     "24": {
@@ -5214,12 +5241,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 51,
-      "total_tokens": 836859971,
-      "input_tokens": 834776245,
-      "cached_input_tokens": 818440192,
-      "output_tokens": 2083726,
-      "thinking_tokens": 722412
+      "turns": 52,
+      "total_tokens": 837609715,
+      "input_tokens": 835518468,
+      "cached_input_tokens": 819126272,
+      "output_tokens": 2091247,
+      "thinking_tokens": 723851
     },
     "source": "Codex turn.completed usage events"
   }
