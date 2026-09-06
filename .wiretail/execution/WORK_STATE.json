@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "21",
-  "current_task": "21-01",
-  "last_updated_utc": "2026-09-05T21:11:45+00:00",
+  "current_task": "21-02",
+  "last_updated_utc": "2026-09-06T03:01:05+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "test_context_policy": "development tests use purpose-appropriate context, occupancy and test hot budget; the six 20K/40K/60K/100K/175K/256K coordinates are only final results collection after functionality works, never routine phase/task gates",
     "speed_target": "annotate historical 3x/5x CPU KV and 70% comparable all-GPU comparisons without gating completion of measurement tasks",
     "full_context_proof": "262144 resolved target and GPU Turbo4 MTP rows, near-full token-counted occupancy with generation headroom, canonical CPU backing and bounded hot VRAM with real transfers",
-    "required_final_status": "17-16 bridges the running 17-15 findings; phases 18-20 repair live implementation and experiments; phase 21 produces compact measured evidence; 22-01 Sol High assesses only that summary and creates a new implementation/benchmark/review chain if the goal remains unmet",
+    "required_final_status": "17-16 bridges the running 17-15 findings; phases 18-20 repair live implementation and experiments; phase 21 gates/repairs the remaining live pager path and then produces compact measured evidence; 22-01 Sol High assesses only that summary and creates a new implementation/benchmark/review chain if the goal remains unmet",
     "stretch_goal": "YaRN beyond 256K is conditional on proven base capability and separately reported, never an excuse to shrink or disable Turbo4 GPU MTP"
   },
   "external_gates": [
@@ -3373,24 +3373,38 @@
       "id": "21-01",
       "phase": "21",
       "cluster": "21a-quality-curve",
-      "title": "Measure release quality and renewed full-256K functionality",
+      "title": "Run a bounded live pager capability gate",
       "packet": ".wiretail/execution/tasks/21-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "20-07"
       ],
-      "commit": null,
+      "commit": "a757b0ac03fc638d8f030c5c32c6ca0373847109",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/21-01-attempt-1-20260906T023006Z.jsonl:148",
+            "total_tokens": 16303695,
+            "total_tokens_derived": true,
+            "input_tokens": 16266609,
+            "cached_input_tokens": 15915008,
+            "output_tokens": 37086,
+            "thinking_tokens": 11692
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 16303695,
+          "input_tokens": 16266609,
+          "cached_input_tokens": 15915008,
+          "output_tokens": 37086,
+          "thinking_tokens": 11692
         }
       }
     },
@@ -3398,7 +3412,7 @@
       "id": "21-02",
       "phase": "21",
       "cluster": "21a-quality-curve",
-      "title": "Run the original three prompts across the Turbo4 context speed curve",
+      "title": "Remove serialized three-token paged prefill",
       "packet": ".wiretail/execution/tasks/21-02.md",
       "status": "todo",
       "blocker": null,
@@ -3422,8 +3436,8 @@
     {
       "id": "21-03",
       "phase": "21",
-      "cluster": "21b-controls-soak",
-      "title": "Measure matched CPU-KV/GPU-MTP and all-GPU controls",
+      "cluster": "21a-quality-curve",
+      "title": "Make cold-page promotion and selective routing correct",
       "packet": ".wiretail/execution/tasks/21-03.md",
       "status": "todo",
       "blocker": null,
@@ -3448,7 +3462,7 @@
       "id": "21-04",
       "phase": "21",
       "cluster": "21b-controls-soak",
-      "title": "Prove physical page churn and bounded lifecycle in long-context soak",
+      "title": "Harden benchmark preflight, progress, and fail-fast behavior",
       "packet": ".wiretail/execution/tasks/21-04.md",
       "status": "todo",
       "blocker": null,
@@ -3472,8 +3486,8 @@
     {
       "id": "21-05",
       "phase": "21",
-      "cluster": "21c-stretch-summary",
-      "title": "Evaluate YaRN beyond 256K only as a bounded stretch experiment",
+      "cluster": "21b-controls-soak",
+      "title": "Validate selective quality on a bounded representative matrix",
       "packet": ".wiretail/execution/tasks/21-05.md",
       "status": "todo",
       "blocker": null,
@@ -3497,14 +3511,139 @@
     {
       "id": "21-06",
       "phase": "21",
-      "cluster": "21c-stretch-summary",
-      "title": "Consolidate the benchmark evidence and ranked measured bottlenecks",
+      "cluster": "21b-controls-soak",
+      "title": "Prove 256K allocation, population, and continuation",
       "packet": ".wiretail/execution/tasks/21-06.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "21-05"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "21-07",
+      "phase": "21",
+      "cluster": "21c-final-measurements",
+      "title": "Measure the final three-prompt Turbo4 context curve",
+      "packet": ".wiretail/execution/tasks/21-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "21-06"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "21-08",
+      "phase": "21",
+      "cluster": "21c-final-measurements",
+      "title": "Run matched controls and isolate the speed bottleneck",
+      "packet": ".wiretail/execution/tasks/21-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "21-07"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "21-09",
+      "phase": "21",
+      "cluster": "21c-final-measurements",
+      "title": "Exercise bounded paging pressure and lifecycle",
+      "packet": ".wiretail/execution/tasks/21-09.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "21-08"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "21-10",
+      "phase": "21",
+      "cluster": "21d-stretch-summary",
+      "title": "Evaluate YaRN only after the base goal is proven",
+      "packet": ".wiretail/execution/tasks/21-10.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "21-09"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "21-11",
+      "phase": "21",
+      "cluster": "21d-stretch-summary",
+      "title": "Consolidate phase-21 evidence for independent assessment",
+      "packet": ".wiretail/execution/tasks/21-11.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "21-10"
       ],
       "commit": null,
       "token_usage": {
@@ -3529,7 +3668,7 @@
       "blocker": null,
       "recommended_model": "Sol High",
       "depends_on": [
-        "21-06"
+        "21-11"
       ],
       "commit": null,
       "token_usage": {
@@ -4173,14 +4312,28 @@
       }
     },
     "21": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/21-01-attempt-1-20260906T023006Z.jsonl:148",
+          "total_tokens": 16303695,
+          "total_tokens_derived": true,
+          "input_tokens": 16266609,
+          "cached_input_tokens": 15915008,
+          "output_tokens": 37086,
+          "thinking_tokens": 11692
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 16303695,
+        "input_tokens": 16266609,
+        "cached_input_tokens": 15915008,
+        "output_tokens": 37086,
+        "thinking_tokens": 11692
       }
     },
     "22": {
@@ -4197,12 +4350,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 30,
-      "total_tokens": 648588263,
-      "input_tokens": 647098712,
-      "cached_input_tokens": 635269632,
-      "output_tokens": 1489551,
-      "thinking_tokens": 532546
+      "turns": 31,
+      "total_tokens": 664891958,
+      "input_tokens": 663365321,
+      "cached_input_tokens": 651184640,
+      "output_tokens": 1526637,
+      "thinking_tokens": 544238
     },
     "source": "Codex turn.completed usage events"
   }

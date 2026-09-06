@@ -19,7 +19,8 @@ hardware or human actions.
 Foundation phases 00–07 and follow-on phases through the active 17-15 remain
 historical/current evidence, not a proof that all live capabilities work.
 17-16 now bridges that campaign to 18–20 implementation repairs/advancements.
-Phase 21 produces new quality, context-speed, paired-control and physical-soak
+Phase 21 first gates and repairs the live selective Turbo4 path, then produces
+new quality, full-256K, context-speed, paired-control and physical-soak
 evidence; **22-01 is the Sol High benchmark-only reviewer**. It creates a new
 measured remediation chain if needed, not another historical closure audit.
 All other task recommendations stay Luna High; Wiretail defaults are unchanged.

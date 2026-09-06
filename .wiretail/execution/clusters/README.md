@@ -97,7 +97,8 @@ the full historical plan mandatory context.
 | `20b-execution-performance` | 20-03–20-04 | Async prediction, late pages, graph reuse and overhead |
 | `20c-quality-calibration` | 20-05 | Prefill/selection quality–speed tradeoffs |
 | `20d-controls-release` | 20-06–20-07 | Correct CPU-KV denominator and frozen portable candidate |
-| `21a-quality-curve` | 21-01–21-02 | Full context/quality and canonical three-prompt speed curve |
-| `21b-controls-soak` | 21-03–21-04 | Matched controls and real physical-pressure soak |
-| `21c-stretch-summary` | 21-05–21-06 | Conditional YaRN and compact final benchmark summary |
+| `21a-quality-curve` | 21-01–21-03 | Bounded capability gate, batched prefill, and cold-page routing repair |
+| `21b-controls-soak` | 21-04–21-06 | Fail-fast harness, bounded quality, and full-256K functionality |
+| `21c-final-measurements` | 21-07–21-09 | Final three-prompt curve, matched controls, and pressure soak |
+| `21d-stretch-summary` | 21-10–21-11 | Conditional YaRN and compact phase-21 evidence handoff |
 | `22a-benchmark-review` | 22-01 | Summary-only goal assessment and new remediation if needed (Sol High) |
