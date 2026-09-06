@@ -742,3 +742,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-24-01`
 - Commit at update: `badbb7a7a`
 - Summary: Independent phase-23 review verdict not_reached; scheduled owned phase-25 deployment and live measurement chain plus phase-26 Sol High review
+
+## 2026-09-06T09:33:57+00:00 — 25-01 — done
+
+- Branch: `codex/task-25-01`
+- Commit at update: `631d9ce9b`
+- Summary: Own and deploy immutable repaired runtime; live bundle identity verified and three-request telemetry preflight passed. Quality answer mismatches are explicitly deferred to later quality tasks.
