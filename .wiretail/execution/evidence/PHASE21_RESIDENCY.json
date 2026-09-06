@@ -1,0 +1,66 @@
+{
+  "schema": "pager-residency-repair-v1",
+  "schema_version": 1,
+  "task_id": "21-03",
+  "created_utc": "2026-09-06T04:12:53Z",
+  "result": "local_pass_live_probe_deferred",
+  "hypothesis": "The live policy's all-telemetry-unavailable safety fallback was replacing a valid cold-page retrieval target with the previous anchor table, and the cache-side transfer builder could only prepare one cold page even when the selected target contained multiple cold pages.",
+  "changed_variables": [
+    "safe fallback is suppressed when an authenticated retrieval result selects a host-backed cold page",
+    "live H2D transfer preparation covers every cold page in the policy target with a distinct slot and page identity",
+    "attention diagnostics publish bounded logical selected_page_ids"
+  ],
+  "implementation": {
+    "policy": "llama_kv_live_policy_apply retains a valid host-backed cold retrieval target before applying the no-telemetry anchor fallback",
+    "promotion": "llama_kv_cache::apply_pager_live_policy builds one canonical-host H2D plan per cold target page; slots are assigned from the same policy target order",
+    "safety": "existing transaction epoch, page identity, host-valid, pool-slot, synchronous fence, rollback, dirty-victim, and stale-transfer checks remain authoritative",
+    "telemetry": "selected logical page IDs are included in llama_kv_attention_execution_metrics and the server pager metrics receipt"
+  },
+  "local_verification": [
+    {
+      "command": "cmake --build build-cuda --target test-kv-attention-execution test-kv-policy llama-server -j2",
+      "status": "pass"
+    },
+    {
+      "command": "cmake --build build-cuda --target test-kv-attention-exact test-kv-residency test-kv-pager test-kv-routing-retrieval test-kv-routing-summary test-kv-attention-view test-kv-attention-telemetry test-cuda-fattn-paged-turbo4 -j2",
+      "status": "pass"
+    },
+    {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R '^(test-kv-policy|test-kv-residency|test-kv-pager|test-kv-attention-view|test-kv-routing-summary|test-kv-routing-retrieval|test-kv-attention-telemetry|test-kv-attention-execution|test-kv-attention-exact|test-cuda-fattn-paged-turbo4)$'",
+      "status": "pass",
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "command": "python3 -m unittest discover -s tools/server/bench -p 'test_*.py'",
+      "status": "pass",
+      "passed": 46,
+      "failed": 0
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass"
+    }
+  ],
+  "deterministic_coverage": {
+    "cold_promotion_and_clean_eviction": "test-kv-policy replaces a clean resident victim with a host-backed cold retrieval page and commits a two-page cold promotion",
+    "dirty_seal_and_host_valid": "test-kv-pager and test-kv-residency cover sealing, host-valid eviction, dirty-victim refusal, and rollback",
+    "stale_generation_and_cancellation": "test-kv-pager, test-kv-residency, and test-kv-policy cover generation, stale completion, failed transfer, and cancellation paths",
+    "gaps_and_tails": "test-kv-attention-view, test-kv-routing-retrieval, test-kv-attention-exact, and CUDA Turbo4 fixtures cover logical gaps and tails",
+    "exact_oracle": "test-kv-attention-exact and test-cuda-fattn-paged-turbo4 remain passing",
+    "selected_receipt": "test-kv-attention-execution asserts the selected logical page ID receipt"
+  },
+  "live_probe": {
+    "requested": true,
+    "command": "./build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --host 127.0.0.1 --port 22016 -ngl 999 --fit off -fa on -c 22016 -np 1 -b 1024 -ub 256 --context-shift --poll 0 --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages auto --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+    "status": "deferred_before_request",
+    "reason": "The active managed GPU service owned the model allocation. After the first bounded startup attempt, the old process was auto-restarted by systemd; stopping llama-server.service requires interactive authentication, and the local binary then failed model allocation with only about 1.0-1.1 GiB free.",
+    "no_promotion_claim": true,
+    "health_check": "The active managed service returned {\"status\":\"ok\"} with its configured API key, but its current command is a non-pager --kv-unified service, so it is not valid cold-page evidence."
+  },
+  "deferred_verification": {
+    "live_cold_needle": "Requires an operator-controlled pager-capable service window with the GPU allocation released; rerun one minimized known-fact request at --kv-hot-pages auto and record H2D useful/actual bytes, selected IDs, eviction, and answer receipt.",
+    "full_quality_curve": "Deferred by the task contract; no corpus campaign or speed curve was run.",
+    "human_upstream_review": "Not performed or required for local completion."
+  }
+}
