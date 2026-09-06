@@ -209,9 +209,11 @@ struct fake_transfer_backend {
     }
 
     static bool host_read(
-            void *, uint32_t, uint64_t offset, uint8_t * destination,
+            void *, uint32_t page_index, uint64_t offset, uint8_t * destination,
             size_t size) noexcept {
-        for (size_t i = 0; i < size; ++i) destination[i] = uint8_t(offset + i + 1);
+        for (size_t i = 0; i < size; ++i) {
+            destination[i] = uint8_t(page_index * 32 + offset + i + 1);
+        }
         return true;
     }
 
@@ -915,6 +917,46 @@ static void test_reseal_before_eviction() {
         std::vector<uint8_t>({ 1, 2, 3, 4, 5, 6, 7, 8 }));
 }
 
+static void test_multi_page_h2d_uses_plan_local_page_indices() {
+    fake_transfer_backend fake;
+    llama_kv_residency_pool_backend backend {
+        &fake, fake_transfer_backend::reserve_slots,
+        fake_transfer_backend::release_slots, fake_transfer_backend::map_slot,
+        fake_transfer_backend::drop_slot, fake_transfer_backend::issue,
+        fake_transfer_backend::complete, fake_transfer_backend::cancel,
+    };
+    llama_kv_residency_pool_status status;
+    auto pool = llama_kv_residency_pool::create(
+            { 2, 64, 4, 4, 1024 }, backend, status);
+    assert(pool && status == llama_kv_residency_pool_status::ok);
+
+    llama_kv_residency_transfer_plan upload;
+    assert(llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            { transfer_page_for(0, 0), transfer_page_for(1, 1) }, 4, {}, upload));
+    assert(upload.pages.size() == 2 && upload.runs.size() == 2);
+    assert(upload.runs[0].page_index == 0 && upload.runs[1].page_index == 1);
+
+    llama_kv_residency_transfer_claim claim;
+    assert(pool->reserve(upload, 32, {}, claim) ==
+            llama_kv_residency_pool_status::ok);
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    assert(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &fake;
+    transport.host_read = fake_transfer_backend::host_read;
+    transport.recheck = fake_transfer_backend::recheck;
+    const auto result = llama_kv_residency_execute_transfer(
+            *pool, upload, claim, backend, transport);
+    assert(result.status == llama_kv_residency_pool_status::ok);
+    for (size_t i = 0; i < 8; ++i) {
+        assert(fake.slots[0][i] == uint8_t(i + 1));
+        assert(fake.slots[1][i] == uint8_t(i + 33));
+    }
+}
+
 static void test_fixed_window_proof() {
     llama_kv_fixed_window_geometry geometry;
     geometry.logical_pages = 1024;
@@ -1006,6 +1048,7 @@ int main() {
     test_table_identity_and_snapshot();
     test_rejection_and_stale_publication();
     test_batched_transfer_pool();
+    test_multi_page_h2d_uses_plan_local_page_indices();
     test_ggml_adapter_tensor_route();
     test_ggml_adapter_borrowed_storage();
     test_pool_reconcile_and_layer_major_run_view();

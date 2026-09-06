@@ -4,8 +4,11 @@
 #include "llama-kv-prefetch.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <cstdint>
 #include <iostream>
+#include <utility>
 #include <vector>
 
 static llama_kv_page_id live_page_id(uint32_t logical) {
@@ -38,19 +41,28 @@ static llama_kv_page_record live_resident(uint32_t logical, uint32_t slot) {
 
 struct live_transfer_fake {
     bool fail_issue = false;
+    std::vector<std::vector<uint8_t>> copied;
 
     static bool map_slot(void *, uint32_t) noexcept { return true; }
     static bool drop_slot(void *, uint32_t) noexcept { return true; }
     static bool issue(void * opaque, llama_kv_residency_transfer_direction,
                       const llama_kv_residency_completion &, uint64_t,
-                      void *, size_t, uint64_t, bool) noexcept {
-        return !static_cast<live_transfer_fake *>(opaque)->fail_issue;
+                      void * host, size_t size, uint64_t, bool) noexcept {
+        auto & self = *static_cast<live_transfer_fake *>(opaque);
+        if (self.fail_issue) return false;
+        try {
+            self.copied.emplace_back(static_cast<uint8_t *>(host),
+                    static_cast<uint8_t *>(host) + size);
+            return true;
+        } catch (...) {
+            return false;
+        }
     }
     static bool complete(void *, uint64_t) noexcept { return true; }
     static void cancel(void *, uint64_t) noexcept {}
-    static bool host_read(void *, uint32_t, uint64_t, uint8_t * destination,
+    static bool host_read(void *, uint32_t page_index, uint64_t, uint8_t * destination,
                           size_t size) noexcept {
-        std::fill(destination, destination + size, uint8_t(7));
+        std::fill(destination, destination + size, uint8_t(7 + page_index));
         return true;
     }
     static bool recheck(void *, const llama_kv_residency_completion &) noexcept {
@@ -108,6 +120,25 @@ static llama_kv_residency_transfer_plan live_promotion_for(
 
 static llama_kv_residency_transfer_plan live_promotion() {
     return live_promotion_for(1, 1);
+}
+
+static llama_kv_residency_transfer_plan live_promotions() {
+    std::vector<llama_kv_residency_transfer_page> pages;
+    for (const auto & target : std::array<std::pair<uint32_t, uint32_t>, 2>{
+            std::pair<uint32_t, uint32_t>{ 1, 1 },
+            std::pair<uint32_t, uint32_t>{ 3, 2 } }) {
+        llama_kv_residency_transfer_page page;
+        page.page = live_page_id(target.first);
+        page.table_epoch = 1;
+        page.physical_slot = target.second;
+        page.runs.push_back({ UINT32_MAX, 0, 0, 0, 0, 8, 1, 0, 0 });
+        pages.push_back(std::move(page));
+    }
+    llama_kv_residency_transfer_plan output;
+    if (!llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            pages, 4, {}, output)) return {};
+    return output;
 }
 
 static llama_kv_residency_transfer_plan live_promotion_for(
@@ -249,7 +280,8 @@ static void test_live_policy_multi_promotion() {
         live_page_id(3), llama_kv_routing_retrieval_reason::summary,
         8.0f, true, false, 2,
     });
-    boundary.transaction.transfers.push_back(live_promotion_for(3, 2));
+    boundary.transaction.transfers.clear();
+    boundary.transaction.transfers.push_back(live_promotions());
 
     live_transfer_fake fake;
     auto backend = live_pool_backend(fake);
@@ -274,6 +306,9 @@ static void test_live_policy_multi_promotion() {
     assert(result.target_pages[2].id == live_page_id(3));
     assert(result.transaction.loaded_pages == 2);
     assert(result.transaction.h2d_counters.copied_useful_bytes == 16);
+    assert(fake.copied.size() == 2);
+    assert(fake.copied[0] == std::vector<uint8_t>(8, 7));
+    assert(fake.copied[1] == std::vector<uint8_t>(8, 8));
 }
 
 static llama_kv_policy_page page(uint64_t id, bool resident = true) {
