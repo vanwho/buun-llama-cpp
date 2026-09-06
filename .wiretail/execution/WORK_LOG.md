@@ -724,3 +724,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-23-06`
 - Commit at update: `87a90ecdf`
 - Summary: Recorded the full 262144-token acceptance gate as not measured because no coherent repaired runtime was available; 12 focused CTest cases and 48 benchmark contract tests passed, with explicit base_goal_demonstrated=false and deferred production checks.
+
+## 2026-09-06T08:11:55+00:00 — 23-10 — done
+
+- Branch: `codex/task-23-10`
+- Commit at update: `96d4ea2cc`
+- Summary: Recorded not_attempted_base_goal_unmet for the conditional YaRN stretch because PHASE23_FULL256K.json does not demonstrate the base 262144-token allocation, near-full population, retrieval, continuation, or native GPU Turbo4 MTP gate. Added the phase-23 YaRN receipt, report, and handoff; local JSON, evidence-contract, state, and diff checks pass.
