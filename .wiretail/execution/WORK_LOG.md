@@ -700,3 +700,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-21-11`
 - Commit at update: `1b27405ef`
 - Summary: Consolidated phase-21 receipts into a provenance-gated summary; overall base goal remains not demonstrated and YaRN remains gated.
+
+## 2026-09-06T06:26:59+00:00 — 22-01 — done
+
+- Branch: `codex/task-22-01`
+- Commit at update: `6989e97d1`
+- Summary: Reviewed phase-21 compact evidence: goal not reached; scheduled phase-23 measured repair/remeasurement and phase-24 Sol High summary-only review.

@@ -1,0 +1,418 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "22-01",
+  "result": "pass",
+  "kind": "review",
+  "procedure": "phase_summary_benchmark_only_review",
+  "created_utc": "2026-09-06T06:23:23Z",
+  "reviewed_phase": "21",
+  "summary_sha256": "b21201bf1cc0bdf1341c5c7bd56271c4d44a5b89103fb9309f9901e800dfc085",
+  "provenance": {
+    "review_source_commit": "6989e97d1edad275a6abdc78344943352f79a4ff",
+    "source_diff_sha256": null,
+    "bundle_root": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+    "bundle_manifest_sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401",
+    "server_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "corpus_declared_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "runtime_chat_template_sha256": "e6cd775ad62be0d2c7c84bb85842ba6a7c4c00a825e23bbe762d22c710c515bf",
+    "quality_template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+    "config_sha256": "90e8a828ab193628dd344f32ca84d6368ada89a11853b64cf25c741b52778f96"
+  },
+  "provenance_unavailable": {
+    "source_diff_sha256": "The benchmark-only review made no production build; execution-plan metadata remained uncommitted under outer-runner ownership."
+  },
+  "provenance_review": {
+    "status": "measured",
+    "summary_hash_match": true,
+    "representative_raw_hashes_match": true,
+    "representative_raw_count": 15,
+    "excluded_claims_preserved": [
+      "21-05 managed-service quality candidate without release/telemetry identity",
+      "current 22016-token sentinel with mismatched context/corpus identity",
+      "20-06 historical controls from a different release and protocol"
+    ],
+    "raw_ids": [
+      "phase21-summary-json",
+      "phase21-summary-md",
+      "phase21-full256k",
+      "phase21-quality",
+      "phase21-curve",
+      "phase21-controls",
+      "phase21-soak",
+      "phase21-yarn"
+    ]
+  },
+  "goal_checks": [
+    {
+      "id": "full_262144_allocation_and_occupancy",
+      "status": "failed",
+      "finding": "Exact logical allocation was measured only after fixed-four-page recovery. Automatic admission failed, and near-full population timed out after 15360 processed tokens with no response.",
+      "raw_ids": [
+        "phase21-full256k",
+        "allocation-records",
+        "population-summary"
+      ]
+    },
+    {
+      "id": "canonical_cpu_turbo4",
+      "status": "failed",
+      "finding": "CPU-canonical Turbo4 host rows were observed only in a bounded 6401-token pressure run; canonical backing at near-full 262144 occupancy was not demonstrated.",
+      "raw_ids": [
+        "phase21-summary-json",
+        "phase21-soak",
+        "soak-metrics-089"
+      ]
+    },
+    {
+      "id": "budget_derived_bounded_gpu_target_pages",
+      "status": "failed",
+      "finding": "Four hot pages bounded allocation and pressure diagnostics, but the automatic byte-ledger admission OOMed and therefore did not safely derive production capacity.",
+      "raw_ids": [
+        "phase21-full256k",
+        "startup-175k-journal",
+        "startup-262k-journal"
+      ]
+    },
+    {
+      "id": "attention_driven_cold_retrieval",
+      "status": "not_measured",
+      "finding": "No known cold logical page was correlated through query selection, H2D promotion, physical slot/fence and same-operation attention.",
+      "raw_ids": [
+        "phase21-full256k",
+        "phase21-soak",
+        "soak-metrics-089"
+      ]
+    },
+    {
+      "id": "full_context_gpu_turbo4_mtp",
+      "status": "measured",
+      "finding": "The recovered allocation reported 262144 native MTP rows, 276955000 bytes, GPU placement and Turbo4 K/V. This is allocation evidence, not occupied-context generation evidence.",
+      "raw_ids": [
+        "phase21-full256k",
+        "allocation-records"
+      ]
+    },
+    {
+      "id": "lossless_residency_all_selected_exact_parity",
+      "status": "failed",
+      "finding": "Bounded selected-all passed 6/6, but lossless full-context residency, cold-page identity and exact full-context parity were not measured.",
+      "raw_ids": [
+        "phase21-quality",
+        "phase21-full256k",
+        "phase21-soak"
+      ]
+    },
+    {
+      "id": "quality_tradeoffs",
+      "status": "failed",
+      "finding": "Only bounded sentinels are valid; the selective series stopped with 8 passes and 11 competing/focus mismatches, and no telemetry-gated full matrix or 262K retrieval result exists.",
+      "raw_ids": [
+        "phase21-quality",
+        "phase21-full256k"
+      ]
+    },
+    {
+      "id": "physical_churn_and_lifecycle",
+      "status": "failed",
+      "finding": "The second equal-work pressure request aborted during checkpoint save, before cold promotion, churn, restore and slot-reuse correlation.",
+      "raw_ids": [
+        "phase21-soak",
+        "soak-pressure-journal"
+      ]
+    },
+    {
+      "id": "measured_speed_and_matched_controls",
+      "status": "not_measured",
+      "finding": "No target trial completed. The 20K warmup stopped at 3072/19600 tokens, 175K/262K startup failed, and no release-matched control ratio exists.",
+      "raw_ids": [
+        "phase21-curve",
+        "phase21-controls",
+        "curve-20k-campaign",
+        "startup-175k-journal",
+        "startup-262k-journal"
+      ]
+    },
+    {
+      "id": "yarn_stretch",
+      "status": "not_measured",
+      "finding": "Correctly not attempted because the base goal was unmet; this optional result does not affect the base verdict.",
+      "raw_ids": [
+        "phase21-yarn"
+      ]
+    }
+  ],
+  "quality_result": {
+    "status": "failed",
+    "bounded_dense_all_fit": "1/1",
+    "bounded_selected_all": "6/6",
+    "bounded_selective": "8/19 before fail-fast stop",
+    "full_262144": "not_measured",
+    "interpretation": "Selected-all evidence is encouraging but insufficient for lossless/full-context parity, and selective mismatches cannot be accepted without cold-route evidence."
+  },
+  "performance_result": {
+    "status": "not_measured",
+    "valid_target_rows": 0,
+    "paired_control_rows": 0,
+    "speed_verdict": "No ambitious speed claim is supported. Long-context prefill is the first measured bottleneck, but pager cost is not separable from model compute without a completed target/control pair.",
+    "historical_threshold_policy": "3x/5x CPU-KV and 70% all-GPU comparisons remain annotations, not pass gates."
+  },
+  "soak_result": {
+    "status": "failed",
+    "completed_equal_work_requests": 1,
+    "failure": "checkpoint-save tensor read out of bounds on the second request",
+    "cold_promotion_correlation": "not_measured",
+    "resource_lifecycle": "not_measured"
+  },
+  "verdict": "not_reached",
+  "verdict_reason": "The base mechanism lacks occupied 262144-token functionality, budget-derived admission, physical cold retrieval, lossless full-context parity, a complete lifecycle soak, and any valid speed/control curve. Allocation-only GPU MTP and bounded sentinels do not offset those missing hard requirements.",
+  "ranked_gaps": [
+    {
+      "rank": 1,
+      "gap": "Automatic hot-page admission overcommits late high-context CUDA allocations.",
+      "hypothesis": "The planner admits target slots before reserving recurrent-state and worst-case graph/compute headroom.",
+      "source_owner": "llama_context::init_kv_pager, cache-budget admission, context/graph allocation order",
+      "minimal_reproducer": "175K and 262144 auto-hot startup with category ledger; fixed-four-page allocation as control",
+      "measurement_change": "auto startup passes with a nonzero derived pool and reconciled headroom",
+      "owning_task": "23-01",
+      "raw_ids": [
+        "phase21-full256k",
+        "startup-175k-journal",
+        "startup-262k-journal"
+      ]
+    },
+    {
+      "rank": 2,
+      "gap": "Compact paged checkpoint save reads beyond the backing tensor.",
+      "hypothesis": "Dense logical-row offsets are applied to reused physical-slot tensors during the second prompt save.",
+      "source_owner": "llama_context::state_seq_get_data, llama_kv_cache paged views, server_slot::prompt_save",
+      "minimal_reproducer": "two equal-work 6401-token requests with 26 logical/four hot pages",
+      "measurement_change": "three cycles plus save/restore/continuation complete without bounds faults or state loss",
+      "owning_task": "23-02",
+      "raw_ids": [
+        "phase21-soak",
+        "soak-pressure-journal"
+      ]
+    },
+    {
+      "rank": 3,
+      "gap": "Live long-context prefill remains on a slow selected-reference path.",
+      "hypothesis": "A Qwen geometry/verification condition disqualifies the already tiled direct kernel, or fallback content changes trigger redundant graph rebuild/synchronization.",
+      "source_owner": "llama_context::prepare_kv_attention_graph, direct-route eligibility, CUDA dispatcher and graph keys",
+      "minimal_reproducer": "matched off/observe/reference/direct 4K and 8K prompts plus one 20K warmup",
+      "measurement_change": "observable direct route or causally bounded fallback, wave-bounded graph/sync counts and a completed 20K warmup",
+      "owning_task": "23-03",
+      "raw_ids": [
+        "phase21-curve",
+        "curve-20k-campaign"
+      ]
+    },
+    {
+      "rank": 4,
+      "gap": "No attention-driven cold-page movement or physical identity chain was measured.",
+      "hypothesis": "The fresh-query policy transaction is not invoked before selected-table construction on the production route.",
+      "source_owner": "finish_pager_batch, apply_live_policy, host seal/transfer and selected-table publication",
+      "minimal_reproducer": "one known early cold needle at 6K-8K occupancy with four diagnostic hot pages",
+      "measurement_change": "nonzero useful H2D with page/checksum/event/slot/route/answer correlation",
+      "owning_task": "23-04",
+      "raw_ids": [
+        "phase21-soak",
+        "soak-metrics-089"
+      ]
+    }
+  ],
+  "next_phase": {
+    "phase": "23",
+    "first_task": "23-01",
+    "implementation_tasks": [
+      "23-01",
+      "23-02",
+      "23-03",
+      "23-04"
+    ],
+    "measurement_tasks": [
+      "23-05",
+      "23-06",
+      "23-07",
+      "23-08",
+      "23-09",
+      "23-10",
+      "23-11"
+    ],
+    "benchmark_only_review": "24-01",
+    "review_model": "Sol High"
+  },
+  "checks": [
+    {
+      "name": "Phase-21 summary provenance and representative raw hashes",
+      "status": "pass",
+      "raw_ids": [
+        "phase21-summary-json",
+        "phase21-summary-md",
+        "allocation-records",
+        "population-summary",
+        "startup-175k-journal",
+        "startup-262k-journal",
+        "curve-20k-campaign",
+        "soak-pressure-journal",
+        "soak-metrics-089"
+      ]
+    },
+    {
+      "name": "262144 allocation and occupied-context functionality",
+      "status": "fail",
+      "raw_ids": [
+        "phase21-full256k",
+        "population-summary"
+      ]
+    },
+    {
+      "name": "Canonical CPU backing and budget-derived bounded GPU pages",
+      "status": "fail",
+      "raw_ids": [
+        "phase21-full256k",
+        "phase21-soak"
+      ]
+    },
+    {
+      "name": "Attention-driven cold retrieval and lossless parity",
+      "status": "not_measured",
+      "raw_ids": [
+        "phase21-quality",
+        "phase21-soak"
+      ]
+    },
+    {
+      "name": "Full-context GPU Turbo4 MTP allocation",
+      "status": "pass",
+      "raw_ids": [
+        "phase21-full256k",
+        "allocation-records"
+      ]
+    },
+    {
+      "name": "Quality tradeoff evidence",
+      "status": "fail",
+      "raw_ids": [
+        "phase21-quality"
+      ]
+    },
+    {
+      "name": "Physical churn and lifecycle",
+      "status": "fail",
+      "raw_ids": [
+        "phase21-soak",
+        "soak-pressure-journal"
+      ]
+    },
+    {
+      "name": "Speed curve and matched controls",
+      "status": "not_measured",
+      "raw_ids": [
+        "phase21-curve",
+        "phase21-controls"
+      ]
+    },
+    {
+      "name": "Actionable remediation and repeat-review graph",
+      "status": "pass",
+      "raw_ids": [
+        "phase21-summary-json"
+      ]
+    }
+  ],
+  "raw_index": [
+    {
+      "id": "phase21-summary-json",
+      "path": ".wiretail/execution/evidence/PHASE21_BENCHMARK_SUMMARY.json",
+      "sha256": "b21201bf1cc0bdf1341c5c7bd56271c4d44a5b89103fb9309f9901e800dfc085"
+    },
+    {
+      "id": "phase21-summary-md",
+      "path": ".wiretail/execution/evidence/PHASE21_BENCHMARK_SUMMARY.md",
+      "sha256": "e556bc2dfacf2ac1426eef36d500416aa97593ee98de6578f74ff3d38d4094c3"
+    },
+    {
+      "id": "phase21-quality",
+      "path": ".wiretail/execution/evidence/PHASE21_QUALITY.json",
+      "sha256": "4214269936a5e75125781ac391b54131d9be7416d26839e16a315ce1c0c2932f"
+    },
+    {
+      "id": "phase21-full256k",
+      "path": ".wiretail/execution/evidence/PHASE21_FULL256K.json",
+      "sha256": "e6e4659aa3d5d3be9fdfca2e1b5296f7a401e52c5ec732a278daaa62df0deeda"
+    },
+    {
+      "id": "phase21-curve",
+      "path": ".wiretail/execution/evidence/PHASE21_CURVE.json",
+      "sha256": "ee1a39145990b5f3f55ec5c68050460af26efd9794dc7846a1b0064433b0ab90"
+    },
+    {
+      "id": "phase21-controls",
+      "path": ".wiretail/execution/evidence/PHASE21_CONTROLS.json",
+      "sha256": "82889c8742fdeb5dd0ffee0d79ee0ebae754f224088e5d122b75ad75a964b2cd"
+    },
+    {
+      "id": "phase21-soak",
+      "path": ".wiretail/execution/evidence/PHASE21_SOAK.json",
+      "sha256": "ca66a3b3fc0629d60798876a7cd32cf89b262c36877ac94557887c213180ece1"
+    },
+    {
+      "id": "phase21-yarn",
+      "path": ".wiretail/execution/evidence/PHASE21_YARN.json",
+      "sha256": "0bd8309534f14f57618f58803d73fa02cabded9cde515090d03a01c3519529cb"
+    },
+    {
+      "id": "allocation-records",
+      "path": "/srv/ai/paged-kv/results/21-06-allocation-fixed4-20260906T045000Z/records.jsonl",
+      "sha256": "e276a5a846f36b480a3415d04f329bfabeb5389985f9cf0ede3efa530c2ca28a"
+    },
+    {
+      "id": "population-summary",
+      "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/raw/population-summary.json",
+      "sha256": "a5a9a8c23a68c3fb391be91a081ea52446f4c301e2fb672ea4cc4291cf6b6218"
+    },
+    {
+      "id": "startup-175k-journal",
+      "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/175000/journal.txt",
+      "sha256": "7c49c042d61f803a1e408a479680d3cca87f573a1575f410bbfb1dff31283240"
+    },
+    {
+      "id": "startup-262k-journal",
+      "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/262144/journal.txt",
+      "sha256": "722c993144ebed94fd81b5ff0a51856886f710fa67749157b708286b9f79042d"
+    },
+    {
+      "id": "curve-20k-campaign",
+      "path": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z/campaign.json",
+      "sha256": "77d9238c28de948e8ca3d11f880cce2f07a771e45d0cb0c57826f117805792b2"
+    },
+    {
+      "id": "soak-pressure-journal",
+      "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/pressure-after.journal.txt",
+      "sha256": "23ba8bc6137d2455ccf0c4cfbe76fe9ce0cfa90a307b01984ce390c1fa10089e"
+    },
+    {
+      "id": "soak-metrics-089",
+      "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/metrics-sample-089.txt",
+      "sha256": "9ef79161b39ec619ea88fea680964c104406262549c917aeed6e19112e123be4"
+    }
+  ],
+  "failure": null,
+  "resume": {
+    "command": "Outer runner starts 23-01; reproduce auto-hot startup with a late-allocation ledger before changing admission.",
+    "next_case": "23-01 175K/262144 auto-hot allocation-category reproducer",
+    "secrets_omitted": true
+  },
+  "implementation_owner": null,
+  "deferred_verification": {
+    "required": true,
+    "items": [
+      "Phase 23 must repair and rerun the local GPU-runtime checks named in ranked_gaps.",
+      "Phase 24 must independently review only the resulting phase-23 compact summary."
+    ],
+    "hardware_or_human_action": "No unavailable hardware, hosted service, credentials, or human upstream action blocks the scheduled local work."
+  }
+}

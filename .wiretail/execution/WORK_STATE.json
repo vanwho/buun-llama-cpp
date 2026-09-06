@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "22",
-  "current_task": "22-01",
-  "last_updated_utc": "2026-09-06T06:15:35+00:00",
+  "current_phase": "23",
+  "current_task": "23-01",
+  "last_updated_utc": "2026-09-06T06:27:24+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "test_context_policy": "development tests use purpose-appropriate context, occupancy and test hot budget; the six 20K/40K/60K/100K/175K/256K coordinates are only final results collection after functionality works, never routine phase/task gates",
     "speed_target": "annotate historical 3x/5x CPU KV and 70% comparable all-GPU comparisons without gating completion of measurement tasks",
     "full_context_proof": "262144 resolved target and GPU Turbo4 MTP rows, near-full token-counted occupancy with generation headroom, canonical CPU backing and bounded hot VRAM with real transfers",
-    "required_final_status": "17-16 bridges the running 17-15 findings; phases 18-20 repair live implementation and experiments; phase 21 gates/repairs the remaining live pager path and then produces compact measured evidence; 22-01 Sol High assesses only that summary and creates a new implementation/benchmark/review chain if the goal remains unmet",
+    "required_final_status": "Phase 21 produced an incomplete compact summary; 22-01 Sol High assesses only that summary, schedules phase 23 measured repair/remeasurement, and 24-01 Sol High reviews only the new phase-23 summary",
     "stretch_goal": "YaRN beyond 256K is conditional on proven base capability and separately reported, never an excuse to shrink or disable Turbo4 GPU MTP"
   },
   "external_gates": [
@@ -3804,11 +3804,325 @@
       "cluster": "22a-benchmark-review",
       "title": "Assess the latest benchmark summary and schedule measured remediation if needed",
       "packet": ".wiretail/execution/tasks/22-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Sol High",
       "depends_on": [
         "21-11"
+      ],
+      "commit": "6989e97d1edad275a6abdc78344943352f79a4ff",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-sol",
+            "reasoning": "high",
+            "source": ".wiretail/build/22-01-attempt-1-20260906T061552Z.jsonl:78",
+            "total_tokens": 3085642,
+            "total_tokens_derived": true,
+            "input_tokens": 3054041,
+            "cached_input_tokens": 2803968,
+            "output_tokens": 31601,
+            "thinking_tokens": 6468
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 3085642,
+          "input_tokens": 3054041,
+          "cached_input_tokens": 2803968,
+          "output_tokens": 31601,
+          "thinking_tokens": 6468
+        }
+      }
+    },
+    {
+      "id": "23-01",
+      "phase": "23",
+      "cluster": "23a-runtime-repair",
+      "title": "Reserve late CUDA allocations before automatic hot-page admission",
+      "packet": ".wiretail/execution/tasks/23-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "22-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-02",
+      "phase": "23",
+      "cluster": "23a-runtime-repair",
+      "title": "Serialize compact paged KV checkpoints by physical identity",
+      "packet": ".wiretail/execution/tasks/23-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-03",
+      "phase": "23",
+      "cluster": "23a-runtime-repair",
+      "title": "Remove the live Qwen selected-reference prefill bottleneck",
+      "packet": ".wiretail/execution/tasks/23-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-02"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-04",
+      "phase": "23",
+      "cluster": "23b-paging-acceptance",
+      "title": "Prove attention-driven cold promotion with physical correlation",
+      "packet": ".wiretail/execution/tasks/23-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-03"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-05",
+      "phase": "23",
+      "cluster": "23b-paging-acceptance",
+      "title": "Repeat bounded quality on the repaired release",
+      "packet": ".wiretail/execution/tasks/23-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-04"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-06",
+      "phase": "23",
+      "cluster": "23b-paging-acceptance",
+      "title": "Repeat full 262,144-token population, retrieval, and continuation",
+      "packet": ".wiretail/execution/tasks/23-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-05"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-07",
+      "phase": "23",
+      "cluster": "23c-final-measurements",
+      "title": "Repeat the original-three-prompt Turbo4 context curve",
+      "packet": ".wiretail/execution/tasks/23-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-06"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-08",
+      "phase": "23",
+      "cluster": "23c-final-measurements",
+      "title": "Repeat release-matched controls and bottleneck decomposition",
+      "packet": ".wiretail/execution/tasks/23-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-07"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-09",
+      "phase": "23",
+      "cluster": "23c-final-measurements",
+      "title": "Repeat correlated physical-pressure and lifecycle soak",
+      "packet": ".wiretail/execution/tasks/23-09.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-08"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-10",
+      "phase": "23",
+      "cluster": "23d-stretch-summary",
+      "title": "Re-evaluate conditional YaRN stretch",
+      "packet": ".wiretail/execution/tasks/23-10.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-09"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "23-11",
+      "phase": "23",
+      "cluster": "23d-stretch-summary",
+      "title": "Consolidate repaired phase-23 benchmark evidence",
+      "packet": ".wiretail/execution/tasks/23-11.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "23-10"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "24-01",
+      "phase": "24",
+      "cluster": "24a-benchmark-review",
+      "title": "Independently assess the phase-23 benchmark summary",
+      "packet": ".wiretail/execution/tasks/24-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Sol High",
+      "depends_on": [
+        "23-11"
       ],
       "commit": null,
       "token_usage": {
@@ -4607,6 +4921,42 @@
       }
     },
     "22": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-sol",
+          "reasoning": "high",
+          "source": ".wiretail/build/22-01-attempt-1-20260906T061552Z.jsonl:78",
+          "total_tokens": 3085642,
+          "total_tokens_derived": true,
+          "input_tokens": 3054041,
+          "cached_input_tokens": 2803968,
+          "output_tokens": 31601,
+          "thinking_tokens": 6468
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 3085642,
+        "input_tokens": 3054041,
+        "cached_input_tokens": 2803968,
+        "output_tokens": 31601,
+        "thinking_tokens": 6468
+      }
+    },
+    "23": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "24": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -4620,12 +4970,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 41,
-      "total_tokens": 772682338,
-      "input_tokens": 770840833,
-      "cached_input_tokens": 756577536,
-      "output_tokens": 1841505,
-      "thinking_tokens": 648081
+      "turns": 42,
+      "total_tokens": 775767980,
+      "input_tokens": 773894874,
+      "cached_input_tokens": 759381504,
+      "output_tokens": 1873106,
+      "thinking_tokens": 654549
     },
     "source": "Codex turn.completed usage events"
   }

@@ -248,14 +248,17 @@ on content changes alone. Profile actual MTP verification as well as decode.
 | 20 | Real per-layer query retrieval, retention, async movement, graph/fast-path optimization, quality tradeoffs | Profiled attention-aware candidate |
 | 21 | Frozen quality, original-three-prompt context curve, paired controls, physical-pressure soak, optional YaRN, compact summary | Measured findings, including shortcomings |
 | 22-01 | Sol High benchmark-only assessment | Verdict; if needed, new measured remediation and review chain |
+| 23 | Measured repair of admission, checkpointing, live prefill and cold promotion; repeat quality, full-context, curve, controls and soak | Repaired candidate and compact phase-23 summary |
+| 24-01 | Sol High benchmark-only assessment of only the phase-23 summary | Independent verdict; create another bounded chain only for newly measured gaps |
 
 Old **unstarted** 17-16/17-17/17-18/17-19/18-01 packet contents are archived in
 `archive/pre-post17/`; no completed task, active packet or historical result is
 deleted. 17-16 is now the bridge; the old reviewer is superseded by 22-01.
 The runner reads the edited state after 17-15 completes and proceeds normally.
 
-All task recommendations remain Luna High per the user's project policy;
-22-01 remains Sol High. This does not change Wiretail's tool-wide defaults.
+All implementation and benchmark task recommendations remain Luna High per the
+user's project policy; 22-01 and the generated 24-01 reviewer remain Sol High.
+This does not change Wiretail's tool-wide defaults.
 Packets spell out decisions so smaller reasoning settings remain practical.
 Clusters contain at most three adjacent tasks with the same source ownership.
 Read this strategy once per new cluster, that cluster, the current packet,
