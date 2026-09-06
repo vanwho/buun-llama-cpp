@@ -1,0 +1,283 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "21-08",
+  "result": "incomplete",
+  "kind": "matched_controls_and_bottleneck",
+  "procedure": "release_matched_cpu_kv_gpu_mtp_and_all_gpu_controls",
+  "created_utc": "2026-09-06T05:45:16Z",
+  "classification": {
+    "paired_target_rows": "not_measured",
+    "cpu_kv_gpu_mtp_controls": "unavailable_for_pairing",
+    "all_gpu_turbo4_mtp_controls": "unavailable_for_pairing",
+    "observe_ablation": "not_measured",
+    "mtp_off_ablation": "not_measured",
+    "bottleneck_isolation": "partial_observed_blockers_only"
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "e75d1d5f3",
+    "target_bundle": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+    "target_server_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "target_corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "target_corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.84",
+    "gpu_total_mib": 16376,
+    "page_size_tokens": 256,
+    "target_kv": "Turbo4",
+    "mtp_kv": "Turbo4",
+    "mtp_placement": "GPU",
+    "sampling": {
+      "temperature": 0,
+      "seed": 42,
+      "thinking": "off"
+    },
+    "curve_evidence": ".wiretail/execution/evidence/PHASE21_CURVE.json",
+    "curve_result": "incomplete_with_zero_completed_speed_rows"
+  },
+  "matching_contract": {
+    "required_identity": [
+      "release bundle and server binary",
+      "model and tokenizer",
+      "corpus and exact prompt",
+      "occupied prompt tokens and logical context",
+      "sampling and cache condition",
+      "MTP placement and K/V codec"
+    ],
+    "target_completed_rows": 0,
+    "paired_control_rows": 0,
+    "unmatched_rule": "A missing target row or any identity mismatch produces null ratio; no shorter all-GPU run is promoted to a comparable control."
+  },
+  "protocol": {
+    "intended": {
+      "warmups": 1,
+      "warmup_max_tokens": 40,
+      "measured_trials": 3,
+      "max_tokens": 400,
+      "stream": true,
+      "cache_condition": "clean-isolated",
+      "temperature": 0,
+      "seed": 42,
+      "thinking": "off"
+    },
+    "target_status": "not_completed; 21-07 contextual warmup stopped before a response",
+    "control_status": "not run as a substitute; old-release artifacts are retained only as diagnostics"
+  },
+  "target_rows": {
+    "expected_contexts": [20000, 40000, 60000, 100000, 175000, 262144],
+    "questions": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ],
+    "completed_rows": 0,
+    "rows": [
+      {"context_tokens": 20000, "status": "incomplete", "prompt_trials": [null, null, null], "wall_seconds": null, "decode_tokens_per_second": null, "null_reason": "21-07 warmup rendered 19600 prompt tokens but produced no completed measured trial"},
+      {"context_tokens": 40000, "status": "not_measured", "prompt_trials": [null, null, null], "wall_seconds": null, "decode_tokens_per_second": null, "null_reason": "dependent target campaign did not reach this context"},
+      {"context_tokens": 60000, "status": "not_measured", "prompt_trials": [null, null, null], "wall_seconds": null, "decode_tokens_per_second": null, "null_reason": "dependent target campaign did not reach this context"},
+      {"context_tokens": 100000, "status": "not_measured", "prompt_trials": [null, null, null], "wall_seconds": null, "decode_tokens_per_second": null, "null_reason": "dependent target campaign did not reach this context"},
+      {"context_tokens": 175000, "status": "unavailable", "prompt_trials": [null, null, null], "wall_seconds": null, "decode_tokens_per_second": null, "null_reason": "automatic native-MTP startup failed during recurrent-state allocation"},
+      {"context_tokens": 262144, "status": "unavailable", "prompt_trials": [null, null, null], "wall_seconds": null, "decode_tokens_per_second": null, "null_reason": "automatic native-MTP startup failed during CUDA compute-buffer allocation"}
+    ]
+  },
+  "controls": {
+    "paired_ids": [],
+    "cpu_kv_gpu_mtp": {
+      "status": "unavailable_for_pairing",
+      "target_wall_seconds": null,
+      "control_wall_seconds": null,
+      "wall_ratio": null,
+      "decode_ratio": null,
+      "variability": null,
+      "memory": null,
+      "null_reason": "No completed target row exists; no CPU-KV run was promoted as a denominator."
+    },
+    "all_gpu_turbo4_mtp": {
+      "status": "unavailable_for_pairing",
+      "target_wall_seconds": null,
+      "control_wall_seconds": null,
+      "wall_ratio": null,
+      "decode_ratio": null,
+      "variability": null,
+      "memory": null,
+      "null_reason": "No completed target row exists; historical safe capacity and shorter-context runs do not match the target corpus/context protocol."
+    },
+    "observe": {
+      "status": "not_measured",
+      "wall_ratio": null,
+      "decode_ratio": null,
+      "null_reason": "Observe is a separate ablation and was not run without a valid target row."
+    },
+    "mtp_off": {
+      "status": "not_measured",
+      "wall_ratio": null,
+      "decode_ratio": null,
+      "null_reason": "MTP-off is a separate ablation and was not run without a valid target row."
+    },
+    "unpaired_diagnostics": [
+      {
+        "id": "current-release-selective-mtp-gpu-sentinel",
+        "class": "current_binary_legacy_corpus_unpaired",
+        "bundle": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+        "binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+        "corpus_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+        "excluded_because": [
+          "corpus hash differs from the 21-07 target corpus",
+          "fixed 22016-token context is not one of the target contexts",
+          "only one measured prompt record is complete",
+          "the record is selective Turbo4/native GPU MTP, not a CPU-KV or dense all-GPU pair"
+        ],
+        "observed": {
+          "prompt_index": 0,
+          "occupied_prompt_tokens": 30,
+          "logical_context_tokens": 22016,
+          "completion_tokens": 313,
+          "wall_seconds": 59.094432,
+          "prompt_seconds": 0.782528,
+          "decode_seconds": 58.309917,
+          "draft_tokens": 214,
+          "accepted_tokens": 207,
+          "acceptance_rate_percent": 96.729,
+          "queue_seconds": 1.54395,
+          "wait_seconds": 1.25485,
+          "copy_seconds": 0.0,
+          "host_valid_rows": 256,
+          "target_valid_rows": 344,
+          "target_allocated_bytes": 17301500,
+          "host_valid_bytes": 4325380,
+          "target_valid_bytes": 5812220,
+          "h2d_actual_bytes": 0,
+          "d2h_actual_bytes": 0,
+          "prefill_reference_routes": 1,
+          "mtp_verify_reference_routes": 108
+        },
+        "interpretation": "Diagnostic telemetry only; it is not a target/control ratio or a representative long-context decomposition."
+      },
+      {
+        "id": "historical-20-06-controls",
+        "class": "historical_bundle_unpaired",
+        "bundle": "/srv/ai/paged-kv/results/20-06-runtime-bundle-20260905T210000Z",
+        "excluded_because": [
+          "server release differs from the 21-07 target bundle",
+          "corpus hash differs from the 21-07 target corpus",
+          "logical context and warmup/trial protocol differ"
+        ],
+        "observed_summary": {
+          "small_prompt_tokens": 70,
+          "small_all_gpu_wall_seconds": 0.526939648,
+          "small_cpu_kv_wall_seconds": 1.649380096,
+          "pressured_prompt_tokens": 1898,
+          "pressured_all_gpu_wall_seconds": 1.169011712,
+          "pressured_cpu_kv_wall_seconds": 2.92276864,
+          "all_gpu_safe_capacity_tokens": 98304
+        },
+        "interpretation": "Historical diagnostics are retained for context but deliberately excluded from every ratio in this receipt."
+      }
+    ]
+  },
+  "ratios": {
+    "per_question": [
+      {"prompt_index": 0, "question": "write a python function that merges two sorted lists into one sorted list, with docstring.", "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "cpu_kv_gpu_mtp_decode_ratio": null, "all_gpu_turbo4_mtp_decode_ratio": null, "variability": null, "null_reason": "No release-matched target/control pair."},
+      {"prompt_index": 1, "question": "explain the difference between mmap and read for loading large files, one paragraph.", "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "cpu_kv_gpu_mtp_decode_ratio": null, "all_gpu_turbo4_mtp_decode_ratio": null, "variability": null, "null_reason": "No release-matched target/control pair."},
+      {"prompt_index": 2, "question": "write a bash script that watches a directory and prints new files as they appear.", "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "cpu_kv_gpu_mtp_decode_ratio": null, "all_gpu_turbo4_mtp_decode_ratio": null, "variability": null, "null_reason": "No release-matched target/control pair."}
+    ],
+    "by_context": [
+      {"context_tokens": 20000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "null_reason": "No completed target row."},
+      {"context_tokens": 40000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "null_reason": "Target not measured."},
+      {"context_tokens": 60000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "null_reason": "Target not measured."},
+      {"context_tokens": 100000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "null_reason": "Target not measured."},
+      {"context_tokens": 175000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "null_reason": "Target startup unavailable."},
+      {"context_tokens": 262144, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "null_reason": "Target startup unavailable."}
+    ]
+  },
+  "decomposition": {
+    "representative_points": [
+      {"label": "short", "context_tokens": 20000, "target": null, "cpu_kv_gpu_mtp": null, "all_gpu_turbo4_mtp": null, "components_seconds": {"model_compute": null, "paged_attention": null, "draft_verify": null, "h2d": null, "d2h": null, "routing": null, "graph_launch": null, "synchronization": null}, "status": "not_measured"},
+      {"label": "middle", "context_tokens": 60000, "target": null, "cpu_kv_gpu_mtp": null, "all_gpu_turbo4_mtp": null, "components_seconds": {"model_compute": null, "paged_attention": null, "draft_verify": null, "h2d": null, "d2h": null, "routing": null, "graph_launch": null, "synchronization": null}, "status": "not_measured"},
+      {"label": "long", "context_tokens": 262144, "target": null, "cpu_kv_gpu_mtp": null, "all_gpu_turbo4_mtp": null, "components_seconds": {"model_compute": null, "paged_attention": null, "draft_verify": null, "h2d": null, "d2h": null, "routing": null, "graph_launch": null, "synchronization": null}, "status": "unavailable"}
+    ],
+    "null_reason": "No release-matched completed target/control trial supplied component counters; the single unpaired sentinel exposes queue/wait and route counters only."
+  },
+  "memory": {
+    "paired_target": null,
+    "paired_cpu_kv_gpu_mtp": null,
+    "paired_all_gpu_turbo4_mtp": null,
+    "safe_all_gpu_denominator_tokens": null,
+    "unpaired_current_sentinel": {
+      "logical_context_tokens": 22016,
+      "target_allocated_bytes": 17301500,
+      "target_valid_bytes": 5812220,
+      "host_valid_bytes": 4325380,
+      "mtp_rows": 22016,
+      "mtp_bytes": 23380000
+    },
+    "null_reason": "The 20-06 98304-token safe maximum and the 20-07 startup allocations are not paired speed-control capacities for this target row set."
+  },
+  "bottleneck_ranking": [
+    {
+      "rank": 1,
+      "finding": "Long-context prefill/context execution is the first measured blocker.",
+      "evidence": "The 20K target warmup rendered 3072 of 19600 prompt tokens in 134.30 seconds before cancellation and produced no response.",
+      "confidence": "high",
+      "causal_isolation": "not possible without a completed matched target/control row"
+    },
+    {
+      "rank": 2,
+      "finding": "Native-MTP high-context allocation headroom is a second measured blocker.",
+      "evidence": "Automatic startup failed at 175000 on recurrent-state allocation and at 262144 on CUDA compute-buffer allocation.",
+      "confidence": "high",
+      "causal_isolation": "allocation failures identify the blocked stage, not a runtime speed share"
+    },
+    {
+      "rank": 3,
+      "finding": "The current evidence cannot distinguish model compute from pager, transfer, or synchronization cost.",
+      "evidence": "There are zero release-matched target/control pairs; all requested component fields and ratios are null. The one current-binary sentinel is explicitly unpaired.",
+      "confidence": "high",
+      "causal_isolation": "measurement limitation"
+    }
+  ],
+  "checks": [
+    {"name": "Frozen target release/model/corpus identity retained", "status": "pass", "raw_ids": ["curve-evidence", "target-binary", "target-model", "target-corpus"]},
+    {"name": "Current-release candidate control inspected without relabeling as comparable", "status": "pass", "raw_ids": ["current-control-config", "current-control-record", "current-control-progress"]},
+    {"name": "CPU-KV/GPU-MTP and dense all-GPU paired controls", "status": "not_measured", "raw_ids": ["curve-evidence"]},
+    {"name": "Per-question ratios and variability", "status": "not_measured", "raw_ids": []},
+    {"name": "Short/middle/long component decomposition", "status": "not_measured", "raw_ids": ["current-control-record"]},
+    {"name": "Target startup and warmup blockers carried forward", "status": "fail", "raw_ids": ["startup-175k", "startup-262k", "curve-evidence"]}
+  ],
+  "raw_index": [
+    {"id": "curve-evidence", "path": ".wiretail/execution/evidence/PHASE21_CURVE.json", "sha256": "ee1a39145990b5f3f55ec5c68050460af26efd9794dc7846a1b0064433b0ab90"},
+    {"id": "target-binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "target-model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "target-corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "startup-175k", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/175000/journal.txt", "sha256": "7c49c042d61f803a1e408a479680d3cca87f573a1575f410bbfb1dff31283240"},
+    {"id": "startup-262k", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/262144/journal.txt", "sha256": "722c993144ebed94fd81b5ff0a51856886f710fa67749157b708286b9f79042d"},
+    {"id": "curve-20k-campaign", "path": "/srv/ai/paged-kv/results/21-07-curve-20k-20260906T0725Z/campaign.json", "sha256": "77d9238c28de948e8ca3d11f880cce2f07a771e45d0cb0c57826f117805792b2"},
+    {"id": "current-control-config", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/live-candidate-sentinel-v2/run-config.json", "sha256": "b42689d6714a93ee7f58fa65d16bac882cac427f8cd61ef78f230c0eb9137a6f"},
+    {"id": "current-control-record", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/live-candidate-sentinel-v2/records.jsonl", "sha256": "26bac773735816dd1eac9677493baf288f0b6935f1b22c05dc447a84e10f6d10"},
+    {"id": "current-control-progress", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/live-candidate-sentinel-v2/raw/progress-off-measured-1-p0.jsonl", "sha256": "0cfc9be4ea9353c531f9d6a9a7b7099ce3951a7828ae1dbf71dcb4a66357e101"},
+    {"id": "historical-controls", "path": ".wiretail/execution/evidence/20-06_CONTROLS.json", "sha256": "43a0cee86608c67e8cbe1893834634d6f9a91492b0007f3ffbc7a9ea792cf463"}
+  ],
+  "failure": {
+    "class": "dependent_target_campaign_incomplete",
+    "summary": "21-07 supplied no completed contextual speed row, so matched controls and ratios cannot be computed without violating release/context matching.",
+    "unavailable_capacities": [175000, 262144]
+  },
+  "deferred_verification": {
+    "required": true,
+    "items": [
+      "Complete the 21-07 target curve under the frozen 20-07 bundle/model/corpus.",
+      "Run CPU-KV/GPU-MTP and safely fitting dense all-GPU Turbo4 controls at each completed target point.",
+      "Repeat observe and MTP-off only as separate ablations, then collect short/middle/long component counters.",
+      "Repair or document the 175K and 262K native-MTP startup allocation failures before claiming long-context capacities."
+    ],
+    "hardware_or_human_action": "No human or hosted action is required; this is deferred runtime measurement after the dependent target campaign is complete."
+  },
+  "resume": {
+    "command": "Reuse the frozen 20-07 runtime bundle and target corpus; first complete 21-07 target rows, then run release-matched controls with the intended warmup/trial protocol.",
+    "next_case": "first completed target context/question pair",
+    "secrets_omitted": true
+  }
+}
