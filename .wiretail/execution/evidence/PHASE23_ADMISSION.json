@@ -1,0 +1,113 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "23-01",
+  "phase": "23",
+  "result": "pass_with_deferred_runtime_probe",
+  "kind": "admission_repair",
+  "created_utc": "2026-09-06T06:43:52Z",
+  "provenance": {
+    "source_diff_sha256": null,
+    "source_diff_unavailable_reason": "The outer runner owns the uncommitted worktree; no source commit was created.",
+    "build_root": "/srv/repos/vanwho/buun-llama-cpp/build-cuda",
+    "cuda_architecture": "89-real",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "live_candidate_preserved": true,
+    "live_candidate_note": "A successful 262144-token candidate from the historical runtime bundle was already resident; it was not stopped for an overlapping probe."
+  },
+  "baseline": {
+    "source": "Phase 21 startup receipts referenced by PHASE22_REVIEW",
+    "failures": [
+      "175000 recurrent-state allocation",
+      "262144 compute-buffer allocation",
+      "automatic 262144 hot-page allocation; fixed-four-page recovery only"
+    ],
+    "hypothesis_owner": [
+      "llama_context::plan_kv_pager",
+      "llama_context::init_kv_pager",
+      "llama_cache_budget_admit",
+      "context allocation order and graph reserve"
+    ]
+  },
+  "implementation_checks": [
+    {
+      "id": "late_categories",
+      "status": "pass",
+      "finding": "Pure checked admission now charges recurrent state, MTP compute, external occupancy, graph, routing, staging, allocator guard and safety headroom exactly once."
+    },
+    {
+      "id": "preallocation_order",
+      "status": "pass",
+      "finding": "Recurrent tensor geometry and the measured co-tenancy compute ask are populated before target hot-page admission."
+    },
+    {
+      "id": "retry_termination",
+      "status": "pass",
+      "finding": "Allocator failure retries only at strictly smaller page caps and retains tuple fingerprints; a realized-size mismatch is terminal."
+    },
+    {
+      "id": "representation_authority",
+      "status": "pass",
+      "finding": "The cache-owned external target slab remains the sole physical target backing."
+    },
+    {
+      "id": "context_and_mtp_invariants",
+      "status": "pass",
+      "finding": "Planner changes capacity only; requested context and resolved native-MTP rows are not shortened."
+    }
+  ],
+  "verification": [
+    {
+      "command": "cmake --build build-cuda --target test-kv-pager test-cache-budget -j2",
+      "status": "pass"
+    },
+    {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R '^(test-kv-pager|test-cache-budget)$'",
+      "status": "pass",
+      "tests_passed": 2,
+      "tests_failed": 0
+    },
+    {
+      "command": "cmake --build build-cuda --target llama-server -j2",
+      "status": "pass"
+    },
+    {
+      "command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate",
+      "status": "pass",
+      "tasks_validated": 139
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass"
+    }
+  ],
+  "deferred_verification": [
+    {
+      "id": "startup_175k_auto",
+      "status": "deferred",
+      "reason": "Fresh startup would require stopping the already loaded successful candidate; lifecycle policy requires preserving it."
+    },
+    {
+      "id": "startup_262144_auto",
+      "status": "deferred",
+      "reason": "Fresh startup would require stopping the already loaded successful candidate; lifecycle policy requires preserving it."
+    },
+    {
+      "id": "bounded_request_and_post_warmup_headroom",
+      "status": "deferred",
+      "reason": "Depends on the new automatic-hot startup probe and must be measured with the new binary."
+    }
+  ],
+  "next_measurement_contract": {
+    "contexts": [175000, 262144],
+    "hot_pages": "auto",
+    "required": [
+      "nonzero budget-derived target pool",
+      "resolved native-MTP rows",
+      "complete category ledger",
+      "post-warmup headroom",
+      "smallest failed category and tuple on refusal"
+    ],
+    "control": "fixed-four-page allocation remains diagnostic only, never the production answer"
+  }
+}

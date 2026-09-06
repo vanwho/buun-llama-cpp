@@ -71,6 +71,15 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t charged_bytes = 0;
     uint64_t reserved_bytes = 0;
     uint64_t headroom_bytes = 0;
+    uint64_t weights_bytes = 0;
+    uint64_t fixed_context_bytes = 0;
+    uint64_t recurrent_state_bytes = 0;
+    uint64_t mtp_compute_bytes = 0;
+    uint64_t graph_bytes = 0;
+    uint64_t turbo4_scratch_bytes = 0;
+    uint64_t routing_table_bytes = 0;
+    uint64_t staging_bytes = 0;
+    uint64_t external_bytes = 0;
     uint64_t mtp_rows = 0;
     uint64_t mtp_bytes = 0;
     uint64_t requested_context_tokens = 0;

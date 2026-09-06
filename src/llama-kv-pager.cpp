@@ -789,14 +789,58 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
             output->allocation_.handle = resources.external_storage_buffer;
             output->allocation_.requested_bytes = output->snapshot_.physical_bytes;
             output->allocation_.realized_bytes = output->snapshot_.physical_bytes;
-        } else if (!output->backend_.allocate || !output->backend_.release ||
-            !output->backend_.allocate(output->snapshot_.physical_bytes, output->allocation_) ||
-            output->allocation_.handle == nullptr || output->allocation_.realized_bytes != output->snapshot_.physical_bytes) {
-            const bool allocated = output->allocation_.handle != nullptr;
-            const bool mismatch = allocated && output->allocation_.realized_bytes != output->snapshot_.physical_bytes;
-            if (allocated && output->backend_.release) output->backend_.release(output->allocation_);
-            status = mismatch ? llama_kv_pager_status::realized_mismatch : llama_kv_pager_status::allocation;
-            return nullptr;
+        } else {
+            if (!output->backend_.allocate || !output->backend_.release) {
+                status = llama_kv_pager_status::missing_backend;
+                return nullptr;
+            }
+            // Allocation failure is the one point where the allocator can
+            // provide stronger information than a free-byte sample. Retry a
+            // strictly smaller, page-aligned target pool; retain every
+            // attempted tuple for startup diagnostics and to make termination
+            // auditable. A realized-size mismatch is not an OOM and is never
+            // retried.
+            while (true) {
+                auto & attempt = output->snapshot_.admission_attempts.emplace_back();
+                attempt.page_cap = output->snapshot_.physical_page_count;
+                attempt.admitted_pages = output->snapshot_.physical_page_count;
+                attempt.requested_bytes = output->snapshot_.physical_bytes;
+                attempt.fingerprint = output->snapshot_.physical_bytes ^
+                    (uint64_t(output->snapshot_.physical_page_count) *
+                     UINT64_C(0x9e3779b97f4a7c15)) ^
+                    output->snapshot_.admission.charged_bytes;
+                const bool allocated = output->backend_.allocate(
+                        output->snapshot_.physical_bytes, output->allocation_);
+                const bool mismatch = allocated && output->allocation_.handle != nullptr &&
+                    output->allocation_.realized_bytes != output->snapshot_.physical_bytes;
+                if (allocated && output->allocation_.handle != nullptr && !mismatch) {
+                    attempt.allocation_succeeded = true;
+                    break;
+                }
+                if (mismatch) {
+                    output->backend_.release(output->allocation_);
+                    status = llama_kv_pager_status::realized_mismatch;
+                    return nullptr;
+                }
+                if (output->allocation_.handle != nullptr) {
+                    output->backend_.release(output->allocation_);
+                }
+                if (output->snapshot_.physical_page_count <= 1) {
+                    status = llama_kv_pager_status::allocation;
+                    return nullptr;
+                }
+                const uint32_t reduction = std::max<uint32_t>(1,
+                        (output->snapshot_.physical_page_count + 3) / 4);
+                const uint32_t next_cap = output->snapshot_.physical_page_count - reduction;
+                resources.physical_page_cap = next_cap;
+                llama_kv_pager_snapshot next;
+                if (!llama_kv_pager_plan(config, geometry, resources, next, status)) {
+                    return nullptr;
+                }
+                next.admission_attempts = std::move(
+                        output->snapshot_.admission_attempts);
+                output->snapshot_ = std::move(next);
+            }
         }
         output->snapshot_.realized_bytes = output->allocation_.realized_bytes;
         output->snapshot_.initialized = true;
