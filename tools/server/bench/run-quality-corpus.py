@@ -304,12 +304,15 @@ def normalize_request_telemetry(raw: dict[str, Any] | None) -> dict[str, Any] | 
     if not isinstance(raw, dict):
         return None
     route = raw.get("route")
-    if route in {"selected_direct", "selected_reference"}:
-        normalized_route = route
-    elif route is not None:
-        normalized_route = "fallback"
-    else:
-        normalized_route = None
+    route_aliases = {
+        "selected direct": "selected_direct",
+        "selected reference": "selected_reference",
+        "exact direct": "exact_direct",
+        "exact reference": "exact_reference",
+    }
+    normalized_route = route_aliases.get(route, route)
+    if normalized_route not in {"selected_direct", "selected_reference", "fallback"}:
+        normalized_route = "fallback" if route is not None else None
     return {
         "route": normalized_route,
         "route_observed": route,
@@ -399,6 +402,8 @@ def main() -> int:
                         help="resume matching completed cases from the output manifest")
     parser.add_argument("--preflight", action="store_true",
                         help="run the bounded warm/cold/selected-all gate before the campaign")
+    parser.add_argument("--telemetry-only", action="store_true",
+                        help="for preflight, retain answer mismatches as valid telemetry measurements")
     parser.add_argument("--max-cases", type=int, default=None,
                         help="maximum selected cases to evaluate in this invocation")
     parser.add_argument("--case-id", action="append", default=[],
@@ -631,7 +636,12 @@ def main() -> int:
                     else:
                         actual = answer_text(response)
                         passed, reason = score_case(case, actual)
-                        record.update({"status": "pass" if passed else "fail",
+                        record["quality_status"] = "pass" if passed else "fail"
+                        record["quality_score_reason"] = reason
+                        record["quality_actual"] = actual
+                        measurement_status = "pass" if passed else (
+                            "valid_measurement" if args.telemetry_only else "fail")
+                        record.update({"status": measurement_status,
                                        "score": 1.0 if passed else 0.0,
                                        "score_reason": reason, "actual": actual})
             except (PromptSizingError, ValueError) as error:
@@ -640,10 +650,11 @@ def main() -> int:
             record["elapsed_s"] = round(time.monotonic() - started, 6)
             record["client_finished_utc"] = utc_now()
             preflight_records.append(record)
-            if record["status"] != "pass":
+            if record["status"] not in {"pass", "valid_measurement"}:
                 break
         passed = len(preflight_records) == len(plan) and all(
-            item.get("status") == "pass" for item in preflight_records)
+            item.get("status") in {"pass", "valid_measurement"}
+            for item in preflight_records)
         receipt = {
             "schema": "pager-preflight-v1", "status": "pass" if passed else "refused",
             "decision": "allow_campaign" if passed else "refuse_campaign",
