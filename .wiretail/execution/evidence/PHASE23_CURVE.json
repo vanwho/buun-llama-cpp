@@ -1,0 +1,270 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "23-07",
+  "kind": "final_three_prompt_context_curve",
+  "procedure": "repaired_release_three_prompt_context_curve_with_budget_derived_hot_pages",
+  "created_utc": "2026-09-06T07:54:14Z",
+  "result": "not_run",
+  "status": "not_measured_repaired_release_not_deployed",
+  "decision": "recorded_deferred_measurement",
+  "decision_reason": "The 23-06 full-context gate is not demonstrated and the repaired local CUDA candidate is not deployed. Port 8080 serves the preserved 20-07 bundle, so no unlike-release curve request was sent.",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "repository_head": "e11779a663e8df21aba411f3d7e922dc1fb7560c",
+    "worktree_status": "dirty_execution_state_only",
+    "required_repaired_source_commit": "e981d13e846ca98100118cc92c502f4d37dba99f",
+    "local_candidate_binary": "build-cuda/bin/llama-server",
+    "local_candidate_binary_sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f",
+    "local_candidate_deployed": false,
+    "deployed_server_pid": 3761038,
+    "deployed_server_binary": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server",
+    "deployed_server_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "deployed_bundle_manifest": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/bundle-manifest.json",
+    "deployed_bundle_manifest_sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401",
+    "deployed_runtime_start": "2026-09-06T05:55:30Z",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_schema": "pager-corpus-v4",
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.84",
+    "gpu_total_mib": 16376,
+    "page_size_tokens": 256,
+    "target_kv": "Turbo4",
+    "canonical_host_kv": "Turbo4",
+    "mtp_kv": "Turbo4",
+    "mtp_placement": "GPU",
+    "sampling": {
+      "temperature": 0,
+      "seed": 42,
+      "thinking": "off"
+    },
+    "curve_driver": "tools/server/bench/run-final-curve.py",
+    "questions": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ]
+  },
+  "protocol": {
+    "nominal_contexts": [20000, 40000, 60000, 100000, 175000, 262144],
+    "generation_reserve_tokens": 400,
+    "warmups_per_question": 1,
+    "warmup_output_tokens": 40,
+    "measured_trials_per_question": 3,
+    "measured_output_tokens": 400,
+    "stream": true,
+    "cache_condition": "prepared_warm_after_discarded_warmup",
+    "context_material": "deterministic neutral segments prepended before each unchanged question; no answer leakage",
+    "hot_policy": "automatic budget-derived hot pages",
+    "jobs": "one context job at a time",
+    "checkpoint": "after each warmup or measured case",
+    "shorter_substitute_used": false,
+    "endpoint": "http://127.0.0.1:8080",
+    "port_8080_state": "preserved historical 20-07 candidate; not used",
+    "port_8092_state": "owned by another llama-server; not touched"
+  },
+  "checks": [
+    {
+      "name": "Frozen question, sampling, and corpus identity",
+      "status": "pass",
+      "raw_ids": ["task-packet", "protocol", "corpus"]
+    },
+    {
+      "name": "Repaired candidate exists locally",
+      "status": "pass",
+      "raw_ids": ["candidate-binary", "candidate-libggml-cuda", "candidate-libllama", "candidate-server-impl"]
+    },
+    {
+      "name": "Repaired candidate deployed as an immutable executable and DSO bundle",
+      "status": "not_measured",
+      "raw_ids": ["candidate-binary", "deployed-binary", "deployed-bundle-manifest", "runtime-cmdline"]
+    },
+    {
+      "name": "23-06 full-context gate",
+      "status": "not_measured",
+      "raw_ids": ["dependency-handoff"]
+    },
+    {
+      "name": "Six-point contextual curve",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "Per-question medians, dispersion, occupancy, movement, and route evidence",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "startup_ladder": [
+    {"requested_context": 20000, "status": "not_measured", "reason": "Repaired release was not deployed; no startup row from the required release is admissible."},
+    {"requested_context": 40000, "status": "not_measured", "reason": "Repaired release was not deployed; no startup row from the required release is admissible."},
+    {"requested_context": 60000, "status": "not_measured", "reason": "Repaired release was not deployed; no startup row from the required release is admissible."},
+    {"requested_context": 100000, "status": "not_measured", "reason": "Repaired release was not deployed; no startup row from the required release is admissible."},
+    {"requested_context": 175000, "status": "not_measured", "reason": "Repaired release was not deployed; no startup row from the required release is admissible."},
+    {"requested_context": 262144, "status": "not_measured", "reason": "23-06 did not demonstrate the full-context gate and the repaired release was not deployed."}
+  ],
+  "curve_rows": [
+    {
+      "requested_context": 20000,
+      "startup_status": "not_measured",
+      "measurement_status": "not_measured",
+      "measurement_reason": "Repaired release not deployed; no unlike-release request was sent.",
+      "actual_occupied_tokens": null,
+      "budget_derived_hot_pages": null,
+      "valid_point_classification": "not_measured",
+      "per_question": [
+        {"question_index": 0, "warmup_case_id": "ctx20000-q0-warmup-1", "measured_case_ids": ["ctx20000-q0-measured-1", "ctx20000-q0-measured-2", "ctx20000-q0-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 1, "warmup_case_id": "ctx20000-q1-warmup-1", "measured_case_ids": ["ctx20000-q1-measured-1", "ctx20000-q1-measured-2", "ctx20000-q1-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 2, "warmup_case_id": "ctx20000-q2-warmup-1", "measured_case_ids": ["ctx20000-q2-measured-1", "ctx20000-q2-measured-2", "ctx20000-q2-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."}
+      ],
+      "route_fractions": null,
+      "movement": null,
+      "memory_peaks": null
+    },
+    {
+      "requested_context": 40000,
+      "startup_status": "not_measured",
+      "measurement_status": "not_measured",
+      "measurement_reason": "Repaired release not deployed; no unlike-release request was sent.",
+      "actual_occupied_tokens": null,
+      "budget_derived_hot_pages": null,
+      "valid_point_classification": "not_measured",
+      "per_question": [
+        {"question_index": 0, "warmup_case_id": "ctx40000-q0-warmup-1", "measured_case_ids": ["ctx40000-q0-measured-1", "ctx40000-q0-measured-2", "ctx40000-q0-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 1, "warmup_case_id": "ctx40000-q1-warmup-1", "measured_case_ids": ["ctx40000-q1-measured-1", "ctx40000-q1-measured-2", "ctx40000-q1-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 2, "warmup_case_id": "ctx40000-q2-warmup-1", "measured_case_ids": ["ctx40000-q2-measured-1", "ctx40000-q2-measured-2", "ctx40000-q2-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."}
+      ],
+      "route_fractions": null,
+      "movement": null,
+      "memory_peaks": null
+    },
+    {
+      "requested_context": 60000,
+      "startup_status": "not_measured",
+      "measurement_status": "not_measured",
+      "measurement_reason": "Repaired release not deployed; no unlike-release request was sent.",
+      "actual_occupied_tokens": null,
+      "budget_derived_hot_pages": null,
+      "valid_point_classification": "not_measured",
+      "per_question": [
+        {"question_index": 0, "warmup_case_id": "ctx60000-q0-warmup-1", "measured_case_ids": ["ctx60000-q0-measured-1", "ctx60000-q0-measured-2", "ctx60000-q0-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 1, "warmup_case_id": "ctx60000-q1-warmup-1", "measured_case_ids": ["ctx60000-q1-measured-1", "ctx60000-q1-measured-2", "ctx60000-q1-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 2, "warmup_case_id": "ctx60000-q2-warmup-1", "measured_case_ids": ["ctx60000-q2-measured-1", "ctx60000-q2-measured-2", "ctx60000-q2-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."}
+      ],
+      "route_fractions": null,
+      "movement": null,
+      "memory_peaks": null
+    },
+    {
+      "requested_context": 100000,
+      "startup_status": "not_measured",
+      "measurement_status": "not_measured",
+      "measurement_reason": "Repaired release not deployed; no unlike-release request was sent.",
+      "actual_occupied_tokens": null,
+      "budget_derived_hot_pages": null,
+      "valid_point_classification": "not_measured",
+      "per_question": [
+        {"question_index": 0, "warmup_case_id": "ctx100000-q0-warmup-1", "measured_case_ids": ["ctx100000-q0-measured-1", "ctx100000-q0-measured-2", "ctx100000-q0-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 1, "warmup_case_id": "ctx100000-q1-warmup-1", "measured_case_ids": ["ctx100000-q1-measured-1", "ctx100000-q1-measured-2", "ctx100000-q1-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 2, "warmup_case_id": "ctx100000-q2-warmup-1", "measured_case_ids": ["ctx100000-q2-measured-1", "ctx100000-q2-measured-2", "ctx100000-q2-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."}
+      ],
+      "route_fractions": null,
+      "movement": null,
+      "memory_peaks": null
+    },
+    {
+      "requested_context": 175000,
+      "startup_status": "not_measured",
+      "measurement_status": "not_measured",
+      "measurement_reason": "Repaired release not deployed; no unlike-release request was sent.",
+      "actual_occupied_tokens": null,
+      "budget_derived_hot_pages": null,
+      "valid_point_classification": "not_measured",
+      "per_question": [
+        {"question_index": 0, "warmup_case_id": "ctx175000-q0-warmup-1", "measured_case_ids": ["ctx175000-q0-measured-1", "ctx175000-q0-measured-2", "ctx175000-q0-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 1, "warmup_case_id": "ctx175000-q1-warmup-1", "measured_case_ids": ["ctx175000-q1-measured-1", "ctx175000-q1-measured-2", "ctx175000-q1-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."},
+        {"question_index": 2, "warmup_case_id": "ctx175000-q2-warmup-1", "measured_case_ids": ["ctx175000-q2-measured-1", "ctx175000-q2-measured-2", "ctx175000-q2-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Repaired release not deployed."}
+      ],
+      "route_fractions": null,
+      "movement": null,
+      "memory_peaks": null
+    },
+    {
+      "requested_context": 262144,
+      "startup_status": "not_measured",
+      "measurement_status": "not_measured",
+      "measurement_reason": "The 23-06 full-context gate is not demonstrated and the repaired release is not deployed; no unlike-release request was sent.",
+      "actual_occupied_tokens": null,
+      "budget_derived_hot_pages": null,
+      "valid_point_classification": "not_measured",
+      "per_question": [
+        {"question_index": 0, "warmup_case_id": "ctx262144-q0-warmup-1", "measured_case_ids": ["ctx262144-q0-measured-1", "ctx262144-q0-measured-2", "ctx262144-q0-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Full-context gate and repaired deployment unavailable."},
+        {"question_index": 1, "warmup_case_id": "ctx262144-q1-warmup-1", "measured_case_ids": ["ctx262144-q1-measured-1", "ctx262144-q1-measured-2", "ctx262144-q1-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Full-context gate and repaired deployment unavailable."},
+        {"question_index": 2, "warmup_case_id": "ctx262144-q2-warmup-1", "measured_case_ids": ["ctx262144-q2-measured-1", "ctx262144-q2-measured-2", "ctx262144-q2-measured-3"], "warmup_status": "not_run", "measured_trials": 0, "valid_trials": 0, "medians": {"pp_tok_s": null, "tg_tok_s": null, "ttft_ms": null, "wall_time_s": null, "output_tokens": null}, "dispersion": null, "reason": "Full-context gate and repaired deployment unavailable."}
+      ],
+      "route_fractions": null,
+      "movement": null,
+      "memory_peaks": null
+    }
+  ],
+  "telemetry_contract": {
+    "requested_fields": [
+      "pp_tok_s", "tg_tok_s", "ttft_ms", "wall_time_s", "output_tokens",
+      "route_fractions", "selected_rows", "host_rows", "physical_rows",
+      "mtp_acceptance", "h2d_useful_bytes", "h2d_aligned_bytes",
+      "d2h_useful_bytes", "d2h_aligned_bytes", "faults", "queue_us",
+      "copy_us", "wait_us", "graph_launches", "graph_reuse", "memory_peaks"
+    ],
+    "observed": null,
+    "reason": "No repaired-release request reached the server, so no metric is inferred from the preserved server's startup or zero counters."
+  },
+  "raw_integrity": {
+    "executed_case_count": 0,
+    "planned_case_count": 24,
+    "planned_case_ids_are_not_raw_results": true,
+    "candidate_binary_sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f",
+    "deployed_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"
+  },
+  "raw_index": [
+    {"id": "task-packet", "path": ".wiretail/execution/tasks/23-07.md", "sha256": "b14174d04b37745c6c4c807e99febac64d3943d0d75d2875f1e8d6fdb6681c6c"},
+    {"id": "cluster", "path": ".wiretail/execution/clusters/23c-final-measurements.md", "sha256": "284438d39e15ff1e8694f616126ae0bcd6349c50939a42d26313d71d6a9a475f"},
+    {"id": "protocol", "path": ".wiretail/execution/BENCHMARK_PROTOCOL_V5.md", "sha256": "5ad59c568e27b56b206d3febd589582998e4e44da20252fb1e3b2f2e0575bf7a"},
+    {"id": "dependency-handoff", "path": ".wiretail/execution/handoffs/23-06.md", "sha256": "b403ffb1ab663b1f196b25dd5810a65f62e0116368c1d63f3a0c4c27ac61014d"},
+    {"id": "corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "candidate-binary", "path": "build-cuda/bin/llama-server", "sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f"},
+    {"id": "candidate-libggml-cuda", "path": "build-cuda/bin/libggml-cuda.so.0.22.0", "sha256": "ff0fe499f248897c4213ecc7a77afe8f153adb2cfb467bd1184291e0ee48140b"},
+    {"id": "candidate-libllama", "path": "build-cuda/bin/libllama.so.0.3.0", "sha256": "31ef8b1f1d2950e0f740e8281c8fd2d0ec2953405e1291a6ad8892f126f5ed9f"},
+    {"id": "candidate-server-impl", "path": "build-cuda/bin/libllama-server-impl.so", "sha256": "aa1ce42a4098b7b35062a3712715269144584860ad7c8eda3a42e54900f89e30"},
+    {"id": "deployed-binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "deployed-bundle-manifest", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/bundle-manifest.json", "sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401"},
+    {"id": "runtime-cmdline", "path": "/proc/3761038/cmdline", "sha256": "07090f5ed3b2ea018afa9250719a7fc0dfcb6763a7a8daa5ac933d0ee9c3438b"}
+  ],
+  "failure": {
+    "class": "runtime_candidate_unavailable_and_full_context_gate_not_measured",
+    "details": [
+      "The repaired local candidate exists but is not deployed as an immutable executable-plus-DSO bundle.",
+      "Port 8080 is occupied by a preserved historical 20-07 candidate with a different binary identity.",
+      "The 23-06 full-context gate remains not_measured.",
+      "No curve request was sent and no speed, quality, route, movement, or memory result is claimed."
+    ],
+    "not_a_model_quality_failure": true
+  },
+  "resume": {
+    "command": "After a controlled lifecycle transition deploy the repaired executable and all loaded project DSOs as one immutable bundle, pass the 23-06 full-context gate and telemetry preflight, then run tools/server/bench/run-final-curve.py once per nominal context with --warmup-tokens 40 --max-tokens 400 --trials 3 and matching configured API-key-file.",
+    "contexts": [20000, 40000, 60000, 100000, 175000, 262144],
+    "checkpoint_policy": "append and fsync each completed case; resume only matching completed case keys; retain interrupted attempts separately",
+    "secrets_omitted": true,
+    "successful_profile_left_loaded": true
+  },
+  "deferred_verification": [
+    "The 23-06 automatic 262,144-token allocation and near-full occupied-context gate.",
+    "All six contexts with one discarded 40-token warmup and three measured trials for each unchanged question.",
+    "Actual token-counted occupancy, budget-derived hot pages, selected/host/physical rows and GPU native-MTP rows.",
+    "Per-question pp/tg, client TTFT, wall time, committed output counts, MTP acceptance, route fractions, transfer/fault counters, queue/copy/wait timings, graph launches/reuse, and memory peaks.",
+    "Cold-load and fixed-262K growing-history diagnostics remain separate from this curve."
+  ]
+}
