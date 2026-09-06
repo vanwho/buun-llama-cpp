@@ -28,11 +28,14 @@ to their particular invariant or bottleneck, not a repeated six-point ladder.
 17-15 is not changed or interrupted. 17-16 is now a compact transition task;
 phases 18–20 repair and advance the implementation; phase 21 first gates and
 repairs remaining live pager gaps and then measures it; the
-benchmark-only Sol High review moves from old 18-01 to **22-01**. Unstarted old
+benchmark-only Sol High review moves from old 18-01 to **22-01**. Its measured
+`not_reached` result schedules phase 23 repair/remeasurement and the **24-01**
+summary-only review. Unstarted old
 17-16–17-19/18-01 contents are archived, not marked complete. Speed ratios are
 findings, not the historical 3x/5x/70% acceptance gates. All target/draft K/V
 remains Turbo4; MTP stays GPU resident at the resolved full context. YaRN is a
-conditional stretch only after the base 262,144 goal is demonstrated.
+conditional stretch only after the base 262,144 goal is demonstrated. Active
+packet order remains authoritative in `WORK_STATE.json`.
 
 Sections with earlier task IDs below retain design/history context, not an
 instruction to replay their acceptance ledgers. Active packets and dependencies

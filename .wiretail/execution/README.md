@@ -21,8 +21,9 @@ historical/current evidence, not a proof that all live capabilities work.
 17-16 now bridges that campaign to 18–20 implementation repairs/advancements.
 Phase 21 first gates and repairs the live selective Turbo4 path, then produces
 new quality, full-256K, context-speed, paired-control and physical-soak
-evidence; **22-01 is the Sol High benchmark-only reviewer**. It creates a new
-measured remediation chain if needed, not another historical closure audit.
+evidence; **22-01 is the Sol High benchmark-only reviewer**. Its phase-21
+assessment schedules measured phase-23 repair and remeasurement followed by the
+Sol High **24-01** summary-only review, not another historical closure audit.
 All other task recommendations stay Luna High; Wiretail defaults are unchanged.
 The project remains `in_progress`, not complete.
 Native MTP capacity follows the resolved target context and target hot capacity is derived from the
