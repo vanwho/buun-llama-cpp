@@ -37,8 +37,11 @@ int main() {
     ggml_backend_t backend = ggml_backend_cuda_init(0);
     assert(backend != nullptr);
 
-    constexpr uint32_t n_head_q = 4;
-    constexpr uint32_t n_head_kv = 1;
+    // Match the live Qwen3.5 geometry: 24 query heads over 4 KV heads.
+    // This exercises the runtime GQA-ratio path (6), which was previously
+    // rejected by a stale ratio-4 admission check.
+    constexpr uint32_t n_head_q = 24;
+    constexpr uint32_t n_head_kv = 4;
     constexpr uint32_t n_pages = 4;
     constexpr uint32_t n_rows = 530;
     constexpr uint32_t max_query_tokens = GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS;
@@ -58,16 +61,19 @@ int main() {
     };
     assert(ggml_cuda_fattn_turbo4_page_table_valid(pages, n_pages, n_rows));
 
-    std::vector<uint8_t> k_host(n_physical_pages * page_stride, 0);
-    std::vector<uint8_t> v_host(n_physical_pages * page_stride, 0);
-    fill_turbo4_page(k_host, 5 * page_stride, 8);
-    fill_turbo4_page(k_host, 1 * page_stride, 8);
-    fill_turbo4_page(k_host, 7 * page_stride, 8);
-    fill_turbo4_page(k_host, 3 * page_stride, 8);
-    fill_turbo4_page(v_host, 5 * page_stride, 8);
-    fill_turbo4_page(v_host, 1 * page_stride, 9);
-    fill_turbo4_page(v_host, 7 * page_stride, 10);
-    fill_turbo4_page(v_host, 3 * page_stride, 11);
+    std::vector<uint8_t> k_host(n_head_kv * n_physical_pages * page_stride, 0);
+    std::vector<uint8_t> v_host(n_head_kv * n_physical_pages * page_stride, 0);
+    for (uint32_t kv_head = 0; kv_head < n_head_kv; ++kv_head) {
+        const size_t head_offset = size_t(kv_head) * n_physical_pages * page_stride;
+        fill_turbo4_page(k_host, head_offset + 5 * page_stride, 8);
+        fill_turbo4_page(k_host, head_offset + 1 * page_stride, 8);
+        fill_turbo4_page(k_host, head_offset + 7 * page_stride, 8);
+        fill_turbo4_page(k_host, head_offset + 3 * page_stride, 8);
+        fill_turbo4_page(v_host, head_offset + 5 * page_stride, 8);
+        fill_turbo4_page(v_host, head_offset + 1 * page_stride, 9);
+        fill_turbo4_page(v_host, head_offset + 7 * page_stride, 10);
+        fill_turbo4_page(v_host, head_offset + 3 * page_stride, 11);
+    }
 
     std::vector<float> q_host(max_query_tokens * n_head_q * 256, 0.0f);
     std::vector<int64_t> native_positions;
@@ -165,7 +171,7 @@ int main() {
     cuda_check(cudaEventSynchronize(timing_stop), "timing stop synchronize");
     float elapsed_ms = 0.0f;
     cuda_check(cudaEventElapsedTime(&elapsed_ms, timing_start, timing_stop), "timing readback");
-    std::fprintf(stderr, "paged Turbo4 query tile: %.3f ms (four Q heads, 530 selected rows)\n", elapsed_ms);
+    std::fprintf(stderr, "paged Turbo4 query tile: %.3f ms (24 Q heads, 4 KV heads, 530 selected rows)\n", elapsed_ms);
     cuda_check(cudaDeviceSynchronize(), "direct page attention");
     std::vector<float> output_without_mass(q_host.size());
     cuda_check(cudaMemcpy(output_without_mass.data(), output_device, output_without_mass.size() * sizeof(float), cudaMemcpyDeviceToHost), "output readback");

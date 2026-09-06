@@ -1741,7 +1741,7 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     if (params.n_query_tokens == 0 ||
         params.n_query_tokens > GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS ||
         params.n_batch != 1 ||
-        uint64_t(params.n_head_kv) * 4u != params.n_head_q ||
+        params.n_head_kv == 0 || params.n_head_q % params.n_head_kv != 0 ||
         params.head_dim_k != 256 || params.head_dim_v != 256 ||
         params.q_head_stride_bytes < 256 * sizeof(float) ||
         params.q_query_stride_bytes < params.q_head_stride_bytes * params.n_head_q ||
@@ -1952,7 +1952,7 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
                                   page_mass->nb[1] < size_t(page_mass->ne[0]) * sizeof(float))) ||
         q->ne[0] != head_dim_k || q->ne[1] <= 0 || q->ne[2] == 0 ||
         q->ne[2] > GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS || q->ne[3] != 1 ||
-        n_head_kv == 0 || q->ne[1] != int64_t(n_head_kv) * 4 ||
+        n_head_kv == 0 || q->ne[1] % int64_t(n_head_kv) != 0 ||
         (state_output ? dst->ne[0] != int64_t(2 + head_dim_v) : dst->ne[0] != head_dim_v) ||
         dst->ne[1] != q->ne[1] ||
         dst->ne[2] != q->ne[2] || dst->ne[3] != q->ne[3] ||
@@ -2005,7 +2005,7 @@ bool ggml_cuda_flash_attn_ext_paged_turbo4_supported(
         (!state_output || partial_state == nullptr || partial_state->type == GGML_TYPE_F32) &&
         (!split_kv || (dst->src[9] != nullptr && dst->src[9]->type == GGML_TYPE_F32)) &&
         n_head_kv != 0 &&
-        q->ne[1] == int64_t(n_head_kv) * 4 &&
+        q->ne[1] % int64_t(n_head_kv) == 0 &&
         q->ne[2] >= 1 && q->ne[2] <= GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS &&
         q->nb[1] >= 256 * sizeof(float) &&
         dst->nb[1] >= size_t(state_output ? 2 + head_dim_v : 256) * sizeof(float) &&

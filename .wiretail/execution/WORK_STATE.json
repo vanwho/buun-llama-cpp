@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "23",
-  "current_task": "23-03",
-  "last_updated_utc": "2026-09-06T07:06:26+00:00",
+  "current_task": "23-04",
+  "last_updated_utc": "2026-09-06T07:26:43+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3921,22 +3921,36 @@
       "cluster": "23a-runtime-repair",
       "title": "Remove the live Qwen selected-reference prefill bottleneck",
       "packet": ".wiretail/execution/tasks/23-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "23-02"
       ],
-      "commit": null,
+      "commit": "df203e855bd9d15d69f057319c9b4df2e03a88d0",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/23-03-attempt-1-20260906T070643Z.jsonl:160",
+            "total_tokens": 17013609,
+            "total_tokens_derived": true,
+            "input_tokens": 16977456,
+            "cached_input_tokens": 16617728,
+            "output_tokens": 36153,
+            "thinking_tokens": 10361
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 17013609,
+          "input_tokens": 16977456,
+          "cached_input_tokens": 16617728,
+          "output_tokens": 36153,
+          "thinking_tokens": 10361
         }
       }
     },
@@ -5000,15 +5014,28 @@
           "cached_input_tokens": 10593024,
           "output_tokens": 47504,
           "thinking_tokens": 21734
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/23-03-attempt-1-20260906T070643Z.jsonl:160",
+          "total_tokens": 17013609,
+          "total_tokens_derived": true,
+          "input_tokens": 16977456,
+          "cached_input_tokens": 16617728,
+          "output_tokens": 36153,
+          "thinking_tokens": 10361
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 21428009,
-        "input_tokens": 21348091,
-        "cached_input_tokens": 20647168,
-        "output_tokens": 79918,
-        "thinking_tokens": 32010
+        "turns": 3,
+        "total_tokens": 38441618,
+        "input_tokens": 38325547,
+        "cached_input_tokens": 37264896,
+        "output_tokens": 116071,
+        "thinking_tokens": 42371
       }
     },
     "24": {
@@ -5025,12 +5052,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 44,
-      "total_tokens": 797195989,
-      "input_tokens": 795242965,
-      "cached_input_tokens": 780028672,
-      "output_tokens": 1953024,
-      "thinking_tokens": 686559
+      "turns": 45,
+      "total_tokens": 814209598,
+      "input_tokens": 812220421,
+      "cached_input_tokens": 796646400,
+      "output_tokens": 1989177,
+      "thinking_tokens": 696920
     },
     "source": "Codex turn.completed usage events"
   }

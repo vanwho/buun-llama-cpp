@@ -1,0 +1,155 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "23-03",
+  "phase": "23",
+  "result": "incomplete",
+  "kind": "prefill_route_repair",
+  "procedure": "qwen35_gqa6_direct_turbo4_admission",
+  "created_utc": "2026-09-06T07:24:47Z",
+  "provenance": {
+    "source_diff_sha256": "2cac3b71fcdd433cac2fe0d7ce7137c4cb36267cd16a4ff6c5af5cc418bc47e6",
+    "build_root": "/srv/repos/vanwho/buun-llama-cpp/build-cuda",
+    "cuda_architecture": "89-real",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "model_metadata": {
+      "architecture": "qwen35",
+      "query_heads": 24,
+      "kv_heads": 4,
+      "gqa_ratio": 6,
+      "key_head_dim": 256,
+      "value_head_dim": 256,
+      "full_attention_interval": 4,
+      "mtp_layers": 1
+    },
+    "focused_binary_sha256": {
+      "test_kv_attention_execution": "81174cbc1e863edad469397af99ba6098eed19179c28689f3570e634536f92fc",
+      "test_cuda_fattn_paged_turbo4": "480fdfa0ea57ca31ca6cfc0245e9674541efe6543eb56858c28a25505d271b39",
+      "llama_server": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f"
+    },
+    "live_candidate_preserved": true,
+    "live_candidate_note": "The existing 262144-token selected-reference candidate remained loaded on the RTX 4080 at port 8080 and was not stopped; port 8092 was not touched."
+  },
+  "baseline": {
+    "failure": "The Phase 21 live Qwen profile selected selected_reference for prefill despite Turbo4 K/V and 256-wide heads; 4K/8K remeasurement was not available in the preserved runtime receipt.",
+    "hypothesis": "The direct-route admission and CUDA shape checks incorrectly required query_heads == 4 * kv_heads. The current Qwen3.5 GGUF is 24:4, so its valid ratio-6 geometry was rejected before dispatch.",
+    "raw_ids": ["phase21_20k_metrics", "phase21_40k_metrics", "phase21_60k_metrics", "phase21_100k_metrics"]
+  },
+  "checks": [
+    {
+      "id": "qwen_geometry_measurement",
+      "status": "pass",
+      "finding": "The current GGUF metadata is Qwen3.5 with 24 query heads, 4 KV heads, 256 key/value head dimensions, and GQA ratio 6."
+    },
+    {
+      "id": "direct_admission_ratio6",
+      "status": "pass",
+      "finding": "Context prefill admission, selected-route eligibility, execution selection, and the CUDA dispatcher now accept any divisible GQA ratio; the deterministic 24:4 fixture selects selected_direct."
+    },
+    {
+      "id": "cuda_numerical_fixture",
+      "status": "pass",
+      "finding": "The CUDA fixture passes ratio-6 24:4 attention for query tiles 1 through 16 with permuted physical pages, noncontiguous native positions, masked rows, tails, canaries, page-mass reduction, split-KV merge, and partial-state waves."
+    },
+    {
+      "id": "bounded_fallback",
+      "status": "pass",
+      "finding": "The 32-token query tile remains selected_reference with the explicit unsupported direct query-tile reason; non-divisible GQA and non-CUDA/storage/model-feature failures retain bounded fallback through explicit admission reasons."
+    },
+    {
+      "id": "stable_graph_contract",
+      "status": "pass",
+      "finding": "The execution test continues to verify graph replay for unchanged layout and graph rebuild for representation/shape changes, while mutable page content remains descriptor-refresh data."
+    },
+    {
+      "id": "live_prompt_profile",
+      "status": "not_measured",
+      "finding": "No new 4K/8K throughput, launch, synchronization, kernel, copy, or wait timing is claimed because the shared successful GPU candidate was preserved."
+    }
+  ],
+  "verification": [
+    {
+      "command": "cmake --build build-cuda --target test-kv-attention-execution test-cuda-fattn-paged-turbo4 -j2",
+      "status": "pass"
+    },
+    {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R 'test-kv-attention-execution|test-cuda-fattn-paged-turbo4'",
+      "status": "pass",
+      "tests_passed": 2,
+      "tests_failed": 0
+    },
+    {
+      "command": "cmake --build build-cuda --target llama-server test-kv-attention-exact test-kv-pager -j2",
+      "status": "pass"
+    },
+    {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R '^(test-kv-attention-execution|test-kv-attention-exact|test-kv-pager|test-cuda-fattn-paged-turbo4)$'",
+      "status": "pass",
+      "tests_passed": 4,
+      "tests_failed": 0
+    },
+    {
+      "command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate",
+      "status": "pass",
+      "finding": "Valid state: 139 tasks"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass"
+    }
+  ],
+  "deferred_verification": [
+    {
+      "id": "live_4k_8k_route_profile",
+      "status": "deferred",
+      "reason": "Requires replacing the already loaded successful 262144-token candidate with the newly built server; the shared GPU lifecycle policy requires preserving that candidate."
+    },
+    {
+      "id": "live_20k_warmup",
+      "status": "deferred",
+      "reason": "The single progress-aware 20K warmup depends on the same controlled runtime transition and was not started."
+    },
+    {
+      "id": "live_prompt_parity_and_mtp",
+      "status": "deferred",
+      "reason": "End-to-end dense/selected-direct logits, M-RoPE, MTP verification, and prompt-throughput parity require the fresh Qwen runtime campaign."
+    }
+  ],
+  "resume": {
+    "command": "After an authorized GPU lifecycle transition, run identical 4K and 8K prompts through off, observe, forced selected-reference, and selected-direct modes, then run one progress-aware 20K warmup without starting the final curve.",
+    "next_case": "Fresh Qwen3.5 24:4 prompt route profile with fallback reason, graph counts, synchronization/launch timing, throughput, dense parity, M-RoPE, canaries, and MTP verification.",
+    "secrets_omitted": true
+  },
+  "raw_index": [
+    {
+      "id": "phase21_20k_metrics",
+      "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/20000/metrics.txt",
+      "sha256": "65e01d83b1454d8b0c6a111124fbbd0a18c3eddd8eb6423fc3c6422a11ba9756"
+    },
+    {
+      "id": "phase21_40k_metrics",
+      "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/40000/metrics.txt",
+      "sha256": "29cf06adfc40e7c6933ada9fac31a35b87d103347fa42e0e7aa5054e1455c5e8"
+    },
+    {
+      "id": "phase21_60k_metrics",
+      "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/60000/metrics.txt",
+      "sha256": "6f98d856ec02680aefae10548c286c323f99b928b7737f6cbd617f1ffc429f19"
+    },
+    {
+      "id": "phase21_100k_metrics",
+      "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/100000/metrics.txt",
+      "sha256": "afa32bb9b46b1cf5f2fbb3a590ee89c38a7560d8c03f971f06dcbd9a15e9f157"
+    },
+    {
+      "id": "task_packet",
+      "path": ".wiretail/execution/tasks/23-03.md",
+      "sha256": "8e14c1f9133809c36cac712ded58b13f771e8b1c8f6ad426c4af546d533c876d"
+    },
+    {
+      "id": "focused_cuda_fixture",
+      "path": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "sha256": "480fdfa0ea57ca31ca6cfc0245e9674541efe6543eb56858c28a25505d271b39"
+    }
+  ]
+}

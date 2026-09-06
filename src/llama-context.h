@@ -412,7 +412,8 @@ struct llama_context {
             uint64_t representation_epoch,
             uint64_t shape_epoch,
             bool direct_capable,
-            const llama_kv_attention_scratch_request & scratch);
+            const llama_kv_attention_scratch_request & scratch,
+            const std::string & direct_reason = {});
     void complete_kv_attention_graph() noexcept;
 
     ggml_backend_sched_t get_sched() const;
