@@ -33,6 +33,18 @@ SPEC.loader.exec_module(runner)
 
 
 class QualityCorpusRunnerTests(unittest.TestCase):
+    def test_request_telemetry_normalizes_server_route_labels(self) -> None:
+        for observed, expected in (
+                ("selected direct", "selected_direct"),
+                ("selected reference", "selected_reference"),
+                ("exact direct", "fallback"),
+                ("unexpected route", "fallback")):
+            with self.subTest(observed=observed):
+                telemetry = runner.normalize_request_telemetry({"route": observed})
+                self.assertIsNotNone(telemetry)
+                self.assertEqual(expected, telemetry["route"])
+                self.assertEqual(observed, telemetry["route_observed"])
+
     @staticmethod
     def deterministic_renderer(messages: list[dict[str, object]]) -> RenderedPrompt:
         rendered = "<bos>" + "".join(
@@ -316,6 +328,51 @@ class QualityCorpusRunnerTests(unittest.TestCase):
             receipt = json.loads((pathlib.Path(directory) / "preflight.json").read_text())
             self.assertEqual("allow_campaign", receipt["decision"])
             self.assertEqual(["warm", "cold_needle", "selected_all"], receipt["requested"])
+
+    def test_telemetry_only_preflight_retains_quality_mismatch_as_measurement(self) -> None:
+        corpus_path = HERE / "fixtures/pager-corpus-v4.json"
+        fit = PromptFit(
+            messages=[{"role": "user", "content": "fitted"}],
+            rendered_text="fitted", token_ids=(1,), token_count=1,
+            desired_occupancy=4096, generation_reserve=32,
+            padding_characters=0, template_id="template:test",
+            tokenizer_id="tokenizer:test", fact_offsets=(),
+            request_token_sha256="4" * 64)
+        telemetry = {
+            "route": "selected_reference", "selected_pages": 2,
+            "physical_pages": 4, "logical_pages": 16, "host_valid_rows": 768,
+            "h2d_useful_bytes": 0, "h2d_aligned_bytes": 0,
+            "d2h_useful_bytes": 0, "d2h_aligned_bytes": 0,
+            "faults": 0, "evictions": 0, "queue_time_us": 1,
+            "copy_time_us": 0, "wait_time_us": 1,
+            "target_placement": "CUDA", "mtp_placement": "gpu",
+            "hot_page_budget": 4, "snapshot_monotonic_us": 1,
+        }
+        fake_renderer = type(
+            "FakeRenderer", (), {"template_id": "template:test",
+                                  "tokenizer_id": "tokenizer:test",
+                                  "probe_capabilities": lambda self: {
+                                      "status": 200, "supported": True,
+                                      "error_class": None}})()
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+                runner, "request_case", return_value=(200, {
+                    "usage": {"prompt_tokens": 1},
+                    "choices": [{"message": {"content": "wrong"}}]}, None)), patch.object(
+                runner, "read_server_telemetry", return_value=(telemetry, None)), patch.object(
+                runner, "fit_case_prompt", return_value=fit), patch.object(
+                runner, "ServerPromptRenderer", return_value=fake_renderer):
+            with patch.object(sys, "argv", ["run-quality-corpus.py", str(corpus_path), directory,
+                                              "--endpoint", "http://example/v1/chat/completions",
+                                              "--model", "qwen", "--mode", "preflight",
+                                              "--telemetry-only"]):
+                self.assertEqual(0, runner.main())
+            receipt = json.loads((pathlib.Path(directory) / "preflight.json").read_text())
+            self.assertEqual("allow_campaign", receipt["decision"])
+            self.assertEqual(3, len(receipt["records"]))
+            self.assertTrue(all(item["status"] == "valid_measurement"
+                                for item in receipt["records"]))
+            self.assertTrue(all(item["quality_status"] == "fail"
+                                for item in receipt["records"]))
 
     def test_max_cases_checkpoint_marks_remaining_not_run_and_resume_continues(self) -> None:
         corpus_path = HERE / "fixtures/pager-corpus-v4.json"
