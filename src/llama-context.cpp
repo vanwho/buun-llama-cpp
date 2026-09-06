@@ -117,6 +117,56 @@ static bool llama_context_native_mtp_rows(
     return k_row_bytes != 0 && v_row_bytes != 0;
 }
 
+// The recurrent child is constructed after the pager plan, so derive its
+// allocator-visible footprint from the same tensor geometry used by
+// llama_memory_recurrent.  This is intentionally a bound, not a context
+// shortening heuristic: n_seq_max and rollback planes are both charged.
+static uint64_t llama_context_recurrent_state_bytes(
+        const llama_model & model, const llama_cparams & cparams,
+        ggml_backend_dev_t device) noexcept {
+    uint64_t total = 0;
+    const uint64_t planes = uint64_t(cparams.n_rs_seq) + 1;
+    const uint64_t rows = std::max<uint64_t>(1, cparams.n_seq_max) * planes;
+    for (uint32_t il = 0; il < model.hparams.n_layer(); ++il) {
+        if (!model.hparams.is_recr(il)) {
+            continue;
+        }
+        if (!cparams.offload_kqv || model.dev_layer(il) == nullptr ||
+            ggml_backend_dev_buffer_type(model.dev_layer(il)) == nullptr ||
+            ggml_backend_buft_get_device(ggml_backend_dev_buffer_type(
+                    model.dev_layer(il))) != device) {
+            continue;
+        }
+        const uint64_t r = uint64_t(ggml_row_size(GGML_TYPE_F32,
+                model.hparams.n_embd_r()));
+        const uint64_t s = uint64_t(ggml_row_size(GGML_TYPE_F32,
+                model.hparams.n_embd_s()));
+        const uint64_t p = model.hparams.ple_conv_state() > 0 &&
+                model.hparams.is_ple(il)
+            ? uint64_t(ggml_row_size(GGML_TYPE_F32,
+                    model.hparams.ple_conv_state())) : 0;
+        const uint64_t per_row = r > UINT64_MAX - s ? UINT64_MAX : r + s;
+        const uint64_t per_layer = per_row > UINT64_MAX - p
+            ? UINT64_MAX : per_row + p;
+        if (per_layer != 0 && rows > UINT64_MAX / per_layer) {
+            return UINT64_MAX;
+        }
+        const uint64_t bytes = per_layer * rows;
+        if (total > UINT64_MAX - bytes) {
+            return UINT64_MAX;
+        }
+        total += bytes;
+    }
+    return total;
+}
+
+static uint64_t llama_context_estimated_compute_bytes() noexcept {
+    // Scheduler graph sizes are not available until after create_memory().
+    // Reserve the measured worst startup ask used by the CUDA co-tenancy
+    // protocol; the actual graph is reconciled after graph_reserve().
+    return uint64_t(std::max<int64_t>(0, LLAMA_VRAM_LEDGER_NOMINAL_ASK));
+}
+
 // The on-disk marker identity is one (busid,pid) row, so independent controller
 // trees in one process cannot publish or service demands correctly. iSWA is one
 // tree (its composite memory reports only the base owner); shared-KV drafters are
@@ -939,6 +989,15 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.charged_bytes = snapshot.admission.charged_bytes;
     result.reserved_bytes = snapshot.admission.reserved_bytes;
     result.headroom_bytes = snapshot.admission.headroom_bytes;
+    result.weights_bytes = snapshot.admission.weights_bytes;
+    result.fixed_context_bytes = snapshot.admission.fixed_context_bytes;
+    result.recurrent_state_bytes = snapshot.admission.recurrent_state_bytes;
+    result.mtp_compute_bytes = snapshot.admission.mtp_compute_bytes;
+    result.graph_bytes = snapshot.admission.graph_bytes;
+    result.turbo4_scratch_bytes = snapshot.admission.turbo4_scratch_bytes;
+    result.routing_table_bytes = snapshot.admission.routing_table_bytes;
+    result.staging_bytes = snapshot.admission.staging_bytes;
+    result.external_bytes = snapshot.admission.external_bytes;
     // Native-MTP fields above are observed from the companion context. The
     // pager admission result is only a requested/reserved estimate and must
     // never replace an observed allocation (or invent one when no companion
@@ -1091,12 +1150,19 @@ void llama_context::plan_kv_pager() {
 
     llama_kv_pager_resources resources;
     resources.admission.capacity_bytes = total;
-    resources.admission.backend_safe_limit_bytes = total - unaccounted;
+    // External occupancy is a named ledger row. Keep the physical device as
+    // the ceiling so it is not subtracted once here and charged a second time
+    // by llama_cache_budget_admit().
+    resources.admission.backend_safe_limit_bytes = total;
+    resources.admission.external_bytes = unaccounted;
     resources.admission.user_budget_bytes = kv_pager.vram_budget.automatic
         ? 0 : kv_pager.vram_budget.bytes;
     resources.admission.weights_bytes = model_bytes;
     resources.admission.fixed_bytes = 0;
-    resources.admission.graph_bytes = 0;
+    resources.admission.recurrent_state_bytes =
+            llama_context_recurrent_state_bytes(model, cparams, dev);
+    resources.admission.graph_bytes = llama_context_estimated_compute_bytes();
+    resources.admission.mtp_compute_bytes = 0;
     resources.admission.turbo4_scratch_bytes = alignment;
     resources.admission.staging_bytes = alignment;
     resources.admission.allocator_guard_bytes = alignment;
@@ -1119,6 +1185,8 @@ void llama_context::plan_kv_pager() {
     }
     resources.admission.mtp_present = mtp_loaded;
     resources.admission.mtp_tokens = mtp_loaded ? cparams.n_ctx_seq : 0;
+    resources.admission.mtp_compute_bytes = mtp_loaded
+        ? llama_context_estimated_compute_bytes() : 0;
     if (mtp_loaded) {
         resources.admission.mtp_is_turbo4 =
             pager_target_type_k_ == GGML_TYPE_TURBO4_0 &&
@@ -1197,6 +1265,7 @@ void llama_context::init_kv_pager() {
     uint64_t model_bytes = 0;
     uint64_t context_bytes = 0;
     uint64_t compute_bytes = 0;
+    uint64_t recurrent_bytes = 0;
     const auto add_memory = [](uint64_t & total, size_t value) {
         total = value > UINT64_MAX - total ? UINT64_MAX : total + uint64_t(value);
     };
@@ -1207,6 +1276,26 @@ void llama_context::init_kv_pager() {
         add_memory(model_bytes, breakdown.model);
         add_memory(context_bytes, breakdown.context);
         add_memory(compute_bytes, breakdown.compute);
+    }
+    const auto add_recurrent = [&](const llama_memory_recurrent * recurrent) {
+        if (recurrent == nullptr) {
+            return;
+        }
+        for (const auto & [buft, bytes] : recurrent->memory_breakdown()) {
+            if (!ggml_backend_buft_is_host(buft) &&
+                ggml_backend_buft_get_device(buft) == dev) {
+                add_memory(recurrent_bytes, bytes);
+            }
+        }
+    };
+    if (auto * hybrid_idx = dynamic_cast<llama_memory_hybrid_idx *>(memory.get())) {
+        add_recurrent(hybrid_idx->get_mem_recr());
+    } else if (auto * hybrid = dynamic_cast<llama_memory_hybrid *>(memory.get())) {
+        add_recurrent(hybrid->get_mem_recr());
+    } else if (auto * hybrid_iswa = dynamic_cast<llama_memory_hybrid_iswa *>(memory.get())) {
+        add_recurrent(hybrid_iswa->get_mem_recr());
+    } else if (auto * recurrent = dynamic_cast<llama_memory_recurrent *>(memory.get())) {
+        add_recurrent(recurrent);
     }
     uint64_t known_bytes = model_bytes;
     known_bytes = context_bytes > UINT64_MAX - known_bytes
@@ -1222,7 +1311,7 @@ void llama_context::init_kv_pager() {
         std::min<uint64_t>(total_bytes, free_bytes));
     const uint64_t unaccounted_bytes = occupied_bytes > known_bytes
         ? occupied_bytes - known_bytes : 0;
-    const uint64_t backend_safe_limit = total_bytes - unaccounted_bytes;
+    const uint64_t backend_safe_limit = total_bytes;
 
     llama_kv_cache * attention_cache = nullptr;
     if (auto * hybrid_idx = dynamic_cast<llama_memory_hybrid_idx *>(memory.get())) {
@@ -1252,7 +1341,13 @@ void llama_context::init_kv_pager() {
     resources.admission.user_budget_bytes = kv_pager.vram_budget.automatic ? 0 : kv_pager.vram_budget.bytes;
     resources.admission.weights_bytes = model_bytes;
     resources.admission.fixed_bytes = context_bytes;
+    resources.admission.recurrent_state_bytes = recurrent_bytes;
     resources.admission.graph_bytes = compute_bytes;
+    resources.admission.mtp_compute_bytes = kv_pager_plan_valid_
+        ? kv_pager_plan_.admission.mtp_compute_bytes : 0;
+    resources.admission.external_bytes = unaccounted_bytes;
+    resources.admission.provenance = llama_cache_budget_admission_provenance::mixed;
+    resources.admission.reconciliation = llama_cache_budget_reconciliation_status::matched;
     // The scheduler buffer is already in graph_bytes.  Keep only the
     // allocator-alignment probe in the separate scratch column so it is not
     // charged twice.
@@ -1320,6 +1415,25 @@ void llama_context::init_kv_pager() {
     } else if (kv_pager.mode == llama_kv_pager_mode::selective ||
                kv_pager.mode == llama_kv_pager_mode::exact) {
         throw std::runtime_error("KV pager storage authority is missing from target cache");
+    }
+    resources.admission.fixed_bytes = recurrent_bytes > resources.admission.fixed_bytes
+        ? 0 : resources.admission.fixed_bytes - recurrent_bytes;
+    // The pre-plan already reserved a conservative graph ask. Preserve that
+    // bound during reconciliation so a late graph measurement cannot make the
+    // borrowed slab and the pager disagree about physical capacity.
+    if (kv_pager_plan_valid_) {
+        resources.admission.graph_bytes = std::max(
+                resources.admission.graph_bytes,
+                kv_pager_plan_.admission.graph_bytes);
+        resources.admission.recurrent_state_bytes = std::max(
+                resources.admission.recurrent_state_bytes,
+                kv_pager_plan_.admission.recurrent_state_bytes);
+        resources.admission.external_bytes = std::max(
+                resources.admission.external_bytes,
+                kv_pager_plan_.admission.external_bytes);
+        resources.admission.mtp_compute_bytes = std::max(
+                resources.admission.mtp_compute_bytes,
+                kv_pager_plan_.admission.mtp_compute_bytes);
     }
     resources.host_capture_enabled = true;
     resources.host_backend = backend;
@@ -1443,6 +1557,9 @@ void llama_context::init_kv_pager() {
             " accepted_target_tokens=%" PRIu64 " admission_accepted=%d"
             " ledger_usable_bytes=%" PRIu64 " ledger_charged_bytes=%" PRIu64
             " ledger_reserved_bytes=%" PRIu64 " ledger_headroom_bytes=%" PRIu64
+            " ledger_weights_bytes=%" PRIu64 " ledger_fixed_context_bytes=%" PRIu64
+            " ledger_recurrent_state_bytes=%" PRIu64 " ledger_mtp_compute_bytes=%" PRIu64
+            " ledger_graph_bytes=%" PRIu64 " ledger_external_bytes=%" PRIu64
             " device=%s route=%s refusal=%s}\n",
             kv_pager.summary().c_str(), geometry.context_tokens,
             snapshot.logical_page_count, snapshot.physical_page_count,
@@ -1453,6 +1570,9 @@ void llama_context::init_kv_pager() {
             admission.accepted_target_tokens, admission.accepted ? 1 : 0,
             admission.usable_device_bytes, admission.charged_bytes,
             admission.reserved_bytes, admission.headroom_bytes,
+            admission.weights_bytes, admission.fixed_context_bytes,
+            admission.recurrent_state_bytes, admission.mtp_compute_bytes,
+            admission.graph_bytes, admission.external_bytes,
             ggml_backend_dev_name(dev),
             kv_pager.mode == llama_kv_pager_mode::observe ? "observe" :
             kv_pager.mode == llama_kv_pager_mode::exact ? "exact" : "selective",

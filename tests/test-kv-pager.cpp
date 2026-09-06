@@ -589,6 +589,39 @@ int main() {
     }
     assert(allocations == 1 && releases == 1);
 
+    // An allocator OOM is retried only with a strictly smaller page-aligned
+    // target pool. The fake fails the first two large candidates and succeeds
+    // at two pages, giving a deterministic termination receipt.
+    int retry_allocations = 0;
+    llama_kv_pager_backend retry_backend;
+    retry_backend.allocate = [&](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        ++retry_allocations;
+        const uint64_t page_bytes = 128;
+        if (bytes > 2 * page_bytes) {
+            return false;
+        }
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(4));
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = bytes;
+        return true;
+    };
+    retry_backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+    auto retry_config = config;
+    retry_config.hot_pages.automatic = true;
+    auto retry_resources = resources(2048, 128);
+    auto retry_pager = llama_kv_pager::create(
+            retry_config, geometry(1025), retry_resources, retry_backend, status);
+    assert(retry_pager && status == llama_kv_pager_status::ok);
+    assert(retry_pager->snapshot().physical_page_count == 2);
+    assert(retry_pager->snapshot().admission_attempts.size() == 3);
+    assert(retry_pager->snapshot().admission_attempts[0].page_cap >
+            retry_pager->snapshot().admission_attempts[1].page_cap);
+    assert(retry_pager->snapshot().admission_attempts[1].page_cap >
+            retry_pager->snapshot().admission_attempts[2].page_cap);
+    assert(retry_pager->snapshot().admission_attempts.back().allocation_succeeded);
+    assert(retry_allocations == 3);
+    retry_pager.reset();
+
     backend.allocate = [](uint64_t, llama_kv_pager_allocation &) { return false; };
     assert(!llama_kv_pager::create(config, geometry(1025), plan_resources, backend, status));
     assert(status == llama_kv_pager_status::allocation);

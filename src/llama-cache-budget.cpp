@@ -301,6 +301,15 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
         out.refusal = llama_cache_budget_admission_refusal::missing_scratch;
         return out;
     }
+    out.weights_bytes = input.weights_bytes;
+    out.fixed_context_bytes = input.fixed_bytes;
+    out.recurrent_state_bytes = input.recurrent_state_bytes;
+    out.mtp_compute_bytes = input.mtp_compute_bytes;
+    out.graph_bytes = input.graph_bytes;
+    out.turbo4_scratch_bytes = input.turbo4_scratch_bytes;
+    out.routing_table_bytes = input.routing_bytes;
+    out.staging_bytes = input.staging_bytes;
+    out.external_bytes = input.external_bytes;
     if (!add(input.weights_bytes, input.fixed_bytes, out.fixed_bytes) ||
         !rounded(out.fixed_bytes, out.fixed_bytes) || !add(input.graph_bytes, input.turbo4_scratch_bytes, out.scratch_bytes) ||
         !rounded(out.scratch_bytes, out.scratch_bytes) || !add(input.routing_bytes, input.staging_bytes, out.routing_bytes) ||
@@ -309,8 +318,14 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
     }
     // weights + already-resident fixed companions are one charge; do not charge either twice.
     out.allocator_guard_bytes = input.allocator_guard_bytes;
-    if (!add(out.mtp_bytes, out.scratch_bytes, out.reserved_bytes) ||
+    // Every byte in this sum has one owner.  In particular, external device
+    // occupancy is charged here when backend_safe_limit is the physical
+    // ceiling; callers must not also subtract it from that ceiling.
+    if (!add(out.mtp_bytes, out.recurrent_state_bytes, out.reserved_bytes) ||
+        !add(out.reserved_bytes, out.mtp_compute_bytes, out.reserved_bytes) ||
+        !add(out.reserved_bytes, out.scratch_bytes, out.reserved_bytes) ||
         !add(out.reserved_bytes, out.routing_bytes, out.reserved_bytes) ||
+        !add(out.reserved_bytes, out.external_bytes, out.reserved_bytes) ||
         !add(out.reserved_bytes, out.allocator_guard_bytes, out.reserved_bytes)) {
         out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
     }

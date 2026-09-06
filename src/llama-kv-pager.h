@@ -182,6 +182,14 @@ private:
     std::shared_ptr<vbr_h2d_chunk_ring> upload_ring_;
 };
 
+struct llama_kv_pager_admission_attempt {
+    uint32_t page_cap = 0;
+    uint32_t admitted_pages = 0;
+    uint64_t requested_bytes = 0;
+    uint64_t fingerprint = 0;
+    bool allocation_succeeded = false;
+};
+
 struct llama_kv_pager_snapshot {
     llama_kv_pager_geometry geometry;
     llama_cache_budget_admission_result admission;
@@ -194,6 +202,10 @@ struct llama_kv_pager_snapshot {
     uint64_t host_budget_bytes = 0;
     uint64_t vram_budget_bytes = 0;
     uint64_t realized_bytes = 0;
+    // Every materialization candidate is retained. This is intentionally a
+    // compact process-local receipt: retries are descending and page-aligned,
+    // and a failed allocation is never silently retried with the same tuple.
+    std::vector<llama_kv_pager_admission_attempt> admission_attempts;
     bool initialized = false;
 };
 

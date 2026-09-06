@@ -194,6 +194,51 @@ static void test_dynamic_admission_ledger() {
     CHECK(overflow.refusal == llama_cache_budget_admission_refusal::overflow);
 }
 
+static void test_late_startup_categories_are_checked() {
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = 4096;
+    input.allocation_granularity = 64;
+    input.weights_bytes = 512;
+    input.fixed_bytes = 128;
+    input.recurrent_state_bytes = 256;
+    input.mtp_compute_bytes = 192;
+    input.external_bytes = 64;
+    input.graph_bytes = 128;
+    input.turbo4_scratch_bytes = 64;
+    input.routing_bytes = 64;
+    input.staging_bytes = 64;
+    input.allocator_guard_bytes = 64;
+    input.headroom_bytes = 64;
+    input.mtp_present = false;
+    input.target_page_bytes = 256;
+    input.page_tokens = 256;
+    input.logical_page_count = 8;
+
+    const auto result = llama_cache_budget_admit(input);
+    CHECK(result.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(result.weights_bytes == input.weights_bytes);
+    CHECK(result.fixed_context_bytes == input.fixed_bytes);
+    CHECK(result.recurrent_state_bytes == input.recurrent_state_bytes);
+    CHECK(result.mtp_compute_bytes == input.mtp_compute_bytes);
+    CHECK(result.graph_bytes == input.graph_bytes);
+    CHECK(result.routing_table_bytes == input.routing_bytes);
+    CHECK(result.staging_bytes == input.staging_bytes);
+    CHECK(result.external_bytes == input.external_bytes);
+    CHECK(result.reserved_bytes == 896);
+    CHECK(result.charged_bytes == 1600);
+
+    input.capacity_bytes = result.charged_bytes + 2 * result.page_charge_bytes;
+    const auto exact = llama_cache_budget_admit(input);
+    CHECK(exact.admitted_pages == 2);
+    input.capacity_bytes--;
+    const auto rounded_deficit = llama_cache_budget_admit(input);
+    CHECK(rounded_deficit.admitted_pages == 1);
+    input.capacity_bytes = result.charged_bytes + result.page_charge_bytes - 1;
+    const auto no_legal_slot = llama_cache_budget_admit(input);
+    CHECK(!no_legal_slot.accepted);
+    CHECK(no_legal_slot.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
+}
+
 static void test_context_ladder_reserves_native_mtp_first() {
     const uint64_t mtp_k_row = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
     const uint64_t mtp_v_row = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
@@ -603,6 +648,7 @@ static void test_f2_capacity_activation_is_inert_until_observed() {
 int main() {
     test_mtp_reference_payload_uses_actual_rows();
     test_dynamic_admission_ledger();
+    test_late_startup_categories_are_checked();
     test_context_ladder_reserves_native_mtp_first();
     test_baseline_and_group_rollup();
     test_optional_hierarchy();

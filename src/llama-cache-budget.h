@@ -65,6 +65,12 @@ struct llama_cache_budget_admission_input {
     uint64_t allocation_granularity = 1;
     uint64_t weights_bytes = 0;
     uint64_t fixed_bytes = 0;
+    // Late startup allocations must be explicit inputs to admission.  They
+    // are separate from fixed_bytes so a planner cannot hide them in a
+    // post-admission free-byte sample.
+    uint64_t recurrent_state_bytes = 0;
+    uint64_t mtp_compute_bytes = 0;
+    uint64_t external_bytes = 0;
     uint64_t graph_bytes = 0;
     uint64_t turbo4_scratch_bytes = 0;
     uint64_t routing_bytes = 0;
@@ -107,9 +113,18 @@ struct llama_cache_budget_admission_result {
         llama_cache_budget_admission_refusal::none;
     uint64_t usable_device_bytes = 0;
     uint64_t fixed_bytes = 0;
+    uint64_t weights_bytes = 0;
+    uint64_t fixed_context_bytes = 0;
+    uint64_t recurrent_state_bytes = 0;
     uint64_t mtp_bytes = 0;
+    uint64_t mtp_compute_bytes = 0;
+    uint64_t graph_bytes = 0;
+    uint64_t turbo4_scratch_bytes = 0;
     uint64_t scratch_bytes = 0;
+    uint64_t routing_table_bytes = 0;
+    uint64_t staging_bytes = 0;
     uint64_t routing_bytes = 0;
+    uint64_t external_bytes = 0;
     uint64_t allocator_guard_bytes = 0;
     uint64_t headroom_bytes = 0;
     uint64_t reserved_bytes = 0;
