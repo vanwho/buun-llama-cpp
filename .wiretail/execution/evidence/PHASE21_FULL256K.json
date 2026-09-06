@@ -1,0 +1,220 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "21-06",
+  "result": "incomplete",
+  "kind": "full_256k_functionality_checkpoint",
+  "procedure": "allocation_population_retrieval_continuation_with_bounded_prefill",
+  "created_utc": "2026-09-06T05:14:20Z",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "worktree; outer runner owns git",
+    "bundle_id": "20-07-runtime-bundle-20260905T220000Z",
+    "bundle_root": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+    "bundle_binary": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server",
+    "bundle_source_commit": "a757b0ac03fc638d8f030c5c32c6ca0373847109",
+    "binary_reported_commit": "72be6fba0b6b2345788341c9288503da888ee9dc",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+    "hardware": "NVIDIA GeForce RTX 4080, CUDA 12.4.131, x86_64; service 8080; unrelated 8092 untouched"
+  },
+  "runtime_contract": {
+    "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+    "context_tokens": 262144,
+    "logical_pages": 1024,
+    "page_size_tokens": 256,
+    "pager_mode": "selective",
+    "accepted_hot_pages": 4,
+    "hot_page_policy_requested": "auto (budget-derived)",
+    "target_backend": "CUDA",
+    "target_types": ["turbo4", "turbo4"],
+    "target_kv_policy": "canonical CPU Turbo4 backing with selective GPU hot set",
+    "mtp_backend": "gpu",
+    "mtp_placement": "gpu",
+    "mtp_types": ["turbo4", "turbo4"],
+    "sampling": {"temperature": 0, "seed": 42},
+    "loaded_profile": "qwen38-fast",
+    "main_pid": 3714144
+  },
+  "checks": [
+    {
+      "name": "Frozen exact bundle identity and 262144-token launch",
+      "status": "pass",
+      "raw_ids": ["allocation-run-config", "allocation-lifecycle"]
+    },
+    {
+      "name": "Allocation at logical capacity with resolved target rows",
+      "status": "pass",
+      "raw_ids": ["allocation-records", "allocation-run-config"]
+    },
+    {
+      "name": "Budget-derived automatic hot-set allocation",
+      "status": "fail",
+      "raw_ids": ["allocation-run-config"],
+      "detail": "The auto hot-page attempt hit CUDA out-of-memory while reserving the compute graph. A distinct fixed-four-page recovery allocated successfully, but that recovery does not prove the budget-derived policy requirement."
+    },
+    {
+      "name": "Fully GPU-resident Turbo4 MTP at logical capacity",
+      "status": "pass",
+      "raw_ids": ["allocation-records", "allocation-run-config"],
+      "detail": "The successful allocation telemetry reports 262144 MTP rows, GPU backend, Turbo4 K/V, and 276955000 bytes."
+    },
+    {
+      "name": "Tokenized near-full population construction",
+      "status": "pass",
+      "raw_ids": ["population-summary", "population-records"],
+      "detail": "The local rendered request contained 262136 prompt tokens with an eight-token generation reserve while the server remained configured for 262144."
+    },
+    {
+      "name": "Near-full server population and bounded generation",
+      "status": "fail",
+      "raw_ids": ["population-summary", "population-slots", "population-metrics"],
+      "detail": "The request timed out at 1200.0778666429687 seconds after the server had processed 15360 prompt tokens; no response or answer was produced. The slot was then explicitly erased and returned idle."
+    },
+    {
+      "name": "Logical-page movement, checksum, promotion, and route correlation",
+      "status": "not_measured",
+      "raw_ids": ["population-metrics", "population-slots"],
+      "detail": "The partial snapshot exposed no selected logical page IDs or host checksum, and showed zero H2D/D2H useful bytes, faults, and evictions."
+    },
+    {
+      "name": "Early, middle, late, recent retrieval probes",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "Focus shift and short continuation",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "Focused CUDA pager and benchmark unit tests",
+      "status": "pass",
+      "raw_ids": ["pager-test-source", "benchmark-harness-source"]
+    }
+  ],
+  "measurements": {
+    "allocation": {
+      "status": "pass",
+      "logical_context_tokens": 262144,
+      "logical_pages": 1024,
+      "page_size_tokens": 256,
+      "auto_hot_pages": "failed_cuda_oom",
+      "recovery_hot_pages": 4,
+      "physical_pool_capacity_bytes": 17301500,
+      "host_budget_bytes": 65150000000,
+      "vram_budget_bytes": 16300500000,
+      "target_allocated_bytes": 17301500,
+      "live_allocation_peak_bytes": 17301500,
+      "target_valid_rows": 35,
+      "host_valid_rows": 0,
+      "short_smoke_requests": 3,
+      "faults": 0,
+      "evictions": 0,
+      "h2d_useful_bytes": 0,
+      "d2h_useful_bytes": 0,
+      "snapshot_monotonic_us": 404434000000,
+      "raw_ids": ["allocation-run-config", "allocation-records", "allocation-lifecycle"]
+    },
+    "population": {
+      "status": "incomplete_timeout",
+      "resolved_capacity_tokens": 262144,
+      "local_prompt_tokens": 262136,
+      "occupied_prompt_tokens": 262136,
+      "generation_reserve_tokens": 8,
+      "server_prompt_tokens": null,
+      "server_prompt_tokens_processed_at_timeout": 15360,
+      "server_slot_prompt_tokens_at_snapshot": 16384,
+      "elapsed_seconds": 1200.0778666429687,
+      "timeout_class_recorded_by_harness": "decode_no_progress_timeout",
+      "transport_status": "error",
+      "response": "none",
+      "slot_cancel": {"endpoint": "/slots/0?action=erase", "http_status": 200, "n_erased": 16384},
+      "post_cancel_slot_state": "idle",
+      "raw_ids": ["population-summary", "population-slots", "population-records"]
+    },
+    "movement": {
+      "status": "not_demonstrated",
+      "partial_snapshot_route": "selected_reference",
+      "partial_selected_page_count": 4,
+      "partial_target_valid_rows": 1024,
+      "partial_host_valid_rows": 1024,
+      "h2d_useful_bytes": 0,
+      "d2h_useful_bytes": 0,
+      "faults": 0,
+      "evictions": 0,
+      "selected_logical_page_ids": null,
+      "host_checksum": null,
+      "promotion_event": null,
+      "note": "These counters are from partial work after the timeout, not evidence of full-context movement."
+    },
+    "retrieval": {
+      "status": "not_measured",
+      "early": null,
+      "middle": null,
+      "late": null,
+      "recent": null
+    },
+    "continuation": {
+      "status": "not_measured",
+      "focus_shift": null,
+      "short_continuation": null
+    },
+    "mtp": {
+      "status": "pass_for_allocation_only",
+      "rows": 262144,
+      "bytes": 276955000,
+      "backend": "gpu",
+      "type_k": "turbo4",
+      "type_v": "turbo4",
+      "native": true,
+      "population_and_generation_proof": false
+    },
+    "base_goal_demonstrated": false,
+    "shorter_context_substitute_used": false
+  },
+  "failure": {
+    "classification": "population_and_budget_policy_incomplete",
+    "primary_owner": "llama_context::prepare_kv_attention_graph() / paged prefill and attention execution",
+    "secondary_owner": "runtime hot-set budget derivation and allocation headroom",
+    "harness_owner": "tools/server/bench/run-pager-profile-benchmark.py profile identity/restore observation",
+    "details": [
+      "The budget-derived auto hot-set startup failed CUDA allocation; fixed four-page recovery succeeded at the same 262144 logical capacity.",
+      "The near-full request was locally tokenized to 262136 tokens but made only 15360 tokens of server progress within the bounded 1200-second request window.",
+      "No model-quality failure is claimed because no completion was returned and retrieval/continuation were not attempted.",
+      "The adapter emitted a profile identity/restore warning because its before/after profile parser returned null; canonical execution succeeded, the exact process remained loaded, and the service was verified idle after slot cancellation."
+    ]
+  },
+  "raw_index": [
+    {"id": "allocation-run-config", "path": "/srv/ai/paged-kv/results/21-06-allocation-fixed4-20260906T045000Z/run-config.json", "sha256": "ace8dbc4979be654fee9ae941bd3bf92da1bbb4c9a42ca249073bc8863c565f3"},
+    {"id": "allocation-records", "path": "/srv/ai/paged-kv/results/21-06-allocation-fixed4-20260906T045000Z/records.jsonl", "sha256": "e276a5a846f36b480a3415d04f329bfabeb5389985f9cf0ede3efa530c2ca28a"},
+    {"id": "allocation-lifecycle", "path": "/srv/ai/paged-kv/results/21-06-allocation-fixed4-20260906T045000Z/lifecycle-state.json", "sha256": "96e1870d4f0c68505677ccfde83c3c1eaac3db791777160df7f295978e5b0cfa"},
+    {"id": "population-summary", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/raw/population-summary.json", "sha256": "a5a9a8c23a68c3fb391be91a081ea52446f4c301e2fb672ea4cc4291cf6b6218"},
+    {"id": "population-metrics", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/raw/metrics-after-near-full-population.txt", "sha256": "446c0bc1740fc63f9ecba8853c3673fb576b2e1182346219eaa64d6186801970"},
+    {"id": "population-slots", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/raw/slots-after-near-full-population.json", "sha256": "1ab201ae6e032b9ff99e232b97ca0b954d8ad068b94b539d84a20b8189d2d49e"},
+    {"id": "population-records", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/records.jsonl", "sha256": "f6b5404dcd571a7a27720b4e75433979eef929fd38f646b1e9178cb4c5041c50"},
+    {"id": "population-checksums", "path": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/SHA256SUMS", "sha256": "6c7a5209ce28f83ec4de4eaa7d9739d680c29f101cbdca7c43d6cfba2c79e980"},
+    {"id": "pager-test-source", "path": "tests/test-kv-pager.cpp", "sha256": "3856c670f7784acc39ab2f57c975394dd862062f96a950afd076283d9b4798bf"},
+    {"id": "benchmark-harness-source", "path": "tools/server/bench/run-pager-soak.py", "sha256": "a00aec2514fadb3b175e011defe69f340e520206d977b08da5da999c3ed08102"}
+  ],
+  "resume": {
+    "command": "Repeat the exact fixed-four-page launch from allocation-run-config, then resume population from a fresh bounded request only after diagnosing the prefill/attention timeout; do not substitute a shorter logical context.",
+    "checkpoint": "/srv/ai/paged-kv/results/21-06-population-20260906T050100Z/raw/population-summary.json",
+    "secrets_omitted": true,
+    "successful_profile_left_loaded": true
+  },
+  "deferred_verification": {
+    "required": true,
+    "items": [
+      "Full near-262K population with generation headroom and server-side token accounting",
+      "Early/middle/late/recent retrieval, focus shift, and continuation",
+      "Real logical-page movement correlation including selected page IDs, host checksum, promotion, and transfer route",
+      "Budget-derived automatic hot-set allocation without the fixed-four-page recovery"
+    ],
+    "reason": "The bounded population request timed out before completion; no specialized external service or human action was required, and no shorter-context substitute was used."
+  }
+}
