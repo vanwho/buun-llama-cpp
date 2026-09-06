@@ -1,0 +1,267 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "23-08",
+  "kind": "matched_controls_and_bottleneck",
+  "procedure": "release_matched_cpu_kv_gpu_mtp_and_dense_all_gpu_turbo4_controls",
+  "created_utc": "2026-09-06T08:03:37Z",
+  "result": "not_run",
+  "status": "not_measured_no_completed_target_rows",
+  "classification": {
+    "paired_target_rows": "not_measured",
+    "cpu_kv_gpu_mtp_controls": "unavailable_for_pairing",
+    "all_gpu_turbo4_mtp_controls": "unavailable_for_pairing",
+    "observe_ablation": "not_measured",
+    "mtp_off_ablation": "not_measured",
+    "bottleneck_isolation": "blocked_by_missing_target_and_control_pairs"
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "repository_head": "e11779a663e8df21aba411f3d7e922dc1fb7560c",
+    "required_repaired_source_commit": "e981d13e846ca98100118cc92c502f4d37dba99f",
+    "target_curve_evidence": ".wiretail/execution/evidence/PHASE23_CURVE.json",
+    "target_curve_evidence_sha256": "21bb7d95a723dda3a187515f8dd097904da5b69a833347df3778e931c1ffa8d6",
+    "target_curve_result": "not_run",
+    "target_completed_rows": 0,
+    "target_bundle_deployed": false,
+    "local_candidate_binary": "build-cuda/bin/llama-server",
+    "local_candidate_binary_sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f",
+    "deployed_server_binary": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server",
+    "deployed_server_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "deployed_bundle_manifest": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/bundle-manifest.json",
+    "deployed_bundle_manifest_sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "target_corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "target_corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.84",
+    "gpu_total_mib": 16376,
+    "page_size_tokens": 256,
+    "target_kv": "Turbo4",
+    "canonical_host_kv": "Turbo4",
+    "mtp_kv": "Turbo4",
+    "mtp_placement": "GPU",
+    "sampling": {
+      "temperature": 0,
+      "seed": 42,
+      "thinking": "off"
+    },
+    "questions": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ]
+  },
+  "matching_contract": {
+    "required_identity": [
+      "immutable executable and loaded project DSOs",
+      "model, tokenizer, and chat template",
+      "corpus and exact rendered prompt/request hash",
+      "actual occupied prompt tokens and logical context",
+      "sampling and cache condition",
+      "K/V codec and MTP placement"
+    ],
+    "target_completed_rows": 0,
+    "paired_control_rows": 0,
+    "paired_raw_ids": [],
+    "unmatched_rule": "A missing target row or any identity mismatch produces null ratios; no shorter or historical control is promoted to a comparable denominator.",
+    "historical_artifacts_are_diagnostics_only": true
+  },
+  "protocol": {
+    "representative_points": {
+      "short": 20000,
+      "middle": 60000,
+      "long": 262144
+    },
+    "warmups": 1,
+    "warmup_max_tokens": 40,
+    "measured_trials": 3,
+    "max_tokens": 400,
+    "stream": true,
+    "cache_condition": "prepared_warm_after_discarded_warmup",
+    "temperature": 0,
+    "seed": 42,
+    "thinking": "off",
+    "target_contexts": [20000, 40000, 60000, 100000, 175000, 262144],
+    "one_job_at_a_time": true,
+    "target_status": "not_completed; PHASE23_CURVE has zero executed cases",
+    "control_status": "not_run as a substitute; no historical control is paired"
+  },
+  "target_rows": {
+    "expected_contexts": [20000, 40000, 60000, 100000, 175000, 262144],
+    "completed_rows": 0,
+    "rows": [
+      {"context_tokens": 20000, "status": "not_measured", "target_case_ids": [], "prompt_trials": [null, null, null], "null_reason": "PHASE23_CURVE did not run because the repaired release was not deployed."},
+      {"context_tokens": 40000, "status": "not_measured", "target_case_ids": [], "prompt_trials": [null, null, null], "null_reason": "PHASE23_CURVE did not run because the repaired release was not deployed."},
+      {"context_tokens": 60000, "status": "not_measured", "target_case_ids": [], "prompt_trials": [null, null, null], "null_reason": "PHASE23_CURVE did not run because the repaired release was not deployed."},
+      {"context_tokens": 100000, "status": "not_measured", "target_case_ids": [], "prompt_trials": [null, null, null], "null_reason": "PHASE23_CURVE did not run because the repaired release was not deployed."},
+      {"context_tokens": 175000, "status": "not_measured", "target_case_ids": [], "prompt_trials": [null, null, null], "null_reason": "PHASE23_CURVE did not run because the 23-06 full-context gate and repaired deployment were unavailable."},
+      {"context_tokens": 262144, "status": "not_measured", "target_case_ids": [], "prompt_trials": [null, null, null], "null_reason": "PHASE23_CURVE did not run because the 23-06 full-context gate and repaired deployment were unavailable."}
+    ]
+  },
+  "controls": {
+    "paired_ids": [],
+    "cpu_kv_gpu_mtp": {
+      "status": "unavailable_for_pairing",
+      "paired_raw_ids": [],
+      "target_wall_seconds": null,
+      "control_wall_seconds": null,
+      "wall_ratio": null,
+      "decode_ratio": null,
+      "variability": null,
+      "memory": null,
+      "decomposition": null,
+      "null_reason": "No completed PHASE23 target row exists; no CPU-KV/GPU-MTP run was promoted as a denominator."
+    },
+    "all_gpu_turbo4_mtp": {
+      "status": "unavailable_for_pairing",
+      "paired_raw_ids": [],
+      "target_wall_seconds": null,
+      "control_wall_seconds": null,
+      "wall_ratio": null,
+      "decode_ratio": null,
+      "variability": null,
+      "memory": null,
+      "decomposition": null,
+      "null_reason": "No completed PHASE23 target row exists; a shorter or historical all-GPU run would not match context, prompt occupancy, release, or cache condition."
+    },
+    "observe": {
+      "status": "not_measured",
+      "paired_raw_ids": [],
+      "wall_ratio": null,
+      "decode_ratio": null,
+      "null_reason": "Observe is a separate ablation and was not run without a valid target row."
+    },
+    "mtp_off": {
+      "status": "not_measured",
+      "paired_raw_ids": [],
+      "wall_ratio": null,
+      "decode_ratio": null,
+      "null_reason": "MTP-off is a separate ablation and was not run without a valid target row."
+    },
+    "unpaired_diagnostics": [
+      {
+        "id": "preserved-20-07-runtime",
+        "class": "historical_runtime_excluded",
+        "bundle": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+        "binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+        "excluded_because": [
+          "the repaired PHASE23 target bundle is not deployed",
+          "no PHASE23 target case has a matching request hash or occupied-token record",
+          "using it would mix release identities and turn an unpaired diagnostic into a ratio"
+        ],
+        "interpretation": "Identity evidence only; no control metric is imported."
+      },
+      {
+        "id": "phase21-controls",
+        "class": "historical_controls_excluded",
+        "evidence": ".wiretail/execution/evidence/PHASE21_CONTROLS.json",
+        "excluded_because": [
+          "the historical target/control campaign is not a PHASE23 pair",
+          "its rows do not match the PHASE23 repaired-release provenance"
+        ],
+        "interpretation": "Historical policy precedent only; no metric is imported."
+      }
+    ]
+  },
+  "ratios": {
+    "per_question": [
+      {"question_index": 0, "question": "write a python function that merges two sorted lists into one sorted list, with docstring.", "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "cpu_kv_gpu_mtp_decode_ratio": null, "all_gpu_turbo4_mtp_decode_ratio": null, "variability": null, "paired_raw_ids": [], "null_reason": "No release-matched target/control pair."},
+      {"question_index": 1, "question": "explain the difference between mmap and read for loading large files, one paragraph.", "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "cpu_kv_gpu_mtp_decode_ratio": null, "all_gpu_turbo4_mtp_decode_ratio": null, "variability": null, "paired_raw_ids": [], "null_reason": "No release-matched target/control pair."},
+      {"question_index": 2, "question": "write a bash script that watches a directory and prints new files as they appear.", "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "cpu_kv_gpu_mtp_decode_ratio": null, "all_gpu_turbo4_mtp_decode_ratio": null, "variability": null, "paired_raw_ids": [], "null_reason": "No release-matched target/control pair."}
+    ],
+    "by_context": [
+      {"context_tokens": 20000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "paired_raw_ids": [], "null_reason": "No completed target row."},
+      {"context_tokens": 40000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "paired_raw_ids": [], "null_reason": "Target not measured."},
+      {"context_tokens": 60000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "paired_raw_ids": [], "null_reason": "Target not measured."},
+      {"context_tokens": 100000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "paired_raw_ids": [], "null_reason": "Target not measured."},
+      {"context_tokens": 175000, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "paired_raw_ids": [], "null_reason": "Target and full-context startup not measured."},
+      {"context_tokens": 262144, "cpu_kv_gpu_mtp_wall_ratio": null, "all_gpu_turbo4_mtp_wall_ratio": null, "paired_raw_ids": [], "null_reason": "Target and full-context startup not measured."}
+    ]
+  },
+  "decomposition": {
+    "representative_points": [
+      {"label": "short", "context_tokens": 20000, "status": "not_measured", "paired_raw_ids": [], "target": null, "cpu_kv_gpu_mtp": null, "all_gpu_turbo4_mtp": null, "components_seconds": {"model_compute": null, "paged_attention": null, "draft_verify": null, "h2d": null, "d2h": null, "routing": null, "graph_launch": null, "graph_reuse": null, "synchronization": null}, "memory": null},
+      {"label": "middle", "context_tokens": 60000, "status": "not_measured", "paired_raw_ids": [], "target": null, "cpu_kv_gpu_mtp": null, "all_gpu_turbo4_mtp": null, "components_seconds": {"model_compute": null, "paged_attention": null, "draft_verify": null, "h2d": null, "d2h": null, "routing": null, "graph_launch": null, "graph_reuse": null, "synchronization": null}, "memory": null},
+      {"label": "long", "context_tokens": 262144, "status": "not_measured", "paired_raw_ids": [], "target": null, "cpu_kv_gpu_mtp": null, "all_gpu_turbo4_mtp": null, "components_seconds": {"model_compute": null, "paged_attention": null, "draft_verify": null, "h2d": null, "d2h": null, "routing": null, "graph_launch": null, "graph_reuse": null, "synchronization": null}, "memory": null}
+    ],
+    "null_reason": "No release-matched completed target/control trial supplied component counters."
+  },
+  "memory": {
+    "paired_target": null,
+    "paired_cpu_kv_gpu_mtp": null,
+    "paired_all_gpu_turbo4_mtp": null,
+    "safe_all_gpu_denominator_tokens": null,
+    "null_reason": "No valid PHASE23 target/control pair exists; historical startup allocations are not control memory rows."
+  },
+  "bottleneck_ranking": [
+    {
+      "rank": 1,
+      "classification": "measurement_blocker",
+      "measured": false,
+      "finding": "No completed PHASE23 target row is available to pair.",
+      "evidence": "PHASE23_CURVE records 24 planned cases and zero executed cases.",
+      "confidence": "high",
+      "causal_isolation": "not_applicable; no target/control pair"
+    },
+    {
+      "rank": 2,
+      "classification": "deployment_blocker",
+      "measured": false,
+      "finding": "The repaired executable and loaded DSOs are not deployed as one immutable bundle.",
+      "evidence": "The local candidate is 7968b152… while port 8080 serves the historical d534fd99… binary.",
+      "confidence": "high",
+      "causal_isolation": "identity blocker, not a speed share"
+    },
+    {
+      "rank": 3,
+      "classification": "capacity_gate_blocker",
+      "measured": false,
+      "finding": "The 23-06 full-context gate remains not_measured.",
+      "evidence": ".wiretail/execution/handoffs/23-07.md and PHASE23_CURVE.json carry the dependency state forward.",
+      "confidence": "high",
+      "causal_isolation": "allocation/occupancy prerequisite, not a speed share"
+    }
+  ],
+  "checks": [
+    {"name": "Frozen target release/model/corpus identity retained", "status": "pass", "raw_ids": ["curve-evidence", "target-model", "target-corpus"]},
+    {"name": "Target rows available for pairing", "status": "not_measured", "raw_ids": ["curve-evidence", "target-handoff"]},
+    {"name": "CPU-KV/GPU-MTP matched controls", "status": "not_measured", "raw_ids": []},
+    {"name": "Dense all-GPU Turbo4/MTP matched controls", "status": "not_measured", "raw_ids": []},
+    {"name": "Observe and MTP-off ablations", "status": "not_measured", "raw_ids": []},
+    {"name": "Per-question ratios, variability, memory, and decomposition", "status": "not_measured", "raw_ids": []},
+    {"name": "Historical 3x/5x/70% annotations kept out of denominators", "status": "pass", "raw_ids": ["historical-controls"]}
+  ],
+  "raw_index": [
+    {"id": "task-packet", "path": ".wiretail/execution/tasks/23-08.md", "sha256": "046891639c56ad6f11de32e8fe266d2ff7ab51c0c40194e9391886a44b0e875f"},
+    {"id": "cluster", "path": ".wiretail/execution/clusters/23c-final-measurements.md", "sha256": "284438d39e15ff1e8694f616126ae0bcd6349c50939a42d26313d71d6a9a475f"},
+    {"id": "curve-evidence", "path": ".wiretail/execution/evidence/PHASE23_CURVE.json", "sha256": "21bb7d95a723dda3a187515f8dd097904da5b69a833347df3778e931c1ffa8d6"},
+    {"id": "target-handoff", "path": ".wiretail/execution/handoffs/23-07.md", "sha256": "93c0cc4e4ad041b96fa606a66b39dfddcb6a789c420af8f43164b528a71109c3"},
+    {"id": "target-model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "target-corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "candidate-binary", "path": "build-cuda/bin/llama-server", "sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f"},
+    {"id": "deployed-binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "deployed-bundle-manifest", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/bundle-manifest.json", "sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401"},
+    {"id": "historical-controls", "path": ".wiretail/execution/evidence/PHASE21_CONTROLS.json", "sha256": "82889c8742fdeb5dd0ffee0d79ee0ebae754f224088e5d122b75ad75a964b2cd"}
+  ],
+  "failure": {
+    "class": "dependent_target_campaign_incomplete",
+    "summary": "PHASE23_CURVE supplied no completed target row, so matched controls, ratios, and component bottlenecks cannot be computed without violating release/context/prompt matching.",
+    "unavailable_capacities": [20000, 40000, 60000, 100000, 175000, 262144],
+    "no_speed_claim": true
+  },
+  "resume": {
+    "command": "After a controlled lifecycle transition deploy the repaired executable plus all loaded project DSOs, pass the 23-06 full-context and telemetry preflight, complete PHASE23_CURVE, then run CPU-KV/GPU-MTP and safely fitting dense all-GPU Turbo4/MTP controls at each completed target point with the same warmup/trial protocol.",
+    "next_case": "first completed PHASE23 target context/question case",
+    "secrets_omitted": true,
+    "keep_target_loaded": true
+  },
+  "deferred_verification": [
+    "Complete the repaired-release PHASE23 target curve before any control is admitted to a denominator.",
+    "Run CPU-KV/GPU-MTP and safely fitting dense all-GPU Turbo4/MTP controls matched by bundle, model/template, exact request hash, actual occupancy, logical context, sampling, cache condition, codec, and MTP placement.",
+    "Run observe and MTP-off only as separately labeled ablations; never substitute them for same-MTP controls.",
+    "Collect short/middle/long model-compute, paged-attention, draft/verification, routing, H2D/D2H, graph launch/reuse, synchronization, and memory counters, then rank only measured bottlenecks.",
+    "Historical 3x/5x/70% comparisons remain annotations and are not denominators or completion gates."
+  ]
+}
