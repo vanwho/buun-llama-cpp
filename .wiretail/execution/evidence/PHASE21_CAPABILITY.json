@@ -1,0 +1,177 @@
+{
+  "schema": "pager-capability-gate-v1",
+  "schema_version": 1,
+  "task_id": "21-01",
+  "result": "partially_capable",
+  "created_utc": "2026-09-06T02:59:30Z",
+  "hypothesis": "The frozen selective pager can start at logical context 262144 and preserve selected-all correctness, but its live attention path is not yet capability-complete: selected attention is resident-only/reference-routed and cold promotion/direct execution is not evidenced.",
+  "changed_variables": [
+    "pager mode: dense/off, observe, selective",
+    "logical context: 22016 diagnostic and 262144 release gate",
+    "hot-page budget: auto and explicit four-page negative control"
+  ],
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "bundle_root": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+    "bundle_manifest_sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401",
+    "source_commit": "72be6fba0b6b2345788341c9288503da888ee9dc",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "corpus_declared_sha256": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "runtime_chat_template_sha256": "e6cd775ad62be0d2c7c84bb85842ba6a7c4c00a825e23bbe762d22c710c515bf",
+    "profile_policy_sha256": "90e8a828ab193628dd344f32ca84d6368ada89a11853b64cf25c741b52778f96",
+    "quality_template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a"
+  },
+  "runtime_contract": {
+    "logical_context": 262144,
+    "page_size_tokens": 256,
+    "target_backend": "CUDA",
+    "target_type_k": "turbo4",
+    "target_type_v": "turbo4",
+    "mtp_backend": "gpu",
+    "mtp_type_k": "turbo4",
+    "mtp_type_v": "turbo4",
+    "native_mtp": true,
+    "four_page_budget_is_negative_control": true,
+    "auto_budget_attempted": true
+  },
+  "startup_gate": {
+    "status": "pass_with_constraints",
+    "receipt": "/srv/ai/paged-kv/results/21-01-release-262144-startup-validated-20260905T211547",
+    "config": "/srv/ai/paged-kv/results/21-01-release-262144-startup-validated-20260905T211547/run-config.json",
+    "resolved_context": 262144,
+    "pager_mode": "selective",
+    "hot_pages": 4,
+    "mtp_rows": 262144,
+    "target_and_draft_types": "turbo4/turbo4",
+    "one_generation": {
+      "status": "pass",
+      "prompt_tokens_per_second": 35.17823639774859,
+      "decode_tokens_per_second": 5.306142662856403,
+      "mtp_acceptance_percent": 96.729,
+      "accepted_over_draft": "207/214"
+    }
+  },
+  "quality_sentinels": {
+    "dense_all_fit_warm": {
+      "receipt": "/srv/ai/paged-kv/results/21-01-release-22016-dense-sentinel-20260905T214823",
+      "context": 22016,
+      "mode": "off/dense",
+      "completed": 1,
+      "passed": 1,
+      "failed": 0,
+      "decision": "pass"
+    },
+    "selected_all": {
+      "receipt": "/srv/ai/paged-kv/results/21-01-quality-selected-all-20260905T211800",
+      "context": 22016,
+      "completed": 6,
+      "passed": 6,
+      "failed": 0,
+      "score": 1.0,
+      "decision": "pass"
+    },
+    "selective_stopped": {
+      "receipt": "/srv/ai/paged-kv/results/21-01-quality-full-selective-20260905T215628",
+      "context": 22016,
+      "records": 19,
+      "passed": 8,
+      "failed": 11,
+      "first_repeated_failure": "competing-a",
+      "failure_class": "answer_mismatch",
+      "scope": "stopped after the first systematic competing/focus failure; no equivalent corpus rerun"
+    }
+  },
+  "telemetry": {
+    "receipt": "/srv/ai/paged-kv/results/21-01-release-262144-startup-validated-20260905T211547/run-config.json",
+    "mode": "selective",
+    "logical_tokens": 262144,
+    "host_budget_bytes": 65150000000,
+    "vram_budget_bytes": 16300500000,
+    "host_valid_rows": 256,
+    "target_valid_rows": 344,
+    "selected_page_count": 2,
+    "prefill_routes": {
+      "reference": 1,
+      "direct": 0,
+      "dense": 0
+    },
+    "mtp_verify_routes": {
+      "reference": 108,
+      "direct": 0,
+      "dense": 0
+    },
+    "faults": 0,
+    "evictions": 0,
+    "h2d_useful_bytes": 0,
+    "h2d_actual_bytes": 0,
+    "d2h_useful_bytes": 0,
+    "d2h_actual_bytes": 0,
+    "useful_prefetches": 0,
+    "queue_us": 1547450,
+    "wait_us": 1254310,
+    "copy_us": 0,
+    "interpretation": "The run proves bounded resident backing and telemetry validity, not physical H2D movement or direct attention execution."
+  },
+  "timing_diagnostic": {
+    "prompt_tokens": 4171,
+    "context": 22016,
+    "hot_pages": "auto",
+    "off": {
+      "receipt": "/srv/ai/paged-kv/results/21-01-prefill-off-262144-auto-20260906T0340",
+      "status": "blocked_startup",
+      "timing": null,
+      "reason": "The 262144 off-mode auto-budget control hit the CUDA graph/context reservation OOM recorded under auto_budget_failure."
+    },
+    "observe": {
+      "receipt": "/srv/ai/paged-kv/results/21-01-prefill-observe-22016-auto-large-v2-20260906T0500",
+      "prompt_ms": 2271.62,
+      "prompt_tokens_per_second": 1836.1345647599512,
+      "run_exit": 0
+    },
+    "selective": {
+      "receipt": "/srv/ai/paged-kv/results/21-01-prefill-selective-22016-auto-large-v2-20260906T0505",
+      "prompt_ms": 283394.497,
+      "prompt_tokens_per_second": 14.717999270112857,
+      "run_exit": 0
+    },
+    "ratio_observe_to_selective": 124.75,
+    "qualification": "bounded diagnostic only; not a final speed curve or quality claim"
+  },
+  "auto_budget_failure": {
+    "status": "blocked_startup",
+    "receipts": [
+      "/srv/ai/paged-kv/results/21-01-prefill-off-262144-auto-20260906T0340/lifecycle-state.json",
+      "journalctl -u llama-server.service, 2026-09-06 04:52-04:53 Europe/Vienna"
+    ],
+    "error": "ggml_backend_cuda_buffer_type_alloc_buffer: allocating 189.01 MiB on device 0: cudaMalloc failed: out of memory; vram-demand: insufficient capacity, need 256.0 MiB, offers 0.0 MiB + free 11.8 MiB",
+    "owner": "startup graph/context reservation and runtime hot-budget admission"
+  },
+  "implementation_owner": {
+    "primary": "llama_context::prepare_kv_attention_graph() in src/llama-context.cpp:1970 and selective view construction around 2258-2412",
+    "secondary": "llama_kv_cache::apply_pager_live_policy() in src/llama-kv-cache.cpp:2330",
+    "observed_contract": "selected attention currently enumerates resident pager pages; the promotion boundary constructs cold-page H2D work, but this gate exported no H2D/direct route evidence",
+    "next_scope": "repair serialized paged prefill and selected cold-page promotion/direct attention, then rerun only bounded sentinels"
+  },
+  "local_verification": {
+    "ctest": {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R '^test-(kv-pager|kv-attention-view|kv-attention-telemetry|kv-attention-execution|kv-attention-exact|cuda-fattn-paged-turbo4)$'",
+      "status": "pass",
+      "passed": 6,
+      "failed": 0
+    },
+    "python_benchmark_tests": {
+      "command": "python3 -m unittest discover -s tools/server/bench -p 'test_*.py'",
+      "status": "pass",
+      "passed": 46,
+      "failed": 0
+    }
+  },
+  "deferred_verification": {
+    "physical_h2d": "Deferred to the repair task because live counters remained zero; no physical movement is claimed.",
+    "full_quality_curve": "Deferred by task contract; this gate intentionally used only the bounded corpus slice.",
+    "human_upstream_review": "Not performed or required for local completion."
+  }
+}

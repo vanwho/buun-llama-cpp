@@ -44,7 +44,7 @@ Global rules for every packet:
     token/page count. Historical benchmark artifacts may retain their measured configuration names.
 12. After 17-15, use POST17_IMPLEMENTATION_STRATEGY.md, the packet's TECHNICAL_CHANGE_SPEC.md sections,
     and BENCHMARK_PROTOCOL_V5.md instead of historical acceptance ledgers. 17-16 bridges the evidence;
-    phases 18–20 implement repairs; phase 21 measures; 22-01 (Sol High) reviews only that compact summary
+    phases 18–20 implement repairs; phase 21 gates/repairs remaining live gaps and then measures; 22-01 (Sol High) reviews only that compact summary
     and creates another measured remediation/review chain if needed. Implementation must demonstrate
     its live behavior, not merely report an unsupported callback. Evidence tasks may honestly finish
     with negative findings, but cannot promote them as overall-goal success.

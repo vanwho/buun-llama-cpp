@@ -1,35 +1,34 @@
-# Cluster 21b-controls-soak
+# Cluster 21b — bounded harness and live correctness
 
-Tasks: `21-03`, `21-04`.
+Tasks: `21-04`, `21-05`, `21-06`.
 Model policy: Luna High; do not change tool-wide defaults.
+
+## Purpose
+
+Make benchmark execution fail-fast and observable, then prove the repaired
+runtime on small, representative workloads before spending long-context time.
+The cluster separates harness failures, model-quality failures, and runtime
+movement failures.
 
 ## Shared context
 
-Read `POST17_IMPLEMENTATION_STRATEGY.md` once, then the current task packet
-and its named `TECHNICAL_CHANGE_SPEC.md` sections. Live work also reads
-`BENCHMARK_PROTOCOL_V5.md`. Reuse these within this cluster; do not load
-historical phase-14/15/16 audit transcripts, all previous handoffs, or entire raw
-JSONL files. The immediate dependency handoff is the entry receipt.
-
-- 21-03: Measure matched CPU-KV/GPU-MTP and all-GPU controls; exit receipt `evidence/PHASE21_CONTROLS.json/.md`.
-- 21-04: Prove physical page churn and bounded lifecycle in long-context soak; exit receipt `evidence/PHASE21_SOAK.json/.md`.
+Read `BENCHMARK_PROTOCOL_V5.md` A–E, `EXECUTION_COOKBOOK.md` C2–C5,
+`IMPLEMENTATION_CONTRACTS.md` I2/I5/I6, and the receipts from 21-01 through
+21-03. Reuse the frozen release only if its source, DSOs, model, corpus,
+template, and policy hashes match.
 
 ## Invariants
 
-Target/MTP K and V stay Turbo4; native MTP rows equal resolved target context
-and stay GPU resident. Target hot capacity is budget-derived; CPU backing is
-canonical. Preserve exact recurrent state, logical positions, representation
-identity, transaction generations and actual telemetry. Single-sequence support
-is the base scope. Speeds are findings, not the historical 3x gate.
-Implementation is generic; site service/config/results and execution state do
-not belong in upstream code slices. Outer runner owns auto Git operations.
+Every live record reports route (`selected_direct`, `selected_reference`, or
+fallback), selected/physical/logical pages, host-valid rows, H2D/D2H/fault and
+eviction counters, queue/copy/wait time, target/draft placement, and actual
+occupied tokens. Missing fields are a capability failure, never zero. A mode
+stops after a confirmed capability refusal or two same-prefix quality
+failures. The unrelated 8092 service is never touched.
 
-The current packet also names C-sections in `EXECUTION_COOKBOOK.md` and
-I-sections in `IMPLEMENTATION_CONTRACTS.md`. Read only those sections once;
-they contain actual commands, minimal fixtures, interface and receipt contracts.
+## Handoff
 
-## Handoff boundary
-
-Finish each packet's focused live/portable checks and compact receipt before the
-next task. Preserve a successful runtime for reuse. Cluster exit is the final
-task's receipt, not a request to reread every earlier phase.
+Only after 21-06 proves bounded correctness and real movement may the final
+speed curve and controls run. Keep successful tested profiles loaded for the
+next dependent task; restore only for an explicitly declared control or
+failed-start recovery.

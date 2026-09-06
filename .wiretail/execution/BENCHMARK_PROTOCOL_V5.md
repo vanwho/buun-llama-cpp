@@ -39,7 +39,7 @@ the three original benchmark questions to make quality/speed look better.
 ### Choose context for the test, not from the final-results curve
 
 The six 20K/40K/60K/100K/175K/256K coordinates are **only the final results
-campaign in 21-02 and its matched final controls**, after the functionality
+campaign in 21-07 and its matched final controls**, after the functionality
 works. They are not a development-test matrix, phase gate or default context
 ladder. Earlier tasks choose and record the smallest useful context/occupancy
 and explicit test hot budget for the behavior under investigation:

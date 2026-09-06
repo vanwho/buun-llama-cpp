@@ -26,7 +26,8 @@ functionality works. Development/repair tasks choose the context appropriate
 to their particular invariant or bottleneck, not a repeated six-point ladder.
 
 17-15 is not changed or interrupted. 17-16 is now a compact transition task;
-phases 18–20 repair and advance the implementation; phase 21 measures it; the
+phases 18–20 repair and advance the implementation; phase 21 first gates and
+repairs remaining live pager gaps and then measures it; the
 benchmark-only Sol High review moves from old 18-01 to **22-01**. Unstarted old
 17-16–17-19/18-01 contents are archived, not marked complete. Speed ratios are
 findings, not the historical 3x/5x/70% acceptance gates. All target/draft K/V
@@ -1098,7 +1099,7 @@ handoff; **provisional API** may change before upstream review without changing 
 | D22 | Locked | Auto policy allocation scales with admitted `H`; absolute page counts are valid only as explicit test inputs. | Mandatory pages consume exact capacity first; recent/history/transient shares use calibrated ratios/minima and fail on mandatory overflow. | 08-03, 11-04, 13-05 |
 | D23 | Locked | Native MTP KV capacity always equals the resolved target per-sequence context for the run. | Never use `n_ctx_train` as an MTP allocation floor; reject conflicting native-MTP `-cd`, reserve actual Turbo4 bytes first, and verify every MTP KV buffer is GPU-backed. | 08-02, 09-02, 14-02 |
 | D24 | Current | Completed foundation/earlier tasks are not proof that all live paths work. | 17-16 bridges final running findings; 18–20 repair and advance; 21 measures; 22-01 reviews only the compact summary and creates a fresh measured remediation chain if needed. | 17-16–22-01 |
-| D25 | Superseded speed gates | Speed remains the main optimization objective, but 3x/5x CPU-KV and 70% all-GPU ratios are findings, not pass/fail thresholds. Correctness cannot be traded away silently. | Run the original three prompts across token-counted 20K/40K/60K/100K/175K/256K coordinates; report actual occupancy, matched MTP/codec controls and real paging. | BENCHMARK_PROTOCOL_V5.md; 21-01–22-01 |
+| D25 | Superseded speed gates | Speed remains the main optimization objective, but 3x/5x CPU-KV and 70% all-GPU ratios are findings, not pass/fail thresholds. Correctness cannot be traded away silently. | Run the original three prompts across token-counted 20K/40K/60K/100K/175K/256K coordinates only after capability and full-context gates; report actual occupancy, matched MTP/codec controls and real paging. | BENCHMARK_PROTOCOL_V5.md; 21-07–22-01 |
 
 ### 17.1 Deliberately unresolved choices
 
