@@ -1,0 +1,66 @@
+{
+  "schema": "pager-live-preflight-v1",
+  "raw_id": "live-preflight-warm-20260906T043419Z",
+  "result": "capability_refusal",
+  "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+  "model": "qwen38-fast-turbo4-mtp",
+  "binary": "/srv/ai/paged-kv/build/buun/bin/llama-server",
+  "model_file": "/srv/ai/models/text/current.gguf",
+  "context": 22016,
+  "sampling": {
+    "temperature": 0,
+    "seed": 42,
+    "thinking": false,
+    "max_tokens": 8,
+    "trial_index": 0
+  },
+  "controls": {
+    "fail_fast_capability": true,
+    "stop_after_failures": 2,
+    "preflight_timeout_seconds": 180,
+    "total_timeout_seconds": 180,
+    "corpus_partition": "calibration"
+  },
+  "requests": [
+    {
+      "kind": "warm",
+      "case_id": "warm-focus",
+      "partition": "calibration",
+      "status": "capability_refusal",
+      "error_class": "telemetry_refusal",
+      "http_status": 200,
+      "client_started_utc": "2026-09-06T04:34:19Z",
+      "client_finished_utc": "2026-09-06T04:34:21Z",
+      "actual_occupied_tokens": 4088,
+      "telemetry": null,
+      "telemetry_errors": [
+        "telemetry_unavailable",
+        "telemetry_missing_pager_metrics"
+      ],
+      "route": null,
+      "selected_pages": null,
+      "physical_pages": null,
+      "logical_pages": null,
+      "host_valid_rows": null,
+      "h2d_useful_bytes": null,
+      "h2d_aligned_bytes": null,
+      "d2h_useful_bytes": null,
+      "d2h_aligned_bytes": null,
+      "faults": null,
+      "evictions": null,
+      "queue_time_us": null,
+      "copy_time_us": null,
+      "wait_time_us": null,
+      "target_placement": null,
+      "mtp_placement": null,
+      "hot_page_budget": null,
+      "snapshot_monotonic_us": null
+    }
+  ],
+  "requested_but_not_run": [
+    "cold_needle",
+    "selected_all"
+  ],
+  "stop_reason": "capability_refusal:telemetry_refusal",
+  "secrets_omitted": true
+}

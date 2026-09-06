@@ -1,0 +1,205 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "21-05",
+  "result": "not_run",
+  "kind": "bounded_representative_quality_matrix",
+  "procedure": "authenticated_preflight_then_exact_selected_all_selective_matrix",
+  "created_utc": "2026-09-06T04:36:00Z",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "worktree; outer runner owns git",
+    "candidate": {
+      "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+      "service": "llama-server.service",
+      "pid": 3657500,
+      "binary": "/srv/ai/paged-kv/build/buun/bin/llama-server",
+      "binary_mtime": "2026-08-25T02:53:55Z",
+      "model": "qwen38-fast-turbo4-mtp",
+      "model_file": "/srv/ai/models/text/current.gguf",
+      "model_file_mtime": "2026-08-21T20:14:27Z",
+      "context_configured": 77824,
+      "page_size_tokens": 256,
+      "target_kv_codec": "turbo4",
+      "native_mtp": "not_observed",
+      "native_mtp_gpu": "not_observed",
+      "source_release": "managed-service identity; release manifest unavailable"
+    },
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "corpus_schema": "pager-corpus-v4",
+    "corpus_context_ceiling": 22016,
+    "resolved_context": 22016,
+    "template_authority": "/apply-template followed by /tokenize(add_special=true, parse_special=true)",
+    "config_identity": "fast-turbo4-mtp process flags observed from llama-server command line",
+    "sampling": {
+      "temperature": 0,
+      "seed": 42,
+      "thinking": false,
+      "max_tokens": 8,
+      "trial_policy": "one per case; no repeat because preflight refused"
+    }
+  },
+  "checks": [
+    {
+      "name": "Frozen corpus and candidate identity recorded",
+      "status": "pass",
+      "raw_ids": ["corpus-fixture", "live-preflight-warm-20260906T043419Z"]
+    },
+    {
+      "name": "Authenticated model request completed",
+      "status": "pass",
+      "raw_ids": ["live-preflight-warm-20260906T043419Z"]
+    },
+    {
+      "name": "Required pager route and movement telemetry available",
+      "status": "fail",
+      "raw_ids": ["live-preflight-warm-20260906T043419Z"]
+    },
+    {
+      "name": "Exact control quality score",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "Selected-all control quality score",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "Selective quality score and cold-needle promotion",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "matrix": {
+      "partition": "calibration",
+      "cases": [
+        "warm-focus",
+        "cold-early",
+        "cold-middle",
+        "cold-end",
+        "competing-a",
+        "focus-shift"
+      ],
+      "case_count": 6,
+      "modes": ["exact", "selected-all", "selective"],
+      "planned_requests": 18,
+      "executed_requests": 0,
+      "quality_denominator": 0,
+      "stop_policy": "first capability refusal or two identical failure classes",
+      "stop_reason": "capability_refusal:telemetry_refusal"
+    },
+    "scores": {
+      "exact": {
+        "numerator": 0,
+        "denominator": 0,
+        "planned": 6,
+        "status": "not_measured",
+        "omitted_page_label": "not_observed",
+        "sparse_policy_label": "not_observed",
+        "raw_ids": []
+      },
+      "selected-all": {
+        "numerator": 0,
+        "denominator": 0,
+        "planned": 6,
+        "status": "not_measured",
+        "omitted_page_label": "not_observed",
+        "sparse_policy_label": "not_observed",
+        "raw_ids": []
+      },
+      "selective": {
+        "numerator": 0,
+        "denominator": 0,
+        "planned": 6,
+        "status": "not_measured",
+        "omitted_page_label": "not_observed",
+        "sparse_policy_label": "not_observed",
+        "raw_ids": []
+      }
+    },
+    "preflight": {
+      "requested": ["warm", "cold_needle", "selected_all"],
+      "executed": ["warm"],
+      "completed_http_requests": 1,
+      "status": "capability_refusal",
+      "telemetry_errors": ["telemetry_unavailable", "telemetry_missing_pager_metrics"],
+      "raw_ids": ["live-preflight-warm-20260906T043419Z"]
+    },
+    "required_request_telemetry": [
+      "route",
+      "selected_pages",
+      "physical_pages",
+      "logical_pages",
+      "host_valid_rows",
+      "h2d_useful_bytes",
+      "h2d_aligned_bytes",
+      "d2h_useful_bytes",
+      "d2h_aligned_bytes",
+      "faults",
+      "evictions",
+      "queue_time_us",
+      "copy_time_us",
+      "wait_time_us",
+      "target_placement",
+      "mtp_placement",
+      "hot_page_budget",
+      "snapshot_monotonic_us"
+    ],
+    "observed_request_telemetry": null,
+    "model_quality_interpretation": "not_applicable; selective quality was not scored because route and movement telemetry were absent"
+  },
+  "raw_index": [
+    {
+      "id": "live-preflight-warm-20260906T043419Z",
+      "path": ".wiretail/execution/evidence/PHASE21_QUALITY.live-preflight.json",
+      "sha256": "4446fef3e2cd1ca847fa131841099c324e218a9b9cddc3c43746ba7da67d7f6a"
+    },
+    {
+      "id": "corpus-fixture",
+      "path": "tools/server/bench/fixtures/pager-corpus-v4.json",
+      "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"
+    }
+  ],
+  "failure": {
+    "class": "capability_refusal",
+    "owner": "managed llama-server deployment and pager telemetry exporter",
+    "repair": "run a pager-capable candidate that exports authenticated llamacpp:kv_pager_* metrics, then repeat the preflight before scoring the matrix",
+    "not_a_model_quality_failure": true,
+    "telemetry_missing": true
+  },
+  "provenance_unavailable": {
+    "quality_matrix": "Not run: the first warm preflight request returned HTTP 200 but the authenticated metrics scrape had no pager samples; fail-fast stopped before the remaining preflight or matrix requests.",
+    "selected_page_ids": "Not observable without the required per-request route/page telemetry.",
+    "host_checksum": "Not observable without the required per-request residency telemetry.",
+    "promotion": "Not observable without the required H2D/fault/eviction telemetry.",
+    "native_mtp_gpu": "Not asserted from the managed service command line alone."
+  },
+  "resume": {
+    "command": [
+      "python3",
+      "tools/server/bench/run-quality-corpus.py",
+      "tools/server/bench/fixtures/pager-corpus-v4.json",
+      "<results-dir>",
+      "--endpoint",
+      "http://127.0.0.1:8080/v1/chat/completions",
+      "--model",
+      "qwen38-fast-turbo4-mtp",
+      "--api-key-file",
+      "<configured-api-key-file>",
+      "--mode",
+      "<exact|selected-all|selective>",
+      "--context",
+      "derived",
+      "--seed",
+      "42",
+      "--max-tokens",
+      "8",
+      "--fail-fast-capability"
+    ],
+    "preflight_required": true,
+    "secrets_omitted": true
+  }
+}
