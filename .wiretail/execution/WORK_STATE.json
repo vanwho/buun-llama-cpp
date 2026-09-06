@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "21",
-  "current_task": "21-04",
-  "last_updated_utc": "2026-09-06T04:16:20+00:00",
+  "current_task": "21-05",
+  "last_updated_utc": "2026-09-06T04:31:37+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3492,22 +3492,36 @@
       "cluster": "21b-controls-soak",
       "title": "Harden benchmark preflight, progress, and fail-fast behavior",
       "packet": ".wiretail/execution/tasks/21-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "21-03"
       ],
-      "commit": null,
+      "commit": "79cfa214c0731775865a4de6327e0d598efede86",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/21-04-attempt-1-20260906T041637Z.jsonl:153",
+            "total_tokens": 11899506,
+            "total_tokens_derived": true,
+            "input_tokens": 11856587,
+            "cached_input_tokens": 11601664,
+            "output_tokens": 42919,
+            "thinking_tokens": 16833
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 11899506,
+          "input_tokens": 11856587,
+          "cached_input_tokens": 11601664,
+          "output_tokens": 42919,
+          "thinking_tokens": 16833
         }
       }
     },
@@ -4379,15 +4393,28 @@
           "cached_input_tokens": 16698880,
           "output_tokens": 33273,
           "thinking_tokens": 12942
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/21-04-attempt-1-20260906T041637Z.jsonl:153",
+          "total_tokens": 11899506,
+          "total_tokens_derived": true,
+          "input_tokens": 11856587,
+          "cached_input_tokens": 11601664,
+          "output_tokens": 42919,
+          "thinking_tokens": 16833
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 64939757,
-        "input_tokens": 64805102,
-        "cached_input_tokens": 63662336,
-        "output_tokens": 134655,
-        "thinking_tokens": 49746
+        "turns": 4,
+        "total_tokens": 76839263,
+        "input_tokens": 76661689,
+        "cached_input_tokens": 75264000,
+        "output_tokens": 177574,
+        "thinking_tokens": 66579
       }
     },
     "22": {
@@ -4404,12 +4431,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 33,
-      "total_tokens": 713528020,
-      "input_tokens": 711903814,
-      "cached_input_tokens": 698931968,
-      "output_tokens": 1624206,
-      "thinking_tokens": 582292
+      "turns": 34,
+      "total_tokens": 725427526,
+      "input_tokens": 723760401,
+      "cached_input_tokens": 710533632,
+      "output_tokens": 1667125,
+      "thinking_tokens": 599125
     },
     "source": "Codex turn.completed usage events"
   }
