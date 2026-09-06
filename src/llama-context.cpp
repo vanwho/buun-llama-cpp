@@ -1646,7 +1646,7 @@ uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
         (model.arch == LLM_ARCH_QWEN35 || model.arch == LLM_ARCH_QWEN35MOE) &&
         model.hparams.n_embd_head_k() == 256 && model.hparams.n_embd_head_v() == 256 &&
         model.hparams.n_head_kv() != 0 &&
-        model.hparams.n_head() == model.hparams.n_head_kv() * 4;
+        model.hparams.n_head() % model.hparams.n_head_kv() == 0;
     // Keep each graph bounded to a page-friendly Turbo4 query tile. Several
     // tiles can be submitted before the page-boundary fence in decode().
     return turbo4_paged_prefill
@@ -2122,9 +2122,10 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
         uint64_t representation_epoch,
         uint64_t shape_epoch,
         bool direct_capable,
-        const llama_kv_attention_scratch_request & scratch) {
+        const llama_kv_attention_scratch_request & scratch,
+        const std::string & direct_reason) {
     return kv_attention_execution.prepare(metadata, phase, representation_epoch,
-            shape_epoch, direct_capable, scratch);
+            shape_epoch, direct_capable, scratch, direct_reason);
 }
 
 void llama_context::complete_kv_attention_graph() noexcept {
@@ -2361,7 +2362,6 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                     metadata.n_query_tokens() >= 1 &&
                     metadata.n_batch() == 1 &&
                     metadata.n_head_kv() != 0 &&
-                    metadata.n_head_q() / metadata.n_head_kv() == 4 &&
                     metadata.n_head_q() % metadata.n_head_kv() == 0 &&
                     pager.residency_storage_tensor() != nullptr &&
                     pager.residency_bytes_per_slot() != 0 &&
@@ -2550,18 +2550,32 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     const bool direct_shape = metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
         metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
         metadata.head_dim_v() == 256 && metadata.n_query_tokens() >= 1 &&
-        metadata.n_batch() == 1 && metadata.n_head_kv() != 0 &&
-        metadata.n_head_q() / metadata.n_head_kv() == 4 &&
+        metadata.n_batch() == 1 && metadata.n_head_q() != 0 &&
+        metadata.n_head_kv() != 0 &&
         metadata.n_head_q() % metadata.n_head_kv() == 0;
-    const bool direct_capable = cuda_backend && scheduler_cuda &&
-        (phase == llama_kv_attention_execution_phase::prefill ||
-         phase == llama_kv_attention_execution_phase::decode ||
-         phase == llama_kv_attention_execution_phase::mtp_verify) &&
-        direct_shape && pager.residency_storage_tensor() != nullptr &&
-        pager.residency_bytes_per_slot() != 0 &&
-        model.hparams.f_max_alibi_bias == 0.0f && !model.hparams.attn_soft_cap &&
-        pager.snapshot().geometry.layer_k_offsets.size() == pager.snapshot().geometry.attention_layers &&
-        pager.snapshot().geometry.layer_v_offsets.size() == pager.snapshot().geometry.attention_layers;
+    std::string direct_reason;
+    if (!cuda_backend) {
+        direct_reason = "selected direct requires a CUDA layer backend";
+    } else if (!scheduler_cuda) {
+        direct_reason = "selected direct CUDA layer is not registered with the scheduler";
+    } else if (phase != llama_kv_attention_execution_phase::prefill &&
+               phase != llama_kv_attention_execution_phase::decode &&
+               phase != llama_kv_attention_execution_phase::mtp_verify) {
+        direct_reason = "selected direct does not support this execution phase";
+    } else if (!direct_shape) {
+        direct_reason = "selected direct rejects the Turbo4 Qwen geometry";
+    } else if (pager.residency_storage_tensor() == nullptr ||
+               pager.residency_bytes_per_slot() == 0) {
+        direct_reason = "selected direct has no persistent residency storage";
+    } else if (model.hparams.f_max_alibi_bias != 0.0f || model.hparams.attn_soft_cap) {
+        direct_reason = "selected direct rejects ALiBi or attention soft cap";
+    } else if (pager.snapshot().geometry.layer_k_offsets.size() !=
+                   pager.snapshot().geometry.attention_layers ||
+               pager.snapshot().geometry.layer_v_offsets.size() !=
+                   pager.snapshot().geometry.attention_layers) {
+        direct_reason = "selected direct has incomplete layer slab geometry";
+    }
+    const bool direct_capable = direct_reason.empty();
     // The direct kernel addresses the persistent physical slab and does not
     // need a second logical-row lookup. Keep the reference-only validation
     // off the all-fit hot path; build_attn_inp_kv performs the same bounded
@@ -2572,8 +2586,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             return refuse("selected page positions are not present in the cache view");
         }
     }
+    if (!direct_capable) {
+        LLAMA_LOG_DEBUG("%s: selected reference fallback reason=%s q=%u kv=%u query=%u\n",
+                __func__, direct_reason.c_str(), metadata.n_head_q(),
+                metadata.n_head_kv(), metadata.n_query_tokens());
+    }
     return prepare_kv_attention(metadata, phase, representation_epoch, shape_epoch,
-            direct_capable, scratch);
+            direct_capable, scratch, direct_reason);
 }
 
 ggml_backend_sched_t llama_context::get_sched() const {

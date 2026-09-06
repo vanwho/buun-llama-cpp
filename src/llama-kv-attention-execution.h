@@ -226,7 +226,8 @@ public:
             uint64_t representation_epoch,
             uint64_t shape_epoch,
             bool direct_capable,
-            const llama_kv_attention_scratch_request & scratch);
+            const llama_kv_attention_scratch_request & scratch,
+            const std::string & direct_reason = {});
 
     // One lease is retained for every submitted graph, including graph reuse.
     // Releasing in submission order lets a changed table coexist with an old

@@ -39,7 +39,8 @@ static llama_kv_residency_snapshot snapshot(uint32_t last_end = 700) {
 static llama_kv_attention_operator_metadata metadata(
         const llama_kv_residency_snapshot & snap, uint32_t n_query, uint32_t n_batch,
         const std::vector<uint32_t> & selected_pages = { 2, 0 },
-        llama_pos query_position = 600) {
+        llama_pos query_position = 600, uint32_t n_head_q = 16,
+        uint32_t n_head_kv = 4) {
     llama_kv_attention_view_status view_status;
     const auto view = llama_kv_attention_view::build(snap, selected_pages, view_status);
     assert(view_status == llama_kv_attention_view_status::ok);
@@ -50,8 +51,8 @@ static llama_kv_attention_operator_metadata metadata(
     params.type_v = GGML_TYPE_TURBO4_0;
     params.head_dim_k = 256;
     params.head_dim_v = 256;
-    params.n_head_q = 16;
-    params.n_head_kv = 4;
+    params.n_head_q = n_head_q;
+    params.n_head_kv = n_head_kv;
     params.n_query_tokens = n_query;
     params.n_batch = n_batch;
     params.query_positions.resize(size_t(n_query) * n_batch, query_position);
@@ -191,6 +192,17 @@ static void test_fallbacks_and_graph_key() {
     assert(tile32.route == llama_kv_attention_execution_route::selected_reference);
     assert(tile32.reason.find("unsupported direct query tile") != std::string::npos);
     execution.complete_one_graph();
+
+    // Qwen3.5 uses 24 query heads and 4 KV heads (GQA ratio 6). The paged
+    // Turbo4 kernel indexes the ratio at runtime, so this valid geometry must
+    // take the same direct route as the four-way fixture.
+    llama_kv_attention_execution qwen_gqa(
+            llama_kv_attention_execution_mode::selective);
+    const auto qwen_prefill = metadata(snapshot(), 3, 1, { 2, 0 }, 600, 24, 4);
+    const auto qwen_direct = qwen_gqa.prepare(qwen_prefill,
+            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
+    assert(qwen_direct.route == llama_kv_attention_execution_route::selected_direct);
+    qwen_gqa.complete_one_graph();
 
     llama_kv_attention_execution observing(llama_kv_attention_execution_mode::observe);
     auto observe = observing.prepare({}, llama_kv_attention_execution_phase::decode,

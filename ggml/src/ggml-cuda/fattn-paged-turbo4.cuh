@@ -133,9 +133,9 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     size_t upload_capacity_bytes = 0;
 };
 
-// Correctness-first direct page/query-tile attention. The initial qualified
-// geometry is causal, batch 1, one to sixteen query tokens, head width 256, and
-// GQA ratio 4. The serial oracle uses one CTA to traverse each compressed page
+// Correctness-first direct page/query-tile attention. The qualified geometry is
+// causal, batch 1, one to sixteen query tokens, head width 256, and divisible
+// GQA. The serial oracle uses one CTA to traverse each compressed page
 // list once per tile and reuses decoded K/V rows across the tile's queries.
 // Qualified large-row calls use bounded split-KV CTAs and a device-side
 // unnormalized-state merge; the output remains in the Turbo V rotated domain,

@@ -24,8 +24,8 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
            metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
            metadata.head_dim_v() == 256 && metadata.n_query_tokens() >= 1 &&
            metadata.n_query_tokens() <= LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE &&
-           metadata.n_batch() == 1 && metadata.n_head_kv() != 0 &&
-           metadata.n_head_q() / metadata.n_head_kv() == 4 &&
+           metadata.n_batch() == 1 && metadata.n_head_q() != 0 &&
+           metadata.n_head_kv() != 0 &&
            metadata.n_head_q() % metadata.n_head_kv() == 0;
 }
 
@@ -243,7 +243,8 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         uint64_t representation_epoch,
         uint64_t shape_epoch,
         bool direct_capable,
-        const llama_kv_attention_scratch_request & scratch) {
+        const llama_kv_attention_scratch_request & scratch,
+        const std::string & direct_reason) {
     llama_kv_attention_execution_decision result;
     result.phase = phase;
     result.representation_epoch = representation_epoch;
@@ -294,7 +295,7 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
                 : "qualified Turbo4 decode"
             : direct_capable && !direct_shape(metadata)
                 ? "bounded Turbo4 selected reference for unsupported direct query tile"
-                : "compact selected reference";
+                : direct_reason.empty() ? "compact selected reference" : direct_reason;
         result.table_epoch = metadata.table_epoch();
     }
 
