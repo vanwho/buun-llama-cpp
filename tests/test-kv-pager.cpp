@@ -1,5 +1,6 @@
 #include "llama-kv-pager.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -287,6 +288,75 @@ static void test_host_seal_boundary() {
     assert(host->pages().empty());
 }
 
+static void test_compact_checkpoint_page_identity() {
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    config.hot_pages.automatic = false;
+    config.hot_pages.value = 2;
+
+    llama_kv_pager_backend backend;
+    backend.allocate = [](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(7));
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = bytes;
+        return true;
+    };
+    backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+    auto pager_resources = resources(4096, 128);
+    pager_resources.physical_page_cap = 2;
+    llama_kv_pager_status status;
+    auto pager = llama_kv_pager::create(
+            config, geometry(1025), pager_resources, backend, status);
+    assert(pager && status == llama_kv_pager_status::ok);
+    assert(pager->snapshot().physical_page_count == 2);
+
+    llama_kv_page_id first;
+    first.session_generation = 9;
+    first.sequence_id = 3;
+    first.sequence_generation = 11;
+    first.logical_page = 0;
+    first.page_generation = 101;
+    first.position_begin = 0;
+    first.position_end = 256;
+    llama_kv_pager_write_ticket ticket;
+    assert(pager->begin_restore_page(first, 3, ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    assert(pager->begin_restore_page(first, 17, ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    assert(pager->seal_ready_pages() == 0);
+
+    llama_kv_page_id tail = first;
+    tail.logical_page = 2;
+    tail.page_generation = 102;
+    tail.position_begin = 512;
+    tail.position_end = 520;
+    assert(pager->begin_restore_page(tail, 515, ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    assert(pager->seal_ready_pages() == 0);
+
+    uint32_t physical = UINT32_MAX;
+    assert(pager->physical_row(3, 3, physical));
+    assert(pager->physical_row(3, 515, physical));
+    const auto records = pager->exact_page_records(3);
+    assert(records.size() == 2);
+    assert(std::any_of(records.begin(), records.end(), [&](const auto & record) {
+        return record.id == first && record.physical_slot != UINT32_MAX;
+    }));
+    assert(std::any_of(records.begin(), records.end(), [&](const auto & record) {
+        return record.id == tail && record.physical_slot != UINT32_MAX;
+    }));
+
+    // A failed graph must not leave a partially restored row published.
+    assert(pager->begin_restore_page(tail, 519, ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->complete_write(ticket, 32, false) == llama_kv_pager_write_status::ok);
+    assert(!pager->physical_row(3, 519, physical));
+    const auto no_victim = pager->begin_restore_page(
+            llama_kv_page_id{ 9, 3, 11, 3, 103, 0, 0, 0, 0, 0, 0, 0, 768, 770 },
+            769, ticket);
+    assert(no_victim == llama_kv_pager_write_status::no_victim ||
+        no_victim == llama_kv_pager_write_status::all_pinned);
+}
+
 static void test_mode_lifecycle_matrix() {
     llama_kv_pager_config config;
     config.page_size = 256;
@@ -496,6 +566,7 @@ static void test_pager_host_mutation() {
 
 int main() {
     test_host_seal_boundary();
+    test_compact_checkpoint_page_identity();
     test_mode_lifecycle_matrix();
     test_pager_host_mutation();
     test_full_256k_capacity_plan();

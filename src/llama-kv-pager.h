@@ -313,6 +313,11 @@ public:
     llama_kv_pager_write_status begin_write(
             int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
             llama_kv_pager_write_ticket & ticket) noexcept;
+    // Restore one row while retaining the authenticated logical page identity
+    // carried by a compact checkpoint. The physical slot remains allocator-owned.
+    llama_kv_pager_write_status begin_restore_page(
+            const llama_kv_page_id & identity, llama_pos position,
+            llama_kv_pager_write_ticket & ticket) noexcept;
     llama_kv_pager_write_status complete_write(
             const llama_kv_pager_write_ticket & ticket, uint32_t completed_segments,
             bool graph_succeeded) noexcept;
