@@ -1,0 +1,147 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "21-10",
+  "result": "not_run",
+  "kind": "optional_yarn_beyond_base_context",
+  "procedure": "base_goal_gate_before_yarn_experiment",
+  "created_utc": "2026-09-06T06:10:00Z",
+  "decision": "not_attempted_base_goal_unmet",
+  "gate": {
+    "required": "21-06 demonstrates 256K allocation, population, retrieval, continuation, and GPU Turbo4 MTP",
+    "status": "failed",
+    "source_receipt": ".wiretail/execution/evidence/PHASE21_FULL256K.json",
+    "source_receipt_sha256": "e6e4659aa3d5d3be9fdfca2e1b5296f7a401e52c5ec732a278daaa62df0deeda",
+    "base_goal_demonstrated": false,
+    "reason": "The exact 262144-token allocation passed only after fixed-four-page recovery; budget-derived automatic hot-set allocation hit CUDA OOM, and near-full population timed out after 15360 processed tokens without a response. Retrieval and continuation were not measured."
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "worktree; outer runner owns git",
+    "base_receipt": ".wiretail/execution/evidence/PHASE21_FULL256K.json",
+    "base_bundle": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "hardware": "NVIDIA GeForce RTX 4080, CUDA 12.4.131",
+    "experiment": "not started; no runtime profile or service state was changed"
+  },
+  "runtime_contract": {
+    "base_context_tokens": 262144,
+    "requested_yarn_context_tokens": null,
+    "logical_pages": null,
+    "page_size_tokens": null,
+    "target_backend": "CUDA",
+    "target_types": ["turbo4", "turbo4"],
+    "target_kv_policy": "would retain canonical CPU Turbo4 backing with a GPU hot set",
+    "mtp_backend": "gpu",
+    "mtp_placement": "gpu",
+    "mtp_types": ["turbo4", "turbo4"],
+    "default_profile_changed": false,
+    "draft_rows_truncated": false
+  },
+  "metadata_inspection": {
+    "status": "not_attempted_due_to_base_gate",
+    "model_rope_metadata": null,
+    "runtime_options": null,
+    "note": "The packet requires YaRN metadata and positional-option inspection only after the base 256K functionality gate passes. That gate did not pass, so no YaRN configuration was selected or applied."
+  },
+  "measurements": {
+    "occupancy": {
+      "status": "not_attempted",
+      "resolved_context_tokens": null,
+      "occupied_tokens": null,
+      "generation_reserve_tokens": null,
+      "logical_pages": null,
+      "target_valid_rows": null,
+      "host_valid_rows": null,
+      "hot_pages": null
+    },
+    "position_metadata": {
+      "status": "not_attempted",
+      "rope_scaling": null,
+      "yarn_orig_ctx": null,
+      "yarn_ext_factor": null,
+      "yarn_attn_factor": null,
+      "yarn_beta_fast": null,
+      "yarn_beta_slow": null
+    },
+    "memory": {
+      "status": "not_attempted",
+      "target_bytes": null,
+      "host_bytes": null,
+      "vram_peak_bytes": null,
+      "process_rss_peak_bytes": null,
+      "h2d_useful_bytes": null,
+      "d2h_useful_bytes": null
+    },
+    "quality": {
+      "status": "not_attempted",
+      "shared_length_retrieval": null,
+      "answer": null,
+      "exact_match": null,
+      "model_quality_claim": false
+    },
+    "speed": {
+      "status": "not_attempted",
+      "prompt_tokens_per_second": null,
+      "generation_tokens_per_second": null,
+      "wall_seconds": null,
+      "shared_length_comparison": null
+    }
+  },
+  "checks": [
+    {
+      "name": "Base 256K functionality gate",
+      "status": "fail",
+      "raw_ids": ["base-256k-receipt"]
+    },
+    {
+      "name": "YaRN metadata and positional configuration inspection",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "YaRN >256K allocation, occupancy, and Turbo4 placement",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "Shared-length retrieval and speed comparison",
+      "status": "not_measured",
+      "raw_ids": []
+    },
+    {
+      "name": "Default profile and draft-row preservation",
+      "status": "pass",
+      "raw_ids": ["run-decision"]
+    }
+  ],
+  "failure": null,
+  "raw_index": [
+    {
+      "id": "base-256k-receipt",
+      "path": ".wiretail/execution/evidence/PHASE21_FULL256K.json",
+      "sha256": "e6e4659aa3d5d3be9fdfca2e1b5296f7a401e52c5ec732a278daaa62df0deeda"
+    },
+    {
+      "id": "run-decision",
+      "path": ".wiretail/execution/tasks/21-10.md",
+      "sha256": "79a6d5cdc48b3680f2728aee333f7b618d7dfd1f3d3d97f56f2ea118a05b9c65"
+    }
+  ],
+  "resume": {
+    "command": "After 21-06 proves the base 256K allocation, population, retrieval, continuation, and GPU Turbo4 MTP, inspect the pinned Qwen GGUF RoPE metadata and supported runtime options, then run one modest explicit YaRN point before any larger point.",
+    "secrets_omitted": true,
+    "required_gate": "base_goal_demonstrated=true"
+  },
+  "deferred_verification": {
+    "required": true,
+    "items": [
+      "Repair the base 256K budget-derived hot-set allocation and near-full population path.",
+      "Complete base retrieval, continuation, and GPU Turbo4 MTP proof at the resolved full context.",
+      "Only then inspect Qwen RoPE/scaling metadata and run a modest >256K YaRN point with explicit positional configuration.",
+      "If the base gate is later proven, capture occupancy, position metadata, memory, shared-length quality, and speed before attempting a larger YaRN point."
+    ],
+    "hardware_or_human_action": "No unavailable hardware, hosted service, or human action caused this receipt; the optional experiment was intentionally gated by the incomplete local base result."
+  }
+}

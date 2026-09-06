@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "21",
-  "current_task": "21-10",
-  "last_updated_utc": "2026-09-06T06:02:50+00:00",
+  "current_task": "21-11",
+  "last_updated_utc": "2026-09-06T06:06:19+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3726,22 +3726,36 @@
       "cluster": "21d-stretch-summary",
       "title": "Evaluate YaRN only after the base goal is proven",
       "packet": ".wiretail/execution/tasks/21-10.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "21-09"
       ],
-      "commit": null,
+      "commit": "1127618b753ec4917dbdaf8a5517111e12a56e9b",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/21-10-attempt-1-20260906T060307Z.jsonl:46",
+            "total_tokens": 852302,
+            "total_tokens_derived": true,
+            "input_tokens": 843788,
+            "cached_input_tokens": 785408,
+            "output_tokens": 8514,
+            "thinking_tokens": 1702
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 852302,
+          "input_tokens": 843788,
+          "cached_input_tokens": 785408,
+          "output_tokens": 8514,
+          "thinking_tokens": 1702
         }
       }
     },
@@ -4541,15 +4555,28 @@
           "cached_input_tokens": 7241728,
           "output_tokens": 28377,
           "thinking_tokens": 10107
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/21-10-attempt-1-20260906T060307Z.jsonl:46",
+          "total_tokens": 852302,
+          "total_tokens_derived": true,
+          "input_tokens": 843788,
+          "cached_input_tokens": 785408,
+          "output_tokens": 8514,
+          "thinking_tokens": 1702
         }
       ],
       "totals": {
-        "turns": 9,
-        "total_tokens": 120533486,
-        "input_tokens": 120216734,
-        "cached_input_tokens": 117920000,
-        "output_tokens": 316752,
-        "thinking_tokens": 106891
+        "turns": 10,
+        "total_tokens": 121385788,
+        "input_tokens": 121060522,
+        "cached_input_tokens": 118705408,
+        "output_tokens": 325266,
+        "thinking_tokens": 108593
       }
     },
     "22": {
@@ -4566,12 +4593,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 39,
-      "total_tokens": 769121749,
-      "input_tokens": 767315446,
-      "cached_input_tokens": 753189632,
-      "output_tokens": 1806303,
-      "thinking_tokens": 639437
+      "turns": 40,
+      "total_tokens": 769974051,
+      "input_tokens": 768159234,
+      "cached_input_tokens": 753975040,
+      "output_tokens": 1814817,
+      "thinking_tokens": 641139
     },
     "source": "Codex turn.completed usage events"
   }

@@ -688,3 +688,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-20-07`
 - Commit at update: `72be6fba0`
 - Summary: Frozen portable CUDA/Turbo4 candidate; clean build and generated docs/assets pass; CPU/CUDA/pager regressions pass; exact bundle identity, three-case selected-all sentinel, campaign/resume commands, code-slice map, and release receipt recorded.
+
+## 2026-09-06T06:05:28+00:00 — 21-10 — done
+
+- Branch: `codex/task-21-10`
+- Commit at update: `1127618b7`
+- Summary: Recorded not_attempted_base_goal_unmet: the 21-06 base 256K functionality gate was not demonstrated, so YaRN was intentionally not run.
