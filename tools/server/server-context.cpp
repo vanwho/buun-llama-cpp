@@ -3755,6 +3755,7 @@ public:
                     {"scratch_high_water_rows", pager.execution.scratch_high_water_rows},
                     {"scratch_high_water_bytes", pager.execution.scratch_high_water_bytes},
                     {"selected_page_count", pager.execution.selected_page_count},
+                    {"selected_page_ids", pager.execution.selected_page_ids},
                     {"prefill_route_counts", {
                         {"dense", pager.execution.prefill_routes.dense},
                         {"observe", pager.execution.prefill_routes.observe},

@@ -136,6 +136,9 @@ static void test_routes_epochs_and_fences() {
     assert(route_metrics.prefill_routes.selected_direct == 4);
     assert(route_metrics.decode_routes.selected_direct == 2);
     assert(route_metrics.selected_page_count == 2);
+    assert(route_metrics.selected_page_ids.size() == 2 &&
+           route_metrics.selected_page_ids[0] == 2 &&
+           route_metrics.selected_page_ids[1] == 0);
     const auto selected_mtp = metadata(snapshot(), 2, 1);
     const auto mtp = execution.prepare(selected_mtp,
             llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch);

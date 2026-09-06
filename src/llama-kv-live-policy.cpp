@@ -326,7 +326,22 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
     // A missing or stale routing summary may not evict a previously complete
     // safe table. Reuse it when it still covers all mandatory pages.
     const bool telemetry_unavailable = output.trace.unavailable_attention_pages == output.trace.pages.size();
-    if ((output.retrieval_fallback || telemetry_unavailable) &&
+    // A first useful query commonly arrives before any page has published an
+    // attention sample.  Do not let the conservative anchor fallback erase a
+    // valid retrieval decision for a host-backed cold page: that decision is
+    // precisely the evidence which can make the page resident for the next
+    // causal operation.  The fallback remains active when there is no such
+    // cold retrieval target.
+    const bool selected_cold_page = boundary.retrieval.status ==
+            llama_kv_routing_retrieval_status::ok &&
+        std::any_of(boundary.retrieval.selected.begin(),
+            boundary.retrieval.selected.end(), [&](const auto & entry) {
+                const auto * page = find_page(boundary.pages, entry.id);
+                return page != nullptr && page->record.physical_slot == UINT32_MAX &&
+                    page->record.host_valid;
+            });
+    if ((output.retrieval_fallback ||
+            (telemetry_unavailable && !selected_cold_page)) &&
         boundary.previous_target.size() == output.policy.target.size()) {
         bool safe = true;
         for (const auto & page : boundary.pages) {

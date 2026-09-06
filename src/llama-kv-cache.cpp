@@ -2383,7 +2383,6 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             attributes[i].mandatory = attributes[i].current || inventory[i].pin_count != 0;
             attributes[i].structural = attributes[i].current;
         }
-        llama_kv_page_id selected_id;
         bool have_retrieval = false;
         uint32_t retrieval_turn = 0;
         for (const auto & query : queries) {
@@ -2467,10 +2466,6 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 if (selected_entry->reason == llama_kv_routing_retrieval_reason::recent) {
                     page.recent = true;
                 }
-                if (record.physical_slot == UINT32_MAX && record.host_valid &&
-                    selected_id == llama_kv_page_id{}) {
-                    selected_id = record.id;
-                }
             }
             boundary.pages.push_back(std::move(page));
         }
@@ -2483,6 +2478,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         llama_kv_live_policy_trace policy_trace;
         llama_kv_policy_trace policy_input;
         std::vector<llama_kv_policy_page> policy_pages;
+        llama_kv_policy_decision decision;
         if (llama_kv_live_policy_build_trace(
                 boundary, policy_trace, policy_input, policy_pages)) {
             policy_input.pages = policy_pages;
@@ -2492,7 +2488,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         [&](const auto & page) { return page.id == id; });
                 if (found != policy_trace.pages.end()) previous_policy_target.push_back(found->policy_id);
             }
-            const auto decision = llama_kv_policy_decide(
+            decision = llama_kv_policy_decide(
                     policy_input, boundary.policy, previous_policy_target);
             policy_target_bound = true;
             for (const auto policy_id : decision.target) {
@@ -2511,18 +2507,31 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 if (!used[slot]) { selected_slot = slot; break; }
             }
         }
-        if (selected_slot != UINT32_MAX && selected_id.logical_page != UINT32_MAX &&
-            selected_id != llama_kv_page_id{}) {
-            const auto selected_host = has_host(selected_id);
-            if (selected_host != host_pages.end() &&
-                std::find_if(boundary.previous_target.begin(), boundary.previous_target.end(),
-                    [&](const auto & id) { return id == selected_id; }) == boundary.previous_target.end()) {
+        // Build one authenticated H2D plan for every cold page in the same
+        // target chosen by the policy.  The old single-page shortcut could
+        // leave a second selected cold page in `desired` without a matching
+        // promotion, causing the transaction to reject the whole target.
+        if (policy_target_bound) {
+            const auto & geometry = pager_->snapshot().geometry;
+            for (const auto policy_id : decision.target) {
+                if (policy_id == 0 || policy_id > policy_trace.pages.size()) continue;
+                const auto & target_id = policy_trace.pages[size_t(policy_id - 1)].id;
+                const auto source = std::find_if(boundary.pages.begin(), boundary.pages.end(),
+                        [&](const auto & page) { return page.record.id == target_id; });
+                if (source == boundary.pages.end() || source->record.physical_slot != UINT32_MAX) {
+                    continue;
+                }
+                const auto selected_host = has_host(target_id);
+                if (selected_host == host_pages.end() || selected_slot == UINT32_MAX) {
+                    boundary.transaction.transfers.clear();
+                    break;
+                }
+
                 llama_kv_residency_transfer_page transfer_page;
-                transfer_page.page = selected_id;
+                transfer_page.page = target_id;
                 transfer_page.table_epoch = snapshot.epoch();
                 transfer_page.physical_slot = selected_slot;
                 uint64_t host_offset = 0;
-                const auto & geometry = pager_->snapshot().geometry;
                 for (const auto & unit : selected_host->page.units) {
                     if (unit.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
                         unit.layer >= VBR_SELECTED_PAGE_TARGET_LAYERS || !unit.bytes ||
@@ -2559,16 +2568,23 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     transfer_page.runs.push_back(run);
                     host_offset += unit.bytes->size();
                 }
-                if (transfer_page.runs.size() == selected_host->page.units.size() &&
-                    !transfer_page.runs.empty()) {
-                    llama_kv_residency_transfer_plan plan;
-                    if (llama_kv_residency_build_transfer_plan(
-                            llama_kv_residency_transfer_direction::h2d_promotion,
-                            { transfer_page },
-                            1,
-                            {}, plan)) {
-                        boundary.transaction.transfers.push_back(std::move(plan));
-                    }
+                if (transfer_page.runs.size() != selected_host->page.units.size() ||
+                    transfer_page.runs.empty()) {
+                    boundary.transaction.transfers.clear();
+                    break;
+                }
+                llama_kv_residency_transfer_plan plan;
+                if (!llama_kv_residency_build_transfer_plan(
+                        llama_kv_residency_transfer_direction::h2d_promotion,
+                        { transfer_page }, 1, {}, plan)) {
+                    boundary.transaction.transfers.clear();
+                    break;
+                }
+                boundary.transaction.transfers.push_back(std::move(plan));
+                used[selected_slot] = true;
+                selected_slot = UINT32_MAX;
+                for (uint32_t slot = 0; slot < used.size(); ++slot) {
+                    if (!used[slot]) { selected_slot = slot; break; }
                 }
             }
         }

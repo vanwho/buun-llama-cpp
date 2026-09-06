@@ -138,6 +138,10 @@ struct llama_kv_attention_execution_metrics {
     uint64_t scratch_high_water_bytes = 0;
     uint64_t selected_pages = 0;
     uint64_t selected_page_count = 0;
+    // Logical page IDs are the compact, bounded receipt for the graph that
+    // was actually submitted. Full page identities remain internal to the
+    // authenticated residency table.
+    std::vector<uint32_t> selected_page_ids;
     llama_kv_attention_execution_route_counts prefill_routes;
     llama_kv_attention_execution_route_counts decode_routes;
     llama_kv_attention_execution_route_counts mtp_verify_routes;
