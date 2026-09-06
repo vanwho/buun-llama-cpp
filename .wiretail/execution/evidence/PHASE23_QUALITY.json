@@ -1,0 +1,227 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "23-05",
+  "result": "not_run",
+  "kind": "bounded_representative_quality_matrix",
+  "procedure": "frozen_dense_selected_all_selective_quality_matrix",
+  "created_utc": "2026-09-06T10:05:00Z",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "e981d13e846ca98100118cc92c502f4d37dba99f",
+    "source_diff_sha256": null,
+    "bundle_manifest_sha256": null,
+    "model_sha256": null,
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_file_size_bytes": 14252845984,
+    "model_file_mtime": "2026-08-21T22:14:13+02:00",
+    "tokenizer_template_sha256": null,
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "corpus_schema": "pager-corpus-v4",
+    "corpus_context_ceiling": 22016,
+    "resolved_context": 22016,
+    "sampling": {
+      "temperature": 0,
+      "seed": 42,
+      "thinking": false,
+      "max_tokens": 8,
+      "trial_policy": "one per case; repeat only ambiguous rows"
+    },
+    "candidate": {
+      "required_binary": "build-cuda/bin/llama-server",
+      "required_binary_sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f",
+      "deployed": false,
+      "port_8080": "preserved historical selected-reference candidate",
+      "port_8092": "occupied by another llama-server; not contacted"
+    }
+  },
+  "checks": [
+    {
+      "id": "frozen_corpus_identity",
+      "status": "pass",
+      "finding": "The pager-corpus-v4 fixture and its 22016-token derived context ceiling are fixed by hash for the deferred rerun.",
+      "raw_ids": ["corpus-fixture"]
+    },
+    {
+      "id": "frozen_sampling_identity",
+      "status": "pass",
+      "finding": "The deferred matrix is fixed at T=0, seed 42, thinking off, max output 8, and one trial except ambiguous rows.",
+      "raw_ids": ["task-packet"]
+    },
+    {
+      "id": "repaired_candidate_deployed",
+      "status": "not_measured",
+      "finding": "The repaired binary is built locally but no newly built candidate is serving the frozen model; the existing servers were preserved.",
+      "raw_ids": ["runtime-occupancy"]
+    },
+    {
+      "id": "exact_control_quality",
+      "status": "not_measured",
+      "finding": "No exact control response was scored because the repaired candidate was not deployed.",
+      "raw_ids": []
+    },
+    {
+      "id": "selected_all_control_quality",
+      "status": "not_measured",
+      "finding": "No selected-all control response was scored because the repaired candidate was not deployed.",
+      "raw_ids": []
+    },
+    {
+      "id": "selective_quality_and_cold_promotion",
+      "status": "not_measured",
+      "finding": "No selective response, cold-page identity/checksum, promotion, route, or answer was scored because the repaired candidate was not deployed.",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "matrix": {
+      "partitions": ["calibration", "held_out"],
+      "cases_in_fixture": 24,
+      "case_ids": [
+        "warm-focus",
+        "cold-early",
+        "cold-middle",
+        "cold-end",
+        "competing-a",
+        "competing-b",
+        "tool-anchor",
+        "repo-fact",
+        "conversation",
+        "focus-shift",
+        "churn",
+        "recent-control"
+      ],
+      "modes": ["exact", "selected-all", "selective"],
+      "planned_requests": 72,
+      "executed_requests": 0,
+      "quality_denominator": 0,
+      "scores": {
+        "exact": {
+          "numerator": 0,
+          "denominator": 0,
+          "planned": 24,
+          "status": "not_measured",
+          "omitted_page_label": "not_observed",
+          "sparse_policy_label": "not_observed",
+          "raw_ids": []
+        },
+        "selected-all": {
+          "numerator": 0,
+          "denominator": 0,
+          "planned": 24,
+          "status": "not_measured",
+          "omitted_page_label": "not_observed",
+          "sparse_policy_label": "not_observed",
+          "raw_ids": []
+        },
+        "selective": {
+          "numerator": 0,
+          "denominator": 0,
+          "planned": 24,
+          "status": "not_measured",
+          "omitted_page_label": "not_observed",
+          "sparse_policy_label": "not_observed",
+          "raw_ids": []
+        }
+      },
+      "required_request_telemetry": [
+        "route",
+        "selected_pages",
+        "physical_pages",
+        "logical_pages",
+        "host_valid_rows",
+        "h2d_useful_bytes",
+        "h2d_aligned_bytes",
+        "d2h_useful_bytes",
+        "d2h_aligned_bytes",
+        "faults",
+        "evictions",
+        "queue_time_us",
+        "copy_time_us",
+        "wait_time_us",
+        "target_placement",
+        "mtp_placement",
+        "hot_page_budget",
+        "snapshot_monotonic_us"
+      ],
+      "observed_request_telemetry": null,
+      "model_quality_interpretation": "not_applicable; no quality row was scored without a deployed repaired candidate and complete telemetry"
+    },
+    "coverage_exclusions": [
+      {
+        "case_family": "multi-hop",
+        "status": "excluded",
+        "reason": "The frozen pager-corpus-v4 contains no multi-hop case category or case ID.",
+        "owner": "quality corpus maintainer",
+        "raw_ids": ["corpus-fixture"]
+      }
+    ]
+  },
+  "raw_index": [
+    {
+      "id": "corpus-fixture",
+      "path": "tools/server/bench/fixtures/pager-corpus-v4.json",
+      "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"
+    },
+    {
+      "id": "task-packet",
+      "path": ".wiretail/execution/tasks/23-05.md",
+      "sha256": "58e53a464b44ad53c10d31c440df88ad4a600f83d98276ae54f0b3e4e658d5bc"
+    },
+    {
+      "id": "phase22-review",
+      "path": ".wiretail/execution/evidence/PHASE22_REVIEW.json",
+      "sha256": "b6edc437922db52682115f6aaac1fce4aaad083d51bf0c4237da8b84e9eb6a6d"
+    },
+    {
+      "id": "runtime-occupancy",
+      "path": ".wiretail/execution/evidence/PHASE23_QUALITY.runtime.md",
+      "sha256": "11d685cb5cca7be09da11b6a9cc6bc8edc7cc9c732cb019c695a3a0871367ab0"
+    }
+  ],
+  "failure": {
+    "class": "runtime_candidate_unavailable",
+    "owner": "benchmark lifecycle and managed llama-server deployment",
+    "repair": "Deploy build-cuda/bin/llama-server with the frozen model/config after a controlled lifecycle transition, pass the three-request telemetry preflight, then run the matrix.",
+    "not_a_model_quality_failure": true,
+    "telemetry_missing": true
+  },
+  "provenance_unavailable": {
+    "bundle_manifest_sha256": "No coherent repaired release bundle was deployed.",
+    "model_sha256": "The model file was identified by resolved path, size, and mtime but not rehashed for this deferred receipt.",
+    "tokenizer_template_sha256": "No deployed candidate exposed the runtime template identity.",
+    "selected_page_ids": "No requests were sent to the repaired candidate.",
+    "host_checksum": "No requests were sent to the repaired candidate.",
+    "promotion": "No requests were sent to the repaired candidate.",
+    "route": "No requests were sent to the repaired candidate.",
+    "native_mtp_gpu": "No deployed candidate telemetry was available."
+  },
+  "resume": {
+    "command": [
+      "python3",
+      "tools/server/bench/run-quality-corpus.py",
+      "tools/server/bench/fixtures/pager-corpus-v4.json",
+      "<results-dir>",
+      "--endpoint",
+      "http://127.0.0.1:8080/v1/chat/completions",
+      "--model",
+      "qwen38-fast-turbo4-mtp",
+      "--api-key-file",
+      "<configured-api-key-file>",
+      "--mode",
+      "<exact|selected-all|selective>",
+      "--context",
+      "derived",
+      "--seed",
+      "42",
+      "--max-tokens",
+      "8",
+      "--preflight",
+      "--fail-fast-capability"
+    ],
+    "preflight_required": true,
+    "secrets_omitted": true,
+    "next_case": "Run warm, cold-early, cold-middle, cold-end, competing-fact, and focus-shift rows in all three modes; add a multi-hop case only after the corpus is extended and rehashed."
+  }
+}
