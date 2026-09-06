@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "23",
-  "current_task": "23-01",
-  "last_updated_utc": "2026-09-06T06:27:24+00:00",
+  "current_task": "23-02",
+  "last_updated_utc": "2026-09-06T06:45:31+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3843,22 +3843,36 @@
       "cluster": "23a-runtime-repair",
       "title": "Reserve late CUDA allocations before automatic hot-page admission",
       "packet": ".wiretail/execution/tasks/23-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "22-01"
       ],
-      "commit": null,
+      "commit": "19c57cc33c807e054f59b6c9cd513928f89ab231",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/23-01-attempt-1-20260906T062742Z.jsonl:170",
+            "total_tokens": 10498352,
+            "total_tokens_derived": true,
+            "input_tokens": 10465938,
+            "cached_input_tokens": 10054144,
+            "output_tokens": 32414,
+            "thinking_tokens": 10276
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 10498352,
+          "input_tokens": 10465938,
+          "cached_input_tokens": 10054144,
+          "output_tokens": 32414,
+          "thinking_tokens": 10276
         }
       }
     },
@@ -4946,14 +4960,28 @@
       }
     },
     "23": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/23-01-attempt-1-20260906T062742Z.jsonl:170",
+          "total_tokens": 10498352,
+          "total_tokens_derived": true,
+          "input_tokens": 10465938,
+          "cached_input_tokens": 10054144,
+          "output_tokens": 32414,
+          "thinking_tokens": 10276
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 10498352,
+        "input_tokens": 10465938,
+        "cached_input_tokens": 10054144,
+        "output_tokens": 32414,
+        "thinking_tokens": 10276
       }
     },
     "24": {
@@ -4970,12 +4998,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 42,
-      "total_tokens": 775767980,
-      "input_tokens": 773894874,
-      "cached_input_tokens": 759381504,
-      "output_tokens": 1873106,
-      "thinking_tokens": 654549
+      "turns": 43,
+      "total_tokens": 786266332,
+      "input_tokens": 784360812,
+      "cached_input_tokens": 769435648,
+      "output_tokens": 1905520,
+      "thinking_tokens": 664825
     },
     "source": "Codex turn.completed usage events"
   }
