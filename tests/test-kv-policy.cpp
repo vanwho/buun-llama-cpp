@@ -73,6 +73,10 @@ static llama_kv_live_policy_boundary live_boundary(
         live_page_id(1), llama_kv_routing_retrieval_reason::summary,
         9.0f, true, false, 1,
     });
+    // The previous resident set is an anchor-biased safe table.  The cold
+    // retrieval hit must supersede that fallback even though no page has yet
+    // published an attention sample.
+    boundary.previous_target = { live_page_id(0), live_page_id(2) };
     boundary.transaction.staging_capacity = 32;
     boundary.transaction.transfers.push_back(promotion);
 
@@ -92,20 +96,26 @@ static llama_kv_live_policy_boundary live_boundary(
     boundary.pages.push_back(cold);
 
     llama_kv_live_policy_page other;
-    other.record.id = live_page_id(2);
-    other.record.state = llama_kv_page_state::host_clean;
-    other.record.host_valid = true;
+    other.record = live_resident(2, 1);
     other.age = 3;
     other.recency = 1;
     boundary.pages.push_back(other);
     return boundary;
 }
 
+static llama_kv_residency_transfer_plan live_promotion_for(
+        uint32_t logical, uint32_t slot);
+
 static llama_kv_residency_transfer_plan live_promotion() {
+    return live_promotion_for(1, 1);
+}
+
+static llama_kv_residency_transfer_plan live_promotion_for(
+        uint32_t logical, uint32_t slot) {
     llama_kv_residency_transfer_page page;
-    page.page = live_page_id(1);
+    page.page = live_page_id(logical);
     page.table_epoch = 1;
-    page.physical_slot = 1;
+    page.physical_slot = slot;
     page.runs.push_back({ UINT32_MAX, 0, 0, 0, 0, 8, 1, 0, 0 });
     llama_kv_residency_transfer_plan output;
     if (!llama_kv_residency_build_transfer_plan(
@@ -131,6 +141,7 @@ static void test_live_policy_publication() {
     auto initial = table.begin();
     const auto initial_replace = table.replace(initial, live_resident(0, 0));
     assert(initial_replace == llama_kv_residency_status::ok);
+    assert(table.replace(initial, live_resident(2, 1)) == llama_kv_residency_status::ok);
     const auto initial_publish = table.publish(initial);
     assert(initial_publish == llama_kv_residency_status::ok);
     (void) initial_replace;
@@ -187,6 +198,7 @@ static void test_live_policy_publication() {
     auto failed_initial = failed_table.begin();
     const auto failed_replace = failed_table.replace(failed_initial, live_resident(0, 0));
     assert(failed_replace == llama_kv_residency_status::ok);
+    assert(failed_table.replace(failed_initial, live_resident(2, 1)) == llama_kv_residency_status::ok);
     const auto failed_publish = failed_table.publish(failed_initial);
     assert(failed_publish == llama_kv_residency_status::ok);
     (void) failed_replace;
@@ -213,6 +225,55 @@ static void test_live_policy_publication() {
     assert(failed_result.status == llama_kv_live_policy_status::transaction_failed);
     assert(!failed_result.published && failed_table.snapshot().epoch() == 1 &&
            failed_table.snapshot().pages().size() == 1);
+}
+
+static void test_live_policy_multi_promotion() {
+    llama_kv_residency_table table(3);
+    auto initial = table.begin();
+    assert(table.replace(initial, live_resident(0, 0)) == llama_kv_residency_status::ok);
+    assert(table.replace(initial, live_resident(2, 1)) == llama_kv_residency_status::ok);
+    assert(table.publish(initial) == llama_kv_residency_status::ok);
+
+    auto boundary = live_boundary(table.snapshot(), live_promotion());
+    boundary.hot_capacity = 3;
+    boundary.logical_page_count = 4;
+    boundary.previous_target.clear();
+    llama_kv_live_policy_page second_cold;
+    second_cold.record.id = live_page_id(3);
+    second_cold.record.state = llama_kv_page_state::host_clean;
+    second_cold.record.host_valid = true;
+    second_cold.age = 0;
+    second_cold.recency = 8;
+    boundary.pages.push_back(second_cold);
+    boundary.retrieval.selected.push_back({
+        live_page_id(3), llama_kv_routing_retrieval_reason::summary,
+        8.0f, true, false, 2,
+    });
+    boundary.transaction.transfers.push_back(live_promotion_for(3, 2));
+
+    live_transfer_fake fake;
+    auto backend = live_pool_backend(fake);
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create(
+            { 3, 64, 4, 8, 1024 }, backend, pool_status);
+    assert(pool && pool_status == llama_kv_residency_pool_status::ok);
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    assert(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &fake;
+    transport.host_read = live_transfer_fake::host_read;
+    transport.recheck = live_transfer_fake::recheck;
+
+    const auto result = llama_kv_live_policy_apply(
+            table, *pool, boundary, backend, transport);
+    assert(result.status == llama_kv_live_policy_status::committed);
+    assert(result.target_pages.size() == 3);
+    assert(result.target_pages[1].id == live_page_id(1));
+    assert(result.target_pages[2].id == live_page_id(3));
+    assert(result.transaction.loaded_pages == 2);
+    assert(result.transaction.h2d_counters.copied_useful_bytes == 16);
 }
 
 static llama_kv_policy_page page(uint64_t id, bool resident = true) {
@@ -510,6 +571,7 @@ static bool test_live_lifecycle() {
 
 int main() {
     test_live_policy_publication();
+    test_live_policy_multi_promotion();
     if (!test_live_lifecycle()) return 1;
 
     llama_kv_policy_trace trace;

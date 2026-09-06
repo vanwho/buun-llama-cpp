@@ -24,10 +24,11 @@ class llama_batch_allocr;
 class llama_io_read_i;
 class llama_io_write_i;
 
-// Scalar, bounded snapshot used by the experimental server diagnostics. It
-// deliberately contains no page identities, prompts, attention matrices, or
-// backend handles. A disabled context reports enabled=false and leaves the
-// remaining fields at their zero values.
+// Bounded snapshot used by the experimental server diagnostics. It contains
+// only logical IDs for the submitted selected view; prompts, full page
+// identities, attention matrices, and backend handles remain private. A
+// disabled context reports enabled=false and leaves the remaining fields at
+// their zero values.
 struct llama_kv_pager_metrics_snapshot {
     bool enabled = false;
     llama_kv_pager_mode mode = llama_kv_pager_mode::off;

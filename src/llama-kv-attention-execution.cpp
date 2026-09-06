@@ -356,6 +356,11 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
             break;
     }
     metrics_.selected_page_count = metadata.page_table().size();
+    metrics_.selected_page_ids.clear();
+    metrics_.selected_page_ids.reserve(metadata.page_table().size());
+    for (const auto & page : metadata.page_table()) {
+        metrics_.selected_page_ids.push_back(page.logical_page);
+    }
 
     LLAMA_LOG_DEBUG("kv-attention: %s path (%s, table=%llu, representation=%llu, shape=%llu, scratch_rows=%llu)\n",
             llama_kv_attention_execution_route_name(result.route),
