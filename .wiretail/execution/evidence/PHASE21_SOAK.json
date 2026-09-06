@@ -1,0 +1,185 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "21-09",
+  "result": "incomplete",
+  "kind": "bounded_paging_pressure_and_lifecycle",
+  "procedure": "diagnostic_four_hot_page_pressure_soak",
+  "created_utc": "2026-09-06T06:00:00Z",
+  "classification": {
+    "startup_gate": "pass",
+    "semantic_sentinels": "pass",
+    "warm_focus": "partial_one_completed_request",
+    "cold_page_promotion": "not_measured",
+    "focus_shift_early_middle_late": "not_measured",
+    "sustained_churn": "not_measured",
+    "cancellation_and_drain": "not_measured",
+    "checkpoint_restore": "not_measured",
+    "restart": "automatic_crash_restart_and_explicit_profile_restore_pass",
+    "slot_reuse": "not_measured",
+    "physical_movement": "not_demonstrated"
+  },
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "e75d1d5f3",
+    "bundle_root": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+    "server_binary": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server",
+    "server_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "bundle_manifest_sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "corpus_declared_hash": "37111506c8ddc7f9d04086121797cc9c2b7a2842cc1a56ef4b33f506c2252007",
+    "corpus_schema": "pager-corpus-v4",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.84",
+    "gpu_total_mib": 16376,
+    "driver_harness": "tools/server/bench/run-pager-soak.py",
+    "driver_harness_sha256": "a00aec2514fadb3b175e011defe69f340e520206d977b08da5da999c3ed08102",
+    "raw_root": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z"
+  },
+  "runtime_contract": {
+    "requested_context_tokens": 6401,
+    "resolved_context_tokens": 6401,
+    "engine_page_rounded_context_tokens": 6656,
+    "logical_pages": 26,
+    "page_size_tokens": 256,
+    "hot_page_capacity": 4,
+    "target_backend": "CUDA",
+    "target_k": "Turbo4",
+    "target_v": "Turbo4",
+    "mtp": "native GPU Turbo4 K/V",
+    "parallel_slots": 1,
+    "cache_condition": "clean-isolated",
+    "sampling": {"temperature": 0, "seed": 42, "thinking": "off"},
+    "diagnostic_only": true,
+    "pressure_condition": "26 logical pages exceeded the four-page physical hot budget"
+  },
+  "protocol": {
+    "startup_probe_seconds": 90,
+    "startup_stable_seconds_required": 45,
+    "startup_stable_seconds_observed": 45.305,
+    "prefill_idle_timeout_seconds": 45,
+    "decode_idle_timeout_seconds": 45,
+    "total_timeout_seconds": 420,
+    "resource_samples": 90,
+    "resume_support": "case-state.jsonl and progress.json retained; successful case keys are resumable only after restoring the same context/config identity"
+  },
+  "segments": {
+    "warm_focus": {
+      "status": "partial",
+      "requests": [
+        {"label": "stable-01", "status": "pass", "occupied_prompt_tokens": 6393, "completion_tokens": 6, "wall_seconds": 348.2877993530128, "prompt_seconds": 344.408506, "decode_seconds": 3.789404, "answer": "Focus marker stable-a.", "draft_tokens": 4, "accepted_tokens": 4, "request_token_sha256": "5cdbf247706b0b9b6b99ccd09166b709fe52359a8adb41dedc89548a27020439"},
+        {"label": "stable-02", "status": "failed_remote_disconnect", "occupied_prompt_tokens": 6393, "completion_tokens": null, "wall_seconds": 0.7483410250279121, "answer": null, "request_token_sha256": "22c30633d162fdd0ff9648dbd270694c8b1554b377d47c1bf32fe7e080c46ddf"}
+      ],
+      "interpretation": "One equal-work pressure request completed with the expected focus answer; the next request exposed the server abort."
+    },
+    "known_cold_page_promotion": {
+      "status": "not_measured",
+      "observed_snapshot": {"selected_pages": 4, "resident_pages": 4, "host_pages": 3, "host_valid_rows": 768, "target_valid_rows": 780, "faults": 0, "evictions": 0, "h2d_useful_bytes": 0, "d2h_useful_bytes": 0},
+      "null_reason": "The run aborted before a known-fact cold-page request, page ID/checksum correlation, transfer fence, or answer receipt."
+    },
+    "focus_shift_early_middle_late": {"status": "not_measured", "null_reason": "Server became unavailable before focus-01; focus-02 and focus-03 were sizing errors."},
+    "sustained_churn": {"status": "not_measured", "null_reason": "Server became unavailable before churn-01 through churn-04."},
+    "cancellation_and_drain": {"status": "not_measured", "null_reason": "Cancellation payload construction reached after stable-02; prompt sizing failed because the crashed endpoint refused connection."},
+    "checkpoint_restore": {"status": "not_measured", "created_checkpoints": [2, 3], "null_reason": "The runtime created checkpoints during prefill, but no save/erase/restore request completed before the assertion."},
+    "restart": {
+      "status": "partial",
+      "startup_gate": {"status": "pass", "candidate_pid": 3756216, "identity_stable": true, "systemd_stable": true},
+      "automatic_after_abort": {"status": "pass", "exit": "SIGABRT/status 6", "restart_count": 1, "restored_health": true},
+      "explicit_profile_restore": {"status": "pass", "restored_after_seconds": 4, "context_tokens": 262144, "hot_pages": 4, "pager": "selective", "mtp": "native GPU Turbo4"},
+      "null_reason": "The harness post-soak restart phase was not reached; only the startup gate, automatic crash restart, and explicit exact-profile restoration were observed."
+    },
+    "slot_reuse": {"status": "not_measured", "initial_slots": [{"id": 0, "is_processing": false}], "null_reason": "The slot was not reached by save/erase/restore or post-restart recovery."}
+  },
+  "movement_and_telemetry": {
+    "status": "not_demonstrated",
+    "resource_high_water": {
+      "sample_count": 90,
+      "gpu_memory_mib": {"before": 14097, "high_water": 14207, "after": null},
+      "process_rss_kib": {"before": 1065312, "high_water": 2584856, "after": null},
+      "physical_pool_bytes": 17301500,
+      "page_capacity": 4,
+      "logical_pages": 26,
+      "selected_pages": {"before": 1, "high_water": 4},
+      "resident_pages": {"before": 1, "high_water": 4},
+      "host_pages": {"before": 0, "high_water": 3},
+      "host_valid_rows": {"before": 0, "high_water": 768},
+      "host_valid_bytes": {"before": 0, "high_water": 12976100},
+      "host_pageable_bytes": {"before": 0, "high_water": 51904500},
+      "host_pinned_bytes": {"before": 0, "high_water": 0},
+      "target_valid_rows": {"before": 12, "high_water": 780},
+      "target_valid_bytes": {"before": 202752, "high_water": 13178900},
+      "table_rebuilds": {"before": 2, "high_water": 30},
+      "graph_submissions": {"before": 2, "high_water": 39},
+      "queue_time_us": {"before": 36699, "high_water": 879332},
+      "wait_time_us": {"before": 11138, "high_water": 402865}
+    },
+    "movement_counters": {"h2d_useful_bytes": 0, "h2d_aligned_bytes": 0, "d2h_useful_bytes": 0, "d2h_aligned_bytes": 0, "transfer_submitted": 0, "transfer_event_completions": 0, "faults": 0, "evictions": 0, "prefetch_hits": 0, "transfer_cancellations": 0},
+    "route_counters": {"prefill_reference_routes": 1, "prefill_direct_routes": 0, "decode_reference_routes": 19, "decode_direct_routes": 0, "mtp_verify_reference_routes": 19, "mtp_verify_direct_routes": 0, "exact_cold_pages": 0, "exact_pages_visited": 0},
+    "page_identity_correlation": null,
+    "checksum_correlation": null,
+    "event_fence_correlation": null,
+    "interpretation": "Zero movement is recorded as the observed counter state, not as proof that paging is correct or that no cold-page work was needed."
+  },
+  "failure": {
+    "class": "runtime_abort_during_checkpoint_save",
+    "phase": "after stable-01 and on stable-02 equal-work request",
+    "assertion": "ggml_backend_tensor_get: offset + size <= ggml_nbytes(tensor)",
+    "stack_boundary": ["llama_io_write_host::~llama_io_write_host", "llama_context::state_seq_get_data", "server_slot::prompt_save", "server_context_impl::get_available_slot"],
+    "process_result": "SIGABRT/status 6 with core dump; systemd NRestarts advanced from 0 to 1",
+    "harness_follow_on": "The cancellation prompt-sizing call received connection refused after the crash; case-state.jsonl and progress.json were retained, but the harness did not emit its final summary or SHA256SUMS."
+  },
+  "checks": [
+    {"name": "Frozen 20-07 bundle/model/corpus and Turbo4/GPU-MTP identity", "status": "pass", "raw_ids": ["bundle-manifest", "server-binary", "model", "corpus", "run-provenance", "startup"]},
+    {"name": "Stable startup gate and semantic sentinels", "status": "pass", "raw_ids": ["startup", "sentinels"]},
+    {"name": "Pressure exceeds four-page hot capacity", "status": "pass", "raw_ids": ["run-provenance", "resource-timeline", "metrics-020"]},
+    {"name": "Warm focus answer and MTP acceptance", "status": "pass", "raw_ids": ["stable-01-request", "stable-01-response"]},
+    {"name": "Known cold-page promotion with page/checksum/fence correlation", "status": "not_measured", "raw_ids": ["metrics-089"]},
+    {"name": "Cancellation/drain, checkpoint restore, slot reuse, and post-soak restart", "status": "not_measured", "raw_ids": ["records", "pressure-journal"]},
+    {"name": "Server abort is captured and prior exact profile restored", "status": "fail", "raw_ids": ["stable-02-response", "pressure-journal", "restored-command", "restored-systemd"]},
+    {"name": "8092 service untouched", "status": "pass", "raw_ids": ["restored-systemd"]}
+  ],
+  "raw_index": [
+    {"id": "bundle-manifest", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/bundle-manifest.json", "sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401"},
+    {"id": "server-binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "driver", "path": "tools/server/bench/run-pager-soak.py", "sha256": "a00aec2514fadb3b175e011defe69f340e520206d977b08da5da999c3ed08102"},
+    {"id": "run-provenance", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/provenance.json", "sha256": "41072f6f3791914d4b3f389d8252bd952df8df8a52f454295b6849db2ccba378"},
+    {"id": "case-manifest", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/case-manifest.json", "sha256": "41df191d73d3d4e544860e667d62a8d5019d0c4a852575eae41feb46479cb7da"},
+    {"id": "case-state", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/case-state.jsonl", "sha256": "e7bd14666fc0ac0fc3d336a4209a514e2f85f5fad8c67c997fdf3a1c4ad15a38"},
+    {"id": "progress", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/progress.json", "sha256": "367002664700b48589a7f7d7a8748b57e1c5ccba6817ab0f6aae0371f36699d3"},
+    {"id": "records", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/records.jsonl", "sha256": "3487420b9b1a33c1ae51f516c1a4bf4aa5311781edf65c05588e03673f7c1db6"},
+    {"id": "startup", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/startup.json", "sha256": "3145753098790fb7a1aa520c841731ab8f9e43da807ace561b1dd7cd79fcc9c0"},
+    {"id": "startup-journal", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/startup.journal.txt", "sha256": "293d154a461eed5a3203d03c28d2afb90b2458f0bad488d14587d54de8ff2074"},
+    {"id": "sentinels", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/sentinels.json", "sha256": "11f991acdae53e44e9a143629b8e4966110188aacf46e0eee9bd964069fc7989"},
+    {"id": "stable-01-request", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/stable-01.request.json", "sha256": "85781ffd41e0e72f0bedea87a021250f4b070c2dccab197471f5ef5f711dbb04"},
+    {"id": "stable-01-response", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/stable-01.response.json", "sha256": "db5cb6c90a7d182c314df2e7181ee8576f36260a2976c00af1932b0fde8349d1"},
+    {"id": "stable-02-response", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/stable-02.response.body", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+    {"id": "resource-timeline", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/resource-timeline.jsonl", "sha256": "9863facc5a1c6ef4e5769498110d0c1e836a57cd841d19e56c08ef9dd93d7775"},
+    {"id": "metrics-000", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/metrics-sample-000.txt", "sha256": "2498de927b7da56c0286ab09c9e1ee6cec1ae7aa8d6f2d834429b71c436f2232"},
+    {"id": "metrics-020", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/metrics-sample-020.txt", "sha256": "284ce1bf32be5abe4af787b268ce815cb48c3f14e11adcb761ac510b9b55338e"},
+    {"id": "metrics-089", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/metrics-sample-089.txt", "sha256": "9ef79161b39ec619ea88fea680964c104406262549c917aeed6e19112e123be4"},
+    {"id": "pressure-journal", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/pressure-after.journal.txt", "sha256": "23ba8bc6137d2455ccf0c4cfbe76fe9ce0cfa90a307b01984ce390c1fa10089e"},
+    {"id": "restored-systemd", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/restored-systemd.txt", "sha256": "6953c0ce138326e9e84d18b2f207d97f9f3140f47722f6a7368859caba209361"},
+    {"id": "restored-command", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/restored-command.txt", "sha256": "19ddef1ffcde08edaba92e0a14bb9f5ff93b002bea06370887e8739e215c71ee"},
+    {"id": "restored-gpu-memory", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/restored-gpu-memory.csv", "sha256": "81b846d9de9241560d611466588cdca5e87e4e4d97c5676673cf5763126808f3"}
+  ],
+  "deferred_verification": {
+    "required": true,
+    "items": [
+      "Fix or isolate the checkpoint-save out-of-bounds assertion before repeating equal-work pressure.",
+      "Resume from the retained case ledger with the same 6401-token diagnostic context and four-page hot budget.",
+      "Complete known cold-page promotion, logical-page/checksum/fence correlation, early/middle/late focus, sustained churn, cancellation/drain, checkpoint restore, slot reuse, and post-soak restart.",
+      "Collect after-state resource samples and do not convert zero movement counters into a paging-success claim."
+    ],
+    "hardware_or_human_action": "No human or hosted action is required; the deferred work is a local runtime repair and resumable measurement."
+  },
+  "resume": {
+    "command": "Set the immutable 20-07 bundle, selective pager, native GPU MTP, four hot pages, clean=1, and context=6401 through the managed service, then rerun tools/server/bench/run-pager-soak.py /srv/ai/paged-kv/results/21-09-soak-20260906T0550Z --resume --context 6401 --diagnostic with the recorded corpus, endpoint, API key file, and bounded deadlines.",
+    "next_case": "stable-02 equal-work request; successful sentinel and stable-01 keys are retained",
+    "secrets_omitted": true
+  }
+}
