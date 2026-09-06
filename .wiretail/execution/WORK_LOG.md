@@ -718,3 +718,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-23-05`
 - Commit at update: `e981d13e8`
 - Summary: Recorded the frozen bounded quality matrix as not run because no coherent repaired runtime was available; 48 benchmark contract tests passed, evidence validated, and multi-hop corpus exclusion was documented.
+
+## 2026-09-06T07:50:05+00:00 — 23-06 — done
+
+- Branch: `codex/task-23-06`
+- Commit at update: `87a90ecdf`
+- Summary: Recorded the full 262144-token acceptance gate as not measured because no coherent repaired runtime was available; 12 focused CTest cases and 48 benchmark contract tests passed, with explicit base_goal_demonstrated=false and deferred production checks.
