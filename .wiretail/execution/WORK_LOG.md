@@ -730,3 +730,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-23-10`
 - Commit at update: `96d4ea2cc`
 - Summary: Recorded not_attempted_base_goal_unmet for the conditional YaRN stretch because PHASE23_FULL256K.json does not demonstrate the base 262144-token allocation, near-full population, retrieval, continuation, or native GPU Turbo4 MTP gate. Added the phase-23 YaRN receipt, report, and handoff; local JSON, evidence-contract, state, and diff checks pass.
+
+## 2026-09-06T08:24:19+00:00 — 23-11 — done
+
+- Branch: `codex/task-23-11`
+- Commit at update: `9a0987ecf`
+- Summary: Consolidated compact phase-23 receipts into PHASE23_BENCHMARK_SUMMARY.json/.md with 40-artifact hash audit, explicit mixed-identity and missing-telemetry rejection, not_demonstrated overall verdict, and separate not_attempted_base_goal_unmet YaRN status.

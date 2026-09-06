@@ -1,0 +1,409 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "23-11",
+  "result": "incomplete",
+  "kind": "phase_23_compact_benchmark_summary",
+  "procedure": "receipt_only_provenance_gated_assessment",
+  "created_utc": "2026-09-06T08:15:50Z",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "repository_head": "9a0987ecfca77c68e09b7288f224cfc0f7d0e4fd",
+    "required_repaired_source_commit": "e981d13e846ca98100118cc92c502f4d37dba99f",
+    "local_candidate_binary": "build-cuda/bin/llama-server",
+    "local_candidate_binary_sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f",
+    "local_candidate_dso_sha256": {
+      "libggml_cuda": "ff0fe499f248897c4213ecc7a77afe8f153adb2cfb467bd1184291e0ee48140b",
+      "libllama": "31ef8b1f1d2950e0f740e8281c8fd2d0ec2953405e1291a6ad8892f126f5ed9f",
+      "libllama_server_impl": "aa1ce42a4098b7b35062a3712715269144584860ad7c8eda3a42e54900f89e30"
+    },
+    "local_candidate_deployed": false,
+    "preserved_runtime_bundle": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z",
+    "preserved_runtime_bundle_manifest_sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401",
+    "preserved_runtime_binary_sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "runtime_chat_template_sha256": null,
+    "quality_template_id": null,
+    "config_sha256": null,
+    "configuration_identity_status": "rejected_missing_phase23_template_and_config_identity",
+    "hardware": "NVIDIA GeForce RTX 4080; CUDA 12.4.131; architecture 89-real"
+  },
+  "overall_assessment": {
+    "status": "not_demonstrated",
+    "conclusion": "Phase 23 demonstrates deterministic repairs and bounded fixture behavior, but the repaired product goal is not demonstrated: no coherent repaired bundle was deployed, no automatic 262144-token occupied-context run completed, no production cold retrieval or parity chain was measured, no lifecycle soak completed, and no valid speed/control row exists.",
+    "implementation_status": "partially_demonstrated",
+    "speed_status": "not_measured",
+    "yarn_status": "not_attempted_base_goal_unmet",
+    "raw_ids": ["receipt_23_01", "receipt_23_02", "receipt_23_03", "receipt_23_04", "receipt_23_05", "receipt_23_06", "receipt_23_07", "receipt_23_08", "receipt_23_09", "receipt_23_10"]
+  },
+  "summary_scope": {
+    "consumed_receipts": [
+      "receipt_23_01",
+      "receipt_23_02",
+      "receipt_23_03",
+      "receipt_23_04",
+      "receipt_23_05",
+      "receipt_23_06",
+      "receipt_23_07",
+      "receipt_23_08",
+      "receipt_23_09",
+      "receipt_23_10"
+    ],
+    "policy": "Only compact phase-23 receipts and the raw artifacts indexed by those receipts are used. Historical artifacts are retained only where a phase-23 receipt explicitly identifies them as excluded diagnostics; no earlier campaign is replayed and no campaign is started.",
+    "raw_ids": ["receipt_23_01", "receipt_23_02", "receipt_23_03", "receipt_23_04", "receipt_23_05", "receipt_23_06", "receipt_23_07", "receipt_23_08", "receipt_23_09", "receipt_23_10"]
+  },
+  "provenance_validation": {
+    "status": "validated_with_explicit_rejections",
+    "indexed_artifact_hash_audit": {
+      "status": "pass",
+      "unique_indexed_artifacts": 40,
+      "present": 40,
+      "missing": 0,
+      "sha256_mismatches": 0,
+      "raw_ids": ["receipt_23_02", "receipt_23_03", "receipt_23_04", "receipt_23_05", "receipt_23_06", "receipt_23_07", "receipt_23_08", "receipt_23_09", "receipt_23_10"]
+    },
+    "source_identity": {
+      "status": "validated_with_scope",
+      "required_repaired_source_commit": "e981d13e846ca98100118cc92c502f4d37dba99f",
+      "source_diff_sha256": {
+        "23_02": "da3c1716b195c50e070a78ca6646b153b7734bdd6aa2d080ada3b967b72dc9bc",
+        "23_03": "2cac3b71fcdd433cac2fe0d7ce7137c4cb36267cd16a4ff6c5af5cc418bc47e6"
+      },
+      "detail": "The repaired source commit is consistent across the live-measurement receipts. Task-local source-diff hashes are retained as scoped evidence; no single clean deployed source diff is claimed under outer-runner ownership.",
+      "raw_ids": ["receipt_23_02", "receipt_23_03", "receipt_23_07", "receipt_23_08", "receipt_23_09"]
+    },
+    "local_candidate_binary_and_dsos": {
+      "status": "pass",
+      "detail": "The local repaired executable and all three indexed candidate DSOs hash consistently with the phase-23 curve receipt; they were not deployed as a measured bundle.",
+      "raw_ids": ["candidate_binary", "candidate_libggml_cuda", "candidate_libllama", "candidate_server_impl", "receipt_23_07"]
+    },
+    "preserved_bundle": {
+      "status": "pass_with_exclusion",
+      "detail": "The preserved 20-07 deployed binary matches its indexed bundle manifest and runtime command line, but its binary identity differs from the repaired candidate and it is excluded from phase-23 target measurements.",
+      "raw_ids": ["deployed_binary", "deployed_bundle_manifest", "runtime_cmdline", "receipt_23_07", "receipt_23_08", "receipt_23_09"]
+    },
+    "model_and_corpus": {
+      "status": "pass",
+      "detail": "The indexed Qwen model and pager-corpus-v4 file are present and their SHA-256 values agree across phase-23 curve, controls, and soak receipts.",
+      "raw_ids": ["target_model", "target_corpus", "receipt_23_07", "receipt_23_08", "receipt_23_09"]
+    },
+    "template_and_configuration": {
+      "status": "fail",
+      "detail": "Phase-23 quality explicitly records no deployed tokenizer/chat-template identity, and no phase-23 receipt provides a single immutable target configuration hash. Historical template or policy identities are not promoted to the absent repaired target.",
+      "raw_ids": ["receipt_23_05", "receipt_23_07", "receipt_23_08"]
+    },
+    "mixed_release_rejection": {
+      "status": "pass",
+      "detail": "The repaired local candidate (7968b152...) and preserved deployed 20-07 binary (d534fd99...) are kept separate; no historical runtime, shorter context, or unpaired control is used as a phase-23 target denominator.",
+      "raw_ids": ["receipt_23_07", "receipt_23_08", "receipt_23_09"]
+    },
+    "missing_telemetry_rejection": {
+      "status": "pass",
+      "detail": "Required route, page, host-row, movement, timing, placement, hot-budget, and monotonic-snapshot fields remain null when no repaired-release request was executed; missing telemetry is not converted to zero or a quality score.",
+      "raw_ids": ["receipt_23_05", "receipt_23_07", "receipt_23_08", "receipt_23_09"]
+    }
+  },
+  "runtime_contract": {
+    "logical_context_tokens": 262144,
+    "near_full_prompt_tokens": 262136,
+    "generation_reserve_tokens": 8,
+    "logical_pages": 1024,
+    "page_size_tokens": 256,
+    "target_backend": "CUDA",
+    "target_kv": ["turbo4", "turbo4"],
+    "canonical_host_backing": ["turbo4", "turbo4"],
+    "native_mtp": {
+      "backend": "GPU",
+      "kv": ["turbo4", "turbo4"],
+      "rows_required": 262144
+    },
+    "hot_page_policy": "automatic budget-derived bounded GPU pages",
+    "sampling": {
+      "temperature": 0,
+      "seed": 42,
+      "thinking": "off"
+    },
+    "raw_ids": ["receipt_23_05", "receipt_23_06", "receipt_23_07", "receipt_23_09"]
+  },
+  "base_262144": {
+    "allocation": {
+      "status": "not_measured",
+      "logical_context_tokens": 262144,
+      "logical_pages": 1024,
+      "automatic_hot_pages": null,
+      "physical_pool_capacity_bytes": null,
+      "target_valid_rows": null,
+      "mtp_rows": null,
+      "detail": "The deterministic fixture passed geometry and admission arithmetic only; no fresh automatic budget-derived production allocation was started with the repaired release.",
+      "raw_ids": ["receipt_23_01", "receipt_23_06"]
+    },
+    "occupied_context": {
+      "status": "not_measured",
+      "requested_prompt_tokens": 262136,
+      "generation_reserve_tokens": 8,
+      "occupied_prompt_tokens": null,
+      "processed_prompt_tokens": null,
+      "response": null,
+      "detail": "No near-full tokenized population was sent to the repaired candidate.",
+      "raw_ids": ["receipt_23_06"]
+    },
+    "retrieval_and_continuation": {
+      "status": "not_measured",
+      "early": null,
+      "middle": null,
+      "late": null,
+      "recent": null,
+      "focus_shift": null,
+      "continuation": null,
+      "detail": "No production retrieval probe or continuation response exists.",
+      "raw_ids": ["receipt_23_06"]
+    },
+    "goal_gate": {
+      "status": "failed",
+      "base_goal_demonstrated": false,
+      "detail": "Allocation, near-full population, retrieval, continuation, and native GPU MTP residency were not jointly demonstrated at 262144 tokens.",
+      "raw_ids": ["receipt_23_06", "receipt_23_10"]
+    }
+  },
+  "placement_and_paging": {
+    "target_and_draft_codecs": {
+      "status": "not_measured",
+      "required_target": ["turbo4", "turbo4"],
+      "required_draft": ["turbo4", "turbo4"],
+      "detail": "Turbo4 is retained in the runtime contracts and deterministic repair receipts, but no repaired-release production placement was observed.",
+      "raw_ids": ["receipt_23_01", "receipt_23_03", "receipt_23_05", "receipt_23_06", "receipt_23_09"]
+    },
+    "full_context_gpu_mtp": {
+      "status": "not_measured",
+      "required_rows": 262144,
+      "observed_rows": null,
+      "detail": "Native GPU Turbo4 MTP placement was not observed in a fresh full-context production allocation.",
+      "raw_ids": ["receipt_23_06"]
+    },
+    "canonical_cpu_backing": {
+      "status": "not_measured",
+      "detail": "Canonical CPU Turbo4 backing is required by the contract, but no near-full production host-valid rows were emitted.",
+      "raw_ids": ["receipt_23_05", "receipt_23_06", "receipt_23_09"]
+    },
+    "budget_derived_gpu_pages": {
+      "status": "not_measured",
+      "hot_pages": null,
+      "detail": "The repaired admission implementation has deterministic ledger/retry checks, but production hot capacity was not measured.",
+      "raw_ids": ["receipt_23_01", "receipt_23_06", "receipt_23_09"]
+    },
+    "attention_driven_cold_retrieval": {
+      "implementation_fixture": {
+        "status": "measured",
+        "detail": "Bounded fixtures cover retrieval-selected cold inventory, authenticated multi-page H2D construction, publication, rollback, identity, and slot behavior.",
+        "raw_ids": ["receipt_23_04"]
+      },
+      "production": {
+        "status": "not_measured",
+        "detail": "No production cold page was correlated through logical identity, canonical checksum, transfer event/fence, physical slot/generation, route, and answer.",
+        "raw_ids": ["receipt_23_04", "receipt_23_09"]
+      }
+    },
+    "lossless_identity_and_parity": {
+      "status": "not_measured",
+      "selected_all": {"numerator": 0, "denominator": 0},
+      "exact": {"numerator": 0, "denominator": 0},
+      "detail": "No production selected-all/exact pair or cold-page identity chain was produced; zero denominators are not scores.",
+      "raw_ids": ["receipt_23_05", "receipt_23_06"]
+    }
+  },
+  "quality": {
+    "status": "not_measured",
+    "planned_requests": 72,
+    "executed_requests": 0,
+    "quality_denominator": 0,
+    "exact": {"numerator": 0, "denominator": 0},
+    "selected_all": {"numerator": 0, "denominator": 0},
+    "selective": {"numerator": 0, "denominator": 0},
+    "telemetry_status": "rejected_missing",
+    "detail": "The frozen quality matrix did not run because the repaired candidate was not deployed and required request telemetry was unavailable. The multi-hop family remains explicitly excluded because it is absent from the frozen corpus.",
+    "raw_ids": ["receipt_23_05", "target_corpus"]
+  },
+  "context_curve_and_controls": {
+    "curve": {
+      "status": "not_measured",
+      "contexts": [20000, 40000, 60000, 100000, 175000, 262144],
+      "planned_cases": 24,
+      "completed_target_rows": 0,
+      "speed_rows": [],
+      "detail": "No repaired-release curve request was sent; per-question medians, dispersion, occupancy, route, movement, and memory remain null.",
+      "raw_ids": ["receipt_23_07"]
+    },
+    "matched_controls": {
+      "status": "not_measured",
+      "paired_target_rows": 0,
+      "paired_control_rows": 0,
+      "cpu_kv_gpu_mtp_ratio": null,
+      "dense_all_gpu_turbo4_mtp_ratio": null,
+      "observe": null,
+      "mtp_off": null,
+      "detail": "Missing target rows, template/config identity, and complete telemetry reject all ratios and component bottlenecks. Historical 3x/5x/70% comparisons remain annotations only.",
+      "raw_ids": ["receipt_23_08", "receipt_23_07"]
+    }
+  },
+  "physical_movement_and_lifecycle": {
+    "status": "not_measured",
+    "segments": [
+      "warm_focus",
+      "known_cold_page_promotion",
+      "focus_shift_early_middle_late",
+      "sustained_churn",
+      "cancellation_and_drain",
+      "checkpoint_save_restore",
+      "restart",
+      "slot_reuse"
+    ],
+    "movement": {
+      "h2d_useful_bytes": null,
+      "d2h_useful_bytes": null,
+      "faults": null,
+      "evictions": null,
+      "page_checksum_correlation": null,
+      "slot_generation_correlation": null
+    },
+    "resource_plateau": {
+      "status": "not_measured",
+      "before": null,
+      "high_water": null,
+      "after": null,
+      "leak_free_proven": false
+    },
+    "detail": "No repaired-bundle soak segment ran. Zero movement is not interpreted as no movement, and preserved runtime counters are not imported.",
+    "raw_ids": ["receipt_23_09"]
+  },
+  "yarn": {
+    "status": "not_attempted_base_goal_unmet",
+    "position_metadata": null,
+    "occupancy": null,
+    "memory": null,
+    "quality": null,
+    "speed": null,
+    "detail": "The base gate was not demonstrated, so Qwen RoPE/scaling metadata inspection and the optional >256K point were intentionally skipped.",
+    "raw_ids": ["receipt_23_10", "receipt_23_06"]
+  },
+  "ranked_gaps": [
+    {
+      "rank": 1,
+      "gap": "No coherent repaired executable-plus-DSO deployment or telemetry preflight",
+      "status": "failed",
+      "detail": "The local repaired binary/DSOs differ from the preserved deployed 20-07 bundle; template/config identity is also absent.",
+      "raw_ids": ["receipt_23_07", "receipt_23_08", "receipt_23_09", "receipt_23_05"]
+    },
+    {
+      "rank": 2,
+      "gap": "Base 262144 occupied-context proof",
+      "status": "not_measured",
+      "detail": "Automatic allocation, near-full population, retrieval, continuation, and full-context GPU MTP were not jointly observed.",
+      "raw_ids": ["receipt_23_06"]
+    },
+    {
+      "rank": 3,
+      "gap": "Physical cold movement and lifecycle correlation",
+      "status": "not_measured",
+      "detail": "No checksum/event/fence/slot/generation/route/answer chain or resource plateau exists for the repaired bundle.",
+      "raw_ids": ["receipt_23_04", "receipt_23_09"]
+    },
+    {
+      "rank": 4,
+      "gap": "Valid speed curve and matched controls",
+      "status": "not_measured",
+      "detail": "The curve has zero completed target rows, so all speed ratios and bottleneck decomposition remain null.",
+      "raw_ids": ["receipt_23_07", "receipt_23_08"]
+    }
+  ],
+  "checks": [
+    {"name": "Phase-23 receipts and indexed raw hashes", "status": "pass", "raw_ids": ["receipt_23_02", "receipt_23_03", "receipt_23_04", "receipt_23_05", "receipt_23_06", "receipt_23_07", "receipt_23_08", "receipt_23_09", "receipt_23_10"]},
+    {"name": "Source, repaired binary, DSO, model, and corpus identity", "status": "pass", "raw_ids": ["receipt_23_03", "candidate_binary", "candidate_libggml_cuda", "candidate_libllama", "candidate_server_impl", "target_model", "target_corpus"]},
+    {"name": "Mixed preserved bundle rejected from target claims", "status": "pass", "raw_ids": ["receipt_23_07", "receipt_23_08", "receipt_23_09"]},
+    {"name": "Template and configuration identity", "status": "fail", "raw_ids": ["receipt_23_05", "receipt_23_07", "receipt_23_08"]},
+    {"name": "262144 allocation and occupied-context proof", "status": "fail", "raw_ids": ["receipt_23_06"]},
+    {"name": "Turbo4 target/draft codecs, canonical CPU backing, bounded hot pages, and full-context GPU MTP", "status": "not_measured", "raw_ids": ["receipt_23_05", "receipt_23_06", "receipt_23_09"]},
+    {"name": "Attention-driven cold retrieval and lossless physical identity/parity", "status": "not_measured", "raw_ids": ["receipt_23_04", "receipt_23_05", "receipt_23_09"]},
+    {"name": "Quality tradeoffs and required request telemetry", "status": "not_measured", "raw_ids": ["receipt_23_05"]},
+    {"name": "Physical movement and lifecycle soak", "status": "not_measured", "raw_ids": ["receipt_23_09"]},
+    {"name": "Original-three-prompt speed curve and matched controls", "status": "not_measured", "raw_ids": ["receipt_23_07", "receipt_23_08"]},
+    {"name": "YaRN stretch", "status": "not_measured", "raw_ids": ["receipt_23_10"]}
+  ],
+  "failure": {
+    "class": "phase_23_base_functionality_and_measurement_incomplete",
+    "summary": "The phase-23 receipts establish deterministic repair coverage and hash integrity, but no coherent repaired runtime evidence supports the full-context, physical-paging, quality, speed, controls, or lifecycle goal.",
+    "not_a_model_quality_failure": true,
+    "raw_ids": ["receipt_23_05", "receipt_23_06", "receipt_23_07", "receipt_23_08", "receipt_23_09"]
+  },
+  "raw_index": [
+    {"id": "receipt_23_01", "path": ".wiretail/execution/evidence/PHASE23_ADMISSION.json", "sha256": "87682d8ca64f725dee48f2c5b976b19eb811aa8a776ed5812d014c634856a2bc"},
+    {"id": "receipt_23_02", "path": ".wiretail/execution/evidence/PHASE23_CHECKPOINT.json", "sha256": "39afd255f7db2e2b9581f4a893007d0e48581122baf183198a6edb9e855c126f"},
+    {"id": "receipt_23_03", "path": ".wiretail/execution/evidence/PHASE23_PREFILL.json", "sha256": "ce206f7bf27090407420c75f7c8c0c460118e4971cd41a0008571d4554e65ae1"},
+    {"id": "receipt_23_04", "path": ".wiretail/execution/evidence/PHASE23_RESIDENCY.json", "sha256": "c1e68734085c124ed35614f7036654b90a9f8f8924a13fa2862b08e4da1e0c0b"},
+    {"id": "receipt_23_05", "path": ".wiretail/execution/evidence/PHASE23_QUALITY.json", "sha256": "626dfa5a4372fe65c01dfaa241d45d3494bd4e8ed706ed2d58aa5f428278511d"},
+    {"id": "receipt_23_06", "path": ".wiretail/execution/evidence/PHASE23_FULL256K.json", "sha256": "fa39c24432c225cc4e26468b5c16477c2f47c1c7deb28d51ae8f05c5b56572e5"},
+    {"id": "receipt_23_07", "path": ".wiretail/execution/evidence/PHASE23_CURVE.json", "sha256": "21bb7d95a723dda3a187515f8dd097904da5b69a833347df3778e931c1ffa8d6"},
+    {"id": "receipt_23_08", "path": ".wiretail/execution/evidence/PHASE23_CONTROLS.json", "sha256": "90198c2575b9caa7d02b4d7135d894345edc0b927dab164d41d44d6a10dd92bd"},
+    {"id": "receipt_23_09", "path": ".wiretail/execution/evidence/PHASE23_SOAK.json", "sha256": "929626cf8911ea41d462b4d27bba20657d3e523130da334966f508f3ab50eced"},
+    {"id": "receipt_23_10", "path": ".wiretail/execution/evidence/PHASE23_YARN.json", "sha256": "c857d5497852e09f1e02c0fe3999515d3cbb7fb9bc9911d44711030a532b0f84"},
+    {"id": "checkpoint_pressure_journal", "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/pressure-after.journal.txt", "sha256": "23ba8bc6137d2455ccf0c4cfbe76fe9ce0cfa90a307b01984ce390c1fa10089e"},
+    {"id": "task_23_02", "path": ".wiretail/execution/tasks/23-02.md", "sha256": "6a40aaea3273c07af038fcbdd61bc83ba5ea48e76108a84ad3495c4b7246015a"},
+    {"id": "focused_pager_binary", "path": "build-cuda/bin/test-kv-pager", "sha256": "49ce65e00be117c3849b5976a6fc072b46726519d9f30c4cd8769160d0af7f64"},
+    {"id": "task_23_08", "path": ".wiretail/execution/tasks/23-08.md", "sha256": "046891639c56ad6f11de32e8fe266d2ff7ab51c0c40194e9391886a44b0e875f"},
+    {"id": "cluster_23c", "path": ".wiretail/execution/clusters/23c-final-measurements.md", "sha256": "284438d39e15ff1e8694f616126ae0bcd6349c50939a42d26313d71d6a9a475f"},
+    {"id": "curve_evidence", "path": ".wiretail/execution/evidence/PHASE23_CURVE.json", "sha256": "21bb7d95a723dda3a187515f8dd097904da5b69a833347df3778e931c1ffa8d6"},
+    {"id": "handoff_23_07", "path": ".wiretail/execution/handoffs/23-07.md", "sha256": "93c0cc4e4ad041b96fa606a66b39dfddcb6a789c420af8f43164b528a71109c3"},
+    {"id": "target_model", "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"},
+    {"id": "target_corpus", "path": "tools/server/bench/fixtures/pager-corpus-v4.json", "sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd"},
+    {"id": "candidate_binary", "path": "build-cuda/bin/llama-server", "sha256": "7968b15263e2a3c3e54ce0513b1854eb319191cabc2771cf48e2468cdb53c65f"},
+    {"id": "deployed_binary", "path": "/srv/ai/paged-kv/results/20-07-runtime-bundle-20260905T220000Z/bin/llama-server", "sha256": "d534fd992c662140078db8ab2be5ab338393a212ef37f119c8f61fd8d8f646d8"},
+    {"id": "deployed_bundle_manifest", "path": "/srv/ai/paged-kv/results/20-07-release-20260905T220000Z/bundle-manifest.json", "sha256": "653cda9bb9a0aefc5bfeed6cc7f04f0d4c79492b515dcaeded11ce3bbc3e7401"},
+    {"id": "historical_controls", "path": ".wiretail/execution/evidence/PHASE21_CONTROLS.json", "sha256": "82889c8742fdeb5dd0ffee0d79ee0ebae754f224088e5d122b75ad75a964b2cd"},
+    {"id": "task_23_07", "path": ".wiretail/execution/tasks/23-07.md", "sha256": "b14174d04b37745c6c4c807e99febac64d3943d0d75d2875f1e8d6fdb6681c6c"},
+    {"id": "benchmark_protocol", "path": ".wiretail/execution/BENCHMARK_PROTOCOL_V5.md", "sha256": "5ad59c568e27b56b206d3febd589582998e4e44da20252fb1e3b2f2e0575bf7a"},
+    {"id": "handoff_23_06", "path": ".wiretail/execution/handoffs/23-06.md", "sha256": "b403ffb1ab663b1f196b25dd5810a65f62e0116368c1d63f3a0c4c27ac61014d"},
+    {"id": "candidate_libggml_cuda", "path": "build-cuda/bin/libggml-cuda.so.0.22.0", "sha256": "ff0fe499f248897c4213ecc7a77afe8f153adb2cfb467bd1184291e0ee48140b"},
+    {"id": "candidate_libllama", "path": "build-cuda/bin/libllama.so.0.3.0", "sha256": "31ef8b1f1d2950e0f740e8281c8fd2d0ec2953405e1291a6ad8892f126f5ed9f"},
+    {"id": "candidate_server_impl", "path": "build-cuda/bin/libllama-server-impl.so", "sha256": "aa1ce42a4098b7b35062a3712715269144584860ad7c8eda3a42e54900f89e30"},
+    {"id": "runtime_cmdline", "path": "/proc/3761038/cmdline", "sha256": "07090f5ed3b2ea018afa9250719a7fc0dfcb6763a7a8daa5ac933d0ee9c3438b"},
+    {"id": "task_23_06", "path": ".wiretail/execution/tasks/23-06.md", "sha256": "49768e45f544f8e7952eafc06cec7fda7d2b3b29e631afaa9fda54443be456bf"},
+    {"id": "quality_receipt", "path": ".wiretail/execution/evidence/PHASE23_QUALITY.json", "sha256": "626dfa5a4372fe65c01dfaa241d45d3494bd4e8ed706ed2d58aa5f428278511d"},
+    {"id": "phase21_negative_control", "path": ".wiretail/execution/evidence/PHASE21_FULL256K.json", "sha256": "e6e4659aa3d5d3be9fdfca2e1b5296f7a401e52c5ec732a278daaa62df0deeda"},
+    {"id": "quality_runtime", "path": ".wiretail/execution/evidence/PHASE23_QUALITY.runtime.md", "sha256": "11d685cb5cca7be09da11b6a9cc6bc8edc7cc9c732cb019c695a3a0871367ab0"},
+    {"id": "prefill_20k_metrics", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/20000/metrics.txt", "sha256": "65e01d83b1454d8b0c6a111124fbbd0a18c3eddd8eb6423fc3c6422a11ba9756"},
+    {"id": "prefill_40k_metrics", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/40000/metrics.txt", "sha256": "29cf06adfc40e7c6933ada9fac31a35b87d103347fa42e0e7aa5054e1455c5e8"},
+    {"id": "prefill_60k_metrics", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/60000/metrics.txt", "sha256": "6f98d856ec02680aefae10548c286c323f99b928b7737f6cbd617f1ffc429f19"},
+    {"id": "prefill_100k_metrics", "path": "/srv/ai/paged-kv/results/21-07-startup-ladder-20260906T0726Z/100000/metrics.txt", "sha256": "afa32bb9b46b1cf5f2fbb3a590ee89c38a7560d8c03f971f06dcbd9a15e9f157"},
+    {"id": "task_23_03", "path": ".wiretail/execution/tasks/23-03.md", "sha256": "8e14c1f9133809c36cac712ded58b13f771e8b1c8f6ad426c4af546d533c876d"},
+    {"id": "focused_cuda_fixture", "path": "build-cuda/bin/test-cuda-fattn-paged-turbo4", "sha256": "480fdfa0ea57ca31ca6cfc0245e9674541efe6543eb56858c28a25505d271b39"},
+    {"id": "task_23_05", "path": ".wiretail/execution/tasks/23-05.md", "sha256": "58e53a464b44ad53c10d31c440df88ad4a600f83d98276ae54f0b3e4e658d5bc"},
+    {"id": "phase22_review", "path": ".wiretail/execution/evidence/PHASE22_REVIEW.json", "sha256": "b6edc437922db52682115f6aaac1fce4aaad083d51bf0c4237da8b84e9eb6a6d"},
+    {"id": "task_23_04", "path": ".wiretail/execution/tasks/23-04.md", "sha256": "cdb3c6776a09510a58e26414a4be061b102aeb822de93906ab8d771de9fda8ec"},
+    {"id": "focused_policy_binary", "path": "build-cuda/bin/test-kv-policy", "sha256": "337953553a75d14e50775e6a82f06644b3493f72fcd20c52f74eeb27cf274a59"},
+    {"id": "focused_residency_binary", "path": "build-cuda/bin/test-kv-residency", "sha256": "cdc398a0c552d35ed263325f3302bd70033a45868c48eecc79b1e2f189627218"},
+    {"id": "task_23_09", "path": ".wiretail/execution/tasks/23-09.md", "sha256": "307ee144fee6c61b21cf1deddb1aec2c9fefd765d402b4322d0b41442dbe351b"},
+    {"id": "controls_evidence", "path": ".wiretail/execution/evidence/PHASE23_CONTROLS.json", "sha256": "90198c2575b9caa7d02b4d7135d894345edc0b927dab164d41d44d6a10dd92bd"},
+    {"id": "full_context_gate", "path": ".wiretail/execution/evidence/PHASE23_FULL256K.json", "sha256": "fa39c24432c225cc4e26468b5c16477c2f47c1c7deb28d51ae8f05c5b56572e5"},
+    {"id": "soak_harness", "path": "tools/server/bench/run-pager-soak.py", "sha256": "a00aec2514fadb3b175e011defe69f340e520206d977b08da5da999c3ed08102"},
+    {"id": "task_23_10", "path": ".wiretail/execution/tasks/23-10.md", "sha256": "975ba3569d12bf17b786d31a0ccf9a291c2e5c3d6d901808744ba77c615dcbc6"}
+  ],
+  "resume": {
+    "command": "After a controlled lifecycle transition, deploy one immutable repaired executable-plus-DSO bundle with explicit model/template/config identity; pass request telemetry preflight; then rerun the 262144 base gate, curve, matched controls, physical soak, and only afterward optional YaRN.",
+    "secrets_omitted": true,
+    "required_gate": "coherent repaired bundle plus complete request telemetry and base_goal_demonstrated=true before speed/control or YaRN claims",
+    "never_touch": ["port 8092", "unowned processes"]
+  },
+  "deferred_verification": {
+    "required": true,
+    "items": [
+      "Deploy the repaired executable and all loaded project DSOs as one immutable bundle, with model, template, and configuration hashes recorded.",
+      "Pass the telemetry preflight and complete automatic 262144 allocation, near-full population, retrieval, continuation, canonical CPU backing, bounded hot pages, and full GPU native-MTP proof.",
+      "Run the cold movement/lifecycle segments with checksum, event/fence, physical slot/generation, route, answer, and resource plateau correlation.",
+      "Complete the six-point curve and release-matched controls before making speed-ratio or bottleneck claims.",
+      "Revisit YaRN only after the base gate is demonstrated."
+    ],
+    "hardware_or_human_action": "No unavailable hardware, hosted service, or human action caused the missing evidence; the deferred work requires a controlled local runtime lifecycle transition while preserving port 8092 and unowned processes."
+  }
+}
