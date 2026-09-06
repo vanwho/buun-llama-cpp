@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "23",
-  "current_task": "23-04",
-  "last_updated_utc": "2026-09-06T07:26:43+00:00",
+  "current_task": "23-05",
+  "last_updated_utc": "2026-09-06T07:42:20+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3960,22 +3960,36 @@
       "cluster": "23b-paging-acceptance",
       "title": "Prove attention-driven cold promotion with physical correlation",
       "packet": ".wiretail/execution/tasks/23-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "23-03"
       ],
-      "commit": null,
+      "commit": "3c5cfd8a27af5c9c66afc9ca9cf3085ead598b3e",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/23-04-attempt-1-20260906T072700Z.jsonl:154",
+            "total_tokens": 11220359,
+            "total_tokens_derived": true,
+            "input_tokens": 11192003,
+            "cached_input_tokens": 10748928,
+            "output_tokens": 28356,
+            "thinking_tokens": 9851
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 11220359,
+          "input_tokens": 11192003,
+          "cached_input_tokens": 10748928,
+          "output_tokens": 28356,
+          "thinking_tokens": 9851
         }
       }
     },
@@ -5027,15 +5041,28 @@
           "cached_input_tokens": 16617728,
           "output_tokens": 36153,
           "thinking_tokens": 10361
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/23-04-attempt-1-20260906T072700Z.jsonl:154",
+          "total_tokens": 11220359,
+          "total_tokens_derived": true,
+          "input_tokens": 11192003,
+          "cached_input_tokens": 10748928,
+          "output_tokens": 28356,
+          "thinking_tokens": 9851
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 38441618,
-        "input_tokens": 38325547,
-        "cached_input_tokens": 37264896,
-        "output_tokens": 116071,
-        "thinking_tokens": 42371
+        "turns": 4,
+        "total_tokens": 49661977,
+        "input_tokens": 49517550,
+        "cached_input_tokens": 48013824,
+        "output_tokens": 144427,
+        "thinking_tokens": 52222
       }
     },
     "24": {
@@ -5052,12 +5079,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 45,
-      "total_tokens": 814209598,
-      "input_tokens": 812220421,
-      "cached_input_tokens": 796646400,
-      "output_tokens": 1989177,
-      "thinking_tokens": 696920
+      "turns": 46,
+      "total_tokens": 825429957,
+      "input_tokens": 823412424,
+      "cached_input_tokens": 807395328,
+      "output_tokens": 2017533,
+      "thinking_tokens": 706771
     },
     "source": "Codex turn.completed usage events"
   }

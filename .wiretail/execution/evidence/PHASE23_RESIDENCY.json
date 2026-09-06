@@ -1,0 +1,131 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "23-04",
+  "phase": "23",
+  "result": "incomplete",
+  "kind": "residency_acceptance",
+  "procedure": "live_query_to_authenticated_multi_page_promotion",
+  "created_utc": "2026-09-06T09:45:00Z",
+  "provenance": {
+    "source_diff_sha256": null,
+    "source_diff_unavailable_reason": "The outer runner owns the uncommitted worktree; no source commit was created.",
+    "build_root": "/srv/repos/vanwho/buun-llama-cpp/build-cuda",
+    "cuda_architecture": "89-real",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "focused_binary_sha256": {
+      "test_kv_policy": "337953553a75d14e50775e6a82f06644b3493f72fcd20c52f74eeb27cf274a59",
+      "test_kv_residency": "cdc398a0c552d35ed263325f3302bd70033a45868c48eecc79b1e2f189627218",
+      "test_kv_pager": "49ce65e00be117c3849b5976a6fc072b46726519d9f30c4cd8769160d0af7f64"
+    },
+    "live_candidate_preserved": true,
+    "live_candidate_note": "A historical selected-reference candidate remains loaded on port 8080; another llama-server owns port 8092. Neither process was stopped or changed."
+  },
+  "baseline": {
+    "failure": "The live policy boundary created one-page H2D plans while the host-read callback resolved page_index within each plan; after the first plan, later cold promotions could read the first host page.",
+    "hypothesis": "A single authenticated multi-page H2D plan will preserve host page identity, physical destination slots, completion fencing, and publication for every selected cold page.",
+    "raw_ids": ["phase22_review", "task_packet_23_04"]
+  },
+  "checks": [
+    {
+      "id": "cold_inventory_candidate",
+      "status": "pass",
+      "finding": "The deterministic live-policy fixture supplies a complete host-backed inventory and a retrieval-selected cold page; the cold page is accepted as a candidate before attention telemetry is available."
+    },
+    {
+      "id": "multi_page_authenticated_h2d",
+      "status": "pass",
+      "finding": "Promotion pages are assembled into one plan, so page_index is assigned once across the plan. The fake transfer records distinct page-indexed payloads (7 and 8) in separate destination slots."
+    },
+    {
+      "id": "publication_and_counters",
+      "status": "pass",
+      "finding": "The live-policy fixture publishes two cold promotions with loaded_pages=2 and 16 useful H2D bytes, while retaining the selected target identities and slots."
+    },
+    {
+      "id": "stale_and_rollback_boundaries",
+      "status": "pass",
+      "finding": "Existing deterministic live-policy and residency fixtures reject stale snapshots, exercise transfer failure rollback, and retain the prior authoritative table without partial publication."
+    },
+    {
+      "id": "tail_and_multi_layer_contract",
+      "status": "pass",
+      "finding": "The focused pager/residency fixtures continue to cover partial-tail identity, clean/dirty replacement, cancellation, stale generations, slot reuse, and layer-major transfer geometry."
+    },
+    {
+      "id": "production_qwen_pressure_campaign",
+      "status": "not_measured",
+      "finding": "No live 6K–8K prompt was run; production page checksums, CUDA events/fences, route answer parity, and observed fault/eviction counters are not claimed."
+    }
+  ],
+  "verification": [
+    {
+      "command": "cmake --build build-cuda --target test-kv-residency -j2",
+      "status": "pass"
+    },
+    {
+      "command": "cmake --build build-cuda --target test-kv-policy -j2",
+      "status": "pass"
+    },
+    {
+      "command": "ctest --test-dir build-cuda -R '^(test-kv-policy|test-kv-residency|test-kv-pager|test-kv-routing-retrieval)$' --output-on-failure",
+      "status": "pass",
+      "tests_passed": 4,
+      "tests_failed": 0
+    },
+    {
+      "command": "ctest --test-dir build-cuda -R '^(test-kv-attention-execution|test-kv-attention-telemetry|test-kv-routing-summary)$' --output-on-failure",
+      "status": "pass",
+      "tests_passed": 3,
+      "tests_failed": 0
+    },
+    {
+      "command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate",
+      "status": "pass",
+      "finding": "Valid state: 139 tasks"
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass"
+    }
+  ],
+  "deferred_verification": [
+    {
+      "id": "live_cold_promotion_receipt",
+      "status": "deferred",
+      "reason": "The required 6K–8K production prompt and explicit four-page cap need a controlled lifecycle transition to the newly built server; the existing successful candidate on port 8080 and the server on port 8092 were preserved."
+    },
+    {
+      "id": "live_route_answer_and_physical_correlation",
+      "status": "deferred",
+      "reason": "No production receipt was collected correlating query generation, logical page identity, host checksum, useful/aligned H2D bytes, CUDA event/fence, physical slot, selected route, answer parity, and fault/eviction counters."
+    }
+  ],
+  "resume": {
+    "command": "After an authorized GPU lifecycle transition, run the single 6K–8K prompt campaign with the explicit four-page cap and collect the full physical promotion correlation receipt before any curve or soak run.",
+    "next_case": "One cold retrieval-selected page promoted through H2D with completed event, host checksum, physical slot, published table generation, selected route, and continued response correctness.",
+    "secrets_omitted": true
+  },
+  "raw_index": [
+    {
+      "id": "phase22_review",
+      "path": ".wiretail/execution/evidence/PHASE22_REVIEW.json",
+      "sha256": "b6edc437922db52682115f6aaac1fce4aaad083d51bf0c4237da8b84e9eb6a6d"
+    },
+    {
+      "id": "task_packet_23_04",
+      "path": ".wiretail/execution/tasks/23-04.md",
+      "sha256": "cdb3c6776a09510a58e26414a4be061b102aeb822de93906ab8d771de9fda8ec"
+    },
+    {
+      "id": "focused_policy_binary",
+      "path": "build-cuda/bin/test-kv-policy",
+      "sha256": "337953553a75d14e50775e6a82f06644b3493f72fcd20c52f74eeb27cf274a59"
+    },
+    {
+      "id": "focused_residency_binary",
+      "path": "build-cuda/bin/test-kv-residency",
+      "sha256": "cdc398a0c552d35ed263325f3302bd70033a45868c48eecc79b1e2f189627218"
+    }
+  ]
+}

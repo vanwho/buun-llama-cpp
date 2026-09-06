@@ -706,3 +706,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-22-01`
 - Commit at update: `6989e97d1`
 - Summary: Reviewed phase-21 compact evidence: goal not reached; scheduled phase-23 measured repair/remeasurement and phase-24 Sol High summary-only review.
+
+## 2026-09-06T07:41:57+00:00 — 23-04 — done
+
+- Branch: `codex/task-23-04`
+- Commit at update: `3ba4685fb`
+- Summary: Fixed multi-page live H2D promotion identity by assembling all selected cold pages into one plan; deterministic live-policy and residency coverage passed; production GPU pressure receipt deferred because existing servers were preserved.
