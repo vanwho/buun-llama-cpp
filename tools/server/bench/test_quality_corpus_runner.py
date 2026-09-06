@@ -270,5 +270,101 @@ class QualityCorpusRunnerTests(unittest.TestCase):
             server.shutdown()
             thread.join(timeout=2)
 
+    def test_preflight_is_three_requests_and_rejects_no_missing_telemetry(self) -> None:
+        corpus_path = HERE / "fixtures/pager-corpus-v4.json"
+        fit = PromptFit(
+            messages=[{"role": "user", "content": "fitted"}],
+            rendered_text="fitted", token_ids=(1,), token_count=1,
+            desired_occupancy=4096, generation_reserve=32,
+            padding_characters=0, template_id="template:test",
+            tokenizer_id="tokenizer:test", fact_offsets=(),
+            request_token_sha256="2" * 64)
+        telemetry = {
+            "route": "selected_reference", "selected_pages": 2,
+            "physical_pages": 4, "logical_pages": 16, "host_valid_rows": 768,
+            "h2d_useful_bytes": 0, "h2d_aligned_bytes": 0,
+            "d2h_useful_bytes": 0, "d2h_aligned_bytes": 0,
+            "faults": 0, "evictions": 0, "queue_time_us": 1,
+            "copy_time_us": 0, "wait_time_us": 1,
+            "target_placement": "CUDA", "mtp_placement": "gpu",
+            "hot_page_budget": 4, "snapshot_monotonic_us": 1,
+        }
+        calls: list[str] = []
+
+        def request(*_args: object) -> tuple[int, dict[str, object], None]:
+            calls.append("request")
+            return 200, {"usage": {"prompt_tokens": 1}, "choices": [
+                {"message": {"content": "answer"}}]}, None
+
+        fake_renderer = type(
+            "FakeRenderer", (), {"template_id": "template:test",
+                                  "tokenizer_id": "tokenizer:test",
+                                  "probe_capabilities": lambda self: {
+                                      "status": 200, "supported": True,
+                                      "error_class": None}})()
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+                runner, "request_case", side_effect=request), patch.object(
+                runner, "read_server_telemetry", return_value=(telemetry, None)), patch.object(
+                runner, "fit_case_prompt", return_value=fit), patch.object(
+                runner, "score_case", return_value=(True, "pass")), patch.object(
+                runner, "ServerPromptRenderer", return_value=fake_renderer), patch.object(
+                sys, "argv", ["run-quality-corpus.py", str(corpus_path), directory,
+                              "--endpoint", "http://example/v1/chat/completions",
+                              "--model", "qwen", "--mode", "preflight"]):
+            self.assertEqual(0, runner.main())
+            self.assertEqual(3, len(calls))
+            receipt = json.loads((pathlib.Path(directory) / "preflight.json").read_text())
+            self.assertEqual("allow_campaign", receipt["decision"])
+            self.assertEqual(["warm", "cold_needle", "selected_all"], receipt["requested"])
+
+    def test_max_cases_checkpoint_marks_remaining_not_run_and_resume_continues(self) -> None:
+        corpus_path = HERE / "fixtures/pager-corpus-v4.json"
+        fit = PromptFit(
+            messages=[{"role": "user", "content": "fitted"}],
+            rendered_text="fitted", token_ids=(1,), token_count=1,
+            desired_occupancy=6401, generation_reserve=32,
+            padding_characters=0, template_id="template:test",
+            tokenizer_id="tokenizer:test", fact_offsets=(),
+            request_token_sha256="3" * 64)
+        telemetry = {
+            "route": "selected_reference", "selected_pages": 2,
+            "physical_pages": 4, "logical_pages": 16, "host_valid_rows": 768,
+            "h2d_useful_bytes": 0, "h2d_aligned_bytes": 0,
+            "d2h_useful_bytes": 0, "d2h_aligned_bytes": 0,
+            "faults": 0, "evictions": 0, "queue_time_us": 1,
+            "copy_time_us": 0, "wait_time_us": 1,
+            "target_placement": "CUDA", "mtp_placement": "gpu",
+            "hot_page_budget": 4, "snapshot_monotonic_us": 1,
+        }
+        calls: list[str] = []
+
+        def request(*_args: object) -> tuple[int, dict[str, object], None]:
+            calls.append("request")
+            return 200, {"usage": {"prompt_tokens": 1}, "choices": [
+                {"message": {"content": "wrong"}}]}, None
+
+        fake_renderer = type(
+            "FakeRenderer", (), {"template_id": "template:test",
+                                  "tokenizer_id": "tokenizer:test"})()
+        base = ["run-quality-corpus.py", str(corpus_path), "OUTPUT",
+                "--endpoint", "http://example/v1/chat/completions", "--model", "qwen",
+                "--mode", "selective", "--context", "6401", "--diagnostic",
+                "--case-id", "warm-focus", "--max-cases", "1"]
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+                runner, "request_case", side_effect=request), patch.object(
+                runner, "read_server_telemetry", return_value=(telemetry, None)), patch.object(
+                runner, "fit_case_prompt", return_value=fit), patch.object(
+                runner, "ServerPromptRenderer", return_value=fake_renderer):
+            argv = [directory if value == "OUTPUT" else value for value in base]
+            with patch.object(sys, "argv", argv):
+                self.assertEqual(1, runner.main())
+            first = [json.loads(line) for line in
+                     (pathlib.Path(directory) / "records.jsonl").read_text().splitlines()]
+            self.assertEqual(1, sum(item["status"] == "not_run" for item in first))
+            self.assertEqual(1, len(calls))
+            with patch.object(sys, "argv", argv + ["--resume"]):
+                self.assertEqual(1, runner.main())
+            self.assertEqual(2, len(calls))
+
 if __name__ == "__main__":
     unittest.main()

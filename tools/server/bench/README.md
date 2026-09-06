@@ -183,6 +183,19 @@ prefill-idle, decode-idle, and total limits are configurable with the matching
 `--*-timeout` options.  A total expiry is recorded as `incomplete_timeout` and
 can be resumed without fabricating a zero-speed or wrong-answer row.
 
+Before a campaign, run the bounded harness gate with `--preflight` (or use
+`--mode preflight` for a standalone check).  It sends one warm, one cold-needle,
+and one selected-all request, and refuses the campaign if route, page,
+residency, movement, timing, placement, hot-page-budget, or occupied-token
+telemetry is absent.  Every request record includes the effective argv,
+client/server timestamps, actual occupancy, and the complete runtime envelope.
+Use `--max-cases`, `--stop-after-failures N`, and `--fail-fast-capability` to
+bound a diagnostic run.  Fail-fast checkpoints write remaining cases as
+`not_run`; they are not counted as failures and can be resumed from
+`campaign-checkpoint.json`.  `report.json`/`report.md` separate setup failure,
+capability refusal, quality mismatch, timeout, valid measurement, and not-run
+records.
+
 `run-pager-soak.py <results-dir> --dry-run` resolves the same corpus ceiling
 without contacting a service. Its live synthetic marker prompts are sized from
 that resolved context. Lower contexts require `--diagnostic` and are recorded
