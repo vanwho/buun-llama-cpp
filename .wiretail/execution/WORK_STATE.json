@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "23",
-  "current_task": "23-02",
-  "last_updated_utc": "2026-09-06T06:45:31+00:00",
+  "current_task": "23-03",
+  "last_updated_utc": "2026-09-06T07:06:26+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -3882,22 +3882,36 @@
       "cluster": "23a-runtime-repair",
       "title": "Serialize compact paged KV checkpoints by physical identity",
       "packet": ".wiretail/execution/tasks/23-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "23-01"
       ],
-      "commit": null,
+      "commit": "12acf446d395305d578211f6f86fcf6a1c65a1a1",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/23-02-attempt-1-20260906T064552Z.jsonl:158",
+            "total_tokens": 10929657,
+            "total_tokens_derived": true,
+            "input_tokens": 10882153,
+            "cached_input_tokens": 10593024,
+            "output_tokens": 47504,
+            "thinking_tokens": 21734
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 10929657,
+          "input_tokens": 10882153,
+          "cached_input_tokens": 10593024,
+          "output_tokens": 47504,
+          "thinking_tokens": 21734
         }
       }
     },
@@ -4973,15 +4987,28 @@
           "cached_input_tokens": 10054144,
           "output_tokens": 32414,
           "thinking_tokens": 10276
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/23-02-attempt-1-20260906T064552Z.jsonl:158",
+          "total_tokens": 10929657,
+          "total_tokens_derived": true,
+          "input_tokens": 10882153,
+          "cached_input_tokens": 10593024,
+          "output_tokens": 47504,
+          "thinking_tokens": 21734
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 10498352,
-        "input_tokens": 10465938,
-        "cached_input_tokens": 10054144,
-        "output_tokens": 32414,
-        "thinking_tokens": 10276
+        "turns": 2,
+        "total_tokens": 21428009,
+        "input_tokens": 21348091,
+        "cached_input_tokens": 20647168,
+        "output_tokens": 79918,
+        "thinking_tokens": 32010
       }
     },
     "24": {
@@ -4998,12 +5025,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 43,
-      "total_tokens": 786266332,
-      "input_tokens": 784360812,
-      "cached_input_tokens": 769435648,
-      "output_tokens": 1905520,
-      "thinking_tokens": 664825
+      "turns": 44,
+      "total_tokens": 797195989,
+      "input_tokens": 795242965,
+      "cached_input_tokens": 780028672,
+      "output_tokens": 1953024,
+      "thinking_tokens": 686559
     },
     "source": "Codex turn.completed usage events"
   }

@@ -1179,6 +1179,13 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
             result = residency_.update(tx, page.record);
             break;
         }
+        // begin_restore_page intentionally replaces the serialized identity
+        // after begin_write has reserved a physical slot.  The slot is unique,
+        // so it is the safe transaction key for that one identity transition.
+        if (existing.physical_slot == page.record.physical_slot) {
+            result = residency_.update(tx, page.record);
+            break;
+        }
     }
     if (result == llama_kv_residency_status::not_found) {
         result = residency_.replace(tx, page.record);
@@ -1404,6 +1411,41 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     ticket.position = position;
     ticket.page_created = created;
     ticket.row_was_valid = row_was_valid;
+    return llama_kv_pager_write_status::ok;
+}
+
+llama_kv_pager_write_status llama_kv_pager::begin_restore_page(
+        const llama_kv_page_id & identity, llama_pos position,
+        llama_kv_pager_write_ticket & ticket) noexcept {
+    if (identity.sequence_id < 0 || identity.position_begin < 0 ||
+            identity.position_end <= identity.position_begin ||
+            position < identity.position_begin || position >= identity.position_end ||
+            snapshot_.geometry.page_tokens == 0 ||
+            uint64_t(identity.position_begin) / snapshot_.geometry.page_tokens != identity.logical_page ||
+            uint64_t(identity.position_end) > snapshot_.geometry.context_tokens) {
+        return llama_kv_pager_write_status::invalid_position;
+    }
+    const auto status = begin_write(identity.sequence_id,
+            identity.sequence_generation, position, ticket);
+    if (status != llama_kv_pager_write_status::ok) {
+        return status;
+    }
+    page_state * page = find_page(identity.sequence_id, identity.logical_page);
+    if (page == nullptr || page->record.physical_slot != ticket.physical_slot) {
+        (void) cancel_write(ticket);
+        return llama_kv_pager_write_status::transaction;
+    }
+    const uint32_t physical_slot = page->record.physical_slot;
+    page->record.id = identity;
+    page->record.physical_slot = physical_slot;
+    if (publish_page(*page) != llama_kv_pager_write_status::ok) {
+        (void) cancel_write(ticket);
+        return llama_kv_pager_write_status::transaction;
+    }
+    ticket.sequence_id = identity.sequence_id;
+    ticket.sequence_generation = identity.sequence_generation;
+    ticket.logical_page = identity.logical_page;
+    ticket.page_generation = identity.page_generation;
     return llama_kv_pager_write_status::ok;
 }
 

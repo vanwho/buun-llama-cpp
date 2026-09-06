@@ -1,0 +1,111 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "23-02",
+  "phase": "23",
+  "result": "incomplete",
+  "kind": "checkpoint_repair",
+  "procedure": "pager_aware_compact_state_save_restore",
+  "created_utc": "2026-09-06T07:04:29Z",
+  "provenance": {
+    "source_diff_sha256": "da3c1716b195c50e070a78ca6646b153b7734bdd6aa2d080ada3b967b72dc9bc",
+    "source_diff_unavailable_reason": "The outer runner owns the uncommitted worktree; no source commit was created.",
+    "build_root": "/srv/repos/vanwho/buun-llama-cpp/build-cuda",
+    "cuda_architecture": "89-real",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "focused_binary_sha256": "49ce65e00be117c3849b5976a6fc072b46726519d9f30c4cd8769160d0af7f64",
+    "live_candidate_preserved": true,
+    "live_candidate_note": "The existing 262144-token candidate remained resident and was not stopped for an overlapping checkpoint probe."
+  },
+  "baseline": {
+    "failure": "The second equal-work pressure request aborted in ggml tensor read bounds checking during llama_context::state_seq_get_data.",
+    "raw_ids": ["original_pressure_journal"],
+    "hypothesis": "Dense logical cell offsets were applied to compact physical-slot tensors after page reuse."
+  },
+  "checks": [
+    {
+      "id": "physical_identity_iterator",
+      "status": "pass",
+      "finding": "Compact saves resolve each logical cell through the pager page record and emit canonical host bytes or the checked resident physical row; no logical index is used as a compact tensor offset."
+    },
+    {
+      "id": "page_major_restore",
+      "status": "pass",
+      "finding": "Compact state data is marked and serialized page-major with source ordinals, positions, full page identity, row shapes, and per-layer K/V payloads; restore admits one page at a time through pager write tickets."
+    },
+    {
+      "id": "identity_and_fence",
+      "status": "pass",
+      "finding": "Restore tickets retain serialized page identity, complete at the expected segment fence, and invoke pager sealing before the next page is admitted."
+    },
+    {
+      "id": "failure_boundaries",
+      "status": "pass",
+      "finding": "Invalid geometry, shape mismatch, duplicate/missing ordinals, physical bounds overflow, unavailable pager capacity, and transposed compact V fail explicitly."
+    },
+    {
+      "id": "deterministic_lifecycle",
+      "status": "pass",
+      "finding": "The fake pager test covers noncontiguous page positions, a partial tail, serialized identity retention, cancellation, and no-victim behavior after the hot set is full."
+    }
+  ],
+  "verification": [
+    {
+      "command": "cmake --build build-cuda --target llama -- -j2",
+      "status": "pass"
+    },
+    {
+      "command": "cmake --build build-cuda --target test-kv-pager test-kv-residency test-state-restore-fragmented -- -j2",
+      "status": "pass"
+    },
+    {
+      "command": "ctest --test-dir build-cuda -R '^(test-kv-pager|test-kv-residency)$' --output-on-failure",
+      "status": "pass",
+      "tests_passed": 2,
+      "tests_failed": 0
+    },
+    {
+      "command": "git diff --check",
+      "status": "pass"
+    }
+  ],
+  "deferred_verification": [
+    {
+      "id": "three_equal_work_cycles",
+      "status": "deferred",
+      "reason": "The required fresh 6401-token multi-cycle runtime probe needs the new server binary and an authorized GPU transition; the existing successful candidate was preserved."
+    },
+    {
+      "id": "live_checkpoint_restore_and_continuation",
+      "status": "deferred",
+      "reason": "No fresh production save/restore logits, recurrent/MTP continuation, or cold-page eviction parity claim is made without the controlled runtime probe."
+    },
+    {
+      "id": "insufficient_output_buffer_live_path",
+      "status": "deferred",
+      "reason": "The local host I/O boundary remains explicitly bounded and throws on exhaustion; an end-to-end server assertion-path check belongs with the fresh checkpoint campaign."
+    }
+  ],
+  "resume": {
+    "command": "Run the phase-23 checkpoint campaign with the new server binary after an authorized GPU lifecycle transition; retain the original pressure journal as the negative control.",
+    "next_case": "Three equal-work 6401-token cycles, compact save/restore, and short continuation with selected-all parity.",
+    "secrets_omitted": true
+  },
+  "raw_index": [
+    {
+      "id": "original_pressure_journal",
+      "path": "/srv/ai/paged-kv/results/21-09-soak-20260906T0550Z/raw/pressure-after.journal.txt",
+      "sha256": "23ba8bc6137d2455ccf0c4cfbe76fe9ce0cfa90a307b01984ce390c1fa10089e"
+    },
+    {
+      "id": "task_packet",
+      "path": ".wiretail/execution/tasks/23-02.md",
+      "sha256": "6a40aaea3273c07af038fcbdd61bc83ba5ea48e76108a84ad3495c4b7246015a"
+    },
+    {
+      "id": "focused_pager_binary",
+      "path": "build-cuda/bin/test-kv-pager",
+      "sha256": "49ce65e00be117c3849b5976a6fc072b46726519d9f30c4cd8769160d0af7f64"
+    }
+  ]
+}

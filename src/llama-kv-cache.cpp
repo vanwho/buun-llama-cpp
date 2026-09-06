@@ -13797,7 +13797,7 @@ void llama_kv_cache::state_write(llama_io_write_i & io, llama_seq_id seq_id, lla
         }
 
         state_write_meta(io, cr, seq_id);
-        state_write_data(io, cr);
+        state_write_data(io, cr, seq_id);
     }
 }
 
@@ -13876,7 +13876,7 @@ const slot_info_vec_t *   sinfos_in) {
         }
 
         try {
-            res = res && state_read_data(io, strm, cell_count, sinfo);
+            res = res && state_read_data(io, strm, cell_count, sinfo, seq_id);
         } catch (...) {
             res = false;
         }
@@ -13980,13 +13980,218 @@ void llama_kv_cache::state_write_meta(llama_io_write_i & io, const cell_ranges_t
     }
 }
 
-void llama_kv_cache::state_write_data(llama_io_write_i & io, const cell_ranges_t & cr) const {
+void llama_kv_cache::state_write_data(llama_io_write_i & io, const cell_ranges_t & cr,
+        llama_seq_id seq_id) const {
     const auto & cells = v_cells[cr.strm];
 
     const uint32_t v_trans = this->v_trans ? 1 : 0;
     const uint32_t n_layer = layers.size();
 
+    const bool compact_pager = pager_ != nullptr &&
+            pager_->snapshot().physical_page_count != 0;
+    auto write_pager_row = [&](const ggml_tensor * tensor, uint32_t unit,
+            uint32_t cell, uint64_t row_bytes) {
+        if (!compact_pager || tensor == nullptr || row_bytes == 0 || cells.is_empty(cell)) {
+            throw std::runtime_error("invalid compact checkpoint row");
+        }
+        llama_seq_id owner = seq_id;
+        if (owner < 0 && cells.seq_count(cell) != 0) {
+            owner = cells.seq_get(cell);
+        }
+        if (owner < 0) {
+            throw std::runtime_error("compact checkpoint row has no sequence owner");
+        }
+        const llama_pos position = cells.pos_get(cell);
+        const auto pager_snapshot = pager_->snapshot();
+        if (position < 0 || pager_snapshot.geometry.page_tokens == 0) {
+            throw std::runtime_error("compact checkpoint row has invalid position");
+        }
+        const uint32_t logical = uint32_t(uint64_t(position) /
+                pager_snapshot.geometry.page_tokens);
+        const uint32_t in_page = uint32_t(uint64_t(position) %
+                pager_snapshot.geometry.page_tokens);
+        const auto records = pager_->exact_page_records(owner);
+        const auto record = std::find_if(records.begin(), records.end(),
+                [&](const llama_kv_page_record & value) {
+            return value.id.logical_page == logical &&
+                value.id.position_begin <= position &&
+                value.id.position_end > position;
+        });
+        if (record == records.end()) {
+            throw std::runtime_error("compact checkpoint row has no page identity");
+        }
+
+        if (record->host_valid && pager_->host_catalog() != nullptr) {
+            const auto host_pages = pager_->host_catalog()->pages();
+            const auto host_page = std::find_if(host_pages.begin(), host_pages.end(),
+                    [&](const vbr_selected_page_host_view & value) {
+                return value.page.identity == record->id;
+            });
+            if (host_page != host_pages.end()) {
+                const auto unit_desc = std::find_if(host_page->page.units.begin(),
+                        host_page->page.units.end(),
+                        [&](const vbr_selected_page_unit_descriptor & value) {
+                    return value.logical_unit_id == unit;
+                });
+                if (unit_desc != host_page->page.units.end() && unit_desc->bytes &&
+                    in_page < unit_desc->valid_rows &&
+                    row_bytes <= unit_desc->bytes->size() &&
+                    uint64_t(in_page) <= (unit_desc->bytes->size() - row_bytes) / row_bytes) {
+                    std::vector<uint8_t> row(row_bytes);
+                    if (unit_desc->bytes->read(uint64_t(in_page) * row_bytes,
+                            row.data(), row.size())) {
+                        io.write(row.data(), row.size());
+                        return;
+                    }
+                }
+            }
+        }
+        if (record->physical_slot == UINT32_MAX) {
+            throw std::runtime_error("compact checkpoint row has no physical backing");
+        }
+        const uint64_t physical = uint64_t(record->physical_slot) *
+                pager_snapshot.geometry.page_tokens + in_page;
+        if (physical > UINT64_MAX / row_bytes ||
+            ggml_nbytes(tensor) < row_bytes ||
+            physical * row_bytes > ggml_nbytes(tensor) - row_bytes) {
+            throw std::runtime_error("compact checkpoint physical row exceeds tensor");
+        }
+        io.write_tensor(const_cast<ggml_tensor *>(tensor),
+                size_t(physical * row_bytes), size_t(row_bytes));
+    };
+
+    constexpr uint32_t compact_state_marker = 0x80000000u;
     io.write(&v_trans, sizeof(v_trans));
+
+    if (compact_pager) {
+        // A compact pager tensor is page-slot storage, not a dense logical
+        // cache.  Keep the checkpoint stream page-major so a restore can
+        // rehydrate one authenticated page at a time and never use a logical
+        // cell index as a physical tensor offset.
+        if (v_trans) {
+            throw std::runtime_error("compact checkpoint does not support transposed V");
+        }
+
+        const uint32_t marked_n_layer = n_layer | compact_state_marker;
+        io.write(&marked_n_layer, sizeof(marked_n_layer));
+
+        for (const auto & layer : layers) {
+            auto * k = layer.k_stream[cr.strm];
+            const int32_t type = int32_t(k->type);
+            const uint64_t row_bytes = ggml_row_size(k->type,
+                    hparams.n_embd_k_gqa(layer.il));
+            io.write(&type, sizeof(type));
+            io.write(&row_bytes, sizeof(row_bytes));
+        }
+        for (const auto & layer : layers) {
+            auto * v = layer.v_stream[cr.strm];
+            if (!v) {
+                continue;
+            }
+            const int32_t type = int32_t(v->type);
+            const uint64_t row_bytes = ggml_row_size(v->type,
+                    hparams.n_embd_v_gqa(layer.il));
+            io.write(&type, sizeof(type));
+            io.write(&row_bytes, sizeof(row_bytes));
+        }
+
+        struct compact_page {
+            llama_seq_id sequence_id = -1;
+            uint32_t logical_page = UINT32_MAX;
+            llama_kv_page_id identity;
+            std::vector<std::pair<uint32_t, llama_pos>> entries;
+        };
+        std::vector<compact_page> pages;
+        std::vector<uint32_t> selected_cells;
+        const auto pager_snapshot = pager_->snapshot();
+        if (pager_snapshot.geometry.page_tokens == 0) {
+            throw std::runtime_error("compact checkpoint has invalid page geometry");
+        }
+        uint32_t ordinal = 0;
+        for (const auto & range : cr.data) {
+            for (uint32_t cell = range.first; cell < range.second; ++cell, ++ordinal) {
+                selected_cells.push_back(cell);
+                if (cells.seq_count(cell) != 1 && seq_id < 0) {
+                    throw std::runtime_error(
+                            "compact checkpoint cannot identify a shared cell owner");
+                }
+                const llama_seq_id owner = seq_id >= 0 ? seq_id : cells.seq_get(cell);
+                const llama_pos position = cells.pos_get(cell);
+                const uint32_t logical = uint32_t(uint64_t(position) /
+                        pager_snapshot.geometry.page_tokens);
+                auto page = std::find_if(pages.begin(), pages.end(),
+                        [&](const compact_page & value) {
+                    return value.sequence_id == owner && value.logical_page == logical;
+                });
+                if (page == pages.end()) {
+                    const auto records = pager_->exact_page_records(owner);
+                    const auto record = std::find_if(records.begin(), records.end(),
+                            [&](const llama_kv_page_record & value) {
+                        return value.id.logical_page == logical &&
+                                value.id.position_begin <= position &&
+                                value.id.position_end > position;
+                    });
+                    if (record == records.end()) {
+                        throw std::runtime_error("compact checkpoint row has no page identity");
+                    }
+                    pages.push_back({ owner, logical, record->id, {} });
+                    page = pages.end() - 1;
+                }
+                page->entries.push_back({ ordinal, position });
+            }
+        }
+
+        const uint32_t page_count = uint32_t(pages.size());
+        io.write(&page_count, sizeof(page_count));
+        for (const auto & page : pages) {
+            const int32_t source_seq_id = int32_t(page.sequence_id);
+            const uint32_t row_count = uint32_t(page.entries.size());
+            io.write(&source_seq_id, sizeof(source_seq_id));
+            io.write(&page.logical_page, sizeof(page.logical_page));
+            io.write(&page.identity, sizeof(page.identity));
+            io.write(&row_count, sizeof(row_count));
+            for (const auto & entry : page.entries) {
+                io.write(&entry.first, sizeof(entry.first));
+                io.write(&entry.second, sizeof(entry.second));
+            }
+            for (const auto & layer : layers) {
+                auto * k = layer.k_stream[cr.strm];
+                const uint64_t row_bytes = ggml_row_size(k->type,
+                        hparams.n_embd_k_gqa(layer.il));
+                for (const auto & entry : page.entries) {
+                    write_pager_row(k, uint32_t(&layer - layers.data()) * 2,
+                            selected_cells[entry.first], row_bytes);
+                }
+            }
+            for (const auto & layer : layers) {
+                auto * v = layer.v_stream[cr.strm];
+                if (!v) {
+                    continue;
+                }
+                const uint64_t row_bytes = ggml_row_size(v->type,
+                        hparams.n_embd_v_gqa(layer.il));
+                for (const auto & entry : page.entries) {
+                    write_pager_row(v, uint32_t(&layer - layers.data()) * 2 + 1,
+                            selected_cells[entry.first], row_bytes);
+                }
+            }
+        }
+
+        bool has_tcq = false;
+        for (const auto & layer : layers) {
+            if (ggml_type_is_turbo_tcq(layer.k_stream[cr.strm]->type)) { has_tcq = true; break; }
+            auto * v = layer.v_stream[cr.strm];
+            if (v && ggml_type_is_turbo_tcq(v->type)) { has_tcq = true; break; }
+        }
+        if (has_tcq) {
+            const uint32_t magic = 0x54514346;
+            const uint32_t fp = turbo_tcq_fingerprint();
+            io.write(&magic, sizeof(magic));
+            io.write(&fp, sizeof(fp));
+        }
+        return;
+    }
+
     io.write(&n_layer, sizeof(n_layer));
 
     // Iterate and write all the keys first, each row is a cell
@@ -14267,7 +14472,8 @@ bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32
     return true;
 }
 
-bool llama_kv_cache::state_read_data(llama_io_read_i & io, uint32_t strm, uint32_t cell_count, const slot_info & sinfo) {
+bool llama_kv_cache::state_read_data(llama_io_read_i & io, uint32_t strm, uint32_t cell_count,
+        const slot_info & sinfo, llama_seq_id seq_id) {
     auto & cells = v_cells[strm];
 
     // batch the scatter reads per contiguous run of destination indices
@@ -14294,6 +14500,10 @@ bool llama_kv_cache::state_read_data(llama_io_read_i & io, uint32_t strm, uint32
     io.read(&v_trans, sizeof(v_trans));
     io.read(&n_layer, sizeof(n_layer));
 
+    constexpr uint32_t compact_state_marker = 0x80000000u;
+    const bool compact_pager = (n_layer & compact_state_marker) != 0;
+    n_layer &= ~compact_state_marker;
+
     if (n_layer != layers.size()) {
         LLAMA_LOG_ERROR("%s: mismatched layer count (%u instead of %u)\n", __func__, n_layer, (uint32_t) layers.size());
         return false;
@@ -14307,6 +14517,182 @@ bool llama_kv_cache::state_read_data(llama_io_read_i & io, uint32_t strm, uint32
     if (this->v_trans != (bool) v_trans) {
         LLAMA_LOG_ERROR("%s: incompatible V transposition\n", __func__);
         return false;
+    }
+
+    if (compact_pager) {
+        if (!pager_ || pager_->snapshot().physical_page_count == 0 || v_trans) {
+            LLAMA_LOG_ERROR("%s: compact checkpoint requires a non-transposed configured pager\n", __func__);
+            return false;
+        }
+
+        struct row_shape { int32_t type; uint64_t bytes; };
+        std::vector<row_shape> key_shapes;
+        std::vector<row_shape> value_shapes;
+        key_shapes.reserve(layers.size());
+        value_shapes.reserve(layers.size());
+        for (const auto & layer : layers) {
+            int32_t type_ref;
+            uint64_t bytes_ref;
+            io.read(&type_ref, sizeof(type_ref));
+            io.read(&bytes_ref, sizeof(bytes_ref));
+            auto * k = layer.k_stream[strm];
+            const uint64_t bytes = ggml_row_size(k->type,
+                    hparams.n_embd_k_gqa(layer.il));
+            if (type_ref != int32_t(k->type) || bytes_ref != bytes) {
+                LLAMA_LOG_ERROR("%s: mismatched compact key shape (layer %u)\n",
+                        __func__, layer.il);
+                return false;
+            }
+            key_shapes.push_back({ type_ref, bytes_ref });
+        }
+        for (const auto & layer : layers) {
+            auto * v = layer.v_stream[strm];
+            if (!v) {
+                continue;
+            }
+            int32_t type_ref;
+            uint64_t bytes_ref;
+            io.read(&type_ref, sizeof(type_ref));
+            io.read(&bytes_ref, sizeof(bytes_ref));
+            const uint64_t bytes = ggml_row_size(v->type,
+                    hparams.n_embd_v_gqa(layer.il));
+            if (type_ref != int32_t(v->type) || bytes_ref != bytes) {
+                LLAMA_LOG_ERROR("%s: mismatched compact value shape (layer %u)\n",
+                        __func__, layer.il);
+                return false;
+            }
+            value_shapes.push_back({ type_ref, bytes_ref });
+        }
+
+        uint32_t page_count;
+        io.read(&page_count, sizeof(page_count));
+        if (page_count > cell_count) {
+            LLAMA_LOG_ERROR("%s: invalid compact page count (%u > %u)\n",
+                    __func__, page_count, cell_count);
+            return false;
+        }
+
+        const auto pager_snapshot = pager_->snapshot();
+        uint32_t completed_segments = 0;
+        for (const auto & layer : layers) {
+            completed_segments += layer.k_stream[strm] != nullptr ? 1u : 0u;
+            completed_segments += layer.v_stream[strm] != nullptr ? 1u : 0u;
+        }
+        std::vector<uint8_t> seen(cell_count, 0);
+
+        for (uint32_t page_index = 0; page_index < page_count; ++page_index) {
+            int32_t source_seq_id;
+            uint32_t logical_page;
+            llama_kv_page_id identity;
+            uint32_t row_count;
+            io.read(&source_seq_id, sizeof(source_seq_id));
+            io.read(&logical_page, sizeof(logical_page));
+            io.read(&identity, sizeof(identity));
+            io.read(&row_count, sizeof(row_count));
+            if (source_seq_id < 0 || row_count == 0 || row_count > cell_count ||
+                    pager_snapshot.geometry.page_tokens == 0 ||
+                    identity.sequence_id != source_seq_id ||
+                    identity.logical_page != logical_page ||
+                    identity.position_begin < 0 || identity.position_end <= identity.position_begin) {
+                return false;
+            }
+            const llama_seq_id destination_seq_id = seq_id >= 0 ? seq_id : source_seq_id;
+            if (destination_seq_id < 0) {
+                return false;
+            }
+
+            struct compact_entry { uint32_t ordinal; llama_pos position; };
+            std::vector<compact_entry> entries;
+            std::vector<llama_kv_pager_write_ticket> tickets;
+            entries.reserve(row_count);
+            tickets.reserve(row_count);
+            for (uint32_t row = 0; row < row_count; ++row) {
+                compact_entry entry;
+                io.read(&entry.ordinal, sizeof(entry.ordinal));
+                io.read(&entry.position, sizeof(entry.position));
+                if (entry.ordinal >= cell_count || seen[entry.ordinal] || entry.position < 0 ||
+                        uint64_t(entry.position) / pager_snapshot.geometry.page_tokens != logical_page ||
+                        entry.ordinal >= sinfo.idxs[0].size() ||
+                        cells.pos_get(sinfo.idxs[0][entry.ordinal]) != entry.position ||
+                        !cells.seq_has(sinfo.idxs[0][entry.ordinal], destination_seq_id)) {
+                    return false;
+                }
+                seen[entry.ordinal] = 1;
+                entries.push_back(entry);
+                if (entry.position < identity.position_begin || entry.position >= identity.position_end) {
+                    return false;
+                }
+                llama_kv_page_id destination_identity = identity;
+                destination_identity.sequence_id = destination_seq_id;
+                llama_kv_pager_write_ticket ticket;
+                if (pager_->begin_restore_page(destination_identity, entry.position, ticket) !=
+                        llama_kv_pager_write_status::ok) {
+                    for (const auto & pending : tickets) (void) pager_->cancel_write(pending);
+                    return false;
+                }
+                tickets.push_back(ticket);
+            }
+
+            for (size_t ilayer = 0; ilayer < layers.size(); ++ilayer) {
+                auto * k = layers[ilayer].k_stream[strm];
+                const uint64_t row_bytes = key_shapes[ilayer].bytes;
+                for (const auto & ticket : tickets) {
+                    const uint64_t offset = uint64_t(ticket.physical_row) * row_bytes;
+                    if (offset > ggml_nbytes(k) || row_bytes > ggml_nbytes(k) - offset) {
+                        return false;
+                    }
+                    io.read_tensor(k, size_t(offset), size_t(row_bytes));
+                }
+            }
+            size_t value_shape = 0;
+            for (const auto & layer : layers) {
+                auto * v = layer.v_stream[strm];
+                if (!v) {
+                    continue;
+                }
+                const uint64_t row_bytes = value_shapes[value_shape++].bytes;
+                for (const auto & ticket : tickets) {
+                    const uint64_t offset = uint64_t(ticket.physical_row) * row_bytes;
+                    if (offset > ggml_nbytes(v) || row_bytes > ggml_nbytes(v) - offset) {
+                        return false;
+                    }
+                    io.read_tensor(v, size_t(offset), size_t(row_bytes));
+                }
+            }
+            for (const auto & ticket : tickets) {
+                if (pager_->complete_write(ticket, completed_segments, true) !=
+                        llama_kv_pager_write_status::ok) {
+                    return false;
+                }
+            }
+            // This is the graph-fence boundary for a restored page.  It makes
+            // the page canonical/evictable before the next page is admitted.
+            (void) pager_->seal_ready_pages();
+        }
+
+        if (!std::all_of(seen.begin(), seen.end(), [](uint8_t value) { return value != 0; })) {
+            return false;
+        }
+
+        bool has_tcq = false;
+        for (const auto & layer : layers) {
+            if (ggml_type_is_turbo_tcq(layer.k_stream[strm]->type)) { has_tcq = true; break; }
+            auto * v = layer.v_stream[strm];
+            if (v && ggml_type_is_turbo_tcq(v->type)) { has_tcq = true; break; }
+        }
+        if (has_tcq) {
+            uint32_t magic_ref = 0;
+            io.read(&magic_ref, sizeof(magic_ref));
+            if (magic_ref != 0x54514346) {
+                return false;
+            }
+            uint32_t fp_ref = 0;
+            io.read(&fp_ref, sizeof(fp_ref));
+            if (fp_ref != turbo_tcq_fingerprint()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // For each layer, read the keys for each cell, one row is one cell, read as one contiguous block

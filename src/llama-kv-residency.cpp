@@ -141,6 +141,14 @@ llama_kv_residency_status llama_kv_residency_table::update(
             existing.id.sequence_generation == page.id.sequence_generation &&
             existing.id.logical_page == page.id.logical_page;
     });
+    // A restore may replace the logical identity after the pager has reserved
+    // a physical slot.  Slot ownership is unique within this transaction and
+    // is therefore the only safe fallback key for that identity transition.
+    if (it == tx.pages_.end()) {
+        it = std::find_if(tx.pages_.begin(), tx.pages_.end(), [&](const auto & existing) {
+            return existing.physical_slot == page.physical_slot;
+        });
+    }
     if (it == tx.pages_.end()) return llama_kv_residency_status::not_found;
     if (it->physical_slot != page.physical_slot) {
         return llama_kv_residency_status::duplicate_physical_slot;
