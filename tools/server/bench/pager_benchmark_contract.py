@@ -35,6 +35,19 @@ TIMEOUT_CLASSES = {
     "decode_no_progress_timeout", "total_campaign_timeout",
 }
 
+# These are the fields a live request must carry before it can contribute to a
+# campaign.  Values of zero are valid measurements; an absent value is not.
+# The names are intentionally request-facing rather than Prometheus-facing so
+# alternate telemetry transports can use the same contract.
+REQUIRED_REQUEST_TELEMETRY = (
+    "route", "selected_pages", "physical_pages", "logical_pages",
+    "host_valid_rows", "h2d_useful_bytes", "h2d_aligned_bytes",
+    "d2h_useful_bytes", "d2h_aligned_bytes", "faults", "evictions",
+    "queue_time_us", "copy_time_us", "wait_time_us", "target_placement",
+    "mtp_placement", "hot_page_budget", "snapshot_monotonic_us",
+)
+REQUEST_ROUTES = {"selected_direct", "selected_reference", "fallback"}
+
 
 LIVE_TELEMETRY_NUMERIC_FIELDS = (
     "snapshot_monotonic_us", "request_generation", "slot_generation",
@@ -88,6 +101,57 @@ def validate_live_telemetry(value: Mapping[str, Any] | None) -> list[str]:
     return errors
 
 
+def validate_request_telemetry(value: Mapping[str, Any] | None) -> list[str]:
+    """Validate the complete per-request runtime envelope.
+
+    This is deliberately stricter than :func:`validate_live_telemetry`, which
+    is also used by the profile adapter for partial startup snapshots.  A
+    quality result must identify the route, both page domains, residency,
+    movement counters, timings, placement and the hot-page budget.  Numeric
+    zero remains a measured value and is therefore accepted.
+    """
+    if value is None:
+        return ["telemetry_unavailable"]
+    if not isinstance(value, Mapping):
+        return ["telemetry_not_object"]
+    errors = [f"missing_{field}" for field in REQUIRED_REQUEST_TELEMETRY
+              if field not in value or value[field] is None]
+    route = value.get("route")
+    if route not in REQUEST_ROUTES:
+        errors.append("route_invalid" if route is not None else "route_missing")
+    for field in REQUIRED_REQUEST_TELEMETRY:
+        item = value.get(field)
+        if field in {"route", "target_placement", "mtp_placement"} or item is None:
+            continue
+        if not isinstance(item, (int, float)) or isinstance(item, bool):
+            errors.append(f"{field}_not_numeric")
+        elif item < 0:
+            errors.append(f"{field}_negative")
+    if value.get("target_placement") in {"", "not_configured"}:
+        errors.append("target_placement_unconfigured")
+    if value.get("mtp_placement") in {"", "not_configured"}:
+        errors.append("mtp_placement_unconfigured")
+    errors.extend(validate_live_telemetry(value))
+    # Keep the result deterministic for report consumers and avoid duplicate
+    # messages when a malformed field is both missing and invalid.
+    return list(dict.fromkeys(errors))
+
+
+def classify_request_status(status: str, *, error_class: str | None = None) -> str:
+    """Map a corpus record to the compact report taxonomy."""
+    if status in {"not_run", "skipped_context"}:
+        return "not_run"
+    if status in {"pass", "valid_measurement"}:
+        return "valid_measurement"
+    if status in {"fail", "answer_mismatch"}:
+        return "quality_mismatch"
+    if status in {"incomplete_timeout", "timeout"} or error_class in TIMEOUT_CLASSES:
+        return "timeout"
+    if status in {"capability_refusal", "unsupported", "telemetry_refusal", "route_refusal"}:
+        return "capability_refusal"
+    return "setup_failure"
+
+
 class ContextResolutionError(ValueError):
     """Raised when a requested benchmark context cannot be accepted."""
 
@@ -127,6 +191,11 @@ def _atomic_write_json(path: Path, value: Any) -> None:
         except OSError:
             pass
         raise
+
+
+def write_checkpoint(path: Path, value: Mapping[str, Any]) -> None:
+    """Publish a durable caller-owned campaign checkpoint atomically."""
+    _atomic_write_json(Path(path), value)
 
 
 def _fsync_file(path: Path) -> None:

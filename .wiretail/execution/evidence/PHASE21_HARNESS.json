@@ -1,0 +1,87 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "21-04",
+  "result": "pass",
+  "kind": "bounded_benchmark_harness",
+  "procedure": "preflight_envelope_fail_fast_checkpoint_and_resume_regressions",
+  "created_utc": "2026-09-06T04:30:34Z",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "worktree; outer runner owns git",
+    "corpus": "tools/server/bench/fixtures/pager-corpus-v4.json",
+    "corpus_file_sha256": "cece9edd2043c8489c1dc2f2f11c1d5a0e70542bb8f1bee6a540854ce599a0bd",
+    "contract": "tools/server/bench/pager_benchmark_contract.py",
+    "runner": "tools/server/bench/run-quality-corpus.py"
+  },
+  "checks": [
+    {
+      "name": "Three-request bounded preflight envelope",
+      "status": "pass",
+      "raw_ids": ["runner-tests"]
+    },
+    {
+      "name": "Missing telemetry fails closed without zero coercion",
+      "status": "pass",
+      "raw_ids": ["contract-source", "runner-source"]
+    },
+    {
+      "name": "Max-case checkpoint and resumable not_run denominator",
+      "status": "pass",
+      "raw_ids": ["runner-tests", "runner-source"]
+    },
+    {
+      "name": "Portable benchmark test suite",
+      "status": "pass",
+      "raw_ids": ["runner-tests"]
+    },
+    {
+      "name": "Authenticated live preflight against managed pager service",
+      "status": "not_measured",
+      "raw_ids": []
+    }
+  ],
+  "measurements": {
+    "preflight": {
+      "requests": ["warm", "cold_needle", "selected_all"],
+      "diagnostic_budget_seconds": 600,
+      "telemetry_required_fields": [
+        "route", "selected_pages", "physical_pages", "logical_pages",
+        "host_valid_rows", "h2d_useful_bytes", "h2d_aligned_bytes",
+        "d2h_useful_bytes", "d2h_aligned_bytes", "faults", "evictions",
+        "queue_time_us", "copy_time_us", "wait_time_us", "target_placement",
+        "mtp_placement", "hot_page_budget", "snapshot_monotonic_us"
+      ],
+      "deterministic_fake_status": "pass"
+    },
+    "controls": {
+      "max_cases": "bounded per invocation",
+      "stop_after_failures": 2,
+      "capability_refusal": "one when --fail-fast-capability is enabled",
+      "unevaluated_cases": "not_run and resumable; never failed"
+    },
+    "record_envelope": [
+      "effective_argv", "actual_occupied_tokens", "hot_page_budget", "mtp_placement",
+      "route", "selected_pages", "physical_pages", "logical_pages", "host_valid_rows",
+      "h2d_useful_bytes", "d2h_useful_bytes", "faults", "evictions",
+      "queue_time_us", "copy_time_us", "wait_time_us",
+      "client_started_utc", "client_finished_utc", "server_snapshot_monotonic_us"
+    ]
+  },
+  "raw_index": [
+    {"id": "contract-source", "path": "tools/server/bench/pager_benchmark_contract.py", "sha256": "0da506c8f763873562986596a37ba37f881cf500ba2e41476b4676e6ae57d0d6"},
+    {"id": "runner-source", "path": "tools/server/bench/run-quality-corpus.py", "sha256": "e5ba3022f2f5a78535ed82d908797c2755bea7cd96053ff6ce4a2903826f47ce"},
+    {"id": "runner-tests", "path": "tools/server/bench/test_quality_corpus_runner.py", "sha256": "466f8e27ff76e15cffc7aa1d80c800a3411e728579871d6d494248ae98129853"},
+    {"id": "runner-readme", "path": "tools/server/bench/README.md", "sha256": "0e58bc854179c5a79059154af0d450d3d73809e08a589817567aa2897ebbc5b7"}
+  ],
+  "failure": null,
+  "provenance_unavailable": {
+    "live_preflight": "Not run in this implementation task; the packet forbids the full corpus and no managed-service credential/hardware claim is made.",
+    "full_corpus": "Deferred to 21-05 after the bounded harness gate."
+  },
+  "resume": {
+    "command": ["python3", "tools/server/bench/run-quality-corpus.py", "<corpus>", "<results>", "--resume"],
+    "checkpoint": "campaign-checkpoint.json",
+    "secrets_omitted": true
+  }
+}
