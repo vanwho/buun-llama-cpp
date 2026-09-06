@@ -249,7 +249,9 @@ on content changes alone. Profile actual MTP verification as well as decode.
 | 21 | Frozen quality, original-three-prompt context curve, paired controls, physical-pressure soak, optional YaRN, compact summary | Measured findings, including shortcomings |
 | 22-01 | Sol High benchmark-only assessment | Verdict; if needed, new measured remediation and review chain |
 | 23 | Measured repair of admission, checkpointing, live prefill and cold promotion; repeat quality, full-context, curve, controls and soak | Repaired candidate and compact phase-23 summary |
-| 24-01 | Sol High benchmark-only assessment of only the phase-23 summary | Independent verdict; create another bounded chain only for newly measured gaps |
+| 24-01 | Sol High benchmark-only assessment of only the phase-23 summary | Not reached: deterministic repairs exist, but no coherent repaired runtime or live campaign row |
+| 25 | Own an immutable repaired deployment and telemetry preflight; measure full context, cold identity, quality, lifecycle, curve and controls | Coherent live candidate and compact phase-25 summary; no renamed zero-row attempt |
+| 26-01 | Sol High benchmark-only assessment of only the phase-25 summary | Independent verdict; create only genuinely new bounded work if required |
 
 Old **unstarted** 17-16/17-17/17-18/17-19/18-01 packet contents are archived in
 `archive/pre-post17/`; no completed task, active packet or historical result is
@@ -257,7 +259,7 @@ deleted. 17-16 is now the bridge; the old reviewer is superseded by 22-01.
 The runner reads the edited state after 17-15 completes and proceeds normally.
 
 All implementation and benchmark task recommendations remain Luna High per the
-user's project policy; 22-01 and the generated 24-01 reviewer remain Sol High.
+user's project policy; 22-01, 24-01 and the generated 26-01 reviewer remain Sol High.
 This does not change Wiretail's tool-wide defaults.
 Packets spell out decisions so smaller reasoning settings remain practical.
 Clusters contain at most three adjacent tasks with the same source ownership.
