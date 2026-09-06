@@ -2508,11 +2508,14 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             }
         }
         // Build one authenticated H2D plan for every cold page in the same
-        // target chosen by the policy.  The old single-page shortcut could
-        // leave a second selected cold page in `desired` without a matching
-        // promotion, causing the transaction to reject the whole target.
+        // target chosen by the policy.  Keep all pages in one plan: the live
+        // host-read callback indexes the host catalog by the transfer run's
+        // page_index, which is local to a plan.  Separate one-page plans would
+        // therefore read host page zero for every plan after the first.
         if (policy_target_bound) {
             const auto & geometry = pager_->snapshot().geometry;
+            std::vector<llama_kv_residency_transfer_page> promotion_pages;
+            bool promotion_valid = true;
             for (const auto policy_id : decision.target) {
                 if (policy_id == 0 || policy_id > policy_trace.pages.size()) continue;
                 const auto & target_id = policy_trace.pages[size_t(policy_id - 1)].id;
@@ -2523,7 +2526,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 }
                 const auto selected_host = has_host(target_id);
                 if (selected_host == host_pages.end() || selected_slot == UINT32_MAX) {
-                    boundary.transaction.transfers.clear();
+                    promotion_valid = false;
                     break;
                 }
 
@@ -2538,7 +2541,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         unit.layer >= geometry.layer_k_page_bytes.size() ||
                         unit.layer >= geometry.layer_v_page_bytes.size() ||
                         unit.valid_rows == 0 || unit.row_bytes == 0) {
-                        boundary.transaction.transfers.clear();
+                        promotion_valid = false;
                         break;
                     }
                     const bool value = unit.side == vbr_artifact_side::value;
@@ -2553,7 +2556,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         uint64_t(unit.valid_rows) * unit.row_bytes > page_bytes ||
                         uint64_t(selected_slot) > UINT64_MAX / page_bytes ||
                         layer_offset > UINT64_MAX - uint64_t(selected_slot) * page_bytes) {
-                        boundary.transaction.transfers.clear();
+                        promotion_valid = false;
                         break;
                     }
                     llama_kv_residency_transfer_run run;
@@ -2570,21 +2573,26 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 }
                 if (transfer_page.runs.size() != selected_host->page.units.size() ||
                     transfer_page.runs.empty()) {
-                    boundary.transaction.transfers.clear();
+                    promotion_valid = false;
                     break;
                 }
-                llama_kv_residency_transfer_plan plan;
-                if (!llama_kv_residency_build_transfer_plan(
-                        llama_kv_residency_transfer_direction::h2d_promotion,
-                        { transfer_page }, 1, {}, plan)) {
-                    boundary.transaction.transfers.clear();
-                    break;
-                }
-                boundary.transaction.transfers.push_back(std::move(plan));
+                promotion_pages.push_back(std::move(transfer_page));
                 used[selected_slot] = true;
                 selected_slot = UINT32_MAX;
                 for (uint32_t slot = 0; slot < used.size(); ++slot) {
                     if (!used[slot]) { selected_slot = slot; break; }
+                }
+            }
+            if (!promotion_valid) {
+                boundary.transaction.transfers.clear();
+            } else if (!promotion_pages.empty()) {
+                llama_kv_residency_transfer_plan plan;
+                if (!llama_kv_residency_build_transfer_plan(
+                        llama_kv_residency_transfer_direction::h2d_promotion,
+                        promotion_pages, 1, {}, plan)) {
+                    boundary.transaction.transfers.clear();
+                } else {
+                    boundary.transaction.transfers.push_back(std::move(plan));
                 }
             }
         }
