@@ -76,6 +76,25 @@ int main() {
     assert(store.score(snap, { 0, 1, 0 }, 1).status ==
            llama_kv_routing_summary_status::invalid_argument);
 
+    // A residency-only publication changes the table epoch but not page
+    // content. The immutable summary remains usable and byte-identical.
+    llama_kv_residency_table epoch_table(8);
+    auto epoch_tx = epoch_table.begin();
+    for (const auto & page : snap.pages()) {
+        assert(epoch_table.replace(epoch_tx, page) == llama_kv_residency_status::ok);
+    }
+    assert(epoch_table.publish(epoch_tx) == llama_kv_residency_status::ok);
+    const uint64_t epoch_hash = store.content_hash();
+    epoch_tx = epoch_table.begin();
+    auto resident_only = epoch_tx.pages()[0];
+    resident_only.pin_count = 1;
+    assert(epoch_table.update(epoch_tx, resident_only) == llama_kv_residency_status::ok);
+    assert(epoch_table.publish(epoch_tx) == llama_kv_residency_status::ok);
+    const auto resident_only_score = store.score(
+            epoch_table.snapshot(), { 1, 0, 0, 0 }, 1);
+    assert(resident_only_score.status == llama_kv_routing_summary_status::ok);
+    assert(store.content_hash() == epoch_hash);
+
     // A cold host record is part of the logical index even though it is not in
     // the residency snapshot. Its summary survives the residency-only view.
     auto complete_inventory = snap.pages();
@@ -158,6 +177,33 @@ int main() {
             sparse_input(page_one, 6.0f), config, status);
     assert(status == llama_kv_routing_summary_status::ok && incremental.contains(0) && incremental.contains(1));
     assert(incremental.accounting().build_count == 2 && incremental.content_hash() != first_hash);
+
+    // A seal wave batches changed pages into one immutable publication while
+    // retaining the prior page summaries.
+    auto batch_tx = incremental_table.begin();
+    auto page_zero = batch_tx.pages()[0];
+    page_zero.id.page_generation++;
+    assert(incremental_table.update(batch_tx, page_zero) == llama_kv_residency_status::ok);
+    assert(incremental_table.publish(batch_tx) == llama_kv_residency_status::ok);
+    batch_tx = incremental_table.begin();
+    auto page_two = make_page(2, 7, 700);
+    assert(incremental_table.replace(batch_tx, page_two) == llama_kv_residency_status::ok);
+    assert(incremental_table.publish(batch_tx) == llama_kv_residency_status::ok);
+    std::vector<llama_kv_routing_page_input> batch_inputs = {
+        sparse_input(incremental_table.snapshot().pages()[0], 7.0f),
+        sparse_input(incremental_table.snapshot().pages()[2], 8.0f),
+    };
+    const auto batched = incremental.update_pages(
+            incremental_table.snapshot(), incremental_table.snapshot().pages(),
+            batch_inputs, config, status);
+    assert(status == llama_kv_routing_summary_status::ok);
+    assert(batched.contains(0) && batched.contains(1) && batched.contains(2));
+    assert(batched.accounting().build_count == incremental.accounting().build_count + 2);
+
+    const auto invalidated = batched.invalidate_pages(
+            incremental_table.snapshot(), { page_zero.id, page_two.id }, status);
+    assert(status == llama_kv_routing_summary_status::ok);
+    assert(!invalidated.contains(0) && invalidated.contains(1) && !invalidated.contains(2));
 
     auto changed_tx = incremental_table.begin();
     auto changed_page = changed_tx.pages()[0];

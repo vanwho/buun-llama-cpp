@@ -2767,7 +2767,37 @@ bool llama_kv_cache::pager_routing_summary_build(
         output.id = page.id;
         output.row_indices.resize(config.representative_count);
         output.rotated_k_rows.resize(size_t(config.representative_count) * config.vector_dim);
-        std::vector<uint8_t> encoded(row_bytes);
+        // Once the page has been sealed, the canonical captured Turbo4 image
+        // is the source for all summary layers. This keeps summary sampling
+        // from rereading the immutable device tensor for the same content
+        // version and binds representatives to the exact host publication.
+        vbr_selected_page_host_view host_page_storage;
+        const vbr_selected_page_host_view * host_page = nullptr;
+        if (const auto * host = cache->pager_->host_catalog()) {
+            const auto host_pages = host->pages();
+            const auto it = std::find_if(host_pages.begin(), host_pages.end(),
+                    [&](const auto & view) {
+                return view.page.identity == page.id;
+            });
+            if (it != host_pages.end()) {
+                host_page_storage = *it;
+                host_page = &host_page_storage;
+            }
+        }
+        const vbr_selected_page_unit_descriptor * host_unit = nullptr;
+        if (host_page != nullptr) {
+            const uint32_t logical_unit = config.layer_index * 2;
+            const auto it = std::find_if(host_page->page.units.begin(), host_page->page.units.end(),
+                    [&](const auto & unit) {
+                return unit.logical_unit_id == logical_unit &&
+                    unit.side == vbr_artifact_side::key;
+            });
+            if (it != host_page->page.units.end() && it->bytes &&
+                    it->row_bytes == row_bytes && it->valid_rows >= valid_rows) {
+                host_unit = &*it;
+            }
+        }
+        std::vector<uint8_t> encoded(host_unit != nullptr ? host_unit->row_bytes : row_bytes);
         std::vector<float> decoded(size_t(tensor->ne[0]));
         const uint64_t stream_offset = uint64_t(stream) * stream_bytes;
         for (uint32_t representative = 0; representative < config.representative_count; ++representative) {
@@ -2778,7 +2808,12 @@ bool llama_kv_cache::pager_routing_summary_build(
                 stream_offset > std::numeric_limits<uint64_t>::max() - physical * row_bytes) return false;
             const uint64_t offset = stream_offset + physical * row_bytes;
             if (offset > std::numeric_limits<size_t>::max() - row_bytes) return false;
-            ggml_backend_tensor_get(tensor, encoded.data(), size_t(offset), size_t(row_bytes));
+            if (host_unit != nullptr) {
+                if (!host_unit->bytes->read(uint64_t(row) * host_unit->row_bytes,
+                                            encoded.data(), encoded.size())) return false;
+            } else {
+                ggml_backend_tensor_get(tensor, encoded.data(), size_t(offset), size_t(row_bytes));
+            }
             dequantize_row_turbo4_0(encoded.data(), decoded.data(), tensor->ne[0]);
             output.row_indices[representative] = row;
             const size_t source = size_t(config.head_index) * config.vector_dim;

@@ -247,6 +247,7 @@ struct llama_kv_pager_write_ticket {
     llama_pos position = -1;
     bool page_created = false;
     bool row_was_valid = false;
+    uint64_t content_version_before = 0;
 };
 
 enum class llama_kv_pager_mutation_kind : uint8_t {
@@ -450,6 +451,9 @@ private:
         llama_kv_page_record record;
         std::vector<uint8_t> valid_rows;
         uint32_t completed_segments = 0;
+        uint64_t content_version = 0;
+        uint64_t host_content_version = 0;
+        uint64_t summary_content_version = 0;
         bool present = false;
     };
 
@@ -458,7 +462,8 @@ private:
             bool preserve_host = false) noexcept;
     llama_kv_routing_page_inventory routing_inventory() const noexcept;
     std::vector<llama_kv_routing_summary_config> routing_summary_configs() const noexcept;
-    void reconcile_routing_summaries() noexcept;
+    void invalidate_routing_summaries(
+            const std::vector<llama_kv_page_id> & page_ids) noexcept;
     void reconcile_live_target(
             const std::vector<llama_kv_page_record> & target) noexcept;
     page_state * find_page(int32_t sequence_id, uint32_t logical_page) noexcept;

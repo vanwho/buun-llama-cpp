@@ -818,3 +818,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-02`
 - Commit at update: `39c7f6785`
 - Summary: Implemented the V6 short resumable speed driver, strict speed receipt contract, and low-overhead pager/graph attribution counters. Captured a matched same-bundle off/selective L=4096, prompt=2048, one-cold-trial pair; wrote SPEED25_02_ATTRIBUTION.json/.md and handoff. Local build, Python contracts/adapter tests, attention execution test, task-state validation, and diff checks pass. Deferred CUDA event/nsys stage timing to 25-03.
+
+## 2026-09-11T23:32:39+00:00 — 25-03 — done
+
+- Branch: `codex/task-25-03`
+- Commit at update: `98054f075`
+- Summary: Implemented content-versioned incremental page sealing, canonical host-image summary sampling, batched routing updates, targeted invalidation, focused regressions, and SPEED25_03_INCREMENTAL live receipt.

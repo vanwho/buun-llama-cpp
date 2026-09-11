@@ -72,10 +72,13 @@ static void test_full_256k_capacity_plan() {
     assert(snapshot.admission.accepted_target_tokens < snapshot.mtp_rows);
 }
 
+static uint64_t routing_provider_calls = 0;
+
 static bool build_routing_summary(
         void *, const llama_kv_page_record & page,
         const llama_kv_routing_summary_config & config,
         llama_kv_routing_page_input & output) noexcept {
+    ++routing_provider_calls;
     output = {};
     output.id = page.id;
     const uint32_t rows = uint32_t(page.id.position_end - page.id.position_begin);
@@ -775,15 +778,23 @@ int main() {
 
     // The production owner can build a bounded summary after the post-graph
     // fence even when host backing is unavailable in this local fake.
+    auto summary_config = config;
+    summary_config.hot_pages.automatic = false;
+    summary_config.hot_pages.value = 4;
     auto summary_pager = llama_kv_pager::create(
-            config, geometry(512), resources(1024, 128), write_backend, status);
+            summary_config, geometry(1024), resources(2048, 128), write_backend, status);
     assert(summary_pager && status == llama_kv_pager_status::ok);
+    routing_provider_calls = 0;
     summary_pager->set_routing_summary_provider({ nullptr, build_routing_summary });
     for (llama_pos position = 0; position <= 256; ++position) {
         assert(summary_pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
         assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
     }
     assert(summary_pager->seal_ready_pages() == 2);
+    const uint64_t initial_summary_calls = routing_provider_calls;
+    assert(initial_summary_calls == 32);
+    assert(summary_pager->seal_ready_pages() == 0);
+    assert(routing_provider_calls == initial_summary_calls);
     assert(summary_pager->routing_summaries().valid());
     // Runtime retrieval consumes head zero for each attention layer; the
     // pager therefore maintains one summary table per layer.
@@ -794,6 +805,30 @@ int main() {
     const auto summary_scores = summary_pager->routing_summaries().score(
             summary_pager->residency(), summary_query, 1);
     assert(summary_scores.status == llama_kv_routing_summary_status::ok);
+
+    // Extending the tail advances only that page's content version. The
+    // already-clean page is neither sampled nor republished.
+    for (llama_pos position = 257; position < 512; ++position) {
+        assert(summary_pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
+        assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    }
+    assert(summary_pager->seal_ready_pages() == 1);
+    assert(routing_provider_calls == initial_summary_calls + 16);
+    const uint64_t after_tail_calls = routing_provider_calls;
+    assert(summary_pager->begin_write(0, 1, 512, ticket) == llama_kv_pager_write_status::ok);
+    assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    assert(summary_pager->seal_ready_pages() == 1);
+    assert(routing_provider_calls == after_tail_calls + 16);
+
+    // A speculative overwrite is cancelled, but the next successful overwrite
+    // must refresh the summary for that page rather than retaining stale rows.
+    assert(summary_pager->begin_write(0, 1, 0, ticket) == llama_kv_pager_write_status::ok);
+    assert(summary_pager->complete_write(ticket, 32, false) == llama_kv_pager_write_status::ok);
+    const uint64_t after_rollback = routing_provider_calls;
+    assert(summary_pager->begin_write(0, 1, 0, ticket) == llama_kv_pager_write_status::ok);
+    assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    assert(summary_pager->seal_ready_pages() == 1);
+    assert(routing_provider_calls == after_rollback + 16);
 
     config.hot_pages.automatic = true;
     config.hot_pages.value = 0;
