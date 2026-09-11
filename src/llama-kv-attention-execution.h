@@ -125,6 +125,10 @@ struct llama_kv_attention_execution_metrics {
     uint64_t graph_rebuild_count = 0;
     uint64_t graph_submission_count = 0;
     uint64_t graph_completion_count = 0;
+    // These counters describe the backend-neutral graph decision boundary.
+    // They are intentionally separate from CUDA capture/update/launch events.
+    uint64_t graph_construction_us = 0;
+    uint64_t effective_ubatch = 0;
     uint64_t table_upload_bytes = 0;
     uint64_t descriptor_prepare_us = 0;
     uint64_t kernel_us = 0;
@@ -179,6 +183,13 @@ struct llama_kv_attention_execution_metrics {
     void record_wait_time_us(uint64_t elapsed_us) noexcept;
     void record_copy_time_us(uint64_t elapsed_us) noexcept;
     void record_queue_time_us(uint64_t elapsed_us) noexcept;
+    void record_graph_construction_us(uint64_t elapsed_us) noexcept {
+        graph_construction_us = graph_construction_us > UINT64_MAX - elapsed_us
+            ? UINT64_MAX : graph_construction_us + elapsed_us;
+    }
+    void record_effective_ubatch(uint64_t value) noexcept {
+        effective_ubatch = value;
+    }
     void record_exact_ledger(
             const llama_kv_attention_exact_ledger & ledger) noexcept;
     void record_exact_refusal(const std::string & reason) noexcept;
@@ -253,6 +264,8 @@ public:
     void record_wait_time_us(uint64_t elapsed_us) noexcept;
     void record_copy_time_us(uint64_t elapsed_us) noexcept;
     void record_queue_time_us(uint64_t elapsed_us) noexcept;
+    void record_graph_construction_us(uint64_t elapsed_us) noexcept;
+    void record_effective_ubatch(uint64_t value) noexcept;
 
     bool has_graph() const noexcept { return have_graph_; }
     size_t in_flight_graphs() const noexcept { return graph_fences_.size(); }

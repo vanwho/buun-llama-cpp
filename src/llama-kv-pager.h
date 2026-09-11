@@ -384,6 +384,22 @@ public:
     }
     uint64_t promotion_pages() const noexcept { return promotion_pages_; }
     uint64_t eviction_pages() const noexcept { return eviction_pages_; }
+    uint64_t seal_calls() const noexcept { return seal_calls_; }
+    uint64_t seal_pages_scanned() const noexcept { return seal_pages_scanned_; }
+    uint64_t seal_pages_changed() const noexcept { return seal_pages_changed_; }
+    uint64_t host_seal_d2h_calls() const noexcept { return host_seal_d2h_calls_; }
+    uint64_t host_seal_d2h_bytes() const noexcept { return host_seal_d2h_bytes_; }
+    uint64_t inventory_copy_count() const noexcept { return inventory_copy_count_; }
+    uint64_t store_copy_count() const noexcept { return store_copy_count_; }
+    uint64_t summary_build_calls() const noexcept { return summary_build_calls_; }
+    uint64_t summary_build_bytes() const noexcept { return summary_build_bytes_; }
+    uint64_t summary_read_calls() const noexcept { return summary_read_calls_; }
+    uint64_t summary_read_bytes() const noexcept { return summary_read_bytes_; }
+    void record_summary_read(uint64_t bytes) noexcept {
+        summary_read_calls_ = summary_read_calls_ == UINT64_MAX ? UINT64_MAX : summary_read_calls_ + 1;
+        summary_read_bytes_ = summary_read_bytes_ > UINT64_MAX - bytes
+            ? UINT64_MAX : summary_read_bytes_ + bytes;
+    }
 
     const llama_kv_routing_summary_store & routing_summaries() const noexcept {
         return routing_summaries_;
@@ -479,4 +495,15 @@ private:
     llama_kv_residency_transfer_counters d2h_counters_;
     uint64_t promotion_pages_ = 0;
     uint64_t eviction_pages_ = 0;
+    uint64_t seal_calls_ = 0;
+    uint64_t seal_pages_scanned_ = 0;
+    uint64_t seal_pages_changed_ = 0;
+    uint64_t host_seal_d2h_calls_ = 0;
+    uint64_t host_seal_d2h_bytes_ = 0;
+    mutable uint64_t inventory_copy_count_ = 0;
+    uint64_t store_copy_count_ = 0;
+    uint64_t summary_build_calls_ = 0;
+    uint64_t summary_build_bytes_ = 0;
+    uint64_t summary_read_calls_ = 0;
+    uint64_t summary_read_bytes_ = 0;
 };

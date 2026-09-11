@@ -101,6 +101,17 @@ struct llama_kv_pager_metrics_snapshot {
     llama_kv_residency_transfer_counters d2h_transfers;
     uint64_t promotion_pages = 0;
     uint64_t eviction_pages = 0;
+    uint64_t seal_calls = 0;
+    uint64_t seal_pages_scanned = 0;
+    uint64_t seal_pages_changed = 0;
+    uint64_t summary_build_calls = 0;
+    uint64_t summary_build_bytes = 0;
+    uint64_t summary_read_calls = 0;
+    uint64_t summary_read_bytes = 0;
+    uint64_t host_seal_d2h_calls = 0;
+    uint64_t host_seal_d2h_bytes = 0;
+    uint64_t inventory_copy_count = 0;
+    uint64_t store_copy_count = 0;
     llama_kv_attention_telemetry_counters attention;
     llama_kv_attention_telemetry_accounting attention_accounting;
     llama_kv_attention_execution_metrics execution;

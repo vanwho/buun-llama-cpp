@@ -812,3 +812,9 @@ receives `PROJECT_ROOT` from the shared runner.
  project/phase/task token records and all done task objects compare unchanged.
 - Preserved implementation diff SHA256:
  f2bbedfb1666a8350bb682e8d89a3161edb8f35d7f9f1d97e068c2d0c75f3d00.
+
+## 2026-09-11T23:03:48+00:00 — 25-02 — done
+
+- Branch: `codex/task-25-02`
+- Commit at update: `39c7f6785`
+- Summary: Implemented the V6 short resumable speed driver, strict speed receipt contract, and low-overhead pager/graph attribution counters. Captured a matched same-bundle off/selective L=4096, prompt=2048, one-cold-trial pair; wrote SPEED25_02_ATTRIBUTION.json/.md and handoff. Local build, Python contracts/adapter tests, attention execution test, task-state validation, and diff checks pass. Deferred CUDA event/nsys stage timing to 25-03.

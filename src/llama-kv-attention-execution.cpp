@@ -410,6 +410,14 @@ void llama_kv_attention_execution::record_queue_time_us(uint64_t elapsed_us) noe
     metrics_.record_queue_time_us(elapsed_us);
 }
 
+void llama_kv_attention_execution::record_graph_construction_us(uint64_t elapsed_us) noexcept {
+    metrics_.record_graph_construction_us(elapsed_us);
+}
+
+void llama_kv_attention_execution::record_effective_ubatch(uint64_t value) noexcept {
+    metrics_.record_effective_ubatch(value);
+}
+
 void llama_kv_attention_execution::reset_metrics() noexcept {
     if (metrics_reset_epoch_ != std::numeric_limits<uint64_t>::max()) {
         ++metrics_reset_epoch_;

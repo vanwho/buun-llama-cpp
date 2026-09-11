@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "25",
-  "current_task": "25-02",
-  "last_updated_utc": "2026-09-11T02:52:13+00:00",
+  "current_task": "25-03",
+  "last_updated_utc": "2026-09-11T23:06:07+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -4351,13 +4351,13 @@
       "cluster": "25a-speed-attribution",
       "title": "Build the short speed driver and attribute current prefill cost",
       "packet": ".wiretail/execution/tasks/25-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "25-01"
       ],
-      "commit": null,
+      "commit": "bed46d5a7d542b9a439a5074d4c44e186fd1a8b1",
       "token_usage": {
         "turns": [
           {
@@ -4463,15 +4463,28 @@
             "cached_input_tokens": 2727424,
             "output_tokens": 16499,
             "thinking_tokens": 5546
+          },
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-attempt-1-20260911T221156Z.jsonl:298",
+            "total_tokens": 27497448,
+            "total_tokens_derived": true,
+            "input_tokens": 27404410,
+            "cached_input_tokens": 26891008,
+            "output_tokens": 93038,
+            "thinking_tokens": 27210
           }
         ],
         "totals": {
-          "turns": 8,
-          "total_tokens": 99997343,
-          "input_tokens": 99743329,
-          "cached_input_tokens": 97794048,
-          "output_tokens": 254014,
-          "thinking_tokens": 102590
+          "turns": 9,
+          "total_tokens": 127494791,
+          "input_tokens": 127147739,
+          "cached_input_tokens": 124685056,
+          "output_tokens": 347052,
+          "thinking_tokens": 129800
         }
       },
       "scope_revision": "speed-first-20260911",
@@ -6051,18 +6064,42 @@
           "cached_input_tokens": 2727424,
           "output_tokens": 16499,
           "thinking_tokens": 5546
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-attempt-1-20260911T221156Z.jsonl:298",
+          "total_tokens": 27497448,
+          "total_tokens_derived": true,
+          "input_tokens": 27404410,
+          "cached_input_tokens": 26891008,
+          "output_tokens": 93038,
+          "thinking_tokens": 27210
         }
       ],
       "totals": {
-        "turns": 9,
-        "total_tokens": 127126252,
-        "input_tokens": 126817763,
-        "cached_input_tokens": 124359168,
-        "output_tokens": 308489,
-        "thinking_tokens": 122435
+        "turns": 10,
+        "total_tokens": 154623700,
+        "input_tokens": 154222173,
+        "cached_input_tokens": 151250176,
+        "output_tokens": 401527,
+        "thinking_tokens": 149645
       }
     },
     "26": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "27": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -6076,12 +6113,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 63,
-      "total_tokens": 970539747,
-      "input_tokens": 968084717,
-      "cached_input_tokens": 949008640,
-      "output_tokens": 2455030,
-      "thinking_tokens": 860007
+      "turns": 64,
+      "total_tokens": 998037195,
+      "input_tokens": 995489127,
+      "cached_input_tokens": 975899648,
+      "output_tokens": 2548068,
+      "thinking_tokens": 887217
     },
     "source": "Codex turn.completed usage events"
   }

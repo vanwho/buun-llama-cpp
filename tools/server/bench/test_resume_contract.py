@@ -20,6 +20,7 @@ from pager_benchmark_contract import (
     classify_timeout,
     stream_metrics,
     validate_evidence,
+    validate_speed_evidence,
 )
 
 
@@ -104,6 +105,45 @@ class ResumeContractTests(unittest.TestCase):
             with self.subTest(name=name):
                 receipt = json.loads((root / name).read_text())
                 self.assertEqual([], validate_evidence(receipt))
+
+    def test_speed_receipt_allows_optional_missing_stage_metrics(self) -> None:
+        receipt = {
+            "schema": "pager-speed-v6", "schema_version": 1, "task_id": "25-02",
+            "experiment_id": "experiment", "procedure": "short", "started_utc": "start",
+            "finished_utc": "finish", "result": "pass",
+            "provenance": {field: "value" for field in (
+                "source_commit", "source_diff_sha256", "bundle_identity",
+                "bundle_manifest_sha256", "model_sha256", "tokenizer_template_sha256",
+                "config_sha256", "gpu", "driver", "build")},
+            "runtime": {
+                "logical_context_tokens": 4096, "prompt_tokens": 512,
+                "cached_rows": 0, "effective_batch": 256, "cuda_query_tile": 64,
+                "cache_condition": "cold-prefill", "target_placement": "CUDA",
+                "mtp_placement": "gpu", "target_type_k": "turbo4",
+                "target_type_v": "turbo4", "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4", "allocated_context_rows": 4096,
+                "hot_rows": 4096, "attended_rows": 768,
+            },
+            "measurements": {
+                "generated_tokens": 16, "committed_tokens": 16,
+                "mtp_proposed_tokens": 12, "mtp_accepted_tokens": 8,
+                "target_gpu_bytes": 100, "host_committed_rows": 512,
+                "host_committed_bytes": 200, "pinned_ring_bytes": 0,
+                "wall_prefill_us": 1000, "wall_decode_us": 2000,
+                "ttft_us": 1100, "completion_latency_us": 3000,
+                "optional": {
+                    "cuda_launch_count": {"value": None, "reason": "not enabled"},
+                },
+            },
+            "raw_index": [{"id": "case", "sha256": "a" * 64}],
+        }
+        self.assertEqual([], validate_speed_evidence(receipt))
+        receipt["runtime"]["target_type_k"] = "q8_0"
+        self.assertIn("runtime.target_type_k_not_turbo4", validate_speed_evidence(receipt))
+        receipt["runtime"]["target_type_k"] = "turbo4"
+        receipt["runtime"]["target_placement"] = None
+        receipt["runtime"]["target_placement_reason"] = "not measured"
+        self.assertIn("runtime.target_placement", validate_speed_evidence(receipt))
 
 
 if __name__ == "__main__":

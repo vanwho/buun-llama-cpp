@@ -1052,6 +1052,17 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.d2h_transfers = kv_pager_owner->d2h_counters();
     result.promotion_pages = kv_pager_owner->promotion_pages();
     result.eviction_pages = kv_pager_owner->eviction_pages();
+    result.seal_calls = kv_pager_owner->seal_calls();
+    result.seal_pages_scanned = kv_pager_owner->seal_pages_scanned();
+    result.seal_pages_changed = kv_pager_owner->seal_pages_changed();
+    result.summary_build_calls = kv_pager_owner->summary_build_calls();
+    result.summary_build_bytes = kv_pager_owner->summary_build_bytes();
+    result.summary_read_calls = kv_pager_owner->summary_read_calls();
+    result.summary_read_bytes = kv_pager_owner->summary_read_bytes();
+    result.host_seal_d2h_calls = kv_pager_owner->host_seal_d2h_calls();
+    result.host_seal_d2h_bytes = kv_pager_owner->host_seal_d2h_bytes();
+    result.inventory_copy_count = kv_pager_owner->inventory_copy_count();
+    result.store_copy_count = kv_pager_owner->store_copy_count();
     return result;
 }
 
@@ -2124,8 +2135,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
         bool direct_capable,
         const llama_kv_attention_scratch_request & scratch,
         const std::string & direct_reason) {
-    return kv_attention_execution.prepare(metadata, phase, representation_epoch,
+    const int64_t started = ggml_time_us();
+    kv_attention_execution.metrics_mutable().record_effective_ubatch(cparams.n_ubatch);
+    auto result = kv_attention_execution.prepare(metadata, phase, representation_epoch,
             shape_epoch, direct_capable, scratch, direct_reason);
+    kv_attention_execution.record_graph_construction_us(uint64_t(std::max<int64_t>(
+            0, ggml_time_us() - started)));
+    return result;
 }
 
 void llama_context::complete_kv_attention_graph() noexcept {
