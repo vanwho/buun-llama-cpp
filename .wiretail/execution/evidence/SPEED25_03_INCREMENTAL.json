@@ -1,0 +1,88 @@
+{
+  "schema": "pager-speed-v6-incremental",
+  "schema_version": 1,
+  "task_id": "25-03",
+  "result": "pass",
+  "procedure": "BENCHMARK_PROTOCOL_V6 short micro suite",
+  "configuration": {
+    "context_tokens": 4096,
+    "prompt_tokens": 2048,
+    "question_index": 0,
+    "warmups": 0,
+    "trials": 1,
+    "max_tokens": 128,
+    "mode": "selective",
+    "mtp": "native",
+    "target": "CUDA Turbo4",
+    "driver": "595.91.07"
+  },
+  "provenance": {
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "gpu_memory_total_mib": 16376,
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "before_bundle": "/srv/ai/paged-kv/results/25-02-runtime-bundle-20260912T041000Z/bin/llama-server",
+    "before_bundle_manifest_sha256": "787ce46b6210a9444e0d0ec46e2a2127cfa38915527e2cfe58052d89e50ea462",
+    "before_source_diff_sha256": "862815e93154b9d2e199370e4486c3bb43c2a98f3e0d65131f2dd12d66eb4092",
+    "before_raw_root": "/srv/ai/paged-kv/results/25-02-short-selective-final-20260912T043000Z",
+    "after_bundle": "/srv/ai/paged-kv/results/25-03-runtime-bundle-20260912T053000Z/bin/llama-server",
+    "after_bundle_manifest_sha256": "6b11f2ffb3742aad91f26230a81f9be3514283c6e800ffd2d1f4afcf4e52c17c",
+    "after_source_commit": "98054f075de4ec10cafc309a4e5e6807758d930a",
+    "after_source_diff_sha256": "666b41fff5cf2083648e0eff8b13fdeefbb54c8f8089357182ac670bb26ff185",
+    "after_raw_root": "/srv/ai/paged-kv/results/25-03-short-selective-live-20260912T054500Z",
+    "after_raw_sha256": "6b3a79ef612de2c56a513ef1635fe6a61ee1edaa9c323c769ea840181e0af2cf"
+  },
+  "measurements": {
+    "selective_before": {
+      "generated_tokens": 68,
+      "prefill_us": 14064808,
+      "decode_us": 14119361,
+      "summary_build_calls": 274080,
+      "summary_build_bytes": 578858000,
+      "host_seal_d2h_calls": 616,
+      "host_seal_d2h_bytes": 2664437000,
+      "inventory_copy_count": 17738,
+      "store_copy_count": 273472,
+      "seal_pages_scanned": 23994,
+      "seal_pages_changed": 17092
+    },
+    "selective_after": {
+      "generated_tokens": 22,
+      "prefill_us": 5625370,
+      "decode_us": 504824,
+      "completion_us": 6145989.801,
+      "summary_build_calls": 3536,
+      "summary_build_bytes": 7468028,
+      "host_seal_d2h_calls": 40,
+      "host_seal_d2h_bytes": 173014620,
+      "inventory_copy_count": 221,
+      "store_copy_count": 128,
+      "seal_pages_scanned": 14146,
+      "seal_pages_changed": 8,
+      "mtp_proposed_tokens": 14,
+      "mtp_accepted_tokens": 14
+    },
+    "off_control_after": {
+      "raw_root": "/srv/ai/paged-kv/results/25-03-short-off-live-20260912T054000Z",
+      "generated_tokens": 128,
+      "prefill_us": 1147426,
+      "decode_us": 1297766,
+      "prefill_tok_s": 1794.451,
+      "decode_tok_s": 98.631,
+      "mtp_proposed_tokens": 0,
+      "mtp_accepted_tokens": 0
+    }
+  },
+  "attribution": {
+    "summary_build_call_reduction": "274080 -> 3536",
+    "summary_build_byte_reduction": "578858000 -> 7468028",
+    "inventory_copy_reduction": "17738 -> 221",
+    "store_copy_reduction": "273472 -> 128",
+    "unchanged_clean_pages": "no second build/read in focused tests",
+    "quality_comparable": false,
+    "quality_note": "The selective before receipt generated 68 tokens while the after receipt generated 22; throughput and incremental counters are recorded without claiming output-quality equivalence."
+  },
+  "deferred_verification": [
+    "CUDA event capture/update/launch spans were not enabled; logical graph counters are recorded.",
+    "Long-context 262K population and pressure/quality suites remain deferred to later task coverage."
+  ]
+}
