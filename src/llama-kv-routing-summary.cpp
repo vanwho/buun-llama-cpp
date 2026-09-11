@@ -274,11 +274,29 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
         const llama_kv_routing_summary_config & config,
         llama_kv_routing_summary_status & status,
         bool inventory_reconciled) const noexcept {
+    std::vector<llama_kv_routing_page_input> inputs;
+    try {
+        inputs.push_back(input);
+    } catch (const std::bad_alloc &) {
+        status = llama_kv_routing_summary_status::overflow;
+        return {};
+    }
+    return update_pages(snapshot, inventory, inputs, config, status, inventory_reconciled);
+}
+
+llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
+        const llama_kv_residency_snapshot & snapshot,
+        const llama_kv_routing_page_inventory & inventory,
+        const std::vector<llama_kv_routing_page_input> & inputs,
+        const llama_kv_routing_summary_config & config,
+        llama_kv_routing_summary_status & status,
+        bool inventory_reconciled) const noexcept {
     status = llama_kv_routing_summary_status::invalid_argument;
     const auto start = std::chrono::steady_clock::now();
     if (snapshot.epoch() == 0 || (!inventory_reconciled && !inventory_matches_snapshot(snapshot, inventory)) ||
         config.representative_count < 4 || config.representative_count > 8 ||
-        config.vector_dim == 0 || config.allocation_granularity == 0 || !valid_form(config.form)) return {};
+        config.vector_dim == 0 || config.allocation_granularity == 0 || !valid_form(config.form) ||
+        inputs.empty()) return {};
     if (!pages_.empty() && (representative_count_ != config.representative_count || vector_dim_ != config.vector_dim ||
         layer_index_ != config.layer_index || head_index_ != config.head_index || form_ != config.form ||
         (config.coordinate_identity != 0 && coordinate_identity_ != config.coordinate_identity))) {
@@ -286,17 +304,6 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
         return {};
     }
     try {
-        const auto record = std::find_if(inventory.begin(), inventory.end(),
-                [&](const auto & page) { return page.id == input.id; });
-        if (record == inventory.end()) {
-            status = llama_kv_routing_summary_status::stale_summary;
-            return {};
-        }
-        const bool tail = record->state == llama_kv_page_state::filling_gpu;
-        if (!valid_state(record->state) || !llama_kv_page_id_valid(record->id, tail)) {
-            status = llama_kv_routing_summary_status::invalid_page;
-            return {};
-        }
         llama_kv_routing_summary_store result;
         if (inventory_reconciled) {
             result = *this;
@@ -318,25 +325,49 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
             ? config.coordinate_identity : result.coordinate_identity_;
         result.form_ = config.form;
         result.allocation_granularity_ = config.allocation_granularity;
-        page summary;
-        summary.id = input.id;
-        if (!make_vectors(input, uint64_t(record->id.position_end - record->id.position_begin), config,
-                          summary.vectors, summary.radius, summary.source_rows)) {
-            status = llama_kv_routing_summary_status::invalid_page;
-            return {};
+        std::vector<page> updates;
+        updates.reserve(inputs.size());
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            for (size_t j = i + 1; j < inputs.size(); ++j) {
+                if (same_logical(inputs[i].id, inputs[j].id)) {
+                    status = llama_kv_routing_summary_status::duplicate_page;
+                    return {};
+                }
+            }
+            const auto record = std::find_if(inventory.begin(), inventory.end(),
+                    [&](const auto & candidate) { return candidate.id == inputs[i].id; });
+            if (record == inventory.end()) {
+                status = llama_kv_routing_summary_status::stale_summary;
+                return {};
+            }
+            const bool tail = record->state == llama_kv_page_state::filling_gpu;
+            if (!valid_state(record->state) || !llama_kv_page_id_valid(record->id, tail)) {
+                status = llama_kv_routing_summary_status::invalid_page;
+                return {};
+            }
+            page summary;
+            summary.id = inputs[i].id;
+            if (!make_vectors(inputs[i], uint64_t(record->id.position_end - record->id.position_begin),
+                              config, summary.vectors, summary.radius, summary.source_rows)) {
+                status = llama_kv_routing_summary_status::invalid_page;
+                return {};
+            }
+            summary.source_bytes = inputs[i].source_bytes;
+            updates.push_back(std::move(summary));
         }
-        summary.source_bytes = input.source_bytes;
-        const auto existing = std::find_if(result.pages_.begin(), result.pages_.end(),
-                [&](const auto & value) { return value.id.logical_page == input.id.logical_page; });
-        if (existing == result.pages_.end()) result.pages_.push_back(std::move(summary));
-        else *existing = std::move(summary);
+        for (auto & summary : updates) {
+            const auto existing = std::find_if(result.pages_.begin(), result.pages_.end(),
+                    [&](const auto & value) { return same_logical(value.id, summary.id); });
+            if (existing == result.pages_.end()) result.pages_.push_back(std::move(summary));
+            else *existing = std::move(summary);
+        }
         std::sort(result.pages_.begin(), result.pages_.end(),
                 [](const auto & lhs, const auto & rhs) {
                     return lhs.id.logical_page < rhs.id.logical_page;
                 });
         const uint64_t previous_build_count = accounting_.build_count;
         result.rebuild_accounting(config, start);
-        result.accounting_.build_count = previous_build_count + 1;
+        result.accounting_.build_count = previous_build_count + inputs.size();
         if (config.byte_budget != 0 && result.accounting_.charged_bytes > config.byte_budget) {
             status = llama_kv_routing_summary_status::insufficient_budget;
             return {};
@@ -396,6 +427,34 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::invalidate_page(
         const auto old_size = result.pages_.size();
         result.pages_.erase(std::remove_if(result.pages_.begin(), result.pages_.end(),
                 [&](const auto & page) { return page.id.logical_page == logical_page; }),
+                result.pages_.end());
+        result.rebuild_accounting({}, std::chrono::steady_clock::now());
+        result.accounting_.invalidation_count = accounting_.invalidation_count +
+            (old_size - result.pages_.size());
+        result.accounting_.build_count = previous_build_count;
+        status = llama_kv_routing_summary_status::ok;
+        return result;
+    } catch (...) {
+        status = llama_kv_routing_summary_status::overflow;
+        return {};
+    }
+}
+
+llama_kv_routing_summary_store llama_kv_routing_summary_store::invalidate_pages(
+        const llama_kv_residency_snapshot & snapshot,
+        const std::vector<llama_kv_page_id> & page_ids,
+        llama_kv_routing_summary_status & status) const noexcept {
+    status = llama_kv_routing_summary_status::invalid_argument;
+    if (snapshot.epoch() == 0) return {};
+    try {
+        llama_kv_routing_summary_store result = *this;
+        result.snapshot_epoch_ = snapshot.epoch();
+        const uint64_t previous_build_count = accounting_.build_count;
+        const auto old_size = result.pages_.size();
+        result.pages_.erase(std::remove_if(result.pages_.begin(), result.pages_.end(),
+                [&](const auto & page) {
+                    return std::find(page_ids.begin(), page_ids.end(), page.id) != page_ids.end();
+                }),
                 result.pages_.end());
         result.rebuild_accounting({}, std::chrono::steady_clock::now());
         result.accounting_.invalidation_count = accounting_.invalidation_count +

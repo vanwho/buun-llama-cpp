@@ -145,6 +145,17 @@ public:
             llama_kv_routing_summary_status & status,
             bool inventory_reconciled = false) const noexcept;
 
+    // Copy-on-write update for one completed seal wave. Inputs are for the
+    // same coordinate system and are merged before sorting/accounting so the
+    // immutable store is published once per wave rather than once per page.
+    llama_kv_routing_summary_store update_pages(
+            const llama_kv_residency_snapshot & snapshot,
+            const llama_kv_routing_page_inventory & inventory,
+            const std::vector<llama_kv_routing_page_input> & inputs,
+            const llama_kv_routing_summary_config & config,
+            llama_kv_routing_summary_status & status,
+            bool inventory_reconciled = false) const noexcept;
+
     // Drop summaries whose page identity is no longer current. The returned
     // store is still tied to the new table epoch and can accept later seals.
     llama_kv_routing_summary_store reconcile(
@@ -159,6 +170,11 @@ public:
     llama_kv_routing_summary_store invalidate_page(
             const llama_kv_residency_snapshot & snapshot,
             uint32_t logical_page,
+            llama_kv_routing_summary_status & status) const noexcept;
+
+    llama_kv_routing_summary_store invalidate_pages(
+            const llama_kv_residency_snapshot & snapshot,
+            const std::vector<llama_kv_page_id> & page_ids,
             llama_kv_routing_summary_status & status) const noexcept;
 
     bool contains(uint32_t logical_page) const noexcept;

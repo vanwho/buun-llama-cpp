@@ -19,6 +19,10 @@ bool add(uint64_t a, uint64_t b, uint64_t & out) noexcept {
     out = a + b; return true;
 }
 
+uint64_t advance_content_version(uint64_t version) noexcept {
+    return version == std::numeric_limits<uint64_t>::max() ? 1 : version + 1;
+}
+
 } // namespace
 
 bool llama_kv_pager_geometry_from_model(
@@ -1007,20 +1011,21 @@ llama_kv_pager::routing_summary_configs() const noexcept {
     return output;
 }
 
-void llama_kv_pager::reconcile_routing_summaries() noexcept {
+void llama_kv_pager::invalidate_routing_summaries(
+        const std::vector<llama_kv_page_id> & page_ids) noexcept {
+    if (page_ids.empty()) return;
     llama_kv_routing_summary_status status;
     const auto snapshot = residency_.snapshot();
-    const auto inventory = routing_inventory();
-    auto next = routing_summaries_.reconcile(snapshot, inventory, status);
+    auto invalidated = routing_summaries_.invalidate_pages(snapshot, page_ids, status);
     if (status == llama_kv_routing_summary_status::ok) {
-        routing_summaries_ = std::move(next);
+        routing_summaries_ = std::move(invalidated);
     }
     for (const auto & config : routing_summary_configs()) {
         auto * current = routing_summary_index_.find(config.layer_index, config.head_index);
         if (current == nullptr || !current->valid()) continue;
-        auto reconciled = current->reconcile(snapshot, inventory, status);
+        auto next = current->invalidate_pages(snapshot, page_ids, status);
         if (status == llama_kv_routing_summary_status::ok) {
-            routing_summary_index_.set(std::move(reconciled));
+            routing_summary_index_.set(std::move(next));
         }
     }
 }
@@ -1048,123 +1053,150 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
             (void) publish_page(page);
         }
     }
-    if (!host_ && routing_summary_provider_.build == nullptr) {
+    if (!host_ && routing_summary_provider_.build == nullptr) return 0;
+
+    struct changed_page {
+        size_t index = 0;
+        bool needs_summary = false;
+        bool summary_ok = true;
+    };
+    const auto configs = routing_summary_configs();
+    std::vector<changed_page> changed;
+    try {
+        for (size_t page_index = 0; page_index < pages_.size(); ++page_index) {
+            auto & page = pages_[page_index];
+            ++seal_pages_scanned_;
+            if (!page.present || page.record.pin_count != 0 || page.valid_rows.empty() ||
+                page.record.id.position_end <= page.record.id.position_begin ||
+                (page.record.state != llama_kv_page_state::filling_gpu &&
+                 page.record.state != llama_kv_page_state::gpu_dirty &&
+                 page.record.state != llama_kv_page_state::gpu_host_clean)) continue;
+            const uint64_t end_row = uint64_t(page.record.id.position_end) -
+                uint64_t(page.record.id.position_begin);
+            if (end_row > page.valid_rows.size() ||
+                !std::all_of(page.valid_rows.begin(), page.valid_rows.begin() + end_row,
+                             [](uint8_t value) { return value != 0; })) continue;
+
+            const bool needs_host_seal = host_ != nullptr &&
+                (!page.record.host_valid || page.host_content_version != page.content_version);
+            const bool needs_summary = routing_summary_provider_.build != nullptr &&
+                page.summary_content_version != page.content_version;
+            if (!needs_host_seal && !needs_summary) continue;
+
+            const auto previous = page.record;
+            if (needs_host_seal) {
+                page.record.state = llama_kv_page_state::sealing_host;
+                if (publish_page(page) != llama_kv_pager_write_status::ok) {
+                    page.record = previous;
+                    continue;
+                }
+                const auto result = host_->seal(page.record);
+                if (result.status != llama_kv_pager_host_status::ok) {
+                    page.record = previous;
+                    (void) publish_page(page);
+                    continue;
+                }
+                page.record.host_valid = true;
+                page.record.dirty = false;
+                page.record.state = llama_kv_page_state::gpu_host_clean;
+                page.host_content_version = page.content_version;
+                ++host_seal_d2h_calls_;
+                const uint64_t valid_rows = std::min<uint64_t>(
+                        page.valid_rows.size(), snapshot_.geometry.page_tokens);
+                if (snapshot_.geometry.page_tokens != 0 &&
+                        snapshot_.geometry.page_bytes <= UINT64_MAX / std::max<uint64_t>(valid_rows, 1)) {
+                    const uint64_t bytes = snapshot_.geometry.page_bytes * valid_rows /
+                        snapshot_.geometry.page_tokens;
+                    host_seal_d2h_bytes_ = host_seal_d2h_bytes_ > UINT64_MAX - bytes
+                        ? UINT64_MAX : host_seal_d2h_bytes_ + bytes;
+                }
+                if (publish_page(page) != llama_kv_pager_write_status::ok) {
+                    page.record = previous;
+                    (void) publish_page(page);
+                    (void) host_->invalidate(previous.id);
+                    continue;
+                }
+            }
+            changed.push_back({ page_index, needs_summary, true });
+        }
+
+        if (routing_summary_provider_.build != nullptr && !changed.empty()) {
+            struct pending_group {
+                std::vector<llama_kv_routing_page_input> inputs;
+                std::vector<size_t> pages;
+            };
+            std::vector<pending_group> groups(configs.size());
+            for (size_t config_index = 0; config_index < configs.size(); ++config_index) {
+                for (auto & item : changed) {
+                    if (!item.needs_summary || !item.summary_ok) continue;
+                    llama_kv_routing_page_input input;
+                    auto & page = pages_[item.index];
+                    if (!routing_summary_provider_.build(
+                            routing_summary_provider_.context, page.record,
+                            configs[config_index], input)) {
+                        item.summary_ok = false;
+                        continue;
+                    }
+                    ++summary_build_calls_;
+                    summary_build_bytes_ = summary_build_bytes_ > UINT64_MAX - input.source_bytes
+                        ? UINT64_MAX : summary_build_bytes_ + input.source_bytes;
+                    groups[config_index].inputs.push_back(std::move(input));
+                    groups[config_index].pages.push_back(item.index);
+                }
+            }
+
+            bool have_inputs = false;
+            for (const auto & group : groups) have_inputs = have_inputs || !group.inputs.empty();
+            if (have_inputs) {
+                const auto snapshot = residency_.snapshot();
+                const auto inventory = routing_inventory();
+                for (size_t config_index = 0; config_index < configs.size(); ++config_index) {
+                    auto & group = groups[config_index];
+                    if (group.inputs.empty()) continue;
+                    llama_kv_routing_summary_status summary_status;
+                    auto * indexed = routing_summary_index_.find(
+                            configs[config_index].layer_index, configs[config_index].head_index);
+                    llama_kv_routing_summary_store current = indexed != nullptr
+                        ? *indexed : llama_kv_routing_summary_store{};
+                    auto next = current.update_pages(
+                            snapshot, inventory, group.inputs, configs[config_index],
+                            summary_status, true);
+                    if (summary_status != llama_kv_routing_summary_status::ok) {
+                        for (const size_t page_index : group.pages) {
+                            auto it = std::find_if(changed.begin(), changed.end(),
+                                    [&](const auto & item) { return item.index == page_index; });
+                            if (it != changed.end()) it->summary_ok = false;
+                        }
+                        continue;
+                    }
+                    if (configs[config_index].layer_index == 0) routing_summaries_ = next;
+                    routing_summary_index_.set(std::move(next));
+                    ++store_copy_count_;
+                }
+            }
+        }
+
+        uint32_t sealed = 0;
+        for (const auto & item : changed) {
+            auto & page = pages_[item.index];
+            if (item.needs_summary && item.summary_ok) {
+                page.summary_content_version = page.content_version;
+            }
+            if (!item.needs_summary || item.summary_ok) {
+                ++seal_pages_changed_;
+                ++sealed;
+            }
+        }
+        return sealed;
+    } catch (...) {
         return 0;
     }
-    uint32_t sealed = 0;
-    for (auto & page : pages_) {
-        ++seal_pages_scanned_;
-        if (!page.present || page.record.pin_count != 0 ||
-            page.valid_rows.empty() ||
-            page.record.id.position_end <= page.record.id.position_begin ||
-            (page.record.state != llama_kv_page_state::filling_gpu &&
-             page.record.state != llama_kv_page_state::gpu_dirty &&
-             page.record.state != llama_kv_page_state::gpu_host_clean)) {
-            continue;
-        }
-        const uint64_t end_row = uint64_t(page.record.id.position_end) -
-            uint64_t(page.record.id.position_begin);
-        if (end_row > page.valid_rows.size() ||
-            !std::all_of(page.valid_rows.begin(),
-                         page.valid_rows.begin() + end_row,
-                         [](uint8_t value) { return value != 0; })) {
-            continue;
-        }
-        const bool needs_host_seal = host_ != nullptr && !page.record.host_valid;
-        if (!needs_host_seal && routing_summary_provider_.build == nullptr) continue;
-        const auto previous = page.record;
-        std::vector<std::pair<llama_kv_routing_summary_config,
-                              llama_kv_routing_page_input>> summary_inputs;
-        if (routing_summary_provider_.build != nullptr) {
-            for (const auto & config : routing_summary_configs()) {
-                llama_kv_routing_page_input summary_input;
-                if (!routing_summary_provider_.build(
-                        routing_summary_provider_.context, page.record, config, summary_input)) {
-                    summary_inputs.clear();
-                    break;
-                }
-                summary_inputs.push_back({ config, std::move(summary_input) });
-            }
-            if (summary_inputs.empty() && !needs_host_seal) continue;
-        }
-        if (needs_host_seal) {
-            page.record.state = llama_kv_page_state::sealing_host;
-            if (publish_page(page) != llama_kv_pager_write_status::ok) {
-                page.record = previous;
-                continue;
-            }
-            const auto result = host_->seal(page.record);
-            if (result.status != llama_kv_pager_host_status::ok) {
-                page.record = previous;
-                (void) publish_page(page);
-                continue;
-            }
-            page.record.host_valid = true;
-            page.record.dirty = false;
-            page.record.state = llama_kv_page_state::gpu_host_clean;
-            ++host_seal_d2h_calls_;
-            const uint64_t valid_rows = std::min<uint64_t>(
-                    page.valid_rows.size(), snapshot_.geometry.page_tokens);
-            if (snapshot_.geometry.page_tokens != 0 &&
-                    snapshot_.geometry.page_bytes <= UINT64_MAX / std::max<uint64_t>(valid_rows, 1)) {
-                const uint64_t bytes = snapshot_.geometry.page_bytes * valid_rows /
-                    snapshot_.geometry.page_tokens;
-                host_seal_d2h_bytes_ = host_seal_d2h_bytes_ > UINT64_MAX - bytes
-                    ? UINT64_MAX : host_seal_d2h_bytes_ + bytes;
-            }
-            if (publish_page(page) != llama_kv_pager_write_status::ok) {
-                page.record = previous;
-                (void) publish_page(page);
-                (void) host_->invalidate(previous.id);
-                continue;
-            }
-        }
-        if (routing_summary_provider_.build == nullptr) {
-            ++seal_pages_changed_;
-            ++sealed;
-            continue;
-        }
-        const auto inventory = routing_inventory();
-        bool summary_failed = false;
-        bool first_summary = true;
-        for (auto & input : summary_inputs) {
-            ++summary_build_calls_;
-            summary_build_bytes_ = summary_build_bytes_ > UINT64_MAX - input.second.source_bytes
-                ? UINT64_MAX : summary_build_bytes_ + input.second.source_bytes;
-            llama_kv_routing_summary_status summary_status;
-            auto * indexed = routing_summary_index_.find(
-                    input.first.layer_index, input.first.head_index);
-            llama_kv_routing_summary_store current = indexed != nullptr
-                ? *indexed : llama_kv_routing_summary_store{};
-            auto next = current.update_page(
-                    residency_.snapshot(), inventory, input.second, input.first, summary_status, true);
-            if (summary_status != llama_kv_routing_summary_status::ok) {
-                summary_failed = true;
-                break;
-            }
-            if (first_summary) {
-                routing_summaries_ = next;
-                first_summary = false;
-            }
-            routing_summary_index_.set(std::move(next));
-            ++store_copy_count_;
-        }
-        if (summary_failed) {
-            page.record = previous;
-            (void) publish_page(page);
-            if (host_) (void) host_->invalidate(previous.id);
-            continue;
-        }
-        ++seal_pages_changed_;
-        ++sealed;
-    }
-    return sealed;
 }
 
 bool llama_kv_pager::invalidate_host_page(
         const llama_kv_page_id & page) noexcept {
     const bool invalidated = !host_ || host_->invalidate(page);
-    reconcile_routing_summaries();
+    invalidate_routing_summaries({ page });
     return invalidated;
 }
 
@@ -1190,14 +1222,12 @@ void llama_kv_pager::bind_representation_identity(
 llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noexcept {
     auto tx = residency_.begin();
     llama_kv_residency_status result = llama_kv_residency_status::not_found;
-    bool identity_changed = true;
     for (const auto & existing : tx.pages()) {
         if (existing.id.session_generation == page.record.id.session_generation &&
             existing.id.sequence_id == page.record.id.sequence_id &&
             existing.id.sequence_generation == page.record.id.sequence_generation &&
             existing.id.logical_page == page.record.id.logical_page) {
             result = residency_.update(tx, page.record);
-            identity_changed = existing.id != page.record.id;
             break;
         }
         // begin_restore_page intentionally replaces the serialized identity
@@ -1205,7 +1235,6 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
         // so it is the safe transaction key for that one identity transition.
         if (existing.physical_slot == page.record.physical_slot) {
             result = residency_.update(tx, page.record);
-            identity_changed = existing.id != page.record.id;
             break;
         }
     }
@@ -1217,7 +1246,6 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
         residency_.rollback(tx);
         return llama_kv_pager_write_status::transaction;
     }
-    if (identity_changed) reconcile_routing_summaries();
     return llama_kv_pager_write_status::ok;
 }
 
@@ -1246,7 +1274,7 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(
     if (host_ && !preserve_host) {
         (void) host_->invalidate(page.record.id);
     }
-    reconcile_routing_summaries();
+    invalidate_routing_summaries({ page.record.id });
     page = {};
     return llama_kv_pager_write_status::ok;
 }
@@ -1335,8 +1363,19 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     if (page != nullptr && page->record.id.sequence_generation != sequence_generation) {
         return llama_kv_pager_write_status::stale_generation;
     }
+    const uint64_t content_version_before = page != nullptr ? page->content_version : 0;
+    const llama_kv_page_id previous_id = page != nullptr ? page->record.id : llama_kv_page_id{};
+    if (page != nullptr) {
+        invalidate_routing_summaries({ previous_id });
+        page->content_version = advance_content_version(page->content_version);
+        page->host_content_version = 0;
+        page->summary_content_version = 0;
+    }
     if (page != nullptr && page->record.host_valid && host_ &&
         !host_->invalidate(page->record.id)) {
+        page->content_version = content_version_before;
+        page->host_content_version = page->content_version;
+        page->summary_content_version = 0;
         return llama_kv_pager_write_status::transaction;
     }
     if (page != nullptr && page->record.host_valid) {
@@ -1389,6 +1428,9 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         page->valid_rows.assign(snapshot_.geometry.page_tokens, 0);
         page->present = true;
         page->completed_segments = 0;
+        page->content_version = 1;
+        page->host_content_version = 0;
+        page->summary_content_version = 0;
         slot_pages_[slot] = int32_t(page_index);
         created = true;
     }
@@ -1408,16 +1450,15 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.host_valid = false;
     page->record.dirty = true;
-    llama_kv_routing_summary_status summary_status;
-    auto invalidated = routing_summaries_.invalidate_page(
-            residency_.snapshot(), logical, summary_status);
-    if (summary_status == llama_kv_routing_summary_status::ok) {
-        routing_summaries_ = std::move(invalidated);
-    }
     page->record.pin_count++;
     current_page_index_ = uint32_t(page - pages_.data());
     if (publish_page(*page) != llama_kv_pager_write_status::ok) {
         page->valid_rows[offset] = row_was_valid;
+        if (!created) {
+            page->content_version = content_version_before;
+            page->host_content_version = 0;
+            page->summary_content_version = 0;
+        }
         if (created) {
             slot_pages_[page->record.physical_slot] = -1;
             *page = {};
@@ -1433,6 +1474,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     ticket.position = position;
     ticket.page_created = created;
     ticket.row_was_valid = row_was_valid;
+    ticket.content_version_before = content_version_before;
     return llama_kv_pager_write_status::ok;
 }
 
@@ -1534,6 +1576,11 @@ llama_kv_pager_write_status llama_kv_pager::cancel_write(
     if (ticket.page_created && !any) {
         return erase_page(*page);
     }
+    if (ticket.content_version_before != 0) {
+        page->content_version = ticket.content_version_before;
+    }
+    page->host_content_version = 0;
+    page->summary_content_version = 0;
     uint32_t end_row = 0;
     for (uint32_t i = 0; i < page->valid_rows.size(); ++i) {
         if (page->valid_rows[i]) end_row = i + 1;
@@ -1670,6 +1717,8 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                 copy.record.pin_count = 0;
                 copy.record.host_valid = false;
                 copy.record.dirty = true;
+                copy.host_content_version = 0;
+                copy.summary_content_version = 0;
                 size_t copy_index = 0;
                 while (copy_index < next.size() && next[copy_index].present) ++copy_index;
                 if (copy_index == next.size()) next.push_back({});
@@ -1735,12 +1784,17 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                         page.record.id.page_generation = uint32_t(++mutation_generation_);
                         page.record.host_valid = false;
                         page.record.dirty = true;
+                        page.content_version = advance_content_version(page.content_version);
+                        page.host_content_version = 0;
+                        page.summary_content_version = 0;
                     }
                 }
                 if (mutation.kind == llama_kv_pager_mutation_kind::shift && page.present) {
                     page.record.id.page_generation = uint32_t(++mutation_generation_);
                     page.record.host_valid = false;
                     page.record.dirty = true;
+                    page.host_content_version = 0;
+                    page.summary_content_version = 0;
                 }
             }
             if (next_current < next.size() && !next[next_current].present) {
@@ -1763,6 +1817,13 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
 
         auto tx = residency_.begin();
         const auto old_pages = tx.pages();
+        std::vector<llama_kv_page_id> summary_invalidations;
+        for (const auto & old : old_pages) {
+            const bool retained = std::any_of(next.begin(), next.end(), [&](const auto & candidate) {
+                return candidate.present && candidate.record.id == old.id;
+            });
+            if (!retained) summary_invalidations.push_back(old.id);
+        }
         if (mutation.release_sequence_pins) {
             for (const auto & old : old_pages) {
                 if ((mutation.sequence_id >= 0 &&
@@ -1866,8 +1927,8 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         for (const auto & id : host_invalidations) {
             (void) host_->invalidate(id);
         }
+        invalidate_routing_summaries(summary_invalidations);
         ++mutation_generation_;
-        reconcile_routing_summaries();
         return llama_kv_pager_write_status::ok;
     } catch (...) {
         return llama_kv_pager_write_status::overflow;
