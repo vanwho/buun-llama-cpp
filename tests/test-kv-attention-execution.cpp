@@ -64,6 +64,7 @@ static llama_kv_attention_operator_metadata metadata(
 }
 
 static void test_prefill_admission() {
+    assert(LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE == 64);
     llama_kv_attention_prefill_admission admission;
     assert(admission.append(0, 128) == llama_kv_attention_execution_status::ok);
     assert(admission.append(0, 128) == llama_kv_attention_execution_status::ok);
@@ -171,15 +172,15 @@ static void test_fallbacks_and_graph_key() {
     assert(reference.route == llama_kv_attention_execution_route::selected_reference);
     execution.complete_one_graph();
 
-    auto prompt_shape = metadata(snapshot(), 32, 1);
+    auto prompt_shape = metadata(snapshot(), 65, 1);
     auto prompt_reference = execution.prepare(prompt_shape,
             llama_kv_attention_execution_phase::decode, 1, 1, true, scratch);
     assert(prompt_reference.route == llama_kv_attention_execution_route::selected_reference);
     execution.complete_one_graph();
 
-    auto tile16 = execution.prepare(metadata(snapshot(), 16, 1),
+    auto tile64 = execution.prepare(metadata(snapshot(), 64, 1),
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
-    assert(tile16.route == llama_kv_attention_execution_route::selected_direct);
+    assert(tile64.route == llama_kv_attention_execution_route::selected_direct);
     execution.complete_one_graph();
 
     auto tile3 = execution.prepare(metadata(snapshot(), 3, 1),
@@ -187,10 +188,10 @@ static void test_fallbacks_and_graph_key() {
     assert(tile3.route == llama_kv_attention_execution_route::selected_direct);
     execution.complete_one_graph();
 
-    auto tile32 = execution.prepare(metadata(snapshot(), 32, 1),
+    auto tile65 = execution.prepare(metadata(snapshot(), 65, 1),
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
-    assert(tile32.route == llama_kv_attention_execution_route::selected_reference);
-    assert(tile32.reason.find("unsupported direct query tile") != std::string::npos);
+    assert(tile65.route == llama_kv_attention_execution_route::selected_reference);
+    assert(tile65.reason.find("unsupported direct query tile") != std::string::npos);
     execution.complete_one_graph();
 
     // Qwen3.5 uses 24 query heads and 4 KV heads (GQA ratio 6). The paged

@@ -5,7 +5,9 @@
 #include <cstddef>
 #include <cstdint>
 
-constexpr uint32_t GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS = 16;
+// Bound the fixed query workspace so prefill can submit useful tiles without
+// reserving a context-sized attention matrix.
+constexpr uint32_t GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS = 64;
 
 // Device-side description of one selected Turbo4 page.  Keep this established
 // CUDA-facing type distinct from the backend-neutral GGML graph descriptor so
@@ -134,7 +136,7 @@ struct ggml_cuda_fattn_turbo4_paged_params {
 };
 
 // Correctness-first direct page/query-tile attention. The qualified geometry is
-// causal, batch 1, one to sixteen query tokens, head width 256, and divisible
+// causal, batch 1, one to sixty-four query tokens, head width 256, and divisible
 // GQA. The serial oracle uses one CTA to traverse each compressed page
 // list once per tile and reuses decoded K/V rows across the tile's queries.
 // Qualified large-row calls use bounded split-KV CTAs and a device-side

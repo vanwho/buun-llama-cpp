@@ -34,9 +34,9 @@ enum class llama_kv_attention_execution_route : uint8_t {
     refusal,
 };
 
-// Keep the direct Turbo4 pager kernel page-friendly and bounded. Larger valid
-// selected shapes remain on the explicit reference route.
-constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 16;
+// Keep the direct Turbo4 pager kernel page-friendly and bounded. The CUDA
+// kernel uses the same bound for its fixed shared-memory query workspace.
+constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
 
 const char * llama_kv_attention_execution_mode_name(
         llama_kv_attention_execution_mode mode) noexcept;

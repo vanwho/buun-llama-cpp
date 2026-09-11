@@ -272,10 +272,11 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
         const llama_kv_routing_page_inventory & inventory,
         const llama_kv_routing_page_input & input,
         const llama_kv_routing_summary_config & config,
-        llama_kv_routing_summary_status & status) const noexcept {
+        llama_kv_routing_summary_status & status,
+        bool inventory_reconciled) const noexcept {
     status = llama_kv_routing_summary_status::invalid_argument;
     const auto start = std::chrono::steady_clock::now();
-    if (snapshot.epoch() == 0 || !inventory_matches_snapshot(snapshot, inventory) ||
+    if (snapshot.epoch() == 0 || (!inventory_reconciled && !inventory_matches_snapshot(snapshot, inventory)) ||
         config.representative_count < 4 || config.representative_count > 8 ||
         config.vector_dim == 0 || config.allocation_granularity == 0 || !valid_form(config.form)) return {};
     if (!pages_.empty() && (representative_count_ != config.representative_count || vector_dim_ != config.vector_dim ||
@@ -296,11 +297,17 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_page(
             status = llama_kv_routing_summary_status::invalid_page;
             return {};
         }
-        llama_kv_routing_summary_status reconcile_status;
-        llama_kv_routing_summary_store result = reconcile(snapshot, inventory, reconcile_status);
-        if (reconcile_status != llama_kv_routing_summary_status::ok) {
-            status = reconcile_status;
-            return {};
+        llama_kv_routing_summary_store result;
+        if (inventory_reconciled) {
+            result = *this;
+            result.snapshot_epoch_ = snapshot.epoch();
+        } else {
+            llama_kv_routing_summary_status reconcile_status;
+            result = reconcile(snapshot, inventory, reconcile_status);
+            if (reconcile_status != llama_kv_routing_summary_status::ok) {
+                status = reconcile_status;
+                return {};
+            }
         }
         result.snapshot_epoch_ = snapshot.epoch();
         result.representative_count_ = config.representative_count;

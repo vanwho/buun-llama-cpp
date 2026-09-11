@@ -785,7 +785,9 @@ int main() {
     }
     assert(summary_pager->seal_ready_pages() == 2);
     assert(summary_pager->routing_summaries().valid());
-    assert(summary_pager->routing_summary_index().table_count() == 16 * 4);
+    // Runtime retrieval consumes head zero for each attention layer; the
+    // pager therefore maintains one summary table per layer.
+    assert(summary_pager->routing_summary_index().table_count() == 16);
     assert(summary_pager->routing_summary_accounting().source_rows == 8);
     std::vector<float> summary_query(256, 0.0f);
     summary_query[0] = 1.0f;

@@ -30,6 +30,14 @@ server_speculative_decode_terminal_resolve(
     bool selected_exception,
     bool speculative_ok) noexcept;
 
+// A configured native MTP drafter is not enough to classify a target batch as
+// verification: prompt chunks are also multi-token.  Verification batches are
+// generated-only proposal batches.
+bool server_is_native_mtp_verification_batch(
+    bool native_mtp_configured,
+    int32_t n_tokens,
+    bool has_prompt_tokens) noexcept;
+
 // The page authority is deliberately single-slot until its multi-sequence
 // accounting and publication proof are complete.  The off/observe paths do
 // not acquire that authority and therefore retain ordinary multi-slot use.

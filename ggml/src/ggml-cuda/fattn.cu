@@ -1362,7 +1362,12 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
 
     float * q_rot = shared;
     float * reductions = q_rot + 256 * max_query_tile;
-    float * page_max = reductions + 8;
+    // Each warp owns one query while traversing a row.  Decode the compressed
+    // K/V row once per block, rather than once per query, and let the eight
+    // warps advance eight query accumulators in parallel.
+    float * decoded_k = reductions + 8 * 4;
+    float * decoded_v = decoded_k + 256;
+    float * page_max = decoded_v + 256;
     const uint32_t partition_pages = page_end - page_begin;
     float * page_sum = page_max + partition_pages * max_query_tile;
 
@@ -1405,13 +1410,11 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
     const int64_t row_bytes_k = (int64_t) k_row_stride;
     const int64_t row_bytes_v = (int64_t) v_row_stride;
 
-    float qk_max[max_query_tile];
-    float qk_sum[max_query_tile];
-    float value_sum[max_query_tile];
-    for (uint32_t query = 0; query < max_query_tile; ++query) {
+    float qk_max[8] = {};
+    float qk_sum[8] = {};
+    float value_sum[8][8] = {};
+    for (uint32_t query = 0; query < 8; ++query) {
         qk_max[query] = -FLT_MAX;
-        qk_sum[query] = 0.0f;
-        value_sum[query] = 0.0f;
     }
 
     for (uint32_t page_index = page_begin; page_index < page_end; ++page_index) {
@@ -1439,99 +1442,119 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
                 any_valid = any_valid || valid[query];
             }
 
-            float k_value = 0.0f;
-            float v_value = 0.0f;
             if (any_valid) {
                 const char * k_row = k_page + row * row_bytes_k;
                 const char * v_row = v_page + row * row_bytes_v;
-                k_value = turbo4_paged_value(k_row, tid);
-                v_value = turbo4_paged_value(v_row, tid);
+                decoded_k[tid] = turbo4_paged_value(k_row, tid);
+                decoded_v[tid] = turbo4_paged_value(v_row, tid);
             }
+            __syncthreads();
 
-            for (uint32_t query = 0; query < n_query_tokens; ++query) {
-                float qk = valid[query] ? q_rot[query * 256 + tid] * k_value : 0.0f;
-
-                // Reduce one query's dot product at a time.  The decoded K/V
-                // row above is reused for every valid query in this tile.
-                for (int offset = 16; offset > 0; offset >>= 1) {
-                    qk += __shfl_down_sync(0xFFFFFFFFu, qk, offset);
-                }
-                if ((tid & 31) == 0) {
-                    reductions[tid / 32] = qk;
-                }
-                __syncthreads();
-                if (tid == 0) {
-                    float total = 0.0f;
-                    for (int warp = 0; warp < 8; ++warp) {
-                        total += reductions[warp];
+            // Process eight queries per row in parallel.  A warp owns one
+            // query and each lane accumulates eight output dimensions.
+            for (uint32_t query_base = 0; query_base < n_query_tokens; query_base += 8) {
+                const uint32_t query = query_base + uint32_t(tid / 32);
+                const uint32_t query_slot = query_base / 8;
+                const int lane = tid & 31;
+                const bool query_valid = query < n_query_tokens && valid[query];
+                float qk_total = 0.0f;
+                for (int j = 0; j < 8; ++j) {
+                    float qk = query_valid
+                        ? q_rot[query * 256 + lane + 32 * j] * decoded_k[lane + 32 * j]
+                        : 0.0f;
+                    for (int offset = 16; offset > 0; offset >>= 1) {
+                        qk += __shfl_down_sync(0xFFFFFFFFu, qk, offset);
                     }
-                    reductions[0] = valid[query] ? total * scale : -FLT_MAX;
+                    if (lane == 0) {
+                        qk_total += qk;
+                    }
                 }
-                __syncthreads();
-                qk = reductions[0];
-
-                if (valid[query]) {
-                    const float next_max = fmaxf(qk_max[query], qk);
-                    const float exp_old = qk_max[query] == -FLT_MAX ? 0.0f :
-                        expf(qk_max[query] - next_max);
-                    const float exp_new = expf(qk - next_max);
-                    value_sum[query] = value_sum[query] * exp_old + exp_new * v_value;
-                    qk_sum[query] = qk_sum[query] * exp_old + exp_new;
-                    qk_max[query] = next_max;
-
-                    if (reduce_page_mass && tid == 0) {
+                qk_total = __shfl_sync(0xFFFFFFFFu, qk_total, 0);
+                float exp_old = 0.0f;
+                float exp_new = 0.0f;
+                if (query_valid) {
+                    const float next_max = fmaxf(qk_max[query_slot], qk_total * scale);
+                    exp_old = qk_max[query_slot] == -FLT_MAX ? 0.0f :
+                        expf(qk_max[query_slot] - next_max);
+                    exp_new = expf(qk_total * scale - next_max);
+                    qk_max[query_slot] = next_max;
+                    qk_sum[query_slot] = qk_sum[query_slot] * exp_old + exp_new;
+                    for (int j = 0; j < 8; ++j) {
+                        const int d = lane + 32 * j;
+                        value_sum[query_slot][j] = value_sum[query_slot][j] * exp_old +
+                            exp_new * decoded_v[d];
+                    }
+                    if (reduce_page_mass && (tid & 31) == 0) {
                         const size_t page_state = size_t(query) * partition_pages + (page_index - page_begin);
-                        const float page_next_max = fmaxf(page_max[page_state], qk);
+                        const float page_next_max = fmaxf(page_max[page_state], qk_total * scale);
                         const float page_exp_old = page_max[page_state] == -FLT_MAX ? 0.0f :
                             expf(page_max[page_state] - page_next_max);
-                        const float page_exp_new = expf(qk - page_next_max);
+                        const float page_exp_new = expf(qk_total * scale - page_next_max);
                         page_sum[page_state] = page_sum[page_state] * page_exp_old + page_exp_new;
                         page_max[page_state] = page_next_max;
                     }
                 }
-                __syncthreads();
+                GGML_UNUSED(exp_old);
+                GGML_UNUSED(exp_new);
             }
+            __syncthreads();
         }
     }
 
     for (uint32_t query = 0; query < n_query_tokens; ++query) {
-        float merged_max = qk_sum[query] > 0.0f ? qk_max[query] : -INFINITY;
-        float merged_sum = qk_sum[query];
-        float previous_value = 0.0f;
-        if (merge_partial_state) {
+        const uint32_t query_slot = query / 8;
+        const uint32_t query_warp = query & 7;
+        const uint32_t lane = tid & 31;
+        const bool owns_query = uint32_t(tid / 32) == query_warp;
+        float merged_max = qk_sum[query_slot] > 0.0f ? qk_max[query_slot] : -INFINITY;
+        float merged_sum = qk_sum[query_slot];
+        float previous_value[8];
+        for (int j = 0; j < 8; ++j) {
+            previous_value[j] = 0.0f;
+        }
+        if (merge_partial_state && owns_query) {
             const float * previous = (const float *) ((const char *) partial_state_input +
                 query * partial_state_input_query_stride + head * partial_state_input_head_stride);
-            previous_value = previous[2 + tid];
-            if (tid == 0) {
+            for (int j = 0; j < 8; ++j) {
+                previous_value[j] = previous[2 + int(lane) + 32 * j];
+            }
+            if (lane == 0) {
                 const float previous_max = previous[0];
                 const float previous_sum = previous[1];
                 merged_max = fmaxf(previous_max, merged_max);
                 const float previous_scale = previous_sum > 0.0f && previous_max != -INFINITY
                     ? expf(previous_max - merged_max) : 0.0f;
-                const float current_scale = qk_sum[query] > 0.0f && qk_max[query] != -INFINITY
-                    ? expf(qk_max[query] - merged_max) : 0.0f;
-                merged_sum = previous_sum * previous_scale + qk_sum[query] * current_scale;
-                reductions[0] = merged_max;
-                reductions[1] = merged_sum;
-                reductions[2] = previous_scale;
-                reductions[3] = current_scale;
+                const float current_scale = qk_sum[query_slot] > 0.0f && qk_max[query_slot] != -INFINITY
+                    ? expf(qk_max[query_slot] - merged_max) : 0.0f;
+                merged_sum = previous_sum * previous_scale + qk_sum[query_slot] * current_scale;
+                reductions[query_warp * 4 + 0] = merged_max;
+                reductions[query_warp * 4 + 1] = merged_sum;
+                reductions[query_warp * 4 + 2] = previous_scale;
+                reductions[query_warp * 4 + 3] = current_scale;
             }
-            __syncthreads();
-            merged_max = reductions[0];
-            merged_sum = reductions[1];
-            const float previous_scale = reductions[2];
-            const float current_scale = reductions[3];
-            value_sum[query] = previous_value * previous_scale + value_sum[query] * current_scale;
-            qk_max[query] = merged_max;
-            qk_sum[query] = merged_sum;
-            __syncthreads();
+            __syncwarp();
+            merged_max = reductions[query_warp * 4 + 0];
+            merged_sum = reductions[query_warp * 4 + 1];
+            const float previous_scale = reductions[query_warp * 4 + 2];
+            const float current_scale = reductions[query_warp * 4 + 3];
+            for (int j = 0; j < 8; ++j) {
+                value_sum[query_slot][j] = previous_value[j] * previous_scale +
+                    value_sum[query_slot][j] * current_scale;
+            }
+            qk_max[query_slot] = merged_max;
+            qk_sum[query_slot] = merged_sum;
+            __syncwarp();
         }
-        if (output != nullptr) {
+        if (output != nullptr && uint32_t(tid / 32) == query_warp) {
             float * output_head = (float *) ((char *) output + query * output_query_stride +
                 head * output_head_stride);
-            output_head[tid] = qk_sum[query] > 0.0f ? value_sum[query] / qk_sum[query] : 0.0f;
+            for (int j = 0; j < 8; ++j) {
+                const int d = int(lane) + 32 * j;
+                output_head[d] = qk_sum[query_slot] > 0.0f
+                    ? value_sum[query_slot][j] / qk_sum[query_slot] : 0.0f;
+            }
         }
-        if (write_partial_state || split_partitioned) {
+        if ((write_partial_state || split_partitioned) && owns_query) {
             char * state_base = split_partitioned
                 ? (char *) split_kv_scratch + partition_index * split_kv_partition_stride
                 : (char *) partial_state;
@@ -1541,17 +1564,19 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
                 ? state_head_stride * n_head_q : partial_state_query_stride;
             float * state = (float *) (state_base + query * state_query_stride +
                 head * state_head_stride);
-            if (tid == 0) {
-                state[0] = qk_sum[query] > 0.0f ? qk_max[query] : -INFINITY;
-                state[1] = qk_sum[query];
+            if (lane == 0) {
+                state[0] = qk_sum[query_slot] > 0.0f ? qk_max[query_slot] : -INFINITY;
+                state[1] = qk_sum[query_slot];
             }
-            state[2 + tid] = value_sum[query];
+            for (int j = 0; j < 8; ++j) {
+                state[2 + int(lane) + 32 * j] = value_sum[query_slot][j];
+            }
         }
 
-        if (reduce_page_mass) {
-            __syncthreads();
+        if (reduce_page_mass && owns_query) {
+            __syncwarp();
             if (split_partitioned) {
-                if (tid == 0 && split_kv_page_state != nullptr) {
+                if (lane == 0 && split_kv_page_state != nullptr) {
                     for (uint32_t page_index = page_begin; page_index < page_end; ++page_index) {
                         const ggml_cuda_fattn_turbo4_page page = pages[page_index];
                         const size_t page_state = size_t(query) * partition_pages + (page_index - page_begin);
@@ -1563,18 +1588,18 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
                         dst[1] = page_sum[page_state];
                     }
                 }
-            } else if (tid == 0) {
+            } else if (lane == 0) {
                 for (uint32_t page_index = 0; page_index < n_pages; ++page_index) {
                     const ggml_cuda_fattn_turbo4_page page = pages[page_index];
                     const size_t page_state = size_t(query) * n_pages + page_index;
-                    const float mass = qk_sum[query] > 0.0f && page_max[page_state] != -FLT_MAX
-                        ? expf(page_max[page_state] - qk_max[query]) * page_sum[page_state] / qk_sum[query] : 0.0f;
+                    const float mass = qk_sum[query_slot] > 0.0f && page_max[page_state] != -FLT_MAX
+                        ? expf(page_max[page_state] - qk_max[query_slot]) * page_sum[page_state] / qk_sum[query_slot] : 0.0f;
                     page_mass[(size_t) query * page_mass_query_stride / sizeof(float) +
                         (size_t) head * page_mass_head_stride / sizeof(float) + page.logical_page] = mass;
                 }
             }
         }
-        __syncthreads();
+        __syncwarp();
     }
 
     GGML_UNUSED(n_head_q);
@@ -1832,7 +1857,7 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     constexpr size_t max_query_tile = GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS;
     const bool split_partitioned = n_partitions > 1;
     const uint32_t max_partition_pages = (params.n_pages + n_partitions - 1) / n_partitions;
-    const size_t shared_floats = 256 * max_query_tile + 8 +
+    const size_t shared_floats = 256 * max_query_tile + 8 + 2 * 256 +
         (params.reduce_page_mass ? 2 * max_query_tile * max_partition_pages : 0);
     const size_t shared_bytes = shared_floats * sizeof(float);
     if (shared_bytes > 48 * 1024) {

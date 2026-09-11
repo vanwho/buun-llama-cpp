@@ -1291,6 +1291,13 @@ server_speculative_decode_terminal_resolve(
     return server_speculative_decode_terminal::success;
 }
 
+bool server_is_native_mtp_verification_batch(
+        bool native_mtp_configured,
+        int32_t n_tokens,
+        bool has_prompt_tokens) noexcept {
+    return native_mtp_configured && n_tokens > 1 && !has_prompt_tokens;
+}
+
 namespace {
 
 // Pager authority is intentionally narrower than ordinary VBR/prompt-cache
@@ -19609,8 +19616,10 @@ private:
         llama_set_causal_attn(ctx_tgt, true);
 
         bool has_output = false;
+        bool has_prompt_tokens = false;
         for (int i = off; i < off + batch_view.n_tokens; ++i) {
             has_output |= batch.tokens[i].output;
+            has_prompt_tokens |= batch.tokens[i].is_prompt;
         }
 
         // Keep target verification and the dependent speculative update inside
@@ -19624,9 +19633,9 @@ private:
         int64_t t_verify_elapsed = 0;
         const std::exception_ptr yield_exception =
             queue_tasks.yield_to_queue_capture_exception([&]() {
-            const bool mtp_verification =
-                params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP) &&
-                batch_view.n_tokens > 1;
+            const bool mtp_verification = server_is_native_mtp_verification_batch(
+                params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP),
+                batch_view.n_tokens, has_prompt_tokens);
             ctx_tgt->set_kv_attention_mtp_verification(mtp_verification);
             try {
                 ret = llama_decode(ctx_tgt, batch_view);

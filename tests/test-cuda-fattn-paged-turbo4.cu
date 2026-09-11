@@ -212,8 +212,6 @@ int main() {
     }
     params.n_query_tokens = max_query_tokens + 1;
     assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::unsupported_shape);
-    params.n_query_tokens = 32;
-    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::unsupported_shape);
     params.n_query_tokens = 1;
 
     // Reuse the same resident physical page as a one-page tail case. This

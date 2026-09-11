@@ -142,7 +142,8 @@ public:
             const llama_kv_routing_page_inventory & inventory,
             const llama_kv_routing_page_input & input,
             const llama_kv_routing_summary_config & config,
-            llama_kv_routing_summary_status & status) const noexcept;
+            llama_kv_routing_summary_status & status,
+            bool inventory_reconciled = false) const noexcept;
 
     // Drop summaries whose page identity is no longer current. The returned
     // store is still tied to the new table epoch and can accept later seals.

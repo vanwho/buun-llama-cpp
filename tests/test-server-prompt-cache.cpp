@@ -266,6 +266,11 @@ void test_queue_yield_work_exception_precedes_callback_exception() {
 void test_speculative_decode_terminals() {
     using terminal = server_speculative_decode_terminal;
 
+    CHECK(!server_is_native_mtp_verification_batch(false, 8, false));
+    CHECK(!server_is_native_mtp_verification_batch(true, 1, false));
+    CHECK(!server_is_native_mtp_verification_batch(true, 64, true));
+    CHECK(server_is_native_mtp_verification_batch(true, 2, false));
+
     CHECK(server_speculative_decode_terminal_resolve(
               0, false, false, false, true) == terminal::success);
     CHECK(server_speculative_decode_terminal_resolve(

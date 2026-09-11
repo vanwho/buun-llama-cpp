@@ -986,19 +986,19 @@ llama_kv_pager::routing_summary_configs() const noexcept {
     std::vector<llama_kv_routing_summary_config> output;
     try {
         const uint32_t layers = snapshot_.geometry.attention_layers;
-        const uint32_t heads = snapshot_.geometry.kv_heads;
-        if (layers == 0 || heads == 0) {
+        if (layers == 0 || snapshot_.geometry.kv_heads == 0) {
             output.push_back(routing_summary_config_);
             return output;
         }
-        output.reserve(size_t(layers) * heads);
+        // Runtime routing captures and scores head zero. Keep one immutable
+        // summary per attention layer; maintaining every KV head multiplied
+        // page-seal CPU work without adding a consumer-visible decision.
+        output.reserve(layers);
         for (uint32_t layer = 0; layer < layers; ++layer) {
-            for (uint32_t head = 0; head < heads; ++head) {
-                auto config = routing_summary_config_;
-                config.layer_index = layer;
-                config.head_index = head;
-                output.push_back(config);
-            }
+            auto config = routing_summary_config_;
+            config.layer_index = layer;
+            config.head_index = 0;
+            output.push_back(config);
         }
     } catch (...) {
         output.clear();
@@ -1120,7 +1120,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
             llama_kv_routing_summary_store current = indexed != nullptr
                 ? *indexed : llama_kv_routing_summary_store{};
             auto next = current.update_page(
-                    residency_.snapshot(), inventory, input.second, input.first, summary_status);
+                    residency_.snapshot(), inventory, input.second, input.first, summary_status, true);
             if (summary_status != llama_kv_routing_summary_status::ok) {
                 summary_failed = true;
                 break;
@@ -1171,12 +1171,14 @@ void llama_kv_pager::bind_representation_identity(
 llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noexcept {
     auto tx = residency_.begin();
     llama_kv_residency_status result = llama_kv_residency_status::not_found;
+    bool identity_changed = true;
     for (const auto & existing : tx.pages()) {
         if (existing.id.session_generation == page.record.id.session_generation &&
             existing.id.sequence_id == page.record.id.sequence_id &&
             existing.id.sequence_generation == page.record.id.sequence_generation &&
             existing.id.logical_page == page.record.id.logical_page) {
             result = residency_.update(tx, page.record);
+            identity_changed = existing.id != page.record.id;
             break;
         }
         // begin_restore_page intentionally replaces the serialized identity
@@ -1184,6 +1186,7 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
         // so it is the safe transaction key for that one identity transition.
         if (existing.physical_slot == page.record.physical_slot) {
             result = residency_.update(tx, page.record);
+            identity_changed = existing.id != page.record.id;
             break;
         }
     }
@@ -1195,7 +1198,7 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
         residency_.rollback(tx);
         return llama_kv_pager_write_status::transaction;
     }
-    reconcile_routing_summaries();
+    if (identity_changed) reconcile_routing_summaries();
     return llama_kv_pager_write_status::ok;
 }
 
