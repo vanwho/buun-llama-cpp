@@ -1,33 +1,36 @@
 # Attention-aware KV paging execution package
 
-For work after the running 17-15, start with `POST17_IMPLEMENTATION_STRATEGY.md`,
-then the current packet's `TECHNICAL_CHANGE_SPEC.md` sections and
-`BENCHMARK_PROTOCOL_V5.md`. The large `ATTENTION_AWARE_KV_PAGING_PLAN.md` now
-points to this amendment; old acceptance ledgers are historical context only.
-Each future packet also names sections of `EXECUTION_COOKBOOK.md` for verified
-commands, minimal fixtures and common evidence, and `IMPLEMENTATION_CONTRACTS.md`
-for internal APIs, memory ownership, tensor layouts and checkpoint boundaries.
-Read those named sections once per cluster, not the entire history. A command
-or interface marked proposed must be implemented/tested before it is invoked.
-Use `WORK_STATE.json` as the sole task-order and
-status authority. Each task packet under `tasks/` is written to be executable without loading the full
-plan. Each `WORK_STATE.json` cluster has a matching shared context under `clusters/`, allowing two or
-three tightly coupled tasks to reuse one session without carrying unrelated phase history. Handoffs
-belong under `handoffs/` and must record commands, results, changed files, unresolved risks, and deferred
-hardware or human actions.
+Current authority (20 26-09-11): [PHASE25_SPEED_FIRST_STRATEGY.md](PHASE25_SPEED_FIRST_STRATEGY.md)
+and [BENCHMARK_PROTOCOL_V6.md](BENCHMARK_PROTOCOL_V6.md), then the current task
+and cluster in WORK_STATE.json. Do not read the large historical plan or old
+acceptance chains for routine execution.
 
-Foundation phases 00–07 and follow-on phases through the active 17-15 remain
-historical/current evidence, not a proof that all live capabilities work.
-17-16 now bridges that campaign to 18–20 implementation repairs/advancements.
-Phase 21 first gates and repairs the live selective Turbo4 path, then produces
-new quality, full-256K, context-speed, paired-control and physical-soak
-evidence; **22-01 is the Sol High benchmark-only reviewer**. Its phase-21
-assessment schedules measured phase-23 repair and remeasurement followed by the
-Sol High **24-01** summary-only review, not another historical closure audit.
-All other task recommendations stay Luna High; Wiretail defaults are unchanged.
-The project remains `in_progress`, not complete.
-Native MTP capacity follows the resolved target context and target hot capacity is derived from the
-runtime memory ledger; no prior Fast-profile hot count is a default.
+Resume command:
+
+```bash
+PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp PROJECT_BRANCH=plan/attention-aware-kv-paging /srv/wiretail/wiretail.sh
+```
+
+Phase 25 now fixes short-run measurement, incremental host/routing work, GPU
+batching/attention kernels, real movement, graph reuse, MTP and whole-model
+speed. Phase 26 proves populated 262144 context and records the final original-
+question curve plus affordable controls. Sol High 27-01 reviews that compact
+summary only. Broad quality/exact/soak/YaRN/upstream gates are not on this
+speed-prototype critical path. Minimal byte/causal/lifetime checks remain.
+
+The previous 25-02 blocker was re-scoped, not declared solved. 140 done records
+and all reported token usage remain; old packets/handoff are archived in
+archive/phase25-before-speed-first-20260911/. The first new task is 25-02 in a
+fresh cluster. All implementation/measurement recommendations remain Luna
+High; Wiretail's own defaults are unchanged.
+
+Use WORK_STATE.json for order/status and the current packet for source seams,
+fixtures and commands. Clusters contain at most3 consecutive tasks. Each
+handoff is compact and points to durable raw evidence; don't read full runner
+JSONL or historical ledgers unless a specific unresolved issue requires it.
+Target/draft KV are always Turbo4; native GPU MTP follows resolved context,
+not hot capacity. Source stays generic; machine config/data in /srv/ai or
+execution metadata. Only the runner owns automated fork Git operations.
 
 The shared runner defaults to auto Git mode. For supervised upstream-bound work, explicitly select manual mode:
 

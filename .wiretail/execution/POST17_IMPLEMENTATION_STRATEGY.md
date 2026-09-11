@@ -1,5 +1,10 @@
 # Post-17 strategy: make the live data path real, then measure it
 
+Historical reference for phases before the2026-09-11 speed revision. For active
+tasks25-02 onward, PHASE25_SPEED_FIRST_STRATEGY.md and BENCHMARK_PROTOCOL_V6.md
+supersede conflicts. Do not resume old long-run/quality/soak gates or use old
+review task numbers. WORK_STATE.json and the current packet own execution.
+
 Revision: 2026-09-05. Applies to work **after the already-running 17-15**.
 This amendment and `BENCHMARK_PROTOCOL_V5.md` supersede conflicting historical
 execution directions, speed gates, and phase-18 review numbering in the large

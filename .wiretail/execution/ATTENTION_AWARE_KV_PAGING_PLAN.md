@@ -1,45 +1,39 @@
 # Qwen3.8 256K attention-aware Turbo4 KV paging plan
 
-Status: post-17 implementation revision scheduled, revised 2026-09-05
+Status: speed-first revision2026-09-11; earlier implementation is not full-goal proof.
 Canonical worktree: `/srv/repos/vanwho/buun-llama-cpp`
-Pinned Buun base: `cb703be37e3628dadb71912f3b3b25b82090555b`
-Compared llama.cpp base: `67a17c17caa95742186f8b1ecadd1b5abd6d5ebb`
 Execution state: `.wiretail/execution/WORK_STATE.json`
 
-## Current execution authority — after the running 17-15
+## Current execution authority — phases25–27
 
-Read [POST17_IMPLEMENTATION_STRATEGY.md](POST17_IMPLEMENTATION_STRATEGY.md)
-first. It records the current evidence, architecture decisions and phase order.
-[TECHNICAL_CHANGE_SPEC.md](TECHNICAL_CHANGE_SPEC.md) gives exact source seams,
-buffer/index contracts, kernel and graph changes, and testable hypotheses.
-[EXECUTION_COOKBOOK.md](EXECUTION_COOKBOOK.md) provides verified entrypoints,
-minimal fixtures, a reusable live parity harness contract and common receipts.
-[IMPLEMENTATION_CONTRACTS.md](IMPLEMENTATION_CONTRACTS.md) settles internal
-ownership, strides, execution boundaries and incremental implementation order.
-Every future task has a concrete execution recipe pointing to its needed sections.
-[BENCHMARK_PROTOCOL_V5.md](BENCHMARK_PROTOCOL_V5.md) defines token-aware,
-resumable experiments and the original-three-prompt speed curve through 256K.
-These documents supersede conflicting old execution directions below.
+Read [PHASE25_SPEED_FIRST_STRATEGY.md](PHASE25_SPEED_FIRST_STRATEGY.md), then
+[BENCHMARK_PROTOCOL_V6.md](BENCHMARK_PROTOCOL_V6.md) and the current packet.
+They contain source-based diagnosis, alternative fast-kernel paths, the full
+material-optimization ownership table and a short-iteration benchmark contract.
+They supersede conflicting execution requirements below and in post-17/V5
+references. WORK_STATE.json is the sole active task-order/status authority.
 
-The six context coordinates are a **final results curve only**, after the
-functionality works. Development/repair tasks choose the context appropriate
-to their particular invariant or bottleneck, not a repeated six-point ladder.
+The old25-02 full-context-first gate is archived, not completed. New25-02
+starts with short profiling/driver repairs. Phase25 fixes growing host-summary
+work, kernel/model batching, actual cold movement, graph/policy overhead,
+MTP/whole-model compute and joint budgets. Phase26 proves actual near-full
+262144 occupancy and records the six-point original-question speed curve.
+Sol High27-01 assesses only the new compact summary, scheduling measured
+remediation if necessary. All other tasks are Luna High; tool defaults stay.
 
-17-15 is not changed or interrupted. 17-16 is now a compact transition task;
-phases 18–20 repair and advance the implementation; phase 21 first gates and
-repairs remaining live pager gaps and then measures it; the
-benchmark-only Sol High review moves from old 18-01 to **22-01**. Its measured
-`not_reached` result schedules phase 23 repair/remeasurement and the **24-01**
-summary-only review. Unstarted old
-17-16–17-19/18-01 contents are archived, not marked complete. Speed ratios are
-findings, not the historical 3x/5x/70% acceptance gates. All target/draft K/V
-remains Turbo4; MTP stays GPU resident at the resolved full context. YaRN is a
-conditional stretch only after the base 262,144 goal is demonstrated. Active
-packet order remains authoritative in `WORK_STATE.json`.
+Both target and GPU-resident full-context native-MTP KV remain Turbo4. Hot
+capacity H is budget-derived, attended rows A and model batch B are separately
+optimized. Weights/attention compute and recurrent state stay on GPU. Broad
+quality/exact-hybrid/soak/YaRN/upstream work is deliberately outside this
+speed-prototype scope; minimal byte/causal/lifetime checks remain mandatory.
+Speed ratios are findings, not3x/5x acceptance gates. Quality consequences of
+sparse prefill must be disclosed; full host storage is not dense-equivalence.
 
-Sections with earlier task IDs below retain design/history context, not an
-instruction to replay their acceptance ledgers. Active packets and dependencies
-come only from WORK_STATE.json.
+Old task numbers/design requirements below remain historical design options,
+not instructions to re-run acceptance ledgers. In particular, any requirement
+below to maximize H regardless of compute cost is superseded by joint H/A/B
+throughput tuning. Previous proof/handoff directions are in
+archive/phase25-before-speed-first-20260911/.
 
 ## 1. Outcome
 

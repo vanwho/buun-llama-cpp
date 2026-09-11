@@ -1,5 +1,12 @@
 # Task packet contract
 
+For tasks25-02 onward, PHASE25_SPEED_FIRST_STRATEGY.md and
+BENCHMARK_PROTOCOL_V6.md supersede conflicting historical quality, exact,
+soak, full-context-first or task-number instructions. Current user scope is
+speed-first experimental operation, not production/upstream acceptance.
+Material speed opportunities must have source owners and short measurements.
+
+
 Each packet is the complete task-specific context for one bounded task. Its shared session context is
 `.wiretail/execution/clusters/<task.cluster>.md`; read that file once per fresh cluster session and reuse it
 for consecutive tasks in the cluster.
@@ -42,12 +49,16 @@ Global rules for every packet:
 11. For all live phases, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
     the trained model context is not an allocation floor. No production default may encode a fixed hot
     token/page count. Historical benchmark artifacts may retain their measured configuration names.
-12. After 17-15, use POST17_IMPLEMENTATION_STRATEGY.md, the packet's TECHNICAL_CHANGE_SPEC.md sections,
-    and BENCHMARK_PROTOCOL_V5.md instead of historical acceptance ledgers. 17-16 bridges the evidence;
-    phases 18–20 implement repairs; phase 21 gates/repairs remaining live gaps and then measures; 22-01 (Sol High) reviews only that compact summary
-    and creates another measured remediation/review chain if needed. Implementation must demonstrate
-    its live behavior, not merely report an unsupported callback. Evidence tasks may honestly finish
-    with negative findings, but cannot promote them as overall-goal success.
+12. For tasks25-02 onward read only the current packet/cluster and its named
+    sections of PHASE25_SPEED_FIRST_STRATEGY.md and BENCHMARK_PROTOCOL_V6.md.
+    Source contracts/cookbook are reference material when named, not a reason
+    to replay old tasks. Earlier historical packet instructions are unchanged.
+    Implementation requires its small live proof; evidence tasks may finish
+    with honest negative findings, never promote them as goal success.
+    The explicitly user-authorized summary reviewer may add bounded remediation
+    tasks and its next review to the state; this is the narrow exception to
+    generic runner wording to keep later tasks unchanged. No scope expansion
+    into deferred quality/soak/upstream work without a new user request.
 13. Live benchmark tasks may stop/restart the active Qwen service using passwordless sudo and the
     established profile scripts. Capture the starting profile and verify ports 8080 and 8091. A
     successful benchmark keeps its tested server/profile loaded for the next task or retry by default;
@@ -69,15 +80,19 @@ Global rules for every packet:
     before the next substantive attempt, and injects the same recovery direction into the retry and
     High-reasoning assessment prompts.
 
-16. Every post-17 packet has a concrete recipe. Read its named sections of
-    `EXECUTION_COOKBOOK.md` and `IMPLEMENTATION_CONTRACTS.md` once per cluster.
-    Use the prescribed minimal fixture/checkpoint before a live campaign;
-    export actual new symbols, layout/domain/ownership contracts and tested
-    commands in the handoff. A proposed CLI/API is work to implement, not an
-    already supported option. The shared model-parity driver is owned by 18-05;
-    later parity tasks extend it rather than invent another diagnostic loop.
-    Implementation receipts must pass their named live checks; truthful negative
-    benchmark receipts are allowed only where the evidence packet says so.
+16. Every active speed-first packet names concrete source owners, the changed
+    mechanism, minimal fixture, measurement and acceptance. New options are
+    implementation work until --help/tests confirm them. Hand off actual
+    symbols, ownership/lifetime/shape contracts and tested commands, not vague
+    advice. Work against the real available Qwen3.8 model with GPU placement
+    verified; tiny tests supplement but do not replace its live proof.
+17. Keep artifacts small: handoffs <=120 lines, final summary <=200 lines;
+    raw SSE/profiling/long logs stay in durable results. Record null with reason
+    for missing optional timing, never invent zero or make it block all speed
+    evidence. Required codec/placement/occupancy must be actually proven.
+18. No long-matrix retry loops: repair the smallest case, then one changed
+    attempt. Persist last hypothesis/source change/result and next command;
+    an unchanged slow256K request is not a distinct recovery strategy.
 
 Suggested handoff skeleton:
 

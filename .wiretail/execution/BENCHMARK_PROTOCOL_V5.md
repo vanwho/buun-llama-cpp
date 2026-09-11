@@ -1,5 +1,10 @@
 # Benchmark protocol V5: meaningful runs, not repeated setup failures
 
+Historical reference for phases before the2026-09-11 speed revision. For active
+tasks25-02 onward, PHASE25_SPEED_FIRST_STRATEGY.md and BENCHMARK_PROTOCOL_V6.md
+supersede conflicts. Do not resume old long-run/quality/soak gates or use old
+review task numbers. WORK_STATE.json and the current packet own execution.
+
 Applies to post-17 tasks. Read alongside `POST17_IMPLEMENTATION_STRATEGY.md`.
 Site operations live in `/srv/ai`; generic harness/engine changes live in Buun.
 Never change a running campaign, silently rescore historical data, or edit

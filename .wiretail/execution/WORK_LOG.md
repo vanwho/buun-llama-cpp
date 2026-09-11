@@ -748,3 +748,67 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-01`
 - Commit at update: `631d9ce9b`
 - Summary: Own and deploy immutable repaired runtime; live bundle identity verified and three-request telemetry preflight passed. Quality answer mismatches are explicitly deferred to later quality tasks.
+
+## 2026-09-06T10:56:43+00:00 — 25-02 — blocked
+
+- Branch: `codex/task-25-02`
+- Commit at update: `e154151d6`
+- Summary: Third recovery rebuilt the immutable repaired bundle and proved live 64-token bounded prefill with matching 5120 target/host rows, but full 262136 occupancy remained compute-bound at about 11 tokens/s; required retrieval/continuation/parity proof is not demonstrated.
+
+## 2026-09-06T10:58:07+00:00 — 25-02 — todo
+
+- Branch: `codex/task-25-02`
+- Commit at update: `e154151d6`
+- Summary: Automatic blocker-recovery attempt 3/3; previous blocker: Third recovery rebuilt the immutable repaired bundle and proved live 64-token bounded prefill with matching 5120 target/host rows, but full 262136 occupancy remained compute-bound at about 11 tokens/s; required retrieval/continuation/parity proof is not demonstrated.
+
+## 2026-09-06T12:17:37+00:00 — 25-02 — in_progress
+
+- Branch: `codex/task-25-02`
+- Commit at update: `e154151d6`
+- Summary: Retry 4 implemented CUDA Turbo4 query parallelism, head-0-per-layer routing summary maintenance, and reconciled sealed-page fast path; final bundle loaded on 8080 and exact campaign checkpointed at 11264 of 262136 rows; base goal remains unproven.
+
+## 2026-09-06T12:33:27+00:00 — 25-02 — in_progress
+
+- Branch: `codex/task-25-02`
+- Commit at update: `e154151d6`
+- Summary: Retry 4 source repairs and final bundle runtime proof remain locally verified; corrected 8080 candidate reached an auditable exact-prompt checkpoint at 8192 of 262136 target/host rows with zero movement faults, while full occupancy/retrieval/continuation/parity remain unproven.
+
+## 2026-09-06T12:35:16+00:00 — 25-02 — in_progress
+
+- Branch: `codex/task-25-02`
+- Commit at update: `e154151d6`
+- Summary: Final retry receipt synchronized to corrected 8080 bundle: exact 262144 startup and derived 64256-token hot budget reverified, isolated CUDA fixture passed, evidence/state/diff validators passed; runtime proof remains in_progress at 8192 of 262136 rows with deferred full occupancy, retrieval, continuation, and parity.
+
+## 2026-09-06T12:35:31+00:00 — 25-02 — blocked
+
+- Branch: `codex/task-25-02`
+- Commit at update: `e154151d6`
+- Summary: Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/25-02-attempt-4-20260906T122358Z-final.md.
+
+## 2026-09-11 — speed-first plan revision —25-02 ready
+
+- User retained Qwen3.8-27B UD-IQ4_XS and requested maximal prefill/decode
+  optimization, Turbo4 GPU hot KV + canonical CPU RAM, full-context GPU Turbo4
+  MTP, lighter accuracy/resilience scope and faster experimental iteration.
+- Source diagnosis: repeated clean-page summary tensor_get + store copies,
+ 64-query whole-model cap, correctness-first paged kernel; graph admission
+ counts are not CUDA captures, zero movement counters do not exclude seal D2H.
+- Archived former25-02–25-08/26-01 assignments and25-02 handoff; preserved
+ all prior task/token records and historical raw evidence. Re-scoped25-02
+ into a fresh cluster for short driver/profiling, not another262K retry.
+- Added detailed25-02–25-15 implementation/tuning,26-01–26-04 full-context/
+ controls/curve/summary and Sol High27-01 review. Total19 unfinished tasks;
+ broad quality/exact/soak/YaRN/PR work is unscheduled, not falsely passed.
+- Covered packed-Turbo fast FA vs paged tiles, batching, incremental/async
+ host work, true cold promotion, decode/graphs, layer-aware selection, MTP,
+ whole-model/hardware overhead and joint H/A/B tuning with specific owners.
+- V6 replaces buffered/repeated warmup campaigns with short paired tests,
+ real streaming/progress, one-trial final18-case curve and honest timing.
+- No new engine code, server reconfiguration or live benchmark performed by
+ this plan revision. Existing implementation diff is preserved unchanged.
+- Validation: task_state.py accepts159 tasks (140 historical done,19 todo),
+ all active packet/model/dependency/cluster links resolve, active packets are
+ under140 lines, archived JSON parses, and git diff --check passes. Historical
+ project/phase/task token records and all done task objects compare unchanged.
+- Preserved implementation diff SHA256:
+ f2bbedfb1666a8350bb682e8d89a3161edb8f35d7f9f1d97e068c2d0c75f3d00.

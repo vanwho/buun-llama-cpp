@@ -1,0 +1,96 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "25-02",
+  "result": "incomplete",
+  "kind": "implementation",
+  "procedure": "fresh_262144_allocation_checkpointed_occupied_population",
+  "created_utc": "2026-09-06T12:32:00Z",
+  "base_goal_demonstrated": false,
+  "base_goal_status": "incomplete",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_commit": "e154151d62e583563343a15128392b69030dcf48",
+    "source_diff_sha256": "f2bbedfb1666a8350bb682e8d89a3161edb8f35d7f9f1d97e068c2d0c75f3d00",
+    "runtime_bundle_root": "/srv/ai/paged-kv/results/25-02-runtime-bundle-20260906T151500Z",
+    "bundle_manifest_sha256": "204dfcb0efced6e1167c18785bd30947d516c15b07fabd70d8ade0451dd3964b",
+    "executable_sha256": "90aa2d3a7db8e9c7c6108a91733a4adcabbaca9b23b156b9f0ccf5dd384b9a4c",
+    "dso_sha256": {
+      "libggml-cuda.so.0.22.0": "9366eb369bf3bcc37c4a42f157cb1afc7fb280e5c369c7c3e4920b79a9bc97ed",
+      "libllama.so.0.3.0": "a94c133b0dcd8ed8122514c777099779a28cc4a8a6aa69e4c75f76ebeff1134f",
+      "libllama-server-impl.so": "51bc53c9a1eafa9a903e2b9ad79e15246ffc6d944ae7dbfdaab3b4cf726f0958"
+    },
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "tokenizer_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "hardware": "NVIDIA GeForce RTX 4080; driver 595.84; CUDA build arch 89-real",
+    "launch": "task-owned foreground bundle, -ub 384, native GPU Turbo4 MTP n-max 2"
+  },
+  "checks": [
+    {"name": "fresh_automatic_262144_allocation", "status": "pass", "raw_ids": ["metrics_final_partial", "bundle_hashes"]},
+    {"name": "derived_nonzero_hot_pool_and_budget_ledger", "status": "pass", "raw_ids": ["metrics_final_partial"]},
+    {"name": "native_gpu_turbo4_mtp_262144_rows", "status": "pass", "raw_ids": ["metrics_final_partial", "slots_final_partial"]},
+    {"name": "repaired_64_token_direct_prefill_tile_live", "status": "pass", "raw_ids": ["metrics_final_partial", "telemetry_progress"]},
+    {"name": "checkpointed_partial_population_with_canonical_host_rows", "status": "pass", "raw_ids": ["metrics_final_partial", "telemetry_progress"]},
+    {"name": "full_262136_occupied_population", "status": "fail", "raw_ids": ["metrics_final_partial", "curve_prompt"]},
+    {"name": "cpu_canonical_backing_at_full_occupancy", "status": "not_measured", "raw_ids": ["metrics_final_partial"]},
+    {"name": "cold_retrieval_generation_and_answer_correlation", "status": "not_measured", "raw_ids": ["metrics_final_partial"]},
+    {"name": "exact_selected_all_parity_and_lossless_identity", "status": "not_measured", "raw_ids": ["focused_cuda_test"]}
+  ],
+  "measurements": {
+    "resolved_context_tokens": 262144,
+    "logical_pages": 1024,
+    "page_size_tokens": 256,
+    "target_hot_pages": 251,
+    "accepted_target_tokens": 64256,
+    "native_mtp_rows": 262144,
+    "native_mtp_backend": "gpu",
+    "target_type_k": "turbo4",
+    "target_type_v": "turbo4",
+    "mtp_type_k": "turbo4",
+    "mtp_type_v": "turbo4",
+    "ubatch": 384,
+    "direct_query_tile": 64,
+    "population": {
+      "requested_prompt_tokens": 262136,
+      "generation_reserve_tokens": 8,
+      "target_valid_rows": 8192,
+      "host_valid_rows": 8192,
+      "processed_prompt_tokens": 8192,
+      "prefill_direct_routes": 129,
+      "mtp_verify_direct_routes": 0,
+      "selected_page_count": 32,
+      "faults": 0,
+      "evictions": 0,
+      "h2d_useful_bytes": 0,
+      "d2h_useful_bytes": 0
+    }
+  },
+  "failure": {
+    "class": "full_population_compute_bound_incomplete",
+    "detail": "The coherent repaired bundle loaded and advanced a fresh exact rendered prompt to 8,192 target and canonical host rows before the client-side campaign was canceled to freeze an auditable checkpoint. The server released the canceled task cleanly; no unmeasured retrieval, continuation, or generated-only MTP claim is made.",
+    "changed_variable": "parallel eight-warp Turbo4 row decode plus head-0-per-layer routing maintenance and reconciled sealed-page fast path",
+    "observed_result": "startup and partial population passed with derived hot budget, native GPU Turbo4 MTP rows, direct prefill routing, and zero movement faults",
+    "implementation_owner": "Qwen Turbo4 bounded prefill execution and KV pager summary publication",
+    "next_falsifiable_hypothesis": "Allowing the durable campaign to continue to 262,136 processed rows will either demonstrate cold movement/retrieval or expose the next full-context scaling defect."
+  },
+  "raw_index": [
+    {"id": "bundle_hashes", "path": "/srv/ai/paged-kv/results/25-02-runtime-bundle-20260906T151500Z/bin.sha256", "sha256": "204dfcb0efced6e1167c18785bd30947d516c15b07fabd70d8ade0451dd3964b"},
+    {"id": "metrics_final_partial", "path": "/srv/ai/paged-kv/results/25-02-full256k-20260906T161500Z/metrics-final-resume.txt", "sha256": "37cd8050307385543761af719cfd31426c13ab1bd892187c79cfeaf60bd261a8"},
+    {"id": "slots_final_partial", "path": "/srv/ai/paged-kv/results/25-02-full256k-20260906T161500Z/slots-final-resume.json", "sha256": "a7e1a26f4e4d79ea07351e6897647b5057451cb24963857895b6c8d6552a6cd5"},
+    {"id": "telemetry_progress", "path": "/srv/ai/paged-kv/results/25-02-full256k-20260906T161500Z/telemetry-progress-v7.jsonl", "sha256": "67278bfcb39e4479a68404b2e8d19938c84b162747b3cbce84c49e87ab9772ea"},
+    {"id": "curve_campaign", "path": "/srv/ai/paged-kv/results/25-02-full256k-20260906T161500Z/curve/campaign.json", "sha256": "6bd39b5ca29fb45fbc40736887b9f3037ef2f73909d2b03b5b1b2b6f502f4c55"},
+    {"id": "curve_prompt", "path": "/srv/ai/paged-kv/results/25-02-full256k-20260906T161500Z/curve/prompt-0.txt", "sha256": "5019ae3c68cbf6bb343b20058018b9d728fa666590ac61e52318f30a190dbbc9"},
+    {"id": "focused_cuda_test", "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-cuda-fattn-paged-turbo4", "sha256": "342674604a00f01ee633f72bac81b6d89b93e2b643a9c73cf057f7473cab88b2"}
+  ],
+  "resume": {
+    "command": "Keep the task-owned bundle on port 8080 and continue the exact campaign at /srv/ai/paged-kv/results/25-02-full256k-20260906T161500Z/curve; do not touch port 8092.",
+    "next_case": "full prompt population remains incomplete at 8,192 of 262,136 processed rows",
+    "policy": "do not use a fixed hot-page override, do not weaken native GPU MTP, and do not claim base-goal success before full occupancy and retrieval/parity evidence"
+  },
+  "deferred_verification": [
+    "Full 262,136 occupied population and eight-token continuation",
+    "Early/middle/late/recent/focus retrieval with known-cold H2D checksum/fence/slot correlation",
+    "Exact versus selected-all numerical parity and noncontiguous/tail/reused-page identity audit"
+  ],
+  "implementation_owner": "llama_context::prefill_ubatch_size, CUDA Turbo4 direct attention, routing-summary publication, cache-budget admission, host seal/movement and native-MTP allocation"
+}

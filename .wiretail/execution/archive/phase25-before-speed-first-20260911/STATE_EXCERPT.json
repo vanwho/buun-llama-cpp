@@ -1,0 +1,494 @@
+{
+  "archived_utc": "2026-09-11",
+  "reason": "User-directed speed-first replacement; original blocked scope is not silently completed.",
+  "status": "blocked",
+  "current_task": "25-02",
+  "tasks": [
+    {
+      "id": "25-01",
+      "phase": "25",
+      "cluster": "25a-runtime-proof",
+      "title": "Own and deploy the immutable repaired runtime",
+      "packet": ".wiretail/execution/tasks/25-01.md",
+      "status": "done",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "24-01"
+      ],
+      "commit": "efa868a6522669f8e07a5ed0c3258423949df175",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-01-attempt-1-20260906T083703Z.jsonl:228",
+            "total_tokens": 27128909,
+            "total_tokens_derived": true,
+            "input_tokens": 27074434,
+            "cached_input_tokens": 26565120,
+            "output_tokens": 54475,
+            "thinking_tokens": 19845
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 27128909,
+          "input_tokens": 27074434,
+          "cached_input_tokens": 26565120,
+          "output_tokens": 54475,
+          "thinking_tokens": 19845
+        }
+      }
+    },
+    {
+      "id": "25-02",
+      "phase": "25",
+      "cluster": "25a-runtime-proof",
+      "title": "Prove occupied 262,144-token paging and GPU MTP",
+      "packet": ".wiretail/execution/tasks/25-02.md",
+      "status": "blocked",
+      "blocker": "Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/25-02-attempt-4-20260906T122358Z-final.md.",
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-attempt-1-20260906T093450Z.jsonl:102",
+            "total_tokens": 12131852,
+            "total_tokens_derived": true,
+            "input_tokens": 12105394,
+            "cached_input_tokens": 11981056,
+            "output_tokens": 26458,
+            "thinking_tokens": 12870
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-attempt-2-20260906T100151Z.jsonl:114",
+            "total_tokens": 3606416,
+            "total_tokens_derived": true,
+            "input_tokens": 3583267,
+            "cached_input_tokens": 3468544,
+            "output_tokens": 23149,
+            "thinking_tokens": 8212
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-attempt-2-20260906T101931Z.jsonl:43",
+            "total_tokens": 2129702,
+            "total_tokens_derived": true,
+            "input_tokens": 2118311,
+            "cached_input_tokens": 2060288,
+            "output_tokens": 11391,
+            "thinking_tokens": 3099
+          },
+          {
+            "attempt": 3,
+            "kind": "assessment",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-assessment-before-attempt-3-20260906T102418Z.jsonl:106",
+            "total_tokens": 13975822,
+            "total_tokens_derived": true,
+            "input_tokens": 13954506,
+            "cached_input_tokens": 13682176,
+            "output_tokens": 21316,
+            "thinking_tokens": 9359
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-attempt-3-20260906T103803Z.jsonl:165",
+            "total_tokens": 19301791,
+            "total_tokens_derived": true,
+            "input_tokens": 19258823,
+            "cached_input_tokens": 18967296,
+            "output_tokens": 42968,
+            "thinking_tokens": 15957
+          },
+          {
+            "attempt": 4,
+            "kind": "assessment",
+            "model": "gpt-5.6-terra",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-assessment-before-attempt-4-20260906T105807Z.jsonl:140",
+            "total_tokens": 2947337,
+            "total_tokens_derived": true,
+            "input_tokens": 2930069,
+            "cached_input_tokens": 2752512,
+            "output_tokens": 17268,
+            "thinking_tokens": 6146
+          },
+          {
+            "attempt": 4,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-attempt-4-20260906T110625Z.jsonl:416",
+            "total_tokens": 42869780,
+            "total_tokens_derived": true,
+            "input_tokens": 42774815,
+            "cached_input_tokens": 42154752,
+            "output_tokens": 94965,
+            "thinking_tokens": 41401
+          },
+          {
+            "attempt": 4,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-02-attempt-4-20260906T122358Z.jsonl:97",
+            "total_tokens": 3034643,
+            "total_tokens_derived": true,
+            "input_tokens": 3018144,
+            "cached_input_tokens": 2727424,
+            "output_tokens": 16499,
+            "thinking_tokens": 5546
+          }
+        ],
+        "totals": {
+          "turns": 8,
+          "total_tokens": 99997343,
+          "input_tokens": 99743329,
+          "cached_input_tokens": 97794048,
+          "output_tokens": 254014,
+          "thinking_tokens": 102590
+        }
+      }
+    },
+    {
+      "id": "25-03",
+      "phase": "25",
+      "cluster": "25b-quality-lifecycle",
+      "title": "Measure cold identity, parity and quality tradeoffs",
+      "packet": ".wiretail/execution/tasks/25-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-02"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-04",
+      "phase": "25",
+      "cluster": "25b-quality-lifecycle",
+      "title": "Prove physical paging and lifecycle stability",
+      "packet": ".wiretail/execution/tasks/25-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-03"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-05",
+      "phase": "25",
+      "cluster": "25c-performance",
+      "title": "Measure the repaired six-point Turbo4 curve",
+      "packet": ".wiretail/execution/tasks/25-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-04"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-06",
+      "phase": "25",
+      "cluster": "25c-performance",
+      "title": "Measure release-matched controls and bottlenecks",
+      "packet": ".wiretail/execution/tasks/25-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-05"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-07",
+      "phase": "25",
+      "cluster": "25d-stretch-summary",
+      "title": "Re-evaluate conditional YaRN stretch",
+      "packet": ".wiretail/execution/tasks/25-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-06"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "25-08",
+      "phase": "25",
+      "cluster": "25d-stretch-summary",
+      "title": "Consolidate phase-25 benchmark evidence",
+      "packet": ".wiretail/execution/tasks/25-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "25-07"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "26-01",
+      "phase": "26",
+      "cluster": "26a-benchmark-review",
+      "title": "Independently assess the phase-25 benchmark summary",
+      "packet": ".wiretail/execution/tasks/26-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Sol High",
+      "depends_on": [
+        "25-08"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    }
+  ],
+  "phase_token_usage": {
+    "25": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-01-attempt-1-20260906T083703Z.jsonl:228",
+          "total_tokens": 27128909,
+          "total_tokens_derived": true,
+          "input_tokens": 27074434,
+          "cached_input_tokens": 26565120,
+          "output_tokens": 54475,
+          "thinking_tokens": 19845
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-attempt-1-20260906T093450Z.jsonl:102",
+          "total_tokens": 12131852,
+          "total_tokens_derived": true,
+          "input_tokens": 12105394,
+          "cached_input_tokens": 11981056,
+          "output_tokens": 26458,
+          "thinking_tokens": 12870
+        },
+        {
+          "attempt": 2,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-attempt-2-20260906T100151Z.jsonl:114",
+          "total_tokens": 3606416,
+          "total_tokens_derived": true,
+          "input_tokens": 3583267,
+          "cached_input_tokens": 3468544,
+          "output_tokens": 23149,
+          "thinking_tokens": 8212
+        },
+        {
+          "attempt": 2,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-attempt-2-20260906T101931Z.jsonl:43",
+          "total_tokens": 2129702,
+          "total_tokens_derived": true,
+          "input_tokens": 2118311,
+          "cached_input_tokens": 2060288,
+          "output_tokens": 11391,
+          "thinking_tokens": 3099
+        },
+        {
+          "attempt": 3,
+          "kind": "assessment",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-assessment-before-attempt-3-20260906T102418Z.jsonl:106",
+          "total_tokens": 13975822,
+          "total_tokens_derived": true,
+          "input_tokens": 13954506,
+          "cached_input_tokens": 13682176,
+          "output_tokens": 21316,
+          "thinking_tokens": 9359
+        },
+        {
+          "attempt": 3,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-attempt-3-20260906T103803Z.jsonl:165",
+          "total_tokens": 19301791,
+          "total_tokens_derived": true,
+          "input_tokens": 19258823,
+          "cached_input_tokens": 18967296,
+          "output_tokens": 42968,
+          "thinking_tokens": 15957
+        },
+        {
+          "attempt": 4,
+          "kind": "assessment",
+          "model": "gpt-5.6-terra",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-assessment-before-attempt-4-20260906T105807Z.jsonl:140",
+          "total_tokens": 2947337,
+          "total_tokens_derived": true,
+          "input_tokens": 2930069,
+          "cached_input_tokens": 2752512,
+          "output_tokens": 17268,
+          "thinking_tokens": 6146
+        },
+        {
+          "attempt": 4,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-attempt-4-20260906T110625Z.jsonl:416",
+          "total_tokens": 42869780,
+          "total_tokens_derived": true,
+          "input_tokens": 42774815,
+          "cached_input_tokens": 42154752,
+          "output_tokens": 94965,
+          "thinking_tokens": 41401
+        },
+        {
+          "attempt": 4,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-02-attempt-4-20260906T122358Z.jsonl:97",
+          "total_tokens": 3034643,
+          "total_tokens_derived": true,
+          "input_tokens": 3018144,
+          "cached_input_tokens": 2727424,
+          "output_tokens": 16499,
+          "thinking_tokens": 5546
+        }
+      ],
+      "totals": {
+        "turns": 9,
+        "total_tokens": 127126252,
+        "input_tokens": 126817763,
+        "cached_input_tokens": 124359168,
+        "output_tokens": 308489,
+        "thinking_tokens": 122435
+      }
+    },
+    "26": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    }
+  }
+}
