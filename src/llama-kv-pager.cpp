@@ -947,6 +947,7 @@ void llama_kv_pager::set_routing_summary_provider(
 }
 
 llama_kv_routing_page_inventory llama_kv_pager::routing_inventory() const noexcept {
+    ++inventory_copy_count_;
     llama_kv_routing_page_inventory output;
     try {
         output = residency_.snapshot().pages();
@@ -1025,6 +1026,7 @@ void llama_kv_pager::reconcile_routing_summaries() noexcept {
 }
 
 uint32_t llama_kv_pager::seal_ready_pages() noexcept {
+    ++seal_calls_;
     // finish_pager_batch() runs at graph submission time, so a full page can
     // still carry the last write-frontier pin while the graph is in flight.
     // This method is entered after the context fence and is the first point at
@@ -1051,6 +1053,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
     }
     uint32_t sealed = 0;
     for (auto & page : pages_) {
+        ++seal_pages_scanned_;
         if (!page.present || page.record.pin_count != 0 ||
             page.valid_rows.empty() ||
             page.record.id.position_end <= page.record.id.position_begin ||
@@ -1099,6 +1102,16 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
             page.record.host_valid = true;
             page.record.dirty = false;
             page.record.state = llama_kv_page_state::gpu_host_clean;
+            ++host_seal_d2h_calls_;
+            const uint64_t valid_rows = std::min<uint64_t>(
+                    page.valid_rows.size(), snapshot_.geometry.page_tokens);
+            if (snapshot_.geometry.page_tokens != 0 &&
+                    snapshot_.geometry.page_bytes <= UINT64_MAX / std::max<uint64_t>(valid_rows, 1)) {
+                const uint64_t bytes = snapshot_.geometry.page_bytes * valid_rows /
+                    snapshot_.geometry.page_tokens;
+                host_seal_d2h_bytes_ = host_seal_d2h_bytes_ > UINT64_MAX - bytes
+                    ? UINT64_MAX : host_seal_d2h_bytes_ + bytes;
+            }
             if (publish_page(page) != llama_kv_pager_write_status::ok) {
                 page.record = previous;
                 (void) publish_page(page);
@@ -1107,6 +1120,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
             }
         }
         if (routing_summary_provider_.build == nullptr) {
+            ++seal_pages_changed_;
             ++sealed;
             continue;
         }
@@ -1114,6 +1128,9 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
         bool summary_failed = false;
         bool first_summary = true;
         for (auto & input : summary_inputs) {
+            ++summary_build_calls_;
+            summary_build_bytes_ = summary_build_bytes_ > UINT64_MAX - input.second.source_bytes
+                ? UINT64_MAX : summary_build_bytes_ + input.second.source_bytes;
             llama_kv_routing_summary_status summary_status;
             auto * indexed = routing_summary_index_.find(
                     input.first.layer_index, input.first.head_index);
@@ -1130,6 +1147,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                 first_summary = false;
             }
             routing_summary_index_.set(std::move(next));
+            ++store_copy_count_;
         }
         if (summary_failed) {
             page.record = previous;
@@ -1137,6 +1155,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
             if (host_) (void) host_->invalidate(previous.id);
             continue;
         }
+        ++seal_pages_changed_;
         ++sealed;
     }
     return sealed;

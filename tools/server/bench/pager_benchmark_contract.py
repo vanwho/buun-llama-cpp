@@ -28,6 +28,8 @@ LEGACY_MANIFEST_SCHEMAS = {1}
 PARTITIONS = ("calibration", "held_out")
 EVIDENCE_SCHEMA = "pager-evidence-v5"
 EVIDENCE_RESULTS = {"pass", "fail", "not_run", "incomplete"}
+SPEED_EVIDENCE_SCHEMA = "pager-speed-v6"
+SPEED_EVIDENCE_RESULTS = {"pass", "fail", "not_run", "incomplete"}
 CASE_STATE_SCHEMA = "pager-case-state-v1"
 CASE_STATES = {"planned", "started", "completed", "interrupted"}
 TIMEOUT_CLASSES = {
@@ -311,6 +313,134 @@ def validate_evidence(receipt: Mapping[str, Any]) -> list[str]:
     elif not isinstance(resume.get("command"), (str, list)):
         errors.append("resume.command must be argv or a string")
     return errors
+
+
+def _speed_required(mapping: Mapping[str, Any], fields: Iterable[str], prefix: str,
+                    allow_reason_for: Iterable[str] = ()) -> list[str]:
+    reason_fields = set(allow_reason_for)
+    return [f"{prefix}.{field}" for field in fields
+            if (field not in mapping or mapping[field] is None) and
+            (field not in reason_fields or
+             not isinstance(mapping.get(field + "_reason"), str))]
+
+
+def _speed_optional_metric(value: Any, name: str) -> list[str]:
+    """Validate an optional timing without treating unavailable data as zero."""
+    if value is None:
+        return []
+    if isinstance(value, Mapping):
+        measured = value.get("value")
+        if measured is None:
+            if not isinstance(value.get("reason"), str) or not value["reason"]:
+                return [f"{name}_missing_reason"]
+            return []
+        value = measured
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return [f"{name}_not_numeric"]
+    if value < 0:
+        return [f"{name}_negative"]
+    return []
+
+
+def validate_speed_evidence(receipt: Mapping[str, Any]) -> list[str]:
+    """Validate the speed receipt while leaving quality-only fields optional.
+
+    A speed result is useful when stage profiling is unavailable.  Runtime
+    placement, Turbo4 identity, context allocation, and request accounting are
+    still mandatory so a fast but differently configured run cannot pass as an
+    attribution result.
+    """
+    if not isinstance(receipt, Mapping):
+        return ["receipt must be an object"]
+    errors: list[str] = []
+    if receipt.get("schema") != SPEED_EVIDENCE_SCHEMA:
+        errors.append(f"schema must be {SPEED_EVIDENCE_SCHEMA}")
+    if receipt.get("schema_version") != 1:
+        errors.append("schema_version must be 1")
+    for field in ("task_id", "experiment_id", "procedure", "started_utc", "finished_utc"):
+        if not isinstance(receipt.get(field), str) or not receipt[field]:
+            errors.append(f"{field} must be a non-empty string")
+    if receipt.get("result") not in SPEED_EVIDENCE_RESULTS:
+        errors.append("result must be pass, fail, not_run, or incomplete")
+
+    provenance = receipt.get("provenance")
+    if not isinstance(provenance, Mapping):
+        errors.append("provenance must be an object")
+    else:
+        errors.extend(_speed_required(provenance, (
+            "source_commit", "source_diff_sha256", "bundle_identity",
+            "bundle_manifest_sha256", "model_sha256", "tokenizer_template_sha256",
+            "config_sha256", "gpu", "driver", "build",
+        ), "provenance"))
+
+    runtime = receipt.get("runtime")
+    if not isinstance(runtime, Mapping):
+        errors.append("runtime must be an object")
+        runtime = {}
+    errors.extend(_speed_required(runtime, (
+        "logical_context_tokens", "prompt_tokens", "cached_rows", "effective_batch",
+        "cuda_query_tile", "cache_condition", "target_placement", "mtp_placement",
+        "target_type_k", "target_type_v", "mtp_type_k", "mtp_type_v",
+        "allocated_context_rows", "hot_rows", "attended_rows",
+    ), "runtime"))
+    for field in ("logical_context_tokens", "prompt_tokens", "cached_rows", "effective_batch",
+                  "cuda_query_tile", "allocated_context_rows", "hot_rows", "attended_rows"):
+        value = runtime.get(field)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0):
+            errors.append(f"runtime.{field}_invalid")
+    if runtime.get("target_placement") is not None and "cuda" not in str(runtime["target_placement"]).lower():
+        errors.append("runtime.target_placement_not_gpu")
+    if runtime.get("mtp_placement") is not None and "gpu" not in str(runtime["mtp_placement"]).lower() and "cuda" not in str(runtime["mtp_placement"]).lower():
+        errors.append("runtime.mtp_placement_not_gpu")
+    for field in ("target_type_k", "target_type_v", "mtp_type_k", "mtp_type_v"):
+        value = runtime.get(field)
+        if value is not None and "turbo4" not in str(value).lower():
+            errors.append(f"runtime.{field}_not_turbo4")
+    if (runtime.get("logical_context_tokens") is not None and
+            runtime.get("allocated_context_rows") is not None and
+            runtime["logical_context_tokens"] != runtime["allocated_context_rows"]):
+        errors.append("runtime.allocated_context_rows_mismatch")
+
+    measurements = receipt.get("measurements")
+    if not isinstance(measurements, Mapping):
+        errors.append("measurements must be an object")
+        measurements = {}
+    errors.extend(_speed_required(measurements, (
+        "generated_tokens", "committed_tokens", "mtp_proposed_tokens", "mtp_accepted_tokens",
+        "target_gpu_bytes", "host_committed_rows", "host_committed_bytes", "pinned_ring_bytes",
+        "wall_prefill_us", "wall_decode_us", "ttft_us", "completion_latency_us",
+    ), "measurements", allow_reason_for=(
+        "target_gpu_bytes", "host_committed_rows", "host_committed_bytes", "pinned_ring_bytes",
+        "wall_prefill_us", "wall_decode_us", "ttft_us",
+    )))
+    for field in ("generated_tokens", "committed_tokens", "mtp_proposed_tokens", "mtp_accepted_tokens",
+                  "target_gpu_bytes", "host_committed_rows", "host_committed_bytes", "pinned_ring_bytes",
+                  "wall_prefill_us", "wall_decode_us", "ttft_us", "completion_latency_us"):
+        value = measurements.get(field)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0):
+            errors.append(f"measurements.{field}_invalid")
+    if isinstance(measurements.get("optional"), Mapping):
+        for name, value in measurements["optional"].items():
+            errors.extend(_speed_optional_metric(value, f"measurements.optional.{name}"))
+
+    raw_index = receipt.get("raw_index")
+    if not isinstance(raw_index, list) or not raw_index:
+        errors.append("raw_index must be a non-empty list")
+    else:
+        seen: set[str] = set()
+        for index, item in enumerate(raw_index):
+            if not isinstance(item, Mapping):
+                errors.append(f"raw_index[{index}] must be an object")
+                continue
+            raw_id = item.get("id")
+            digest = item.get("sha256")
+            if not isinstance(raw_id, str) or not raw_id or raw_id in seen:
+                errors.append(f"raw_index[{index}].id_invalid")
+            else:
+                seen.add(raw_id)
+            if not isinstance(digest, str) or len(digest) != 64:
+                errors.append(f"raw_index[{index}].sha256_invalid")
+    return list(dict.fromkeys(errors))
 
 
 def classify_timeout(stage: str, *, progress_observed: bool = False) -> str:

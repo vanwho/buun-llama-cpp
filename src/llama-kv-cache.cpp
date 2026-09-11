@@ -2395,6 +2395,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             retrieval_config.exploration_pages = 0;
             retrieval_config.exploration_seed = query.query_generation;
             retrieval_config.exploration_turn = retrieval_turn++;
+            pager_->record_summary_read(summaries->accounting().charged_bytes);
             const auto selected = llama_kv_routing_retrieve(
                     snapshot, inventory, *summaries, query, retrieval_config, attributes,
                     boundary.previous_target);

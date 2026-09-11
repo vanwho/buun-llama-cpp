@@ -3759,6 +3759,13 @@ public:
                     {"graph_rebuild_count", pager.execution.graph_rebuild_count},
                     {"graph_submission_count", pager.execution.graph_submission_count},
                     {"graph_completion_count", pager.execution.graph_completion_count},
+                    {"graph_construction_us", pager.execution.graph_construction_us},
+                    {"effective_ubatch", pager.execution.effective_ubatch},
+                    {"graph_timing_domain", "logical_graph_decision"},
+                    {"cuda_capture_count", "not_measured"},
+                    {"cuda_update_count", "not_measured"},
+                    {"cuda_launch_count", "not_measured"},
+                    {"cuda_timing_reason", "CUDA events are not enabled by this receipt"},
                     {"waits", pager.execution.waits},
                     {"wait_time_us", pager.execution.wait_time_us},
                     {"copy_time_us", copy_time_us},
@@ -3833,6 +3840,17 @@ public:
                     // transfer backpressure. No live policy caller records it
                     // yet, so retain the explicit measured zero.
                     {"late_waits", uint64_t(0)},
+                    {"seal_calls", pager.seal_calls},
+                    {"seal_pages_scanned", pager.seal_pages_scanned},
+                    {"seal_pages_changed", pager.seal_pages_changed},
+                    {"summary_build_calls", pager.summary_build_calls},
+                    {"summary_build_bytes", pager.summary_build_bytes},
+                    {"summary_read_calls", pager.summary_read_calls},
+                    {"summary_read_bytes", pager.summary_read_bytes},
+                    {"host_seal_d2h_calls", pager.host_seal_d2h_calls},
+                    {"host_seal_d2h_bytes", pager.host_seal_d2h_bytes},
+                    {"inventory_copy_count", pager.inventory_copy_count},
+                    {"store_copy_count", pager.store_copy_count},
                     {"d2h_useful_bytes", pager.d2h_transfers.copied_useful_bytes},
                     {"d2h_aligned_bytes", pager.d2h_transfers.copied_aligned_bytes},
                     {"h2d_useful_bytes", pager.h2d_transfers.copied_useful_bytes},
@@ -3854,7 +3872,7 @@ public:
                     // Routing recall needs an all-page oracle. Keep the
                     // availability bit explicit until a live selective-vs-
                     // exact comparison has actually completed.
-                    {"routing_recall", nullptr},
+                    {"routing_recall", "not_measured"},
                     {"routing_recall_available", uint64_t(0)},
                     {"attention_ema_bytes", pager.attention_accounting.ema_bytes},
                     {"attention_peak_bytes", pager.attention_accounting.peak_bytes},
