@@ -239,6 +239,32 @@ static void test_late_startup_categories_are_checked() {
     CHECK(no_legal_slot.refusal == llama_cache_budget_admission_refusal::insufficient_capacity);
 }
 
+static void test_scratch_rounding_is_separate_from_full_mtp_rows() {
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = std::numeric_limits<uint64_t>::max();
+    input.allocation_granularity = 64;
+    input.fixed_bytes = 128;
+    input.turbo4_scratch_bytes = 65;
+    input.mtp_tokens = 4096;
+    input.mtp_k_row_bytes = 528;
+    input.mtp_v_row_bytes = 528;
+    input.target_page_bytes = 256;
+    input.logical_page_count = 16;
+
+    const auto result = llama_cache_budget_admit(input);
+    CHECK(result.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(result.scratch_bytes == 128);
+    CHECK(result.mtp_bytes == 4096ull * 1056);
+
+    // Increasing the logical target history does not turn the separately
+    // rounded late scratch reservation into a full-context MTP reservation.
+    input.logical_page_count = 1024;
+    const auto wider = llama_cache_budget_admit(input);
+    CHECK(wider.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(wider.scratch_bytes == result.scratch_bytes);
+    CHECK(wider.mtp_bytes == result.mtp_bytes);
+}
+
 static void test_context_ladder_reserves_native_mtp_first() {
     const uint64_t mtp_k_row = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
     const uint64_t mtp_v_row = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
@@ -649,6 +675,7 @@ int main() {
     test_mtp_reference_payload_uses_actual_rows();
     test_dynamic_admission_ledger();
     test_late_startup_categories_are_checked();
+    test_scratch_rounding_is_separate_from_full_mtp_rows();
     test_context_ladder_reserves_native_mtp_first();
     test_baseline_and_group_rollup();
     test_optional_hierarchy();

@@ -3,6 +3,7 @@
 #include "llama-kv-attention-exact.h"
 #include "llama-kv-attention-op.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -47,6 +48,14 @@ const char * llama_kv_attention_execution_phase_name(
 const char * llama_kv_attention_execution_route_name(
         llama_kv_attention_execution_route route) noexcept;
 
+enum class llama_kv_attention_scratch_context_role : uint8_t {
+    target = 0,
+    draft,
+};
+
+const char * llama_kv_attention_scratch_context_role_name(
+        llama_kv_attention_scratch_context_role role) noexcept;
+
 enum class llama_kv_attention_execution_status : uint8_t {
     ok = 0,
     disabled,
@@ -64,6 +73,30 @@ const char * llama_kv_attention_execution_status_name(
 // must not reserve a full-context gather merely because the logical context is
 // large.
 struct llama_kv_attention_scratch_request {
+    llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
+    llama_kv_attention_execution_phase phase = llama_kv_attention_execution_phase::prefill;
+    llama_kv_attention_scratch_context_role context_role =
+        llama_kv_attention_scratch_context_role::target;
+
+    // These are the rows the selected CUDA consumer materializes, not logical
+    // positions in the cache.  K and V are separate because their tensor rows
+    // and dequant sides can differ.  Zero rows are intentional for the direct
+    // paged route, which reads the persistent Turbo4 slab without an f16 view.
+    uint64_t materialized_k_rows = 0;
+    uint64_t materialized_v_rows = 0;
+    size_t materialized_k_bytes_per_row = 0;
+    size_t materialized_v_bytes_per_row = 0;
+
+    // Shape fields are part of the reservation contract and diagnostics. They
+    // keep B/U/query tiles and tensor geometry independent from materialized
+    // rows; none of them may be inferred from the VBR mapping watermark.
+    uint32_t requested_batch_tokens = 0;
+    uint32_t effective_batch_tokens = 0;
+    uint32_t query_tile_tokens = 0;
+    uint32_t head_dim_k = 0;
+    uint32_t head_dim_v = 0;
+    uint32_t n_head_kv = 0;
+
     uint64_t resident_rows = 0;
     uint64_t transfer_rows = 0;
     uint64_t router_rows = 0;
@@ -72,6 +105,10 @@ struct llama_kv_attention_scratch_request {
 
     uint64_t required_rows() const noexcept;
     size_t required_bytes() const noexcept;
+
+    uint64_t materialized_rows() const noexcept {
+        return std::max(materialized_k_rows, materialized_v_rows);
+    }
 };
 
 // Return the largest prompt chunk whose pending K/V rows can fit in the
@@ -270,6 +307,16 @@ public:
 
     void set_mode(llama_kv_attention_execution_mode mode) noexcept;
     llama_kv_attention_execution_mode mode() const noexcept { return mode_; }
+
+    // Pure route selection used by the memory owner before prepare() records
+    // a graph lease. Keeping this decision side-effect free lets an allocator
+    // refuse an unsupported/under-reserved view before graph construction.
+    llama_kv_attention_execution_route planned_route(
+            const llama_kv_attention_operator_metadata & metadata,
+            llama_kv_attention_execution_phase phase,
+            bool direct_capable,
+            bool dense_capable = false,
+            bool packed_capable = false) const noexcept;
 
     // direct_capable is supplied by the backend loader after it has checked
     // the actual device.  The reference route remains available for any valid

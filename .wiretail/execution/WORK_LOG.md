@@ -909,3 +909,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - New authority PHASE26_INTERACTIVE_KV_STRATEGY.md and BENCHMARK_PROTOCOL_V7.md. Fix units/scratch/frontiers/natural recall before8K logical/4K hot speed fixture; measure route/maintenance/B-U trade-offs, then32K/16K and max128K incremental history.
 - Replace5 unfinished tasks with12 focused tasks in8 fresh clusters. Old27-01 reviewer becomes28-01 (same configured reviewer model); do not resume old256K/six-coordinate campaign. New task26-01 is todo, top-level ready.
 - Historical phase25 has no proven native-MTP natural cold-recall speed. Preserve this boundary. No live benchmark or service mutation in the plan revision; sudo -n availability verified.
+
+## 2026-09-12T13:12:13+00:00 — 26-02 — done
+
+- Branch: `codex/task-26-02`
+- Commit at update: `3d33d6158`
+- Summary: Moved scratch reservation to route-selected pre-graph owner boundary; added bounded K/V view contract, adapter forwarding, owner telemetry, and focused CPU/CUDA tests. Live service stages deferred because sudo -n requires interactive authentication.

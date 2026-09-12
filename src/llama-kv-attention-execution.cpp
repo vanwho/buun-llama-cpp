@@ -67,6 +67,15 @@ const char * llama_kv_attention_execution_route_name(
     return "invalid";
 }
 
+const char * llama_kv_attention_scratch_context_role_name(
+        llama_kv_attention_scratch_context_role role) noexcept {
+    switch (role) {
+        case llama_kv_attention_scratch_context_role::target: return "target";
+        case llama_kv_attention_scratch_context_role::draft:  return "draft";
+    }
+    return "invalid";
+}
+
 void llama_kv_attention_execution_route_counts::record(
         llama_kv_attention_execution_route route) noexcept {
     uint64_t * counter = nullptr;
@@ -147,10 +156,31 @@ void llama_kv_attention_execution_metrics::record_exact_refusal(
 }
 
 uint64_t llama_kv_attention_scratch_request::required_rows() const noexcept {
-    return saturating_add(saturating_add(resident_rows, transfer_rows), router_rows);
+    return saturating_add(saturating_add(std::max(resident_rows, materialized_rows()), transfer_rows), router_rows);
 }
 
 size_t llama_kv_attention_scratch_request::required_bytes() const noexcept {
+    if (materialized_k_bytes_per_row != 0 || materialized_v_bytes_per_row != 0) {
+        const auto multiply = [](uint64_t rows, size_t row_bytes, size_t & result) {
+            if (row_bytes != 0 && rows > uint64_t(std::numeric_limits<size_t>::max()) / row_bytes) {
+                return false;
+            }
+            result = size_t(rows) * row_bytes;
+            return true;
+        };
+        size_t k_bytes = 0;
+        size_t v_bytes = 0;
+        if (!multiply(materialized_k_rows, materialized_k_bytes_per_row, k_bytes) ||
+            !multiply(materialized_v_rows, materialized_v_bytes_per_row, v_bytes) ||
+            k_bytes > std::numeric_limits<size_t>::max() - v_bytes) {
+            return std::numeric_limits<size_t>::max();
+        }
+        size_t result = k_bytes + v_bytes;
+        if (packed_bytes > uint64_t(std::numeric_limits<size_t>::max()) - result) {
+            return std::numeric_limits<size_t>::max();
+        }
+        return result + size_t(packed_bytes);
+    }
     const uint64_t rows = required_rows();
     const size_t row_bytes = bytes_per_row;
     size_t result = 0;
@@ -162,6 +192,40 @@ size_t llama_kv_attention_scratch_request::required_bytes() const noexcept {
         return std::numeric_limits<size_t>::max();
     }
     return result + size_t(packed_bytes);
+}
+
+llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
+        const llama_kv_attention_operator_metadata & metadata,
+        llama_kv_attention_execution_phase phase,
+        bool direct_capable,
+        bool dense_capable,
+        bool packed_capable) const noexcept {
+    if (mode_ == llama_kv_attention_execution_mode::off) {
+        return llama_kv_attention_execution_route::dense;
+    }
+    if (mode_ == llama_kv_attention_execution_mode::observe) {
+        return llama_kv_attention_execution_route::observe;
+    }
+    if (mode_ == llama_kv_attention_execution_mode::exact) {
+        return (phase == llama_kv_attention_execution_phase::decode ||
+                phase == llama_kv_attention_execution_phase::mtp_verify) &&
+               direct_capable && direct_shape(metadata)
+            ? llama_kv_attention_execution_route::exact_direct
+            : llama_kv_attention_execution_route::exact_reference;
+    }
+    if (dense_capable) {
+        return llama_kv_attention_execution_route::selected_dense;
+    }
+    if ((phase == llama_kv_attention_execution_phase::prefill ||
+         phase == llama_kv_attention_execution_phase::decode ||
+         phase == llama_kv_attention_execution_phase::mtp_verify) &&
+        direct_capable && direct_shape(metadata)) {
+        return llama_kv_attention_execution_route::selected_direct;
+    }
+    if (packed_capable) {
+        return llama_kv_attention_execution_route::selected_packed;
+    }
+    return llama_kv_attention_execution_route::selected_reference;
 }
 
 uint32_t llama_kv_attention_prefill_chunk_size(
@@ -306,18 +370,18 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.reason = "observation preserves dense attention";
     } else if (mode_ == llama_kv_attention_execution_mode::exact) {
         result.status = llama_kv_attention_execution_status::ok;
-        result.route = (phase == llama_kv_attention_execution_phase::decode ||
-                        phase == llama_kv_attention_execution_phase::mtp_verify) &&
-                       direct_capable && direct_shape(metadata)
-            ? llama_kv_attention_execution_route::exact_direct
-            : llama_kv_attention_execution_route::exact_reference;
+        result.route = planned_route(metadata, phase, direct_capable,
+                dense_capable, packed_capable);
         result.reason = result.route == llama_kv_attention_execution_route::exact_direct
             ? "all-page Turbo4 direct exact route"
             : "all-page online-softmax reference";
     } else if ((scratch.required_rows() == std::numeric_limits<uint64_t>::max() &&
-                (scratch.resident_rows != 0 || scratch.transfer_rows != 0 || scratch.router_rows != 0)) ||
+                (scratch.resident_rows != 0 || scratch.materialized_rows() != 0 ||
+                 scratch.transfer_rows != 0 || scratch.router_rows != 0)) ||
                (scratch.required_bytes() == std::numeric_limits<size_t>::max() &&
-                (scratch.bytes_per_row != 0 || scratch.packed_bytes != 0))) {
+                (scratch.bytes_per_row != 0 || scratch.packed_bytes != 0 ||
+                 scratch.materialized_k_bytes_per_row != 0 ||
+                 scratch.materialized_v_bytes_per_row != 0))) {
         result.status = llama_kv_attention_execution_status::overflow;
         result.route = llama_kv_attention_execution_route::refusal;
         result.reason = "selected scratch reservation overflows";
@@ -327,16 +391,8 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.reason = "selected metadata is invalid";
     } else {
         result.status = llama_kv_attention_execution_status::ok;
-        result.route = dense_capable
-            ? llama_kv_attention_execution_route::selected_dense
-            : (phase == llama_kv_attention_execution_phase::prefill ||
-                        phase == llama_kv_attention_execution_phase::decode ||
-                        phase == llama_kv_attention_execution_phase::mtp_verify) &&
-                       direct_capable && direct_shape(metadata)
-            ? llama_kv_attention_execution_route::selected_direct
-            : packed_capable
-            ? llama_kv_attention_execution_route::selected_packed
-            : llama_kv_attention_execution_route::selected_reference;
+        result.route = planned_route(metadata, phase, direct_capable,
+                dense_capable, packed_capable);
         result.reason = result.route == llama_kv_attention_execution_route::selected_dense
             ? "contiguous Turbo4 rows use dense Flash Attention"
             : result.route == llama_kv_attention_execution_route::selected_packed

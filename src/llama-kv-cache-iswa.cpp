@@ -823,6 +823,17 @@ uint64_t llama_kv_cache_iswa_context::get_vbr_epoch() const {
     return get_base()->get_vbr_epoch() + get_swa()->get_vbr_epoch();
 }
 
+bool llama_kv_cache_iswa_context::reserve_kv_attention_scratch(
+        const llama_kv_attention_scratch_request & request) const {
+    return get_base()->reserve_kv_attention_scratch(request) &&
+        get_swa()->reserve_kv_attention_scratch(request);
+}
+
+uint32_t llama_kv_cache_iswa_context::current_kv_attention_rows() const {
+    return std::max(get_base()->current_kv_attention_rows(),
+            get_swa()->current_kv_attention_rows());
+}
+
 const llama_kv_cache_context * llama_kv_cache_iswa_context::get_base() const {
     assert(status == LLAMA_MEMORY_STATUS_SUCCESS);
 
