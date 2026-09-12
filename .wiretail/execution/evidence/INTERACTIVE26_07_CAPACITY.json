@@ -1,0 +1,194 @@
+{
+  "schema": "interactive-26-07-capacity-v1",
+  "task": "26-07",
+  "generated_utc": "2026-09-12T16:03:27+00:00",
+  "repository": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp",
+    "commit": "fa77d054b08c666eaa1081c73e527ee9f1b3ba42",
+    "source_changes_this_task": [],
+    "reason_no_source_change": "The admission, full-L native-MTP accounting, and physical/projected scratch contracts required by this measurement task were implemented by 26-02 and validated here with deterministic fixtures."
+  },
+  "bundle": {
+    "candidate_server": {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "sha256": "a00600e7394a352b502e0080c22568f8d35b0a3fe9e8aa4191925885eec980a6"
+    },
+    "candidate_libllama": {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so",
+      "sha256": "50499cc7a1ff37e32e954bec756044772cb750dc21a91e90da2f739fb15a6144"
+    },
+    "candidate_libggml_cuda": {
+      "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so",
+      "sha256": "a333de9a2b97eaafa4f834d3ff0a42a890a5bf0a8dd7bafbc08b742a2ae40815"
+    },
+    "model_configured": "/srv/ai/models/text/current.gguf",
+    "model_resolved": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_hash": null,
+    "model_hash_reason": "The configured model was not read or copied; only its resolved symlink and size/mtime were inspected."
+  },
+  "loaded_service": {
+    "endpoint": "http://127.0.0.1:8080",
+    "pid": 1238402,
+    "health": "ok",
+    "candidate_loaded": false,
+    "executable": "/srv/ai/paged-kv/build/buun/bin/llama-server",
+    "executable_sha256": "bb75f2bca1701cc144fc04f29157ea1729c2f1636205f1e9a41f9a9a5fd18bc8",
+    "effective_profile": "qwen38-fast",
+    "effective_context": 77824,
+    "effective_batch": 1024,
+    "effective_ubatch": 256,
+    "effective_mtp": "none",
+    "metrics_idle": true,
+    "unrelated_8092_touched": false
+  },
+  "geometry": {
+    "page_tokens": 256,
+    "target_payload_bytes_per_token": 16896,
+    "native_mtp_turbo4_bytes_per_token": 1056,
+    "primary_context_tokens": 8192,
+    "primary_hot_tokens": 4096,
+    "primary_hot_pages": 16,
+    "primary_attended_tokens": "fixed by V7 fixture",
+    "native_mtp_max_draft_rows": 2
+  },
+  "raw_case_ids": [
+    "26-07-budget-cpu",
+    "26-07-budget-cuda",
+    "26-07-attention-cpu",
+    "26-07-attention-cuda",
+    "26-07-live-primary-b128-u64",
+    "26-07-live-primary-b64-u64",
+    "26-07-live-primary-b256-u64",
+    "26-07-live-primary-b256-u128",
+    "26-07-live-primary-b256-u256-screen",
+    "26-07-live-context-32768",
+    "26-07-live-context-131072",
+    "26-07-live-grow-settle"
+  ],
+  "counts_and_rate_definitions": {
+    "cache_budget_fixtures_per_build": 10,
+    "attention_execution_fixtures_per_build": 5,
+    "local_repetitions_per_fixture": 1,
+    "local_rate_definition": "Not applicable: these are deterministic contract tests; elapsed is process wall time and maxrss is process resident memory.",
+    "live_rate_definition": "Deferred: prefill tokens/s is prompt tokens divided by prompt seconds after warmup; decode tokens/s is predicted tokens divided by predicted seconds; MTP acceptance is accepted draft tokens divided by drafted tokens.",
+    "live_request_count": null,
+    "live_request_count_reason": "The candidate was not loaded and no request was sent to the unrelated active profile."
+  },
+  "local_measurements": [
+    {
+      "case_id": "26-07-budget-cpu",
+      "command": "build/bin/test-cache-budget",
+      "result": "pass",
+      "elapsed_seconds": 0.00,
+      "maxrss_kib": 8036,
+      "stdout_marker": "cache-budget checks passed"
+    },
+    {
+      "case_id": "26-07-budget-cuda",
+      "command": "build-cuda/bin/test-cache-budget",
+      "result": "pass",
+      "elapsed_seconds": 0.04,
+      "maxrss_kib": 136856,
+      "stdout_marker": "cache-budget checks passed"
+    },
+    {
+      "case_id": "26-07-attention-cpu",
+      "command": "build/bin/test-kv-attention-execution",
+      "result": "pass",
+      "elapsed_seconds": 0.00,
+      "maxrss_kib": 7992,
+      "stdout_marker": "kv-attention-profile submissions=9 captures=5 replays=4 rebuilds=5 table_upload_bytes=48 epoch_changes=2"
+    },
+    {
+      "case_id": "26-07-attention-cuda",
+      "command": "build-cuda/bin/test-kv-attention-execution",
+      "result": "pass",
+      "elapsed_seconds": 0.04,
+      "maxrss_kib": 137260,
+      "stdout_marker": "kv-attention-profile submissions=9 captures=5 replays=4 rebuilds=5 table_upload_bytes=48 epoch_changes=2"
+    }
+  ],
+  "budget_fixture_coverage": [
+    "scratch rounding separate from full-L MTP rows",
+    "aliased owner/group rollup",
+    "native Turbo4 full-L MTP payload and non-Turbo4 refusal",
+    "maximum admitted query shape and odd-tail page rounding",
+    "unknown/unavailable capacity and scratch fail-closed behavior",
+    "external occupancy and insufficient headroom",
+    "late startup categories: fixed, recurrent, MTP compute, graph, routing, staging and guard",
+    "context ladder from 256 through 262144 tokens"
+  ],
+  "analytic_budget_table": [
+    {
+      "logical_context_tokens": 8192,
+      "hot_tokens": 4096,
+      "hot_pages": 16,
+      "target_kv_bytes": 138412032,
+      "full_native_mtp_bytes": 8650752,
+      "label": "analytic payload only; no measured device headroom"
+    },
+    {
+      "logical_context_tokens": 32768,
+      "hot_tokens": 16384,
+      "hot_pages": 64,
+      "target_kv_bytes": 553648128,
+      "full_native_mtp_bytes": 34603008,
+      "label": "analytic payload only; cheap live probe deferred"
+    },
+    {
+      "logical_context_tokens": 131072,
+      "hot_tokens": "fixed modest H required by probe",
+      "hot_pages": "derived after live capacity",
+      "target_kv_bytes": "16896*H",
+      "full_native_mtp_bytes": 138412032,
+      "label": "analytic MTP full-L plus unknown target-H admission"
+    }
+  ],
+  "live_stage_memory_table": {
+    "status": "deferred",
+    "reason": "sudo -n -v returned interactive authentication required; 8080 was healthy but loaded the prior non-MTP binary and was not disturbed.",
+    "rows": [],
+    "required_columns": [
+      "case_id",
+      "B",
+      "U",
+      "stage",
+      "target_scratch_current_bytes",
+      "target_scratch_projected_bytes",
+      "draft_scratch_current_bytes",
+      "draft_scratch_projected_bytes",
+      "graph_activation_output_bytes",
+      "pack_duplication_bytes",
+      "recurrent_bytes",
+      "transfer_overlap_bytes",
+      "peak_device_bytes",
+      "prefill_tokens_per_second",
+      "decode_tokens_per_second",
+      "mtp_acceptance"
+    ]
+  },
+  "live_probes": {
+    "primary_bu_ladder": "deferred",
+    "cheap_32768": "deferred",
+    "cheap_131072": "deferred",
+    "grow_settle_restore": "deferred",
+    "offered_H_warmups": "deferred",
+    "negative_experiment": "did not run a Cartesian product or a second full Qwen process; did not send traffic to the loaded non-MTP service."
+  },
+  "selection": {
+    "normal_use_candidate": "B=128,U=64,native-MTP nmax=2,H=4096 at L=8192",
+    "optional_ingestion_candidate": "B=256,U=128,native-MTP nmax=2,H=4096 at L=8192",
+    "screen_only_if_prefill_improves": "B=256,U=256",
+    "confidence": "provisional until authorized live ladder",
+    "site_override_persisted": false,
+    "site_override_reason": "Measured peak/speed trade-offs are unavailable without authorized candidate lifecycle access; no unmeasured profile was written to /srv/ai."
+  },
+  "negative_experiments": [
+    "sudo -n -v: failed with interactive authentication required",
+    "8080 health: passed, but its executable hash and --spec-type none identify the previous profile, not the candidate",
+    "8092: observed and left untouched",
+    "candidate launch: not attempted because starting a second full Qwen process could contend for VRAM"
+  ],
+  "next_command": "BENCH_SUDO='sudo -n' BENCH_SERVER_BIN=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server /srv/ai/benchmarks/run-profile-benchmark.sh fast /srv/ai/paged-kv/results/26-07-capacity-primary-b128-u64 --mode selective --context 8192 --batch 128 --ubatch 64 --mtp native --case-id primary-b128-u64",
+  "unresolved_source_owner": "Site operator owns sudo authorization and the /srv/ai benchmark lifecycle; once authorized, run the primary ladder and persist only measured overrides."
+}

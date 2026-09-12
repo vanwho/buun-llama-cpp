@@ -933,3 +933,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-26-06`
 - Commit at update: `7486974b3`
 - Summary: Implemented queued changed-page pager maintenance with fail-closed full-scan fallback; CPU and CUDA focused pager/routing/telemetry/execution checks pass. Evidence and handoff record deterministic 2/0/1 scan counts, historical attribution, loaded non-MTP service identity, and deferred native-MTP lifecycle checks because sudo -n requires interactive authentication.
+
+## 2026-09-12T16:03:52+00:00 — 26-07 — done
+
+- Branch: `codex/task-26-07`
+- Commit at update: `fa77d054b`
+- Summary: Deterministic CPU/CUDA budget and attention checks pass; capacity evidence and handoff record provisional B128/U64 normal and B256/U128 ingestion profiles, with native-MTP live ladder deferred because sudo -n requires interactive authentication and the loaded service is the prior non-MTP profile.
