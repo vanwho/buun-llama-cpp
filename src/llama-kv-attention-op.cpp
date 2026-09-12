@@ -47,15 +47,13 @@ static uint64_t attention_content_key(
     for (const uint8_t valid : view.native_mask()) {
         attention_key_mix(key, valid);
     }
-    for (const llama_pos position : params.query_positions) {
-        attention_key_mix(key, uint64_t(position));
-    }
     return key == 0 ? 1 : key;
 }
 
 static uint64_t attention_layout_key(
         const llama_kv_attention_view & view,
         const llama_kv_attention_operator_params & params) noexcept {
+    (void) view;
     uint64_t key = 1469598103934665603ull;
     attention_key_mix(key, uint64_t(params.type_k));
     attention_key_mix(key, uint64_t(params.type_v));
@@ -68,10 +66,9 @@ static uint64_t attention_layout_key(
     attention_key_mix(key, params.n_query_tokens);
     attention_key_mix(key, params.n_batch);
     attention_key_mix(key, params.causal ? 1 : 0);
-    attention_key_mix(key, view.pages().size());
-    attention_key_mix(key, view.get_n_kv());
-    attention_key_mix(key, view.native_positions().size());
-    attention_key_mix(key, view.native_mask().size());
+    // Page membership, tails and positions are mutable descriptor content.
+    // The graph input reserves its capacity from the pager geometry, so none
+    // of those values may change the reusable graph class.
     attention_key_mix(key, params.query_positions.size());
     return key == 0 ? 1 : key;
 }

@@ -5748,6 +5748,9 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     op_params[8] = params->split_kv_scratch != NULL ? 1 : 0;
     op_params[9] = (int32_t) params->split_kv_partition_capacity;
     op_params[10] = (int32_t) params->split_kv_page_count;
+    op_params[11] = (int32_t) params->page_capacity;
+    op_params[12] = (int32_t) params->row_capacity;
+    op_params[13] = params->explicit_native_metadata ? 1 : 0;
 
     int64_t ne[4] = {
         params->partial_state_output ? 2 + params->head_dim_v : params->head_dim_v,
@@ -5785,6 +5788,11 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     extra->pages_host = pages_host;
     extra->host_upload = params->host_upload;
     extra->host_upload_bytes = params->host_upload_bytes;
+    extra->active_page_count_host = params->active_page_count_host;
+    extra->active_row_count_host = params->active_row_count_host;
+    extra->page_capacity = params->page_capacity;
+    extra->row_capacity = params->row_capacity;
+    extra->explicit_native_metadata = params->explicit_native_metadata;
     result->extra = extra;
     return result;
 }

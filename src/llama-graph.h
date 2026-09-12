@@ -506,6 +506,14 @@ public:
     ggml_tensor * direct_split_kv_scratch = nullptr;
     uint32_t direct_split_kv_partition_capacity = 0;
     uint32_t direct_split_kv_page_count = 0;
+    uint32_t direct_page_capacity = 0;
+    uint32_t direct_row_capacity = 0;
+    uint32_t direct_active_page_count = 0;
+    uint32_t direct_active_row_count = 0;
+    uint32_t direct_active_tail_length = 0;
+    uint64_t direct_selection_generation = 0;
+    bool direct_explicit_native_metadata = false;
+    ggml_flash_attn_ext_paged_turbo4_device_control direct_device_control = {};
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_host;
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_uploaded;
     std::vector<llama_pos> direct_native_positions_host;
@@ -518,6 +526,11 @@ public:
         ggml_tensor * pages = nullptr;
         std::vector<ggml_flash_attn_ext_paged_turbo4_page> pages_host;
         std::vector<uint8_t> host_upload;
+        uint32_t active_page_count = 0;
+        uint32_t active_row_count = 0;
+        uint32_t active_tail_length = 0;
+        uint64_t selection_generation = 0;
+        ggml_flash_attn_ext_paged_turbo4_device_control device_control = {};
     };
     std::vector<exact_wave_input> exact_waves;
     std::shared_ptr<const llama_kv_attention_exact_graph_plan> exact_graph_plan;

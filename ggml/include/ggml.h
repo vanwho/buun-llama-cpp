@@ -2514,6 +2514,24 @@ extern "C" {
         int64_t  native_position_begin;
     };
 
+    // Mutable state for a reusable paged-attention input.  This header is
+    // stored at the beginning of the graph-owned `pages` device input; the
+    // fixed-capacity page descriptors follow it.  Counts and generations are
+    // therefore changed by an input update instead of becoming captured
+    // scalar launch arguments.
+    struct ggml_flash_attn_ext_paged_turbo4_device_control {
+        uint32_t active_page_count;
+        uint32_t active_row_count;
+        uint32_t active_tail_length;
+        uint32_t page_capacity;
+        uint32_t row_capacity;
+        uint32_t reserved;
+        uint64_t selection_generation;
+    };
+
+#define GGML_FLASH_ATTN_EXT_PAGED_TURBO4_DEVICE_CONTROL_BYTES \
+    sizeof(struct ggml_flash_attn_ext_paged_turbo4_device_control)
+
     // Lifetime-owned graph metadata for the paged CUDA node. The page table
     // remains host-validated; host_upload is optional and is used only by an
     // exact cold-wave node to fill its private staging slab.
@@ -2522,6 +2540,14 @@ extern "C" {
         const void * pages_host;
         const void * host_upload;
         size_t      host_upload_bytes;
+        // These host-side values are only for fail-closed validation and
+        // diagnostics.  The CUDA kernel reads the corresponding mutable
+        // values from the device control header above.
+        const uint32_t * active_page_count_host;
+        const uint32_t * active_row_count_host;
+        uint32_t        page_capacity;
+        uint32_t        row_capacity;
+        bool             explicit_native_metadata;
     };
 
 #define GGML_FLASH_ATTN_EXT_PAGED_TURBO4_EXTRA_MAGIC UINT64_C(0x5034345041474545)
@@ -2556,6 +2582,17 @@ extern "C" {
         struct ggml_tensor * split_kv_scratch;
         uint32_t split_kv_partition_capacity;
         uint32_t split_kv_page_count;
+        // Fixed-capacity graph-input geometry. The active values live in the
+        // device control header and are read at replay, not captured here.
+        uint32_t page_capacity;
+        uint32_t row_capacity;
+        const uint32_t * active_page_count_host;
+        const uint32_t * active_row_count_host;
+        const uint32_t * active_page_count_device;
+        const uint32_t * active_row_count_device;
+        const uint32_t * active_tail_length_device;
+        const uint64_t * selection_generation_device;
+        bool explicit_native_metadata;
     };
 
     GGML_API struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
