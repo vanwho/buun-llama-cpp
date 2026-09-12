@@ -878,3 +878,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-12`
 - Commit at update: `9a2a45e5a`
 - Summary: Added guarded same-device native-MTP hidden-state tensor handoff with portable host fallback; focused build and deterministic tests pass. CUDA/model timing and Qwen3.8 live parity deferred because no configured GPU service is available.
+
+## 2026-09-12T03:15:48+00:00 — 25-13 — done
+
+- Branch: `codex/task-25-13`
+- Commit at update: `740c18599`
+- Summary: Completed whole-model speed coverage from retained matched CUDA receipts and Turbo4 fixture; identified selective lifecycle and graph wait/queue costs, retained effective B=256, and recorded honest profiler/hardware timing gaps.
