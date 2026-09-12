@@ -830,3 +830,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-04`
 - Commit at update: `0b0fc1b3b`
 - Summary: Implemented dense no-copy and cached raw Turbo4 compact selected-attention routes with generation-aware repack, CUDA raw page copies, metrics, tests, and SPEED25_04_TURBO_REUSE evidence; live V6 route timing deferred.
+
+## 2026-09-12T00:36:46+00:00 — 25-05 — done
+
+- Branch: `codex/task-25-05`
+- Commit at update: `5505dddd1`
+- Summary: Implemented grid.z query tiling for direct paged Turbo4 prefill, added B>64 dense graph handling, expanded CUDA geometry/tile evidence, and recorded deferred packed/dense and Nsight checks.

@@ -1,0 +1,5 @@
+Command: ncu --csv --set basic --kernel-name-base demangled --kernel-name 'regex:.*ggml_cuda_fattn_turbo4_paged_query_tile_kernel.*' --launch-count 1 --force-overwrite --log-file /tmp/SPEED25_05_PREFILL_KERNELS_ncu.csv ./build-cuda/bin/test-cuda-fattn-paged-turbo4
+
+Result: deferred. Nsight Compute attached but reported:
+ERR_NVGPUCTRPERM - The user does not have permission to access NVIDIA GPU Performance Counters on the target device 0
+WARNING: No kernels were profiled.

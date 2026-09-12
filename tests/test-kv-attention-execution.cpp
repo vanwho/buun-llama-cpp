@@ -85,6 +85,16 @@ static void test_prefill_admission() {
     assert(llama_kv_attention_prefill_chunk_size(8, 2, 256, 16) == 8);
     assert(llama_kv_attention_prefill_chunk_size(4096, 2, 256, 32) == 32);
     assert(llama_kv_attention_prefill_chunk_size(0, 2) == 0);
+
+    // The model batch may cross the CUDA tile boundary; the direct backend
+    // subdivides it in grid.z instead of refusing the whole operator.
+    const auto selected_large = metadata(snapshot(), 65, 1);
+    llama_kv_attention_execution large_execution(llama_kv_attention_execution_mode::selective);
+    const auto large_decision = large_execution.prepare(
+            selected_large, llama_kv_attention_execution_phase::prefill,
+            1, 1, true, {});
+    assert(large_decision.status == llama_kv_attention_execution_status::ok);
+    assert(large_decision.route == llama_kv_attention_execution_route::selected_direct);
 }
 
 static void test_routes_epochs_and_fences() {
@@ -194,7 +204,7 @@ static void test_fallbacks_and_graph_key() {
     auto prompt_shape = metadata(snapshot(), 65, 1);
     auto prompt_reference = execution.prepare(prompt_shape,
             llama_kv_attention_execution_phase::decode, 1, 1, true, scratch);
-    assert(prompt_reference.route == llama_kv_attention_execution_route::selected_reference);
+    assert(prompt_reference.route == llama_kv_attention_execution_route::selected_direct);
     execution.complete_one_graph();
 
     auto tile64 = execution.prepare(metadata(snapshot(), 64, 1),
@@ -209,8 +219,7 @@ static void test_fallbacks_and_graph_key() {
 
     auto tile65 = execution.prepare(metadata(snapshot(), 65, 1),
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
-    assert(tile65.route == llama_kv_attention_execution_route::selected_reference);
-    assert(tile65.reason.find("unsupported direct query tile") != std::string::npos);
+    assert(tile65.route == llama_kv_attention_execution_route::selected_direct);
     execution.complete_one_graph();
 
     // Qwen3.5 uses 24 query heads and 4 KV heads (GQA ratio 6). The paged

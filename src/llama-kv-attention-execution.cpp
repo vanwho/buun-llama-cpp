@@ -23,7 +23,6 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
     return metadata.causal() && metadata.type_k() == GGML_TYPE_TURBO4_0 &&
            metadata.type_v() == GGML_TYPE_TURBO4_0 && metadata.head_dim_k() == 256 &&
            metadata.head_dim_v() == 256 && metadata.n_query_tokens() >= 1 &&
-           metadata.n_query_tokens() <= LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE &&
            metadata.n_batch() == 1 && metadata.n_head_q() != 0 &&
            metadata.n_head_kv() != 0 &&
            metadata.n_head_q() % metadata.n_head_kv() == 0;
