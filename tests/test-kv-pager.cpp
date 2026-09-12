@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -99,6 +101,7 @@ struct host_page_fixture {
     std::vector<std::vector<uint8_t>> storage;
     std::vector<vbr_selected_page_unit_source> sources;
     vbr_selected_page_capture_snapshot snapshot;
+    std::vector<ggml_tensor *> device_tensors;
 
     static bool read(
             const void * context, uint64_t offset,
@@ -248,6 +251,62 @@ struct host_page_fixture {
             snapshot.unit_descriptors.push_back(std::move(descriptor));
         }
     }
+
+    bool bind_cuda(ggml_backend_t backend, ggml_backend_dev_t device) {
+        ggml_context * context = ggml_init({
+            VBR_SELECTED_PAGE_REQUIRED_UNITS * ggml_tensor_overhead(),
+            nullptr, true,
+        });
+        if (!context) return false;
+        device_tensors.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+        for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+            device_tensors.push_back(ggml_new_tensor_1d(
+                    context, GGML_TYPE_I8, storage[unit].size()));
+        }
+        ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(
+                context, backend);
+        if (!buffer) {
+            ggml_free(context);
+            device_tensors.clear();
+            return false;
+        }
+        for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+            ggml_backend_tensor_set(device_tensors[unit], storage[unit].data(),
+                    0, storage[unit].size());
+            auto & source = sources[unit];
+            source.source.context = nullptr;
+            source.source.read = nullptr;
+            source.source.backend = backend;
+            source.source.device = device;
+            source.source.tensor = device_tensors[unit];
+            vbr_capture_projected_shard_source projected;
+            projected.shard_index = 0;
+            projected.row_count = source.row_count;
+            projected.row_bytes = source.row_bytes;
+            projected.source_identity = source.source_identity;
+            projected.source = source.source;
+            assert(vbr_capture_projected_shard_topology(
+                    { projected }, snapshot.units[unit].shard_count,
+                    snapshot.units[unit].shard_topology_digest));
+        }
+        // Keep the backend-owned tensors alive for the caller.  The test frees
+        // the context/buffer only after the host worker has drained.
+        cuda_context = context;
+        cuda_buffer = buffer;
+        return true;
+    }
+
+    void release_cuda(ggml_backend_t backend) {
+        if (cuda_buffer) ggml_backend_buffer_free(cuda_buffer);
+        cuda_buffer = nullptr;
+        if (cuda_context) ggml_free(cuda_context);
+        cuda_context = nullptr;
+        if (backend) ggml_backend_free(backend);
+        device_tensors.clear();
+    }
+
+    ggml_context * cuda_context = nullptr;
+    ggml_backend_buffer_t cuda_buffer = nullptr;
 };
 
 static void test_host_seal_boundary() {
@@ -289,6 +348,95 @@ static void test_host_seal_boundary() {
     assert(host->snapshot().live_pages == 0);
     assert(host->snapshot().obsolete_pages == 1);
     assert(host->pages().empty());
+}
+
+static void test_cuda_async_host_publication() {
+    ggml_backend_load_all();
+    ggml_backend_dev_t device = nullptr;
+    for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
+        auto * candidate = ggml_backend_dev_get(i);
+        if (ggml_backend_dev_type(candidate) == GGML_BACKEND_DEVICE_TYPE_GPU) {
+            device = candidate;
+            break;
+        }
+    }
+    if (!device) return;
+    ggml_backend_t backend = ggml_backend_dev_init(device, nullptr);
+    assert(backend != nullptr);
+    if (!backend) return;
+
+    host_page_fixture fixture;
+    fixture.initialize();
+    if (!fixture.bind_cuda(backend, device)) {
+        ggml_backend_free(backend);
+        return;
+    }
+    auto host_resources = resources(1u << 20, 128);
+    host_resources.host_capture_enabled = true;
+    host_resources.host_source_namespace = host_page_fixture::source_namespace;
+    host_resources.host_child_id = 0;
+    host_resources.host_stream_index = 0;
+    host_resources.host_backend = backend;
+    host_resources.host_lanes = { { device, backend, false } };
+    host_resources.host_ring_bytes = 2u * 64u * 1024u;
+    host_resources.host_chunk_bytes = 64u * 1024u;
+    host_resources.host_budget.host.pageable_cap = 1u << 20;
+    host_resources.host_budget.host.pageable_state =
+            llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.pinned_cap = host_resources.host_ring_bytes;
+    host_resources.host_budget.host.pinned_state =
+            llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.total_cap = 1u << 20;
+    host_resources.host_budget.host.total_state =
+            llama_cache_budget_capacity_state::known;
+    llama_kv_pager_host_status host_status;
+    auto host = llama_kv_pager_host::create(
+            host_resources, { &fixture, host_page_fixture::prepare }, host_status);
+    assert(host && host_status == llama_kv_pager_host_status::ok);
+    assert(host && host->async_enabled());
+    if (host) {
+        llama_kv_page_record page;
+        page.id = fixture.snapshot.pages[0];
+        page.physical_slot = 0;
+        page.state = llama_kv_page_state::gpu_dirty;
+        const auto queued = host->enqueue(page, 7);
+        assert(queued.status == llama_kv_pager_host_status::ok);
+        assert(queued.queued);
+        assert(host->snapshot().live_pages == 0);
+
+        std::vector<llama_kv_pager_host_completion> completed;
+        for (int attempt = 0; attempt < 200 && completed.empty(); ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            host->drain(completed);
+        }
+        assert(completed.size() == 1);
+        if (completed.size() == 1) {
+            assert(completed[0].content_version == 7);
+            assert(completed[0].result.status == llama_kv_pager_host_status::ok);
+            assert(completed[0].result.queued == false);
+            assert(completed[0].result.transfer.event_completions > 0);
+            fprintf(stderr,
+                    "SPEED25_07_HOST async payload=%llu pageable=%llu metadata=%llu "
+                    "pinned=%llu ring=%llu submitted_chunks=%llu waits=%llu events=%llu\n",
+                    (unsigned long long) completed[0].result.transfer.bytes,
+                    (unsigned long long) completed[0].result.pageable_bytes,
+                    (unsigned long long) completed[0].result.metadata_bytes,
+                    (unsigned long long) completed[0].result.pinned_bytes,
+                    (unsigned long long) host_resources.host_ring_bytes,
+                    (unsigned long long) completed[0].result.transfer.submitted_chunks,
+                    (unsigned long long) completed[0].result.transfer.backpressure_waits,
+                    (unsigned long long) completed[0].result.transfer.event_completions);
+            assert(host->snapshot().live_pages == 1);
+            const auto pages = host->pages();
+            assert(pages.size() == 1 && pages[0].page.units.size() ==
+                    VBR_SELECTED_PAGE_REQUIRED_UNITS);
+            uint8_t byte = 0;
+            assert(pages[0].page.units[0].bytes->read(0, &byte, 1));
+            assert(byte == fixture.storage[0][0]);
+        }
+    }
+    host.reset();
+    fixture.release_cuda(backend);
 }
 
 static void test_compact_checkpoint_page_identity() {
@@ -569,6 +717,7 @@ static void test_pager_host_mutation() {
 
 int main() {
     test_host_seal_boundary();
+    test_cuda_async_host_publication();
     test_compact_checkpoint_page_identity();
     test_mode_lifecycle_matrix();
     test_pager_host_mutation();
