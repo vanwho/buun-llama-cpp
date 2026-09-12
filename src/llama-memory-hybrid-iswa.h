@@ -186,7 +186,9 @@ public:
     using slot_info_vec_t = llama_kv_cache::slot_info_vec_t;
 
     // init failure
-    explicit llama_memory_hybrid_iswa_context(llama_memory_status status);
+    explicit llama_memory_hybrid_iswa_context(
+            llama_memory_status status,
+            llama_memory_failure_reason reason = llama_memory_failure_reason::none);
 
     // init full
     explicit llama_memory_hybrid_iswa_context(llama_memory_hybrid_iswa * mem);
@@ -210,6 +212,13 @@ public:
     bool apply() override;
 
     llama_memory_status  get_status() const override;
+    llama_memory_failure_reason get_failure_reason() const noexcept override {
+        if (failure_reason != llama_memory_failure_reason::none) {
+            return failure_reason;
+        }
+        return ctx_attn ? ctx_attn->get_failure_reason() :
+            llama_memory_failure_reason::none;
+    }
     const llama_ubatch & get_ubatch() const override;
 
     uint32_t get_max_graph_seqs() const override;
@@ -237,4 +246,6 @@ private:
     const llama_memory_context_ptr ctx_attn;
 
     const llama_memory_status status;
+    llama_memory_failure_reason failure_reason =
+            llama_memory_failure_reason::none;
 };

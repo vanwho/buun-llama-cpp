@@ -2231,7 +2231,12 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                                      llama_kv_attention_execution_route route,
                                      uint32_t rows) {
         fill_scratch_contract(scratch, route, rows);
-        return mctx == nullptr || mctx->reserve_kv_attention_scratch(scratch);
+        const bool reserved = mctx == nullptr ||
+            mctx->reserve_kv_attention_scratch(scratch);
+        if (!reserved) {
+            last_memory_failure_reason_ = llama_memory_failure_reason::scratch_oom;
+        }
+        return reserved;
     };
     if (kv_pager.mode == llama_kv_pager_mode::exact) {
         kv_attention_execution.set_exact_graph_plan(nullptr);
@@ -5712,6 +5717,7 @@ bool llama_context::set_adapter_cvec(
 
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
     if (mctx && !mctx->apply()) {
+        last_memory_failure_reason_ = mctx->get_failure_reason();
         mctx->finish(false);
         LLAMA_LOG_ERROR("%s: failed to apply memory context\n", __func__);
         ret = GGML_STATUS_FAILED;
@@ -6120,10 +6126,12 @@ int llama_context::decode(const llama_batch & batch_inp) {
     logits_argmax_k = 1;
     clear_dflash_proposal();
 
-     if (!memory) {
+    if (!memory) {
         LLAMA_LOG_DEBUG("%s: cannot decode batches with this context (calling encode() instead)\n", __func__);
         return encode(batch_inp);
     }
+
+    last_memory_failure_reason_ = llama_memory_failure_reason::none;
 
     if (batch_inp.n_tokens == 0) {
         LLAMA_LOG_ERROR("%s: n_tokens == 0\n", __func__);
@@ -6274,6 +6282,12 @@ int llama_context::decode(const llama_batch & batch_inp) {
                 }
             case LLAMA_MEMORY_STATUS_FAILED_PREPARE:
                 {
+                    last_memory_failure_reason_ = mctx->get_failure_reason();
+                    if (last_memory_failure_reason_ ==
+                            llama_memory_failure_reason::none) {
+                        last_memory_failure_reason_ =
+                            llama_memory_failure_reason::logical_capacity;
+                    }
                     if (!did_optimize) {
                         did_optimize = true;
 

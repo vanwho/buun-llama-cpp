@@ -2,6 +2,19 @@
 
 #include <algorithm>
 
+const char * llama_memory_failure_reason_name(
+        llama_memory_failure_reason reason) noexcept {
+    switch (reason) {
+        case llama_memory_failure_reason::none:              return "none";
+        case llama_memory_failure_reason::logical_capacity:  return "logical_capacity";
+        case llama_memory_failure_reason::scratch_oom:       return "scratch_oom";
+        case llama_memory_failure_reason::all_pinned:       return "all_pinned";
+        case llama_memory_failure_reason::pending_copy:     return "pending_copy";
+        case llama_memory_failure_reason::invalid_frontier: return "invalid_frontier";
+    }
+    return "none";
+}
+
 llama_memory_status llama_memory_status_combine(llama_memory_status s0, llama_memory_status s1) {
     bool has_update = false;
 

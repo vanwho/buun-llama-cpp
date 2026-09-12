@@ -1,0 +1,39 @@
+{
+  "task": "26-03",
+  "cluster": "26h-scratch-frontier-v7",
+  "repository_root": "/srv/repos/vanwho/buun-llama-cpp",
+  "status": "implementation_complete_live_deferred",
+  "changes": {
+    "failure_reasons": [
+      "logical_capacity",
+      "scratch_oom",
+      "all_pinned",
+      "pending_copy",
+      "invalid_frontier"
+    ],
+    "async_tail_pin_preserved": true,
+    "erased_frontier_index_cleared": true,
+    "server_context_error_disambiguated": true,
+    "mtp_rejected_suffix_excluded": true
+  },
+  "verification": [
+    {"command": "ctest --test-dir build --output-on-failure -R 'test-(kv-pager|server-prompt-cache)'", "result": "5/5 pass"},
+    {"command": "build/bin/test-kv-pager-model", "result": "synthetic F1/F2/F3/F5 pass"},
+    {"command": "ctest --test-dir build-cuda --output-on-failure -R 'test-(kv-pager|server-prompt-cache)'", "result": "5/5 pass"},
+    {"command": "build-cuda/bin/test-kv-pager-model", "result": "synthetic F1/F2/F3/F5 pass"},
+    {"command": "build-cuda/bin/test-cuda-fattn-paged-turbo4", "result": "pass; RTX 4080; 530 selected rows; split-KV capacities 1/2/3"},
+    {"command": "git diff --check", "result": "pass"}
+  ],
+  "live": {
+    "status": "deferred",
+    "gate_command": "sudo -n -v",
+    "gate_result": "sudo: interactive authentication is required",
+    "preserved_pid": 768838,
+    "preserved_service": "/srv/ai/paged-kv/build/buun/bin/llama-server",
+    "model": "/srv/ai/models/text/current.gguf",
+    "port": 8080,
+    "unrelated_service_8092_touched": false,
+    "claims": []
+  },
+  "next_invocation": "sudo -n -v; rerun the packet's authorized Qwen lifecycle and primary/continuation/near-boundary live probes after authorization is available"
+}

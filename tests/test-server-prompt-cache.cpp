@@ -5,6 +5,8 @@
 #include "server-queue.h"
 #include "server-task.h"
 
+#include "../src/llama-memory.h"
+
 #include "llama.h"
 #include "log.h"
 #include "mtmd.h"
@@ -285,6 +287,19 @@ void test_speculative_decode_terminals() {
               0, false, false, true, true) == terminal::reset_committed_then_throw);
     CHECK(server_speculative_decode_terminal_resolve(
               0, false, false, false, false) == terminal::reset_committed_then_throw);
+
+    CHECK(server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::none));
+    CHECK(server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::logical_capacity));
+    CHECK(!server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::scratch_oom));
+    CHECK(!server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::all_pinned));
+    CHECK(!server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::pending_copy));
+    CHECK(!server_memory_failure_is_logical_capacity(
+              llama_memory_failure_reason::invalid_frontier));
 
     const auto reset = server_committed_decode_reset_for_test();
     CHECK(reset.processing_prompt_cleared);

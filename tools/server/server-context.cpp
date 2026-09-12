@@ -1291,6 +1291,12 @@ server_speculative_decode_terminal_resolve(
     return server_speculative_decode_terminal::success;
 }
 
+bool server_memory_failure_is_logical_capacity(
+        llama_memory_failure_reason reason) noexcept {
+    return reason == llama_memory_failure_reason::none ||
+        reason == llama_memory_failure_reason::logical_capacity;
+}
+
 bool server_is_native_mtp_verification_batch(
         bool native_mtp_configured,
         int32_t n_tokens,
@@ -19715,9 +19721,22 @@ private:
         }
         const bool hard_seal_terminal =
             memory->vbr_hard_seal_blocked_take(ret != 0);
-        const auto decode_terminal = server_speculative_decode_terminal_resolve(
+        const auto memory_failure_reason = ctx_tgt != nullptr
+            ? ctx_tgt->get_last_memory_failure_reason()
+            : llama_memory_failure_reason::none;
+        auto decode_terminal = server_speculative_decode_terminal_resolve(
             ret, hard_seal_terminal, n_batch == 1,
             yield_exception != nullptr, speculative_ok);
+        const bool batch_retryable_failure =
+            server_memory_failure_is_logical_capacity(memory_failure_reason) ||
+            memory_failure_reason == llama_memory_failure_reason::scratch_oom;
+        if (decode_terminal == server_speculative_decode_terminal::retry &&
+                !batch_retryable_failure) {
+            // A pinned or in-flight canonical page is not made available by
+            // shrinking the compute batch. Do not turn that pressure into an
+            // unbounded retry ladder.
+            decode_terminal = server_speculative_decode_terminal::ordinary_ret_error;
+        }
         if (ret != 0) {
             if (decode_terminal ==
                     server_speculative_decode_terminal::preserve_hard_seal) {
@@ -19740,10 +19759,42 @@ private:
                 std::string err;
                 error_type err_type = ERROR_TYPE_SERVER;
 
-                if (n_batch == 1 && ret == 1) {
+                if (n_batch == 1 && ret == 1 &&
+                        server_memory_failure_is_logical_capacity(
+                            memory_failure_reason)) {
                     // TODO: try to terminate only the largest active slot/sequence and continue with the rest
                     //       need to remove the tokens from the current batch too
                     err = "Context size has been exceeded.";
+                    err_type = ERROR_TYPE_EXCEED_CONTEXT_SIZE;
+                } else if (ret == 1) {
+                    const auto pager = ctx_tgt != nullptr
+                        ? ctx_tgt->get_kv_pager_metrics()
+                        : llama_kv_pager_metrics_snapshot {};
+                    switch (memory_failure_reason) {
+                        case llama_memory_failure_reason::scratch_oom:
+                            err = "KV attention scratch capacity is exhausted.";
+                            break;
+                        case llama_memory_failure_reason::all_pinned:
+                            err = string_format(
+                                    "KV append refused: all admitted pages are pinned "
+                                    "(minimum required pages: %llu).",
+                                    (unsigned long long) pager.physical_page_capacity + 1);
+                            break;
+                        case llama_memory_failure_reason::pending_copy:
+                            // One bounded fence poll lets a completed host event
+                            // publish its clean page before reporting the refusal.
+                            llama_synchronize(ctx_tgt);
+                            err = "KV append is waiting for a canonical page copy.";
+                            break;
+                        case llama_memory_failure_reason::invalid_frontier:
+                            err = "KV append rejected: invalid memory frontier.";
+                            break;
+                        case llama_memory_failure_reason::logical_capacity:
+                        case llama_memory_failure_reason::none:
+                            // The n_batch==1 branch above supplies the legacy
+                            // context-limit diagnostic.
+                            break;
+                    }
                 }
 
                 if (ret == -1) {

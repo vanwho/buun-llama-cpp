@@ -251,14 +251,18 @@ llama_memory_context_ptr llama_memory_hybrid::init_batch(llama_batch_allocr & ba
         auto heads_attn = mem_attn->plan_slots(ubatches);
         if (heads_attn.empty()) {
             LLAMA_LOG_ERROR("%s: failed to plan attention ubatches\n", __func__);
-            return std::make_unique<llama_memory_hybrid_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    mem_attn->last_failure_reason());
         }
 
         // Recurrent prepare is a dry preflight. Keep it before the first publishing child so a
         // bounded recurrent failure leaves the attention page tree untouched.
         if (!mem_recr->prepare(ubatches)) {
             LLAMA_LOG_ERROR("%s: failed to prepare recurrent ubatches\n", __func__);
-            return std::make_unique<llama_memory_hybrid_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    mem_attn->last_failure_reason());
         }
 
         mutation_scope mutation(this, vbr_operation_kind::sequence_edit,
@@ -267,7 +271,9 @@ llama_memory_context_ptr llama_memory_hybrid::init_batch(llama_batch_allocr & ba
         if (heads_attn.empty()) {
             LLAMA_LOG_ERROR("%s: failed to prepare attention ubatches\n", __func__);
             mutation.finish(false);
-            return std::make_unique<llama_memory_hybrid_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    mem_attn->last_failure_reason());
         }
         mutation.finish(true);
 
@@ -275,7 +281,9 @@ llama_memory_context_ptr llama_memory_hybrid::init_batch(llama_batch_allocr & ba
                 this, std::move(heads_attn), std::move(ubatches));
     } while(false);
 
-    return std::make_unique<llama_memory_hybrid_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+    return std::make_unique<llama_memory_hybrid_context>(
+            LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+            mem_attn->last_failure_reason());
 }
 
 llama_memory_context_ptr llama_memory_hybrid::init_full() {
@@ -481,7 +489,9 @@ llama_memory_recurrent * llama_memory_hybrid::get_mem_recr() const {
     return mem_recr.get();
 }
 
-llama_memory_hybrid_context::llama_memory_hybrid_context(llama_memory_status status) : status(status) {}
+llama_memory_hybrid_context::llama_memory_hybrid_context(
+        llama_memory_status status, llama_memory_failure_reason reason) :
+    status(status), failure_reason(reason) {}
 
 llama_memory_hybrid_context::llama_memory_hybrid_context(llama_memory_hybrid * mem) :
     ctx_recr(mem->get_mem_recr()->init_full()),

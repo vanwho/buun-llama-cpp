@@ -36,6 +36,26 @@
 extern "C" void dequantize_row_turbo4_0(
         const void * x, float * y, int64_t k);
 
+static llama_memory_failure_reason pager_failure_reason(
+        llama_kv_pager_write_status status) noexcept {
+    switch (status) {
+        case llama_kv_pager_write_status::all_pinned:
+            return llama_memory_failure_reason::all_pinned;
+        case llama_kv_pager_write_status::transaction:
+            return llama_memory_failure_reason::pending_copy;
+        case llama_kv_pager_write_status::invalid_position:
+        case llama_kv_pager_write_status::stale_generation:
+        case llama_kv_pager_write_status::overflow:
+            return llama_memory_failure_reason::invalid_frontier;
+        case llama_kv_pager_write_status::no_victim:
+        case llama_kv_pager_write_status::disabled:
+            return llama_memory_failure_reason::logical_capacity;
+        case llama_kv_pager_write_status::ok:
+            return llama_memory_failure_reason::none;
+    }
+    return llama_memory_failure_reason::invalid_frontier;
+}
+
 // Dynamic-VBR degrade tier ladder and measured price order (generated table).
 enum vbr_tier : uint8_t {
     VBR_TIER_T8,
@@ -2693,6 +2713,7 @@ void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
             if (pager_->complete_write(ticket, segments, true) !=
                     llama_kv_pager_write_status::ok) {
                 pager_write_failure_ = true;
+                last_failure_reason_ = llama_memory_failure_reason::invalid_frontier;
             }
         }
     } else {
@@ -3964,6 +3985,7 @@ llama_memory_context_ptr llama_kv_cache::init_batch(
             uint32_t n_ubatch,
             bool embd_all) {
     GGML_UNUSED(embd_all);
+    last_failure_reason_ = llama_memory_failure_reason::none;
 
     do {
         balloc.split_reset();
@@ -3981,11 +4003,15 @@ llama_memory_context_ptr llama_kv_cache::init_batch(
 
         if (balloc.get_n_used() < balloc.get_n_tokens()) {
             // failed to find a suitable split
+            last_failure_reason_ = llama_memory_failure_reason::logical_capacity;
             break;
         }
 
         auto sinfos = prepare(ubatches);
         if (sinfos.empty()) {
+            if (last_failure_reason_ == llama_memory_failure_reason::none) {
+                last_failure_reason_ = llama_memory_failure_reason::logical_capacity;
+            }
             break;
         }
 
@@ -3993,7 +4019,8 @@ llama_memory_context_ptr llama_kv_cache::init_batch(
                 this, std::move(sinfos), std::move(ubatches));
     } while (false);
 
-    return std::make_unique<llama_kv_cache_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+    return std::make_unique<llama_kv_cache_context>(
+            LLAMA_MEMORY_STATUS_FAILED_PREPARE, last_failure_reason_);
 }
 
 llama_memory_context_ptr llama_kv_cache::init_full() {
@@ -4170,6 +4197,7 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
                         // side-stream waves before returning without a graph to carry the normal wait.
                         vbr_tree_force();
                         vbr_arm_wave_fences();
+                        last_failure_reason_ = llama_memory_failure_reason::scratch_oom;
                         return {};
                     }
                     if (degrade == vbr_degrade_result::hard_lease_blocked) {
@@ -4177,6 +4205,7 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
                                 "failing this batch recoverably\n", __func__);
                         vbr_tree_force();
                         vbr_arm_wave_fences();
+                        last_failure_reason_ = llama_memory_failure_reason::all_pinned;
                         return {};
                     }
                     if (degrade == vbr_degrade_result::capture_lease_blocked) {
@@ -4186,6 +4215,7 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
                             __func__);
                         vbr_tree_force();
                         vbr_arm_wave_fences();
+                        last_failure_reason_ = llama_memory_failure_reason::pending_copy;
                         return {};
                     }
                     if (degrade == vbr_degrade_result::exhausted) {
@@ -4230,6 +4260,7 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
                     LLAMA_LOG_ERROR("%s: VBR demand-shed reserve failed before its tier mutation — "
                             "failing this batch recoverably\n", __func__);
                     vbr_tree_root()->vbr_arm_wave_fences();
+                    last_failure_reason_ = llama_memory_failure_reason::scratch_oom;
                     return {};
                 }
             }
@@ -4266,6 +4297,7 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
             // This boundary's degrade may already have flipped tiers, so trace it (distinct
             // phase, counter not advanced) instead of silently dropping it under OOM/fault validation.
             vbr_trace_emit("prepare_mapfail", wm_next, used_now);
+            last_failure_reason_ = llama_memory_failure_reason::scratch_oom;
             return {};
         }
         // free-running boundary counter: drives the auto-budget re-derive throttle above and the
@@ -4282,6 +4314,7 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
 
 llama_kv_cache::slot_info_vec_t llama_kv_cache::plan_slots(const std::vector<llama_ubatch> & ubatches) {
     llama_kv_cache::slot_info_vec_t res;
+    last_failure_reason_ = llama_memory_failure_reason::none;
 
     // Slot selection for later ubatches must observe the metadata changes made by
     // earlier ones (notably SWA eviction and its contiguous-prefix purge).  Apply
@@ -4304,6 +4337,7 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::plan_slots(const std::vector<lla
         // only find a suitable slot for the ubatch. don't modify the cells yet
         const auto sinfo_new = find_slot(ubatch, false);
         if (sinfo_new.empty()) {
+            record_slot_failure(ubatch);
             success = false;
             break;
         }
@@ -4495,6 +4529,40 @@ bool llama_kv_cache::update(llama_context * lctx, bool do_shift, const stream_co
     }
 
     return updated;
+}
+
+void llama_kv_cache::record_slot_failure(const llama_ubatch & ubatch) noexcept {
+    // Cell admission remains the authority for logical capacity.  The pager
+    // can refine that terminal when its bounded physical window explains why
+    // no append page is currently usable.
+    last_failure_reason_ = llama_memory_failure_reason::logical_capacity;
+    if (pager_ == nullptr || ubatch.n_seqs_unq == 0 ||
+            ubatch.seq_id_unq == nullptr) {
+        return;
+    }
+
+    bool any_page = false;
+    bool all_pinned = true;
+    bool pending_copy = false;
+    for (uint32_t i = 0; i < ubatch.n_seqs_unq; ++i) {
+        const llama_seq_id sequence_id = ubatch.seq_id_unq[i];
+        if (sequence_id < 0) {
+            last_failure_reason_ = llama_memory_failure_reason::invalid_frontier;
+            return;
+        }
+        const auto residency = pager_->residency(sequence_id);
+        for (const auto & page : residency.pages()) {
+            any_page = true;
+            all_pinned = all_pinned && page.pin_count != 0;
+            pending_copy = pending_copy ||
+                page.state == llama_kv_page_state::sealing_host;
+        }
+    }
+    if (pending_copy) {
+        last_failure_reason_ = llama_memory_failure_reason::pending_copy;
+    } else if (any_page && all_pinned) {
+        last_failure_reason_ = llama_memory_failure_reason::all_pinned;
+    }
 }
 
 llama_kv_cache::slot_info llama_kv_cache::find_slot(const llama_ubatch & ubatch, bool cont) const {
@@ -4733,6 +4801,7 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
                 const auto write_status = pager_->begin_write_batch(
                         sequence_id, 0, positions, tickets);
                 if (write_status != llama_kv_pager_write_status::ok) {
+                    last_failure_reason_ = pager_failure_reason(write_status);
                     throw std::runtime_error(std::string("KV pager batch write reservation failed: ") +
                             llama_kv_pager_write_status_name(write_status));
                 }
@@ -4749,6 +4818,7 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
                     const auto write_status = pager_->begin_write(
                             row_sequence_id, 0, ubatch.pos[i], ticket);
                     if (write_status != llama_kv_pager_write_status::ok) {
+                        last_failure_reason_ = pager_failure_reason(write_status);
                         throw std::runtime_error(std::string("KV pager write reservation failed: ") +
                                 llama_kv_pager_write_status_name(write_status));
                     }
@@ -14997,8 +15067,9 @@ bool llama_kv_cache::state_read_data(llama_io_read_i & io, uint32_t strm, uint32
 // llama_kv_cache_context
 //
 
-llama_kv_cache_context::llama_kv_cache_context(llama_memory_status status) :
-    status(status), max_graph_seqs(status == LLAMA_MEMORY_STATUS_SUCCESS ?
+llama_kv_cache_context::llama_kv_cache_context(
+        llama_memory_status status, llama_memory_failure_reason reason) :
+    status(status), failure_reason(reason), max_graph_seqs(status == LLAMA_MEMORY_STATUS_SUCCESS ?
             std::numeric_limits<uint32_t>::max() : 0) {
 }
 

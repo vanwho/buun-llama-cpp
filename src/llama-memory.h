@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <functional>
+#include <cstdint>
 #include <limits>
 #include <vector>
 
@@ -152,6 +153,21 @@ enum llama_memory_status {
     LLAMA_MEMORY_STATUS_FAILED_COMPUTE,
 };
 
+// Decode keeps its historical coarse return codes.  This internal diagnostic
+// preserves the prepare failure cause for callers that need to distinguish
+// logical exhaustion from temporary or malformed-frontier pressure.
+enum class llama_memory_failure_reason : uint8_t {
+    none = 0,
+    logical_capacity,
+    scratch_oom,
+    all_pinned,
+    pending_copy,
+    invalid_frontier,
+};
+
+const char * llama_memory_failure_reason_name(
+        llama_memory_failure_reason reason) noexcept;
+
 // helper function for combining the status of two memory contexts
 // useful for implementing hybrid memory types (e.g. iSWA)
 llama_memory_status llama_memory_status_combine(llama_memory_status s0, llama_memory_status s1);
@@ -187,6 +203,10 @@ struct llama_memory_context_i {
 
     // get the status of the memory context - used for error handling and checking if any updates would be applied
     virtual llama_memory_status get_status() const = 0;
+
+    virtual llama_memory_failure_reason get_failure_reason() const noexcept {
+        return llama_memory_failure_reason::none;
+    }
 
     // Maximum number of sequences a graph built against this context can represent
     // at the current physical allocation. Most memory types do not impose a tighter
