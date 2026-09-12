@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "26",
-  "current_task": "26-04",
-  "last_updated_utc": "2026-09-12T13:35:21+00:00",
+  "current_task": "26-05",
+  "last_updated_utc": "2026-09-12T14:51:31+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5255,22 +5255,36 @@
       "cluster": "26i-attention-speed-v7",
       "title": "Connect natural attention-driven cold recall and establish the 8K/4K speed fixture",
       "packet": ".wiretail/execution/tasks/26-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "26-03"
       ],
-      "commit": null,
+      "commit": "bd6e3134b6f1f26ba1ef7a3b08c2c92b2a868f64",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/26-04-attempt-1-20260912T133537Z.jsonl:736",
+            "total_tokens": 62024318,
+            "total_tokens_derived": true,
+            "input_tokens": 61891157,
+            "cached_input_tokens": 60595200,
+            "output_tokens": 133161,
+            "thinking_tokens": 49562
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 62024318,
+          "input_tokens": 61891157,
+          "cached_input_tokens": 60595200,
+          "output_tokens": 133161,
+          "thinking_tokens": 49562
         }
       },
       "scope_revision": "interactive-hot-kv-20260912"
@@ -6862,15 +6876,28 @@
           "cached_input_tokens": 46723840,
           "output_tokens": 97396,
           "thinking_tokens": 38577
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/26-04-attempt-1-20260912T133537Z.jsonl:736",
+          "total_tokens": 62024318,
+          "total_tokens_derived": true,
+          "input_tokens": 61891157,
+          "cached_input_tokens": 60595200,
+          "output_tokens": 133161,
+          "thinking_tokens": 49562
         }
       ],
       "totals": {
-        "turns": 12,
-        "total_tokens": 357648609,
-        "input_tokens": 357014978,
-        "cached_input_tokens": 351198720,
-        "output_tokens": 633631,
-        "thinking_tokens": 190988
+        "turns": 13,
+        "total_tokens": 419672927,
+        "input_tokens": 418906135,
+        "cached_input_tokens": 411793920,
+        "output_tokens": 766792,
+        "thinking_tokens": 240550
       }
     },
     "27": {
@@ -6898,12 +6925,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 89,
-      "total_tokens": 1718680518,
-      "input_tokens": 1714645339,
-      "cached_input_tokens": 1682160896,
-      "output_tokens": 4035179,
-      "thinking_tokens": 1404589
+      "turns": 90,
+      "total_tokens": 1780704836,
+      "input_tokens": 1776536496,
+      "cached_input_tokens": 1742756096,
+      "output_tokens": 4168340,
+      "thinking_tokens": 1454151
     },
     "source": "Codex turn.completed usage events"
   }

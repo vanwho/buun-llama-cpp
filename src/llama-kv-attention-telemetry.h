@@ -22,8 +22,25 @@ enum class llama_kv_attention_telemetry_status : uint8_t {
     overflow,
 };
 
+// Compact publication diagnostics. These values intentionally describe the
+// boundary at which a sample was rejected; callers can expose the counters
+// without retaining page contents or graph/backend handles.
+enum class llama_kv_attention_telemetry_drop_reason : uint8_t {
+    none = 0,
+    no_output,
+    no_metadata,
+    invalid_shape,
+    stale_snapshot,
+    stale_identity,
+    nonfinite,
+    sampling_skipped,
+    invalid_argument,
+};
+
 const char * llama_kv_attention_telemetry_status_name(
         llama_kv_attention_telemetry_status status) noexcept;
+const char * llama_kv_attention_telemetry_drop_reason_name(
+        llama_kv_attention_telemetry_drop_reason reason) noexcept;
 
 struct llama_kv_attention_telemetry_config {
     llama_kv_attention_telemetry_mode mode = llama_kv_attention_telemetry_mode::off;
@@ -93,6 +110,20 @@ struct llama_kv_attention_telemetry_counters {
     uint64_t d2h_time_us = 0;
     uint64_t publish_time_us = 0;
     uint64_t observe_overhead_us = 0;
+    uint64_t dropped_no_output = 0;
+    uint64_t dropped_no_metadata = 0;
+    uint64_t dropped_invalid_shape = 0;
+    uint64_t dropped_stale_snapshot = 0;
+    uint64_t dropped_stale_identity = 0;
+    uint64_t dropped_nonfinite = 0;
+    uint64_t dropped_invalid_argument = 0;
+    uint64_t trace_id = 0;
+    uint64_t trace_epoch = 0;
+    uint64_t trace_token_index = 0;
+    uint32_t trace_page_count = 0;
+    uint32_t trace_token_count = 0;
+    llama_kv_attention_telemetry_drop_reason trace_drop_reason =
+        llama_kv_attention_telemetry_drop_reason::none;
 };
 
 struct llama_kv_attention_telemetry_accounting {
@@ -138,6 +169,11 @@ public:
 
     void record_observe_overhead(uint64_t elapsed_us) noexcept;
     void record_skipped_sample() noexcept;
+    void record_drop(llama_kv_attention_telemetry_drop_reason reason,
+            uint64_t table_epoch = 0, uint64_t token_index = 0,
+            uint32_t page_count = 0, uint32_t token_count = 0) noexcept;
+    void record_trace(uint64_t table_epoch, uint64_t token_index,
+            uint32_t page_count, uint32_t token_count) noexcept;
 
     bool page_state(uint32_t logical_page,
                     llama_kv_attention_telemetry_page & output) const noexcept;
@@ -155,8 +191,12 @@ private:
 
     bool valid_page(uint32_t logical_page) const noexcept;
     bool snapshot_matches(const llama_kv_residency_snapshot & snapshot) const noexcept;
-    llama_kv_attention_telemetry_status reject_stale() noexcept;
-    llama_kv_attention_telemetry_status reject_invalid() noexcept;
+    llama_kv_attention_telemetry_status reject_stale(
+            llama_kv_attention_telemetry_drop_reason reason =
+                llama_kv_attention_telemetry_drop_reason::stale_snapshot) noexcept;
+    llama_kv_attention_telemetry_status reject_invalid(
+            llama_kv_attention_telemetry_drop_reason reason =
+                llama_kv_attention_telemetry_drop_reason::invalid_argument) noexcept;
 
     llama_kv_attention_telemetry_mode mode_;
     uint32_t logical_page_count_ = 0;

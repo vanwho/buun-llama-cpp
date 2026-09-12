@@ -1577,6 +1577,10 @@ void llama_kv_pager::bind_representation_identity(
     page_identity_.codebook_digest = codebook_digest;
     page_identity_.rotation_digest = rotation_digest;
     page_identity_.meansub_digest = meansub_digest;
+    // Summary vectors are authenticated by the same representation identity
+    // as page records. This prevents a retained summary from being compared
+    // with a query captured under a different codec/rotation domain.
+    routing_summary_config_.coordinate_identity = rotation_digest;
 }
 
 llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noexcept {

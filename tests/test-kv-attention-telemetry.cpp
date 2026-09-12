@@ -182,6 +182,16 @@ int main() {
     sample = make_sample(snapshot, mass.data(), snapshot.pages().size());
     sample.token_index = 4;
     assert(retained.publish_completed(snapshot, sample) == llama_kv_attention_telemetry_status::ok);
+    // A completed sample is not a residency grant. A graph-reused sample may
+    // carry a known retained/cold identity, but only the submitted snapshot
+    // can make it resident.
+    std::array<float, 4> cold_mass = { 0.0f, 0.0f, 0.0f, 0.75f };
+    std::array<llama_kv_page_record, 1> cold_sample_pages = { cold };
+    auto cold_sample = make_sample(snapshot, cold_mass.data(), 1);
+    cold_sample.pages = cold_sample_pages.data();
+    cold_sample.token_index = 6;
+    assert(retained.publish_completed(snapshot, cold_sample) == llama_kv_attention_telemetry_status::ok);
+    assert(retained.page_state(3, page) && page.observed && !page.resident);
     llama_kv_residency_table evicted_table(8);
     auto evicted_tx = evicted_table.begin();
     assert(evicted_table.replace(evicted_tx, make_page(1, 1, 512)) == llama_kv_residency_status::ok);
@@ -197,6 +207,8 @@ int main() {
             llama_kv_attention_telemetry_status::ok);
     assert(retained.page_state(0, page) && page.observed && !page.resident &&
            page.sample_count == 1 && page.last_observed_token == 4);
-    assert(retained.page_state(3, page) && page.known && !page.observed && !page.resident);
+    assert(retained.page_state(3, page) && page.known && page.observed && !page.resident);
+    assert(retained.counters().trace_drop_reason ==
+            llama_kv_attention_telemetry_drop_reason::none);
     return 0;
 }
