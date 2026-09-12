@@ -3,6 +3,7 @@
 #include "llama-impl.h"
 
 #include <algorithm>
+#include <cstring>
 #include <limits>
 
 namespace {
@@ -63,6 +64,18 @@ const char * llama_kv_attention_execution_route_name(
         case llama_kv_attention_execution_route::exact_reference:   return "exact reference";
         case llama_kv_attention_execution_route::exact_direct:      return "exact direct";
         case llama_kv_attention_execution_route::refusal:           return "refusal";
+    }
+    return "invalid";
+}
+
+const char * llama_kv_attention_execution_route_override_name(
+        llama_kv_attention_execution_route_override route) noexcept {
+    switch (route) {
+        case llama_kv_attention_execution_route_override::automatic: return "auto";
+        case llama_kv_attention_execution_route_override::dense:     return "dense";
+        case llama_kv_attention_execution_route_override::packed:    return "packed";
+        case llama_kv_attention_execution_route_override::direct:    return "direct";
+        case llama_kv_attention_execution_route_override::invalid:   return "invalid";
     }
     return "invalid";
 }
@@ -213,9 +226,39 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
             ? llama_kv_attention_execution_route::exact_direct
             : llama_kv_attention_execution_route::exact_reference;
     }
+
+    if (route_override_ != llama_kv_attention_execution_route_override::automatic) {
+        switch (route_override_) {
+            case llama_kv_attention_execution_route_override::dense:
+                return dense_capable ? llama_kv_attention_execution_route::selected_dense
+                                      : llama_kv_attention_execution_route::refusal;
+            case llama_kv_attention_execution_route_override::packed:
+                return packed_capable ? llama_kv_attention_execution_route::selected_packed
+                                       : llama_kv_attention_execution_route::refusal;
+            case llama_kv_attention_execution_route_override::direct:
+                return direct_capable && direct_shape(metadata)
+                    ? llama_kv_attention_execution_route::selected_direct
+                    : llama_kv_attention_execution_route::refusal;
+            case llama_kv_attention_execution_route_override::automatic:
+            case llama_kv_attention_execution_route_override::invalid:
+                return llama_kv_attention_execution_route::refusal;
+        }
+    }
+
     if (dense_capable) {
         return llama_kv_attention_execution_route::selected_dense;
     }
+
+    // Direct is the low-query route. Only prefills larger than two fixed CUDA
+    // query tiles amortize their one-time compact Turbo4 copies; decode and
+    // native-MTP verification retain direct page-table reuse.
+    const bool bounded_prefill_pack =
+        phase == llama_kv_attention_execution_phase::prefill &&
+        metadata.n_query_tokens() > 2 * LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE;
+    if (bounded_prefill_pack && packed_capable) {
+        return llama_kv_attention_execution_route::selected_packed;
+    }
+
     if ((phase == llama_kv_attention_execution_phase::prefill ||
          phase == llama_kv_attention_execution_phase::decode ||
          phase == llama_kv_attention_execution_phase::mtp_verify) &&
@@ -328,6 +371,25 @@ void llama_kv_attention_execution::set_mode(llama_kv_attention_execution_mode mo
     mode_ = mode;
 }
 
+void llama_kv_attention_execution::set_route_override(const char * name) noexcept {
+    auto parsed = llama_kv_attention_execution_route_override::automatic;
+    if (name != nullptr && *name != '\0' && std::strcmp(name, "auto") != 0) {
+        if (std::strcmp(name, "dense") == 0) {
+            parsed = llama_kv_attention_execution_route_override::dense;
+        } else if (std::strcmp(name, "packed") == 0) {
+            parsed = llama_kv_attention_execution_route_override::packed;
+        } else if (std::strcmp(name, "direct") == 0) {
+            parsed = llama_kv_attention_execution_route_override::direct;
+        } else {
+            parsed = llama_kv_attention_execution_route_override::invalid;
+        }
+    }
+    if (route_override_ != parsed) {
+        clear();
+    }
+    route_override_ = parsed;
+}
+
 bool llama_kv_attention_execution::same_graph(
         const llama_kv_attention_operator_metadata & metadata,
         llama_kv_attention_execution_phase phase,
@@ -390,20 +452,33 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.route = llama_kv_attention_execution_route::refusal;
         result.reason = "selected metadata is invalid";
     } else {
-        result.status = llama_kv_attention_execution_status::ok;
         result.route = planned_route(metadata, phase, direct_capable,
                 dense_capable, packed_capable);
-        result.reason = result.route == llama_kv_attention_execution_route::selected_dense
-            ? "contiguous Turbo4 rows use dense Flash Attention"
-            : result.route == llama_kv_attention_execution_route::selected_packed
-            ? "noncontiguous Turbo4 rows use cached compact packing"
-            : result.route == llama_kv_attention_execution_route::selected_direct
-            ? phase == llama_kv_attention_execution_phase::prefill
-                ? "qualified Turbo4 selective prefill query tile"
-                : "qualified Turbo4 decode"
-            : direct_capable && !direct_shape(metadata)
-                ? "bounded Turbo4 selected reference for unsupported direct query tile"
-                : direct_reason.empty() ? "compact selected reference" : direct_reason;
+        if (result.route == llama_kv_attention_execution_route::refusal) {
+            result.status = llama_kv_attention_execution_status::not_configured;
+            result.reason = std::string("route override '") + route_override_name() +
+                "' is unsupported for this selected view/phase";
+            saturating_add_u64(metrics_.route_override_refused, 1);
+        } else {
+            result.status = llama_kv_attention_execution_status::ok;
+            if (route_override_ != llama_kv_attention_execution_route_override::automatic) {
+                saturating_add_u64(metrics_.route_override_accepted, 1);
+            }
+            result.reason = result.route == llama_kv_attention_execution_route::selected_dense
+                ? "contiguous Turbo4 rows use dense Flash Attention"
+                : result.route == llama_kv_attention_execution_route::selected_packed
+                ? phase == llama_kv_attention_execution_phase::prefill &&
+                  metadata.n_query_tokens() > 2 * LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE
+                    ? "prefill query batch uses cached compact packing above two 64-token tiles"
+                    : "noncontiguous Turbo4 rows use cached compact packing"
+                : result.route == llama_kv_attention_execution_route::selected_direct
+                ? phase == llama_kv_attention_execution_phase::prefill
+                    ? "qualified Turbo4 selective prefill query tile"
+                    : "qualified Turbo4 decode"
+                : direct_capable && !direct_shape(metadata)
+                    ? "bounded Turbo4 selected reference for unsupported direct query tile"
+                    : direct_reason.empty() ? "compact selected reference" : direct_reason;
+        }
         result.table_epoch = metadata.table_epoch();
     }
 
@@ -451,6 +526,11 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         graph_plan_ = exact_graph_plan_;
         have_graph_ = true;
         graph_fences_.push_back(metadata.acquire_graph_fence());
+        if (result.route == llama_kv_attention_execution_route::selected_packed) {
+            metrics_.packed_inflight_consumers_high_water = std::max(
+                    metrics_.packed_inflight_consumers_high_water,
+                    uint64_t(graph_fences_.size()));
+        }
     }
 
     switch (phase) {

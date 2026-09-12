@@ -44,6 +44,7 @@ struct llama_kv_pager_metrics_snapshot {
     ggml_type target_type_v = GGML_TYPE_COUNT;
     std::string target_backend = "not_configured";
     llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
+    const char * route_override = "auto";
     uint64_t table_epoch = 0;
     uint64_t representation_epoch = 0;
     uint64_t shape_epoch = 0;
