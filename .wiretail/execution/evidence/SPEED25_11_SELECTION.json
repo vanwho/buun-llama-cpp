@@ -1,0 +1,28 @@
+{
+  "task": "25-11",
+  "status": "implemented",
+  "raw_root": null,
+  "source": "local working tree",
+  "approach": {
+    "hot_pool": "H remains the runtime physical residency capacity",
+    "attention_pool": "A is an explicit retrieval budget derived from the policy historical ratio",
+    "summary_coverage": "existing four-representative summary path; runtime query is captured from the pre-attention Q tensor in the matching layer/head-zero coordinate domain",
+    "cold_recall": "one rotating exploration candidate when logical inventory exceeds H",
+    "safety": "routed attention IDs are accepted only when present in the current resident snapshot; otherwise the previous full resident view is used"
+  },
+  "verification": {
+    "commands": [
+      "cmake --build build --target test-kv-routing-retrieval test-kv-policy test-kv-attention-telemetry -j2",
+      "build/bin/test-kv-routing-retrieval",
+      "build/bin/test-kv-policy",
+      "build/bin/test-kv-attention-telemetry",
+      "git diff --check"
+    ],
+    "result": "pass",
+    "coverage": "deterministic CPU routing/policy/EMA tests; no live model benchmark",
+    "a_over_h": "policy-derived historical-ratio budget, clamped to H and at least one page",
+    "natural_recall": "deferred; no configured model/server benchmark in this environment",
+    "transfer_amplification": "deferred; no live GPU transfer trace collected",
+    "paired_prefill_decode": "deferred; no live GPU benchmark collected"
+  }
+}
