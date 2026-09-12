@@ -1,0 +1,26 @@
+server=build-cuda/bin/llama-server
+endpoint=http://127.0.0.1:18081/v1/chat/completions
+request=3579 prompt tokens, 128 completion tokens, context=8192, page_size=256, hot_pages=8, host_budget=4G, batch=256, ubatch=256, FA=on, Turbo4 K/V, deterministic --kv-test-force-page=0
+response_status=200
+curl_time_total_s=12.643624
+usage_prompt_tokens=3579
+usage_completion_tokens=128
+timings_prompt_ms=8408.128
+timings_prompt_tokens_per_second=425.6595522808406
+timings_decode_ms=4228.641
+timings_decode_tokens_per_second=30.03328965499791
+route_before=selected dense
+route_after=selected direct
+logical_pages_after=32
+resident_pages_after=8
+host_pages_after=7
+table_epoch_changes_after=143
+h2d_useful_bytes_after=12976100
+h2d_aligned_bytes_after=12976100
+transfer_submitted_after=288
+transfer_event_completions_after=288
+host_seal_d2h_bytes_after=60555300
+selected_pages_after=8
+valid_rows_after=1914
+allocated_bytes_after=34603000
+mtp_note=Native GPU MTP startup was separately verified on the managed 8080 profile; this deterministic pressure request used MTP off so the target promotion transaction was isolated and observable.

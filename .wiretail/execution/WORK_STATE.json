@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "25",
-  "current_task": "25-08",
-  "last_updated_utc": "2026-09-12T01:32:57+00:00",
+  "current_task": "25-09",
+  "last_updated_utc": "2026-09-12T02:26:20+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -4696,22 +4696,36 @@
       "cluster": "25c-host-movement",
       "title": "Prove and repair real cold-page promotion on a small live pressure case",
       "packet": ".wiretail/execution/tasks/25-08.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "25-07"
       ],
-      "commit": null,
+      "commit": "33eac500f59a6b7b2ed28830ffe57347a0ce6b41",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/25-08-attempt-1-20260912T013316Z.jsonl:372",
+            "total_tokens": 57149439,
+            "total_tokens_derived": true,
+            "input_tokens": 57022736,
+            "cached_input_tokens": 56053504,
+            "output_tokens": 126703,
+            "thinking_tokens": 51122
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 57149439,
+          "input_tokens": 57022736,
+          "cached_input_tokens": 56053504,
+          "output_tokens": 126703,
+          "thinking_tokens": 51122
         }
       },
       "scope_revision": "speed-first-20260911"
@@ -4724,7 +4738,7 @@
       "packet": ".wiretail/execution/tasks/25-09.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "25-08"
       ],
@@ -4750,7 +4764,7 @@
       "packet": ".wiretail/execution/tasks/25-10.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "25-09"
       ],
@@ -4776,7 +4790,7 @@
       "packet": ".wiretail/execution/tasks/25-11.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "25-10"
       ],
@@ -4802,7 +4816,7 @@
       "packet": ".wiretail/execution/tasks/25-12.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "25-11"
       ],
@@ -4828,7 +4842,7 @@
       "packet": ".wiretail/execution/tasks/25-13.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "25-12"
       ],
@@ -4854,7 +4868,7 @@
       "packet": ".wiretail/execution/tasks/25-14.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "25-13"
       ],
@@ -4880,7 +4894,7 @@
       "packet": ".wiretail/execution/tasks/25-15.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "25-14"
       ],
@@ -4906,7 +4920,7 @@
       "packet": ".wiretail/execution/tasks/26-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "25-15"
       ],
@@ -4932,7 +4946,7 @@
       "packet": ".wiretail/execution/tasks/26-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "26-01"
       ],
@@ -4958,7 +4972,7 @@
       "packet": ".wiretail/execution/tasks/26-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "26-02"
       ],
@@ -4984,7 +4998,7 @@
       "packet": ".wiretail/execution/tasks/26-04.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
         "26-03"
       ],
@@ -5010,7 +5024,7 @@
       "packet": ".wiretail/execution/tasks/27-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Sol High",
+      "recommended_model": "Astra High",
       "depends_on": [
         "26-04"
       ],
@@ -6212,15 +6226,28 @@
           "cached_input_tokens": 19971328,
           "output_tokens": 47840,
           "thinking_tokens": 20365
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/25-08-attempt-1-20260912T013316Z.jsonl:372",
+          "total_tokens": 57149439,
+          "total_tokens_derived": true,
+          "input_tokens": 57022736,
+          "cached_input_tokens": 56053504,
+          "output_tokens": 126703,
+          "thinking_tokens": 51122
         }
       ],
       "totals": {
-        "turns": 15,
-        "total_tokens": 394731976,
-        "input_tokens": 393771319,
-        "cached_input_tokens": 386359296,
-        "output_tokens": 960657,
-        "thinking_tokens": 378270
+        "turns": 16,
+        "total_tokens": 451881415,
+        "input_tokens": 450794055,
+        "cached_input_tokens": 442412800,
+        "output_tokens": 1087360,
+        "thinking_tokens": 429392
       }
     },
     "26": {
@@ -6248,12 +6275,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 69,
-      "total_tokens": 1238145471,
-      "input_tokens": 1235038273,
-      "cached_input_tokens": 1211008768,
-      "output_tokens": 3107198,
-      "thinking_tokens": 1115842
+      "turns": 70,
+      "total_tokens": 1295294910,
+      "input_tokens": 1292061009,
+      "cached_input_tokens": 1267062272,
+      "output_tokens": 3233901,
+      "thinking_tokens": 1166964
     },
     "source": "Codex turn.completed usage events"
   }
