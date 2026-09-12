@@ -70,6 +70,7 @@ TRANSIENT_OVERRIDE_NAMES = (
     "AI_BENCHMARK_SERVER_BIN", "AI_BENCHMARK_KV_HOT_PAGES",
     "AI_BENCHMARK_KV_VRAM_BUDGET", "AI_BENCHMARK_KV_HOST_BUDGET",
     "AI_BENCHMARK_KV_SAFETY_HEADROOM", "AI_BENCHMARK_KV_PIN_RECENT",
+    "AI_BENCHMARK_BATCH", "AI_BENCHMARK_UBATCH",
 )
 DEFAULT_LIFECYCLE_LOCK = "/tmp/ai-pager-benchmark.lock"
 
@@ -894,6 +895,10 @@ def _main() -> int:
                         help="target device list passed to the live server (default: auto)")
     parser.add_argument("--page-size", type=int, default=256,
                         help="logical pager page size in tokens (default: 256)")
+    parser.add_argument("--batch", type=int, default=None,
+                        help="per-run logical decode batch B")
+    parser.add_argument("--ubatch", type=int, default=None,
+                        help="per-run physical microbatch U")
     parser.add_argument("--context", default="derived",
                         help="corpus-derived context, or an explicit token count")
     parser.add_argument("--diagnostic", action="store_true",
@@ -917,8 +922,16 @@ def _main() -> int:
     parser.add_argument("--total-timeout", type=float, default=1800.0,
                         help="campaign wall deadline; expiry remains resumable")
     args = parser.parse_args()
-    if args.page_size <= 0 or args.page_size % 256:
-        parser.error("--page-size must be a positive multiple of 256")
+    if args.page_size <= 0:
+        parser.error("--page-size must be a positive integer")
+    if (args.batch is None) != (args.ubatch is None):
+        parser.error("--batch and --ubatch must be supplied together")
+    if args.batch is not None:
+        from pager_benchmark_contract import resolve_batch_tokens
+        try:
+            resolve_batch_tokens(args.batch, args.ubatch)
+        except ContextResolutionError as error:
+            parser.error(str(error))
     if any(value <= 0 for value in (args.connect_timeout, args.startup_timeout,
                                     args.prefill_timeout, args.decode_timeout,
                                     args.total_timeout)):
@@ -1002,6 +1015,9 @@ def _main() -> int:
     env["BENCH_PREFILL_TIMEOUT"] = str(args.prefill_timeout)
     env["BENCH_DECODE_TIMEOUT"] = str(args.decode_timeout)
     env["BENCH_TOTAL_TIMEOUT"] = str(args.total_timeout)
+    if args.batch is not None:
+        env["BENCH_BATCH"] = str(args.batch)
+        env["BENCH_UBATCH"] = str(args.ubatch)
     # Successful runs remain loaded by default. Explicit control/revert runs
     # opt into restoration; failed runs are restored by the canonical runner.
     env["BENCH_RESTORE_PROFILE"] = "1" if args.restore_control else "0"

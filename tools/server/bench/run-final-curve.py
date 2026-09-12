@@ -9,6 +9,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import time
@@ -24,6 +25,8 @@ from pager_benchmark_contract import (  # noqa: E402
     PromptFit,
     ResumeError,
     fit_prompt,
+    resolve_batch_tokens,
+    resolve_hot_capacity,
     sha256_json,
     stream_metrics,
     validate_speed_evidence,
@@ -75,8 +78,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reserve-context", type=int, default=512)
     parser.add_argument("--cache-condition", choices=("cold-prefill", "live-continuation"), default="cold-prefill")
     parser.add_argument("--slot-id", type=int, default=0)
-    parser.add_argument("--hot-pages", type=int,
+    parser.add_argument("--hot-pages",
                         help="pressure fixture hot-page budget, recorded as requested")
+    parser.add_argument("--page-size", type=int, default=256,
+                        help="logical pager page size in tokens")
+    parser.add_argument("--batch-tokens", type=int, default=None,
+                        help="requested logical decode batch B")
+    parser.add_argument("--ubatch-tokens", type=int, default=None,
+                        help="requested physical microbatch U")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--server-bin", type=pathlib.Path,
                         help="immutable candidate executable used for bundle identity")
@@ -516,7 +525,10 @@ def _gpu_identity() -> dict[str, str]:
 
 
 def _command_int(identity: Mapping[str, Any], option: str) -> int | None:
-    command = str(identity.get("command") or "").split()
+    try:
+        command = shlex.split(str(identity.get("command") or ""))
+    except ValueError:
+        return None
     try:
         return int(command[command.index(option) + 1])
     except (ValueError, IndexError):
@@ -524,7 +536,10 @@ def _command_int(identity: Mapping[str, Any], option: str) -> int | None:
 
 
 def _command_value(identity: Mapping[str, Any], option: str) -> str | None:
-    command = str(identity.get("command") or "").split()
+    try:
+        command = shlex.split(str(identity.get("command") or ""))
+    except ValueError:
+        return None
     try:
         return command[command.index(option) + 1]
     except (ValueError, IndexError):
@@ -548,8 +563,15 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
     if isinstance(movement, Mapping):
         counter_telemetry.update(movement)
     allocated = _command_int(identity, "-c") or args.context
+    page_size = _command_int(identity, "--kv-page-size") or args.page_size
     physical_pages = after_telemetry.get("physical_pages")
-    hot_rows = int(physical_pages) * 256 if isinstance(physical_pages, (int, float)) else args.hot_pages * 256 if args.hot_pages is not None else None
+    if isinstance(physical_pages, (int, float)):
+        hot_capacity = resolve_hot_capacity(allocated, page_size, int(physical_pages))
+    elif args.hot_pages is not None and args.hot_pages != "auto":
+        hot_capacity = resolve_hot_capacity(allocated, page_size, int(args.hot_pages))
+    else:
+        hot_capacity = resolve_hot_capacity(allocated, page_size, "auto")
+    hot_rows = hot_capacity["hot_capacity_tokens"]
     feature_off = args.mode == "off"
     target_placement = after_telemetry.get("target_placement")
     target_type_k = after_telemetry.get("target_type_k") or _command_value(identity, "-ctk")
@@ -568,7 +590,13 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
             hot_rows = allocated
     runtime = {
         "logical_context_tokens": args.context, "prompt_tokens": fit.get("token_count"),
-        "cached_rows": record.get("cached_rows", 0), "effective_batch": _command_int(identity, "-ub") or _command_int(identity, "-b"),
+        "cached_rows": record.get("cached_rows", 0),
+        "effective_batch": _command_int(identity, "-ub") or _command_int(identity, "-b"),
+        "batch_tokens": _command_int(identity, "-b") or args.batch_tokens,
+        "ubatch_tokens": _command_int(identity, "-ub") or args.ubatch_tokens,
+        "page_size_tokens": page_size,
+        "hot_capacity_pages": hot_capacity["hot_capacity_pages"],
+        "hot_capacity_tokens": hot_rows,
         "cuda_query_tile": 64, "cache_condition": args.cache_condition,
         "target_placement": target_placement or "not_configured",
         "mtp_placement": mtp_placement or "not_configured",
@@ -686,6 +714,20 @@ def main() -> int:
     args = parse_args()
     if args.context <= 0 or args.max_tokens <= 0 or args.trials <= 0 or args.warmups < 0:
         raise SystemExit("context, max-tokens, trials must be positive and warmups non-negative")
+    if args.page_size <= 0:
+        raise SystemExit("page-size must be positive")
+    if (args.batch_tokens is None) != (args.ubatch_tokens is None):
+        raise SystemExit("batch-tokens and ubatch-tokens must be supplied together")
+    if args.batch_tokens is not None:
+        try:
+            resolve_batch_tokens(args.batch_tokens, args.ubatch_tokens)
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
+    requested_hot_pages: int | str = "auto" if args.hot_pages in (None, "auto") else int(args.hot_pages)
+    try:
+        resolve_hot_capacity(args.context, args.page_size, requested_hot_pages)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
     if args.reserve_context < 0 or args.context <= args.reserve_context + args.max_tokens:
         raise SystemExit("context must leave generation and context reserve")
     prompt_tokens = args.prompt_tokens or min(2048, args.context - args.max_tokens - args.reserve_context)
@@ -717,6 +759,8 @@ def main() -> int:
               "warmup_tokens": args.warmup_tokens, "trials": args.trials, "max_tokens": args.max_tokens,
               "reserve_context": args.reserve_context, "cache_condition": args.cache_condition,
               "slot_id": args.slot_id, "hot_pages": args.hot_pages,
+              "page_size_tokens": args.page_size, "batch_tokens": args.batch_tokens,
+              "ubatch_tokens": args.ubatch_tokens,
               "sampling": {"temperature": 0, "seed": 42, "thinking": "off"},
               "source_commit": source_commit, "source_diff_sha256": source_diff,
               "runtime_identity": identity, "model_sha256": model_hash,
