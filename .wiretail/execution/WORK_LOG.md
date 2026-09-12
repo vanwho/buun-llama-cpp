@@ -842,3 +842,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-06`
 - Commit at update: `6cf8d2206`
 - Summary: Restored whole-model prefill batching with independent requested/physical/tile capacities, bulk page admission, target/MTP boundary accounting, and direct-route precedence. Host/CUDA focused checks plus live native-MTP B256/B512 GPU smokes pass; SPEED25_06_BATCHING evidence and handoff record deferred GPU-utilization sampling and bounded-H parity.
+
+## 2026-09-12T01:32:34+00:00 — 25-07 — done
+
+- Branch: `codex/task-25-07`
+- Commit at update: `ee12afde2`
+- Summary: Implemented bounded asynchronous CUDA canonical host publication with synchronous fallback, inflight lag telemetry, focused CPU/CUDA tests, and SPEED25_07_HOST evidence.
