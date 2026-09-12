@@ -1,0 +1,97 @@
+{
+  "schema": "interactive-speed-v7-hotloop",
+  "schema_version": 1,
+  "task": "26-06",
+  "status": "implementation_complete_live_native_mtp_deferred",
+  "provenance": {
+    "source_commit": "7486974b37140104ff531655209bb3b55681cd0f",
+    "source_diff_sha256": "38b749eb39e8f8762ddd93bad791ce32e2f1aea1a233a8ef939823c89507d69e",
+    "candidate_bundle": "build-cuda/bin/llama-server",
+    "candidate_bundle_sha256": "a00600e7394a352b502e0080c22568f8d35b0a3fe9e8aa4191925885eec980a6",
+    "candidate_libllama_sha256": "088ee0a3c963ee2e942d931eb1952948f2d675ed0170d4d71d6bdc5f4e35187a",
+    "candidate_libggml_cuda_sha256": "a333de9a2b97eaafa4f834d3ff0a42a890a5bf0a8dd7bafbc08b742a2ae40815",
+    "loaded_service_pid": 1238402,
+    "loaded_service_bundle_sha256": "bb75f2bca1701cc144fc04f29157ea1729c2f1636205f1e9a41f9a9a5fd18bc8",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "raw_case_ids": [
+      "26-06-unit-pager-queue-cpu",
+      "26-06-unit-pager-queue-cuda",
+      "26-06-live-8080-identity-20260912T1551Z"
+    ]
+  },
+  "configuration": {
+    "fixture_page_tokens": 256,
+    "fixture_logical_capacity_tokens": 1024,
+    "fixture_hot_capacity_pages": 4,
+    "fixture_target_k_type": "turbo4",
+    "fixture_target_v_type": "turbo4",
+    "loaded_profile": "-c 77824 -b 1024 -ub 256 --kv-unified --spec-type none",
+    "candidate_native_mtp_profile": null,
+    "candidate_native_mtp_profile_reason": "8080 remained loaded with the prior non-MTP profile; sudo -n requires interactive authentication"
+  },
+  "measurements": {
+    "historical_attribution": {
+      "source": "SPEED25_13_WHOLE_MODEL",
+      "prefill_seconds": 4.447044,
+      "seal_calls": 2343,
+      "summary_build_calls": 4672,
+      "host_d2h_calls": 22,
+      "host_d2h_bytes": 95160000,
+      "wait_seconds": 1.498,
+      "queue_seconds": 2.508,
+      "timings_overlap": true
+    },
+    "changed_page_fixture": {
+      "initial_content_wave_pages_scanned": 2,
+      "unchanged_followup_pages_scanned": 0,
+      "one_page_tail_wave_pages_scanned": 1,
+      "initial_summary_provider_calls": 32,
+      "tail_summary_provider_delta": 16,
+      "cpu_test_seconds": 0.02,
+      "cuda_test_seconds": 0.21
+    },
+    "definitions": {
+      "seal_pages_scanned": "queued maintenance candidates; a complete scan is used only after queue allocation failure",
+      "summary_provider_calls": "representative-page build calls across the configured layer summary tables",
+      "d2h_bytes": "host-seal payload bytes reported by the transfer owner",
+      "timing_rule": "wait and queue spans are not added because they overlap"
+    }
+  },
+  "changes": [
+    "Deduplicated page maintenance by content/pin/completion transitions.",
+    "Requeued deferred mutable tails and asynchronous host completions.",
+    "Kept speculative overwrite, rollback, copy, shift, remove, keep, and clear paths fail-closed.",
+    "Retained a full-page fallback when queue bookkeeping allocation fails."
+  ],
+  "outcome": {
+    "highest_avoidable_overhead_repaired": true,
+    "repair": "historical-page maintenance scans no longer run on every synchronization",
+    "natural_joint_proof": null,
+    "natural_joint_proof_reason": "fresh native-MTP service profile could not be loaded without sudo -n authorization",
+    "mtp_handoff_measured": false,
+    "mtp_handoff_reason": "loaded service uses --spec-type none",
+    "unprofiled_primary_timing": null,
+    "unprofiled_primary_timing_reason": "candidate bundle was not loaded; no native-MTP result claimed"
+  },
+  "verification": {
+    "cpu": "ctest focused pager/routing/telemetry/execution: 5/5 pass",
+    "cuda": "ctest focused pager/routing/telemetry/execution: 5/5 pass; RTX 4080 detected",
+    "pager_model": "pass on CPU and CUDA builds",
+    "git_diff_check": "pass",
+    "loaded_8080_health": "HTTP health status ok",
+    "unrelated_8092": "not touched"
+  },
+  "raw": {
+    "evidence_path": ".wiretail/execution/evidence/INTERACTIVE26_06_HOTLOOP.json",
+    "handoff_path": ".wiretail/execution/handoffs/26-06.md",
+    "historical_source": ".wiretail/execution/evidence/SPEED25_13_WHOLE_MODEL.json",
+    "live_trace_path": null,
+    "live_trace_reason": "service replacement requires passwordless sudo -n"
+  },
+  "deferred": [
+    "Load the candidate on 8080 with the recorded native-MTP profile after sudo -n authorization is installed.",
+    "Run one fresh unprofiled primary prefill/decode/recall case and one short profiler attribution case.",
+    "Record actual CUDA capture/launch, target/MTP kernels, hidden-row handoff, H2D/D2H and post-change server counters."
+  ]
+}

@@ -927,3 +927,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-26-04`
 - Commit at update: `0c4729ac5`
 - Summary: Connected natural attention/query routing with stale-safe graph reuse, telemetry drop/trace metadata, CUDA page-mass regression, and recorded focused CPU/CUDA plus live primary evidence in INTERACTIVE26_04_PRIMARY.{json,md}; successful CUDA candidate remains loaded on port 8080.
+
+## 2026-09-12T15:53:31+00:00 — 26-06 — done
+
+- Branch: `codex/task-26-06`
+- Commit at update: `7486974b3`
+- Summary: Implemented queued changed-page pager maintenance with fail-closed full-scan fallback; CPU and CUDA focused pager/routing/telemetry/execution checks pass. Evidence and handoff record deterministic 2/0/1 scan counts, historical attribution, loaded non-MTP service identity, and deferred native-MTP lifecycle checks because sudo -n requires interactive authentication.

@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "26",
-  "current_task": "26-06",
-  "last_updated_utc": "2026-09-12T15:41:16+00:00",
+  "current_task": "26-07",
+  "last_updated_utc": "2026-09-12T15:54:24+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5335,14 +5335,39 @@
       "cluster": "26j-maintenance-budget-v7",
       "title": "Remove remaining hot-loop maintenance, synchronization and MTP overhead",
       "packet": ".wiretail/execution/tasks/26-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "26-05"
       ],
-      "commit": null,
-      "scope_revision": "interactive-hot-kv-20260912"
+      "commit": "c964ac8e494d77b599b21b64ce5cadeeb6e6c307",
+      "scope_revision": "interactive-hot-kv-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/26-06-attempt-1-20260912T154133Z.jsonl:123",
+            "total_tokens": 12183917,
+            "total_tokens_derived": true,
+            "input_tokens": 12155010,
+            "cached_input_tokens": 11934464,
+            "output_tokens": 28907,
+            "thinking_tokens": 11502
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 12183917,
+          "input_tokens": 12155010,
+          "cached_input_tokens": 11934464,
+          "output_tokens": 28907,
+          "thinking_tokens": 11502
+        }
+      }
     },
     {
       "id": "26-07",
@@ -6927,15 +6952,28 @@
           "cached_input_tokens": 103486720,
           "output_tokens": 220134,
           "thinking_tokens": 81499
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/26-06-attempt-1-20260912T154133Z.jsonl:123",
+          "total_tokens": 12183917,
+          "total_tokens_derived": true,
+          "input_tokens": 12155010,
+          "cached_input_tokens": 11934464,
+          "output_tokens": 28907,
+          "thinking_tokens": 11502
         }
       ],
       "totals": {
-        "turns": 14,
-        "total_tokens": 525350524,
-        "input_tokens": 524363598,
-        "cached_input_tokens": 515280640,
-        "output_tokens": 986926,
-        "thinking_tokens": 322049
+        "turns": 15,
+        "total_tokens": 537534441,
+        "input_tokens": 536518608,
+        "cached_input_tokens": 527215104,
+        "output_tokens": 1015833,
+        "thinking_tokens": 333551
       }
     },
     "27": {
@@ -6963,12 +7001,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 91,
-      "total_tokens": 1886382433,
-      "input_tokens": 1881993959,
-      "cached_input_tokens": 1846242816,
-      "output_tokens": 4388474,
-      "thinking_tokens": 1535650
+      "turns": 92,
+      "total_tokens": 1898566350,
+      "input_tokens": 1894148969,
+      "cached_input_tokens": 1858177280,
+      "output_tokens": 4417381,
+      "thinking_tokens": 1547152
     },
     "source": "Codex turn.completed usage events"
   }
