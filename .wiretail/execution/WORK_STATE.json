@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "27",
-  "current_task": "27-01",
-  "last_updated_utc": "2026-09-12T16:09:06+00:00",
+  "current_task": "27-02",
+  "last_updated_utc": "2026-09-12T16:28:11+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5455,22 +5455,36 @@
       "cluster": "27c-incremental-scale-v7",
       "title": "Prove 32K logical /16K hot with incremental inputs and measure decode",
       "packet": ".wiretail/execution/tasks/27-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "26-08"
       ],
-      "commit": null,
+      "commit": "521b404f64c309e61a533f375f1ed535e26692a6",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/27-01-attempt-1-20260912T160925Z.jsonl:122",
+            "total_tokens": 6865426,
+            "total_tokens_derived": true,
+            "input_tokens": 6840584,
+            "cached_input_tokens": 6672128,
+            "output_tokens": 24842,
+            "thinking_tokens": 6938
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 6865426,
+          "input_tokens": 6840584,
+          "cached_input_tokens": 6672128,
+          "output_tokens": 24842,
+          "thinking_tokens": 6938
         }
       },
       "scope_revision": "interactive-hot-kv-20260912"
@@ -7053,14 +7067,28 @@
       }
     },
     "27": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/27-01-attempt-1-20260912T160925Z.jsonl:122",
+          "total_tokens": 6865426,
+          "total_tokens_derived": true,
+          "input_tokens": 6840584,
+          "cached_input_tokens": 6672128,
+          "output_tokens": 24842,
+          "thinking_tokens": 6938
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 6865426,
+        "input_tokens": 6840584,
+        "cached_input_tokens": 6672128,
+        "output_tokens": 24842,
+        "thinking_tokens": 6938
       }
     },
     "28": {
@@ -7077,12 +7105,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 94,
-      "total_tokens": 1915240008,
-      "input_tokens": 1910766544,
-      "cached_input_tokens": 1874348288,
-      "output_tokens": 4473464,
-      "thinking_tokens": 1566928
+      "turns": 95,
+      "total_tokens": 1922105434,
+      "input_tokens": 1917607128,
+      "cached_input_tokens": 1881020416,
+      "output_tokens": 4498306,
+      "thinking_tokens": 1573866
     },
     "source": "Codex turn.completed usage events"
   }
