@@ -514,7 +514,10 @@ llama_memory_context_ptr llama_kv_cache_iswa::init_batch(llama_batch_allocr & ba
     // TODO: if we fail again, we should attempt different splitting strategies
     //       but to do that properly, we first have to refactor the batches to be more flexible
 
-    return std::make_unique<llama_kv_cache_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+    return std::make_unique<llama_kv_cache_iswa_context>(
+            LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+            kv_base->last_failure_reason() != llama_memory_failure_reason::none
+                ? kv_base->last_failure_reason() : kv_swa->last_failure_reason());
 }
 
 llama_memory_context_ptr llama_kv_cache_iswa::init_full() {
@@ -698,7 +701,9 @@ llama_kv_cache * llama_kv_cache_iswa::get_swa() const {
 // llama_kv_cache_iswa_context
 //
 
-llama_kv_cache_iswa_context::llama_kv_cache_iswa_context(llama_memory_status status) : status(status) {}
+llama_kv_cache_iswa_context::llama_kv_cache_iswa_context(
+        llama_memory_status status, llama_memory_failure_reason reason) :
+    status(status), failure_reason(reason) {}
 
 llama_kv_cache_iswa_context::llama_kv_cache_iswa_context(
         llama_kv_cache_iswa * kv) : llama_kv_cache_iswa_context(kv, std::numeric_limits<uint32_t>::max()) {

@@ -186,6 +186,9 @@ public:
             const llama_ubatch & ubatch) override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
+    llama_memory_failure_reason last_failure_reason() const noexcept {
+        return last_failure_reason_;
+    }
     const std::vector<llama_kv_page_id> & selected_attention_pages(
             llama_seq_id sequence_id) const noexcept;
     bool reserve_kv_attention_scratch(
@@ -481,6 +484,7 @@ public:
     // if cont == true, then the slot must be continuous
     // return empty slot_info on failure
     slot_info find_slot(const llama_ubatch & ubatch, bool cont) const;
+    void record_slot_failure(const llama_ubatch & ubatch) noexcept;
 
     // emplace the ubatch context into slot: [sinfo.idxs[0...ubatch.n_tokens - 1]]
     // commit=false is used only by plan_slots() to suppress non-metadata side effects
@@ -1685,6 +1689,8 @@ private:
     // completion. The next cache mutation fails closed until the owner is
     // rebuilt or explicitly cleared.
     bool pager_write_failure_ = false;
+    llama_memory_failure_reason last_failure_reason_ =
+            llama_memory_failure_reason::none;
 
     std::vector<kv_layer> layers;
 
@@ -1773,7 +1779,9 @@ public:
     using stream_copy_info = llama_kv_cache::stream_copy_info;
 
     // used for errors
-    llama_kv_cache_context(llama_memory_status status);
+    llama_kv_cache_context(
+            llama_memory_status status,
+            llama_memory_failure_reason reason = llama_memory_failure_reason::none);
 
     // used to create a full-cache context
     llama_kv_cache_context(
@@ -1809,6 +1817,9 @@ public:
     void finish(bool graph_succeeded) override;
 
     llama_memory_status  get_status() const override;
+    llama_memory_failure_reason get_failure_reason() const noexcept override {
+        return failure_reason;
+    }
     const llama_ubatch & get_ubatch() const override;
     uint32_t get_max_graph_seqs() const override;
 
@@ -1885,6 +1896,8 @@ public:
 
 private:
     llama_memory_status status;
+    llama_memory_failure_reason failure_reason =
+            llama_memory_failure_reason::none;
 
     uint32_t max_graph_seqs = std::numeric_limits<uint32_t>::max();
 

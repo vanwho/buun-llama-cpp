@@ -109,27 +109,35 @@ llama_memory_context_ptr llama_memory_hybrid_iswa::init_batch(llama_batch_allocr
         if (!mem_recr->prepare(ubatches)) {
             // TODO: will the recurrent cache be in an undefined context at this point?
             LLAMA_LOG_ERROR("%s: failed to prepare recurrent ubatches\n", __func__);
-            return std::make_unique<llama_memory_hybrid_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_iswa_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    llama_memory_failure_reason::logical_capacity);
         }
 
         // prepare the attention cache (iswa version returns both base and swa slot infos)
         auto sinfos_base = mem_attn->get_base()->prepare(ubatches);
         if (sinfos_base.empty()) {
             LLAMA_LOG_ERROR("%s: failed to prepare attention base ubatches\n", __func__);
-            return std::make_unique<llama_memory_hybrid_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_iswa_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    mem_attn->get_base()->last_failure_reason());
         }
 
         auto sinfos_swa = mem_attn->get_swa()->prepare(ubatches);
         if (sinfos_swa.empty()) {
             LLAMA_LOG_ERROR("%s: failed to prepare attention swa ubatches\n", __func__);
-            return std::make_unique<llama_memory_hybrid_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+            return std::make_unique<llama_memory_hybrid_iswa_context>(
+                    LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+                    mem_attn->get_swa()->last_failure_reason());
         }
 
         return std::make_unique<llama_memory_hybrid_iswa_context>(
                 this, std::move(sinfos_base), std::move(sinfos_swa), std::move(ubatches));
     } while(false);
 
-    return std::make_unique<llama_memory_hybrid_iswa_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+    return std::make_unique<llama_memory_hybrid_iswa_context>(
+            LLAMA_MEMORY_STATUS_FAILED_PREPARE,
+            mem_attn->get_base()->last_failure_reason());
 }
 
 llama_memory_context_ptr llama_memory_hybrid_iswa::init_full() {
@@ -287,7 +295,9 @@ llama_memory_recurrent * llama_memory_hybrid_iswa::get_mem_recr() const {
 // llama_memory_hybrid_iswa_context
 //
 
-llama_memory_hybrid_iswa_context::llama_memory_hybrid_iswa_context(llama_memory_status status) : status(status) {}
+llama_memory_hybrid_iswa_context::llama_memory_hybrid_iswa_context(
+        llama_memory_status status, llama_memory_failure_reason reason) :
+    status(status), failure_reason(reason) {}
 
 llama_memory_hybrid_iswa_context::llama_memory_hybrid_iswa_context(llama_memory_hybrid_iswa * mem) :
     ctx_recr(mem->get_mem_recr()->init_full()),

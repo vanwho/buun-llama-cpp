@@ -1361,11 +1361,19 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
         if (!page.present || page.host_inflight || page.record.pin_count == 0) {
             continue;
         }
-        const auto previous = page.record;
-        page.record.pin_count = page.host_inflight ? 1 : 0;
         const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
             std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
                         [](uint8_t value) { return value != 0; });
+        const bool current_partial = current_page_index_ < pages_.size() &&
+            &pages_[current_page_index_] == &page && !full;
+        if (current_partial && host_ && host_->async_enabled()) {
+            // The append tail is still mutable. Its asynchronous host copy is
+            // intentionally deferred until a later page takes over, so its
+            // write-frontier pin must remain live in the meantime.
+            continue;
+        }
+        const auto previous = page.record;
+        page.record.pin_count = page.host_inflight ? 1 : 0;
         if (full && page.record.state == llama_kv_page_state::filling_gpu) {
             page.record.state = llama_kv_page_state::gpu_dirty;
         }
@@ -1604,6 +1612,7 @@ llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noex
 llama_kv_pager_write_status llama_kv_pager::erase_page(
         page_state & page, bool preserve_host) noexcept {
     if (!page.present) return llama_kv_pager_write_status::ok;
+    const uint32_t page_index = uint32_t(&page - pages_.data());
     auto tx = residency_.begin();
     // The in-memory record may have just had its pin count or valid range changed
     // (for example while cancelling the write frontier). Bring the transaction up
@@ -1628,6 +1637,9 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(
     }
     invalidate_routing_summaries({ page.record.id });
     page = {};
+    if (current_page_index_ == page_index) {
+        current_page_index_ = UINT32_MAX;
+    }
     return llama_kv_pager_write_status::ok;
 }
 

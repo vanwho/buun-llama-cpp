@@ -7,12 +7,14 @@
 #include "json.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <set>
 
 struct server_context_impl; // private implementation
 class server_cache_control_authority;
+enum class llama_memory_failure_reason : uint8_t;
 
 enum class server_speculative_decode_terminal {
     success,
@@ -29,6 +31,11 @@ server_speculative_decode_terminal_resolve(
     bool single_token_batch,
     bool selected_exception,
     bool speculative_ok) noexcept;
+
+// A single-token return code is legacy-compatible, but only these reasons are
+// allowed to produce the user-facing logical-context diagnosis.
+bool server_memory_failure_is_logical_capacity(
+        llama_memory_failure_reason reason) noexcept;
 
 // A configured native MTP drafter is not enough to classify a target batch as
 // verification: prompt chunks are also multi-token.  Verification batches are

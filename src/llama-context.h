@@ -416,6 +416,9 @@ struct llama_context {
             uint64_t request_generation = 0,
             uint64_t slot_generation = 0,
             uint64_t config_generation = 0) const noexcept;
+    llama_memory_failure_reason get_last_memory_failure_reason() const noexcept {
+        return last_memory_failure_reason_;
+    }
 
     // Internal selected-attention boundary.  Policy supplies immutable
     // metadata; graph construction then carries its epochs and page fence.
@@ -733,6 +736,8 @@ private:
     llama_memory_ptr memory;
     std::unique_ptr<llama_kv_pager> kv_pager_owner;
     llama_kv_attention_execution kv_attention_execution;
+    llama_memory_failure_reason last_memory_failure_reason_ =
+            llama_memory_failure_reason::none;
     bool kv_attention_mtp_verification_ = false;
     std::unique_ptr<llama_kv_attention_telemetry> kv_attention_telemetry;
     // Reused bounded host workspaces for the selected attention admission
