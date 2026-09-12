@@ -164,6 +164,9 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     // The standalone CUDA API historically supplied row positions explicitly;
     // graph-owned ordinary causal inputs opt out and derive page_start + row.
     bool explicit_native_metadata = true;
+    // Test-only numerical oracle. Production dispatch uses the cooperative
+    // decode kernel; callers must opt into the repaired serial kernel.
+    bool reference_kernel = false;
 
     // Optional device-side routing stage. Ranges are fp16 pairs in the fixed
     // layout [page][subblock][min/max][vector_dim]. One working set is

@@ -477,6 +477,23 @@ int main(int argc, char ** argv) {
     std::vector<float> output_without_mass(q_host.size());
     cuda_check(cudaMemcpy(output_without_mass.data(), output_device, output_without_mass.size() * sizeof(float), cudaMemcpyDeviceToHost), "output readback");
 
+    // The repaired serial implementation is an explicit oracle only. Verify
+    // the production cooperative result against it for the one-query shape.
+    params.reference_kernel = true;
+    const std::vector<float> reference_canary(q_host.size(), -12345.0f);
+    cuda_check(cudaMemcpy(output_device, reference_canary.data(),
+        reference_canary.size() * sizeof(float), cudaMemcpyHostToDevice), "reference output canary copy");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+        ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaDeviceSynchronize(), "reference page attention");
+    std::vector<float> reference_output(q_host.size());
+    cuda_check(cudaMemcpy(reference_output.data(), output_device,
+        reference_output.size() * sizeof(float), cudaMemcpyDeviceToHost), "reference output readback");
+    for (size_t i = 0; i < size_t(n_head_q) * 256; ++i) {
+        assert(std::fabs(output_without_mass[i] - reference_output[i]) < 2.0e-6f);
+    }
+    params.reference_kernel = false;
+
     constexpr float c8 = 0.011353f;
     constexpr float c9 = 0.034311f;
     constexpr float c10 = 0.058069f;
@@ -484,9 +501,9 @@ int main(int argc, char ** argv) {
     const float expected_528 = (17.0f * c8 + 255.0f * c9 + 255.0f * c10 + c11) / 528.0f;
     const float expected_529 = (17.0f * c8 + 255.0f * c9 + 256.0f * c10 + c11) / 529.0f;
 
-    // Multiquery verification uses one CTA per head/query tile. Verify each
-    // query's causal position and guard the following output query with a
-    // canary so adjacent query results cannot alias.
+    // Multiquery verification uses one cooperative CTA per KV head/query.
+    // Verify each query's causal position and guard the following output
+    // query with a canary so adjacent query results cannot alias.
     const std::vector<float> output_canary(q_host.size(), -12345.0f);
     const std::vector<uint32_t> query_counts = run_timing
         ? std::vector<uint32_t>{ 1, 2, 3, 4, 5, 8, 16, 64, 128 }
@@ -704,9 +721,10 @@ int main(int argc, char ** argv) {
         }
     }
 
-    // Capture a same-shape serial control after CUDA module warm-up.  The
-    // first timing above includes first-use compilation on some drivers, so
-    // this pair is the useful kernel-only comparison for the receipt.
+    // Capture same-shape reference and cooperative controls after CUDA module
+    // warm-up.  The first timing above includes first-use compilation on some
+    // drivers, so this pair is the useful kernel-only comparison for the
+    // receipt.
     params.split_kv_scratch = nullptr;
     params.split_kv_partition_stride_bytes = 0;
     params.split_kv_page_state = nullptr;
@@ -715,15 +733,17 @@ int main(int argc, char ** argv) {
     params.split_kv_page_state_partition_stride_bytes = 0;
     params.split_kv_partition_capacity = 0;
     params.split_kv_page_count = 0;
+    params.reference_kernel = true;
     cuda_check(cudaEventRecord(timing_start, stream), "serial comparison timing start record");
     assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
     cuda_check(cudaEventRecord(timing_stop, stream), "serial comparison timing stop record");
     cuda_check(cudaEventSynchronize(timing_stop), "serial comparison timing stop synchronize");
     float serial_comparison_ms = 0.0f;
     cuda_check(cudaEventElapsedTime(&serial_comparison_ms, timing_start, timing_stop), "serial comparison timing readback");
-    std::fprintf(stderr, "paged Turbo4 serial control: %.3f ms (%u Q tokens, 530 selected rows)\n",
+    std::fprintf(stderr, "paged Turbo4 reference control: %.3f ms (%u Q tokens, 530 selected rows)\n",
         serial_comparison_ms, max_query_tokens);
 
+    params.reference_kernel = false;
     params.split_kv_scratch = split_state_device;
     params.split_kv_partition_stride_bytes = split_state_partition_stride;
     params.split_kv_page_state = split_page_state_device;
