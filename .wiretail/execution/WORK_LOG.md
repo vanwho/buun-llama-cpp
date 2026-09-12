@@ -921,3 +921,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-26-03`
 - Commit at update: `4356748e5`
 - Summary: Repaired append/frontier sealing and propagated structured memory failure reasons; CPU/CUDA pager, server fault, synthetic frontier, and CUDA Turbo4 checks pass. Live Qwen proof deferred because sudo -n requires interactive authentication while PID 768838 occupies VRAM.
+
+## 2026-09-12T14:51:16+00:00 — 26-04 — done
+
+- Branch: `codex/task-26-04`
+- Commit at update: `0c4729ac5`
+- Summary: Connected natural attention/query routing with stale-safe graph reuse, telemetry drop/trace metadata, CUDA page-mass regression, and recorded focused CPU/CUDA plus live primary evidence in INTERACTIVE26_04_PRIMARY.{json,md}; successful CUDA candidate remains loaded on port 8080.

@@ -1,0 +1,93 @@
+{
+  "schema": "interactive-speed-v7",
+  "task_id": "26-04",
+  "cluster": "26i-attention-speed-v7",
+  "status": "implementation_complete_live_primary_pass",
+  "candidate": {
+    "pid": 1163817,
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "model": "/srv/ai/models/text/current.gguf",
+    "port": 8080,
+    "health": "ok",
+    "native_mtp": "draft-mtp GPU Turbo4 K/V, n-max=2",
+    "control_8092": "untouched"
+  },
+  "configuration": {
+    "context_tokens": 8192,
+    "prompt_tokens": 5834,
+    "prompt_target_tokens": 6144,
+    "page_tokens": 256,
+    "hot_pages": 8,
+    "batch_tokens": 128,
+    "ubatch_tokens": 64,
+    "output_limit_tokens": 128,
+    "pager": "selective",
+    "pin_recent_tokens": 0,
+    "forced_page": null,
+    "telemetry": "interval=4 layer=0 head=0:1"
+  },
+  "live_primary": {
+    "http_status": 200,
+    "prompt_tokens": 5834,
+    "committed_output_tokens": 128,
+    "prompt_tokens_per_second": 287.7569,
+    "predicted_tokens_per_second": 41.5063,
+    "draft_tokens": 104,
+    "accepted_draft_tokens": 75,
+    "answer_fact": "ORBIT-417",
+    "raw_response": "/srv/ai/paged-kv/results/interactive-26-04-primary/live-response-final.json",
+    "raw_response_sha256": "960a5a7e7e7401f7371cfc81b77619d2ff1ce12ab90c890ab72adaf55d7c5e6c"
+  },
+  "telemetry": {
+    "graph_submissions": 145,
+    "graph_completions": 145,
+    "target_tokens_processed": 5992,
+    "attention_samples": 89,
+    "sampled_tokens": 5154,
+    "sampled_pages": 643,
+    "attention_skipped": 44,
+    "drops": {
+      "no_output": 1,
+      "no_metadata": 0,
+      "invalid_shape": 0,
+      "stale_snapshot": 0,
+      "stale_identity": 0,
+      "nonfinite": 11,
+      "invalid_argument": 0
+    },
+    "resident_pages": 8,
+    "host_pages": 7,
+    "summary_build_calls": 368,
+    "summary_read_calls": 106560,
+    "routing_route": "selected direct",
+    "h2d_useful_bytes": 0,
+    "faults": 0,
+    "evictions": 0
+  },
+  "cold_promotion_trace": {
+    "raw": "/srv/ai/paged-kv/results/interactive-26-04-primary/raw-primary-q0-final-fixed.json",
+    "raw_sha256": "8449196284e29c77925d4b8222cdff509a4e3e3bb77dcdfcd8ecda8de7c7cd43",
+    "same_profile": true,
+    "prompt_tokens": 5995,
+    "output_tokens": 86,
+    "answer_fact": "ORBIT-417",
+    "resident_pages": 8,
+    "host_pages": 7,
+    "h2d_useful_bytes": 4325380,
+    "h2d_aligned_bytes": 4325380,
+    "faults": 1,
+    "evictions": 1,
+    "note": "Separate earlier same-profile live transition; current query-aware fixture is reported independently and is not mislabelled as an H2D sample."
+  },
+  "verification": {
+    "cpu_focused_ctest": "3/3 pass",
+    "cuda_focused_ctest": "3/3 pass",
+    "cuda_build": "pass",
+    "cpu_build": "pass",
+    "git_diff_check": "pass"
+  },
+  "deferred_verification": [
+    "The current query-aware primary ended on a direct-resident route (H2D counters zero); the separately recorded same-profile cold transition supplies the completed H2D evidence.",
+    "routing_recall_available remains intentionally not measured by the existing server metric; no recall percentage is claimed."
+  ]
+}
