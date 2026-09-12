@@ -146,7 +146,7 @@
   ],
   "live_stage_memory_table": {
     "status": "deferred",
-    "reason": "sudo -n -v returned interactive authentication required; 8080 was healthy but loaded the prior non-MTP binary and was not disturbed.",
+    "reason": "The agent used sudo -n -v, which misleadingly reports interactive authentication on this host; actual sudo -n systemctl commands succeed. 8080 was healthy but loaded the prior non-MTP binary and was not disturbed.",
     "rows": [],
     "required_columns": [
       "case_id",
@@ -184,7 +184,7 @@
     "site_override_reason": "Measured peak/speed trade-offs are unavailable without authorized candidate lifecycle access; no unmeasured profile was written to /srv/ai."
   },
   "negative_experiments": [
-    "sudo -n -v: failed with interactive authentication required",
+    "sudo -n -v: misleading timestamp-validation failure; actual sudo -n systemctl capability verified separately",
     "8080 health: passed, but its executable hash and --spec-type none identify the previous profile, not the candidate",
     "8092: observed and left untouched",
     "candidate launch: not attempted because starting a second full Qwen process could contend for VRAM"

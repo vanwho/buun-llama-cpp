@@ -3,8 +3,9 @@
 ## Result
 
 The portable source contracts pass deterministic CPU and CUDA coverage. The
-required live capacity ladder was not run: `sudo -n -v` reports that
-interactive authentication is required, and the healthy service on 8080 is the
+required live capacity ladder was not run because the agent used the wrong
+privilege probe: `sudo -n -v` reports interactive authentication on this host
+even though actual NOPASSWD commands succeed. The healthy service on 8080 is the
 previous `qwen38-fast` profile (`B=1024`, `U=256`, `--spec-type none`), not the
 candidate native-MTP bundle. No second full Qwen process was started, no traffic
 was sent to the loaded non-MTP service, and unrelated 8092 was untouched.

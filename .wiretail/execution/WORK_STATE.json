@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "26",
-  "current_task": "26-08",
-  "last_updated_utc": "2026-09-12T16:04:27+00:00",
+  "current_phase": "27",
+  "current_task": "27-01",
+  "last_updated_utc": "2026-09-12T16:09:06+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5415,14 +5415,39 @@
       "cluster": "26k-primary-checkpoint-v7",
       "title": "Publish the primary 8K/4K joint speed checkpoint with matched controls",
       "packet": ".wiretail/execution/tasks/26-08.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "26-07"
       ],
-      "commit": null,
-      "scope_revision": "interactive-hot-kv-20260912"
+      "commit": "2eee396368dac641d7ca62bf41f223245ba89b9b",
+      "scope_revision": "interactive-hot-kv-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/26-08-attempt-1-20260912T160447Z.jsonl:45",
+            "total_tokens": 1198818,
+            "total_tokens_derived": true,
+            "input_tokens": 1190773,
+            "cached_input_tokens": 1108992,
+            "output_tokens": 8045,
+            "thinking_tokens": 1910
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 1198818,
+          "input_tokens": 1190773,
+          "cached_input_tokens": 1108992,
+          "output_tokens": 8045,
+          "thinking_tokens": 1910
+        }
+      }
     },
     {
       "id": "27-01",
@@ -7003,15 +7028,28 @@
           "cached_input_tokens": 15062016,
           "output_tokens": 48038,
           "thinking_tokens": 17866
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/26-08-attempt-1-20260912T160447Z.jsonl:45",
+          "total_tokens": 1198818,
+          "total_tokens_derived": true,
+          "input_tokens": 1190773,
+          "cached_input_tokens": 1108992,
+          "output_tokens": 8045,
+          "thinking_tokens": 1910
         }
       ],
       "totals": {
-        "turns": 16,
-        "total_tokens": 553009281,
-        "input_tokens": 551945410,
-        "cached_input_tokens": 542277120,
-        "output_tokens": 1063871,
-        "thinking_tokens": 351417
+        "turns": 17,
+        "total_tokens": 554208099,
+        "input_tokens": 553136183,
+        "cached_input_tokens": 543386112,
+        "output_tokens": 1071916,
+        "thinking_tokens": 353327
       }
     },
     "27": {
@@ -7039,12 +7077,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 93,
-      "total_tokens": 1914041190,
-      "input_tokens": 1909575771,
-      "cached_input_tokens": 1873239296,
-      "output_tokens": 4465419,
-      "thinking_tokens": 1565018
+      "turns": 94,
+      "total_tokens": 1915240008,
+      "input_tokens": 1910766544,
+      "cached_input_tokens": 1874348288,
+      "output_tokens": 4473464,
+      "thinking_tokens": 1566928
     },
     "source": "Codex turn.completed usage events"
   }

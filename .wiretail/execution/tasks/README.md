@@ -64,6 +64,9 @@ Global rules for every packet:
     restore only when the packet explicitly requests a control/revert benchmark, teardown, failed-start
     recovery, or final cleanup, and record the lifecycle decision. Never stop or reconfigure the unrelated
     service on port 8092.
+    Always invoke lifecycle commands as `sudo -n systemctl ...`; never use bare systemctl or
+    `sudo -n -v` as the privilege test. On this host `sudo -n -v` can report interactive
+    authentication even though `sudo -n true` and actual NOPASSWD systemctl commands work.
 14. Performance tasks preserve raw before/after results for every attempted optimization. The historical
     3x/5x/70% speed numbers are findings, not gates. Investigate measured bottlenecks with distinct
     hypotheses; do not block solely on a throughput threshold or silently change the three prompts.
