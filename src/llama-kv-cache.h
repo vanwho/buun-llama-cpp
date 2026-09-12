@@ -186,6 +186,8 @@ public:
             const llama_ubatch & ubatch) override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
+    const std::vector<llama_kv_page_id> & selected_attention_pages(
+            llama_seq_id sequence_id) const noexcept;
 
     //
     // llama_memory_i
@@ -1487,6 +1489,7 @@ private:
     std::vector<pager_query_capture> pager_query_captures_;
     uint64_t pager_query_generation_ = 0;
     bool pager_fallback_used_ = false;
+    std::map<llama_seq_id, std::vector<llama_kv_page_id>> pager_attention_selection_;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;
     uint64_t pager_host_controller_generation_ = 1;
@@ -1832,6 +1835,7 @@ public:
             const std::vector<llama_pos> & positions,
             std::vector<int32_t> & rows) const;
     llama_kv_pager * get_kv_pager() const noexcept;
+    const std::vector<llama_kv_page_id> & selected_attention_pages() const noexcept;
 
 
     // TurboQuant rotation accessors

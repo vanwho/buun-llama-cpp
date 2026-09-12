@@ -374,6 +374,31 @@ llama_kv_routing_retrieval_result llama_kv_routing_retrieve(
         }
 
         result.metrics.selected_pages = result.selected.size();
+        const uint32_t attention_capacity = config.attention_capacity_pages == 0
+            ? config.capacity_pages
+            : std::min(config.attention_capacity_pages, config.capacity_pages);
+        result.attention_selected.reserve(attention_capacity);
+        // Preserve causal/current and recent context first, then use the
+        // query-ranked and exploration entries. This keeps A independent of
+        // the reusable residency pool H while ensuring an unseen cold page
+        // can enter the working set through exploration.
+        const auto add_attention = [&](const llama_kv_routing_retrieval_entry & entry) {
+            if (result.attention_selected.size() >= attention_capacity ||
+                has_id(result.attention_selected, entry.id)) return;
+            result.attention_selected.push_back(entry);
+        };
+        const auto add_reason = [&](llama_kv_routing_retrieval_reason reason) {
+            for (const auto & entry : result.selected) {
+                if (entry.reason == reason) add_attention(entry);
+            }
+        };
+        add_reason(llama_kv_routing_retrieval_reason::mandatory);
+        add_reason(llama_kv_routing_retrieval_reason::structural);
+        add_reason(llama_kv_routing_retrieval_reason::recent);
+        add_reason(llama_kv_routing_retrieval_reason::summary);
+        add_reason(llama_kv_routing_retrieval_reason::exploration);
+        add_reason(llama_kv_routing_retrieval_reason::fallback);
+        result.metrics.attention_pages = result.attention_selected.size();
         result.metrics.union_time_us = uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::steady_clock::now() - union_started).count());
         result.metrics.total_time_us = uint64_t(std::chrono::duration_cast<std::chrono::microseconds>(

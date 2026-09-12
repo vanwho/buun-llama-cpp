@@ -866,3 +866,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-10`
 - Commit at update: `906039de6`
 - Summary: Stabilized direct paged-attention descriptor refresh with changed-run uploads and added optional actual CUDA graph capture/instantiate/update/launch diagnostics with CPU timings. CPU checks and CUDA graph translation-unit compilation pass; live server graph run deferred.
+
+## 2026-09-12T03:02:33+00:00 — 25-11 — done
+
+- Branch: `codex/task-25-11`
+- Commit at update: `4c3dce900`
+- Summary: Implemented policy-derived attention working-set selection with bounded cold exploration and safe routed-view consumption; focused routing, policy, telemetry tests pass.

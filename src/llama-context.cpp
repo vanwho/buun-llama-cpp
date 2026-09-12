@@ -2489,8 +2489,25 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     auto & selected_pages = kv_attention_selected_pages_scratch_;
     try {
         selected_pages.clear();
-        selected_pages.reserve(pager_snapshot.pages().size());
-        for (const auto & page : pager_snapshot.pages()) {
+        const auto & routed_pages = attention->selected_attention_pages();
+        selected_pages.reserve(routed_pages.empty() ? pager_snapshot.pages().size() : routed_pages.size());
+        const auto append_page = [&](const llama_kv_page_id & id) {
+            const auto page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
+                [&](const auto & value) { return value.id == id; });
+            if (page == pager_snapshot.pages().end()) return false;
+            if (page->id.sequence_id != sequence_id || page->physical_slot == UINT32_MAX ||
+                (page->state != llama_kv_page_state::filling_gpu &&
+                 page->state != llama_kv_page_state::sealing_host &&
+                 page->state != llama_kv_page_state::gpu_host_clean &&
+                 page->state != llama_kv_page_state::gpu_dirty)) return false;
+            selected_pages.push_back(page->id.logical_page);
+            return true;
+        };
+        if (!routed_pages.empty()) {
+            for (const auto & id : routed_pages) {
+                if (!append_page(id)) return refuse("routed attention page is not resident");
+            }
+        } else for (const auto & page : pager_snapshot.pages()) {
             if (page.id.sequence_id != sequence_id || page.physical_slot == UINT32_MAX ||
                 (page.state != llama_kv_page_state::filling_gpu &&
                  page.state != llama_kv_page_state::sealing_host &&

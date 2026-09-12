@@ -58,6 +58,9 @@ struct llama_kv_routing_page_attributes {
 struct llama_kv_routing_retrieval_config {
     uint32_t capacity_pages = 0;       // resolved hot capacity H
     uint32_t summary_top_k = 0;
+    // Optional attention working-set size A. Zero preserves the legacy
+    // capacity-sized candidate set; nonzero values never change H.
+    uint32_t attention_capacity_pages = 0;
     uint32_t exploration_pages = 0;
     uint64_t exploration_seed = 0;
     uint64_t exploration_turn = 0;
@@ -88,6 +91,7 @@ struct llama_kv_routing_retrieval_metrics {
     uint64_t summary_comparisons = 0;
     uint64_t summary_bytes = 0;
     uint64_t selected_pages = 0;
+    uint64_t attention_pages = 0;
     uint64_t mandatory_pages = 0;
     uint64_t exploration_pages = 0;
     uint64_t score_time_us = 0;
@@ -115,6 +119,9 @@ struct llama_kv_routing_retrieval_result {
     uint32_t head_index = 0;
     uint64_t coordinate_identity = 0;
     std::vector<llama_kv_routing_retrieval_entry> selected;
+    // The query-aware attention working set. `selected` remains the H-sized
+    // residency target and may contain additional retention candidates.
+    std::vector<llama_kv_routing_retrieval_entry> attention_selected;
     llama_kv_routing_retrieval_metrics metrics;
 };
 

@@ -2406,8 +2406,16 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             if (summaries == nullptr || !summaries->valid()) continue;
             llama_kv_routing_retrieval_config retrieval_config;
             retrieval_config.capacity_pages = boundary.hot_capacity;
-            retrieval_config.summary_top_k = boundary.hot_capacity;
-            retrieval_config.exploration_pages = 0;
+            // Historical quota is the policy-derived attention budget A;
+            // residency capacity remains the independent reusable pool H.
+            retrieval_config.attention_capacity_pages = std::max<uint32_t>(1,
+                std::min(boundary.hot_capacity,
+                    boundary.hot_capacity * boundary.policy.historical_ratio /
+                    LLAMA_KV_POLICY_RATIO_SCALE));
+            retrieval_config.summary_top_k = retrieval_config.attention_capacity_pages;
+            // One rotating cold slot is enough to make pages without resident
+            // EMA observable, while its cost remains bounded by H.
+            retrieval_config.exploration_pages = inventory.size() > boundary.hot_capacity ? 1 : 0;
             retrieval_config.exploration_seed = query.query_generation;
             retrieval_config.exploration_turn = retrieval_turn++;
             pager_->record_summary_read(summaries->accounting().charged_bytes);
@@ -2641,6 +2649,17 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             }
         }
         const auto result = pager_->apply_live_policy(boundary);
+        if (result.status == llama_kv_live_policy_status::committed ||
+            result.status == llama_kv_live_policy_status::no_change ||
+            result.status == llama_kv_live_policy_status::safe_fallback) {
+            auto & selected = pager_attention_selection_[pager_last_sequence_id_];
+            selected.clear();
+            for (const auto & entry : boundary.retrieval.attention_selected) {
+                const auto resident = std::find_if(result.target_pages.begin(), result.target_pages.end(),
+                    [&](const auto & page) { return page.id == entry.id; });
+                if (resident != result.target_pages.end()) selected.push_back(entry.id);
+            }
+        }
         if (result.status != llama_kv_live_policy_status::committed &&
             result.status != llama_kv_live_policy_status::no_change &&
             result.status != llama_kv_live_policy_status::safe_fallback) {
@@ -2650,6 +2669,13 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
     } catch (...) {
         LLAMA_LOG_DEBUG("%s: live policy boundary unavailable\n", __func__);
     }
+}
+
+const std::vector<llama_kv_page_id> & llama_kv_cache::selected_attention_pages(
+        llama_seq_id sequence_id) const noexcept {
+    static const std::vector<llama_kv_page_id> empty;
+    const auto it = pager_attention_selection_.find(sequence_id);
+    return it == pager_attention_selection_.end() ? empty : it->second;
 }
 
 void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
@@ -15163,6 +15189,17 @@ bool llama_kv_cache_context::selected_attention_rows(
 
 llama_kv_pager * llama_kv_cache_context::get_kv_pager() const noexcept {
     return kv ? kv->get_kv_pager() : nullptr;
+}
+
+const std::vector<llama_kv_page_id> & llama_kv_cache_context::selected_attention_pages() const noexcept {
+    static const std::vector<llama_kv_page_id> empty;
+    if (!kv || sinfos.empty() || i_cur >= sinfos.size() || ubatches.empty() ||
+        i_cur >= ubatches.size() || ubatches[i_cur].seq_id == nullptr ||
+        ubatches[i_cur].n_seq_id == nullptr || ubatches[i_cur].n_seq_id[0] != 1 ||
+        ubatches[i_cur].seq_id[0] == nullptr) {
+        return empty;
+    }
+    return kv->selected_attention_pages(ubatches[i_cur].seq_id[0][0]);
 }
 
 llama_turbo_meansub_ref llama_kv_cache_context::get_turbo_meansub_ref(int32_t il) const {
