@@ -4283,6 +4283,17 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
     // non-turbo caches have no pools and skip in O(1).
     if (!vbr_pools_.empty() || !vbr_shared_scratch_bindings_.empty()) {
         size_t scratch_cells = vbr_watermark_cells(n_tokens);
+        if (vbr_vmm_active() && !vbr_pools_.empty()) {
+            // VMM-backed selective attention materializes the resident hot set plus this
+            // batch, not the complete logical host history.  The write watermark can grow
+            // to L while old rows remain canonical on the host; using it here made the f16
+            // scratch reserve grow linearly with cold history and eventually exhaust VRAM.
+            uint32_t resident_cells = 0;
+            for (const auto & pool : vbr_pools_) {
+                resident_cells = std::max(resident_cells, pool.wm_cells);
+            }
+            scratch_cells = std::min(scratch_cells, (size_t) resident_cells + n_tokens);
+        }
         if (n_stream > 1) {
             // A non-unified graph views K/V as [head_dim, heads, n_kv, stream_span], and the
             // CUDA materializer flattens all four dimensions into one shared f16 scratch. Predict

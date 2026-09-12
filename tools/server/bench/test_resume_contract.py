@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import pathlib
 import tempfile
 import unittest
@@ -25,6 +26,72 @@ from pager_benchmark_contract import (
 
 
 class ResumeContractTests(unittest.TestCase):
+    def test_long_prompt_fitter_expands_neutral_padding(self) -> None:
+        path = HERE / "run-final-curve.py"
+        spec = importlib.util.spec_from_file_location("run_final_curve_test", path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        class Renderer:
+            template_id = "test-template"
+            tokenizer_id = "test-tokenizer"
+
+            def __call__(self, messages: list[dict[str, str]]) -> dict[str, object]:
+                text = messages[0]["content"]
+                return {"text": text, "token_ids": tuple(range(text.count("This is neutral"))),
+                        "template_id": self.template_id, "tokenizer_id": self.tokenizer_id}
+
+        target = 12_000
+        fit = module._fit_prompt(Renderer(), "keep this final question", target, 8)
+        self.assertEqual(target, fit.token_count)
+        self.assertIn("keep this final question", fit.rendered_text)
+
+    def test_sse_error_is_retained_as_runtime_error(self) -> None:
+        path = HERE / "run-final-curve.py"
+        spec = importlib.util.spec_from_file_location("run_final_curve_test", path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(
+            "SSE error [500]: Context size has been exceeded.",
+            module._stream_error({"error": {"code": 500, "message": "Context size has been exceeded."}}),
+        )
+        self.assertIsNone(module._stream_error({"choices": []}))
+
+    def test_request_sends_fitted_messages_without_rerendering(self) -> None:
+        path = HERE / "run-final-curve.py"
+        spec = importlib.util.spec_from_file_location("run_final_curve_test", path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        captured: dict[str, object] = {}
+
+        def stream(_endpoint: str, _key: str, request_body: dict[str, object], *_args: object,
+                   **_kwargs: object) -> tuple[int, dict[str, object], None]:
+            captured.update(request_body)
+            return 200, {"usage": {"completion_tokens": 1}, "timings": {},
+                         "stream_metrics": {}}, None
+
+        module._stream_completion = stream
+        module.snapshot = lambda _endpoint, _key: {"metrics": {}}
+        messages = [{"role": "user", "content": "already fitted"}]
+        result = module.run_request(
+            "http://server/v1/chat/completions", "", "model", messages, 8,
+            128, "test", 0, 1, 12, 1.0, pathlib.Path(tempfile.gettempdir()) / "run-final-curve-test.sse")
+        self.assertEqual(messages, captured["messages"])
+        self.assertEqual("pass", result["status"])
+        captured.clear()
+        module._stream_completion = lambda *_args, **_kwargs: (
+            200, {"usage": {}, "timings": {}, "stream_metrics": {}}, None)
+        failed = module.run_request(
+            "http://server/v1/chat/completions", "", "model", messages, 8,
+            128, "test", 0, 1, 12, 1.0, pathlib.Path(tempfile.gettempdir()) / "run-final-curve-empty.sse")
+        self.assertEqual("runtime_fault", failed["status"])
+
     def test_case_key_includes_causal_inputs_but_not_runtime_status(self) -> None:
         base = {
             "bundle_manifest_sha256": "bundle-a", "model_sha256": "model-a",

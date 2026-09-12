@@ -2,10 +2,8 @@
 
 #include <algorithm>
 #include <array>
-#include <chrono>
 #include <cstdint>
 #include <cstring>
-#include <thread>
 #include <utility>
 #include <vector>
 
@@ -405,10 +403,8 @@ static void test_cuda_async_host_publication() {
         assert(host->snapshot().live_pages == 0);
 
         std::vector<llama_kv_pager_host_completion> completed;
-        for (int attempt = 0; attempt < 200 && completed.empty(); ++attempt) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            host->drain(completed);
-        }
+        assert(host->wait() >= 1);
+        host->drain(completed);
         assert(completed.size() == 1);
         if (completed.size() == 1) {
             assert(completed[0].content_version == 7);

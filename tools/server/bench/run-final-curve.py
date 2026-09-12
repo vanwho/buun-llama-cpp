@@ -128,8 +128,20 @@ def body(model: str, messages: list[dict[str, Any]], max_tokens: int,
 def _fit_prompt(renderer: ServerPromptRenderer, question: str, prompt_tokens: int,
                 reserve: int) -> PromptFit:
     messages = [{"role": "user", "content": f"{PADDING_MARKER}\n\n{question}"}]
-    return fit_prompt(messages, PADDING, prompt_tokens + reserve, reserve, renderer,
-                      padding_marker=PADDING_MARKER, protected_facts=(question,))
+    padding = PADDING
+    for _ in range(3):
+        fit = fit_prompt(messages, padding, prompt_tokens + reserve, reserve, renderer,
+                         padding_marker=PADDING_MARKER, protected_facts=(question,))
+        if fit.token_count >= prompt_tokens:
+            return fit
+        # The corpus is deliberately neutral, but its token density is tokenizer
+        # dependent. Grow it from the authoritative rendered count rather than
+        # silently issuing an under-filled long-context request.
+        if fit.token_count == 0:
+            break
+        padding *= (prompt_tokens + fit.token_count - 1)//fit.token_count + 1
+    raise RuntimeError(
+        f"padding corpus cannot reach requested prompt occupancy {prompt_tokens} tokens")
 
 
 def _set_response_timeout(response: Any, timeout: float) -> None:
@@ -162,6 +174,17 @@ def _event_object(line: bytes) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def _stream_error(item: Mapping[str, Any]) -> str | None:
+    error = item.get("error")
+    if not isinstance(error, Mapping):
+        return None
+    code = error.get("code")
+    message = error.get("message")
+    detail = message if isinstance(message, str) and message else "unknown SSE error"
+    code_detail = f" [{code}]" if code else ""
+    return f"SSE error{code_detail}: {detail}"
+
+
 def _stream_completion(endpoint: str, key: str, request_body: dict[str, Any],
                        raw_path: pathlib.Path, *, connect_timeout: float,
                        prefill_idle_timeout: float, decode_idle_timeout: float,
@@ -180,6 +203,7 @@ def _stream_completion(endpoint: str, key: str, request_body: dict[str, Any],
     status: int | None = None
     usage: dict[str, Any] = {}
     timings: dict[str, Any] = {}
+    error: str | None = None
     chunks: list[dict[str, Any]] = []
     content: list[str] = []
     raw_path.parent.mkdir(parents=True, exist_ok=True)
@@ -208,6 +232,10 @@ def _stream_completion(endpoint: str, key: str, request_body: dict[str, Any],
                     if item.get("_done"):
                         break
                     last_event = now
+                    stream_error = _stream_error(item)
+                    if stream_error is not None:
+                        error = stream_error
+                        break
                     if saw_token:
                         next_timeout = decode_idle_timeout
                         if total_timeout is not None:
@@ -247,7 +275,7 @@ def _stream_completion(endpoint: str, key: str, request_body: dict[str, Any],
             os.fsync(raw_file.fileno())
             raise
     return status, {"usage": usage, "timings": timings, "content": "".join(content),
-                    "stream_metrics": stream_metrics(started, chunks)}, None
+                    "stream_metrics": stream_metrics(started, chunks)}, error
 
 
 def _metric_number(value: Any) -> int | float | None:
@@ -334,7 +362,8 @@ def clear_slot(endpoint: str, key: str, slot_id: int, timeout: float) -> dict[st
             "response": raw.decode(errors="replace")[-500:]}
 
 
-def run_request(endpoint: str, key: str, model: str, prompt: str, maximum: int,
+def run_request(endpoint: str, key: str, model: str,
+                prompt: str | list[dict[str, Any]], maximum: int,
                 context: int, phase: str, question_index: int, trial: int,
                 prompt_tokens: int, timeout: float, raw_path: pathlib.Path,
                 *, cache_condition: str = "cold-prefill", mode: str = "selective",
@@ -342,7 +371,8 @@ def run_request(endpoint: str, key: str, model: str, prompt: str, maximum: int,
                 startup_timeout: float = 30.0, progress_idle_timeout: float = 120.0,
                 decode_idle_timeout: float = 120.0, total_timeout: float | None = 300.0,
                 progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
-    request_body = body(model, [{"role": "user", "content": prompt}], maximum, True)
+    messages = prompt if isinstance(prompt, list) else [{"role": "user", "content": prompt}]
+    request_body = body(model, messages, maximum, True)
     request_hash = hashlib.sha256(json.dumps(request_body, sort_keys=True,
                                               separators=(",", ":")).encode()).hexdigest()
     started = time.monotonic()
@@ -366,7 +396,7 @@ def run_request(endpoint: str, key: str, model: str, prompt: str, maximum: int,
                        "timings": response.get("timings", {}),
                        "stream_metrics": response.get("stream_metrics", {}),
                        "elapsed_seconds": time.monotonic() - started})
-        record["status"] = "pass" if status == 200 and isinstance(record["usage"], Mapping) else "runtime_fault"
+        record["status"] = "pass" if status == 200 and error is None and bool(record["usage"]) else "runtime_fault"
         if record["status"] != "pass":
             record["error"] = error or "invalid response"
     except RequestDeadline as deadline:
@@ -730,7 +760,7 @@ def main() -> int:
                 continue
             clear = clear_slot(endpoint, key, args.slot_id, args.startup_timeout) if args.cache_condition == "cold-prefill" else None
             raw_path = output / f"raw-{case['case_id']}.sse"
-            record = run_request(chat_endpoint, key, args.model, fit.rendered_text, args.max_tokens,
+            record = run_request(chat_endpoint, key, args.model, fit.messages, args.max_tokens,
                                  args.context, "measured", question_index, trial, fit.token_count,
                                  args.legacy_timeout or args.startup_timeout, raw_path,
                                  cache_condition=args.cache_condition, mode=args.mode,

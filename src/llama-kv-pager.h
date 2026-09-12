@@ -186,6 +186,9 @@ public:
             uint64_t content_version) noexcept;
     size_t drain(
             std::vector<llama_kv_pager_host_completion> & output) noexcept;
+    // Wait until queued host captures have either completed or failed. This is
+    // used only when a writer has no immediately evictable slot.
+    size_t wait() noexcept;
     bool async_enabled() const noexcept { return async_enabled_; }
     std::vector<vbr_selected_page_host_view> pages() const noexcept;
     bool invalidate(const llama_kv_page_id & page) noexcept;
@@ -537,6 +540,7 @@ private:
     std::vector<llama_kv_routing_summary_config> routing_summary_configs() const noexcept;
     void invalidate_routing_summaries(
             const std::vector<llama_kv_page_id> & page_ids) noexcept;
+    void drain_host_completions() noexcept;
     void reconcile_live_target(
             const std::vector<llama_kv_page_record> & target) noexcept;
     page_state * find_page(int32_t sequence_id, uint32_t logical_page) noexcept;

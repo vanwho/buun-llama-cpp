@@ -415,6 +415,18 @@ size_t llama_kv_pager_host::drain(
     return output.size();
 }
 
+size_t llama_kv_pager_host::wait() noexcept {
+    try {
+        std::unique_lock<std::mutex> lock(worker_mutex_);
+        worker_cv_.wait(lock, [&] {
+            return pending_.empty() && active_.empty();
+        });
+        return completed_.size();
+    } catch (...) {
+        return 0;
+    }
+}
+
 void llama_kv_pager_host::worker_main() noexcept {
     for (;;) {
         std::shared_ptr<pending_capture> job;
@@ -476,6 +488,7 @@ void llama_kv_pager_host::worker_main() noexcept {
             }
             active_.erase(std::remove(active_.begin(), active_.end(), job),
                           active_.end());
+            worker_cv_.notify_all();
         }
     }
 }
@@ -1292,8 +1305,7 @@ void llama_kv_pager::invalidate_routing_summaries(
     }
 }
 
-uint32_t llama_kv_pager::seal_ready_pages() noexcept {
-    ++seal_calls_;
+void llama_kv_pager::drain_host_completions() noexcept {
     if (host_ && host_->async_enabled()) {
         std::vector<llama_kv_pager_host_completion> completed;
         host_->drain(completed);
@@ -1336,6 +1348,11 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
             (void) publish_page(page);
         }
     }
+}
+
+uint32_t llama_kv_pager::seal_ready_pages() noexcept {
+    ++seal_calls_;
+    drain_host_completions();
     // finish_pager_batch() runs at graph submission time, so a full page can
     // still carry the last write-frontier pin while the graph is in flight.
     // This method is entered after the context fence and is the first point at
@@ -1743,6 +1760,34 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
                     }
                     slot = i;
                     break;
+                }
+            }
+        }
+        if (slot == UINT32_MAX) {
+            // A completed GPU page may still be temporarily pinned while its
+            // asynchronous canonical host capture is in flight. Do not turn
+            // that transient state into a permanent all-pinned refusal: wait
+            // for the bounded host queue, publish its completions, then retry
+            // the same victim search once. Other callers and backends retain
+            // the original fail-closed behavior when no host page is usable.
+            if (host_ && host_->async_enabled()) {
+                // Drain already-published completions first. The host worker
+                // bounds its notification queue, so waiting before this drain
+                // could otherwise wait for a worker that is waiting for room.
+                drain_host_completions();
+                (void) host_->wait();
+                drain_host_completions();
+                for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
+                    page_state * candidate = find_slot(i);
+                    if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
+                            (candidate->record.state == llama_kv_page_state::host_clean ||
+                             candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
+                        if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
+                            return llama_kv_pager_write_status::transaction;
+                        }
+                        slot = i;
+                        break;
+                    }
                 }
             }
         }
