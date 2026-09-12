@@ -964,9 +964,12 @@ int main() {
         assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
     }
     assert(summary_pager->seal_ready_pages() == 2);
+    const uint64_t initial_seal_scan_count = summary_pager->seal_pages_scanned();
+    assert(initial_seal_scan_count == 2);
     const uint64_t initial_summary_calls = routing_provider_calls;
     assert(initial_summary_calls == 32);
     assert(summary_pager->seal_ready_pages() == 0);
+    assert(summary_pager->seal_pages_scanned() == initial_seal_scan_count);
     assert(routing_provider_calls == initial_summary_calls);
     assert(summary_pager->routing_summaries().valid());
     // Runtime retrieval consumes head zero for each attention layer; the
@@ -986,6 +989,7 @@ int main() {
         assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
     }
     assert(summary_pager->seal_ready_pages() == 1);
+    assert(summary_pager->seal_pages_scanned() == initial_seal_scan_count + 1);
     assert(routing_provider_calls == initial_summary_calls + 16);
     const uint64_t after_tail_calls = routing_provider_calls;
     assert(summary_pager->begin_write(0, 1, 512, ticket) == llama_kv_pager_write_status::ok);
