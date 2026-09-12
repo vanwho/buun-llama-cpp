@@ -61,6 +61,22 @@ struct llama_kv_attention_operator_params {
     std::vector<llama_pos> query_positions;
 };
 
+class llama_kv_attention_operator_metadata;
+
+// A dense Turbo4 view is safe only when compact row order is also a contiguous
+// physical source interval.  The predicate is intentionally backend-neutral:
+// graph code still validates the actual tensor strides before making a view.
+struct llama_kv_attention_dense_view_eligibility {
+    bool eligible = false;
+    uint32_t source_row_begin = 0;
+    uint32_t row_count = 0;
+    const char * reason = "invalid metadata";
+};
+
+llama_kv_attention_dense_view_eligibility llama_kv_attention_dense_view_check(
+        const llama_kv_attention_operator_metadata & metadata,
+        uint32_t physical_page_count) noexcept;
+
 class llama_kv_attention_operator_metadata {
 public:
     llama_kv_attention_operator_metadata() = default;
@@ -81,6 +97,10 @@ public:
     // key is retained for change detection so a steady-hot submission can
     // skip descriptor uploads when the page data is unchanged.
     uint64_t graph_content_key() const noexcept;
+    // Physical source identity is separate from graph shape. Dense views and
+    // packed copy plans must be rebuilt when a page is remapped, while a page
+    // generation change can refresh the existing packed bytes in place.
+    uint64_t graph_physical_key() const noexcept;
     // Shape/layout identity is deliberately independent of residency epoch and
     // page/query values. It is the key used to decide whether graph storage
     // can be reused while the bounded descriptor buffers are refreshed.

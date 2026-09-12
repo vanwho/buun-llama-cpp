@@ -458,12 +458,24 @@ void ggml_cuda_cpy(ggml_backend_cuda_context & ctx, const ggml_tensor * src0, gg
     char * src1_ddc = (char *) src1->data;
 
     const bool contiguous_srcs = ggml_is_contiguous(src0) && ggml_is_contiguous(src1);
+    // Quantized page views can have a non-contiguous fourth stride because
+    // the source is a slice of a physical pager slab. For one-stream raw
+    // blocks, dimensions 0..2 are still a contiguous byte span; preserve the
+    // codec bytes instead of routing through a dequantizing copy kernel.
+    const bool contiguous_raw_3d = src0->type == src1->type &&
+        ggml_is_quantized(src0->type) && src0->ne[3] == 1 && src1->ne[3] == 1 &&
+        src0->ne[0] == src1->ne[0] && src0->ne[1] == src1->ne[1] &&
+        src0->ne[2] == src1->ne[2] &&
+        nb01 == (int64_t) ggml_row_size(src0->type, src0->ne[0]) &&
+        nb02 == nb01 * src0->ne[1] &&
+        nb10 == (int64_t) ggml_row_size(src1->type, src1->ne[0]) &&
+        nb12 == nb10 * src1->ne[1];
     const bool can_be_transposed = nb01 == (int64_t)ggml_element_size(src0) &&
         src0->ne[3] == 1 && nb02 == ne00 * ne01 * (int64_t)ggml_element_size(src0);
 
     size_t mc_width = 0, mc_height = 0, mc_spitch = 0, mc_dpitch = 0;
 
-    if (src0->type == src1->type && contiguous_srcs) {
+    if (src0->type == src1->type && (contiguous_srcs || contiguous_raw_3d)) {
         GGML_ASSERT(ggml_nbytes(src0) == ggml_nbytes(src1));
 #if defined(GGML_USE_MUSA) && defined(GGML_MUSA_MUDNN_COPY)
         if (src0->type == GGML_TYPE_F32 || src0->type == GGML_TYPE_F16) {

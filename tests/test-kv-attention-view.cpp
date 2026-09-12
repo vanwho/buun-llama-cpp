@@ -142,6 +142,25 @@ static void test_operator_contract() {
     assert(rotated_metadata.graph_content_key() != metadata.graph_content_key());
     assert(rotated_metadata.graph_layout_key() != metadata.graph_layout_key());
     assert(rotated_metadata.domain_k() == llama_kv_attention_representation_domain::turbo_rotated);
+    const auto rotated_gapped = llama_kv_attention_dense_view_check(rotated_metadata, 8);
+    assert(!rotated_gapped.eligible);
+    (void) rotated_gapped;
+
+    llama_kv_attention_view_status tail_view_status;
+    const auto tail_view = llama_kv_attention_view::build(make_snapshot(), { 3 }, tail_view_status);
+    assert(tail_view_status == llama_kv_attention_view_status::ok);
+    auto tail_params = rotated_source;
+    tail_params.n_query_tokens = 1;
+    tail_params.n_batch = 1;
+    tail_params.query_positions = { 899 };
+    llama_kv_attention_operator_status tail_status;
+    const auto tail_metadata = llama_kv_attention_operator_metadata::build(
+            tail_view, tail_params, tail_status);
+    assert(tail_status == llama_kv_attention_operator_status::ok);
+    const auto tail_dense = llama_kv_attention_dense_view_check(tail_metadata, 8);
+    assert(tail_dense.eligible && tail_dense.source_row_begin == 3 * VBR_GENERATION_PAGE_CELLS &&
+           tail_dense.row_count == 132);
+    (void) tail_dense;
     assert(llama_kv_attention_operator_check_backend(
                 GGML_BACKEND_DEVICE_TYPE_CPU, metadata) ==
            llama_kv_attention_backend_status::supported_reference);

@@ -28,6 +28,8 @@ enum class llama_kv_attention_execution_route : uint8_t {
     dense = 0,
     observe,
     selected_reference,
+    selected_dense,
+    selected_packed,
     selected_direct,
     exact_reference,
     exact_direct,
@@ -65,6 +67,7 @@ struct llama_kv_attention_scratch_request {
     uint64_t resident_rows = 0;
     uint64_t transfer_rows = 0;
     uint64_t router_rows = 0;
+    uint64_t packed_bytes = 0;
     size_t bytes_per_row = 0;
 
     uint64_t required_rows() const noexcept;
@@ -106,6 +109,8 @@ struct llama_kv_attention_execution_route_counts {
     uint64_t dense = 0;
     uint64_t observe = 0;
     uint64_t selected_reference = 0;
+    uint64_t selected_dense = 0;
+    uint64_t selected_packed = 0;
     uint64_t selected_direct = 0;
     uint64_t exact_reference = 0;
     uint64_t exact_direct = 0;
@@ -130,6 +135,10 @@ struct llama_kv_attention_execution_metrics {
     uint64_t graph_construction_us = 0;
     uint64_t effective_ubatch = 0;
     uint64_t table_upload_bytes = 0;
+    uint64_t pack_bytes = 0;
+    uint64_t pack_time_us = 0;
+    uint64_t pack_epochs = 0;
+    uint64_t pack_reuses = 0;
     uint64_t descriptor_prepare_us = 0;
     uint64_t kernel_us = 0;
     uint64_t total_token_us = 0;
@@ -183,6 +192,7 @@ struct llama_kv_attention_execution_metrics {
     void record_wait_time_us(uint64_t elapsed_us) noexcept;
     void record_copy_time_us(uint64_t elapsed_us) noexcept;
     void record_queue_time_us(uint64_t elapsed_us) noexcept;
+    void record_pack(uint64_t bytes, uint64_t elapsed_us) noexcept;
     void record_graph_construction_us(uint64_t elapsed_us) noexcept {
         graph_construction_us = graph_construction_us > UINT64_MAX - elapsed_us
             ? UINT64_MAX : graph_construction_us + elapsed_us;
@@ -238,7 +248,9 @@ public:
             uint64_t shape_epoch,
             bool direct_capable,
             const llama_kv_attention_scratch_request & scratch,
-            const std::string & direct_reason = {});
+            const std::string & direct_reason = {},
+            bool dense_capable = false,
+            bool packed_capable = false);
 
     // One lease is retained for every submitted graph, including graph reuse.
     // Releasing in submission order lets a changed table coexist with an old
@@ -264,6 +276,7 @@ public:
     void record_wait_time_us(uint64_t elapsed_us) noexcept;
     void record_copy_time_us(uint64_t elapsed_us) noexcept;
     void record_queue_time_us(uint64_t elapsed_us) noexcept;
+    void record_pack(uint64_t bytes, uint64_t elapsed_us) noexcept;
     void record_graph_construction_us(uint64_t elapsed_us) noexcept;
     void record_effective_ubatch(uint64_t value) noexcept;
 

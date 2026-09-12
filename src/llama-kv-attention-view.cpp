@@ -106,6 +106,7 @@ llama_kv_attention_view llama_kv_attention_view::build(
             view_page.row_count = uint32_t(count);
             view_page.native_position_begin = begin;
             view_page.native_position_end = end;
+            view_page.page_generation = found->id.page_generation;
             result->pages.push_back(view_page);
             rows += count;
         }

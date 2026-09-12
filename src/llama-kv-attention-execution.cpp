@@ -58,6 +58,8 @@ const char * llama_kv_attention_execution_route_name(
         case llama_kv_attention_execution_route::dense:             return "dense";
         case llama_kv_attention_execution_route::observe:           return "observe";
         case llama_kv_attention_execution_route::selected_reference:return "selected reference";
+        case llama_kv_attention_execution_route::selected_dense:   return "selected dense";
+        case llama_kv_attention_execution_route::selected_packed:  return "selected packed";
         case llama_kv_attention_execution_route::selected_direct:  return "selected direct";
         case llama_kv_attention_execution_route::exact_reference:   return "exact reference";
         case llama_kv_attention_execution_route::exact_direct:      return "exact direct";
@@ -73,6 +75,8 @@ void llama_kv_attention_execution_route_counts::record(
         case llama_kv_attention_execution_route::dense:              counter = &dense; break;
         case llama_kv_attention_execution_route::observe:            counter = &observe; break;
         case llama_kv_attention_execution_route::selected_reference: counter = &selected_reference; break;
+        case llama_kv_attention_execution_route::selected_dense:    counter = &selected_dense; break;
+        case llama_kv_attention_execution_route::selected_packed:   counter = &selected_packed; break;
         case llama_kv_attention_execution_route::selected_direct:   counter = &selected_direct; break;
         case llama_kv_attention_execution_route::exact_reference:   counter = &exact_reference; break;
         case llama_kv_attention_execution_route::exact_direct:      counter = &exact_direct; break;
@@ -93,6 +97,13 @@ void llama_kv_attention_execution_metrics::record_copy_time_us(uint64_t elapsed_
 
 void llama_kv_attention_execution_metrics::record_queue_time_us(uint64_t elapsed_us) noexcept {
     queue_time_us = saturating_add(queue_time_us, elapsed_us);
+}
+
+void llama_kv_attention_execution_metrics::record_pack(
+        uint64_t bytes, uint64_t elapsed_us) noexcept {
+    pack_bytes = saturating_add(pack_bytes, bytes);
+    pack_time_us = saturating_add(pack_time_us, elapsed_us);
+    pack_epochs = saturating_add(pack_epochs, uint64_t(1));
 }
 
 const char * llama_kv_attention_execution_status_name(
@@ -142,10 +153,16 @@ uint64_t llama_kv_attention_scratch_request::required_rows() const noexcept {
 
 size_t llama_kv_attention_scratch_request::required_bytes() const noexcept {
     const uint64_t rows = required_rows();
-    if (bytes_per_row != 0 && rows > uint64_t(std::numeric_limits<size_t>::max()) / bytes_per_row) {
+    const size_t row_bytes = bytes_per_row;
+    size_t result = 0;
+    if (row_bytes != 0 && rows > uint64_t(std::numeric_limits<size_t>::max()) / row_bytes) {
         return std::numeric_limits<size_t>::max();
     }
-    return size_t(rows) * bytes_per_row;
+    result = size_t(rows) * row_bytes;
+    if (packed_bytes > uint64_t(std::numeric_limits<size_t>::max()) - result) {
+        return std::numeric_limits<size_t>::max();
+    }
+    return result + size_t(packed_bytes);
 }
 
 uint32_t llama_kv_attention_prefill_chunk_size(
@@ -234,6 +251,9 @@ bool llama_kv_attention_execution::same_graph(
     return have_graph_ && metadata.graph_layout_key() == metadata_.graph_layout_key() &&
            phase == phase_ && representation_epoch == representation_epoch_ &&
            shape_epoch == shape_epoch_ && route == route_ &&
+           ((route != llama_kv_attention_execution_route::selected_dense &&
+             route != llama_kv_attention_execution_route::selected_packed) ||
+            metadata.graph_physical_key() == metadata_.graph_physical_key()) &&
            exact_graph_plan_.get() == graph_plan_.get();
 }
 
@@ -244,7 +264,9 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         uint64_t shape_epoch,
         bool direct_capable,
         const llama_kv_attention_scratch_request & scratch,
-        const std::string & direct_reason) {
+        const std::string & direct_reason,
+        bool dense_capable,
+        bool packed_capable) {
     llama_kv_attention_execution_decision result;
     result.phase = phase;
     result.representation_epoch = representation_epoch;
@@ -273,7 +295,7 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
     } else if ((scratch.required_rows() == std::numeric_limits<uint64_t>::max() &&
                 (scratch.resident_rows != 0 || scratch.transfer_rows != 0 || scratch.router_rows != 0)) ||
                (scratch.required_bytes() == std::numeric_limits<size_t>::max() &&
-                scratch.bytes_per_row != 0)) {
+                (scratch.bytes_per_row != 0 || scratch.packed_bytes != 0))) {
         result.status = llama_kv_attention_execution_status::overflow;
         result.route = llama_kv_attention_execution_route::refusal;
         result.reason = "selected scratch reservation overflows";
@@ -283,13 +305,21 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.reason = "selected metadata is invalid";
     } else {
         result.status = llama_kv_attention_execution_status::ok;
-        result.route = (phase == llama_kv_attention_execution_phase::prefill ||
+        result.route = dense_capable
+            ? llama_kv_attention_execution_route::selected_dense
+            : packed_capable
+            ? llama_kv_attention_execution_route::selected_packed
+            : (phase == llama_kv_attention_execution_phase::prefill ||
                         phase == llama_kv_attention_execution_phase::decode ||
                         phase == llama_kv_attention_execution_phase::mtp_verify) &&
                        direct_capable && direct_shape(metadata)
             ? llama_kv_attention_execution_route::selected_direct
             : llama_kv_attention_execution_route::selected_reference;
-        result.reason = result.route == llama_kv_attention_execution_route::selected_direct
+        result.reason = result.route == llama_kv_attention_execution_route::selected_dense
+            ? "contiguous Turbo4 rows use dense Flash Attention"
+            : result.route == llama_kv_attention_execution_route::selected_packed
+            ? "noncontiguous Turbo4 rows use cached compact packing"
+            : result.route == llama_kv_attention_execution_route::selected_direct
             ? phase == llama_kv_attention_execution_phase::prefill
                 ? "qualified Turbo4 selective prefill query tile"
                 : "qualified Turbo4 decode"
@@ -408,6 +438,10 @@ void llama_kv_attention_execution::record_copy_time_us(uint64_t elapsed_us) noex
 
 void llama_kv_attention_execution::record_queue_time_us(uint64_t elapsed_us) noexcept {
     metrics_.record_queue_time_us(elapsed_us);
+}
+
+void llama_kv_attention_execution::record_pack(uint64_t bytes, uint64_t elapsed_us) noexcept {
+    metrics_.record_pack(bytes, elapsed_us);
 }
 
 void llama_kv_attention_execution::record_graph_construction_us(uint64_t elapsed_us) noexcept {

@@ -9,6 +9,7 @@ struct llama_kv_attention_operator_metadata::state {
     llama_kv_attention_view view;
     uint64_t content_key = 0;
     uint64_t layout_key = 0;
+    uint64_t physical_key = 0;
 };
 
 static void attention_key_mix(uint64_t & key, uint64_t value) noexcept {
@@ -38,6 +39,7 @@ static uint64_t attention_content_key(
         attention_key_mix(key, page.row_count);
         attention_key_mix(key, uint64_t(page.native_position_begin));
         attention_key_mix(key, uint64_t(page.native_position_end));
+        attention_key_mix(key, page.page_generation);
     }
     for (const llama_pos position : view.native_positions()) {
         attention_key_mix(key, uint64_t(position));
@@ -71,6 +73,16 @@ static uint64_t attention_layout_key(
     attention_key_mix(key, view.native_positions().size());
     attention_key_mix(key, view.native_mask().size());
     attention_key_mix(key, params.query_positions.size());
+    return key == 0 ? 1 : key;
+}
+
+static uint64_t attention_physical_key(
+        const llama_kv_attention_view & view) noexcept {
+    uint64_t key = 1469598103934665603ull;
+    for (const auto & page : view.pages()) {
+        attention_key_mix(key, page.source_physical_slot);
+        attention_key_mix(key, page.row_count);
+    }
     return key == 0 ? 1 : key;
 }
 
@@ -180,6 +192,7 @@ llama_kv_attention_operator_metadata llama_kv_attention_operator_metadata::build
         state->view = view;
         state->content_key = attention_content_key(view, params);
         state->layout_key = attention_layout_key(view, params);
+        state->physical_key = attention_physical_key(view);
         status = llama_kv_attention_operator_status::ok;
         return llama_kv_attention_operator_metadata(std::move(state));
     } catch (const std::bad_alloc &) {
@@ -202,6 +215,10 @@ uint64_t llama_kv_attention_operator_metadata::table_epoch() const noexcept {
 
 uint64_t llama_kv_attention_operator_metadata::graph_content_key() const noexcept {
     return state_ ? state_->content_key : 0;
+}
+
+uint64_t llama_kv_attention_operator_metadata::graph_physical_key() const noexcept {
+    return state_ ? state_->physical_key : 0;
 }
 
 uint64_t llama_kv_attention_operator_metadata::graph_layout_key() const noexcept {
@@ -254,6 +271,94 @@ const std::vector<uint8_t> & llama_kv_attention_operator_metadata::native_mask()
 const std::vector<llama_pos> & llama_kv_attention_operator_metadata::query_positions() const noexcept {
     static const std::vector<llama_pos> empty;
     return state_ ? state_->params.query_positions : empty;
+}
+
+llama_kv_attention_dense_view_eligibility llama_kv_attention_dense_view_check(
+        const llama_kv_attention_operator_metadata & metadata,
+        uint32_t physical_page_count) noexcept {
+    llama_kv_attention_dense_view_eligibility result;
+    if (!metadata.valid() || !metadata.enabled()) {
+        result.reason = "metadata is disabled";
+        return result;
+    }
+    if (!metadata.causal() || metadata.type_k() != GGML_TYPE_TURBO4_0 ||
+            metadata.type_v() != GGML_TYPE_TURBO4_0 ||
+            metadata.domain_k() != llama_kv_attention_representation_domain::turbo_rotated ||
+            metadata.domain_v() != llama_kv_attention_representation_domain::turbo_rotated) {
+        result.reason = "Turbo4 causal representation contract is not satisfied";
+        return result;
+    }
+    if (physical_page_count == 0 || metadata.page_table().empty()) {
+        result.reason = "physical page capacity or page table is empty";
+        return result;
+    }
+
+    const auto & pages = metadata.page_table();
+    const auto & queries = metadata.query_positions();
+    if (queries.empty()) {
+        result.reason = "query position list is empty";
+        return result;
+    }
+    for (size_t i = 1; i < queries.size(); ++i) {
+        if (queries[i] < queries[i - 1]) {
+            result.reason = "query positions are not in native causal order";
+            return result;
+        }
+    }
+
+    uint64_t physical_row_begin = 0;
+    uint64_t rows = 0;
+    llama_pos previous_native_end = -1;
+    uint32_t previous_logical_page = UINT32_MAX;
+    uint32_t previous_physical_slot = UINT32_MAX;
+    for (size_t i = 0; i < pages.size(); ++i) {
+        const auto & page = pages[i];
+        if (page.row_count == 0 || page.row_count > VBR_GENERATION_PAGE_CELLS ||
+                page.source_physical_slot >= physical_page_count ||
+                page.native_position_begin < 0 ||
+                page.native_position_end != page.native_position_begin + llama_pos(page.row_count) ||
+                page.native_position_begin % llama_pos(VBR_GENERATION_PAGE_CELLS) != 0) {
+            result.reason = "page has an invalid codec, tail, or native range";
+            return result;
+        }
+        if (i != 0) {
+            if (page.logical_page != previous_logical_page + 1 ||
+                    page.source_physical_slot != previous_physical_slot + 1 ||
+                    page.native_position_begin != previous_native_end) {
+                result.reason = "selected pages are not contiguous in native and physical order";
+                return result;
+            }
+            // A partial page is a valid tail only at the end of the selected
+            // prefix.  This prevents poisoned padding from entering dense FA.
+            if (pages[i - 1].row_count != VBR_GENERATION_PAGE_CELLS) {
+                result.reason = "a partial page precedes the selected tail";
+                return result;
+            }
+        }
+        if (i + 1 != pages.size() && page.row_count != VBR_GENERATION_PAGE_CELLS) {
+            result.reason = "a partial page is not the selected tail";
+            return result;
+        }
+        if (i == 0) {
+            physical_row_begin = uint64_t(page.source_physical_slot) * VBR_GENERATION_PAGE_CELLS;
+        }
+        previous_native_end = page.native_position_end;
+        previous_logical_page = page.logical_page;
+        previous_physical_slot = page.source_physical_slot;
+        rows += page.row_count;
+    }
+
+    if (physical_row_begin > UINT32_MAX || rows == 0 || rows != metadata.get_n_kv() ||
+            physical_row_begin + rows > uint64_t(physical_page_count) * VBR_GENERATION_PAGE_CELLS) {
+        result.reason = "compact row span exceeds the physical pager window";
+        return result;
+    }
+
+    result.eligible = true;
+    result.source_row_begin = uint32_t(physical_row_begin);
+    result.row_count = uint32_t(rows);
+    result.reason = "contiguous native and physical Turbo4 rows";
+    return result;
 }
 
 llama_kv_attention_view::graph_fence llama_kv_attention_operator_metadata::acquire_graph_fence() const noexcept {

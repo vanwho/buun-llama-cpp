@@ -97,6 +97,9 @@ static void test_routes_epochs_and_fences() {
     scratch.bytes_per_row = 4;
     assert(scratch.required_rows() == selected_prefill.get_n_kv() + 24);
     assert(scratch.required_bytes() == scratch.required_rows() * 4);
+    scratch.packed_bytes = 64;
+    assert(scratch.required_bytes() == scratch.required_rows() * 4 + 64);
+    scratch.packed_bytes = 0;
 
     llama_kv_attention_execution execution(llama_kv_attention_execution_mode::selective);
     auto first = execution.prepare(selected_prefill, llama_kv_attention_execution_phase::prefill,
@@ -149,6 +152,22 @@ static void test_routes_epochs_and_fences() {
     execution.complete_one_graph();
     assert(llama_kv_attention_execution_phase_name(
             llama_kv_attention_execution_phase::mtp_verify) == std::string("mtp_verify"));
+
+    const auto dense = execution.prepare(selected_prefill,
+            llama_kv_attention_execution_phase::prefill, 5, 9, true, scratch,
+            {}, true, false);
+    assert(dense.route == llama_kv_attention_execution_route::selected_dense);
+    execution.complete_one_graph();
+
+    const auto packed = execution.prepare(selected_prefill,
+            llama_kv_attention_execution_phase::prefill, 6, 10, true, scratch,
+            {}, false, true);
+    assert(packed.route == llama_kv_attention_execution_route::selected_packed);
+    execution.complete_one_graph();
+    execution.record_pack(128, 7);
+    assert(execution.metrics().pack_bytes == 128 &&
+           execution.metrics().pack_time_us == 7 &&
+           execution.metrics().pack_epochs == 1);
 
     execution.record_wait_time_us(7);
     execution.record_copy_time_us(11);
