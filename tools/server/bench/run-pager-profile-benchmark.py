@@ -109,7 +109,10 @@ def _managed_server_pid() -> int | None:
 def _sudo_argv() -> list[str]:
     """Return the lifecycle command prefix with non-interactive sudo."""
     configured = os.environ.get("BENCH_SUDO")
-    return shlex.split(configured) if configured else ["sudo", "-n"]
+    argv = shlex.split(configured) if configured else ["sudo", "-n"]
+    if "-n" not in argv:
+        argv.append("-n")
+    return argv
 
 
 def transient_overrides(service: str | None = None) -> dict[str, str] | None:
