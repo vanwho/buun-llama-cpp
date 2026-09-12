@@ -89,6 +89,17 @@ public:
         mem_attn->set_kv_pager(pager);
     }
 
+    void set_kv_attention_telemetry(
+            llama_kv_attention_telemetry * telemetry) override {
+        mem_attn->set_kv_attention_telemetry(telemetry);
+    }
+
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) override {
+        mem_attn->capture_kv_routing_query(tensor, layer, ubatch);
+    }
+
     void seal_kv_pager_pages() override {
         mem_attn->seal_kv_pager_pages();
     }

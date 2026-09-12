@@ -798,6 +798,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                     direct_query_positions_uploaded = queries;
                 }
             }
+            refresh_direct_telemetry(ubatch);
             if (direct_page_mass != nullptr && ubatch->pos != nullptr) {
                 direct_telemetry_token_index = uint64_t(
                         std::max<llama_pos>(0, ubatch->pos[0]));
@@ -936,6 +937,69 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     turbo_vmean_fill(self_vmean, turbo_vmean_data);
 }
 
+void llm_graph_input_attn_kv::refresh_direct_telemetry(
+        const llama_ubatch * ubatch) noexcept {
+    if (!direct_attention || direct_page_mass == nullptr ||
+        kv_attention_telemetry == nullptr || mctx == nullptr) {
+        return;
+    }
+    direct_telemetry_pages.clear();
+    direct_telemetry_snapshot = {};
+    const auto * pager = mctx->get_kv_pager();
+    if (pager == nullptr || ubatch == nullptr || ubatch->n_seq_id == nullptr ||
+        ubatch->seq_id == nullptr || ubatch->n_seq_id[0] == 0 ||
+        ubatch->seq_id[0] == nullptr) {
+        kv_attention_telemetry->record_drop(
+                llama_kv_attention_telemetry_drop_reason::no_metadata);
+        return;
+    }
+    const llama_seq_id sequence_id = ubatch->seq_id[0][0];
+    if (sequence_id < 0) {
+        kv_attention_telemetry->record_drop(
+                llama_kv_attention_telemetry_drop_reason::no_metadata);
+        return;
+    }
+    try {
+        const auto snapshot = pager->residency(sequence_id);
+        if (snapshot.epoch() == 0) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::stale_snapshot);
+            return;
+        }
+        if (kv_attention_telemetry->reconcile(snapshot) !=
+                llama_kv_attention_telemetry_status::ok) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::stale_snapshot,
+                    snapshot.epoch());
+            return;
+        }
+        std::vector<llama_kv_page_record> pages;
+        pages.reserve(direct_pages_host.size());
+        for (const auto & view_page : direct_pages_host) {
+            const auto it = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+                    [&](const auto & record) {
+                return record.id.logical_page == view_page.logical_page &&
+                    record.physical_slot == view_page.source_physical_slot;
+            });
+            if (it == snapshot.pages().end()) {
+                kv_attention_telemetry->record_drop(
+                        llama_kv_attention_telemetry_drop_reason::stale_identity,
+                        snapshot.epoch(), direct_telemetry_token_index,
+                        uint32_t(direct_pages_host.size()));
+                return;
+            }
+            pages.push_back(*it);
+        }
+        direct_telemetry_snapshot = snapshot;
+        direct_telemetry_pages = std::move(pages);
+    } catch (...) {
+        direct_telemetry_pages.clear();
+        direct_telemetry_snapshot = {};
+        kv_attention_telemetry->record_drop(
+                llama_kv_attention_telemetry_drop_reason::no_metadata);
+    }
+}
+
 bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     const auto * mctx = static_cast<const llama_kv_cache_context *>(params.mctx);
 
@@ -1014,11 +1078,16 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         res &= direct_native_mask->ne[0] == params.kv_attention_metadata.get_n_kv();
         res &= direct_query_positions->ne[0] == int64_t(
                 params.kv_attention_metadata.query_positions().size());
+        const uint32_t telemetry_ordinal = params.kv_attention_telemetry != nullptr
+            ? params.kv_attention_telemetry->layer_index() : UINT32_MAX;
+        const bool telemetry_layer_valid = telemetry_ordinal < direct_layer_ids.size();
+        const uint32_t telemetry_model_layer = telemetry_layer_valid
+            ? direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
         const bool telemetry_enabled = params.kv_attention_telemetry != nullptr &&
             params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
-            params.kv_attention_telemetry->layer_index() < uint32_t(hparams.n_layer()) &&
+            telemetry_layer_valid &&
             params.kv_attention_telemetry->head_begin() < uint32_t(
-                hparams.n_head(params.kv_attention_telemetry->layer_index())) &&
+                hparams.n_head(telemetry_model_layer)) &&
             params.kv_attention_telemetry->cadence_due(params.ubatch.pos != nullptr
                 ? uint64_t(std::max<llama_pos>(0, params.ubatch.pos[0])) : 0);
         res &= (direct_page_mass != nullptr) == telemetry_enabled;
@@ -3756,13 +3825,18 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             // device storage scales with L, never with K/V or an attention
             // matrix. The host only reads this page-level tensor after the
             // scheduler fence.
+            const uint32_t telemetry_ordinal = kv_attention_telemetry != nullptr
+                ? kv_attention_telemetry->layer_index() : UINT32_MAX;
+            const bool telemetry_layer_valid = telemetry_ordinal < inp->direct_layer_ids.size();
+            const uint32_t telemetry_model_layer = telemetry_layer_valid
+                ? inp->direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
             if (kv_attention_telemetry != nullptr &&
                 kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
-                kv_attention_telemetry->layer_index() < geometry.attention_layers &&
+                telemetry_layer_valid &&
                 kv_attention_telemetry->head_begin() < uint32_t(
-                    hparams.n_head(kv_attention_telemetry->layer_index()))) {
+                    hparams.n_head(telemetry_model_layer))) {
                 const uint32_t telemetry_head_total = uint32_t(
-                    hparams.n_head(kv_attention_telemetry->layer_index()));
+                    hparams.n_head(telemetry_model_layer));
                 const uint32_t available_heads = telemetry_head_total -
                     kv_attention_telemetry->head_begin();
                 const uint32_t requested_heads = kv_attention_telemetry->head_count();
@@ -3802,6 +3876,12 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                                     pager->snapshot().logical_page_count, telemetry_head_total,
                                     selected_metadata->n_query_tokens());
                                 ggml_set_input(inp->direct_page_mass);
+                                // The CUDA operator writes this auxiliary tensor as a
+                                // side effect. Mark it as an output so the graph
+                                // allocator keeps its buffer alive until the host
+                                // publication boundary instead of reusing it for a
+                                // later node.
+                                ggml_set_output(inp->direct_page_mass);
                                 ggml_set_name(inp->direct_page_mass, "kv_direct_page_mass");
                                 ggml_backend_sched_set_tensor_backend(
                                     sched, inp->direct_page_mass, direct_backend);
@@ -4294,7 +4374,8 @@ ggml_tensor * llm_graph_context::build_attn(
         ggml_tensor * telemetry_page_mass =
             inp->kv_attention_telemetry != nullptr &&
             inp->kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
-            uint32_t(il) == inp->kv_attention_telemetry->layer_index()
+            inp->kv_attention_telemetry->layer_index() < inp->direct_layer_ids.size() &&
+            uint32_t(il) == inp->direct_layer_ids[inp->kv_attention_telemetry->layer_index()]
                 ? inp->direct_page_mass : nullptr;
         ggml_flash_attn_ext_paged_turbo4_params direct_params = {};
         direct_params.head_dim_k = inp->selected_metadata.head_dim_k();

@@ -2578,8 +2578,23 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         const auto & routed_pages = attention->selected_attention_pages();
         selected_pages.reserve(routed_pages.empty() ? pager_snapshot.pages().size() : routed_pages.size());
         const auto append_page = [&](const llama_kv_page_id & id) {
-            const auto page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
+            auto page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
                 [&](const auto & value) { return value.id == id; });
+            if (page == pager_snapshot.pages().end()) {
+                // The mandatory write-frontier page may extend between the
+                // policy boundary and graph construction, changing its
+                // authenticated extent while retaining its logical page.
+                // Rebind only that write-frontier page by stable sequence/logical
+                // identity; cold routed pages still require an exact ID.
+                page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
+                    [&](const auto & value) {
+                        return value.id.sequence_id == id.sequence_id &&
+                            value.id.logical_page == id.logical_page &&
+                            value.id.position_begin == id.position_begin &&
+                            (value.state == llama_kv_page_state::filling_gpu ||
+                             value.state == llama_kv_page_state::gpu_dirty);
+                    });
+            }
             if (page == pager_snapshot.pages().end()) return false;
             if (page->id.sequence_id != sequence_id || page->physical_slot == UINT32_MAX ||
                 (page->state != llama_kv_page_state::filling_gpu &&
@@ -2590,8 +2605,30 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             return true;
         };
         if (!routed_pages.empty()) {
+            bool routed_valid = true;
             for (const auto & id : routed_pages) {
-                if (!append_page(id)) return refuse("routed attention page is not resident");
+                if (!append_page(id)) {
+                    routed_valid = false;
+                    break;
+                }
+            }
+            if (!routed_valid) {
+                // A subsequent write may have replaced a routed cold page
+                // before this graph acquired its snapshot.  Discard the
+                // stale advisory route and use the current authenticated
+                // resident set; the exact-ID check remains active whenever
+                // the route and snapshot agree.
+                selected_pages.clear();
+                for (const auto & page : pager_snapshot.pages()) {
+                    if (page.id.sequence_id != sequence_id || page.physical_slot == UINT32_MAX ||
+                        (page.state != llama_kv_page_state::filling_gpu &&
+                         page.state != llama_kv_page_state::sealing_host &&
+                         page.state != llama_kv_page_state::gpu_host_clean &&
+                         page.state != llama_kv_page_state::gpu_dirty)) {
+                        return refuse("selected reference encountered a non-resident page");
+                    }
+                    selected_pages.push_back(page.id.logical_page);
+                }
             }
         } else for (const auto & page : pager_snapshot.pages()) {
             if (page.id.sequence_id != sequence_id || page.physical_slot == UINT32_MAX ||
@@ -7367,6 +7404,14 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
     }
     for (const auto & input_ptr : gf_res_prev->inputs) {
         auto * input = dynamic_cast<llm_graph_input_attn_kv *>(input_ptr.get());
+        // Hybrid Qwen graphs own the attention input below the recurrent
+        // sibling container. Publication must inspect the same child that
+        // set_input() updated; otherwise a completed page-mass tensor is
+        // silently lost at the graph-result boundary.
+        if (input == nullptr) {
+            auto * hybrid = dynamic_cast<llm_graph_input_mem_hybrid *>(input_ptr.get());
+            input = hybrid != nullptr ? hybrid->get_attn() : nullptr;
+        }
         if (input == nullptr || input->direct_telemetry_published) {
             continue;
         }
@@ -7375,13 +7420,38 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
             kv_attention_telemetry->record_skipped_sample();
             continue;
         }
-        if (input->direct_page_mass == nullptr || input->direct_telemetry_pages.empty()) {
+        if (input->direct_page_mass == nullptr) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::no_output,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()));
+            continue;
+        }
+        if (input->direct_page_mass->buffer == nullptr) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::no_output,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()));
+            continue;
+        }
+        if (input->direct_telemetry_pages.empty()) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::no_metadata,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index);
             continue;
         }
         const uint32_t total_heads = uint32_t(input->direct_page_mass->ne[1]);
         const uint32_t query_count = uint32_t(input->direct_page_mass->ne[2]);
         const uint32_t head_begin = kv_attention_telemetry->head_begin();
         if (head_begin >= total_heads || input->direct_page_mass->ne[0] == 0) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
             continue;
         }
         const uint32_t available_heads = total_heads - head_begin;
@@ -7389,16 +7459,31 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
         const uint32_t head_count = requested_heads == 0
             ? available_heads : std::min(requested_heads, available_heads);
         if (head_count == 0 || input->direct_page_mass->nb[1] == 0) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
             continue;
         }
         const size_t bytes = ggml_nbytes(input->direct_page_mass);
         if (bytes == 0 || bytes % sizeof(float) != 0) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
             continue;
         }
         std::vector<float> host;
         try {
             host.resize(bytes / sizeof(float));
         } catch (...) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::no_output,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
             continue;
         }
         const int64_t copy_begin = ggml_time_us();
@@ -7410,6 +7495,11 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
         const size_t layer_stride = head_stride * size_t(total_heads);
         if (head_stride < sizeof(float) * size_t(input->direct_page_mass->ne[0]) ||
             layer_stride < head_stride * size_t(head_count)) {
+            kv_attention_telemetry->record_drop(
+                    llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                    input->direct_telemetry_snapshot.epoch(),
+                    input->direct_telemetry_token_index,
+                    uint32_t(input->direct_telemetry_pages.size()), query_count);
             continue;
         }
         llama_kv_attention_telemetry_sample sample;

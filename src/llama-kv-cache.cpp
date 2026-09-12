@@ -33,7 +33,7 @@
 #include <unordered_map>
 #include <vector>
 
-extern "C" void dequantize_row_turbo4_0(
+extern "C" void dequantize_row_turbo4_0_inv_fwht(
         const void * x, float * y, int64_t k);
 
 static llama_memory_failure_reason pager_failure_reason(
@@ -2244,7 +2244,7 @@ void llama_kv_cache::set_kv_attention_telemetry(
 void llama_kv_cache::capture_kv_routing_query(
         ggml_tensor * tensor, int layer, const llama_ubatch & ubatch) {
     if (tensor == nullptr && layer < 0) {
-        if (ubatch.n_tokens == 0 || ubatch.n_seq_tokens != ubatch.n_tokens ||
+        if (ubatch.n_tokens == 0 || ubatch.n_seq_tokens < ubatch.n_tokens ||
             ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr ||
             ubatch.n_seq_id[0] != 1 || ubatch.seq_id[0] == nullptr ||
             ubatch.pos == nullptr || ubatch.n_pos == 0) return;
@@ -2258,7 +2258,7 @@ void llama_kv_cache::capture_kv_routing_query(
         return;
     }
     if (pager_ == nullptr || tensor == nullptr || layer < 0 ||
-        ubatch.n_tokens == 0 || ubatch.n_seq_tokens != ubatch.n_tokens ||
+        ubatch.n_tokens == 0 || ubatch.n_seq_tokens < ubatch.n_tokens ||
         ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr ||
         ubatch.n_seq_id[0] != 1 || ubatch.seq_id[0] == nullptr ||
         ubatch.pos == nullptr || ubatch.n_pos == 0) {
@@ -2361,6 +2361,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         const auto snapshot = pager_->residency(pager_last_sequence_id_);
         auto inventory = pager_->exact_page_records(pager_last_sequence_id_);
         if (snapshot.epoch() == 0 || inventory.empty()) return;
+        // A routed list is valid only for the residency transaction that
+        // produced it. Clear the previous decision before evaluating the next
+        // boundary; a failed or stale transaction must not steer the next
+        // graph toward a page that is no longer resident.
+        pager_attention_selection_[pager_last_sequence_id_].clear();
         if (kv_attention_telemetry_ != nullptr) {
             const auto retention_status = kv_attention_telemetry_->reconcile(snapshot, inventory);
             if (retention_status != llama_kv_attention_telemetry_status::ok) {
@@ -2535,7 +2540,12 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     boundary.retrieval.selected.end(),
                     [&](const auto & entry) { return entry.id == record.id; });
             if (selected_entry != boundary.retrieval.selected.end()) {
-                if (selected_entry->reason == llama_kv_routing_retrieval_reason::recent) {
+                const bool cold_query_hit =
+                    (selected_entry->reason == llama_kv_routing_retrieval_reason::summary ||
+                     selected_entry->reason == llama_kv_routing_retrieval_reason::exploration) &&
+                    record.physical_slot == UINT32_MAX && page.record.host_valid;
+                if (selected_entry->reason == llama_kv_routing_retrieval_reason::recent ||
+                    cold_query_hit) {
                     page.recent = true;
                 }
             }
@@ -2677,7 +2687,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             for (const auto & entry : boundary.retrieval.attention_selected) {
                 const auto resident = std::find_if(result.target_pages.begin(), result.target_pages.end(),
                     [&](const auto & page) { return page.id == entry.id; });
-                if (resident != result.target_pages.end()) selected.push_back(entry.id);
+                if (resident != result.target_pages.end() &&
+                    resident->physical_slot != UINT32_MAX) {
+                    selected.push_back(entry.id);
+                }
             }
         }
         if (result.status != llama_kv_live_policy_status::committed &&
@@ -2904,7 +2917,12 @@ bool llama_kv_cache::pager_routing_summary_build(
             } else {
                 ggml_backend_tensor_get(tensor, encoded.data(), size_t(offset), size_t(row_bytes));
             }
-            dequantize_row_turbo4_0(encoded.data(), decoded.data(), tensor->ne[0]);
+            // The direct CUDA attention path applies the forward Turbo4
+            // Walsh-Hadamard rotation to Q and K. Qcur is captured before
+            // that kernel-side transform, so summaries must undo the stored K
+            // transform once and remain in the same RoPE/query coordinate
+            // system used by collect_pager_routing_queries().
+            dequantize_row_turbo4_0_inv_fwht(encoded.data(), decoded.data(), tensor->ne[0]);
             output.row_indices[representative] = row;
             const size_t source = size_t(config.head_index) * config.vector_dim;
             std::copy_n(decoded.data() + source, config.vector_dim,

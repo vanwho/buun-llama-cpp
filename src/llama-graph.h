@@ -422,6 +422,12 @@ public:
     bool refresh_selected_data(
             const llama_kv_attention_operator_metadata & metadata);
 
+    // Rebind the sampled page identities to the snapshot used by this
+    // submission. This is required when a captured graph is reused after a
+    // page fault or overwrite; graph-owned telemetry metadata must never be
+    // published against the snapshot from graph construction.
+    void refresh_direct_telemetry(const llama_ubatch * ubatch) noexcept;
+
     ggml_tensor * get_k_idxs() const { return self_k_idxs; }
     ggml_tensor * get_v_idxs() const { return self_v_idxs; }
 

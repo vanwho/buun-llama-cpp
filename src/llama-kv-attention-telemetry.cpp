@@ -54,6 +54,22 @@ const char * llama_kv_attention_telemetry_status_name(
     return "invalid";
 }
 
+const char * llama_kv_attention_telemetry_drop_reason_name(
+        llama_kv_attention_telemetry_drop_reason reason) noexcept {
+    switch (reason) {
+        case llama_kv_attention_telemetry_drop_reason::none: return "none";
+        case llama_kv_attention_telemetry_drop_reason::no_output: return "no_output";
+        case llama_kv_attention_telemetry_drop_reason::no_metadata: return "no_metadata";
+        case llama_kv_attention_telemetry_drop_reason::invalid_shape: return "invalid_shape";
+        case llama_kv_attention_telemetry_drop_reason::stale_snapshot: return "stale_snapshot";
+        case llama_kv_attention_telemetry_drop_reason::stale_identity: return "stale_identity";
+        case llama_kv_attention_telemetry_drop_reason::nonfinite: return "nonfinite";
+        case llama_kv_attention_telemetry_drop_reason::sampling_skipped: return "sampling_skipped";
+        case llama_kv_attention_telemetry_drop_reason::invalid_argument: return "invalid_argument";
+    }
+    return "invalid";
+}
+
 llama_kv_attention_telemetry::llama_kv_attention_telemetry(
         const llama_kv_attention_telemetry_config & config) noexcept :
         mode_(config.mode),
@@ -96,13 +112,17 @@ bool llama_kv_attention_telemetry::snapshot_matches(
     return true;
 }
 
-llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reject_stale() noexcept {
+llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reject_stale(
+        llama_kv_attention_telemetry_drop_reason reason) noexcept {
     ++counters_.stale_dropped;
+    record_drop(reason);
     return llama_kv_attention_telemetry_status::stale_epoch;
 }
 
-llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reject_invalid() noexcept {
+llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reject_invalid(
+        llama_kv_attention_telemetry_drop_reason reason) noexcept {
     ++counters_.invalid_dropped;
+    record_drop(reason);
     return llama_kv_attention_telemetry_status::invalid_argument;
 }
 
@@ -129,7 +149,11 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::initialize(
     clear();
     table_epoch_ = snapshot.epoch();
     for (const auto & page : inventory) {
-        const bool tail = page.state == llama_kv_page_state::filling_gpu;
+        // Residency state describes transport dirtiness and can be
+        // gpu_dirty/sealing_host while the immutable ID still describes a
+        // short tail. Tail validation belongs to the authenticated position
+        // range, not to the transient state label.
+        const bool tail = llama_kv_page_id_is_tail(page.id);
         if (!valid_state(page.state) || !llama_kv_page_id_valid(page.id, tail) ||
             (page.physical_slot == UINT32_MAX &&
              (page.state != llama_kv_page_state::host_clean || !page.host_valid))) {
@@ -208,7 +232,7 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reconcile(
         return reject_invalid();
     }
     for (const auto & page : inventory) {
-        const bool tail = page.state == llama_kv_page_state::filling_gpu;
+        const bool tail = llama_kv_page_id_is_tail(page.id);
         if (!valid_state(page.state) || !llama_kv_page_id_valid(page.id, tail) ||
             (page.physical_slot == UINT32_MAX &&
              (page.state != llama_kv_page_state::host_clean || !page.host_valid))) {
@@ -243,17 +267,26 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
     if (mode_ == llama_kv_attention_telemetry_mode::off) {
         return llama_kv_attention_telemetry_status::disabled;
     }
-    if (sample.token_count == 0 || sample.layer_count == 0 || sample.head_count == 0 ||
-        sample.page_mass == nullptr || sample.pages == nullptr || sample.page_count == 0 ||
-        sample.table_epoch != table_epoch_ || snapshot.epoch() != sample.table_epoch ||
-        sample.token_index % sample_interval_tokens_ != 0 || !snapshot_matches(snapshot)) {
-        if (sample.table_epoch != table_epoch_ || snapshot.epoch() != table_epoch_ ||
-            !snapshot_matches(snapshot)) return reject_stale();
-        if (sample.token_count != 0 && sample.token_index % sample_interval_tokens_ != 0) {
-            saturating_add(counters_.skipped, 1);
-            return llama_kv_attention_telemetry_status::sampling_skipped;
-        }
-        return reject_invalid();
+    if (sample.table_epoch != table_epoch_ || snapshot.epoch() != table_epoch_) {
+        return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_snapshot);
+    }
+    if (!snapshot_matches(snapshot)) {
+        return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_identity);
+    }
+    if (sample.token_count != 0 && sample.token_index % sample_interval_tokens_ != 0) {
+        record_drop(llama_kv_attention_telemetry_drop_reason::sampling_skipped,
+                sample.table_epoch, sample.token_index, sample.page_count, sample.token_count);
+        saturating_add(counters_.skipped, 1);
+        return llama_kv_attention_telemetry_status::sampling_skipped;
+    }
+    if (sample.page_mass == nullptr) {
+        return reject_invalid(llama_kv_attention_telemetry_drop_reason::no_output);
+    }
+    if (sample.pages == nullptr || sample.page_count == 0) {
+        return reject_invalid(llama_kv_attention_telemetry_drop_reason::no_metadata);
+    }
+    if (sample.token_count == 0 || sample.layer_count == 0 || sample.head_count == 0) {
+        return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_shape);
     }
     if (sample.page_count > logical_page_count_ ||
         sample.head_stride_bytes < sizeof(float) * logical_page_count_ ||
@@ -262,15 +295,19 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
         !stride_product_fits(sample.token_stride_bytes, sample.token_count) ||
         sample.layer_stride_bytes < sample.head_stride_bytes * sample.head_count ||
         sample.token_stride_bytes < sample.layer_stride_bytes * sample.layer_count) {
-        return reject_invalid();
+        return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_shape);
     }
     const auto publish_begin = std::chrono::steady_clock::now();
     for (size_t i = 0; i < sample.page_count; ++i) {
         const auto & page = sample.pages[i];
         if (!valid_page(page.id.logical_page) || !pages_[page.id.logical_page].value.known ||
-            pages_[page.id.logical_page].value.id != page.id) return reject_stale();
+            pages_[page.id.logical_page].value.id != page.id) {
+            return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_identity);
+        }
         for (size_t j = 0; j < i; ++j) {
-            if (sample.pages[j].id.logical_page == page.id.logical_page) return reject_invalid();
+            if (sample.pages[j].id.logical_page == page.id.logical_page) {
+                return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_argument);
+            }
         }
     }
 
@@ -286,7 +323,9 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
                     layer_base + size_t(head) * sample.head_stride_bytes);
                 for (size_t i = 0; i < sample.page_count; ++i) {
                     const float mass = head_base[sample.pages[i].id.logical_page];
-                    if (!std::isfinite(mass) || mass < 0.0f || mass > 1.0f) return reject_invalid();
+                    if (!std::isfinite(mass) || mass < 0.0f || mass > 1.0f) {
+                        return reject_invalid(llama_kv_attention_telemetry_drop_reason::nonfinite);
+                    }
                 }
             }
         }
@@ -313,7 +352,12 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
             }
         }
         auto & state = pages_[logical].value;
-        state.resident = true;
+        // A completed page-mass sample proves attention was computed, not that
+        // the page is still in the current resident snapshot. Never promote a
+        // cold retained page based on an out-of-order or graph-reused sample.
+        state.resident = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+                [&](const auto & resident) { return resident.id == state.id; }) !=
+            snapshot.pages().end();
         const float normalized = float(sum / double(sample.token_count) / double(sample.layer_count));
         state.normalized_ema = state.observed
             ? ema_alpha_ * normalized + (1.0f - ema_alpha_) * state.normalized_ema
@@ -324,6 +368,8 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
         ++state.sample_count;
         if (state.frequency != std::numeric_limits<uint64_t>::max()) ++state.frequency;
     }
+    record_trace(sample.table_epoch, sample.token_index,
+            uint32_t(sample.page_count), sample.token_count);
     saturating_add(counters_.samples, 1);
     saturating_add(counters_.sampled_tokens, sample.token_count);
     saturating_add(counters_.sampled_pages, sample.page_count);
@@ -355,7 +401,50 @@ void llama_kv_attention_telemetry::record_observe_overhead(uint64_t elapsed) noe
 }
 
 void llama_kv_attention_telemetry::record_skipped_sample() noexcept {
+    record_drop(llama_kv_attention_telemetry_drop_reason::sampling_skipped);
     saturating_add(counters_.skipped, 1);
+}
+
+void llama_kv_attention_telemetry::record_drop(
+        llama_kv_attention_telemetry_drop_reason reason,
+        uint64_t table_epoch, uint64_t token_index,
+        uint32_t page_count, uint32_t token_count) noexcept {
+    switch (reason) {
+        case llama_kv_attention_telemetry_drop_reason::no_output:
+            saturating_add(counters_.dropped_no_output, 1); break;
+        case llama_kv_attention_telemetry_drop_reason::no_metadata:
+            saturating_add(counters_.dropped_no_metadata, 1); break;
+        case llama_kv_attention_telemetry_drop_reason::invalid_shape:
+            saturating_add(counters_.dropped_invalid_shape, 1); break;
+        case llama_kv_attention_telemetry_drop_reason::stale_snapshot:
+            saturating_add(counters_.dropped_stale_snapshot, 1); break;
+        case llama_kv_attention_telemetry_drop_reason::stale_identity:
+            saturating_add(counters_.dropped_stale_identity, 1); break;
+        case llama_kv_attention_telemetry_drop_reason::nonfinite:
+            saturating_add(counters_.dropped_nonfinite, 1); break;
+        case llama_kv_attention_telemetry_drop_reason::invalid_argument:
+            saturating_add(counters_.dropped_invalid_argument, 1); break;
+        case llama_kv_attention_telemetry_drop_reason::sampling_skipped:
+        case llama_kv_attention_telemetry_drop_reason::none:
+            break;
+    }
+    if (counters_.trace_id != std::numeric_limits<uint64_t>::max()) ++counters_.trace_id;
+    counters_.trace_epoch = table_epoch;
+    counters_.trace_token_index = token_index;
+    counters_.trace_page_count = page_count;
+    counters_.trace_token_count = token_count;
+    counters_.trace_drop_reason = reason;
+}
+
+void llama_kv_attention_telemetry::record_trace(
+        uint64_t table_epoch, uint64_t token_index,
+        uint32_t page_count, uint32_t token_count) noexcept {
+    if (counters_.trace_id != std::numeric_limits<uint64_t>::max()) ++counters_.trace_id;
+    counters_.trace_epoch = table_epoch;
+    counters_.trace_token_index = token_index;
+    counters_.trace_page_count = page_count;
+    counters_.trace_token_count = token_count;
+    counters_.trace_drop_reason = llama_kv_attention_telemetry_drop_reason::none;
 }
 
 bool llama_kv_attention_telemetry::page_state(

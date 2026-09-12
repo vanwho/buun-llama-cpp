@@ -7,8 +7,9 @@
 #include <chrono>
 #include <vector>
 
-// Experimental, internal-only routing representation.  The vectors are already
-// in the rotated K domain and are deliberately kept separate from the KV page.
+// Experimental, internal-only routing representation. The vectors are in the
+// canonical query-compatible K domain and are deliberately kept separate from
+// the KV page. The Turbo4 codec rotation is removed at summary build time.
 constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 2;
 
 enum class llama_kv_routing_summary_form : uint8_t {
@@ -43,7 +44,7 @@ struct llama_kv_routing_summary_config {
     uint64_t coordinate_identity = 0;
 };
 
-// rows contains rotated K rows for one page, in row-major order.  A tail may
+// rows contains query-compatible K rows for one page, in row-major order. A tail may
 // contain fewer than 256 rows.  The builder samples representative rows at
 // deterministic evenly-spaced positions.
 struct llama_kv_routing_page_input {
