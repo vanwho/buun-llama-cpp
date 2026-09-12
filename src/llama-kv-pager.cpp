@@ -731,6 +731,7 @@ void llama_kv_pager::reconcile_live_target(
                     [&](const auto & page) { return page.id == state.record.id; });
             if (!retained) state = {};
         }
+        rebuild_maintenance_queue();
     } catch (...) {
         // The immutable residency table remains authoritative if host-side
         // mirror maintenance cannot allocate; the next quiet boundary retries
@@ -1305,6 +1306,38 @@ void llama_kv_pager::invalidate_routing_summaries(
     }
 }
 
+void llama_kv_pager::queue_maintenance(page_state & page) noexcept {
+    if (!page.present || page.maintenance_pending) {
+        return;
+    }
+    page.maintenance_pending = true;
+    if (!maintenance_queue_complete_) {
+        return;
+    }
+    try {
+        maintenance_page_indices_.push_back(size_t(&page - pages_.data()));
+    } catch (...) {
+        // The next seal falls back to a complete scan.  Keeping the pending
+        // bit set preserves the page's work even when the queue cannot grow.
+        maintenance_queue_complete_ = false;
+    }
+}
+
+void llama_kv_pager::rebuild_maintenance_queue() noexcept {
+    maintenance_page_indices_.clear();
+    maintenance_processing_indices_.clear();
+    maintenance_queue_complete_ = true;
+    try {
+        for (size_t index = 0; index < pages_.size(); ++index) {
+            if (pages_[index].present && pages_[index].maintenance_pending) {
+                maintenance_page_indices_.push_back(index);
+            }
+        }
+    } catch (...) {
+        maintenance_queue_complete_ = false;
+    }
+}
+
 void llama_kv_pager::drain_host_completions() noexcept {
     if (host_ && host_->async_enabled()) {
         std::vector<llama_kv_pager_host_completion> completed;
@@ -1345,6 +1378,7 @@ void llama_kv_pager::drain_host_completions() noexcept {
                 page.record.state = llama_kv_page_state::gpu_dirty;
                 page.host_content_version = 0;
             }
+            queue_maintenance(page);
             (void) publish_page(page);
         }
     }
@@ -1353,12 +1387,37 @@ void llama_kv_pager::drain_host_completions() noexcept {
 uint32_t llama_kv_pager::seal_ready_pages() noexcept {
     ++seal_calls_;
     drain_host_completions();
+    const bool full_scan = !maintenance_queue_complete_;
+    if (full_scan) {
+        maintenance_processing_indices_.clear();
+        try {
+            maintenance_processing_indices_.reserve(pages_.size());
+            for (size_t index = 0; index < pages_.size(); ++index) {
+                maintenance_processing_indices_.push_back(index);
+            }
+        } catch (...) {
+            return 0;
+        }
+        maintenance_page_indices_.clear();
+        maintenance_queue_complete_ = true;
+    } else {
+        maintenance_processing_indices_.swap(maintenance_page_indices_);
+    }
     // finish_pager_batch() runs at graph submission time, so a full page can
     // still carry the last write-frontier pin while the graph is in flight.
     // This method is entered after the context fence and is the first point at
     // which that pin may be released safely.
-    for (auto & page : pages_) {
+    for (const size_t page_index : maintenance_processing_indices_) {
+        if (page_index >= pages_.size()) {
+            continue;
+        }
+        auto & page = pages_[page_index];
+        page.maintenance_pending = false;
+        ++seal_pages_scanned_;
         if (!page.present || page.host_inflight || page.record.pin_count == 0) {
+            if (page.present && !page.host_inflight && page.record.pin_count != 0) {
+                queue_maintenance(page);
+            }
             continue;
         }
         const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
@@ -1370,6 +1429,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
             // The append tail is still mutable. Its asynchronous host copy is
             // intentionally deferred until a later page takes over, so its
             // write-frontier pin must remain live in the meantime.
+            queue_maintenance(page);
             continue;
         }
         const auto previous = page.record;
@@ -1380,9 +1440,13 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
         if (publish_page(page) != llama_kv_pager_write_status::ok) {
             page.record = previous;
             (void) publish_page(page);
+            queue_maintenance(page);
         }
     }
-    if (!host_ && routing_summary_provider_.build == nullptr) return 0;
+    if (!host_ && routing_summary_provider_.build == nullptr) {
+        maintenance_processing_indices_.clear();
+        return 0;
+    }
 
     struct changed_page {
         size_t index = 0;
@@ -1392,9 +1456,13 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
     const auto configs = routing_summary_configs();
     std::vector<changed_page> changed;
     try {
-        for (size_t page_index = 0; page_index < pages_.size(); ++page_index) {
+        // The queue contains every page whose content, pin, or asynchronous
+        // host state can require work.  A full scan is retained only as the
+        // allocation-failure fallback above, never as the normal per-token
+        // maintenance path.
+        for (const size_t page_index : maintenance_processing_indices_) {
+            if (page_index >= pages_.size()) continue;
             auto & page = pages_[page_index];
-            ++seal_pages_scanned_;
             if (!page.present || page.record.pin_count != 0 || page.valid_rows.empty() ||
                 page.record.id.position_end <= page.record.id.position_begin ||
                 (page.record.state != llama_kv_page_state::filling_gpu &&
@@ -1421,6 +1489,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                 // the GPU write slab and publish one contiguous tail only
                 // when a later page takes over; this avoids re-copying the
                 // complete prefix once per generated token.
+                queue_maintenance(page);
                 continue;
             }
 
@@ -1474,6 +1543,7 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                     page.record = previous;
                     (void) publish_page(page);
                     (void) host_->invalidate(previous.id);
+                    queue_maintenance(page);
                     continue;
                 }
             }
@@ -1547,8 +1617,10 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                 ++sealed;
             }
         }
+        maintenance_processing_indices_.clear();
         return sealed;
     } catch (...) {
+        maintenance_processing_indices_.clear();
         return 0;
     }
 }
@@ -1683,6 +1755,7 @@ void llama_kv_pager::release_current_pin(page_state * except) noexcept {
         std::all_of(page.valid_rows.begin(), page.valid_rows.end(), [](uint8_t value) { return value != 0; })) {
         page.record.state = llama_kv_page_state::gpu_dirty;
     }
+    queue_maintenance(page);
     (void) publish_page(page);
 }
 
@@ -1699,6 +1772,7 @@ void llama_kv_pager::release_sequence_pins(int32_t sequence_id) noexcept {
                         [](uint8_t value) { return value != 0; })) {
             page.record.state = llama_kv_page_state::gpu_dirty;
         }
+        queue_maintenance(page);
         (void) publish_page(page);
     }
 }
@@ -1853,6 +1927,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.host_valid = false;
     page->record.dirty = true;
+    queue_maintenance(*page);
     page->record.pin_count++;
     current_page_index_ = uint32_t(page - pages_.data());
     if (publish_page(*page) != llama_kv_pager_write_status::ok) {
@@ -1977,6 +2052,7 @@ llama_kv_pager_write_status llama_kv_pager::complete_write(
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.host_valid = false;
     page->record.dirty = true;
+    queue_maintenance(*page);
     // The partial page is the write frontier. Keep it pinned until a later page takes over.
     const bool is_current = current_page_index_ < pages_.size() &&
         &pages_[current_page_index_] == page;
@@ -2027,6 +2103,7 @@ llama_kv_pager_write_status llama_kv_pager::cancel_write(
     page->record.state = full
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.dirty = true;
+    queue_maintenance(*page);
     return publish_page(*page);
 }
 
@@ -2074,6 +2151,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                                     [](uint8_t value) { return value != 0; })) {
                     page.record.state = llama_kv_page_state::gpu_dirty;
                 }
+                page.maintenance_pending = true;
             }
         }
 
@@ -2152,6 +2230,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                 copy.record.pin_count = 0;
                 copy.record.host_valid = false;
                 copy.record.dirty = true;
+                copy.maintenance_pending = true;
                 copy.host_content_version = 0;
                 copy.summary_content_version = 0;
                 size_t copy_index = 0;
@@ -2219,6 +2298,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                         page.record.id.page_generation = uint32_t(++mutation_generation_);
                         page.record.host_valid = false;
                         page.record.dirty = true;
+                        page.maintenance_pending = true;
                         page.content_version = advance_content_version(page.content_version);
                         page.host_content_version = 0;
                         page.summary_content_version = 0;
@@ -2228,6 +2308,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                     page.record.id.page_generation = uint32_t(++mutation_generation_);
                     page.record.host_valid = false;
                     page.record.dirty = true;
+                    page.maintenance_pending = true;
                     page.host_content_version = 0;
                     page.summary_content_version = 0;
                 }
@@ -2359,6 +2440,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         pages_ = std::move(next);
         slot_pages_ = std::move(next_slots);
         current_page_index_ = next_current;
+        rebuild_maintenance_queue();
         for (const auto & id : host_invalidations) {
             (void) host_->invalidate(id);
         }

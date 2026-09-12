@@ -530,6 +530,7 @@ private:
         uint64_t summary_content_version = 0;
         uint64_t host_inflight_version = 0;
         bool host_inflight = false;
+        bool maintenance_pending = false;
         bool present = false;
     };
 
@@ -540,6 +541,8 @@ private:
     std::vector<llama_kv_routing_summary_config> routing_summary_configs() const noexcept;
     void invalidate_routing_summaries(
             const std::vector<llama_kv_page_id> & page_ids) noexcept;
+    void queue_maintenance(page_state & page) noexcept;
+    void rebuild_maintenance_queue() noexcept;
     void drain_host_completions() noexcept;
     void reconcile_live_target(
             const std::vector<llama_kv_page_record> & target) noexcept;
@@ -570,6 +573,9 @@ private:
     bool owns_allocation_ = true;
     std::vector<page_state> pages_;
     std::vector<int32_t> slot_pages_;
+    std::vector<size_t> maintenance_page_indices_;
+    std::vector<size_t> maintenance_processing_indices_;
+    bool maintenance_queue_complete_ = true;
     uint32_t current_page_index_ = UINT32_MAX;
     uint64_t mutation_generation_ = 1;
     llama_kv_residency_table residency_{0};
