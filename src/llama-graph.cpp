@@ -840,7 +840,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                             throw std::runtime_error("packed selected attention page plan is stale");
                         }
                         const uint32_t generation = selected_metadata.page_table()[copy.page_index].page_generation;
-                        if (!initialize_selected && uint64_t(generation) == copy.content_version) {
+                        const uint64_t cached_version = packed_cache != nullptr
+                            ? packed_cache->content_version(layer.cache_entry, copy.page_index)
+                            : UINT64_MAX;
+                        if (uint64_t(generation) == cached_version) {
                             if (kv_attention_metrics != nullptr) {
                                 kv_attention_metrics->packed_copy_reuses =
                                     kv_attention_metrics->packed_copy_reuses == UINT64_MAX
@@ -848,10 +851,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                             }
                             continue;
                         }
-                        // These page tensors are graph-owned descriptors rather
-                        // than graph nodes.  Initialize their backend views
-                        // explicitly before the first copy; otherwise the
-                        // compact destination has no device data pointer yet.
+                        // Source and destination page views are graph-owned
+                        // descriptors rather than graph nodes. Initialize
+                        // their backend views explicitly before the first
+                        // copy; the compact base tensor is context-lifetime.
                         const auto initialize_view = [](ggml_tensor * tensor) {
                             if (tensor != nullptr && tensor->view_src != nullptr && tensor->buffer == nullptr) {
                                 if (ggml_backend_view_init(tensor) != GGML_STATUS_SUCCESS) {
@@ -868,6 +871,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         copy.page_generation = generation;
                         copy.content_version = generation;
                         copy.source_lifetime_epoch = layer.source_lifetime_epoch;
+                        if (packed_cache != nullptr) {
+                            packed_cache->set_content_version(layer.cache_entry,
+                                    copy.page_index, generation);
+                        }
                         if (kv_attention_metrics != nullptr) {
                             kv_attention_metrics->packed_copy_updates =
                                 kv_attention_metrics->packed_copy_updates == UINT64_MAX
@@ -2313,6 +2320,7 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
     kv_attention_exact_plan(params.kv_attention_exact_plan),
     kv_attention_metrics(params.kv_attention_metrics),
     kv_attention_telemetry(params.kv_attention_telemetry),
+    kv_attention_packed_cache(params.kv_attention_packed_cache),
     samplers         (params.samplers),
     cb_func          (params.cb),
     res              (params.res),
@@ -3647,10 +3655,12 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
     llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr,
     llama_kv_attention_telemetry * kv_attention_telemetry = nullptr,
     bool dense_attention = false,
-    bool packed_attention = false) {
+    bool packed_attention = false,
+    llama_kv_attention_packed_cache * packed_cache = nullptr) {
 
     auto inp = std::make_unique<llm_graph_input_attn_kv>(hparams, cparams, mctx_cur,
             tree_mask, kv_attention_metrics, kv_attention_telemetry);
+    inp->packed_cache = packed_cache;
 
     if (selected_metadata != nullptr && selected_metadata->enabled()) {
         inp->selected_attention = true;
@@ -3719,13 +3729,20 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 layer.layer_id = layer_id;
                 layer.source_lifetime_epoch = mctx_cur->get_vbr_epoch();
                 layer.source_physical_key = selected_metadata->graph_physical_key();
-                layer.k = ggml_new_tensor_4d(ctx0, source_k->type,
-                        source_k->ne[0], source_k->ne[1], selected_metadata->get_n_kv(), 1);
-                layer.v = ggml_new_tensor_4d(ctx0, source_v->type,
-                        source_v->ne[0], source_v->ne[1], selected_metadata->get_n_kv(), 1);
-                if (layer.k == nullptr || layer.v == nullptr) {
+                if (packed_cache == nullptr) {
+                    throw std::runtime_error("packed selected attention cache is unavailable");
+                }
+                const int32_t sequence_id = ubatch.seq_id != nullptr &&
+                    ubatch.n_seq_id != nullptr && ubatch.n_seq_id[0] != 0 &&
+                    ubatch.seq_id[0] != nullptr ? ubatch.seq_id[0][0] : -1;
+                layer.cache_entry = packed_cache->find_or_create(layer_id, sequence_id,
+                        mctx_cur->get_vbr_epoch(), mctx_cur->get_vbr_epoch(),
+                        selected_metadata->page_table(), source_k, source_v, packed_backend);
+                if (layer.cache_entry == nullptr) {
                     throw std::runtime_error("packed selected attention allocation failed");
                 }
+                layer.k = layer.cache_entry->k;
+                layer.v = layer.cache_entry->v;
                 ggml_set_input(layer.k);
                 ggml_set_input(layer.v);
                 ggml_set_name(layer.k, "kv_packed_k");
@@ -3759,7 +3776,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                     packed_v_view->nb[3] = source_v_view->nb[3];
                     layer.copies.push_back({ source_k_view, source_v_view,
                             packed_k_view, packed_v_view, uint32_t(layer.copies.size()),
-                            page.page_generation, uint64_t(page.page_generation),
+                            page.page_generation, packed_cache->content_version(
+                                layer.cache_entry, uint32_t(layer.copies.size())),
                             mctx_cur->get_vbr_epoch(), page.row_count,
                             uint64_t(page.row_count) * (source_k->nb[2] + source_v->nb[2]) });
                 }
@@ -4192,7 +4210,8 @@ llm_graph_input_attn_kv * llm_graph_context::build_attn_inp_kv() const {
             kv_attention_exact_plan,
             kv_attention_metrics, kv_attention_telemetry,
             kv_attention_route == llama_kv_attention_execution_route::selected_dense,
-            kv_attention_route == llama_kv_attention_execution_route::selected_packed);
+            kv_attention_route == llama_kv_attention_execution_route::selected_packed,
+            kv_attention_packed_cache);
 
     return (llm_graph_input_attn_kv *) res->add_input(std::move(inp));
 }
@@ -5257,7 +5276,8 @@ llm_graph_input_mem_hybrid * llm_graph_context::build_inp_mem_hybrid() const {
             kv_attention_exact_plan,
             kv_attention_metrics, kv_attention_telemetry,
             kv_attention_route == llama_kv_attention_execution_route::selected_dense,
-            kv_attention_route == llama_kv_attention_execution_route::selected_packed);
+            kv_attention_route == llama_kv_attention_execution_route::selected_packed,
+            kv_attention_packed_cache);
 
     auto inp = std::make_unique<llm_graph_input_mem_hybrid>(cparams, std::move(inp_attn), std::move(inp_rs), mctx_cur);
 

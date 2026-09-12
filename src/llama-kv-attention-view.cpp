@@ -1,5 +1,6 @@
 #include "llama-kv-attention-view.h"
 
+#include <algorithm>
 #include <limits>
 #include <new>
 
@@ -55,9 +56,9 @@ llama_kv_attention_view llama_kv_attention_view::build(
         auto result = std::make_shared<llama_kv_attention_view::state>();
         result->epoch = snapshot.epoch();
         result->snapshot = snapshot;
-        result->pages.reserve(selected_pages.size());
+        std::vector<const llama_kv_page_record *> selected_records;
+        selected_records.reserve(selected_pages.size());
 
-        uint64_t rows = 0;
         for (const uint32_t logical_page : selected_pages) {
             const llama_kv_page_record * found = nullptr;
             for (const auto & page : snapshot.pages()) {
@@ -71,8 +72,9 @@ llama_kv_attention_view llama_kv_attention_view::build(
                 status = llama_kv_attention_view_status::not_resident;
                 return {};
             }
-            for (const auto & page : result->pages) {
-                if (page.logical_page == logical_page) {
+            for (const auto * page : selected_records) {
+                if (page->id.logical_page == logical_page &&
+                        (sequence_id < 0 || page->id.sequence_id == sequence_id)) {
                     status = llama_kv_attention_view_status::duplicate_page;
                     return {};
                 }
@@ -95,18 +97,36 @@ llama_kv_attention_view llama_kv_attention_view::build(
                 status = llama_kv_attention_view_status::invalid_position_range;
                 return {};
             }
+            selected_records.push_back(found);
+        }
+
+        std::sort(selected_records.begin(), selected_records.end(),
+                [](const auto * lhs, const auto * rhs) {
+            if (lhs->id.position_begin != rhs->id.position_begin) {
+                return lhs->id.position_begin < rhs->id.position_begin;
+            }
+            if (lhs->id.logical_page != rhs->id.logical_page) {
+                return lhs->id.logical_page < rhs->id.logical_page;
+            }
+            return lhs->physical_slot < rhs->physical_slot;
+        });
+
+        result->pages.reserve(selected_records.size());
+        uint64_t rows = 0;
+        for (const auto * found : selected_records) {
+            const uint64_t count = uint64_t(found->id.position_end - found->id.position_begin);
             if (rows > std::numeric_limits<uint32_t>::max() - count) {
                 status = llama_kv_attention_view_status::overflow;
                 return {};
             }
 
             llama_kv_attention_view_page view_page;
-            view_page.logical_page = logical_page;
+            view_page.logical_page = found->id.logical_page;
             view_page.source_physical_slot = found->physical_slot;
             view_page.compact_row_begin = uint32_t(rows);
             view_page.row_count = uint32_t(count);
-            view_page.native_position_begin = begin;
-            view_page.native_position_end = end;
+            view_page.native_position_begin = found->id.position_begin;
+            view_page.native_position_end = found->id.position_end;
             view_page.page_generation = found->id.page_generation;
             result->pages.push_back(view_page);
             rows += count;

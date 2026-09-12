@@ -40,6 +40,17 @@ static llama_kv_residency_snapshot make_snapshot() {
     return table.snapshot();
 }
 
+static llama_kv_residency_snapshot make_contiguous_snapshot() {
+    llama_kv_residency_table table(8);
+    auto tx = table.begin();
+    assert(table.replace(tx, page(0, 0, 256)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, page(1, 1, 512)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, page(2, 2, 768)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, page(3, 3, 900)) == llama_kv_residency_status::ok);
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    return table.snapshot();
+}
+
 static void test_sequence_scoped_lookup() {
     llama_kv_residency_table table(8);
     auto tx = table.begin();
@@ -77,14 +88,16 @@ static void test_compact_permuted_gapped_view() {
     assert(view.valid() && view.graph_epoch() == 1);
     assert(view.get_n_kv() == 512);
     assert(view.pages().size() == 2);
-    assert(view.pages()[0].logical_page == 2);
-    assert(view.pages()[0].source_physical_slot == 7);
+    // The selected set is still {2, 0}, but compact rows are canonicalized
+    // into native order before masks and FA descriptors are built.
+    assert(view.pages()[0].logical_page == 0);
+    assert(view.pages()[0].source_physical_slot == 5);
     assert(view.pages()[0].compact_row_begin == 0);
     assert(view.pages()[1].compact_row_begin == 256);
-    assert(view.native_positions()[0] == 512);
-    assert(view.native_positions()[255] == 767);
-    assert(view.native_positions()[256] == 0);
-    assert(view.native_positions().back() == 255);
+    assert(view.native_positions()[0] == 0);
+    assert(view.native_positions()[255] == 255);
+    assert(view.native_positions()[256] == 512);
+    assert(view.native_positions().back() == 767);
     assert(view.native_mask().size() == view.get_n_kv());
     assert(view.native_mask().back() == 1);
 
@@ -103,6 +116,37 @@ static void test_tail_and_rejections() {
     assert(!duplicate.valid() && status == llama_kv_attention_view_status::duplicate_page);
     const auto absent = llama_kv_attention_view::build(make_snapshot(), { 4 }, status);
     assert(!absent.valid() && status == llama_kv_attention_view_status::not_resident);
+}
+
+static void test_contiguous_prefix_after_reordering() {
+    llama_kv_attention_view_status view_status;
+    const auto view = llama_kv_attention_view::build(
+            make_contiguous_snapshot(), { 3, 1, 0, 2 }, view_status);
+    assert(view_status == llama_kv_attention_view_status::ok);
+    assert(view.pages().size() == 4);
+    assert(view.pages()[0].logical_page == 0 && view.pages()[0].source_physical_slot == 0);
+    assert(view.pages()[3].logical_page == 3 && view.pages()[3].source_physical_slot == 3);
+
+    llama_kv_attention_operator_params params;
+    params.mode = llama_kv_attention_operator_mode::selective;
+    params.type_k = GGML_TYPE_TURBO4_0;
+    params.type_v = GGML_TYPE_TURBO4_0;
+    params.domain_k = llama_kv_attention_representation_domain::turbo_rotated;
+    params.domain_v = llama_kv_attention_representation_domain::turbo_rotated;
+    params.page_tokens = VBR_GENERATION_PAGE_CELLS;
+    params.head_dim_k = 256;
+    params.head_dim_v = 256;
+    params.n_head_q = 16;
+    params.n_head_kv = 4;
+    params.n_query_tokens = 1;
+    params.n_batch = 1;
+    params.query_positions = { 899 };
+    llama_kv_attention_operator_status status;
+    const auto metadata = llama_kv_attention_operator_metadata::build(view, params, status);
+    assert(status == llama_kv_attention_operator_status::ok);
+    const auto dense = llama_kv_attention_dense_view_check(metadata, 8);
+    assert(dense.eligible && dense.source_row_begin == 0 && dense.row_count == 900);
+    (void) dense;
 }
 
 static void test_operator_contract() {
@@ -206,6 +250,7 @@ static void test_operator_contract() {
 int main() {
     test_compact_permuted_gapped_view();
     test_tail_and_rejections();
+    test_contiguous_prefix_after_reordering();
     test_sequence_scoped_lookup();
     test_operator_contract();
     return 0;

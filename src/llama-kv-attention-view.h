@@ -36,8 +36,9 @@ public:
     llama_kv_attention_view() = default;
 
     // Build an immutable compact view from one residency snapshot. The
-    // selected order is preserved, including arbitrary permutation and gaps.
-    // No KV payload is duplicated here: the rows are a bounded copy plan from
+    // selected pages are canonicalized into native position order, while the
+    // selected set itself is preserved, including arbitrary gaps. No KV
+    // payload is duplicated here: the rows are a bounded copy plan from
     // source physical slots into compact slots.
     static llama_kv_attention_view build(
             const llama_kv_residency_snapshot & snapshot,

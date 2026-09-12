@@ -3,6 +3,8 @@
 
 #include <cassert>
 #include <cstdio>
+#include <memory>
+#include <vector>
 
 static llama_kv_page_record page(uint32_t logical, uint32_t slot, llama_pos end) {
     llama_kv_page_record result;
@@ -177,8 +179,8 @@ static void test_routes_epochs_and_fences() {
     assert(route_metrics.decode_routes.selected_direct == 2);
     assert(route_metrics.selected_page_count == 2);
     assert(route_metrics.selected_page_ids.size() == 2 &&
-           route_metrics.selected_page_ids[0] == 2 &&
-           route_metrics.selected_page_ids[1] == 0);
+           route_metrics.selected_page_ids[0] == 0 &&
+           route_metrics.selected_page_ids[1] == 2);
     const auto selected_mtp = metadata(snapshot(), 2, 1);
     const auto mtp = execution.prepare(selected_mtp,
             llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch);
@@ -204,8 +206,8 @@ static void test_routes_epochs_and_fences() {
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
 
-    // The bounded policy keeps the direct pager for the small query tile;
-    // larger non-contiguous prefills use cached compact packing.
+    // Interactive prefills use mature FA through the bounded compact bridge;
+    // decode and very small verification continue to use direct paging.
     llama_kv_attention_execution direct_over_packed(
             llama_kv_attention_execution_mode::selective);
     const auto direct_packed = direct_over_packed.prepare(selected_prefill,
@@ -256,6 +258,46 @@ static void test_routes_epochs_and_fences() {
     execution.reset_metrics();
     assert(execution.metrics_reset_epoch() == reset_epoch + 1);
     assert(execution.metrics().wait_time_us == 0);
+}
+
+static void test_packed_cache_identity_and_versions() {
+    const auto snap = snapshot();
+    llama_kv_attention_view_status view_status;
+    const auto view = llama_kv_attention_view::build(snap, { 2, 0 }, view_status);
+    assert(view_status == llama_kv_attention_view_status::ok);
+
+    ggml_backend_t backend = ggml_backend_cpu_init();
+    assert(backend != nullptr);
+    llama_kv_attention_packed_cache cache;
+    const ggml_init_params params = { 2 * ggml_tensor_overhead(), nullptr, true };
+    ggml_context * context = ggml_init(params);
+    assert(context != nullptr);
+    ggml_tensor * source_k = ggml_new_tensor_4d(context, GGML_TYPE_TURBO4_0, 256, 4, 2048, 1);
+    ggml_tensor * source_v = ggml_new_tensor_4d(context, GGML_TYPE_TURBO4_0, 256, 4, 2048, 1);
+    assert(source_k != nullptr && source_v != nullptr);
+
+    auto * first = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v, backend);
+    assert(first != nullptr);
+    assert(cache.content_version(first, 0) == UINT64_MAX);
+    cache.set_content_version(first, 0, 91);
+    assert(cache.content_version(first, 0) == 91);
+
+    auto * reused = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v, backend);
+    assert(reused == first && cache.content_version(reused, 0) == 91);
+
+    auto reordered = llama_kv_attention_view::build(snap, { 0, 2 }, view_status);
+    assert(view_status == llama_kv_attention_view_status::ok);
+    auto * reordered_entry = cache.find_or_create(
+            3, 0, 11, 17, reordered.pages(), source_k, source_v, backend);
+    assert(reordered_entry == first);
+
+    auto * new_lifetime = cache.find_or_create(
+            3, 0, 11, 18, view.pages(), source_k, source_v, backend);
+    assert(new_lifetime != nullptr && new_lifetime != first);
+    assert(cache.content_version(new_lifetime, 0) == UINT64_MAX);
+
+    ggml_free(context);
+    ggml_backend_free(backend);
 }
 
 static void test_view_sized_scratch_contract() {
@@ -336,8 +378,9 @@ static void test_fallbacks_and_graph_key() {
     execution.complete_one_graph();
 
     auto tile64 = execution.prepare(metadata(snapshot(), 64, 1),
-            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
-    assert(tile64.route == llama_kv_attention_execution_route::selected_direct);
+            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch,
+            {}, false, true);
+    assert(tile64.route == llama_kv_attention_execution_route::selected_packed);
     execution.complete_one_graph();
 
     auto tile3 = execution.prepare(metadata(snapshot(), 3, 1),
@@ -346,8 +389,9 @@ static void test_fallbacks_and_graph_key() {
     execution.complete_one_graph();
 
     auto tile65 = execution.prepare(metadata(snapshot(), 65, 1),
-            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
-    assert(tile65.route == llama_kv_attention_execution_route::selected_direct);
+            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch,
+            {}, false, true);
+    assert(tile65.route == llama_kv_attention_execution_route::selected_packed);
     execution.complete_one_graph();
 
     // Qwen3.5 uses 24 query heads and 4 KV heads (GQA ratio 6). The paged
@@ -435,7 +479,9 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     const auto query_changed = metadata(snapshot(), 1, 1, { 2, 0 }, 601);
     const auto shape_changed = metadata(snapshot(), 2, 1);
 
-    assert(base.graph_content_key() != reordered.graph_content_key());
+    // Reordering the same selected set is canonicalized before graph keys are
+    // formed, so it does not force a new compact layout or repack.
+    assert(base.graph_content_key() == reordered.graph_content_key());
     assert(base.graph_content_key() != remapped.graph_content_key());
     assert(base.table_epoch() != grown.table_epoch());
     assert(base.graph_content_key() != grown.graph_content_key());
@@ -530,6 +576,7 @@ static void test_epoch_matrix_and_lifetime_metrics() {
 int main() {
     test_prefill_admission();
     test_routes_epochs_and_fences();
+    test_packed_cache_identity_and_versions();
     test_view_sized_scratch_contract();
     test_fallbacks_and_graph_key();
     test_epoch_matrix_and_lifetime_metrics();

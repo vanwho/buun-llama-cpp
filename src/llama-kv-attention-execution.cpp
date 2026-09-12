@@ -2,6 +2,8 @@
 
 #include "llama-impl.h"
 
+#include "ggml.h"
+
 #include <algorithm>
 #include <cstring>
 #include <limits>
@@ -30,6 +32,110 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
 }
 
 } // namespace
+
+llama_kv_attention_packed_cache::~llama_kv_attention_packed_cache() {
+    for (auto & cached : entries_) {
+        if (cached->buffer != nullptr) {
+            ggml_backend_buffer_free(cached->buffer);
+        }
+        if (cached->context != nullptr) {
+            ggml_free(cached->context);
+        }
+    }
+}
+
+llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_or_create(
+        uint32_t layer_id,
+        int32_t sequence_id,
+        uint64_t representation_epoch,
+        uint64_t source_lifetime_epoch,
+        const std::vector<llama_kv_attention_view_page> & pages,
+        ggml_tensor * source_k,
+        ggml_tensor * source_v,
+        ggml_backend_t backend) noexcept {
+    if (source_k == nullptr || source_v == nullptr || backend == nullptr || pages.empty()) {
+        return nullptr;
+    }
+
+    const auto same_page = [](const llama_kv_attention_view_page & lhs,
+            const llama_kv_attention_view_page & rhs) {
+        return lhs.logical_page == rhs.logical_page &&
+            lhs.source_physical_slot == rhs.source_physical_slot &&
+            lhs.compact_row_begin == rhs.compact_row_begin &&
+            lhs.row_count == rhs.row_count &&
+            lhs.native_position_begin == rhs.native_position_begin &&
+            lhs.native_position_end == rhs.native_position_end;
+    };
+    for (const auto & cached : entries_) {
+        if (cached->layer_id != layer_id || cached->sequence_id != sequence_id ||
+                cached->representation_epoch != representation_epoch ||
+                cached->source_lifetime_epoch != source_lifetime_epoch ||
+                cached->backend != backend ||
+                cached->pages.size() != pages.size() || cached->k == nullptr || cached->v == nullptr) {
+            continue;
+        }
+        bool match = true;
+        for (size_t i = 0; i < pages.size(); ++i) {
+            if (!same_page(cached->pages[i], pages[i])) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            return cached.get();
+        }
+    }
+
+    try {
+        auto cached = std::make_unique<entry>();
+        cached->layer_id = layer_id;
+        cached->sequence_id = sequence_id;
+        cached->representation_epoch = representation_epoch;
+        cached->source_lifetime_epoch = source_lifetime_epoch;
+        cached->backend = backend;
+        cached->pages = pages;
+        cached->content_versions.assign(pages.size(), UINT64_MAX);
+
+        const ggml_init_params params = { 2 * ggml_tensor_overhead(), nullptr, true };
+        cached->context = ggml_init(params);
+        if (cached->context == nullptr) {
+            return nullptr;
+        }
+        cached->k = ggml_new_tensor_4d(cached->context, source_k->type,
+                source_k->ne[0], source_k->ne[1], pages.back().compact_row_begin +
+                pages.back().row_count, 1);
+        cached->v = ggml_new_tensor_4d(cached->context, source_v->type,
+                source_v->ne[0], source_v->ne[1], pages.back().compact_row_begin +
+                pages.back().row_count, 1);
+        if (cached->k == nullptr || cached->v == nullptr) {
+            return nullptr;
+        }
+        ggml_set_name(cached->k, "kv_packed_cache_k");
+        ggml_set_name(cached->v, "kv_packed_cache_v");
+        cached->buffer = ggml_backend_alloc_ctx_tensors(cached->context, backend);
+        if (cached->buffer == nullptr) {
+            return nullptr;
+        }
+
+        entries_.push_back(std::move(cached));
+        return entries_.back().get();
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+uint64_t llama_kv_attention_packed_cache::content_version(
+        const entry * cached, uint32_t page_index) const noexcept {
+    return cached != nullptr && page_index < cached->content_versions.size()
+        ? cached->content_versions[page_index] : UINT64_MAX;
+}
+
+void llama_kv_attention_packed_cache::set_content_version(
+        entry * cached, uint32_t page_index, uint64_t version) noexcept {
+    if (cached != nullptr && page_index < cached->content_versions.size()) {
+        cached->content_versions[page_index] = version;
+    }
+}
 
 const char * llama_kv_attention_execution_mode_name(
         llama_kv_attention_execution_mode mode) noexcept {
@@ -249,13 +355,14 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         return llama_kv_attention_execution_route::selected_dense;
     }
 
-    // Direct is the low-query route. Only prefills larger than two fixed CUDA
-    // query tiles amortize their one-time compact Turbo4 copies; decode and
-    // native-MTP verification retain direct page-table reuse.
-    const bool bounded_prefill_pack =
+    // The mature Turbo4 FA path is the prefill engine for ordinary interactive
+    // query blocks. Non-contiguous selections use its bounded compact bridge;
+    // the scalar paged kernel remains for small verification/decode shapes and
+    // as a last resort when the bridge is unavailable.
+    const bool mature_prefill_fa =
         phase == llama_kv_attention_execution_phase::prefill &&
-        metadata.n_query_tokens() > 2 * LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE;
-    if (bounded_prefill_pack && packed_capable) {
+        metadata.n_query_tokens() >= 16;
+    if (mature_prefill_fa && packed_capable) {
         return llama_kv_attention_execution_route::selected_packed;
     }
 
