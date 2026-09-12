@@ -79,6 +79,7 @@ llama_kv_attention_view llama_kv_attention_view::build(
             }
             if (found->physical_slot == UINT32_MAX ||
                 (found->state != llama_kv_page_state::filling_gpu &&
+                 found->state != llama_kv_page_state::sealing_host &&
                  found->state != llama_kv_page_state::gpu_host_clean &&
                  found->state != llama_kv_page_state::gpu_dirty)) {
                 status = llama_kv_attention_view_status::not_resident;

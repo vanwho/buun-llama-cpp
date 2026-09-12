@@ -2311,6 +2311,13 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params, const std::string & value) { common_kv_pager_set_count(params.kv_pager.hot_pages, value, "--kv-hot-pages"); }
     ).set_env("LLAMA_KV_HOT_PAGES"));
     add_opt(common_arg(
+        {"--kv-test-force-page"}, "N", "internal deterministic pager promotion probe (default: disabled)",
+        [](common_params & params, int value) {
+            if (value < 0) throw std::invalid_argument("--kv-test-force-page must not be negative");
+            params.kv_pager.test_force_logical_page = uint32_t(value);
+        }
+    ));
+    add_opt(common_arg(
         {"--kv-router-top-k"}, "N", "experimental pager router top-k (default: 8)",
         [](common_params & params, int value) { if (value < 0) throw std::invalid_argument("--kv-router-top-k must not be negative"); params.kv_pager.router_top_k = uint32_t(value); }
     ).set_env("LLAMA_KV_ROUTER_TOP_K"));

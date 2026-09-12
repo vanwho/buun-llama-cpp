@@ -1,0 +1,20 @@
+{
+  "driver": "test-kv-pager-model",
+  "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+  "tokens": 300,
+  "generate": 16,
+  "context": 4096,
+  "page_size": 256,
+  "hot_pages": 8,
+  "force_page": -1,
+  "route": "selected dense",
+  "logical_pages": 16,
+  "final_resident_pages": 2,
+  "final_host_pages": 1,
+  "promotion_pages_delta": 0,
+  "h2d_useful_bytes_delta": 0,
+  "h2d_event_completions_delta": 0,
+  "prefill_ms": 280.085,
+  "decode_ms": 350.59,
+  "note": "All occupied pages fit in H; no promotion was expected."
+}

@@ -1014,6 +1014,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.router_explore = kv_pager.router_explore;
     result.pin_recent_tokens = kv_pager.pin_recent.automatic ? 0 : kv_pager.pin_recent.value;
     result.prefetch_depth = kv_pager.prefetch_depth;
+    result.test_forced_logical_page = kv_pager.test_force_logical_page;
 
     const auto residency = kv_pager_owner->residency();
     for (const auto & page : residency.pages()) {
@@ -1066,6 +1067,12 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.host_inflight_pages = kv_pager_owner->host_inflight_pages();
     result.inventory_copy_count = kv_pager_owner->inventory_copy_count();
     result.store_copy_count = kv_pager_owner->store_copy_count();
+    if (result.test_forced_logical_page != UINT32_MAX) {
+        (void) kv_pager_owner->test_page_checksums(result.test_forced_logical_page,
+                result.test_forced_host_checksum, result.test_forced_device_checksum,
+                result.test_forced_physical_slot, result.test_forced_page_generation,
+                result.test_forced_content_version);
+    }
     return result;
 }
 
@@ -2486,6 +2493,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         for (const auto & page : pager_snapshot.pages()) {
             if (page.id.sequence_id != sequence_id || page.physical_slot == UINT32_MAX ||
                 (page.state != llama_kv_page_state::filling_gpu &&
+                 page.state != llama_kv_page_state::sealing_host &&
                  page.state != llama_kv_page_state::gpu_host_clean &&
                  page.state != llama_kv_page_state::gpu_dirty)) {
                 return refuse("selected reference encountered a non-resident page");

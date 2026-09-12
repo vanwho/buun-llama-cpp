@@ -848,3 +848,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-07`
 - Commit at update: `ee12afde2`
 - Summary: Implemented bounded asynchronous CUDA canonical host publication with synchronous fallback, inflight lag telemetry, focused CPU/CUDA tests, and SPEED25_07_HOST evidence.
+
+## 2026-09-12T02:25:45+00:00 — 25-08 — done
+
+- Branch: `codex/task-25-08`
+- Commit at update: `fedc60055`
+- Summary: Real Qwen pressure proof: cold page 0 promoted through live policy with 1 eviction, 4.325 MB H2D, 96 completions, matching host/device checksum; HTTP 200 server pressure request completed with bounded H=8 storage and positive movement; focused CPU/CUDA tests passed.

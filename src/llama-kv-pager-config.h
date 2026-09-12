@@ -44,6 +44,10 @@ struct llama_kv_pager_config {
     uint32_t telemetry_layer = 0;
     uint32_t telemetry_head_begin = 0;
     uint32_t telemetry_head_count = 0;
+    // Opt-in internal test seam. The model pressure driver may request one
+    // known logical page so promotion mechanics can be proved independently
+    // of attention-score quality; no command-line production path sets it.
+    uint32_t test_force_logical_page = UINT32_MAX;
 
     bool enabled() const noexcept { return mode != llama_kv_pager_mode::off; }
     bool validate(std::string & error) const;

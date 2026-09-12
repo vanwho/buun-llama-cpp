@@ -1486,6 +1486,7 @@ private:
     };
     std::vector<pager_query_capture> pager_query_captures_;
     uint64_t pager_query_generation_ = 0;
+    bool pager_fallback_used_ = false;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;
     uint64_t pager_host_controller_generation_ = 1;
