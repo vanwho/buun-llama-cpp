@@ -884,3 +884,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-13`
 - Commit at update: `740c18599`
 - Summary: Completed whole-model speed coverage from retained matched CUDA receipts and Turbo4 fixture; identified selective lifecycle and graph wait/queue costs, retained effective B=256, and recorded honest profiler/hardware timing gaps.
+
+## 2026-09-12T03:21:43+00:00 — 25-14 — done
+
+- Branch: `codex/task-25-14`
+- Commit at update: `dfe7f3049`
+- Summary: Budget admission and retained H/A/B/MTP tuning evidence complete; deterministic full-L coverage passes; live 262K native-MTP smoke deferred because active GPU service is spec-type none.
