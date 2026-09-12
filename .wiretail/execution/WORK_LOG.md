@@ -915,3 +915,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-26-02`
 - Commit at update: `3d33d6158`
 - Summary: Moved scratch reservation to route-selected pre-graph owner boundary; added bounded K/V view contract, adapter forwarding, owner telemetry, and focused CPU/CUDA tests. Live service stages deferred because sudo -n requires interactive authentication.
+
+## 2026-09-12T13:34:53+00:00 — 26-03 — done
+
+- Branch: `codex/task-26-03`
+- Commit at update: `4356748e5`
+- Summary: Repaired append/frontier sealing and propagated structured memory failure reasons; CPU/CUDA pager, server fault, synthetic frontier, and CUDA Turbo4 checks pass. Live Qwen proof deferred because sudo -n requires interactive authentication while PID 768838 occupies VRAM.

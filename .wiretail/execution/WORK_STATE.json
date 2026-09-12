@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "26",
-  "current_task": "26-03",
-  "last_updated_utc": "2026-09-12T13:13:03+00:00",
+  "current_task": "26-04",
+  "last_updated_utc": "2026-09-12T13:35:21+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5215,22 +5215,36 @@
       "cluster": "26h-scratch-frontier-v7",
       "title": "Repair append/frontier and asynchronous sealing through the prefill-to-decode boundary",
       "packet": ".wiretail/execution/tasks/26-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "26-02"
       ],
-      "commit": null,
+      "commit": "eed3e9d3c015150f8d97045e6113547ff5dc5297",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/26-03-attempt-1-20260912T131320Z.jsonl:213",
+            "total_tokens": 47786729,
+            "total_tokens_derived": true,
+            "input_tokens": 47689333,
+            "cached_input_tokens": 46723840,
+            "output_tokens": 97396,
+            "thinking_tokens": 38577
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 47786729,
+          "input_tokens": 47689333,
+          "cached_input_tokens": 46723840,
+          "output_tokens": 97396,
+          "thinking_tokens": 38577
         }
       },
       "scope_revision": "interactive-hot-kv-20260912"
@@ -6835,15 +6849,28 @@
           "cached_input_tokens": 21340672,
           "output_tokens": 55456,
           "thinking_tokens": 23866
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/26-03-attempt-1-20260912T131320Z.jsonl:213",
+          "total_tokens": 47786729,
+          "total_tokens_derived": true,
+          "input_tokens": 47689333,
+          "cached_input_tokens": 46723840,
+          "output_tokens": 97396,
+          "thinking_tokens": 38577
         }
       ],
       "totals": {
-        "turns": 11,
-        "total_tokens": 309861880,
-        "input_tokens": 309325645,
-        "cached_input_tokens": 304474880,
-        "output_tokens": 536235,
-        "thinking_tokens": 152411
+        "turns": 12,
+        "total_tokens": 357648609,
+        "input_tokens": 357014978,
+        "cached_input_tokens": 351198720,
+        "output_tokens": 633631,
+        "thinking_tokens": 190988
       }
     },
     "27": {
@@ -6871,12 +6898,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 88,
-      "total_tokens": 1670893789,
-      "input_tokens": 1666956006,
-      "cached_input_tokens": 1635437056,
-      "output_tokens": 3937783,
-      "thinking_tokens": 1366012
+      "turns": 89,
+      "total_tokens": 1718680518,
+      "input_tokens": 1714645339,
+      "cached_input_tokens": 1682160896,
+      "output_tokens": 4035179,
+      "thinking_tokens": 1404589
     },
     "source": "Codex turn.completed usage events"
   }
