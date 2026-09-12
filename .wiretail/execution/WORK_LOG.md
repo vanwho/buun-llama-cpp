@@ -939,3 +939,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-26-07`
 - Commit at update: `fa77d054b`
 - Summary: Deterministic CPU/CUDA budget and attention checks pass; capacity evidence and handoff record provisional B128/U64 normal and B256/U128 ingestion profiles, with native-MTP live ladder deferred because sudo -n requires interactive authentication and the loaded service is the prior non-MTP profile.
+
+## 2026-09-12T16:27:31+00:00 — 27-01 — done
+
+- Branch: `codex/task-27-01`
+- Commit at update: `bec30e5b3`
+- Summary: Exact L32768/H16384 P256 B128/U64 native Turbo4-MTP scale completed through 18 incremental turns to C=24580 with cached-prefix reuse; post-H recall completed at C=24623. Evidence and handoff record valid rates, raw artifacts, and unproven natural H2D/promotion telemetry.
