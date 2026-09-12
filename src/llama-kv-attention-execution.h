@@ -37,6 +37,17 @@ enum class llama_kv_attention_execution_route : uint8_t {
     refusal,
 };
 
+// Diagnostic-only route forcing.  Automatic selection remains the production
+// default; a forced route is fail-closed when the same selected view cannot
+// satisfy that route's geometry/capability contract.
+enum class llama_kv_attention_execution_route_override : uint8_t {
+    automatic = 0,
+    dense,
+    packed,
+    direct,
+    invalid,
+};
+
 // Keep the direct Turbo4 pager kernel page-friendly and bounded. The CUDA
 // kernel uses the same bound for its fixed shared-memory query workspace.
 constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
@@ -47,6 +58,8 @@ const char * llama_kv_attention_execution_phase_name(
         llama_kv_attention_execution_phase phase) noexcept;
 const char * llama_kv_attention_execution_route_name(
         llama_kv_attention_execution_route route) noexcept;
+const char * llama_kv_attention_execution_route_override_name(
+        llama_kv_attention_execution_route_override route) noexcept;
 
 enum class llama_kv_attention_scratch_context_role : uint8_t {
     target = 0,
@@ -198,6 +211,16 @@ struct llama_kv_attention_execution_metrics {
     uint64_t pack_time_us = 0;
     uint64_t pack_epochs = 0;
     uint64_t pack_reuses = 0;
+    // Packed storage is a duplicate Turbo4 representation. Keep its actual
+    // graph allocation and incremental copy work visible beside the normal H
+    // ledger instead of presenting only a kernel-time counter.
+    uint64_t packed_storage_bytes = 0;
+    uint64_t packed_copy_updates = 0;
+    uint64_t packed_copy_rows = 0;
+    uint64_t packed_copy_reuses = 0;
+    uint64_t packed_inflight_consumers_high_water = 0;
+    uint64_t route_override_accepted = 0;
+    uint64_t route_override_refused = 0;
     uint64_t descriptor_prepare_us = 0;
     uint64_t kernel_us = 0;
     uint64_t total_token_us = 0;
@@ -308,6 +331,17 @@ public:
     void set_mode(llama_kv_attention_execution_mode mode) noexcept;
     llama_kv_attention_execution_mode mode() const noexcept { return mode_; }
 
+    // The value is normally supplied by LLAMA_KV_ATTENTION_ROUTE for a live
+    // diagnostic process. It is intentionally internal and does not change
+    // the public server API.
+    void set_route_override(const char * name) noexcept;
+    llama_kv_attention_execution_route_override route_override() const noexcept {
+        return route_override_;
+    }
+    const char * route_override_name() const noexcept {
+        return llama_kv_attention_execution_route_override_name(route_override_);
+    }
+
     // Pure route selection used by the memory owner before prepare() records
     // a graph lease. Keeping this decision side-effect free lets an allocator
     // refuse an unsupported/under-reserved view before graph construction.
@@ -379,6 +413,8 @@ private:
             llama_kv_attention_execution_route route) const noexcept;
 
     llama_kv_attention_execution_mode mode_;
+    llama_kv_attention_execution_route_override route_override_ =
+        llama_kv_attention_execution_route_override::automatic;
     llama_kv_attention_execution_route route_ = llama_kv_attention_execution_route::dense;
     llama_kv_attention_operator_metadata metadata_;
     llama_kv_attention_execution_phase phase_ = llama_kv_attention_execution_phase::prefill;

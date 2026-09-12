@@ -81,6 +81,7 @@ static uint64_t attention_physical_key(
     uint64_t key = 1469598103934665603ull;
     for (const auto & page : view.pages()) {
         attention_key_mix(key, page.source_physical_slot);
+        attention_key_mix(key, page.compact_row_begin);
         attention_key_mix(key, page.row_count);
     }
     return key == 0 ? 1 : key;

@@ -260,6 +260,16 @@ llama_context::llama_context(
         case llama_kv_pager_mode::exact:    set_kv_attention_mode(llama_kv_attention_execution_mode::exact);    break;
     }
 
+    // A process-scoped diagnostic override keeps the selected page snapshot,
+    // positions, A, and numeric policy identical across route comparisons.
+    // It is deliberately not a user-facing API and unsupported values fail
+    // closed at attention admission.
+    if (const char * route_override = std::getenv("LLAMA_KV_ATTENTION_ROUTE")) {
+        kv_attention_execution.set_route_override(route_override);
+        LLAMA_LOG_INFO("KV attention route override: %s\n",
+                kv_attention_execution.route_override_name());
+    }
+
     t_start_us = model.t_start_us;
     t_load_us  = model.t_load_us;
 
@@ -925,6 +935,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
         result.target_backend = "not_configured";
     }
     result.route = kv_attention_execution.route();
+    result.route_override = kv_attention_execution.route_override_name();
     result.table_epoch = kv_attention_execution.table_epoch();
     result.representation_epoch = kv_attention_execution.representation_epoch();
     result.shape_epoch = kv_attention_execution.shape_epoch();

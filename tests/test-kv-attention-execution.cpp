@@ -204,9 +204,8 @@ static void test_routes_epochs_and_fences() {
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
 
-    // Direct paged Turbo4 attention is the large-prefill path. Packing is a
-    // fallback for geometries that cannot use the CUDA page-table kernel; it
-    // must not shadow an otherwise valid direct route.
+    // The bounded policy keeps the direct pager for the small query tile;
+    // larger non-contiguous prefills use cached compact packing.
     llama_kv_attention_execution direct_over_packed(
             llama_kv_attention_execution_mode::selective);
     const auto direct_packed = direct_over_packed.prepare(selected_prefill,
@@ -214,6 +213,38 @@ static void test_routes_epochs_and_fences() {
             {}, false, true);
     assert(direct_packed.route == llama_kv_attention_execution_route::selected_direct);
     direct_over_packed.complete_one_graph();
+
+    const auto packed_prefill = metadata(snapshot(), 129, 1);
+    const auto packed_policy = direct_over_packed.prepare(packed_prefill,
+            llama_kv_attention_execution_phase::prefill, 8, 12, true, scratch,
+            {}, false, true);
+    assert(packed_policy.route == llama_kv_attention_execution_route::selected_packed);
+    direct_over_packed.complete_one_graph();
+
+    // Forced routes compare the same metadata and fail closed when their
+    // capability contract is absent. This is the diagnostic seam used by the
+    // live dispatch measurements, not a normal pressure fallback.
+    llama_kv_attention_execution forced(llama_kv_attention_execution_mode::selective);
+    forced.set_route_override("packed");
+    const auto forced_packed = forced.prepare(selected_prefill,
+            llama_kv_attention_execution_phase::prefill, 9, 13, true, scratch,
+            {}, false, true);
+    assert(forced_packed.status == llama_kv_attention_execution_status::ok);
+    assert(forced_packed.route == llama_kv_attention_execution_route::selected_packed);
+    forced.complete_one_graph();
+    forced.set_route_override("dense");
+    const auto refused_dense = forced.prepare(selected_prefill,
+            llama_kv_attention_execution_phase::prefill, 10, 14, true, scratch,
+            {}, false, true);
+    assert(refused_dense.status == llama_kv_attention_execution_status::not_configured);
+    assert(refused_dense.route == llama_kv_attention_execution_route::refusal);
+    assert(refused_dense.reason.find("route override 'dense'") != std::string::npos);
+    forced.set_route_override("invalid-route");
+    assert(forced.planned_route(selected_prefill,
+            llama_kv_attention_execution_phase::decode, true, true, true) ==
+           llama_kv_attention_execution_route::refusal);
+    assert(forced.metrics().route_override_accepted == 1);
+    assert(forced.metrics().route_override_refused == 1);
 
     execution.record_wait_time_us(7);
     execution.record_copy_time_us(11);

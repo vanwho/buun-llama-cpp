@@ -818,6 +818,21 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             const int64_t pack_start = kv_attention_metrics && update_selected
                 ? ggml_time_us() : 0;
             uint64_t packed_bytes = 0;
+            if (initialize_selected && kv_attention_metrics != nullptr) {
+                uint64_t storage_bytes = 0;
+                for (const auto & layer : packed_layers) {
+                    const uint64_t layer_bytes = uint64_t(ggml_nbytes(layer.k)) +
+                        uint64_t(ggml_nbytes(layer.v));
+                    storage_bytes = storage_bytes > UINT64_MAX - layer_bytes
+                        ? UINT64_MAX : storage_bytes + layer_bytes;
+                }
+                // This is the live duplicate allocation size, not a
+                // cumulative per-graph counter. pack_bytes below records
+                // cumulative transfer work; storage remains a bounded
+                // high-water value for the H-ledger charge.
+                kv_attention_metrics->packed_storage_bytes = std::max(
+                        kv_attention_metrics->packed_storage_bytes, storage_bytes);
+            }
             if (update_selected) {
                 for (auto & layer : packed_layers) {
                     for (auto & copy : layer.copies) {
@@ -825,12 +840,42 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                             throw std::runtime_error("packed selected attention page plan is stale");
                         }
                         const uint32_t generation = selected_metadata.page_table()[copy.page_index].page_generation;
-                        if (!initialize_selected && generation == copy.page_generation) {
+                        if (!initialize_selected && uint64_t(generation) == copy.content_version) {
+                            if (kv_attention_metrics != nullptr) {
+                                kv_attention_metrics->packed_copy_reuses =
+                                    kv_attention_metrics->packed_copy_reuses == UINT64_MAX
+                                        ? UINT64_MAX : kv_attention_metrics->packed_copy_reuses + 1;
+                            }
                             continue;
                         }
+                        // These page tensors are graph-owned descriptors rather
+                        // than graph nodes.  Initialize their backend views
+                        // explicitly before the first copy; otherwise the
+                        // compact destination has no device data pointer yet.
+                        const auto initialize_view = [](ggml_tensor * tensor) {
+                            if (tensor != nullptr && tensor->view_src != nullptr && tensor->buffer == nullptr) {
+                                if (ggml_backend_view_init(tensor) != GGML_STATUS_SUCCESS) {
+                                    throw std::runtime_error("packed selected attention view initialization failed");
+                                }
+                            }
+                        };
+                        initialize_view(copy.source_k);
+                        initialize_view(copy.source_v);
+                        initialize_view(copy.packed_k);
+                        initialize_view(copy.packed_v);
                         ggml_backend_tensor_copy(copy.source_k, copy.packed_k);
                         ggml_backend_tensor_copy(copy.source_v, copy.packed_v);
                         copy.page_generation = generation;
+                        copy.content_version = generation;
+                        copy.source_lifetime_epoch = layer.source_lifetime_epoch;
+                        if (kv_attention_metrics != nullptr) {
+                            kv_attention_metrics->packed_copy_updates =
+                                kv_attention_metrics->packed_copy_updates == UINT64_MAX
+                                    ? UINT64_MAX : kv_attention_metrics->packed_copy_updates + 1;
+                            kv_attention_metrics->packed_copy_rows =
+                                kv_attention_metrics->packed_copy_rows > UINT64_MAX - copy.row_count
+                                    ? UINT64_MAX : kv_attention_metrics->packed_copy_rows + copy.row_count;
+                        }
                         packed_bytes = packed_bytes > UINT64_MAX - copy.bytes
                             ? UINT64_MAX : packed_bytes + copy.bytes;
                     }
@@ -1775,8 +1820,12 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
         params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
     const bool direct = params.kv_attention_route == llama_kv_attention_execution_route::selected_direct ||
         params.kv_attention_route == llama_kv_attention_execution_route::exact_direct;
+    const bool dense = params.kv_attention_route == llama_kv_attention_execution_route::selected_dense;
+    const bool packed = params.kv_attention_route == llama_kv_attention_execution_route::selected_packed;
     res &= inp_attn->selected_attention == selected;
     res &= inp_attn->direct_attention == direct;
+    res &= inp_attn->dense_attention == dense;
+    res &= inp_attn->packed_attention == packed;
     if (selected && params.kv_attention_exact_plan == nullptr) {
         const auto & metadata = params.kv_attention_metadata;
         if (!metadata.valid() || !metadata.enabled()) {
@@ -1790,7 +1839,7 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
     }
     res &= can_reuse_kq_mask(inp_attn->self_kq_mask, mctx->get_attn(), params.ubatch, params.cparams,
             selected ? params.kv_attention_metadata.get_n_kv() : 0);
-    if (selected && !direct) {
+    if (selected && !direct && !dense && !packed) {
         res &= inp_attn->self_selected_idxs != nullptr;
         res &= inp_attn->self_selected_idxs->ne[0] == params.kv_attention_metadata.get_n_kv();
     }
@@ -3668,6 +3717,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 }
                 llm_graph_input_attn_kv::packed_layer layer;
                 layer.layer_id = layer_id;
+                layer.source_lifetime_epoch = mctx_cur->get_vbr_epoch();
+                layer.source_physical_key = selected_metadata->graph_physical_key();
                 layer.k = ggml_new_tensor_4d(ctx0, source_k->type,
                         source_k->ne[0], source_k->ne[1], selected_metadata->get_n_kv(), 1);
                 layer.v = ggml_new_tensor_4d(ctx0, source_v->type,
@@ -3708,7 +3759,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                     packed_v_view->nb[3] = source_v_view->nb[3];
                     layer.copies.push_back({ source_k_view, source_v_view,
                             packed_k_view, packed_v_view, uint32_t(layer.copies.size()),
-                            page.page_generation, page.row_count,
+                            page.page_generation, uint64_t(page.page_generation),
+                            mctx_cur->get_vbr_epoch(), page.row_count,
                             uint64_t(page.row_count) * (source_k->nb[2] + source_v->nb[2]) });
                 }
                 inp->packed_layers.push_back(std::move(layer));

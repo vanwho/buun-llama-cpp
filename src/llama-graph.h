@@ -468,6 +468,8 @@ public:
         ggml_tensor * packed_v = nullptr;
         uint32_t page_index = 0;
         uint32_t page_generation = 0;
+        uint64_t content_version = 0;
+        uint64_t source_lifetime_epoch = 0;
         uint32_t row_count = 0;
         uint64_t bytes = 0;
     };
@@ -475,6 +477,11 @@ public:
         uint32_t layer_id = 0;
         ggml_tensor * k = nullptr;
         ggml_tensor * v = nullptr;
+        // Borrowed source tensors remain owned by the pager/cache context;
+        // these identities document the lifetime and physical slab against
+        // which the compact duplicate was captured.
+        uint64_t source_lifetime_epoch = 0;
+        uint64_t source_physical_key = 0;
         std::vector<packed_copy> copies;
     };
     std::vector<packed_layer> packed_layers;
