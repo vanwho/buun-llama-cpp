@@ -11,10 +11,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "27",
-  "current_task": "27-02",
-  "last_updated_utc": "2026-09-12T17:41:53+00:00",
+  "current_task": "27-03",
+  "last_updated_utc": "2026-09-12T18:25:23+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5495,15 +5495,40 @@
       "cluster": "27e-kernel-safety-v8",
       "title": "Repair paged CUDA shared memory and establish a short kernel reproducer",
       "packet": ".wiretail/execution/tasks/27-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "27-01"
       ],
-      "commit": null,
+      "commit": "3b851730e812ec2ba2e6dd750eb05ef7e47521b0",
       "scope_revision": "gpu-hot-path-v8-20260912",
-      "previous_attempt_disposition": "User-requested stop of pathological maximum campaign; raw results preserved. New cluster requires fresh session; capacity work moved to29-02. No completed provider turn usage was reported for interrupted attempt."
+      "previous_attempt_disposition": "User-requested stop of pathological maximum campaign; raw results preserved. New cluster requires fresh session; capacity work moved to29-02. No completed provider turn usage was reported for interrupted attempt.",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/27-02-attempt-1-20260912T174526Z.jsonl:304",
+            "total_tokens": 25113510,
+            "total_tokens_derived": true,
+            "input_tokens": 25031708,
+            "cached_input_tokens": 24531200,
+            "output_tokens": 81802,
+            "thinking_tokens": 40674
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 25113510,
+          "input_tokens": 25031708,
+          "cached_input_tokens": 24531200,
+          "output_tokens": 81802,
+          "thinking_tokens": 40674
+        }
+      }
     },
     {
       "id": "27-03",
@@ -7232,18 +7257,53 @@
           "cached_input_tokens": 6672128,
           "output_tokens": 24842,
           "thinking_tokens": 6938
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/27-02-attempt-1-20260912T174526Z.jsonl:304",
+          "total_tokens": 25113510,
+          "total_tokens_derived": true,
+          "input_tokens": 25031708,
+          "cached_input_tokens": 24531200,
+          "output_tokens": 81802,
+          "thinking_tokens": 40674
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 6865426,
-        "input_tokens": 6840584,
-        "cached_input_tokens": 6672128,
-        "output_tokens": 24842,
-        "thinking_tokens": 6938
+        "turns": 2,
+        "total_tokens": 31978936,
+        "input_tokens": 31872292,
+        "cached_input_tokens": 31203328,
+        "output_tokens": 106644,
+        "thinking_tokens": 47612
       }
     },
     "28": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "29": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "30": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -7257,12 +7317,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 95,
-      "total_tokens": 1922105434,
-      "input_tokens": 1917607128,
-      "cached_input_tokens": 1881020416,
-      "output_tokens": 4498306,
-      "thinking_tokens": 1573866
+      "turns": 96,
+      "total_tokens": 1947218944,
+      "input_tokens": 1942638836,
+      "cached_input_tokens": 1905551616,
+      "output_tokens": 4580108,
+      "thinking_tokens": 1614540
     },
     "source": "Codex turn.completed usage events"
   }
