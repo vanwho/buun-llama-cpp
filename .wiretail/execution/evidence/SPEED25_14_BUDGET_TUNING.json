@@ -1,0 +1,72 @@
+{
+  "schema": "speed25-14-budget-tuning-v1",
+  "task": "25-14",
+  "status": "complete_local_with_deferred_full_context_live_smoke",
+  "objective": "Jointly tune native-MTP reservation, hot capacity H, selected rows A, and batch size B without sacrificing logical context L=262144.",
+  "provenance": {
+    "source_commit": "dfe7f30490d87d16f3d1b8d5b84140f121bc363b",
+    "retained_runtime_bundle": "/srv/ai/paged-kv/results/25-06-runtime-bundle-20260912T064000Z",
+    "retained_server": "/srv/ai/paged-kv/results/25-06-runtime-bundle-20260912T064000Z/llama-server",
+    "model": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080, compute capability 8.9, 15945 MiB VRAM",
+    "driver": "595.91.07"
+  },
+  "policy": {
+    "logical_context_L": 262144,
+    "reservation_order": ["weights", "recurrent", "native_mtp_full_L", "graph_and_compute_scratch", "rings_and_staging", "allocator_guard_and_headroom", "hot_pages_H"],
+    "mtp_rule": "Reserve exact resolved native-MTP rows for full L before admitting hot pages; reject below that floor.",
+    "a_rule": "A is independently derived from validated attention geometry and is not silently increased to fill H.",
+    "b_rule": "B is benchmark-configurable and independent from the CUDA query tile.",
+    "fallback_rule": "No 77K or other reduced-context fallback is counted as 262K success."
+  },
+  "ledger": {
+    "scope": "retained live B sweep at L=4096; values are measured references, not extrapolated 262K allocations",
+    "logical_context_rows": 4096,
+    "effective_batch_rows": 256,
+    "weights_bytes": 13695600000,
+    "fixed_context_bytes": 131072,
+    "recurrent_state_bytes": 470680000,
+    "native_mtp_compute_bytes": 268435000,
+    "graph_scratch_bytes": 268435000,
+    "turbo4_compute_scratch_bytes": 128,
+    "routing_metadata_bytes": 67072,
+    "staging_bytes": 128,
+    "allocator_guard_bytes": 292837000,
+    "headroom_bytes": 201327000,
+    "target_bytes": 69206000,
+    "native_mtp_rows": 4096,
+    "native_mtp_bytes": 4456450,
+    "double_counting_control": "KV storage tensor is excluded from fixed cost when represented by the pager plan; page storage is charged once by the plan."
+  },
+  "budget_unit_coverage": {
+    "test": "tests/test-cache-budget.cpp",
+    "result": "pass",
+    "contexts": [256, 16384, 32768, 65536, 65537, 131072, 262144],
+    "checks": ["actual Turbo4 MTP row geometry", "full-L MTP-first admission", "below-MTP refusal", "partial page", "zero capacity", "overflow", "headroom", "graph/scratch/routing/staging categories", "nonzero H after fixed reservation"]
+  },
+  "search": {
+    "candidate_limit": 2,
+    "measured_candidates": [
+      {"id": "b256", "L": 4096, "H_rows": 4096, "A_rows": 2304, "B": 256, "mtp_n_max": 2, "prompt_tokens_per_second": 463.0, "decode_tokens_per_second": 43.56, "mtp_accepted": 18, "mtp_proposed": 25, "raw_root": "/srv/ai/paged-kv/results/25-06-short-final-20260912T064000Z"},
+      {"id": "b512", "L": 4096, "H_rows": 4096, "A_rows": 2304, "B": 512, "mtp_n_max": 2, "prompt_tokens_per_second": 453.91, "decode_tokens_per_second": 46.2, "mtp_accepted": 19, "mtp_proposed": 23, "raw_root": "/srv/ai/paged-kv/results/25-06-short-ub512-20260912T064000Z"}
+    ],
+    "retained_choice": "b256",
+    "choice_reason": "Best measured prefill throughput and lower TTFT; B512 remains a decode-throughput alternative, so no unsupported universal winner is claimed.",
+    "a_h_nmax_sweep": "deferred: existing calibrated A=2304, automatic H, and native MTP n_max=2 were retained; no fresh coherent multi-dimensional live sweep was possible while the active GPU service was spec-type none."
+  },
+  "validation": {
+    "build": "cmake --build build --target test-cache-budget test-moe-cache-fit test-kv-pager test-kv-pager-model -j2",
+    "checks": ["build/bin/test-cache-budget", "build/bin/test-moe-cache-fit", "build/bin/test-kv-pager", "build/bin/test-kv-pager-model"],
+    "result": "all pass",
+    "live_262144_native_mtp_smoke": null,
+    "live_262144_reason": "Deferred: the resident server on port 8080 uses --spec-type none and the RTX 4080 has an unrelated active allocation; the historical PHASE23 262K record is explicitly not_run.",
+    "allocation_claim": "Local deterministic budget proof only; occupied full-context proof remains 26-01."
+  },
+  "raw_roots": [
+    ".wiretail/execution/evidence/raw/SPEED25_06_BATCHING_cuda.txt",
+    "/srv/ai/paged-kv/results/25-06-short-final-20260912T064000Z",
+    "/srv/ai/paged-kv/results/25-06-short-ub512-20260912T064000Z"
+  ],
+  "next_command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate"
+}
