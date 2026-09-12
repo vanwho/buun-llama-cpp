@@ -1,0 +1,43 @@
+{
+  "schema": "pager-evidence-v5",
+  "schema_version": 1,
+  "task_id": "28-01",
+  "result": "pass_local_deferred_cuda_contention",
+  "kind": "implementation",
+  "created_utc": "2026-09-12T19:29:24Z",
+  "classification": {
+    "local_build": "pass",
+    "cpu_estimator_and_pager_tests": "pass",
+    "cuda_fixture_build": "pass",
+    "cuda_fixture_execution": "deferred_device_occupied",
+    "live_primary": "deferred_device_occupied"
+  },
+  "implementation": {
+    "bounded_attention_budget": true,
+    "bounded_stale_route_fallback": true,
+    "per_layer_kv_head_summary_index": true,
+    "summary_subblock_tokens": 64,
+    "minmax_cpu_oracle": true,
+    "cuda_grouped_query_topk": true,
+    "cuda_finite_checks_and_logical_ties": true,
+    "same_stream_route_before_paged_attention": true,
+    "cpu_query_readback_required_for_ranking": false
+  },
+  "local_verification": [
+    {"command": "cmake --build build-cuda --target test-cuda-fattn-paged-turbo4 test-kv-routing-summary test-kv-pager test-kv-routing-retrieval test-arg-parser llama-server -j2", "status": "pass"},
+    {"command": "build-cuda/bin/test-kv-routing-summary", "status": "pass"},
+    {"command": "build-cuda/bin/test-kv-pager", "status": "pass"},
+    {"command": "build-cuda/bin/test-kv-routing-retrieval", "status": "pass"},
+    {"command": "build-cuda/bin/test-arg-parser", "status": "pass"},
+    {"command": "git diff --check", "status": "pass"},
+    {"command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate", "status": "pass"}
+  ],
+  "deferred_verification": {
+    "required": true,
+    "status": "not_run_device_occupied",
+    "command": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "observed": "NVIDIA GeForce RTX 4080 reported 15945 MiB total; preserved primary llama-server used 15296 MiB, and the fixture failed its first allocation with CUDA out of memory",
+    "required_follow_up": "Run the fixture and natural-query live proof after the preserved workload releases the device; do not treat the allocation failure as a kernel result"
+  },
+  "handoff": ".wiretail/execution/handoffs/28-01.md"
+}

@@ -1271,15 +1271,17 @@ llama_kv_pager::routing_summary_configs() const noexcept {
             output.push_back(routing_summary_config_);
             return output;
         }
-        // Runtime routing captures and scores head zero. Keep one immutable
-        // summary per attention layer; maintaining every KV head multiplied
-        // page-seal CPU work without adding a consumer-visible decision.
-        output.reserve(layers);
+        // Summary ownership follows the attention domain: every layer and KV
+        // head has an independently tagged buffer. Query grouping can still
+        // share a head's result, but it must never merge different KV heads.
+        output.reserve(size_t(layers) * snapshot_.geometry.kv_heads);
         for (uint32_t layer = 0; layer < layers; ++layer) {
-            auto config = routing_summary_config_;
-            config.layer_index = layer;
-            config.head_index = 0;
-            output.push_back(config);
+            for (uint32_t head = 0; head < snapshot_.geometry.kv_heads; ++head) {
+                auto config = routing_summary_config_;
+                config.layer_index = layer;
+                config.head_index = head;
+                output.push_back(config);
+            }
         }
     } catch (...) {
         output.clear();

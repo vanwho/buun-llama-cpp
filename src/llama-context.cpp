@@ -490,6 +490,7 @@ llama_context::llama_context(
     cparams.vbr_min_bits_explicit = params.vbr_min_bits_explicit;
     cparams.vbr_pin_k = params.vbr_pin_k;
     cparams.vbr_pin_v = params.vbr_pin_v;
+    cparams.kv_attention_tokens = kv_pager.attention_tokens;
 
     // A shared-KV drafter (gemma4 assistant / weightless DFlash/Eagle3) views the target's
     // KV tensors — the target's VBR controller owns those, and the drafter's graphs follow
@@ -1248,16 +1249,15 @@ void llama_context::plan_kv_pager() {
 
     resources.routing_summary.vector_dim = geometry.key_length;
     resources.routing_summary.representative_count = 4;
+    resources.routing_summary.form = llama_kv_routing_summary_form::minmax_ranges;
+    resources.routing_summary.subblock_tokens = 64;
     const uint64_t logical_pages = (geometry.context_tokens - 1) /
         geometry.page_tokens + 1;
-    const uint64_t routing_vectors = 4ull * geometry.key_length;
-    const uint64_t routing_per_page = routing_vectors >
-            (UINT64_MAX - sizeof(llama_kv_page_id)) / sizeof(float)
-        ? UINT64_MAX
-        : routing_vectors * sizeof(float) + sizeof(llama_kv_page_id);
-    resources.admission.routing_bytes = routing_per_page != 0 &&
-            logical_pages > UINT64_MAX / routing_per_page
-        ? UINT64_MAX : logical_pages * routing_per_page;
+    resources.admission.routing_bytes =
+        llama_kv_routing_summary_device_layout::make(
+            logical_pages, geometry.attention_layers, geometry.kv_heads,
+            geometry.key_length, geometry.page_tokens,
+            resources.routing_summary.subblock_tokens, sizeof(uint16_t)).bytes;
 
     llama_kv_pager_status status;
     if (!llama_kv_pager_plan(kv_pager, geometry, resources,
@@ -1506,18 +1506,16 @@ void llama_context::init_kv_pager() {
     // vector dimension follows admitted geometry and is not context-sized.
     resources.routing_summary.vector_dim = geometry.key_length;
     resources.routing_summary.representative_count = 4;
+    resources.routing_summary.form = llama_kv_routing_summary_form::minmax_ranges;
+    resources.routing_summary.subblock_tokens = 64;
     resources.routing_summary.layer_index = 0;
     resources.routing_summary.head_index = 0;
     const uint64_t logical_pages = (geometry.context_tokens - 1) / geometry.page_tokens + 1;
-    const uint64_t routing_vectors = uint64_t(resources.routing_summary.representative_count) *
-        resources.routing_summary.vector_dim;
-    const uint64_t routing_per_page = routing_vectors >
-            (UINT64_MAX - sizeof(llama_kv_page_id)) / sizeof(float)
-        ? UINT64_MAX
-        : routing_vectors * sizeof(float) + sizeof(llama_kv_page_id);
-    resources.admission.routing_bytes = routing_per_page != 0 &&
-            logical_pages > UINT64_MAX / routing_per_page
-        ? UINT64_MAX : logical_pages * routing_per_page;
+    resources.admission.routing_bytes =
+        llama_kv_routing_summary_device_layout::make(
+            logical_pages, geometry.attention_layers, geometry.kv_heads,
+            geometry.key_length, geometry.page_tokens,
+            resources.routing_summary.subblock_tokens, sizeof(uint16_t)).bytes;
 
     llama_kv_pager_backend pager_backend;
     pager_backend.allocate = [backend_index, this](uint64_t bytes, llama_kv_pager_allocation & allocation) {
@@ -2587,7 +2585,22 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     try {
         selected_pages.clear();
         const auto & routed_pages = attention->selected_attention_pages();
-        selected_pages.reserve(routed_pages.empty() ? pager_snapshot.pages().size() : routed_pages.size());
+        const uint32_t page_tokens = pager_geometry.geometry.page_tokens;
+        const uint32_t attention_tokens = cparams.kv_attention_tokens != 0
+            ? cparams.kv_attention_tokens
+            : std::max<uint32_t>(page_tokens,
+                (hot_capacity * page_tokens + 1) / 2);
+        const uint32_t bounded_pages = std::max<uint32_t>(1,
+            std::min<uint64_t>(hot_capacity,
+                (uint64_t(attention_tokens) + page_tokens - 1) / page_tokens));
+        selected_pages.reserve(bounded_pages);
+        const auto resident_state = [](const auto & page) {
+            return page.physical_slot != UINT32_MAX &&
+                (page.state == llama_kv_page_state::filling_gpu ||
+                 page.state == llama_kv_page_state::sealing_host ||
+                 page.state == llama_kv_page_state::gpu_host_clean ||
+                 page.state == llama_kv_page_state::gpu_dirty);
+        };
         const auto append_page = [&](const llama_kv_page_id & id) {
             auto page = std::find_if(pager_snapshot.pages().begin(), pager_snapshot.pages().end(),
                 [&](const auto & value) { return value.id == id; });
@@ -2606,14 +2619,17 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                              value.state == llama_kv_page_state::gpu_dirty);
                     });
             }
-            if (page == pager_snapshot.pages().end()) return false;
-            if (page->id.sequence_id != sequence_id || page->physical_slot == UINT32_MAX ||
-                (page->state != llama_kv_page_state::filling_gpu &&
-                 page->state != llama_kv_page_state::sealing_host &&
-                 page->state != llama_kv_page_state::gpu_host_clean &&
-                 page->state != llama_kv_page_state::gpu_dirty)) return false;
+            if (page == pager_snapshot.pages().end() || page->id.sequence_id != sequence_id ||
+                !resident_state(*page)) return false;
+            if (std::find(selected_pages.begin(), selected_pages.end(), page->id.logical_page) !=
+                    selected_pages.end()) return true;
+            if (selected_pages.size() >= bounded_pages) return false;
             selected_pages.push_back(page->id.logical_page);
             return true;
+        };
+        const auto append_fallback = [&](const llama_kv_page_id & id) {
+            if (selected_pages.size() >= bounded_pages) return;
+            (void) append_page(id);
         };
         if (!routed_pages.empty()) {
             bool routed_valid = true;
@@ -2625,31 +2641,38 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             }
             if (!routed_valid) {
                 // A subsequent write may have replaced a routed cold page
-                // before this graph acquired its snapshot.  Discard the
-                // stale advisory route and use the current authenticated
-                // resident set; the exact-ID check remains active whenever
-                // the route and snapshot agree.
+                // before this graph acquired its snapshot. Discard only the
+                // stale advisory route and rebuild a bounded working set from
+                // current, sink, recent, then prior-resident pages.
                 selected_pages.clear();
                 for (const auto & page : pager_snapshot.pages()) {
-                    if (page.id.sequence_id != sequence_id || page.physical_slot == UINT32_MAX ||
-                        (page.state != llama_kv_page_state::filling_gpu &&
-                         page.state != llama_kv_page_state::sealing_host &&
-                         page.state != llama_kv_page_state::gpu_host_clean &&
-                         page.state != llama_kv_page_state::gpu_dirty)) {
-                        return refuse("selected reference encountered a non-resident page");
-                    }
-                    selected_pages.push_back(page.id.logical_page);
+                    if (pager.is_current_page(page.id)) append_fallback(page.id);
                 }
+                for (const auto & page : pager_snapshot.pages()) {
+                    if (page.id.logical_page == 0) append_fallback(page.id);
+                }
+                for (auto page = pager_snapshot.pages().rbegin();
+                        page != pager_snapshot.pages().rend(); ++page) {
+                    append_fallback(page->id);
+                }
+                for (const auto & id : routed_pages) append_fallback(id);
             }
-        } else for (const auto & page : pager_snapshot.pages()) {
-            if (page.id.sequence_id != sequence_id || page.physical_slot == UINT32_MAX ||
-                (page.state != llama_kv_page_state::filling_gpu &&
-                 page.state != llama_kv_page_state::sealing_host &&
-                 page.state != llama_kv_page_state::gpu_host_clean &&
-                 page.state != llama_kv_page_state::gpu_dirty)) {
-                return refuse("selected reference encountered a non-resident page");
+        } else {
+            // No route is an explicit bounded fallback, not permission to
+            // materialize the complete H-sized resident inventory.
+            for (const auto & page : pager_snapshot.pages()) {
+                if (pager.is_current_page(page.id)) append_fallback(page.id);
             }
-            selected_pages.push_back(page.id.logical_page);
+            for (const auto & page : pager_snapshot.pages()) {
+                if (page.id.logical_page == 0) append_fallback(page.id);
+            }
+            for (auto page = pager_snapshot.pages().rbegin();
+                    page != pager_snapshot.pages().rend(); ++page) {
+                append_fallback(page->id);
+            }
+        }
+        if (selected_pages.empty()) {
+            return refuse("bounded selected reference found no resident page");
         }
     } catch (...) {
         return refuse("selected page metadata allocation failed");

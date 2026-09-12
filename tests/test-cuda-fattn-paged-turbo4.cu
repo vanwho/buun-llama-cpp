@@ -338,6 +338,11 @@ int main(int argc, char ** argv) {
     float * output_device = nullptr;
     float * page_mass_device = nullptr;
     float * partial_state_device = nullptr;
+    uint16_t * routing_min_device = nullptr;
+    uint16_t * routing_max_device = nullptr;
+    uint32_t * routing_indices_device = nullptr;
+    uint32_t * routing_count_device = nullptr;
+    float * routing_scores_device = nullptr;
     cuda_check(cudaMalloc(&q_device, q_host.size() * sizeof(float)), "q allocation");
     cuda_check(cudaMalloc(&k_device, k_host.size()), "k allocation");
     cuda_check(cudaMalloc(&v_device, v_host.size()), "v allocation");
@@ -349,6 +354,23 @@ int main(int argc, char ** argv) {
     cuda_check(cudaMalloc(&output_device, q_host.size() * sizeof(float)), "output allocation");
     cuda_check(cudaMalloc(&page_mass_device, max_query_tokens * n_head_q * 4 * sizeof(float)), "mass allocation");
     cuda_check(cudaMalloc(&partial_state_device, max_query_tokens * n_head_q * (2 + 256) * sizeof(float)), "partial state allocation");
+    constexpr uint32_t routing_subblocks = 4;
+    constexpr uint32_t routing_top_k = 2;
+    constexpr size_t routing_page_stride = size_t(routing_subblocks) * 256 * sizeof(uint16_t);
+    std::vector<uint16_t> routing_min(n_pages * routing_page_stride / sizeof(uint16_t), 0);
+    std::vector<uint16_t> routing_max = routing_min;
+    const uint16_t routing_scores_host[] = { 0x4400, 0x4200, 0x4000, 0x3c00 };
+    for (uint32_t page = 0; page < n_pages; ++page) {
+        for (uint32_t block = 0; block < routing_subblocks; ++block) {
+            routing_max[size_t(page) * routing_page_stride / sizeof(uint16_t) +
+                size_t(block) * 256 * 2] = routing_scores_host[page];
+        }
+    }
+    cuda_check(cudaMalloc(&routing_min_device, routing_min.size() * sizeof(uint16_t)), "routing min allocation");
+    cuda_check(cudaMalloc(&routing_max_device, routing_max.size() * sizeof(uint16_t)), "routing max allocation");
+    cuda_check(cudaMalloc(&routing_indices_device, size_t(max_query_tokens) * n_head_kv * routing_top_k * sizeof(uint32_t)), "routing index allocation");
+    cuda_check(cudaMalloc(&routing_count_device, size_t(max_query_tokens) * n_head_kv * sizeof(uint32_t)), "routing count allocation");
+    cuda_check(cudaMalloc(&routing_scores_device, size_t(max_query_tokens) * n_head_kv * routing_top_k * sizeof(float)), "routing score allocation");
     cuda_check(cudaMemcpy(q_device, q_host.data(), q_host.size() * sizeof(float), cudaMemcpyHostToDevice), "q copy");
     cuda_check(cudaMemcpy(k_device, k_host.data(), k_host.size(), cudaMemcpyHostToDevice), "k copy");
     cuda_check(cudaMemcpy(v_device, v_host.data(), v_host.size(), cudaMemcpyHostToDevice), "v copy");
@@ -357,6 +379,8 @@ int main(int argc, char ** argv) {
     cuda_check(cudaMemcpy(native_mask_device, native_mask.data(), native_mask.size(), cudaMemcpyHostToDevice), "mask copy");
     cuda_check(cudaMemcpy(query_position_device, query_positions_host.data(),
         query_positions_host.size() * sizeof(query_positions_host[0]), cudaMemcpyHostToDevice), "query position copy");
+    cuda_check(cudaMemcpy(routing_min_device, routing_min.data(), routing_min.size() * sizeof(uint16_t), cudaMemcpyHostToDevice), "routing min copy");
+    cuda_check(cudaMemcpy(routing_max_device, routing_max.data(), routing_max.size() * sizeof(uint16_t), cudaMemcpyHostToDevice), "routing max copy");
 
     ggml_cuda_fattn_turbo4_paged_params params;
     params.q = q_device;
@@ -390,6 +414,43 @@ int main(int argc, char ** argv) {
     params.n_query_tokens = 1;
     params.n_batch = 1;
     params.scale = 1.0f / std::sqrt(256.0f);
+    params.routing_range_min = routing_min_device;
+    params.routing_range_max = routing_max_device;
+    params.routing_selected_indices = routing_indices_device;
+    params.routing_selected_count = routing_count_device;
+    params.routing_selected_scores = routing_scores_device;
+    params.routing_range_page_stride_bytes = routing_page_stride;
+    params.routing_selected_stride_bytes = routing_top_k * sizeof(uint32_t);
+    params.routing_count_stride_bytes = sizeof(uint32_t);
+    params.routing_subblocks = routing_subblocks;
+    params.routing_vector_dim = 256;
+    params.routing_top_k = routing_top_k;
+
+    std::vector<float> routing_q(q_host.size(), 0.0f);
+    for (uint32_t head = 0; head < n_head_q; ++head) routing_q[size_t(head) * 256] = 1.0f;
+    cuda_check(cudaMemcpy(q_device, routing_q.data(), routing_q.size() * sizeof(float), cudaMemcpyHostToDevice), "routing query copy");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4_route(
+            *static_cast<ggml_backend_cuda_context *>(backend->context), params) ==
+        ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaDeviceSynchronize(), "routing selector");
+    uint32_t selected_indices[routing_top_k] = {};
+    uint32_t selected_count = 0;
+    cuda_check(cudaMemcpy(selected_indices, routing_indices_device,
+        sizeof(selected_indices), cudaMemcpyDeviceToHost), "routing indices readback");
+    cuda_check(cudaMemcpy(&selected_count, routing_count_device,
+        sizeof(selected_count), cudaMemcpyDeviceToHost), "routing count readback");
+    assert(selected_count == routing_top_k);
+    assert(selected_indices[0] == 0 && selected_indices[1] == 1);
+    std::fill(q_host.begin(), q_host.end(), 0.0f);
+    cuda_check(cudaMemcpy(q_device, q_host.data(), q_host.size() * sizeof(float), cudaMemcpyHostToDevice), "routing query restore copy");
+    // The direct attention oracle below intentionally covers the complete
+    // fixture page list; route consumption is exercised by the selector call
+    // above and the production dispatcher accepts these fields optionally.
+    params.routing_range_min = nullptr;
+    params.routing_range_max = nullptr;
+    params.routing_selected_indices = nullptr;
+    params.routing_selected_count = nullptr;
+    params.routing_selected_scores = nullptr;
 
     params.type_k = GGML_TYPE_F16;
     assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::unsupported_type);

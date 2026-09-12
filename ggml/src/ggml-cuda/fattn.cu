@@ -1388,7 +1388,12 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
         const bool reduce_page_mass,
         const bool write_partial_state,
         const bool merge_partial_state,
-        const bool causal) {
+        const bool causal,
+        const uint32_t * __restrict__ routing_selected_indices,
+        const size_t routing_selected_stride,
+        const uint32_t * __restrict__ routing_selected_count,
+        const size_t routing_count_stride,
+        const uint32_t routing_top_k) {
     extern __shared__ float shared[];
 
     // The shared layout is sized to the active tile by the dispatcher.  The
@@ -1490,7 +1495,23 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
             bool valid[max_query_tile] = {};
             bool any_valid = false;
             for (uint32_t query = 0; query < query_count; ++query) {
-                valid[query] = row_valid && (!causal || native_position <= query_position[query]);
+                bool route_selected = true;
+                if (routing_selected_indices != nullptr) {
+                    const uint32_t route_count = *reinterpret_cast<const uint32_t *>(
+                        (const char *) routing_selected_count +
+                        (size_t(query_base + query) * n_head_kv + size_t(kv_head)) *
+                            routing_count_stride);
+                    const uint32_t * route = (const uint32_t *) ((const char *)
+                        routing_selected_indices +
+                        (size_t(query_base + query) * n_head_kv + size_t(kv_head)) *
+                            routing_selected_stride);
+                    route_selected = false;
+                    for (uint32_t i = 0; i < min(route_count, routing_top_k); ++i) {
+                        if (route[i] == page_index) { route_selected = true; break; }
+                    }
+                }
+                valid[query] = row_valid && route_selected &&
+                    (!causal || native_position <= query_position[query]);
                 any_valid = any_valid || valid[query];
             }
 
@@ -1665,6 +1686,124 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
 // Merge one [m,l,o] state per KV partition.  The merge is deliberately a
 // separate device launch: partition CTAs never synchronize with one another,
 // and page mass is normalized only after this global denominator is known.
+static __global__ void ggml_cuda_fattn_turbo4_route_kernel(
+        const float * __restrict__ q,
+        const size_t q_head_stride,
+        const size_t q_query_stride,
+        const uint16_t * __restrict__ range_min,
+        const uint16_t * __restrict__ range_max,
+        const size_t range_page_stride,
+        const ggml_cuda_fattn_turbo4_page * __restrict__ pages,
+        const uint32_t n_pages,
+        const uint32_t n_head_q,
+        const uint32_t n_head_kv,
+        const uint32_t n_query_tokens,
+        const uint32_t subblocks,
+        const uint32_t vector_dim,
+        const uint32_t top_k,
+        uint32_t * __restrict__ selected,
+        const size_t selected_stride,
+        uint32_t * __restrict__ selected_count,
+        const size_t count_stride,
+        float * __restrict__ selected_scores,
+        const size_t score_stride) {
+    const uint32_t kv_head = blockIdx.x;
+    const uint32_t query = blockIdx.y;
+    if (kv_head >= n_head_kv || query >= n_query_tokens || threadIdx.x != 0) return;
+    const uint32_t group = n_head_q / n_head_kv;
+    uint32_t * const out_indices = (uint32_t *) ((char *) selected +
+        size_t(query * n_head_kv + kv_head) * selected_stride);
+    float * const out_scores = (float *) ((char *) selected_scores +
+        size_t(query * n_head_kv + kv_head) * score_stride);
+    uint32_t count = 0;
+    for (uint32_t page_index = 0; page_index < n_pages; ++page_index) {
+        float page_score = -INFINITY;
+        bool finite = true;
+        const uint16_t * const page_min = (const uint16_t *) ((const char *) range_min +
+            size_t(page_index) * range_page_stride);
+        const uint16_t * const page_max = (const uint16_t *) ((const char *) range_max +
+            size_t(page_index) * range_page_stride);
+        for (uint32_t query_head = 0; query_head < group; ++query_head) {
+            const uint32_t head = kv_head * group + query_head;
+            const float * const query_values = (const float *) ((const char *) q +
+                size_t(query) * q_query_stride + size_t(head) * q_head_stride);
+            for (uint32_t block = 0; block < subblocks; ++block) {
+                float block_score = 0.0f;
+                for (uint32_t d = 0; d < vector_dim; ++d) {
+                    const float q_value = query_values[d];
+                    const float lo = __half2float(reinterpret_cast<const half *>(page_min)[block * vector_dim + d]);
+                    const float hi = __half2float(reinterpret_cast<const half *>(page_max)[block * vector_dim + d]);
+                    if (!isfinite(q_value) || !isfinite(lo) || !isfinite(hi) || lo > hi) {
+                        finite = false;
+                        break;
+                    }
+                    block_score += fmaxf(q_value * lo, q_value * hi);
+                }
+                if (!finite) break;
+                page_score = fmaxf(page_score, block_score);
+            }
+            if (!finite) break;
+        }
+        if (!finite || !isfinite(page_score)) continue;
+        uint32_t insert = count;
+        for (uint32_t i = 0; i < count; ++i) {
+            const uint32_t old_index = out_indices[i];
+            const bool before = page_score > out_scores[i] ||
+                (page_score == out_scores[i] &&
+                 pages[page_index].logical_page < pages[old_index].logical_page);
+            if (before) { insert = i; break; }
+        }
+        if (insert >= top_k) continue;
+        const uint32_t next_count = count < top_k ? count + 1 : count;
+        for (uint32_t i = next_count; i > insert + 1; --i) {
+            out_indices[i - 1] = out_indices[i - 2];
+            out_scores[i - 1] = out_scores[i - 2];
+        }
+        out_indices[insert] = page_index;
+        out_scores[insert] = page_score;
+        count = next_count;
+    }
+    *reinterpret_cast<uint32_t *>((char *) selected_count +
+        size_t(query * n_head_kv + kv_head) * count_stride) = count;
+}
+
+ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4_route(
+        ggml_backend_cuda_context & ctx,
+        const ggml_cuda_fattn_turbo4_paged_params & params) noexcept {
+    if (params.routing_range_min == nullptr || params.routing_range_max == nullptr ||
+        params.routing_selected_indices == nullptr || params.routing_selected_count == nullptr ||
+        params.routing_selected_scores == nullptr || params.routing_subblocks == 0 ||
+        params.routing_vector_dim == 0 || params.routing_top_k == 0 ||
+        params.routing_top_k > params.n_pages || params.n_pages == 0 ||
+        params.n_head_q == 0 || params.n_head_kv == 0 ||
+        params.n_head_q % params.n_head_kv != 0 || params.n_query_tokens == 0 ||
+        params.q == nullptr || params.pages_device == nullptr ||
+        params.routing_range_page_stride_bytes < size_t(params.routing_subblocks) *
+            params.routing_vector_dim * sizeof(uint16_t) ||
+        params.routing_selected_stride_bytes < size_t(params.routing_top_k) * sizeof(uint32_t) ||
+        params.routing_count_stride_bytes < sizeof(uint32_t) ||
+        params.routing_selected_stride_bytes != params.routing_top_k * sizeof(uint32_t) ||
+        params.routing_count_stride_bytes != sizeof(uint32_t) ||
+        params.routing_selected_scores == nullptr) {
+        return ggml_cuda_fattn_turbo4_paged_status::invalid_argument;
+    }
+    ggml_cuda_set_device(ctx.device);
+    const dim3 grid(params.n_head_kv, params.n_query_tokens, 1);
+    ggml_cuda_fattn_turbo4_route_kernel<<<grid, 1, 0, ctx.stream()>>>(
+            params.q, params.q_head_stride_bytes, params.q_query_stride_bytes,
+            params.routing_range_min, params.routing_range_max,
+            params.routing_range_page_stride_bytes, params.pages_device,
+            params.n_pages, params.n_head_q, params.n_head_kv,
+            params.n_query_tokens, params.routing_subblocks, params.routing_vector_dim,
+            params.routing_top_k, params.routing_selected_indices,
+            params.routing_selected_stride_bytes, params.routing_selected_count,
+            params.routing_count_stride_bytes, params.routing_selected_scores,
+            params.routing_selected_stride_bytes * sizeof(float) / sizeof(uint32_t));
+    return cudaGetLastError() == cudaSuccess
+        ? ggml_cuda_fattn_turbo4_paged_status::ok
+        : ggml_cuda_fattn_turbo4_paged_status::cuda_error;
+}
+
 static __global__ void ggml_cuda_fattn_turbo4_paged_split_merge_kernel(
         const float * __restrict__ partition_state,
         const size_t partition_stride,
@@ -1886,6 +2025,15 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         }
     }
 
+    // Routing is a same-stream producer for the existing attention launch.
+    // The optional fields are absent on legacy graph nodes, preserving their
+    // established page-table behavior while allowing the production graph to
+    // enable device-side top-k selection without a host synchronization.
+    if (params.routing_range_min != nullptr || params.routing_range_max != nullptr) {
+        const auto routing_status = ggml_cuda_flash_attn_ext_paged_turbo4_route(ctx, params);
+        if (routing_status != ggml_cuda_fattn_turbo4_paged_status::ok) return routing_status;
+    }
+
     if (params.host_upload != nullptr) {
         if (params.upload_destination == nullptr || params.host_upload_bytes == 0 ||
             params.host_upload_bytes > params.upload_capacity_bytes) {
@@ -1964,7 +2112,10 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         params.split_kv_page_state_partition_stride_bytes, params.split_kv_page_count,
         n_partitions, split_partitioned, params.scale,
         params.reduce_page_mass, params.write_partial_state,
-        params.merge_partial_state, params.causal);
+        params.merge_partial_state, params.causal,
+        params.routing_selected_indices, params.routing_selected_stride_bytes,
+        params.routing_selected_count, params.routing_count_stride_bytes,
+        params.routing_top_k);
 
     if (split_partitioned) {
         const size_t state_head_stride = (2 + params.head_dim_v) * sizeof(float);

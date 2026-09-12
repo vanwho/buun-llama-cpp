@@ -191,6 +191,8 @@ public:
     }
     const std::vector<llama_kv_page_id> & selected_attention_pages(
             llama_seq_id sequence_id) const noexcept;
+    const std::vector<llama_kv_page_id> & selected_attention_pages(
+            llama_seq_id sequence_id, uint32_t layer_index) const noexcept;
     bool reserve_kv_attention_scratch(
             const llama_kv_attention_scratch_request & request);
 
@@ -1495,7 +1497,13 @@ private:
     std::vector<pager_query_capture> pager_query_captures_;
     uint64_t pager_query_generation_ = 0;
     bool pager_fallback_used_ = false;
+    // Attention routes are query-domain specific. Keep the legacy aggregate
+    // for callers that do not carry a layer, but never use it as the source
+    // of a layer's selected working set.
     std::map<llama_seq_id, std::vector<llama_kv_page_id>> pager_attention_selection_;
+    std::map<llama_seq_id,
+        std::map<uint32_t, std::vector<llama_kv_page_id>>>
+        pager_attention_selection_by_layer_;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;
     uint64_t pager_host_controller_generation_ = 1;

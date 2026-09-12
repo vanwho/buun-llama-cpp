@@ -63,6 +63,9 @@ struct llama_cparams {
     bool logits_all;
     bool pipeline_parallel;
     bool vbr_dynamic;
+    // Resolved from the normalized KV pager configuration. Keeping the typed
+    // value in cparams makes admission and graph planning use one A budget.
+    uint32_t kv_attention_tokens = 0;
 
     double vbr_min_bits = 0.0;
     uint64_t vbr_vram_budget_bytes = 0;

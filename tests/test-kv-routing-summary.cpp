@@ -159,6 +159,37 @@ int main() {
     assert(bounded.status == llama_kv_routing_summary_status::ok);
     assert(bounded.top_pages[0].upper_bound);
 
+    // The device estimator uses fixed 64-token subblocks and stores two
+    // fp16-equivalent bounds per dimension. Its CPU reference must use the
+    // same max(q*min, q*max) rule and preserve the page tie ordering.
+    const auto layout = llama_kv_routing_summary_device_layout::make(
+            10, 16, 4, 256, VBR_GENERATION_PAGE_CELLS, 64, sizeof(uint16_t));
+    assert(layout.subblocks_per_page == 4);
+    assert(layout.bytes == 10ull * 16 * 4 * 4 * 256 * 2 * sizeof(uint16_t));
+    assert(llama_kv_routing_summary_device_layout::make(
+            10, 16, 4, 256, VBR_GENERATION_PAGE_CELLS, 16, sizeof(uint16_t)).bytes ==
+            10ull * 16 * 4 * 16 * 256 * 2 * sizeof(uint16_t));
+    auto ranges_config = config;
+    ranges_config.form = llama_kv_routing_summary_form::minmax_ranges;
+    ranges_config.subblock_tokens = 64;
+    const auto ranges = llama_kv_routing_summary_store::build(
+            snap, inputs, ranges_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && ranges.valid());
+    assert(ranges.subblock_tokens() == 64);
+    assert(ranges.subblock_count(0) == 4);
+    assert(ranges.range_min(0) != nullptr && ranges.range_max(0) != nullptr);
+    const auto range_ranked = ranges.score(snap, { 1, 0, 0, 0 }, 3);
+    assert(range_ranked.status == llama_kv_routing_summary_status::ok);
+    assert(range_ranked.top_pages[0].logical_page == 2);
+    assert(range_ranked.comparisons == 3ull * 4 * 4);
+    float range_score = 0.0f;
+    const float range_query[] = { 1.0f, -2.0f };
+    const float range_min[] = { -1.0f, -3.0f };
+    const float range_max[] = { 4.0f, 2.0f };
+    assert(llama_kv_routing_summary_score_ranges(
+            range_query, range_min, range_max, 1, 2, range_score));
+    assert(range_score == 10.0f);
+
     // Page seals update one summary without rereading the other pages.
     llama_kv_residency_table incremental_table(8);
     auto incremental_tx = incremental_table.begin();
