@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "25",
-  "current_task": "25-15",
-  "last_updated_utc": "2026-09-12T03:21:51+00:00",
+  "current_phase": "26",
+  "current_task": "26-01",
+  "last_updated_utc": "2026-09-12T03:37:44+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -4976,22 +4976,36 @@
       "cluster": "25f-speed-integration",
       "title": "Freeze a working speed-first pipeline with short all-fit and pressure results",
       "packet": ".wiretail/execution/tasks/25-15.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "depends_on": [
         "25-14"
       ],
-      "commit": null,
+      "commit": "fe7b0f67e2aa0c9ee49a863fd86d9c27d0885cad",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/25-15-attempt-1-20260912T032217Z.jsonl:82",
+            "total_tokens": 6584328,
+            "total_tokens_derived": true,
+            "input_tokens": 6567667,
+            "cached_input_tokens": 6392320,
+            "output_tokens": 16661,
+            "thinking_tokens": 4374
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 6584328,
+          "input_tokens": 6567667,
+          "cached_input_tokens": 6392320,
+          "output_tokens": 16661,
+          "thinking_tokens": 4374
         }
       },
       "scope_revision": "speed-first-20260911"
@@ -6401,15 +6415,28 @@
           "cached_input_tokens": 9320704,
           "output_tokens": 30696,
           "thinking_tokens": 6807
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/25-15-attempt-1-20260912T032217Z.jsonl:82",
+          "total_tokens": 6584328,
+          "total_tokens_derived": true,
+          "input_tokens": 6567667,
+          "cached_input_tokens": 6392320,
+          "output_tokens": 16661,
+          "thinking_tokens": 4374
         }
       ],
       "totals": {
-        "turns": 22,
-        "total_tokens": 511034086,
-        "input_tokens": 509795740,
-        "cached_input_tokens": 499920384,
-        "output_tokens": 1238346,
-        "thinking_tokens": 471655
+        "turns": 23,
+        "total_tokens": 517618414,
+        "input_tokens": 516363407,
+        "cached_input_tokens": 506312704,
+        "output_tokens": 1255007,
+        "thinking_tokens": 476029
       }
     },
     "26": {
@@ -6437,12 +6464,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 76,
-      "total_tokens": 1354447581,
-      "input_tokens": 1351062694,
-      "cached_input_tokens": 1324569856,
-      "output_tokens": 3384887,
-      "thinking_tokens": 1209227
+      "turns": 77,
+      "total_tokens": 1361031909,
+      "input_tokens": 1357630361,
+      "cached_input_tokens": 1330962176,
+      "output_tokens": 3401548,
+      "thinking_tokens": 1213601
     },
     "source": "Codex turn.completed usage events"
   }

@@ -890,3 +890,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-14`
 - Commit at update: `dfe7f3049`
 - Summary: Budget admission and retained H/A/B/MTP tuning evidence complete; deterministic full-L coverage passes; live 262K native-MTP smoke deferred because active GPU service is spec-type none.
+
+## 2026-09-12T03:37:30+00:00 — 25-15 — done
+
+- Branch: `codex/task-25-15`
+- Commit at update: `fe7b0f67e`
+- Summary: Frozen speed-first native-MTP CUDA candidate; V6 all-fit and pressure pass, natural movement/full-context readiness deferred honestly in SPEED25_15_READY.
