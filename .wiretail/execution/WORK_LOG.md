@@ -854,3 +854,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-08`
 - Commit at update: `fedc60055`
 - Summary: Real Qwen pressure proof: cold page 0 promoted through live policy with 1 eviction, 4.325 MB H2D, 96 completions, matching host/device checksum; HTTP 200 server pressure request completed with bounded H=8 storage and positive movement; focused CPU/CUDA tests passed.
+
+## 2026-09-12T02:32:50+00:00 — 25-09 — done
+
+- Branch: `codex/task-25-09`
+- Commit at update: `fdbc844c1`
+- Summary: Shape-sized paged Turbo4 decode dispatch and cached CUDA launch resources; focused RTX 4080 correctness/timing fixture passes. Live native-MTP and 4K/16K end-to-end proof deferred.

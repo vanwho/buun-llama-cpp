@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "task": "25-09",
+  "experiment": "pager-speed-v6",
+  "case_id": "cuda-fattn-paged-turbo4-decode-shapes-q1-q2-q3-q5",
+  "status": "complete",
+  "source": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "working_tree": "dirty; task diff present",
+    "executable": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "gpu": "NVIDIA GeForce RTX 4080, compute capability 8.9",
+    "driver_or_toolkit": "CUDA build configured for 89-real"
+  },
+  "fixture": {
+    "query_heads": 24,
+    "kv_heads": 4,
+    "selected_rows": 530,
+    "page_count": 4,
+    "logical_rows": 530,
+    "kv": "Turbo4",
+    "output_domain": "Turbo4 rotated",
+    "causal": true
+  },
+  "dispatch": {
+    "before_default_tiles": [32, 32, 32, 32],
+    "after_default_tiles": {"q1": 1, "q2": 2, "q3": 4, "q5": 8},
+    "shared_workspace": "256 * active_query_tile + fixed decode/reduction terms",
+    "device_properties": "cached per CUDA device",
+    "dynamic_shared_attribute": "only grows cached per CUDA device"
+  },
+  "timing_ms": {
+    "q1": 0.517,
+    "q2": 0.532,
+    "q3": 0.605,
+    "q5": 1.066,
+    "large_tile_sweep_q64_tile16": 3.003,
+    "large_tile_sweep_q64_tile32": 4.732,
+    "large_tile_sweep_q64_tile64": 8.880,
+    "split_capacity1_q512": 21.778,
+    "split_capacity3_q512": 20.159,
+    "serial_q512": 21.804
+  },
+  "verification": {
+    "result": "pass",
+    "raw": ".wiretail/execution/evidence/raw/SPEED25_09_DECODE_cuda.txt",
+    "coverage": "query buckets, GQA, causal native positions, masked row, tails, page mass, split merge"
+  },
+  "deferred": [
+    "No live native-MTP server request was run in this focused CUDA fixture.",
+    "No ncu occupancy/register report was available; driver permission remains deferred.",
+    "No 4K/16K end-to-end model timing was run in this task receipt."
+  ]
+}

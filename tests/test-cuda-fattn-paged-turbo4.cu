@@ -33,6 +33,13 @@ static void fill_turbo4_page(std::vector<uint8_t> & storage, size_t page_offset,
 
 int main() {
     assert(ggml_cuda_fattn_turbo4_page_table_valid(nullptr, 0, 0) == false);
+    assert(ggml_cuda_fattn_turbo4_query_tile_for_count(1) == 1);
+    assert(ggml_cuda_fattn_turbo4_query_tile_for_count(2) == 2);
+    assert(ggml_cuda_fattn_turbo4_query_tile_for_count(3) == 4);
+    assert(ggml_cuda_fattn_turbo4_query_tile_for_count(4) == 4);
+    assert(ggml_cuda_fattn_turbo4_query_tile_for_count(5) == 8);
+    assert(ggml_cuda_fattn_turbo4_query_tile_for_count(8) == 8);
+    assert(ggml_cuda_fattn_turbo4_query_tile_for_count(9) == 16);
 
     ggml_backend_t backend = ggml_backend_cuda_init(0);
     assert(backend != nullptr);
@@ -190,7 +197,7 @@ int main() {
     // query's causal position and guard the following output query with a
     // canary so adjacent query results cannot alias.
     const std::vector<float> output_canary(q_host.size(), -12345.0f);
-    const uint32_t query_counts[] = { 1, 16, 64, 65, 256, 257, 512 };
+    const uint32_t query_counts[] = { 1, 2, 3, 4, 5, 8, 16, 64, 65, 256, 257, 512 };
     for (const uint32_t query_count : query_counts) {
         cuda_check(cudaMemcpy(output_device, output_canary.data(),
             output_canary.size() * sizeof(float), cudaMemcpyHostToDevice), "output canary copy");
@@ -237,6 +244,23 @@ int main() {
     }
     params.n_pages = n_pages;
     params.n_rows = n_rows;
+    params.n_query_tokens = max_query_tokens;
+
+    // Decode and native-MTP verification use the shape-sized default rather
+    // than paying for the prefill tile. Keep these timings separate from the
+    // large-query tile sweep below.
+    const uint32_t decode_query_counts[] = { 1, 2, 3, 5 };
+    for (const uint32_t query_count : decode_query_counts) {
+        params.n_query_tokens = query_count;
+        cuda_check(cudaEventRecord(timing_start, stream), "decode shape timing start record");
+        assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+        cuda_check(cudaEventRecord(timing_stop, stream), "decode shape timing stop record");
+        cuda_check(cudaEventSynchronize(timing_stop), "decode shape timing stop synchronize");
+        float decode_shape_ms = 0.0f;
+        cuda_check(cudaEventElapsedTime(&decode_shape_ms, timing_start, timing_stop), "decode shape timing readback");
+        std::fprintf(stderr, "paged Turbo4 decode shape: %.3f ms (Q=%u, default tile, 530 selected rows)\n",
+            decode_shape_ms, query_count);
+    }
     params.n_query_tokens = max_query_tokens;
 
     params.reduce_page_mass = true;

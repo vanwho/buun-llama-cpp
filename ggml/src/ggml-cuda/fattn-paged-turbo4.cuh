@@ -10,6 +10,18 @@
 constexpr uint32_t GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS = 64;
 constexpr uint32_t GGML_CUDA_FATTN_TURBO4_DEFAULT_QUERY_TOKENS = 32;
 
+// Decode and native-MTP verification commonly submit only a handful of
+// queries.  Keep their launch resources proportional to that shape while
+// retaining the larger tiles used by prefill.
+constexpr uint32_t ggml_cuda_fattn_turbo4_query_tile_for_count(uint32_t n_query_tokens) {
+    return n_query_tokens <= 1 ? 1 :
+        n_query_tokens <= 2 ? 2 :
+        n_query_tokens <= 4 ? 4 :
+        n_query_tokens <= 8 ? 8 :
+        n_query_tokens <= 16 ? 16 :
+        n_query_tokens <= 32 ? 32 : 64;
+}
+
 // Device-side description of one selected Turbo4 page.  Keep this established
 // CUDA-facing type distinct from the backend-neutral GGML graph descriptor so
 // the raw CUDA API retains its existing C++ ABI. Both descriptors have the
@@ -123,8 +135,8 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     uint32_t n_head_q = 0;
     uint32_t n_head_kv = 0;
     uint32_t n_query_tokens = 0;
-    // Zero selects the measured default tile (32). The bounded 16/32/64
-    // choices are useful for launch tuning without changing the graph shape.
+    // Zero selects a shape-sized tile (1/2/4/8/16/32/64). Explicit values are
+    // useful for launch tuning without changing the graph's bounded contract.
     uint32_t query_tile_tokens = 0;
     uint32_t n_batch = 0;
     uint32_t page_mass_logical_count = 0;
