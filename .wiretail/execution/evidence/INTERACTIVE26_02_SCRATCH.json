@@ -1,0 +1,57 @@
+{
+  "task": "26-02",
+  "objective": "route- and-owner-specific KV attention scratch reservation",
+  "status": "implementation_complete_live_deferred",
+  "builds": {
+    "cpu": {
+      "build_dir": "build",
+      "tests": ["test-kv-attention-execution", "test-cache-budget"],
+      "result": "2/2 ctest passed"
+    },
+    "cuda": {
+      "build_dir": "build-cuda",
+      "cuda_arch": "89-real",
+      "gpu": "NVIDIA GeForce RTX 4080",
+      "tests": ["test-kv-attention-execution", "test-cache-budget", "test-cuda-fattn-paged-turbo4"],
+      "result": "3/3 ctest passed"
+    }
+  },
+  "deterministic_contract_checks": {
+    "high_logical_positions_fixed_selected_width": "passed",
+    "direct_materialized_rows": 0,
+    "packed_and_dense_bounded_view": "passed",
+    "reference_fallback_bounded_view": "passed",
+    "target_and_draft_roles": ["target", "draft"],
+    "max_query_shape": 65,
+    "checked_overflow": "passed",
+    "scratch_rounding": {
+      "requested_bytes": 65,
+      "allocation_granularity": 64,
+      "charged_bytes": 128
+    },
+    "full_mtp_rows": {
+      "tokens": 4096,
+      "k_row_bytes": 528,
+      "v_row_bytes": 528,
+      "mtp_bytes": 4325376,
+      "unchanged_when_logical_target_history_grows": true
+    }
+  },
+  "cuda_fixture": {
+    "selected_rows": 530,
+    "query_tile_ms": 20.677,
+    "decode_shapes": [1, 2, 3, 5],
+    "tile_sweep_query_tokens": [64, 256, 512],
+    "split_kv_requested_capacities": [1, 2, 3],
+    "result": "passed"
+  },
+  "live": {
+    "sudo_n": "unavailable: interactive authentication is required",
+    "replacement": "not run",
+    "existing_pid_768838": "untouched",
+    "unrelated_8092": "untouched",
+    "model_bundle": "not swapped; live L8192/H4096/B128/U64 and native-MTP stages deferred"
+  },
+  "raw_root": ".wiretail/execution/evidence/raw",
+  "handoff": ".wiretail/execution/handoffs/26-02.md"
+}
