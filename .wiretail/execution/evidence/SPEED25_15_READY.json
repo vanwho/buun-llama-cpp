@@ -1,0 +1,87 @@
+{
+  "schema": "pager-speed-v6",
+  "schema_version": 1,
+  "task": "25-15",
+  "status": "complete_with_natural_recall_deferred",
+  "ready_for_full_population": false,
+  "candidate": {
+    "source_commit": "fe7b0f67e2aa0c9ee49a863fd86d9c27d0885cad",
+    "source_diff_sha256": "a67becf1641e4cbb3053fff80eaefe6243f130ec0048c33d5bc0f7d2d2147073",
+    "bundle_root": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin",
+    "executable": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "bundle_manifest_sha256": "ad7a395a95354aca98f4b652d67df0d7335e909dfe1cbc59acdb0aa7dfb75fe8",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.91.07"
+  },
+  "effective_profile": {
+    "L": 8192,
+    "page_tokens": 256,
+    "H_pages": 8,
+    "H_rows": 2048,
+    "A_rows": 2048,
+    "B": 256,
+    "cuda_query_tile": 64,
+    "target": "CUDA Turbo4 K/V, Flash Attention on, 999 GPU layers",
+    "mtp": "native draft-mtp, GPU Turbo4 K/V, n-max=2",
+    "host_backing": "4G pageable canonical host budget",
+    "pager": "selective; runtime policy; cache cold-prefill; no warmups",
+    "ring_and_graph": "default runtime staging; backend graph counters retained"
+  },
+  "cases": {
+    "all_fit": {
+      "case_key": "q0-measured-1 / context8192 / prompt2048 / H8 / B256 / native-mtp",
+      "prompt_tokens": 2048,
+      "generated_tokens": 1,
+      "prefill_tok_s": 508.60,
+      "decode_tok_s": null,
+      "decode_null_reason": "one committed token; not a stable decode rate",
+      "wall_seconds": 4.040997,
+      "target_gpu_bytes": 34603000,
+      "host_committed_rows": 1792,
+      "host_seal_d2h_bytes": 34603000,
+      "mtp_proposed": 0,
+      "mtp_accepted": 0,
+      "raw": "/srv/ai/paged-kv/results/25-15-v6-allfit-20260912/raw-q0-measured-1.sse"
+    },
+    "true_pressure": {
+      "case_key": "q0-measured-1 / context8192 / prompt4096 / H8 / B256 / native-mtp",
+      "prompt_tokens": 4096,
+      "generated_tokens": 128,
+      "committed_tokens": 128,
+      "prefill_tok_s": 410.00,
+      "decode_tok_s": 60.22,
+      "wall_seconds": 12.133511,
+      "target_gpu_bytes": 34603000,
+      "host_committed_rows": 1792,
+      "host_seal_d2h_bytes": 69206000,
+      "mtp_proposed": 102,
+      "mtp_accepted": 75,
+      "natural_selection": {
+        "status": "not_proven",
+        "attention_samples": 0,
+        "h2d_useful_bytes": 0,
+        "reason": "all direct page-mass samples were rejected/stale in this short run; no natural promotion claim"
+      },
+      "raw": "/srv/ai/paged-kv/results/25-15-v6-pressure-20260912/raw-q0-measured-1.sse"
+    }
+  },
+  "movement_diagnostic": {
+    "status": "indexed_prior_proof",
+    "receipt": ".wiretail/execution/evidence/SPEED25_08_PRESSURE.json",
+    "result": "known-cold page 0 promoted, one eviction, 4325376 H2D bytes, 96 completed chunks, host/device checksum equal",
+    "scope": "separate deterministic MTP-off diagnostic; not current native-MTP natural recall",
+    "current_retry": "test-kv-pager-model with current candidate was deferred by CUDA OOM while the 27B service remained loaded"
+  },
+  "ablations": {
+    "status": "not_run",
+    "reason": "natural routing/movement prerequisite was not satisfied; no unsupported toggle was promoted",
+    "top_remaining_costs": ["host seal D2H and repeated page sealing", "routing sample publication/stale-drop path"]
+  },
+  "completed_case_keys": [
+    "q0-measured-1 / context8192 / prompt2048 / H8 / B256 / native-mtp",
+    "q0-measured-1 / context8192 / prompt4096 / H8 / B256 / native-mtp"
+  ],
+  "next_command": "Run 26-01 after repairing or qualifying natural attention sampling: preserve L=262144, native GPU Turbo4 MTP, nonzero automatic H, then near-full question 0 with >=512 generation reserve."
+}
