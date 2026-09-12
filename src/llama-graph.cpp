@@ -745,16 +745,58 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             direct_telemetry_published = false;
             direct_telemetry_skipped = false;
             if (update_selected) {
-                ggml_backend_tensor_set(direct_pages, direct_pages_host.data(), 0,
-                        direct_pages_host.size() * sizeof(direct_pages_host[0]));
+                // The page table's shape and device address are graph-static,
+                // while residency changes usually touch only a small number
+                // of descriptors. Patch changed runs in place so a stable
+                // graph does not pay for a full table upload on every fault.
+                auto page_equal = [](const auto & a, const auto & b) {
+                    return a.logical_page == b.logical_page &&
+                        a.source_physical_slot == b.source_physical_slot &&
+                        a.compact_row_begin == b.compact_row_begin &&
+                        a.row_count == b.row_count &&
+                        a.native_position_begin == b.native_position_begin;
+                };
+                if (direct_pages_uploaded.size() != direct_pages_host.size()) {
+                    ggml_backend_tensor_set(direct_pages, direct_pages_host.data(), 0,
+                            direct_pages_host.size() * sizeof(direct_pages_host[0]));
+                } else {
+                    size_t begin = 0;
+                    while (begin < direct_pages_host.size()) {
+                        while (begin < direct_pages_host.size() &&
+                               page_equal(direct_pages_host[begin], direct_pages_uploaded[begin])) {
+                            ++begin;
+                        }
+                        const size_t run_begin = begin;
+                        while (begin < direct_pages_host.size() &&
+                               !page_equal(direct_pages_host[begin], direct_pages_uploaded[begin])) {
+                            ++begin;
+                        }
+                        if (run_begin != begin) {
+                            ggml_backend_tensor_set(direct_pages,
+                                    direct_pages_host.data() + run_begin,
+                                    run_begin * sizeof(direct_pages_host[0]),
+                                    (begin - run_begin) * sizeof(direct_pages_host[0]));
+                        }
+                    }
+                }
+                direct_pages_uploaded = direct_pages_host;
                 const auto & positions = selected_metadata.native_positions();
                 const auto & valid = selected_metadata.native_mask();
                 const auto & queries = selected_metadata.query_positions();
-                ggml_backend_tensor_set(direct_native_positions, positions.data(), 0,
-                        positions.size() * sizeof(positions[0]));
-                ggml_backend_tensor_set(direct_native_mask, valid.data(), 0, valid.size());
-                ggml_backend_tensor_set(direct_query_positions, queries.data(), 0,
-                        queries.size() * sizeof(queries[0]));
+                if (direct_native_positions_uploaded != positions) {
+                    ggml_backend_tensor_set(direct_native_positions, positions.data(), 0,
+                            positions.size() * sizeof(positions[0]));
+                    direct_native_positions_uploaded = positions;
+                }
+                if (direct_native_mask_uploaded != valid) {
+                    ggml_backend_tensor_set(direct_native_mask, valid.data(), 0, valid.size());
+                    direct_native_mask_uploaded = valid;
+                }
+                if (direct_query_positions_uploaded != queries) {
+                    ggml_backend_tensor_set(direct_query_positions, queries.data(), 0,
+                            queries.size() * sizeof(queries[0]));
+                    direct_query_positions_uploaded = queries;
+                }
             }
             if (direct_page_mass != nullptr && ubatch->pos != nullptr) {
                 direct_telemetry_token_index = uint64_t(

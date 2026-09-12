@@ -2693,6 +2693,29 @@ static bool ggml_cuda_is_view_or_noop(const ggml_tensor * t) {
 }
 
 #ifdef USE_CUDA_GRAPH
+static bool ggml_cuda_graph_diagnostics_enabled() {
+    static const bool enabled = getenv("GGML_CUDA_GRAPH_DIAGNOSTICS") != nullptr;
+    return enabled;
+}
+
+static void ggml_cuda_graph_diagnostics_log(
+        const ggml_cuda_graph & graph, uint64_t graph_key) {
+    if (!ggml_cuda_graph_diagnostics_enabled()) {
+        return;
+    }
+    GGML_LOG_INFO("cuda-graph: key=%" PRIu64
+            " capture=%" PRIu64 " instantiate=%" PRIu64
+            " update=%" PRIu64 " update_fail=%" PRIu64
+            " launch=%" PRIu64 " capture_cpu_us=%" PRIu64
+            " instantiate_cpu_us=%" PRIu64 " update_cpu_us=%" PRIu64
+            " launch_cpu_us=%" PRIu64 "\n",
+            graph_key, graph.actual_capture_count,
+            graph.actual_instantiate_count, graph.actual_update_count,
+            graph.actual_update_failure_count, graph.actual_launch_count,
+            graph.actual_capture_cpu_us, graph.actual_instantiate_cpu_us,
+            graph.actual_update_cpu_us, graph.actual_launch_cpu_us);
+}
+
 static bool ggml_cuda_graph_check_compability(ggml_cgraph * cgraph) {
 
     bool use_cuda_graph = true;
@@ -2793,6 +2816,7 @@ static bool ggml_cuda_graph_update_required(
 
 static void ggml_cuda_graph_update_executable(ggml_backend_cuda_context * cuda_ctx, uint64_t graph_key) {
     ggml_cuda_graph * graph = cuda_ctx->cuda_graph(graph_key);
+    const int64_t start_us = ggml_time_us();
 
 #if CUDART_VERSION >= 12000
     cudaGraphExecUpdateResultInfo result_info;
@@ -2804,6 +2828,7 @@ static void ggml_cuda_graph_update_executable(ggml_backend_cuda_context * cuda_c
 #endif // CUDART_VERSION >= 12000
 
     if (stat == cudaErrorGraphExecUpdateFailure) {
+        ++graph->actual_update_failure_count;
 #ifndef NDEBUG
         GGML_LOG_DEBUG("%s: CUDA graph update failed\n", __func__);
 #endif
@@ -2814,9 +2839,13 @@ static void ggml_cuda_graph_update_executable(ggml_backend_cuda_context * cuda_c
         CUDA_CHECK(cudaGraphExecDestroy(graph->instance));
         graph->instance = nullptr;
         CUDA_CHECK(cudaGraphInstantiate(&graph->instance, graph->graph, NULL, NULL, 0));
+        ++graph->actual_instantiate_count;
     } else {
         GGML_ASSERT(stat == cudaSuccess);
     }
+    ++graph->actual_update_count;
+    graph->actual_update_cpu_us += uint64_t(std::max<int64_t>(0, ggml_time_us() - start_us));
+    ggml_cuda_graph_diagnostics_log(*graph, graph_key);
 }
 #endif // USE_CUDA_GRAPH
 
@@ -5193,6 +5222,12 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
             }
 
             CUDA_CHECK(cudaStreamEndCapture(cuda_ctx->stream(), &graph->graph));
+            ++graph->actual_capture_count;
+            if (graph->actual_capture_start_us != 0) {
+                graph->actual_capture_cpu_us += uint64_t(std::max<int64_t>(
+                        0, ggml_time_us() - int64_t(graph->actual_capture_start_us)));
+                graph->actual_capture_start_us = 0;
+            }
             graph_evaluated_or_captured = true; // CUDA graph has been captured
 
             std::lock_guard<std::mutex> lock(ggml_cuda_lock);
@@ -5207,13 +5242,22 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
     if (use_cuda_graph) {
         ggml_cuda_graph * graph = cuda_ctx->cuda_graph(graph_key);
         if (graph->instance == nullptr) { // Create executable graph from captured graph.
+            const int64_t start_us = ggml_time_us();
             CUDA_CHECK(cudaGraphInstantiate(&graph->instance, graph->graph, NULL, NULL, 0));
+            ++graph->actual_instantiate_count;
+            graph->actual_instantiate_cpu_us += uint64_t(std::max<int64_t>(
+                    0, ggml_time_us() - start_us));
         }
         if (cuda_graph_update_required) { // Update graph executable
             ggml_cuda_graph_update_executable(cuda_ctx, graph_key);
         }
         // Launch graph
+        const int64_t start_us = ggml_time_us();
         CUDA_CHECK(cudaGraphLaunch(graph->instance, cuda_ctx->stream()));
+        ++graph->actual_launch_count;
+        graph->actual_launch_cpu_us += uint64_t(std::max<int64_t>(
+                0, ggml_time_us() - start_us));
+        ggml_cuda_graph_diagnostics_log(*graph, graph_key);
 #else
         GGML_UNUSED(graph_key);
         graph_evaluated_or_captured = true;
@@ -5299,6 +5343,7 @@ static enum ggml_status ggml_backend_cuda_graph_compute(ggml_backend_t backend, 
         }
 
         CUDA_CHECK(cudaStreamBeginCapture(cuda_ctx->stream(), cudaStreamCaptureModeRelaxed));
+        cuda_ctx->cuda_graph(graph_key)->actual_capture_start_us = uint64_t(ggml_time_us());
     }
 
     try {

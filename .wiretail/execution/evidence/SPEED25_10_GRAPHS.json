@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "25-10",
+  "experiment": "pager-speed-v6",
+  "case_id": "cuda-graph-descriptor-stability",
+  "status": "complete_local_implementation",
+  "source": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "executable": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "cuda_graphs": "GGML_CUDA_USE_GRAPHS enabled in build-cuda",
+    "model_bundle": null,
+    "model_bundle_reason": "No rebuilt llama-server bundle was available before the large CUDA template link budget; live graph counters were not claimed."
+  },
+  "descriptor_update": {
+    "before": "direct page table, native positions, mask and query positions were full-uploaded on every selected content change",
+    "after": "stable graph-owned device buffers are patched only for changed contiguous page runs; position/mask/query arrays upload only when values differ",
+    "shape_identity": "unchanged layout/address identity remains graph-reusable",
+    "content_identity": "residency/content changes remain visible and are not hidden from graph decisions"
+  },
+  "actual_cuda_graph_diagnostics": {
+    "switch": "GGML_CUDA_GRAPH_DIAGNOSTICS=1",
+    "counters": ["capture", "instantiate", "update", "update_fail", "launch"],
+    "cpu_timings_us": ["capture", "instantiate", "update", "launch"],
+    "observed": false,
+    "observed_reason": "Focused fixture exercises the paged kernel, not ggml graph capture; live server bundle rebuild was deferred."
+  },
+  "verification": {
+    "cpu_build": "pass: cmake --build build --target llama test-kv-attention-view test-kv-attention-execution -j2",
+    "cpu_tests": "pass: ctest --test-dir build -R 'kv-attention-(view|execution)' --output-on-failure",
+    "cuda_translation_unit": "pass: ggml-cuda.cu.o compiled with CUDA graphs enabled",
+    "focused_cuda_fixture": "pass from existing build-cuda/bin/test-cuda-fattn-paged-turbo4 in 25-09",
+    "state_validation": "pass",
+    "diff_check": "pass"
+  },
+  "raw_root": null,
+  "raw_root_reason": "No live graph run was performed; do not invent capture/update/launch values."
+}
