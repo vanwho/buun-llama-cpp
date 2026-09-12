@@ -22,10 +22,28 @@ from pager_benchmark_contract import (
     stream_metrics,
     validate_evidence,
     validate_speed_evidence,
+    resolve_batch_tokens,
+    resolve_hot_capacity,
 )
 
 
 class ResumeContractTests(unittest.TestCase):
+    def test_hot_capacity_uses_resolved_page_size_and_keeps_auto_typed(self) -> None:
+        resolved = resolve_hot_capacity(73216, 256, 286)
+        self.assertEqual(286, resolved["hot_capacity_pages"])
+        self.assertEqual(73216, resolved["hot_capacity_tokens"])
+        automatic = resolve_hot_capacity(8192, 128, "auto")
+        self.assertTrue(automatic["automatic"])
+        self.assertIsNone(automatic["hot_capacity_pages"])
+        with self.assertRaises(ValueError):
+            resolve_hot_capacity(8192, 256, 33)
+
+    def test_batch_contract_rejects_invalid_widths(self) -> None:
+        self.assertEqual({"batch_tokens": 128, "ubatch_tokens": 64},
+                         resolve_batch_tokens(128, 64))
+        with self.assertRaises(ValueError):
+            resolve_batch_tokens(63, 64)
+
     def test_long_prompt_fitter_expands_neutral_padding(self) -> None:
         path = HERE / "run-final-curve.py"
         spec = importlib.util.spec_from_file_location("run_final_curve_test", path)

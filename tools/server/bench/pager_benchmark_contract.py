@@ -30,6 +30,7 @@ EVIDENCE_SCHEMA = "pager-evidence-v5"
 EVIDENCE_RESULTS = {"pass", "fail", "not_run", "incomplete"}
 SPEED_EVIDENCE_SCHEMA = "pager-speed-v6"
 SPEED_EVIDENCE_RESULTS = {"pass", "fail", "not_run", "incomplete"}
+INTERACTIVE_SPEED_SCHEMA = "interactive-speed-v7"
 CASE_STATE_SCHEMA = "pager-case-state-v1"
 CASE_STATES = {"planned", "started", "completed", "interrupted"}
 TIMEOUT_CLASSES = {
@@ -156,6 +157,43 @@ def classify_request_status(status: str, *, error_class: str | None = None) -> s
 
 class ContextResolutionError(ValueError):
     """Raised when a requested benchmark context cannot be accepted."""
+
+
+def resolve_hot_capacity(logical_capacity_tokens: int, page_size_tokens: int,
+                         requested_pages: int | str = "auto") -> dict[str, Any]:
+    """Resolve a physical hot-page budget without mixing rows and pages."""
+    if (isinstance(logical_capacity_tokens, bool) or
+            not isinstance(logical_capacity_tokens, int) or logical_capacity_tokens <= 0):
+        raise ContextResolutionError("logical capacity must be a positive integer")
+    if (isinstance(page_size_tokens, bool) or not isinstance(page_size_tokens, int) or
+            page_size_tokens <= 0):
+        raise ContextResolutionError("page size must be a positive integer")
+    max_pages = (logical_capacity_tokens + page_size_tokens - 1) // page_size_tokens
+    if requested_pages == "auto":
+        return {"requested": "auto", "automatic": True, "hot_capacity_pages": None,
+                "hot_capacity_tokens": None, "max_pages": max_pages}
+    if (isinstance(requested_pages, bool) or not isinstance(requested_pages, int) or
+            requested_pages <= 0):
+        raise ContextResolutionError("hot capacity must be auto or a positive page count")
+    if requested_pages > max_pages:
+        raise ContextResolutionError(
+            f"hot capacity {requested_pages} pages exceeds logical capacity limit {max_pages}")
+    tokens = requested_pages * page_size_tokens
+    if tokens <= 0:
+        raise ContextResolutionError("hot capacity token conversion overflowed")
+    return {"requested": requested_pages, "automatic": False,
+            "hot_capacity_pages": requested_pages, "hot_capacity_tokens": tokens,
+            "max_pages": max_pages}
+
+
+def resolve_batch_tokens(batch_tokens: int, ubatch_tokens: int) -> dict[str, int]:
+    """Validate requested logical and physical decode batch widths."""
+    values = (batch_tokens, ubatch_tokens)
+    if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in values):
+        raise ContextResolutionError("batch and ubatch must be positive integers")
+    if batch_tokens < ubatch_tokens:
+        raise ContextResolutionError("batch must be greater than or equal to ubatch")
+    return {"batch_tokens": batch_tokens, "ubatch_tokens": ubatch_tokens}
 
 
 class PromptSizingError(ValueError):
@@ -440,6 +478,41 @@ def validate_speed_evidence(receipt: Mapping[str, Any]) -> list[str]:
                 seen.add(raw_id)
             if not isinstance(digest, str) or len(digest) != 64:
                 errors.append(f"raw_index[{index}].sha256_invalid")
+    return list(dict.fromkeys(errors))
+
+
+INTERACTIVE_SECTIONS = ("provenance", "configuration", "history", "timing",
+                        "movement", "memory", "outcome", "raw")
+
+
+def validate_interactive_speed_evidence(receipt: Mapping[str, Any]) -> list[str]:
+    """Validate the V7 wrapper without requiring optional live counters."""
+    errors: list[str] = []
+    if not isinstance(receipt, Mapping):
+        return ["receipt must be an object"]
+    if receipt.get("schema") != INTERACTIVE_SPEED_SCHEMA:
+        errors.append(f"schema must be {INTERACTIVE_SPEED_SCHEMA}")
+    if receipt.get("stage") not in {"setup", "primary", "scale", "maximum", "control", "diagnostic"}:
+        errors.append("stage_invalid")
+    if not isinstance(receipt.get("case_id"), str) or not receipt["case_id"]:
+        errors.append("case_id_missing")
+    for section in INTERACTIVE_SECTIONS:
+        if not isinstance(receipt.get(section), Mapping):
+            errors.append(f"{section}_must_be_object")
+    configuration = receipt.get("configuration", {})
+    if isinstance(configuration, Mapping):
+        for field in ("logical_capacity_tokens", "page_size_tokens", "hot_capacity_pages",
+                      "hot_capacity_tokens", "batch_tokens", "ubatch_tokens"):
+            value = configuration.get(field)
+            if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value <= 0):
+                errors.append(f"configuration.{field}_invalid")
+        batch = configuration.get("batch_tokens")
+        ubatch = configuration.get("ubatch_tokens")
+        if isinstance(batch, int) and isinstance(ubatch, int) and batch < ubatch:
+            errors.append("configuration.batch_less_than_ubatch")
+    history = receipt.get("history", {})
+    if isinstance(history, Mapping) and history.get("truncated") is True:
+        errors.append("history.truncated")
     return list(dict.fromkeys(errors))
 
 
