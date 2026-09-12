@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "28",
-  "current_task": "28-02",
-  "last_updated_utc": "2026-09-12T19:33:15+00:00",
+  "current_task": "28-03",
+  "last_updated_utc": "2026-09-12T20:47:39+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5616,14 +5616,39 @@
       "cluster": "28b-stable-execution-v8",
       "title": "Make attention descriptors and workspaces reusable device inputs",
       "packet": ".wiretail/execution/tasks/28-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "28-01"
       ],
-      "commit": null,
-      "scope_revision": "gpu-hot-path-v8-20260912"
+      "commit": "639e33990d8d4aab25b8a333e8a0ec3c762bd61d",
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/28-02-attempt-1-20260912T193332Z.jsonl:291",
+            "total_tokens": 42688095,
+            "total_tokens_derived": true,
+            "input_tokens": 42624550,
+            "cached_input_tokens": 42042880,
+            "output_tokens": 63545,
+            "thinking_tokens": 27316
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 42688095,
+          "input_tokens": 42624550,
+          "cached_input_tokens": 42042880,
+          "output_tokens": 63545,
+          "thinking_tokens": 27316
+        }
+      }
     },
     {
       "id": "28-03",
@@ -7358,15 +7383,28 @@
           "cached_input_tokens": 34136320,
           "output_tokens": 69822,
           "thinking_tokens": 22090
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/28-02-attempt-1-20260912T193332Z.jsonl:291",
+          "total_tokens": 42688095,
+          "total_tokens_derived": true,
+          "input_tokens": 42624550,
+          "cached_input_tokens": 42042880,
+          "output_tokens": 63545,
+          "thinking_tokens": 27316
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 34790483,
-        "input_tokens": 34720661,
-        "cached_input_tokens": 34136320,
-        "output_tokens": 69822,
-        "thinking_tokens": 22090
+        "turns": 2,
+        "total_tokens": 77478578,
+        "input_tokens": 77345211,
+        "cached_input_tokens": 76179200,
+        "output_tokens": 133367,
+        "thinking_tokens": 49406
       }
     },
     "29": {
@@ -7394,12 +7432,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 98,
-      "total_tokens": 2008433415,
-      "input_tokens": 2003720661,
-      "cached_input_tokens": 1965592576,
-      "output_tokens": 4712754,
-      "thinking_tokens": 1661191
+      "turns": 99,
+      "total_tokens": 2051121510,
+      "input_tokens": 2046345211,
+      "cached_input_tokens": 2007635456,
+      "output_tokens": 4776299,
+      "thinking_tokens": 1688507
     },
     "source": "Codex turn.completed usage events"
   }
