@@ -872,3 +872,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-11`
 - Commit at update: `4c3dce900`
 - Summary: Implemented policy-derived attention working-set selection with bounded cold exploration and safe routed-view consumption; focused routing, policy, telemetry tests pass.
+
+## 2026-09-12T03:12:30+00:00 — 25-12 — done
+
+- Branch: `codex/task-25-12`
+- Commit at update: `9a2a45e5a`
+- Summary: Added guarded same-device native-MTP hidden-state tensor handoff with portable host fallback; focused build and deterministic tests pass. CUDA/model timing and Qwen3.8 live parity deferred because no configured GPU service is available.

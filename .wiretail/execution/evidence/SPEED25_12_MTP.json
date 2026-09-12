@@ -1,0 +1,27 @@
+{
+  "task": "25-12",
+  "source_root": "9a2a45e5ad107284b81108fc78a96eaa9210b9a0",
+  "implementation": {
+    "device_hidden_handoff": true,
+    "source": "target gf_res_prev h_nextn tensor",
+    "destination": "draft mtp_h_input tensor",
+    "copy_rows": "contiguous source_offset..source_offset+n_rows into destination_offset..destination_offset+n_rows",
+    "fallback": "host batch staging when tensors are unavailable, host-backed, mismatched, or not same device",
+    "pending_boundary_row": "host-owned; existing lifecycle retained"
+  },
+  "verification": {
+    "build": "cmake --build build -j2: PASS",
+    "test_mtp_vocab_trim": "PASS",
+    "test_kv_routing_retrieval": "PASS",
+    "test_kv_policy": "PASS",
+    "test_kv_attention_telemetry": "PASS",
+    "git_diff_check": "PASS",
+    "live_cuda_mtp": null,
+    "live_cuda_mtp_reason": "No configured CUDA Qwen3.8 target/draft service or GPU runtime was available in this environment"
+  },
+  "timing": {
+    "host_copy_before_us": null,
+    "host_copy_after_us": null,
+    "reason": "No configured model/GPU timing run; direct path is source-level and guarded"
+  }
+}
