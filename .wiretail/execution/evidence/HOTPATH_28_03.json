@@ -1,0 +1,93 @@
+{
+  "schema": "gpu-hot-path-v8-cooperative-decode-v1",
+  "task": "28-03",
+  "status": "complete",
+  "result": "complete",
+  "implementation": {
+    "production_kernel": "ggml_cuda_fattn_turbo4_paged_cooperative_kernel",
+    "reference_kernel": "ggml_cuda_fattn_turbo4_paged_reference_kernel",
+    "reference_dispatch": "explicit params.reference_kernel test opt-in; default production dispatch is cooperative",
+    "geometry": "one CTA per KV head/head-wave, query token, and KV partition; up to eight query-head warps share one decoded row",
+    "loader": "page descriptor, physical slot, row, head, and layer strides are resolved once per page/KV tile; K/V rows are decoded once into bounded shared memory",
+    "math": "Turbo4 codebook/channel scales, Q WHT, V unrotation, lane-local dot products, one warp reduction, online softmax, and split-page mass merge are retained",
+    "memory": "bounded shared query rotation, decoded K/V, and page state; no full H/L fp16 staging"
+  },
+  "fixture": {
+    "test": "tests/test-cuda-fattn-paged-turbo4.cu",
+    "geometry": "Q heads 4, KV heads 1, head dimension 256, four logical pages, 530 selected rows, eight physical page slots",
+    "coverage": [
+      "production versus explicit reference output comparison",
+      "Q1/Q2/Q3/Q5 decode shapes and Q16/Q64/Q128 timing paths",
+      "GQA head sharing",
+      "page-mass disabled/enabled and split-KV capacities 1/2",
+      "logical-page permutation, physical-page gaps, one-row/17-row tails",
+      "native-position gaps, native masks, causal filtering, and all-masked rows",
+      "partial-state write and merge",
+      "contiguous Turbo4 FA and non-contiguous pack+FA timing controls"
+    ],
+    "oracle": "Independent CPU selected-row oracle plus explicit reference-kernel comparison"
+  },
+  "validation": {
+    "device": "NVIDIA GeForce RTX 4080, compute capability 8.9, 15945 MiB",
+    "build_command": "cmake --build build-cuda --target test-cuda-fattn-paged-turbo4 llama-server -j2",
+    "build_result": "pass",
+    "correctness_command": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "correctness_result": "pass",
+    "correctness_raw": "/srv/ai/paged-kv/results/28-03-ordinary-20260913-final.log",
+    "timing_command": "build-cuda/bin/test-cuda-fattn-paged-turbo4 --timing",
+    "timing_result": "pass",
+    "timing_raw": "/srv/ai/paged-kv/results/28-03-timing-20260913-final.log",
+    "compute_sanitizer_synccheck": {
+      "command": "compute-sanitizer --tool synccheck --error-exitcode 1 build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "result": "pass",
+      "error_summary": 0,
+      "raw": "/srv/ai/paged-kv/results/28-03-synccheck-20260913-final.log"
+    },
+    "compute_sanitizer_memcheck": {
+      "command": "compute-sanitizer --tool memcheck --error-exitcode 1 build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "result": "pass",
+      "error_summary": 0,
+      "raw": "/srv/ai/paged-kv/results/28-03-memcheck-20260913-final.log"
+    },
+    "git_diff_check": "pass"
+  },
+  "timing": {
+    "fixture": "530 selected rows; CUDA-event warm-up and matched reference/cooperative controls",
+    "production_decode_ms": {
+      "q1": 0.303,
+      "q2": 0.299,
+      "q3": 0.303,
+      "q5": 0.306
+    },
+    "q128_reference_ms": 9.154,
+    "q128_cooperative_split_control_ms": 0.236,
+    "q128_contiguous_turbo4_fa_ms": 0.028,
+    "q128_noncontiguous_pack_plus_fa_ms": 0.030,
+    "note": "Raw fixture timings only; controls have different staging contracts and are not a product throughput claim."
+  },
+  "live_q0": {
+    "candidate": "resident native-MTP candidate on port 8080",
+    "candidate_pid_at_probe": 1462393,
+    "health": "pass",
+    "response_raw": "/srv/ai/paged-kv/results/28-03-live-q0-20260913/response.json",
+    "metrics_before": "/srv/ai/paged-kv/results/28-03-live-q0-20260913/metrics-before.txt",
+    "metrics_after": "/srv/ai/paged-kv/results/28-03-live-q0-20260913/metrics-after.txt",
+    "observed": {
+      "prompt_tokens": 61,
+      "generated_tokens": 93,
+      "draft_tokens": 78,
+      "accepted_tokens": 54,
+      "verification_steps": 39,
+      "prompt_ms": 276.559,
+      "decode_ms": 1212.937
+    },
+    "scope": "The resident candidate was not restarted; current-source kernel behavior is covered by the focused fixture."
+  },
+  "runtime": {
+    "unrelated_port_8092_touched": false,
+    "candidate_preserved": true
+  },
+  "deferred_verification": [
+    "Nsight Systems kernel/event attribution remains unavailable because this image lacks the QDSTRM importer; no attribution claim is made."
+  ]
+}

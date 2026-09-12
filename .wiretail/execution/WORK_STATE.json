@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "28",
-  "current_task": "28-03",
-  "last_updated_utc": "2026-09-12T20:47:39+00:00",
+  "current_task": "28-04",
+  "last_updated_utc": "2026-09-12T22:13:47+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5656,14 +5656,39 @@
       "cluster": "28c-optimized-paged-kernels-v8",
       "title": "Replace scalar paged decode with cooperative Turbo4 tile and GQA execution",
       "packet": ".wiretail/execution/tasks/28-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "28-02"
       ],
-      "commit": null,
-      "scope_revision": "gpu-hot-path-v8-20260912"
+      "commit": "4646b834660dd9bae8ebc6d3f275f1b69765a987",
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/28-03-attempt-1-20260912T204757Z.jsonl:220",
+            "total_tokens": 42553921,
+            "total_tokens_derived": true,
+            "input_tokens": 42495046,
+            "cached_input_tokens": 41985024,
+            "output_tokens": 58875,
+            "thinking_tokens": 25823
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 42553921,
+          "input_tokens": 42495046,
+          "cached_input_tokens": 41985024,
+          "output_tokens": 58875,
+          "thinking_tokens": 25823
+        }
+      }
     },
     {
       "id": "28-04",
@@ -7396,15 +7421,28 @@
           "cached_input_tokens": 42042880,
           "output_tokens": 63545,
           "thinking_tokens": 27316
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/28-03-attempt-1-20260912T204757Z.jsonl:220",
+          "total_tokens": 42553921,
+          "total_tokens_derived": true,
+          "input_tokens": 42495046,
+          "cached_input_tokens": 41985024,
+          "output_tokens": 58875,
+          "thinking_tokens": 25823
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 77478578,
-        "input_tokens": 77345211,
-        "cached_input_tokens": 76179200,
-        "output_tokens": 133367,
-        "thinking_tokens": 49406
+        "turns": 3,
+        "total_tokens": 120032499,
+        "input_tokens": 119840257,
+        "cached_input_tokens": 118164224,
+        "output_tokens": 192242,
+        "thinking_tokens": 75229
       }
     },
     "29": {
@@ -7432,12 +7470,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 99,
-      "total_tokens": 2051121510,
-      "input_tokens": 2046345211,
-      "cached_input_tokens": 2007635456,
-      "output_tokens": 4776299,
-      "thinking_tokens": 1688507
+      "turns": 100,
+      "total_tokens": 2093675431,
+      "input_tokens": 2088840257,
+      "cached_input_tokens": 2049620480,
+      "output_tokens": 4835174,
+      "thinking_tokens": 1714330
     },
     "source": "Codex turn.completed usage events"
   }
