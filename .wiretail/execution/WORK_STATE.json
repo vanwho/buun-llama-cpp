@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "26",
-  "current_task": "26-05",
-  "last_updated_utc": "2026-09-12T14:51:31+00:00",
+  "current_task": "26-06",
+  "last_updated_utc": "2026-09-12T15:41:16+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5295,14 +5295,39 @@
       "cluster": "26i-attention-speed-v7",
       "title": "Choose the fastest measured attention path per phase without wasting hot residency",
       "packet": ".wiretail/execution/tasks/26-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "26-04"
       ],
-      "commit": null,
-      "scope_revision": "interactive-hot-kv-20260912"
+      "commit": "d3696533b5c96a4a66f8aaf443597e6efc5a7601",
+      "scope_revision": "interactive-hot-kv-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/26-05-attempt-1-20260912T145151Z.jsonl:473",
+            "total_tokens": 105677597,
+            "total_tokens_derived": true,
+            "input_tokens": 105457463,
+            "cached_input_tokens": 103486720,
+            "output_tokens": 220134,
+            "thinking_tokens": 81499
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 105677597,
+          "input_tokens": 105457463,
+          "cached_input_tokens": 103486720,
+          "output_tokens": 220134,
+          "thinking_tokens": 81499
+        }
+      }
     },
     {
       "id": "26-06",
@@ -6889,15 +6914,28 @@
           "cached_input_tokens": 60595200,
           "output_tokens": 133161,
           "thinking_tokens": 49562
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/26-05-attempt-1-20260912T145151Z.jsonl:473",
+          "total_tokens": 105677597,
+          "total_tokens_derived": true,
+          "input_tokens": 105457463,
+          "cached_input_tokens": 103486720,
+          "output_tokens": 220134,
+          "thinking_tokens": 81499
         }
       ],
       "totals": {
-        "turns": 13,
-        "total_tokens": 419672927,
-        "input_tokens": 418906135,
-        "cached_input_tokens": 411793920,
-        "output_tokens": 766792,
-        "thinking_tokens": 240550
+        "turns": 14,
+        "total_tokens": 525350524,
+        "input_tokens": 524363598,
+        "cached_input_tokens": 515280640,
+        "output_tokens": 986926,
+        "thinking_tokens": 322049
       }
     },
     "27": {
@@ -6925,12 +6963,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 90,
-      "total_tokens": 1780704836,
-      "input_tokens": 1776536496,
-      "cached_input_tokens": 1742756096,
-      "output_tokens": 4168340,
-      "thinking_tokens": 1454151
+      "turns": 91,
+      "total_tokens": 1886382433,
+      "input_tokens": 1881993959,
+      "cached_input_tokens": 1846242816,
+      "output_tokens": 4388474,
+      "thinking_tokens": 1535650
     },
     "source": "Codex turn.completed usage events"
   }
