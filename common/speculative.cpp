@@ -2894,7 +2894,15 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             // i.e. we cannot have seq_id like this: [0, 0, 0, 1, 1, 0, 1, 1]
             //                                                       ^--- this is a problem
             // TODO:this is generally true, but would be nice to assert it
-            {
+            // Keep the pending boundary row host-owned, but source the
+            // contiguous target rows directly from the target graph whenever
+            // both contexts use the same backend device. Only materialize the
+            // shifted rows on the host for the portable fallback.
+            const bool device_handoff = n_tokens > 1 && llama_set_embeddings_nextn_device(
+                    ctx_dft, ctx_tgt, 0, 1, n_tokens - 1);
+            if (device_handoff) {
+                SPC_TRC("MTP device hidden handoff: rows=%d\n", n_tokens - 1);
+            } else {
                 const float * h_tgt = llama_get_embeddings_nextn(ctx_tgt);
                 std::memcpy(batch.embd + (size_t) 1 * n_embd, h_tgt, row_bytes * (n_tokens-1));
             }
