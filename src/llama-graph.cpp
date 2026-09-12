@@ -766,6 +766,11 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                            std::max<llama_pos>(0, ubatch->pos[0])))) {
                 direct_telemetry_skipped = true;
             }
+        } else if (dense_attention) {
+            // The dense selected route is a no-copy typed view over the
+            // persistent contiguous Turbo4 slab. It has no row-ID or page
+            // descriptor input to refresh; falling through to the reference
+            // gather assertion would incorrectly reject a large B graph.
         } else if (packed_attention) {
             const int64_t pack_start = kv_attention_metrics && update_selected
                 ? ggml_time_us() : 0;

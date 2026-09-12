@@ -1658,13 +1658,11 @@ uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
         model.hparams.n_embd_head_k() == 256 && model.hparams.n_embd_head_v() == 256 &&
         model.hparams.n_head_kv() != 0 &&
         model.hparams.n_head() % model.hparams.n_head_kv() == 0;
-    // Keep each graph bounded to a page-friendly Turbo4 query tile. Several
-    // tiles can be submitted before the page-boundary fence in decode().
-    return turbo4_paged_prefill
-        ? llama_kv_attention_prefill_chunk_size(requested,
-                snapshot.physical_page_count, snapshot.geometry.page_tokens,
-                LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE)
-        : physical_bound;
+    // The direct Turbo4 dispatcher subdivides a qualified B into fixed query
+    // tiles in grid.z. Keep the model's ubatch independent from that CUDA
+    // scheduling unit; the physical page window remains the admission bound.
+    GGML_UNUSED(turbo4_paged_prefill);
+    return physical_bound;
 }
 
 void llama_context::resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs) {
@@ -2314,7 +2312,6 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 (phase == llama_kv_attention_execution_phase::decode ||
                  phase == llama_kv_attention_execution_phase::mtp_verify) &&
                 ubatch.n_tokens >= 1 &&
-                ubatch.n_tokens <= LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE &&
                 ubatch.n_seq_tokens == ubatch.n_tokens) {
                 std::vector<uint32_t> all_pages;
                 all_pages.reserve(records.size());
@@ -2572,8 +2569,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         metadata.n_batch() == 1 && metadata.n_head_q() != 0 &&
         metadata.n_head_kv() != 0 &&
         metadata.n_head_q() % metadata.n_head_kv() == 0;
-    const bool direct_shape = turbo_fa_shape &&
-        metadata.n_query_tokens() <= LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE;
+    const bool direct_shape = turbo_fa_shape;
     std::string direct_reason;
     if (!cuda_backend) {
         direct_reason = "selected direct requires a CUDA layer backend";

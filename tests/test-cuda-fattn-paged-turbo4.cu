@@ -44,7 +44,10 @@ int main() {
     constexpr uint32_t n_head_kv = 4;
     constexpr uint32_t n_pages = 4;
     constexpr uint32_t n_rows = 530;
-    constexpr uint32_t max_query_tokens = GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS;
+    // B is intentionally larger than one CTA tile. The dispatcher must keep
+    // shared memory bounded while covering both the 64->65 and 256->257
+    // boundaries plus the largest bounded sweep shape.
+    constexpr uint32_t max_query_tokens = 512;
     constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
     constexpr size_t page_stride = 256 * row_bytes;
     constexpr uint32_t n_physical_pages = 8;
@@ -187,7 +190,8 @@ int main() {
     // query's causal position and guard the following output query with a
     // canary so adjacent query results cannot alias.
     const std::vector<float> output_canary(q_host.size(), -12345.0f);
-    for (uint32_t query_count = 1; query_count <= max_query_tokens; ++query_count) {
+    const uint32_t query_counts[] = { 1, 16, 64, 65, 256, 257, 512 };
+    for (const uint32_t query_count : query_counts) {
         cuda_check(cudaMemcpy(output_device, output_canary.data(),
             output_canary.size() * sizeof(float), cudaMemcpyHostToDevice), "output canary copy");
         params.n_query_tokens = query_count;
@@ -210,7 +214,7 @@ int main() {
             }
         }
     }
-    params.n_query_tokens = max_query_tokens + 1;
+    params.n_query_tokens = 0;
     assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::unsupported_shape);
     params.n_query_tokens = 1;
 
@@ -288,6 +292,44 @@ int main() {
         split_capacity * split_page_partition_stride), "split page state allocation");
     const std::vector<float> serial_mass = page_mass;
     const std::vector<float> serial_output = output_with_mass;
+
+    // Bounded launch sweep for the direct query tile. Keep the largest tile
+    // as the graph default, but retain measurements for the two smaller
+    // candidates so tile choice is evidence-driven rather than hard-coded by
+    // the title of the task.
+    const uint32_t query_tiles[] = { 16, 32, 64 };
+    const uint32_t timed_query_counts[] = { 64, 256, 512 };
+    for (const uint32_t query_count : timed_query_counts) {
+        params.n_query_tokens = query_count;
+        for (const uint32_t query_tile : query_tiles) {
+            params.query_tile_tokens = query_tile;
+            cuda_check(cudaEventRecord(timing_start, stream), "query tile timing start record");
+            assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+            cuda_check(cudaEventRecord(timing_stop, stream), "query tile timing stop record");
+            cuda_check(cudaEventSynchronize(timing_stop), "query tile timing stop synchronize");
+            float query_tile_ms = 0.0f;
+            cuda_check(cudaEventElapsedTime(&query_tile_ms, timing_start, timing_stop), "query tile timing readback");
+            std::fprintf(stderr, "paged Turbo4 tile sweep: %.3f ms (tile_q %u, %u Q tokens, 530 selected rows)\n",
+                query_tile_ms, query_tile, query_count);
+            cuda_check(cudaDeviceSynchronize(), "query tile attention");
+            std::vector<float> tile_output(output_with_mass.size());
+            std::vector<float> tile_mass(page_mass.size());
+            cuda_check(cudaMemcpy(tile_output.data(), output_device,
+                tile_output.size() * sizeof(float), cudaMemcpyDeviceToHost), "query tile output readback");
+            cuda_check(cudaMemcpy(tile_mass.data(), page_mass_device,
+                tile_mass.size() * sizeof(float), cudaMemcpyDeviceToHost), "query tile mass readback");
+            const size_t output_elements = size_t(query_count) * n_head_q * 256;
+            const size_t mass_elements = size_t(query_count) * n_head_q * 4;
+            for (size_t i = 0; i < output_elements; ++i) {
+                assert(std::fabs(tile_output[i] - serial_output[i]) < 2.0e-6f);
+            }
+            for (size_t i = 0; i < mass_elements; ++i) {
+                assert(std::fabs(tile_mass[i] - serial_mass[i]) < 1.0e-5f);
+            }
+        }
+    }
+    params.query_tile_tokens = 0;
+    params.n_query_tokens = max_query_tokens;
     params.split_kv_scratch = split_state_device;
     params.split_kv_partition_stride_bytes = split_state_partition_stride;
     params.split_kv_page_state = split_page_state_device;
@@ -338,7 +380,7 @@ int main() {
     cuda_check(cudaEventSynchronize(timing_stop), "serial comparison timing stop synchronize");
     float serial_comparison_ms = 0.0f;
     cuda_check(cudaEventElapsedTime(&serial_comparison_ms, timing_start, timing_stop), "serial comparison timing readback");
-    std::fprintf(stderr, "paged Turbo4 serial control: %.3f ms (sixteen Q tokens, 530 selected rows)\n",
+    std::fprintf(stderr, "paged Turbo4 serial control: %.3f ms (512 Q tokens, 530 selected rows)\n",
         serial_comparison_ms);
 
     params.split_kv_scratch = split_state_device;
@@ -355,7 +397,7 @@ int main() {
     cuda_check(cudaEventSynchronize(timing_stop), "split comparison timing stop synchronize");
     float split_comparison_ms = 0.0f;
     cuda_check(cudaEventElapsedTime(&split_comparison_ms, timing_start, timing_stop), "split comparison timing readback");
-    std::fprintf(stderr, "paged Turbo4 split control: %.3f ms (sixteen Q tokens, 530 selected rows, capacity 16)\n",
+    std::fprintf(stderr, "paged Turbo4 split control: %.3f ms (512 Q tokens, 530 selected rows, capacity 16)\n",
         split_comparison_ms);
 
     params.split_kv_scratch = nullptr;

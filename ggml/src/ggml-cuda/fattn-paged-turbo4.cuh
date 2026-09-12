@@ -8,6 +8,7 @@
 // Bound the fixed query workspace so prefill can submit useful tiles without
 // reserving a context-sized attention matrix.
 constexpr uint32_t GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS = 64;
+constexpr uint32_t GGML_CUDA_FATTN_TURBO4_DEFAULT_QUERY_TOKENS = 32;
 
 // Device-side description of one selected Turbo4 page.  Keep this established
 // CUDA-facing type distinct from the backend-neutral GGML graph descriptor so
@@ -122,6 +123,9 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     uint32_t n_head_q = 0;
     uint32_t n_head_kv = 0;
     uint32_t n_query_tokens = 0;
+    // Zero selects the measured default tile (32). The bounded 16/32/64
+    // choices are useful for launch tuning without changing the graph shape.
+    uint32_t query_tile_tokens = 0;
     uint32_t n_batch = 0;
     uint32_t page_mass_logical_count = 0;
     float scale = 0.0f;
@@ -136,9 +140,11 @@ struct ggml_cuda_fattn_turbo4_paged_params {
 };
 
 // Correctness-first direct page/query-tile attention. The qualified geometry is
-// causal, batch 1, one to sixty-four query tokens, head width 256, and divisible
-// GQA. The serial oracle uses one CTA to traverse each compressed page
-// list once per tile and reuses decoded K/V rows across the tile's queries.
+// causal, batch 1, one or more query tokens, head width 256, and divisible GQA.
+// The serial oracle uses one CTA per query tile to traverse each compressed page
+// list once and reuses decoded K/V rows across the tile's queries. A larger B is
+// represented by grid.z tiles; shared memory remains bounded by the fixed tile
+// size rather than B.
 // Qualified large-row calls use bounded split-KV CTAs and a device-side
 // unnormalized-state merge; the output remains in the Turbo V rotated domain,
 // matching the existing dense Turbo4 FA contract. The graph-level inverse WHT
