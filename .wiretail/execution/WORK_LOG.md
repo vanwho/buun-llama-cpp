@@ -836,3 +836,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-05`
 - Commit at update: `5505dddd1`
 - Summary: Implemented grid.z query tiling for direct paged Turbo4 prefill, added B>64 dense graph handling, expanded CUDA geometry/tile evidence, and recorded deferred packed/dense and Nsight checks.
+
+## 2026-09-12T01:10:39+00:00 — 25-06 — done
+
+- Branch: `codex/task-25-06`
+- Commit at update: `6cf8d2206`
+- Summary: Restored whole-model prefill batching with independent requested/physical/tile capacities, bulk page admission, target/MTP boundary accounting, and direct-route precedence. Host/CUDA focused checks plus live native-MTP B256/B512 GPU smokes pass; SPEED25_06_BATCHING evidence and handoff record deferred GPU-utilization sampling and bounded-H parity.

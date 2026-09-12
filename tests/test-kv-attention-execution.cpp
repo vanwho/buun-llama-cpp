@@ -86,6 +86,18 @@ static void test_prefill_admission() {
     assert(llama_kv_attention_prefill_chunk_size(4096, 2, 256, 32) == 32);
     assert(llama_kv_attention_prefill_chunk_size(0, 2) == 0);
 
+    const auto batch_256 = llama_kv_attention_prefill_batch_plan_make(256, 2);
+    assert(batch_256.requested_batch == 256 &&
+           batch_256.physical_write_capacity == 512 &&
+           batch_256.effective_batch == 256 && batch_256.subbatch_count == 1);
+    const auto batch_512 = llama_kv_attention_prefill_batch_plan_make(512, 2);
+    assert(batch_512.effective_batch == 512 && batch_512.subbatch_count == 1);
+    const auto batch_split = llama_kv_attention_prefill_batch_plan_make(1024, 2);
+    assert(batch_split.effective_batch == 512 && batch_split.subbatch_count == 2);
+    const auto batch_h_small = llama_kv_attention_prefill_batch_plan_make(512, 1);
+    assert(batch_h_small.physical_write_capacity == 256 &&
+           batch_h_small.effective_batch == 256 && batch_h_small.subbatch_count == 2);
+
     // The model batch may cross the CUDA tile boundary; the direct backend
     // subdivides it in grid.z instead of refusing the whole operator.
     const auto selected_large = metadata(snapshot(), 65, 1);
@@ -170,7 +182,7 @@ static void test_routes_epochs_and_fences() {
     execution.complete_one_graph();
 
     const auto packed = execution.prepare(selected_prefill,
-            llama_kv_attention_execution_phase::prefill, 6, 10, true, scratch,
+            llama_kv_attention_execution_phase::prefill, 6, 10, false, scratch,
             {}, false, true);
     assert(packed.route == llama_kv_attention_execution_route::selected_packed);
     execution.complete_one_graph();
@@ -178,6 +190,17 @@ static void test_routes_epochs_and_fences() {
     assert(execution.metrics().pack_bytes == 128 &&
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
+
+    // Direct paged Turbo4 attention is the large-prefill path. Packing is a
+    // fallback for geometries that cannot use the CUDA page-table kernel; it
+    // must not shadow an otherwise valid direct route.
+    llama_kv_attention_execution direct_over_packed(
+            llama_kv_attention_execution_mode::selective);
+    const auto direct_packed = direct_over_packed.prepare(selected_prefill,
+            llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
+            {}, false, true);
+    assert(direct_packed.route == llama_kv_attention_execution_route::selected_direct);
+    direct_over_packed.complete_one_graph();
 
     execution.record_wait_time_us(7);
     execution.record_copy_time_us(11);

@@ -83,6 +83,23 @@ uint32_t llama_kv_attention_prefill_chunk_size(
         uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
         uint32_t query_tile = 0) noexcept;
 
+// Keep the model batch, writable physical window, and CUDA query tile as
+// independent quantities. The graph may process effective_batch in several
+// query tiles without shrinking the requested model batch to one CTA tile.
+struct llama_kv_attention_prefill_batch_plan {
+    uint32_t requested_batch = 0;
+    uint32_t physical_write_capacity = 0;
+    uint32_t effective_batch = 0;
+    uint32_t query_tile = LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE;
+    uint32_t subbatch_count = 0;
+};
+
+llama_kv_attention_prefill_batch_plan llama_kv_attention_prefill_batch_plan_make(
+        uint32_t requested_batch,
+        uint32_t physical_page_count,
+        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
+        uint32_t query_tile = LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE) noexcept;
+
 struct llama_kv_attention_execution_decision {
     llama_kv_attention_execution_status status = llama_kv_attention_execution_status::disabled;
     llama_kv_attention_execution_route route = llama_kv_attention_execution_route::dense;
@@ -133,7 +150,12 @@ struct llama_kv_attention_execution_metrics {
     // These counters describe the backend-neutral graph decision boundary.
     // They are intentionally separate from CUDA capture/update/launch events.
     uint64_t graph_construction_us = 0;
+    uint64_t requested_ubatch = 0;
+    uint64_t physical_write_capacity = 0;
     uint64_t effective_ubatch = 0;
+    uint64_t query_tile_tokens = LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE;
+    uint64_t prefill_subbatch_count = 0;
+    uint64_t target_tokens_processed = 0;
     uint64_t table_upload_bytes = 0;
     uint64_t pack_bytes = 0;
     uint64_t pack_time_us = 0;
@@ -199,6 +221,17 @@ struct llama_kv_attention_execution_metrics {
     }
     void record_effective_ubatch(uint64_t value) noexcept {
         effective_ubatch = value;
+    }
+    void record_prefill_batch(const llama_kv_attention_prefill_batch_plan & plan) noexcept {
+        requested_ubatch = plan.requested_batch;
+        physical_write_capacity = plan.physical_write_capacity;
+        effective_ubatch = plan.effective_batch;
+        query_tile_tokens = plan.query_tile;
+        prefill_subbatch_count = plan.subbatch_count;
+    }
+    void record_target_tokens(uint64_t value) noexcept {
+        target_tokens_processed = target_tokens_processed > UINT64_MAX - value
+            ? UINT64_MAX : target_tokens_processed + value;
     }
     void record_exact_ledger(
             const llama_kv_attention_exact_ledger & ledger) noexcept;
@@ -279,6 +312,8 @@ public:
     void record_pack(uint64_t bytes, uint64_t elapsed_us) noexcept;
     void record_graph_construction_us(uint64_t elapsed_us) noexcept;
     void record_effective_ubatch(uint64_t value) noexcept;
+    void record_prefill_batch(const llama_kv_attention_prefill_batch_plan & plan) noexcept;
+    void record_target_tokens(uint64_t value) noexcept;
 
     bool has_graph() const noexcept { return have_graph_; }
     size_t in_flight_graphs() const noexcept { return graph_fences_.size(); }

@@ -1647,22 +1647,12 @@ uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
     if (snapshot.physical_page_count == 0) {
         return requested;
     }
-    const uint32_t physical_bound = llama_kv_attention_prefill_chunk_size(
-            requested, snapshot.physical_page_count,
-            snapshot.geometry.page_tokens);
-    const bool turbo4_paged_prefill =
-        (kv_pager.mode == llama_kv_pager_mode::selective ||
-         kv_pager.mode == llama_kv_pager_mode::exact) &&
-        cparams.flash_attn &&
-        (model.arch == LLM_ARCH_QWEN35 || model.arch == LLM_ARCH_QWEN35MOE) &&
-        model.hparams.n_embd_head_k() == 256 && model.hparams.n_embd_head_v() == 256 &&
-        model.hparams.n_head_kv() != 0 &&
-        model.hparams.n_head() % model.hparams.n_head_kv() == 0;
     // The direct Turbo4 dispatcher subdivides a qualified B into fixed query
     // tiles in grid.z. Keep the model's ubatch independent from that CUDA
-    // scheduling unit; the physical page window remains the admission bound.
-    GGML_UNUSED(turbo4_paged_prefill);
-    return physical_bound;
+    // scheduling unit; only the physical write window bounds admission.
+    return llama_kv_attention_prefill_batch_plan_make(
+            requested, snapshot.physical_page_count,
+            snapshot.geometry.page_tokens).effective_batch;
 }
 
 void llama_context::resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs) {
@@ -2136,7 +2126,6 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
         bool dense_capable,
         bool packed_capable) {
     const int64_t started = ggml_time_us();
-    kv_attention_execution.metrics_mutable().record_effective_ubatch(cparams.n_ubatch);
     auto result = kv_attention_execution.prepare(metadata, phase, representation_epoch,
             shape_epoch, direct_capable, scratch, direct_reason,
             dense_capable, packed_capable);
@@ -6063,6 +6052,27 @@ int llama_context::decode(const llama_batch & batch_inp) {
              kv_pager.mode == llama_kv_pager_mode::exact);
     const uint32_t memory_ubatch = bounded_pager_prefill
         ? prefill_ubatch_size(cparams.n_ubatch) : cparams.n_ubatch;
+    const auto prefill_plan = llama_kv_attention_prefill_batch_plan_make(
+            cparams.n_ubatch,
+            bounded_pager_prefill && kv_pager_owner
+                ? kv_pager_owner->snapshot().physical_page_count : 0,
+            bounded_pager_prefill && kv_pager_owner
+                ? kv_pager_owner->snapshot().geometry.page_tokens
+                : VBR_GENERATION_PAGE_CELLS);
+    kv_attention_execution.record_prefill_batch(prefill_plan);
+    if (bounded_pager_prefill && prefill_plan.effective_batch < prefill_plan.requested_batch) {
+        const uint32_t physical_pages = kv_pager_owner != nullptr
+            ? kv_pager_owner->snapshot().physical_page_count : 0;
+        LLAMA_LOG_INFO("%s: prefill batch bounded: requested=%u physical_pages=%u "
+                "page_tokens=%u physical_write_capacity=%u effective=%u "
+                "formula=min(requested, physical_pages*page_tokens); query_tile=%u\n",
+                __func__, prefill_plan.requested_batch, physical_pages,
+                bounded_pager_prefill && kv_pager_owner
+                    ? kv_pager_owner->snapshot().geometry.page_tokens
+                    : VBR_GENERATION_PAGE_CELLS,
+                prefill_plan.physical_write_capacity, prefill_plan.effective_batch,
+                prefill_plan.query_tile);
+    }
     if (bounded_pager_prefill && memory_ubatch != cparams.n_ubatch) {
         LLAMA_LOG_INFO("%s: bounded pager prefill ubatch=%u (configured=%u)\n",
                 __func__, memory_ubatch, cparams.n_ubatch);
@@ -6299,6 +6309,8 @@ int llama_context::decode(const llama_batch & batch_inp) {
                 case GGML_STATUS_SUCCESS:      GGML_ABORT("should not happen");
             }
         }
+
+        kv_attention_execution.record_target_tokens(ubatch.n_tokens);
 
         // plot the computation graph in dot format (for debugging purposes)
         //if (n_past%100 == 0) {

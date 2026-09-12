@@ -1478,6 +1478,38 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     return llama_kv_pager_write_status::ok;
 }
 
+llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
+        int32_t sequence_id, uint64_t sequence_generation,
+        const std::vector<llama_pos> & positions,
+        std::vector<llama_kv_pager_write_ticket> & tickets) noexcept {
+    tickets.clear();
+    if (positions.empty()) {
+        return llama_kv_pager_write_status::ok;
+    }
+    try {
+        tickets.reserve(positions.size());
+        for (const llama_pos position : positions) {
+            llama_kv_pager_write_ticket ticket;
+            const auto status = begin_write(sequence_id, sequence_generation, position, ticket);
+            if (status != llama_kv_pager_write_status::ok) {
+                for (auto it = tickets.rbegin(); it != tickets.rend(); ++it) {
+                    (void) cancel_write(*it);
+                }
+                tickets.clear();
+                return status;
+            }
+            tickets.push_back(ticket);
+        }
+    } catch (...) {
+        for (auto it = tickets.rbegin(); it != tickets.rend(); ++it) {
+            (void) cancel_write(*it);
+        }
+        tickets.clear();
+        return llama_kv_pager_write_status::transaction;
+    }
+    return llama_kv_pager_write_status::ok;
+}
+
 llama_kv_pager_write_status llama_kv_pager::begin_restore_page(
         const llama_kv_page_id & identity, llama_pos position,
         llama_kv_pager_write_ticket & ticket) noexcept {

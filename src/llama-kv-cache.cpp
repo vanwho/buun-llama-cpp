@@ -4688,16 +4688,42 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
         const size_t old_size = pager_pending_writes_.size();
         try {
             pager_pending_writes_.reserve(old_size + ubatch.n_tokens);
-            for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
-                llama_kv_pager_write_ticket ticket;
-                const llama_seq_id sequence_id = ubatch.seq_id[i][0];
-                pager_last_sequence_id_ = sequence_id;
-                const auto write_status = pager_->begin_write(sequence_id, 0, ubatch.pos[i], ticket);
+            bool one_sequence = ubatch.n_tokens != 0;
+            const llama_seq_id sequence_id = one_sequence ? ubatch.seq_id[0][0] : -1;
+            for (uint32_t i = 0; one_sequence && i < ubatch.n_tokens; ++i) {
+                one_sequence = ubatch.n_seq_id[i] == 1 && ubatch.seq_id[i][0] == sequence_id;
+            }
+            if (one_sequence) {
+                std::vector<llama_pos> positions;
+                positions.reserve(ubatch.n_tokens);
+                for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
+                    positions.push_back(ubatch.pos[i]);
+                }
+                std::vector<llama_kv_pager_write_ticket> tickets;
+                const auto write_status = pager_->begin_write_batch(
+                        sequence_id, 0, positions, tickets);
                 if (write_status != llama_kv_pager_write_status::ok) {
-                    throw std::runtime_error(std::string("KV pager write reservation failed: ") +
+                    throw std::runtime_error(std::string("KV pager batch write reservation failed: ") +
                             llama_kv_pager_write_status_name(write_status));
                 }
-                pager_pending_writes_.push_back(ticket);
+                pager_last_sequence_id_ = sequence_id;
+                pager_pending_writes_.insert(pager_pending_writes_.end(),
+                        tickets.begin(), tickets.end());
+            } else {
+                // Multi-sequence batches retain the established per-row path;
+                // the bulk transaction is only valid for one ordered sequence.
+                for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
+                    llama_kv_pager_write_ticket ticket;
+                    const llama_seq_id row_sequence_id = ubatch.seq_id[i][0];
+                    pager_last_sequence_id_ = row_sequence_id;
+                    const auto write_status = pager_->begin_write(
+                            row_sequence_id, 0, ubatch.pos[i], ticket);
+                    if (write_status != llama_kv_pager_write_status::ok) {
+                        throw std::runtime_error(std::string("KV pager write reservation failed: ") +
+                                llama_kv_pager_write_status_name(write_status));
+                    }
+                    pager_pending_writes_.push_back(ticket);
+                }
             }
         } catch (...) {
             while (pager_pending_writes_.size() > old_size) {
