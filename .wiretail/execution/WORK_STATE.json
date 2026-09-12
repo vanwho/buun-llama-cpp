@@ -2,11 +2,11 @@
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
   "canonical_plan": ".wiretail/execution/ATTENTION_AWARE_KV_PAGING_PLAN.md",
-  "active_plan_amendment": ".wiretail/execution/PHASE25_SPEED_FIRST_STRATEGY.md",
-  "technical_change_spec": ".wiretail/execution/PHASE25_SPEED_FIRST_STRATEGY.md",
+  "active_plan_amendment": ".wiretail/execution/PHASE26_INTERACTIVE_KV_STRATEGY.md",
+  "technical_change_spec": ".wiretail/execution/PHASE26_INTERACTIVE_KV_STRATEGY.md",
   "execution_cookbook": ".wiretail/execution/EXECUTION_COOKBOOK.md",
   "implementation_contracts": ".wiretail/execution/IMPLEMENTATION_CONTRACTS.md",
-  "benchmark_protocol": ".wiretail/execution/BENCHMARK_PROTOCOL_V6.md",
+  "benchmark_protocol": ".wiretail/execution/BENCHMARK_PROTOCOL_V7.md",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
@@ -14,7 +14,7 @@
   "status": "ready",
   "current_phase": "26",
   "current_task": "26-01",
-  "last_updated_utc": "2026-09-12T03:37:44+00:00",
+  "last_updated_utc": "2026-09-12T12:19:30.154Z",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -22,7 +22,7 @@
     "cluster_context_dir": ".wiretail/execution/clusters",
     "default_model": "gpt-5.6-luna",
     "default_reasoning": "high",
-    "task_model_policy": "All active implementation/measurement tasks25-02 through26-04 use Luna High; benchmark-only reviewer27-01 and generated reviewers use Sol High; Wiretail tool-wide defaults unchanged",
+    "task_model_policy": "Current packets are Luna Medium for bounded driver/measurement tasks and Luna High for scratch/frontier/routing/kernel/budget repairs; independent review28-01 retains previous reviewer recommendation Astra High. Wiretail defaults unchanged.",
     "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
@@ -42,15 +42,16 @@
     "foundation_tasks": "00-01 through 07-02 are complete components, not live-product acceptance",
     "native_mtp_context": "exactly the resolved target per-sequence context for each run",
     "native_mtp_residency": "Turbo4 K/V fully GPU-resident and never a target pager victim",
-    "target_hot_capacity": "H derived from actual GPU byte ledger; optimize attended rows A and model batch B independently, never hardcode historical77K or require scanning every cached row",
+    "target_hot_capacity": "H in checked physical page units after measured peak allocations and full-L GPU MTP; tune selected A independently; maximize safe useful H without hardcoded70K/77K",
     "target_cold_backing": "canonical opaque Turbo4 pages in CPU RAM",
-    "speed_policy": "Maximize measured prefill and committed decode throughput through source-owned experiments and joint H/A/B tuning; speeds and ratios are findings, not arbitrary numeric gates",
-    "test_context_policy": "development tests use purpose-appropriate context, occupancy and test hot budget; the six 20K/40K/60K/100K/175K/256K coordinates are only final results collection after functionality works, never routine phase/task gates",
+    "speed_policy": "Prove and optimize primary8192 logical/4096 hot first, then32768/16384 and up to131072 with maximum safe H; compare prefill/decode and memory, no arbitrary speed gates",
+    "test_context_policy": "V7 primary8192/4096, scale32768/16384, campaign maximum131072; incremental512-2048-token turns; B128/U64 starting hypothesis, measured ladder; old256K/six-coordinate campaign unscheduled",
     "speed_target": "annotate historical 3x/5x CPU KV and 70% comparable all-GPU comparisons without gating completion of measurement tasks",
-    "full_context_proof": "262144 resolved target and GPU Turbo4 native-MTP allocation plus near-full actual target/draft history processing with >=512 generation reserve, canonical host backing, bounded hot pages and actual cold movement",
-    "required_final_status": "Speed-first revision2026-09-11: phase25 fixes measured bottlenecks, phase26 demonstrates near-full262144 occupancy and records final speeds, Sol High27-01 reviews only SPEED26_SUMMARY; no historical acceptance audit",
+    "full_context_proof": "Current maximum131072 resolved target and full-L GPU Turbo4 native-MTP; first allocate/short smoke then incremental retained occupancy beyond H and near L minus generation reserve, natural cold recall and useful committed generation. Startup alone is insufficient.",
+    "required_final_status": "Interactive revision2026-09-12: phase26 repairs and proves primary joint paging/MTP speed, phase27 scales and creates INTERACTIVE27_SUMMARY, review28-01 consumes only that summary and schedules focused remediation if needed",
     "stretch_goal": "YaRN after base capability is demonstrated; unscheduled option, not current completion gate",
-    "quality_resilience_scope": "Experimental speed prototype: retain minimal numerical/causal/byte/lifetime proof; broad quality matrices, exact hybrid CPU attention, checkpoint/soak, YaRN and upstream readiness are unscheduled options"
+    "quality_resilience_scope": "Experimental speed prototype: retain minimal numerical/causal/byte/lifetime proof; broad quality matrices, exact hybrid CPU attention, checkpoint/soak, YaRN and upstream readiness are unscheduled options",
+    "future_context_goal": "262144 and YaRN remain future opt-in work, not active gates; current user campaign max131072"
   },
   "external_gates": [
     {
@@ -5013,8 +5014,8 @@
     {
       "id": "26-01",
       "phase": "26",
-      "cluster": "26a-fullcontext-controls",
-      "title": "Demonstrate populated 262144 context and GPU MTP with useful generation",
+      "cluster": "26g-driver-units-v7",
+      "title": "Repair typed capacity, batch launch and exact incremental benchmark identity",
       "packet": ".wiretail/execution/tasks/26-01.md",
       "status": "todo",
       "blocker": null,
@@ -5024,27 +5025,146 @@
       ],
       "commit": null,
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/26-01-attempt-1-20260912T033800Z.jsonl:283",
+            "total_tokens": 28188901,
+            "total_tokens_derived": true,
+            "input_tokens": 28147300,
+            "cached_input_tokens": 27775232,
+            "output_tokens": 41601,
+            "thinking_tokens": 11274
+          },
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/26-01-attempt-1-20260912T043834Z.jsonl:26",
+            "total_tokens": 28651456,
+            "total_tokens_derived": true,
+            "input_tokens": 28607237,
+            "cached_input_tokens": 28204544,
+            "output_tokens": 44219,
+            "thinking_tokens": 11630
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/26-01-attempt-2-20260912T044221Z.jsonl:162",
+            "total_tokens": 39000165,
+            "total_tokens_derived": true,
+            "input_tokens": 38933466,
+            "cached_input_tokens": 38366464,
+            "output_tokens": 66699,
+            "thinking_tokens": 16732
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/26-01-attempt-2-20260912T052442Z.jsonl:31",
+            "total_tokens": 41038537,
+            "total_tokens_derived": true,
+            "input_tokens": 40966723,
+            "cached_input_tokens": 40358144,
+            "output_tokens": 71814,
+            "thinking_tokens": 19087
+          },
+          {
+            "attempt": 3,
+            "kind": "assessment",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/26-01-assessment-before-attempt-3-20260912T052726Z.jsonl:197",
+            "total_tokens": 13673060,
+            "total_tokens_derived": true,
+            "input_tokens": 13638327,
+            "cached_input_tokens": 13157120,
+            "output_tokens": 34733,
+            "thinking_tokens": 14325
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/26-01-attempt-3-20260912T054345Z.jsonl:92",
+            "total_tokens": 58980499,
+            "total_tokens_derived": true,
+            "input_tokens": 58892544,
+            "cached_input_tokens": 58175232,
+            "output_tokens": 87955,
+            "thinking_tokens": 21489
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/26-01-attempt-3-20260912T063313Z.jsonl:36",
+            "total_tokens": 67970463,
+            "total_tokens_derived": true,
+            "input_tokens": 67876420,
+            "cached_input_tokens": 67118080,
+            "output_tokens": 94043,
+            "thinking_tokens": 22923
+          },
+          {
+            "attempt": 4,
+            "kind": "assessment",
+            "model": "gpt-5.6-terra",
+            "reasoning": "high",
+            "source": ".wiretail/build/26-01-assessment-before-attempt-4-20260912T065257Z.jsonl:49",
+            "total_tokens": 2330767,
+            "total_tokens_derived": true,
+            "input_tokens": 2318768,
+            "cached_input_tokens": 2133504,
+            "output_tokens": 11999,
+            "thinking_tokens": 4525
+          },
+          {
+            "attempt": 4,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/26-01-attempt-4-20260912T065836Z.jsonl:110",
+            "total_tokens": 5453996,
+            "total_tokens_derived": true,
+            "input_tokens": 5439477,
+            "cached_input_tokens": 5288192,
+            "output_tokens": 14519,
+            "thinking_tokens": 4054
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 9,
+          "total_tokens": 285287844,
+          "input_tokens": 284820262,
+          "cached_input_tokens": 280576512,
+          "output_tokens": 467582,
+          "thinking_tokens": 126039
         }
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "interactive-hot-kv-20260912",
+      "previous_scope_archive": ".wiretail/execution/archive/phase26-before-interactive-20260912/state-excerpt.json"
     },
     {
       "id": "26-02",
       "phase": "26",
-      "cluster": "26a-fullcontext-controls",
-      "title": "Measure affordable matched CPU-KV and GPU controls",
+      "cluster": "26h-scratch-frontier-v7",
+      "title": "Make scratch reservations follow the real attention route and context owner",
       "packet": ".wiretail/execution/tasks/26-02.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Medium",
+      "recommended_model": "Luna High",
       "depends_on": [
         "26-01"
       ],
@@ -5060,17 +5180,17 @@
           "thinking_tokens": 0
         }
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "interactive-hot-kv-20260912"
     },
     {
       "id": "26-03",
       "phase": "26",
-      "cluster": "26b-finalcurve-summary",
-      "title": "Record the final six-point context-speed curve with the original questions",
+      "cluster": "26h-scratch-frontier-v7",
+      "title": "Repair append/frontier and asynchronous sealing through the prefill-to-decode boundary",
       "packet": ".wiretail/execution/tasks/26-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Medium",
+      "recommended_model": "Luna High",
       "depends_on": [
         "26-02"
       ],
@@ -5086,17 +5206,17 @@
           "thinking_tokens": 0
         }
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "interactive-hot-kv-20260912"
     },
     {
       "id": "26-04",
       "phase": "26",
-      "cluster": "26b-finalcurve-summary",
-      "title": "Consolidate speed-first functionality and performance findings",
+      "cluster": "26i-attention-speed-v7",
+      "title": "Connect natural attention-driven cold recall and establish the 8K/4K speed fixture",
       "packet": ".wiretail/execution/tasks/26-04.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Medium",
+      "recommended_model": "Luna High",
       "depends_on": [
         "26-03"
       ],
@@ -5112,19 +5232,79 @@
           "thinking_tokens": 0
         }
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "interactive-hot-kv-20260912"
+    },
+    {
+      "id": "26-05",
+      "phase": "26",
+      "cluster": "26i-attention-speed-v7",
+      "title": "Choose the fastest measured attention path per phase without wasting hot residency",
+      "packet": ".wiretail/execution/tasks/26-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "26-04"
+      ],
+      "commit": null,
+      "scope_revision": "interactive-hot-kv-20260912"
+    },
+    {
+      "id": "26-06",
+      "phase": "26",
+      "cluster": "26j-maintenance-budget-v7",
+      "title": "Remove remaining hot-loop maintenance, synchronization and MTP overhead",
+      "packet": ".wiretail/execution/tasks/26-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "26-05"
+      ],
+      "commit": null,
+      "scope_revision": "interactive-hot-kv-20260912"
+    },
+    {
+      "id": "26-07",
+      "phase": "26",
+      "cluster": "26j-maintenance-budget-v7",
+      "title": "Measure scratch scaling and select larger-hot normal-use and ingestion budgets",
+      "packet": ".wiretail/execution/tasks/26-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "26-06"
+      ],
+      "commit": null,
+      "scope_revision": "interactive-hot-kv-20260912"
+    },
+    {
+      "id": "26-08",
+      "phase": "26",
+      "cluster": "26k-primary-checkpoint-v7",
+      "title": "Publish the primary 8K/4K joint speed checkpoint with matched controls",
+      "packet": ".wiretail/execution/tasks/26-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "depends_on": [
+        "26-07"
+      ],
+      "commit": null,
+      "scope_revision": "interactive-hot-kv-20260912"
     },
     {
       "id": "27-01",
       "phase": "27",
-      "cluster": "27a-speed-review",
-      "title": "Independently assess speed-first goals and schedule only measured remediation",
+      "cluster": "27c-incremental-scale-v7",
+      "title": "Prove 32K logical /16K hot with incremental inputs and measure decode",
       "packet": ".wiretail/execution/tasks/27-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Astra High",
+      "recommended_model": "Luna Medium",
       "depends_on": [
-        "26-04"
+        "26-08"
       ],
       "commit": null,
       "token_usage": {
@@ -5138,121 +5318,56 @@
           "thinking_tokens": 0
         }
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "interactive-hot-kv-20260912"
+    },
+    {
+      "id": "27-02",
+      "phase": "27",
+      "cluster": "27c-incremental-scale-v7",
+      "title": "Find the safe hot capacity up to128K and test populated incremental history",
+      "packet": ".wiretail/execution/tasks/27-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "27-01"
+      ],
+      "commit": null,
+      "scope_revision": "interactive-hot-kv-20260912"
+    },
+    {
+      "id": "27-03",
+      "phase": "27",
+      "cluster": "27d-interactive-summary-v7",
+      "title": "Complete the original-question findings and summarize memory/input trade-offs",
+      "packet": ".wiretail/execution/tasks/27-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "depends_on": [
+        "27-02"
+      ],
+      "commit": null,
+      "scope_revision": "interactive-hot-kv-20260912"
+    },
+    {
+      "id": "28-01",
+      "phase": "28",
+      "cluster": "28a-interactive-review-v7",
+      "title": "Assess the interactive benchmark summary and schedule only evidence-led remediation",
+      "packet": ".wiretail/execution/tasks/28-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Astra High",
+      "depends_on": [
+        "27-03"
+      ],
+      "commit": null,
+      "scope_revision": "interactive-hot-kv-20260912"
     }
   ],
   "last_checkpoint_commit": "e154151d62e583563343a15128392b69030dcf48",
   "phase_token_usage": {
-    "00": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "01": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "02": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "03": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "04": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "05": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "06": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "07": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "08": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
-    "09": {
-      "turns": [],
-      "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
-      }
-    },
     "10": {
       "turns": [],
       "totals": {
@@ -6440,6 +6555,135 @@
       }
     },
     "26": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/26-01-attempt-1-20260912T033800Z.jsonl:283",
+          "total_tokens": 28188901,
+          "total_tokens_derived": true,
+          "input_tokens": 28147300,
+          "cached_input_tokens": 27775232,
+          "output_tokens": 41601,
+          "thinking_tokens": 11274
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/26-01-attempt-1-20260912T043834Z.jsonl:26",
+          "total_tokens": 28651456,
+          "total_tokens_derived": true,
+          "input_tokens": 28607237,
+          "cached_input_tokens": 28204544,
+          "output_tokens": 44219,
+          "thinking_tokens": 11630
+        },
+        {
+          "attempt": 2,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/26-01-attempt-2-20260912T044221Z.jsonl:162",
+          "total_tokens": 39000165,
+          "total_tokens_derived": true,
+          "input_tokens": 38933466,
+          "cached_input_tokens": 38366464,
+          "output_tokens": 66699,
+          "thinking_tokens": 16732
+        },
+        {
+          "attempt": 2,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/26-01-attempt-2-20260912T052442Z.jsonl:31",
+          "total_tokens": 41038537,
+          "total_tokens_derived": true,
+          "input_tokens": 40966723,
+          "cached_input_tokens": 40358144,
+          "output_tokens": 71814,
+          "thinking_tokens": 19087
+        },
+        {
+          "attempt": 3,
+          "kind": "assessment",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/26-01-assessment-before-attempt-3-20260912T052726Z.jsonl:197",
+          "total_tokens": 13673060,
+          "total_tokens_derived": true,
+          "input_tokens": 13638327,
+          "cached_input_tokens": 13157120,
+          "output_tokens": 34733,
+          "thinking_tokens": 14325
+        },
+        {
+          "attempt": 3,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/26-01-attempt-3-20260912T054345Z.jsonl:92",
+          "total_tokens": 58980499,
+          "total_tokens_derived": true,
+          "input_tokens": 58892544,
+          "cached_input_tokens": 58175232,
+          "output_tokens": 87955,
+          "thinking_tokens": 21489
+        },
+        {
+          "attempt": 3,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/26-01-attempt-3-20260912T063313Z.jsonl:36",
+          "total_tokens": 67970463,
+          "total_tokens_derived": true,
+          "input_tokens": 67876420,
+          "cached_input_tokens": 67118080,
+          "output_tokens": 94043,
+          "thinking_tokens": 22923
+        },
+        {
+          "attempt": 4,
+          "kind": "assessment",
+          "model": "gpt-5.6-terra",
+          "reasoning": "high",
+          "source": ".wiretail/build/26-01-assessment-before-attempt-4-20260912T065257Z.jsonl:49",
+          "total_tokens": 2330767,
+          "total_tokens_derived": true,
+          "input_tokens": 2318768,
+          "cached_input_tokens": 2133504,
+          "output_tokens": 11999,
+          "thinking_tokens": 4525
+        },
+        {
+          "attempt": 4,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/26-01-attempt-4-20260912T065836Z.jsonl:110",
+          "total_tokens": 5453996,
+          "total_tokens_derived": true,
+          "input_tokens": 5439477,
+          "cached_input_tokens": 5288192,
+          "output_tokens": 14519,
+          "thinking_tokens": 4054
+        }
+      ],
+      "totals": {
+        "turns": 9,
+        "total_tokens": 285287844,
+        "input_tokens": 284820262,
+        "cached_input_tokens": 280576512,
+        "output_tokens": 467582,
+        "thinking_tokens": 126039
+      }
+    },
+    "27": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -6450,7 +6694,106 @@
         "thinking_tokens": 0
       }
     },
-    "27": {
+    "00": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "01": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "02": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "03": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "04": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "05": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "06": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "07": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "08": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "09": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -6464,12 +6807,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 77,
-      "total_tokens": 1361031909,
-      "input_tokens": 1357630361,
-      "cached_input_tokens": 1330962176,
-      "output_tokens": 3401548,
-      "thinking_tokens": 1213601
+      "turns": 86,
+      "total_tokens": 1646319753,
+      "input_tokens": 1642450623,
+      "cached_input_tokens": 1611538688,
+      "output_tokens": 3869130,
+      "thinking_tokens": 1339640
     },
     "source": "Codex turn.completed usage events"
   }

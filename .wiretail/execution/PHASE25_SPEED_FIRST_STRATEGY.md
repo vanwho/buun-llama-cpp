@@ -1,5 +1,11 @@
 # Speed-first implementation amendment — phases 25–27
 
+> Historical phase25 reference. For unfinished tasks26-01 onward, use
+> PHASE26_INTERACTIVE_KV_STRATEGY.md and BENCHMARK_PROTOCOL_V7.md. They replace
+> this document's256K-first/six-coordinate campaign and ambiguous B notation.
+> Current campaign maximum is131072; primary speed fixture8192/4096.
+
+
 Revision: 20 26-09-11. This is the execution authority for tasks 25-02 onward.
 Read the current packet, its cluster, and BENCHMARK_PROTOCOL_V6.md. Do not
 load the previous 24 phases, rerun their gates, or resume the old 25-02 campaign.

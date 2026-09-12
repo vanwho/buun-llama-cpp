@@ -1,9 +1,9 @@
 # Attention-aware KV paging execution package
 
-Current authority (20 26-09-11): [PHASE25_SPEED_FIRST_STRATEGY.md](PHASE25_SPEED_FIRST_STRATEGY.md)
-and [BENCHMARK_PROTOCOL_V6.md](BENCHMARK_PROTOCOL_V6.md), then the current task
-and cluster in WORK_STATE.json. Do not read the large historical plan or old
-acceptance chains for routine execution.
+Current authority (2026-09-12): [PHASE26_INTERACTIVE_KV_STRATEGY.md](PHASE26_INTERACTIVE_KV_STRATEGY.md)
+and [BENCHMARK_PROTOCOL_V7.md](BENCHMARK_PROTOCOL_V7.md), then the current packet
+and cluster in WORK_STATE.json. Read the compact current context, not historical
+acceptance chains or the old full-context retry diary.
 
 Resume command:
 
@@ -11,26 +11,28 @@ Resume command:
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp PROJECT_BRANCH=plan/attention-aware-kv-paging /srv/wiretail/wiretail.sh
 ```
 
-Phase 25 now fixes short-run measurement, incremental host/routing work, GPU
-batching/attention kernels, real movement, graph reuse, MTP and whole-model
-speed. Phase 26 proves populated 262144 context and records the final original-
-question curve plus affordable controls. Sol High 27-01 reviews that compact
-summary only. Broad quality/exact/soak/YaRN/upstream gates are not on this
-speed-prototype critical path. Minimal byte/causal/lifetime checks remain.
+Phase26 now fixes typed units, actual B/U launch, role/route scratch,
+prefill-to-decode frontiers and natural recall, then measures kernel dispatch,
+maintenance and memory trade-offs on the primary8192 logical/4096 hot fixture.
+Phase27 tests32768/16384 then up to131072 with safe maximum H and incremental
+inputs. Phase28 reviews only INTERACTIVE27_SUMMARY and creates targeted further
+remediation if needed. No active256K-first or six-coordinate curve requirement.
 
-The previous 25-02 blocker was re-scoped, not declared solved. 140 done records
-and all reported token usage remain; old packets/handoff are archived in
-archive/phase25-before-speed-first-20260911/. The first new task is 25-02 in a
-fresh cluster. All implementation/measurement recommendations remain Luna
-High; Wiretail's own defaults are unchanged.
+154 completed task records, all reported token usage and dirty implementation
+are preserved. Five old unfinished packets are replaced by12 focused tasks in
+8 fresh clusters, beginning26-01 (todo/ready). Old packet/handoff/state context
+is in archive/phase26-before-interactive-20260912/. Historical negative evidence
+is preserved, not promoted to success. New source findings are in
+evidence/PHASE26_REPLAN_FINDINGS.md.
 
-Use WORK_STATE.json for order/status and the current packet for source seams,
-fixtures and commands. Clusters contain at most3 consecutive tasks. Each
-handoff is compact and points to durable raw evidence; don't read full runner
-JSONL or historical ledgers unless a specific unresolved issue requires it.
-Target/draft KV are always Turbo4; native GPU MTP follows resolved context,
-not hot capacity. Source stays generic; machine config/data in /srv/ai or
-execution metadata. Only the runner owns automated fork Git operations.
+Use WORK_STATE.json for exact task recommendations: Luna Medium for bounded
+driver/measurement work, Luna High for critical source repairs; reviewer28-01
+retains the prior reviewer's configured model. Wiretail tool defaults unchanged.
+Target and native-MTP K/V remain Turbo4; full resolved-context GPU MTP, not H.
+B128/U64 is a starting experiment, not a universal default or input length cap.
+Use sudo -n for authorized protected files/Qwen lifecycle. Keep successful
+candidate loaded; protect unrelated8092. Source stays generic and site data
+stays in /srv/ai. No new speed benchmark was run during this plan revision.
 
 The shared runner defaults to auto Git mode. For supervised upstream-bound work, explicitly select manual mode:
 

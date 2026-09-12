@@ -1,33 +1,34 @@
-# Qwen3.8 256K attention-aware Turbo4 KV paging plan
+# Qwen3.8 attention-aware Turbo4 KV paging plan
 
-Status: speed-first revision2026-09-11; earlier implementation is not full-goal proof.
-Canonical worktree: `/srv/repos/vanwho/buun-llama-cpp`
-Execution state: `.wiretail/execution/WORK_STATE.json`
+Status: interactive speed revision2026-09-12; historical implementation is not full-goal proof.
+Canonical worktree: /srv/repos/vanwho/buun-llama-cpp
+Execution state: .wiretail/execution/WORK_STATE.json
 
-## Current execution authority — phases25–27
+## Current execution authority — phases26–28
 
-Read [PHASE25_SPEED_FIRST_STRATEGY.md](PHASE25_SPEED_FIRST_STRATEGY.md), then
-[BENCHMARK_PROTOCOL_V6.md](BENCHMARK_PROTOCOL_V6.md) and the current packet.
-They contain source-based diagnosis, alternative fast-kernel paths, the full
-material-optimization ownership table and a short-iteration benchmark contract.
-They supersede conflicting execution requirements below and in post-17/V5
-references. WORK_STATE.json is the sole active task-order/status authority.
+Read [PHASE26_INTERACTIVE_KV_STRATEGY.md](PHASE26_INTERACTIVE_KV_STRATEGY.md),
+[BENCHMARK_PROTOCOL_V7.md](BENCHMARK_PROTOCOL_V7.md), then the current packet.
+Current measurements/findings: evidence/PHASE26_REPLAN_FINDINGS.md. They supersede
+conflicting phase25/V6 and all older requirements below. State controls order.
 
-The old25-02 full-context-first gate is archived, not completed. New25-02
-starts with short profiling/driver repairs. Phase25 fixes growing host-summary
-work, kernel/model batching, actual cold movement, graph/policy overhead,
-MTP/whole-model compute and joint budgets. Phase26 proves actual near-full
-262144 occupancy and records the six-point original-question speed curve.
-Sol High27-01 assesses only the new compact summary, scheduling measured
-remediation if necessary. All other tasks are Luna High; tool defaults stay.
+Primary speed proof:8192 logical/4096 physical hot tokens with real CPU cold
+pages and native GPU Turbo4 MTP. Next32768/16384, then maximum131072 with as
+much safe H as measured allocations permit. Use incremental inputs; old256K-
+first and20/40/60/100/175/256K final curve are unscheduled future work.
 
-Both target and GPU-resident full-context native-MTP KV remain Turbo4. Hot
-capacity H is budget-derived, attended rows A and model batch B are separately
-optimized. Weights/attention compute and recurrent state stay on GPU. Broad
-quality/exact-hybrid/soak/YaRN/upstream work is deliberately outside this
-speed-prototype scope; minimal byte/causal/lifetime checks remain mandatory.
-Speed ratios are findings, not3x/5x acceptance gates. Quality consequences of
-sparse prefill must be disclosed; full host storage is not dense-equivalence.
+Phase26 fixes units, scratch/role/route budgeting, frontier/seal correctness,
+natural attention recall, dispatch and measured maintenance bottlenecks before
+scaling. It measures B/U instead of assuming bigger or smaller is always faster.
+Phase27 produces compact incremental-history and speed/memory/input trade-off
+findings. Reviewer28-01 consumes only INTERACTIVE27_SUMMARY, not historical
+gates, and creates detailed evidence-led remediation if needed.
+
+Full-L native-MTP cache remains Turbo4/GPU; target hot H and attended A are
+separate budgets. Smaller B/U normally chunks a long input, not truncates it.
+CPU stores canonical Turbo4 target pages; model compute/weights remain GPU.
+Sparse-prefill semantics are disclosed; no dense parity is claimed merely
+because all produced pages have host copies. Speeds are findings, not arbitrary
+numeric gates. Broad quality/exact/soak/YaRN/upstream work remains unscheduled.
 
 Old task numbers/design requirements below remain historical design options,
 not instructions to re-run acceptance ledgers. In particular, any requirement

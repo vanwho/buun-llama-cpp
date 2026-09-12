@@ -896,3 +896,16 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-15`
 - Commit at update: `fe7b0f67e`
 - Summary: Frozen speed-first native-MTP CUDA candidate; V6 all-fit and pressure pass, natural movement/full-context readiness deferred honestly in SPEED25_15_READY.
+
+## 2026-09-12T07:08:52+00:00 — 26-01 — blocked
+
+- Branch: `codex/task-26-01`
+- Commit at update: `8896f32e9`
+- Summary: Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/26-01-attempt-4-20260912T065836Z-final.md.
+
+## 2026-09-12T12:19:30.160Z — 26-01 — ready (scope replaced)
+
+- User-authorized interactive speed revision: archive old26-01..27-01 packets/handoff; preserve historical results,154 done records, every token-usage record and dirty implementation.
+- New authority PHASE26_INTERACTIVE_KV_STRATEGY.md and BENCHMARK_PROTOCOL_V7.md. Fix units/scratch/frontiers/natural recall before8K logical/4K hot speed fixture; measure route/maintenance/B-U trade-offs, then32K/16K and max128K incremental history.
+- Replace5 unfinished tasks with12 focused tasks in8 fresh clusters. Old27-01 reviewer becomes28-01 (same configured reviewer model); do not resume old256K/six-coordinate campaign. New task26-01 is todo, top-level ready.
+- Historical phase25 has no proven native-MTP natural cold-recall speed. Preserve this boundary. No live benchmark or service mutation in the plan revision; sudo -n availability verified.

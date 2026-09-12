@@ -1,5 +1,11 @@
 # Benchmark protocol V6 — short iterations, honest cold-prefill and hot-pager results
 
+> Historical phase25 reference. For unfinished tasks26-01 onward, use
+> PHASE26_INTERACTIVE_KV_STRATEGY.md and BENCHMARK_PROTOCOL_V7.md. They replace
+> this document's256K-first/six-coordinate campaign and ambiguous B notation.
+> Current campaign maximum is131072; primary speed fixture8192/4096.
+
+
 Effective 20 26-09-11 for tasks 25-02 onward; supersedes V5 where scope/cadence
 conflicts. All site-specific settings remain under /srv/ai or execution
 metadata. This file is a contract to implement, not a claim that every new

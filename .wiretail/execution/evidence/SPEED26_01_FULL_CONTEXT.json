@@ -1,0 +1,146 @@
+{
+  "schema": "pager-speed-v6",
+  "schema_version": 1,
+  "task": "26-01",
+  "status": "incomplete_clean_build_live_repair_still_fails",
+  "result": "not_complete",
+  "candidate": {
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.91.07",
+    "source_commit_before_repair": "8896f32e9e97aa5264425a9b98751874d0dfc09b",
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server"
+  },
+  "effective_profile": {
+    "L": 262144,
+    "page_tokens": 256,
+    "H_rows_readiness": 73216,
+    "A_rows_readiness": 2304,
+    "B": 256,
+    "ubatch": 128,
+    "cuda_query_tile": 64,
+    "target": "CUDA Turbo4 K/V",
+    "mtp": "native draft-mtp, GPU Turbo4 K/V, n-max=2",
+    "host_budget": "4G"
+  },
+  "readiness": {
+    "status": "pass",
+    "raw_root": "/srv/ai/paged-kv/results/26-01-readiness-20260912d",
+    "prompt_tokens": 2048,
+    "generated_tokens": 128,
+    "committed_tokens": 128,
+    "mtp_proposed": 94,
+    "mtp_accepted": 80,
+    "mtp_acceptance": 0.8510638298,
+    "target_gpu_bytes": 1237060000,
+    "host_committed_rows": 2048,
+    "host_committed_bytes": 34603000,
+    "host_seal_d2h_bytes": 34603000,
+    "seal_calls": 3136
+  },
+  "full_context_attempts": [
+    {
+      "raw_root": "/srv/ai/paged-kv/results/26-01-full-q0-20260912",
+      "status": "partial_runtime_error",
+      "prompt_target": 261504,
+      "processed_before_failure": 12288,
+      "error": "CUDA OOM reserving 368.5 + 368.5 MiB f16 dequant scratch",
+      "generated_tokens": 0
+    },
+    {
+      "raw_root": "/srv/ai/paged-kv/results/26-01-full-q0-20260912j",
+      "status": "partial_context_error",
+      "prompt_target": 261504,
+      "processed_before_failure": 188416,
+      "error": "f16 dequant scratch exhausted; HTTP 500 Context size has been exceeded",
+      "generated_tokens": 0
+    },
+    {
+      "raw_root": "/srv/ai/paged-kv/results/26-01-retry2-full-q0",
+      "status": "partial_scratch_error_clean_build",
+      "prompt_target": 261504,
+      "rendered_prompt_tokens": 210031,
+      "processed_before_failure": 13312,
+      "error": "f16 dequant scratch reserve of 26.5 + 26.5 MiB failed",
+      "generated_tokens": 0,
+      "build": "complete cmake CUDA target llama-server, build 12265"
+    },
+    {
+      "raw_root": "/srv/ai/paged-kv/results/26-01-retry2-full-q0-h8",
+      "status": "partial_context_error_clean_build_h8",
+      "prompt_target": 261504,
+      "rendered_prompt_tokens": 210031,
+      "processed_before_failure": 157952,
+      "error": "HTTP 500 Context size has been exceeded after scratch-reserve retries",
+      "generated_tokens": 0,
+      "build": "complete cmake CUDA target llama-server, build 12265",
+      "hot_pages": 8,
+      "notes": "Two earlier resumed attempts hit the 300 second prefill-idle deadline; the final resumed attempt used no-total-timeout and 1800 second prefill-idle timeout. Raw SSE still contained the server error body."
+    },
+    {
+      "raw_root": "/srv/ai/paged-kv/results/26-01-retry3-full-q0-h1",
+      "status": "partial_all_pinned",
+      "prompt_target": 261504,
+      "rendered_prompt_tokens": 210031,
+      "processed_before_failure": 0,
+      "error": "KV pager batch write reservation failed: all_pinned",
+      "generated_tokens": 0,
+      "build": "complete cmake CUDA target llama-server, build 12265",
+      "hot_pages": 1,
+      "notes": "Confirms H=1 is below the minimum writable resident set for a full cold batch; it is not a completion configuration."
+    },
+    {
+      "raw_root": "/srv/ai/paged-kv/results/26-01-retry3-full-q0-h8-b64",
+      "status": "partial_context_error_clean_build_b64",
+      "prompt_target": 261504,
+      "rendered_prompt_tokens": 210031,
+      "processed_before_failure": 188416,
+      "error": "HTTP 500 Context size has been exceeded",
+      "generated_tokens": 0,
+      "build": "complete cmake CUDA target llama-server, build 12265",
+      "hot_pages": 8,
+      "batch": 64,
+      "ubatch": 64,
+      "notes": "Longest pre-async clean attempt; 184801 seal calls, 3027760000 host D2H bytes, 700 changed pages, and 11200 summary builds."
+    },
+    {
+      "raw_root": "/srv/ai/paged-kv/results/26-01-retry3-async-full-q0-h8-b64",
+      "status": "partial_context_error_async_host_repair",
+      "prompt_target": 261504,
+      "rendered_prompt_tokens": 210031,
+      "processed_before_failure": 210031,
+      "error": "HTTP 500 Context size has been exceeded",
+      "generated_tokens": 0,
+      "build": "complete cmake CUDA target llama-server including async host-seal repair",
+      "hot_pages": 8,
+      "batch": 64,
+      "ubatch": 64,
+      "notes": "Reached the full admitted prompt; 216481 seal calls, 3546810000 host D2H bytes, 820 changed pages, and 13120 summary builds. No generation."
+    },
+    {
+      "raw_root": "/srv/ai/paged-kv/results/26-01-retry3-async-full-q0-h16-b64",
+      "status": "incomplete_manual_stop",
+      "prompt_target": 261504,
+      "rendered_prompt_tokens": 210031,
+      "processed_before_stop": 143360,
+      "error": "manual stop before completion window",
+      "generated_tokens": 0,
+      "build": "complete cmake CUDA target including async host-seal repair",
+      "hot_pages": 16,
+      "batch": 64,
+      "ubatch": 64,
+      "notes": "Steady progress without an observed runtime error; stopped at 143360 to restore production. Not completion evidence."
+    }
+  ],
+  "repair": {
+    "source_file": "src/llama-kv-cache.cpp",
+    "owner": "llama_kv_cache::prepare_with_slots",
+    "change": "cap VMM selective-attention f16 scratch projection at resident mapped cells plus current batch instead of logical host-history watermark",
+    "validation": "focused tests passed; complete CUDA target including async host-seal repair loaded cleanly with native GPU MTP; live full-context attempt reached the full 210031-token prompt but still failed with HTTP 500 context exhaustion before generation"
+  },
+  "deferred": [
+    "Rebuild/link the complete CUDA candidate and rerun readiness plus one cold q0 near-full request.",
+    "Require occupied rows above H, canonical host writes, real movement/eviction, and useful native-MTP generation before completion."
+  ]
+}

@@ -1,11 +1,10 @@
 # Task packet contract
 
-For tasks25-02 onward, PHASE25_SPEED_FIRST_STRATEGY.md and
-BENCHMARK_PROTOCOL_V6.md supersede conflicting historical quality, exact,
-soak, full-context-first or task-number instructions. Current user scope is
-speed-first experimental operation, not production/upstream acceptance.
-Material speed opportunities must have source owners and short measurements.
-
+For unfinished tasks26-01 onward, PHASE26_INTERACTIVE_KV_STRATEGY.md and
+BENCHMARK_PROTOCOL_V7.md supersede earlier context sizes, scope and benchmark
+instructions. Primary8192/4096; next32768/16384; current max131072 incremental
+history. Historical256K/six-coordinate campaign is unscheduled. Current source
+repairs and their live small fixtures precede scaling. No new tool defaults.
 
 Each packet is the complete task-specific context for one bounded task. Its shared session context is
 `.wiretail/execution/clusters/<task.cluster>.md`; read that file once per fresh cluster session and reuse it
@@ -49,8 +48,8 @@ Global rules for every packet:
 11. For all live phases, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
     the trained model context is not an allocation floor. No production default may encode a fixed hot
     token/page count. Historical benchmark artifacts may retain their measured configuration names.
-12. For tasks25-02 onward read only the current packet/cluster and its named
-    sections of PHASE25_SPEED_FIRST_STRATEGY.md and BENCHMARK_PROTOCOL_V6.md.
+12. For unfinished tasks26-01 onward read only the current packet/cluster and its named
+    sections of PHASE26_INTERACTIVE_KV_STRATEGY.md and BENCHMARK_PROTOCOL_V7.md.
     Source contracts/cookbook are reference material when named, not a reason
     to replay old tasks. Earlier historical packet instructions are unchanged.
     Implementation requires its small live proof; evidence tasks may finish
@@ -68,9 +67,9 @@ Global rules for every packet:
 14. Performance tasks preserve raw before/after results for every attempted optimization. The historical
     3x/5x/70% speed numbers are findings, not gates. Investigate measured bottlenecks with distinct
     hypotheses; do not block solely on a throughput threshold or silently change the three prompts.
-    The six 20K/40K/60K/100K/175K/256K coordinates are for the final results campaign only, after
-    functionality works. Other tests choose the smallest appropriate context/occupancy/hot budget
-    for their own purpose; no task must replay that entire ladder as a routine gate.
+    The former six-coordinate campaign is unscheduled. Current V7 uses primary8192/4096,
+    then32768/16384, and up to131072 with safe H and incremental inputs. Other diagnostics use
+    the smallest appropriate context; no task replays a long ladder as a routine gate.
 
 15. If Codex reports `codex_core::tools::router` or `apply_patch verification failed`, treat it as a
     patch-anchor/context failure. Re-read the current file and exact surrounding lines with `rg`/`sed`,
@@ -86,7 +85,7 @@ Global rules for every packet:
     symbols, ownership/lifetime/shape contracts and tested commands, not vague
     advice. Work against the real available Qwen3.8 model with GPU placement
     verified; tiny tests supplement but do not replace its live proof.
-17. Keep artifacts small: handoffs <=120 lines, final summary <=200 lines;
+17. Keep artifacts small: handoffs <=120 lines, final summary <=250 lines;
     raw SSE/profiling/long logs stay in durable results. Record null with reason
     for missing optional timing, never invent zero or make it block all speed
     evidence. Required codec/placement/occupancy must be actually proven.
