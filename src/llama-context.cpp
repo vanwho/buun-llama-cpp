@@ -3007,6 +3007,44 @@ float * llama_context::get_embeddings_nextn_ith(int32_t i) {
     }
 }
 
+bool llama_context::set_embeddings_nextn_device(
+        llama_context * source, int32_t source_offset, int32_t destination_offset,
+        int32_t n_rows) {
+    if (source == nullptr || source_offset < 0 || destination_offset < 0 || n_rows <= 0 ||
+            source->gf_res_prev == nullptr || gf_res_prev == nullptr) {
+        return false;
+    }
+
+    ggml_tensor * source_tensor = source->gf_res_prev->get_h_nextn();
+    ggml_tensor * destination_tensor = ggml_graph_get_tensor(
+            gf_res_prev->get_gf(), "mtp_h_input");
+    if (source_tensor == nullptr || destination_tensor == nullptr ||
+            source_tensor->type != GGML_TYPE_F32 || destination_tensor->type != GGML_TYPE_F32 ||
+            source_tensor->buffer == nullptr || destination_tensor->buffer == nullptr ||
+            source_tensor->ne[0] != destination_tensor->ne[0] ||
+            source_offset + n_rows > source_tensor->ne[1] ||
+            destination_offset + n_rows > destination_tensor->ne[1]) {
+        return false;
+    }
+
+    const ggml_backend_t source_backend = ggml_backend_sched_get_tensor_backend(
+            source->sched.get(), source_tensor);
+    const ggml_backend_t destination_backend = ggml_backend_sched_get_tensor_backend(
+            sched.get(), destination_tensor);
+    if (source_backend == nullptr || destination_backend == nullptr ||
+            ggml_backend_buffer_is_host(source_tensor->buffer) ||
+            ggml_backend_buffer_is_host(destination_tensor->buffer) ||
+            ggml_backend_get_device(source_backend) != ggml_backend_get_device(destination_backend)) {
+        return false;
+    }
+
+    embeddings_nextn_device_request.source = source;
+    embeddings_nextn_device_request.source_offset = source_offset;
+    embeddings_nextn_device_request.destination_offset = destination_offset;
+    embeddings_nextn_device_request.n_rows = n_rows;
+    return true;
+}
+
 // Readers return data from the active DFlash slot; multi-slot callers must
 // call llama_dflash_set_active_slot() before reading.
 float * llama_context::get_layer_hidden(int layer_idx) {
@@ -5660,6 +5698,27 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     {
         // FIXME this call causes a crash if any model inputs were not used in the graph and were therefore not allocated
         res->set_inputs(&ubatch);
+
+        if (embeddings_nextn_device_request.source != nullptr) {
+            const auto request = embeddings_nextn_device_request;
+            embeddings_nextn_device_request = {};
+
+            ggml_tensor * source_tensor = request.source->gf_res_prev->get_h_nextn();
+            ggml_tensor * destination_tensor = ggml_graph_get_tensor(
+                    res->get_gf(), "mtp_h_input");
+            ggml_tensor * source_view = ggml_view_2d(
+                    request.source->gf_res_prev->get_ctx(), source_tensor,
+                    source_tensor->ne[0], request.n_rows,
+                    source_tensor->nb[1], (size_t) request.source_offset * source_tensor->nb[1]);
+            ggml_tensor * destination_view = ggml_view_2d(
+                    res->get_ctx(), destination_tensor,
+                    destination_tensor->ne[0], request.n_rows,
+                    destination_tensor->nb[1], (size_t) request.destination_offset * destination_tensor->nb[1]);
+            ggml_backend_tensor_copy_async(
+                    ggml_backend_sched_get_tensor_backend(request.source->sched.get(), source_tensor),
+                    ggml_backend_sched_get_tensor_backend(sched.get(), destination_tensor),
+                    source_view, destination_view);
+        }
     }
 
     const auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);
@@ -9146,6 +9205,13 @@ float * llama_get_embeddings_nextn_ith(llama_context * ctx, int32_t i) {
     ctx->synchronize();
 
     return ctx->get_embeddings_nextn_ith(i);
+}
+
+bool llama_set_embeddings_nextn_device(
+        llama_context * ctx, llama_context * source,
+        int32_t source_offset, int32_t destination_offset, int32_t n_rows) {
+    return ctx != nullptr && ctx->set_embeddings_nextn_device(
+            source, source_offset, destination_offset, n_rows);
 }
 
 float * llama_get_embeddings_layer_inp(llama_context * ctx, uint32_t lid) {

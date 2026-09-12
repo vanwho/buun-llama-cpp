@@ -486,6 +486,13 @@ struct llama_context {
     float * get_embeddings_nextn();
     float * get_embeddings_nextn_ith(int32_t i);
 
+    // Arrange for the next MTP decode to source hidden rows from another
+    // context's device output. The request is consumed by one decode and
+    // falls back to the ordinary batch input when tensors are incompatible.
+    bool set_embeddings_nextn_device(
+            llama_context * source, int32_t source_offset, int32_t destination_offset,
+            int32_t n_rows);
+
     float * get_embeddings_layer_inp(uint32_t lid);
 
     llama_token * get_sampled_tokens() const;
@@ -824,6 +831,13 @@ private:
 
     llm_graph_result_ptr gf_res_prev;
     llm_graph_result_ptr gf_res_reserve;
+
+    struct embeddings_nextn_device_request {
+        llama_context * source = nullptr;
+        int32_t source_offset = 0;
+        int32_t destination_offset = 0;
+        int32_t n_rows = 0;
+    } embeddings_nextn_device_request;
 
     // host buffer for the model output (logits and embeddings)
     ggml_backend_buffer_ptr buf_output;

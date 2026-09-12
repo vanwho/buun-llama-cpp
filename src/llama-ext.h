@@ -239,6 +239,13 @@ LLAMA_API float * llama_get_embeddings_nextn(struct llama_context * ctx);
 // LLAMA_API float * llama_get_embeddings_ith(struct llama_context * ctx, int32_t i);
 LLAMA_API float * llama_get_embeddings_nextn_ith(struct llama_context * ctx, int32_t i);
 
+// Copy contiguous target nextn hidden rows directly into a compatible MTP
+// context's device input for its next decode. Returns false when the portable
+// host-input path must be used.
+LLAMA_API bool llama_set_embeddings_nextn_device(
+        struct llama_context * ctx, struct llama_context * source,
+        int32_t source_offset, int32_t destination_offset, int32_t n_rows);
+
 // Set whether the context outputs the input embeddings of a specific layer
 LLAMA_API void llama_set_embeddings_layer_inp(struct llama_context * ctx, uint32_t lid, bool value);
 
