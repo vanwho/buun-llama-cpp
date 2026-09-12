@@ -1,0 +1,61 @@
+{
+  "schema": "interactive-26-08-checkpoint-v1",
+  "task": "26-08",
+  "status": "deferred_external_lifecycle",
+  "provenance": {
+    "source_commit": "6f7c41ea39fc3364785165818946bde7dcf18b5e",
+    "source_diff_sha256": "39eb696292274a651b839326d9b84fffd686e96a6d9ebcfba16f236cf28f1c2",
+    "server_binary": "build-cuda/bin/llama-server",
+    "server_binary_sha256": "a00600e7394a352b502e0080c22568f8d35b0a3fe9e8aa4191925885eec980a6",
+    "cuda_dso_sha256": "a333de9a2b97eaafa4f834d3ff0a42a890a5bf0a8dd7bafbc08b742a2ae40815",
+    "model": "/srv/ai/models/text/current.gguf",
+    "model_sha256": null,
+    "model_sha256_reason": "large site model hash was not completed during the bounded lifecycle attempt",
+    "endpoint": "http://127.0.0.1:8080",
+    "unrelated_endpoint": "http://172.18.0.1:8092"
+  },
+  "configuration": {
+    "logical_capacity_tokens": 8192,
+    "occupied_target_tokens": 6144,
+    "hot_capacity_tokens": 4096,
+    "hot_capacity_pages": 16,
+    "page_size_tokens": 256,
+    "batch_tokens": 128,
+    "ubatch_tokens": 64,
+    "target_k_type": "turbo4",
+    "target_v_type": "turbo4",
+    "draft_k_type": "turbo4",
+    "draft_v_type": "turbo4",
+    "target_compute_device": "gpu",
+    "draft_kv_device": "gpu",
+    "draft_capacity_tokens": 8192,
+    "mtp": "native",
+    "mode": "selective"
+  },
+  "cases": {
+    "primary": [],
+    "topic_recall": null,
+    "feature_off_all_gpu_control": null,
+    "cpu_target_kv_control": null,
+    "reason": "No exact-keyed cases were reused: the available 26-04 records do not match the final source/config identity."
+  },
+  "measurements": {
+    "primary_rates": null,
+    "matched_control_ratios": null,
+    "memory_tradeoff": null,
+    "raw_case_counts": {"q0_trials": 0, "q1_trials": 0, "q2_trials": 0, "controls": 0},
+    "reason": "The required native-MTP candidate never became ready."
+  },
+  "lifecycle_attempt": {
+    "sudo_n_validation": "failed: interactive authentication is required",
+    "observed_service": "qwen38-fast",
+    "observed_service_mtp": "none",
+    "observed_health_http": 503,
+    "observed_health_body": "Loading model",
+    "observed_candidate_command": "--spec-type none --spec-draft-n-max 2 --ctk turbo4 --ctv turbo4 --c 77824 --b 1024 --ub 256",
+    "observed_owned_processes": ["1274089", "1277696"],
+    "attempted_profile_command": "BENCH_SUDO='sudo -n' BENCH_SERVER_BIN=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server /srv/ai/benchmarks/run-profile-benchmark.sh fast /srv/ai/paged-kv/results/26-08-primary-b128-u64 --mode selective --context 8192 --batch 128 --ubatch 64 --mtp native --case-id primary-b128-u64"
+  },
+  "next_command": "Re-run the attempted profile command after passwordless sudo is available; retain the successful native-MTP candidate loaded, then run q0 x3 and q1/q2 x1 at C~6144 before controls.",
+  "unresolved_source_owner": "site lifecycle operator; no source defect was diagnosed in this checkpoint"
+}

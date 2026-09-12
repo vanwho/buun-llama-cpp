@@ -55,6 +55,8 @@ Important conclusions:
 - Live work was repeatedly deferred because the normal service occupied VRAM.
   Passwordless sudo and Qwen service replacement are authorized. Use sudo -n;
   plain systemctl authentication failure is a retry-setup error, not a blocker.
+  Do not use `sudo -n -v` as the test: this host can reject timestamp validation
+  while permitting NOPASSWD commands. Test `sudo -n true` or the exact operation.
 
 ## 3. Units and independent dimensions (use these names everywhere)
 

@@ -62,7 +62,10 @@ class PromptCandidate:
 
 def sudo_argv() -> list[str]:
     configured = os.environ.get("BENCH_SUDO")
-    return shlex.split(configured) if configured else ["sudo", "-n"]
+    argv = shlex.split(configured) if configured else ["sudo", "-n"]
+    if "-n" not in argv:
+        argv.append("-n")
+    return argv
 
 
 def transient_overrides(service: str | None = None) -> dict[str, str] | None:
