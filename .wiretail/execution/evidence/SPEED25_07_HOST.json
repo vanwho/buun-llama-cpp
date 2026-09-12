@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "task": "25-07",
+  "status": "complete",
+  "source_commit": "ee12afde27f8c13e30a801c3779593f9775190f7",
+  "bundle_identity": {
+    "cpu_build": "build",
+    "cuda_build": "build-cuda",
+    "cuda_device": "NVIDIA GeForce RTX 4080, compute capability 8.9",
+    "raw_artifact": ".wiretail/execution/evidence/raw/SPEED25_07_HOST_cuda.txt"
+  },
+  "approach": {
+    "host_publication": "bounded worker queue with asynchronous CUDA capture/event completion",
+    "fallback": "synchronous seal for unsupported backends and queue pressure",
+    "tail_policy": "defer mutable async tail until a later page takes ownership"
+  },
+  "measurement": {
+    "fixture": "one selected host page, 32 CUDA-backed I8 units",
+    "before": {
+      "catalog_live_pages": 0,
+      "queued_pages": 0
+    },
+    "after": {
+      "catalog_live_pages": 1,
+      "queued_pages": 1,
+      "content_version": 7
+    },
+    "payload_bytes": 16384,
+    "actual_copied_bytes": 16384,
+    "payload_amplification": 1.0,
+    "pageable_bytes": 16384,
+    "metadata_bytes": 24320,
+    "catalog_pinned_bytes": 0,
+    "bounded_staging_ring_bytes": 131072,
+    "submitted_d2h_chunks": 32,
+    "backpressure_waits": 0,
+    "event_completions": 32,
+    "test_wall_seconds": 0.073,
+    "throughput_tokens_per_second": null,
+    "throughput_note": "No live 4K prompt/128-token model run was required or available for this focused host-publication fixture; pressure and throughput follow-up is deferred to 25-08."
+  },
+  "checks": [
+    "CUDA byte equality passed for the committed catalog page.",
+    "Catalog remained empty before completion and contained one page after completion.",
+    "CPU and CUDA focused pager tests passed.",
+    "CUDA VBR capture, paged Turbo4, and kv-pager ctest checks passed."
+  ],
+  "deferred_verification": [
+    "4K prompt plus 128 generated-token throughput and small-pressure movement comparison."
+  ]
+}

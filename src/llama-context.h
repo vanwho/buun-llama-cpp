@@ -110,6 +110,9 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t summary_read_bytes = 0;
     uint64_t host_seal_d2h_calls = 0;
     uint64_t host_seal_d2h_bytes = 0;
+    uint64_t host_seal_d2h_async_completions = 0;
+    uint64_t host_seal_queued = 0;
+    uint64_t host_inflight_pages = 0;
     uint64_t inventory_copy_count = 0;
     uint64_t store_copy_count = 0;
     llama_kv_attention_telemetry_counters attention;

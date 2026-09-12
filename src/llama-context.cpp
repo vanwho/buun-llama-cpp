@@ -1061,6 +1061,9 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.summary_read_bytes = kv_pager_owner->summary_read_bytes();
     result.host_seal_d2h_calls = kv_pager_owner->host_seal_d2h_calls();
     result.host_seal_d2h_bytes = kv_pager_owner->host_seal_d2h_bytes();
+    result.host_seal_d2h_async_completions = kv_pager_owner->host_seal_d2h_async_completions();
+    result.host_seal_queued = kv_pager_owner->host_seal_queued();
+    result.host_inflight_pages = kv_pager_owner->host_inflight_pages();
     result.inventory_copy_count = kv_pager_owner->inventory_copy_count();
     result.store_copy_count = kv_pager_owner->store_copy_count();
     return result;

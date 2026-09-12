@@ -124,10 +124,25 @@ const char * llama_kv_pager_host_status_name(
 }
 
 llama_kv_pager_host::llama_kv_pager_host(
-        const llama_kv_pager_resources & resources)
+    const llama_kv_pager_resources & resources)
     : resources_(resources), provider_ {}, ledger_ {}, catalog_(ledger_) {}
 
+struct llama_kv_pager_host::pending_capture {
+    llama_kv_page_record page;
+    uint64_t content_version = 0;
+    prepared_capture prepared;
+    bool cancelled = false;
+};
+
 llama_kv_pager_host::~llama_kv_pager_host() {
+    if (worker_.joinable()) {
+        {
+            std::lock_guard<std::mutex> lock(worker_mutex_);
+            worker_stop_ = true;
+        }
+        worker_cv_.notify_all();
+        worker_.join();
+    }
     // The ring is a process-bounded physical allocation.  It is deliberately
     // charged once here, rather than once per catalog page.
     ring_.reset();
@@ -236,10 +251,23 @@ std::unique_ptr<llama_kv_pager_host> llama_kv_pager_host::create(
             });
         }
         output->upload_ring_ = vbr_h2d_chunk_ring::attach(
-                output->ring_->shared_core(), upload_lanes);
+            output->ring_->shared_core(), upload_lanes);
         if (!output->upload_ring_) {
             status = llama_kv_pager_host_status::ring_unavailable;
             return nullptr;
+        }
+        if (resources.host_backend != nullptr && !lanes.empty() &&
+            !lanes.front().force_synchronous) {
+            const auto device = ggml_backend_get_device(resources.host_backend);
+            if (device != nullptr) {
+                ggml_backend_dev_props props;
+                ggml_backend_dev_get_props(device, &props);
+                output->async_enabled_ = props.caps.async && props.caps.events;
+            }
+        }
+        if (output->async_enabled_) {
+            output->worker_ = std::thread(
+                    &llama_kv_pager_host::worker_main, output.get());
         }
         status = llama_kv_pager_host_status::ok;
         return output;
@@ -263,25 +291,53 @@ llama_kv_pager_host_result llama_kv_pager_host::seal(
         result.status = llama_kv_pager_host_status::invalid_page;
         return result;
     }
+    prepared_capture prepared;
+    if (!prepare(page, prepared)) {
+        result.status = llama_kv_pager_host_status::prepare_failed;
+        return result;
+    }
+    return execute(page, prepared);
+}
+
+bool llama_kv_pager_host::prepare(
+        const llama_kv_page_record & page,
+        prepared_capture & output) noexcept {
+    if (!ring_ || !provider_.prepare) {
+        return false;
+    }
+    if (!llama_kv_page_id_valid(page.id, llama_kv_page_id_is_tail(page.id)) ||
+        page.physical_slot == UINT32_MAX ||
+        page.state == llama_kv_page_state::absent || page.pin_count != 0) {
+        return false;
+    }
     try {
-        vbr_selected_page_capture_request request;
-        std::vector<vbr_selected_page_unit_source> sources;
-        vbr_selected_page_capture_snapshot_provider snapshots;
-        if (!provider_.prepare(provider_.context, page, request, sources,
-                               snapshots)) {
-            result.status = llama_kv_pager_host_status::prepare_failed;
-            return result;
+        output = {};
+        if (!provider_.prepare(provider_.context, page, output.request,
+                               output.sources, output.snapshots)) {
+            return false;
         }
-        if (request.source_namespace != resources_.host_source_namespace ||
-            request.child_id != resources_.host_child_id ||
-            request.stream_index != resources_.host_stream_index) {
-            result.status = llama_kv_pager_host_status::prepare_failed;
-            return result;
-        }
+        return output.request.source_namespace == resources_.host_source_namespace &&
+            output.request.child_id == resources_.host_child_id &&
+            output.request.stream_index == resources_.host_stream_index;
+    } catch (...) {
+        output = {};
+        return false;
+    }
+}
+
+llama_kv_pager_host_result llama_kv_pager_host::execute(
+        const llama_kv_page_record & page,
+        prepared_capture & prepared) noexcept {
+    (void) page;
+    llama_kv_pager_host_result result;
+    result.capture_status = vbr_selected_page_capture_status::invalid_argument;
+    try {
         vbr_selected_page_capture capture;
+        vbr_capture_stream_stats attempted;
         result.capture_status = vbr_selected_page_capture_transfer(
-                request, sources, resources_.host_capture_limits, snapshots,
-                *ring_, capture);
+                prepared.request, prepared.sources, resources_.host_capture_limits,
+                prepared.snapshots, *ring_, capture, &attempted);
+        result.transfer = attempted;
         if (result.capture_status != vbr_selected_page_capture_status::ok) {
             result.status = llama_kv_pager_host_status::capture_failed;
             return result;
@@ -305,13 +361,149 @@ llama_kv_pager_host_result llama_kv_pager_host::seal(
     }
 }
 
+llama_kv_pager_host_result llama_kv_pager_host::enqueue(
+        const llama_kv_page_record & page, uint64_t content_version) noexcept {
+    if (!async_enabled_) {
+        return seal(page);
+    }
+    llama_kv_pager_host_result result;
+    prepared_capture prepared;
+    if (!prepare(page, prepared)) {
+        result.status = llama_kv_pager_host_status::prepare_failed;
+        return result;
+    }
+    try {
+        std::shared_ptr<pending_capture> job(new pending_capture);
+        job->page = page;
+        job->content_version = content_version;
+        job->prepared = std::move(prepared);
+        {
+            std::lock_guard<std::mutex> lock(worker_mutex_);
+            // Two queued pages plus the active page bound the amount of
+            // provider state retained outside the compute thread. If the
+            // queue is full, complete this page synchronously rather than
+            // refusing canonical publication indefinitely.
+            if (pending_.size() >= 2) {
+                return execute(page, job->prepared);
+            }
+            pending_.push_back(std::move(job));
+        }
+        worker_cv_.notify_one();
+        result.status = llama_kv_pager_host_status::ok;
+        result.queued = true;
+        return result;
+    } catch (...) {
+        result.status = llama_kv_pager_host_status::capture_failed;
+        return result;
+    }
+}
+
+size_t llama_kv_pager_host::drain(
+        std::vector<llama_kv_pager_host_completion> & output) noexcept {
+    output.clear();
+    try {
+        std::lock_guard<std::mutex> lock(worker_mutex_);
+        output.reserve(completed_.size());
+        while (!completed_.empty()) {
+            output.push_back(std::move(completed_.front()));
+            completed_.pop_front();
+        }
+        worker_cv_.notify_all();
+    } catch (...) {
+        output.clear();
+    }
+    return output.size();
+}
+
+void llama_kv_pager_host::worker_main() noexcept {
+    for (;;) {
+        std::shared_ptr<pending_capture> job;
+        {
+            std::unique_lock<std::mutex> lock(worker_mutex_);
+            worker_cv_.wait(lock, [&] {
+                return worker_stop_ || !pending_.empty();
+            });
+            if (pending_.empty()) {
+                if (worker_stop_) return;
+                continue;
+            }
+            job = std::move(pending_.front());
+            pending_.pop_front();
+            active_.push_back(job);
+        }
+
+        bool cancelled = false;
+        {
+            std::lock_guard<std::mutex> lock(worker_mutex_);
+            cancelled = job->cancelled;
+        }
+        llama_kv_pager_host_result result;
+        if (cancelled) {
+            result.status = llama_kv_pager_host_status::capture_failed;
+        } else {
+            result = execute(job->page, job->prepared);
+        }
+        {
+            std::unique_lock<std::mutex> lock(worker_mutex_);
+            worker_cv_.wait(lock, [&] {
+                return worker_stop_ || completed_.size() < 4;
+            });
+            cancelled = job->cancelled;
+            if (cancelled) {
+                vbr_selected_page_host_key key;
+                key.source_namespace = resources_.host_source_namespace;
+                key.child_id = resources_.host_child_id;
+                key.stream_index = resources_.host_stream_index;
+                key.page = job->page.id;
+                // Invalidate again after execute(): invalidate() may have
+                // raced the final catalog publication while the copy was in
+                // flight.
+                (void) catalog_.invalidate(key);
+            }
+            if (worker_stop_) {
+                // Teardown owns no consumer that could drain this completion;
+                // the catalog bytes are already accounted and the pager is
+                // being destroyed, so drop only the small notification.
+            } else if (!cancelled && result.status == llama_kv_pager_host_status::ok) {
+                completed_.push_back({ job->page.id, job->content_version,
+                                       std::move(result) });
+            } else {
+                if (cancelled) {
+                    result.status = llama_kv_pager_host_status::capture_failed;
+                }
+                completed_.push_back({ job->page.id, job->content_version,
+                                       std::move(result) });
+            }
+            active_.erase(std::remove(active_.begin(), active_.end(), job),
+                          active_.end());
+        }
+    }
+}
+
 bool llama_kv_pager_host::invalidate(const llama_kv_page_id & page) noexcept {
     vbr_selected_page_host_key key;
     key.source_namespace = resources_.host_source_namespace;
     key.child_id = resources_.host_child_id;
     key.stream_index = resources_.host_stream_index;
     key.page = page;
-    return catalog_.invalidate(key);
+    bool invalidated = false;
+    {
+        std::lock_guard<std::mutex> lock(worker_mutex_);
+        for (const auto & job : pending_) {
+            if (job->page.id == page) {
+                job->cancelled = true;
+                invalidated = true;
+            }
+        }
+        for (const auto & job : active_) {
+            if (job->page.id == page) {
+                job->cancelled = true;
+                invalidated = true;
+            }
+        }
+        invalidated = catalog_.invalidate(key) || invalidated;
+    }
+    return invalidated;
 }
 
 vbr_selected_page_host_catalog_snapshot llama_kv_pager_host::snapshot() const noexcept {
@@ -1032,16 +1224,58 @@ void llama_kv_pager::invalidate_routing_summaries(
 
 uint32_t llama_kv_pager::seal_ready_pages() noexcept {
     ++seal_calls_;
+    if (host_ && host_->async_enabled()) {
+        std::vector<llama_kv_pager_host_completion> completed;
+        host_->drain(completed);
+        for (const auto & item : completed) {
+            auto page_it = std::find_if(pages_.begin(), pages_.end(),
+                    [&](const auto & page) {
+                return page.present && page.record.id == item.page &&
+                    page.host_inflight &&
+                    page.host_inflight_version == item.content_version;
+            });
+            if (page_it == pages_.end()) continue;
+            auto & page = *page_it;
+            page.host_inflight = false;
+            page.host_inflight_version = 0;
+            if (page.record.pin_count != 0) page.record.pin_count--;
+            if (item.result.status == llama_kv_pager_host_status::ok) {
+                page.record.host_valid = true;
+                page.record.dirty = false;
+                page.record.state = llama_kv_page_state::gpu_host_clean;
+                page.host_content_version = item.content_version;
+                host_seal_d2h_calls_ = host_seal_d2h_calls_ > UINT64_MAX -
+                        item.result.transfer.submitted_chunks
+                    ? UINT64_MAX
+                    : host_seal_d2h_calls_ + item.result.transfer.submitted_chunks;
+                host_seal_d2h_bytes_ = host_seal_d2h_bytes_ > UINT64_MAX -
+                        item.result.transfer.bytes
+                    ? UINT64_MAX
+                    : host_seal_d2h_bytes_ + item.result.transfer.bytes;
+                host_seal_d2h_async_completions_ = host_seal_d2h_async_completions_ >
+                        UINT64_MAX - item.result.transfer.event_completions
+                    ? UINT64_MAX
+                    : host_seal_d2h_async_completions_ +
+                        item.result.transfer.event_completions;
+            } else {
+                page.record.host_valid = false;
+                page.record.dirty = true;
+                page.record.state = llama_kv_page_state::gpu_dirty;
+                page.host_content_version = 0;
+            }
+            (void) publish_page(page);
+        }
+    }
     // finish_pager_batch() runs at graph submission time, so a full page can
     // still carry the last write-frontier pin while the graph is in flight.
     // This method is entered after the context fence and is the first point at
     // which that pin may be released safely.
     for (auto & page : pages_) {
-        if (!page.present || page.record.pin_count == 0) {
+        if (!page.present || page.host_inflight || page.record.pin_count == 0) {
             continue;
         }
         const auto previous = page.record;
-        page.record.pin_count = 0;
+        page.record.pin_count = page.host_inflight ? 1 : 0;
         const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
             std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
                         [](uint8_t value) { return value != 0; });
@@ -1083,6 +1317,18 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                 page.summary_content_version != page.content_version;
             if (!needs_host_seal && !needs_summary) continue;
 
+            const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+                std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                        [](uint8_t value) { return value != 0; });
+            if (needs_host_seal && host_ && host_->async_enabled() && !full &&
+                current_page_index_ == page_index) {
+                // The append frontier is still mutable. Leave its bytes in
+                // the GPU write slab and publish one contiguous tail only
+                // when a later page takes over; this avoids re-copying the
+                // complete prefix once per generated token.
+                continue;
+            }
+
             const auto previous = page.record;
             if (needs_host_seal) {
                 page.record.state = llama_kv_page_state::sealing_host;
@@ -1090,26 +1336,45 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                     page.record = previous;
                     continue;
                 }
-                const auto result = host_->seal(page.record);
+                const auto result = full && host_->async_enabled()
+                    ? host_->enqueue(page.record, page.content_version)
+                    : host_->seal(page.record);
                 if (result.status != llama_kv_pager_host_status::ok) {
                     page.record = previous;
                     (void) publish_page(page);
+                    continue;
+                }
+                if (result.queued) {
+                    page.host_inflight = true;
+                    page.host_inflight_version = page.content_version;
+                    page.record.pin_count = 1;
+                    if (publish_page(page) != llama_kv_pager_write_status::ok) {
+                        page.host_inflight = false;
+                        page.host_inflight_version = 0;
+                        page.record = previous;
+                        (void) host_->invalidate(previous.id);
+                        (void) publish_page(page);
+                    }
+                    ++host_seal_queued_;
                     continue;
                 }
                 page.record.host_valid = true;
                 page.record.dirty = false;
                 page.record.state = llama_kv_page_state::gpu_host_clean;
                 page.host_content_version = page.content_version;
-                ++host_seal_d2h_calls_;
-                const uint64_t valid_rows = std::min<uint64_t>(
-                        page.valid_rows.size(), snapshot_.geometry.page_tokens);
-                if (snapshot_.geometry.page_tokens != 0 &&
-                        snapshot_.geometry.page_bytes <= UINT64_MAX / std::max<uint64_t>(valid_rows, 1)) {
-                    const uint64_t bytes = snapshot_.geometry.page_bytes * valid_rows /
-                        snapshot_.geometry.page_tokens;
-                    host_seal_d2h_bytes_ = host_seal_d2h_bytes_ > UINT64_MAX - bytes
-                        ? UINT64_MAX : host_seal_d2h_bytes_ + bytes;
-                }
+                host_seal_d2h_calls_ = host_seal_d2h_calls_ > UINT64_MAX -
+                        result.transfer.submitted_chunks
+                    ? UINT64_MAX
+                    : host_seal_d2h_calls_ + result.transfer.submitted_chunks;
+                host_seal_d2h_bytes_ = host_seal_d2h_bytes_ > UINT64_MAX -
+                        result.transfer.bytes
+                    ? UINT64_MAX
+                    : host_seal_d2h_bytes_ + result.transfer.bytes;
+                host_seal_d2h_async_completions_ = host_seal_d2h_async_completions_ >
+                        UINT64_MAX - result.transfer.event_completions
+                    ? UINT64_MAX
+                    : host_seal_d2h_async_completions_ +
+                        result.transfer.event_completions;
                 if (publish_page(page) != llama_kv_pager_write_status::ok) {
                     page.record = previous;
                     (void) publish_page(page);
@@ -1307,7 +1572,8 @@ llama_kv_pager::page_state * llama_kv_pager::find_slot(uint32_t slot) noexcept {
 void llama_kv_pager::release_current_pin(page_state * except) noexcept {
     if (current_page_index_ == UINT32_MAX || current_page_index_ >= pages_.size()) return;
     page_state & page = pages_[current_page_index_];
-    if (!page.present || &page == except || page.record.pin_count == 0) return;
+    if (!page.present || &page == except || page.host_inflight ||
+        page.record.pin_count == 0) return;
     page.record.pin_count--;
     if (page.record.state == llama_kv_page_state::filling_gpu &&
         page.valid_rows.size() == snapshot_.geometry.page_tokens &&
@@ -1362,6 +1628,12 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     page_state * page = find_page(sequence_id, logical);
     if (page != nullptr && page->record.id.sequence_generation != sequence_generation) {
         return llama_kv_pager_write_status::stale_generation;
+    }
+    if (page != nullptr && page->host_inflight) {
+        // The GPU source slot is pinned until its D2H event has completed. A
+        // tail rewrite must wait for that publication rather than racing the
+        // canonical copy or silently overwriting its version.
+        return llama_kv_pager_write_status::transaction;
     }
     const uint64_t content_version_before = page != nullptr ? page->content_version : 0;
     const llama_kv_page_id previous_id = page != nullptr ? page->record.id : llama_kv_page_id{};

@@ -1,0 +1,3 @@
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15945 MiB):
+  Device 0: NVIDIA GeForce RTX 4080, compute capability 8.9, VMM: yes, VRAM: 15945 MiB
+SPEED25_07_HOST async payload=16384 pageable=16384 metadata=24320 pinned=0 ring=131072 submitted_chunks=32 waits=0 events=32

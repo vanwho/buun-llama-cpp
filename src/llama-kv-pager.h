@@ -9,9 +9,14 @@
 #include "llama-vbr-artifact-catalog.h"
 #include "llama-vbr-artifact-capture.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <condition_variable>
+#include <deque>
 #include <functional>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 class vbr_h2d_chunk_ring;
@@ -146,6 +151,14 @@ struct llama_kv_pager_host_result {
     uint64_t pageable_bytes = 0;
     uint64_t metadata_bytes = 0;
     uint64_t pinned_bytes = 0;
+    vbr_capture_stream_stats transfer;
+    bool queued = false;
+};
+
+struct llama_kv_pager_host_completion {
+    llama_kv_page_id page;
+    uint64_t content_version = 0;
+    llama_kv_pager_host_result result;
 };
 
 class llama_kv_pager_host {
@@ -165,14 +178,39 @@ public:
 
     llama_kv_pager_host_result seal(
             const llama_kv_page_record & page) noexcept;
+    // Queue a complete page for the backend event path.  Unsupported or
+    // force-synchronous lanes use seal() directly, preserving the old
+    // deterministic behavior for CPU and fake backends.
+    llama_kv_pager_host_result enqueue(
+            const llama_kv_page_record & page,
+            uint64_t content_version) noexcept;
+    size_t drain(
+            std::vector<llama_kv_pager_host_completion> & output) noexcept;
+    bool async_enabled() const noexcept { return async_enabled_; }
     std::vector<vbr_selected_page_host_view> pages() const noexcept;
     bool invalidate(const llama_kv_page_id & page) noexcept;
     vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
     vbr_h2d_chunk_ring * upload_ring() const noexcept { return upload_ring_.get(); }
 
 private:
+    struct prepared_capture {
+        vbr_selected_page_capture_request request;
+        std::vector<vbr_selected_page_unit_source> sources;
+        vbr_selected_page_capture_snapshot_provider snapshots;
+    };
+
+    struct pending_capture;
+
     explicit llama_kv_pager_host(
             const llama_kv_pager_resources & resources);
+
+    bool prepare(
+            const llama_kv_page_record & page,
+            prepared_capture & output) noexcept;
+    llama_kv_pager_host_result execute(
+            const llama_kv_page_record & page,
+            prepared_capture & prepared) noexcept;
+    void worker_main() noexcept;
 
     llama_kv_pager_resources resources_;
     llama_kv_pager_host_provider provider_;
@@ -180,6 +218,14 @@ private:
     llama_vbr_selected_page_host_catalog catalog_;
     std::unique_ptr<vbr_pinned_chunk_ring> ring_;
     std::shared_ptr<vbr_h2d_chunk_ring> upload_ring_;
+    bool async_enabled_ = false;
+    bool worker_stop_ = false;
+    std::mutex worker_mutex_;
+    std::condition_variable worker_cv_;
+    std::deque<std::shared_ptr<pending_capture>> pending_;
+    std::vector<std::shared_ptr<pending_capture>> active_;
+    std::deque<llama_kv_pager_host_completion> completed_;
+    std::thread worker_;
 };
 
 struct llama_kv_pager_admission_attempt {
@@ -397,6 +443,14 @@ public:
     uint64_t seal_pages_changed() const noexcept { return seal_pages_changed_; }
     uint64_t host_seal_d2h_calls() const noexcept { return host_seal_d2h_calls_; }
     uint64_t host_seal_d2h_bytes() const noexcept { return host_seal_d2h_bytes_; }
+    uint64_t host_seal_d2h_async_completions() const noexcept {
+        return host_seal_d2h_async_completions_;
+    }
+    uint64_t host_seal_queued() const noexcept { return host_seal_queued_; }
+    uint64_t host_inflight_pages() const noexcept {
+        return uint64_t(std::count_if(pages_.begin(), pages_.end(),
+                [](const auto & page) { return page.present && page.host_inflight; }));
+    }
     uint64_t inventory_copy_count() const noexcept { return inventory_copy_count_; }
     uint64_t store_copy_count() const noexcept { return store_copy_count_; }
     uint64_t summary_build_calls() const noexcept { return summary_build_calls_; }
@@ -461,6 +515,8 @@ private:
         uint64_t content_version = 0;
         uint64_t host_content_version = 0;
         uint64_t summary_content_version = 0;
+        uint64_t host_inflight_version = 0;
+        bool host_inflight = false;
         bool present = false;
     };
 
@@ -512,6 +568,8 @@ private:
     uint64_t seal_pages_changed_ = 0;
     uint64_t host_seal_d2h_calls_ = 0;
     uint64_t host_seal_d2h_bytes_ = 0;
+    uint64_t host_seal_d2h_async_completions_ = 0;
+    uint64_t host_seal_queued_ = 0;
     mutable uint64_t inventory_copy_count_ = 0;
     uint64_t store_copy_count_ = 0;
     uint64_t summary_build_calls_ = 0;
