@@ -150,6 +150,21 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     char * upload_destination = nullptr;
     size_t upload_capacity_bytes = 0;
 
+    // n_pages/n_rows are fixed capacities for a reusable graph.  When these
+    // device inputs are present, the attention kernel loads the active values
+    // at replay so page-boundary changes do not alter the graph topology.
+    uint32_t page_capacity = 0;
+    uint32_t row_capacity = 0;
+    const uint32_t * active_page_count_host = nullptr;
+    const uint32_t * active_row_count_host = nullptr;
+    const uint32_t * active_page_count_device = nullptr;
+    const uint32_t * active_row_count_device = nullptr;
+    const uint32_t * active_tail_length_device = nullptr;
+    const uint64_t * selection_generation_device = nullptr;
+    // The standalone CUDA API historically supplied row positions explicitly;
+    // graph-owned ordinary causal inputs opt out and derive page_start + row.
+    bool explicit_native_metadata = true;
+
     // Optional device-side routing stage. Ranges are fp16 pairs in the fixed
     // layout [page][subblock][min/max][vector_dim]. One working set is
     // produced per query/KV-head group and consumed by the caller before the

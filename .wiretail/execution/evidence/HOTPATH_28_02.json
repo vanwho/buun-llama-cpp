@@ -1,0 +1,38 @@
+{
+  "task": "28-02",
+  "status": "implementation_complete_runtime_deferred",
+  "changed_files": [
+    "ggml/include/ggml.h",
+    "ggml/src/ggml-cuda/fattn-paged-turbo4.cuh",
+    "ggml/src/ggml-cuda/fattn.cu",
+    "ggml/src/ggml.c",
+    "src/llama-graph.cpp",
+    "src/llama-graph.h",
+    "src/llama-kv-attention-op.cpp"
+  ],
+  "checks": [
+    {
+      "command": "cmake --build build-cuda --target test-cuda-fattn-paged-turbo4 llama-server -j2",
+      "result": "pass"
+    },
+    {
+      "command": "build/bin/test-kv-routing-summary && build/bin/test-kv-pager && build/bin/test-kv-routing-retrieval && build/bin/test-arg-parser",
+      "result": "pass"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    }
+  ],
+  "cuda_fixture": {
+    "command": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "result": "deferred_shared_gpu_oom",
+    "exit_code": 134,
+    "diagnostic": "q allocation: out of memory",
+    "gpu_memory": "15944 MiB used, 3 MiB free, 16376 MiB total"
+  },
+  "deferred": [
+    "Live CUDA numerical/replay mutation sweep and repeat-128 graph/allocator verification",
+    "Eager-versus-graph measurement"
+  ]
+}
