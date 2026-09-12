@@ -61,7 +61,13 @@ bool inventory_matches_snapshot(
 
 bool valid_form(llama_kv_routing_summary_form form) {
     return form == llama_kv_routing_summary_form::representatives ||
-           form == llama_kv_routing_summary_form::centroid_upper_bound;
+           form == llama_kv_routing_summary_form::centroid_upper_bound ||
+           form == llama_kv_routing_summary_form::minmax_ranges;
+}
+
+bool valid_subblock(uint32_t page_tokens, uint32_t subblock_tokens) {
+    return page_tokens == VBR_GENERATION_PAGE_CELLS &&
+           subblock_tokens != 0 && page_tokens % subblock_tokens == 0;
 }
 
 bool score_order(const llama_kv_routing_page_score & a, const llama_kv_routing_page_score & b) {
@@ -174,6 +180,105 @@ bool make_vectors(const llama_kv_routing_page_input & input,
     }
     return std::isfinite(radius);
 }
+
+bool make_ranges(const llama_kv_routing_page_input & input,
+                 uint64_t row_count,
+                 const llama_kv_routing_summary_config & config,
+                 std::vector<float> & range_min,
+                 std::vector<float> & range_max,
+                 uint64_t & source_rows) {
+    if (row_count == 0 || !valid_subblock(VBR_GENERATION_PAGE_CELLS,
+            config.subblock_tokens)) return false;
+    const uint32_t subblocks = VBR_GENERATION_PAGE_CELLS / config.subblock_tokens;
+    const size_t values = size_t(subblocks) * config.vector_dim;
+    if (!input.range_min.empty() || !input.range_max.empty()) {
+        if (input.range_min.size() != values || input.range_max.size() != values) return false;
+        range_min = input.range_min;
+        range_max = input.range_max;
+        source_rows = row_count;
+    } else {
+        uint64_t expected = 0;
+        if (!mul(row_count, config.vector_dim, expected) ||
+            input.rotated_k_rows.size() != expected) return false;
+        range_min.assign(values, std::numeric_limits<float>::infinity());
+        range_max.assign(values, -std::numeric_limits<float>::infinity());
+        for (uint64_t row = 0; row < row_count; ++row) {
+            const uint32_t block = uint32_t(std::min<uint64_t>(subblocks - 1,
+                    row / config.subblock_tokens));
+            const float * source = input.rotated_k_rows.data() +
+                size_t(row) * config.vector_dim;
+            for (uint32_t d = 0; d < config.vector_dim; ++d) {
+                if (!std::isfinite(source[d])) return false;
+                float & lower = range_min[size_t(block) * config.vector_dim + d];
+                float & upper = range_max[size_t(block) * config.vector_dim + d];
+                lower = std::min(lower, source[d]);
+                upper = std::max(upper, source[d]);
+            }
+        }
+        // A tail page has no rows in its final subblocks.  Neutral zero
+        // ranges keep the fixed device layout valid without inventing a key.
+        for (uint32_t block = 0; block < subblocks; ++block) {
+            if (!std::isfinite(range_min[size_t(block) * config.vector_dim])) {
+                for (uint32_t d = 0; d < config.vector_dim; ++d) {
+                    range_min[size_t(block) * config.vector_dim + d] = 0.0f;
+                    range_max[size_t(block) * config.vector_dim + d] = 0.0f;
+                }
+            }
+        }
+        source_rows = row_count;
+    }
+    for (size_t i = 0; i < values; ++i) {
+        if (!std::isfinite(range_min[i]) || !std::isfinite(range_max[i]) ||
+            range_min[i] > range_max[i]) return false;
+    }
+    return true;
+}
+}
+
+llama_kv_routing_summary_device_layout llama_kv_routing_summary_device_layout::make(
+        uint64_t logical_pages,
+        uint32_t attention_layers,
+        uint32_t kv_heads,
+        uint32_t vector_dim,
+        uint32_t page_tokens,
+        uint32_t subblock_tokens,
+        uint32_t element_bytes) noexcept {
+    llama_kv_routing_summary_device_layout result;
+    result.logical_pages = logical_pages;
+    result.attention_layers = attention_layers;
+    result.kv_heads = kv_heads;
+    result.vector_dim = vector_dim;
+    result.page_tokens = page_tokens;
+    result.subblock_tokens = subblock_tokens;
+    result.element_bytes = element_bytes;
+    if (!valid_subblock(page_tokens, subblock_tokens) || element_bytes == 0) return result;
+    result.subblocks_per_page = page_tokens / subblock_tokens;
+    uint64_t values = 0;
+    if (!mul(logical_pages, attention_layers, values) || !mul(values, kv_heads, values) ||
+        !mul(values, result.subblocks_per_page, values) || !mul(values, vector_dim, values) ||
+        !mul(values, 2, values) || !mul(values, element_bytes, result.bytes)) result = {};
+    return result;
+}
+
+bool llama_kv_routing_summary_score_ranges(
+        const float * query, const float * range_min, const float * range_max,
+        uint32_t subblocks, uint32_t vector_dim, float & score) noexcept {
+    score = -std::numeric_limits<float>::infinity();
+    if (query == nullptr || range_min == nullptr || range_max == nullptr ||
+        subblocks == 0 || vector_dim == 0) return false;
+    for (uint32_t block = 0; block < subblocks; ++block) {
+        double block_score = 0.0;
+        for (uint32_t d = 0; d < vector_dim; ++d) {
+            const float q = query[d];
+            const float lo = range_min[size_t(block) * vector_dim + d];
+            const float hi = range_max[size_t(block) * vector_dim + d];
+            if (!std::isfinite(q) || !std::isfinite(lo) || !std::isfinite(hi) || lo > hi) return false;
+            block_score += std::max(double(q) * lo, double(q) * hi);
+        }
+        if (!std::isfinite(block_score)) return false;
+        score = std::max(score, float(block_score));
+    }
+    return std::isfinite(score);
 }
 
 llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
@@ -195,7 +300,9 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
     const auto start = std::chrono::steady_clock::now();
     if (snapshot.epoch() == 0 || inventory.empty() || !inventory_matches_snapshot(snapshot, inventory) ||
         config.representative_count < 4 || config.representative_count > 8 ||
-        config.vector_dim == 0 || config.allocation_granularity == 0 || !valid_form(config.form)) return result;
+        config.vector_dim == 0 || config.allocation_granularity == 0 || !valid_form(config.form) ||
+        (config.form == llama_kv_routing_summary_form::minmax_ranges &&
+         !valid_subblock(VBR_GENERATION_PAGE_CELLS, config.subblock_tokens))) return result;
     try {
         result.snapshot_epoch_ = snapshot.epoch();
         result.representative_count_ = config.representative_count;
@@ -206,6 +313,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
             ? config.coordinate_identity : inventory.front().id.rotation_digest;
         result.form_ = config.form;
         result.allocation_granularity_ = config.allocation_granularity;
+        result.subblock_tokens_ = config.subblock_tokens;
         for (size_t i = 0; i < inputs.size(); ++i) {
             for (size_t j = i + 1; j < inputs.size(); ++j) {
                 if (inputs[i].id.logical_page == inputs[j].id.logical_page) {
@@ -234,8 +342,13 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
             }
             page summary;
             summary.id = record.id;
-            if (!make_vectors(*it, uint64_t(record.id.position_end - record.id.position_begin),
-                              config, summary.vectors, summary.radius, summary.source_rows)) {
+            const uint64_t row_count = uint64_t(record.id.position_end - record.id.position_begin);
+            const bool made = config.form == llama_kv_routing_summary_form::minmax_ranges
+                ? make_ranges(*it, row_count, config, summary.range_min,
+                    summary.range_max, summary.source_rows)
+                : make_vectors(*it, row_count, config, summary.vectors,
+                    summary.radius, summary.source_rows);
+            if (!made) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
             }
@@ -296,10 +409,14 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
     if (snapshot.epoch() == 0 || (!inventory_reconciled && !inventory_matches_snapshot(snapshot, inventory)) ||
         config.representative_count < 4 || config.representative_count > 8 ||
         config.vector_dim == 0 || config.allocation_granularity == 0 || !valid_form(config.form) ||
+        (config.form == llama_kv_routing_summary_form::minmax_ranges &&
+         !valid_subblock(VBR_GENERATION_PAGE_CELLS, config.subblock_tokens)) ||
         inputs.empty()) return {};
     if (!pages_.empty() && (representative_count_ != config.representative_count || vector_dim_ != config.vector_dim ||
         layer_index_ != config.layer_index || head_index_ != config.head_index || form_ != config.form ||
-        (config.coordinate_identity != 0 && coordinate_identity_ != config.coordinate_identity))) {
+        (config.coordinate_identity != 0 && coordinate_identity_ != config.coordinate_identity) ||
+        (form_ == llama_kv_routing_summary_form::minmax_ranges &&
+         subblock_tokens_ != config.subblock_tokens))) {
         status = llama_kv_routing_summary_status::stale_summary;
         return {};
     }
@@ -325,6 +442,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
             ? config.coordinate_identity : result.coordinate_identity_;
         result.form_ = config.form;
         result.allocation_granularity_ = config.allocation_granularity;
+        result.subblock_tokens_ = config.subblock_tokens;
         std::vector<page> updates;
         updates.reserve(inputs.size());
         for (size_t i = 0; i < inputs.size(); ++i) {
@@ -347,8 +465,13 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
             }
             page summary;
             summary.id = inputs[i].id;
-            if (!make_vectors(inputs[i], uint64_t(record->id.position_end - record->id.position_begin),
-                              config, summary.vectors, summary.radius, summary.source_rows)) {
+            const uint64_t row_count = uint64_t(record->id.position_end - record->id.position_begin);
+            const bool made = config.form == llama_kv_routing_summary_form::minmax_ranges
+                ? make_ranges(inputs[i], row_count, config, summary.range_min,
+                    summary.range_max, summary.source_rows)
+                : make_vectors(inputs[i], row_count, config, summary.vectors,
+                    summary.radius, summary.source_rows);
+            if (!made) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
             }
@@ -474,6 +597,27 @@ bool llama_kv_routing_summary_store::contains(uint32_t logical_page) const noexc
     }) != pages_.end();
 }
 
+uint32_t llama_kv_routing_summary_store::subblock_count(uint32_t logical_page) const noexcept {
+    const auto * values = range_min(logical_page);
+    return values == nullptr || vector_dim_ == 0 ? 0 : uint32_t(values->size() / vector_dim_);
+}
+
+const std::vector<float> * llama_kv_routing_summary_store::range_min(
+        uint32_t logical_page) const noexcept {
+    const auto it = std::find_if(pages_.begin(), pages_.end(), [&](const auto & page) {
+        return page.id.logical_page == logical_page;
+    });
+    return it == pages_.end() || it->range_min.empty() ? nullptr : &it->range_min;
+}
+
+const std::vector<float> * llama_kv_routing_summary_store::range_max(
+        uint32_t logical_page) const noexcept {
+    const auto it = std::find_if(pages_.begin(), pages_.end(), [&](const auto & page) {
+        return page.id.logical_page == logical_page;
+    });
+    return it == pages_.end() || it->range_max.empty() ? nullptr : &it->range_max;
+}
+
 void llama_kv_routing_summary_store::rebuild_accounting(
         const llama_kv_routing_summary_config & config,
         std::chrono::steady_clock::time_point start) noexcept {
@@ -481,12 +625,26 @@ void llama_kv_routing_summary_store::rebuild_accounting(
     const uint64_t vector_count = form_ == llama_kv_routing_summary_form::representatives
         ? representative_count_ : 1;
     uint64_t radius_bytes = 0;
-    if (!mul(pages_.size(), vector_count, vectors) || !mul(vectors, vector_dim_, vectors) ||
+    if (form_ == llama_kv_routing_summary_form::minmax_ranges) {
+        const uint64_t subblocks = valid_subblock(VBR_GENERATION_PAGE_CELLS, subblock_tokens_)
+            ? VBR_GENERATION_PAGE_CELLS / subblock_tokens_ : 0;
+        if (subblocks == 0 || !mul(pages_.size(), subblocks, vectors) ||
+            !mul(vectors, vector_dim_, vectors) || !mul(vectors, 2, vectors) ||
+            !mul(vectors, sizeof(float), payload)) {
+            accounting_ = {};
+            return;
+        }
+    } else if (!mul(pages_.size(), vector_count, vectors) || !mul(vectors, vector_dim_, vectors) ||
         !mul(vectors, sizeof(float), payload) ||
         (form_ == llama_kv_routing_summary_form::centroid_upper_bound &&
          !mul(pages_.size(), sizeof(float), radius_bytes)) ||
         (form_ == llama_kv_routing_summary_form::centroid_upper_bound && !add(payload, radius_bytes, payload)) ||
         !mul(pages_.size(), sizeof(llama_kv_page_id), metadata) || !add(payload, metadata, logical)) {
+        accounting_ = {};
+        return;
+    }
+    if (form_ == llama_kv_routing_summary_form::minmax_ranges &&
+        (!mul(pages_.size(), sizeof(llama_kv_page_id), metadata) || !add(payload, metadata, logical))) {
         accounting_ = {};
         return;
     }
@@ -519,9 +677,12 @@ void llama_kv_routing_summary_store::rebuild_accounting(
     hash = hash_mix(hash, layer_index_);
     hash = hash_mix(hash, head_index_);
     hash = hash_mix(hash, coordinate_identity_);
+    hash = hash_mix(hash, subblock_tokens_);
     for (const auto & page : pages_) {
         hash = hash_id(hash, page.id);
         for (const float value : page.vectors) hash = hash_float(hash, value);
+        for (const float value : page.range_min) hash = hash_float(hash, value);
+        for (const float value : page.range_max) hash = hash_float(hash, value);
         hash = hash_float(hash, page.radius);
     }
     accounting_.content_hash = hash == 0 ? 1 : hash;
@@ -582,13 +743,23 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
             const uint32_t vector_count = form_ == llama_kv_routing_summary_form::representatives
                 ? representative_count_ : 1;
             float best = -std::numeric_limits<float>::infinity();
-            for (uint32_t representative = 0; representative < vector_count; ++representative) {
-                float dot = 0.0f;
-                for (uint32_t d = 0; d < vector_dim_; ++d) {
-                    dot += page.vectors[size_t(representative) * vector_dim_ + d] * query[d];
+            if (form_ == llama_kv_routing_summary_form::minmax_ranges) {
+                if (!llama_kv_routing_summary_score_ranges(query.data(), page.range_min.data(),
+                        page.range_max.data(), uint32_t(page.range_min.size() / vector_dim_),
+                        vector_dim_, best)) {
+                    result.status = llama_kv_routing_summary_status::invalid_argument;
+                    return result;
                 }
-                best = std::max(best, dot);
-                ++result.comparisons;
+                result.comparisons += uint64_t(page.range_min.size() / vector_dim_) * vector_dim_;
+            } else {
+                for (uint32_t representative = 0; representative < vector_count; ++representative) {
+                    float dot = 0.0f;
+                    for (uint32_t d = 0; d < vector_dim_; ++d) {
+                        dot += page.vectors[size_t(representative) * vector_dim_ + d] * query[d];
+                    }
+                    best = std::max(best, dot);
+                    ++result.comparisons;
+                }
             }
             const bool upper_bound = form_ == llama_kv_routing_summary_form::centroid_upper_bound;
             result.top_pages.push_back({ page.id.logical_page, page.id.page_generation,

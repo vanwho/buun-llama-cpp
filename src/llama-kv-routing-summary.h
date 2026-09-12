@@ -10,11 +10,15 @@
 // Experimental, internal-only routing representation. The vectors are in the
 // canonical query-compatible K domain and are deliberately kept separate from
 // the KV page. The Turbo4 codec rotation is removed at summary build time.
-constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 2;
+constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 3;
 
 enum class llama_kv_routing_summary_form : uint8_t {
     representatives = 0,
     centroid_upper_bound,
+    // Per-page, fixed-size min/max ranges in the represented K domain.  This
+    // is the device-side estimator form; it is intentionally not advertised
+    // as a mathematical upper bound after quantization.
+    minmax_ranges,
 };
 
 enum class llama_kv_routing_summary_status : uint8_t {
@@ -42,6 +46,7 @@ struct llama_kv_routing_summary_config {
     // Identity of the projected/position-transformed query and key
     // coordinate system. Zero retains the legacy untagged fixture form.
     uint64_t coordinate_identity = 0;
+    uint32_t subblock_tokens = 64;
 };
 
 // rows contains query-compatible K rows for one page, in row-major order. A tail may
@@ -55,7 +60,46 @@ struct llama_kv_routing_page_input {
     // remains accepted for deterministic calibration fixtures.
     std::vector<uint32_t> row_indices;
     uint64_t source_bytes = 0;
+    // Optional represented-key ranges.  Layout is
+    // [subblock][min/max][vector_dim].  When absent and the form is
+    // minmax_ranges, the builder derives the ranges from a complete
+    // rotated_k_rows image.  Sparse representative input cannot silently
+    // become a range summary.
+    std::vector<float> range_min;
+    std::vector<float> range_max;
 };
+
+// The allocation is context-admission metadata, not a per-query scratch
+// estimate.  Keeping this calculation here makes the same L/layers/heads/D/
+// dtype contract available to the pager, graph owner and CUDA descriptor.
+struct llama_kv_routing_summary_device_layout {
+    uint64_t logical_pages = 0;
+    uint32_t attention_layers = 0;
+    uint32_t kv_heads = 0;
+    uint32_t vector_dim = 0;
+    uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS;
+    uint32_t subblock_tokens = 64;
+    uint32_t element_bytes = sizeof(uint16_t);
+    uint64_t subblocks_per_page = 0;
+    uint64_t bytes = 0;
+
+    static llama_kv_routing_summary_device_layout make(
+            uint64_t logical_pages,
+            uint32_t attention_layers,
+            uint32_t kv_heads,
+            uint32_t vector_dim,
+            uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
+            uint32_t subblock_tokens = 64,
+            uint32_t element_bytes = sizeof(uint16_t)) noexcept;
+};
+
+bool llama_kv_routing_summary_score_ranges(
+        const float * query,
+        const float * range_min,
+        const float * range_max,
+        uint32_t subblocks,
+        uint32_t vector_dim,
+        float & score) noexcept;
 
 struct llama_kv_routing_page_score {
     uint32_t logical_page = UINT32_MAX;
@@ -189,6 +233,10 @@ public:
     llama_kv_routing_summary_form form() const noexcept { return form_; }
     uint64_t content_hash() const noexcept { return accounting_.content_hash; }
     const llama_kv_routing_summary_accounting & accounting() const noexcept { return accounting_; }
+    uint32_t subblock_tokens() const noexcept { return subblock_tokens_; }
+    uint32_t subblock_count(uint32_t logical_page) const noexcept;
+    const std::vector<float> * range_min(uint32_t logical_page) const noexcept;
+    const std::vector<float> * range_max(uint32_t logical_page) const noexcept;
 
     llama_kv_routing_score_result score(
             const llama_kv_residency_snapshot & snapshot,
@@ -212,6 +260,8 @@ private:
         float radius = 0.0f;
         uint64_t source_bytes = 0;
         uint64_t source_rows = 0;
+        std::vector<float> range_min;
+        std::vector<float> range_max;
     };
 
     uint64_t snapshot_epoch_ = 0;
@@ -222,6 +272,7 @@ private:
     uint64_t coordinate_identity_ = 0;
     llama_kv_routing_summary_form form_ = llama_kv_routing_summary_form::representatives;
     uint64_t allocation_granularity_ = 1;
+    uint32_t subblock_tokens_ = 64;
     std::vector<page> pages_;
     llama_kv_routing_summary_accounting accounting_;
 };

@@ -967,14 +967,14 @@ int main() {
     const uint64_t initial_seal_scan_count = summary_pager->seal_pages_scanned();
     assert(initial_seal_scan_count == 2);
     const uint64_t initial_summary_calls = routing_provider_calls;
-    assert(initial_summary_calls == 32);
+    assert(initial_summary_calls == 128);
     assert(summary_pager->seal_ready_pages() == 0);
     assert(summary_pager->seal_pages_scanned() == initial_seal_scan_count);
     assert(routing_provider_calls == initial_summary_calls);
     assert(summary_pager->routing_summaries().valid());
-    // Runtime retrieval consumes head zero for each attention layer; the
-    // pager therefore maintains one summary table per layer.
-    assert(summary_pager->routing_summary_index().table_count() == 16);
+    // Runtime retrieval keeps one independently tagged summary per layer/KV
+    // head, even when a fixture provider supplies the same shape for each.
+    assert(summary_pager->routing_summary_index().table_count() == 64);
     assert(summary_pager->routing_summary_accounting().source_rows == 8);
     std::vector<float> summary_query(256, 0.0f);
     summary_query[0] = 1.0f;
@@ -990,12 +990,12 @@ int main() {
     }
     assert(summary_pager->seal_ready_pages() == 1);
     assert(summary_pager->seal_pages_scanned() == initial_seal_scan_count + 1);
-    assert(routing_provider_calls == initial_summary_calls + 16);
+    assert(routing_provider_calls == initial_summary_calls + 64);
     const uint64_t after_tail_calls = routing_provider_calls;
     assert(summary_pager->begin_write(0, 1, 512, ticket) == llama_kv_pager_write_status::ok);
     assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
     assert(summary_pager->seal_ready_pages() == 1);
-    assert(routing_provider_calls == after_tail_calls + 16);
+    assert(routing_provider_calls == after_tail_calls + 64);
 
     // A speculative overwrite is cancelled, but the next successful overwrite
     // must refresh the summary for that page rather than retaining stale rows.
@@ -1005,7 +1005,7 @@ int main() {
     assert(summary_pager->begin_write(0, 1, 0, ticket) == llama_kv_pager_write_status::ok);
     assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
     assert(summary_pager->seal_ready_pages() == 1);
-    assert(routing_provider_calls == after_rollback + 16);
+    assert(routing_provider_calls == after_rollback + 64);
 
     config.hot_pages.automatic = true;
     config.hot_pages.value = 0;

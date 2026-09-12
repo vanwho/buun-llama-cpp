@@ -93,6 +93,7 @@ std::string llama_kv_pager_config::summary() const {
            " hotset_policy=" + hotset_policy +
            " hot_pages_cap=" + count_name(hot_pages) +
            " router_top_k=" + std::to_string(router_top_k) +
+           " attention_tokens=" + std::to_string(attention_tokens) +
            " router_explore=" + std::to_string(router_explore) +
            " prefetch_depth=" + std::to_string(prefetch_depth) +
            " telemetry=" + (telemetry ? "on" : "off") +

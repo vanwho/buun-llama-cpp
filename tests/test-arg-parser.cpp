@@ -713,6 +713,15 @@ static void test(void) {
         assert(common_vbr_prompt_cache_mode_for(vbr_cache_explicit_on) ==
                common_vbr_prompt_cache_mode::enabled_explicit);
 
+        common_params bounded_attention;
+        argv = {"binary_name", "-m", "model.gguf", "--kv-attention-tokens", "8192"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+            bounded_attention, LLAMA_EXAMPLE_SERVER));
+        assert(bounded_attention.kv_pager.attention_tokens == 8192);
+        argv = {"binary_name", "-m", "model.gguf", "--kv-attention-tokens", "0"};
+        assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+            bounded_attention, LLAMA_EXAMPLE_SERVER));
+
         common_params implicit_cpu = vbr_default;
         assert(common_params_apply_vbr_cpu_fallback(implicit_cpu, false) ==
                common_vbr_cpu_fallback_result::applied);

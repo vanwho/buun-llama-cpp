@@ -36,6 +36,10 @@ struct llama_kv_pager_config {
     // Release-candidate routing defaults. Capacity and page count remain
     // runtime-derived; these values only bound evidence and lookahead.
     uint32_t router_top_k = 8;
+    // Per-layer rows attended by selective attention, inclusive of current,
+    // recent and sink rows. Zero lets the runtime derive a bounded value from
+    // the admitted hot-page capacity.
+    uint32_t attention_tokens = 0;
     uint32_t router_explore = 2;
     uint32_t prefetch_depth = 2;
     bool debug = false;

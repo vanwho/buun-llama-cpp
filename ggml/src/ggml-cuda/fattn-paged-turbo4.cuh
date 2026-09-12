@@ -149,7 +149,30 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     size_t host_upload_bytes = 0;
     char * upload_destination = nullptr;
     size_t upload_capacity_bytes = 0;
+
+    // Optional device-side routing stage. Ranges are fp16 pairs in the fixed
+    // layout [page][subblock][min/max][vector_dim]. One working set is
+    // produced per query/KV-head group and consumed by the caller before the
+    // page attention launch; no Q or score data is read back to the host.
+    const uint16_t * routing_range_min = nullptr;
+    const uint16_t * routing_range_max = nullptr;
+    uint32_t * routing_selected_indices = nullptr;
+    uint32_t * routing_selected_count = nullptr;
+    float * routing_selected_scores = nullptr;
+    size_t routing_range_page_stride_bytes = 0;
+    size_t routing_selected_stride_bytes = 0;
+    size_t routing_count_stride_bytes = 0;
+    uint32_t routing_subblocks = 0;
+    uint32_t routing_vector_dim = 0;
+    uint32_t routing_top_k = 0;
 };
+
+// Launch the bounded min/max estimator on the caller's CUDA stream. Ranking
+// is deterministic (score descending, logical page ascending) and is shared
+// by every query head in a GQA group.
+ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4_route(
+        ggml_backend_cuda_context & ctx,
+        const ggml_cuda_fattn_turbo4_paged_params & params) noexcept;
 
 // Correctness-first direct page/query-tile attention. The qualified geometry is
 // causal, batch 1, one or more query tokens, head width 256, and divisible GQA.
