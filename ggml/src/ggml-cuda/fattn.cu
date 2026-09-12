@@ -1349,6 +1349,9 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
         const bool causal) {
     extern __shared__ float shared[];
 
+    // The shared layout is sized to the active tile by the dispatcher.  The
+    // compile-time upper bound only protects the small fixed local arrays;
+    // it does not reserve a 64-query shared workspace for decode.
     constexpr int max_query_tile = GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS;
     const uint32_t query_base = uint32_t(blockIdx.z) * query_tile_tokens;
     const uint32_t query_count = min(query_tile_tokens, n_query_tokens - query_base);
@@ -1364,7 +1367,7 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
     const int kv_head = head / gqa_ratio;
 
     float * q_rot = shared;
-    float * reductions = q_rot + 256 * max_query_tile;
+    float * reductions = q_rot + 256 * query_tile_tokens;
     // Each warp owns one query while traversing a row.  Decode the compressed
     // K/V row once per block, rather than once per query, and let the eight
     // warps advance eight query accumulators in parallel.
@@ -1372,7 +1375,7 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
     float * decoded_v = decoded_k + 256;
     float * page_max = decoded_v + 256;
     const uint32_t partition_pages = page_end - page_begin;
-    float * page_sum = page_max + partition_pages * max_query_tile;
+    float * page_sum = page_max + partition_pages * query_tile_tokens;
 
     int64_t query_position[max_query_tile];
     for (uint32_t query = 0; query < query_count; ++query) {
@@ -1771,12 +1774,15 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         return ggml_cuda_fattn_turbo4_paged_status::unsupported_type;
     }
     const uint32_t query_tile_tokens = params.query_tile_tokens == 0
-        ? GGML_CUDA_FATTN_TURBO4_DEFAULT_QUERY_TOKENS : params.query_tile_tokens;
+        ? ggml_cuda_fattn_turbo4_query_tile_for_count(params.n_query_tokens)
+        : params.query_tile_tokens;
     if (params.n_query_tokens == 0 ||
         params.n_query_tokens > GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS * 65535u ||
         params.n_batch != 1 ||
         params.n_head_kv == 0 || params.n_head_q % params.n_head_kv != 0 ||
-        (query_tile_tokens != 16 && query_tile_tokens != 32 && query_tile_tokens != 64) ||
+        (query_tile_tokens != 1 && query_tile_tokens != 2 && query_tile_tokens != 4 &&
+         query_tile_tokens != 8 && query_tile_tokens != 16 && query_tile_tokens != 32 &&
+         query_tile_tokens != 64) ||
         params.head_dim_k != 256 || params.head_dim_v != 256 ||
         params.q_head_stride_bytes < 256 * sizeof(float) ||
         params.q_query_stride_bytes < params.q_head_stride_bytes * params.n_head_q ||
@@ -1851,12 +1857,18 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     }
 
     uint32_t n_partitions = 1;
-    if (params.split_kv_scratch != nullptr && params.split_kv_partition_capacity > 1 &&
-        params.n_pages > 1 && params.n_rows > 256) {
-        cudaDeviceProp prop = {};
-        if (cudaGetDeviceProperties(&prop, ctx.device) != cudaSuccess) {
+    static cudaDeviceProp device_properties[GGML_CUDA_MAX_DEVICES] = {};
+    static bool device_properties_loaded[GGML_CUDA_MAX_DEVICES] = {};
+    if (!device_properties_loaded[ctx.device]) {
+        if (cudaGetDeviceProperties(&device_properties[ctx.device], ctx.device) != cudaSuccess) {
             return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
         }
+        device_properties_loaded[ctx.device] = true;
+    }
+
+    if (params.split_kv_scratch != nullptr && params.split_kv_partition_capacity > 1 &&
+        params.n_pages > 1 && params.n_rows > 256) {
+        const cudaDeviceProp & prop = device_properties[ctx.device];
         const uint32_t shape_partitions = (params.n_rows + 255) / 256;
         const uint32_t device_partitions = std::max<uint32_t>(1,
             uint32_t(prop.multiProcessorCount) * std::max(1, prop.maxThreadsPerMultiProcessor / 256));
@@ -1864,20 +1876,21 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
             std::min(params.n_pages, std::min(shape_partitions, device_partitions)));
     }
 
-    constexpr size_t max_query_tile = GGML_CUDA_FATTN_TURBO4_MAX_QUERY_TOKENS;
     const bool split_partitioned = n_partitions > 1;
     const uint32_t query_tiles = (params.n_query_tokens + query_tile_tokens - 1) /
         query_tile_tokens;
     const uint32_t max_partition_pages = (params.n_pages + n_partitions - 1) / n_partitions;
-    const size_t shared_floats = 256 * max_query_tile + 8 + 2 * 256 +
-        (params.reduce_page_mass ? 2 * max_query_tile * max_partition_pages : 0);
+    const size_t shared_floats = 256 * query_tile_tokens + 8 + 2 * 256 +
+        (params.reduce_page_mass ? 2 * query_tile_tokens * max_partition_pages : 0);
     const size_t shared_bytes = shared_floats * sizeof(float);
-    if (shared_bytes > 48 * 1024) {
+    static size_t max_dynamic_shared_bytes[GGML_CUDA_MAX_DEVICES] = {};
+    if (shared_bytes > max_dynamic_shared_bytes[ctx.device]) {
         if (cudaFuncSetAttribute(ggml_cuda_fattn_turbo4_paged_query_tile_kernel,
                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
                                  (int) shared_bytes) != cudaSuccess) {
             return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
         }
+        max_dynamic_shared_bytes[ctx.device] = shared_bytes;
     }
 
     ggml_cuda_fattn_turbo4_paged_query_tile_kernel<<<dim3(params.n_head_q, n_partitions, query_tiles), dim3(256, 1, 1),
