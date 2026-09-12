@@ -1,0 +1,109 @@
+{
+  "schema": "speed25-06-batching-v1",
+  "task": "25-06",
+  "status": "pass_with_deferred_verification",
+  "objective": "Restore useful whole-model prefill batching and bulk page admission.",
+  "source": {
+    "working_tree_diff_sha256": "6d514892f48f6413291cadead99848da8e22ef14999bc5e928fcbdaa1d3f8e49",
+    "runtime_bundle": "/srv/ai/paged-kv/results/25-06-runtime-bundle-20260912T064000Z",
+    "runtime_bundle_sha256": {
+      "llama-server": "a83a06c8b9fd5598562ecb2606794a748f196e2ef4a91be10f5b900f453fd5d2",
+      "libllama.so.0.3.0": "c25b0453448413c9492c32ecaa437c84b7b7ab7238e54cb782e26e29222c4df3",
+      "libggml-cuda.so.0.22.0": "f650e87f3c3e6ab21748d8348df5f34a8d3bde67b74e0b8ee278183b4fdfedaf"
+    },
+    "hardware": "NVIDIA GeForce RTX 4080, compute capability 8.9, 15945 MiB VRAM",
+    "model": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "context": 4096,
+    "page_tokens": 256,
+    "pager": "selective",
+    "mtp": "native, GPU-resident Turbo4"
+  },
+  "implementation": {
+    "batch_plan": "effective=min(requested, physical_write_capacity); query_tile_tokens is independent and remains 64",
+    "reservation": "bulk reserve all rows/pages for a batch, reverse-cancel on failure, publish only after successful execution",
+    "routing": "direct prefill route takes precedence over packed when direct shape support is available; dense remains the control",
+    "mtp_boundary": "target rows are counted once and the shifted pending row remains in token order",
+    "tests_added": [
+      "batch-plan requested/physical/effective/subbatch cases",
+      "multi-page atomic reservation and cancellation",
+      "direct-over-packed route regression",
+      "explicit model-test GPU/FA/context/batch/token-file controls"
+    ]
+  },
+  "cuda_fixture": {
+    "command": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "result": "pass",
+    "raw": ".wiretail/execution/evidence/raw/SPEED25_06_BATCHING_cuda.txt",
+    "observations_ms": {
+      "q64_tile16": 3.939,
+      "q256_tile16": 11.510,
+      "q512_tile16": 21.469,
+      "q512_serial_control": 21.608,
+      "q512_split_control_capacity16": 21.400
+    },
+    "launch_or_submission_controls": "serial and split-KV controls both completed; no correctness failure"
+  },
+  "measured_runs": [
+    {
+      "requested_ubatch": 256,
+      "effective_ubatch": 256,
+      "physical_write_capacity": 4096,
+      "query_tile_tokens": 64,
+      "prefill_subbatch_count": 1,
+      "graph_submission_count": 23,
+      "graph_completion_count": 23,
+      "prefill_direct_routes": 9,
+      "target_tokens_processed_metric": 2099,
+      "prompt_tokens": 2059,
+      "prompt_seconds": 4.44704,
+      "prompt_tokens_per_second": 463.00,
+      "decode_tokens": 32,
+      "decode_seconds": 0.71172,
+      "decode_tokens_per_second": 43.56,
+      "mtp_accepted": 18,
+      "mtp_generated": 25,
+      "mtp_acceptance": 0.72,
+      "driver_elapsed_seconds": 5.1749384609975095,
+      "driver_ttft_us": 4450926.887999231,
+      "raw_root": "/srv/ai/paged-kv/results/25-06-short-final-20260912T064000Z"
+    },
+    {
+      "requested_ubatch": 512,
+      "effective_ubatch": 512,
+      "physical_write_capacity": 4096,
+      "query_tile_tokens": 64,
+      "prefill_subbatch_count": 1,
+      "graph_submission_count": 18,
+      "graph_completion_count": 18,
+      "prefill_direct_routes": 5,
+      "target_tokens_processed_metric": 2096,
+      "prompt_tokens": 2059,
+      "prompt_seconds": 4.53612,
+      "prompt_tokens_per_second": 453.91,
+      "decode_tokens": 32,
+      "decode_seconds": 0.67102,
+      "decode_tokens_per_second": 46.20,
+      "mtp_accepted": 19,
+      "mtp_generated": 23,
+      "mtp_acceptance": 0.82609,
+      "driver_elapsed_seconds": 5.222246002002066,
+      "driver_ttft_us": 4540038.335002464,
+      "raw_root": "/srv/ai/paged-kv/results/25-06-short-ub512-20260912T064000Z"
+    }
+  ],
+  "verification": {
+    "host_focused_tests": "pass",
+    "cuda_build_and_fixture": "pass",
+    "native_mtp_synthetic": "pass",
+    "live_native_mtp_b256": "pass",
+    "live_native_mtp_b512": "pass",
+    "gpu_utilization_sample": "deferred: no trustworthy utilization trace was captured",
+    "bounded_h_dense_parity": "deferred: bounded-H direct execution runs, but the standalone probe does not yet provide a valid dense numerical parity claim"
+  },
+  "raw_roots": [
+    ".wiretail/execution/evidence/raw/SPEED25_06_BATCHING_cuda.txt",
+    "/srv/ai/paged-kv/results/25-06-short-final-20260912T064000Z",
+    "/srv/ai/paged-kv/results/25-06-short-ub512-20260912T064000Z"
+  ],
+  "next_command": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate"
+}

@@ -1,0 +1,17 @@
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15945 MiB):
+  Device 0: NVIDIA GeForce RTX 4080, compute capability 8.9, VMM: yes, VRAM: 15945 MiB
+paged Turbo4 query tile: 19.033 ms (24 Q heads, 4 KV heads, 530 selected rows)
+paged Turbo4 tile sweep: 3.939 ms (tile_q 16, 64 Q tokens, 530 selected rows)
+paged Turbo4 tile sweep: 4.048 ms (tile_q 32, 64 Q tokens, 530 selected rows)
+paged Turbo4 tile sweep: 7.617 ms (tile_q 64, 64 Q tokens, 530 selected rows)
+paged Turbo4 tile sweep: 11.510 ms (tile_q 16, 256 Q tokens, 530 selected rows)
+paged Turbo4 tile sweep: 11.468 ms (tile_q 32, 256 Q tokens, 530 selected rows)
+paged Turbo4 tile sweep: 14.077 ms (tile_q 64, 256 Q tokens, 530 selected rows)
+paged Turbo4 tile sweep: 21.469 ms (tile_q 16, 512 Q tokens, 530 selected rows)
+paged Turbo4 tile sweep: 21.556 ms (tile_q 32, 512 Q tokens, 530 selected rows)
+paged Turbo4 tile sweep: 21.889 ms (tile_q 64, 512 Q tokens, 530 selected rows)
+paged Turbo4 split-KV: 21.564 ms (requested capacity 1)
+paged Turbo4 split-KV: 21.575 ms (requested capacity 2)
+paged Turbo4 split-KV: 21.259 ms (requested capacity 3)
+paged Turbo4 serial control: 21.608 ms (512 Q tokens, 530 selected rows)
+paged Turbo4 split control: 21.400 ms (512 Q tokens, 530 selected rows, capacity 16)
