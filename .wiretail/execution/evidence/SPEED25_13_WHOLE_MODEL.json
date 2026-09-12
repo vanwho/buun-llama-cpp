@@ -1,0 +1,59 @@
+{
+  "schema": "pager-speed-v6-whole-model-coverage",
+  "schema_version": 1,
+  "task": "25-13",
+  "status": "coverage_complete_with_deferred_profiler_fields",
+  "source": {
+    "repository_head": "9a2a45e5ad107284b81108fc78a96eaa9210b9a0",
+    "native_mtp_bundle": "/srv/ai/paged-kv/results/25-06-runtime-bundle-20260912T064000Z/llama-server",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.91.07"
+  },
+  "matched_short_runs": {
+    "control_off": {
+      "raw_root": "/srv/ai/paged-kv/results/25-02-short-off-final-20260912T044500Z",
+      "prompt_tokens": 2048,
+      "generated_tokens": 128,
+      "prefill_us": 1185416,
+      "decode_us": 1293621,
+      "prefill_tok_s": 1728.0,
+      "decode_tok_s": 98.9
+    },
+    "selective_native_mtp": {
+      "raw_root": "/srv/ai/paged-kv/results/25-06-short-final-20260912T064000Z",
+      "prompt_tokens": 2048,
+      "generated_tokens": 32,
+      "prefill_us": 4447044,
+      "decode_us": 711720,
+      "prefill_tok_s": 463.0,
+      "decode_tok_s": 43.56,
+      "mtp_proposed": 25,
+      "mtp_accepted": 18
+    }
+  },
+  "coverage": [
+    {"area":"target weights / full attention / GDN placement","status":"measured_nonmaterial","evidence":"native run reports target_backend CUDA, -ngl 999, Turbo4 target/MTP; fallbacks_total=0; no CPU fallback counter observed"},
+    {"area":"quantized matmul MMQ vs cuBLAS and Tensor-Core utilization","status":"remaining_gap","evidence":"no trustworthy Nsight counters or end-to-end kernel attribution; do not infer from wall time"},
+    {"area":"GDN / fused operations and useful B","status":"configuration_selected","evidence":"effective B=256 passed with one prefill subbatch; B=512 was also pass but prefill was 453.91 tok/s vs 463.00 at B=256"},
+    {"area":"paged attention","status":"measured_nonmaterial","evidence":"CUDA fixture passed; Q=1/2/3/5 was 0.517/0.529/0.561/1.067 ms and split-KV Q=512 was 20.123 ms"},
+    {"area":"Turbo WHT / mean restoration / redundant transforms","status":"measured_nonmaterial","evidence":"existing Turbo4 domain and inverse-WHT deterministic controls pass; no new duplicate pass identified"},
+    {"area":"host metadata, sealing, and copies","status":"material_remaining","evidence":"latest selective run: 2343 seal calls, 4672 summary builds, 22 host D2H calls / 95.16 MB; 4.447 s prefill wall"},
+    {"area":"MTP / sampling / verification","status":"configuration_selected","evidence":"native GPU MTP proposed 25 and accepted 18; backend_sampling=false is retained for correctness; task 25-12 added guarded device hidden handoff"},
+    {"area":"graph and synchronization gaps","status":"material_remaining","evidence":"22 logical graph submissions/completions and 1.498 s waits plus 2.508 s queue time in the latest short run; CUDA event spans unavailable"},
+    {"area":"checkpoint, idle-cache, and debug overhead","status":"configuration_selected","evidence":"V6 timed profile used ctx-checkpoints=0, cache-idle-slots disabled, no debug logging; current retained service is not a timed profile"},
+    {"area":"PCIe / NUMA / clocks / competing processes","status":"measured_nonmaterial","evidence":"GPU NUMA affinity 0 and CPU affinity 0-31; PCIe current width 16x, current generation 1 (max 4); 35 C, P8, no thermal/power slowdown; Xorg/gnome plus one server process present"},
+    {"area":"VMM / allocation churn","status":"measured_nonmaterial","evidence":"stable page slabs and bounded graph/scratch accounting are retained; no allocation/address churn evidence requiring VMM rewrite"}
+  ],
+  "raw_roots": [
+    "/srv/ai/paged-kv/results/25-03-short-selective-live-20260912T053500Z",
+    "/srv/ai/paged-kv/results/25-06-short-final-20260912T064000Z",
+    ".wiretail/execution/evidence/raw/SPEED25_09_DECODE_cuda.txt",
+    ".wiretail/execution/evidence/raw/SPEED25_06_BATCHING_cuda.txt"
+  ],
+  "deferred": [
+    "Nsight Systems/Compute critical-path attribution and MMQ/cuBLAS counters",
+    "pinned-copy bandwidth under load and CPU NUMA affinity experiment",
+    "fresh post-25-12 native-MTP A/B timing because the retained service is spec-type none"
+  ]
+}
