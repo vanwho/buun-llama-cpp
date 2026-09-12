@@ -860,3 +860,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-09`
 - Commit at update: `fdbc844c1`
 - Summary: Shape-sized paged Turbo4 decode dispatch and cached CUDA launch resources; focused RTX 4080 correctness/timing fixture passes. Live native-MTP and 4K/16K end-to-end proof deferred.
+
+## 2026-09-12T02:57:00+00:00 — 25-10 — done
+
+- Branch: `codex/task-25-10`
+- Commit at update: `906039de6`
+- Summary: Stabilized direct paged-attention descriptor refresh with changed-run uploads and added optional actual CUDA graph capture/instantiate/update/launch diagnostics with CPU timings. CPU checks and CUDA graph translation-unit compilation pass; live server graph run deferred.
