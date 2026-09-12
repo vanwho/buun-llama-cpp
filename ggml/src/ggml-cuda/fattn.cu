@@ -1295,6 +1295,48 @@ static __device__ __forceinline__ float turbo4_paged_fwht(
     return value * 0.08838834764831845f * d_turbo_wht_signs2_fattn[local];
 }
 
+// Keep the dynamic shared-memory contract in one place.  The calculator is
+// also used by the host dispatcher below, so a change to an offset cannot
+// silently leave the launch allocation behind.  Saturating arithmetic makes
+// the host-side validation fail closed before converting the result to bytes
+// or to cudaFuncSetAttribute's int argument.
+struct ggml_cuda_fattn_turbo4_paged_shared_layout {
+    size_t q_rot;
+    size_t reductions;
+    size_t decoded_k;
+    size_t decoded_v;
+    size_t page_max;
+    size_t page_sum;
+    size_t total;
+
+    static constexpr size_t invalid = size_t(-1);
+
+    static __host__ __device__ constexpr size_t add(size_t a, size_t b) noexcept {
+        return a == invalid || b > invalid - a ? invalid : a + b;
+    }
+
+    static __host__ __device__ constexpr size_t mul(size_t a, size_t b) noexcept {
+        return a == invalid || b != 0 && a > invalid / b ? invalid : a * b;
+    }
+
+    static __host__ __device__ constexpr ggml_cuda_fattn_turbo4_paged_shared_layout make(
+            uint32_t query_tile_tokens, uint32_t partition_pages,
+            bool with_page_state) noexcept {
+        const size_t query_floats = mul(256, query_tile_tokens);
+        const size_t reductions = add(query_floats, 8 * 4);
+        const size_t decoded_k = add(reductions, 256);
+        const size_t decoded_v = add(decoded_k, 256);
+        const size_t page_max = add(decoded_v, with_page_state
+            ? mul(query_tile_tokens, partition_pages) : 0);
+        const size_t page_sum = add(page_max, with_page_state
+            ? mul(query_tile_tokens, partition_pages) : 0);
+        return {
+            0, reductions, decoded_k, decoded_v, page_max, page_sum,
+            page_sum,
+        };
+    }
+};
+
 // A bounded query tile keeps the page-table traversal and compressed row decode
 // shared by all queries in the tile. Longer prompts are split by the prefill
 // page-wave scheduler before graph capture.
@@ -1366,16 +1408,18 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
     const int gqa_ratio = int(n_head_q / n_head_kv);
     const int kv_head = head / gqa_ratio;
 
-    float * q_rot = shared;
-    float * reductions = q_rot + 256 * query_tile_tokens;
+    const auto shared_layout = ggml_cuda_fattn_turbo4_paged_shared_layout::make(
+        query_tile_tokens, page_end - page_begin, reduce_page_mass);
+    float * q_rot = shared + shared_layout.q_rot;
+    float * reductions = shared + shared_layout.reductions;
     // Each warp owns one query while traversing a row.  Decode the compressed
     // K/V row once per block, rather than once per query, and let the eight
     // warps advance eight query accumulators in parallel.
-    float * decoded_k = reductions + 8 * 4;
-    float * decoded_v = decoded_k + 256;
-    float * page_max = decoded_v + 256;
+    float * decoded_k = shared + shared_layout.decoded_k;
+    float * decoded_v = shared + shared_layout.decoded_v;
+    float * page_max = shared + shared_layout.page_max;
     const uint32_t partition_pages = page_end - page_begin;
-    float * page_sum = page_max + partition_pages * query_tile_tokens;
+    float * page_sum = shared + shared_layout.page_sum;
 
     int64_t query_position[max_query_tile];
     for (uint32_t query = 0; query < query_count; ++query) {
@@ -1879,10 +1923,15 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     const bool split_partitioned = n_partitions > 1;
     const uint32_t query_tiles = (params.n_query_tokens + query_tile_tokens - 1) /
         query_tile_tokens;
-    const uint32_t max_partition_pages = (params.n_pages + n_partitions - 1) / n_partitions;
-    const size_t shared_floats = 256 * query_tile_tokens + 8 + 2 * 256 +
-        (params.reduce_page_mass ? 2 * query_tile_tokens * max_partition_pages : 0);
-    const size_t shared_bytes = shared_floats * sizeof(float);
+    const size_t max_partition_pages = (size_t(params.n_pages) + n_partitions - 1) / n_partitions;
+    const auto shared_layout = ggml_cuda_fattn_turbo4_paged_shared_layout::make(
+        query_tile_tokens, uint32_t(max_partition_pages), params.reduce_page_mass);
+    if (shared_layout.total == ggml_cuda_fattn_turbo4_paged_shared_layout::invalid ||
+        shared_layout.total > size_t(-1) / sizeof(float) ||
+        shared_layout.total * sizeof(float) > size_t(INT_MAX)) {
+        return ggml_cuda_fattn_turbo4_paged_status::unsupported_shape;
+    }
+    const size_t shared_bytes = shared_layout.total * sizeof(float);
     static size_t max_dynamic_shared_bytes[GGML_CUDA_MAX_DEVICES] = {};
     if (shared_bytes > max_dynamic_shared_bytes[ctx.device]) {
         if (cudaFuncSetAttribute(ggml_cuda_fattn_turbo4_paged_query_tile_kernel,

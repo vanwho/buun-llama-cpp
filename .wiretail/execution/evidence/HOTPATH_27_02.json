@@ -1,0 +1,105 @@
+{
+  "schema": "gpu-hot-path-v8-kernel-safety-v1",
+  "task": "27-02",
+  "status": "complete_with_live_nsight_attribution_unavailable",
+  "result": "complete",
+  "repair": {
+    "file": "ggml/src/ggml-cuda/fattn.cu",
+    "kernel": "ggml_cuda_fattn_turbo4_paged_query_tile_kernel",
+    "old_underallocation": {
+      "reduction_floats_allocated": 8,
+      "reduction_floats_used": 32,
+      "bytes_short": 96
+    },
+    "shared_layout": [
+      "query rotation: 256 * query_tile_tokens floats",
+      "reductions: 8 * 4 floats",
+      "decoded K: 256 floats",
+      "decoded V: 256 floats",
+      "page max/sum: query_tile_tokens * partition_pages each when page mass is enabled"
+    ],
+    "contract": "One constexpr host/device layout calculator supplies both kernel offsets and dispatcher allocation.",
+    "host_validation": "Saturating size arithmetic rejects overflow and rejects byte sizes above INT_MAX before cudaFuncSetAttribute/launch."
+  },
+  "fixture": {
+    "test": "tests/test-cuda-fattn-paged-turbo4.cu",
+    "geometry": "Q heads 4, KV heads 1, head dimension 256, four logical pages, 530 selected rows, eight physical page slots",
+    "coverage": [
+      "Q1/Q2/Q3/Q16/Q64 ordinary correctness",
+      "Q128 timing path",
+      "partition capacity 1 and 2",
+      "page mass disabled and enabled",
+      "all-masked row",
+      "one-row and 17-row tails",
+      "logical-page permutation, physical-page gaps, native-position gap, native mask",
+      "partial-state write and merge",
+      "contiguous Turbo4 FA and non-contiguous get_rows pack+FA controls"
+    ],
+    "oracle": "Independent CPU selected-row oracle decodes fixture Turbo4 V bytes and applies native positions/mask/causal filtering."
+  },
+  "validation": {
+    "build": {
+      "command": "cmake --build build-cuda --target test-cuda-fattn-paged-turbo4 llama-server -j2",
+      "result": "pass"
+    },
+    "correctness_raw": "/srv/ai/paged-kv/results/27-02-correctness.log",
+    "timing_raw": "/srv/ai/paged-kv/results/27-02-timing.log",
+    "compute_sanitizer_memcheck": {
+      "command": "compute-sanitizer --tool memcheck --error-exitcode 99 ./build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "result": "pass",
+      "error_summary": 0,
+      "raw": "/srv/ai/paged-kv/results/27-02-memcheck.log"
+    },
+    "compute_sanitizer_synccheck": {
+      "command": "compute-sanitizer --tool synccheck --error-exitcode 99 ./build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "result": "pass",
+      "error_summary": 0,
+      "raw": "/srv/ai/paged-kv/results/27-02-synccheck.log"
+    },
+    "git_diff_check": "pass",
+    "state_validation": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate: pass"
+  },
+  "timing": {
+    "fixture": "Q128, 530 selected rows, 5 warmups, 20 measured CUDA-event iterations",
+    "repaired_custom_direct_ms": 8.114,
+    "contiguous_turbo4_fa_ms": 0.024,
+    "noncontiguous_pack_plus_fa_ms": 0.026,
+    "note": "These are raw fixture timings only; no throughput improvement claim is made."
+  },
+  "live_q0": {
+    "candidate_command": "/srv/ai/paged-kv/results/27-01-bundle/bin/llama-server with native MTP, GPU Turbo4 K/V, selective pager, port 8080",
+    "candidate_pid_after_probe": 1421829,
+    "health": "pass",
+    "response_raw": "/srv/ai/paged-kv/results/27-02-live-q0-20260912-final.response.json",
+    "metrics_before": "/srv/ai/paged-kv/results/27-02-live-q0-20260912-final.metrics-before.txt",
+    "metrics_after": "/srv/ai/paged-kv/results/27-02-live-q0-20260912-final.metrics-after.txt",
+    "observed": {
+      "prompt_tokens": 70,
+      "generated_tokens": 128,
+      "draft_tokens": 90,
+      "accepted_tokens": 81,
+      "verification_steps": 45,
+      "prompt_ms": 163.303,
+      "decode_ms": 1378.2
+    },
+    "nsight": {
+      "command": "nsys profile --trace=cuda,nvtx,osrt --sample=none --duration=60 --kill=none exact candidate command",
+      "raw_stream": "/srv/ai/paged-kv/results/27-02-live-q0-20260912-retry.qdstrm",
+      "launcher_log": "/srv/ai/paged-kv/results/27-02-live-q0-20260912-retry.nsys.log",
+      "capture": "captured exact candidate binary/DSOs and CUDA/NVTX/OSRT stream",
+      "attribution": "unavailable: installed Nsight Systems image lacks the QDSTRM importer; nsys stats/export could not produce CUDA kernel/event tables",
+      "missing": [
+        "prefill versus target-verify versus draft-attention kernel names",
+        "memcpy and wait event attribution",
+        "backend counter table from Nsight"
+      ]
+    }
+  },
+  "preserved_negative_baseline": "/srv/ai/paged-kv/results/27-02-maximum-20260912T163151Z",
+  "runtime": {
+    "candidate_restored": true,
+    "unrelated_port_8092_touched": false,
+    "sanitizer_fixture_run_with_full_candidate_unloaded": true,
+    "reason": "The full candidate and test fixture could not coexist in available VRAM; the candidate was restored and verified afterward."
+  }
+}
