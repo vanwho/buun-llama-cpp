@@ -16,6 +16,7 @@ struct llama_kv_attention_view_page {
     uint32_t row_count = 0;
     llama_pos native_position_begin = -1;
     llama_pos native_position_end = -1;
+    uint32_t page_generation = 0;
 };
 
 enum class llama_kv_attention_view_status : uint8_t {

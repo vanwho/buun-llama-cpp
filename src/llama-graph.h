@@ -439,7 +439,10 @@ public:
     // lifetime for the graph.
     bool selected_attention = false;
     bool direct_attention = false;
+    bool dense_attention = false;
+    bool packed_attention = false;
     bool exact_wave_attention = false;
+    uint32_t dense_source_row_begin = UINT32_MAX;
     // Page descriptors, selected row IDs, native positions/masks, and query
     // positions have stable graph-owned storage. Their values are refreshed
     // only when the content generation changes; telemetry state is refreshed
@@ -449,6 +452,26 @@ public:
     ggml_tensor * self_selected_idxs = nullptr; // I32 [selected physical rows]
     std::vector<int32_t> selected_rows;
     llama_kv_attention_operator_metadata selected_metadata;
+
+    // The packed route retains the cache's native Turbo4 bytes. Each page
+    // copy is a typed view, so packing never passes through F16/F32 rows.
+    struct packed_copy {
+        ggml_tensor * source_k = nullptr;
+        ggml_tensor * source_v = nullptr;
+        ggml_tensor * packed_k = nullptr;
+        ggml_tensor * packed_v = nullptr;
+        uint32_t page_index = 0;
+        uint32_t page_generation = 0;
+        uint32_t row_count = 0;
+        uint64_t bytes = 0;
+    };
+    struct packed_layer {
+        uint32_t layer_id = 0;
+        ggml_tensor * k = nullptr;
+        ggml_tensor * v = nullptr;
+        std::vector<packed_copy> copies;
+    };
+    std::vector<packed_layer> packed_layers;
 
     // Direct CUDA paged Turbo4 inputs. The K/V views are created per layer
     // over the pager's persistent physical slot slab; metadata is copied into

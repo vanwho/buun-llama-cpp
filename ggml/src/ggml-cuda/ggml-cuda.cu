@@ -6169,7 +6169,18 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
                 if (src0_type == GGML_TYPE_I32 && src1_type == GGML_TYPE_I32) {
                     return true;
                 }
-                if (src0_type == src1_type && ggml_is_contiguous(op->src[0]) && ggml_is_contiguous(op->src[1])) {
+                const bool raw_quantized_3d = src0_type == src1_type &&
+                    ggml_is_quantized(src0_type) && op->src[0]->ne[3] == 1 &&
+                    op->src[1]->ne[3] == 1 && op->src[0]->ne[0] == op->src[1]->ne[0] &&
+                    op->src[0]->ne[1] == op->src[1]->ne[1] &&
+                    op->src[0]->ne[2] == op->src[1]->ne[2] &&
+                    op->src[0]->nb[1] == ggml_row_size(src0_type, op->src[0]->ne[0]) &&
+                    op->src[0]->nb[2] == op->src[0]->nb[1] * op->src[0]->ne[1] &&
+                    op->src[1]->nb[1] == ggml_row_size(src1_type, op->src[1]->ne[0]) &&
+                    op->src[1]->nb[2] == op->src[1]->nb[1] * op->src[1]->ne[1];
+                if (raw_quantized_3d ||
+                    (src0_type == src1_type && ggml_is_contiguous(op->src[0]) &&
+                     ggml_is_contiguous(op->src[1]))) {
                     return true;
                 }
                 return false;
