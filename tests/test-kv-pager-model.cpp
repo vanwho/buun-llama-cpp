@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cerrno>
 #include <cstdlib>
 #include <cstdint>
 #include <cstdio>
@@ -27,7 +28,12 @@ namespace {
 struct options {
     std::string model;
     std::string output;
+    std::string tokens_file;
     std::vector<llama_token> tokens;
+    uint32_t context = 4096;
+    uint32_t n_batch = 1024;
+    uint32_t n_ubatch = 256;
+    uint32_t hot_pages = 2;
     bool native_mtp = false;
     bool help = false;
 };
@@ -40,11 +46,26 @@ struct stats {
 
 static void usage(const char * argv0) {
     std::fprintf(stdout,
-            "usage: %s [--model MODEL.gguf] [--tokens id,id,...] [--mtp off|native] [--output FILE]\n"
+            "usage: %s [--model MODEL.gguf] [--tokens id,id,... | --tokens-file FILE]\n"
+            "       [--context N] [--n-batch N] [--n-ubatch N] [--hot-pages N]\n"
+            "       [--mtp off|native] [--output FILE]\n"
             "       %s --help\n\n"
             "Without --model, run deterministic domain/indexing/mask and MTP F5 probes.\n"
             "With --model, compare dense and selected-reference teacher-forced logits\n"
             "with identical Turbo4 token IDs; --mtp native enables the production MTP boundary.\n", argv0, argv0);
+}
+
+static bool parse_positive_u32(const char * raw, uint32_t & output) {
+    if (raw == nullptr || *raw == '\0' || *raw == '-') return false;
+    errno = 0;
+    char * stop = nullptr;
+    const unsigned long value = std::strtoul(raw, &stop, 10);
+    if (errno != 0 || stop == raw || *stop != '\0' || value == 0 ||
+            value > std::numeric_limits<uint32_t>::max()) {
+        return false;
+    }
+    output = uint32_t(value);
+    return true;
 }
 
 static bool parse_tokens(const std::string & raw, std::vector<llama_token> & output) {
@@ -68,7 +89,22 @@ static bool parse_tokens(const std::string & raw, std::vector<llama_token> & out
     return !output.empty();
 }
 
+static bool parse_tokens_file(const std::string & path, std::vector<llama_token> & output) {
+    std::ifstream file(path);
+    if (!file) return false;
+    output.clear();
+    long long value = 0;
+    while (file >> value) {
+        if (value < 0 || uint64_t(value) > uint64_t(std::numeric_limits<llama_token>::max())) {
+            return false;
+        }
+        output.push_back(llama_token(value));
+    }
+    return file.eof() && !output.empty();
+}
+
 static bool parse_options(int argc, char ** argv, options & output) {
+    bool token_source_set = false;
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
         if (arg == "--help" || arg == "-h") {
@@ -77,6 +113,20 @@ static bool parse_options(int argc, char ** argv, options & output) {
             output.model = argv[++i];
         } else if (arg == "--tokens" && i + 1 < argc) {
             if (!parse_tokens(argv[++i], output.tokens)) return false;
+            token_source_set = true;
+        } else if (arg == "--tokens-file" && i + 1 < argc) {
+            const std::string path = argv[++i];
+            if (token_source_set || !parse_tokens_file(path, output.tokens)) return false;
+            output.tokens_file = path;
+            token_source_set = true;
+        } else if (arg == "--context" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.context)) return false;
+        } else if (arg == "--n-batch" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.n_batch)) return false;
+        } else if (arg == "--n-ubatch" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.n_ubatch)) return false;
+        } else if (arg == "--hot-pages" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.hot_pages)) return false;
         } else if (arg == "--mtp" && i + 1 < argc) {
             const std::string value = argv[++i];
             if (value == "off") {
@@ -92,6 +142,7 @@ static bool parse_options(int argc, char ** argv, options & output) {
             return false;
         }
     }
+    if (output.n_ubatch > output.n_batch) return false;
     if (output.tokens.empty()) {
         // 300 tokens intentionally cross the 256-token page boundary and
         // exercise multiple prompt ubatches without depending on a tokenizer.
@@ -303,19 +354,36 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         model_run & result, std::string & error) {
     common_params params;
     params.model.path = opts.model;
-    params.n_ctx = 512;
-    params.n_batch = 512;
-    params.n_ubatch = 256;
+    params.n_ctx = opts.context;
+    params.n_batch = opts.n_batch;
+    params.n_ubatch = opts.n_ubatch;
+    // This opt-in driver is specifically for GPU paging/parity coverage;
+    // make the intended execution boundary explicit instead of inheriting a
+    // host-only/default backend configuration.
+    params.n_gpu_layers = -1;
+    params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+    params.fit_params = false;
+    // This driver does not pass through the CLI postprocessor, so resolve
+    // the CPU pool explicitly instead of leaving the sentinel -1 to create an
+    // invalid standalone thread-pool size.
+    params.cpuparams.n_threads = 16;
+    params.cpuparams.n_threads_explicit = true;
+    params.cpuparams_batch.n_threads = 16;
+    params.cpuparams_batch.n_threads_explicit = true;
     params.n_parallel = 1;
     params.n_sequences = 1;
     params.n_predict = 0;
     params.cache_type_k = GGML_TYPE_TURBO4_0;
     params.cache_type_v = GGML_TYPE_TURBO4_0;
+    // The model-free parity driver owns a fixed Turbo4 cache; do not let the
+    // CLI-oriented implicit VBR defaults make the pager capability refuse the
+    // standalone context.
+    params.reset_vbr_runtime_state();
     params.kv_pager.mode = mode;
     params.kv_pager.page_size = VBR_GENERATION_PAGE_CELLS;
     if (mode == llama_kv_pager_mode::selective) {
         params.kv_pager.hot_pages.automatic = false;
-        params.kv_pager.hot_pages.value = 2;
+        params.kv_pager.hot_pages.value = opts.hot_pages;
         params.kv_pager.pin_recent.automatic = false;
         params.kv_pager.pin_recent.value = 0;
     }
@@ -364,6 +432,7 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
     }
 
     llama_batch batch = llama_batch_init(int32_t(opts.tokens.size()), 0, 1);
+    batch.n_tokens = int32_t(opts.tokens.size());
     for (size_t i = 0; i < opts.tokens.size(); ++i) {
         batch.token[i] = opts.tokens[i];
         batch.pos[i] = llama_pos(i);

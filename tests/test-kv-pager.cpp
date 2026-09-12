@@ -726,6 +726,34 @@ int main() {
     auto pager = llama_kv_pager::create(config, geometry(1025), resources(1024, 128), write_backend, status);
     assert(pager && write_allocations == 1 && status == llama_kv_pager_status::ok);
     pager->set_routing_summary_provider({ nullptr, build_routing_summary });
+
+    // A whole prefill batch reserves its write frontier before graph
+    // submission. Crossing the physical H=4-page window must roll back every
+    // earlier row rather than leaving a partially admitted prefix.
+    std::vector<llama_pos> oversized_positions;
+    for (llama_pos position = 0; position < 5 * 256; ++position) {
+        oversized_positions.push_back(position);
+    }
+    std::vector<llama_kv_pager_write_ticket> batch_tickets;
+    const auto oversized_status = pager->begin_write_batch(
+            0, 11, oversized_positions, batch_tickets);
+    assert(oversized_status == llama_kv_pager_write_status::no_victim ||
+           oversized_status == llama_kv_pager_write_status::all_pinned);
+    assert(batch_tickets.empty());
+    assert(pager->residency().pages().empty());
+
+    std::vector<llama_pos> batch_positions;
+    for (llama_pos position = 0; position < 300; ++position) {
+        batch_positions.push_back(position);
+    }
+    assert(pager->begin_write_batch(0, 11, batch_positions, batch_tickets) ==
+        llama_kv_pager_write_status::ok);
+    assert(batch_tickets.size() == batch_positions.size());
+    for (auto it = batch_tickets.rbegin(); it != batch_tickets.rend(); ++it) {
+        assert(pager->cancel_write(*it) == llama_kv_pager_write_status::ok);
+    }
+    assert(pager->residency().pages().empty());
+
     llama_kv_pager_write_ticket ticket;
     assert(pager->begin_write(0, 11, 3, ticket) == llama_kv_pager_write_status::ok);
     assert(ticket.logical_page == 0 && ticket.physical_row == 3);

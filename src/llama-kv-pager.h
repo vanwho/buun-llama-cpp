@@ -314,6 +314,13 @@ public:
     llama_kv_pager_write_status begin_write(
             int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
             llama_kv_pager_write_ticket & ticket) noexcept;
+    // Reserve all rows for one graph submission as one recoverable operation.
+    // If any row cannot be admitted, previously reserved rows are cancelled in
+    // reverse order and no partial batch remains visible to the caller.
+    llama_kv_pager_write_status begin_write_batch(
+            int32_t sequence_id, uint64_t sequence_generation,
+            const std::vector<llama_pos> & positions,
+            std::vector<llama_kv_pager_write_ticket> & tickets) noexcept;
     // Restore one row while retaining the authenticated logical page identity
     // carried by a compact checkpoint. The physical slot remains allocator-owned.
     llama_kv_pager_write_status begin_restore_page(

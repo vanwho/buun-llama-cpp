@@ -4175,10 +4175,14 @@ ggml_tensor * llm_graph_context::build_attn(
                 throw std::runtime_error("exact page-wave storage view failed");
             }
             k_raw->nb[1] = ggml_row_size(k->type, k->ne[0]);
-            k_raw->nb[2] = ggml_row_size(k->type, n_embd_head_k);
+            // The head stride advances over every KV head in one row. A
+            // per-head row stride here aliases head 1 onto head 0's payload
+            // and only becomes visible when the direct page-table route is
+            // compared with the dense control.
+            k_raw->nb[2] = k->nb[2];
             k_raw->nb[3] = geometry.layer_k_page_bytes[layer_ordinal];
             v_raw->nb[1] = ggml_row_size(v->type, v->ne[0]);
-            v_raw->nb[2] = ggml_row_size(v->type, n_embd_head_v);
+            v_raw->nb[2] = v->nb[2];
             v_raw->nb[3] = geometry.layer_v_page_bytes[layer_ordinal];
 
             ggml_flash_attn_ext_paged_turbo4_params wave_params = {};
@@ -4234,10 +4238,13 @@ ggml_tensor * llm_graph_context::build_attn(
                 inp->direct_layer_v_offsets[layer_ordinal]);
         GGML_ASSERT(k_raw && v_raw);
         k_raw->nb[1] = ggml_row_size(k->type, k->ne[0]);
-        k_raw->nb[2] = ggml_row_size(k->type, inp->selected_metadata.head_dim_k());
+        // Keep the full GQA row stride between KV heads. Using a single-head
+        // stride makes the paged kernel read overlapping heads and breaks
+        // dense-control parity for multi-head batches.
+        k_raw->nb[2] = k->nb[2];
         k_raw->nb[3] = inp->mctx->get_kv_pager()->snapshot().geometry.layer_k_page_bytes[layer_ordinal];
         v_raw->nb[1] = ggml_row_size(v->type, v->ne[0]);
-        v_raw->nb[2] = ggml_row_size(v->type, inp->selected_metadata.head_dim_v());
+        v_raw->nb[2] = v->nb[2];
         v_raw->nb[3] = inp->mctx->get_kv_pager()->snapshot().geometry.layer_v_page_bytes[layer_ordinal];
 
         ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32

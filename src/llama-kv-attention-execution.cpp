@@ -179,6 +179,29 @@ uint32_t llama_kv_attention_prefill_chunk_size(
             std::min<uint64_t>(bounded_rows, bounded_tile)));
 }
 
+llama_kv_attention_prefill_batch_plan llama_kv_attention_prefill_batch_plan_make(
+        uint32_t requested_batch,
+        uint32_t physical_page_count,
+        uint32_t page_tokens,
+        uint32_t query_tile) noexcept {
+    llama_kv_attention_prefill_batch_plan result;
+    result.requested_batch = requested_batch;
+    result.query_tile = query_tile == 0 ? LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE : query_tile;
+    if (physical_page_count == 0 || page_tokens == 0) {
+        result.physical_write_capacity = requested_batch;
+    } else {
+        const uint64_t rows = uint64_t(physical_page_count) * page_tokens;
+        result.physical_write_capacity = uint32_t(std::min<uint64_t>(
+                rows, std::numeric_limits<uint32_t>::max()));
+    }
+    result.effective_batch = std::min(requested_batch, result.physical_write_capacity);
+    if (result.effective_batch != 0) {
+        result.subbatch_count = (requested_batch + result.effective_batch - 1) /
+                result.effective_batch;
+    }
+    return result;
+}
+
 llama_kv_attention_execution_status llama_kv_attention_prefill_admission::append(
         uint32_t logical_page, uint32_t row_count) noexcept {
     if (phase_ != llama_kv_attention_execution_phase::prefill || row_count == 0 ||
@@ -306,13 +329,13 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.status = llama_kv_attention_execution_status::ok;
         result.route = dense_capable
             ? llama_kv_attention_execution_route::selected_dense
-            : packed_capable
-            ? llama_kv_attention_execution_route::selected_packed
             : (phase == llama_kv_attention_execution_phase::prefill ||
                         phase == llama_kv_attention_execution_phase::decode ||
                         phase == llama_kv_attention_execution_phase::mtp_verify) &&
                        direct_capable && direct_shape(metadata)
             ? llama_kv_attention_execution_route::selected_direct
+            : packed_capable
+            ? llama_kv_attention_execution_route::selected_packed
             : llama_kv_attention_execution_route::selected_reference;
         result.reason = result.route == llama_kv_attention_execution_route::selected_dense
             ? "contiguous Turbo4 rows use dense Flash Attention"
@@ -449,6 +472,15 @@ void llama_kv_attention_execution::record_graph_construction_us(uint64_t elapsed
 
 void llama_kv_attention_execution::record_effective_ubatch(uint64_t value) noexcept {
     metrics_.record_effective_ubatch(value);
+}
+
+void llama_kv_attention_execution::record_prefill_batch(
+        const llama_kv_attention_prefill_batch_plan & plan) noexcept {
+    metrics_.record_prefill_batch(plan);
+}
+
+void llama_kv_attention_execution::record_target_tokens(uint64_t value) noexcept {
+    metrics_.record_target_tokens(value);
 }
 
 void llama_kv_attention_execution::reset_metrics() noexcept {
