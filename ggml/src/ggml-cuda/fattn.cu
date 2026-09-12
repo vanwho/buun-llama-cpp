@@ -1321,18 +1321,20 @@ struct ggml_cuda_fattn_turbo4_paged_shared_layout {
 
     static __host__ __device__ constexpr ggml_cuda_fattn_turbo4_paged_shared_layout make(
             uint32_t query_tile_tokens, uint32_t partition_pages,
-            bool with_page_state) noexcept {
-        const size_t query_floats = mul(256, query_tile_tokens);
+            bool with_page_state, uint32_t query_heads_per_block = 1) noexcept {
+        const size_t query_floats = mul(mul(256, query_tile_tokens), query_heads_per_block);
         const size_t reductions = add(query_floats, 8 * 4);
         const size_t decoded_k = add(reductions, 256);
         const size_t decoded_v = add(decoded_k, 256);
-        const size_t page_max = add(decoded_v, with_page_state
-            ? mul(query_tile_tokens, partition_pages) : 0);
+        const size_t decoded_v_end = add(decoded_v, 256);
+        const size_t page_state = mul(mul(query_tile_tokens, partition_pages), query_heads_per_block);
+        const size_t page_max = add(decoded_v_end, with_page_state
+            ? page_state : 0);
         const size_t page_sum = add(page_max, with_page_state
-            ? mul(query_tile_tokens, partition_pages) : 0);
+            ? page_state : 0);
         return {
             0, reductions, decoded_k, decoded_v, page_max, page_sum,
-            page_sum,
+            add(page_sum, page_state),
         };
     }
 };
@@ -1340,7 +1342,7 @@ struct ggml_cuda_fattn_turbo4_paged_shared_layout {
 // A bounded query tile keeps the page-table traversal and compressed row decode
 // shared by all queries in the tile. Longer prompts are split by the prefill
 // page-wave scheduler before graph capture.
-static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
+static __global__ void ggml_cuda_fattn_turbo4_paged_reference_kernel(
         const float * __restrict__ q,
         const char * __restrict__ k,
         const char * __restrict__ v,
@@ -1698,6 +1700,321 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_query_tile_kernel(
     GGML_UNUSED(n_head_kv);
     GGML_UNUSED(n_rows);
     GGML_UNUSED(n_query_tokens);
+    GGML_UNUSED(split_kv_page_count);
+}
+
+// Cooperative small-query decode. One CTA owns a KV head and a query token;
+// its active warps own the query heads in that GQA group. The compressed K/V
+// row is decoded once and then consumed by all query-head warps.
+static __global__ void ggml_cuda_fattn_turbo4_paged_cooperative_kernel(
+        const float * __restrict__ q,
+        const char * __restrict__ k,
+        const char * __restrict__ v,
+        float * __restrict__ output,
+        const ggml_cuda_fattn_turbo4_page * __restrict__ pages,
+        const int64_t * __restrict__ native_positions,
+        const uint8_t * __restrict__ native_mask,
+        const int64_t * __restrict__ query_positions,
+        const uint32_t * __restrict__ active_page_count_device,
+        const uint32_t * __restrict__ active_row_count_device,
+        const uint32_t * __restrict__ active_tail_length_device,
+        const uint64_t * __restrict__ selection_generation_device,
+        const uint32_t page_capacity,
+        const uint32_t row_capacity,
+        const bool explicit_native_metadata,
+        float * __restrict__ page_mass,
+        const uint32_t n_head_q,
+        const uint32_t n_head_kv,
+        const uint32_t n_query_tokens,
+        const uint32_t query_tile_tokens,
+        const size_t q_head_stride,
+        const size_t q_query_stride,
+        const size_t output_head_stride,
+        const size_t output_query_stride,
+        const size_t k_row_stride,
+        const size_t k_head_stride,
+        const size_t k_page_stride,
+        const size_t v_row_stride,
+        const size_t v_head_stride,
+        const size_t v_page_stride,
+        const size_t page_mass_head_stride,
+        const size_t page_mass_query_stride,
+        const uint32_t page_mass_logical_count,
+        float * partial_state,
+        const size_t partial_state_head_stride,
+        const size_t partial_state_query_stride,
+        const float * partial_state_input,
+        const size_t partial_state_input_head_stride,
+        const size_t partial_state_input_query_stride,
+        float * split_kv_scratch,
+        const size_t split_kv_partition_stride,
+        float * split_kv_page_state,
+        const size_t split_kv_page_state_head_stride,
+        const size_t split_kv_page_state_query_stride,
+        const size_t split_kv_page_state_partition_stride,
+        const uint32_t split_kv_page_count,
+        const uint32_t n_partitions,
+        const bool split_partitioned,
+        const float scale,
+        const bool reduce_page_mass,
+        const bool write_partial_state,
+        const bool merge_partial_state,
+        const bool causal,
+        const uint32_t * __restrict__ routing_selected_indices,
+        const size_t routing_selected_stride,
+        const uint32_t * __restrict__ routing_selected_count,
+        const size_t routing_count_stride,
+        const uint32_t routing_top_k) {
+    extern __shared__ float shared[];
+
+    const int tid = threadIdx.x;
+    const int warp = tid / 32;
+    const int lane = tid & 31;
+    const uint32_t gqa_ratio = n_head_q / n_head_kv;
+    const uint32_t head_waves = (gqa_ratio + 7) / 8;
+    const uint32_t head_work = uint32_t(blockIdx.x);
+    const uint32_t kv_head = head_work / head_waves;
+    const uint32_t head_wave = head_work % head_waves;
+    const uint32_t wave_head = uint32_t(warp);
+    const uint32_t head_in_group = head_wave * 8 + wave_head;
+    const bool active_head = kv_head < n_head_kv && head_in_group < gqa_ratio;
+    const uint32_t head = kv_head * gqa_ratio + head_in_group;
+    const uint32_t global_query = uint32_t(blockIdx.z);
+    if (global_query >= n_query_tokens) {
+        return;
+    }
+
+    const uint32_t n_pages = active_page_count_device != nullptr
+        ? min(*active_page_count_device, page_capacity) : page_capacity;
+    const uint32_t n_rows = active_row_count_device != nullptr
+        ? min(*active_row_count_device, row_capacity) : row_capacity;
+    const uint32_t active_tail_length = active_tail_length_device != nullptr
+        ? *active_tail_length_device : 0;
+    const uint64_t selection_generation = selection_generation_device != nullptr
+        ? *selection_generation_device : 0;
+    const bool control_valid = active_page_count_device == nullptr ||
+        (active_tail_length <= 256 && selection_generation != 0);
+    const uint32_t partition_index = uint32_t(blockIdx.y);
+    const uint32_t page_begin = (n_pages * partition_index) / n_partitions;
+    const uint32_t page_end = (n_pages * (partition_index + 1)) / n_partitions;
+    const uint32_t partition_pages = page_end - page_begin;
+
+    const auto shared_layout = ggml_cuda_fattn_turbo4_paged_shared_layout::make(
+        1, partition_pages, true, 8);
+    float * q_rot = shared + shared_layout.q_rot;
+    float * reductions = shared + shared_layout.reductions;
+    float * decoded_k = shared + shared_layout.decoded_k;
+    float * decoded_v = shared + shared_layout.decoded_v;
+    float * page_max_state = shared + shared_layout.page_max +
+        size_t(wave_head) * partition_pages;
+    float * page_sum_state = shared + shared_layout.page_sum +
+        size_t(wave_head) * partition_pages;
+
+    // Every thread participates in each 128-wide FWHT. This lets the active
+    // query-head warps use their own rotated Q while sharing the decoded row.
+    for (uint32_t group_head = 0; group_head < 8; ++group_head) {
+        const uint32_t grouped_head = head_wave * 8 + group_head;
+        float q_value = 0.0f;
+        if (kv_head < n_head_kv && grouped_head < gqa_ratio) {
+            const uint32_t query_head = kv_head * gqa_ratio + grouped_head;
+            const float * q_head = (const float *) ((const char *) q +
+                global_query * q_query_stride + query_head * q_head_stride);
+            q_value = q_head[tid] * d_innerq_channel_scale_inv_fattn[tid & 127] *
+                d_turbo_wht_signs1_fattn[tid & 127];
+        }
+        q_value = turbo4_paged_fwht(q_value, q_rot + group_head * 256,
+            tid / 128, tid & 127);
+        q_rot[group_head * 256 + tid] = q_value;
+    }
+
+    if (reduce_page_mass && !split_partitioned && active_head) {
+        for (uint32_t logical_page = uint32_t(lane); logical_page < page_mass_logical_count;
+                logical_page += 32) {
+            page_mass[(size_t) global_query * page_mass_query_stride / sizeof(float) +
+                (size_t) head * page_mass_head_stride / sizeof(float) + logical_page] = 0.0f;
+        }
+    }
+    if (reduce_page_mass && active_head) {
+        for (uint32_t page = uint32_t(lane); page < partition_pages; page += 32) {
+            page_max_state[page] = -FLT_MAX;
+            page_sum_state[page] = 0.0f;
+        }
+    }
+    __syncthreads();
+
+    float qk_max = -FLT_MAX;
+    float qk_sum = 0.0f;
+    float value_sum[8] = {};
+    const int64_t query_position = query_positions[global_query];
+    const int64_t row_bytes_k = (int64_t) k_row_stride;
+    const int64_t row_bytes_v = (int64_t) v_row_stride;
+
+    for (uint32_t page_index = page_begin; page_index < page_end; ++page_index) {
+        const ggml_cuda_fattn_turbo4_page page = pages[page_index];
+        const char * k_page = k + (size_t) page.source_physical_slot * k_page_stride +
+            (size_t) kv_head * k_head_stride;
+        const char * v_page = v + (size_t) page.source_physical_slot * v_page_stride +
+            (size_t) kv_head * v_head_stride;
+        const uint32_t page_rows = page_index + 1 == n_pages && active_tail_length != 0
+            ? min(page.row_count, active_tail_length) : page.row_count;
+
+        for (uint32_t row = 0; row < page_rows; ++row) {
+            const uint32_t compact_row = page.compact_row_begin + row;
+            bool row_valid = control_valid && compact_row < n_rows &&
+                page.native_position_begin <= INT64_MAX - int64_t(row);
+            int64_t native_position = page.native_position_begin + row;
+            if (row_valid && explicit_native_metadata && native_positions != nullptr) {
+                native_position = native_positions[compact_row];
+            }
+            if (row_valid && explicit_native_metadata && native_mask != nullptr) {
+                row_valid = native_mask[compact_row] != 0;
+            }
+            bool route_selected = true;
+            if (row_valid && routing_selected_indices != nullptr) {
+                const uint32_t route_count = *reinterpret_cast<const uint32_t *>(
+                    (const char *) routing_selected_count +
+                    (size_t(global_query) * n_head_kv + kv_head) * routing_count_stride);
+                const uint32_t * route = (const uint32_t *) ((const char *)
+                    routing_selected_indices +
+                    (size_t(global_query) * n_head_kv + kv_head) * routing_selected_stride);
+                route_selected = false;
+                for (uint32_t i = 0; i < min(route_count, routing_top_k); ++i) {
+                    if (route[i] == page_index) {
+                        route_selected = true;
+                        break;
+                    }
+                }
+            }
+            row_valid = row_valid && route_selected &&
+                (!causal || native_position <= query_position);
+
+            if (row_valid) {
+                const char * k_row = k_page + row * row_bytes_k;
+                const char * v_row = v_page + row * row_bytes_v;
+                decoded_k[tid] = turbo4_paged_value(k_row, tid);
+                decoded_v[tid] = turbo4_paged_value(v_row, tid);
+            }
+            __syncthreads();
+
+            if (active_head && row_valid) {
+                float qk = 0.0f;
+                for (int j = 0; j < 8; ++j) {
+                    const int d = lane + 32 * j;
+                    qk += q_rot[wave_head * 256 + d] * decoded_k[d];
+                }
+                for (int offset = 16; offset > 0; offset >>= 1) {
+                    qk += __shfl_down_sync(0xFFFFFFFFu, qk, offset);
+                }
+                qk = __shfl_sync(0xFFFFFFFFu, qk, 0);
+                const float score = qk * scale;
+                const float next_max = fmaxf(qk_max, score);
+                const float exp_old = qk_max == -FLT_MAX ? 0.0f : expf(qk_max - next_max);
+                const float exp_new = expf(score - next_max);
+                qk_max = next_max;
+                qk_sum = qk_sum * exp_old + exp_new;
+                for (int j = 0; j < 8; ++j) {
+                    value_sum[j] = value_sum[j] * exp_old + exp_new * decoded_v[lane + 32 * j];
+                }
+                if (reduce_page_mass && lane == 0) {
+                    const uint32_t page_slot = page_index - page_begin;
+                    const float page_next_max = fmaxf(page_max_state[page_slot], score);
+                    const float page_exp_old = page_max_state[page_slot] == -FLT_MAX ? 0.0f :
+                        expf(page_max_state[page_slot] - page_next_max);
+                    const float page_exp_new = expf(score - page_next_max);
+                    page_max_state[page_slot] = page_next_max;
+                    page_sum_state[page_slot] = page_sum_state[page_slot] * page_exp_old + page_exp_new;
+                }
+            }
+            __syncthreads();
+        }
+
+        __syncthreads();
+    }
+
+    if (reduce_page_mass && active_head && lane == 0) {
+        for (uint32_t page_index = page_begin; page_index < page_end; ++page_index) {
+            const ggml_cuda_fattn_turbo4_page page = pages[page_index];
+            const uint32_t page_slot = page_index - page_begin;
+            const float local_max = page_max_state[page_slot];
+            const float local_sum = page_sum_state[page_slot];
+            const float mass = qk_sum > 0.0f && local_max != -FLT_MAX
+                ? expf(local_max - qk_max) * local_sum / qk_sum : 0.0f;
+            if (split_partitioned) {
+                float * page_state = (float *) ((char *) split_kv_page_state +
+                    partition_index * split_kv_page_state_partition_stride +
+                    global_query * split_kv_page_state_query_stride +
+                    head * split_kv_page_state_head_stride) + 2 * page.logical_page;
+                page_state[0] = local_max;
+                page_state[1] = local_sum;
+            } else {
+                page_mass[(size_t) global_query * page_mass_query_stride / sizeof(float) +
+                    (size_t) head * page_mass_head_stride / sizeof(float) + page.logical_page] = mass;
+            }
+        }
+    }
+
+    if (!active_head) {
+        return;
+    }
+
+    if (merge_partial_state) {
+        const float * previous = (const float *) ((const char *) partial_state_input +
+            global_query * partial_state_input_query_stride + head * partial_state_input_head_stride);
+        float previous_value[8];
+        for (int j = 0; j < 8; ++j) {
+            previous_value[j] = previous[2 + lane + 32 * j];
+        }
+        if (lane == 0) {
+            const float previous_max = previous[0];
+            const float previous_sum = previous[1];
+            const float merged_max = fmaxf(previous_max, qk_sum > 0.0f ? qk_max : -INFINITY);
+            const float previous_scale = previous_sum > 0.0f && previous_max != -INFINITY
+                ? expf(previous_max - merged_max) : 0.0f;
+            const float current_scale = qk_sum > 0.0f && qk_max != -INFINITY
+                ? expf(qk_max - merged_max) : 0.0f;
+            reductions[warp * 4 + 0] = merged_max;
+            reductions[warp * 4 + 1] = previous_sum * previous_scale + qk_sum * current_scale;
+            reductions[warp * 4 + 2] = previous_scale;
+            reductions[warp * 4 + 3] = current_scale;
+        }
+        __syncwarp();
+        qk_max = reductions[warp * 4 + 0];
+        qk_sum = reductions[warp * 4 + 1];
+        for (int j = 0; j < 8; ++j) {
+            value_sum[j] = previous_value[j] * reductions[warp * 4 + 2] +
+                value_sum[j] * reductions[warp * 4 + 3];
+        }
+        __syncwarp();
+    }
+
+    if (output != nullptr) {
+        float * output_head = (float *) ((char *) output + global_query * output_query_stride +
+            head * output_head_stride);
+        for (int j = 0; j < 8; ++j) {
+            output_head[lane + 32 * j] = qk_sum > 0.0f ? value_sum[j] / qk_sum : 0.0f;
+        }
+    }
+
+    if (write_partial_state || split_partitioned) {
+        char * state_base = split_partitioned
+            ? (char *) split_kv_scratch + partition_index * split_kv_partition_stride
+            : (char *) partial_state;
+        const size_t state_head_stride = split_partitioned
+            ? (2 + 256) * sizeof(float) : partial_state_head_stride;
+        const size_t state_query_stride = split_partitioned
+            ? state_head_stride * n_head_q : partial_state_query_stride;
+        float * state = (float *) (state_base + global_query * state_query_stride +
+            head * state_head_stride);
+        if (lane == 0) {
+            state[0] = qk_sum > 0.0f ? qk_max : -INFINITY;
+            state[1] = qk_sum;
+        }
+        for (int j = 0; j < 8; ++j) {
+            state[2 + lane + 32 * j] = value_sum[j];
+        }
+    }
+
+    GGML_UNUSED(query_tile_tokens);
     GGML_UNUSED(split_kv_page_count);
 }
 
@@ -2104,28 +2421,45 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     }
 
     const bool split_partitioned = n_partitions > 1;
-    const uint32_t query_tiles = (params.n_query_tokens + query_tile_tokens - 1) /
-        query_tile_tokens;
+    const uint32_t gqa_ratio = params.n_head_q / params.n_head_kv;
+    const uint32_t head_waves = (gqa_ratio + 7) / 8;
+    const uint32_t launch_query_tile = params.reference_kernel ? query_tile_tokens : 1;
+    const uint32_t query_tiles = params.reference_kernel
+        ? (params.n_query_tokens + launch_query_tile - 1) / launch_query_tile
+        : params.n_query_tokens;
+    const uint32_t launch_head_count = params.reference_kernel
+        ? params.n_head_q : params.n_head_kv * head_waves;
     const size_t max_partition_pages = (size_t(page_capacity) + n_partitions - 1) / n_partitions;
     const auto shared_layout = ggml_cuda_fattn_turbo4_paged_shared_layout::make(
-        query_tile_tokens, uint32_t(max_partition_pages), params.reduce_page_mass);
+        launch_query_tile, uint32_t(max_partition_pages),
+        params.reference_kernel ? params.reduce_page_mass : true,
+        params.reference_kernel ? 1 : 8);
     if (shared_layout.total == ggml_cuda_fattn_turbo4_paged_shared_layout::invalid ||
         shared_layout.total > size_t(-1) / sizeof(float) ||
         shared_layout.total * sizeof(float) > size_t(INT_MAX)) {
         return ggml_cuda_fattn_turbo4_paged_status::unsupported_shape;
     }
     const size_t shared_bytes = shared_layout.total * sizeof(float);
-    static size_t max_dynamic_shared_bytes[GGML_CUDA_MAX_DEVICES] = {};
-    if (shared_bytes > max_dynamic_shared_bytes[ctx.device]) {
-        if (cudaFuncSetAttribute(ggml_cuda_fattn_turbo4_paged_query_tile_kernel,
+    static size_t max_dynamic_shared_bytes_reference[GGML_CUDA_MAX_DEVICES] = {};
+    static size_t max_dynamic_shared_bytes_cooperative[GGML_CUDA_MAX_DEVICES] = {};
+    size_t & max_dynamic_shared_bytes = params.reference_kernel
+        ? max_dynamic_shared_bytes_reference[ctx.device]
+        : max_dynamic_shared_bytes_cooperative[ctx.device];
+    if (shared_bytes > max_dynamic_shared_bytes) {
+        const auto kernel = params.reference_kernel
+            ? ggml_cuda_fattn_turbo4_paged_reference_kernel
+            : ggml_cuda_fattn_turbo4_paged_cooperative_kernel;
+        if (cudaFuncSetAttribute(kernel,
                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
                                  (int) shared_bytes) != cudaSuccess) {
             return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
         }
-        max_dynamic_shared_bytes[ctx.device] = shared_bytes;
+        max_dynamic_shared_bytes = shared_bytes;
     }
 
-    ggml_cuda_fattn_turbo4_paged_query_tile_kernel<<<dim3(params.n_head_q, n_partitions, query_tiles), dim3(256, 1, 1),
+    const auto launch = [&]() {
+        if (params.reference_kernel) {
+            ggml_cuda_fattn_turbo4_paged_reference_kernel<<<dim3(launch_head_count, n_partitions, query_tiles), dim3(256, 1, 1),
                                                    shared_bytes, ctx.stream()>>>(
         params.q, params.k, params.v, split_partitioned ? nullptr : params.output, params.pages_device,
         params.native_positions_device, params.native_mask_device, params.query_positions_device,
@@ -2134,7 +2468,7 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         page_capacity, row_capacity, params.explicit_native_metadata,
         params.page_mass, params.n_head_q, params.n_head_kv,
         params.n_query_tokens,
-        query_tile_tokens,
+        launch_query_tile,
         params.q_head_stride_bytes, params.q_query_stride_bytes,
         params.output_head_stride_bytes, params.output_query_stride_bytes,
         params.k_row_stride_bytes, params.k_head_stride_bytes, params.k_page_stride_bytes,
@@ -2154,6 +2488,39 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         params.routing_selected_indices, params.routing_selected_stride_bytes,
         params.routing_selected_count, params.routing_count_stride_bytes,
         params.routing_top_k);
+        } else {
+            ggml_cuda_fattn_turbo4_paged_cooperative_kernel<<<dim3(launch_head_count, n_partitions, query_tiles), dim3(256, 1, 1),
+                                                    shared_bytes, ctx.stream()>>>(
+        params.q, params.k, params.v, split_partitioned ? nullptr : params.output, params.pages_device,
+        params.native_positions_device, params.native_mask_device, params.query_positions_device,
+        params.active_page_count_device, params.active_row_count_device,
+        params.active_tail_length_device, params.selection_generation_device,
+        page_capacity, row_capacity, params.explicit_native_metadata,
+        params.page_mass, params.n_head_q, params.n_head_kv,
+        params.n_query_tokens,
+        launch_query_tile,
+        params.q_head_stride_bytes, params.q_query_stride_bytes,
+        params.output_head_stride_bytes, params.output_query_stride_bytes,
+        params.k_row_stride_bytes, params.k_head_stride_bytes, params.k_page_stride_bytes,
+        params.v_row_stride_bytes, params.v_head_stride_bytes, params.v_page_stride_bytes,
+        params.page_mass_head_stride_bytes, params.page_mass_query_stride_bytes,
+        params.page_mass_logical_count, params.partial_state, params.partial_state_head_stride_bytes,
+        params.partial_state_query_stride_bytes,
+        params.partial_state_input, params.partial_state_input_head_stride_bytes,
+        params.partial_state_input_query_stride_bytes,
+        params.split_kv_scratch, params.split_kv_partition_stride_bytes,
+        params.split_kv_page_state, params.split_kv_page_state_head_stride_bytes,
+        params.split_kv_page_state_query_stride_bytes,
+        params.split_kv_page_state_partition_stride_bytes, params.split_kv_page_count,
+        n_partitions, split_partitioned, params.scale,
+        params.reduce_page_mass, params.write_partial_state,
+        params.merge_partial_state, params.causal,
+        params.routing_selected_indices, params.routing_selected_stride_bytes,
+        params.routing_selected_count, params.routing_count_stride_bytes,
+        params.routing_top_k);
+        }
+    };
+    launch();
 
     if (split_partitioned) {
         const size_t state_head_stride = (2 + params.head_dim_v) * sizeof(float);
