@@ -945,3 +945,19 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-27-01`
 - Commit at update: `bec30e5b3`
 - Summary: Exact L32768/H16384 P256 B128/U64 native Turbo4-MTP scale completed through 18 incremental turns to C=24580 with cached-prefix reuse; post-H recall completed at C=24623. Evidence and handoff record valid rates, raw artifacts, and unproven natural H2D/promotion telemetry.
+
+## 2026-09-12 — 27-02 — user-requested replan, ready for fresh V8 session
+
+- Source audited:9173600e2b50fd0257b57186bbd6af3eef75023d.
+- Stopped the owned maximum campaign/runner; preserved raw requests/SSE and
+  loaded Qwen candidate. Old scaling attempt is not completed or accepted.
+- Found shared-memory size mismatch, slow row-serial direct prefill dispatch,
+  expanding selected work and graph-input/layer-transfer design costs.
+  Corrected earlier unsupported frontend-graph/queue-time attribution.
+- V8 replaces3 remaining packets with13 specific tasks in11 fresh clusters.
+  27-02 now bounds repair/profile;27-03 mature FA;28 efficient GPU selection,
+  kernels and layer transfers;29 measurements/summary;30-01 summary review.
+- Done tasks and reported token totals unchanged; no usage invented for the
+  interrupted provider turn. Site data stays in execution metadata or/srv/ai.
+- Next: use the normal runner command on the project branch; new27-02 cluster
+  prevents reusing the obsolete scaling session.

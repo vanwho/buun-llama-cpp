@@ -1,5 +1,9 @@
 # Interactive hot-KV speed revision — phases 26–28
 
+Historical: unfinished work from27-02 now follows GPU_HOT_PATH_REDESIGN_V8.md
+and BENCHMARK_PROTOCOL_V8.md. Their kernel/selection/graph/movement details
+supersede earlier dispatch and maximum-campaign directions.
+
 Revision: 2026-09-12. Execution authority for unfinished tasks, together with
 BENCHMARK_PROTOCOL_V7.md and WORK_STATE.json. This replaces the old phase-26
 262144-first campaign. Do not resume that campaign or import historical gates.

@@ -1,10 +1,10 @@
 # Task packet contract
 
-For unfinished tasks26-01 onward, PHASE26_INTERACTIVE_KV_STRATEGY.md and
-BENCHMARK_PROTOCOL_V7.md supersede earlier context sizes, scope and benchmark
-instructions. Primary8192/4096; next32768/16384; current max131072 incremental
-history. Historical256K/six-coordinate campaign is unscheduled. Current source
-repairs and their live small fixtures precede scaling. No new tool defaults.
+For unfinished tasks27-02 onward, GPU_HOT_PATH_REDESIGN_V8.md and
+BENCHMARK_PROTOCOL_V8.md supersede earlier dispatch/scaling instructions.
+Small CUDA/q0 kernel repair precedes8K/4K real offload,32K/16K and bounded128K.
+All implementation/benchmark packets Luna High; reviewer moved to30-01.
+No changes to Wiretail defaults. No old maximum-run or acceptance diary replay.
 
 Each packet is the complete task-specific context for one bounded task. Its shared session context is
 `.wiretail/execution/clusters/<task.cluster>.md`; read that file once per fresh cluster session and reuse it
@@ -48,8 +48,8 @@ Global rules for every packet:
 11. For all live phases, native MTP rows must equal the resolved target context and remain Turbo4/GPU;
     the trained model context is not an allocation floor. No production default may encode a fixed hot
     token/page count. Historical benchmark artifacts may retain their measured configuration names.
-12. For unfinished tasks26-01 onward read only the current packet/cluster and its named
-    sections of PHASE26_INTERACTIVE_KV_STRATEGY.md and BENCHMARK_PROTOCOL_V7.md.
+12. For unfinished tasks27-02 onward read only the current packet/cluster and its named
+    sections of GPU_HOT_PATH_REDESIGN_V8.md and BENCHMARK_PROTOCOL_V8.md.
     Source contracts/cookbook are reference material when named, not a reason
     to replay old tasks. Earlier historical packet instructions are unchanged.
     Implementation requires its small live proof; evidence tasks may finish

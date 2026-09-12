@@ -2,19 +2,19 @@
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
   "canonical_plan": ".wiretail/execution/ATTENTION_AWARE_KV_PAGING_PLAN.md",
-  "active_plan_amendment": ".wiretail/execution/PHASE26_INTERACTIVE_KV_STRATEGY.md",
-  "technical_change_spec": ".wiretail/execution/PHASE26_INTERACTIVE_KV_STRATEGY.md",
+  "active_plan_amendment": ".wiretail/execution/GPU_HOT_PATH_REDESIGN_V8.md",
+  "technical_change_spec": ".wiretail/execution/GPU_HOT_PATH_REDESIGN_V8.md",
   "execution_cookbook": ".wiretail/execution/EXECUTION_COOKBOOK.md",
   "implementation_contracts": ".wiretail/execution/IMPLEMENTATION_CONTRACTS.md",
-  "benchmark_protocol": ".wiretail/execution/BENCHMARK_PROTOCOL_V7.md",
+  "benchmark_protocol": ".wiretail/execution/BENCHMARK_PROTOCOL_V8.md",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
+  "status": "in_progress",
   "current_phase": "27",
   "current_task": "27-02",
-  "last_updated_utc": "2026-09-12T16:28:11+00:00",
+  "last_updated_utc": "2026-09-12T17:41:53+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -22,7 +22,7 @@
     "cluster_context_dir": ".wiretail/execution/clusters",
     "default_model": "gpt-5.6-luna",
     "default_reasoning": "high",
-    "task_model_policy": "Current packets are Luna Medium for bounded driver/measurement tasks and Luna High for scratch/frontier/routing/kernel/budget repairs; independent review28-01 retains previous reviewer recommendation Astra High. Wiretail defaults unchanged.",
+    "task_model_policy": "All V8 implementation/benchmark packets run Luna High;30-01 retains the existing Astra High reviewer moved from28-01. Wiretail defaults unchanged.",
     "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
@@ -45,10 +45,10 @@
     "target_hot_capacity": "H in checked physical page units after measured peak allocations and full-L GPU MTP; tune selected A independently; maximize safe useful H without hardcoded70K/77K",
     "target_cold_backing": "canonical opaque Turbo4 pages in CPU RAM",
     "speed_policy": "Prove and optimize primary8192 logical/4096 hot first, then32768/16384 and up to131072 with maximum safe H; compare prefill/decode and memory, no arbitrary speed gates",
-    "test_context_policy": "V7 primary8192/4096, scale32768/16384, campaign maximum131072; incremental512-2048-token turns; B128/U64 starting hypothesis, measured ladder; old256K/six-coordinate campaign unscheduled",
+    "test_context_policy": "V8 kernel/small q0 first; primary8192/4096 then32768/16384;131072 only after real small cold use and bounded pilot/ETA; rates findings;256K/six-coordinate campaign unscheduled",
     "speed_target": "annotate historical 3x/5x CPU KV and 70% comparable all-GPU comparisons without gating completion of measurement tasks",
     "full_context_proof": "Current maximum131072 resolved target and full-L GPU Turbo4 native-MTP; first allocate/short smoke then incremental retained occupancy beyond H and near L minus generation reserve, natural cold recall and useful committed generation. Startup alone is insufficient.",
-    "required_final_status": "Interactive revision2026-09-12: phase26 repairs and proves primary joint paging/MTP speed, phase27 scales and creates INTERACTIVE27_SUMMARY, review28-01 consumes only that summary and schedules focused remediation if needed",
+    "required_final_status": "V8:27-02/03 safety and mature FA;28 GPU bounded layer selection, tiled kernels and async layer paging;29 measurements/HOTPATH29_SUMMARY;30-01 reviews only that summary and schedules concrete remaining repairs if needed",
     "stretch_goal": "YaRN after base capability is demonstrated; unscheduled option, not current completion gate",
     "quality_resilience_scope": "Experimental speed prototype: retain minimal numerical/causal/byte/lifetime proof; broad quality matrices, exact hybrid CPU attention, checkpoint/soak, YaRN and upstream readiness are unscheduled options",
     "future_context_goal": "262144 and YaRN remain future opt-in work, not active gates; current user campaign max131072"
@@ -5492,8 +5492,8 @@
     {
       "id": "27-02",
       "phase": "27",
-      "cluster": "27c-incremental-scale-v7",
-      "title": "Find the safe hot capacity up to128K and test populated incremental history",
+      "cluster": "27e-kernel-safety-v8",
+      "title": "Repair paged CUDA shared memory and establish a short kernel reproducer",
       "packet": ".wiretail/execution/tasks/27-02.md",
       "status": "todo",
       "blocker": null,
@@ -5502,37 +5502,189 @@
         "27-01"
       ],
       "commit": null,
-      "scope_revision": "interactive-hot-kv-20260912"
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "previous_attempt_disposition": "User-requested stop of pathological maximum campaign; raw results preserved. New cluster requires fresh session; capacity work moved to29-02. No completed provider turn usage was reported for interrupted attempt."
     },
     {
       "id": "27-03",
       "phase": "27",
-      "cluster": "27d-interactive-summary-v7",
-      "title": "Complete the original-question findings and summarize memory/input trade-offs",
+      "cluster": "27f-fast-dispatch-v8",
+      "title": "Restore mature Turbo4 Flash Attention for interactive prefill",
       "packet": ".wiretail/execution/tasks/27-03.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Medium",
+      "recommended_model": "Luna High",
       "depends_on": [
         "27-02"
       ],
       "commit": null,
-      "scope_revision": "interactive-hot-kv-20260912"
+      "scope_revision": "gpu-hot-path-v8-20260912"
     },
     {
       "id": "28-01",
       "phase": "28",
-      "cluster": "28a-interactive-review-v7",
-      "title": "Assess the interactive benchmark summary and schedule only evidence-led remediation",
+      "cluster": "28a-device-selection-v8",
+      "title": "Bound per-layer attention and move current-query page ranking to GPU",
       "packet": ".wiretail/execution/tasks/28-01.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Astra High",
+      "recommended_model": "Luna High",
       "depends_on": [
         "27-03"
       ],
       "commit": null,
-      "scope_revision": "interactive-hot-kv-20260912"
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "28-02",
+      "phase": "28",
+      "cluster": "28b-stable-execution-v8",
+      "title": "Make attention descriptors and workspaces reusable device inputs",
+      "packet": ".wiretail/execution/tasks/28-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "28-01"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "28-03",
+      "phase": "28",
+      "cluster": "28c-optimized-paged-kernels-v8",
+      "title": "Replace scalar paged decode with cooperative Turbo4 tile and GQA execution",
+      "packet": ".wiretail/execution/tasks/28-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "28-02"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "28-04",
+      "phase": "28",
+      "cluster": "28c-optimized-paged-kernels-v8",
+      "title": "Implement tiled paged Turbo4 prefill using the mature MMA pipeline",
+      "packet": ".wiretail/execution/tasks/28-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "28-03"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "28-05",
+      "phase": "28",
+      "cluster": "28d-layer-movement-v8",
+      "title": "Make GPU residency and canonical transfers independently layer-granular",
+      "packet": ".wiretail/execution/tasks/28-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "28-04"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "28-06",
+      "phase": "28",
+      "cluster": "28d-layer-movement-v8",
+      "title": "Schedule query-ranked cold promotions asynchronously with bounded demand misses",
+      "packet": ".wiretail/execution/tasks/28-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "28-05"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "28-07",
+      "phase": "28",
+      "cluster": "28e-mtp-budget-v8",
+      "title": "Integrate MTP and memory tuning, remove obsolete slow production routes",
+      "packet": ".wiretail/execution/tasks/28-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "28-06"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "29-01",
+      "phase": "29",
+      "cluster": "29a-small-speed-v8",
+      "title": "Measure actual primary and 32K hot/cold speed with the canonical questions",
+      "packet": ".wiretail/execution/tasks/29-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "28-07"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "29-02",
+      "phase": "29",
+      "cluster": "29b-scale-v8",
+      "title": "Find safe 128K capacity and bounded incremental speed without runaway setup",
+      "packet": ".wiretail/execution/tasks/29-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "29-01"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "29-03",
+      "phase": "29",
+      "cluster": "29c-summary-v8",
+      "title": "Publish a compact hot/cold capability and throughput summary",
+      "packet": ".wiretail/execution/tasks/29-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "29-02"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912"
+    },
+    {
+      "id": "30-01",
+      "phase": "30",
+      "cluster": "30a-review-v8",
+      "title": "Assess current benchmark findings and schedule only concrete remaining repairs",
+      "packet": ".wiretail/execution/tasks/30-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Astra High",
+      "depends_on": [
+        "29-03"
+      ],
+      "commit": null,
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "moved_from": "28-01 (V7 summary reviewer, never started)"
     }
   ],
   "last_checkpoint_commit": "e154151d62e583563343a15128392b69030dcf48",

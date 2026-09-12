@@ -1,0 +1,70 @@
+{
+  "captured_at": "2026-09-12T17:33:53.210806+00:00",
+  "source_audit_sha": "9173600e2b50fd0257b57186bbd6af3eef75023d",
+  "live_binary": "/srv/ai/paged-kv/results/27-01-bundle/bin/llama-server",
+  "binary_sha256": "a00600e7394a352b502e0080c22568f8d35b0a3fe9e8aa4191925885eec980a6",
+  "loaded_dsos": [
+    {
+      "path": "/srv/ai/paged-kv/results/27-01-bundle/bin/libggml-base.so.0.22.0",
+      "sha256": "f59fa5736662a93cb00cc774c07a4d6c3f9317f296cfdc9427fe5aeb1705faa3"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/27-01-bundle/bin/libggml-cpu.so.0.22.0",
+      "sha256": "bee3ea4ac6d32aeddd7db6ea6ba944286313a0c67a4bcbcdb9d3132bf9989e5a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/27-01-bundle/bin/libggml-cuda.so.0.22.0",
+      "sha256": "a333de9a2b97eaafa4f834d3ff0a42a890a5bf0a8dd7bafbc08b742a2ae40815"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/27-01-bundle/bin/libggml.so.0.22.0",
+      "sha256": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/27-01-bundle/bin/libllama-common.so.0.3.0",
+      "sha256": "85893e3a479df5d5f3a6eeff7a5cb62f206e4944cd00dfad6ce23a45b6163cbf"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/27-01-bundle/bin/libllama-server-impl.so",
+      "sha256": "5302a8886db7ca830c5386166516fe165223dfdbde71036f1754288ab4598497"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/27-01-bundle/bin/libllama.so.0.3.0",
+      "sha256": "50499cc7a1ff37e32e954bec756044772cb750dc21a91e90da2f739fb15a6144"
+    }
+  ],
+  "metric_lines": [
+    "llamacpp:kv_pager_graph_bytes 2.68435e+08",
+    "llamacpp:kv_pager_attention_d2h_bytes 4.70729e+08",
+    "llamacpp:kv_pager_attention_d2h_time_us 33489",
+    "llamacpp:kv_pager_graph_capture_count 1416",
+    "llamacpp:kv_pager_graph_replay_count 0",
+    "llamacpp:kv_pager_graph_rebuild_count 1416",
+    "llamacpp:kv_pager_graph_submission_count 1416",
+    "llamacpp:kv_pager_graph_completion_count 1416",
+    "llamacpp:kv_pager_graph_construction_us 3386",
+    "llamacpp:kv_pager_queue_time_us 1.16652e+09",
+    "llamacpp:kv_pager_selected_page_count 226",
+    "llamacpp:kv_pager_prefill_dense_routes 0",
+    "llamacpp:kv_pager_prefill_reference_routes 0",
+    "llamacpp:kv_pager_prefill_direct_routes 899",
+    "llamacpp:kv_pager_prefill_packed_routes 0",
+    "llamacpp:kv_pager_prefill_exact_routes 0",
+    "llamacpp:kv_pager_decode_dense_routes 0",
+    "llamacpp:kv_pager_decode_reference_routes 0",
+    "llamacpp:kv_pager_decode_direct_routes 0",
+    "llamacpp:kv_pager_decode_packed_routes 0",
+    "llamacpp:kv_pager_decode_exact_routes 0",
+    "llamacpp:kv_pager_mtp_verify_dense_routes 0",
+    "llamacpp:kv_pager_mtp_verify_reference_routes 0",
+    "llamacpp:kv_pager_mtp_verify_direct_routes 0",
+    "llamacpp:kv_pager_mtp_verify_packed_routes 0",
+    "llamacpp:kv_pager_mtp_verify_exact_routes 0",
+    "llamacpp:kv_pager_exact_faults 0",
+    "llamacpp:kv_pager_faults 0",
+    "llamacpp:kv_pager_evictions 0",
+    "llamacpp:kv_pager_transfer_evictions 0"
+  ],
+  "raw_campaign": "/srv/ai/paged-kv/results/27-02-maximum-20260912T163151Z",
+  "campaign_disposition": "user-requested interruption; not full128K or physical offload proof"
+}

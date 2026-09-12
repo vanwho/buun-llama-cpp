@@ -1,10 +1,26 @@
 # Qwen3.8 attention-aware Turbo4 KV paging plan
 
-Status: interactive speed revision2026-09-12; historical implementation is not full-goal proof.
+Status: GPU hot-path V8 redesign2026-09-12; historical implementation is not full-goal proof.
 Canonical worktree: /srv/repos/vanwho/buun-llama-cpp
 Execution state: .wiretail/execution/WORK_STATE.json
 
-## Current execution authority — phases26–28
+## Current execution authority — unfinished27 through30
+
+Read [GPU_HOT_PATH_REDESIGN_V8.md](GPU_HOT_PATH_REDESIGN_V8.md) and
+[BENCHMARK_PROTOCOL_V8.md](BENCHMARK_PROTOCOL_V8.md), then the current packet.
+27-02 now fixes/profiles the kernel;27-03 restores mature FA; phase28 implements
+GPU bounded per-layer selection, stable inputs, tiled paged kernels and async
+layer-granular movement. Phase29 benchmarks/summarizes;30-01 reviews that
+summary only. All implementation/benchmark packets Luna High; the existing
+higher-model reviewer moves to30-01. Wiretail defaults unchanged.
+
+Measured bounded selected-view F16 scratch is allowed as a fast bridge;
+full-L target materialization remains forbidden. Diagnostic/reference routes
+must not dictate production attention. Primary8K/4K precedes32K/16K and
+controlled128K. Rates are findings. No repeated maximum campaign, old
+acceptance diary or broad quality/soak/256K/YaRN work before small cold use.
+
+## Historical V7 authority (superseded where V8 differs)
 
 Read [PHASE26_INTERACTIVE_KV_STRATEGY.md](PHASE26_INTERACTIVE_KV_STRATEGY.md),
 [BENCHMARK_PROTOCOL_V7.md](BENCHMARK_PROTOCOL_V7.md), then the current packet.

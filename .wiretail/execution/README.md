@@ -1,38 +1,35 @@
 # Attention-aware KV paging execution package
 
-Current authority (2026-09-12): [PHASE26_INTERACTIVE_KV_STRATEGY.md](PHASE26_INTERACTIVE_KV_STRATEGY.md)
-and [BENCHMARK_PROTOCOL_V7.md](BENCHMARK_PROTOCOL_V7.md), then the current packet
-and cluster in WORK_STATE.json. Read the compact current context, not historical
-acceptance chains or the old full-context retry diary.
+Current authority: [GPU_HOT_PATH_REDESIGN_V8.md](GPU_HOT_PATH_REDESIGN_V8.md),
+[BENCHMARK_PROTOCOL_V8.md](BENCHMARK_PROTOCOL_V8.md), current packet and cluster
+in WORK_STATE.json. Read current context, not historical acceptance diaries.
 
-Resume command:
+Resume (runner deliberately stopped for the user-requested replan):
 
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp PROJECT_BRANCH=plan/attention-aware-kv-paging /srv/wiretail/wiretail.sh
 ```
 
-Phase26 now fixes typed units, actual B/U launch, role/route scratch,
-prefill-to-decode frontiers and natural recall, then measures kernel dispatch,
-maintenance and memory trade-offs on the primary8192 logical/4096 hot fixture.
-Phase27 tests32768/16384 then up to131072 with safe maximum H and incremental
-inputs. Phase28 reviews only INTERACTIVE27_SUMMARY and creates targeted further
-remediation if needed. No active256K-first or six-coordinate curve requirement.
+Next:27-02, kernel memory repair and small CUDA/live attribution.27-03 restores
+mature FA. Phase28 implements bounded GPU per-layer selection, reusable inputs,
+optimized paged decode/prefill and asynchronous layer transfers. Phase29
+produces speed/capacity evidence;30-01 assesses only HOTPATH29_SUMMARY.
 
-154 completed task records, all reported token usage and dirty implementation
-are preserved. Five old unfinished packets are replaced by12 focused tasks in
-8 fresh clusters, beginning26-01 (todo/ready). Old packet/handoff/state context
-is in archive/phase26-before-interactive-20260912/. Historical negative evidence
-is preserved, not promoted to success. New source findings are in
-evidence/PHASE26_REPLAN_FINDINGS.md.
+13 unfinished tasks in11 fresh clusters replace the3 old remaining packets.
+163 completed tasks and every reported usage record are preserved. The former
+27-02 scaling campaign is interrupted negative evidence, not completion.
+Its raw data and runtime fingerprints: evidence/GPU_HOT_PATH_AUDIT_20260912.md.
+Superseded packets: archive/before-gpu-hot-path-v8-20260912/.
+Implementation/benchmark tasks use Luna High; the previous higher-model reviewer
+moves from28-01 to30-01 unchanged. Wiretail defaults are unchanged.
 
-Use WORK_STATE.json for exact task recommendations: Luna Medium for bounded
-driver/measurement work, Luna High for critical source repairs; reviewer28-01
-retains the prior reviewer's configured model. Wiretail tool defaults unchanged.
-Target and native-MTP K/V remain Turbo4; full resolved-context GPU MTP, not H.
-B128/U64 is a starting experiment, not a universal default or input length cap.
-Use sudo -n for authorized protected files/Qwen lifecycle. Keep successful
-candidate loaded; protect unrelated8092. Source stays generic and site data
-stays in /srv/ai. No new speed benchmark was run during this plan revision.
+Target and native-MTP K/V remain Turbo4. MTP capacity equals full resolved L;
+H is resident target capacity and A is per-layer attended work, not synonyms.
+Primary8K/4K real cold data first, then32K/16K and useful bounded128K tests.
+No fixed hot production size or256K/six-coordinate campaign in this repair.
+Keep successful Qwen candidate loaded; use sudo -n for authorized operations;
+unrelated8092 untouched. Source generic, site profiles/data in /srv/ai,
+execution metadata commits separate. No runtime speedup is claimed by the plan.
 
 The shared runner defaults to auto Git mode. For supervised upstream-bound work, explicitly select manual mode:
 

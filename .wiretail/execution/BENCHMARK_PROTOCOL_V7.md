@@ -1,5 +1,8 @@
 # V7 — fast incremental hot/cold KV measurements
 
+Historical: V8 replaces this for unfinished work from27-02.
+Read BENCHMARK_PROTOCOL_V8.md and GPU_HOT_PATH_REDESIGN_V8.md.
+
 Authority: PHASE26_INTERACTIVE_KV_STRATEGY.md, current task, then this protocol.
 Supersedes V6's full-256K-first and final six-coordinate obligations for active
 work. Keep original three canonical questions; tiny deterministic fixtures are
@@ -182,6 +185,11 @@ C is not idle because it has not emitted the first output token. Estimate
 remaining time from recent per-chunk slope and report it. On genuine stall,
 capture frontier, outstanding events, allocation failure and owned PID stack
 before bounded termination. A client timeout is not a model capacity result.
+
+Withdrawn heuristic: frontend zero graph replay and overlapping queue/wait
+timers do not establish CUDA recapture or host overhead. No absolute rate
+threshold replaces profiling. V8 specifies a two-append pilot, ETA/useful-work
+budget and matched kernel/control comparisons before long population.
 
 Resume completed cases by exact identity. Resume incremental history only if
 live slot/model/context/frontier identity matches; otherwise reconstruct the
