@@ -94,6 +94,12 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t router_top_k = 0;
     uint64_t pin_recent_tokens = 0;
     uint64_t prefetch_depth = 0;
+    uint32_t test_forced_logical_page = UINT32_MAX;
+    uint32_t test_forced_physical_slot = UINT32_MAX;
+    uint64_t test_forced_page_generation = 0;
+    uint64_t test_forced_content_version = 0;
+    uint64_t test_forced_host_checksum = 0;
+    uint64_t test_forced_device_checksum = 0;
     bool router_explore = false;
     const char * mtp_backend = "not_present";
     llama_kv_residency_transfer_counters transfers;

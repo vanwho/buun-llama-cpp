@@ -11,6 +11,7 @@
 #include "speculative.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cerrno>
 #include <cstdlib>
@@ -34,6 +35,8 @@ struct options {
     uint32_t n_batch = 1024;
     uint32_t n_ubatch = 256;
     uint32_t hot_pages = 2;
+    uint32_t generate = 0;
+    uint32_t force_page = UINT32_MAX;
     bool native_mtp = false;
     bool help = false;
 };
@@ -47,7 +50,8 @@ struct stats {
 static void usage(const char * argv0) {
     std::fprintf(stdout,
             "usage: %s [--model MODEL.gguf] [--tokens id,id,... | --tokens-file FILE]\n"
-            "       [--context N] [--n-batch N] [--n-ubatch N] [--hot-pages N]\n"
+            "       [--context N] [--n-batch N] [--n-ubatch N] [--hot-pages N] [--generate N]\n"
+            "       [--force-page N]  (opt-in promotion-mechanics seam)\n"
             "       [--mtp off|native] [--output FILE]\n"
             "       %s --help\n\n"
             "Without --model, run deterministic domain/indexing/mask and MTP F5 probes.\n"
@@ -127,6 +131,16 @@ static bool parse_options(int argc, char ** argv, options & output) {
             if (!parse_positive_u32(argv[++i], output.n_ubatch)) return false;
         } else if (arg == "--hot-pages" && i + 1 < argc) {
             if (!parse_positive_u32(argv[++i], output.hot_pages)) return false;
+        } else if (arg == "--generate" && i + 1 < argc) {
+            if (!parse_positive_u32(argv[++i], output.generate)) return false;
+        } else if (arg == "--force-page" && i + 1 < argc) {
+            char * stop = nullptr;
+            errno = 0;
+            const char * raw = argv[++i];
+            const unsigned long value = std::strtoul(raw, &stop, 10);
+            if (errno != 0 || stop == raw || *stop != '\0' ||
+                    value > std::numeric_limits<uint32_t>::max()) return false;
+            output.force_page = uint32_t(value);
         } else if (arg == "--mtp" && i + 1 < argc) {
             const std::string value = argv[++i];
             if (value == "off") {
@@ -348,7 +362,105 @@ struct model_run {
     std::vector<float> logits;
     std::string route = "not_configured";
     uint32_t n_vocab = 0;
+    double prefill_ms = 0.0;
+    double decode_ms = 0.0;
+    llama_kv_pager_metrics_snapshot initial_metrics;
+    llama_kv_pager_metrics_snapshot prefill_metrics;
+    llama_kv_pager_metrics_snapshot final_metrics;
 };
+
+static bool decode_fixed_tokens(llama_context * ctx, uint32_t count,
+        uint32_t first_position, double & elapsed_ms, std::string & error) {
+    if (count == 0) {
+        elapsed_ms = 0.0;
+        return true;
+    }
+    const auto started = std::chrono::steady_clock::now();
+    for (uint32_t index = 0; index < count; ++index) {
+        llama_batch batch = llama_batch_init(1, 0, 1);
+        if (batch.token == nullptr || batch.pos == nullptr || batch.n_seq_id == nullptr ||
+                batch.seq_id == nullptr) {
+            llama_batch_free(batch);
+            error = "failed to allocate fixed-token decode batch";
+            return false;
+        }
+        batch.n_tokens = 1;
+        batch.token[0] = 1;
+        batch.pos[0] = llama_pos(first_position + index);
+        batch.n_seq_id[0] = 1;
+        batch.seq_id[0][0] = 0;
+        batch.logits[0] = true;
+        const int status = llama_decode(ctx, batch);
+        if (status != 0) {
+            llama_batch_free(batch);
+            error = "fixed-token llama_decode failed with status " + std::to_string(status);
+            return false;
+        }
+        llama_synchronize(ctx);
+        llama_batch_free(batch);
+    }
+    const auto finished = std::chrono::steady_clock::now();
+    elapsed_ms = std::chrono::duration<double, std::milli>(finished - started).count();
+    return true;
+}
+
+static uint64_t metric_delta(uint64_t before, uint64_t after) {
+    return after >= before ? after - before : 0;
+}
+
+static void write_model_metrics(std::ostream & out, const model_run & run) {
+    const auto & before = run.initial_metrics;
+    const auto & after = run.final_metrics;
+    const auto & integrity = after.test_forced_host_checksum != 0 ? after : run.prefill_metrics;
+    out << "{\"prefill_ms\": " << run.prefill_ms
+        << ", \"decode_ms\": " << run.decode_ms
+        << ", \"route\": \"" << run.route << "\","
+        << " \"logical_pages\": " << after.logical_pages
+        << ", \"physical_page_capacity\": " << after.physical_page_capacity
+        << ", \"page_bytes\": " << after.page_bytes
+        << ", \"physical_pool_capacity_bytes\": " << after.physical_pool_capacity_bytes
+        << ", \"prefill_resident_pages\": " << before.resident_pages
+        << ", \"final_resident_pages\": " << after.resident_pages
+        << ", \"prefill_host_pages\": " << before.host_pages
+        << ", \"final_host_pages\": " << after.host_pages
+        << ", \"final_target_valid_rows\": " << after.target_valid_rows
+        << ", \"final_host_valid_rows\": " << after.host_valid_rows
+        << ", \"target_resident_bytes\": " << after.target_resident_bytes
+        << ", \"host_pageable_bytes\": " << after.host_pageable_bytes
+        << ", \"host_metadata_bytes\": " << after.host_metadata_bytes
+        << ", \"promotion_pages_delta\": "
+        << metric_delta(before.promotion_pages, after.promotion_pages)
+        << ", \"eviction_pages_delta\": "
+        << metric_delta(before.eviction_pages, after.eviction_pages)
+        << ", \"h2d_useful_bytes_delta\": "
+        << metric_delta(before.h2d_transfers.copied_useful_bytes,
+                        after.h2d_transfers.copied_useful_bytes)
+        << ", \"h2d_aligned_bytes_delta\": "
+        << metric_delta(before.h2d_transfers.copied_aligned_bytes,
+                        after.h2d_transfers.copied_aligned_bytes)
+        << ", \"h2d_submitted_delta\": "
+        << metric_delta(before.h2d_transfers.submitted, after.h2d_transfers.submitted)
+        << ", \"h2d_event_completions_delta\": "
+        << metric_delta(before.h2d_transfers.event_completions,
+                        after.h2d_transfers.event_completions)
+        << ", \"h2d_waits_delta\": "
+        << metric_delta(before.h2d_transfers.waits, after.h2d_transfers.waits)
+        << ", \"host_d2h_bytes_delta\": "
+        << metric_delta(before.host_seal_d2h_bytes, after.host_seal_d2h_bytes)
+        << ", \"mtp_backend\": \"" << after.mtp_backend << "\""
+        << ", \"forced_logical_page\": " << (integrity.test_forced_logical_page == UINT32_MAX
+                ? -1 : int64_t(integrity.test_forced_logical_page))
+        << ", \"forced_physical_slot\": " << (integrity.test_forced_physical_slot == UINT32_MAX
+                ? -1 : int64_t(integrity.test_forced_physical_slot))
+        << ", \"forced_page_generation\": " << integrity.test_forced_page_generation
+        << ", \"forced_content_version\": " << integrity.test_forced_content_version
+        << ", \"forced_host_checksum\": " << integrity.test_forced_host_checksum
+        << ", \"forced_device_checksum\": " << integrity.test_forced_device_checksum
+        << ", \"forced_checksum_equal\": "
+        << (integrity.test_forced_host_checksum != 0 &&
+            integrity.test_forced_host_checksum == integrity.test_forced_device_checksum ? "true" : "false")
+        << "}";
+}
 
 static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         model_run & result, std::string & error) {
@@ -386,6 +498,7 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         params.kv_pager.hot_pages.value = opts.hot_pages;
         params.kv_pager.pin_recent.automatic = false;
         params.kv_pager.pin_recent.value = 0;
+        params.kv_pager.test_force_logical_page = opts.force_page;
     }
 
     if (opts.native_mtp) {
@@ -394,6 +507,11 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         params.speculative.draft.cache_type_k = GGML_TYPE_TURBO4_0;
         params.speculative.draft.cache_type_v = GGML_TYPE_TURBO4_0;
         params.speculative.draft.kv_device = common_speculative_draft_kv_device::GPU;
+    }
+
+    if (opts.tokens.size() + uint64_t(opts.generate) > opts.context) {
+        error = "prompt plus fixed-token decode exceeds logical context";
+        return false;
     }
 
     common_init_result_ptr init;
@@ -431,38 +549,59 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         }
     }
 
-    llama_batch batch = llama_batch_init(int32_t(opts.tokens.size()), 0, 1);
-    batch.n_tokens = int32_t(opts.tokens.size());
-    for (size_t i = 0; i < opts.tokens.size(); ++i) {
-        batch.token[i] = opts.tokens[i];
-        batch.pos[i] = llama_pos(i);
-        batch.n_seq_id[i] = 1;
-        batch.seq_id[i][0] = 0;
-        batch.logits[i] = i + 1 == opts.tokens.size();
-    }
-    const int decode_status = llama_decode(ctx, batch);
-    if (decode_status != 0) {
+    result.initial_metrics = ctx->get_kv_pager_metrics();
+
+    const auto prefill_started = std::chrono::steady_clock::now();
+    for (size_t offset = 0; offset < opts.tokens.size(); ) {
+        const size_t count = std::min<size_t>(opts.n_batch, opts.tokens.size() - offset);
+        llama_batch batch = llama_batch_init(int32_t(count), 0, 1);
+        if (batch.token == nullptr || batch.pos == nullptr || batch.n_seq_id == nullptr ||
+                batch.seq_id == nullptr) {
+            llama_batch_free(batch);
+            error = "failed to allocate prompt batch";
+            return false;
+        }
+        batch.n_tokens = int32_t(count);
+        for (size_t i = 0; i < count; ++i) {
+            batch.token[i] = opts.tokens[offset + i];
+            batch.pos[i] = llama_pos(offset + i);
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = 0;
+            batch.logits[i] = offset + i + 1 == opts.tokens.size();
+        }
+        const int decode_status = llama_decode(ctx, batch);
+        if (decode_status != 0) {
+            llama_batch_free(batch);
+            error = "llama_decode failed with status " + std::to_string(decode_status);
+            return false;
+        }
+        llama_synchronize(ctx);
+        if (offset + count == opts.tokens.size() && spec &&
+                !common_speculative_process(spec.get(), batch)) {
+            llama_batch_free(batch);
+            error = "native MTP speculative processing failed";
+            return false;
+        }
         llama_batch_free(batch);
-        error = "llama_decode failed with status " + std::to_string(decode_status);
+        offset += count;
+    }
+    const auto prefill_finished = std::chrono::steady_clock::now();
+    result.prefill_ms = std::chrono::duration<double, std::milli>(
+            prefill_finished - prefill_started).count();
+    result.prefill_metrics = ctx->get_kv_pager_metrics();
+    if (!decode_fixed_tokens(ctx, opts.generate, uint32_t(opts.tokens.size()),
+                             result.decode_ms, error)) {
         return false;
     }
-    llama_synchronize(ctx);
-    if (spec && !common_speculative_process(spec.get(), batch)) {
-        llama_batch_free(batch);
-        error = "native MTP speculative processing failed";
-        return false;
-    }
+    result.final_metrics = ctx->get_kv_pager_metrics();
     result.n_vocab = uint32_t(llama_vocab_n_tokens(llama_model_get_vocab(model)));
     const float * logits = llama_get_logits_ith(ctx, -1);
     if (logits == nullptr || result.n_vocab == 0) {
-        llama_batch_free(batch);
         error = "final teacher-forced logits are unavailable";
         return false;
     }
     result.logits.assign(logits, logits + result.n_vocab);
-    result.route = llama_kv_attention_execution_route_name(
-            ctx->get_kv_pager_metrics().route);
-    llama_batch_free(batch);
+    result.route = llama_kv_attention_execution_route_name(result.final_metrics.route);
     return true;
 }
 
@@ -493,11 +632,28 @@ static bool run_model_compare(const options & opts, std::ostream & out) {
            "\"selected_reference_k\": \"original\","
            "\"stored_v\": \"turbo_rotated\",\"v_inverse_count\": 1},\n"
         << "  \"n_vocab\": " << dense.n_vocab << ",\n"
+        << "  \"generate\": " << opts.generate << ",\n"
+        << "  \"force_page\": "
+        << (opts.force_page == UINT32_MAX ? -1 : int64_t(opts.force_page)) << ",\n"
         << "  \"max_abs\": " << result.max_abs << ",\n"
         << "  \"rms\": " << result.rms << ",\n"
         << "  \"first_divergence\": "
         << (result.first_divergence == std::numeric_limits<size_t>::max()
-                ? -1 : int64_t(result.first_divergence)) << "\n}\n";
+                ? -1 : int64_t(result.first_divergence)) << ",\n"
+        << "  \"dense\": ";
+    write_model_metrics(out, dense);
+    out << ",\n  \"selected\": ";
+    write_model_metrics(out, selected);
+    out << "\n}\n";
+    if (opts.force_page != UINT32_MAX) {
+        const auto & integrity = selected.final_metrics.test_forced_host_checksum != 0
+            ? selected.final_metrics : selected.prefill_metrics;
+        return selected.final_metrics.promotion_pages > selected.initial_metrics.promotion_pages &&
+            selected.final_metrics.h2d_transfers.copied_useful_bytes >
+                selected.initial_metrics.h2d_transfers.copied_useful_bytes &&
+            integrity.test_forced_host_checksum != 0 &&
+            integrity.test_forced_host_checksum == integrity.test_forced_device_checksum;
+    }
     return result.max_abs < 1e-3;
 }
 

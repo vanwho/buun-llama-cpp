@@ -2141,6 +2141,7 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     // graph is outstanding.
     GGML_ASSERT(pager_pending_writes_.empty());
     pager_ = pager;
+    pager_fallback_used_ = false;
     if (pager_ != nullptr) {
         pager_->set_routing_summary_provider({
             this, &llama_kv_cache::pager_routing_summary_build,
@@ -2350,13 +2351,6 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
 
         std::vector<llama_kv_routing_query> queries;
         collect_pager_routing_queries(queries);
-        if (queries.empty()) {
-            // A query-less boundary is explicitly not a retrieval decision.
-            // The next completed graph will publish Qcur through the capture
-            // hook before this policy is reconsidered.
-            return;
-        }
-
         const auto host_pages = pager_->host_catalog()
             ? pager_->host_catalog()->pages()
             : std::vector<vbr_selected_page_host_view>{};
@@ -2364,6 +2358,24 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             return std::find_if(host_pages.begin(), host_pages.end(),
                     [&](const auto & page) { return page.page.identity == id; });
         };
+        if (queries.empty() && pager_->test_force_logical_page() == UINT32_MAX &&
+                pager_fallback_used_) {
+            return;
+        }
+        if (queries.empty() && pager_->test_force_logical_page() == UINT32_MAX) {
+            // A normal server batch can reach the next write frontier before
+            // attention publishes Qcur.  Once H is full, use the oldest
+            // authenticated cold page as a conservative retrieval fallback so
+            // the bounded write path can make room for the next page.  This is
+            // still a real policy boundary and is deliberately disabled while
+            // all pages fit in the physical pool.
+            const bool has_cold_host = std::any_of(inventory.begin(), inventory.end(),
+                    [&](const auto & page) {
+                return page.physical_slot == UINT32_MAX &&
+                    has_host(page.id) != host_pages.end();
+            });
+            if (!has_cold_host) return;
+        }
 
         llama_kv_live_policy_boundary boundary;
         boundary.snapshot = snapshot;
@@ -2379,7 +2391,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         std::vector<llama_kv_routing_page_attributes> attributes(inventory.size());
         for (size_t i = 0; i < inventory.size(); ++i) {
             attributes[i].id = inventory[i].id;
-            attributes[i].current = inventory[i].state == llama_kv_page_state::filling_gpu;
+            // Only the active write-frontier page is structurally current.  A
+            // sealed GPU page is a retention candidate and must remain
+            // evictable when a routed cold page is promoted into H.
+            attributes[i].current = pager_->is_current_page(inventory[i].id);
             attributes[i].mandatory = attributes[i].current || inventory[i].pin_count != 0;
             attributes[i].structural = attributes[i].current;
         }
@@ -2421,6 +2436,34 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 boundary.retrieval.metrics.summary_complete =
                     boundary.retrieval.metrics.summary_complete &&
                     selected.metrics.summary_complete;
+            }
+        }
+        const uint32_t forced_page = pager_->test_force_logical_page();
+        if (forced_page != UINT32_MAX || queries.empty()) {
+            const auto forced = std::find_if(inventory.begin(), inventory.end(),
+                    [&](const auto & page) {
+                return (forced_page == UINT32_MAX || page.id.logical_page == forced_page) &&
+                    page.physical_slot == UINT32_MAX && has_host(page.id) != host_pages.end();
+            });
+            if (forced != inventory.end()) {
+                boundary.retrieval = {};
+                boundary.retrieval.status = llama_kv_routing_retrieval_status::ok;
+                boundary.retrieval.table_epoch = snapshot.epoch();
+                boundary.retrieval.query_generation = pager_query_generation_;
+                boundary.retrieval.model_identity = forced->id.model_identity;
+                boundary.retrieval.topology_identity = forced->id.topology_identity;
+                boundary.retrieval.representation_epoch = forced->id.representation_epoch;
+                boundary.retrieval.session_generation = forced->id.session_generation;
+                boundary.retrieval.sequence_generation = forced->id.sequence_generation;
+                boundary.retrieval.sequence_id = forced->id.sequence_id;
+                boundary.retrieval.position = forced->id.position_begin;
+                boundary.retrieval.selected.push_back({
+                        forced->id, llama_kv_routing_retrieval_reason::summary,
+                        0.0f, false, false, 0 });
+                have_retrieval = true;
+                if (forced_page == UINT32_MAX && queries.empty()) {
+                    pager_fallback_used_ = true;
+                }
             }
         }
         if (!have_retrieval) return;
@@ -3178,6 +3221,7 @@ void llama_kv_cache::clear(bool data) {
         mutation_op.poison();
         return;
     }
+    pager_fallback_used_ = false;
     for (uint32_t s = 0; s < n_stream; ++s) {
         v_cells[s].reset();
         v_heads[s] = 0;

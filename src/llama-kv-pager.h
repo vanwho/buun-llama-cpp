@@ -506,6 +506,16 @@ public:
     uint64_t resident_bytes() const noexcept {
         return residency_pool_ ? residency_pool_->resident_bytes() : 0;
     }
+    uint32_t test_force_logical_page() const noexcept {
+        return test_force_logical_page_;
+    }
+    bool is_current_page(const llama_kv_page_id & id) const noexcept {
+        return current_page_index_ < pages_.size() && pages_[current_page_index_].present &&
+            pages_[current_page_index_].record.id == id;
+    }
+    bool test_page_checksums(uint32_t logical_page, uint64_t & host_checksum,
+            uint64_t & device_checksum, uint32_t & physical_slot,
+            uint64_t & page_generation, uint64_t & content_version) const noexcept;
 
 private:
     struct page_state {
@@ -546,6 +556,7 @@ private:
     uint64_t resources_host_topology_identity_ = 0;
     uint32_t resources_host_child_id_ = UINT32_MAX;
     uint32_t resources_host_stream_index_ = UINT32_MAX;
+    uint32_t test_force_logical_page_ = UINT32_MAX;
     llama_kv_routing_summary_config routing_summary_config_;
     llama_kv_pager_routing_summary_provider routing_summary_provider_;
     llama_kv_routing_summary_store routing_summaries_;

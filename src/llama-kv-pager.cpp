@@ -1045,6 +1045,7 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
         output->resources_host_topology_identity_ = resources.host_topology_identity;
         output->resources_host_child_id_ = resources.host_child_id;
         output->resources_host_stream_index_ = resources.host_stream_index;
+        output->test_force_logical_page_ = config.test_force_logical_page;
         output->pages_.reserve(output->snapshot_.logical_page_count);
         output->slot_pages_.assign(output->snapshot_.physical_page_count, -1);
         output->residency_ = llama_kv_residency_table(output->snapshot_.physical_page_count);
@@ -1127,6 +1128,75 @@ llama_kv_pager::~llama_kv_pager() {
     residency_adapter_.reset();
     if (owns_allocation_ && allocation_.handle && backend_.release) {
         backend_.release(allocation_);
+    }
+}
+
+bool llama_kv_pager::test_page_checksums(uint32_t logical_page,
+        uint64_t & host_checksum, uint64_t & device_checksum,
+        uint32_t & physical_slot, uint64_t & page_generation,
+        uint64_t & content_version) const noexcept {
+    host_checksum = 0;
+    device_checksum = 0;
+    physical_slot = UINT32_MAX;
+    page_generation = 0;
+    content_version = 0;
+    try {
+        const auto page = std::find_if(pages_.begin(), pages_.end(),
+                [&](const auto & value) {
+            return value.present && value.record.id.logical_page == logical_page;
+        });
+        if (page == pages_.end() || host_ == nullptr) return false;
+        physical_slot = page->record.physical_slot;
+        page_generation = page->record.id.page_generation;
+        content_version = page->content_version;
+        const auto host_pages = host_->pages();
+        const auto host = std::find_if(host_pages.begin(), host_pages.end(),
+                [&](const auto & value) { return value.page.identity == page->record.id; });
+        if (host == host_pages.end()) return false;
+
+        constexpr uint64_t fnv_offset = 1469598103934665603ull;
+        constexpr uint64_t fnv_prime = 1099511628211ull;
+        const auto update = [](uint64_t & hash, const uint8_t * bytes, size_t size) {
+            for (size_t i = 0; i < size; ++i) {
+                hash ^= bytes[i];
+                hash *= fnv_prime;
+            }
+        };
+        uint64_t host_hash = fnv_offset;
+        uint64_t device_hash = fnv_offset;
+        const auto & geometry = snapshot_.geometry;
+        const auto storage = residency_adapter_ ? residency_adapter_->storage_tensor() : nullptr;
+        for (const auto & unit : host->page.units) {
+            if (!unit.bytes || unit.layer >= geometry.layer_k_page_bytes.size() ||
+                    unit.layer >= geometry.layer_v_page_bytes.size()) return false;
+            const size_t size = size_t(unit.bytes->size());
+            std::vector<uint8_t> host_bytes(size);
+            if (!unit.bytes->read(0, host_bytes.data(), size)) return false;
+            update(host_hash, host_bytes.data(), host_bytes.size());
+            if (storage == nullptr || page->record.physical_slot == UINT32_MAX) return false;
+            const bool value = unit.side == vbr_artifact_side::value;
+            const uint64_t page_bytes = value
+                ? geometry.layer_v_page_bytes[unit.layer]
+                : geometry.layer_k_page_bytes[unit.layer];
+            const uint64_t layer_offset = value
+                ? geometry.layer_v_offsets[unit.layer]
+                : geometry.layer_k_offsets[unit.layer];
+            const uint64_t slot_offset = uint64_t(page->record.physical_slot) * page_bytes;
+            if (layer_offset > UINT64_MAX - slot_offset ||
+                    slot_offset + layer_offset > UINT64_MAX - size ||
+                    size > page_bytes) return false;
+            std::vector<uint8_t> device_bytes(size);
+            ggml_backend_tensor_get(storage, device_bytes.data(),
+                    size_t(layer_offset + slot_offset), size);
+            update(device_hash, device_bytes.data(), device_bytes.size());
+        }
+        host_checksum = host_hash;
+        device_checksum = device_hash;
+        return host_checksum != 0 && device_checksum != 0;
+    } catch (...) {
+        host_checksum = 0;
+        device_checksum = 0;
+        return false;
     }
 }
 
