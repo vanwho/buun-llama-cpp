@@ -1,0 +1,68 @@
+{
+  "schema": "speed25-prefill-kernels",
+  "schema_version": 1,
+  "task_id": "25-05",
+  "result": "pass_with_deferred_end_to_end_comparison_and_ncu",
+  "provenance": {
+    "repository": "/srv/repos/vanwho/buun-llama-cpp",
+    "source_diff_sha256": "8e9f787e380881be13a32b1f27093dd011bbc8ca7be300793a177e56c6bb6b69",
+    "raw_root": ".wiretail/execution/evidence/raw/SPEED25_05_PREFILL_KERNELS_cuda.txt",
+    "ncu_raw_root": ".wiretail/execution/evidence/raw/SPEED25_05_PREFILL_KERNELS_ncu.txt",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "compute_capability": "8.9",
+    "reported_vram_mib": 15945,
+    "current_source_bundle": "/srv/ai/paged-kv/results/25-05-runtime-bundle-20260912T033000Z/llama-server",
+    "current_source_bundle_sha256": "fc762bfba336a257a14506fbc69079b800c066b62f8c0035e577ab1ea5a64cf4",
+    "live_raw_root": "/srv/ai/paged-kv/results/25-05-short-selective-current-20260912T033000Z"
+  },
+  "support": {
+    "head_width": 256,
+    "query_heads": 24,
+    "kv_heads": 4,
+    "gqa_group_size": 6,
+    "query_tile_tokens": [16, 32, 64],
+    "default_query_tile_tokens": 32,
+    "grid_z_query_tiling": true,
+    "tested_query_boundaries": [64, 65, 256, 257, 512],
+    "integrated_prefill_ubatch": 256,
+    "bounded_shared_memory": true,
+    "online_softmax": true,
+    "split_kv_partial_state": true
+  },
+  "measurements": {
+    "focused_host_tests": { "passed": 2, "failed": 0 },
+    "cuda_paged_fixture": {
+      "exit_code": 0,
+      "selected_rows": 530,
+      "tile_ms": {
+        "q64": { "16": 4.606, "32": 4.718, "64": 8.882, "winner": "tile_q16" },
+        "q256": { "16": 13.392, "32": 13.376, "64": 16.543, "winner": "tile_q32" },
+        "q512": { "16": 25.092, "32": 25.179, "64": 23.313, "winner": "tile_q64" }
+      },
+      "serial_control_q512_ms": 21.635,
+      "split_control_q512_ms": 21.202
+    },
+    "live_micro_smoke": {
+      "status": "pass",
+      "prompt_tokens": 2048,
+      "context_tokens": 4096,
+      "effective_ubatch": 256,
+      "generated_tokens": 0,
+      "timing_status": "not_exported_by_server",
+      "note": "Current-source service started and accepted the request; the driver emitted no generated SSE chunk, so this is not a speed or output-parity measurement."
+    },
+    "packed_plus_dense_total_comparison": "deferred"
+  },
+  "chosen_approach": [
+    "retain the <=64-query kernel behavior as the serial correctness oracle",
+    "tile arbitrary qualified query batches with query-base/query-count and grid.z",
+    "keep explicit Q/K/V/output/page-mass strides and fixed max-tile shared storage",
+    "use the measured default tile_q32 as the balanced production default while exposing 16/32/64 for bounded sweeps",
+    "repair dense selected graph input refresh so B>64 contiguous graphs do not fall into row-ID assertions"
+  ],
+  "deferred_verification": [
+    "matched packed-versus-dense total-cost comparison at the same selected rows and data",
+    "Nsight Compute occupancy/register/spill sample; GPU performance counters are unavailable to this user",
+    "full-model batching and longer V6 output-parity run owned by task 25-06"
+  ]
+}
