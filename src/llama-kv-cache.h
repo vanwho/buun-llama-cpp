@@ -188,6 +188,8 @@ public:
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
     const std::vector<llama_kv_page_id> & selected_attention_pages(
             llama_seq_id sequence_id) const noexcept;
+    bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & request);
 
     //
     // llama_memory_i
@@ -1558,7 +1560,8 @@ private:
     void     vbr_floor_clamp_order();
     bool     vbr_retire_pending_before_unmap(const std::string & busid);
     size_t   vbr_flush_deferred_unmaps(); // returns the number of entries flushed
-    bool     vbr_scratch_reserve(size_t flat_cells);  // boundary-time f16 dequant scratch growth
+    bool     vbr_scratch_reserve(
+        const llama_kv_attention_scratch_request & request);
     // Pure, allocator-blind child stream used by the tree transaction. It derives real steps only
     // through vbr_sim_step(); physical pricing and preflight remain separate.
     llama_vbr_policy::child vbr_policy_child_stream(int demanded_device, uint32_t wm_next) const;
@@ -1811,6 +1814,9 @@ public:
 
     // VBR tier-flip epoch of the underlying cache (0 when VBR is off — the counter never moves)
     uint64_t get_vbr_epoch() const override;
+    bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & request) const override;
+    uint32_t current_kv_attention_rows() const override;
 
     //
     // llama_kv_cache_context specific API

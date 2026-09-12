@@ -2171,6 +2171,68 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     if (shape_epoch == 0) shape_epoch = 1;
 
     const llama_kv_attention_scratch_request empty_scratch;
+    auto refuse_before_graph = [&](llama_kv_attention_execution_status status,
+                                   const std::string & reason) {
+        kv_attention_execution.clear();
+        llama_kv_attention_execution_decision result;
+        result.status = status;
+        result.route = llama_kv_attention_execution_route::refusal;
+        result.phase = phase;
+        result.representation_epoch = representation_epoch;
+        result.shape_epoch = shape_epoch;
+        result.reason = reason;
+        kv_attention_execution.metrics_mutable().record_exact_refusal(reason);
+        LLAMA_LOG_ERROR("%s: attention admission refused before graph construction: %s\n",
+                __func__, result.reason.c_str());
+        return result;
+    };
+    const auto fill_scratch_contract = [&](llama_kv_attention_scratch_request & scratch,
+                                           llama_kv_attention_execution_route route,
+                                           uint32_t rows) {
+        scratch.route = route;
+        scratch.phase = phase;
+        scratch.context_role = model.arch == LLM_ARCH_DFLASH
+            ? llama_kv_attention_scratch_context_role::draft
+            : llama_kv_attention_scratch_context_role::target;
+        scratch.requested_batch_tokens = ubatch.n_tokens;
+        scratch.effective_batch_tokens = ubatch.n_tokens;
+        scratch.query_tile_tokens = std::min(ubatch.n_tokens,
+                LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE);
+        scratch.head_dim_k = model.hparams.n_embd_head_k();
+        scratch.head_dim_v = model.hparams.n_embd_head_v();
+        scratch.n_head_kv = model.hparams.n_head_kv();
+
+        scratch.materialized_k_rows = 0;
+        scratch.materialized_v_rows = 0;
+        scratch.materialized_k_bytes_per_row = 0;
+        scratch.materialized_v_bytes_per_row = 0;
+
+        const bool materializes_f16 =
+            route == llama_kv_attention_execution_route::dense ||
+            route == llama_kv_attention_execution_route::observe ||
+            route == llama_kv_attention_execution_route::selected_reference ||
+            route == llama_kv_attention_execution_route::selected_dense ||
+            route == llama_kv_attention_execution_route::selected_packed;
+        if (materializes_f16) {
+            scratch.materialized_k_rows = rows;
+            scratch.materialized_v_rows = rows;
+            scratch.materialized_k_bytes_per_row =
+                size_t(scratch.head_dim_k) * size_t(scratch.n_head_kv) * sizeof(uint16_t);
+            scratch.materialized_v_bytes_per_row =
+                size_t(scratch.head_dim_v) * size_t(scratch.n_head_kv) * sizeof(uint16_t);
+        }
+        // The legacy aggregate row estimate is not an allocator input anymore. Keep it zero so
+        // direct paged attention reports only its separate graph-owned split state, and all f16
+        // routes report the K/V view-width contract above.
+        scratch.bytes_per_row = 0;
+        scratch.resident_rows = scratch.materialized_rows();
+    };
+    const auto reserve_scratch = [&](llama_kv_attention_scratch_request & scratch,
+                                     llama_kv_attention_execution_route route,
+                                     uint32_t rows) {
+        fill_scratch_contract(scratch, route, rows);
+        return mctx == nullptr || mctx->reserve_kv_attention_scratch(scratch);
+    };
     if (kv_pager.mode == llama_kv_pager_mode::exact) {
         kv_attention_execution.set_exact_graph_plan(nullptr);
         kv_attention_execution.metrics_mutable().record_exact_ledger({});
@@ -2386,6 +2448,17 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                         pager.snapshot().geometry.attention_layers &&
                     pager.snapshot().geometry.layer_v_offsets.size() ==
                         pager.snapshot().geometry.attention_layers;
+                const auto planned = kv_attention_execution.planned_route(metadata, phase,
+                        direct_capable);
+                if (planned == llama_kv_attention_execution_route::exact_direct) {
+                    if (!reserve_scratch(scratch, planned, 0)) {
+                        return refuse_before_graph(
+                                llama_kv_attention_execution_status::not_configured,
+                                "exact direct attention scratch reservation failed");
+                    }
+                    return prepare_kv_attention(metadata, phase, representation_epoch,
+                            shape_epoch, direct_capable, scratch);
+                }
                 const auto result = prepare_kv_attention(metadata, phase,
                         representation_epoch, shape_epoch, direct_capable, scratch);
                 if (result.status == llama_kv_attention_execution_status::ok &&
@@ -2436,8 +2509,16 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 "exact CUDA page-wave callbacks are not configured");
     }
     if (kv_pager.mode != llama_kv_pager_mode::selective) {
+        const auto route = kv_attention_execution.planned_route({}, phase, false);
+        auto scratch = empty_scratch;
+        if (!reserve_scratch(scratch, route,
+                mctx != nullptr ? mctx->current_kv_attention_rows() : 0)) {
+            return refuse_before_graph(
+                    llama_kv_attention_execution_status::not_configured,
+                    "dense attention scratch reservation failed");
+        }
         return prepare_kv_attention({}, phase, representation_epoch, shape_epoch,
-                false, empty_scratch);
+                false, scratch);
     }
 
     auto refuse = [&](const char * reason) {
@@ -2570,9 +2651,6 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     scratch.bytes_per_row = (size_t(model.hparams.n_embd_head_k()) +
             size_t(model.hparams.n_embd_head_v())) * size_t(model.hparams.n_head_kv()) *
             sizeof(float);
-    LLAMA_LOG_DEBUG("%s: bounded prefill/decode pages=%zu rows=%u hot_pages=%u logical_pages=%u bounded_resident_scratch_bytes=%zu\n",
-            __func__, view.pages().size(), metadata.get_n_kv(), hot_capacity,
-            pager_geometry.logical_page_count, scratch.required_bytes());
     const auto layer_device = model.dev_layer(0);
     const auto layer_reg = layer_device
         ? ggml_backend_dev_backend_reg(layer_device) : nullptr;
@@ -2633,6 +2711,19 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             scratch.packed_bytes = uint64_t(metadata.get_n_kv()) * (k_row + v_row);
         }
     }
+    const auto planned = kv_attention_execution.planned_route(metadata, phase,
+            direct_capable, dense_capable, packed_capable);
+    if (!reserve_scratch(scratch, planned, metadata.get_n_kv())) {
+        return refuse_before_graph(
+                llama_kv_attention_execution_status::not_configured,
+                "selected attention scratch reservation failed");
+    }
+    LLAMA_LOG_DEBUG("%s: bounded attention pages=%zu rows=%u hot_pages=%u logical_pages=%u "
+            "route=%s materialized_rows=%llu scratch_bytes=%zu\n", __func__,
+            view.pages().size(), metadata.get_n_kv(), hot_capacity,
+            pager_geometry.logical_page_count,
+            llama_kv_attention_execution_route_name(planned),
+            (unsigned long long) scratch.materialized_rows(), scratch.required_bytes());
     // Dense and packed routes both consume raw Turbo4 cache rows directly and
     // therefore do not need the ordinary-cache row-ID gather. Keep that
     // bounded lookup only for the deterministic reference fallback.

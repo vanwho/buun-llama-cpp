@@ -205,6 +205,16 @@ struct llama_memory_context_i {
     // fences graph reuse on it once, for every input class. Composite memory types sum their
     // children so a flip in any child forces a rebuild. 0 for memory without VBR.
     virtual uint64_t get_vbr_epoch() const { return 0; }
+
+    // Reserve the scratch owned by the actual attention consumer after its
+    // route and view dimensions are known, but before graph allocation. The
+    // default keeps recurrent/non-attention contexts inert.
+    virtual bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & /*request*/) const { return true; }
+
+    // Valid rows in the current attention view. This is intentionally a view
+    // owner query, not a logical context length or VBR mapping watermark.
+    virtual uint32_t current_kv_attention_rows() const { return 0; }
 };
 
 using llama_memory_context_ptr = std::unique_ptr<llama_memory_context_i>;

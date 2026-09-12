@@ -36,6 +36,19 @@ static llama_kv_residency_snapshot snapshot(uint32_t last_end = 700) {
     return snapshot_slots(5, 1, 7, last_end);
 }
 
+static llama_kv_residency_snapshot snapshot_high_logical_positions() {
+    llama_kv_residency_table table(8);
+    auto tx = table.begin();
+    assert(table.replace(tx, page(1024, 5, 1024 * VBR_GENERATION_PAGE_CELLS + 256)) ==
+           llama_kv_residency_status::ok);
+    assert(table.replace(tx, page(1025, 1, 1025 * VBR_GENERATION_PAGE_CELLS + 256)) ==
+           llama_kv_residency_status::ok);
+    assert(table.replace(tx, page(1026, 7, 1026 * VBR_GENERATION_PAGE_CELLS + 188)) ==
+           llama_kv_residency_status::ok);
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    return table.snapshot();
+}
+
 static llama_kv_attention_operator_metadata metadata(
         const llama_kv_residency_snapshot & snap, uint32_t n_query, uint32_t n_batch,
         const std::vector<uint32_t> & selected_pages = { 2, 0 },
@@ -212,6 +225,67 @@ static void test_routes_epochs_and_fences() {
     execution.reset_metrics();
     assert(execution.metrics_reset_epoch() == reset_epoch + 1);
     assert(execution.metrics().wait_time_us == 0);
+}
+
+static void test_view_sized_scratch_contract() {
+    const auto selected = metadata(snapshot(), 2, 1);
+    const auto high_selected = metadata(snapshot_high_logical_positions(), 2, 1,
+            { 1026, 1024 }, 1026 * VBR_GENERATION_PAGE_CELLS + 100);
+    assert(high_selected.get_n_kv() == selected.get_n_kv());
+    llama_kv_attention_execution execution(llama_kv_attention_execution_mode::selective);
+
+    assert(execution.planned_route(selected,
+            llama_kv_attention_execution_phase::decode, true) ==
+           llama_kv_attention_execution_route::selected_direct);
+    assert(execution.planned_route(selected,
+            llama_kv_attention_execution_phase::prefill, false, true, false) ==
+           llama_kv_attention_execution_route::selected_dense);
+    assert(execution.planned_route(selected,
+            llama_kv_attention_execution_phase::prefill, false, false, true) ==
+           llama_kv_attention_execution_route::selected_packed);
+    assert(execution.planned_route(selected,
+            llama_kv_attention_execution_phase::prefill, false, false, false) ==
+           llama_kv_attention_execution_route::selected_reference);
+
+    llama_kv_attention_scratch_request view;
+    view.route = llama_kv_attention_execution_route::selected_reference;
+    view.phase = llama_kv_attention_execution_phase::mtp_verify;
+    view.context_role = llama_kv_attention_scratch_context_role::draft;
+    view.materialized_k_rows = 17;
+    view.materialized_v_rows = 9;
+    view.materialized_k_bytes_per_row = 6;
+    view.materialized_v_bytes_per_row = 10;
+    view.packed_bytes = 7;
+    view.resident_rows = 3;
+    assert(view.materialized_rows() == 17);
+    assert(view.required_rows() == 17);
+    assert(view.required_bytes() == 17 * 6 + 9 * 10 + 7);
+    assert(std::string(llama_kv_attention_scratch_context_role_name(
+            view.context_role)) == "draft");
+    view.context_role = llama_kv_attention_scratch_context_role::target;
+    assert(std::string(llama_kv_attention_scratch_context_role_name(
+            view.context_role)) == "target");
+
+    llama_kv_attention_scratch_request direct = view;
+    direct.route = llama_kv_attention_execution_route::selected_direct;
+    direct.materialized_k_rows = 0;
+    direct.materialized_v_rows = 0;
+    direct.materialized_k_bytes_per_row = 0;
+    direct.materialized_v_bytes_per_row = 0;
+    direct.packed_bytes = 0;
+    direct.resident_rows = 0;
+    assert(direct.required_rows() == 0);
+    assert(direct.required_bytes() == 0);
+
+    llama_kv_attention_scratch_request overflow = view;
+    overflow.materialized_k_rows = std::numeric_limits<uint64_t>::max();
+    overflow.materialized_k_bytes_per_row = 2;
+    assert(overflow.required_bytes() == std::numeric_limits<size_t>::max());
+
+    const auto max_query = metadata(snapshot(), 65, 1);
+    assert(execution.planned_route(max_query,
+            llama_kv_attention_execution_phase::mtp_verify, true) ==
+           llama_kv_attention_execution_route::selected_direct);
 }
 
 static void test_fallbacks_and_graph_key() {
@@ -425,6 +499,7 @@ static void test_epoch_matrix_and_lifetime_metrics() {
 int main() {
     test_prefill_admission();
     test_routes_epochs_and_fences();
+    test_view_sized_scratch_contract();
     test_fallbacks_and_graph_key();
     test_epoch_matrix_and_lifetime_metrics();
     return 0;

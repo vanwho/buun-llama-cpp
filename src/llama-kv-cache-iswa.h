@@ -281,6 +281,9 @@ public:
 
     // sum of both caches' tier epochs — a flip in either fences graph reuse
     uint64_t get_vbr_epoch() const override;
+    bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & request) const override;
+    uint32_t current_kv_attention_rows() const override;
 
     //
     // llama_kv_cache_iswa_context specific API

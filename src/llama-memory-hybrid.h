@@ -279,6 +279,9 @@ public:
 
     // tier epoch of the attention child (the recurrent child has no VBR)
     uint64_t get_vbr_epoch() const override;
+    bool reserve_kv_attention_scratch(
+            const llama_kv_attention_scratch_request & request) const override;
+    uint32_t current_kv_attention_rows() const override;
 
     // TurboQuant: delegate to the KV cache context
     ggml_tensor * get_turbo_rot_forward() const override;

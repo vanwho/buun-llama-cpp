@@ -360,6 +360,15 @@ uint64_t llama_memory_hybrid_iswa_context::get_vbr_epoch() const {
     return get_attn()->get_vbr_epoch();
 }
 
+bool llama_memory_hybrid_iswa_context::reserve_kv_attention_scratch(
+        const llama_kv_attention_scratch_request & request) const {
+    return get_attn() != nullptr && get_attn()->reserve_kv_attention_scratch(request);
+}
+
+uint32_t llama_memory_hybrid_iswa_context::current_kv_attention_rows() const {
+    return get_attn() != nullptr ? get_attn()->current_kv_attention_rows() : 0;
+}
+
 const llama_kv_cache_iswa_context * llama_memory_hybrid_iswa_context::get_attn() const {
     return static_cast<const llama_kv_cache_iswa_context *>(ctx_attn.get());
 }

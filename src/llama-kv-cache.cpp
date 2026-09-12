@@ -4277,57 +4277,6 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
         vbr_trace_emit("prepare", wm_next, used_now);
     }
 
-    // Grow flash-attention f16 dequant scratch to this batch's watermark outside the graphs, for
-    // the sides that are dequant-active after the wave above — see vbr_scratch_reserve. Runs for
-    // every turbo-typed cache (bookkeeping pools exist even without the dynamic controller);
-    // non-turbo caches have no pools and skip in O(1).
-    if (!vbr_pools_.empty() || !vbr_shared_scratch_bindings_.empty()) {
-        size_t scratch_cells = vbr_watermark_cells(n_tokens);
-        if (vbr_vmm_active() && !vbr_pools_.empty()) {
-            // VMM-backed selective attention materializes the resident hot set plus this
-            // batch, not the complete logical host history.  The write watermark can grow
-            // to L while old rows remain canonical on the host; using it here made the f16
-            // scratch reserve grow linearly with cold history and eventually exhaust VRAM.
-            uint32_t resident_cells = 0;
-            for (const auto & pool : vbr_pools_) {
-                resident_cells = std::max(resident_cells, pool.wm_cells);
-            }
-            scratch_cells = std::min(scratch_cells, (size_t) resident_cells + n_tokens);
-        }
-        if (n_stream > 1) {
-            // A non-unified graph views K/V as [head_dim, heads, n_kv, stream_span], and the
-            // CUDA materializer flattens all four dimensions into one shared f16 scratch. Predict
-            // the largest flattened view in this batch from the already-planned physical slots.
-            // Keep prior ubatch inserts in the prediction; ignoring a later purge can only make
-            // this an upper bound. Dynamic VBR is forced unified and retains the original path.
-            std::array<uint32_t, LLAMA_MAX_SEQ> used_max_p1 = {};
-            for (uint32_t s = 0; s < n_stream; ++s) {
-                used_max_p1[s] = v_cells[s].used_max_p1();
-            }
-            scratch_cells = 0;
-            const uint32_t n_pad_cur = std::max(n_pad, 256u);
-            for (const auto & sinfo : sinfos) {
-                uint32_t n_kv = 0;
-                for (size_t s = 0; s < sinfo.n_stream(); ++s) {
-                    const uint32_t stream = sinfo.strm[s];
-                    for (const uint32_t idx : sinfo.idxs[s]) {
-                        used_max_p1[stream] = std::max(used_max_p1[stream], idx + 1);
-                    }
-                    n_kv = std::max(n_kv,
-                            std::min(v_cells[stream].size(), GGML_PAD(used_max_p1[stream], n_pad_cur)));
-                }
-                const size_t stream_span = (size_t) sinfo.s1 - sinfo.s0 + 1;
-                scratch_cells = std::max(scratch_cells, (size_t) n_kv * stream_span);
-            }
-        }
-        if (!vbr_scratch_reserve(scratch_cells)) {
-            LLAMA_LOG_ERROR("%s: f16 dequant scratch reserve failed (device memory exhausted) — "
-                    "failing this batch recoverably\n", __func__);
-            vbr_tree_force(); // same routing as the try_map failure above
-            return {};
-        }
-    }
-
     return sinfos;
 }
 
@@ -5429,17 +5378,25 @@ bool llama_kv_cache::vbr_over_budget(uint32_t wm_cells) const {
     return false;
 }
 
-// Boundary-time f16 dequant scratch reserve. The flash-attention prefill/materialize paths grow a
-// per-(device, side) f16 scratch to the flattened attended view implicitly, mid-graph: a
-// context-linear consumer for unified KV and n_kv*stream_span for non-unified KV. The budget
-// does not own it, and it can JUMP from zero to watermark width in a
-// single graph when a degrade wave first takes a side off f16 (a 217 MiB grow
-// with only the 192 MiB live headroom left at wave time). Growing it HERE — sized for the sides
-// that are dequant-active AFTER this boundary's wave — keeps every grow in an eager pass where
-// exhaustion fails the batch recoverably. Sides that never leave f16 never reserve a byte, so
-// symmetric-vbr sessions under no memory pressure are byte-identical to before. Covers static
-// turbo pools too (bookkeeping-only pools resolve their vtable at init).
-bool llama_kv_cache::vbr_scratch_reserve(size_t flat_cells) {
+bool llama_kv_cache::reserve_kv_attention_scratch(
+        const llama_kv_attention_scratch_request & request) {
+    return vbr_scratch_reserve(request);
+}
+
+// Boundary-time f16 dequant scratch reserve. The reservation is made after
+// attention route selection and is sized from the view consumed by that route.
+// A VBR mapping watermark is deliberately not an input: it is a grow-only
+// physical backing high-water mark, not an attention materialization contract.
+bool llama_kv_cache::vbr_scratch_reserve(
+        const llama_kv_attention_scratch_request & request) {
+    const uint64_t k_rows = request.materialized_k_rows;
+    const uint64_t v_rows = request.materialized_v_rows;
+    if (k_rows > uint64_t(std::numeric_limits<size_t>::max()) ||
+        v_rows > uint64_t(std::numeric_limits<size_t>::max())) {
+        return false;
+    }
+    const size_t k_cells = size_t(k_rows);
+    const size_t v_cells = size_t(v_rows);
     for (auto & p : vbr_pools_) {
         if (p.be == nullptr || p.device < 0) {
             continue;
@@ -5466,12 +5423,36 @@ bool llama_kv_cache::vbr_scratch_reserve(size_t flat_cells) {
             }
             p.scratch_rows_epoch = vbr_tier_epoch_;
         }
-        const size_t k_bytes = p.scratch_k_row * flat_cells;
-        const size_t v_bytes = p.scratch_v_row * flat_cells;
+        if ((k_cells != 0 && p.scratch_k_row > SIZE_MAX / k_cells) ||
+            (v_cells != 0 && p.scratch_v_row > SIZE_MAX / v_cells)) {
+            return false;
+        }
+        const size_t k_bytes = p.scratch_k_row * k_cells;
+        const size_t v_bytes = p.scratch_v_row * v_cells;
         if (k_bytes == 0 && v_bytes == 0) {
             continue;
         }
+        size_t physical_now = 0;
+        size_t physical_projected = 0;
+        if (p.be->kv_dequant_scratch_memory != nullptr) {
+            p.be->kv_dequant_scratch_memory(p.compute_backend, k_bytes, v_bytes,
+                    &physical_now, &physical_projected);
+        }
+        LLAMA_LOG_DEBUG("%s: scratch owner=%p device=%d role=%s phase=%s route=%s "
+                "k_rows=%llu v_rows=%llu requested_k=%zu requested_v=%zu "
+                "physical_now=%zu physical_projected=%zu\n", __func__,
+                (void *) p.compute_backend, p.device,
+                llama_kv_attention_scratch_context_role_name(request.context_role),
+                llama_kv_attention_execution_phase_name(request.phase),
+                llama_kv_attention_execution_route_name(request.route),
+                (unsigned long long) k_rows, (unsigned long long) v_rows,
+                k_bytes, v_bytes, physical_now, physical_projected);
         if (!p.be->kv_dequant_scratch_reserve(p.compute_backend, k_bytes, v_bytes)) {
+            LLAMA_LOG_ERROR("%s: scratch allocation refused owner=%p device=%d "
+                    "requested_delta=%zu physical_now=%zu physical_projected=%zu\n",
+                    __func__, (void *) p.compute_backend, p.device,
+                    physical_projected > physical_now ? physical_projected - physical_now : 0,
+                    physical_now, physical_projected);
             // First-activation transient: the wave that just took this side off f16 queued its
             // freed tier-A tail pages as deferred unmaps (released at the NEXT boundary), so the
             // bytes the wave freed are physically unavailable to the very reserve it triggered.
@@ -5513,10 +5494,34 @@ bool llama_kv_cache::vbr_scratch_reserve(size_t flat_cells) {
             }
             b.rows_epoch = owner_epoch;
         }
-        const size_t k_bytes = b.k_row * flat_cells;
-        const size_t v_bytes = b.v_row * flat_cells;
+        if ((k_cells != 0 && b.k_row > SIZE_MAX / k_cells) ||
+            (v_cells != 0 && b.v_row > SIZE_MAX / v_cells)) {
+            return false;
+        }
+        const size_t k_bytes = b.k_row * k_cells;
+        const size_t v_bytes = b.v_row * v_cells;
+        size_t physical_now = 0;
+        size_t physical_projected = 0;
+        if (b.be->kv_dequant_scratch_memory != nullptr) {
+            b.be->kv_dequant_scratch_memory(b.compute_backend, k_bytes, v_bytes,
+                    &physical_now, &physical_projected);
+        }
+        LLAMA_LOG_DEBUG("%s: scratch owner=%p device=%d role=%s phase=%s route=%s "
+                "k_rows=%llu v_rows=%llu requested_k=%zu requested_v=%zu "
+                "physical_now=%zu physical_projected=%zu shared=1\n", __func__,
+                (void *) b.compute_backend, b.device,
+                llama_kv_attention_scratch_context_role_name(request.context_role),
+                llama_kv_attention_execution_phase_name(request.phase),
+                llama_kv_attention_execution_route_name(request.route),
+                (unsigned long long) k_rows, (unsigned long long) v_rows,
+                k_bytes, v_bytes, physical_now, physical_projected);
         if ((k_bytes != 0 || v_bytes != 0) &&
             !b.be->kv_dequant_scratch_reserve(b.compute_backend, k_bytes, v_bytes)) {
+            LLAMA_LOG_ERROR("%s: shared scratch allocation refused owner=%p device=%d "
+                    "requested_delta=%zu physical_now=%zu physical_projected=%zu\n",
+                    __func__, (void *) b.compute_backend, b.device,
+                    physical_projected > physical_now ? physical_projected - physical_now : 0,
+                    physical_now, physical_projected);
             // The owner's tier flip may still have old-tier tails queued for release. They
             // belong to the aliased tensors and are safe to reclaim with the same synchronized
             // flush used by the owner's own reserve path. Retry once before failing this draft
@@ -5524,7 +5529,7 @@ bool llama_kv_cache::vbr_scratch_reserve(size_t flat_cells) {
             LLAMA_LOG_WARN("%s: shared-KV f16 dequant scratch reserve of %.1f + %.1f MiB failed "
                     "on device %d — flushing owner deferred unmaps and retrying\n",
                     __func__, k_bytes/1048576.0, v_bytes/1048576.0, b.device);
-            other->vbr_flush_deferred_unmaps();
+            vbr_flush_deferred_unmaps();
             if (!b.be->kv_dequant_scratch_reserve(b.compute_backend, k_bytes, v_bytes)) {
                 return false;
             }
@@ -15097,6 +15102,21 @@ const llama_ubatch & llama_kv_cache_context::get_ubatch() const {
 
 uint64_t llama_kv_cache_context::get_vbr_epoch() const {
     return kv->vbr_tier_epoch();
+}
+
+bool llama_kv_cache_context::reserve_kv_attention_scratch(
+        const llama_kv_attention_scratch_request & request) const {
+    return kv != nullptr && kv->reserve_kv_attention_scratch(request);
+}
+
+uint32_t llama_kv_cache_context::current_kv_attention_rows() const {
+    if (sinfos.empty() || i_cur >= sinfos.size()) {
+        return n_kv;
+    }
+    const uint64_t stream_span = uint64_t(sinfos[i_cur].s1) -
+        uint64_t(sinfos[i_cur].s0) + 1;
+    const uint64_t rows = uint64_t(n_kv) * stream_span;
+    return uint32_t(std::min<uint64_t>(rows, std::numeric_limits<uint32_t>::max()));
 }
 
 uint32_t llama_kv_cache_context::get_n_kv() const {
