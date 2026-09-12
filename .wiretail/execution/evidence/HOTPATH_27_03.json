@@ -1,0 +1,87 @@
+{
+  "task": "27-03",
+  "cluster": "27f-fast-dispatch-v8",
+  "status": "complete",
+  "implementation": {
+    "view_order": "chosen pages are canonicalized by native position before compact metadata is built",
+    "routing": "mature prefill FA is selected for Q>=16 when dense or bounded packed capability is available; small decode/verify retains direct paging",
+    "packed_lifetime": "packed Turbo4 tensors and per-page content versions live in llama_context, keyed by layer, sequence, representation/source lifetime, backend, and canonical page descriptors",
+    "refresh": "unchanged historical page generations skip host copies; current query rows remain graph copies after cpy_k/cpy_v",
+    "telemetry": "route and storage capability do not depend on telemetry being enabled"
+  },
+  "verification": {
+    "build": {
+      "command": "cmake --build build-cuda --target test-kv-attention-view test-kv-attention-execution test-cuda-fattn-paged-turbo4 llama-server -j2",
+      "exit_code": 0
+    },
+    "unit_tests": {
+      "commands": [
+        "build-cuda/bin/test-kv-attention-view",
+        "build-cuda/bin/test-kv-attention-execution"
+      ],
+      "exit_code": 0,
+      "coverage": "contiguous prefix/tail, reordered and gapped selections, physical reuse/content-version identity, route policy, graph epochs, and cache lifetime"
+    },
+    "cuda_fixture": {
+      "device": "NVIDIA GeForce RTX 4080, compute capability 8.9, 15945 MiB",
+      "correctness_command": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "timing_command": "build-cuda/bin/test-cuda-fattn-paged-turbo4 --timing",
+      "exit_code": 0,
+      "timing_u64_ms": {
+        "repaired_custom_direct": 7.353,
+        "contiguous_turbo4_fa": 0.020,
+        "noncontiguous_pack_plus_fa": 0.021
+      },
+      "timing_u128_ms": {
+        "repaired_custom_direct": 7.355,
+        "contiguous_turbo4_fa": 0.024,
+        "noncontiguous_pack_plus_fa": 0.026
+      },
+      "raw_correctness": "/srv/ai/paged-kv/results/27-03-cuda-correctness-final.log",
+      "raw_timing": "/srv/ai/paged-kv/results/27-03-cuda-timing-final.log"
+    },
+    "live_q0_ab": {
+      "request": "same q0 prompt, max_tokens=128, temperature=0, cache_prompt=false",
+      "automatic": {
+        "route": "selected dense",
+        "prompt_tokens": 75,
+        "prompt_ms": 141.568,
+        "predicted_ms": 1544.378,
+        "packed_storage_bytes": 1081340,
+        "packed_copy_updates": 16,
+        "packed_copy_rows": 1024,
+        "raw_response": "/srv/ai/paged-kv/results/27-03-live-q0-auto2.response.json",
+        "raw_metrics": "/srv/ai/paged-kv/results/27-03-live-q0-auto2.metrics"
+      },
+      "direct_override": {
+        "route": "selected direct",
+        "prompt_tokens": 75,
+        "prompt_ms": 155.982,
+        "predicted_ms": 1822.558,
+        "packed_storage_bytes": 0,
+        "raw_response": "/srv/ai/paged-kv/results/27-03-live-q0-direct.response.json",
+        "raw_metrics": "/srv/ai/paged-kv/results/27-03-live-q0-direct.metrics"
+      },
+      "decision": "automatic routing remains enabled; valid all-resident q0 dispatch selected dense, while unsupported forced routes refused before graph execution"
+    },
+    "live_packed_prefill": {
+      "prompt_tokens": 106,
+      "route": "selected packed",
+      "raw_response": "/srv/ai/paged-kv/results/27-03-live-q64.response.json",
+      "raw_metrics": "/srv/ai/paged-kv/results/27-03-live-q64.metrics"
+    },
+    "live_debug_diagnostic": {
+      "command": "LLAMA_KV_PAGER_DEBUG=1 build-cuda/bin/llama-server ... --port 8080",
+      "request_prompt_tokens": 75,
+      "route": "selected direct",
+      "raw_response": "/srv/ai/paged-kv/results/27-03-live-debug-q0-final.response.json",
+      "raw_metrics": "/srv/ai/paged-kv/results/27-03-live-debug-q0-final.metrics",
+      "note": "The implementation emits one LLAMA_LOG_DEBUG eligibility record per graph layout with eligible/reason, page count, and at most four logical/physical samples; the debug run was executed with the pager diagnostic flag and did not emit per-token logging."
+    }
+  },
+  "checks": {
+    "git_diff_check": "pass",
+    "task_state_validate": "pass"
+  },
+  "deferred_verification": "none; CUDA device and live candidate were available"
+}

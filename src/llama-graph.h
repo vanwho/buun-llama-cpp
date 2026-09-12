@@ -477,6 +477,7 @@ public:
         uint32_t layer_id = 0;
         ggml_tensor * k = nullptr;
         ggml_tensor * v = nullptr;
+        llama_kv_attention_packed_cache::entry * cache_entry = nullptr;
         // Borrowed source tensors remain owned by the pager/cache context;
         // these identities document the lifetime and physical slab against
         // which the compact duplicate was captured.
@@ -485,6 +486,7 @@ public:
         std::vector<packed_copy> copies;
     };
     std::vector<packed_layer> packed_layers;
+    llama_kv_attention_packed_cache * packed_cache = nullptr;
 
     // Direct CUDA paged Turbo4 inputs. The K/V views are created per layer
     // over the pager's persistent physical slot slab; metadata is copied into
@@ -1037,6 +1039,7 @@ struct llm_graph_params {
     std::shared_ptr<const llama_kv_attention_exact_graph_plan> kv_attention_exact_plan;
     llama_kv_attention_execution_metrics * kv_attention_metrics = nullptr;
     llama_kv_attention_telemetry * kv_attention_telemetry = nullptr;
+    llama_kv_attention_packed_cache * kv_attention_packed_cache = nullptr;
 
     // return true if the "other" params would result in a graph with the same topology as with the current params
     //   having the same topology allows us to reuse the graph in some cases
@@ -1300,6 +1303,7 @@ struct llm_graph_context {
     const std::shared_ptr<const llama_kv_attention_exact_graph_plan> kv_attention_exact_plan;
     llama_kv_attention_execution_metrics * const kv_attention_metrics;
     llama_kv_attention_telemetry * const kv_attention_telemetry;
+    llama_kv_attention_packed_cache * const kv_attention_packed_cache;
 
     std::map<llama_seq_id, llama_sampler *> samplers;
 

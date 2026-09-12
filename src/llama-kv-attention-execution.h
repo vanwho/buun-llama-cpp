@@ -52,6 +52,49 @@ enum class llama_kv_attention_execution_route_override : uint8_t {
 // kernel uses the same bound for its fixed shared-memory query workspace.
 constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
 
+// Context-lifetime destination storage for the bounded packed Turbo4 bridge.
+// Graphs retain only source views and copy descriptors; rebuilding a graph
+// must not discard the already packed historical rows.
+class llama_kv_attention_packed_cache {
+public:
+    struct entry {
+        ggml_context * context = nullptr;
+        ggml_backend_buffer_t buffer = nullptr;
+        ggml_tensor * k = nullptr;
+        ggml_tensor * v = nullptr;
+        uint32_t layer_id = 0;
+        int32_t sequence_id = -1;
+        uint64_t representation_epoch = 0;
+        uint64_t source_lifetime_epoch = 0;
+        ggml_backend_t backend = nullptr;
+        std::vector<llama_kv_attention_view_page> pages;
+        std::vector<uint64_t> content_versions;
+    };
+
+    ~llama_kv_attention_packed_cache();
+
+    entry * find_or_create(
+            uint32_t layer_id,
+            int32_t sequence_id,
+            uint64_t representation_epoch,
+            uint64_t source_lifetime_epoch,
+            const std::vector<llama_kv_attention_view_page> & pages,
+            ggml_tensor * source_k,
+            ggml_tensor * source_v,
+            ggml_backend_t backend) noexcept;
+
+    uint64_t content_version(
+            const entry * cached,
+            uint32_t page_index) const noexcept;
+    void set_content_version(
+            entry * cached,
+            uint32_t page_index,
+            uint64_t version) noexcept;
+
+private:
+    std::vector<std::unique_ptr<entry>> entries_;
+};
+
 const char * llama_kv_attention_execution_mode_name(
         llama_kv_attention_execution_mode mode) noexcept;
 const char * llama_kv_attention_execution_phase_name(

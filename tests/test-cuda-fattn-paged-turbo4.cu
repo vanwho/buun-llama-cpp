@@ -811,23 +811,28 @@ int main(int argc, char ** argv) {
         params.merge_partial_state = false;
         params.query_tile_tokens = 0;
 
-        const float direct_ms = time_paged_attention(backend, params, stream,
-            timing_start, timing_stop, 5, 20);
         const std::vector<uint8_t> packed_k = pack_selected_storage(k_host, pages,
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
         const std::vector<uint8_t> packed_v = pack_selected_storage(v_host, pages,
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
-        const float contiguous_ms = time_dense_fa(backend, q_host, k_host, v_host,
-            packed_k, packed_v, pages, n_pages, n_rows, n_physical_pages,
-            n_head_q, n_head_kv, page_stride, row_bytes, false);
-        const float packed_ms = time_dense_fa(backend, q_host, k_host, v_host,
-            packed_k, packed_v, pages, n_pages, n_rows, n_physical_pages,
-            n_head_q, n_head_kv, page_stride, row_bytes, true);
-        std::fprintf(stderr, "timing table (Q=%u, selected rows=%u, warmups=5, iterations=20)\n",
-            max_query_tokens, n_rows);
-        std::fprintf(stderr, "  repaired custom direct: %.3f ms\n", direct_ms);
-        std::fprintf(stderr, "  contiguous Turbo4 FA:   %.3f ms\n", contiguous_ms);
-        std::fprintf(stderr, "  non-contiguous pack+FA: %.3f ms\n", packed_ms);
+        for (const uint32_t query_count : { 64u, max_query_tokens }) {
+            params.n_query_tokens = query_count;
+            const float direct_ms = time_paged_attention(backend, params, stream,
+                timing_start, timing_stop, 5, 20);
+            const std::vector<float> q_timing(q_host.begin(),
+                q_host.begin() + size_t(query_count) * n_head_q * 256);
+            const float contiguous_ms = time_dense_fa(backend, q_timing, k_host, v_host,
+                packed_k, packed_v, pages, n_pages, n_rows, n_physical_pages,
+                n_head_q, n_head_kv, page_stride, row_bytes, false);
+            const float packed_ms = time_dense_fa(backend, q_timing, k_host, v_host,
+                packed_k, packed_v, pages, n_pages, n_rows, n_physical_pages,
+                n_head_q, n_head_kv, page_stride, row_bytes, true);
+            std::fprintf(stderr, "timing table (U=%u, selected rows=%u, warmups=5, iterations=20)\n",
+                query_count, n_rows);
+            std::fprintf(stderr, "  repaired custom direct: %.3f ms\n", direct_ms);
+            std::fprintf(stderr, "  contiguous Turbo4 FA:   %.3f ms\n", contiguous_ms);
+            std::fprintf(stderr, "  non-contiguous pack+FA: %.3f ms\n", packed_ms);
+        }
     }
     cudaFree(second_wave_pages_device);
 

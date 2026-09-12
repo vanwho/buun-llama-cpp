@@ -2750,6 +2750,23 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             pager.snapshot().geometry.attention_layers;
     const bool direct_capable = fa_capable && direct_shape;
     const auto dense_view = llama_kv_attention_dense_view_check(metadata, hot_capacity);
+    if (kv_attention_dense_debug_layout_key_ != metadata.graph_layout_key()) {
+        kv_attention_dense_debug_layout_key_ = metadata.graph_layout_key();
+        std::string sample;
+        const size_t sample_count = std::min<size_t>(4, metadata.page_table().size());
+        for (size_t i = 0; i < sample_count; ++i) {
+            const auto & page = metadata.page_table()[i];
+            if (!sample.empty()) {
+                sample += ",";
+            }
+            sample += std::to_string(page.logical_page) + "/" +
+                std::to_string(page.source_physical_slot);
+        }
+        LLAMA_LOG_DEBUG("%s: dense Turbo4 eligibility first shape=%llu eligible=%d "
+                "reason=%s pages=%zu sample(logical/slot)=[%s]\n", __func__,
+                (unsigned long long) metadata.graph_layout_key(), dense_view.eligible ? 1 : 0,
+                dense_view.reason, metadata.page_table().size(), sample.c_str());
+    }
     const bool dense_capable = fa_capable && dense_view.eligible;
     const bool packed_capable = fa_capable && !dense_view.eligible;
     if (packed_capable) {
@@ -7406,6 +7423,7 @@ llm_graph_params llama_context::graph_params(
         /*.kv_attention_exact_plan =*/ kv_attention_execution.exact_graph_plan(),
         /*.kv_attention_metrics =*/ &kv_attention_execution.metrics_mutable(),
         /*.kv_attention_telemetry =*/ kv_attention_telemetry.get(),
+        /*.kv_attention_packed_cache =*/ &kv_attention_packed_cache,
     };
 }
 

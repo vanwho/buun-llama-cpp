@@ -747,6 +747,7 @@ private:
     std::vector<uint32_t> kv_attention_selected_pages_scratch_;
     std::vector<llama_pos> kv_attention_query_positions_scratch_;
     std::vector<int32_t> kv_attention_rows_scratch_;
+    uint64_t kv_attention_dense_debug_layout_key_ = 0;
 
     // decode output (2-dimensional array: [n_outputs][n_vocab])
     buffer_view<float> logits = {nullptr, 0};
@@ -811,6 +812,9 @@ private:
 
     ggml_backend_t backend_cpu = nullptr;
     std::vector<ggml_backend_ptr> backends;
+    // Packed selected-attention destinations outlive graph rebuilds. This is
+    // declared after the backends so its buffers are released before them.
+    mutable llama_kv_attention_packed_cache kv_attention_packed_cache;
 
     // `memory` is declared before `backends`, so ordinary member destruction would tear the
     // compute backends down first. Shared-KV reverse registrations must detach earlier.

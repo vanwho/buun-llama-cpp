@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "27",
-  "current_task": "27-03",
-  "last_updated_utc": "2026-09-12T18:25:23+00:00",
+  "current_phase": "28",
+  "current_task": "28-01",
+  "last_updated_utc": "2026-09-12T18:57:17+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5536,14 +5536,39 @@
       "cluster": "27f-fast-dispatch-v8",
       "title": "Restore mature Turbo4 Flash Attention for interactive prefill",
       "packet": ".wiretail/execution/tasks/27-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "27-02"
       ],
-      "commit": null,
-      "scope_revision": "gpu-hot-path-v8-20260912"
+      "commit": "50d8ae61d44f07d54e89e462a89aa71115dce352",
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/27-03-attempt-1-20260912T182539Z.jsonl:281",
+            "total_tokens": 26423988,
+            "total_tokens_derived": true,
+            "input_tokens": 26361164,
+            "cached_input_tokens": 25904640,
+            "output_tokens": 62824,
+            "thinking_tokens": 24561
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 26423988,
+          "input_tokens": 26361164,
+          "cached_input_tokens": 25904640,
+          "output_tokens": 62824,
+          "thinking_tokens": 24561
+        }
+      }
     },
     {
       "id": "28-01",
@@ -7270,15 +7295,28 @@
           "cached_input_tokens": 24531200,
           "output_tokens": 81802,
           "thinking_tokens": 40674
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/27-03-attempt-1-20260912T182539Z.jsonl:281",
+          "total_tokens": 26423988,
+          "total_tokens_derived": true,
+          "input_tokens": 26361164,
+          "cached_input_tokens": 25904640,
+          "output_tokens": 62824,
+          "thinking_tokens": 24561
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 31978936,
-        "input_tokens": 31872292,
-        "cached_input_tokens": 31203328,
-        "output_tokens": 106644,
-        "thinking_tokens": 47612
+        "turns": 3,
+        "total_tokens": 58402924,
+        "input_tokens": 58233456,
+        "cached_input_tokens": 57107968,
+        "output_tokens": 169468,
+        "thinking_tokens": 72173
       }
     },
     "28": {
@@ -7317,12 +7355,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 96,
-      "total_tokens": 1947218944,
-      "input_tokens": 1942638836,
-      "cached_input_tokens": 1905551616,
-      "output_tokens": 4580108,
-      "thinking_tokens": 1614540
+      "turns": 97,
+      "total_tokens": 1973642932,
+      "input_tokens": 1969000000,
+      "cached_input_tokens": 1931456256,
+      "output_tokens": 4642932,
+      "thinking_tokens": 1639101
     },
     "source": "Codex turn.completed usage events"
   }
