@@ -1285,6 +1285,19 @@ struct ggml_cuda_graph {
     // owning backend context's fattn scratch-allocation epoch at last capture
     unsigned long long fattn_scratch_epoch_at_capture = 0;
 
+    // Optional real CUDA graph diagnostics, separate from backend-neutral
+    // admission counters.
+    uint64_t actual_capture_count = 0;
+    uint64_t actual_instantiate_count = 0;
+    uint64_t actual_update_count = 0;
+    uint64_t actual_update_failure_count = 0;
+    uint64_t actual_launch_count = 0;
+    uint64_t actual_capture_cpu_us = 0;
+    uint64_t actual_instantiate_cpu_us = 0;
+    uint64_t actual_update_cpu_us = 0;
+    uint64_t actual_launch_cpu_us = 0;
+    uint64_t actual_capture_start_us = 0;
+
     bool is_enabled() const {
         static const bool disable_cuda_graphs_due_to_env = (getenv("GGML_CUDA_DISABLE_GRAPHS") != nullptr);
         // the pre-Ampere disable is inherited upstream policy (regressions measured on

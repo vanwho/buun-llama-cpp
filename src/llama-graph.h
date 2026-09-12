@@ -492,9 +492,13 @@ public:
     uint32_t direct_split_kv_partition_capacity = 0;
     uint32_t direct_split_kv_page_count = 0;
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_host;
+    std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_uploaded;
     std::vector<llama_pos> direct_native_positions_host;
+    std::vector<llama_pos> direct_native_positions_uploaded;
     std::vector<uint8_t> direct_native_mask_host;
+    std::vector<uint8_t> direct_native_mask_uploaded;
     std::vector<llama_pos> direct_query_positions_host;
+    std::vector<llama_pos> direct_query_positions_uploaded;
     struct exact_wave_input {
         ggml_tensor * pages = nullptr;
         std::vector<ggml_flash_attn_ext_paged_turbo4_page> pages_host;
