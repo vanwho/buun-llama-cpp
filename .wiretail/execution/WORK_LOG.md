@@ -824,3 +824,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-25-03`
 - Commit at update: `98054f075`
 - Summary: Implemented content-versioned incremental page sealing, canonical host-image summary sampling, batched routing updates, targeted invalidation, focused regressions, and SPEED25_03_INCREMENTAL live receipt.
+
+## 2026-09-12T00:06:53+00:00 — 25-04 — done
+
+- Branch: `codex/task-25-04`
+- Commit at update: `0b0fc1b3b`
+- Summary: Implemented dense no-copy and cached raw Turbo4 compact selected-attention routes with generation-aware repack, CUDA raw page copies, metrics, tests, and SPEED25_04_TURBO_REUSE evidence; live V6 route timing deferred.

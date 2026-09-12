@@ -1,0 +1,10 @@
+command: build-cuda/bin/test-cuda-fattn-paged-turbo4
+exit_code: 0
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15945 MiB):
+  Device 0: NVIDIA GeForce RTX 4080, compute capability 8.9, VMM: yes, VRAM: 15945 MiB
+paged Turbo4 query tile: 19.175 ms (24 Q heads, 4 KV heads, 530 selected rows)
+paged Turbo4 split-KV: 7.705 ms (requested capacity 1)
+paged Turbo4 split-KV: 5.272 ms (requested capacity 2)
+paged Turbo4 split-KV: 4.728 ms (requested capacity 3)
+paged Turbo4 serial control: 7.703 ms (sixteen Q tokens, 530 selected rows)
+paged Turbo4 split control: 4.724 ms (sixteen Q tokens, 530 selected rows, capacity 16)
