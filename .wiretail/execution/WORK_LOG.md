@@ -1010,3 +1010,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-13T21:03:46+00:00 - 35-03 - done
 
 - Summary: Connected live Q selector outputs to pager-owned two-slot mailbox harvest and epoch-qualified, A-bounded per-layer selections; removed normal oldest-cold invention and added deterministic selector-to-mailbox coverage. CPU/CUDA library builds, focused routing tests, state/plan validation, and diff check passed. Live service smoke was HTTP 200 but remained selected-dense, so component-level selector telemetry is deferred. Raw: `/srv/ai/paged-kv/results/v9/35-03/20260913T210056Z-routing/`.
+
+## 2026-09-13T21:18:00+00:00 - 35-04 - done
+
+- Summary: Integrated host-canonical asynchronous R4 promotion and clean no-D2H eviction with destination/event/recheck publication ordering, canonical layer-bundle matching, two-bundle refresh budget, K/V atomic planner validation, and loading/graph-lease refusal. CPU focused ctest 6/6, CUDA sm_89 llama build, state/plan validation, diff check, and controlled FNV checksum transfer proof passed. Native natural cold-page proof is deferred to 35-05. Raw: `/srv/ai/paged-kv/results/v9/35-04/20260913T211445Z-transfer/`.
