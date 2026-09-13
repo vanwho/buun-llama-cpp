@@ -61,14 +61,168 @@ void llama_kv_attention_packed_cache::begin_graph_build() noexcept {
     }
 }
 
+bool llama_kv_attention_packed_cache::same_domain(
+        const entry & cached,
+        uint32_t layer_id,
+        int32_t sequence_id,
+        ggml_backend_t backend) noexcept {
+    return cached.layer_id == layer_id && cached.sequence_id == sequence_id &&
+        cached.backend == backend &&
+        cached.device == (backend != nullptr ? ggml_backend_get_device(backend) : nullptr);
+}
+
+bool llama_kv_attention_packed_cache::same_structural_key(
+        const entry & cached,
+        uint32_t layer_id,
+        int32_t sequence_id,
+        uint64_t source_lifetime_epoch,
+        uint32_t row_capacity,
+        ggml_tensor * source_k,
+        ggml_tensor * source_v,
+        ggml_backend_t backend) noexcept {
+    return !cached.draining && same_domain(cached, layer_id, sequence_id, backend) &&
+        cached.source_lifetime_epoch == source_lifetime_epoch &&
+        cached.row_capacity == row_capacity && source_k != nullptr && source_v != nullptr &&
+        cached.source_k_type == source_k->type && cached.source_v_type == source_v->type &&
+        cached.source_k_ne0 == source_k->ne[0] && cached.source_k_ne1 == source_k->ne[1] &&
+        cached.source_v_ne0 == source_v->ne[0] && cached.source_v_ne1 == source_v->ne[1] &&
+        cached.source_k == source_k && cached.source_v == source_v &&
+        cached.source_k_buffer == source_k->buffer && cached.source_v_buffer == source_v->buffer;
+}
+
+void llama_kv_attention_packed_cache::update_slots(
+        entry & cached,
+        const std::vector<llama_kv_attention_view_page> & pages) {
+    std::vector<slot> next_slots;
+    std::vector<uint64_t> next_versions;
+    std::vector<dirty_interval> next_dirty;
+    next_slots.reserve(pages.size());
+    next_versions.reserve(pages.size());
+
+    for (size_t i = 0; i < pages.size(); ++i) {
+        const auto & page = pages[i];
+        slot next;
+        next.logical_page = page.logical_page;
+        next.source_physical_slot = page.source_physical_slot;
+        next.page_generation = page.page_generation;
+        next.native_position_begin = page.native_position_begin;
+        next.native_position_end = page.native_position_end;
+        next.valid_rows = page.row_count;
+        next.destination_row_begin = page.compact_row_begin;
+
+        // Keep the copied version with a page identity, not with its current
+        // selection index. The owner remains reusable across reorderings;
+        // moving a page's destination row or changing its generation makes
+        // only that slot dirty.
+        for (const auto & previous : cached.slots) {
+            if (previous.logical_page == page.logical_page &&
+                    previous.source_physical_slot == page.source_physical_slot &&
+                    previous.page_generation == page.page_generation &&
+                    previous.valid_rows == page.row_count &&
+                    previous.destination_row_begin == page.compact_row_begin) {
+                next.copied_content_version = previous.copied_content_version;
+                break;
+            }
+        }
+        next_slots.push_back(next);
+        next_versions.push_back(next.copied_content_version);
+        if (next.copied_content_version == UINT64_MAX && page.row_count != 0) {
+            const uint32_t begin = page.compact_row_begin;
+            const uint32_t end = begin + page.row_count;
+            if (!next_dirty.empty() && next_dirty.back().row_end >= begin) {
+                next_dirty.back().row_end = std::max(next_dirty.back().row_end, end);
+            } else {
+                next_dirty.push_back({ begin, end });
+            }
+        }
+    }
+
+    cached.pages = pages;
+    cached.slots.swap(next_slots);
+    cached.dirty_intervals.swap(next_dirty);
+    cached.content_versions.swap(next_versions);
+}
+
+bool llama_kv_attention_packed_cache::submit_graph(
+        const std::vector<entry *> & owners) noexcept {
+    std::vector<entry *> unique;
+    try {
+        unique.reserve(owners.size());
+        for (entry * owner : owners) {
+            if (owner == nullptr || owner->draining || owner->k == nullptr || owner->v == nullptr) {
+                return false;
+            }
+            const bool owned = std::any_of(entries_.begin(), entries_.end(),
+                    [&](const auto & cached) { return cached.get() == owner; });
+            if (!owned) {
+                return false;
+            }
+            if (std::find(unique.begin(), unique.end(), owner) == unique.end()) {
+                unique.push_back(owner);
+            }
+        }
+        if (unique.empty()) {
+            return false;
+        }
+        for (entry * owner : unique) {
+            if (owner->in_flight_leases != UINT64_MAX) {
+                ++owner->in_flight_leases;
+            }
+        }
+        graph_leases_.push_back(std::move(unique));
+        return true;
+    } catch (...) {
+        for (entry * owner : unique) {
+            if (owner->in_flight_leases != 0) {
+                --owner->in_flight_leases;
+            }
+        }
+        return false;
+    }
+}
+
+void llama_kv_attention_packed_cache::complete_one_graph() noexcept {
+    if (graph_leases_.empty()) {
+        return;
+    }
+    for (entry * owner : graph_leases_.front()) {
+        if (owner != nullptr && owner->in_flight_leases != 0) {
+            --owner->in_flight_leases;
+        }
+    }
+    graph_leases_.erase(graph_leases_.begin());
+}
+
+void llama_kv_attention_packed_cache::complete_all_graphs() noexcept {
+    while (!graph_leases_.empty()) {
+        complete_one_graph();
+    }
+}
+
 void llama_kv_attention_packed_cache::release_completed() noexcept {
     entries_.erase(std::remove_if(entries_.begin(), entries_.end(), [](auto & cached) {
-        if (cached->current_graph_use) {
+        if (!cached->draining || cached->in_flight_leases != 0) {
             return false;
         }
         release_entry(cached.get());
         return true;
     }), entries_.end());
+}
+
+void llama_kv_attention_packed_cache::clear_sequence(int32_t sequence_id) noexcept {
+    for (auto & cached : entries_) {
+        if (cached->sequence_id == sequence_id) {
+            cached->draining = true;
+        }
+    }
+    release_completed();
+}
+
+void llama_kv_attention_packed_cache::clear() noexcept {
+    for (auto & cached : entries_) {
+        cached->draining = true;
+    }
+    release_completed();
 }
 
 llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_or_create(
@@ -79,41 +233,49 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         const std::vector<llama_kv_attention_view_page> & pages,
         ggml_tensor * source_k,
         ggml_tensor * source_v,
-        ggml_backend_t backend) noexcept {
+        ggml_backend_t backend,
+        uint32_t row_capacity) noexcept {
     if (source_k == nullptr || source_v == nullptr || backend == nullptr || pages.empty()) {
         return nullptr;
     }
 
-    const auto same_page = [](const llama_kv_attention_view_page & lhs,
-            const llama_kv_attention_view_page & rhs) {
-        return lhs.logical_page == rhs.logical_page &&
-            lhs.source_physical_slot == rhs.source_physical_slot &&
-            lhs.compact_row_begin == rhs.compact_row_begin &&
-            lhs.row_count == rhs.row_count &&
-            lhs.native_position_begin == rhs.native_position_begin &&
-            lhs.native_position_end == rhs.native_position_end;
-    };
+    uint64_t required_rows = 0;
+    const auto & last = pages.back();
+    if (uint64_t(last.compact_row_begin) + last.row_count > UINT32_MAX) {
+        return nullptr;
+    }
+    required_rows = uint64_t(last.compact_row_begin) + last.row_count;
+    if (row_capacity == 0) {
+        row_capacity = uint32_t(required_rows);
+    }
+    if (row_capacity < required_rows || row_capacity == 0 ||
+            uint64_t(row_capacity) > uint64_t(source_k->ne[2]) ||
+            uint64_t(row_capacity) > uint64_t(source_v->ne[2])) {
+        return nullptr;
+    }
+
     for (const auto & cached : entries_) {
-        if (cached->layer_id != layer_id || cached->sequence_id != sequence_id ||
-                cached->source_lifetime_epoch != source_lifetime_epoch ||
-                cached->backend != backend ||
-                cached->source_k != source_k || cached->source_v != source_v ||
-                cached->source_k_buffer != source_k->buffer ||
-                cached->source_v_buffer != source_v->buffer ||
-                cached->pages.size() != pages.size() || cached->k == nullptr || cached->v == nullptr) {
+        if (!same_structural_key(*cached, layer_id, sequence_id, source_lifetime_epoch,
+                row_capacity, source_k, source_v, backend) ||
+                cached->k == nullptr || cached->v == nullptr) {
             continue;
         }
-        bool match = true;
-        for (size_t i = 0; i < pages.size(); ++i) {
-            if (!same_page(cached->pages[i], pages[i])) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
+        try {
+            update_slots(*cached, pages);
             cached->representation_epoch = representation_epoch;
             cached->current_graph_use = true;
             return cached.get();
+        } catch (...) {
+            return nullptr;
+        }
+    }
+
+    // A structural replacement may coexist with one draining owner, but a
+    // second replacement before completion would make the bounded owner
+    // budget meaningless. Keep the active owner untouched on refusal.
+    for (const auto & cached : entries_) {
+        if (cached->draining && same_domain(*cached, layer_id, sequence_id, backend)) {
+            return nullptr;
         }
     }
 
@@ -123,14 +285,23 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         cached->sequence_id = sequence_id;
         cached->representation_epoch = representation_epoch;
         cached->source_lifetime_epoch = source_lifetime_epoch;
+        cached->row_capacity = row_capacity;
         cached->backend = backend;
+        cached->device = ggml_backend_get_device(backend);
+        cached->source_k_type = source_k->type;
+        cached->source_v_type = source_v->type;
+        cached->source_k_ne0 = source_k->ne[0];
+        cached->source_k_ne1 = source_k->ne[1];
+        cached->source_v_ne0 = source_v->ne[0];
+        cached->source_v_ne1 = source_v->ne[1];
+        cached->owner_generation = next_owner_generation_ == 0
+            ? UINT64_MAX : next_owner_generation_++;
         cached->source_k = source_k;
         cached->source_v = source_v;
         cached->source_k_buffer = source_k->buffer;
         cached->source_v_buffer = source_v->buffer;
         cached->current_graph_use = true;
-        cached->pages = pages;
-        cached->content_versions.assign(pages.size(), UINT64_MAX);
+        update_slots(*cached, pages);
 
         const ggml_init_params params = { 2 * ggml_tensor_overhead(), nullptr, true };
         cached->context = ggml_init(params);
@@ -138,11 +309,9 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
             return nullptr;
         }
         cached->k = ggml_new_tensor_4d(cached->context, source_k->type,
-                source_k->ne[0], source_k->ne[1], pages.back().compact_row_begin +
-                pages.back().row_count, 1);
+                source_k->ne[0], source_k->ne[1], row_capacity, 1);
         cached->v = ggml_new_tensor_4d(cached->context, source_v->type,
-                source_v->ne[0], source_v->ne[1], pages.back().compact_row_begin +
-                pages.back().row_count, 1);
+                source_v->ne[0], source_v->ne[1], row_capacity, 1);
         if (cached->k == nullptr || cached->v == nullptr) {
             return nullptr;
         }
@@ -153,6 +322,11 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
             return nullptr;
         }
 
+        for (auto & previous : entries_) {
+            if (!previous->draining && same_domain(*previous, layer_id, sequence_id, backend)) {
+                previous->draining = true;
+            }
+        }
         entries_.push_back(std::move(cached));
         return entries_.back().get();
     } catch (...) {
@@ -170,6 +344,23 @@ void llama_kv_attention_packed_cache::set_content_version(
         entry * cached, uint32_t page_index, uint64_t version) noexcept {
     if (cached != nullptr && page_index < cached->content_versions.size()) {
         cached->content_versions[page_index] = version;
+        if (page_index < cached->slots.size()) {
+            cached->slots[page_index].copied_content_version = version;
+        }
+        cached->dirty_intervals.clear();
+        for (const auto & slot : cached->slots) {
+            if (slot.copied_content_version == UINT64_MAX && slot.valid_rows != 0) {
+                const uint32_t begin = slot.destination_row_begin;
+                const uint32_t end = begin + slot.valid_rows;
+                if (!cached->dirty_intervals.empty() &&
+                        cached->dirty_intervals.back().row_end >= begin) {
+                    cached->dirty_intervals.back().row_end =
+                        std::max(cached->dirty_intervals.back().row_end, end);
+                } else {
+                    cached->dirty_intervals.push_back({ begin, end });
+                }
+            }
+        }
     }
 }
 

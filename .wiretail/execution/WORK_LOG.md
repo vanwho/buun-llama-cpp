@@ -994,3 +994,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-13T16:22:38+00:00 - 34-01 - done
 
 - Summary: Removed paged K/V logical-row fallback, authenticated reserved physical destinations before graph submission, and added sparse/generation/overflow/publication/tail regression coverage. CPU and available CUDA fixtures passed; broad CUDA relink and native selected live probe deferred per bounded scope. Raw: `/srv/ai/paged-kv/results/v9/34-01/20260913T162238Z-focused/`.
+
+## 2026-09-13T16:42:35+00:00 - 34-02 - done
+
+- Summary: Made Turbo4 packed K/V storage fixed-A and persistent across page/tail selection changes, added slot generations and completion-aware bounded owner replacement, and passed focused attention/pager fixtures plus state/plan validation. Native selected GPU replay deferred to later F3/F4 tasks. Raw: `/srv/ai/paged-kv/results/v9/34-02/20260913T164235Z-focused/`.

@@ -1,0 +1,49 @@
+{
+  "task": "34-02",
+  "cluster": "34a-address-owner-v9",
+  "result": "pass",
+  "raw_result": "/srv/ai/paged-kv/results/v9/34-02/20260913T164235Z-focused/RESULT.md",
+  "candidate": {
+    "kind": "local-cpu-build",
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build/bin"
+  },
+  "implementation": {
+    "owner_key": [
+      "model layer id",
+      "sequence slot",
+      "backend and device",
+      "Turbo4 source types and head geometry",
+      "fixed A row capacity",
+      "source allocation lifetime"
+    ],
+    "owner_generation": true,
+    "persistent_storage": true,
+    "slot_records": [
+      "logical page",
+      "source physical slot",
+      "page generation",
+      "native positions",
+      "valid rows",
+      "destination row",
+      "copied content version",
+      "dirty intervals"
+    ],
+    "lease_lifecycle": "graph submission leases are released only at scheduler completion; one active and one draining structural owner are allowed"
+  },
+  "invariants": {
+    "selection_and_tail_changes_keep_owner_pointer": true,
+    "content_generation_invalidates_only_affected_slot": true,
+    "retired_owner_survives_before_completion": true,
+    "replacement_high_water_is_bounded": true,
+    "sequence_clear_releases_completed_owners": true
+  },
+  "commands": [
+    "cmake --build build --target test-kv-attention-execution test-kv-pager -j2",
+    "./build/bin/test-kv-attention-execution",
+    "./build/bin/test-kv-pager",
+    "git diff --check",
+    "PROJECT_ROOT=$PWD python3 /srv/wiretail/task_state.py validate",
+    "python3 .wiretail/execution/v9/validate_plan.py"
+  ],
+  "deferred_verification": "Native selected-attention GPU replay is outside this F2 packet and remains for later F3/F4 runtime tasks."
+}

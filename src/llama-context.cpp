@@ -2105,10 +2105,6 @@ void llama_context::synchronize() {
         kv_attention_execution.record_wait();
     }
     ggml_backend_sched_synchronize(sched.get());
-    // Packed destinations are graph-owned consumers. Retire superseded page
-    // selections only after the scheduler fence, while retaining the entries
-    // referenced by the graph that can be replayed next.
-    kv_attention_packed_cache.release_completed();
     if (kv_attention_wait) {
         kv_attention_execution.record_wait_time_us(uint64_t(std::max<int64_t>(
                 0, ggml_time_us() - wait_start_us)));
@@ -2130,6 +2126,11 @@ void llama_context::synchronize() {
     while (kv_attention_execution.in_flight_graphs() != 0) {
         kv_attention_execution.complete_one_graph();
     }
+    // The scheduler fence is also the completion boundary for packed owners.
+    // Keep retired owners alive until this point; a graph rebuild may have
+    // replaced its page selection while the previous graph still reads it.
+    kv_attention_packed_cache.complete_all_graphs();
+    kv_attention_packed_cache.release_completed();
 
     // Page-mass is an optional output of the direct CUDA attention node. Read
     // it only after the scheduler fence, then publish against the immutable
