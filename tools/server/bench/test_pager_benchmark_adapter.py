@@ -134,7 +134,8 @@ class AdapterContractTests(unittest.TestCase):
 
     def run_main(self, output: pathlib.Path, snapshots: list[dict[str, object]],
                  metrics: list[dict[str, object] | None], *, runner_rc: int = 0,
-                 restore: dict[str, object] | None = None) -> int:
+                 restore: dict[str, object] | None = None,
+                 mode: str = "selective") -> int:
         expected = identity("candidate", 202)
 
         def canonical(command: list[str], **_: object) -> object:
@@ -150,7 +151,8 @@ class AdapterContractTests(unittest.TestCase):
                 patch.object(adapter, "read_server_metrics", side_effect=[(item, None) for item in metrics]), \
                 patch.object(adapter, "restore_profile", return_value=restore), \
                 patch.object(adapter.subprocess, "run", side_effect=canonical), \
-                patch.object(adapter.sys, "argv", ["run-pager-profile-benchmark.py", "fast", "short", str(output)]):
+                patch.object(adapter.sys, "argv", ["run-pager-profile-benchmark.py", "fast", "short", str(output),
+                                                    "--mode", mode]):
             return adapter.main()
 
     def test_missing_queue_and_mtp_not_present_are_explicit(self) -> None:
@@ -200,6 +202,19 @@ class AdapterContractTests(unittest.TestCase):
                     "run-pager-profile-benchmark.py", "fast", "stable-focus",
                     directory, "--dry-run", "--context", "16384"]):
             self.assertEqual(2, adapter.main())
+
+    def test_one_case_and_one_trial_are_forwarded_without_secrets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(adapter.os.environ, {}, clear=True), \
+                patch.object(adapter.sys, "argv", [
+                    "run-pager-profile-benchmark.py", "fast", "short", directory,
+                    "--dry-run", "--one-case", "--one-trial",
+                    "--generation-length", "16", "--progress-bound", "7"]):
+            self.assertEqual(0, adapter.main())
+            config = json.loads((pathlib.Path(directory) / "run-config.json").read_text())
+            self.assertEqual([0], config["resume"]["case_indexes"])
+            self.assertEqual("16", os.environ["BENCH_GENERATION_LENGTH"])
+            self.assertEqual("7.0", os.environ["BENCH_PROGRESS_BOUND"])
 
     def test_diagnostic_dry_run_records_odd_tail(self) -> None:
         with tempfile.TemporaryDirectory() as directory, \
@@ -310,6 +325,18 @@ class AdapterContractTests(unittest.TestCase):
             self.assertEqual(lifecycle["restoration"]["state"], "restored")
             self.assertEqual(lifecycle["profile_after"], "prior")
             self.assertEqual(lifecycle["server_pid_after"], 303)
+
+    def test_feature_off_baseline_allows_optional_pager_gap(self) -> None:
+        missing_queue = telemetry()
+        missing_queue.pop("queue_time_us")
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            rc = self.run_main(output,
+                               [snapshot("prior", 101), snapshot("candidate", 202)],
+                               [telemetry(), missing_queue], mode="off")
+            self.assertEqual(0, rc)
+            lifecycle = json.loads((output / "lifecycle-state.json").read_text())
+            self.assertEqual("passed", lifecycle["adapter_validation"])
 
     def test_candidate_mismatch_restores_prior_identity(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
