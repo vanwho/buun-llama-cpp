@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "36",
-  "current_task": "36-02",
-  "last_updated_utc": "2026-09-13T22:53:48+00:00",
+  "current_task": "36-03",
+  "last_updated_utc": "2026-09-13T23:12:14+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7011,7 +7011,7 @@
       "cluster": "36a-hotloop-mtp-v9",
       "title": "Recover native-MTP benefit without changing full-L GPU cache policy",
       "packet": ".wiretail/execution/tasks/36-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -7026,7 +7026,32 @@
       "depends_on": [
         "36-01"
       ],
-      "commit": null
+      "commit": "4f0101c2bee35863ff270ce9045351246ce077dc",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/36-02-attempt-1-20260913T225405Z.jsonl:135",
+            "total_tokens": 40368441,
+            "total_tokens_derived": true,
+            "input_tokens": 40265526,
+            "cached_input_tokens": 39303680,
+            "output_tokens": 102915,
+            "thinking_tokens": 41200
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 40368441,
+          "input_tokens": 40265526,
+          "cached_input_tokens": 39303680,
+          "output_tokens": 102915,
+          "thinking_tokens": 41200
+        }
+      }
     },
     {
       "id": "36-03",
@@ -9308,15 +9333,28 @@
           "cached_input_tokens": 29596416,
           "output_tokens": 72451,
           "thinking_tokens": 28344
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/36-02-attempt-1-20260913T225405Z.jsonl:135",
+          "total_tokens": 40368441,
+          "total_tokens_derived": true,
+          "input_tokens": 40265526,
+          "cached_input_tokens": 39303680,
+          "output_tokens": 102915,
+          "thinking_tokens": 41200
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 30343995,
-        "input_tokens": 30271544,
-        "cached_input_tokens": 29596416,
-        "output_tokens": 72451,
-        "thinking_tokens": 28344
+        "turns": 2,
+        "total_tokens": 70712436,
+        "input_tokens": 70537070,
+        "cached_input_tokens": 68900096,
+        "output_tokens": 175366,
+        "thinking_tokens": 69544
       }
     },
     "37": {
@@ -9344,12 +9382,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 130,
-      "total_tokens": 3096678795,
-      "input_tokens": 3089697949,
-      "cached_input_tokens": 3029453056,
-      "output_tokens": 6980846,
-      "thinking_tokens": 2559860
+      "turns": 131,
+      "total_tokens": 3137047236,
+      "input_tokens": 3129963475,
+      "cached_input_tokens": 3068756736,
+      "output_tokens": 7083761,
+      "thinking_tokens": 2601060
     },
     "source": "Codex turn.completed usage events"
   }

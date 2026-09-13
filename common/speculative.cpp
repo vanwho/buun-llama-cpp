@@ -187,6 +187,15 @@ common_speculative_rollback_frontier_resolve(
     return result;
 }
 
+int32_t common_speculative_mtp_carry_row(
+        int32_t verify_rows,
+        uint16_t accepted_draft_tokens) noexcept {
+    if (verify_rows <= 0) {
+        return -1;
+    }
+    return std::min<int32_t>(int32_t(accepted_draft_tokens), verify_rows - 1);
+}
+
 common_speculative_checkpoint_policy common_speculative_checkpoint_policy_resolve(
         bool has_draft_context,
         bool vbr_prompt_cache,
@@ -3221,7 +3230,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             return;
         }
 
-        const int32_t i_h = std::min<int32_t>(n_accepted, n_rows - 1);
+        const int32_t i_h = common_speculative_mtp_carry_row(n_rows, n_accepted);
         const size_t row_bytes = (size_t) n_embd * sizeof(float);
         std::memcpy(pending_h[seq_id].data(), verify_h[seq_id].data() + (size_t) i_h * n_embd, row_bytes);
     }
@@ -6960,7 +6969,7 @@ void common_speculative_update_logits(
     common_speculative_update_logits(spec, 0, ctx, batch_tokens, n_accepted);
 }
 
-bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t n_accepted) {
+bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t /*n_accepted*/) {
     if (spec == nullptr) {
         return true;
     }
@@ -6972,7 +6981,10 @@ bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq
                     !llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
                 return false;
             }
-            mtp->accept(seq_id, n_accepted, false);
+            // The server has already delivered this acceptance to every
+            // implementation before rolling back target/draft memory. Do not
+            // call MTP::accept again: its hidden-row selection is a one-shot
+            // boundary update and a second call can consume stale verify_h.
         }
     }
     return true;

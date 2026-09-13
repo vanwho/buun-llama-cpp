@@ -265,6 +265,13 @@ common_speculative_rollback_frontier_resolve(
         size_t proposed_draft_tokens,
         size_t accepted_draft_tokens) noexcept;
 
+// Resolve the target-hidden row that carries the next MTP boundary. The
+// verification batch is [sampled, draft0, ...], while accepted_draft_tokens
+// counts only draft rows; clamp defensively for a short or empty batch.
+int32_t common_speculative_mtp_carry_row(
+        int32_t verify_rows,
+        uint16_t accepted_draft_tokens) noexcept;
+
 // Host-checkpoint codec for the deferred MTP hidden row. A complete draft
 // sequence image is not usable without this carry at a nonzero frontier.
 bool common_speculative_mtp_carry_state_save(

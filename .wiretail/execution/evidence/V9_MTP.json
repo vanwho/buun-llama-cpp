@@ -1,0 +1,142 @@
+{
+  "schema": "hotpath-v9",
+  "task": "36-02",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-13T23:10:16Z",
+  "provenance": {
+    "code_sha": "c91d7e63be5541c1668fa945c06e2f3a27503e6c",
+    "source_diff_hash": "4ab6ae3dc8391b8a49b6f007ee5c3ebe04a287ec2f66cd23916fcc1c28340b0c",
+    "server_sha": "82b92cc7da404d2eddd8aaf5c218d9cc202f8167a3c727f61f467d75bb220255",
+    "loaded_dso_hashes": {
+      "libggml-cuda.so.0.22.0": "b55d857fecd7a3b511c829ff34284455fe86a65ddfeee8b2fa8701cad243540b",
+      "libllama-common.so.0.3.0": "9134c5f194579b136c2c55eaa5ea070d2cee174430d47f9bb94725073b5d116f",
+      "libllama.so.0.3.0": "5565c8ed582875a42b9b8a1ea7aa9552f6c65d7bd13c5c2533d72a0e547d44e0",
+      "libllama-server-impl.so": "bc32b87cd8fa4fd58979ab98c1f4096950ca61310c23df6c7638c8fd01a58110"
+    },
+    "model_hash": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "prompt_hash": "bd91460c9496f2851ee797142cfc902ef4bd926646a491541d38bf0f62feda09",
+    "raw_root": "/srv/ai/paged-kv/results/v9/36-02",
+    "effective_config_hash": "ae136eab8ff0fc781ba3ac472aeb5e69c726e6633743acfc48d68fcd4a727d4a"
+  },
+  "config": {
+    "L": 8192,
+    "C_before": 0,
+    "C_after": 158,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 8192,
+    "draft_device": "gpu",
+    "mtp_type": "native",
+    "selected_n_max": 1,
+    "selected_hot_pages": 16
+  },
+  "execution": {
+    "target_attention_route": "selected packed prefill; decode subroute is not exposed in the bounded receipt",
+    "target_layer_count": null,
+    "target_layer_count_reason": "not exposed in the bounded pager metrics snapshot",
+    "resident_bytes": 0,
+    "canonical_host_bytes": null,
+    "canonical_host_bytes_reason": "no host-resident target pages were reported for this clean q0",
+    "selected_rows_by_layer": 2048,
+    "fresh_or_restored": "fresh clean-isolated slot",
+    "selected_page_ids_at_recall": [0],
+    "natural_proof": {
+      "candidate_was_cold": false,
+      "promotion_published": false,
+      "selector_rank": null,
+      "reason": "q0 measures the hot-loop path; no natural cold candidate was claimed"
+    }
+  },
+  "rates": {
+    "prefill_new_tokens": 30,
+    "prefill_seconds": 0.111077,
+    "cached_tokens": 0,
+    "committed_output_tokens": 128,
+    "decode_seconds": 3.364167,
+    "ttft_seconds": null,
+    "ttft_reason": "manual direct n-max1 probe recorded total HTTP time, not a separate TTFT timer",
+    "pp_tok_s": 270.08291545504466,
+    "tg_tok_s": 37.75080131277669,
+    "proposed_tokens": 124,
+    "accepted_tokens": 2,
+    "comparisons": {
+      "selected_n_max2": {
+        "http_seconds": 3.777283,
+        "prefill_seconds": 0.111585,
+        "decode_seconds": 3.664215,
+        "pp_tok_s": 268.85334050275577,
+        "tg_tok_s": 34.65953826399379,
+        "proposed_tokens": 245,
+        "accepted_tokens": 3,
+        "committed_output_tokens": 128
+      },
+      "all_gpu_n_max2": {
+        "http_seconds": 3.580822,
+        "prefill_seconds": 0.095771,
+        "decode_seconds": 3.483823,
+        "pp_tok_s": 313.2472251516639,
+        "tg_tok_s": 36.454205624108916,
+        "proposed_tokens": 251,
+        "accepted_tokens": 0,
+        "committed_output_tokens": 128
+      },
+      "selected_n_max1_http_seconds": 3.477135
+    }
+  },
+  "work": {
+    "pack_bytes": 34603008,
+    "host_copy_bytes": null,
+    "host_copy_bytes_reason": "not reported by the direct bounded probe",
+    "h2d_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "graph_builds": 127,
+    "graph_replays": 0,
+    "router_refreshes": null,
+    "router_refreshes_reason": "not exposed by the bounded pager metrics snapshot",
+    "queue_time_us": 2839409,
+    "copy_time_us": 0,
+    "wait_time_us": 186654,
+    "attention_samples": 0,
+    "attention_skipped": 93,
+    "transfer_submitted": 0,
+    "transfer_event_completions": 0
+  },
+  "resources": {
+    "peak_bytes_by_category": {
+      "target_valid": 2652672,
+      "packed_workspace": 69206016,
+      "mtp_compute": 268435456,
+      "mtp_rows": 8192
+    },
+    "safety_headroom_bytes": 201326592,
+    "cpu_rss": null,
+    "cpu_rss_reason": "not captured by the bounded receipt"
+  },
+  "hidden_carry_rollback": {
+    "correctness_regression": "pass",
+    "carry_row_mapping": "sampled target row 0 plus accepted draft prefix, clamped at verify_rows-1",
+    "rollback_frontier": "accepted_token_count = committed_tokens + 1 + accepted_draft_tokens; rejected suffix begins there",
+    "acceptance_delivery": "MTP accept is delivered once before target/draft KV rollback",
+    "stale_hidden_row_fix": "removed the second MTP::accept call from common_speculative_rollback_dft",
+    "target_only_restore": "existing target-only recovery clears MTP suffix and carries target hidden state; no full draft-history refill"
+  },
+  "decision": "pass",
+  "capability_proven": false,
+  "reason": "Carry/rollback boundaries are covered and the direct full-L GPU Turbo4 comparison selected n-max1 by committed decode speed. It commits 128 tokens at 37.75 tok/s versus 34.66 tok/s for selected n-max2; all-GPU n-max2 is 36.45 tok/s. Sparse native-MTP benefit over all-GPU is therefore not proven, and the residual acceptance cost is explicit: 2/124 at n-max1, 3/245 at n-max2, with zero accepted in the control.",
+  "next_action": "36-03: tune B/U/A and safe H using the selected n-max1 setting; retain the full-L GPU Turbo4 draft invariant and treat sparse-vs-dense acceptance as an explicit limitation.",
+  "partial_checkpoint": {
+    "selected_n_max2": "/srv/ai/paged-kv/results/v9/36-02/20260914T010000Z-selected2",
+    "all_gpu_n_max2": "/srv/ai/paged-kv/results/v9/36-02/20260914T010000Z-allgpu",
+    "selected_n_max1": "/srv/ai/paged-kv/results/v9/36-02/20260914T010000Z-nmax1",
+    "live_pid": 3557397,
+    "live_health": "HTTP 200 {\"status\":\"ok\"}",
+    "adapter_note": "canonical benchmark requests completed; adapter cleanup reported profile/restoration identity mismatches, so those lifecycle errors are not treated as benchmark failures"
+  }
+}
