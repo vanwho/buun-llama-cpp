@@ -1,10 +1,72 @@
 #include "ggml.h"
 #include "ggml-backend.h"
 #include "ggml-cpu.h"
+#include "llama-kv-prefetch.h"
 
 #include <cassert>
 #include <cstdint>
 #include <vector>
+
+static llama_kv_page_id fixture_page(uint32_t logical_page) {
+    llama_kv_page_id id;
+    id.session_generation = 1;
+    id.sequence_id = 0;
+    id.sequence_generation = 1;
+    id.logical_page = logical_page;
+    id.page_generation = logical_page + 1;
+    id.representation_epoch = 1;
+    id.model_identity = 1;
+    id.topology_identity = 1;
+    id.codec_digest = 1;
+    id.codebook_digest = 1;
+    id.rotation_digest = 1;
+    id.meansub_digest = 1;
+    id.position_begin = llama_pos(logical_page * 256);
+    id.position_end = id.position_begin + 256;
+    return id;
+}
+
+static void test_live_selector_mailbox(const std::vector<int32_t> & output) {
+    // This is the graph-boundary half of the production chain: compact IDs
+    // produced by the real selector are copied into the owner mailbox, then
+    // consumed as authenticated page identities rather than raw positions.
+    llama_kv_prefetch_mailbox mailbox({ 2, 8 });
+    uint32_t slot = UINT32_MAX;
+    llama_kv_prefetch_candidate * records = nullptr;
+    assert(mailbox.acquire(slot, records) == llama_kv_prefetch_mailbox_status::ok);
+    uint32_t written = 0;
+    for (size_t rank = 0; rank < output.size(); ++rank) {
+        if (output[rank] < 0 || output[rank] >= 5) continue;
+        auto & candidate = records[written++];
+        candidate.identity = fixture_page(uint32_t(output[rank]));
+        candidate.attention_layer = 3;
+        candidate.generation = 7;
+        candidate.table_epoch = 11;
+        candidate.score = -float(rank);
+        candidate.requested_bytes = 4096;
+    }
+    assert(written != 0);
+    assert(mailbox.publish_ready(slot, written, 7) ==
+           llama_kv_prefetch_mailbox_status::ok);
+    std::vector<llama_kv_prefetch_candidate> ready;
+    assert(mailbox.take_ready(ready) == written);
+    for (const auto & candidate : ready) {
+        assert(candidate.generation == 7 && candidate.table_epoch == 11 &&
+               candidate.attention_layer == 3);
+    }
+
+    // A refresh cannot consume a third owned slot while two results are
+    // outstanding; the caller retains its last valid selection and retries.
+    for (uint32_t busy = 0; busy < 2; ++busy) {
+        assert(mailbox.acquire(slot, records) == llama_kv_prefetch_mailbox_status::ok);
+        records[0] = { fixture_page(uint32_t(busy)), 3, 7, 11, 0.0f,
+                       4096, 0, 0, false };
+        assert(mailbox.publish_ready(slot, 1, 7) ==
+               llama_kv_prefetch_mailbox_status::ok);
+    }
+    assert(mailbox.acquire(slot, records) == llama_kv_prefetch_mailbox_status::full);
+    mailbox.cancel();
+}
 
 int main() {
     ggml_backend_load_all();
@@ -69,6 +131,11 @@ int main() {
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
     assert(output[0] == 1 && output[1] == 0);
     assert(output[2] == 2 && output[3] == -1);
+    const auto first_output = output;
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
+    assert(output == first_output);
+    test_live_selector_mailbox(output);
 
     // A disabled refresh and a stale snapshot publish only padding, never a
     // candidate from the previous generation.

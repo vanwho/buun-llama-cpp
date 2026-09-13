@@ -2753,7 +2753,9 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     auto & selected_pages = kv_attention_selected_pages_scratch_;
     try {
         selected_pages.clear();
-        const auto & routed_pages = attention->selected_attention_pages();
+        const uint32_t route_layer = pager_geometry.geometry.model_layer_ids.empty()
+            ? 0 : pager_geometry.geometry.model_layer_ids.front();
+        const auto & routed_pages = attention->selected_attention_pages(route_layer);
         const uint32_t page_tokens = pager_geometry.geometry.page_tokens;
         const uint32_t attention_tokens = cparams.kv_attention_tokens != 0
             ? cparams.kv_attention_tokens

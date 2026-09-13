@@ -547,6 +547,7 @@ private:
     friend class vbr_live_capture_adapter;
     friend class vbr_kv_import_session;
     friend struct llama_kv_cache_vbr_stash_batch_test;
+    friend class llama_kv_cache_context;
     struct vbr_capture_unit_request {
         uint32_t child_id = 0;
         const void * bindings = nullptr;
@@ -1515,7 +1516,7 @@ private:
     llama_kv_attention_telemetry * kv_attention_telemetry_ = nullptr;
     int32_t pager_last_sequence_id_ = -1;
     uint64_t pager_query_generation_ = 0;
-    bool pager_fallback_used_ = false;
+    bool pager_query_refresh_enabled_ = true;
     // A policy boundary is needed after page maintenance or a ready routing
     // candidate, not after every unchanged write-frontier publication.
     bool pager_policy_dirty_ = false;
@@ -1529,6 +1530,16 @@ private:
     std::map<llama_seq_id,
         std::map<uint32_t, std::vector<llama_kv_page_id>>>
         pager_attention_selection_by_layer_;
+    struct pager_routing_output {
+        ggml_tensor * tensor = nullptr;
+        uint32_t layer = UINT32_MAX;
+        llama_seq_id sequence_id = -1;
+        uint64_t query_generation = 0;
+        uint64_t table_epoch = 0;
+        uint64_t query_position = 0;
+        uint64_t sequence_generation = 0;
+    };
+    mutable std::vector<pager_routing_output> pager_routing_outputs_;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;
     uint64_t pager_host_controller_generation_ = 1;
@@ -1860,6 +1871,16 @@ public:
     ggml_tensor * build_kv_page_select(
             ggml_context * ctx, ggml_tensor * q, int layer,
             const llama_ubatch & ubatch, uint32_t query_row) const override;
+    bool set_kv_page_select_inputs(
+            ggml_tensor * bounds, ggml_tensor * metadata,
+            ggml_tensor * membership, ggml_tensor * query, int layer,
+            const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_page_select(
+            const ggml_tensor * bounds, int layer,
+            const llama_ubatch & ubatch) const override;
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) const override;
 
     // VBR tier-flip epoch of the underlying cache (0 when VBR is off — the counter never moves)
     uint64_t get_vbr_epoch() const override;
@@ -1892,6 +1913,8 @@ public:
             std::vector<int32_t> & rows) const;
     llama_kv_pager * get_kv_pager() const noexcept;
     const std::vector<llama_kv_page_id> & selected_attention_pages() const noexcept;
+    const std::vector<llama_kv_page_id> & selected_attention_pages(
+            uint32_t layer) const noexcept;
 
 
     // TurboQuant rotation accessors

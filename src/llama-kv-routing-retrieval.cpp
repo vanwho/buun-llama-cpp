@@ -103,6 +103,7 @@ const char * llama_kv_routing_retrieval_reason_name(
         case llama_kv_routing_retrieval_reason::summary:     return "summary";
         case llama_kv_routing_retrieval_reason::exploration: return "exploration";
         case llama_kv_routing_retrieval_reason::fallback:    return "fallback";
+        case llama_kv_routing_retrieval_reason::forced:      return "forced";
     }
     return "invalid";
 }
