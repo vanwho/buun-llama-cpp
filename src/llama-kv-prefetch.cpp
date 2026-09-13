@@ -1,6 +1,7 @@
 #include "llama-kv-prefetch.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <new>
 #include <utility>
@@ -13,7 +14,276 @@ bool add_u64(uint64_t a, uint64_t b, uint64_t & out) noexcept {
     return true;
 }
 
+bool has_identity(const llama_kv_prefetch_intent & intent) noexcept {
+    return intent.identity.session_generation != 0 ||
+           intent.identity.sequence_generation != 0 ||
+           intent.identity.sequence_id >= 0 ||
+           intent.identity.logical_page != 0 ||
+           intent.identity.page_generation != 0;
+}
+
+bool same_identity(const llama_kv_prefetch_intent & lhs,
+                   const llama_kv_prefetch_intent & rhs) noexcept {
+    if (has_identity(lhs) || has_identity(rhs)) {
+        return has_identity(lhs) && has_identity(rhs) &&
+               lhs.identity == rhs.identity &&
+               lhs.attention_layer == rhs.attention_layer;
+    }
+    return lhs.page_id == rhs.page_id &&
+           lhs.attention_layer == rhs.attention_layer;
+}
+
+bool same_candidate(const llama_kv_prefetch_candidate & lhs,
+                    const llama_kv_prefetch_candidate & rhs) noexcept {
+    return lhs.identity == rhs.identity &&
+           lhs.attention_layer == rhs.attention_layer;
+}
+
 } // namespace
+
+const char * llama_kv_prefetch_mailbox_status_name(
+        llama_kv_prefetch_mailbox_status status) noexcept {
+    switch (status) {
+        case llama_kv_prefetch_mailbox_status::ok: return "ok";
+        case llama_kv_prefetch_mailbox_status::not_configured: return "not_configured";
+        case llama_kv_prefetch_mailbox_status::invalid_argument: return "invalid_argument";
+        case llama_kv_prefetch_mailbox_status::full: return "full";
+        case llama_kv_prefetch_mailbox_status::stale_generation: return "stale_generation";
+        case llama_kv_prefetch_mailbox_status::cancelled: return "cancelled";
+        case llama_kv_prefetch_mailbox_status::_count: break;
+    }
+    return "invalid";
+}
+
+llama_kv_prefetch_mailbox::llama_kv_prefetch_mailbox(
+        const llama_kv_prefetch_mailbox_config & config) noexcept
+    : capacity_(config.candidates_per_slot) {
+    if (config.slot_count == 0 || config.candidates_per_slot == 0) {
+        capacity_ = 0;
+        return;
+    }
+    try {
+        slots_.resize(config.slot_count);
+        for (auto & slot : slots_) {
+            slot.records.resize(capacity_);
+        }
+    } catch (...) {
+        slots_.clear();
+        capacity_ = 0;
+    }
+}
+
+uint32_t llama_kv_prefetch_mailbox::pending_slots() const noexcept {
+    return uint32_t(std::count_if(slots_.begin(), slots_.end(),
+            [](const auto & slot) {
+        return slot.state == slot_state::pending;
+    }));
+}
+
+uint32_t llama_kv_prefetch_mailbox::ready_slots() const noexcept {
+    return uint32_t(std::count_if(slots_.begin(), slots_.end(),
+            [](const auto & slot) {
+        return slot.state == slot_state::ready;
+    }));
+}
+
+bool llama_kv_prefetch_mailbox::validate(
+        const llama_kv_prefetch_candidate & candidate,
+        uint64_t generation, uint64_t table_epoch) const noexcept {
+    return candidate.attention_layer != UINT32_MAX &&
+           candidate.generation != 0 &&
+           (generation == 0 || candidate.generation == generation) &&
+           (table_epoch == 0 || candidate.table_epoch == 0 ||
+            candidate.table_epoch == table_epoch) &&
+           candidate.requested_bytes != 0 && std::isfinite(candidate.score) &&
+           !candidate.speculation_rejected &&
+           llama_kv_page_id_valid(candidate.identity,
+                                  llama_kv_page_id_is_tail(candidate.identity));
+}
+
+void llama_kv_prefetch_mailbox::release(slot & value) noexcept {
+    value.count = 0;
+    value.generation = 0;
+    value.event = 0;
+    value.state = slot_state::free;
+}
+
+llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::acquire(
+        uint32_t & slot, llama_kv_prefetch_candidate *& records) noexcept {
+    slot = UINT32_MAX;
+    records = nullptr;
+    if (!configured()) return llama_kv_prefetch_mailbox_status::not_configured;
+    for (uint32_t i = 0; i < slots_.size(); ++i) {
+        if (slots_[i].state != slot_state::free) continue;
+        slots_[i].state = slot_state::writing;
+        slots_[i].count = 0;
+        slot = i;
+        records = slots_[i].records.data();
+        return llama_kv_prefetch_mailbox_status::ok;
+    }
+    return llama_kv_prefetch_mailbox_status::full;
+}
+
+llama_kv_prefetch_candidate * llama_kv_prefetch_mailbox::data(
+        uint32_t slot) noexcept {
+    return slot < slots_.size() && slots_[slot].state == slot_state::writing
+        ? slots_[slot].records.data() : nullptr;
+}
+
+const llama_kv_prefetch_candidate * llama_kv_prefetch_mailbox::data(
+        uint32_t slot) const noexcept {
+    return slot < slots_.size() && slots_[slot].state != slot_state::free
+        ? slots_[slot].records.data() : nullptr;
+}
+
+llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::publish_pending(
+        uint32_t slot, uint32_t count, uint64_t generation,
+        uint64_t event) noexcept {
+    if (slot >= slots_.size() || count == 0 || count > capacity_ ||
+        generation == 0 || event == 0 || !backend_.poll ||
+        slots_[slot].state != slot_state::writing) {
+        return !configured() || slot >= slots_.size()
+            ? llama_kv_prefetch_mailbox_status::not_configured
+            : llama_kv_prefetch_mailbox_status::invalid_argument;
+    }
+    auto & value = slots_[slot];
+    for (uint32_t i = 0; i < count; ++i) {
+        if (!validate(value.records[i], generation, 0)) {
+            release(value);
+            return llama_kv_prefetch_mailbox_status::invalid_argument;
+        }
+        for (uint32_t j = 0; j < i; ++j) {
+            if (same_candidate(value.records[i], value.records[j])) {
+                release(value);
+                return llama_kv_prefetch_mailbox_status::invalid_argument;
+            }
+        }
+    }
+    value.count = count;
+    value.generation = generation;
+    value.event = event;
+    value.state = slot_state::pending;
+    return llama_kv_prefetch_mailbox_status::ok;
+}
+
+llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::publish_ready(
+        uint32_t slot, uint32_t count, uint64_t generation) noexcept {
+    if (slot >= slots_.size() || count == 0 || count > capacity_ ||
+        generation == 0 || slots_[slot].state != slot_state::writing) {
+        return !configured() || slot >= slots_.size()
+            ? llama_kv_prefetch_mailbox_status::not_configured
+            : llama_kv_prefetch_mailbox_status::invalid_argument;
+    }
+    auto & value = slots_[slot];
+    for (uint32_t i = 0; i < count; ++i) {
+        if (!validate(value.records[i], generation, 0)) {
+            release(value);
+            return llama_kv_prefetch_mailbox_status::invalid_argument;
+        }
+        for (uint32_t j = 0; j < i; ++j) {
+            if (same_candidate(value.records[i], value.records[j])) {
+                release(value);
+                return llama_kv_prefetch_mailbox_status::invalid_argument;
+            }
+        }
+    }
+    value.count = count;
+    value.generation = generation;
+    value.event = 0;
+    value.state = slot_state::ready;
+    return llama_kv_prefetch_mailbox_status::ok;
+}
+
+void llama_kv_prefetch_mailbox::abandon(uint32_t slot) noexcept {
+    if (slot < slots_.size() && slots_[slot].state == slot_state::writing) {
+        release(slots_[slot]);
+    }
+}
+
+llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::poll(
+        uint64_t generation, uint64_t table_epoch) noexcept {
+    if (!configured()) return llama_kv_prefetch_mailbox_status::not_configured;
+    llama_kv_prefetch_mailbox_status result = llama_kv_prefetch_mailbox_status::ok;
+    for (auto & value : slots_) {
+        if (value.state != slot_state::pending) continue;
+        if (generation != 0 && value.generation != generation) {
+            if (backend_.cancel && value.event) backend_.cancel(backend_.context, value.event);
+            if (backend_.release && value.event) backend_.release(backend_.context, value.event);
+            release(value);
+            result = llama_kv_prefetch_mailbox_status::stale_generation;
+            continue;
+        }
+        const auto state = backend_.poll(backend_.context, value.event);
+        if (state == llama_kv_prefetch_mailbox_poll::pending) continue;
+        if (state != llama_kv_prefetch_mailbox_poll::completed) {
+            if (backend_.cancel && value.event) backend_.cancel(backend_.context, value.event);
+            if (backend_.release && value.event) backend_.release(backend_.context, value.event);
+            release(value);
+            result = state == llama_kv_prefetch_mailbox_poll::stale_generation
+                ? llama_kv_prefetch_mailbox_status::stale_generation
+                : llama_kv_prefetch_mailbox_status::cancelled;
+            continue;
+        }
+        bool valid = true;
+        for (uint32_t i = 0; i < value.count; ++i) {
+            if (!validate(value.records[i], generation, table_epoch)) {
+                valid = false;
+                break;
+            }
+            for (uint32_t j = 0; j < i; ++j) {
+                if (same_candidate(value.records[i], value.records[j])) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (!valid) break;
+        }
+        if (!valid) {
+            if (backend_.cancel && value.event) backend_.cancel(backend_.context, value.event);
+            if (backend_.release && value.event) backend_.release(backend_.context, value.event);
+            release(value);
+            result = llama_kv_prefetch_mailbox_status::stale_generation;
+            continue;
+        }
+        if (backend_.release && value.event) backend_.release(backend_.context, value.event);
+        value.event = 0;
+        value.state = slot_state::ready;
+    }
+    return result;
+}
+
+size_t llama_kv_prefetch_mailbox::take_ready(
+        std::vector<llama_kv_prefetch_candidate> & output,
+        uint32_t max_candidates) noexcept {
+    if (!configured() || max_candidates == 0) return 0;
+    const size_t before = output.size();
+    try {
+        for (auto & value : slots_) {
+            if (value.state != slot_state::ready) continue;
+            for (uint32_t i = 0; i < value.count &&
+                    output.size() - before < max_candidates; ++i) {
+                output.push_back(value.records[i]);
+            }
+            release(value);
+            if (output.size() - before >= max_candidates) break;
+        }
+    } catch (...) {
+        return output.size() - before;
+    }
+    return output.size() - before;
+}
+
+void llama_kv_prefetch_mailbox::cancel() noexcept {
+    for (auto & value : slots_) {
+        if (value.state == slot_state::pending && backend_.cancel && value.event) {
+            backend_.cancel(backend_.context, value.event);
+        }
+        if (value.state == slot_state::pending && backend_.release && value.event) {
+            backend_.release(backend_.context, value.event);
+        }
+        release(value);
+    }
+}
 
 llama_kv_prefetch_predictor::llama_kv_prefetch_predictor(
         uint32_t capacity) noexcept : capacity_(capacity) {
@@ -35,7 +305,7 @@ bool llama_kv_prefetch_predictor::observe(
             if (input.page_id == 0 || input.useful_bytes == 0 ||
                 input.aligned_bytes < input.useful_bytes ||
                 std::find_if(candidates.begin(), candidates.end(),
-                    [&](const auto & value) { return value.page_id == input.page_id; }) !=
+                    [&](const auto & value) { return same_identity(value, input); }) !=
                     candidates.end()) {
                 continue;
             }
@@ -142,6 +412,7 @@ std::unique_ptr<llama_kv_prefetch_scheduler> llama_kv_prefetch_scheduler::create
             config.max_events == 0 || config.max_pinned_slots == 0 ||
             config.staging_slots < 2 ||
             config.max_pinned_slots < config.max_events ||
+            config.min_resident_pages > config.max_pinned_slots ||
             !backend.submit || !backend.poll || !backend.publish_complete) {
             status = (!backend.submit || !backend.poll || !backend.publish_complete)
                 ? llama_kv_prefetch_status::not_configured
@@ -175,16 +446,21 @@ llama_kv_prefetch_scheduler::~llama_kv_prefetch_scheduler() {
 llama_kv_prefetch_status llama_kv_prefetch_scheduler::validate_intent(
         const llama_kv_prefetch_intent & intent) const noexcept {
     if (intent.page_id == 0 || intent.generation == 0 || intent.useful_bytes == 0 ||
-        intent.aligned_bytes < intent.useful_bytes) {
+        intent.aligned_bytes < intent.useful_bytes || intent.speculation_rejected) {
+        return llama_kv_prefetch_status::invalid_argument;
+    }
+    if (intent.attention_layer != UINT32_MAX && intent.identity.attention_layer != UINT32_MAX &&
+        intent.identity.attention_layer != intent.attention_layer) {
         return llama_kv_prefetch_status::invalid_argument;
     }
     return llama_kv_prefetch_status::ok;
 }
 
 bool llama_kv_prefetch_scheduler::is_ready(
-        uint64_t page_id, uint64_t generation) const noexcept {
-    for (const auto & intent : ready_) {
-        if (intent.page_id == page_id && intent.generation == generation) return true;
+        const llama_kv_prefetch_intent & wanted) const noexcept {
+    for (const auto & ready : ready_) {
+        if (ready.generation == wanted.generation &&
+            same_identity(ready, wanted)) return true;
     }
     return false;
 }
@@ -246,9 +522,9 @@ void llama_kv_prefetch_scheduler::mark_prediction_wasted(
 }
 
 bool llama_kv_prefetch_scheduler::erase_queued(
-        uint64_t page_id, uint64_t generation) noexcept {
+        const llama_kv_prefetch_intent & wanted) noexcept {
     for (auto it = queue_.begin(); it != queue_.end(); ++it) {
-        if (it->page_id != page_id || it->generation != generation) continue;
+        if (it->generation != wanted.generation || !same_identity(*it, wanted)) continue;
         mark_prediction_wasted(*it);
         queued_bytes_ -= it->aligned_bytes;
         queue_.erase(it);
@@ -277,7 +553,7 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
         ++counters_.requested;
 
         for (auto it = ready_.begin(); it != ready_.end();) {
-            if (it->page_id == intent.page_id && it->generation != intent.generation) {
+            if (same_identity(*it, intent) && it->generation != intent.generation) {
                 mark_prediction_wasted(*it);
                 it = ready_.erase(it);
                 ++counters_.stale_generation_rejects;
@@ -286,11 +562,11 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
             }
         }
 
-        if (is_ready(intent.page_id, intent.generation)) {
+        if (is_ready(intent)) {
             if (intent.required) {
                 ++counters_.prefetch_hits;
                 for (auto & ready : ready_) {
-                    if (ready.page_id == intent.page_id &&
+                    if (same_identity(ready, intent) &&
                         ready.generation == intent.generation) {
                         mark_prediction_useful(ready);
                         complete_prediction_useful(ready);
@@ -302,9 +578,9 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
         }
 
         for (auto & queued : queue_) {
-            if (queued.page_id != intent.page_id) continue;
+            if (!same_identity(queued, intent)) continue;
             if (queued.generation != intent.generation) {
-                erase_queued(queued.page_id, queued.generation);
+                erase_queued(queued);
                 ++counters_.cancellations;
                 break;
             }
@@ -325,7 +601,7 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
             return llama_kv_prefetch_status::ok;
         }
         for (size_t i = 0; i < active_.size(); ++i) {
-            if (active_[i].intent.page_id != intent.page_id) continue;
+            if (!same_identity(active_[i].intent, intent)) continue;
             if (active_[i].intent.generation == intent.generation) {
                 active_[i].intent.required = active_[i].intent.required || intent.required;
                 active_[i].intent.priority = std::max(active_[i].intent.priority, intent.priority);
@@ -338,6 +614,17 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
             break;
         }
         if (intent.required) ++counters_.faults;
+        if (!intent.required && refresh_id_ != 0) {
+            if (config_.max_cold_pages_per_refresh != 0 &&
+                refresh_pages_ >= config_.max_cold_pages_per_refresh) {
+                return llama_kv_prefetch_status::backpressure;
+            }
+            if (config_.bytes_per_refresh != 0 &&
+                (refresh_bytes_ > config_.bytes_per_refresh ||
+                 intent.aligned_bytes > config_.bytes_per_refresh - refresh_bytes_)) {
+                return llama_kv_prefetch_status::backpressure;
+            }
+        }
         if (queue_.size() >= config_.max_queued_pages) return llama_kv_prefetch_status::queue_full;
         if (pinned_slots() >= config_.max_pinned_slots) return llama_kv_prefetch_status::backpressure;
         uint64_t new_bytes = 0;
@@ -349,6 +636,10 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::enqueue(
                 [&](const auto & value) { return value.priority < intent.priority; });
         queue_.insert(position, intent);
         queued_bytes_ = new_bytes;
+        if (!intent.required && refresh_id_ != 0) {
+            ++refresh_pages_;
+            refresh_bytes_ += intent.aligned_bytes;
+        }
         ++counters_.queued;
         if (intent.prediction) ++counters_.prediction_requested;
         record_timeline(llama_kv_prefetch_timeline_kind::enqueue, intent);
@@ -437,6 +728,20 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::prefetch(
     }
 }
 
+llama_kv_prefetch_status llama_kv_prefetch_scheduler::begin_refresh(
+        uint64_t refresh_id, bool force) noexcept {
+    if (stopped_) return llama_kv_prefetch_status::shutdown;
+    if (refresh_id == 0) return llama_kv_prefetch_status::invalid_argument;
+    if (!force && refresh_id == refresh_id_) return llama_kv_prefetch_status::ok;
+    if (!force && refresh_id_ != 0 && refresh_id < refresh_id_) {
+        return llama_kv_prefetch_status::stale_generation;
+    }
+    refresh_id_ = refresh_id;
+    refresh_pages_ = 0;
+    refresh_bytes_ = 0;
+    return llama_kv_prefetch_status::ok;
+}
+
 bool llama_kv_prefetch_scheduler::observe_query(
         uint64_t query_generation, uint32_t layer, uint64_t token,
         const std::vector<llama_kv_prefetch_intent> & ranked) noexcept {
@@ -460,7 +765,26 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::advance() noexcept {
             auto intent = active.intent;
             const uint64_t submitted_us = active.submitted_us;
             if (state == llama_kv_prefetch_poll::completed) {
-                if (!backend_.publish_complete(backend_.context, intent)) {
+                const bool current = !backend_.generation_current ||
+                    backend_.generation_current(backend_.context, intent);
+                const bool ready_capacity = ready_.size() < config_.max_pinned_slots ||
+                    ready_.size() > config_.min_resident_pages;
+                if (!current || intent.speculation_rejected) {
+                    ++counters_.stale_generation_rejects;
+                    mark_failure();
+                    result = llama_kv_prefetch_status::stale_generation;
+                    if (backend_.discard_complete) {
+                        backend_.discard_complete(backend_.context, intent);
+                    }
+                    cancel_active(i);
+                } else if (!ready_capacity) {
+                    mark_failure();
+                    result = llama_kv_prefetch_status::backpressure;
+                    if (backend_.discard_complete) {
+                        backend_.discard_complete(backend_.context, intent);
+                    }
+                    cancel_active(i);
+                } else if (!backend_.publish_complete(backend_.context, intent)) {
                     mark_failure();
                     result = llama_kv_prefetch_status::transfer_failed;
                     cancel_active(i);
@@ -498,7 +822,17 @@ llama_kv_prefetch_status llama_kv_prefetch_scheduler::advance() noexcept {
 llama_kv_prefetch_status llama_kv_prefetch_scheduler::cancel(
         uint64_t page_id, uint64_t generation) noexcept {
     if (stopped_) return llama_kv_prefetch_status::shutdown;
-    bool found = erase_queued(page_id, generation);
+    bool found = false;
+    for (auto it = queue_.begin(); it != queue_.end();) {
+        if (it->page_id != page_id || it->generation != generation) {
+            ++it;
+            continue;
+        }
+        mark_prediction_wasted(*it);
+        queued_bytes_ -= it->aligned_bytes;
+        it = queue_.erase(it);
+        found = true;
+    }
     for (size_t i = active_.size(); i > 0; --i) {
         const auto & active = active_[i - 1];
         if (active.intent.page_id == page_id && active.intent.generation == generation) {
@@ -554,20 +888,9 @@ llama_kv_prefetch_resolution llama_kv_prefetch_scheduler::ensure_ready(
             if (std::find(required_ids.begin(), required_ids.end(), intent.page_id) == required_ids.end()) {
                 required_ids.push_back(intent.page_id);
             }
-            const auto status = enqueue({ intent.page_id, intent.generation,
-                                          intent.useful_bytes, intent.aligned_bytes,
-                                          intent.priority, true,
-                                          intent.source_query_generation,
-                                          intent.source_query_layer,
-                                          intent.source_query_token,
-                                          intent.needed_by_layer,
-                                          intent.needed_by_token,
-                                          intent.prediction,
-                                          intent.prediction_useful_counted,
-                                          intent.table_epoch,
-                                          intent.destination_slot,
-                                          intent.host_offset,
-                                          intent.host_bytes });
+            auto required_intent = intent;
+            required_intent.required = true;
+            const auto status = enqueue(required_intent);
             record_timeline(llama_kv_prefetch_timeline_kind::needed, intent);
             if (status == llama_kv_prefetch_status::shutdown) {
                 result.readiness = llama_kv_prefetch_readiness::cancelled;
@@ -577,7 +900,7 @@ llama_kv_prefetch_resolution llama_kv_prefetch_scheduler::ensure_ready(
         auto collect = [&]() {
             result.ready.clear();
             for (const auto & intent : required) {
-                if (is_ready(intent.page_id, intent.generation) &&
+                if (is_ready(intent) &&
                     std::find(result.ready.begin(), result.ready.end(), intent.page_id) == result.ready.end()) {
                     result.ready.push_back(intent.page_id);
                 }

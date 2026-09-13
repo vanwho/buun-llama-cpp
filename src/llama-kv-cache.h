@@ -673,8 +673,6 @@ private:
         void * context,
         const vbr_selected_page_capture_snapshot & snapshot) noexcept;
     void apply_pager_live_policy() noexcept;
-    void collect_pager_routing_queries(
-            std::vector<llama_kv_routing_query> & output) noexcept;
     bool vbr_capture_stability_matches(
         const vbr_capture_stability_token & token) const noexcept;
     bool vbr_capture_generation_record(
@@ -1496,14 +1494,6 @@ private:
     llama_kv_pager * pager_ = nullptr;
     llama_kv_attention_telemetry * kv_attention_telemetry_ = nullptr;
     int32_t pager_last_sequence_id_ = -1;
-    struct pager_query_capture {
-        ggml_tensor * tensor = nullptr;
-        int layer = -1;
-        int32_t sequence_id = -1;
-        llama_pos position = -1;
-        uint64_t token_index = 0;
-    };
-    std::vector<pager_query_capture> pager_query_captures_;
     uint64_t pager_query_generation_ = 0;
     bool pager_fallback_used_ = false;
     // Attention routes are query-domain specific. Keep the legacy aggregate

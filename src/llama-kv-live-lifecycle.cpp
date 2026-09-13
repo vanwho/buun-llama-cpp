@@ -14,6 +14,22 @@ bool same_generation(const llama_kv_live_lifecycle_generation & a,
            a.operation_generation == b.operation_generation;
 }
 
+bool same_prefetch_target(const llama_kv_prefetch_intent & lhs,
+                          const llama_kv_prefetch_intent & rhs) noexcept {
+    const bool lhs_identity = lhs.identity.session_generation != 0 ||
+        lhs.identity.sequence_generation != 0 || lhs.identity.sequence_id >= 0 ||
+        lhs.identity.logical_page != 0 || lhs.identity.page_generation != 0;
+    const bool rhs_identity = rhs.identity.session_generation != 0 ||
+        rhs.identity.sequence_generation != 0 || rhs.identity.sequence_id >= 0 ||
+        rhs.identity.logical_page != 0 || rhs.identity.page_generation != 0;
+    if (lhs_identity || rhs_identity) {
+        return lhs_identity && rhs_identity && lhs.identity == rhs.identity &&
+            lhs.attention_layer == rhs.attention_layer;
+    }
+    return lhs.page_id == rhs.page_id &&
+        lhs.attention_layer == rhs.attention_layer;
+}
+
 bool page_matches(const llama_kv_page_id & page,
                   const llama_kv_live_lifecycle_generation & generation) noexcept {
     // A logical-page match alone would let a reused slot or an old
@@ -189,7 +205,7 @@ llama_kv_live_lifecycle_status llama_kv_live_lifecycle::prefetch(
                 return llama_kv_live_lifecycle_status::stale_generation;
             }
             auto it = std::find_if(normalized.begin(), normalized.end(),
-                    [&](const auto & value) { return value.page_id == input.page_id; });
+                    [&](const auto & value) { return same_prefetch_target(value, input); });
             if (it == normalized.end()) {
                 auto value = input;
                 value.generation = generation_.operation_generation;

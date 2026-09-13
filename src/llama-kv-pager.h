@@ -3,6 +3,7 @@
 #include "llama-cache-budget.h"
 #include "llama-kv-pager-config.h"
 #include "llama-kv-live-policy.h"
+#include "llama-kv-prefetch.h"
 #include "llama-kv-routing-summary.h"
 #include "llama-kv-residency.h"
 #include "llama-kv-residency-transfer.h"
@@ -525,6 +526,15 @@ public:
     uint32_t test_force_logical_page() const noexcept {
         return test_force_logical_page_;
     }
+    // The cache/graph owner binds the GPU ranking producer to this fixed,
+    // double-buffered mailbox. Consumers only poll at a boundary; ownership
+    // and event lifetime remain inside the pager.
+    llama_kv_prefetch_mailbox & prefetch_candidate_mailbox() noexcept {
+        return prefetch_candidate_mailbox_;
+    }
+    const llama_kv_prefetch_mailbox & prefetch_candidate_mailbox() const noexcept {
+        return prefetch_candidate_mailbox_;
+    }
     bool is_current_page(const llama_kv_page_id & id) const noexcept {
         return current_page_index_ < pages_.size() && pages_[current_page_index_].present &&
             pages_[current_page_index_].record.id == id;
@@ -581,6 +591,7 @@ private:
     llama_kv_pager_routing_summary_provider routing_summary_provider_;
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_routing_summary_index routing_summary_index_;
+    llama_kv_prefetch_mailbox prefetch_candidate_mailbox_;
     llama_kv_page_id page_identity_;
     llama_kv_pager_allocation allocation_;
     bool owns_allocation_ = true;
