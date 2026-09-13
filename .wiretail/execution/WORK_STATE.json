@@ -12,12 +12,12 @@
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
-  "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
+  "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "33",
-  "current_task": "33-03",
-  "last_updated_utc": "2026-09-13T15:47:18+00:00",
+  "current_phase": "34",
+  "current_task": "34-01",
+  "last_updated_utc": "2026-09-13T16:11:13+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6386,7 +6386,7 @@
       "cluster": "33c-integrated-baseline-v9",
       "title": "Validate upstream fast paths and native-MTP semantics after merge",
       "packet": ".wiretail/execution/tasks/33-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -6402,7 +6402,32 @@
       "depends_on": [
         "33-02"
       ],
-      "commit": null
+      "commit": "337227581c4abf5cfe942aae99a4c0fa0edc0142",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/33-03-attempt-1-20260913T154736Z.jsonl:281",
+            "total_tokens": 13869367,
+            "total_tokens_derived": true,
+            "input_tokens": 13826436,
+            "cached_input_tokens": 13404672,
+            "output_tokens": 42931,
+            "thinking_tokens": 14386
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 13869367,
+          "input_tokens": 13826436,
+          "cached_input_tokens": 13404672,
+          "output_tokens": 42931,
+          "thinking_tokens": 14386
+        }
+      }
     },
     {
       "id": "34-01",
@@ -8778,15 +8803,28 @@
           "cached_input_tokens": 33427200,
           "output_tokens": 50004,
           "thinking_tokens": 17319
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/33-03-attempt-1-20260913T154736Z.jsonl:281",
+          "total_tokens": 13869367,
+          "total_tokens_derived": true,
+          "input_tokens": 13826436,
+          "cached_input_tokens": 13404672,
+          "output_tokens": 42931,
+          "thinking_tokens": 14386
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 38863929,
-        "input_tokens": 38794394,
-        "cached_input_tokens": 37968128,
-        "output_tokens": 69535,
-        "thinking_tokens": 21817
+        "turns": 3,
+        "total_tokens": 52733296,
+        "input_tokens": 52620830,
+        "cached_input_tokens": 51372800,
+        "output_tokens": 112466,
+        "thinking_tokens": 36203
       }
     },
     "34": {
@@ -8847,12 +8885,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 117,
-      "total_tokens": 2728929057,
-      "input_tokens": 2722835094,
-      "cached_input_tokens": 2670840320,
-      "output_tokens": 6093963,
-      "thinking_tokens": 2212924
+      "turns": 118,
+      "total_tokens": 2742798424,
+      "input_tokens": 2736661530,
+      "cached_input_tokens": 2684244992,
+      "output_tokens": 6136894,
+      "thinking_tokens": 2227310
     },
     "source": "Codex turn.completed usage events"
   }

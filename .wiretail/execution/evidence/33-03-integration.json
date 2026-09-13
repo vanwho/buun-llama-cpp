@@ -1,0 +1,102 @@
+{
+  "schema": "hotpath-v9-integration",
+  "task": "33-03",
+  "decision": "pass_with_expected_fixture_limits",
+  "original_work_state_base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
+  "integrated_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
+  "merge_head": "0af11d567396f20b88ddf12c462f9456428d8ec5",
+  "merge_head_contains_upstream": true,
+  "source_diff_sha256_vs_upstream": "36af095dd928f57eefd1dbe0dc4a7accb91124df9ebcc118a87b812fab9271fe",
+  "candidate": {
+    "path": "/srv/ai/paged-kv/v9/build-33-02-cuda/bin/llama-server",
+    "sha256": "7d56055896994e4472ac7c035b0690d8458c0c7eef68233efdebe494bfa61280",
+    "loaded_pid": 2942840,
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "loaded_dso_sha256": {
+    "libggml-base.so.0.22.0": "6cb3180e10bcc85fae9d88df7f82b95ae898182cde4bc285ac10de30a7da2c9e",
+    "libggml-cpu.so.0.22.0": "66bc1fe9a3d07bc10c25ca8dd5a37ed2a07ec1f5a7b1e9413985745911516a92",
+    "libggml-cuda.so.0.22.0": "3533aa004f2510cbb6a14b5249437ec089d067d84abbb3db9741412fa3f1dcd1",
+    "libggml.so.0.22.0": "10de711ff617c0484a24633b2e050c24eabf7c3d241d003746967bd9d6c2e2e1",
+    "libllama-common.so.0.3.0": "7d38c3934dfccda0d7bb989b941e1fd840beaf1c33df92fb440589d10678eae7",
+    "libllama-server-impl.so": "1a8ae82218eed6496325a7cc383c33624181cb85f58753d1d0a3f512113a9790",
+    "libllama.so.0.3.0": "4fdf817bb06ad92bde8244a8654b7edbfbd95683f6541ecda8b1e3e5daedc975",
+    "libmtmd.so.0.3.0": "126ea3508d2fb315e033fe9f5c3963d6dc251ba771597d9f4da1bb6bf03b34bb"
+  },
+  "native_mtp": {
+    "target_compute": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_kv_device": "gpu",
+    "batch_tokens": 128,
+    "ubatch_tokens": 64,
+    "dynamic_context_rows_tested": [256, 4096, 32768],
+    "dynamic_context_test": "pass",
+    "turbo3_cpu_classification": "expected_unsupported"
+  },
+  "restore_fixture": {
+    "target_only_fixture": "tests/test-llama-archs.cpp:qwen4exp VBR target-only recovery",
+    "cpu_result": "pass",
+    "cuda_result": "deferred_existing_nonfinite_qwen4_vbr_fixture",
+    "contract": "target-only restore rearms carry and requires verified target hidden row before draft refill; it is not full-draft-ready"
+  },
+  "fast_paths": {
+    "gdn_cuda_fusion": "present in ggml/src/ggml-cuda/gated_delta_net_fla_ptx.cu",
+    "rmsnorm_mul_fusion": "present in ggml/src/ggml-cuda/norm.cu",
+    "owned_graph_upload_path": "present in src/llama-graph.cpp via set_direct_tensor and upload tracking",
+    "feature_off_graph_check": "pass by source audit and live feature-off control"
+  },
+  "feature_off_q0": {
+    "raw_root": "/srv/ai/paged-kv/results/v9/33-03/20260913T160000Z-live-q0/q0-repeat",
+    "context_tokens": 8192,
+    "prompt_tokens": 6144,
+    "trials": 3,
+    "reset_mode": "fresh",
+    "all_passed": true,
+    "prefill_tok_s": [1223.9575344108569, 1228.7840258076644, 1232.887267870444],
+    "decode_tok_s": [34.52116838045089, 33.635228192599804, 36.512252294795054],
+    "mtp_proposed": [27, 27, 27],
+    "mtp_accepted": [0, 0, 0],
+    "graph_memory_identity": {
+      "target_placement": "CUDA",
+      "mtp_placement": "gpu",
+      "target_kv": "turbo4/turbo4",
+      "mtp_kv": "turbo4/turbo4",
+      "allocated_context_rows": 8192,
+      "attended_rows": 8192,
+      "pager_telemetry": "not applicable: feature-off control"
+    }
+  },
+  "native_append": {
+    "receipt": "/srv/ai/paged-kv/results/v9/33-03/20260913T160000Z-live-q0/native-append/INTERACTIVE29_01_SCALE.json",
+    "raw_root": "/srv/ai/paged-kv/results/v9/33-03/20260913T160000Z-live-q0/native-append",
+    "result": "pass",
+    "occupied_tokens": [512, 800],
+    "append_turn": 1,
+    "decode_tok_s": [35.315556267098614, 35.501362068924706],
+    "reset_mode": "paired-restore",
+    "restore_shape": "target_and_draft"
+  },
+  "verification": {
+    "python_bench_unittest": "60 passed",
+    "cpu_focused": "pass",
+    "cuda_focused": "pass",
+    "mtp_vocab_trim_cpu_cuda": "pass",
+    "source_py_compile": "pass",
+    "plan_validation": "pass",
+    "repo_cuda_rebuild": "interrupted during redundant broad CUDA kernel matrix; loaded candidate CUDA focused tests pass",
+    "git_diff_check": "pass"
+  },
+  "raw_roots": [
+    "/srv/ai/paged-kv/results/v9/33-03/20260913T155435Z-focused",
+    "/srv/ai/paged-kv/results/v9/33-03/20260913T160000Z-live-q0"
+  ],
+  "deferred": [
+    "expected_cpu_backend_limitation: turbo3_tcq",
+    "qwen4exp CUDA VBR synthetic fixture aborts on pre-existing non-finite logits at tests/test-llama-archs.cpp:1651",
+    "phase 34 selected pager capability proof remains successor scope"
+  ]
+}
