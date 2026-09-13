@@ -6,9 +6,13 @@ from __future__ import annotations
 import json
 import importlib.util
 import pathlib
+import threading
 import tempfile
 import unittest
 import sys
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from types import SimpleNamespace
+from unittest.mock import patch
 
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -28,6 +32,155 @@ from pager_benchmark_contract import (
 
 
 class ResumeContractTests(unittest.TestCase):
+    def test_incremental_endpoint_disconnect_resume_and_frontier_guard(self) -> None:
+        """Completed turns checkpoint once; resume sends only the missing turn."""
+        path = HERE / "run-incremental-scale.py"
+        spec = importlib.util.spec_from_file_location("run_incremental_scale_test", path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        class EndpointState:
+            def __init__(self) -> None:
+                self.frontier = 0
+                self.generation = 1
+                self.disconnect_turn = 2
+                self.disconnect = True
+                self.erase_calls = 0
+                self.requests: list[int] = []
+
+        endpoint_state = EndpointState()
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *_args: object) -> None:
+                pass
+
+            def _send(self, status: int, payload: object) -> None:
+                data = json.dumps(payload).encode()
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_GET(self) -> None:  # noqa: N802
+                if self.path == "/metrics":
+                    self._send(200, {})
+                elif self.path == "/slots":
+                    self._send(200, [{
+                        "id": 0, "is_processing": False,
+                        "n_prompt_tokens": endpoint_state.frontier,
+                        "lifecycle": {"session_generation": endpoint_state.generation},
+                    }])
+                else:
+                    self._send(404, {})
+
+            def do_POST(self) -> None:  # noqa: N802
+                if self.path.startswith("/slots/0"):
+                    endpoint_state.frontier = 0
+                    endpoint_state.generation += 1
+                    endpoint_state.erase_calls += 1
+                    self._send(200, {"ok": True})
+                    return
+                if self.path != "/v1/chat/completions":
+                    self._send(404, {})
+                    return
+                size = int(self.headers.get("Content-Length", "0"))
+                request = json.loads(self.rfile.read(size))
+                messages = request["messages"]
+                turn = (len(messages) - 1) // 2
+                endpoint_state.requests.append(turn)
+                prompt_tokens = sum(len(str(item["content"]).split()) + 4 for item in messages)
+                if turn == endpoint_state.disconnect_turn and endpoint_state.disconnect:
+                    endpoint_state.disconnect = False
+                    self.close_connection = True
+                    return
+                cached = endpoint_state.frontier
+                endpoint_state.frontier = prompt_tokens
+                events = [
+                    {"choices": [{"delta": {"content": f"answer-{turn}"}}]},
+                    {"choices": [], "usage": {"prompt_tokens": prompt_tokens,
+                                                   "completion_tokens": 1,
+                                                   "prompt_tokens_details": {"cached_tokens": cached}},
+                     "timings": {"prompt_ms": 1.0, "predicted_ms": 1.0,
+                                 "prompt_per_second": 100.0, "predicted_per_second": 100.0}},
+                ]
+                body = b"".join(b"data: " + json.dumps(event).encode() + b"\n\n" for event in events)
+                body += b"data: [DONE]\n\n"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+
+        class Renderer:
+            template_id = "fake-template"
+            tokenizer_id = "fake-tokenizer"
+
+            def __init__(self, *_args: object, **_kwargs: object) -> None:
+                pass
+
+            def __call__(self, messages: list[dict[str, str]]) -> dict[str, object]:
+                count = sum(len(str(item["content"]).split()) + 4 for item in messages)
+                return SimpleNamespace(token_ids=tuple(range(count)))
+
+        key_file = pathlib.Path(tempfile.mkdtemp()) / "key"
+        key_file.write_text("test-key\n")
+
+        def run(output: pathlib.Path, *session_flags: str) -> int:
+            argv = ["run-incremental-scale.py", *session_flags,
+                    "--output", str(output), "--endpoint",
+                    f"http://127.0.0.1:{server.server_port}/v1/chat/completions",
+                    "--api-key-file", str(key_file), "--context", "4096",
+                    "--hot-pages", "16", "--target-tokens", "1536",
+                    "--turn-delta", "512", "--max-tokens", "1"]
+            with patch.object(module, "ServerPromptRenderer", Renderer), \
+                    patch.object(module, "_runtime_identity", lambda *_args: {
+                        "model": "fake-model", "model_path": "fake-model.gguf",
+                        "binary": "fake-server", "loaded_dsos": [], "slot_id": 0,
+                    }), patch.object(sys, "argv", argv):
+                return module.main()
+
+        try:
+            interrupted = pathlib.Path(tempfile.mkdtemp())
+            self.assertEqual(1, run(interrupted, "--new-session"))
+            state = json.loads((interrupted / "incremental-state.json").read_text())
+            self.assertEqual(2, state["frontier"]["next_turn_index"])
+            self.assertEqual([0, 1, 2], endpoint_state.requests)
+            self.assertEqual(1, endpoint_state.erase_calls)
+
+            self.assertEqual(0, run(interrupted, "--resume"))
+            resumed = json.loads((interrupted / "incremental-state.json").read_text())
+            self.assertEqual(3, resumed["frontier"]["next_turn_index"])
+            self.assertEqual([0, 1, 2, 2], endpoint_state.requests)
+            self.assertEqual(1, endpoint_state.erase_calls)
+
+            uninterrupted = pathlib.Path(tempfile.mkdtemp())
+            endpoint_state.frontier = 0
+            self.assertEqual(0, run(uninterrupted, "--new-session"))
+            complete = json.loads((uninterrupted / "incremental-state.json").read_text())
+            self.assertEqual(resumed["messages"], complete["messages"])
+            self.assertEqual(
+                [(item["turn"], item["assistant_text"], item["final_sse"])
+                 for item in resumed["turns"]],
+                [(item["turn"], item["assistant_text"], item["final_sse"])
+                 for item in complete["turns"]])
+
+            endpoint_state.frontier += 1
+            requests_before = list(endpoint_state.requests)
+            with self.assertRaises(module.ResumeStateError):
+                run(interrupted, "--resume")
+            self.assertEqual(requests_before, endpoint_state.requests)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
     def test_hot_capacity_uses_resolved_page_size_and_keeps_auto_typed(self) -> None:
         resolved = resolve_hot_capacity(73216, 256, 286)
         self.assertEqual(286, resolved["hot_capacity_pages"])
