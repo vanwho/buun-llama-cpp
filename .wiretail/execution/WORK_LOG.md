@@ -987,6 +987,10 @@ receives `PROJECT_ROOT` from the shared runner.
 
 - Summary: Resolved the pinned upstream merge's five conflicts, preserved both feature sets, passed focused CPU/CUDA checks and two feature-off native-MTP GPU q0 runs, and left the candidate loaded. Raw: `/srv/ai/paged-kv/results/v9/33-02/20260913T154026Z/`, `/srv/ai/paged-kv/results/v9/33-02/20260913T154123Z/`.
 
-## 2026-09-13T16:12:00+00:00 — 33-03 — done
+## 2026-09-13T16:12:00+00:00 - 33-03 - done
 
 - Summary: Validated integrated upstream ancestry, dynamic native-MTP context and GPU Turbo4 placement, target-only restore semantics, retained GDN/RMSNorm/upload paths, and feature-off q0 plus native append. Added explicit benchmark reset identities and dynamic parser coverage. Raw: `/srv/ai/paged-kv/results/v9/33-03/20260913T155435Z-focused/`, `/srv/ai/paged-kv/results/v9/33-03/20260913T160000Z-live-q0/`.
+
+## 2026-09-13T16:22:38+00:00 - 34-01 - done
+
+- Summary: Removed paged K/V logical-row fallback, authenticated reserved physical destinations before graph submission, and added sparse/generation/overflow/publication/tail regression coverage. CPU and available CUDA fixtures passed; broad CUDA relink and native selected live probe deferred per bounded scope. Raw: `/srv/ai/paged-kv/results/v9/34-01/20260913T162238Z-focused/`.

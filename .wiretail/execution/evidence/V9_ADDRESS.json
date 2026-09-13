@@ -1,0 +1,61 @@
+{
+  "schema": "hotpath-v9-address",
+  "task": "34-01",
+  "cluster": "34a-address-owner-v9",
+  "decision": "pass_with_deferred_cuda_relink",
+  "implementation": {
+    "cache_setters": [
+      "src/llama-kv-cache.cpp::set_input_k_idxs",
+      "src/llama-kv-cache.cpp::set_input_v_idxs"
+    ],
+    "pager_mapping": "src/llama-kv-pager.cpp::physical_row",
+    "guards": [
+      "ticket sequence and page generation",
+      "native position and logical-page consistency",
+      "published residency destination",
+      "physical slot and slab row bounds",
+      "model layer ID membership",
+      "reserved graph-write ticket"
+    ]
+  },
+  "verification": {
+    "cpu_build": {
+      "command": "cmake --build build --target test-kv-pager -j2",
+      "result": "pass"
+    },
+    "cpu_fixture": {
+      "command": "./build/bin/test-kv-pager",
+      "result": "pass"
+    },
+    "cuda_host_translation": {
+      "command": "CUDA-configured compile command for src/llama-kv-cache.cpp",
+      "result": "pass"
+    },
+    "cuda_pager_fixture": {
+      "command": "./build-14-01-cuda/bin/test-kv-pager",
+      "result": "pass"
+    },
+    "cuda_attention_fixture": {
+      "command": "./build-14-01-cuda/bin/test-kv-attention-execution",
+      "result": "pass"
+    },
+    "state_validation": {
+      "commands": [
+        "PROJECT_ROOT=$PWD python3 /srv/wiretail/task_state.py validate",
+        "python3 .wiretail/execution/v9/validate_plan.py",
+        "git diff --check"
+      ],
+      "result": "pass"
+    }
+  },
+  "deferred": [
+    "A full CUDA relink was not completed: configured trees began rebuilding unrelated broad CUDA matrices and were interrupted without a compile error.",
+    "Native selected-runtime CUDA append across a page boundary is owned by the explicitly scheduled 34-03/34-04 live tasks."
+  ],
+  "loaded_candidate": {
+    "path": "/srv/ai/paged-kv/v9/build-33-02-cuda/bin/llama-server",
+    "sha256": "7d56055896994e4472ac7c035b0690d8458c0c7eef68233efdebe494bfa61280",
+    "status": "unchanged_from_33-03"
+  },
+  "raw_root": "/srv/ai/paged-kv/results/v9/34-01/20260913T162238Z-focused/"
+}
