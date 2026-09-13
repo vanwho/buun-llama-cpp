@@ -1444,9 +1444,10 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
     "OPT_STEP_SGD",
 
     "GLU",
+    "KV_PAGE_SELECT",
 };
 
-static_assert(GGML_OP_COUNT == 106, "GGML_OP_COUNT != 106");
+static_assert(GGML_OP_COUNT == 107, "GGML_OP_COUNT != 107");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1564,9 +1565,10 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "sgd(x)",
 
     "glu(x)",
+    "kv_page_select(q, bounds, metadata, resident, query)",
 };
 
-static_assert(GGML_OP_COUNT == 106, "GGML_OP_COUNT != 106");
+static_assert(GGML_OP_COUNT == 107, "GGML_OP_COUNT != 107");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -5855,6 +5857,49 @@ struct ggml_tensor * ggml_top_k_ext(
 bool ggml_top_k_is_stable(const struct ggml_tensor * tensor) {
     GGML_ASSERT(tensor && tensor->op == GGML_OP_TOP_K);
     return ggml_get_op_params_i32(tensor, 0) != 0;
+}
+
+// ggml_kv_page_select
+
+struct ggml_tensor * ggml_kv_page_select(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * q,
+        struct ggml_tensor  * bounds,
+        struct ggml_tensor  * page_metadata,
+        struct ggml_tensor  * resident_membership,
+        struct ggml_tensor  * query_metadata,
+        int                   k_resident,
+        int                   k_cold,
+        int                   page_size,
+        int                   query_row) {
+    GGML_ASSERT(q != NULL && bounds != NULL && page_metadata != NULL &&
+                resident_membership != NULL && query_metadata != NULL);
+    GGML_ASSERT(q->type == GGML_TYPE_F32 && q->ne[0] > 0 && q->ne[1] > 0);
+    GGML_ASSERT(q->ne[3] == 1 && q->ne[2] > 0 && query_row >= 0 && query_row < q->ne[2]);
+    GGML_ASSERT(bounds->type == GGML_TYPE_F16 && bounds->ne[0] == q->ne[0] &&
+                bounds->ne[1] == 2 && bounds->ne[2] > 0 && bounds->ne[3] > 0);
+    GGML_ASSERT(q->ne[1] % bounds->ne[2] == 0);
+    GGML_ASSERT(page_metadata->type == GGML_TYPE_I64 && page_metadata->ne[0] == 4 &&
+                page_metadata->ne[1] == bounds->ne[3]);
+    GGML_ASSERT(resident_membership->type == GGML_TYPE_I32 &&
+                resident_membership->ne[0] == bounds->ne[3]);
+    GGML_ASSERT(query_metadata->type == GGML_TYPE_I64 && query_metadata->ne[0] == 4 &&
+                query_metadata->ne[1] == 1 && query_metadata->ne[2] == 1 && query_metadata->ne[3] == 1);
+    GGML_ASSERT(k_resident >= 0 && k_cold >= 0 && k_resident + k_cold > 0);
+    GGML_ASSERT(page_size > 0);
+
+    struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, k_resident + k_cold);
+    result->op = GGML_OP_KV_PAGE_SELECT;
+    result->src[0] = q;
+    result->src[1] = bounds;
+    result->src[2] = page_metadata;
+    result->src[3] = resident_membership;
+    result->src[4] = query_metadata;
+    ggml_set_op_params_i32(result, 0, k_resident);
+    ggml_set_op_params_i32(result, 1, k_cold);
+    ggml_set_op_params_i32(result, 2, page_size);
+    ggml_set_op_params_i32(result, 3, query_row);
+    return result;
 }
 
 // ggml_arange

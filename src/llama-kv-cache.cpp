@@ -35,7 +35,7 @@
 #include <unordered_map>
 #include <vector>
 
-extern "C" void dequantize_row_turbo4_0_inv_fwht(
+extern "C" void dequantize_row_turbo4_0(
         const void * x, float * y, int64_t k);
 
 static llama_memory_failure_reason pager_failure_reason(
@@ -3007,12 +3007,11 @@ bool llama_kv_cache::pager_routing_summary_build(
             } else {
                 ggml_backend_tensor_get(tensor, encoded.data(), size_t(offset), size_t(row_bytes));
             }
-            // The direct CUDA attention path applies the forward Turbo4
-            // Walsh-Hadamard rotation to Q and K. Qcur is captured before
-            // that kernel-side transform, so summaries must undo the stored K
-            // transform once and remain in the same RoPE/query coordinate
-            // system used by collect_pager_routing_queries().
-            dequantize_row_turbo4_0_inv_fwht(encoded.data(), decoded.data(), tensor->ne[0]);
+            // Turbo4 stores K in its transformed coefficient domain. The
+            // routing query is produced in that same domain; inverse FWHT
+            // here would move only K back to the pre-transform space and
+            // invalidate the conservative score bound.
+            dequantize_row_turbo4_0(encoded.data(), decoded.data(), tensor->ne[0]);
             const size_t source = size_t(config.head_index) * config.vector_dim;
             if (ranges) {
                 const uint32_t subblock = std::min<uint32_t>(subblocks - 1,

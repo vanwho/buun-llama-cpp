@@ -8,9 +8,10 @@
 #include <vector>
 
 // Experimental, internal-only routing representation. The vectors are in the
-// canonical query-compatible K domain and are deliberately kept separate from
-// the KV page. The Turbo4 codec rotation is removed at summary build time.
-constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 3;
+// stored Turbo4 coefficient domain and are deliberately kept separate from
+// the KV page. Query producers use the same representation, so no inverse
+// rotation is applied while sealing a page.
+constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 4;
 
 enum class llama_kv_routing_summary_form : uint8_t {
     representatives = 0,
@@ -90,6 +91,22 @@ struct llama_kv_routing_summary_device_layout {
             uint32_t vector_dim,
             uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS,
             uint32_t subblock_tokens = 64,
+            uint32_t element_bytes = sizeof(uint16_t)) noexcept;
+};
+
+// Fixed catalogue layout consumed by GGML_OP_KV_PAGE_SELECT. It has one
+// whole-page min/max pair per KV head, rather than resident-only storage.
+struct llama_kv_routing_catalogue_layout {
+    uint64_t logical_pages = 0;
+    uint32_t kv_heads = 0;
+    uint32_t vector_dim = 0;
+    uint32_t element_bytes = sizeof(uint16_t);
+    uint64_t bytes = 0;
+
+    static llama_kv_routing_catalogue_layout make(
+            uint64_t logical_pages,
+            uint32_t kv_heads,
+            uint32_t vector_dim,
             uint32_t element_bytes = sizeof(uint16_t)) noexcept;
 };
 

@@ -166,6 +166,8 @@ int main() {
             10, 16, 4, 256, VBR_GENERATION_PAGE_CELLS, 64, sizeof(uint16_t));
     assert(layout.subblocks_per_page == 4);
     assert(layout.bytes == 10ull * 16 * 4 * 4 * 256 * 2 * sizeof(uint16_t));
+    const auto catalogue = llama_kv_routing_catalogue_layout::make(10, 4, 256);
+    assert(catalogue.bytes == 10ull * 4 * 256 * 2 * sizeof(uint16_t));
     assert(llama_kv_routing_summary_device_layout::make(
             10, 16, 4, 256, VBR_GENERATION_PAGE_CELLS, 16, sizeof(uint16_t)).bytes ==
             10ull * 16 * 4 * 16 * 256 * 2 * sizeof(uint16_t));

@@ -1,4 +1,5 @@
 #include "llama-kv-routing-summary.h"
+#include "ggml.h"
 
 #include <algorithm>
 #include <chrono>
@@ -105,6 +106,26 @@ uint64_t hash_id(uint64_t hash, const llama_kv_page_id & id) {
     hash = hash_mix(hash, id.meansub_digest);
     hash = hash_mix(hash, uint64_t(id.position_begin));
     return hash_mix(hash, uint64_t(id.position_end));
+}
+
+float fp16_outward_lower(float value) {
+    const ggml_fp16_t encoded = ggml_fp32_to_fp16(value);
+    const float rounded = ggml_fp16_to_fp32(encoded);
+    if (!std::isfinite(value) || rounded <= value) return rounded;
+    // IEEE-754 half encodings are monotonic within each sign. Move one code
+    // toward -infinity when round-to-nearest landed inside the interval.
+    const ggml_fp16_t adjacent = value < 0.0f
+        ? ggml_fp16_t(encoded + 1) : ggml_fp16_t(encoded - 1);
+    return ggml_fp16_to_fp32(adjacent);
+}
+
+float fp16_outward_upper(float value) {
+    const ggml_fp16_t encoded = ggml_fp32_to_fp16(value);
+    const float rounded = ggml_fp16_to_fp32(encoded);
+    if (!std::isfinite(value) || rounded >= value) return rounded;
+    const ggml_fp16_t adjacent = value < 0.0f
+        ? ggml_fp16_t(encoded - 1) : ggml_fp16_t(encoded + 1);
+    return ggml_fp16_to_fp32(adjacent);
 }
 }
 
@@ -230,6 +251,8 @@ bool make_ranges(const llama_kv_routing_page_input & input,
     for (size_t i = 0; i < values; ++i) {
         if (!std::isfinite(range_min[i]) || !std::isfinite(range_max[i]) ||
             range_min[i] > range_max[i]) return false;
+        range_min[i] = fp16_outward_lower(range_min[i]);
+        range_max[i] = fp16_outward_upper(range_max[i]);
     }
     return true;
 }
@@ -257,6 +280,25 @@ llama_kv_routing_summary_device_layout llama_kv_routing_summary_device_layout::m
     if (!mul(logical_pages, attention_layers, values) || !mul(values, kv_heads, values) ||
         !mul(values, result.subblocks_per_page, values) || !mul(values, vector_dim, values) ||
         !mul(values, 2, values) || !mul(values, element_bytes, result.bytes)) result = {};
+    return result;
+}
+
+llama_kv_routing_catalogue_layout llama_kv_routing_catalogue_layout::make(
+        uint64_t logical_pages,
+        uint32_t kv_heads,
+        uint32_t vector_dim,
+        uint32_t element_bytes) noexcept {
+    llama_kv_routing_catalogue_layout result;
+    result.logical_pages = logical_pages;
+    result.kv_heads = kv_heads;
+    result.vector_dim = vector_dim;
+    result.element_bytes = element_bytes;
+    uint64_t values = 0;
+    if (element_bytes == 0 || !mul(logical_pages, kv_heads, values) ||
+            !mul(values, vector_dim, values) || !mul(values, 2, values) ||
+            !mul(values, element_bytes, result.bytes)) {
+        result = {};
+    }
     return result;
 }
 

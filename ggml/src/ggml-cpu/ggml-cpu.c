@@ -2939,6 +2939,10 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
             {
                 ggml_compute_forward_top_k(params, tensor);
             } break;
+        case GGML_OP_KV_PAGE_SELECT:
+            {
+                ggml_compute_forward_kv_page_select(params, tensor);
+            } break;
         case GGML_OP_LEAKY_RELU:
             {
                 ggml_compute_forward_leaky_relu(params, tensor);
@@ -3382,6 +3386,10 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
         case GGML_OP_LIGHTNING_INDEXER:
             {
                 n_tasks = n_threads;
+            } break;
+        case GGML_OP_KV_PAGE_SELECT:
+            {
+                n_tasks = 1;
             } break;
         case GGML_OP_RWKV_WKV6:
         case GGML_OP_GATED_LINEAR_ATTN:
