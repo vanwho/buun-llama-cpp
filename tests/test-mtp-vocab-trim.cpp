@@ -144,6 +144,15 @@ void test_mtp_carry_lifecycle() {
         common_speculative_rollback_frontier_resolve(12, 2, 3);
     assert(!invalid_frontier.valid());
 
+    // The sampled row is row zero; accepted draft count advances into the
+    // verification rows but must never select beyond the last materialized
+    // hidden row. This is also the boundary consumed by MTP rollback.
+    assert(common_speculative_mtp_carry_row(0, 0) == -1);
+    assert(common_speculative_mtp_carry_row(3, 0) == 0);
+    assert(common_speculative_mtp_carry_row(3, 1) == 1);
+    assert(common_speculative_mtp_carry_row(3, 2) == 2);
+    assert(common_speculative_mtp_carry_row(3, 3) == 2);
+
     const auto none = common_speculative_checkpoint_policy_resolve(
         false, false, true, true);
     assert(!none.capture_draft);
