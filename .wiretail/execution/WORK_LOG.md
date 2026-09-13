@@ -978,3 +978,7 @@ receives `PROJECT_ROOT` from the shared runner.
 
 - Branch: `plan/attention-aware-kv-paging`
 - Summary: Scheduled 23 code-directed tasks in phases33–38/15 fresh clusters: pinned upstream merge, stable mature Turbo4 packed attention, real current-Q cold selection and async promotion, small speed tuning/controls, bounded scale findings and a repeating evidence review. All new tasks Luna Medium with first retry High. Archived 15 superseded plans/contracts without losing original contents; explicit context lists exclude old plans/diaries. Preserved all183 historical tasks and token accounting. Shared runner opt-in context/retry/merge/completion-check support validated; defaults unchanged. No model benchmark or service change performed. Setup receipt: `evidence/V9_PLAN_SETUP.json`.
+
+## 2026-09-13T14:40:07+00:00 — 33-01 — done
+
+- Summary: Added bounded one-case/one-trial generation/progress controls and optional telemetry handling for feature-off/failed baselines; adapter regressions pass. Captured pinned-source Qwen all-GPU/native-MTP one-request baseline and redacted site recipe. Raw: `/srv/ai/paged-kv/results/v9/33-01/20260913T144007Z/`.

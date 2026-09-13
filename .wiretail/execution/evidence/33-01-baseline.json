@@ -1,0 +1,21 @@
+{
+  "schema": "hotpath-v9",
+  "task": "33-01",
+  "revision": "hotpath-v9-20260913",
+  "decision": "pass",
+  "capability_proven": false,
+  "pinned_upstream_present": true,
+  "raw_root": "/srv/ai/paged-kv/results/v9/33-01/20260913T144007Z",
+  "recipe": "/srv/ai/paged-kv/v9/site-recipe-33-01.md",
+  "server_sha256": "5b8ff4825be5a36461b8ef0602daa16baeaf3e7467ae1d14d6fb828725f19b77",
+  "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+  "config": {"L": 8192, "H": null, "A_by_layer": null, "B": 128, "U": 64,
+             "page_tokens": 256, "target_k": "turbo4", "target_v": "turbo4",
+             "draft_k": "turbo4", "draft_v": "turbo4", "draft_device": "gpu"},
+  "one_request": {"case_id": "fast/off/measured/1/0", "prompt_index": 0,
+                  "generation_length": 16, "output_tokens": 16,
+                  "pp_tok_s": 280.4577069777877, "tg_tok_s": 34.00928680258289,
+                  "proposed_tokens": 27, "accepted_tokens": 0,
+                  "request_hash": "see records.jsonl case_key"},
+  "source_diff_hash": "8e8a4ae29bb36a3ef5c317de8dbdc76e6649d7d7999dc92cbdeb4feddaa6cfe1"
+}
