@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "30",
-  "current_task": "30-01",
-  "last_updated_utc": "2026-09-13T02:48:05+00:00",
+  "current_phase": "31",
+  "current_task": "31-01",
+  "last_updated_utc": "2026-09-13T02:50:55+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5976,15 +5976,131 @@
       "cluster": "30a-review-v8",
       "title": "Assess current benchmark findings and schedule only concrete remaining repairs",
       "packet": ".wiretail/execution/tasks/30-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Astra High",
       "depends_on": [
         "29-03"
       ],
-      "commit": null,
+      "commit": "e021947d25a7a0ac8cf11389e6fbbd85eadea57e",
       "scope_revision": "gpu-hot-path-v8-20260912",
-      "moved_from": "28-01 (V7 summary reviewer, never started)"
+      "moved_from": "28-01 (V7 summary reviewer, never started)",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "low",
+            "source": ".wiretail/build/30-01-attempt-1-20260913T024821Z.jsonl:35",
+            "total_tokens": 731295,
+            "total_tokens_derived": true,
+            "input_tokens": 724140,
+            "cached_input_tokens": 648448,
+            "output_tokens": 7155,
+            "thinking_tokens": 721
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 731295,
+          "input_tokens": 724140,
+          "cached_input_tokens": 648448,
+          "output_tokens": 7155,
+          "thinking_tokens": 721
+        }
+      }
+    },
+    {
+      "id": "31-01",
+      "phase": "31",
+      "cluster": "31a-repairs-v8",
+      "title": "Repair 32K continuation CUDA lifetime fault",
+      "packet": ".wiretail/execution/tasks/31-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "30-01"
+      ]
+    },
+    {
+      "id": "31-02",
+      "phase": "31",
+      "cluster": "31a-repairs-v8",
+      "title": "Complete authenticated asynchronous cold promotion/use",
+      "packet": ".wiretail/execution/tasks/31-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "31-01"
+      ]
+    },
+    {
+      "id": "31-03",
+      "phase": "31",
+      "cluster": "31a-repairs-v8",
+      "title": "Reduce measured selected-path control churn",
+      "packet": ".wiretail/execution/tasks/31-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "31-02"
+      ]
+    },
+    {
+      "id": "31-04",
+      "phase": "31",
+      "cluster": "31b-evidence-v8",
+      "title": "Measure repaired primary small path",
+      "packet": ".wiretail/execution/tasks/31-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "31-03"
+      ]
+    },
+    {
+      "id": "31-05",
+      "phase": "31",
+      "cluster": "31b-evidence-v8",
+      "title": "Recheck bounded scale after repairs",
+      "packet": ".wiretail/execution/tasks/31-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "31-04"
+      ]
+    },
+    {
+      "id": "31-06",
+      "phase": "31",
+      "cluster": "31b-evidence-v8",
+      "title": "Publish compact phase-31 evidence summary",
+      "packet": ".wiretail/execution/tasks/31-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "depends_on": [
+        "31-05"
+      ]
+    },
+    {
+      "id": "32-01",
+      "phase": "32",
+      "cluster": "32a-review-v8",
+      "title": "Review phase-31 summary and close or schedule one concrete next action",
+      "packet": ".wiretail/execution/tasks/32-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Astra High",
+      "depends_on": [
+        "31-06"
+      ]
     }
   ],
   "last_checkpoint_commit": "e154151d62e583563343a15128392b69030dcf48",
@@ -7724,6 +7840,42 @@
       }
     },
     "30": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "low",
+          "source": ".wiretail/build/30-01-attempt-1-20260913T024821Z.jsonl:35",
+          "total_tokens": 731295,
+          "total_tokens_derived": true,
+          "input_tokens": 724140,
+          "cached_input_tokens": 648448,
+          "output_tokens": 7155,
+          "thinking_tokens": 721
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 731295,
+        "input_tokens": 724140,
+        "cached_input_tokens": 648448,
+        "output_tokens": 7155,
+        "thinking_tokens": 721
+      }
+    },
+    "31": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "32": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -7737,12 +7889,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 107,
-      "total_tokens": 2353845535,
-      "input_tokens": 2348515436,
-      "cached_input_tokens": 2305083392,
-      "output_tokens": 5330099,
-      "thinking_tokens": 1918075
+      "turns": 108,
+      "total_tokens": 2354576830,
+      "input_tokens": 2349239576,
+      "cached_input_tokens": 2305731840,
+      "output_tokens": 5337254,
+      "thinking_tokens": 1918796
     },
     "source": "Codex turn.completed usage events"
   }
