@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "35",
-  "current_task": "35-05",
-  "last_updated_utc": "2026-09-13T21:16:53+00:00",
+  "current_phase": "36",
+  "current_task": "36-01",
+  "last_updated_utc": "2026-09-13T22:16:59+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6914,7 +6914,7 @@
       "cluster": "35c-natural-proof-v9",
       "title": "Prove real natural cold-page use with Turbo4 GPU native MTP",
       "packet": ".wiretail/execution/tasks/35-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -6929,7 +6929,32 @@
       "depends_on": [
         "35-04"
       ],
-      "commit": null
+      "commit": "1f210ffb47128cb9a00e59e9541f997bf971e40d",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/35-05-attempt-1-20260913T211710Z.jsonl:270",
+            "total_tokens": 22029260,
+            "total_tokens_derived": true,
+            "input_tokens": 21974768,
+            "cached_input_tokens": 21447936,
+            "output_tokens": 54492,
+            "thinking_tokens": 20617
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 22029260,
+          "input_tokens": 21974768,
+          "cached_input_tokens": 21447936,
+          "output_tokens": 54492,
+          "thinking_tokens": 20617
+        }
+      }
     },
     {
       "id": "36-01",
@@ -9220,15 +9245,28 @@
           "cached_input_tokens": 36662784,
           "output_tokens": 91862,
           "thinking_tokens": 36059
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/35-05-attempt-1-20260913T211710Z.jsonl:270",
+          "total_tokens": 22029260,
+          "total_tokens_derived": true,
+          "input_tokens": 21974768,
+          "cached_input_tokens": 21447936,
+          "output_tokens": 54492,
+          "thinking_tokens": 20617
         }
       ],
       "totals": {
-        "turns": 4,
-        "total_tokens": 153535228,
-        "input_tokens": 153198118,
-        "cached_input_tokens": 149865216,
-        "output_tokens": 337110,
-        "thinking_tokens": 125494
+        "turns": 5,
+        "total_tokens": 175564488,
+        "input_tokens": 175172886,
+        "cached_input_tokens": 171313152,
+        "output_tokens": 391602,
+        "thinking_tokens": 146111
       }
     },
     "36": {
@@ -9267,12 +9305,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 128,
-      "total_tokens": 3044305540,
-      "input_tokens": 3037451637,
-      "cached_input_tokens": 2978408704,
-      "output_tokens": 6853903,
-      "thinking_tokens": 2510899
+      "turns": 129,
+      "total_tokens": 3066334800,
+      "input_tokens": 3059426405,
+      "cached_input_tokens": 2999856640,
+      "output_tokens": 6908395,
+      "thinking_tokens": 2531516
     },
     "source": "Codex turn.completed usage events"
   }

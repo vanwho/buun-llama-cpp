@@ -1,0 +1,107 @@
+{
+  "schema": "hotpath-v9",
+  "task": "35-05",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-13T22:12:09Z",
+  "provenance": {
+    "code_sha": "8f9ba18c287760ea53b8d33f54f4cd0ef4cb330e",
+    "source_diff_hash": "c64b594692e01be721abc5c5e12e21b7a9ae7abf0387d27086f810cd2365f5c5",
+    "server_sha": "2c7c825d20f0b334b9db60ef26cad2e98ef6f964a61c47a64c37777dd9ff84b5",
+    "loaded_dso_hashes": {
+      "libggml-cuda.so.0.22.0": "b55d857fecd7a3b511c829ff34284455fe86a65ddfeee8b2fa8701cad243540b",
+      "libllama.so.0.3.0": "34063ab4a1c518d7135b797d2244fd6bfd0fad1252ce379834eaf2cc22994e38",
+      "libllama-server-impl.so": "bc32b87cd8fa4fd58979ab98c1f4096950ca61310c23df6c7638c8fd01a58110"
+    },
+    "model_hash": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "prompt_hash": "44a500fb04ed81a7a1e5475e4a930050f7055827c1157f0c2af00a71851b8bdb",
+    "raw_root": "/srv/ai/paged-kv/results/v9/35-05/20260914T000400Z-receipt",
+    "effective_config_hash": "6308457d9c433b869aeef80a5db28fff785a1e4a25baa78f916f29dc8311b96d"
+  },
+  "config": {
+    "L": 8192,
+    "C_before": 5377,
+    "C_after": 5415,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 8192,
+    "draft_device": "gpu",
+    "mtp_type": "native"
+  },
+  "execution": {
+    "target_attention_route": "selected packed",
+    "target_layer_count": null,
+    "target_layer_count_reason": "not exposed in the bounded pager metrics snapshot",
+    "resident_bytes": 64965120,
+    "canonical_host_bytes": 64880640,
+    "selected_rows_by_layer": 2048,
+    "fresh_or_restored": "fresh defined slot",
+    "selected_page_ids_at_recall": [10, 11, 12, 13, 14, 15, 20, 21],
+    "natural_proof": {
+      "candidate_was_cold": false,
+      "promotion_published": false,
+      "selector_rank": null,
+      "reason": "no attention sample/catalogue candidate was published"
+    }
+  },
+  "rates": {
+    "prefill_new_tokens": 34,
+    "prefill_seconds": 0.291353,
+    "cached_tokens": 5381,
+    "committed_output_tokens": 15,
+    "decode_seconds": 0.468757,
+    "ttft_seconds": 0.303597,
+    "pp_tok_s": 116.69692778176301,
+    "tg_tok_s": 29.866220664438075,
+    "proposed_tokens": 16,
+    "accepted_tokens": 7
+  },
+  "work": {
+    "pack_bytes": 34603008,
+    "host_copy_bytes": 90832896,
+    "h2d_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "graph_builds": 115,
+    "graph_replays": 0,
+    "router_refreshes": 115,
+    "queue_time_us": 4896310,
+    "copy_time_us": 0,
+    "wait_time_us": 109555,
+    "attention_samples": 0,
+    "attention_skipped": 10,
+    "transfer_submitted": 0,
+    "transfer_event_completions": 0
+  },
+  "resources": {
+    "peak_bytes_by_category": {
+      "target_valid": 64965120,
+      "host_valid": 64880640,
+      "host_pageable": 90832896,
+      "packed_workspace": 69206016
+    },
+    "safety_headroom_bytes": 201326592,
+    "cpu_rss": null,
+    "cpu_rss_reason": "not captured by the bounded receipt"
+  },
+  "decision": "fail",
+  "capability_proven": false,
+  "reason": "Two fresh normal sequences reached C>H and both committed the native-MTP cold-topic answer, but neither produced a current-Q attention sample or cold candidate. The permitted A4096/recent512 diagnostic selected all 16 pages and had the same zero-sample, zero-H2D result. This is a routing/telemetry publication limitation, not evidence of a forced copy or a valid cold promotion.",
+  "next_action": "36-02/36-03: repair packed-route Q transform/grouping and attention-mass publication so a valid natural current-Q catalogue candidate reaches live policy; then rerun this bounded receipt.",
+  "partial_checkpoint": {
+    "normal_runs": [
+      "/srv/ai/paged-kv/results/v9/35-05/20260914T000000Z-natural-b",
+      "/srv/ai/paged-kv/results/v9/35-05/20260914T000100Z-natural-c"
+    ],
+    "diagnostic_run": "/srv/ai/paged-kv/results/v9/35-05/20260914T000200Z-diagnostic-a4096-recent512",
+    "append_run": "/srv/ai/paged-kv/results/v9/35-05/20260914T000300Z-natural-append",
+    "timeline": "/srv/ai/paged-kv/results/v9/35-05/20260914T000400Z-receipt/timeline.jsonl",
+    "committed_recall": "The exact retrieval topic established in the earliest history was **cedar**.",
+    "committed_append": "cedar"
+  }
+}
