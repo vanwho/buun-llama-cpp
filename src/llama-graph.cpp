@@ -3925,8 +3925,18 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             if (pager == nullptr) {
                 throw std::runtime_error("packed selected attention has no pager");
             }
-            const uint64_t packed_row_capacity = pager->snapshot().physical_rows;
-            if (packed_row_capacity == 0 || packed_row_capacity > UINT32_MAX) {
+            const auto & packed_pages = selected_metadata->page_table();
+            if (packed_pages.empty()) {
+                throw std::runtime_error("packed selected attention has no selected pages");
+            }
+            const auto & packed_tail = packed_pages.back();
+            const uint64_t packed_required_rows = uint64_t(packed_tail.compact_row_begin) +
+                packed_tail.row_count;
+            const uint64_t packed_row_capacity =
+                (packed_required_rows + VBR_GENERATION_PAGE_CELLS - 1) /
+                VBR_GENERATION_PAGE_CELLS * VBR_GENERATION_PAGE_CELLS;
+            if (packed_row_capacity == 0 || packed_row_capacity > UINT32_MAX ||
+                    packed_row_capacity > pager->snapshot().physical_rows) {
                 throw std::runtime_error("packed selected attention row capacity overflows");
             }
             const auto storage_device = pager->residency_storage_tensor() != nullptr
