@@ -425,6 +425,7 @@ public:
     ggml_type type_v() const;
 
     std::vector<uint32_t> get_layer_ids() const;
+    uint32_t get_layer_physical_rows(int32_t il) const noexcept;
     ggml_tensor * get_k_storage(int32_t il) const;
     llama_turbo_meansub_ref get_turbo_meansub_ref(int32_t il) const;
 
@@ -498,12 +499,20 @@ public:
 
     ggml_tensor * build_input_k_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const;
     ggml_tensor * build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const;
+    ggml_tensor * build_input_k_idxs(ggml_context * ctx, const llama_ubatch & ubatch,
+                                     uint32_t attention_layer) const;
+    ggml_tensor * build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch,
+                                     uint32_t attention_layer) const;
 
     ggml_tensor * build_input_k_rot(ggml_context * ctx) const;
     ggml_tensor * build_input_v_rot(ggml_context * ctx) const;
 
     void set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch, const slot_info & sinfo) const;
     void set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch, const slot_info & sinfo) const;
+    void set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch,
+                          const slot_info & sinfo, uint32_t attention_layer) const;
+    void set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch,
+                          const slot_info & sinfo, uint32_t attention_layer) const;
 
     void set_input_k_shift(ggml_tensor * dst) const;
 
@@ -1846,6 +1855,7 @@ public:
     ggml_type type_k() const;
     ggml_type type_v() const;
     std::vector<uint32_t> get_layer_ids() const;
+    uint32_t get_layer_physical_rows(int32_t il) const noexcept;
 
     // get views of the current state of the cache
     ggml_tensor * get_k(ggml_context * ctx, int32_t il) const;
@@ -1885,12 +1895,20 @@ public:
     //   helps understand the implementation logic of cpy_k and cpy_v
     ggml_tensor * build_input_k_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const;
     ggml_tensor * build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const;
+    ggml_tensor * build_input_k_idxs(ggml_context * ctx, const llama_ubatch & ubatch,
+                                     uint32_t attention_layer) const;
+    ggml_tensor * build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch,
+                                     uint32_t attention_layer) const;
 
     ggml_tensor * build_input_k_rot(ggml_context * ctx) const;
     ggml_tensor * build_input_v_rot(ggml_context * ctx) const;
 
     void set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch) const;
     void set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch) const;
+    void set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch,
+                          uint32_t attention_layer) const;
+    void set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch,
+                          uint32_t attention_layer) const;
 
     void set_input_k_shift   (ggml_tensor * dst) const;
     void set_input_kq_mask   (ggml_tensor * dst, const llama_ubatch * ubatch, bool causal_attn) const;

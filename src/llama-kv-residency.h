@@ -46,6 +46,9 @@ struct llama_kv_page_id {
     uint64_t meansub_digest = 0;
     llama_pos position_begin = -1;
     llama_pos position_end = -1;
+    // UINT32_MAX denotes the legacy canonical bundle identity. A concrete
+    // value is the compact full-attention-layer ordinal.
+    uint32_t attention_layer = UINT32_MAX;
 };
 
 bool operator==(const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) noexcept;
@@ -65,6 +68,9 @@ struct llama_kv_page_record {
     bool host_valid = false;
     bool dirty = false;
     uint32_t pin_count = 0;
+    uint64_t content_version = 0;
+    uint32_t valid_length = 0;
+    uint32_t consumer_events = 0;
 };
 
 class llama_kv_residency_snapshot {

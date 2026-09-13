@@ -134,6 +134,11 @@ struct llama_kv_attention_scratch_request {
     llama_kv_attention_scratch_context_role context_role =
         llama_kv_attention_scratch_context_role::target;
 
+    // UINT32_MAX keeps the legacy shared-scratch request. A concrete compact
+    // attention-layer ordinal makes the reservation width follow that layer's
+    // physical K/V view rather than the maximum layer in a hybrid cache.
+    uint32_t attention_layer = UINT32_MAX;
+
     // These are the rows the selected CUDA consumer materializes, not logical
     // positions in the cache.  K and V are separate because their tensor rows
     // and dequant sides can differ.  Zero rows are intentional for the direct

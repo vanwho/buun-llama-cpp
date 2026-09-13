@@ -34,6 +34,37 @@ static llama_kv_pager_geometry geometry(uint64_t context) {
     return result;
 }
 
+static void test_layer_slot_geometry() {
+    llama_kv_pager_geometry layered;
+    layered.context_tokens = 512;
+    layered.page_tokens = 256;
+    layered.attention_layers = 2;
+    layered.kv_heads = 4;
+    layered.key_length = 128;
+    layered.value_length = 128;
+    layered.page_bytes = 128;
+    layered.layer_k_offsets = { 0, 64 };
+    layered.layer_v_offsets = { 32, 96 };
+    layered.layer_k_page_bytes = { 32, 32 };
+    layered.layer_v_page_bytes = { 32, 32 };
+    layered.model_layer_ids = { 4, 9 };
+
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    config.hot_pages.automatic = false;
+    config.hot_pages.value = 2;
+    llama_kv_pager_snapshot snapshot;
+    llama_kv_pager_status status;
+    assert(llama_kv_pager_plan(
+            config, layered, resources(512, 128), snapshot, status));
+    assert(status == llama_kv_pager_status::ok);
+    assert(snapshot.physical_page_count == 2);
+    assert(snapshot.geometry.layer_slot_counts == std::vector<uint32_t>({ 2, 2 }));
+    assert(snapshot.geometry.layer_slot_bases == std::vector<uint32_t>({ 0, 2 }));
+    assert(snapshot.physical_layer_slot_count == 4);
+    assert(snapshot.physical_bytes == 256);
+}
+
 static void test_full_256k_capacity_plan() {
     llama_kv_pager_config config;
     config.mode = llama_kv_pager_mode::selective;
@@ -712,6 +743,7 @@ static void test_pager_host_mutation() {
 }
 
 int main() {
+    test_layer_slot_geometry();
     test_host_seal_boundary();
     test_cuda_async_host_publication();
     test_compact_checkpoint_page_identity();

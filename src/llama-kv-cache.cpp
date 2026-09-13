@@ -2391,7 +2391,22 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             : std::vector<vbr_selected_page_host_view>{};
         const auto has_host = [&](const llama_kv_page_id & id) {
             return std::find_if(host_pages.begin(), host_pages.end(),
-                    [&](const auto & page) { return page.page.identity == id; });
+                    [&](const auto & page) {
+                if (page.page.identity == id) return true;
+                // The canonical host object is one full-L bundle. A layer
+                // mapping may address it with a concrete layer ordinal, but
+                // must not manufacture a second host object or accept a
+                // bundle from a different representation/generation.
+                if (id.attention_layer == UINT32_MAX &&
+                    page.page.identity.attention_layer != UINT32_MAX) {
+                    return false;
+                }
+                auto bundle_id = id;
+                bundle_id.attention_layer = UINT32_MAX;
+                auto host_id = page.page.identity;
+                host_id.attention_layer = UINT32_MAX;
+                return bundle_id == host_id;
+            });
         };
         if (queries.empty() && pager_->test_force_logical_page() == UINT32_MAX &&
                 pager_fallback_used_) {
@@ -2635,6 +2650,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 transfer_page.page = target_id;
                 transfer_page.table_epoch = snapshot.epoch();
                 transfer_page.physical_slot = selected_slot;
+                transfer_page.layer = target_id.attention_layer;
+                transfer_page.content_version = source->record.content_version;
+                transfer_page.valid_length = source->record.valid_length;
+                transfer_page.consumer_events = source->record.consumer_events;
                 uint64_t host_offset = 0;
                 for (const auto & unit : selected_host->page.units) {
                     if (unit.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
@@ -2644,6 +2663,12 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         unit.valid_rows == 0 || unit.row_bytes == 0) {
                         promotion_valid = false;
                         break;
+                    }
+                    const uint64_t unit_host_offset = host_offset;
+                    host_offset += unit.bytes->size();
+                    if (transfer_page.layer != UINT32_MAX &&
+                        unit.layer != transfer_page.layer) {
+                        continue;
                     }
                     const bool value = unit.side == vbr_artifact_side::value;
                     const size_t layer = unit.layer;
@@ -2667,13 +2692,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     run.first_physical_row = selected_slot * geometry.page_tokens;
                     run.row_count = unit.valid_rows;
                     run.row_bytes = unit.row_bytes;
-                    run.host_offset = host_offset;
+                    run.host_offset = unit_host_offset;
                     run.device_offset = uint64_t(selected_slot) * page_bytes;
                     transfer_page.runs.push_back(run);
-                    host_offset += unit.bytes->size();
                 }
-                if (transfer_page.runs.size() != selected_host->page.units.size() ||
-                    transfer_page.runs.empty()) {
+                if (transfer_page.runs.empty()) {
                     promotion_valid = false;
                     break;
                 }
@@ -5573,12 +5596,27 @@ bool llama_kv_cache::vbr_scratch_reserve(
             continue;
         }
         GGML_ASSERT(p.compute_backend != nullptr);
+        size_t scratch_k_row = p.scratch_k_row;
+        size_t scratch_v_row = p.scratch_v_row;
         // active-side row maxima change only on a tier flip — memoize on the tier epoch so the
         // per-boundary cost is two multiplies (static caches compute this exactly once)
-        if (p.scratch_rows_epoch != vbr_tier_epoch_) {
-            p.scratch_k_row = 0;
-            p.scratch_v_row = 0;
-            for (size_t ikv = 0; ikv < layers.size(); ++ikv) {
+        if (request.attention_layer != UINT32_MAX ||
+            p.scratch_rows_epoch != vbr_tier_epoch_) {
+            const size_t first_layer = request.attention_layer != UINT32_MAX
+                ? size_t(request.attention_layer) : 0;
+            const size_t last_layer = request.attention_layer != UINT32_MAX
+                ? first_layer + 1 : layers.size();
+            if (last_layer > layers.size()) {
+                return false;
+            }
+            if (request.attention_layer != UINT32_MAX) {
+                scratch_k_row = 0;
+                scratch_v_row = 0;
+            } else {
+                p.scratch_k_row = 0;
+                p.scratch_v_row = 0;
+            }
+            for (size_t ikv = first_layer; ikv < last_layer; ++ikv) {
                 const ggml_tensor * tk = p.k[ikv].t;
                 const ggml_tensor * tv = p.v[ikv].t;
                 bool need_k = false;
@@ -5586,20 +5624,24 @@ bool llama_kv_cache::vbr_scratch_reserve(
                 ggml_vbr_kv_dequant_sides(tk ? tk->type : GGML_TYPE_F16,
                                           tv ? tv->type : GGML_TYPE_F16, &need_k, &need_v);
                 if (need_k && tk) {
-                    p.scratch_k_row = std::max(p.scratch_k_row, ggml_row_size(GGML_TYPE_F16, tk->ne[0]));
+                    scratch_k_row = std::max(scratch_k_row, ggml_row_size(GGML_TYPE_F16, tk->ne[0]));
                 }
                 if (need_v && tv) {
-                    p.scratch_v_row = std::max(p.scratch_v_row, ggml_row_size(GGML_TYPE_F16, tv->ne[0]));
+                    scratch_v_row = std::max(scratch_v_row, ggml_row_size(GGML_TYPE_F16, tv->ne[0]));
                 }
             }
-            p.scratch_rows_epoch = vbr_tier_epoch_;
+            if (request.attention_layer == UINT32_MAX) {
+                p.scratch_k_row = scratch_k_row;
+                p.scratch_v_row = scratch_v_row;
+                p.scratch_rows_epoch = vbr_tier_epoch_;
+            }
         }
-        if ((k_cells != 0 && p.scratch_k_row > SIZE_MAX / k_cells) ||
-            (v_cells != 0 && p.scratch_v_row > SIZE_MAX / v_cells)) {
+        if ((k_cells != 0 && scratch_k_row > SIZE_MAX / k_cells) ||
+            (v_cells != 0 && scratch_v_row > SIZE_MAX / v_cells)) {
             return false;
         }
-        const size_t k_bytes = p.scratch_k_row * k_cells;
-        const size_t v_bytes = p.scratch_v_row * v_cells;
+        const size_t k_bytes = scratch_k_row * k_cells;
+        const size_t v_bytes = scratch_v_row * v_cells;
         if (k_bytes == 0 && v_bytes == 0) {
             continue;
         }
@@ -13161,6 +13203,23 @@ std::vector<uint32_t> llama_kv_cache::get_layer_ids() const {
     return res;
 }
 
+uint32_t llama_kv_cache::get_layer_physical_rows(int32_t il) const noexcept {
+    if (pager_plan_ == nullptr || pager_plan_->geometry.page_tokens == 0) {
+        return get_size();
+    }
+    const auto it = std::find(pager_plan_->geometry.model_layer_ids.begin(),
+            pager_plan_->geometry.model_layer_ids.end(), uint32_t(il));
+    const size_t ordinal = it == pager_plan_->geometry.model_layer_ids.end()
+        ? pager_plan_->geometry.layer_slot_counts.size()
+        : size_t(it - pager_plan_->geometry.model_layer_ids.begin());
+    if (ordinal < pager_plan_->geometry.layer_slot_counts.size()) {
+        const uint64_t rows = uint64_t(pager_plan_->geometry.layer_slot_counts[ordinal]) *
+            pager_plan_->geometry.page_tokens;
+        return uint32_t(std::min<uint64_t>(rows, UINT32_MAX));
+    }
+    return physical_kv_size_;
+}
+
 ggml_tensor * llama_kv_cache::get_k_storage(int32_t il) const {
     const int32_t ikv = map_layer_ids.at(il);
 
@@ -13202,7 +13261,7 @@ ggml_tensor * llama_kv_cache::get_k(ggml_context * ctx, int32_t il, uint32_t n_k
 
     auto * k = layers[ikv].k;
 
-    const uint64_t kv_size      = pager_plan_ ? physical_kv_size_ : get_size();
+    const uint64_t kv_size      = pager_plan_ ? get_layer_physical_rows(il) : get_size();
     const uint64_t n_embd_k_gqa = k->ne[0];
 
     // may be padded for turbo FWHT alignment
@@ -13211,7 +13270,7 @@ ggml_tensor * llama_kv_cache::get_k(ggml_context * ctx, int32_t il, uint32_t n_k
     const uint32_t n_head_kv     = hparams.n_head_kv(il);
     const uint32_t n_embd_head_k = n_embd_k_gqa / n_head_kv;
     if (pager_plan_ != nullptr) {
-        n_kv = std::min<uint32_t>(n_kv, physical_kv_size_);
+        n_kv = std::min<uint32_t>(n_kv, uint32_t(kv_size));
     }
 
     const uint32_t ns = sinfo.s1 - sinfo.s0 + 1;
@@ -13230,7 +13289,7 @@ ggml_tensor * llama_kv_cache::get_v(ggml_context * ctx, int32_t il, uint32_t n_k
 
     auto * v = layers[ikv].v;
 
-    const uint64_t kv_size      = pager_plan_ ? physical_kv_size_ : get_size();
+    const uint64_t kv_size      = pager_plan_ ? get_layer_physical_rows(il) : get_size();
     const uint64_t n_embd_v_gqa = v->ne[0];
 
     // [TAG_V_CACHE_VARIABLE]
@@ -13238,7 +13297,7 @@ ggml_tensor * llama_kv_cache::get_v(ggml_context * ctx, int32_t il, uint32_t n_k
 
     const uint32_t ns = sinfo.s1 - sinfo.s0 + 1;
     if (pager_plan_ != nullptr) {
-        n_kv = std::min<uint32_t>(n_kv, physical_kv_size_);
+        n_kv = std::min<uint32_t>(n_kv, uint32_t(kv_size));
     }
 
     if (!v_trans) {
@@ -13399,6 +13458,16 @@ ggml_tensor * llama_kv_cache::build_input_v_idxs(ggml_context * ctx, const llama
     return v_idxs;
 }
 
+ggml_tensor * llama_kv_cache::build_input_k_idxs(
+        ggml_context * ctx, const llama_ubatch & ubatch, uint32_t) const {
+    return build_input_k_idxs(ctx, ubatch);
+}
+
+ggml_tensor * llama_kv_cache::build_input_v_idxs(
+        ggml_context * ctx, const llama_ubatch & ubatch, uint32_t) const {
+    return build_input_v_idxs(ctx, ubatch);
+}
+
 ggml_tensor * llama_kv_cache::build_input_k_rot(ggml_context * ctx) const {
     ggml_tensor * res = nullptr;
 
@@ -13441,6 +13510,12 @@ ggml_tensor * llama_kv_cache::build_input_v_rot(ggml_context * ctx) const {
 }
 
 void llama_kv_cache::set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ubatch, const slot_info & sinfo) const {
+    set_input_k_idxs(dst, ubatch, sinfo, UINT32_MAX);
+}
+
+void llama_kv_cache::set_input_k_idxs(
+        ggml_tensor * dst, const llama_ubatch * ubatch, const slot_info & sinfo,
+        uint32_t attention_layer) const {
     const uint32_t n_tokens = ubatch->n_tokens;
     GGML_ASSERT(n_tokens == (int64_t) sinfo.size()*sinfo.n_stream());
 
@@ -13454,7 +13529,7 @@ void llama_kv_cache::set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ub
         for (uint32_t i = 0; i < sinfo.size(); ++i) {
             uint32_t pager_row = UINT32_MAX;
             const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
-                pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], pager_row);
+                pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], attention_layer, pager_row);
             data[s*sinfo.size() + i] = compact ? pager_row : offs + sinfo.idxs[s][i];
         }
     }
@@ -13462,6 +13537,12 @@ void llama_kv_cache::set_input_k_idxs(ggml_tensor * dst, const llama_ubatch * ub
 
 
 void llama_kv_cache::set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch, const slot_info & sinfo) const {
+    set_input_v_idxs(dst, ubatch, sinfo, UINT32_MAX);
+}
+
+void llama_kv_cache::set_input_v_idxs(
+        ggml_tensor * dst, const llama_ubatch * ubatch, const slot_info & sinfo,
+        uint32_t attention_layer) const {
     const uint32_t n_tokens = ubatch->n_tokens;
     GGML_ASSERT(n_tokens == (int64_t) sinfo.size()*sinfo.n_stream());
 
@@ -13476,7 +13557,7 @@ void llama_kv_cache::set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ub
             for (uint32_t i = 0; i < sinfo.size(); ++i) {
                 uint32_t pager_row = UINT32_MAX;
                 const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
-                    pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], pager_row);
+                    pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], attention_layer, pager_row);
                 data[s*sinfo.size() + i] = compact ? pager_row : offs + sinfo.idxs[s][i];
             }
         }
@@ -13492,7 +13573,7 @@ void llama_kv_cache::set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ub
             for (uint32_t i = 0; i < sinfo.size(); ++i) {
                 uint32_t pager_row = UINT32_MAX;
                 const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
-                    pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], pager_row);
+                    pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], attention_layer, pager_row);
                 const int64_t row = compact ? pager_row : sinfo.idxs[s][i];
                 for (uint32_t j = 0; j < n_embd_v_gqa; ++j) {
                     data[s*sinfo.size()*n_embd_v_gqa + i*n_embd_v_gqa + j] = offs + j*kv_size + row;
@@ -15307,23 +15388,19 @@ std::vector<uint32_t> llama_kv_cache_context::get_layer_ids() const {
     return kv != nullptr ? kv->get_layer_ids() : std::vector<uint32_t>{};
 }
 
+uint32_t llama_kv_cache_context::get_layer_physical_rows(int32_t il) const noexcept {
+    return kv != nullptr ? kv->get_layer_physical_rows(il) : n_kv;
+}
+
 ggml_tensor * llama_kv_cache_context::get_k(ggml_context * ctx, int32_t il) const {
-    uint32_t source_rows = n_kv;
-    if (const auto * pager = kv->get_kv_pager()) {
-        source_rows = std::max<uint32_t>(source_rows,
-                uint32_t(std::min<uint64_t>(pager->snapshot().physical_rows,
-                    std::numeric_limits<uint32_t>::max())));
-    }
+    const uint32_t source_rows = std::max<uint32_t>(uint32_t(std::max<int32_t>(0, n_kv)),
+            get_layer_physical_rows(il));
     return kv->get_k(ctx, il, source_rows, sinfos[i_cur]);
 }
 
 ggml_tensor * llama_kv_cache_context::get_v(ggml_context * ctx, int32_t il) const {
-    uint32_t source_rows = n_kv;
-    if (const auto * pager = kv->get_kv_pager()) {
-        source_rows = std::max<uint32_t>(source_rows,
-                uint32_t(std::min<uint64_t>(pager->snapshot().physical_rows,
-                    std::numeric_limits<uint32_t>::max())));
-    }
+    const uint32_t source_rows = std::max<uint32_t>(uint32_t(std::max<int32_t>(0, n_kv)),
+            get_layer_physical_rows(il));
     return kv->get_v(ctx, il, source_rows, sinfos[i_cur]);
 }
 
@@ -15439,9 +15516,19 @@ ggml_tensor * llama_kv_cache_context::build_input_k_idxs(ggml_context * ctx, con
     return kv->build_input_k_idxs(ctx, ubatch);
 }
 
+ggml_tensor * llama_kv_cache_context::build_input_k_idxs(
+        ggml_context * ctx, const llama_ubatch & ubatch, uint32_t attention_layer) const {
+    return kv->build_input_k_idxs(ctx, ubatch, attention_layer);
+}
+
 
 ggml_tensor * llama_kv_cache_context::build_input_v_idxs(ggml_context * ctx, const llama_ubatch & ubatch) const {
     return kv->build_input_v_idxs(ctx, ubatch);
+}
+
+ggml_tensor * llama_kv_cache_context::build_input_v_idxs(
+        ggml_context * ctx, const llama_ubatch & ubatch, uint32_t attention_layer) const {
+    return kv->build_input_v_idxs(ctx, ubatch, attention_layer);
 }
 
 ggml_tensor * llama_kv_cache_context::build_input_k_rot(ggml_context * ctx) const {
@@ -15460,9 +15547,19 @@ void llama_kv_cache_context::set_input_k_idxs(ggml_tensor * dst, const llama_uba
     kv->set_input_k_idxs(dst, ubatch, sinfos[i_cur]);
 }
 
+void llama_kv_cache_context::set_input_k_idxs(
+        ggml_tensor * dst, const llama_ubatch * ubatch, uint32_t attention_layer) const {
+    kv->set_input_k_idxs(dst, ubatch, sinfos[i_cur], attention_layer);
+}
+
 
 void llama_kv_cache_context::set_input_v_idxs(ggml_tensor * dst, const llama_ubatch * ubatch) const {
     kv->set_input_v_idxs(dst, ubatch, sinfos[i_cur]);
+}
+
+void llama_kv_cache_context::set_input_v_idxs(
+        ggml_tensor * dst, const llama_ubatch * ubatch, uint32_t attention_layer) const {
+    kv->set_input_v_idxs(dst, ubatch, sinfos[i_cur], attention_layer);
 }
 
 void llama_kv_cache_context::set_input_kq_mask(ggml_tensor * dst, const llama_ubatch * ubatch, bool causal_attn) const {

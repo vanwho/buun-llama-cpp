@@ -941,6 +941,32 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
         status = llama_kv_pager_status::invalid_geometry;
         return false;
     }
+    if (!output.geometry.layer_k_page_bytes.empty()) {
+        try {
+            output.geometry.layer_slot_counts.assign(
+                    output.geometry.attention_layers,
+                    output.physical_page_count);
+            output.geometry.layer_slot_bases.resize(
+                    output.geometry.attention_layers);
+            uint64_t total_slots = 0;
+            for (uint32_t layer = 0; layer < output.geometry.attention_layers; ++layer) {
+                if (total_slots > UINT32_MAX) {
+                    status = llama_kv_pager_status::overflow;
+                    return false;
+                }
+                output.geometry.layer_slot_bases[layer] = uint32_t(total_slots);
+                total_slots += output.physical_page_count;
+            }
+            if (total_slots > UINT32_MAX) {
+                status = llama_kv_pager_status::overflow;
+                return false;
+            }
+            output.physical_layer_slot_count = uint32_t(total_slots);
+        } catch (...) {
+            status = llama_kv_pager_status::overflow;
+            return false;
+        }
+    }
     output.host_metadata_bytes = resources.host_metadata_bytes;
     output.mtp_rows = resources.admission.mtp_tokens;
     output.host_budget_bytes = resources.host_budget_bytes;
@@ -1658,13 +1684,22 @@ void llama_kv_pager::bind_representation_identity(
 }
 
 llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noexcept {
+    page.record.content_version = page.content_version;
+    uint32_t valid_length = 0;
+    for (uint32_t row = 0; row < page.valid_rows.size(); ++row) {
+        if (page.valid_rows[row] != 0) {
+            valid_length = row + 1;
+        }
+    }
+    page.record.valid_length = valid_length;
     auto tx = residency_.begin();
     llama_kv_residency_status result = llama_kv_residency_status::not_found;
     for (const auto & existing : tx.pages()) {
         if (existing.id.session_generation == page.record.id.session_generation &&
             existing.id.sequence_id == page.record.id.sequence_id &&
             existing.id.sequence_generation == page.record.id.sequence_generation &&
-            existing.id.logical_page == page.record.id.logical_page) {
+            existing.id.logical_page == page.record.id.logical_page &&
+            existing.id.attention_layer == page.record.id.attention_layer) {
             result = residency_.update(tx, page.record);
             break;
         }
@@ -1783,6 +1818,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
         llama_kv_pager_write_ticket & ticket) noexcept {
     ticket = {};
+    ticket.attention_layer = UINT32_MAX;
     if (!snapshot_.initialized || snapshot_.physical_page_count == 0) {
         return llama_kv_pager_write_status::disabled;
     }
@@ -1958,6 +1994,22 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     return llama_kv_pager_write_status::ok;
 }
 
+llama_kv_pager_write_status llama_kv_pager::begin_write(
+        int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
+        uint32_t attention_layer, llama_kv_pager_write_ticket & ticket) noexcept {
+    if (attention_layer != UINT32_MAX &&
+        attention_layer >= snapshot_.geometry.attention_layers) {
+        ticket = {};
+        ticket.attention_layer = attention_layer;
+        return llama_kv_pager_write_status::invalid_position;
+    }
+    const auto status = begin_write(sequence_id, sequence_generation, position, ticket);
+    if (status == llama_kv_pager_write_status::ok) {
+        ticket.attention_layer = attention_layer;
+    }
+    return status;
+}
+
 llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
         int32_t sequence_id, uint64_t sequence_generation,
         const std::vector<llama_pos> & positions,
@@ -2123,6 +2175,21 @@ bool llama_kv_pager::physical_row(
     if (physical > UINT32_MAX) return false;
     row = uint32_t(physical);
     return true;
+}
+
+bool llama_kv_pager::physical_row(
+        int32_t sequence_id, llama_pos position, uint32_t attention_layer,
+        uint32_t & row) const noexcept {
+    // The legacy write frontier is one logical row shared by all target
+    // layers. Layer-granular residency supplies a distinct slot map through
+    // its layer identity; until that map is populated, this compatibility
+    // view deliberately resolves the same row and never fabricates a layer.
+    if (attention_layer != UINT32_MAX &&
+        attention_layer >= snapshot_.geometry.attention_layers) {
+        row = UINT32_MAX;
+        return false;
+    }
+    return physical_row(sequence_id, position, row);
 }
 
 llama_kv_pager_write_status llama_kv_pager::mutate(
