@@ -1,0 +1,40 @@
+{
+  "schema": "gpu-hot-path-v8-mtp-budget-v1",
+  "task": "28-07",
+  "status": "complete",
+  "result": "complete_with_deferred_hardware_verification",
+  "implementation": {
+    "native_mtp": "retains resolved full-L per-sequence Turbo4 GPU KV geometry, uses device hidden-state handoff where supported, and bounds the resident working batch to draft/Q shape with actual-callback growth",
+    "phase": "native MTP verification is explicitly marked in the standalone speculative consumer and server phase accounting remains separate from prefill",
+    "dispatch": "qualified Turbo4 direct paging is automatic for prefill, decode, and MTP verification; packed remains capability-gated and overrideable for diagnostics",
+    "packed_cache": "representation epochs no longer duplicate an unchanged source; source tensor/buffer identity remains part of the key and old entries retire after scheduler completion",
+    "contracts": "residency table epochs fence graph reuse and query positions participate in content keys without changing reusable graph layout"
+  },
+  "tests": {
+    "cpu_build": "cmake --build build --target test-kv-attention-execution llama-speculative-simple -j2",
+    "cpu_build_result": "pass",
+    "cpu_execution": "build/bin/test-kv-attention-execution",
+    "cpu_execution_result": "pass",
+    "cuda_build": "cmake --build build-cuda --target test-kv-attention-execution llama-speculative-simple -j2",
+    "cuda_build_result": "pass",
+    "cuda_execution": "build-cuda/bin/test-kv-attention-execution",
+    "cuda_execution_result": "pass",
+    "diff_check": "git diff --check",
+    "state_validation": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate",
+    "broader_fixture_result": "deferred_or_preexisting_host_fixture_failure"
+  },
+  "cuda": {
+    "device": "NVIDIA GeForce RTX 4080, 15945 MiB total",
+    "live_attempt": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "live_result": "blocked_by_preserved_resident_gpu_allocation",
+    "live_error": "q allocation: out of memory; nvidia-smi reported 3 MiB free",
+    "resident_candidate_preserved": true,
+    "port_8080_touched": false,
+    "port_8092_touched": false,
+    "compute_sanitizer": "deferred_with_live_fixture"
+  },
+  "deferred_verification": [
+    "Current-source live native-MTP q0 cold-recall/headroom proof requires an isolated GPU or teardown of the preserved resident candidate.",
+    "Compute-sanitizer small fixture requires the same available CUDA allocation."
+  ]
+}

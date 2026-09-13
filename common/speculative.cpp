@@ -2626,6 +2626,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     common_params_speculative_draft params; // reuses the draft-model params slot (ctx_tgt/ctx_dft)
 
     llama_batch batch;
+    int32_t batch_capacity = 0;
 
     std::vector<common_sampler_ptr> smpls;
 
@@ -2669,6 +2670,33 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     std::vector<int32_t> adaptive_depth3_accepts;
     std::vector<int32_t> adaptive_last_draft_size;
 
+    bool ensure_batch_capacity(int32_t required) {
+        if (required <= batch_capacity) {
+            return true;
+        }
+
+        auto * ctx_dft = this->params.ctx_dft;
+        const int32_t context_batch = std::max(1, (int32_t) llama_n_batch(ctx_dft));
+        if (required <= 0 || required > context_batch) {
+            return false;
+        }
+
+        // Keep the resident allocation at the ubatch/Q shape. A larger target
+        // callback is still accepted, but grows only to the actual callback
+        // size instead of reserving the target logical context up front.
+        llama_batch_free(batch);
+        batch = llama_batch_init(required, n_embd, 1);
+        batch.token = (llama_token *) malloc(sizeof(llama_token) * required);
+        const bool valid = batch.token != nullptr && batch.embd != nullptr &&
+               batch.pos != nullptr && batch.seq_id != nullptr && batch.logits != nullptr;
+        batch_capacity = valid ? required : 0;
+        if (!valid) {
+            llama_batch_free(batch);
+            batch = {};
+        }
+        return valid;
+    }
+
     common_speculative_impl_draft_mtp(const common_params_speculative & params, uint32_t n_seq)
         : common_speculative_impl(COMMON_SPECULATIVE_TYPE_DRAFT_MTP, n_seq, params.draft.n_max)
         , params(params.draft)
@@ -2697,11 +2725,16 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                 ctx_dft ? "yes" : "no",
                 common_speculative_get_devices_str(this->params.devices).c_str());
 
-        const int32_t n_b = (int32_t) llama_n_batch(ctx_dft);
-        batch = llama_batch_init(/*n_tokens=*/ n_b, /*embd=*/ n_embd, /*n_seq_max=*/ 1);
+        const int32_t context_batch = std::max(1, (int32_t) llama_n_batch(ctx_dft));
+        const int32_t draft_shape = params.n_max >= 0 &&
+            params.n_max < std::numeric_limits<int32_t>::max()
+            ? params.n_max + 1 : 1;
+        const int32_t initial_batch = std::min(context_batch,
+                std::max(draft_shape, (int32_t) n_seq));
+        batch = llama_batch_init(initial_batch, /*embd=*/ n_embd, /*n_seq_max=*/ 1);
         // llama_batch_init allocates only one of token/embd; MTP needs both.
-        // TODO: fix, how to call without malloc
-        batch.token = (llama_token *) malloc(sizeof(llama_token) * n_b);
+        batch.token = (llama_token *) malloc(sizeof(llama_token) * initial_batch);
+        batch_capacity = initial_batch;
 
         smpls.resize(n_seq);
         for (auto & s : smpls) {
@@ -2779,10 +2812,6 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         }
         backend_chains.clear();
 
-        if (batch.token != nullptr) {
-            free(batch.token);
-            batch.token = nullptr;
-        }
         llama_batch_free(batch);
     }
 
@@ -2815,6 +2844,10 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         }
 
         const int32_t n_tokens = batch_in.n_tokens;
+        if (!ensure_batch_capacity(n_tokens)) {
+            SPC_ERR("MTP target batch exceeds the draft context batch capacity: %d\n", n_tokens);
+            return false;
+        }
 
         // remember the frist and last batch index for each sequence
         std::fill(i_batch_beg.begin(), i_batch_beg.end(), -1);
@@ -2989,6 +3022,14 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         // keep track of which sequences are still drafting
         int n_drafting = 0;
         std::vector<bool> drafting(n_seq);
+
+        const int64_t draft_capacity = int64_t(n_seq) *
+            (int64_t(std::max(0, params.n_max)) + 1);
+        if (draft_capacity > 0 && !ensure_batch_capacity(int32_t(std::min<int64_t>(
+                draft_capacity, std::numeric_limits<int32_t>::max())))) {
+            SPC_ERR("%s", "MTP draft batch exceeds the draft context batch capacity\n");
+            return;
+        }
 
         const size_t row_bytes = (size_t) n_embd * sizeof(float);
 

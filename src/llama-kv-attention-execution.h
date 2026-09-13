@@ -53,8 +53,9 @@ enum class llama_kv_attention_execution_route_override : uint8_t {
 constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
 
 // Context-lifetime destination storage for the bounded packed Turbo4 bridge.
-// Graphs retain only source views and copy descriptors; rebuilding a graph
-// must not discard the already packed historical rows.
+// Graphs retain only source views and copy descriptors. Entries from an older
+// graph are retired at the scheduler fence, after all in-flight consumers have
+// completed, so graph rebuilds do not create an unbounded duplicate cache.
 class llama_kv_attention_packed_cache {
 public:
     struct entry {
@@ -65,8 +66,16 @@ public:
         uint32_t layer_id = 0;
         int32_t sequence_id = -1;
         uint64_t representation_epoch = 0;
+        // The representation epoch is diagnostic only. Page generations and
+        // the source tensor identity determine whether packed bytes need a
+        // refresh; an in-place representation change must not duplicate them.
         uint64_t source_lifetime_epoch = 0;
         ggml_backend_t backend = nullptr;
+        ggml_tensor * source_k = nullptr;
+        ggml_tensor * source_v = nullptr;
+        ggml_backend_buffer_t source_k_buffer = nullptr;
+        ggml_backend_buffer_t source_v_buffer = nullptr;
+        bool current_graph_use = false;
         std::vector<llama_kv_attention_view_page> pages;
         std::vector<uint64_t> content_versions;
     };
@@ -83,6 +92,10 @@ public:
             ggml_tensor * source_v,
             ggml_backend_t backend) noexcept;
 
+    void begin_graph_build() noexcept;
+    void release_completed() noexcept;
+    size_t size() const noexcept { return entries_.size(); }
+
     uint64_t content_version(
             const entry * cached,
             uint32_t page_index) const noexcept;
@@ -92,6 +105,7 @@ public:
             uint64_t version) noexcept;
 
 private:
+    static void release_entry(entry * cached) noexcept;
     std::vector<std::unique_ptr<entry>> entries_;
 };
 

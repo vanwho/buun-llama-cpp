@@ -3731,6 +3731,10 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
     bool packed_attention = false,
     llama_kv_attention_packed_cache * packed_cache = nullptr) {
 
+    if (packed_cache != nullptr) {
+        packed_cache->begin_graph_build();
+    }
+
     auto inp = std::make_unique<llm_graph_input_attn_kv>(hparams, cparams, mctx_cur,
             tree_mask, kv_attention_metrics, kv_attention_telemetry);
     inp->packed_cache = packed_cache;
@@ -3800,7 +3804,11 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 }
                 llm_graph_input_attn_kv::packed_layer layer;
                 layer.layer_id = layer_id;
-                layer.source_lifetime_epoch = mctx_cur->get_vbr_epoch();
+                // The source tensor identity is stable across in-place VBR
+                // representation changes. Those changes update page
+                // generations; they must not allocate another compact copy.
+                layer.source_lifetime_epoch = uint64_t(
+                        reinterpret_cast<uintptr_t>(source_k));
                 layer.source_physical_key = selected_metadata->graph_physical_key();
                 if (packed_cache == nullptr) {
                     throw std::runtime_error("packed selected attention cache is unavailable");
@@ -3809,7 +3817,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                     ubatch.n_seq_id != nullptr && ubatch.n_seq_id[0] != 0 &&
                     ubatch.seq_id[0] != nullptr ? ubatch.seq_id[0][0] : -1;
                 layer.cache_entry = packed_cache->find_or_create(layer_id, sequence_id,
-                        mctx_cur->get_vbr_epoch(), mctx_cur->get_vbr_epoch(),
+                        mctx_cur->get_vbr_epoch(), layer.source_lifetime_epoch,
                         selected_metadata->page_table(), source_k, source_v, packed_backend);
                 if (layer.cache_entry == nullptr) {
                     throw std::runtime_error("packed selected attention allocation failed");

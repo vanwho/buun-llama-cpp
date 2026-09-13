@@ -35,13 +35,40 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
 
 llama_kv_attention_packed_cache::~llama_kv_attention_packed_cache() {
     for (auto & cached : entries_) {
-        if (cached->buffer != nullptr) {
-            ggml_backend_buffer_free(cached->buffer);
-        }
-        if (cached->context != nullptr) {
-            ggml_free(cached->context);
-        }
+        release_entry(cached.get());
     }
+}
+
+void llama_kv_attention_packed_cache::release_entry(entry * cached) noexcept {
+    if (cached == nullptr) {
+        return;
+    }
+    if (cached->buffer != nullptr) {
+        ggml_backend_buffer_free(cached->buffer);
+        cached->buffer = nullptr;
+    }
+    if (cached->context != nullptr) {
+        ggml_free(cached->context);
+        cached->context = nullptr;
+    }
+    cached->k = nullptr;
+    cached->v = nullptr;
+}
+
+void llama_kv_attention_packed_cache::begin_graph_build() noexcept {
+    for (auto & cached : entries_) {
+        cached->current_graph_use = false;
+    }
+}
+
+void llama_kv_attention_packed_cache::release_completed() noexcept {
+    entries_.erase(std::remove_if(entries_.begin(), entries_.end(), [](auto & cached) {
+        if (cached->current_graph_use) {
+            return false;
+        }
+        release_entry(cached.get());
+        return true;
+    }), entries_.end());
 }
 
 llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_or_create(
@@ -68,9 +95,11 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
     };
     for (const auto & cached : entries_) {
         if (cached->layer_id != layer_id || cached->sequence_id != sequence_id ||
-                cached->representation_epoch != representation_epoch ||
                 cached->source_lifetime_epoch != source_lifetime_epoch ||
                 cached->backend != backend ||
+                cached->source_k != source_k || cached->source_v != source_v ||
+                cached->source_k_buffer != source_k->buffer ||
+                cached->source_v_buffer != source_v->buffer ||
                 cached->pages.size() != pages.size() || cached->k == nullptr || cached->v == nullptr) {
             continue;
         }
@@ -82,6 +111,8 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
             }
         }
         if (match) {
+            cached->representation_epoch = representation_epoch;
+            cached->current_graph_use = true;
             return cached.get();
         }
     }
@@ -93,6 +124,11 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         cached->representation_epoch = representation_epoch;
         cached->source_lifetime_epoch = source_lifetime_epoch;
         cached->backend = backend;
+        cached->source_k = source_k;
+        cached->source_v = source_v;
+        cached->source_k_buffer = source_k->buffer;
+        cached->source_v_buffer = source_v->buffer;
+        cached->current_graph_use = true;
         cached->pages = pages;
         cached->content_versions.assign(pages.size(), UINT64_MAX);
 
@@ -355,23 +391,17 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         return llama_kv_attention_execution_route::selected_dense;
     }
 
-    // The mature Turbo4 FA path is the prefill engine for ordinary interactive
-    // query blocks. Non-contiguous selections use its bounded compact bridge;
-    // the scalar paged kernel remains for small verification/decode shapes and
-    // as a last resort when the bridge is unavailable.
-    const bool mature_prefill_fa =
-        phase == llama_kv_attention_execution_phase::prefill &&
-        metadata.n_query_tokens() >= 16;
-    if (mature_prefill_fa && packed_capable) {
-        return llama_kv_attention_execution_route::selected_packed;
-    }
-
     if ((phase == llama_kv_attention_execution_phase::prefill ||
          phase == llama_kv_attention_execution_phase::decode ||
          phase == llama_kv_attention_execution_phase::mtp_verify) &&
         direct_capable && direct_shape(metadata)) {
         return llama_kv_attention_execution_route::selected_direct;
     }
+
+    // Direct paging is the normal Turbo4 path for every qualified shape,
+    // including multi-token prefill. Keep the compact FA bridge only for
+    // shapes that cannot use the paged kernel; otherwise each graph would pay
+    // an avoidable full selected-view duplicate and pack copy.
     if (packed_capable) {
         return llama_kv_attention_execution_route::selected_packed;
     }
@@ -504,6 +534,7 @@ bool llama_kv_attention_execution::same_graph(
         uint64_t shape_epoch,
         llama_kv_attention_execution_route route) const noexcept {
     return have_graph_ && metadata.graph_layout_key() == metadata_.graph_layout_key() &&
+           metadata.table_epoch() == metadata_.table_epoch() &&
            phase == phase_ && representation_epoch == representation_epoch_ &&
            shape_epoch == shape_epoch_ && route == route_ &&
            ((route != llama_kv_attention_execution_route::selected_dense &&

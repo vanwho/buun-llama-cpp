@@ -206,8 +206,8 @@ static void test_routes_epochs_and_fences() {
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
 
-    // Interactive prefills use mature FA through the bounded compact bridge;
-    // decode and very small verification continue to use direct paging.
+    // Qualified Turbo4 prefills use direct paging as well; the compact bridge
+    // remains available only when the direct shape contract is absent.
     llama_kv_attention_execution direct_over_packed(
             llama_kv_attention_execution_mode::selective);
     const auto direct_packed = direct_over_packed.prepare(selected_prefill,
@@ -217,10 +217,10 @@ static void test_routes_epochs_and_fences() {
     direct_over_packed.complete_one_graph();
 
     const auto packed_prefill = metadata(snapshot(), 129, 1);
-    const auto packed_policy = direct_over_packed.prepare(packed_prefill,
+    const auto direct_policy = direct_over_packed.prepare(packed_prefill,
             llama_kv_attention_execution_phase::prefill, 8, 12, true, scratch,
             {}, false, true);
-    assert(packed_policy.route == llama_kv_attention_execution_route::selected_packed);
+    assert(direct_policy.route == llama_kv_attention_execution_route::selected_direct);
     direct_over_packed.complete_one_graph();
 
     // Forced routes compare the same metadata and fail closed when their
@@ -285,6 +285,10 @@ static void test_packed_cache_identity_and_versions() {
     auto * reused = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v, backend);
     assert(reused == first && cache.content_version(reused, 0) == 91);
 
+    auto * representation_refresh = cache.find_or_create(
+            3, 0, 12, 17, view.pages(), source_k, source_v, backend);
+    assert(representation_refresh == first);
+
     auto reordered = llama_kv_attention_view::build(snap, { 0, 2 }, view_status);
     assert(view_status == llama_kv_attention_view_status::ok);
     auto * reordered_entry = cache.find_or_create(
@@ -295,6 +299,11 @@ static void test_packed_cache_identity_and_versions() {
             3, 0, 11, 18, view.pages(), source_k, source_v, backend);
     assert(new_lifetime != nullptr && new_lifetime != first);
     assert(cache.content_version(new_lifetime, 0) == UINT64_MAX);
+
+    cache.begin_graph_build();
+    assert(cache.find_or_create(3, 0, 13, 17, view.pages(), source_k, source_v, backend) == first);
+    cache.release_completed();
+    assert(cache.size() == 1);
 
     ggml_free(context);
     ggml_backend_free(backend);
@@ -380,7 +389,7 @@ static void test_fallbacks_and_graph_key() {
     auto tile64 = execution.prepare(metadata(snapshot(), 64, 1),
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch,
             {}, false, true);
-    assert(tile64.route == llama_kv_attention_execution_route::selected_packed);
+    assert(tile64.route == llama_kv_attention_execution_route::selected_direct);
     execution.complete_one_graph();
 
     auto tile3 = execution.prepare(metadata(snapshot(), 3, 1),
@@ -391,7 +400,7 @@ static void test_fallbacks_and_graph_key() {
     auto tile65 = execution.prepare(metadata(snapshot(), 65, 1),
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch,
             {}, false, true);
-    assert(tile65.route == llama_kv_attention_execution_route::selected_packed);
+    assert(tile65.route == llama_kv_attention_execution_route::selected_direct);
     execution.complete_one_graph();
 
     // Qwen3.5 uses 24 query heads and 4 KV heads (GQA ratio 6). The paged
@@ -492,7 +501,7 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     assert(base.graph_layout_key() == reordered.graph_layout_key());
     assert(base.graph_layout_key() == remapped.graph_layout_key());
     assert(base.graph_layout_key() == query_changed.graph_layout_key());
-    assert(base.graph_layout_key() != grown.graph_layout_key());
+    assert(base.graph_layout_key() == grown.graph_layout_key());
     assert(base.graph_layout_key() != shape_changed.graph_layout_key());
 
     llama_kv_attention_scratch_request scratch;

@@ -47,6 +47,9 @@ static uint64_t attention_content_key(
     for (const uint8_t valid : view.native_mask()) {
         attention_key_mix(key, valid);
     }
+    for (const llama_pos position : params.query_positions) {
+        attention_key_mix(key, uint64_t(position));
+    }
     return key == 0 ? 1 : key;
 }
 

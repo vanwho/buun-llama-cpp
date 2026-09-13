@@ -4,6 +4,7 @@
 #include "speculative.h"
 #include "log.h"
 #include "llama.h"
+#include "../../src/llama-ext.h"
 
 #include <algorithm>
 #include <clocale>
@@ -118,7 +119,6 @@ int main(int argc, char ** argv) {
     // can enable target hidden-state extraction first — same calling contract as
     // the server (see common/speculative.h)
     const auto & params_spec = params.speculative;
-
     struct common_speculative * spec = common_speculative_init(params.speculative, 1);
 
     if (spec == nullptr) {
@@ -136,6 +136,12 @@ int main(int argc, char ** argv) {
                        type == COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH ||
                        type == COMMON_SPECULATIVE_TYPE_DRAFT_DSPARK;
             });
+    const bool spec_is_mtp = params.speculative.has_type(
+            COMMON_SPECULATIVE_TYPE_DRAFT_MTP);
+    const bool native_mtp = spec_is_mtp &&
+            !params.speculative.has_external_mtp_sidecar();
+    const bool spec_uses_managed_drafter = spec_is_dflash ||
+            (spec_is_mtp && !params.speculative.has_non_mtp_model_drafter());
 
     llama_batch batch_tgt = llama_batch_init(llama_n_batch(ctx_tgt), 0, 1);
 
@@ -153,7 +159,7 @@ int main(int argc, char ** argv) {
             return 1;
         }
 
-        if (!spec_is_dflash) {
+        if (!spec_uses_managed_drafter) {
             llama_decode(ctx_dft, batch_tgt);
         }
     }
@@ -248,7 +254,14 @@ int main(int argc, char ** argv) {
 
             //LOG_DBG("target batch: %s\n", string_from(ctx_tgt, batch_tgt).c_str());
 
-            llama_decode(ctx_tgt, batch_tgt);
+            llama_set_kv_attention_mtp_verification(ctx_tgt, native_mtp);
+            try {
+                llama_decode(ctx_tgt, batch_tgt);
+            } catch (...) {
+                llama_set_kv_attention_mtp_verification(ctx_tgt, false);
+                throw;
+            }
+            llama_set_kv_attention_mtp_verification(ctx_tgt, false);
             if (!common_speculative_process(spec, batch_tgt)) {
                 LOG_ERR("%s", "failed to process speculative batch\n");
                 break;
@@ -257,8 +270,7 @@ int main(int argc, char ** argv) {
 
         // evaluate the same batch with the draft model (classic drafters only —
         // DFlash receives target features via common_speculative_process above)
-        if (!spec_is_dflash) {
-            // TODO: extend to support MTP, Eagle, etc. See server code for reference
+        if (!spec_uses_managed_drafter) {
             llama_decode(ctx_dft, batch_tgt);
         }
 

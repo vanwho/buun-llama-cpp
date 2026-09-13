@@ -2055,6 +2055,10 @@ void llama_context::synchronize() {
         kv_attention_execution.record_wait();
     }
     ggml_backend_sched_synchronize(sched.get());
+    // Packed destinations are graph-owned consumers. Retire superseded page
+    // selections only after the scheduler fence, while retaining the entries
+    // referenced by the graph that can be replayed next.
+    kv_attention_packed_cache.release_completed();
     if (kv_attention_wait) {
         kv_attention_execution.record_wait_time_us(uint64_t(std::max<int64_t>(
                 0, ggml_time_us() - wait_start_us)));
@@ -9459,6 +9463,12 @@ bool llama_set_embeddings_nextn_device(
         int32_t source_offset, int32_t destination_offset, int32_t n_rows) {
     return ctx != nullptr && ctx->set_embeddings_nextn_device(
             source, source_offset, destination_offset, n_rows);
+}
+
+void llama_set_kv_attention_mtp_verification(llama_context * ctx, bool enabled) {
+    if (ctx != nullptr) {
+        ctx->set_kv_attention_mtp_verification(enabled);
+    }
 }
 
 float * llama_get_embeddings_layer_inp(llama_context * ctx, uint32_t lid) {
