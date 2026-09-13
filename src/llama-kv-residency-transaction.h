@@ -58,6 +58,9 @@ struct llama_kv_residency_transaction_request {
     std::vector<llama_kv_residency_transfer_plan> transfers;
     uint64_t staging_capacity = 0;
     llama_kv_residency_catalog_reservation catalog;
+    // R4 bounds one refresh to a small number of cold whole-layer bundles.
+    // Zero leaves the lower-level transaction unrestricted for legacy callers.
+    uint32_t max_h2d_pages = 0;
     bool shutting_down = false;
 };
 

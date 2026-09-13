@@ -2537,6 +2537,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         boundary.policy = llama_kv_policy_release_defaults(boundary.hot_capacity);
         boundary.transaction.staging_capacity = pager_->upload_ring()
             ? pager_->upload_ring()->capacity_bytes() : 0;
+        // Keep a refresh bounded even when the policy target contains many
+        // cold pages. A refused boundary leaves the previous valid target in
+        // place and the next boundary can retry with fresh evidence.
+        boundary.transaction.max_h2d_pages = 2;
         boundary.previous_target.reserve(snapshot.pages().size());
         for (const auto & page : snapshot.pages()) {
             boundary.previous_target.push_back(page.id);
@@ -2775,14 +2779,28 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     break;
                 }
 
+                uint32_t transfer_layer = UINT32_MAX;
+                if (target_id.attention_layer != UINT32_MAX) {
+                    const auto layer_it = std::find(
+                            geometry.model_layer_ids.begin(),
+                            geometry.model_layer_ids.end(), target_id.attention_layer);
+                    if (layer_it == geometry.model_layer_ids.end()) {
+                        promotion_valid = false;
+                        break;
+                    }
+                    transfer_layer = uint32_t(layer_it - geometry.model_layer_ids.begin());
+                }
+
                 llama_kv_residency_transfer_page transfer_page;
                 transfer_page.page = target_id;
                 transfer_page.table_epoch = snapshot.epoch();
                 transfer_page.physical_slot = selected_slot;
-                transfer_page.layer = target_id.attention_layer;
+                transfer_page.layer = transfer_layer;
                 transfer_page.content_version = source->record.content_version;
                 transfer_page.valid_length = source->record.valid_length;
                 transfer_page.consumer_events = source->record.consumer_events;
+                std::vector<bool> has_key(geometry.layer_k_page_bytes.size(), false);
+                std::vector<bool> has_value(geometry.layer_v_page_bytes.size(), false);
                 uint64_t host_offset = 0;
                 for (const auto & unit : selected_host->page.units) {
                     if (unit.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
@@ -2794,10 +2812,25 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         break;
                     }
                     const uint64_t unit_host_offset = host_offset;
+                    if (unit.bytes->size() > UINT64_MAX - host_offset) {
+                        promotion_valid = false;
+                        break;
+                    }
                     host_offset += unit.bytes->size();
-                    if (transfer_page.layer != UINT32_MAX &&
-                        unit.layer != transfer_page.layer) {
+                    if (transfer_layer != UINT32_MAX && unit.layer != transfer_layer) {
                         continue;
+                    }
+                    if (unit.side != vbr_artifact_side::key &&
+                        unit.side != vbr_artifact_side::value) {
+                        promotion_valid = false;
+                        break;
+                    }
+                    const uint32_t expected_unit = unit.layer * 2 +
+                        (unit.side == vbr_artifact_side::value ? 1u : 0u);
+                    if (unit.logical_unit_id != expected_unit ||
+                        unit.layer >= has_key.size()) {
+                        promotion_valid = false;
+                        break;
                     }
                     const bool value = unit.side == vbr_artifact_side::value;
                     const size_t layer = unit.layer;
@@ -2810,10 +2843,13 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     if (unit.bytes->size() != uint64_t(unit.valid_rows) * unit.row_bytes ||
                         uint64_t(unit.valid_rows) * unit.row_bytes > page_bytes ||
                         uint64_t(selected_slot) > UINT64_MAX / page_bytes ||
-                        layer_offset > UINT64_MAX - uint64_t(selected_slot) * page_bytes) {
+                        layer_offset > UINT64_MAX - uint64_t(selected_slot) * page_bytes ||
+                        uint64_t(selected_slot) * geometry.page_tokens > UINT32_MAX) {
                         promotion_valid = false;
                         break;
                     }
+                    if (value) has_value[layer] = true;
+                    else has_key[layer] = true;
                     llama_kv_residency_transfer_run run;
                     run.lane = 0;
                     run.layer = uint32_t(layer);
@@ -2825,7 +2861,16 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     run.device_offset = uint64_t(selected_slot) * page_bytes;
                     transfer_page.runs.push_back(run);
                 }
-                if (transfer_page.runs.empty()) {
+                const uint32_t first_layer = transfer_layer == UINT32_MAX ? 0 : transfer_layer;
+                const uint32_t last_layer = transfer_layer == UINT32_MAX
+                    ? uint32_t(geometry.layer_k_page_bytes.size()) : transfer_layer + 1;
+                if (transfer_page.runs.empty() || last_layer > has_key.size() ||
+                    !std::all_of(has_key.begin() + first_layer,
+                                 has_key.begin() + last_layer,
+                                 [](bool ready) { return ready; }) ||
+                    !std::all_of(has_value.begin() + first_layer,
+                                 has_value.begin() + last_layer,
+                                 [](bool ready) { return ready; })) {
                     promotion_valid = false;
                     break;
                 }
@@ -2836,7 +2881,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     if (!used[slot]) { selected_slot = slot; break; }
                 }
             }
-            if (!promotion_valid) {
+            if (!promotion_valid || promotion_pages.size() > 2) {
                 boundary.transaction.transfers.clear();
             } else if (!promotion_pages.empty()) {
                 llama_kv_residency_transfer_plan plan;
