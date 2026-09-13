@@ -1,0 +1,50 @@
+{
+  "schema": "wiretail-31-05-bounded-scale-v1",
+  "task": "31-05",
+  "status": "gated_not_run",
+  "date_utc": "2026-09-13",
+  "objective": "Recheck bounded L32768/H16384 and L131072 after repairs only when the primary L8192/H4096 path is proven.",
+  "entry_condition": {
+    "required": "31-04 proves the small path",
+    "passed": false,
+    "evidence": ".wiretail/execution/evidence/31-04-primary-small.json",
+    "reason": "31-04 was partial runtime-fault evidence: two matched no-warmup q0/q1 receipts completed, but the warm control, q0 repetition, q2, and authenticated natural cold recall faulted with CUDA illegal memory access. The 31-04 handoff explicitly makes no stable q0/q1/q2 or recall claim."
+  },
+  "decision": {
+    "L32768_H16384_two_append_pilot": "not_run",
+    "L131072_full_L_native_mtp_allocation_population_smoke": "not_run",
+    "basis": "The packet makes both scale checks conditional on a proven small path; launching them without that proof would violate the measurement gate and would not produce interpretable post-repair scale evidence."
+  },
+  "inherited_configuration": {
+    "logical_context_L": 8192,
+    "hot_capacity_tokens_H": 4096,
+    "page_size_tokens": 256,
+    "batch_tokens_B": 128,
+    "ubatch_tokens_U": 64,
+    "target": "CUDA Turbo4 K/V",
+    "native_mtp": "full-L GPU Turbo4 K/V",
+    "route": "selected/direct selective",
+    "model": "qwen38-fast-turbo4-mtp",
+    "binary": "/tmp/buun-llama-cpp-31-03-final.WUe1Jf/bin/llama-server",
+    "bundle_manifest_sha256": "8c346e1135b5623bad8a42d32633430bf418c0c93180b544045614f3ea1f94d7"
+  },
+  "available_prior_artifacts": {
+    "primary_evidence": ".wiretail/execution/evidence/31-04-primary-small.json",
+    "primary_handoff": ".wiretail/execution/handoffs/31-04.md",
+    "natural_continuation": "/srv/ai/paged-kv/results/31-04-natural-20260913T054643Z/INTERACTIVE29_01_SCALE.json",
+    "natural_checkpoint": "/srv/ai/paged-kv/results/31-04-natural-20260913T054643Z/incremental-state.json"
+  },
+  "measurement": {
+    "new_raw_sse": [],
+    "new_memory_snapshots": [],
+    "new_capacity_or_rate": null,
+    "new_safe_H": null,
+    "new_cold_use": null,
+    "claims": []
+  },
+  "verification": {
+    "local_gate_review": "passed: gate decision agrees with 31-04 evidence and task wording",
+    "hardware_or_service_unavailable": false,
+    "next_scale_attempt": "not started by this task"
+  }
+}
