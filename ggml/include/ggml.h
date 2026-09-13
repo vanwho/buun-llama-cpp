@@ -741,6 +741,11 @@ extern "C" {
 
         GGML_OP_GLU,
 
+        // Select logical KV pages from a generation-checked min/max catalogue.
+        // Sources are q, [D,2,n_kv_heads,n_pages] F16 bounds, page metadata,
+        // resident membership, and the query/snapshot metadata respectively.
+        GGML_OP_KV_PAGE_SELECT,
+
         GGML_OP_COUNT,
     };
 
@@ -2611,6 +2616,24 @@ extern "C" {
             bool                  stable);
 
     GGML_API bool ggml_top_k_is_stable(const struct ggml_tensor * tensor);
+
+    // Select pages by the conservative upper-bound score induced by q and a
+    // stored-space min/max catalogue.  The output is [k_resident+k_cold] I32:
+    // resident pages occupy the first range, cold pages the second range, and
+    // unavailable slots are -1.  The four op parameters are fixed capacities,
+    // page size, and query row; dynamic generation/position state belongs in
+    // src4 so captured graphs do not need to be rebuilt.
+    GGML_API struct ggml_tensor * ggml_kv_page_select(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * bounds,
+            struct ggml_tensor  * page_metadata,
+            struct ggml_tensor  * resident_membership,
+            struct ggml_tensor  * query_metadata,
+            int                   k_resident,
+            int                   k_cold,
+            int                   page_size,
+            int                   query_row);
 
     GGML_API struct ggml_tensor * ggml_arange(
             struct ggml_context * ctx,

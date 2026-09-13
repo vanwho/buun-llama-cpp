@@ -8640,6 +8640,118 @@ void ggml_compute_forward_top_k(
     }
 }
 
+// ggml_compute_forward_kv_page_select
+
+static float ggml_kv_page_select_score(
+        const ggml_tensor * q,
+        const ggml_tensor * bounds,
+        int64_t query_row,
+        int64_t page) {
+    float best = -INFINITY;
+    const int64_t group = q->ne[1] / bounds->ne[2];
+    for (int64_t kv_head = 0; kv_head < bounds->ne[2]; ++kv_head) {
+        for (int64_t q_head = kv_head * group; q_head < (kv_head + 1) * group; ++q_head) {
+            const char * q_data = (const char *) q->data + q_head * q->nb[1] + query_row * q->nb[2];
+            float score = 0.0f;
+            for (int64_t d = 0; d < q->ne[0]; ++d) {
+                const float qi = *(const float *)(q_data + d * q->nb[0]);
+                const char * b = (const char *) bounds->data + d * bounds->nb[0] +
+                    kv_head * bounds->nb[2] + page * bounds->nb[3];
+                const float lo = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b));
+                const float hi = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b + bounds->nb[1]));
+                score += qi >= 0.0f ? qi * hi : qi * lo;
+            }
+            best = std::max(best, score);
+        }
+    }
+    return std::isfinite(best) ? best : -INFINITY;
+}
+
+static bool ggml_kv_page_select_eligible(
+        const ggml_tensor * metadata,
+        const ggml_tensor * membership,
+        const ggml_tensor * query,
+        int64_t page,
+        int expected_membership,
+        int64_t page_size) {
+    const auto value = [&](int index) {
+        return *(const int64_t *)((const char *) metadata->data + index * metadata->nb[0] +
+                                  page * metadata->nb[1]);
+    };
+    const int64_t position_begin = value(0);
+    const int64_t valid_length = value(1);
+    const int64_t sequence_generation = value(2);
+    const int64_t page_generation = value(3);
+    const int64_t query_position = *(const int64_t *)((const char *) query->data + 0 * query->nb[0]);
+    const int64_t query_sequence_generation = *(const int64_t *)((const char *) query->data + 1 * query->nb[0]);
+    const int64_t snapshot_generation = *(const int64_t *)((const char *) query->data + 2 * query->nb[0]);
+    const int64_t refresh_enabled = *(const int64_t *)((const char *) query->data + 3 * query->nb[0]);
+    const int membership_value = *(const int *)((const char *) membership->data + page * membership->nb[0]);
+    if (!refresh_enabled || membership_value != expected_membership || valid_length <= 0 ||
+            valid_length > page_size ||
+            sequence_generation != query_sequence_generation || page_generation <= 0 ||
+            page_generation > snapshot_generation || position_begin < 0 ||
+            position_begin >= query_position || valid_length > query_position - position_begin) {
+        return false;
+    }
+    return true;
+}
+
+static void ggml_compute_forward_kv_page_select_f32(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    GGML_ASSERT(params->ith == 0 && params->nth == 1);
+    const ggml_tensor * q = dst->src[0];
+    const ggml_tensor * bounds = dst->src[1];
+    const ggml_tensor * metadata = dst->src[2];
+    const ggml_tensor * membership = dst->src[3];
+    const ggml_tensor * query = dst->src[4];
+    const int k_resident = ggml_get_op_params_i32(dst, 0);
+    const int k_cold = ggml_get_op_params_i32(dst, 1);
+    const int page_size = ggml_get_op_params_i32(dst, 2);
+    const int query_row = ggml_get_op_params_i32(dst, 3);
+    const int64_t n_pages = bounds->ne[3];
+    int32_t * output = (int32_t *) dst->data;
+    std::fill(output, output + k_resident + k_cold, -1);
+
+    for (int region = 0; region < 2; ++region) {
+        const int begin = region == 0 ? 0 : k_resident;
+        const int count = region == 0 ? k_resident : k_cold;
+        const int expected_membership = region == 0 ? 1 : 0;
+        for (int rank = 0; rank < count; ++rank) {
+            float best_score = -INFINITY;
+            int32_t best_page = -1;
+            for (int64_t page = 0; page < n_pages; ++page) {
+                if (!ggml_kv_page_select_eligible(metadata, membership, query, page,
+                        expected_membership, page_size)) {
+                    continue;
+                }
+                bool already_selected = false;
+                for (int prior = 0; prior < rank; ++prior) {
+                    if (output[begin + prior] == page) {
+                        already_selected = true;
+                        break;
+                    }
+                }
+                if (already_selected) continue;
+                const float score = ggml_kv_page_select_score(q, bounds, query_row, page);
+                if (best_page < 0 || score > best_score || (score == best_score && page < best_page)) {
+                    best_score = score;
+                    best_page = (int32_t) page;
+                }
+            }
+            output[begin + rank] = best_page;
+        }
+    }
+}
+
+void ggml_compute_forward_kv_page_select(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    GGML_ASSERT(dst->src[0]->type == GGML_TYPE_F32);
+    ggml_compute_forward_kv_page_select_f32(params, dst);
+}
+
 static void ggml_compute_forward_flash_attn_ext_f16_one_chunk(
         const ggml_compute_params * params,
         ggml_tensor * dst,

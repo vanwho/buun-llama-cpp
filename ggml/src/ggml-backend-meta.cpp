@@ -1095,6 +1095,12 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_get_split_state(
             case GGML_OP_TOP_K: {
                 split_state = handle_per_row(src_ss);
             } break;
+            case GGML_OP_KV_PAGE_SELECT: {
+                // The catalogue is a single snapshot. Splitting it would
+                // permit different devices to rank against different
+                // generations, so this node is deliberately mirrored.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
             case GGML_OP_LEAKY_RELU: {
                 split_state = handle_generic(src_ss, /*scalar_only =*/ false);
             } break;

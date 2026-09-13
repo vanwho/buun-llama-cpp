@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "35",
-  "current_task": "35-01",
-  "last_updated_utc": "2026-09-13T18:52:27+00:00",
+  "current_task": "35-02",
+  "last_updated_utc": "2026-09-13T19:48:15+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6723,7 +6723,7 @@
       "cluster": "35a-catalogue-selector-v9",
       "title": "Build generation-safe GPU summaries for all logical Turbo4 K pages",
       "packet": ".wiretail/execution/tasks/35-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -6738,7 +6738,32 @@
       "depends_on": [
         "34-06"
       ],
-      "commit": null
+      "commit": "f2ce13e984a077047bf7d9a6ba4d6fbb8ea1193b",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/35-01-attempt-1-20260913T185244Z.jsonl:355",
+            "total_tokens": 32565999,
+            "total_tokens_derived": true,
+            "input_tokens": 32501966,
+            "cached_input_tokens": 31785216,
+            "output_tokens": 64033,
+            "thinking_tokens": 20864
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 32565999,
+          "input_tokens": 32501966,
+          "cached_input_tokens": 31785216,
+          "output_tokens": 64033,
+          "thinking_tokens": 20864
+        }
+      }
     },
     {
       "id": "35-02",
@@ -9068,14 +9093,28 @@
       }
     },
     "35": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/35-01-attempt-1-20260913T185244Z.jsonl:355",
+          "total_tokens": 32565999,
+          "total_tokens_derived": true,
+          "input_tokens": 32501966,
+          "cached_input_tokens": 31785216,
+          "output_tokens": 64033,
+          "thinking_tokens": 20864
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 32565999,
+        "input_tokens": 32501966,
+        "cached_input_tokens": 31785216,
+        "output_tokens": 64033,
+        "thinking_tokens": 20864
       }
     },
     "36": {
@@ -9114,12 +9153,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 124,
-      "total_tokens": 2890770312,
-      "input_tokens": 2884253519,
-      "cached_input_tokens": 2828543488,
-      "output_tokens": 6516793,
-      "thinking_tokens": 2385405
+      "turns": 125,
+      "total_tokens": 2923336311,
+      "input_tokens": 2916755485,
+      "cached_input_tokens": 2860328704,
+      "output_tokens": 6580826,
+      "thinking_tokens": 2406269
     },
     "source": "Codex turn.completed usage events"
   }

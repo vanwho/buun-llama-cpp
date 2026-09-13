@@ -1,0 +1,48 @@
+{
+  "task": "35-01",
+  "revision": "hotpath-v9-20260913",
+  "utc_run_id": "20260913T194343Z-catalogue-selector",
+  "result": "complete",
+  "selector": {
+    "op": "GGML_OP_KV_PAGE_SELECT",
+    "inputs": {
+      "q": "F32[D,n_head_q,n_queries,1]",
+      "bounds": "F16[D,2,n_head_kv,logical_pages]",
+      "page_metadata": "I64[4,logical_pages]",
+      "resident_membership": "I32[logical_pages]",
+      "query_metadata": "I64[4,1,1,1]"
+    },
+    "output": "I32[k_resident+k_cold], resident then cold, -1 padding",
+    "fixed_params": ["k_resident", "k_cold", "page_size", "query_row"]
+  },
+  "catalogue_layout": {
+    "formula": "logical_pages * kv_heads * vector_dim * 2 * element_bytes",
+    "default_element_bytes": 2,
+    "overflow_safe": true
+  },
+  "implementation": {
+    "cpu_reference": true,
+    "cuda_cooperative_reduction": true,
+    "generation_safe": true,
+    "outward_fp16_bounds": true,
+    "turbo4_inverse_fwht": false,
+    "meta_backend_snapshot_mirrored": true
+  },
+  "checks": [
+    "test-kv-page-select",
+    "test-kv-routing-summary",
+    "test-kv-pager",
+    "test-kv-routing-retrieval",
+    "test-kv-residency",
+    "test-kv-policy",
+    "cuda-kv-page-select-translation-unit",
+    "task_state_validate",
+    "bounded_plan_validate",
+    "git_diff_check"
+  ],
+  "raw_receipt_root": "/srv/ai/paged-kv/results/v9/35-01/20260913T194343Z-catalogue-selector",
+  "deferred": [
+    "full CUDA shared-library relink",
+    "live CUDA selector/sealing smoke"
+  ]
+}
