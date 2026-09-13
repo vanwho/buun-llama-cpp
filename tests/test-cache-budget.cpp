@@ -328,6 +328,91 @@ static void test_context_ladder_reserves_native_mtp_first() {
     CHECK(!no_page.accepted);
 }
 
+static llama_cache_budget_admission_input make_lha_fixture(uint64_t context,
+                                                            uint64_t capacity) {
+    llama_cache_budget_admission_input input;
+    input.capacity_bytes = capacity;
+    input.allocation_granularity = 64;
+    input.weights_bytes = 4096;
+    input.fixed_bytes = 2048;
+    input.graph_bytes = 4096;
+    input.turbo4_scratch_bytes = 1024;
+    input.routing_bytes = 4096;
+    input.headroom_bytes = 4096;
+    input.mtp_tokens = context;
+    input.mtp_k_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
+    input.mtp_v_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, 1024);
+    input.target_page_bytes = 8192;
+    input.page_tokens = 256;
+    input.logical_page_count = (context + input.page_tokens - 1) / input.page_tokens;
+    input.packed_workspace_page_bytes = input.target_page_bytes;
+    input.packed_workspace_owner_count = 2;
+    input.packed_dequant_page_bytes = 256 * 4096;
+    input.catalogue_bytes = input.logical_page_count * 4096;
+    input.minimum_resident_pages = 2;
+    input.transfer_destination_pages = 1;
+    return input;
+}
+
+static void test_dynamic_lha_admission() {
+    // The same geometry is admitted at three L values. A remains bounded by
+    // the solved H and the resolved L is never shortened to make the ledger fit.
+    for (const uint64_t context : { uint64_t(8192), uint64_t(32768), uint64_t(131072) }) {
+        auto large = make_lha_fixture(context, std::numeric_limits<uint64_t>::max());
+        const auto full = llama_cache_budget_admit(large);
+        CHECK(full.refusal == llama_cache_budget_admission_refusal::none);
+        CHECK(full.resolved_context_tokens == context);
+        CHECK(full.logical_page_count == context / 256);
+        CHECK(full.attention_pages <= full.admitted_pages);
+        CHECK(full.admitted_pages == full.logical_page_count);
+        CHECK(full.attention_tokens == full.attention_pages * 256);
+
+        auto bounded = make_lha_fixture(context,
+                full.charged_bytes + 8 * full.page_charge_bytes);
+        const auto result = llama_cache_budget_admit(bounded);
+        CHECK(result.refusal == llama_cache_budget_admission_refusal::none);
+        CHECK(result.requested_context_tokens == context);
+        CHECK(result.resolved_context_tokens == context);
+        CHECK(result.admitted_pages >= 3);
+        CHECK(result.attention_pages <= result.admitted_pages);
+        CHECK(result.packed_workspace_bytes != 0);
+        CHECK(result.packed_dequant_bytes != 0);
+        CHECK(result.catalogue_bytes == ((bounded.catalogue_bytes + 63) / 64) * 64);
+    }
+
+    // A second head/page geometry exercises a distinct layer/head/GPU budget;
+    // the admission contract is not tied to the first fixture's dimensions.
+    auto alternate = make_lha_fixture(32768, std::numeric_limits<uint64_t>::max());
+    alternate.mtp_k_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, 768);
+    alternate.mtp_v_row_bytes = ggml_row_size(GGML_TYPE_TURBO4_0, 768);
+    alternate.target_page_bytes = 12288;
+    alternate.packed_workspace_page_bytes = alternate.target_page_bytes;
+    alternate.packed_dequant_page_bytes = 256 * 3072;
+    alternate.catalogue_bytes = alternate.logical_page_count * 3072;
+    const auto alternate_full = llama_cache_budget_admit(alternate);
+    CHECK(alternate_full.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(alternate_full.admitted_pages == alternate.logical_page_count);
+    CHECK(alternate_full.attention_pages <= alternate_full.admitted_pages);
+
+    auto explicit_a = make_lha_fixture(32768, std::numeric_limits<uint64_t>::max());
+    explicit_a.attention_page_limit = 4;
+    const auto explicit_result = llama_cache_budget_admit(explicit_a);
+    CHECK(explicit_result.refusal == llama_cache_budget_admission_refusal::none);
+    CHECK(explicit_result.attention_pages == 4);
+    CHECK(explicit_result.attention_tokens == 4 * explicit_a.page_tokens);
+
+    auto mismatch = make_lha_fixture(8192, std::numeric_limits<uint64_t>::max());
+    mismatch.requested_context_tokens = 8192;
+    mismatch.resolved_context_tokens = 4096;
+    CHECK(llama_cache_budget_admit(mismatch).refusal ==
+          llama_cache_budget_admission_refusal::context_mismatch);
+
+    auto overflow = make_lha_fixture(8192, std::numeric_limits<uint64_t>::max());
+    overflow.packed_workspace_page_bytes = std::numeric_limits<uint64_t>::max();
+    CHECK(llama_cache_budget_admit(overflow).refusal ==
+          llama_cache_budget_admission_refusal::overflow);
+}
+
 static const llama_cache_budget_row * find_group(
         const llama_cache_budget_result & result,
         llama_cache_budget_resource_kind kind,
@@ -677,6 +762,7 @@ int main() {
     test_late_startup_categories_are_checked();
     test_scratch_rounding_is_separate_from_full_mtp_rows();
     test_context_ladder_reserves_native_mtp_first();
+    test_dynamic_lha_admission();
     test_baseline_and_group_rollup();
     test_optional_hierarchy();
     test_fail_closed_inputs();

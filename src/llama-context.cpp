@@ -119,6 +119,102 @@ static bool llama_context_native_mtp_rows(
     return k_row_bytes != 0 && v_row_bytes != 0;
 }
 
+// Reserve the compact all-history catalogue independently from the bounded H
+// target slab. This is the R1 min/max layout: two fp16 vectors for every
+// full-attention layer/page, followed by aligned validity, generation and
+// native-position metadata. The calculation intentionally uses model geometry
+// instead of a model-family byte-per-token constant.
+static uint64_t llama_context_catalogue_reserve_bytes(
+        const llama_model & model,
+        const llama_kv_pager_geometry & geometry,
+        uint64_t alignment) noexcept {
+    if (geometry.page_tokens == 0 || geometry.context_tokens == 0 || alignment == 0) {
+        return UINT64_MAX;
+    }
+    const auto multiply = [](uint64_t a, uint64_t b, uint64_t & out) {
+        if (b != 0 && a > UINT64_MAX / b) return false;
+        out = a * b;
+        return true;
+    };
+    const auto add = [](uint64_t a, uint64_t b, uint64_t & out) {
+        if (b > UINT64_MAX - a) return false;
+        out = a + b;
+        return true;
+    };
+    const uint64_t pages = (geometry.context_tokens - 1) / geometry.page_tokens + 1;
+    uint64_t total = 0;
+    for (const uint32_t layer_id : geometry.model_layer_ids) {
+        const uint32_t heads = model.hparams.n_head_kv(layer_id);
+        const uint32_t dim = model.hparams.n_embd_head_k(layer_id);
+        if (heads == 0 || dim == 0) return UINT64_MAX;
+        const uint64_t row = uint64_t(ggml_row_size(
+                GGML_TYPE_F16, uint64_t(heads) * dim));
+        uint64_t payload = 0;
+        uint64_t metadata = 0;
+        uint64_t layer = 0;
+        if (row == 0 || row > UINT64_MAX / 2 ||
+            pages > UINT64_MAX / (row * 2) ||
+            !multiply(pages, row * 2, payload) ||
+            pages > UINT64_MAX / (sizeof(uint8_t) + sizeof(uint32_t) +
+                                   2 * sizeof(llama_pos)) ||
+            !multiply(pages, sizeof(uint8_t) + sizeof(uint32_t) +
+                                   2 * sizeof(llama_pos), metadata) ||
+            !add(payload, metadata, layer) ||
+            !add(total, layer, total)) {
+            return UINT64_MAX;
+        }
+    }
+    if (total > UINT64_MAX - (alignment - 1)) return UINT64_MAX;
+    return (total + alignment - 1) / alignment * alignment;
+}
+
+static uint64_t llama_context_packed_dequant_page_bytes(
+        const llama_model & model,
+        const llama_kv_pager_geometry & geometry) noexcept {
+    uint64_t maximum = 0;
+    for (const uint32_t layer_id : geometry.model_layer_ids) {
+        const uint32_t heads = model.hparams.n_head_kv(layer_id);
+        const uint32_t dim_k = model.hparams.n_embd_head_k(layer_id);
+        const uint32_t dim_v = model.hparams.n_embd_head_v(layer_id);
+        if (heads == 0 || dim_k == 0 || dim_v == 0) return UINT64_MAX;
+        const uint64_t k = uint64_t(ggml_row_size(GGML_TYPE_F16,
+                uint64_t(heads) * dim_k));
+        const uint64_t v = uint64_t(ggml_row_size(GGML_TYPE_F16,
+                uint64_t(heads) * dim_v));
+        uint64_t rows = 0;
+        if (k > UINT64_MAX - v || geometry.page_tokens > UINT64_MAX / (k + v)) {
+            return UINT64_MAX;
+        }
+        rows = geometry.page_tokens * (k + v);
+        maximum = std::max(maximum, rows);
+    }
+    return maximum;
+}
+
+static void llama_context_fill_pager_memory_admission(
+        const llama_model & model,
+        const llama_kv_pager_config & config,
+        const llama_kv_pager_geometry & geometry,
+        uint64_t alignment,
+        llama_kv_pager_resources & resources) noexcept {
+    resources.admission.packed_workspace_page_bytes = geometry.page_bytes;
+    // One active owner and one bounded draining replacement are both live
+    // during a structural A/source replacement. The destination is therefore
+    // charged as A storage, not hidden in an H-sized scratch estimate.
+    resources.admission.packed_workspace_owner_count = 2;
+    resources.admission.packed_dequant_page_bytes =
+            llama_context_packed_dequant_page_bytes(model, geometry);
+    resources.admission.catalogue_bytes =
+            llama_context_catalogue_reserve_bytes(model, geometry, alignment);
+    const uint64_t logical_pages = (geometry.context_tokens - 1) /
+            geometry.page_tokens + 1;
+    resources.admission.minimum_resident_pages = std::min<uint64_t>(2, logical_pages);
+    resources.admission.transfer_destination_pages = std::min<uint64_t>(1, logical_pages);
+    resources.admission.attention_page_limit = config.attention_tokens == 0
+        ? 0 : (uint64_t(config.attention_tokens) + geometry.page_tokens - 1) /
+                geometry.page_tokens;
+}
+
 // The recurrent child is constructed after the pager plan, so derive its
 // allocator-visible footprint from the same tensor geometry used by
 // llama_memory_recurrent.  This is intentionally a bound, not a context
@@ -1021,6 +1117,12 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.fixed_context_bytes = snapshot.admission.fixed_context_bytes;
     result.recurrent_state_bytes = snapshot.admission.recurrent_state_bytes;
     result.mtp_compute_bytes = snapshot.admission.mtp_compute_bytes;
+    result.packed_workspace_bytes = snapshot.admission.packed_workspace_bytes;
+    result.packed_dequant_bytes = snapshot.admission.packed_dequant_bytes;
+    result.catalogue_bytes = snapshot.admission.catalogue_bytes;
+    result.attention_pages = snapshot.admission.attention_pages;
+    result.attention_tokens = snapshot.admission.attention_tokens;
+    result.transfer_destination_pages = snapshot.admission.transfer_destination_pages;
     result.graph_bytes = snapshot.admission.graph_bytes;
     result.turbo4_scratch_bytes = snapshot.admission.turbo4_scratch_bytes;
     result.routing_table_bytes = snapshot.admission.routing_table_bytes;
@@ -1274,6 +1376,8 @@ void llama_context::plan_kv_pager() {
             logical_pages, geometry.attention_layers, geometry.kv_heads,
             geometry.key_length, geometry.page_tokens,
             resources.routing_summary.subblock_tokens, sizeof(uint16_t)).bytes;
+    llama_context_fill_pager_memory_admission(
+            model, kv_pager, geometry, alignment, resources);
 
     llama_kv_pager_status status;
     if (!llama_kv_pager_plan(kv_pager, geometry, resources,
@@ -1532,6 +1636,8 @@ void llama_context::init_kv_pager() {
             logical_pages, geometry.attention_layers, geometry.kv_heads,
             geometry.key_length, geometry.page_tokens,
             resources.routing_summary.subblock_tokens, sizeof(uint16_t)).bytes;
+    llama_context_fill_pager_memory_admission(
+            model, kv_pager, geometry, allocation_granularity, resources);
 
     llama_kv_pager_backend pager_backend;
     pager_backend.allocate = [backend_index, this](uint64_t bytes, llama_kv_pager_allocation & allocation) {
@@ -1606,6 +1712,10 @@ void llama_context::init_kv_pager() {
             " ledger_weights_bytes=%" PRIu64 " ledger_fixed_context_bytes=%" PRIu64
             " ledger_recurrent_state_bytes=%" PRIu64 " ledger_mtp_compute_bytes=%" PRIu64
             " ledger_graph_bytes=%" PRIu64 " ledger_external_bytes=%" PRIu64
+            " ledger_packed_workspace_bytes=%" PRIu64
+            " ledger_packed_dequant_bytes=%" PRIu64
+            " ledger_catalogue_bytes=%" PRIu64
+            " ledger_attention_pages=%" PRIu64
             " device=%s route=%s refusal=%s}\n",
             kv_pager.summary().c_str(), geometry.context_tokens,
             snapshot.logical_page_count, snapshot.physical_page_count,
@@ -1619,6 +1729,8 @@ void llama_context::init_kv_pager() {
             admission.weights_bytes, admission.fixed_context_bytes,
             admission.recurrent_state_bytes, admission.mtp_compute_bytes,
             admission.graph_bytes, admission.external_bytes,
+            admission.packed_workspace_bytes, admission.packed_dequant_bytes,
+            admission.catalogue_bytes, admission.attention_pages,
             ggml_backend_dev_name(dev),
             kv_pager.mode == llama_kv_pager_mode::observe ? "observe" :
             kv_pager.mode == llama_kv_pager_mode::exact ? "exact" : "selective",

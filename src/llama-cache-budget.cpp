@@ -249,6 +249,14 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
         ? input.requested_context_tokens : input.mtp_tokens;
     out.resolved_context_tokens = input.resolved_context_tokens != 0
         ? input.resolved_context_tokens : input.mtp_tokens;
+    out.copy_ring_bytes = input.copy_ring_bytes;
+    out.catalogue_bytes = input.catalogue_bytes;
+    out.transfer_destination_pages = input.transfer_destination_pages;
+    if (input.requested_context_tokens != 0 && input.resolved_context_tokens != 0 &&
+        input.requested_context_tokens != input.resolved_context_tokens) {
+        out.refusal = llama_cache_budget_admission_refusal::context_mismatch;
+        return out;
+    }
     if (input.allocation_granularity == 0 || input.target_page_bytes == 0 ||
         input.page_tokens == 0 || input.logical_page_count == 0 ||
         (input.mtp_present && (input.mtp_tokens == 0 || input.mtp_values_per_token == 0 ||
@@ -272,6 +280,18 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
         if (b != 0 && a > std::numeric_limits<uint64_t>::max() / b) return false;
         result = a * b; return true;
     };
+    if (out.resolved_context_tokens != 0) {
+        if (out.resolved_context_tokens > UINT64_MAX - (input.page_tokens - 1)) {
+            out.refusal = llama_cache_budget_admission_refusal::overflow;
+            return out;
+        }
+        const uint64_t required_pages =
+            (out.resolved_context_tokens + input.page_tokens - 1) / input.page_tokens;
+        if (input.logical_page_count < required_pages) {
+            out.refusal = llama_cache_budget_admission_refusal::context_mismatch;
+            return out;
+        }
+    }
     if ((input.mtp_k_row_bytes == 0) != (input.mtp_v_row_bytes == 0)) {
         out.refusal = llama_cache_budget_admission_refusal::invalid_geometry;
         return out;
@@ -310,10 +330,14 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
     out.routing_table_bytes = input.routing_bytes;
     out.staging_bytes = input.staging_bytes;
     out.external_bytes = input.external_bytes;
+    out.packed_dequant_bytes = input.packed_dequant_bytes;
     if (!add(input.weights_bytes, input.fixed_bytes, out.fixed_bytes) ||
         !rounded(out.fixed_bytes, out.fixed_bytes) || !add(input.graph_bytes, input.turbo4_scratch_bytes, out.scratch_bytes) ||
         !rounded(out.scratch_bytes, out.scratch_bytes) || !add(input.routing_bytes, input.staging_bytes, out.routing_bytes) ||
-        !rounded(out.routing_bytes, out.routing_bytes) || !rounded(input.headroom_bytes, out.headroom_bytes)) {
+        !rounded(out.routing_bytes, out.routing_bytes) || !rounded(input.headroom_bytes, out.headroom_bytes) ||
+        !rounded(input.packed_dequant_bytes, out.packed_dequant_bytes) ||
+        !rounded(input.copy_ring_bytes, out.copy_ring_bytes) ||
+        !rounded(input.catalogue_bytes, out.catalogue_bytes)) {
         out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
     }
     // weights + already-resident fixed companions are one charge; do not charge either twice.
@@ -326,7 +350,10 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
         !add(out.reserved_bytes, out.scratch_bytes, out.reserved_bytes) ||
         !add(out.reserved_bytes, out.routing_bytes, out.reserved_bytes) ||
         !add(out.reserved_bytes, out.external_bytes, out.reserved_bytes) ||
-        !add(out.reserved_bytes, out.allocator_guard_bytes, out.reserved_bytes)) {
+        !add(out.reserved_bytes, out.allocator_guard_bytes, out.reserved_bytes) ||
+        !add(out.reserved_bytes, out.packed_dequant_bytes, out.reserved_bytes) ||
+        !add(out.reserved_bytes, out.copy_ring_bytes, out.reserved_bytes) ||
+        !add(out.reserved_bytes, out.catalogue_bytes, out.reserved_bytes)) {
         out.refusal = llama_cache_budget_admission_refusal::overflow; return out;
     }
     if (!add(out.fixed_bytes, out.reserved_bytes, out.charged_bytes) ||
@@ -361,6 +388,89 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
     if (input.diagnostic_max_pages != 0) {
         admitted = std::min(admitted, input.diagnostic_max_pages);
     }
+
+    // A packed owner is a persistent cross-layer K/V destination. It is
+    // intentionally solved together with H: auto A is bounded to roughly
+    // half of the candidate H, while an explicit A is never silently reduced.
+    // This fixed-point step keeps the full-L target slab and the compact
+    // selected workspace in one admission ledger.
+    const uint64_t packed_per_page = input.packed_workspace_page_bytes;
+    const uint64_t owner_count = input.packed_workspace_owner_count;
+    const uint64_t dequant_per_page = input.packed_dequant_page_bytes;
+    if ((packed_per_page == 0) != (owner_count == 0) ||
+        (packed_per_page == 0 && dequant_per_page != 0)) {
+        out.refusal = llama_cache_budget_admission_refusal::invalid_geometry;
+        return out;
+    }
+    if (packed_per_page != 0) {
+        uint64_t owner_page_charge = 0;
+        uint64_t dequant_page_charge = 0;
+        uint64_t packed_page_charge = 0;
+        if (!multiply(packed_per_page, owner_count, owner_page_charge) ||
+            !rounded(owner_page_charge, owner_page_charge) ||
+            !rounded(dequant_per_page, dequant_page_charge) ||
+            !add(owner_page_charge, dequant_page_charge, packed_page_charge)) {
+            out.refusal = llama_cache_budget_admission_refusal::overflow;
+            return out;
+        }
+        const uint64_t max_admitted = admitted;
+        const uint64_t flexible_bytes = out.usable_device_bytes - out.charged_bytes;
+        uint64_t a_pages = input.attention_page_limit;
+        if (a_pages != 0) {
+            if (a_pages > max_admitted) {
+                out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity;
+                return out;
+            }
+            uint64_t packed_bytes = 0;
+            if (!multiply(a_pages, packed_page_charge, packed_bytes)) {
+                out.refusal = llama_cache_budget_admission_refusal::overflow;
+                return out;
+            }
+            admitted = packed_bytes > flexible_bytes ? 0 :
+                std::min(max_admitted,
+                    (flexible_bytes - packed_bytes) / out.page_charge_bytes);
+        } else {
+            // Solve H + ceil(H/2) * packed_page_charge <= flexible_bytes by
+            // binary search. A fixed-point iteration can oscillate between a
+            // full H and zero when one A page is larger than one H page.
+            uint64_t low = 0;
+            uint64_t high = max_admitted;
+            while (low < high) {
+                const uint64_t candidate = low + (high - low + 1) / 2;
+                const uint64_t candidate_a = std::max<uint64_t>(1, (candidate + 1) / 2);
+                uint64_t packed_bytes = 0;
+                uint64_t target_bytes = 0;
+                uint64_t total_bytes = 0;
+                const bool fits = multiply(candidate_a, packed_page_charge, packed_bytes) &&
+                    multiply(candidate, out.page_charge_bytes, target_bytes) &&
+                    add(packed_bytes, target_bytes, total_bytes) &&
+                    total_bytes <= flexible_bytes;
+                if (fits) {
+                    low = candidate;
+                } else {
+                    high = candidate - 1;
+                }
+            }
+            admitted = low;
+            a_pages = admitted == 0 ? 0 : std::max<uint64_t>(1, (admitted + 1) / 2);
+        }
+        if (a_pages > admitted) {
+            out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity;
+            return out;
+        }
+        if (!multiply(a_pages, owner_page_charge, out.packed_workspace_bytes) ||
+            !multiply(a_pages, dequant_page_charge, out.packed_dequant_bytes) ||
+            !add(out.packed_workspace_bytes, out.packed_dequant_bytes, packed_page_charge) ||
+            !add(out.charged_bytes, packed_page_charge, out.charged_bytes) ||
+            !add(out.reserved_bytes, packed_page_charge, out.reserved_bytes)) {
+            out.refusal = llama_cache_budget_admission_refusal::overflow;
+            return out;
+        }
+        out.attention_pages = a_pages;
+        out.attention_tokens = a_pages > UINT64_MAX / input.page_tokens
+            ? UINT64_MAX : a_pages * input.page_tokens;
+        out.remaining_bytes = out.usable_device_bytes - out.charged_bytes;
+    }
     out.admitted_pages = admitted;
     out.capacity_pages = admitted;
     uint64_t admitted_bytes = 0;
@@ -372,6 +482,13 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
     out.unused_bytes = out.remaining_bytes - admitted_bytes;
     out.accepted_target_tokens = out.capacity_tokens;
     out.accepted = admitted != 0;
+    const uint64_t required_resident_pages = input.minimum_resident_pages > UINT64_MAX -
+            input.transfer_destination_pages ? UINT64_MAX :
+            input.minimum_resident_pages + input.transfer_destination_pages;
+    if (out.accepted && admitted < required_resident_pages) {
+        out.accepted = false;
+        out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity;
+    }
     if (!out.accepted) {
         out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity;
     }
@@ -383,6 +500,7 @@ const char * llama_cache_budget_admission_refusal_name(
     switch (refusal) {
         case llama_cache_budget_admission_refusal::none: return "none";
         case llama_cache_budget_admission_refusal::invalid_geometry: return "invalid_geometry";
+        case llama_cache_budget_admission_refusal::context_mismatch: return "context_mismatch";
         case llama_cache_budget_admission_refusal::mtp_not_turbo4: return "mtp_not_turbo4";
         case llama_cache_budget_admission_refusal::missing_scratch: return "missing_scratch";
         case llama_cache_budget_admission_refusal::overflow: return "overflow";

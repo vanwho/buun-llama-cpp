@@ -15,6 +15,7 @@
 #include <vector>
 #include <sstream>
 #include <unordered_set>
+#include <utility>
 
 #undef NDEBUG
 #include <cassert>
@@ -146,6 +147,29 @@ static void test(void) {
             assert(native_matching_dynamic.valid());
             assert(native_matching_dynamic.n_ctx == target_rows);
             assert(native_matching_dynamic.kv_unified);
+        }
+
+        // The draft context is per target sequence, even when the target has
+        // several server slots. Native MTP must preserve that full-L width and
+        // unified ownership rather than multiplying or shortening it by slot.
+        for (const auto & [target_rows, slots] : {
+                std::pair<uint32_t, uint32_t>{8192u, 4u},
+                std::pair<uint32_t, uint32_t>{32768u, 8u},
+                std::pair<uint32_t, uint32_t>{131072u, 16u} }) {
+            const auto native_multi_slot = common_speculative_mtp_context_params_resolve(
+                target_rows, 0, slots, true, true);
+            assert(native_multi_slot.valid());
+            assert(native_multi_slot.n_ctx == target_rows);
+            assert(native_multi_slot.n_seq_max == slots);
+            assert(native_multi_slot.kv_unified);
+
+            const auto native_multi_slot_matching =
+                common_speculative_mtp_context_params_resolve(
+                    target_rows, static_cast<int32_t>(target_rows), slots, true, true);
+            assert(native_multi_slot_matching.valid());
+            assert(native_multi_slot_matching.n_ctx == target_rows);
+            assert(native_multi_slot_matching.n_seq_max == slots);
+            assert(native_multi_slot_matching.kv_unified);
         }
 
         llama_context_params mtp_cparams = llama_context_default_params();
