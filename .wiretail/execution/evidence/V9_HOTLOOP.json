@@ -1,0 +1,100 @@
+{
+  "schema": "hotpath-v9",
+  "task": "36-01",
+  "revision": "hotpath-v9-20260913",
+  "decision": "pass_with_deferred_natural_cold_proof",
+  "provenance": {
+    "code_sha": "7413caea33a2d8e77cd2d3406f8e3126aaba4131",
+    "source_diff_hash": "f2fd43b1dadd48279c4d51f1de9b1d3af65f14389295204efde3684263f45501",
+    "candidate_bundle": "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-candidate",
+    "loaded_server_sha256": "82b92cc7da404d2eddd8aaf5c218d9cc202f8167a3c727f61f467d75bb220255",
+    "loaded_dso_hashes": {
+      "libggml-cuda.so.0.22.0": "b55d857fecd7a3b511c829ff34284455fe86a65ddfeee8b2fa8701cad243540b",
+      "libllama.so.0.3.0": "0dd12d8263c9c3f136ae003c21a9992e34a1aeec6e4e35c1217a3e8a9e2945b9",
+      "libllama-server-impl.so": "bc32b87cd8fa4fd58979ab98c1f4096950ca61310c23df6c7638c8fd01a58110"
+    },
+    "model_hash": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "prompt_hash": "44a500fb04ed81a7a1e5475e4a930050f7055827c1157f0c2af00a71851b8bdb",
+    "raw_roots": [
+      "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-run3",
+      "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-append2"
+    ]
+  },
+  "configuration": {
+    "context_tokens": 8192,
+    "hot_capacity_tokens": 4096,
+    "attention_tokens": 2048,
+    "batch_tokens": 128,
+    "ubatch_tokens": 64,
+    "page_size_tokens": 256,
+    "target_kv": "turbo4",
+    "target_v": "turbo4",
+    "mtp": "native"
+  },
+  "before": {
+    "source_receipt": ".wiretail/execution/evidence/V9_COLD_PROOF.json",
+    "pp_tok_s": 116.69692778176301,
+    "tg_tok_s": 29.866220664438075,
+    "cached_tokens": 5381,
+    "pack_bytes": 34603008,
+    "host_copy_bytes": 90832896,
+    "h2d_bytes": 0,
+    "graph_builds": 115,
+    "graph_replays": 0,
+    "router_refreshes": 115,
+    "queue_time_us": 4896310,
+    "wait_time_us": 109555,
+    "natural_cold_proof": false
+  },
+  "after": {
+    "live_q0": {
+      "raw": "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-run3/records.jsonl",
+      "http_code": 200,
+      "prompt_tokens": 30,
+      "completion_tokens": 128,
+      "cached_tokens": 0,
+      "pp_tok_s": 300.8604609182261,
+      "tg_tok_s": 34.650063011276,
+      "draft_tokens": 245,
+      "draft_accepted": 3,
+      "route": "selective",
+      "target_kv": "turbo4",
+      "h2d_actual_bytes": 0,
+      "queue_time_us": 2917860.0,
+      "wait_time_us": 190840,
+      "copy_time_us": 0,
+      "selected_page_count": 1,
+      "target_valid_rows": 157,
+      "request_errors": 0
+    },
+    "local_graph_profile": {
+      "test": "test-kv-attention-execution",
+      "submissions": 9,
+      "captures": 5,
+      "replays": 4,
+      "rebuilds": 5,
+      "table_upload_bytes": 0,
+      "epoch_changes": 2
+    },
+    "cached_append": {
+      "raw": "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-append2",
+      "request_completed": true,
+      "measurement_valid": false,
+      "cached_tokens": null,
+      "reason": "incremental harness aborted during paired reset/cleanup; no cached-append claim"
+    }
+  },
+  "verification": {
+    "cpu_tests": "pass",
+    "cuda_build": "pass",
+    "live_q0": "pass",
+    "service_health_after_run": "pass",
+    "natural_cold_append": "deferred",
+    "identity_warning": "adapter cleanup reported profile mismatch after the candidate request; loaded candidate was retained and health-checked"
+  },
+  "notes": [
+    "Packed graph capacity is fixed from admitted physical geometry; current row IDs and descriptors are mutable inputs.",
+    "Historical packed copies are skipped for unchanged pages and page-tail growth; dirty intervals rebuild once per layer submission.",
+    "The router returns before inventory/history construction when neither policy nor ready-slot state changed."
+  ]
+}

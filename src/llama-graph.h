@@ -464,6 +464,12 @@ public:
     bool selected_static_inputs_initialized = false;
     uint64_t selected_content_key = 0;
     ggml_tensor * self_selected_idxs = nullptr; // I32 [selected physical rows]
+    // Packed attention has a pager-sized, graph-stable row capacity. The
+    // compact destination of each current cache row is mutable input data.
+    uint32_t packed_row_capacity = 0;
+    ggml_tensor * packed_current_idxs = nullptr; // I64 [n_tokens]
+    std::vector<int64_t> packed_current_rows;
+    std::vector<llama_kv_attention_packed_cache::entry *> packed_graph_owners;
     std::vector<int32_t> selected_rows;
     llama_kv_attention_operator_metadata selected_metadata;
 
@@ -481,6 +487,7 @@ public:
         uint64_t source_offset_k = 0;
         uint64_t source_offset_v = 0;
         bool current_rows = false;
+        uint32_t page_row_count = 0;
         uint32_t row_count = 0;
         uint64_t bytes = 0;
     };
@@ -491,6 +498,8 @@ public:
         llama_kv_attention_packed_cache::entry * cache_entry = nullptr;
         ggml_backend_t backend = nullptr;
         uint32_t row_capacity = 0;
+        mutable ggml_tensor * current_k = nullptr;
+        mutable ggml_tensor * current_v = nullptr;
         // Borrowed source tensors remain owned by the pager/cache context;
         // these identities document the lifetime and physical slab against
         // which the compact duplicate was captured.
@@ -531,6 +540,8 @@ public:
     uint64_t direct_selection_generation = 0;
     bool direct_explicit_native_metadata = false;
     ggml_flash_attn_ext_paged_turbo4_device_control direct_device_control = {};
+    bool direct_device_control_uploaded = false;
+    ggml_flash_attn_ext_paged_turbo4_device_control direct_device_control_uploaded_value = {};
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_host;
     std::vector<ggml_flash_attn_ext_paged_turbo4_page> direct_pages_uploaded;
     std::vector<llama_pos> direct_native_positions_host;
