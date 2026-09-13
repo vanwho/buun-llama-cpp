@@ -385,6 +385,15 @@ static void run_split_tail_growth_regression(ggml_backend_t backend) {
     params.selection_generation_device = selection_generation_device;
     params.explicit_native_metadata = false;
 
+    cudaEvent_t tail_copy_start = nullptr;
+    cudaEvent_t tail_copy_stop = nullptr;
+    cudaEvent_t append_start = nullptr;
+    cudaEvent_t append_stop = nullptr;
+    cuda_check(cudaEventCreate(&tail_copy_start), "split tail copy start allocation");
+    cuda_check(cudaEventCreate(&tail_copy_stop), "split tail copy stop allocation");
+    cuda_check(cudaEventCreate(&append_start), "split append start allocation");
+    cuda_check(cudaEventCreate(&append_stop), "split append stop allocation");
+
     const auto append = [&](uint32_t page_count, uint32_t rows) {
         pages.assign(page_capacity, { UINT32_MAX, UINT32_MAX, 0, 0, -1 });
         uint32_t remaining = rows;
@@ -398,6 +407,17 @@ static void run_split_tail_growth_regression(ggml_backend_t backend) {
         active_pages = page_count;
         active_rows = rows;
         active_tail = pages[page_count - 1].row_count;
+        cuda_check(cudaEventRecord(tail_copy_start, stream), "split tail copy timing start record");
+        cuda_check(cudaMemcpyAsync(active_tail_device, &active_tail, sizeof(active_tail),
+            cudaMemcpyHostToDevice, stream), "split timed active tail copy");
+        cuda_check(cudaEventRecord(tail_copy_stop, stream), "split tail copy timing stop record");
+        cuda_check(cudaEventSynchronize(tail_copy_stop), "split tail copy timing synchronize");
+        float tail_copy_ms = 0.0f;
+        cuda_check(cudaEventElapsedTime(&tail_copy_ms, tail_copy_start, tail_copy_stop),
+            "split tail copy timing readback");
+        std::fprintf(stderr, "split incremental tail H2D: %.6f ms (tail=%u rows, KV heads=%u)\n",
+            tail_copy_ms, active_tail, n_head_kv);
+        cuda_check(cudaEventRecord(append_start, stream), "split append timing start record");
         cuda_check(cudaMemcpyAsync(pages_device, pages.data(), pages.size() * sizeof(pages[0]),
             cudaMemcpyHostToDevice, stream), "split append page copy");
         cuda_check(cudaMemcpyAsync(active_pages_device, &active_pages, sizeof(active_pages),
@@ -412,6 +432,13 @@ static void run_split_tail_growth_regression(ggml_backend_t backend) {
                 page_count, rows, ggml_cuda_fattn_turbo4_paged_status_name(status));
             std::abort();
         }
+        cuda_check(cudaEventRecord(append_stop, stream), "split append timing stop record");
+        cuda_check(cudaEventSynchronize(append_stop), "split append timing synchronize");
+        float append_ms = 0.0f;
+        cuda_check(cudaEventElapsedTime(&append_ms, append_start, append_stop),
+            "split append timing readback");
+        std::fprintf(stderr, "split incremental append+attention: %.6f ms (rows=%u, pages=%u, KV heads=%u)\n",
+            append_ms, rows, page_count, n_head_kv);
     };
     append(5, 1203);
     append(5, 1267);
@@ -422,6 +449,11 @@ static void run_split_tail_growth_regression(ggml_backend_t backend) {
     cuda_check(cudaMemcpy(output.data(), output_device, output.size() * sizeof(float), cudaMemcpyDeviceToHost),
         "split output readback");
     for (const float value : output) assert(std::isfinite(value));
+
+    cudaEventDestroy(append_stop);
+    cudaEventDestroy(append_start);
+    cudaEventDestroy(tail_copy_stop);
+    cudaEventDestroy(tail_copy_start);
 
     cudaFree(selection_generation_device);
     cudaFree(active_tail_device);
