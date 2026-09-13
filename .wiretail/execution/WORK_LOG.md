@@ -1014,3 +1014,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-13T21:18:00+00:00 - 35-04 - done
 
 - Summary: Integrated host-canonical asynchronous R4 promotion and clean no-D2H eviction with destination/event/recheck publication ordering, canonical layer-bundle matching, two-bundle refresh budget, K/V atomic planner validation, and loading/graph-lease refusal. CPU focused ctest 6/6, CUDA sm_89 llama build, state/plan validation, diff check, and controlled FNV checksum transfer proof passed. Native natural cold-page proof is deferred to 35-05. Raw: `/srv/ai/paged-kv/results/v9/35-04/20260913T211445Z-transfer/`.
+
+## 2026-09-13T23:54:55+00:00 - 37-01 - done
+
+- Summary: Recorded bounded 32K as not_run because the required small-path natural cold-promotion gate remains unproven: no current-Q catalogue candidate publication and zero H2D bytes. No live workload was launched. Receipt: `.wiretail/execution/evidence/V9_32K.json`.
