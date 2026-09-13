@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "28",
-  "current_task": "28-04",
-  "last_updated_utc": "2026-09-12T22:13:47+00:00",
+  "current_task": "28-05",
+  "last_updated_utc": "2026-09-13T00:15:52+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5696,14 +5696,39 @@
       "cluster": "28c-optimized-paged-kernels-v8",
       "title": "Implement tiled paged Turbo4 prefill using the mature MMA pipeline",
       "packet": ".wiretail/execution/tasks/28-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "28-03"
       ],
-      "commit": null,
-      "scope_revision": "gpu-hot-path-v8-20260912"
+      "commit": "5a9d9aa3a4d7df4cdb4455c5ef56ea67c3c7e3bd",
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/28-04-attempt-1-20260912T221404Z.jsonl:402",
+            "total_tokens": 98441785,
+            "total_tokens_derived": true,
+            "input_tokens": 98287792,
+            "cached_input_tokens": 96960000,
+            "output_tokens": 153993,
+            "thinking_tokens": 69005
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 98441785,
+          "input_tokens": 98287792,
+          "cached_input_tokens": 96960000,
+          "output_tokens": 153993,
+          "thinking_tokens": 69005
+        }
+      }
     },
     {
       "id": "28-05",
@@ -7434,15 +7459,28 @@
           "cached_input_tokens": 41985024,
           "output_tokens": 58875,
           "thinking_tokens": 25823
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/28-04-attempt-1-20260912T221404Z.jsonl:402",
+          "total_tokens": 98441785,
+          "total_tokens_derived": true,
+          "input_tokens": 98287792,
+          "cached_input_tokens": 96960000,
+          "output_tokens": 153993,
+          "thinking_tokens": 69005
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 120032499,
-        "input_tokens": 119840257,
-        "cached_input_tokens": 118164224,
-        "output_tokens": 192242,
-        "thinking_tokens": 75229
+        "turns": 4,
+        "total_tokens": 218474284,
+        "input_tokens": 218128049,
+        "cached_input_tokens": 215124224,
+        "output_tokens": 346235,
+        "thinking_tokens": 144234
       }
     },
     "29": {
@@ -7470,12 +7508,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 100,
-      "total_tokens": 2093675431,
-      "input_tokens": 2088840257,
-      "cached_input_tokens": 2049620480,
-      "output_tokens": 4835174,
-      "thinking_tokens": 1714330
+      "turns": 101,
+      "total_tokens": 2192117216,
+      "input_tokens": 2187128049,
+      "cached_input_tokens": 2146580480,
+      "output_tokens": 4989167,
+      "thinking_tokens": 1783335
     },
     "source": "Codex turn.completed usage events"
   }

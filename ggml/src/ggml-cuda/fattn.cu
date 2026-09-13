@@ -2400,6 +2400,61 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
     }
 
+    // The MMA path is used for direct multi-query prefill. Telemetry and
+    // split-state calls retain the descriptor-aware online-softmax path until
+    // their page-state reduction is fused into the MMA policy.
+    if (!params.reference_kernel && params.n_query_tokens >= 16 &&
+            params.output != nullptr && params.page_mass == nullptr &&
+            params.split_kv_scratch == nullptr && !params.write_partial_state &&
+            !params.merge_partial_state) {
+        const uint32_t gqa_ratio = params.n_head_q / params.n_head_kv;
+        const uint32_t ncols2 = gqa_ratio >= 8 ? 8 : gqa_ratio >= 4 ? 4 : gqa_ratio >= 2 ? 2 : 1;
+        const uint32_t query_tile = std::min<uint32_t>(query_tile_tokens, 64 / ncols2);
+        const bool legacy_mma_columns = ggml_cuda_info().devices[ctx.device].cc <= GGML_CUDA_CC_TURING;
+        bool launched = false;
+        if (legacy_mma_columns) {
+            if (ncols2 == 8) {
+                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 8>(ctx, params);
+            } else if (ncols2 == 4) {
+                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 4>(ctx, params);
+            } else if (ncols2 == 2) {
+                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 2>(ctx, params);
+            } else {
+                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 1>(ctx, params);
+            }
+        } else if (ncols2 == 8) {
+            launched = query_tile >= 8
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 8>(ctx, params)
+                : query_tile >= 4
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 8>(ctx, params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<2, 8>(ctx, params);
+        } else if (ncols2 == 4) {
+            launched = query_tile >= 16
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 4>(ctx, params)
+                : query_tile >= 8
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 4>(ctx, params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 4>(ctx, params);
+        } else if (ncols2 == 2) {
+            launched = query_tile >= 32
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 2>(ctx, params)
+                : query_tile >= 16
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 2>(ctx, params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 2>(ctx, params);
+        } else {
+            launched = query_tile >= 64
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<64, 1>(ctx, params)
+                : query_tile >= 32
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 1>(ctx, params)
+                : query_tile >= 16
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 1>(ctx, params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 1>(ctx, params);
+        }
+        if (launched) {
+            return ggml_cuda_fattn_turbo4_paged_status::ok;
+        }
+        return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
+    }
+
     uint32_t n_partitions = 1;
     static cudaDeviceProp device_properties[GGML_CUDA_MAX_DEVICES] = {};
     static bool device_properties_loaded[GGML_CUDA_MAX_DEVICES] = {};
