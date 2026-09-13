@@ -1,0 +1,178 @@
+{
+  "schema": "hotpath29-summary-v1",
+  "task_id": "29-03",
+  "result": "partial",
+  "result_reason": "The primary selective profile is usable and native GPU MTP accepts live drafts, but natural cold promotion/use is unproven. L32768 continuation fails in the current CUDA source, and L131072 is allocation plus a 512-token smoke only.",
+  "provenance": {
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080, 16376 MiB, driver 595.91.07",
+    "primary_bundle": {
+      "source_commit": "8226c3c162c085c760ed9877442d9c89c6948567",
+      "source_diff_sha256": "169a8b5366939dc0074a4dc1edbd2612af050c46bfe6936822388b1d902755e9",
+      "binary": "/srv/ai/paged-kv/results/27-01-bundle/bin/llama-server",
+      "bundle_manifest_sha256": "a1d94370eff1d98527416679bc858a9fdec4eb850a143412a574b0453a3e396a"
+    },
+    "all_gpu_control_bundle": {
+      "source_commit": "8226c3c162c085c760ed9877442d9c89c6948567",
+      "source_diff_sha256": "d1853b4c28e0b9ce95c28cb0d832861ac78064622cd567c3d48903527120bfaf",
+      "bundle_manifest_sha256": "47048f9d3fe68b7edcdcf2f1cd3896c4679f91693b4bf84854c62b211921f4e9"
+    },
+    "scale_build": {
+      "source_commit": "e5f95b92f83a691c749f3450bfb7e915643dbb39",
+      "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "binary_sha256": "f0face070d5f83daca2dfacfa19b39268c719cf72fb1910659c94ad1c7d4cca9",
+      "cuda_dso": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so",
+      "cuda_dso_sha256": "517b696a04d865d011e970905704e0267b9712a35d378b1c210317b8b482456c"
+    }
+  },
+  "definitions": {
+    "L": "resolved logical context tokens",
+    "C": "committed or requested occupied prompt tokens for the row",
+    "H": "physical hot target capacity in tokens; page capacity is H/256",
+    "A": "observed attended/selected row capacity, not normalized attention mass",
+    "B_U": "configured batch/ubatch tokens; effective ubatch was 64",
+    "pp_tg": "server prompt/prefill and predicted/decode tokens per second",
+    "ttft": "SSE first-token latency in microseconds",
+    "mtp": "live draft proposals/accepted target tokens; allocation or draft capacity alone is not acceptance"
+  },
+  "rows": [
+    {
+      "id": "primary-selective-q0",
+      "classification": "selected_warm_speed_with_host_backing",
+      "status": "pass",
+      "profile": {"L": 8192, "C": 6144, "H": 4096, "A": 4096, "B": 128, "U": 64},
+      "placement": {"target": "Turbo4/GPU", "draft": "native full-L Turbo4/GPU, 8192 rows"},
+      "cold_backing": {"physical": true, "host_rows": 3840, "host_bytes": 64880600, "proof": "host committed rows and asynchronous seal D2H exported"},
+      "promotion_use": {"natural": "not_proven", "h2d_useful_bytes": 0, "faults": 0},
+      "speed": {"pp_tok_s": 212.17022060419407, "tg_tok_s": 33.65843757532775, "ttft_us": 28966706.966995843, "output_tokens": 100, "mtp_proposed": 84, "mtp_accepted": 57},
+      "memory": {"target_pool_bytes": 69206000, "charged_bytes": 15207000000, "reserved_bytes": 1310030000, "headroom_bytes": 201327000, "peak_host_bytes": 64880600},
+      "raw": {"path": "/srv/ai/paged-kv/results/hotpath29-primary-direct-20260913b/raw-q0-measured-1.sse", "sha256": "d983868a88966aeb51e8119e5c16ebb3d5d5889806b104bcae289c9568ea0275"}
+    },
+    {
+      "id": "primary-selective-q0-repeat",
+      "classification": "selected_warm_speed_repeat",
+      "status": "pass",
+      "profile": {"L": 8192, "C": 6144, "H": 4096, "A": 4096, "B": 128, "U": 64},
+      "placement": {"target": "Turbo4/GPU", "draft": "native full-L Turbo4/GPU"},
+      "cold_backing": {"physical": true, "host_rows": 3840, "host_bytes": 64880600},
+      "promotion_use": {"natural": "not_proven", "h2d_useful_bytes": 0, "faults": 0},
+      "speed": {"pp_tok_s_median": 220.70664419319348, "tg_tok_s_median": 31.784152071400715, "ttft_us_median": 27846016.057999805, "tg_range_tok_s": [31.671849710838508, 33.087918246267385], "repeats": 3, "mtp": "see q0 direct row; repeat aggregate did not retain one acceptance pair"},
+      "memory": {"target_pool_bytes": 69206000, "charged_bytes": 15207000000, "reserved_bytes": 1310030000, "headroom_bytes": 201327000},
+      "raw": {"path": "/srv/ai/paged-kv/results/hotpath29-primary-q0x3-20260913/", "sha256": ["0a624f73ee0554c955c8392238a4ba4d502d3fd8a39879121f76ca9c3715f611", "fdd618fb942de44c3921edceaf1e1c1e6502e13b02f4f3d0bdf32e82d78ab929", "4707a639a4cf83fd0b46e82735d9abd776804827025742aca33812d2bb3554c3"]}
+    },
+    {
+      "id": "primary-incremental-final",
+      "classification": "real_live_continuation_warm_speed",
+      "status": "pass",
+      "profile": {"L": 8192, "C": 6148, "H": 4096, "A": 4096, "B": 128, "U": 64},
+      "placement": {"target": "Turbo4/GPU", "draft": "native full-L Turbo4/GPU, 8192 rows"},
+      "cold_backing": {"physical": true, "host_pages": 15, "host_rows": 3840, "host_bytes": 64880600},
+      "promotion_use": {"natural": "not_proven", "h2d_useful_bytes": 0, "faults": 0, "evictions": 0},
+      "speed": {"pp_tok_s": 148.08270492171354, "tg_tok_s": 33.67223244860393, "ttft_us": 4798615.090010571, "output_tokens": 34, "mtp_proposed": 28, "mtp_accepted": 21, "turns": 5, "live_frontier_tokens": 6183},
+      "memory": {"target_pool_bytes": 69206000, "charged_bytes": 15207000000, "reserved_bytes": 1310030000, "headroom_bytes": 201327000},
+      "raw": {"path": "/srv/ai/paged-kv/results/hotpath29-primary-incremental-20260913b/raw-04.sse", "sha256": "60ba947ebca34779d70d941802a2f264bccf91c7b4dbdac0062a9f2476971a0a"}
+    },
+    {
+      "id": "primary-natural-cold-recall",
+      "classification": "natural_cold_recall_without_movement_proof",
+      "status": "partial",
+      "profile": {"L": 8192, "C": 6216, "H": 4096, "A": 4096, "B": 128, "U": 64},
+      "placement": {"target": "Turbo4/GPU", "draft": "native full-L Turbo4/GPU"},
+      "cold_backing": {"physical": true, "prior_live_host_rows": 3840, "prior_live_host_pages": 15, "recall_delta_host_rows": 0},
+      "promotion_use": {"natural": "not_proven", "h2d_useful_bytes": 0, "faults": 0, "reason": "returned cedar-orbit-17, but no cold page was transferred"},
+      "speed": {"pp_tok_s": 117.48705862248204, "tg_tok_s": 28.134341480569717, "ttft_us": 292126.99600611813, "output_tokens": 9, "mtp_proposed": 8, "mtp_accepted": 6},
+      "memory": {"target_pool_bytes": 69206000, "charged_bytes": 15207000000, "reserved_bytes": 1310030000, "headroom_bytes": 201327000},
+      "raw": {"path": "/srv/ai/paged-kv/results/hotpath29-primary-incremental-20260913b/raw-cold-topic.sse", "sha256": "a45577783d7558468cd2cd8fcb6d7354515578f3c9254c8bdb2a8f8480976c87"}
+    },
+    {
+      "id": "all-gpu-control-q0",
+      "classification": "all_resident_control",
+      "status": "pass",
+      "profile": {"L": 8192, "C": 6144, "H": null, "A": 8192, "B": 128, "U": 64},
+      "placement": {"target": "dense CUDA/all GPU", "draft": "native full-L Turbo4/GPU, 8192 rows"},
+      "cold_backing": {"physical": false, "proof": "pager is off; host/page telemetry intentionally unavailable"},
+      "promotion_use": {"natural": "not_applicable", "h2d_useful_bytes": null, "faults": null},
+      "speed": {"pp_tok_s": 1364.1450114566865, "tg_tok_s": 102.04860567052764, "ttft_us": 4512488.473003032, "output_tokens": 128, "mtp_proposed": 88, "mtp_accepted": 82},
+      "memory": {"target_pool_bytes": null, "charged_bytes": null, "reserved_bytes": null, "reason": "feature-off control has no pager allocation telemetry"},
+      "raw": {"path": "/srv/ai/paged-kv/results/hotpath29-control-allgpu-q0-20260913/raw-q0-measured-1.sse", "sha256": "04c076c752fd74fccfd10981a7e2b4730920c2dc449e86f6a89b18b7c6c03ad6"}
+    },
+    {
+      "id": "scale-32768-first-append",
+      "classification": "partial_population_real_offload_candidate",
+      "status": "pass",
+      "profile": {"L": 32768, "C": 1200, "H": 16384, "A": 1203, "B": 128, "U": 64},
+      "placement": {"target": "Turbo4/GPU", "draft": "native full-L Turbo4/GPU, 32768 rows"},
+      "cold_backing": {"physical": true, "host_pages": 4, "host_rows": 1024, "host_bytes": 17301500, "target_valid_rows": 1203},
+      "promotion_use": {"natural": "not_proven", "h2d_useful_bytes": 0, "faults": 0},
+      "speed": {"pp_tok_s": 648.6626737875414, "tg_tok_s": 65.61392764970911, "ttft_us": 1853039.6570131416, "output_tokens": 4, "mtp_proposed": 2, "mtp_accepted": 2},
+      "memory": {"target_pool_bytes": 276824000, "charged_bytes": 15265000000, "reserved_bytes": 1367960000, "headroom_bytes": 201327000},
+      "raw": {"path": "/srv/ai/paged-kv/results/hotpath29-scale-32768-h64-20260913/raw-00.sse", "sha256": "7f36251ee9ec075468c9728be3e260d9bb0a8b11687d2c0219c837682d04352a"}
+    },
+    {
+      "id": "scale-32768-second-append",
+      "classification": "continuation_runtime_failure",
+      "status": "failed",
+      "profile": {"L": 32768, "C": 1203, "H": 16384, "A": 1203, "B": 128, "U": 64},
+      "placement": {"target": "Turbo4/GPU", "draft": "native full-L Turbo4/GPU, 32768 rows"},
+      "cold_backing": {"physical": true, "host_pages": 4, "host_rows": 1024, "host_bytes": 17301500},
+      "promotion_use": {"natural": "not_proven", "h2d_useful_bytes": 0, "faults": null},
+      "speed": {"pp_tok_s": null, "tg_tok_s": null, "ttft_us": null, "output_tokens": null, "mtp": null, "requested_new_tokens": 1400, "rendered_tokens": 2602, "elapsed_seconds": 136.155314951},
+      "memory": {"target_pool_bytes": 276824000, "charged_bytes": 15265000000, "reserved_bytes": 1367960000, "headroom_bytes": 201327000},
+      "failure": "illegal device memory access at ggml_backend_cuda_synchronize; service exited and systemd restarted it",
+      "raw": {"path": "/srv/ai/paged-kv/results/hotpath29-scale-32768-h64-20260913/raw-01.sse", "sha256": "d2ca4ed9d113554663c426ff4f22534c40da6e1e5e1a37e2ac92d43719b12cdd", "journal": "sudo -n journalctl -u llama-server.service --since '2026-09-13 04:27:00' --no-pager -o cat"}
+    },
+    {
+      "id": "scale-131072-allocation-smoke",
+      "classification": "allocation_plus_partial_population",
+      "status": "partial",
+      "profile": {"L": 131072, "C": 512, "H": 65536, "A": 515, "B": 128, "U": 64},
+      "placement": {"target": "Turbo4/GPU", "draft": "native full-L Turbo4/GPU, 131072 rows"},
+      "cold_backing": {"physical": true, "host_pages": 2, "host_rows": 512, "host_bytes": 8650750, "target_valid_rows": 513},
+      "promotion_use": {"natural": "not_proven", "h2d_useful_bytes": 0, "faults": 0},
+      "speed": {"pp_tok_s": 866.0967118773661, "tg_tok_s": 21.414651904833285, "ttft_us": 593323.890992906, "output_tokens": 2, "mtp_proposed": 2, "mtp_accepted": 0},
+      "memory": {"target_pool_bytes": 1107300000, "charged_bytes": 15469800000, "reserved_bytes": 1572780000, "headroom_bytes": 201327000},
+      "capacity_proof": "L131072 allocation admitted; 512-token smoke only, not full-L population or safe operational H",
+      "raw": {"path": "/srv/ai/paged-kv/results/hotpath29-scale-131072-h256-smoke-20260913/raw-00.sse", "sha256": "e4bc1c92bff78bb82d9201b3540f3e32314e50feb924bf193de1244209fbf416"}
+    }
+  ],
+  "canonical_primary": {
+    "matched_conditions": "L8192/C6144, selective, H4096, A4096, B/U128/64, Turbo4 target and native Turbo4 GPU MTP",
+    "q0": {"pp_tok_s": 212.17022060419407, "tg_tok_s": 33.65843757532775, "ttft_us": 28966706.966995843, "mtp": "84/57"},
+    "q1": {"pp_tok_s": 221.6035549192148, "tg_tok_s": 31.767011234516087, "mtp": "114/69"},
+    "q2": {"pp_tok_s": 221.12244835527582, "tg_tok_s": 34.10155819954513, "mtp": "105/74"},
+    "ratio": null,
+    "ratio_reason": "The all-GPU control uses A8192 while selective uses A4096; the CPU-main-KV/GPU-MTP control was not run because no safe spare VRAM was available."
+  },
+  "measurement_classes": {
+    "synthetic_cuda_kernel": "No standalone synthetic-kernel throughput record is present in the named 29-01/29-02 artifacts; the focused CPU/CUDA execution fixture passed route/lifetime assertions but supplies no token-rate result. Direct-route/q0 results are server measurements and are not presented as synthetic kernel wins.",
+    "all_resident": "The off control is a dense all-GPU arithmetic ceiling/control, not an offload comparison.",
+    "warm_selective": "Primary selective and incremental rows are warm/selected-path measurements with host backing; zero H2D means they do not prove real cold offload speed.",
+    "cold_latency": "The natural recall TTFT is 292127 us, but no cold page moved, so it is not a cold-miss latency measurement.",
+    "allocation_only": "L131072 is allocation plus smoke; larger capacity does not imply a successfully populated context."
+  },
+  "tradeoffs_and_limits": {
+    "normal_use": "B/U=128/64 consistently resolved to effective U=64. H4096 reached C6148 while host backing grew to 15 pages; H16384 and H65536 admitted at approximately 276.8 MB and 1.107 GB target pools, consuming headroom without proving useful cold recall.",
+    "sparse_approximation": "Selection uses bounded GPU/host summary and router settings (top-k 8, explore 1 in scale); A is selected-row coverage and the score is an approximate ranking heuristic, not attention mass. No exact hybrid CPU attention or natural H2D promotion was proven.",
+    "mtp": "Full-L Turbo4/GPU draft placement is configured at every scale row, but only the live small q0/incremental and first 32K append show accepted drafts. The 131K smoke is 2/0; capacity/admission is not a full-L MTP acceptance claim."
+  },
+  "critical_path": [
+    "The selected primary trace repeatedly rebuilt/submitted graphs (no replay), changed the table per generation, read large host summary volumes, and performed asynchronous host seals. These are measured control/movement facts; wait_time_us and queue_time_us overlap and are not summed or relabelled as CPU cost.",
+    "Completed offload-path rows show host seal D2H and host-valid pages but h2d_useful_bytes=0, faults=0, and no transfer submissions. Promotion mailbox/publication/use remains the unproven product path.",
+    "The cheapest scale continuation reproducer is the existing L32768/H16384 run: one 1200-token append followed by a 1400-token append at B/U128/64. The second append faults at ggml_backend_cuda_synchronize after 136.16 s."
+  ],
+  "residual_issues": [
+    {"issue": "Repair the current-source CUDA continuation/lifetime defect before larger population.", "cheapest_reproducer": "L32768/H16384 two-append sequence from scale-32768-h64 raw-00/raw-01."},
+    {"issue": "Make a naturally ranked cold page produce an authenticated H2D transfer and published usable target slot.", "cheapest_reproducer": "Reuse the L8192/H4096 five-turn checkpoint and natural cedar-orbit recall; require h2d_useful_bytes>0 and a valid no-fault response."},
+    {"issue": "Reduce selected-path host/control churn and recover graph replay where shape permits.", "cheapest_reproducer": "Existing L8192/H4096 q0 three-repeat run with the exported summary-read, seal, table, graph, wait, and queue counters."}
+  ],
+  "raw_artifacts": {
+    "small": ".wiretail/execution/evidence/HOTPATH29_SMALL.json",
+    "scale": ".wiretail/execution/evidence/HOTPATH29_SCALE.json",
+    "primary_direct": "/srv/ai/paged-kv/results/hotpath29-primary-direct-20260913b/",
+    "primary_repeat": "/srv/ai/paged-kv/results/hotpath29-primary-q0x3-20260913/",
+    "primary_incremental": "/srv/ai/paged-kv/results/hotpath29-primary-incremental-20260913b/",
+    "scale_32768": "/srv/ai/paged-kv/results/hotpath29-scale-32768-h64-20260913/",
+    "scale_131072": "/srv/ai/paged-kv/results/hotpath29-scale-131072-h256-smoke-20260913/"
+  }
+}

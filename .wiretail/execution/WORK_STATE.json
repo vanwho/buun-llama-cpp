@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "29",
-  "current_task": "29-03",
-  "last_updated_utc": "2026-09-13T02:35:49+00:00",
+  "current_phase": "30",
+  "current_task": "30-01",
+  "last_updated_utc": "2026-09-13T02:48:05+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5936,14 +5936,39 @@
       "cluster": "29c-summary-v8",
       "title": "Publish a compact hot/cold capability and throughput summary",
       "packet": ".wiretail/execution/tasks/29-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "29-02"
       ],
-      "commit": null,
-      "scope_revision": "gpu-hot-path-v8-20260912"
+      "commit": "4f1d41ea0628a8d742634d3dc8996d53cb4cdcf8",
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/29-03-attempt-1-20260913T023605Z.jsonl:98",
+            "total_tokens": 5639908,
+            "total_tokens_derived": true,
+            "input_tokens": 5608862,
+            "cached_input_tokens": 5399040,
+            "output_tokens": 31046,
+            "thinking_tokens": 9737
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 5639908,
+          "input_tokens": 5608862,
+          "cached_input_tokens": 5399040,
+          "output_tokens": 31046,
+          "thinking_tokens": 9737
+        }
+      }
     },
     {
       "id": "30-01",
@@ -7674,15 +7699,28 @@
           "cached_input_tokens": 5072384,
           "output_tokens": 23803,
           "thinking_tokens": 9740
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/29-03-attempt-1-20260913T023605Z.jsonl:98",
+          "total_tokens": 5639908,
+          "total_tokens_derived": true,
+          "input_tokens": 5608862,
+          "cached_input_tokens": 5399040,
+          "output_tokens": 31046,
+          "thinking_tokens": 9737
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 23004158,
-        "input_tokens": 22923030,
-        "cached_input_tokens": 22422272,
-        "output_tokens": 81128,
-        "thinking_tokens": 32922
+        "turns": 3,
+        "total_tokens": 28644066,
+        "input_tokens": 28531892,
+        "cached_input_tokens": 27821312,
+        "output_tokens": 112174,
+        "thinking_tokens": 42659
       }
     },
     "30": {
@@ -7699,12 +7737,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 106,
-      "total_tokens": 2348205627,
-      "input_tokens": 2342906574,
-      "cached_input_tokens": 2299684352,
-      "output_tokens": 5299053,
-      "thinking_tokens": 1908338
+      "turns": 107,
+      "total_tokens": 2353845535,
+      "input_tokens": 2348515436,
+      "cached_input_tokens": 2305083392,
+      "output_tokens": 5330099,
+      "thinking_tokens": 1918075
     },
     "source": "Codex turn.completed usage events"
   }
