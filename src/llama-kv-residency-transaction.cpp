@@ -256,12 +256,20 @@ llama_kv_residency_execute_transaction(
             for (const auto & page : plan.pages) {
                 const bool known_old = contains_page(old_pages, page.page);
                 const bool known_desired = contains_page(desired, page.page);
-                if ((plan.direction ==
-                         llama_kv_residency_transfer_direction::h2d_promotion &&
-                     !known_desired) ||
-                    (plan.direction !=
-                         llama_kv_residency_transfer_direction::h2d_promotion &&
-                     !known_old)) {
+                const bool promotion = plan.direction ==
+                    llama_kv_residency_transfer_direction::h2d_promotion;
+                const auto & authenticated_pages = promotion ? desired : old_pages;
+                const auto expected = std::find_if(
+                        authenticated_pages.begin(), authenticated_pages.end(),
+                        [&](const auto & value) { return value.id == page.page; });
+                // The transfer destination is part of the authenticated
+                // publication identity. A copy into a spare slot must not be
+                // published under a different slot and later consumed by the
+                // attention plan through that mismatched mapping.
+                if ((promotion && !known_desired) ||
+                    (!promotion && !known_old) ||
+                    expected == authenticated_pages.end() ||
+                    expected->physical_slot != page.physical_slot) {
                     result.status = llama_kv_residency_transaction_status::stale_generation;
                     result.failed_phase = llama_kv_residency_transaction_phase::plan;
                     result.rollback_complete = true;

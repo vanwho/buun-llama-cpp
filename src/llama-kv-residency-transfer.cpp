@@ -1217,6 +1217,9 @@ llama_kv_residency_transfer_result llama_kv_residency_execute_transfer(
         return result;
     }
     if (plan.direction == llama_kv_residency_transfer_direction::h2d_promotion) {
+        // The backend mapping is required before a device copy addresses the
+        // reserved destination. The residency table remains unpublished until
+        // the ring has completed every chunk and the recheck below succeeds.
         result.status = pool.map_reserved(claim, plan, true) ==
             llama_kv_residency_pool_status::ok
             ? llama_kv_residency_pool_status::ok
