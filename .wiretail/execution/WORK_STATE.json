@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "31",
-  "current_task": "31-01",
-  "last_updated_utc": "2026-09-13T02:50:55+00:00",
+  "current_task": "31-02",
+  "last_updated_utc": "2026-09-13T04:26:20+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6017,12 +6017,38 @@
       "cluster": "31a-repairs-v8",
       "title": "Repair 32K continuation CUDA lifetime fault",
       "packet": ".wiretail/execution/tasks/31-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "30-01"
-      ]
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/31-01-attempt-1-20260913T025111Z.jsonl:649",
+            "total_tokens": 60281549,
+            "total_tokens_derived": true,
+            "input_tokens": 60173106,
+            "cached_input_tokens": 58863616,
+            "output_tokens": 108443,
+            "thinking_tokens": 47400
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 60281549,
+          "input_tokens": 60173106,
+          "cached_input_tokens": 58863616,
+          "output_tokens": 108443,
+          "thinking_tokens": 47400
+        }
+      },
+      "commit": "9cef462874c045d28974445df9ef5252400458f0"
     },
     {
       "id": "31-02",
@@ -7865,14 +7891,28 @@
       }
     },
     "31": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/31-01-attempt-1-20260913T025111Z.jsonl:649",
+          "total_tokens": 60281549,
+          "total_tokens_derived": true,
+          "input_tokens": 60173106,
+          "cached_input_tokens": 58863616,
+          "output_tokens": 108443,
+          "thinking_tokens": 47400
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 60281549,
+        "input_tokens": 60173106,
+        "cached_input_tokens": 58863616,
+        "output_tokens": 108443,
+        "thinking_tokens": 47400
       }
     },
     "32": {
@@ -7889,12 +7929,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 108,
-      "total_tokens": 2354576830,
-      "input_tokens": 2349239576,
-      "cached_input_tokens": 2305731840,
-      "output_tokens": 5337254,
-      "thinking_tokens": 1918796
+      "turns": 109,
+      "total_tokens": 2414858379,
+      "input_tokens": 2409412682,
+      "cached_input_tokens": 2364595456,
+      "output_tokens": 5445697,
+      "thinking_tokens": 1966196
     },
     "source": "Codex turn.completed usage events"
   }

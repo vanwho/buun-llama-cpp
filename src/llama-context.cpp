@@ -2891,6 +2891,16 @@ bool llama_context::memory_update(bool optimize) {
         return false;
     }
 
+    // A memory update is allowed to reset the scheduler and the previous graph
+    // result below.  Those objects also own the direct-attention page-table
+    // views and the K/V write graph, so resetting them while the preceding
+    // decode is still queued leaves CUDA with stale graph-owned addresses.  In
+    // particular, a tail-growing append can enter this path before the caller
+    // asks for logits from the preceding append.  Make the graph fence the
+    // ownership boundary for every update, including the retry after a failed
+    // batch preparation.
+    synchronize();
+
     {
         const auto mctx = memory->init_update(this, optimize);
         switch (mctx->get_status()) {
