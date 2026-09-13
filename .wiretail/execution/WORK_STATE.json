@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "36",
-  "current_task": "36-03",
-  "last_updated_utc": "2026-09-13T23:12:14+00:00",
+  "current_task": "36-04",
+  "last_updated_utc": "2026-09-13T23:37:56+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7059,7 +7059,7 @@
       "cluster": "36b-tuning-controls-v9",
       "title": "Tune B/U/A and safe H with a small adaptive comparison",
       "packet": ".wiretail/execution/tasks/36-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -7074,7 +7074,32 @@
       "depends_on": [
         "36-02"
       ],
-      "commit": null
+      "commit": "da3ddea6401718fc86f9e9cf7b802d8c1d9f7403",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/36-03-attempt-1-20260913T231232Z.jsonl:186",
+            "total_tokens": 14175826,
+            "total_tokens_derived": true,
+            "input_tokens": 14116634,
+            "cached_input_tokens": 13827328,
+            "output_tokens": 59192,
+            "thinking_tokens": 19136
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 14175826,
+          "input_tokens": 14116634,
+          "cached_input_tokens": 13827328,
+          "output_tokens": 59192,
+          "thinking_tokens": 19136
+        }
+      }
     },
     {
       "id": "36-04",
@@ -9346,15 +9371,28 @@
           "cached_input_tokens": 39303680,
           "output_tokens": 102915,
           "thinking_tokens": 41200
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/36-03-attempt-1-20260913T231232Z.jsonl:186",
+          "total_tokens": 14175826,
+          "total_tokens_derived": true,
+          "input_tokens": 14116634,
+          "cached_input_tokens": 13827328,
+          "output_tokens": 59192,
+          "thinking_tokens": 19136
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 70712436,
-        "input_tokens": 70537070,
-        "cached_input_tokens": 68900096,
-        "output_tokens": 175366,
-        "thinking_tokens": 69544
+        "turns": 3,
+        "total_tokens": 84888262,
+        "input_tokens": 84653704,
+        "cached_input_tokens": 82727424,
+        "output_tokens": 234558,
+        "thinking_tokens": 88680
       }
     },
     "37": {
@@ -9382,12 +9420,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 131,
-      "total_tokens": 3137047236,
-      "input_tokens": 3129963475,
-      "cached_input_tokens": 3068756736,
-      "output_tokens": 7083761,
-      "thinking_tokens": 2601060
+      "turns": 132,
+      "total_tokens": 3151223062,
+      "input_tokens": 3144080109,
+      "cached_input_tokens": 3082584064,
+      "output_tokens": 7142953,
+      "thinking_tokens": 2620196
     },
     "source": "Codex turn.completed usage events"
   }
