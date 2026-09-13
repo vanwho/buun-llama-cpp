@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "35",
-  "current_task": "35-02",
-  "last_updated_utc": "2026-09-13T19:48:15+00:00",
+  "current_task": "35-03",
+  "last_updated_utc": "2026-09-13T20:36:39+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6771,7 +6771,7 @@
       "cluster": "35a-catalogue-selector-v9",
       "title": "Implement cooperative current-Q page selection as an independent graph op",
       "packet": ".wiretail/execution/tasks/35-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -6785,7 +6785,32 @@
       "depends_on": [
         "35-01"
       ],
-      "commit": null
+      "commit": "9ddc00c9ea3f3351903d273b5e0ed0c8b63212eb",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/35-02-attempt-1-20260913T194833Z.jsonl:199",
+            "total_tokens": 57983502,
+            "total_tokens_derived": true,
+            "input_tokens": 57868804,
+            "cached_input_tokens": 56643072,
+            "output_tokens": 114698,
+            "thinking_tokens": 43781
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 57983502,
+          "input_tokens": 57868804,
+          "cached_input_tokens": 56643072,
+          "output_tokens": 114698,
+          "thinking_tokens": 43781
+        }
+      }
     },
     {
       "id": "35-03",
@@ -9106,15 +9131,28 @@
           "cached_input_tokens": 31785216,
           "output_tokens": 64033,
           "thinking_tokens": 20864
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/35-02-attempt-1-20260913T194833Z.jsonl:199",
+          "total_tokens": 57983502,
+          "total_tokens_derived": true,
+          "input_tokens": 57868804,
+          "cached_input_tokens": 56643072,
+          "output_tokens": 114698,
+          "thinking_tokens": 43781
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 32565999,
-        "input_tokens": 32501966,
-        "cached_input_tokens": 31785216,
-        "output_tokens": 64033,
-        "thinking_tokens": 20864
+        "turns": 2,
+        "total_tokens": 90549501,
+        "input_tokens": 90370770,
+        "cached_input_tokens": 88428288,
+        "output_tokens": 178731,
+        "thinking_tokens": 64645
       }
     },
     "36": {
@@ -9153,12 +9191,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 125,
-      "total_tokens": 2923336311,
-      "input_tokens": 2916755485,
-      "cached_input_tokens": 2860328704,
-      "output_tokens": 6580826,
-      "thinking_tokens": 2406269
+      "turns": 126,
+      "total_tokens": 2981319813,
+      "input_tokens": 2974624289,
+      "cached_input_tokens": 2916971776,
+      "output_tokens": 6695524,
+      "thinking_tokens": 2450050
     },
     "source": "Codex turn.completed usage events"
   }
