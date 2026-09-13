@@ -307,6 +307,10 @@ static void test(void) {
         assert(common_vbr_fit_price_type(GGML_TYPE_TURBO8_0, 4.125, false) == GGML_TYPE_TURBO4_0);
         assert(common_vbr_fit_price_type(GGML_TYPE_TURBO8_0, 4.125, true) == GGML_TYPE_TURBO8_0);
         assert(common_vbr_fit_price_type(GGML_TYPE_Q8_0, 4.125, false) == GGML_TYPE_Q8_0);
+        assert(common_vbr_fit_price_type(
+            GGML_TYPE_F16, 4.5, false, LLAMA_VBR_CODEC_CLASSIC) == GGML_TYPE_Q4_0);
+        assert(common_vbr_fit_price_type(
+            GGML_TYPE_Q8_0, 8.5, false, LLAMA_VBR_CODEC_CLASSIC) == GGML_TYPE_Q8_0);
         assert(std::abs(common_vbr_fit_kv_scale(6.04, 4.125, false) - 6.04/4.125) < 1e-12);
         assert(common_vbr_fit_kv_scale(4.125, 4.125, false) == 1.0);
         assert(common_vbr_fit_kv_scale(6.04, 4.125, true) == 1.0);
@@ -685,6 +689,8 @@ static void test(void) {
         assert(!vbr_default.vbr_cache_type_k_explicit);
         assert(!vbr_default.vbr_cache_type_v_explicit);
         assert(vbr_default.vbr_dynamic());
+        assert(vbr_default.vbr_codec_auto);
+        assert(!vbr_default.vbr_codec_explicit);
         assert(vbr_default.vbr_min_bits_value == 4.125);
         assert(vbr_default.vbr_capacity_bits == 4.125);
         assert(!vbr_default.vbr_prompt_cache_explicit);
@@ -933,6 +939,67 @@ static void test(void) {
         argv = {"binary_name", "-m", "model.gguf", "--vbr-entry", "q8_0"};
         assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_bad_entry, LLAMA_EXAMPLE_COMMON));
 
+        common_params vbr_classic;
+        argv = {"binary_name", "-m", "model.gguf", "--vbr-codec", "classic"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_classic, LLAMA_EXAMPLE_COMMON));
+        assert(vbr_classic.vbr_codec == LLAMA_VBR_CODEC_CLASSIC);
+        assert(!vbr_classic.vbr_codec_auto);
+        assert(vbr_classic.vbr_codec_explicit);
+        assert(vbr_classic.cache_type_k == GGML_TYPE_F16);
+        assert(vbr_classic.cache_type_v == GGML_TYPE_F16);
+        assert(vbr_classic.vbr_min_bits_value == 4.5);
+        assert(vbr_classic.vbr_capacity_bits == 4.5);
+        assert(vbr_classic.vbr_selected_family == "dynamic-classic");
+        assert(common_context_params_to_llama(vbr_classic).vbr_codec == LLAMA_VBR_CODEC_CLASSIC);
+        common_params vbr_classic_cpu = vbr_classic;
+        assert(common_params_apply_vbr_cpu_fallback(vbr_classic_cpu, false) ==
+               common_vbr_cpu_fallback_result::explicit_vbr);
+        assert(vbr_classic_cpu.vbr_codec == LLAMA_VBR_CODEC_CLASSIC);
+
+        common_params vbr_auto;
+        argv = {"binary_name", "-m", "model.gguf", "--vbr-codec", "auto"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_auto, LLAMA_EXAMPLE_COMMON));
+        assert(vbr_auto.vbr_codec == LLAMA_VBR_CODEC_TURBO); // provisional until model inspection
+        assert(vbr_auto.vbr_codec_auto);
+        assert(vbr_auto.vbr_codec_explicit);
+
+        common_params vbr_turbo;
+        argv = {"binary_name", "-m", "model.gguf", "--vbr-codec", "turbo"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_turbo, LLAMA_EXAMPLE_COMMON));
+        assert(vbr_turbo.vbr_codec == LLAMA_VBR_CODEC_TURBO);
+        assert(!vbr_turbo.vbr_codec_auto);
+        assert(vbr_turbo.vbr_codec_explicit);
+
+        common_params vbr_classic_q8;
+        argv = {"binary_name", "-m", "model.gguf", "--vbr-codec", "classic",
+                "--vbr-entry", "q8", "--vbr-floor", "q4"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_classic_q8, LLAMA_EXAMPLE_COMMON));
+        assert(vbr_classic_q8.cache_type_k == GGML_TYPE_Q8_0);
+        assert(vbr_classic_q8.cache_type_v == GGML_TYPE_Q8_0);
+        assert(vbr_classic_q8.vbr_entry == "q8_0");
+        assert(vbr_classic_q8.vbr_min_bits_value == 4.5);
+
+        common_params vbr_classic_literal_floor;
+        argv = {"binary_name", "-m", "model.gguf", "--vbr-codec", "classic", "--vbr-floor", "8"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_classic_literal_floor, LLAMA_EXAMPLE_COMMON));
+        assert(vbr_classic_literal_floor.vbr_min_bits_value == 8.0); // literal, not q8_0's 8.5 bpv
+
+        common_params vbr_classic_policy;
+        argv = {"binary_name", "-m", "model.gguf", "--vbr-codec", "classic", "--vbr-policy", "classic-policy.json"};
+        assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_classic_policy, LLAMA_EXAMPLE_COMMON));
+
+#ifndef _WIN32
+        setenv("VBR_LAYER_SCHEDULE", "0-0:k:t4", 1);
+        common_params vbr_classic_schedule;
+        argv = {"binary_name", "-m", "model.gguf", "--vbr-codec", "classic"};
+        assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_classic_schedule, LLAMA_EXAMPLE_COMMON));
+        unsetenv("VBR_LAYER_SCHEDULE");
+#endif
+
+        common_params vbr_classic_cross_family;
+        argv = {"binary_name", "-m", "model.gguf", "--vbr-codec", "classic", "--vbr-entry", "t8"};
+        assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_classic_cross_family, LLAMA_EXAMPLE_COMMON));
+
         common_params vbr_entry_fixed_conflict;
         argv = {"binary_name", "-m", "model.gguf", "--vbr-entry", "t8", "--vbr-budget", "t4"};
         assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), vbr_entry_fixed_conflict, LLAMA_EXAMPLE_COMMON));
@@ -1146,12 +1213,26 @@ static void test(void) {
         {"binary_name", "--moe-cache-expert-parallel", "-1"},
         {"binary_name", "--moe-cache-expert-parallel", "9"},
         {"binary_name", "--moe-cache-expert-parallel", "invalid"},
+        {"binary_name", "--moe-cache-cpu-overlap"},
+        {"binary_name", "--moe-cache-cpu-overlap", "-1"},
+        {"binary_name", "--moe-cache-cpu-overlap", "9"},
+        {"binary_name", "--moe-cache-cpu-overlap", "2x"},
     };
     for (auto invalid_argv : invalid_moe_cache_args) {
         common_params mode_params;
         assert(false == common_params_parse(
                 invalid_argv.size(), list_str_to_char(invalid_argv).data(),
                 mode_params, LLAMA_EXAMPLE_COMMON));
+    }
+
+    for (const std::string value : {"auto", "0", "2", "8"}) {
+        common_params mode_params;
+        assert(common_context_params_to_llama(mode_params).moe_cache_cpu_overlap == -2);
+        argv = {"binary_name", "-m", "model.gguf", "--moe-cache-cpu-overlap", value};
+        assert(common_params_parse(argv.size(), list_str_to_char(argv).data(), mode_params, LLAMA_EXAMPLE_COMMON));
+        const int expected = value == "auto" ? -1 : std::stoi(value);
+        assert(mode_params.moe_cache.cpu_overlap == expected);
+        assert(common_context_params_to_llama(mode_params).moe_cache_cpu_overlap == expected);
     }
 
     {
@@ -1317,6 +1398,19 @@ static void test(void) {
         assert(common_context_params_to_llama(mode_params).moe_cache_mode == LLAMA_MOE_CACHE_MODE_OFF);
     }
     unsetenv("LLAMA_ARG_MOE_CACHE");
+
+    setenv("LLAMA_ARG_MOE_CACHE_CPU_OVERLAP", "2", true);
+    for (bool explicit_auto : {false, true}) {
+        common_params overlap_params;
+        argv = {"binary_name"};
+        if (explicit_auto) {
+            argv.push_back("--moe-cache-cpu-overlap");
+            argv.push_back("auto");
+        }
+        assert(common_params_parse(argv.size(), list_str_to_char(argv).data(), overlap_params, LLAMA_EXAMPLE_COMMON));
+        assert(common_context_params_to_llama(overlap_params).moe_cache_cpu_overlap == (explicit_auto ? -1 : 2));
+    }
+    unsetenv("LLAMA_ARG_MOE_CACHE_CPU_OVERLAP");
 
     setenv("LLAMA_ARG_LOAD_MODE", "mmap+mlock", true);
     argv = {"binary_name"};

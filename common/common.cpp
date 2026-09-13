@@ -469,6 +469,7 @@ bool common_vbr_resolve_coupled_cache_types(common_params & params, llama_contex
     params.cache_type_v = t;
     params.reset_vbr_runtime_state();
     cparams.vbr_dynamic = false;
+    cparams.vbr_codec = LLAMA_VBR_CODEC_TURBO;
     cparams.vbr_min_bits = 0.0;
     cparams.vbr_vram_budget_bytes = 0;
     cparams.vbr_growth_headroom_bytes = 0;
@@ -1399,9 +1400,68 @@ std::string common_moe_cache_profile_file(const uint8_t semantic_digest[32]) {
     return fs_get_cache_file(string_format("moe-experts-%s.v1", hex));
 }
 
+static void common_params_resolve_vbr_codec_auto_from_model(
+        common_params & params, const llama_model * model) {
+    if (!params.vbr_dynamic() || !params.vbr_codec_auto) {
+        return;
+    }
+
+    llama_vbr_codec resolved;
+    if (llama_model_supports_vbr_codec(model, LLAMA_VBR_CODEC_TURBO)) {
+        resolved = LLAMA_VBR_CODEC_TURBO;
+    } else if (llama_model_supports_vbr_codec(model, LLAMA_VBR_CODEC_CLASSIC)) {
+        resolved = LLAMA_VBR_CODEC_CLASSIC;
+    } else {
+        if (params.vbr_explicitly_selected()) {
+            throw std::runtime_error(
+                "model supports neither the Turbo nor classic dynamic VBR codec; "
+                "select a static KV cache type");
+        }
+        COM_WRN("%s", "VBR codec auto: model has no supported dynamic codec; using static f16 KV cache\n");
+        if (params.vbr_cache_type_k) {
+            params.cache_type_k = GGML_TYPE_F16;
+        }
+        if (params.vbr_cache_type_v) {
+            params.cache_type_v = GGML_TYPE_F16;
+        }
+        params.reset_vbr_runtime_state();
+        params.vbr_codec_auto = false;
+        return;
+    }
+
+    params.vbr_codec = resolved;
+    params.vbr_codec_auto = false;
+    // Re-resolve entry/floor/telemetry from the chosen ladder. This also emits the sole
+    // controller summary now that the parser-time placeholder is no longer provisional.
+    common_params_postprocess_vbr(params);
+    COM_INF("VBR codec auto: selected %s from model KV geometry\n",
+            resolved == LLAMA_VBR_CODEC_TURBO ? "turbo" : "classic");
+}
+
+void common_params_resolve_vbr_codec_auto(common_params & params) {
+    if (!params.vbr_dynamic() || !params.vbr_codec_auto) {
+        return;
+    }
+
+    llama_model_params probe_params = common_model_params_to_llama(params);
+    probe_params.no_alloc = true;
+    probe_params.load_mode = LLAMA_LOAD_MODE_NONE;
+    probe_params.progress_callback = nullptr;
+    probe_params.progress_callback_user_data = nullptr;
+
+    llama_model_ptr probe(llama_model_load_from_file(params.model.path.c_str(), probe_params));
+    if (!probe) {
+        throw std::runtime_error("failed to inspect model for automatic VBR codec selection");
+    }
+    common_params_resolve_vbr_codec_auto_from_model(params, probe.get());
+}
+
 common_init_result::common_init_result(common_params & params, bool model_only) :
     pimpl(new impl{}) {
     auto mparams = common_model_params_to_llama(params);
+    if (params.fit_params) {
+        common_params_resolve_vbr_codec_auto(params);
+    }
     auto cparams = common_context_params_to_llama(params);
 
     if (params.fit_params) {
@@ -1535,6 +1595,10 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
         }
     }
 
+    if (!params.repack_cache.empty()) {
+        COM_INF("Prepared-weight cache: %s; retained files survive shutdown and may use tens of GiB. Use -lv 4 for entry sizes.\n",
+                params.repack_cache.c_str());
+    }
     llama_model * model = llama_model_load_from_file(params.model.path.c_str(), mparams);
     if (model == NULL) {
         return;
@@ -1544,6 +1608,13 @@ common_init_result::common_init_result(common_params & params, bool model_only) 
 
     if (model_only) {
         return;
+    }
+
+    // Without fit, reuse the fully loaded model for codec selection instead of doing a
+    // second metadata-only load. Fit needs the answer earlier because it prices the floor.
+    if (!params.fit_params) {
+        common_params_resolve_vbr_codec_auto_from_model(params, model);
+        cparams = common_context_params_to_llama(params);
     }
 
     if (params.moe_cache.profile && params.moe_cache.profile_path.empty() &&
@@ -1973,6 +2044,7 @@ struct llama_model_params common_model_params_to_llama(common_params & params) {
     mparams.load_mode       = params.load_mode;
     mparams.lazy_mode = params.lazy_mode;
     mparams.mmap_prefetch = params.mmap_prefetch;
+    mparams.repack_cache = params.repack_cache.empty() ? nullptr : params.repack_cache.c_str();
     mparams.tensor_split    = params.tensor_split;
     mparams.check_tensors   = params.check_tensors;
     mparams.use_extra_bufts = !params.no_extra_bufts;
@@ -2089,6 +2161,7 @@ struct llama_context_params common_context_params_to_llama(const common_params &
     cparams.vbr_min_bits_explicit = params.vbr_min_bits_explicit;
     cparams.vbr_vram_budget_bytes = params.vbr_vram_budget_bytes;
     cparams.vbr_dynamic           = params.vbr_dynamic();
+    cparams.vbr_codec             = params.vbr_codec;
     cparams.vbr_budget_explicit   = params.vbr_vram_budget_explicit;
     cparams.vbr_pin_k = params.vbr_pin_k();
     cparams.vbr_pin_v = params.vbr_pin_v();
@@ -2109,6 +2182,7 @@ struct llama_context_params common_context_params_to_llama(const common_params &
     }
     cparams.moe_cache_budget_mib = params.moe_cache.budget_mib;
     cparams.moe_cache_expert_parallel = params.moe_cache.expert_parallel;
+    cparams.moe_cache_cpu_overlap = params.moe_cache.cpu_overlap;
     cparams.moe_cache_profile_path = params.moe_cache.profile_path.empty()
         ? nullptr : params.moe_cache.profile_path.c_str();
 

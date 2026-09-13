@@ -34,13 +34,15 @@ On a dedicated GPU, just run:
 llama-server -m model.gguf
 ```
 
-VBR is the default cache, with a **turbo4 quality floor**. It derives a KV VRAM budget from whatever is
-left after weights and compute, advertises the largest context that fits without going below turbo4
+VBR is the default cache. Codec selection is automatic: models whose complete KV geometry supports
+Turbo use a **turbo4 quality floor**, while BailingMoE3/Ling falls back to the classic
+F16→Q8_0→Q4_0 ladder. VBR derives a KV VRAM budget from whatever is left after weights and compute,
+advertises the largest context that fits without going below the selected codec's default floor
 (capped at the model's training length), and degrades tiers on the fly as context fills. The cache is
 still FP16 until memory pressure actually requires compression.
 
-For maximum context, explicitly use `-ct vbr`. That deliberate opt-in opens the complete ladder down to
-turbo1_tcq unless you also set `--vbr-floor`:
+For maximum context, explicitly use `-ct vbr`. That deliberate opt-in opens the selected codec's complete
+ladder (turbo1_tcq for Turbo, q4_0 for classic) unless you also set `--vbr-floor`:
 
 ```sh
 llama-server -m model.gguf -ct vbr
@@ -67,12 +69,25 @@ contradictory answers.
 
 | flag | meaning |
 |---|---|
-| `-ct vbr` (or `-ctk vbr` / `-ctv vbr`) | VBR is already enabled by default. Explicitly selecting it opens the full ladder to t1 when no `--vbr-floor` is supplied. Explicitly pinning a side (`-ctv q8_0`) holds it at fixed bits and never degrades it. Use `-ct f16` or another concrete type to opt out of VBR. |
+| `-ct vbr` (or `-ctk vbr` / `-ctv vbr`) | VBR is already enabled by default. Explicitly selecting it opens the selected codec's full ladder when no `--vbr-floor` is supplied. Explicitly pinning a side (`-ctv q8_0`) holds it at fixed bits and never degrades it. Use `-ct f16` or another concrete type to opt out of VBR. |
 | `-c <N>` | Cap the context at N tokens; VBR then spends your whole VRAM budget running *that* window at the highest quality it can, instead of advertising the max floor-tier capacity. E.g. `-c 30000` = the best-quality cache that fits a 30k window. |
 | `--vbr-vram <SIZE>` | Explicit KV VRAM budget (e.g. `8G`). Default `auto` = whatever VRAM is left after weights and compute. |
+| `--vbr-codec <auto\|turbo\|classic>` | Representation ladder. `auto` (default) prefers Turbo when every KV layer supports the complete ladder, then falls back to classic for BailingMoE3/Ling. Explicit families are strict. |
 | `--vbr-entry <tier>` | Dynamic VBR entry tier. Default `f16` preserves maximum quality; `t8` (or a lower tier) explicitly trades some quality for lower KV bandwidth and memory from the first token. |
 | `--vbr-floor <bits\|tier>` | Literal aggregate bits/value floor for dynamic mode. Implicit VBR defaults to t4 (4.125); explicit `-ct vbr` without this flag uses t1 (1.25). Degrades stop at the last step still ≥ the floor. |
 | `--vbr-budget <tier\|number>` | Default `dynamic` (runtime controller). A tier (`t8/t4/t3/t2/t1`) or a number instead selects a **fixed** static tier — no runtime degrades. |
+
+Auto selects the classic ladder for BailingMoE3/Ling models whose head geometry is not supported by TurboQuant:
+
+```sh
+llama-server -m model.gguf
+```
+
+Classic keeps the model's native KV width and uses ordinary Q8_0/Q4_0 codecs; it does not allocate
+Turbo rotations or interpret Turbo model-price tables. Its generic order is still strictly banded:
+every movable KV layer reaches Q8_0 before any layer advances to Q4_0. Portable projected prompt
+artifacts are currently Turbo-only, so classic mode retains live KV but cold-prefills when a live prefix
+is no longer available instead of restoring that prefix from the host cache.
 
 **Requirements:** a CUDA or ROCm backend (turbo-typed KV needs the TurboQuant interface; layers whose KV
 lands on the CPU fall back to q8_0). Flash attention is required and force-enabled. Dynamic mode uses
@@ -200,10 +215,40 @@ devices. `--moe-cache on` forces canonical CPU expert weights immediately. `soft
 when partial expert eviction is specifically desired: it first tries spare VRAM with stock placement,
 then evicts the minimum expert footprint needed to form cache pools.
 
+### EXL3 and CPU overlap
+
+EXL3 supports CPU expert execution and CUDA/HIP MoE caching. HIP also supports
+standalone EXL3 matrix operations on wave32 GPUs (tested on RDNA4); wave64 GPUs
+retain CPU execution and the GPU expert-cache path. Eligible mmap-backed CPU weights
+can be paged from SSD; active pages still use host RAM, and heavy paging can be much
+slower than RAM residency.
+By default, cached EXL3 work stays on
+GPU rather than assigning a share to CPU: CPU trellis decoding can otherwise hold up the GPU's
+completed work. Experts missing from the GPU cache still run on CPU.
+
+Use `--moe-cache-cpu-overlap auto|N` to override this policy:
+
+- `auto`: EXL3 overlap is disabled; other quant types retain their automatic policy.
+- `0`: disable deliberate CPU overlap.
+- `1` through `8`: assign that many cached expert rows per operation to CPU when all selected
+  rows are cached, leaving at least one GPU row. For example, `--moe-cache-cpu-overlap 2`.
+
+Leave this unset initially; benchmark explicit counts on your hardware before retaining them.
+See [MoE cache configuration](docs/backend/CUDA-MOE-CACHE.md#configuration) for environment overrides.
+
+For SSD-paged experts, also compare `--moe-cache-cpu-overlap 0`: deliberately
+moving a GPU-cache hit to CPU can require another disk read. This is a tuning
+choice, not a claim that overlap is slower on every model or host.
+
+For native safetensors SSD offloading, optionally add
+`--repack-cache /path/to/dedicated-directory` (Linux) to reuse prepared host weights
+on later launches. Disposable backing remains the default; retained files can use
+tens of GiB and require manual cleanup. See [storage and validation](docs/development/prepared-weight-cache.md).
+
 ### Choose the KV/VBR entry tier
 
 For these bandwidth-heavy models, start with `--vbr-entry t8`. This starts the dynamic VBR cache at
-Turbo8 instead of F16, then retains VBR's ability to degrade colder or older regions as its VRAM
+Turbo8 instead of F16, then retains VBR's ability to quantize KV layers as its VRAM
 budget fills. Use `--vbr-entry t4` when cache capacity and bandwidth matter more than the additional
 quality loss. Omit the option (F16 entry) when maximum KV quality is more important than decode
 speed. Static `-ctk t8 -ctv t8` and `-ctk t4 -ctv t4` remain useful for fixed-tier comparisons, but
@@ -476,6 +521,21 @@ llama cli -hf ggml-org/Qwen3.5-0.8B-GGUF
 # Launch OpenAI-compatible API server
 llama serve -hf ggml-org/Qwen3.5-0.8B-GGUF
 ```
+
+For supported native safetensors models, `-hf` downloads the weights and metadata
+into the Hugging Face cache and loads that directory directly—no GGUF conversion:
+
+```sh
+llama-server -hf unsloth/Qwen3.6-27B-NVFP4
+```
+
+Omit `:quant` for safetensors: the repository already identifies the quantization.
+If a repo contains several model directories, select one with
+`-hff path/to/config.json`. Repos containing both formats still prefer GGUF;
+`-hff config.json` explicitly selects the native model. Indexed downloads fetch
+only the named weight shards, plus metadata and supported auxiliary files.
+Subsequent runs reuse the cache; `--offline` requires the model to be cached already.
+Downloading a repository does not add support for a new architecture or quantization.
 
 <table align="center">
     <tr>

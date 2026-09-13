@@ -20,6 +20,7 @@ void ggml_moe_cache_register(const void * owner) {
 #include "common.cuh"
 #include "mmvq.cuh"
 #include "quantize.cuh"
+#include "exl3.cuh"
 #include "ggml-backend-impl.h"
 #include "ggml-cuda.h"
 #include "../ggml-backend-moe-cache.h"
@@ -572,8 +573,10 @@ static bool moe_cache_env_i64(
     return true;
 }
 
-static int moe_cache_min_compute_capability(bool automatic) {
-    int result = automatic ? moe_cache_cc_ampere : moe_cache_cc_forced_min;
+static int moe_cache_min_compute_capability() {
+    // Both modes use the same SM70-capable kernels. Mode changes budgeting and
+    // admission policy, not the minimum architecture supported by execution.
+    int result = moe_cache_cc_forced_min;
     int64_t value = 0;
     if (moe_cache_env_i64("GGML_CUDA_MOE_CACHE_MIN_CC", 0, 999, value)) {
         result = (int)value;
@@ -690,7 +693,7 @@ static moe_cache_config moe_cache_read_config() {
         config.expert_parallel = (int)value;
     }
     moe_cache_apply_mode_defaults(config);
-    config.min_compute_capability = moe_cache_min_compute_capability(config.automatic);
+    config.min_compute_capability = moe_cache_min_compute_capability();
     if (const char * fail = getenv("GGML_CUDA_MOE_CACHE_FAIL")) {
         config.fail_stage = fail;
     }
@@ -1120,6 +1123,7 @@ static bool moe_cache_tensor_name_supported(const char * name) {
 }
 
 static bool moe_cache_type_supported(ggml_type type) {
+    if (ggml_type_is_exl3(type)) return true;
     switch (type) {
         case GGML_TYPE_Q1_0:
         case GGML_TYPE_Q2_0:
@@ -1128,6 +1132,7 @@ static bool moe_cache_type_supported(ggml_type type) {
         case GGML_TYPE_Q5_0:
         case GGML_TYPE_Q5_1:
         case GGML_TYPE_Q8_0:
+        case GGML_TYPE_Q8_0_G128:
         case GGML_TYPE_MXFP4:
         case GGML_TYPE_NVFP4:
         case GGML_TYPE_Q2_K:
@@ -1339,7 +1344,7 @@ static int moe_cache_query_config(
         config.automatic = automatic != 0;
         moe_cache_apply_mode_defaults(config);
         config.min_compute_capability =
-            moe_cache_min_compute_capability(config.automatic);
+            moe_cache_min_compute_capability();
     }
     if (budget_mib > 0) {
         config.budget_mb = budget_mib;
@@ -1413,6 +1418,7 @@ static int moe_cache_query_shape(
         size_t expert_size,
         ggml_moe_cache_shape_caps * result) {
     if (!result || n_in <= 0 || n_out <= 0 || n_expert <= 0 ||
+        (ggml_type_is_exl3((ggml_type)wtype) && (n_in % 128 || n_out % 128)) ||
         !moe_cache_type_supported((ggml_type)wtype)) {
         return 0;
     }
@@ -1668,18 +1674,8 @@ static bool moe_cache_allocate_pool(
     size_t slot_count = std::min<size_t>(
             slots_by_budget,
             (size_t)std::min<uint64_t>(shape.n_entries, INT_MAX));
-    const size_t type_size = ggml_type_size((ggml_type)shape.wtype);
-    if (type_size == 0 || shape.expert_size % type_size != 0) {
-        return false;
-    }
-    const size_t stride_blocks = shape.expert_size / type_size;
-    if (stride_blocks == 0) {
-        return false;
-    }
-    slot_count = std::min(slot_count, (size_t)INT_MAX / stride_blocks);
-    if (slot_count > INT_MAX) {
-        slot_count = INT_MAX;
-    }
+    slot_count = std::min(slot_count,
+            ggml_moe_cache_max_pool_slots(shape.wtype, shape.expert_size));
     if (slot_count < moe_cache_pool_slots_min) {
         return false;
     }
@@ -2010,22 +2006,21 @@ static void * moe_cache_session_create(
         std::unordered_set<int> seen_devices;
         size_t default_min_expert_bytes = moe_cache_expert_bytes_ampere_min;
         int minimum_capability = INT_MAX;
-        for (int index = 0; index < n_backends &&
-                            (int)session->devices.size() < session->config.max_devices; index++) {
-            ggml_backend_t backend = (ggml_backend_t)backends[index];
-            if (!backend || !ggml_backend_is_cuda(backend)) {
-                continue;
+        const auto add_backend = [&](ggml_backend_t backend) {
+            if (!backend || !ggml_backend_is_cuda(backend) ||
+                (int)session->devices.size() >= session->config.max_devices) {
+                return;
             }
             ggml_backend_cuda_context * context =
                 (ggml_backend_cuda_context *)backend->context;
             const int logical = context->device;
             const ggml_cuda_device_info & info = ggml_cuda_info();
             if (logical < 0 || logical >= info.device_count) {
-                continue;
+                return;
             }
             const int physical = info.devices[logical].physical_device;
             if (!seen_devices.insert(physical).second) {
-                continue;
+                return;
             }
 
             ggml_cuda_set_device(logical);
@@ -2034,7 +2029,7 @@ static void * moe_cache_session_create(
                 MOE_CACHE_LOG("[moe-cache] CUDA%d skipped: compute capability %d is below %d\n",
                         physical, capability,
                         session->config.min_compute_capability);
-                continue;
+                return;
             }
 
             default_min_expert_bytes = std::max(
@@ -2044,6 +2039,18 @@ static void * moe_cache_session_create(
             session->devices.emplace_back(new moe_cache_device(logical, physical));
             session->devices.back()->automatic_reserve_bytes =
                 moe_cache_recommended_reserve_bytes(info.devices[logical].total_vram);
+        };
+        for (int index = 0; index < n_backends &&
+                            (int)session->devices.size() < session->config.max_devices; index++) {
+            ggml_backend_t backend = (ggml_backend_t)backends[index];
+            if (ggml_backend_is_meta(backend)) {
+                const size_t n_simple = ggml_backend_meta_n_backends(backend);
+                for (size_t i = 0; i < n_simple; ++i) {
+                    add_backend(ggml_backend_meta_simple_backend(backend, i));
+                }
+            } else {
+                add_backend(backend);
+            }
         }
 
         if ((int) session->devices.size() < session->config.min_devices) {
@@ -2321,7 +2328,8 @@ static void * moe_cache_begin(
     moe_cache_log_configuration(*session);
     if (!name || !host_base ||
         !moe_cache_tensor_name_supported(name) || n_tokens < 1 ||
-        expert_size < session->config.min_expert_bytes ||
+        expert_size < ggml_moe_cache_effective_min_expert_bytes(wtype,
+            session->config.min_expert_explicit, session->config.min_expert_bytes) ||
         n_in <= 0 || n_out <= 0 || n_expert <= 0 ||
         !moe_cache_type_supported((ggml_type)wtype)) {
         return nullptr;
@@ -2649,6 +2657,11 @@ static int moe_cache_overlap_rows(const moe_cache_node & node, int n_ids) {
     if (configured >= 0) {
         return std::min(configured, std::max(0, n_ids - 1));
     }
+    // EXL3 CPU trellis decoding can take longer than the GPU's entire share.
+    // Keep resident rows on GPU by default; explicit CPU-overlap counts still win.
+    if (ggml_type_is_exl3((ggml_type)node.wtype)) {
+        return 0;
+    }
     if (n_ids <= 1 || node.n_tokens <= 0 || n_ids % node.n_tokens != 0) {
         return 0;
     }
@@ -2895,7 +2908,9 @@ static int moe_cache_dispatch_internal(
     moe_cache_node * node = (moe_cache_node *)opaque;
     const bool fused = gate_pool != nullptr;
     const bool full = down_pool != nullptr;
+    const bool exl3 = ggml_type_is_exl3((ggml_type)wtype);
     if (!node || !node->planned || node->dispatched || n_hits <= 0 ||
+        (exl3 && (fused || n_in % 128 || n_out % 128)) ||
         n_hits > moe_cache_node_rows_max ||
         n_hits * (full ? 3 : fused ? 2 : 1) != node->n_pins ||
         !slot_indices || !act_rows ||
@@ -2978,7 +2993,7 @@ static int moe_cache_dispatch_internal(
         padded_n_in / QK8_1 > INT_MAX ||
         (uint64_t)activation_rows * (padded_n_in / QK8_1) > INT_MAX ||
         (uint64_t)n_out * n_hits > INT_MAX ||
-        (uint64_t)(node->expert_size / type_size) * pool.n_slots > INT_MAX ||
+        (size_t)pool.n_slots > ggml_moe_cache_max_pool_slots(wtype, node->expert_size) ||
         (full && (padded_n_mid / QK8_1 > INT_MAX ||
                   (uint64_t)n_hits * (padded_n_mid / QK8_1) > INT_MAX ||
                   (uint64_t)node->n_out * n_hits > INT_MAX ||
@@ -3089,7 +3104,7 @@ static int moe_cache_dispatch_internal(
         moe_cache_cuda_ok(device, cudaMemcpyAsync(
                 device.d_input, device.h_input, input_bytes,
                 cudaMemcpyHostToDevice, device.compute_stream), "input upload", true);
-    if (ok) {
+    if (ok && !exl3) {
         quantize_row_q8_1_cuda(
                 d_act, nullptr, device.d_act_q8, (ggml_type)wtype,
                 n_in, n_in, (int64_t)activation_rows * n_in,
@@ -3099,7 +3114,11 @@ static int moe_cache_dispatch_internal(
                 device, cudaPeekAtLastError(), "activation quantization", true);
     }
     if (ok) {
-        if (fused) {
+        if (exl3) {
+            ggml_cuda_exl3_cache_mmv(pool.slab, (ggml_type)wtype, d_act, d_ids,
+                use_activation_map ? d_ids+n_hits : nullptr, device.d_out,
+                int(n_in), int(n_out), pool.expert_size, n_hits, activation_rows, device.compute_stream);
+        } else if (fused) {
             ggml_cuda_moe_cache_mmv_fused(
                     pool.slab, gate_pool->slab, (ggml_type)wtype,
                     (const char *)device.d_act_q8,
@@ -3811,6 +3830,7 @@ static void * moe_cache_fused_begin(
         up->n_in <= 0 || up->n_out <= 0 ||
         up->n_expert <= 0 ||
         up->type == GGML_TYPE_NVFP4 ||
+        ggml_type_is_exl3((ggml_type)up->type) ||
         !moe_cache_type_supported((ggml_type)up->type)) {
         return nullptr;
     }
@@ -3820,6 +3840,7 @@ static void * moe_cache_fused_begin(
                  down->n_in != up->n_out || down->n_out != up->n_in ||
                  down->n_expert != up->n_expert ||
                  !moe_cache_type_supported((ggml_type)down->type) ||
+                 ggml_type_is_exl3((ggml_type)down->type) ||
                  down->expert_size == 0 ||
                  (uint64_t)down->n_expert > SIZE_MAX / down->expert_size ||
                  ggml_row_size((ggml_type)down->type, down->n_in) == 0 ||

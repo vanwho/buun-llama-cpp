@@ -1,4 +1,5 @@
 #include "llama-context.h"
+#include "llama-vbr-codec.h"
 
 #include "ggml.h"
 #include "llama-arch.h"
@@ -13,6 +14,7 @@
 #include "llama-memory-hybrid.h"
 #include "llama-memory-hybrid-idx.h"
 #include "llama-memory-hybrid-iswa.h"
+#include "llama-memory-tree.h"
 #include "llama-mmap.h"
 #include "llama-model.h"
 #include "llama-ext.h"
@@ -292,6 +294,7 @@ llama_context::llama_context(
     cparams.moe_cache_mode          = params.moe_cache_mode;
     cparams.moe_cache_budget_mib    = params.moe_cache_budget_mib;
     cparams.moe_cache_expert_parallel = params.moe_cache_expert_parallel;
+    cparams.moe_cache_cpu_overlap = params.moe_cache_cpu_overlap;
     cparams.moe_cache_profile_path = params.moe_cache_profile_path
         ? params.moe_cache_profile_path : "";
     cparams.yarn_ext_factor         = params.yarn_ext_factor  >= 0.0f ? params.yarn_ext_factor  : hparams.yarn_ext_factor;
@@ -483,6 +486,7 @@ llama_context::llama_context(
     cparams.kv_unified = params.kv_unified;
     cparams.logits_all = params.logits_all;
     cparams.vbr_dynamic = params.vbr_dynamic;
+    cparams.vbr_codec = params.vbr_codec;
     cparams.vbr_min_bits = params.vbr_min_bits;
     cparams.vbr_vram_budget_bytes = params.vbr_vram_budget_bytes;
     cparams.vbr_growth_headroom_bytes = params.vbr_growth_headroom_bytes;
@@ -507,6 +511,7 @@ llama_context::llama_context(
                 "disarming the drafter's own VBR controller (shared layers follow the "
                 "target's tier flips; the drafter's own layers stay at their static types)\n", __func__);
         cparams.vbr_dynamic              = false;
+        cparams.vbr_codec                = LLAMA_VBR_CODEC_TURBO;
         cparams.vbr_min_bits             = 0.0;
         cparams.vbr_vram_budget_bytes    = 0;
         cparams.vbr_growth_headroom_bytes = 0;
@@ -568,9 +573,10 @@ llama_context::llama_context(
     LLAMA_LOG_INFO("%s: flash_attn            = %s\n",   __func__, llama_flash_attn_type_name(params.flash_attn_type));
     LLAMA_LOG_INFO("%s: kv_unified            = %s\n",   __func__, cparams.kv_unified ? "true" : "false");
     if (cparams.vbr_dynamic || cparams.vbr_vram_budget_bytes > 0 || cparams.vbr_min_bits > 0.0) {
-        LLAMA_LOG_INFO("%s: vbr                    = %s, min_bits=%g, vram_budget=%" PRIu64 "\n",
+        LLAMA_LOG_INFO("%s: vbr                    = %s/%s, min_bits=%g, vram_budget=%" PRIu64 "\n",
                 __func__,
                 cparams.vbr_dynamic ? "dynamic" : "static",
+                llama_vbr_ladder(cparams.vbr_codec).name,
                 cparams.vbr_min_bits,
                 cparams.vbr_vram_budget_bytes);
     }
@@ -1779,19 +1785,32 @@ static bool llama_model_has_cacheable_moe_weights(
 
     std::vector<int32_t> physical_devices;
     size_t min_expert_bytes = 0;
+    const auto add_device = [&](ggml_backend_dev_t device) {
+        if (!device) {
+            return;
+        }
+        ggml_moe_cache_device_caps caps = {};
+        if (!ggml_moe_cache.query_device(device, &config, &caps) ||
+            std::find(physical_devices.begin(), physical_devices.end(),
+                    caps.physical_device) != physical_devices.end()) {
+            return;
+        }
+        physical_devices.push_back(caps.physical_device);
+        min_expert_bytes = std::max(min_expert_bytes, caps.min_expert_bytes);
+    };
     for (ggml_backend_t backend : backends) {
         if (!backend) {
             continue;
         }
-        ggml_moe_cache_device_caps caps = {};
-        if (!ggml_moe_cache.query_device(
-                    ggml_backend_get_device(backend), &config, &caps) ||
-            std::find(physical_devices.begin(), physical_devices.end(),
-                    caps.physical_device) != physical_devices.end()) {
-            continue;
+        ggml_backend_dev_t device = ggml_backend_get_device(backend);
+        if (ggml_backend_dev_is_meta(device)) {
+            const size_t n_devices = ggml_backend_meta_dev_n_devs(device);
+            for (size_t i = 0; i < n_devices; ++i) {
+                add_device(ggml_backend_meta_dev_simple_dev(device, i));
+            }
+        } else {
+            add_device(device);
         }
-        physical_devices.push_back(caps.physical_device);
-        min_expert_bytes = std::max(min_expert_bytes, caps.min_expert_bytes);
     }
     if ((int) physical_devices.size() < config.min_devices) {
         return false;
@@ -1804,7 +1823,8 @@ static bool llama_model_has_cacheable_moe_weights(
                         name.find("_chexps") == std::string::npos) ||
             ggml_n_dims(tensor) != 3 || tensor->ne[0] <= 0 ||
             tensor->ne[1] <= 0 || tensor->ne[2] <= 0 ||
-            tensor->nb[2] < min_expert_bytes) {
+            tensor->nb[2] < ggml_moe_cache_effective_min_expert_bytes(tensor->type,
+                config.min_expert_explicit, min_expert_bytes)) {
             continue;
         }
 
@@ -1856,7 +1876,7 @@ uint32_t llama_context::effective_reserve_n_seqs(const llama_memory_context_i * 
 }
 
 void llama_context::sched_reserve() {
-    if (!sched_need_reserve) {
+    if (!sched_need_reserve && !sched_need_sampler_reserve) {
         return;
     }
 
@@ -1887,9 +1907,6 @@ void llama_context::sched_reserve() {
 
     LLAMA_LOG_DEBUG("%s: max_nodes = %zu\n", __func__, max_nodes);
 
-    gf_res_prev.reset(new llm_graph_result(max_nodes));
-    gf_res_reserve.reset(new llm_graph_result(max_nodes));
-
     const bool moe_cache_eligible = llama_model_has_cacheable_moe_weights(
             model, (llama_moe_cache_mode)cparams.moe_cache_mode,
             cparams.moe_cache_budget_mib, backend_ptrs);
@@ -1906,11 +1923,31 @@ void llama_context::sched_reserve() {
             __func__, moe_cache_requested,
             moe_cache_eligible ? moe_cache_requested : "off");
 
-    sched.reset(ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), max_nodes, cparams.pipeline_parallel, cparams.op_offload));
+    // A sampler-only change rebuilds the graph, but can keep sufficient allocation
+    // capacity. Other reservation reasons retain their original allocation lifecycle.
+    const bool reuse_sched = !sched_need_reserve && sched &&
+        !moe_cache_eligible && !cparams.pipeline_parallel &&
+        ggml_backend_sched_get_n_copies(sched.get()) == 1 && sched_max_nodes >= max_nodes;
+    if (reuse_sched && gf_res_prev && gf_res_reserve &&
+        gf_res_prev->get_max_nodes() == (int64_t) max_nodes &&
+        gf_res_reserve->get_max_nodes() == (int64_t) max_nodes) {
+        gf_res_prev->reset();
+        gf_res_reserve->reset();
+    } else {
+        gf_res_prev.reset(new llm_graph_result(max_nodes));
+        gf_res_reserve.reset(new llm_graph_result(max_nodes));
+    }
+    if (reuse_sched) {
+        ggml_backend_sched_reset(sched.get());
+    } else {
+        sched.reset(ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), max_nodes, cparams.pipeline_parallel, cparams.op_offload));
+        sched_max_nodes = max_nodes;
+    }
     ggml_backend_sched_set_moe_cache(
             sched.get(), moe_cache_mode,
             cparams.moe_cache_budget_mib,
             cparams.moe_cache_expert_parallel,
+            cparams.moe_cache_cpu_overlap,
             cparams.moe_cache_profile_path.empty() ? nullptr :
                 cparams.moe_cache_profile_path.c_str());
 
@@ -1972,10 +2009,12 @@ void llama_context::sched_reserve() {
                 LLAMA_LOG_WARN("%s: compute buffer allocation failed, retrying without pipeline parallelism\n", __func__);
                 cparams.pipeline_parallel = false;
                 sched.reset(ggml_backend_sched_new(backend_ptrs.data(), backend_buft.data(), backend_ptrs.size(), max_nodes, false, cparams.op_offload));
+                sched_max_nodes = max_nodes;
                 ggml_backend_sched_set_moe_cache(
                         sched.get(), moe_cache_mode,
                         cparams.moe_cache_budget_mib,
                         cparams.moe_cache_expert_parallel,
+                        cparams.moe_cache_cpu_overlap,
                         cparams.moe_cache_profile_path.empty() ? nullptr :
                             cparams.moe_cache_profile_path.c_str());
                 gf = graph_reserve(n_tokens, n_seqs, n_outputs_pp, mctx.get());
@@ -2052,6 +2091,7 @@ void llama_context::sched_reserve() {
             __func__, (t_end_us - t_start_us)/1000.0, ggml_backend_sched_get_n_copies(sched.get()));
     dflash_cross_reserved_bucket = cross.n_enc;
     sched_need_reserve = false;
+    sched_need_sampler_reserve = false;
 }
 
 void llama_context::synchronize() {
@@ -5665,7 +5705,7 @@ bool llama_context::set_sampler(llama_seq_id seq_id, llama_sampler * sampler) {
             warned = true;
         }
         if (sampling.samplers.count(seq_id) > 0) {
-            sched_need_reserve = true;
+            sched_need_sampler_reserve = true;
         }
         sampling.samplers.erase(seq_id);
         return false;
@@ -5690,7 +5730,7 @@ bool llama_context::set_sampler(llama_seq_id seq_id, llama_sampler * sampler) {
             LLAMA_LOG_WARN("%s: sampler '%s' for seq_id = %d has no supported backend prefix\n",
                     __func__, llama_sampler_name(sampler), seq_id);
             if (sampling.samplers.count(seq_id) > 0) {
-                sched_need_reserve = true;
+                sched_need_sampler_reserve = true;
             }
             sampling.samplers.erase(seq_id);
             return false;
@@ -5698,7 +5738,7 @@ bool llama_context::set_sampler(llama_seq_id seq_id, llama_sampler * sampler) {
 
         sampling.samplers[seq_id] = sampler;
 
-        sched_need_reserve = true;
+        sched_need_sampler_reserve = true;
 
         return true;
     }
@@ -5707,7 +5747,7 @@ bool llama_context::set_sampler(llama_seq_id seq_id, llama_sampler * sampler) {
         LLAMA_LOG_WARN("%s: sampler '%s' for seq_id = %d, cannot be offloaded to the backend\n", __func__, llama_sampler_name(sampler), seq_id);
 
         if (sampling.samplers.count(seq_id) > 0) {
-            sched_need_reserve = true;
+            sched_need_sampler_reserve = true;
         }
 
         sampling.samplers.erase(seq_id);
@@ -5717,7 +5757,7 @@ bool llama_context::set_sampler(llama_seq_id seq_id, llama_sampler * sampler) {
 
     sampling.samplers.erase(seq_id);
 
-    sched_need_reserve = true;
+    sched_need_sampler_reserve = true;
 
     return true;
 }
@@ -5877,6 +5917,7 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
             ret = GGML_STATUS_ALLOC_FAILED;
             return nullptr;
         }
+
     }
 
     // Staged DFlash decodes answer every eval-callback ask with "no" (hiddens are
@@ -8776,17 +8817,32 @@ llama_memory_breakdown llama_context::memory_breakdown() const {
             GGML_ASSERT(mb.context_vbr_managed <= mb.context);
         }
     }
+    const auto add_compute = [&ret](
+            ggml_backend_buffer_type_t buft, size_t size) {
+        if (!ggml_backend_buft_is_meta(buft)) {
+            ret[buft].compute += size;
+            return;
+        }
+        // A Meta scheduler buffer mirrors its workspace allocation on every
+        // child backend. The outer size is therefore a per-device value.
+        const size_t n = ggml_backend_meta_buft_n_bufts(buft);
+        for (size_t i = 0; i < n; ++i) {
+            ret[ggml_backend_meta_buft_simple_buft(buft, i)].compute += size;
+        }
+    };
     if (model.hparams.no_alloc) {
         for (size_t i = 0; i < backends.size(); ++i) {
             ggml_backend_t             backend = backends[i].get();
             ggml_backend_buffer_type_t buft    = ggml_backend_sched_get_buffer_type(sched.get(), backend);
+            // Fit owns the estimated Meta row as one logical model device.
+            // Physical expansion is only valid once child allocations exist.
             ret[buft].compute += backend_buf_exp_size[i];
         }
     } else {
         for (const auto & backend_ptr : backends) {
             ggml_backend_t             backend = backend_ptr.get();
             ggml_backend_buffer_type_t buft    = ggml_backend_sched_get_buffer_type(sched.get(), backend);
-            ret[buft].compute += ggml_backend_sched_get_buffer_size(sched.get(), backend);
+            add_compute(buft, ggml_backend_sched_get_buffer_size(sched.get(), backend));
         }
     }
     return ret;
@@ -8848,6 +8904,21 @@ llama_live_memory_breakdown llama_context::live_memory_breakdown() const {
     }
 
     return ret;
+}
+
+void llama_context::vbr_import_accounting_observed() noexcept {
+    if (!memory) {
+        return;
+    }
+    std::vector<llama_memory_tree_child> tree;
+    if (!llama_memory_tree_collect(memory.get(), tree)) {
+        return;
+    }
+    for (const auto & child : tree) {
+        if (child.attention != nullptr) {
+            child.attention->vbr_import_accounting_observed();
+        }
+    }
 }
 
 //
@@ -9100,12 +9171,14 @@ llama_context_params llama_context_default_params() {
         /*.cb_eval_user_data           =*/ nullptr,
         /*.type_k                      =*/ GGML_TYPE_F16,
         /*.type_v                      =*/ GGML_TYPE_F16,
+        /*.vbr_codec                   =*/ LLAMA_VBR_CODEC_TURBO,
         /*.vbr_min_bits                =*/ 0.0,
         /*.vbr_vram_budget_bytes       =*/ 0,
         /*.vbr_growth_headroom_bytes   =*/ 0,
         /*.moe_cache_mode              =*/ LLAMA_MOE_CACHE_MODE_UNSPECIFIED,
         /*.moe_cache_budget_mib        =*/ 0,
         /*.moe_cache_expert_parallel   =*/ 0,
+        /*.moe_cache_cpu_overlap       =*/ -2,
         /*.moe_cache_profile_path      =*/ nullptr,
         /*.kv_pager_config             =*/ nullptr,
         /*.abort_callback              =*/ nullptr,
@@ -9184,6 +9257,36 @@ llama_context * llama_init_from_model(
             LLAMA_LOG_INFO("%s: SPLIT_MODE_TENSOR with quantized KV cache (K=%s, V=%s)\n",
                 __func__, ggml_type_name(params.type_k), ggml_type_name(params.type_v));
         }
+    }
+
+    const bool vbr_active = params.vbr_dynamic ||
+        params.vbr_vram_budget_bytes > 0 || params.vbr_min_bits > 0.0;
+    if (vbr_active &&
+        params.vbr_codec != LLAMA_VBR_CODEC_TURBO &&
+        params.vbr_codec != LLAMA_VBR_CODEC_CLASSIC) {
+        LLAMA_LOG_ERROR("%s: invalid VBR codec %d\n", __func__, int(params.vbr_codec));
+        return nullptr;
+    }
+
+    if (params.vbr_dynamic && params.vbr_codec == LLAMA_VBR_CODEC_CLASSIC) {
+        // Classic live retiering is currently implemented and validated for the
+        // BailingMoE3/Ling coupled cache. DSV4 retains its separate q8_0-capped
+        // policy; ordinary DSA does not thread VBR into its child caches yet.
+        if (!model->supports_classic_vbr()) {
+            LLAMA_LOG_ERROR("%s: classic VBR currently supports BailingMoE3/Ling models only\n", __func__);
+            return nullptr;
+        }
+        if (!llama_vbr_codec_contains(params.vbr_codec, params.type_k) ||
+            !llama_vbr_codec_contains(params.vbr_codec, params.type_v)) {
+            LLAMA_LOG_ERROR("%s: classic VBR entry must be f16, q8_0 or q4_0\n", __func__);
+            return nullptr;
+        }
+    }
+
+    if (params.vbr_dynamic && params.vbr_codec == LLAMA_VBR_CODEC_TURBO &&
+            !model->supports_turbo_vbr()) {
+        LLAMA_LOG_ERROR("%s: model KV geometry does not support the complete Turbo VBR ladder\n", __func__);
+        return nullptr;
     }
 
     if (llama_model_kv_cache_types_coupled(model) && params.type_k != params.type_v) {
