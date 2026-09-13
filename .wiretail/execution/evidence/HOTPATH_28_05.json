@@ -1,0 +1,56 @@
+{
+  "schema": "gpu-hot-path-v8-layer-residency-v1",
+  "task": "28-05",
+  "status": "complete",
+  "result": "complete",
+  "implementation": {
+    "identity": "canonical page identity plus compact full-attention-layer ordinal; UINT32_MAX preserves bundle/reference callers",
+    "metadata": ["sequence", "logical_page", "layer", "representation", "content_version", "valid_length", "consumer_events"],
+    "geometry": "layer K/V offsets, per-layer page spans, equal initial H_l slot counts, deterministic model-layer IDs and flattened layer-slot bases",
+    "graph": "one layer-selected K/V row-index input per cache attention layer; cpy_k/cpy_v and attention views use the same ordinal mapping",
+    "transfers": "layer-scoped K/V H2D runs preserve canonical bundle host offsets and validate requested layer/run agreement"
+  },
+  "arithmetic": {
+    "page_tokens": 256,
+    "turbo4_block_bytes": 66,
+    "layer_page_bytes": 270336,
+    "full_attention_layers": 16,
+    "bundle_page_bytes": 4325376,
+    "note": "Production geometry is derived from model tensors at runtime; the focused fixture uses smaller byte spans and asserts sum_l H_l*layer_span accounting."
+  },
+  "tests": {
+    "cpu_build": "cmake --build build --target test-kv-residency test-kv-pager -j2",
+    "cpu_build_result": "pass",
+    "residency": "build/bin/test-kv-residency",
+    "residency_result": "pass",
+    "pager": "build/bin/test-kv-pager",
+    "pager_result": "pass",
+    "cuda_build": "cmake --build build-cuda --target test-kv-residency test-kv-pager llama-server -j2",
+    "cuda_build_result": "pass",
+    "cuda_residency": "build-cuda/bin/test-kv-residency",
+    "cuda_residency_result": "pass",
+    "cuda_pager": "build-cuda/bin/test-kv-pager",
+    "cuda_pager_result": "pass",
+    "diff_check": "git diff --check",
+    "state_validation": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate",
+    "layer_transfer_fixture": {
+      "useful_bytes": 68,
+      "aligned_bytes": 128,
+      "scope": "two layers, 17 rows, 2 bytes per row, separate K/V layer runs, raw fake-device bytes, failed issue rollback"
+    }
+  },
+  "cuda": {
+    "build_command": "cmake --build build-cuda --target test-kv-residency test-kv-pager llama-server -j2",
+    "live_attempt": "LD_LIBRARY_PATH=build-cuda/bin build-cuda/bin/test-kv-pager-model --model /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf --mtp native",
+    "build_result": "pass",
+    "live_result": "blocked_by_resident_gpu_allocation",
+    "live_error": "cudaMalloc requested 12726.35 MiB; only about 210 MiB free while PID 1462393 retained 15456 MiB",
+    "resident_candidate_preserved": true,
+    "port_8080_touched": false,
+    "port_8092_touched": false
+  },
+  "deferred_verification": [
+    "Current-source live native-MTP layer-page promotion/use requires an isolated GPU or teardown of the preserved resident candidate.",
+    "Full ranking-driven scheduling remains task 28-06."
+  ]
+}
