@@ -1,0 +1,93 @@
+{
+  "schema": "hotpath-v9-stability",
+  "task": "34-04",
+  "cluster": "34b-mature-fa-v9",
+  "revision": "hotpath-v9-20260913",
+  "decision": "pass_no_new_defect_reproduced",
+  "provenance": {
+    "code_sha": "db02088f0c6d977f3fd80f71b91fc5f7cbc24b8d",
+    "source_diff_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server_sha": "fb9923b06fe94bc4eed6787f06e9f1be399d782f56c81694fdc56633f303389b",
+    "model_hash": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "raw_root": "/srv/ai/paged-kv/results/v9/34-04/20260913T180627Z/",
+    "effective_config": "L8192/H4096/A2048/B128/U64/page256, graphs-on, target/draft Turbo4, native GPU MTP"
+  },
+  "execution": {
+    "target_attention_route": "selected_packed",
+    "sequence_count": 3,
+    "occupied_target_tokens": 4353,
+    "cold_boundary": "crossed H=4096 with 4391-token continuation",
+    "native_mtp": true,
+    "slot_clear_before_q0_repeat": true,
+    "q0_repeat_http": [200, 200, 200],
+    "slot_erase_http": [200, 200, 200]
+  },
+  "sequences": [
+    {
+      "id": 1,
+      "scale_turns": 5,
+      "scale_completed": true,
+      "cold_recall": "pass",
+      "cold_prompt_tokens": 4391,
+      "cold_output_tokens": 8,
+      "prefill_packed_routes": 1,
+      "mtp_verify_packed_routes": 4,
+      "packed_copy_updates": 306,
+      "packed_copy_rows": 56480,
+      "packed_copy_reuses": 350,
+      "dropped_nonfinite": 0,
+      "raw": "/srv/ai/paged-kv/results/v9/34-04/20260913T180627Z/sequence-1"
+    },
+    {
+      "id": 2,
+      "scale_turns": 5,
+      "scale_completed": true,
+      "cold_recall": "pass",
+      "cold_prompt_tokens": 4391,
+      "cold_output_tokens": 8,
+      "prefill_packed_routes": 1,
+      "mtp_verify_packed_routes": 4,
+      "packed_copy_updates": 306,
+      "packed_copy_rows": 56480,
+      "packed_copy_reuses": 350,
+      "dropped_nonfinite": 0,
+      "raw": "/srv/ai/paged-kv/results/v9/34-04/20260913T180627Z/sequence-2"
+    },
+    {
+      "id": 3,
+      "scale_turns": 5,
+      "scale_completed": true,
+      "cold_recall": "pass",
+      "cold_prompt_tokens": 4391,
+      "cold_output_tokens": 8,
+      "prefill_packed_routes": 1,
+      "mtp_verify_packed_routes": 4,
+      "packed_copy_updates": 306,
+      "packed_copy_rows": 56480,
+      "packed_copy_reuses": 350,
+      "dropped_nonfinite": 0,
+      "raw": "/srv/ai/paged-kv/results/v9/34-04/20260913T180627Z/sequence-3"
+    }
+  ],
+  "diagnostics": {
+    "journal_error_signature_count": 0,
+    "final_metrics_nonfinite_drops": 0,
+    "final_metrics_invalid_argument_drops": 0,
+    "graphs_off": "not_run; production graphs-on path passed",
+    "mtp_off": "not_run; production native-MTP path passed",
+    "compute_sanitizer": "not_run; no failing GPU operation reproduced"
+  },
+  "verification": {
+    "cpu_fixture": "./build/bin/test-kv-attention-execution — pass",
+    "cuda_fixture": "./build-cuda/bin/test-kv-attention-execution — pass",
+    "state_validation": "pass",
+    "plan_validation": "pass",
+    "diff_check": "pass"
+  },
+  "loaded_candidate": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "status": "successful tested candidate remains loaded"
+  },
+  "next_action": "Use this stable repeated packed/native trace as the baseline for the scheduled cold-path and tuning work."
+}
