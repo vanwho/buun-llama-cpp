@@ -45,6 +45,40 @@ PADDING = (
     "It contains no answer to the final question. "
 ) * 10000
 
+RESET_MODE_SPECS = {
+    "fresh": {
+        "cache_condition": "cold-prefill",
+        "restore_shape": "none",
+        "mtp_history": "fresh_full_history",
+        "mtp_history_ready": True,
+    },
+    "paired-restore": {
+        "cache_condition": "live-continuation",
+        "restore_shape": "target_and_draft",
+        "mtp_history": "paired_target_and_draft",
+        "mtp_history_ready": True,
+    },
+    "target-only-restore": {
+        "cache_condition": "live-continuation",
+        "restore_shape": "target_only",
+        "mtp_history": "target_only_recovery",
+        "mtp_history_ready": False,
+    },
+}
+
+
+def resolve_reset_mode(reset_mode: str | None, cache_condition: str) -> dict[str, Any]:
+    """Resolve reset semantics without making a target-only restore look complete."""
+    if reset_mode is None:
+        reset_mode = "fresh" if cache_condition == "cold-prefill" else "paired-restore"
+    spec = RESET_MODE_SPECS.get(reset_mode)
+    if spec is None:
+        raise ValueError("reset mode must be fresh, paired-restore, or target-only-restore")
+    if cache_condition != spec["cache_condition"]:
+        raise ValueError(
+            f"reset mode {reset_mode} requires cache condition {spec['cache_condition']}")
+    return {"reset_mode": reset_mode, **spec}
+
 
 def _profile_adapter() -> Any:
     spec = importlib.util.spec_from_file_location(
@@ -77,6 +111,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--reserve-context", type=int, default=512)
     parser.add_argument("--cache-condition", choices=("cold-prefill", "live-continuation"), default="cold-prefill")
+    parser.add_argument("--reset-mode", choices=tuple(RESET_MODE_SPECS),
+                        help="reset contract: fresh, paired-restore, or target-only-restore")
     parser.add_argument("--slot-id", type=int, default=0)
     parser.add_argument("--hot-pages",
                         help="pressure fixture hot-page budget, recorded as requested")
@@ -376,6 +412,7 @@ def run_request(endpoint: str, key: str, model: str,
                 context: int, phase: str, question_index: int, trial: int,
                 prompt_tokens: int, timeout: float, raw_path: pathlib.Path,
                 *, cache_condition: str = "cold-prefill", mode: str = "selective",
+                reset_mode: str | None = None,
                 prefill_policy: str = "runtime", slot_clear: Mapping[str, Any] | None = None,
                 startup_timeout: float = 30.0, progress_idle_timeout: float = 120.0,
                 decode_idle_timeout: float = 120.0, total_timeout: float | None = 300.0,
@@ -386,11 +423,15 @@ def run_request(endpoint: str, key: str, model: str,
                                               separators=(",", ":")).encode()).hexdigest()
     started = time.monotonic()
     before = snapshot(endpoint, key)
+    reset = resolve_reset_mode(reset_mode, cache_condition)
     record: dict[str, Any] = {
         "context": context, "phase": phase, "question_index": question_index, "trial": trial,
         "prompt_tokens_preflight": prompt_tokens, "generation_reserve_tokens": maximum,
         "request_hash": request_hash, "sampling": {"temperature": 0, "seed": 42, "thinking": "off"},
         "cache_condition": cache_condition, "mode": mode, "prefill_policy": prefill_policy,
+        "reset_mode": reset["reset_mode"], "restore_shape": reset["restore_shape"],
+        "mtp_history": reset["mtp_history"],
+        "mtp_history_ready": reset["mtp_history_ready"],
         "sent_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "before": before,
     }
     if slot_clear is not None:
@@ -557,6 +598,7 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
                  identity: Mapping[str, Any], template_id: str, model_hash: str | None,
                  config_hash: str, manifest: Mapping[str, Any] | None,
                  gpu_identity: Mapping[str, str]) -> dict[str, Any]:
+    reset = resolve_reset_mode(args.reset_mode, args.cache_condition)
     after_telemetry = _telemetry(record.get("after", {})) or {}
     movement = record.get("movement_delta")
     counter_telemetry = dict(after_telemetry)
@@ -598,6 +640,9 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
         "hot_capacity_pages": hot_capacity["hot_capacity_pages"],
         "hot_capacity_tokens": hot_rows,
         "cuda_query_tile": 64, "cache_condition": args.cache_condition,
+        "reset_mode": reset["reset_mode"], "restore_shape": reset["restore_shape"],
+        "mtp_history": reset["mtp_history"],
+        "mtp_history_ready": reset["mtp_history_ready"],
         "target_placement": target_placement or "not_configured",
         "mtp_placement": mtp_placement or "not_configured",
         "target_type_k": target_type_k or "not_configured",
@@ -712,6 +757,13 @@ def _write_receipt(output: pathlib.Path, args: argparse.Namespace, campaign: Map
 
 def main() -> int:
     args = parse_args()
+    try:
+        reset = resolve_reset_mode(args.reset_mode, args.cache_condition)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    # Store the resolved mode so all case keys and receipts use the same
+    # explicit identity, including runs that rely on the legacy cache flag.
+    args.reset_mode = reset["reset_mode"]
     if args.context <= 0 or args.max_tokens <= 0 or args.trials <= 0 or args.warmups < 0:
         raise SystemExit("context, max-tokens, trials must be positive and warmups non-negative")
     if args.page_size <= 0:
@@ -758,6 +810,7 @@ def main() -> int:
               "prefill_policy": args.prefill_policy, "warmups": args.warmups,
               "warmup_tokens": args.warmup_tokens, "trials": args.trials, "max_tokens": args.max_tokens,
               "reserve_context": args.reserve_context, "cache_condition": args.cache_condition,
+              "reset_mode": args.reset_mode,
               "slot_id": args.slot_id, "hot_pages": args.hot_pages,
               "page_size_tokens": args.page_size, "batch_tokens": args.batch_tokens,
               "ubatch_tokens": args.ubatch_tokens,
@@ -773,7 +826,8 @@ def main() -> int:
         warmup = run_request(chat_endpoint, key, args.model, "Reply with the word ready.",
                              min(args.warmup_tokens, 256), args.context, "warmup", -1, 1, 1,
                              args.legacy_timeout or args.startup_timeout, output / "raw-warmup.sse",
-                             mode=args.mode, prefill_policy=args.prefill_policy,
+                             mode=args.mode, reset_mode=args.reset_mode,
+                             prefill_policy=args.prefill_policy,
                              startup_timeout=args.startup_timeout, progress_idle_timeout=args.progress_idle_timeout,
                              decode_idle_timeout=args.decode_idle_timeout, total_timeout=total_timeout)
         (output / "warmup.json").write_text(json.dumps(warmup, indent=2) + "\n", encoding="utf-8")
@@ -797,7 +851,8 @@ def main() -> int:
                     "bundle_manifest_sha256": manifest.get("manifest_sha256") if manifest else None,
                     "mode": args.mode, "context_tokens": args.context,
                     "sampling": {"temperature": 0, "seed": 42, "thinking": "off"},
-                    "cache_condition": args.cache_condition, "trial_index": trial}
+                    "cache_condition": args.cache_condition, "reset_mode": args.reset_mode,
+                    "trial_index": trial}
             key_value, skipped = store.start(case)
             if skipped:
                 print(json.dumps({"case": case["case_id"], "status": "resume_skipped"}), flush=True)
@@ -808,6 +863,7 @@ def main() -> int:
                                  args.context, "measured", question_index, trial, fit.token_count,
                                  args.legacy_timeout or args.startup_timeout, raw_path,
                                  cache_condition=args.cache_condition, mode=args.mode,
+                                 reset_mode=args.reset_mode,
                                  prefill_policy=args.prefill_policy, slot_clear=clear,
                                  startup_timeout=args.startup_timeout, progress_idle_timeout=args.progress_idle_timeout,
                                  decode_idle_timeout=args.decode_idle_timeout, total_timeout=total_timeout)

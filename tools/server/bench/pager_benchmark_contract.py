@@ -262,6 +262,7 @@ _CASE_KEY_FIELDS = (
     "model_sha256", "tokenizer_template_sha256", "corpus_sha256", "config_sha256",
     "case_id", "case_partition", "prompt_hash", "request_hash", "mode", "context_tokens", "sampling",
     "cache_condition", "trial_index",
+    "reset_mode",
 )
 
 
