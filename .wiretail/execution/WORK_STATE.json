@@ -1,34 +1,37 @@
 {
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
-  "canonical_plan": ".wiretail/execution/ATTENTION_AWARE_KV_PAGING_PLAN.md",
-  "active_plan_amendment": ".wiretail/execution/GPU_HOT_PATH_REDESIGN_V8.md",
-  "technical_change_spec": ".wiretail/execution/GPU_HOT_PATH_REDESIGN_V8.md",
-  "execution_cookbook": ".wiretail/execution/EXECUTION_COOKBOOK.md",
-  "implementation_contracts": ".wiretail/execution/IMPLEMENTATION_CONTRACTS.md",
-  "benchmark_protocol": ".wiretail/execution/BENCHMARK_PROTOCOL_V8.md",
+  "canonical_plan": ".wiretail/execution/v9/OVERVIEW.md",
+  "active_plan_amendment": ".wiretail/execution/v9/OVERVIEW.md",
+  "technical_change_spec": ".wiretail/execution/v9/FAST_PATH.md",
+  "execution_cookbook": ".wiretail/execution/v9/OPERATIONS.md",
+  "implementation_contracts": ".wiretail/execution/v9/ROUTING.md",
+  "benchmark_protocol": ".wiretail/execution/v9/BENCHMARKS.md",
+  "scope_revision": "hotpath-v9-20260913",
+  "context_policy": "Only current packet/cluster, explicit context_files and named source; no archived plans, whole state/log or recursive historical handoffs. New V9 clusters start fresh.",
+  "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "complete",
-  "current_phase": "32",
-  "current_task": "32-01",
-  "last_updated_utc": "2026-09-13T06:03:55+00:00",
+  "status": "ready",
+  "current_phase": "33",
+  "current_task": "33-01",
+  "last_updated_utc": "2026-09-13T13:52:15+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
     "root_environment": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp",
     "cluster_context_dir": ".wiretail/execution/clusters",
     "default_model": "gpt-5.6-luna",
-    "default_reasoning": "high",
-    "task_model_policy": "All V8 implementation/benchmark packets run Luna High;30-01 retains the existing Astra High reviewer moved from28-01. Wiretail defaults unchanged.",
+    "default_reasoning": "low",
+    "task_model_policy": "V9 tasks33-01 through38-01 explicitly recommend Luna Medium and opt into retry1_reasoning=high. Shared Wiretail fallback remains Luna Low; historical recommendations are not active.",
     "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
     "block_recovery_attempts": 3,
     "substantive_retry_limit": 3,
-    "retry_sequence": "initial; retry1 same task model/reasoning with artifact-aware direct prefix; before retry2 same-family/high assessment then retry2 same task model/reasoning with no retry prefix; before retry3 next-tier/high assessment from luna->terra->sol then retry3 same task model/reasoning with no retry prefix; then block",
+    "retry_sequence": "V9 initial Luna Medium; retry1 Luna High with artifact-aware prefix (per-task opt-in); before retry2 Luna High assessment then Luna Medium task; before retry3 Terra High assessment then Luna Medium task; then block. Explicit CLI reasoning override wins.",
     "retry_assessment": "no separate assessment before retry1; same task model family/high before substantive retry2; next-tier/high from model_escalation_map before substantive retry3",
     "model_escalation_map": "luna->terra, terra->sol, sol->sol (assessment-only; task model remains the original recommendation)",
     "block_escalation": "Assessment-only escalation on retry3 using model_escalation_map; task model remains the original recommendation",
@@ -39,19 +42,19 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "foundation_tasks": "00-01 through 07-02 are complete components, not live-product acceptance",
+    "foundation_tasks": "Historical tasks00-32 remain completed records, not current context or proof. Active implementation is33-36; findings37; review38.",
     "native_mtp_context": "exactly the resolved target per-sequence context for each run",
     "native_mtp_residency": "Turbo4 K/V fully GPU-resident and never a target pager victim",
     "target_hot_capacity": "H in checked physical page units after measured peak allocations and full-L GPU MTP; tune selected A independently; maximize safe useful H without hardcoded70K/77K",
     "target_cold_backing": "canonical opaque Turbo4 pages in CPU RAM",
     "speed_policy": "Prove and optimize primary8192 logical/4096 hot first, then32768/16384 and up to131072 with maximum safe H; compare prefill/decode and memory, no arbitrary speed gates",
-    "test_context_policy": "V8 kernel/small q0 first; primary8192/4096 then32768/16384;131072 only after real small cold use and bounded pilot/ETA; rates findings;256K/six-coordinate campaign unscheduled",
+    "test_context_policy": "V9 focused fixtures/smoke then quick8192/4096, original3prompt matched controls,32768/16384,131072 only after natural cold proof and bounded pilot/ETA. No mandatory48case/six-coordinate matrix;256K ledger estimate only in this live campaign.",
     "speed_target": "annotate historical 3x/5x CPU KV and 70% comparable all-GPU comparisons without gating completion of measurement tasks",
     "full_context_proof": "Current maximum131072 resolved target and full-L GPU Turbo4 native-MTP; first allocate/short smoke then incremental retained occupancy beyond H and near L minus generation reserve, natural cold recall and useful committed generation. Startup alone is insufficient.",
-    "required_final_status": "V8:27-02/03 safety and mature FA;28 GPU bounded layer selection, tiled kernels and async layer paging;29 measurements/HOTPATH29_SUMMARY;30-01 reviews only that summary and schedules concrete remaining repairs if needed",
+    "required_final_status": "38-01 reviews only V9_SUMMARY; capability is distinct from task completion. If goal unmet, append real remediation/benchmark/summary/review task/state/cluster entries before completing review; prose-only scheduling forbidden.",
     "stretch_goal": "YaRN after base capability is demonstrated; unscheduled option, not current completion gate",
     "quality_resilience_scope": "Experimental speed prototype: retain minimal numerical/causal/byte/lifetime proof; broad quality matrices, exact hybrid CPU attention, checkpoint/soak, YaRN and upstream readiness are unscheduled options",
-    "future_context_goal": "262144 and YaRN remain future opt-in work, not active gates; current user campaign max131072"
+    "future_context_goal": "262144 remains overall extension with estimated ledger in37-04; review records it separately and schedules a bounded next validation when measured128K speed/capacity justify it. YaRN remains later optional work. Current live ceiling131072."
   },
   "external_gates": [
     {
@@ -6283,6 +6286,543 @@
         }
       },
       "commit": "9c27d496a2057393c4a402c9960005dbcae0fcd8"
+    },
+    {
+      "id": "33-01",
+      "phase": "33",
+      "cluster": "33a-pin-v9",
+      "title": "Pin source, candidate identity and one-request benchmark baseline",
+      "packet": ".wiretail/execution/tasks/33-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/INTEGRATION.md",
+        ".wiretail/execution/v9/BENCHMARKS.md"
+      ],
+      "depends_on": [],
+      "commit": null
+    },
+    {
+      "id": "33-02",
+      "phase": "33",
+      "cluster": "33b-merge-v9",
+      "title": "Resolve the pinned upstream merge and preserve both feature sets",
+      "packet": ".wiretail/execution/tasks/33-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/INTEGRATION.md",
+        ".wiretail/execution/handoffs/33-01.md"
+      ],
+      "depends_on": [
+        "33-01"
+      ],
+      "commit": null,
+      "upstream_merge_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795"
+    },
+    {
+      "id": "33-03",
+      "phase": "33",
+      "cluster": "33c-integrated-baseline-v9",
+      "title": "Validate upstream fast paths and native-MTP semantics after merge",
+      "packet": ".wiretail/execution/tasks/33-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/INTEGRATION.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/handoffs/33-02.md"
+      ],
+      "depends_on": [
+        "33-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "34-01",
+      "phase": "34",
+      "cluster": "34a-address-owner-v9",
+      "title": "Reject invalid paged physical-row mappings before device writes",
+      "packet": ".wiretail/execution/tasks/34-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/evidence/V9_INTEGRATION.json"
+      ],
+      "depends_on": [
+        "33-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "34-02",
+      "phase": "34",
+      "cluster": "34a-address-owner-v9",
+      "title": "Make A-sized Turbo4 packed storage persistent and generation-safe",
+      "packet": ".wiretail/execution/tasks/34-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/handoffs/34-01.md"
+      ],
+      "depends_on": [
+        "34-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "34-03",
+      "phase": "34",
+      "cluster": "34b-mature-fa-v9",
+      "title": "Use mature Turbo4 FA with ordered incremental packed refresh",
+      "packet": ".wiretail/execution/tasks/34-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/handoffs/34-02.md"
+      ],
+      "depends_on": [
+        "34-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "34-04",
+      "phase": "34",
+      "cluster": "34b-mature-fa-v9",
+      "title": "Fix the first repeated-request failure on the selected mature path",
+      "packet": ".wiretail/execution/tasks/34-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/handoffs/34-03.md"
+      ],
+      "depends_on": [
+        "34-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "34-05",
+      "phase": "34",
+      "cluster": "34c-budget-probe-v9",
+      "title": "Unify dynamic L/H/A/B/U admission and full-L GPU draft accounting",
+      "packet": ".wiretail/execution/tasks/34-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/handoffs/34-04.md"
+      ],
+      "depends_on": [
+        "34-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "34-06",
+      "phase": "34",
+      "cluster": "34c-budget-probe-v9",
+      "title": "Measure foundation overhead before adding dynamic cold selection",
+      "packet": ".wiretail/execution/tasks/34-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/evidence/V9_MEMORY.json",
+        ".wiretail/execution/evidence/V9_MATURE_FA.json",
+        ".wiretail/execution/evidence/V9_STABILITY.json"
+      ],
+      "depends_on": [
+        "34-05"
+      ],
+      "commit": null
+    },
+    {
+      "id": "35-01",
+      "phase": "35",
+      "cluster": "35a-catalogue-selector-v9",
+      "title": "Build generation-safe GPU summaries for all logical Turbo4 K pages",
+      "packet": ".wiretail/execution/tasks/35-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/ROUTING.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/evidence/V9_FOUNDATION.json"
+      ],
+      "depends_on": [
+        "34-06"
+      ],
+      "commit": null
+    },
+    {
+      "id": "35-02",
+      "phase": "35",
+      "cluster": "35a-catalogue-selector-v9",
+      "title": "Implement cooperative current-Q page selection as an independent graph op",
+      "packet": ".wiretail/execution/tasks/35-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/ROUTING.md",
+        ".wiretail/execution/handoffs/35-01.md"
+      ],
+      "depends_on": [
+        "35-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "35-03",
+      "phase": "35",
+      "cluster": "35b-mailbox-promote-v9",
+      "title": "Connect live Q snapshots to bounded per-layer selected sets",
+      "packet": ".wiretail/execution/tasks/35-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/ROUTING.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/handoffs/35-02.md"
+      ],
+      "depends_on": [
+        "35-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "35-04",
+      "phase": "35",
+      "cluster": "35b-mailbox-promote-v9",
+      "title": "Integrate clean host-canonical async promotion and eviction",
+      "packet": ".wiretail/execution/tasks/35-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/ROUTING.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/handoffs/35-03.md"
+      ],
+      "depends_on": [
+        "35-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "35-05",
+      "phase": "35",
+      "cluster": "35c-natural-proof-v9",
+      "title": "Prove real natural cold-page use with Turbo4 GPU native MTP",
+      "packet": ".wiretail/execution/tasks/35-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/ROUTING.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/handoffs/35-04.md"
+      ],
+      "depends_on": [
+        "35-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "36-01",
+      "phase": "36",
+      "cluster": "36a-hotloop-mtp-v9",
+      "title": "Remove residual per-token packing, synchronization and graph overhead",
+      "packet": ".wiretail/execution/tasks/36-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/v9/ROUTING.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/evidence/V9_COLD_PROOF.json"
+      ],
+      "depends_on": [
+        "35-05"
+      ],
+      "commit": null
+    },
+    {
+      "id": "36-02",
+      "phase": "36",
+      "cluster": "36a-hotloop-mtp-v9",
+      "title": "Recover native-MTP benefit without changing full-L GPU cache policy",
+      "packet": ".wiretail/execution/tasks/36-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/handoffs/36-01.md"
+      ],
+      "depends_on": [
+        "36-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "36-03",
+      "phase": "36",
+      "cluster": "36b-tuning-controls-v9",
+      "title": "Tune B/U/A and safe H with a small adaptive comparison",
+      "packet": ".wiretail/execution/tasks/36-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/evidence/V9_MTP.json"
+      ],
+      "depends_on": [
+        "36-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "36-04",
+      "phase": "36",
+      "cluster": "36b-tuning-controls-v9",
+      "title": "Measure the small three-prompt hot-offload speed against real controls",
+      "packet": ".wiretail/execution/tasks/36-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/handoffs/36-03.md",
+        ".wiretail/execution/evidence/V9_COLD_PROOF.json"
+      ],
+      "depends_on": [
+        "36-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "37-01",
+      "phase": "37",
+      "cluster": "37a-32k-v9",
+      "title": "Measure bounded 32K history with 16K hot and cached append",
+      "packet": ".wiretail/execution/tasks/37-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/evidence/V9_SMALL.json",
+        ".wiretail/execution/evidence/V9_COLD_PROOF.json"
+      ],
+      "depends_on": [
+        "36-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "37-02",
+      "phase": "37",
+      "cluster": "37b-128k-v9",
+      "title": "Validate full-L 128K draft and memory capacity with a short pilot",
+      "packet": ".wiretail/execution/tasks/37-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/v9/FAST_PATH.md",
+        ".wiretail/execution/evidence/V9_32K.json"
+      ],
+      "depends_on": [
+        "37-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "37-03",
+      "phase": "37",
+      "cluster": "37b-128k-v9",
+      "title": "Populate feasible 128K history and record speed at useful frontiers",
+      "packet": ".wiretail/execution/tasks/37-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/evidence/V9_128K_PILOT.json"
+      ],
+      "depends_on": [
+        "37-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "37-04",
+      "phase": "37",
+      "cluster": "37c-summary-v9",
+      "title": "Create compact benchmark summary and measured next-step diagnosis",
+      "packet": ".wiretail/execution/tasks/37-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/OVERVIEW.md",
+        ".wiretail/execution/v9/OPERATIONS.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_INTEGRATION.json",
+        ".wiretail/execution/evidence/V9_FOUNDATION.json",
+        ".wiretail/execution/evidence/V9_COLD_PROOF.json",
+        ".wiretail/execution/evidence/V9_SMALL.json",
+        ".wiretail/execution/evidence/V9_32K.json",
+        ".wiretail/execution/evidence/V9_128K_PILOT.json",
+        ".wiretail/execution/evidence/V9_128K.json"
+      ],
+      "depends_on": [
+        "37-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "38-01",
+      "phase": "38",
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v9/validate_plan.py",
+        "--review",
+        ".wiretail/execution/evidence/V9_REVIEW.json"
+      ],
+      "cluster": "38a-review-v9",
+      "title": "Assess current benchmarks and schedule actual next remediation if needed",
+      "packet": ".wiretail/execution/tasks/38-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260913",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_SUMMARY.json",
+        ".wiretail/execution/evidence/V9_SUMMARY.md"
+      ],
+      "depends_on": [
+        "37-04"
+      ],
+      "commit": null
     }
   ],
   "last_checkpoint_commit": "e154151d62e583563343a15128392b69030dcf48",

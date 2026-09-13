@@ -1,5 +1,8 @@
 # Speed-first implementation amendment — phases 25–27
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 > Historical phase25 reference. For unfinished tasks26-01 onward, use
 > PHASE26_INTERACTIVE_KV_STRATEGY.md and BENCHMARK_PROTOCOL_V7.md. They replace
 > this document's256K-first/six-coordinate campaign and ambiguous B notation.

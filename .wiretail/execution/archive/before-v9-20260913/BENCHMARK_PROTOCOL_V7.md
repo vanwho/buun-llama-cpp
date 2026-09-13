@@ -1,5 +1,8 @@
 # V7 — fast incremental hot/cold KV measurements
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 Historical: V8 replaces this for unfinished work from27-02.
 Read BENCHMARK_PROTOCOL_V8.md and GPU_HOT_PATH_REDESIGN_V8.md.
 

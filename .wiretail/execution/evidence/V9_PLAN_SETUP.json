@@ -1,0 +1,53 @@
+{
+  "schema": "hotpath-v9-plan-setup",
+  "utc": "2026-09-13T13:52:15+00:00",
+  "kind": "plan_and_runner_validation_not_runtime_acceptance",
+  "revision": "hotpath-v9-20260913",
+  "integration_code_before_plan": "4af26bd68f0875db852fe6973f30b98be7f0f158",
+  "pinned_upstream": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
+  "project_branch": "plan/attention-aware-kv-paging",
+  "task_count": 206,
+  "historical_done_preserved": 183,
+  "new_tasks": 23,
+  "new_clusters": 15,
+  "next_task": "33-01",
+  "new_task_model": "Luna Medium",
+  "first_retry_reasoning": "high",
+  "runner_defaults_changed": false,
+  "archived_document_count": 15,
+  "archive": ".wiretail/execution/archive/before-v9-20260913",
+  "archive_content_preserved": true,
+  "historical_task_phase_project_usage_preserved": true,
+  "context": "explicit current context_files on task and assessment prompts; fresh V9 clusters; bounded status/resume output; old plans not active instructions",
+  "runner_files": {
+    "/srv/wiretail/wiretail.sh": "b2c6f58989176ca71ede1ea1effb5c9179e8246c1b836fa6b2f6f225b3e52fc3",
+    "/srv/wiretail/task_state.py": "4422cbc2fc0c62d07256998241922c6149884657f91e6f6b1260b414a5d0de02",
+    "/srv/wiretail/test_project_execution_options.py": "643468452f0c5be33a776fc043f5e1db5f32975928727e05421d2736e4e45040"
+  },
+  "runner_features": [
+    "optional per-task retry1_reasoning without later-attempt leakage",
+    "bounded context_files in task and assessment prompts",
+    "declared pinned upstream merge owned by outer auto Git workflow",
+    "resume only matching pending merge; no conflict-marker checkpoint",
+    "two-parent upstream merge excludes execution metadata",
+    "optional completion_check; failures enter bounded retry with artifact path",
+    "review scheduling permitted when explicitly required by packet"
+  ],
+  "checks": {
+    "shared_runner_isolated_unittests": "5 passed; no provider calls",
+    "task_state_tests": "passed",
+    "bash_syntax": "passed",
+    "python_compile": "passed",
+    "state_validation": "206 tasks valid",
+    "current_plan_context_validation": "23 tasks valid",
+    "git_diff_check": "passed",
+    "passwordless_sudo_exact_service_query": "passed"
+  },
+  "not_performed": [
+    "actual project upstream merge (scheduled33-02)",
+    "new model benchmark",
+    "service replacement",
+    "implementation of future C++/CUDA tasks",
+    "upstream issue or PR publication"
+  ]
+}

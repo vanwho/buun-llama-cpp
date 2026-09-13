@@ -1,5 +1,8 @@
 # Narrow interfaces and checkpoint contracts
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 Read only the I-sections listed in your packet. They settle implementation
 choices left open by the strategy; they are proposed internal interfaces,
 not claims that code is present. Reuse equivalent existing members after

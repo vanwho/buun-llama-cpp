@@ -1,5 +1,8 @@
 # Execution cookbook for the post-17 packets
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 This supplies command/fixture/evidence detail; it does not add new runtime
 requirements or a second task runner. Read only the sections named by your
 packet, once per cluster. The current task agent owns its experiments; never

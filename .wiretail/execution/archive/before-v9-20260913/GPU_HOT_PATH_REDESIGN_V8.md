@@ -1,5 +1,8 @@
 # V8: efficient GPU attention with a host-backed Turbo4 cache
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 Authority: this design and BENCHMARK_PROTOCOL_V8.md supersede V7 and older
 instructions for unfinished tasks from 27-02. Source audit: 2026-09-12,
 9173600e2b50fd0257b57186bbd6af3eef75023d. Line numbers are navigation hints;

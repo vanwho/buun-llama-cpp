@@ -1,5 +1,8 @@
 # Interactive hot-KV speed revision — phases 26–28
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 Historical: unfinished work from27-02 now follows GPU_HOT_PATH_REDESIGN_V8.md
 and BENCHMARK_PROTOCOL_V8.md. Their kernel/selection/graph/movement details
 supersede earlier dispatch and maximum-campaign directions.

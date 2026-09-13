@@ -1,5 +1,8 @@
 # Benchmark protocol V5: meaningful runs, not repeated setup failures
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 Historical reference for phases before the2026-09-11 speed revision. For active
 tasks25-02 onward, PHASE25_SPEED_FIRST_STRATEGY.md and BENCHMARK_PROTOCOL_V6.md
 supersede conflicts. Do not resume old long-run/quality/soak gates or use old

@@ -1,5 +1,8 @@
 # V8: short experiments that decide implementation work
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 Read GPU_HOT_PATH_REDESIGN_V8.md sections1–4/10 and the current task.
 This replaces V7's active scaling instructions. Keep its precise token-count,
 canonical-question, privacy and service identity contracts where consistent.

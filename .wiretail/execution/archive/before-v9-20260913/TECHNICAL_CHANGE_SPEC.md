@@ -1,5 +1,8 @@
 # Technical change specification for post-17 implementation
 
+> SUPERSEDED: historical record only. Do not load as task instructions.
+> Current execution starts at .wiretail/execution/v9/OVERVIEW.md.
+
 Read only the sections linked by your task. These are concrete implementation
 directions for the inspected tree, not claims that the changes already exist.
 Use the existing types and source files; names for new internal fields below

@@ -973,3 +973,8 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-31-02`
 - Commit at update: `93f0d3c8b`
 - Summary: Completed authenticated asynchronous cold promotion/use; local contracts, CUDA tests, L8192 checkpoint, natural hot-2 scale/recall, and service restoration passed.
+
+## 2026-09-13T13:52:15+00:00 — V9 plan revision — ready at 33-01
+
+- Branch: `plan/attention-aware-kv-paging`
+- Summary: Scheduled 23 code-directed tasks in phases33–38/15 fresh clusters: pinned upstream merge, stable mature Turbo4 packed attention, real current-Q cold selection and async promotion, small speed tuning/controls, bounded scale findings and a repeating evidence review. All new tasks Luna Medium with first retry High. Archived 15 superseded plans/contracts without losing original contents; explicit context lists exclude old plans/diaries. Preserved all183 historical tasks and token accounting. Shared runner opt-in context/retry/merge/completion-check support validated; defaults unchanged. No model benchmark or service change performed. Setup receipt: `evidence/V9_PLAN_SETUP.json`.
