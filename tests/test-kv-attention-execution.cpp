@@ -278,34 +278,74 @@ static void test_packed_cache_identity_and_versions() {
     ggml_tensor * source_v = ggml_new_tensor_4d(context, GGML_TYPE_TURBO4_0, 256, 4, 2048, 1);
     assert(source_k != nullptr && source_v != nullptr);
 
-    auto * first = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v, backend);
+    constexpr uint32_t row_capacity = 1024;
+    auto * first = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v,
+            backend, row_capacity);
     assert(first != nullptr);
+    assert(first->k->ne[2] == row_capacity && first->v->ne[2] == row_capacity);
     assert(cache.content_version(first, 0) == UINT64_MAX);
     cache.set_content_version(first, 0, 91);
     assert(cache.content_version(first, 0) == 91);
 
-    auto * reused = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v, backend);
+    auto * reused = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v,
+            backend, row_capacity);
     assert(reused == first && cache.content_version(reused, 0) == 91);
 
     auto * representation_refresh = cache.find_or_create(
-            3, 0, 12, 17, view.pages(), source_k, source_v, backend);
+            3, 0, 12, 17, view.pages(), source_k, source_v, backend, row_capacity);
     assert(representation_refresh == first);
 
     auto reordered = llama_kv_attention_view::build(snap, { 0, 2 }, view_status);
     assert(view_status == llama_kv_attention_view_status::ok);
     auto * reordered_entry = cache.find_or_create(
-            3, 0, 11, 17, reordered.pages(), source_k, source_v, backend);
+            3, 0, 11, 17, reordered.pages(), source_k, source_v, backend, row_capacity);
     assert(reordered_entry == first);
+    assert(reordered_entry->k == first->k && reordered_entry->v == first->v);
+
+    const auto tail_snapshot = snapshot(600);
+    auto tail = llama_kv_attention_view::build(tail_snapshot, { 2, 0 }, view_status);
+    assert(view_status == llama_kv_attention_view_status::ok);
+    auto * tail_entry = cache.find_or_create(
+            3, 0, 99, 17, tail.pages(), source_k, source_v, backend, row_capacity);
+    assert(tail_entry == first && tail_entry->k->ne[2] == row_capacity);
+
+    auto changed_pages = tail.pages();
+    changed_pages[0].page_generation++;
+    auto * generation_refresh = cache.find_or_create(
+            3, 0, 100, 17, changed_pages, source_k, source_v, backend, row_capacity);
+    assert(generation_refresh == first);
+    assert(cache.content_version(generation_refresh, 0) == UINT64_MAX);
+
+    // The old owner remains live while its simulated graph consumer is in
+    // flight. A structural replacement is allowed, but switching to a third
+    // owner in the same domain is refused until that consumer completes.
+    assert(cache.submit_graph({ first }));
 
     auto * new_lifetime = cache.find_or_create(
-            3, 0, 11, 18, view.pages(), source_k, source_v, backend);
+            3, 0, 11, 18, view.pages(), source_k, source_v, backend, row_capacity);
     assert(new_lifetime != nullptr && new_lifetime != first);
     assert(cache.content_version(new_lifetime, 0) == UINT64_MAX);
+    assert(cache.size() == 2);
 
     cache.begin_graph_build();
-    assert(cache.find_or_create(3, 0, 13, 17, view.pages(), source_k, source_v, backend) == first);
+    cache.release_completed();
+    assert(cache.size() == 2);
+    assert(cache.find_or_create(3, 0, 13, 17, view.pages(), source_k, source_v,
+            backend, row_capacity) == nullptr);
+    cache.complete_one_graph();
     cache.release_completed();
     assert(cache.size() == 1);
+
+    // A capacity change is structural, while a representation epoch change
+    // above was deliberately not. Clearing the sequence retires the active
+    // owner once no consumer remains.
+    auto * larger = cache.find_or_create(
+            3, 0, 14, 18, view.pages(), source_k, source_v, backend, 1536);
+    assert(larger != nullptr && larger != new_lifetime);
+    assert(larger->k->ne[2] == 1536);
+    assert(cache.size() == 2);
+    cache.clear_sequence(0);
+    assert(cache.size() == 0);
 
     ggml_free(context);
     ggml_backend_free(backend);

@@ -58,7 +58,32 @@ constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
 // completed, so graph rebuilds do not create an unbounded duplicate cache.
 class llama_kv_attention_packed_cache {
 public:
+    struct slot {
+        uint32_t logical_page = UINT32_MAX;
+        uint32_t source_physical_slot = UINT32_MAX;
+        uint32_t page_generation = 0;
+        llama_pos native_position_begin = -1;
+        llama_pos native_position_end = -1;
+        uint32_t valid_rows = 0;
+        uint32_t destination_row_begin = 0;
+        uint64_t copied_content_version = UINT64_MAX;
+    };
+
+    struct dirty_interval {
+        uint32_t row_begin = 0;
+        uint32_t row_end = 0;
+    };
+
     struct entry {
+        ~entry() {
+            if (buffer != nullptr) {
+                ggml_backend_buffer_free(buffer);
+            }
+            if (context != nullptr) {
+                ggml_free(context);
+            }
+        }
+
         ggml_context * context = nullptr;
         ggml_backend_buffer_t buffer = nullptr;
         ggml_tensor * k = nullptr;
@@ -70,13 +95,26 @@ public:
         // the source tensor identity determine whether packed bytes need a
         // refresh; an in-place representation change must not duplicate them.
         uint64_t source_lifetime_epoch = 0;
+        uint64_t owner_generation = 0;
+        uint32_t row_capacity = 0;
         ggml_backend_t backend = nullptr;
+        ggml_backend_dev_t device = nullptr;
+        ggml_type source_k_type = GGML_TYPE_COUNT;
+        ggml_type source_v_type = GGML_TYPE_COUNT;
+        int64_t source_k_ne0 = 0;
+        int64_t source_k_ne1 = 0;
+        int64_t source_v_ne0 = 0;
+        int64_t source_v_ne1 = 0;
         ggml_tensor * source_k = nullptr;
         ggml_tensor * source_v = nullptr;
         ggml_backend_buffer_t source_k_buffer = nullptr;
         ggml_backend_buffer_t source_v_buffer = nullptr;
         bool current_graph_use = false;
+        bool draining = false;
+        uint64_t in_flight_leases = 0;
         std::vector<llama_kv_attention_view_page> pages;
+        std::vector<slot> slots;
+        std::vector<dirty_interval> dirty_intervals;
         std::vector<uint64_t> content_versions;
     };
 
@@ -90,11 +128,20 @@ public:
             const std::vector<llama_kv_attention_view_page> & pages,
             ggml_tensor * source_k,
             ggml_tensor * source_v,
-            ggml_backend_t backend) noexcept;
+            ggml_backend_t backend,
+            uint32_t row_capacity = 0) noexcept;
 
     void begin_graph_build() noexcept;
+    // A graph input calls this once after all packed owners have been bound.
+    // The lease is released only at the scheduler completion boundary.
+    bool submit_graph(const std::vector<entry *> & owners) noexcept;
+    void complete_one_graph() noexcept;
+    void complete_all_graphs() noexcept;
     void release_completed() noexcept;
+    void clear_sequence(int32_t sequence_id) noexcept;
+    void clear() noexcept;
     size_t size() const noexcept { return entries_.size(); }
+    size_t allocation_count() const noexcept { return entries_.size(); }
 
     uint64_t content_version(
             const entry * cached,
@@ -105,8 +152,27 @@ public:
             uint64_t version) noexcept;
 
 private:
+    static bool same_structural_key(
+            const entry & cached,
+            uint32_t layer_id,
+            int32_t sequence_id,
+            uint64_t source_lifetime_epoch,
+            uint32_t row_capacity,
+            ggml_tensor * source_k,
+            ggml_tensor * source_v,
+            ggml_backend_t backend) noexcept;
+    static bool same_domain(
+            const entry & cached,
+            uint32_t layer_id,
+            int32_t sequence_id,
+            ggml_backend_t backend) noexcept;
+    static void update_slots(
+            entry & cached,
+            const std::vector<llama_kv_attention_view_page> & pages);
     static void release_entry(entry * cached) noexcept;
     std::vector<std::unique_ptr<entry>> entries_;
+    std::vector<std::vector<entry *>> graph_leases_;
+    uint64_t next_owner_generation_ = 1;
 };
 
 const char * llama_kv_attention_execution_mode_name(

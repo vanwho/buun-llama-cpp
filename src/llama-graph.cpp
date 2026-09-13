@@ -949,6 +949,14 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 kv_attention_metrics->pack_reuses = kv_attention_metrics->pack_reuses == UINT64_MAX
                     ? UINT64_MAX : kv_attention_metrics->pack_reuses + 1;
             }
+            std::vector<llama_kv_attention_packed_cache::entry *> owners;
+            owners.reserve(packed_layers.size());
+            for (const auto & layer : packed_layers) {
+                owners.push_back(layer.cache_entry);
+            }
+            if (packed_cache == nullptr || !packed_cache->submit_graph(owners)) {
+                throw std::runtime_error("packed selected attention graph lease failed");
+            }
         } else {
             GGML_ASSERT(self_selected_idxs != nullptr);
             GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
@@ -1186,8 +1194,10 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         res &= !packed_layers.empty();
         for (const auto & layer : packed_layers) {
             res &= layer.k != nullptr && layer.v != nullptr;
-            res &= layer.k->ne[2] == params.kv_attention_metadata.get_n_kv();
-            res &= layer.v->ne[2] == params.kv_attention_metadata.get_n_kv();
+            res &= layer.row_capacity != 0;
+            res &= layer.k->ne[2] == int64_t(layer.row_capacity);
+            res &= layer.v->ne[2] == int64_t(layer.row_capacity);
+            res &= layer.row_capacity >= params.kv_attention_metadata.get_n_kv();
         }
     }
     if (direct) {
@@ -1271,8 +1281,10 @@ bool llm_graph_input_attn_kv::refresh_selected_data(
     if (packed_attention) {
         for (const auto & layer : packed_layers) {
             if (layer.k == nullptr || layer.v == nullptr ||
-                    layer.k->ne[2] != int64_t(metadata.get_n_kv()) ||
-                    layer.v->ne[2] != int64_t(metadata.get_n_kv())) {
+                    layer.row_capacity == 0 ||
+                    layer.k->ne[2] != int64_t(layer.row_capacity) ||
+                    layer.v->ne[2] != int64_t(layer.row_capacity) ||
+                    layer.row_capacity < metadata.get_n_kv()) {
                 return false;
             }
         }
@@ -3886,6 +3898,10 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             if (pager == nullptr) {
                 throw std::runtime_error("packed selected attention has no pager");
             }
+            const uint64_t packed_row_capacity = pager->snapshot().physical_rows;
+            if (packed_row_capacity == 0 || packed_row_capacity > UINT32_MAX) {
+                throw std::runtime_error("packed selected attention row capacity overflows");
+            }
             const auto storage_device = pager->residency_storage_tensor() != nullptr
                 ? ggml_backend_buft_get_device(ggml_backend_buffer_get_type(
                     pager->residency_storage_tensor()->buffer)) : nullptr;
@@ -3908,12 +3924,13 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                         source_k->type != GGML_TYPE_TURBO4_0 ||
                         source_v->type != GGML_TYPE_TURBO4_0 ||
                         source_k->ne[3] != 1 || source_v->ne[3] != 1 ||
-                        source_k->ne[2] < int64_t(selected_metadata->get_n_kv()) ||
-                        source_v->ne[2] < int64_t(selected_metadata->get_n_kv())) {
+                        source_k->ne[2] < int64_t(packed_row_capacity) ||
+                        source_v->ne[2] < int64_t(packed_row_capacity)) {
                     throw std::runtime_error("packed selected attention has invalid cache views");
                 }
                 llm_graph_input_attn_kv::packed_layer layer;
                 layer.layer_id = layer_id;
+                layer.row_capacity = uint32_t(packed_row_capacity);
                 // The source tensor identity is stable across in-place VBR
                 // representation changes. Those changes update page
                 // generations; they must not allocate another compact copy.
@@ -3928,7 +3945,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                     ubatch.seq_id[0] != nullptr ? ubatch.seq_id[0][0] : -1;
                 layer.cache_entry = packed_cache->find_or_create(layer_id, sequence_id,
                         mctx_cur->get_vbr_epoch(), layer.source_lifetime_epoch,
-                        selected_metadata->page_table(), source_k, source_v, packed_backend);
+                        selected_metadata->page_table(), source_k, source_v, packed_backend,
+                        layer.row_capacity);
                 if (layer.cache_entry == nullptr) {
                     throw std::runtime_error("packed selected attention allocation failed");
                 }
@@ -4563,6 +4581,15 @@ ggml_tensor * llm_graph_context::build_attn(
         }
         k = layer_it->k;
         v = layer_it->v;
+        // The owner is padded to the pager's A capacity, but this graph
+        // instance exposes only the selected rows to the ordinary attention
+        // operator and its selected mask.
+        k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1],
+                inp->selected_metadata.get_n_kv(), 1,
+                k->nb[1], k->nb[2], k->nb[3], 0);
+        v = ggml_view_4d(ctx0, v, v->ne[0], v->ne[1],
+                inp->selected_metadata.get_n_kv(), 1,
+                v->nb[1], v->nb[2], v->nb[3], 0);
         v_for_unrotate = v;
     }
 

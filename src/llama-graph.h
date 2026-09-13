@@ -486,6 +486,7 @@ public:
         ggml_tensor * k = nullptr;
         ggml_tensor * v = nullptr;
         llama_kv_attention_packed_cache::entry * cache_entry = nullptr;
+        uint32_t row_capacity = 0;
         // Borrowed source tensors remain owned by the pager/cache context;
         // these identities document the lifetime and physical slab against
         // which the compact duplicate was captured.
