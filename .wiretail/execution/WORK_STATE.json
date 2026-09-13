@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "29",
-  "current_task": "29-01",
-  "last_updated_utc": "2026-09-13T01:55:05+00:00",
+  "current_task": "29-02",
+  "last_updated_utc": "2026-09-13T02:24:17+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5856,14 +5856,39 @@
       "cluster": "29a-small-speed-v8",
       "title": "Measure actual primary and 32K hot/cold speed with the canonical questions",
       "packet": ".wiretail/execution/tasks/29-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "28-07"
       ],
-      "commit": null,
-      "scope_revision": "gpu-hot-path-v8-20260912"
+      "commit": "8800bcd4eddaeb4f2f77020719530133b231609b",
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/29-01-attempt-1-20260913T015522Z.jsonl:206",
+            "total_tokens": 17694434,
+            "total_tokens_derived": true,
+            "input_tokens": 17637109,
+            "cached_input_tokens": 17349888,
+            "output_tokens": 57325,
+            "thinking_tokens": 23182
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 17694434,
+          "input_tokens": 17637109,
+          "cached_input_tokens": 17349888,
+          "output_tokens": 57325,
+          "thinking_tokens": 23182
+        }
+      }
     },
     {
       "id": "29-02",
@@ -7598,14 +7623,28 @@
       }
     },
     "29": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/29-01-attempt-1-20260913T015522Z.jsonl:206",
+          "total_tokens": 17694434,
+          "total_tokens_derived": true,
+          "input_tokens": 17637109,
+          "cached_input_tokens": 17349888,
+          "output_tokens": 57325,
+          "thinking_tokens": 23182
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 17694434,
+        "input_tokens": 17637109,
+        "cached_input_tokens": 17349888,
+        "output_tokens": 57325,
+        "thinking_tokens": 23182
       }
     },
     "30": {
@@ -7622,12 +7661,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 104,
-      "total_tokens": 2325201469,
-      "input_tokens": 2319983544,
-      "cached_input_tokens": 2277262080,
-      "output_tokens": 5217925,
-      "thinking_tokens": 1875416
+      "turns": 105,
+      "total_tokens": 2342895903,
+      "input_tokens": 2337620653,
+      "cached_input_tokens": 2294611968,
+      "output_tokens": 5275250,
+      "thinking_tokens": 1898598
     },
     "source": "Codex turn.completed usage events"
   }
