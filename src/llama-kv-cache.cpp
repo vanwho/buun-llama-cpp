@@ -4754,6 +4754,57 @@ void llama_kv_cache::record_slot_failure(const llama_ubatch & ubatch) noexcept {
     }
 }
 
+bool llama_kv_cache::pager_write_row(
+        const llama_ubatch & ubatch, size_t token_index, size_t ticket_index,
+        uint32_t attention_layer, uint32_t & row) const noexcept {
+    row = UINT32_MAX;
+    if (pager_plan_ == nullptr || pager_ == nullptr || ubatch.seq_id == nullptr ||
+        ubatch.n_seq_id == nullptr || ticket_index >= pager_pending_writes_.size() ||
+        token_index >= ubatch.n_tokens || ubatch.n_seq_id[token_index] != 1 ||
+        ubatch.seq_id[token_index] == nullptr) {
+        return false;
+    }
+
+    const auto & ticket = pager_pending_writes_[ticket_index];
+    if (ticket.sequence_id != ubatch.seq_id[token_index][0] ||
+        ticket.position != ubatch.pos[token_index]) {
+        return false;
+    }
+    return pager_->physical_row(ticket, attention_layer, row);
+}
+
+bool llama_kv_cache::validate_pager_write_batch(
+        const llama_ubatch & ubatch, const slot_info & sinfo,
+        size_t first_ticket) const noexcept {
+    if (pager_plan_ == nullptr) {
+        return true;
+    }
+    if (pager_ == nullptr || sinfo.n_stream() != 1 ||
+        sinfo.size() != ubatch.n_tokens ||
+        first_ticket > pager_pending_writes_.size() ||
+        ubatch.n_tokens > pager_pending_writes_.size() - first_ticket) {
+        return false;
+    }
+
+    for (uint32_t i = 0; i < ubatch.n_tokens; ++i) {
+        const size_t ticket_index = first_ticket + i;
+        uint32_t row = UINT32_MAX;
+        if (!pager_write_row(ubatch, i, ticket_index, UINT32_MAX, row)) {
+            return false;
+        }
+        for (const auto & layer : layers) {
+            if ((layer.k != nullptr || layer.v != nullptr) &&
+                !pager_->physical_row(pager_pending_writes_[ticket_index], layer.il, row)) {
+                return false;
+            }
+            if (row >= get_layer_physical_rows(layer.il)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 llama_kv_cache::slot_info llama_kv_cache::find_slot(const llama_ubatch & ubatch, bool cont) const {
 
     if (debug > 0) {
@@ -5013,6 +5064,10 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
                     }
                     pager_pending_writes_.push_back(ticket);
                 }
+            }
+            if (!validate_pager_write_batch(ubatch, sinfo, old_size)) {
+                last_failure_reason_ = llama_memory_failure_reason::invalid_frontier;
+                throw std::runtime_error("KV pager write destination validation failed");
             }
         } catch (...) {
             while (pager_pending_writes_.size() > old_size) {
@@ -13669,6 +13724,8 @@ void llama_kv_cache::set_input_k_idxs(
 
     GGML_ASSERT(ggml_backend_buffer_is_host(dst->buffer));
     int64_t * data = (int64_t *) dst->data;
+    const size_t pager_ticket_base = pager_pending_writes_.size() >= n_tokens
+        ? pager_pending_writes_.size() - n_tokens : pager_pending_writes_.size();
 
     for (uint32_t s = 0; s < sinfo.n_stream(); ++s) {
         const int64_t offs = sinfo.strm[s] *
@@ -13676,9 +13733,16 @@ void llama_kv_cache::set_input_k_idxs(
 
         for (uint32_t i = 0; i < sinfo.size(); ++i) {
             uint32_t pager_row = UINT32_MAX;
-            const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
-                pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], attention_layer, pager_row);
-            data[s*sinfo.size() + i] = compact ? pager_row : offs + sinfo.idxs[s][i];
+            if (pager_plan_ != nullptr) {
+                if (!pager_write_row(*ubatch, i, pager_ticket_base + i,
+                        attention_layer, pager_row)) {
+                    last_failure_reason_ = llama_memory_failure_reason::invalid_frontier;
+                    throw std::runtime_error("KV pager K write destination is not ready");
+                }
+                data[s*sinfo.size() + i] = pager_row;
+            } else {
+                data[s*sinfo.size() + i] = offs + sinfo.idxs[s][i];
+            }
         }
     }
 }
@@ -13696,6 +13760,8 @@ void llama_kv_cache::set_input_v_idxs(
 
     GGML_ASSERT(ggml_backend_buffer_is_host(dst->buffer));
     int64_t * data = (int64_t *) dst->data;
+    const size_t pager_ticket_base = pager_pending_writes_.size() >= n_tokens
+        ? pager_pending_writes_.size() - n_tokens : pager_pending_writes_.size();
 
     if (!v_trans) {
         for (uint32_t s = 0; s < sinfo.n_stream(); ++s) {
@@ -13704,9 +13770,16 @@ void llama_kv_cache::set_input_v_idxs(
 
             for (uint32_t i = 0; i < sinfo.size(); ++i) {
                 uint32_t pager_row = UINT32_MAX;
-                const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
-                    pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], attention_layer, pager_row);
-                data[s*sinfo.size() + i] = compact ? pager_row : offs + sinfo.idxs[s][i];
+                if (pager_plan_ != nullptr) {
+                    if (!pager_write_row(*ubatch, i, pager_ticket_base + i,
+                            attention_layer, pager_row)) {
+                        last_failure_reason_ = llama_memory_failure_reason::invalid_frontier;
+                        throw std::runtime_error("KV pager V write destination is not ready");
+                    }
+                    data[s*sinfo.size() + i] = pager_row;
+                } else {
+                    data[s*sinfo.size() + i] = offs + sinfo.idxs[s][i];
+                }
             }
         }
     } else {
@@ -13720,9 +13793,15 @@ void llama_kv_cache::set_input_v_idxs(
 
             for (uint32_t i = 0; i < sinfo.size(); ++i) {
                 uint32_t pager_row = UINT32_MAX;
-                const bool compact = pager_ != nullptr && pager_->snapshot().physical_page_count != 0 && sinfo.n_stream() == 1 &&
-                    pager_->physical_row(ubatch->seq_id[i][0], ubatch->pos[i], attention_layer, pager_row);
-                const int64_t row = compact ? pager_row : sinfo.idxs[s][i];
+                int64_t row = sinfo.idxs[s][i];
+                if (pager_plan_ != nullptr) {
+                    if (!pager_write_row(*ubatch, i, pager_ticket_base + i,
+                            attention_layer, pager_row)) {
+                        last_failure_reason_ = llama_memory_failure_reason::invalid_frontier;
+                        throw std::runtime_error("KV pager V write destination is not ready");
+                    }
+                    row = pager_row;
+                }
                 for (uint32_t j = 0; j < n_embd_v_gqa; ++j) {
                     data[s*sinfo.size()*n_embd_v_gqa + i*n_embd_v_gqa + j] = offs + j*kv_size + row;
                 }

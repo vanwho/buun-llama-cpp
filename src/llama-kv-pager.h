@@ -394,8 +394,13 @@ public:
     bool physical_row(
         int32_t sequence_id, llama_pos position, uint32_t & row) const noexcept;
     bool physical_row(
-        int32_t sequence_id, llama_pos position, uint32_t attention_layer,
-        uint32_t & row) const noexcept;
+            int32_t sequence_id, llama_pos position, uint32_t attention_layer,
+            uint32_t & row) const noexcept;
+    // Validate a row reserved for a graph write. Unlike the logical lookup,
+    // this also authenticates the page generation and published destination.
+    bool physical_row(
+            const llama_kv_pager_write_ticket & ticket, uint32_t attention_layer,
+            uint32_t & row) const noexcept;
 
     // Apply a metadata mutation as one table publication. Payload movement is deliberately
     // deferred to the residency transfer owner; this method never publishes a half mutation.

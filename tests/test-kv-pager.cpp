@@ -920,7 +920,43 @@ int main() {
     assert(sparse_pager->physical_row(0, 3, 4, sparse_row) && sparse_row == 3);
     assert(sparse_pager->physical_row(0, 3, 9, sparse_row) && sparse_row == 3);
     assert(!sparse_pager->physical_row(0, 3, 1, sparse_row));
+
+    // A graph write must use the authenticated reservation, not only a
+    // matching logical lookup. Exercise the K and V callers independently.
+    uint32_t k_row = UINT32_MAX;
+    uint32_t v_row = UINT32_MAX;
+    assert(sparse_pager->physical_row(sparse_ticket, 4, k_row) && k_row == 3);
+    assert(sparse_pager->physical_row(sparse_ticket, 9, v_row) && v_row == 3);
+    auto stale_page = sparse_ticket;
+    stale_page.page_generation++;
+    assert(!sparse_pager->physical_row(stale_page, 9, v_row));
+    auto stale_sequence = sparse_ticket;
+    stale_sequence.sequence_generation++;
+    assert(!sparse_pager->physical_row(stale_sequence, 9, v_row));
+    auto overflow_ticket = sparse_ticket;
+    overflow_ticket.physical_slot = sparse_pager->snapshot().physical_page_count;
+    assert(!sparse_pager->physical_row(overflow_ticket, 9, v_row));
+    auto unpublished = sparse_ticket;
+    unpublished.logical_page = 99;
+    assert(!sparse_pager->physical_row(unpublished, 9, v_row));
     assert(sparse_pager->cancel_write(sparse_ticket) == llama_kv_pager_write_status::ok);
+
+    // The final valid row of a partial page is addressable, while its padding
+    // remains refused and cannot become a write destination.
+    auto tail_geometry = geometry(513);
+    tail_geometry.model_layer_ids = { 4, 9 };
+    tail_geometry.attention_layers = 2;
+    auto tail_pager = llama_kv_pager::create(
+            config, tail_geometry, resources(1024, 128), write_backend, status);
+    assert(tail_pager && status == llama_kv_pager_status::ok);
+    llama_kv_pager_write_ticket tail_ticket;
+    assert(tail_pager->begin_write(0, 1, 512, 4, tail_ticket) ==
+            llama_kv_pager_write_status::ok);
+    assert(tail_pager->physical_row(tail_ticket, 4, v_row) &&
+            v_row == tail_ticket.physical_row && v_row % 256 == 0);
+    assert(tail_pager->complete_write(tail_ticket, 1, true) ==
+            llama_kv_pager_write_status::ok);
+    assert(!tail_pager->physical_row(0, 513, v_row));
 
     // A whole prefill batch reserves its write frontier before graph
     // submission. Crossing the physical H=4-page window must roll back every
