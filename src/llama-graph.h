@@ -508,6 +508,10 @@ public:
     ggml_tensor * direct_query_positions = nullptr;
     ggml_tensor * direct_staging_storage = nullptr;
     ggml_tensor * direct_page_mass = nullptr;
+    // Direct metadata uploads must use the CUDA backend stream that will
+    // consume the graph. The synchronous buffer setter uses
+    // cudaStreamPerThread, which is not ordered with the scheduler stream.
+    ggml_backend_t direct_backend = nullptr;
     // Flat graph-owned F32 storage for split-KV partition states and optional
     // per-page states.  CUDA selects a runtime partition count no larger than
     // direct_split_kv_partition_capacity.

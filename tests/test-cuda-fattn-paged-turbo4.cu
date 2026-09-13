@@ -4,6 +4,7 @@
 
 #include "ggml-cuda.h"
 
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -256,6 +257,186 @@ static float time_dense_fa(
     return elapsed_ms / 20.0f;
 }
 
+static void run_split_tail_growth_regression(ggml_backend_t backend) {
+    constexpr uint32_t n_head_q = 24;
+    constexpr uint32_t n_head_kv = 4;
+    constexpr uint32_t n_query_tokens = 64;
+    constexpr uint32_t page_capacity = 128;
+    constexpr uint32_t physical_pages = 64;
+    constexpr uint32_t row_capacity = page_capacity * 256;
+    constexpr uint32_t partition_capacity = 16;
+    constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
+    constexpr size_t page_stride = 256 * row_bytes;
+
+    std::vector<ggml_cuda_fattn_turbo4_page> pages(page_capacity, {
+        UINT32_MAX, UINT32_MAX, 0, 0, -1 });
+    std::vector<uint8_t> k_host(size_t(n_head_kv) * physical_pages * page_stride, 0);
+    std::vector<uint8_t> v_host(k_host.size(), 0);
+    for (uint32_t head = 0; head < n_head_kv; ++head) {
+        for (uint32_t slot = 0; slot < physical_pages; ++slot) {
+            fill_turbo4_page(k_host, (size_t(head) * physical_pages + slot) * page_stride, 8);
+            fill_turbo4_page(v_host, (size_t(head) * physical_pages + slot) * page_stride, 9);
+        }
+    }
+    std::vector<float> q_host(size_t(n_query_tokens) * n_head_q * 256, 0.0f);
+    std::vector<int64_t> query_positions(n_query_tokens, 1400);
+    std::vector<float> split_scratch(
+        size_t(partition_capacity) * n_query_tokens * n_head_q * (2 + 256) +
+        size_t(partition_capacity) * n_query_tokens * n_head_q * page_capacity * 2, 0.0f);
+
+    float * q_device = nullptr;
+    char * k_device = nullptr;
+    char * v_device = nullptr;
+    float * output_device = nullptr;
+    float * page_mass_device = nullptr;
+    ggml_cuda_fattn_turbo4_page * pages_device = nullptr;
+    int64_t * query_positions_device = nullptr;
+    float * split_device = nullptr;
+    uint32_t * active_pages_device = nullptr;
+    uint32_t * active_rows_device = nullptr;
+    uint32_t * active_tail_device = nullptr;
+    uint64_t * selection_generation_device = nullptr;
+    cuda_check(cudaMalloc(&q_device, q_host.size() * sizeof(float)), "split q allocation");
+    cuda_check(cudaMalloc(&k_device, k_host.size()), "split k allocation");
+    cuda_check(cudaMalloc(&v_device, v_host.size()), "split v allocation");
+    cuda_check(cudaMalloc(&output_device, q_host.size() * sizeof(float)), "split output allocation");
+    cuda_check(cudaMalloc(&page_mass_device,
+        size_t(page_capacity) * n_head_q * n_query_tokens * sizeof(float)),
+        "split page mass allocation");
+    cuda_check(cudaMalloc(&pages_device, pages.size() * sizeof(pages[0])), "split page allocation");
+    cuda_check(cudaMalloc(&query_positions_device,
+        query_positions.size() * sizeof(query_positions[0])), "split query allocation");
+    cuda_check(cudaMalloc(&split_device, split_scratch.size() * sizeof(float)), "split scratch allocation");
+    cuda_check(cudaMalloc(&active_pages_device, sizeof(uint32_t)), "split active pages allocation");
+    cuda_check(cudaMalloc(&active_rows_device, sizeof(uint32_t)), "split active rows allocation");
+    cuda_check(cudaMalloc(&active_tail_device, sizeof(uint32_t)), "split active tail allocation");
+    cuda_check(cudaMalloc(&selection_generation_device, sizeof(uint64_t)), "split generation allocation");
+    cuda_check(cudaMemcpy(q_device, q_host.data(), q_host.size() * sizeof(float), cudaMemcpyHostToDevice),
+        "split q copy");
+    cuda_check(cudaMemcpy(k_device, k_host.data(), k_host.size(), cudaMemcpyHostToDevice), "split k copy");
+    cuda_check(cudaMemcpy(v_device, v_host.data(), v_host.size(), cudaMemcpyHostToDevice), "split v copy");
+    cuda_check(cudaMemcpy(query_positions_device, query_positions.data(),
+        query_positions.size() * sizeof(query_positions[0]), cudaMemcpyHostToDevice), "split query copy");
+    const uint64_t generation = 1;
+    cuda_check(cudaMemcpy(selection_generation_device, &generation, sizeof(generation), cudaMemcpyHostToDevice),
+        "split generation copy");
+
+    const cudaStream_t stream = static_cast<ggml_backend_cuda_context *>(backend->context)->stream();
+    uint32_t active_pages = 0;
+    uint32_t active_rows = 0;
+    uint32_t active_tail = 0;
+    ggml_cuda_fattn_turbo4_paged_params params;
+    params.q = q_device;
+    params.output = output_device;
+    params.page_mass = page_mass_device;
+    params.page_mass_head_stride_bytes = size_t(page_capacity) * sizeof(float);
+    params.page_mass_query_stride_bytes =
+        params.page_mass_head_stride_bytes * n_head_q;
+    params.page_mass_logical_count = page_capacity;
+    params.reduce_page_mass = true;
+    params.q_head_stride_bytes = 256 * sizeof(float);
+    params.q_query_stride_bytes = n_head_q * params.q_head_stride_bytes;
+    params.output_head_stride_bytes = 256 * sizeof(float);
+    params.output_query_stride_bytes = n_head_q * params.output_head_stride_bytes;
+    params.type_k = GGML_TYPE_TURBO4_0;
+    params.type_v = GGML_TYPE_TURBO4_0;
+    params.head_dim_k = 256;
+    params.head_dim_v = 256;
+    params.k = k_device;
+    params.v = v_device;
+    params.k_row_stride_bytes = row_bytes;
+    params.k_head_stride_bytes = size_t(physical_pages) * page_stride;
+    params.k_page_stride_bytes = page_stride;
+    params.v_row_stride_bytes = row_bytes;
+    params.v_head_stride_bytes = size_t(physical_pages) * page_stride;
+    params.v_page_stride_bytes = page_stride;
+    params.pages_host = pages.data();
+    params.pages_device = pages_device;
+    params.query_positions_device = query_positions_device;
+    params.split_kv_scratch = split_device;
+    const size_t split_state_head_stride = size_t(2 + 256) * sizeof(float);
+    const size_t split_state_query_stride = split_state_head_stride * n_head_q;
+    const size_t split_state_partition_stride = split_state_query_stride * n_query_tokens;
+    params.split_kv_partition_capacity = partition_capacity;
+    params.split_kv_page_count = page_capacity;
+    params.split_kv_partition_stride_bytes = split_state_partition_stride;
+    params.split_kv_page_state = reinterpret_cast<float *>(
+        reinterpret_cast<char *>(split_device) + partition_capacity * split_state_partition_stride);
+    params.split_kv_page_state_head_stride_bytes = size_t(page_capacity) * 2 * sizeof(float);
+    params.split_kv_page_state_query_stride_bytes =
+        params.split_kv_page_state_head_stride_bytes * n_head_q;
+    params.split_kv_page_state_partition_stride_bytes =
+        params.split_kv_page_state_query_stride_bytes * n_query_tokens;
+    params.n_pages = page_capacity;
+    params.n_physical_pages = physical_pages;
+    params.n_rows = row_capacity;
+    params.n_head_q = n_head_q;
+    params.n_head_kv = n_head_kv;
+    params.n_query_tokens = n_query_tokens;
+    params.n_batch = 1;
+    params.scale = 1.0f / std::sqrt(256.0f);
+    params.page_capacity = page_capacity;
+    params.row_capacity = row_capacity;
+    params.active_page_count_host = &active_pages;
+    params.active_row_count_host = &active_rows;
+    params.active_page_count_device = active_pages_device;
+    params.active_row_count_device = active_rows_device;
+    params.active_tail_length_device = active_tail_device;
+    params.selection_generation_device = selection_generation_device;
+    params.explicit_native_metadata = false;
+
+    const auto append = [&](uint32_t page_count, uint32_t rows) {
+        pages.assign(page_capacity, { UINT32_MAX, UINT32_MAX, 0, 0, -1 });
+        uint32_t remaining = rows;
+        for (uint32_t page = 0; page < page_count; ++page) {
+            const uint32_t count = std::min<uint32_t>(remaining, 256);
+            pages[page] = { page, page, page * 256, count, int64_t(page * 256) };
+            remaining -= count;
+        }
+        assert(remaining == 0 && ggml_cuda_fattn_turbo4_page_table_valid(
+            pages.data(), page_count, rows));
+        active_pages = page_count;
+        active_rows = rows;
+        active_tail = pages[page_count - 1].row_count;
+        cuda_check(cudaMemcpyAsync(pages_device, pages.data(), pages.size() * sizeof(pages[0]),
+            cudaMemcpyHostToDevice, stream), "split append page copy");
+        cuda_check(cudaMemcpyAsync(active_pages_device, &active_pages, sizeof(active_pages),
+            cudaMemcpyHostToDevice, stream), "split append active pages copy");
+        cuda_check(cudaMemcpyAsync(active_rows_device, &active_rows, sizeof(active_rows),
+            cudaMemcpyHostToDevice, stream), "split append active rows copy");
+        cuda_check(cudaMemcpyAsync(active_tail_device, &active_tail, sizeof(active_tail),
+            cudaMemcpyHostToDevice, stream), "split append active tail copy");
+        const auto status = ggml_cuda_flash_attn_ext_paged_turbo4(backend, params);
+        if (status != ggml_cuda_fattn_turbo4_paged_status::ok) {
+            std::fprintf(stderr, "split tail append failed: pages=%u rows=%u status=%s\n",
+                page_count, rows, ggml_cuda_fattn_turbo4_paged_status_name(status));
+            std::abort();
+        }
+    };
+    append(5, 1203);
+    append(5, 1267);
+    append(6, 1331);
+    cuda_check(cudaDeviceSynchronize(), "split tail growth and page reuse");
+
+    std::vector<float> output(q_host.size());
+    cuda_check(cudaMemcpy(output.data(), output_device, output.size() * sizeof(float), cudaMemcpyDeviceToHost),
+        "split output readback");
+    for (const float value : output) assert(std::isfinite(value));
+
+    cudaFree(selection_generation_device);
+    cudaFree(active_tail_device);
+    cudaFree(active_rows_device);
+    cudaFree(active_pages_device);
+    cudaFree(split_device);
+    cudaFree(query_positions_device);
+    cudaFree(pages_device);
+    cudaFree(output_device);
+    cudaFree(page_mass_device);
+    cudaFree(v_device);
+    cudaFree(k_device);
+    cudaFree(q_device);
+}
+
 static void time_large_prefill_cases(
         ggml_backend_t backend,
         cudaStream_t stream,
@@ -397,6 +578,8 @@ int main(int argc, char ** argv) {
 
     ggml_backend_t backend = ggml_backend_cuda_init(0);
     assert(backend != nullptr);
+
+    run_split_tail_growth_regression(backend);
 
     // Keep the fixture small enough to coexist with a loaded full-model
     // candidate. The non-trivial GQA ratio also exercises the runtime path.
@@ -713,6 +896,78 @@ int main(int argc, char ** argv) {
             }
         }
     }
+
+    // Two-append lifetime regression.  The first append leaves a partial
+    // logical page in slot 3.  The second append grows the tail while the
+    // descriptor is copied on the same CUDA stream and moves that tail to
+    // slot 5.  A rejected descriptor update is then rolled back, and the
+    // freed slot 3 is reused by the next append.  Keep the launches queued
+    // until the final fence: this is the small CUDA analogue of decode()
+    // entering memory_update() before the previous graph's fence.
+    const std::array<ggml_cuda_fattn_turbo4_page, 4> append_one = {{
+        { 0, 1, 0,   256, 0 },
+        { 1, 3, 256, 64, 256 },
+        { UINT32_MAX, UINT32_MAX, 0, 0, 0 },
+        { UINT32_MAX, UINT32_MAX, 0, 0, 0 },
+    }};
+    const std::array<ggml_cuda_fattn_turbo4_page, 4> append_two = {{
+        { 0, 1, 0,   256, 0 },
+        { 1, 5, 256, 128, 256 },
+        { UINT32_MAX, UINT32_MAX, 0, 0, 0 },
+        { UINT32_MAX, UINT32_MAX, 0, 0, 0 },
+    }};
+    const std::array<ggml_cuda_fattn_turbo4_page, 4> append_bad = {{
+        { 0, 1, 0,   256, 0 },
+        { 1, 1, 256, 192, 256 }, // duplicate physical slot: reject and roll back
+        { UINT32_MAX, UINT32_MAX, 0, 0, 0 },
+        { UINT32_MAX, UINT32_MAX, 0, 0, 0 },
+    }};
+    const std::array<ggml_cuda_fattn_turbo4_page, 4> append_three = {{
+        { 0, 1, 0,   256, 0 },
+        { 1, 3, 256, 192, 256 }, // slot 3 is reused after append_two
+        { UINT32_MAX, UINT32_MAX, 0, 0, 0 },
+        { UINT32_MAX, UINT32_MAX, 0, 0, 0 },
+    }};
+    assert(ggml_cuda_fattn_turbo4_page_table_valid(append_one.data(), 2, 320));
+    assert(ggml_cuda_fattn_turbo4_page_table_valid(append_two.data(), 2, 384));
+    assert(!ggml_cuda_fattn_turbo4_page_table_valid(append_bad.data(), 2, 448));
+    assert(ggml_cuda_fattn_turbo4_page_table_valid(append_three.data(), 2, 448));
+    params.pages_host = append_one.data();
+    params.n_pages = 2;
+    params.n_rows = 320;
+    params.n_query_tokens = 1;
+    cuda_check(cudaMemcpyAsync(pages_device, append_one.data(), sizeof(append_one),
+        cudaMemcpyHostToDevice, stream), "append one page table copy");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+        ggml_cuda_fattn_turbo4_paged_status::ok);
+
+    params.pages_host = append_two.data();
+    params.n_rows = 384;
+    cuda_check(cudaMemcpyAsync(pages_device, append_two.data(), sizeof(append_two),
+        cudaMemcpyHostToDevice, stream), "append two page table copy");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+        ggml_cuda_fattn_turbo4_paged_status::ok);
+
+    params.pages_host = append_bad.data();
+    params.n_rows = 448;
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+        ggml_cuda_fattn_turbo4_paged_status::invalid_page_table);
+
+    params.pages_host = append_three.data();
+    cuda_check(cudaMemcpyAsync(pages_device, append_three.data(), sizeof(append_three),
+        cudaMemcpyHostToDevice, stream), "append three page table copy");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+        ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaDeviceSynchronize(), "two-append tail rollback and slot reuse");
+    std::vector<float> append_output(q_host.size());
+    cuda_check(cudaMemcpy(append_output.data(), output_device,
+        append_output.size() * sizeof(float), cudaMemcpyDeviceToHost),
+        "two-append output readback");
+    for (const float value : append_output) assert(std::isfinite(value));
+
+    params.pages_host = pages;
+    cuda_check(cudaMemcpy(pages_device, pages, sizeof(pages), cudaMemcpyHostToDevice),
+        "restore baseline page table after append regression");
     params.n_pages = n_pages;
     params.n_rows = n_rows;
     params.n_query_tokens = max_query_tokens;

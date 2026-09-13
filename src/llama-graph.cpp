@@ -728,15 +728,23 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     const bool update_selected = initialize_selected || content_changed;
     const int64_t selected_input_start = update_selected && kv_attention_metrics
         ? ggml_time_us() : 0;
+    const auto set_direct_tensor = [&](ggml_tensor * tensor, const void * data,
+                                       size_t offset, size_t size) {
+        if (direct_backend != nullptr) {
+            ggml_backend_tensor_set_async(direct_backend, tensor, data, offset, size);
+        } else {
+            ggml_backend_tensor_set(tensor, data, offset, size);
+        }
+    };
 
     if (selected_attention) {
         if (exact_wave_attention) {
             direct_telemetry_published = false;
             if (direct_explicit_native_metadata && !direct_native_positions_host.empty()) {
-                ggml_backend_tensor_set(direct_native_positions,
+                set_direct_tensor(direct_native_positions,
                         direct_native_positions_host.data(), 0,
                         direct_native_positions_host.size() * sizeof(direct_native_positions_host[0]));
-                ggml_backend_tensor_set(direct_native_mask, direct_native_mask_host.data(), 0,
+                set_direct_tensor(direct_native_mask, direct_native_mask_host.data(), 0,
                         direct_native_mask_host.size());
             }
             if (ubatch->pos != nullptr) {
@@ -744,7 +752,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 for (uint32_t token = 0; token < ubatch->n_tokens; ++token) {
                     direct_query_positions_host[token] = ubatch->pos[token * ubatch->n_pos];
                 }
-                ggml_backend_tensor_set(direct_query_positions, direct_query_positions_host.data(), 0,
+                set_direct_tensor(direct_query_positions, direct_query_positions_host.data(), 0,
                         direct_query_positions_host.size() * sizeof(direct_query_positions_host[0]));
             }
             for (auto & wave : exact_waves) {
@@ -754,9 +762,9 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 wave.device_control.page_capacity = uint32_t(wave.pages_host.size());
                 wave.device_control.row_capacity = wave.active_row_count;
                 wave.device_control.selection_generation = wave.selection_generation;
-                ggml_backend_tensor_set(wave.pages, &wave.device_control, 0,
+                set_direct_tensor(wave.pages, &wave.device_control, 0,
                         sizeof(wave.device_control));
-                ggml_backend_tensor_set(wave.pages, wave.pages_host.data(),
+                set_direct_tensor(wave.pages, wave.pages_host.data(),
                         sizeof(wave.device_control),
                         wave.pages_host.size() * sizeof(wave.pages_host[0]));
             }
@@ -769,7 +777,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             direct_device_control.page_capacity = direct_page_capacity;
             direct_device_control.row_capacity = direct_row_capacity;
             direct_device_control.selection_generation = direct_selection_generation;
-            ggml_backend_tensor_set(direct_pages, &direct_device_control, 0,
+            set_direct_tensor(direct_pages, &direct_device_control, 0,
                     sizeof(direct_device_control));
             if (update_selected) {
                 // The page table's shape and device address are graph-static,
@@ -784,7 +792,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         a.native_position_begin == b.native_position_begin;
                 };
                 if (direct_pages_uploaded.size() != direct_pages_host.size()) {
-                    ggml_backend_tensor_set(direct_pages, direct_pages_host.data(),
+                    set_direct_tensor(direct_pages, direct_pages_host.data(),
                             sizeof(ggml_flash_attn_ext_paged_turbo4_device_control),
                             direct_pages_host.size() * sizeof(direct_pages_host[0]));
                 } else {
@@ -800,7 +808,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                             ++begin;
                         }
                         if (run_begin != begin) {
-                            ggml_backend_tensor_set(direct_pages,
+                            set_direct_tensor(direct_pages,
                                     direct_pages_host.data() + run_begin,
                                     sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
                                         run_begin * sizeof(direct_pages_host[0]),
@@ -816,7 +824,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             // row positions are derived in the kernel from page_start + row.
             const auto & queries = selected_metadata.query_positions();
             if (direct_query_positions_uploaded != queries) {
-                ggml_backend_tensor_set(direct_query_positions, queries.data(), 0,
+                set_direct_tensor(direct_query_positions, queries.data(), 0,
                         queries.size() * sizeof(queries[0]));
                 direct_query_positions_uploaded = queries;
             }
@@ -824,12 +832,12 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 const auto & positions = selected_metadata.native_positions();
                 const auto & valid = selected_metadata.native_mask();
                 if (direct_native_positions_uploaded != positions) {
-                    ggml_backend_tensor_set(direct_native_positions, positions.data(), 0,
+                    set_direct_tensor(direct_native_positions, positions.data(), 0,
                             positions.size() * sizeof(positions[0]));
                     direct_native_positions_uploaded = positions;
                 }
                 if (direct_native_mask_uploaded != valid) {
-                    ggml_backend_tensor_set(direct_native_mask, valid.data(), 0, valid.size());
+                    set_direct_tensor(direct_native_mask, valid.data(), 0, valid.size());
                     direct_native_mask_uploaded = valid;
                 }
             }
@@ -3953,6 +3961,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             if (direct_backend == nullptr) {
                 throw std::runtime_error("direct paged attention CUDA backend is unavailable");
             }
+            inp->direct_backend = direct_backend;
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_pages, direct_backend);
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_positions, direct_backend);
             ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, direct_backend);
