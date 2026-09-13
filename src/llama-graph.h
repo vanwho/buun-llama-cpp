@@ -478,6 +478,9 @@ public:
         uint32_t page_generation = 0;
         uint64_t content_version = 0;
         uint64_t source_lifetime_epoch = 0;
+        uint64_t source_offset_k = 0;
+        uint64_t source_offset_v = 0;
+        bool current_rows = false;
         uint32_t row_count = 0;
         uint64_t bytes = 0;
     };
@@ -486,6 +489,7 @@ public:
         ggml_tensor * k = nullptr;
         ggml_tensor * v = nullptr;
         llama_kv_attention_packed_cache::entry * cache_entry = nullptr;
+        ggml_backend_t backend = nullptr;
         uint32_t row_capacity = 0;
         // Borrowed source tensors remain owned by the pager/cache context;
         // these identities document the lifetime and physical slab against
