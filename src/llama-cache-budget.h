@@ -32,6 +32,7 @@ enum class llama_cache_budget_fit_state : uint8_t {
 enum class llama_cache_budget_admission_refusal : uint8_t {
     none = 0,
     invalid_geometry,
+    context_mismatch,
     mtp_not_turbo4,
     missing_scratch,
     overflow,
@@ -73,6 +74,21 @@ struct llama_cache_budget_admission_input {
     uint64_t external_bytes = 0;
     uint64_t graph_bytes = 0;
     uint64_t turbo4_scratch_bytes = 0;
+    // Persistent selected-attention storage is bounded by A, not by L or H.
+    // The page unit is the measured, cross-layer Turbo4 K/V owner size.  A
+    // zero page unit keeps the legacy admission contract for non-pager users.
+    uint64_t packed_workspace_page_bytes = 0;
+    uint64_t packed_workspace_owner_count = 0;
+    uint64_t packed_dequant_page_bytes = 0;
+    uint64_t packed_dequant_bytes = 0;
+    // These are fixed live allocations. A transfer destination is represented
+    // as a page count instead: it must fit in the H slab, never as an
+    // unbudgeted allocation beyond H.
+    uint64_t copy_ring_bytes = 0;
+    uint64_t catalogue_bytes = 0;
+    uint64_t minimum_resident_pages = 0;
+    uint64_t transfer_destination_pages = 0;
+    uint64_t attention_page_limit = 0; // 0 = bounded auto A, otherwise explicit A
     uint64_t routing_bytes = 0;
     uint64_t staging_bytes = 0;
     uint64_t allocator_guard_bytes = 0;
@@ -121,6 +137,10 @@ struct llama_cache_budget_admission_result {
     uint64_t graph_bytes = 0;
     uint64_t turbo4_scratch_bytes = 0;
     uint64_t scratch_bytes = 0;
+    uint64_t packed_workspace_bytes = 0;
+    uint64_t packed_dequant_bytes = 0;
+    uint64_t copy_ring_bytes = 0;
+    uint64_t catalogue_bytes = 0;
     uint64_t routing_table_bytes = 0;
     uint64_t staging_bytes = 0;
     uint64_t routing_bytes = 0;
@@ -140,6 +160,9 @@ struct llama_cache_budget_admission_result {
     uint64_t requested_context_tokens = 0;
     uint64_t resolved_context_tokens = 0;
     uint64_t accepted_target_tokens = 0;
+    uint64_t attention_pages = 0;
+    uint64_t attention_tokens = 0;
+    uint64_t transfer_destination_pages = 0;
     uint64_t unused_bytes = 0;
     bool accepted = false;
     llama_cache_budget_admission_provenance provenance =

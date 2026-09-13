@@ -83,6 +83,12 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t external_bytes = 0;
     uint64_t mtp_rows = 0;
     uint64_t mtp_bytes = 0;
+    uint64_t packed_workspace_bytes = 0;
+    uint64_t packed_dequant_bytes = 0;
+    uint64_t catalogue_bytes = 0;
+    uint64_t attention_pages = 0;
+    uint64_t attention_tokens = 0;
+    uint64_t transfer_destination_pages = 0;
     uint64_t requested_context_tokens = 0;
     uint64_t resolved_context_tokens = 0;
     uint64_t accepted_target_tokens = 0;
