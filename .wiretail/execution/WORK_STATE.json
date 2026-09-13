@@ -12,9 +12,9 @@
   "base_commit": "cb703be37e3628dadb71912f3b3b25b82090555b",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "31",
-  "current_task": "31-06",
-  "last_updated_utc": "2026-09-13T05:59:52+00:00",
+  "current_phase": "32",
+  "current_task": "32-01",
+  "last_updated_utc": "2026-09-13T06:02:25+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6212,12 +6212,38 @@
       "cluster": "31b-evidence-v8",
       "title": "Publish compact phase-31 evidence summary",
       "packet": ".wiretail/execution/tasks/31-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "31-05"
-      ]
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/31-06-attempt-1-20260913T060008Z.jsonl:21",
+            "total_tokens": 15094473,
+            "total_tokens_derived": true,
+            "input_tokens": 15039691,
+            "cached_input_tokens": 14624000,
+            "output_tokens": 54782,
+            "thinking_tokens": 12711
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 15094473,
+          "input_tokens": 15039691,
+          "cached_input_tokens": 14624000,
+          "output_tokens": 54782,
+          "thinking_tokens": 12711
+        }
+      },
+      "commit": "e5a0738f59a1b72459ec1f0a2a8327c2419f1923"
     },
     {
       "id": "32-01",
@@ -8060,15 +8086,28 @@
           "cached_input_tokens": 13724928,
           "output_tokens": 48014,
           "thinking_tokens": 11119
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/31-06-attempt-1-20260913T060008Z.jsonl:21",
+          "total_tokens": 15094473,
+          "total_tokens_derived": true,
+          "input_tokens": 15039691,
+          "cached_input_tokens": 14624000,
+          "output_tokens": 54782,
+          "thinking_tokens": 12711
         }
       ],
       "totals": {
-        "turns": 5,
-        "total_tokens": 320136291,
-        "input_tokens": 319507019,
-        "cached_input_tokens": 312287744,
-        "output_tokens": 629272,
-        "thinking_tokens": 259111
+        "turns": 6,
+        "total_tokens": 335230764,
+        "input_tokens": 334546710,
+        "cached_input_tokens": 326911744,
+        "output_tokens": 684054,
+        "thinking_tokens": 271822
       }
     },
     "32": {
@@ -8085,12 +8124,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 113,
-      "total_tokens": 2674713121,
-      "input_tokens": 2668746595,
-      "cached_input_tokens": 2618019584,
-      "output_tokens": 5966526,
-      "thinking_tokens": 2177907
+      "turns": 114,
+      "total_tokens": 2689807594,
+      "input_tokens": 2683786286,
+      "cached_input_tokens": 2632643584,
+      "output_tokens": 6021308,
+      "thinking_tokens": 2190618
     },
     "source": "Codex turn.completed usage events"
   }

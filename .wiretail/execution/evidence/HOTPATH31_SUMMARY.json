@@ -1,0 +1,122 @@
+{
+  "schema": "hotpath31-summary-v1",
+  "phase": "31",
+  "status": "partial_evidence_scale_gated",
+  "scope": "Post-repair evidence only; no replayed campaigns.",
+  "capability": {
+    "validated": [
+      "Direct graph metadata publication uses the consuming CUDA backend stream and memory-update ownership fencing; the production-sized CUDA regression and sanitizer fixture passed.",
+      "Layer-aware paging authenticates runtime model layer IDs, performs asynchronous map-before-copy promotion, authenticates publication/use identity, and joins pager work during teardown; the focused regression suites and a prior hot-2 natural recall passed.",
+      "Selected-direct graph layouts are reused across mutable table epochs with dirty-driven pager policy; the focused execution/routing/telemetry suites passed.",
+      "The retained full-L native-MTP profile can complete isolated L8192/H4096 q0 and q1 requests and a live continuation to occupied 5000 tokens, including a useful H-crossing H2D transfer."
+    ],
+    "not_validated": [
+      "Stable warm-controlled q0/q1/q2 primary proof.",
+      "Authenticated natural cold recall proof on the current primary run.",
+      "L32768/H16384 bounded pilot or L131072 allocation/population smoke.",
+      "Full-L success, 256K capability, YaRN, quality, or soak proof."
+    ]
+  },
+  "coordinate": {
+    "L": 8192,
+    "C": 6144,
+    "H_pages": 16,
+    "H_tokens": 4096,
+    "A_rows": 256,
+    "B_tokens": 128,
+    "U_tokens": 64,
+    "page_tokens": 256,
+    "route": "selected/direct selective",
+    "target": "CUDA Turbo4 K/V",
+    "native_mtp": "GPU Turbo4 K/V, full-L rows=8192",
+    "sampling": "temperature=0, seed=42, thinking=off"
+  },
+  "measured_primary_rates": {
+    "conditions": "Matched q0/q1 cold-prefill single requests without warmups; not a warm-vs-cold comparison.",
+    "q0": {
+      "prefill_tok_s": 205.2026760513,
+      "decode_tok_s": 36.4660859658,
+      "ttft_us": 29949432.703,
+      "output_tokens": 128,
+      "mtp_proposed": 134,
+      "mtp_accepted": 59
+    },
+    "q1": {
+      "prefill_tok_s": 204.9318873316,
+      "decode_tok_s": 36.3815015820,
+      "ttft_us": 29989592.448,
+      "output_tokens": 128,
+      "mtp_proposed": 134,
+      "mtp_accepted": 59
+    },
+    "natural_continuation": {
+      "status": "completed_to_5000",
+      "prefill_tok_s_by_occupied_after": {
+        "800": 811.3071882831,
+        "1800": 369.7631371296,
+        "2800": 221.8056219740,
+        "3800": 167.1071611434,
+        "4800": 145.4384044360,
+        "5000": 141.7528878607
+      },
+      "H_crossing": {
+        "occupied_after": 4800,
+        "h2d_useful_bytes": 4325380,
+        "h2d_aligned_bytes": 4325380,
+        "transfer_submitted": 96,
+        "transfer_event_completions": 96,
+        "faults": 1,
+        "evictions": 1
+      }
+    }
+  },
+  "critical_observations": {
+    "target_pool_bytes": 69206000,
+    "target_valid_rows_after": 3967,
+    "host_valid_rows_after": 3840,
+    "host_valid_bytes_after": 64880600,
+    "h2d_useful_bytes": 4325380,
+    "h2d_aligned_bytes": 4325380,
+    "attention_publish_us": [1328, 1352],
+    "graph_capture_rebuild": 70,
+    "graph_replay": 95,
+    "table_epoch_changes": 164,
+    "table_rebuilds": 70,
+    "summary_build_calls": 1536,
+    "summary_read_calls": 0,
+    "faults": 1,
+    "evictions": 1
+  },
+  "remaining_defects": [
+    "The warm-control q0 measurement, q0x3 repetition, q2, and authenticated natural cold recall each encountered CUDA illegal memory access at ggml_backend_cuda_synchronize during llama_context::decode; the process aborted with status 6/ABRT and systemd recovered it.",
+    "The two completed q0/q1 receipts also report one pager fault and one eviction, so their successful HTTP completion is not a clean stability proof.",
+    "The cold recall returned only 'The retrieval topic' instead of the expected exact topic cedar-orbit-17 before the runtime fault."
+  ],
+  "bounded_scale": {
+    "status": "gated_not_run",
+    "L32768_H16384_two_append_pilot": "not_run",
+    "L131072_allocation_population_smoke": "not_run",
+    "reason": "31-04 did not prove the small path; 31-05 correctly did not launch conditional scale work."
+  },
+  "exact_next_action": "Isolate and repair the post-prefill CUDA illegal-memory-access at ggml_backend_cuda_synchronize/llama_context::decode, then rerun the canonical L8192/H4096 warm-controlled q0/q1/q2 and authenticated natural cold recall on the same profile. Unlock bounded scale only after those runs complete without runtime faults and the recall validates cedar-orbit-17.",
+  "provenance": {
+    "binary": "/tmp/buun-llama-cpp-31-03-final.WUe1Jf/bin/llama-server",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "source_commit": "9a12cc45ca329be09c59d51f3cd96375e9991ca9",
+    "bundle_manifest_sha256": "8c346e1135b5623bad8a42d32633430bf418c0c93180b544045614f3ea1f94d7",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.91.07"
+  },
+  "evidence": {
+    "primary": ".wiretail/execution/evidence/31-04-primary-small.json",
+    "scale_gate": ".wiretail/execution/evidence/31-05-bounded-scale.json",
+    "repair_handoffs": [
+      ".wiretail/execution/handoffs/31-01.md",
+      ".wiretail/execution/handoffs/31-02.md",
+      ".wiretail/execution/handoffs/31-03.md"
+    ],
+    "primary_handoff": ".wiretail/execution/handoffs/31-04.md",
+    "scale_handoff": ".wiretail/execution/handoffs/31-05.md"
+  }
+}
