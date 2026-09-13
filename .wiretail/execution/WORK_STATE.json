@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "34",
-  "current_task": "34-05",
-  "last_updated_utc": "2026-09-13T18:12:31+00:00",
+  "current_task": "34-06",
+  "last_updated_utc": "2026-09-13T18:40:52+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6625,7 +6625,7 @@
       "cluster": "34c-budget-probe-v9",
       "title": "Unify dynamic L/H/A/B/U admission and full-L GPU draft accounting",
       "packet": ".wiretail/execution/tasks/34-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -6640,7 +6640,32 @@
       "depends_on": [
         "34-04"
       ],
-      "commit": null
+      "commit": "19ef9facf56510f57a1333212a077b81895f4484",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/34-05-attempt-1-20260913T181247Z.jsonl:332",
+            "total_tokens": 22480946,
+            "total_tokens_derived": true,
+            "input_tokens": 22419453,
+            "cached_input_tokens": 21898752,
+            "output_tokens": 61493,
+            "thinking_tokens": 26243
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 22480946,
+          "input_tokens": 22419453,
+          "cached_input_tokens": 21898752,
+          "output_tokens": 61493,
+          "thinking_tokens": 26243
+        }
+      }
     },
     {
       "id": "34-06",
@@ -8980,15 +9005,28 @@
           "cached_input_tokens": 30980096,
           "output_tokens": 71473,
           "thinking_tokens": 28989
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/34-05-attempt-1-20260913T181247Z.jsonl:332",
+          "total_tokens": 22480946,
+          "total_tokens_derived": true,
+          "input_tokens": 22419453,
+          "cached_input_tokens": 21898752,
+          "output_tokens": 61493,
+          "thinking_tokens": 26243
         }
       ],
       "totals": {
-        "turns": 4,
-        "total_tokens": 98675397,
-        "input_tokens": 98435170,
-        "cached_input_tokens": 96512768,
-        "output_tokens": 240227,
-        "thinking_tokens": 102677
+        "turns": 5,
+        "total_tokens": 121156343,
+        "input_tokens": 120854623,
+        "cached_input_tokens": 118411520,
+        "output_tokens": 301720,
+        "thinking_tokens": 128920
       }
     },
     "35": {
@@ -9038,12 +9076,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 122,
-      "total_tokens": 2841473821,
-      "input_tokens": 2835096700,
-      "cached_input_tokens": 2780757760,
-      "output_tokens": 6377121,
-      "thinking_tokens": 2329987
+      "turns": 123,
+      "total_tokens": 2863954767,
+      "input_tokens": 2857516153,
+      "cached_input_tokens": 2802656512,
+      "output_tokens": 6438614,
+      "thinking_tokens": 2356230
     },
     "source": "Codex turn.completed usage events"
   }

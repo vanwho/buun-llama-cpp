@@ -1,0 +1,65 @@
+{
+  "schema": "hotpath-v9-memory-ledger",
+  "revision": "hotpath-v9-20260913",
+  "task": "34-05",
+  "recorded_utc": "2026-09-13T18:40:00Z",
+  "formula": {
+    "L": "resolved target tokens per sequence; requested_context_tokens == resolved_context_tokens",
+    "P": "ceil(L / page_tokens)",
+    "H": "max target pages satisfying H*page_charge + A*(2*owner_page + dequant_page) <= usable - fixed ledger",
+    "A": "explicit attention_page_limit, otherwise max(1, ceil(H/2)) when H > 0",
+    "B_U": "graph/compute reservation is allocator-measured at construction; U is a bounded prefill frontier and may be reduced only after H admission",
+    "R1_catalogue": "sum over full-attention layers/pages of 2*ggml_row_size(F16, n_head_kv*D_k) plus per-page validity/generation/position metadata, aligned"
+  },
+  "categories": {
+    "fixed": ["weights", "already-resident context companions"],
+    "persistent_reserved": ["full-L native Turbo4 MTP", "target/draft compute", "recurrent state and rollback planes", "routing summary", "R1 catalogue"],
+    "bounded_A": ["active packed Turbo4 owner", "one draining owner replacement", "per-page F16 dequant workspace"],
+    "bounded_H": ["target Turbo4 slab", "current/recent/in-flight pins", "one transfer destination page"],
+    "other": ["allocator guard", "aligned scratch/staging", "external device occupancy", "headroom"],
+    "host_only": ["copy ring and host transfer staging remain in the host budget; no duplicate device charge"]
+  },
+  "synthetic": {
+    "contexts_tokens": [8192, 32768, 131072],
+    "geometries": ["1024-head-width fixture", "alternate 768-head-width/page geometry"],
+    "budgets": ["unbounded device fixture", "bounded device fixture with eight target-page units beyond full-L charge"],
+    "checks": ["full-L is never shortened", "auto A <= H", "minimum resident plus transfer destination fit H", "explicit context mismatch", "packed-owner multiplication overflow"]
+  },
+  "live": {
+    "candidate": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "model": "/srv/ai/models/text/current.gguf",
+    "device": "CUDA0",
+    "context_tokens": 8192,
+    "page_tokens": 256,
+    "batch_tokens": 128,
+    "draft": {"placement": "gpu", "type_k": "turbo4", "type_v": "turbo4", "rows": 8192, "bytes": 8781824},
+    "probes": [
+      {
+        "ubatch_tokens": 64,
+        "raw": "/srv/ai/paged-kv/results/v9/34-05/20260913T183506Z-u64-manual/",
+        "predicted_target_peak_bytes": 69206000,
+        "actual_target_peak_bytes": 69206000,
+        "delta_bytes": 0,
+        "observed_attention_tokens": 2048,
+        "observed_charged_bytes": 15295000000,
+        "precision": "Prometheus exposition value; exporter rounds to six significant digits"
+      },
+      {
+        "ubatch_tokens": 128,
+        "raw": "/srv/ai/paged-kv/results/v9/34-05/20260913T183554Z-u128/",
+        "predicted_target_peak_bytes": 69206000,
+        "actual_target_peak_bytes": 69206000,
+        "delta_bytes": 0,
+        "observed_attention_tokens": 2048,
+        "observed_charged_bytes": 15293900000,
+        "precision": "Prometheus exposition value; exporter rounds to six significant digits"
+      }
+    ],
+    "higher_L": {"mode": "synthetic reserve-only inspection", "context_tokens": 131072, "long_prompt": false}
+  },
+  "validation": {
+    "ledger_allocation_agreement": "target pool and live target allocation/peak agree at both U values",
+    "source_of_geometry": "llama model hparams and ggml_row_size; no model-family byte/token constant",
+    "unavailable": "canonical wrapper lifecycle receipt was not usable because its jq --argjson serialization failed; managed launcher and authenticated endpoint were used for the two live probes"
+  }
+}

@@ -998,3 +998,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-13T16:42:35+00:00 - 34-02 - done
 
 - Summary: Made Turbo4 packed K/V storage fixed-A and persistent across page/tail selection changes, added slot generations and completion-aware bounded owner replacement, and passed focused attention/pager fixtures plus state/plan validation. Native selected GPU replay deferred to later F3/F4 tasks. Raw: `/srv/ai/paged-kv/results/v9/34-02/20260913T164235Z-focused/`.
+
+## 2026-09-13T18:42:00+00:00 - 34-05 - done
+
+- Summary: Unified checked full-L/H/A admission with native Turbo4 draft, recurrent/compute, replacement, transfer-destination, and R1 catalogue accounting; synthetic L8192/L32768/L131072 and multi-slot draft tests pass. Authenticated native L8192 U64/U128 probes matched target ledger allocation to observed peak. Raw: `/srv/ai/paged-kv/results/v9/34-05/20260913T183506Z-u64-manual/`, `/srv/ai/paged-kv/results/v9/34-05/20260913T183554Z-u128/`.
