@@ -1,0 +1,55 @@
+{
+  "task": "35-03",
+  "cluster": "35b-mailbox-promote-v9",
+  "result": "complete",
+  "objective": "Connect live Q snapshots to bounded per-layer selected sets",
+  "producer": {
+    "graph_hook": "src/llama-graph.cpp:2511",
+    "selector_builder": "src/llama-kv-cache.cpp:15711",
+    "output_registration": "src/llama-kv-cache.cpp:2306",
+    "output_shape": "fixed resident+cold compact I32 IDs"
+  },
+  "consumer": {
+    "boundary": "src/llama-kv-cache.cpp:2398",
+    "mailbox": "src/llama-kv-pager.h:602",
+    "per_layer_selection": "src/llama-kv-cache.cpp:2862",
+    "attention_consumer": "src/llama-context.cpp:2756",
+    "bound": "attention_pages A per model layer; no layer union"
+  },
+  "epochs": [
+    "query generation",
+    "sequence generation",
+    "page generation",
+    "residency table epoch",
+    "representation identity"
+  ],
+  "behavior": {
+    "cadence": "first/request-boundary and every eighth query, plus dirty page boundary",
+    "stale_drop": true,
+    "two_slot_busy_preserves_previous": true,
+    "normal_oldest_cold_fallback": false,
+    "forced_diagnostic_reason": "forced",
+    "raw_cross_layer_score_comparison": false
+  },
+  "tests": {
+    "cpu_fixture": "test-kv-page-select",
+    "mailbox_fixture": "test-kv-prefetch",
+    "summary_fixture": "test-kv-routing-summary",
+    "retrieval_fixture": "test-kv-routing-retrieval",
+    "cpu_library_build": "pass",
+    "cuda_library_build": "pass",
+    "state_validation": "pass",
+    "plan_validation": "pass",
+    "diff_check": "pass"
+  },
+  "live_sample": {
+    "endpoint": "127.0.0.1:8080",
+    "health_http": 200,
+    "chat_http": 200,
+    "before": { "request_generation": 2, "table_epoch": 124, "route": "selected dense", "selected_pages": 1 },
+    "after": { "request_generation": 6, "table_epoch": 251, "route": "selected dense", "selected_pages": 1 },
+    "qualification": "service smoke only; running process provenance is external to this uncommitted worktree"
+  },
+  "raw_result": "/srv/ai/paged-kv/results/v9/35-03/20260913T210056Z-routing/RESULT.md",
+  "loaded_candidate": "working tree; source hashes recorded in handoff-35-03.md"
+}

@@ -1006,3 +1006,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-13T19:02:00+00:00 - 34-06 - done
 
 - Summary: Added CUDA-event receipts for incremental tail H2D and append+attention; fixed-A contiguous versus packed Turbo4 fixture, planner/telemetry tests, and matched current all-GPU q0 passed. Packed overhead was 1–3%; first append+attention warmup is the dominant unresolved cost owned by the next phase. Canonical B2 site runner was deferred because required environment variables are absent. Raw: `/srv/ai/paged-kv/results/v9/34-06/20260913T184319Z-foundation/`, `/srv/ai/paged-kv/results/v9/34-06/20260913T184443Z-b2-quick/`, `/srv/ai/paged-kv/results/v9/34-06/20260913T184502Z-allgpu-q0/`.
+
+## 2026-09-13T21:03:46+00:00 - 35-03 - done
+
+- Summary: Connected live Q selector outputs to pager-owned two-slot mailbox harvest and epoch-qualified, A-bounded per-layer selections; removed normal oldest-cold invention and added deterministic selector-to-mailbox coverage. CPU/CUDA library builds, focused routing tests, state/plan validation, and diff check passed. Live service smoke was HTTP 200 but remained selected-dense, so component-level selector telemetry is deferred. Raw: `/srv/ai/paged-kv/results/v9/35-03/20260913T210056Z-routing/`.
