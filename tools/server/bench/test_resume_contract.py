@@ -197,6 +197,28 @@ class ResumeContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_batch_tokens(63, 64)
 
+    def test_reset_modes_keep_target_only_restore_not_ready(self) -> None:
+        path = HERE / "run-final-curve.py"
+        spec = importlib.util.spec_from_file_location("run_final_curve_reset_test", path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        fresh = module.resolve_reset_mode("fresh", "cold-prefill")
+        self.assertEqual("fresh_full_history", fresh["mtp_history"])
+        self.assertTrue(fresh["mtp_history_ready"])
+
+        paired = module.resolve_reset_mode("paired-restore", "live-continuation")
+        self.assertEqual("target_and_draft", paired["restore_shape"])
+        self.assertTrue(paired["mtp_history_ready"])
+
+        target_only = module.resolve_reset_mode("target-only-restore", "live-continuation")
+        self.assertEqual("target_only", target_only["restore_shape"])
+        self.assertFalse(target_only["mtp_history_ready"])
+        with self.assertRaises(ValueError):
+            module.resolve_reset_mode("target-only-restore", "cold-prefill")
+
     def test_long_prompt_fitter_expands_neutral_padding(self) -> None:
         path = HERE / "run-final-curve.py"
         spec = importlib.util.spec_from_file_location("run_final_curve_test", path)

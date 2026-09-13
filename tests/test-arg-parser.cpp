@@ -131,6 +131,23 @@ static void test(void) {
         assert(native_unresolved.valid());
         assert(native_unresolved.n_ctx == 8192);
 
+        // Native MTP follows the realized target per-sequence capacity. Keep
+        // this a small synthetic table so the contract cannot regress to a
+        // benchmark-specific long-context constant.
+        for (const uint32_t target_rows : { 256u, 4096u, 32768u }) {
+            const auto native_dynamic = common_speculative_mtp_context_params_resolve(
+                target_rows, 0, 2, false, true);
+            assert(native_dynamic.valid());
+            assert(native_dynamic.n_ctx == target_rows);
+            assert(native_dynamic.kv_unified);
+
+            const auto native_matching_dynamic = common_speculative_mtp_context_params_resolve(
+                target_rows, static_cast<int32_t>(target_rows), 2, false, true);
+            assert(native_matching_dynamic.valid());
+            assert(native_matching_dynamic.n_ctx == target_rows);
+            assert(native_matching_dynamic.kv_unified);
+        }
+
         llama_context_params mtp_cparams = llama_context_default_params();
         mtp_cparams.vbr_dynamic = true;
         mtp_cparams.vbr_min_bits = 2.0;
