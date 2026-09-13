@@ -1,0 +1,143 @@
+{
+  "schema": "hotpath29-scale-v1",
+  "task_id": "29-02",
+  "result": "partial_source_runtime_failure",
+  "result_reason": "L131072 allocation and a bounded smoke succeeded at H256, but the first durable continuation append at L32768/H64 aborted the current-source CUDA server with an illegal device memory access. Full-L continuation, cold promotion, and a populated near-maximum are therefore not claimed.",
+  "provenance": {
+    "source_commit": "e5f95b92f83a691c749f3450bfb7e915643dbb39",
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "binary_sha256": "f0face070d5f83daca2dfacfa19b39268c719cf72fb1910659c94ad1c7d4cca9",
+    "cuda_dso": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so",
+    "cuda_dso_sha256": "517b696a04d865d011e970905704e0267b9712a35d378b1c210317b8b482456c",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080, 16376 MiB, driver 595.91.07",
+    "target_kv": "Turbo4/GPU",
+    "mtp": "native full-L Turbo4/GPU",
+    "sampling": "temperature 0, seed 42, thinking off"
+  },
+  "tested_coordinates": {
+    "page_size_tokens": 256,
+    "batch_tokens": 128,
+    "ubatch_tokens": 64,
+    "l32768_h64": {
+      "logical_context_tokens": 32768,
+      "hot_capacity_pages": 64,
+      "hot_capacity_tokens": 16384,
+      "allocation": "pass",
+      "startup_free_vram_mib": 1772,
+      "first_turn": {
+        "cached_tokens": 0,
+        "new_tokens": 1200,
+        "committed_prompt_tokens": 1200,
+        "slot_frontier_tokens": 1203,
+        "output_tokens": 4,
+        "prefill_tok_s": 648.6626737875414,
+        "decode_tok_s": 65.61392764970911,
+        "mtp_proposed": 2,
+        "mtp_accepted": 2,
+        "A_rows_observed": 1203,
+        "selected_pages": 5,
+        "host_pages": 4,
+        "host_valid_rows": 1024,
+        "target_valid_rows": 1203,
+        "target_pool_bytes": 276824000,
+        "mtp_rows": 32768,
+        "mtp_bytes": 34734100,
+        "headroom_bytes": 201327000,
+        "prefill_direct_routes": 19,
+        "summary_build_calls": 256,
+        "host_seal_d2h_calls": 384,
+        "host_seal_d2h_bytes": 17301500,
+        "h2d_useful_bytes": 0,
+        "faults": 0,
+        "evictions": 0,
+        "raw": "/srv/ai/paged-kv/results/hotpath29-scale-32768-h64-20260913/raw-00.sse"
+      },
+      "second_append_attempt": {
+        "cached_tokens": 1203,
+        "requested_new_tokens": 1400,
+        "rendered_tokens": 2602,
+        "status": "runtime_fault",
+        "elapsed_seconds": 136.15531495100004,
+        "raw": "/srv/ai/paged-kv/results/hotpath29-scale-32768-h64-20260913/raw-01.sse",
+        "failure_category": "illegal_device_memory_access",
+        "failure_detail": "CUDA error at ggml_backend_cuda_synchronize, ggml/src/ggml-cuda/ggml-cuda.cu:2685; service exited with status 6/ABRT and systemd restarted it",
+        "journal": "journalctl -u llama-server.service, 2026-09-13 04:27-04:30 CEST"
+      }
+    },
+    "l131072_h256": {
+      "logical_context_tokens": 131072,
+      "hot_capacity_pages": 256,
+      "hot_capacity_tokens": 65536,
+      "allocation": "pass",
+      "startup_free_vram_mib": 872,
+      "smoke": {
+        "cached_tokens": 0,
+        "new_tokens": 512,
+        "committed_prompt_tokens": 512,
+        "slot_frontier_tokens": 513,
+        "output_tokens": 2,
+        "prefill_tok_s": 866.0967118773661,
+        "decode_tok_s": 21.414651904833285,
+        "mtp_proposed": 2,
+        "mtp_accepted": 0,
+        "A_rows_observed": 515,
+        "selected_pages": 3,
+        "host_pages": 2,
+        "host_valid_rows": 512,
+        "target_valid_rows": 513,
+        "target_pool_bytes": 1107300000,
+        "mtp_rows": 131072,
+        "mtp_bytes": 138543000,
+        "routing_table_bytes": 134218000,
+        "charged_bytes": 15469800000,
+        "reserved_bytes": 1572780000,
+        "headroom_bytes": 201327000,
+        "scratch_high_water_bytes": 2109440,
+        "physical_write_capacity": 65536,
+        "effective_ubatch": 64,
+        "prefill_direct_routes": 8,
+        "decode_direct_routes": 0,
+        "mtp_verify_direct_routes": 0,
+        "summary_build_calls": 128,
+        "host_seal_d2h_calls": 192,
+        "h2d_useful_bytes": 0,
+        "faults": 0,
+        "evictions": 0,
+        "raw": "/srv/ai/paged-kv/results/hotpath29-scale-131072-h256-smoke-20260913/raw-00.sse"
+      },
+      "classification": "allocation_plus_smoke_only; not a populated full-context result"
+    }
+  },
+  "kernel_sampling": {
+    "route_observations": [
+      "L32768 first turn: selected route, 19 prefill_direct_routes, no packed/reference/dense routes",
+      "L131072 smoke: selected route, 8 prefill_direct_routes, no packed/reference/dense routes"
+    ],
+    "fault_stack_symbol": "ggml_backend_cuda_synchronize",
+    "kernel_name_status": "No device-kernel symbol was emitted in the service journal before the source crash; no profiler was run after the required stop-on-defect rule."
+  },
+  "scaling": {
+    "largest_admitted_context": 131072,
+    "largest_populated_context": 131072,
+    "largest_populated_tokens": 512,
+    "largest_tested_hot_capacity_pages": 256,
+    "largest_operational_hot_capacity_pages": null,
+    "A_bounded_while_C_grows": "not tested beyond the first append because the continuation source defect stopped the campaign",
+    "cold_promotion_use": "not proven; both completed requests had zero H2D useful bytes and zero faults",
+    "full_L_native_mtp": "startup and smoke pass; full-L population not completed",
+    "setup_budget": "15-minute initial setup policy applied; no timeout was increased",
+    "replan": "repair the owning CUDA continuation/lifetime defect before resuming scale"
+  },
+  "raw_references": {
+    "scale_32768": "/srv/ai/paged-kv/results/hotpath29-scale-32768-h64-20260913/",
+    "scale_131072_smoke": "/srv/ai/paged-kv/results/hotpath29-scale-131072-h256-smoke-20260913/",
+    "crash_journal": "sudo -n journalctl -u llama-server.service --since '2026-09-13 04:27:00' --no-pager -o cat",
+    "restored_candidate": "/srv/ai/paged-kv/results/27-01-bundle/bin/llama-server, L8192/H4096, native GPU MTP"
+  },
+  "deferred_verification": [
+    "Durable C>H continuation, near-L population, naturally ranked cold layer promotion/use, no-fault decode, and canonical q0 at a populated maximum are deferred until the illegal device memory access is repaired.",
+    "No hardware or authorization deferral: RTX 4080 and sudo -n true were available and used."
+  ]
+}
