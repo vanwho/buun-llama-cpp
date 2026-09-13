@@ -37,19 +37,11 @@ static uint64_t attention_content_key(
         attention_key_mix(key, page.source_physical_slot);
         attention_key_mix(key, page.compact_row_begin);
         attention_key_mix(key, page.row_count);
-        attention_key_mix(key, uint64_t(page.native_position_begin));
-        attention_key_mix(key, uint64_t(page.native_position_end));
         attention_key_mix(key, page.page_generation);
     }
-    for (const llama_pos position : view.native_positions()) {
-        attention_key_mix(key, uint64_t(position));
-    }
-    for (const uint8_t valid : view.native_mask()) {
-        attention_key_mix(key, valid);
-    }
-    for (const llama_pos position : params.query_positions) {
-        attention_key_mix(key, uint64_t(position));
-    }
+    // Native positions, validity, and query positions are mutable descriptor
+    // values.  They are uploaded into the fixed-capacity graph inputs and
+    // must not turn a tail append into a graph/content allocation.
     return key == 0 ? 1 : key;
 }
 
@@ -80,9 +72,12 @@ static uint64_t attention_physical_key(
         const llama_kv_attention_view & view) noexcept {
     uint64_t key = 1469598103934665603ull;
     for (const auto & page : view.pages()) {
+        attention_key_mix(key, page.logical_page);
         attention_key_mix(key, page.source_physical_slot);
         attention_key_mix(key, page.compact_row_begin);
-        attention_key_mix(key, page.row_count);
+        // The tail row count is mutable.  The fixed packed owner and its
+        // current-row descriptor provide the actual active extent.
+        attention_key_mix(key, page.native_position_begin);
     }
     return key == 0 ? 1 : key;
 }

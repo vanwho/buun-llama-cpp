@@ -166,11 +166,11 @@ static void test_routes_epochs_and_fences() {
     assert(direct.route == llama_kv_attention_execution_route::selected_packed);
     assert(direct.graph_rebuild && execution.in_flight_graphs() == 1);
 
-    // A second physical page mapping rebuilds the packed source views and
-    // coexists with the old graph until both submissions complete.
+    // A tail-only publication keeps the physical source views and replays
+    // the graph while the mutable current-row descriptor is refreshed.
     auto changed_table = execution.prepare(metadata(snapshot(701), 1, 1),
             llama_kv_attention_execution_phase::decode, 4, 8, true, scratch, {}, false, true);
-    assert(changed_table.graph_rebuild && execution.in_flight_graphs() == 2);
+    assert(!changed_table.graph_rebuild && execution.in_flight_graphs() == 2);
     execution.complete_one_graph();
     execution.complete_one_graph();
     assert(execution.in_flight_graphs() == 0);
@@ -548,7 +548,7 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     assert(base.graph_content_key() != remapped.graph_content_key());
     assert(base.table_epoch() != grown.table_epoch());
     assert(base.graph_content_key() != grown.graph_content_key());
-    assert(base.graph_content_key() != query_changed.graph_content_key());
+    assert(base.graph_content_key() == query_changed.graph_content_key());
     assert(base.graph_content_key() != shape_changed.graph_content_key());
     // Page slots, logical order, and query positions are mutable descriptor
     // data. Only a dimension/configuration change changes graph layout.
@@ -639,7 +639,7 @@ static void test_no_change_decode_replay() {
     const auto stable = metadata(snapshot(), 1, 1);
     const auto tail_advanced = metadata(snapshot(701), 1, 1);
     assert(stable.graph_layout_key() == tail_advanced.graph_layout_key());
-    assert(stable.graph_physical_key() != tail_advanced.graph_physical_key());
+    assert(stable.graph_physical_key() == tail_advanced.graph_physical_key());
     assert(stable.table_epoch() != tail_advanced.table_epoch());
 
     llama_kv_attention_scratch_request scratch;
@@ -652,10 +652,10 @@ static void test_no_change_decode_replay() {
     assert(first.graph_rebuild);
     const auto no_change = execution.prepare(tail_advanced,
             llama_kv_attention_execution_phase::decode, 3, 11, true, scratch, {}, false, true);
-    assert(no_change.graph_rebuild);
+    assert(!no_change.graph_rebuild);
     assert(execution.in_flight_graphs() == 2);
-    assert(execution.metrics().graph_capture_count == 2);
-    assert(execution.metrics().graph_replay_count == 0);
+    assert(execution.metrics().graph_capture_count == 1);
+    assert(execution.metrics().graph_replay_count == 1);
     assert(execution.metrics().table_epoch_changes == 1);
 
     // Replaying the shape does not drop either immutable view lease while the

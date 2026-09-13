@@ -2398,6 +2398,13 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         // this existing scheduler fence, copied into the pager-owned fixed
         // mailbox slot, and then consumed below. A changed table epoch drops
         // the whole snapshot before any ID can affect residency policy.
+        // Poll first, then gate the expensive output/inventory walk. Stable
+        // hot-loop boundaries have no router work to do until a committed
+        // page/frontier change or a completed candidate arrives.
+        (void) mailbox.poll(0, snapshot.epoch());
+        if (!pager_policy_dirty_ && mailbox.ready_slots() == 0) {
+            return;
+        }
         std::vector<llama_kv_prefetch_candidate> produced;
         uint32_t routing_slot = UINT32_MAX;
         llama_kv_prefetch_candidate * routing_records = nullptr;
@@ -2474,7 +2481,6 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 mailbox.abandon(routing_slot);
             }
         }
-        (void) mailbox.poll(0, snapshot.epoch());
         const bool have_ready_candidate = mailbox.ready_slots() != 0;
         if (!pager_policy_dirty_ && !have_ready_candidate) {
             return;

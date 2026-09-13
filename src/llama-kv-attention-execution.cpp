@@ -143,6 +143,27 @@ void llama_kv_attention_packed_cache::update_slots(
     cached.content_versions.swap(next_versions);
 }
 
+void llama_kv_attention_packed_cache::rebuild_dirty_intervals(entry & cached) noexcept {
+    cached.dirty_intervals.clear();
+    for (const auto & slot : cached.slots) {
+        if (slot.copied_content_version != UINT64_MAX && slot.valid_rows != 0) {
+            continue;
+        }
+        if (slot.valid_rows == 0) {
+            continue;
+        }
+        const uint32_t begin = slot.destination_row_begin;
+        const uint32_t end = begin + slot.valid_rows;
+        if (!cached.dirty_intervals.empty() &&
+                cached.dirty_intervals.back().row_end >= begin) {
+            cached.dirty_intervals.back().row_end =
+                    std::max(cached.dirty_intervals.back().row_end, end);
+        } else {
+            cached.dirty_intervals.push_back({ begin, end });
+        }
+    }
+}
+
 bool llama_kv_attention_packed_cache::submit_graph(
         const std::vector<entry *> & owners) noexcept {
     std::vector<entry *> unique;
@@ -347,21 +368,24 @@ void llama_kv_attention_packed_cache::set_content_version(
         if (page_index < cached->slots.size()) {
             cached->slots[page_index].copied_content_version = version;
         }
-        cached->dirty_intervals.clear();
-        for (const auto & slot : cached->slots) {
-            if (slot.copied_content_version == UINT64_MAX && slot.valid_rows != 0) {
-                const uint32_t begin = slot.destination_row_begin;
-                const uint32_t end = begin + slot.valid_rows;
-                if (!cached->dirty_intervals.empty() &&
-                        cached->dirty_intervals.back().row_end >= begin) {
-                    cached->dirty_intervals.back().row_end =
-                        std::max(cached->dirty_intervals.back().row_end, end);
-                } else {
-                    cached->dirty_intervals.push_back({ begin, end });
-                }
-            }
+        rebuild_dirty_intervals(*cached);
+    }
+}
+
+void llama_kv_attention_packed_cache::set_content_versions(
+        entry * cached,
+        const std::vector<llama_kv_attention_view_page> & pages) noexcept {
+    if (cached == nullptr) {
+        return;
+    }
+    const size_t count = std::min(pages.size(), cached->content_versions.size());
+    for (size_t i = 0; i < count; ++i) {
+        cached->content_versions[i] = pages[i].page_generation;
+        if (i < cached->slots.size()) {
+            cached->slots[i].copied_content_version = pages[i].page_generation;
         }
     }
+    rebuild_dirty_intervals(*cached);
 }
 
 const char * llama_kv_attention_execution_mode_name(
@@ -720,11 +744,12 @@ bool llama_kv_attention_execution::same_graph(
     // Direct CUDA keeps the page table, native positions, mask, and query
     // positions in graph-owned device inputs. A residency publication changes
     // the immutable view lease, but not the captured graph topology: set_input
-    // patches those inputs before the next submission. Packed current-row copy
-    // intervals are graph nodes, so a changed content key must rebuild them;
-    // the packed owner itself remains persistent across that rebuild.
+    // patches those inputs before the next submission. Packed content
+    // generations are mutable owner data; only a physical remap changes the
+    // captured view/copy plan.
     const bool mutable_direct_inputs =
-        route == llama_kv_attention_execution_route::selected_direct;
+        route == llama_kv_attention_execution_route::selected_direct ||
+        route == llama_kv_attention_execution_route::selected_packed;
     return have_graph_ && metadata.graph_layout_key() == metadata_.graph_layout_key() &&
            (mutable_direct_inputs || metadata.table_epoch() == metadata_.table_epoch()) &&
            phase == phase_ && representation_epoch == representation_epoch_ &&
@@ -732,8 +757,6 @@ bool llama_kv_attention_execution::same_graph(
            ((route != llama_kv_attention_execution_route::selected_dense &&
              route != llama_kv_attention_execution_route::selected_packed) ||
             metadata.graph_physical_key() == metadata_.graph_physical_key()) &&
-           (route != llama_kv_attention_execution_route::selected_packed ||
-            metadata.graph_content_key() == metadata_.graph_content_key()) &&
            exact_graph_plan_.get() == graph_plan_.get();
 }
 

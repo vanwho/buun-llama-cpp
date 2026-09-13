@@ -785,8 +785,23 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             direct_device_control.page_capacity = direct_page_capacity;
             direct_device_control.row_capacity = direct_row_capacity;
             direct_device_control.selection_generation = direct_selection_generation;
-            set_direct_tensor(direct_pages, &direct_device_control, 0,
-                    sizeof(direct_device_control));
+            if (!direct_device_control_uploaded) {
+                set_direct_tensor(direct_pages, &direct_device_control, 0,
+                        sizeof(direct_device_control));
+                direct_device_control_uploaded = true;
+                direct_device_control_uploaded_value = direct_device_control;
+            } else {
+                // Keep the tiny control descriptor ordered with the graph,
+                // but avoid rewriting it when only telemetry or an unchanged
+                // selection is replayed.
+                if (std::memcmp(&direct_device_control,
+                        &direct_device_control_uploaded_value,
+                        sizeof(direct_device_control)) != 0) {
+                    set_direct_tensor(direct_pages, &direct_device_control, 0,
+                            sizeof(direct_device_control));
+                    direct_device_control_uploaded_value = direct_device_control;
+                }
+            }
             if (update_selected) {
                 // The page table's shape and device address are graph-static,
                 // while residency changes usually touch only a small number
@@ -866,6 +881,29 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             // descriptor input to refresh; falling through to the reference
             // gather assertion would incorrectly reject a large B graph.
         } else if (packed_attention) {
+            GGML_ASSERT(packed_current_idxs != nullptr);
+            GGML_ASSERT(packed_current_rows.size() == ubatch->n_tokens);
+            const auto & pages = selected_metadata.page_table();
+            for (uint32_t token = 0; token < ubatch->n_tokens; ++token) {
+                const llama_pos query = ubatch->pos != nullptr
+                    ? ubatch->pos[token * ubatch->n_pos]
+                    : selected_metadata.query_positions()[token];
+                uint32_t compact_row = UINT32_MAX;
+                for (const auto & page : pages) {
+                    if (query >= page.native_position_begin &&
+                            query < page.native_position_end) {
+                        compact_row = page.compact_row_begin + uint32_t(
+                                query - page.native_position_begin);
+                        break;
+                    }
+                }
+                if (compact_row == UINT32_MAX || compact_row >= packed_row_capacity) {
+                    throw std::runtime_error("packed selected attention current row is outside capacity");
+                }
+                packed_current_rows[token] = int64_t(compact_row);
+            }
+            ggml_backend_tensor_set(packed_current_idxs, packed_current_rows.data(), 0,
+                    packed_current_rows.size() * sizeof(packed_current_rows[0]));
             const int64_t pack_start = kv_attention_metrics && update_selected
                 ? ggml_time_us() : 0;
             uint64_t packed_bytes = 0;
@@ -885,29 +923,13 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         kv_attention_metrics->packed_storage_bytes, storage_bytes);
             }
             if (update_selected) {
-                const auto & pages = selected_metadata.page_table();
-                std::vector<uint8_t> page_has_current(pages.size(), 0);
-                for (size_t page_index = 0; page_index < pages.size(); ++page_index) {
-                    for (const llama_pos query : selected_metadata.query_positions()) {
-                        if (query >= pages[page_index].native_position_begin &&
-                                query < pages[page_index].native_position_end) {
-                            page_has_current[page_index] = 1;
-                            break;
-                        }
-                    }
-                }
                 for (auto & layer : packed_layers) {
-                    std::vector<uint8_t> page_historical_update(pages.size(), 0);
                     for (auto & copy : layer.copies) {
                         if (copy.page_index >= selected_metadata.page_table().size()) {
                             throw std::runtime_error("packed selected attention page plan is stale");
                         }
-                        if (copy.current_rows) {
-                            // The current rows are written by this graph and
-                            // must not be read by a host-side refresh.
-                            continue;
-                        }
-                        const uint32_t generation = selected_metadata.page_table()[copy.page_index].page_generation;
+                        const auto & page = pages[copy.page_index];
+                        const uint32_t generation = page.page_generation;
                         const uint64_t cached_version = packed_cache != nullptr
                             ? packed_cache->content_version(layer.cache_entry, copy.page_index)
                             : UINT64_MAX;
@@ -917,6 +939,17 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                                     kv_attention_metrics->packed_copy_reuses == UINT64_MAX
                                         ? UINT64_MAX : kv_attention_metrics->packed_copy_reuses + 1;
                             }
+                            continue;
+                        }
+                        if (page.row_count > copy.page_row_count) {
+                            // Appending to a resident page does not dirty its
+                            // historical rows. The graph writes every new
+                            // current row directly into the packed owner;
+                            // avoid replaying the unchanged prefix here.
+                            continue;
+                        }
+                        if (copy.current_rows && cached_version == UINT64_MAX) {
+                            // The first graph write supplies the current row.
                             continue;
                         }
                         // Source and destination page views are graph-owned
@@ -944,7 +977,6 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         copy.page_generation = generation;
                         copy.content_version = generation;
                         copy.source_lifetime_epoch = layer.source_lifetime_epoch;
-                        page_historical_update[copy.page_index] = 1;
                         if (kv_attention_metrics != nullptr) {
                             kv_attention_metrics->packed_copy_updates =
                                 kv_attention_metrics->packed_copy_updates == UINT64_MAX
@@ -957,12 +989,9 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                             ? UINT64_MAX : packed_bytes + copy.bytes;
                     }
                     if (packed_cache != nullptr) {
-                        for (size_t page_index = 0; page_index < pages.size(); ++page_index) {
-                            if (page_historical_update[page_index] || page_has_current[page_index]) {
-                                packed_cache->set_content_version(layer.cache_entry,
-                                        uint32_t(page_index), pages[page_index].page_generation);
-                            }
-                        }
+                        // One queue rebuild per layer, after all dirty
+                        // intervals have been handled.
+                        packed_cache->set_content_versions(layer.cache_entry, pages);
                     }
                 }
                 if (kv_attention_metrics != nullptr && packed_bytes != 0) {
@@ -976,12 +1005,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 kv_attention_metrics->pack_reuses = kv_attention_metrics->pack_reuses == UINT64_MAX
                     ? UINT64_MAX : kv_attention_metrics->pack_reuses + 1;
             }
-            std::vector<llama_kv_attention_packed_cache::entry *> owners;
-            owners.reserve(packed_layers.size());
-            for (const auto & layer : packed_layers) {
-                owners.push_back(layer.cache_entry);
-            }
-            if (packed_cache == nullptr || !packed_cache->submit_graph(owners)) {
+            if (packed_cache == nullptr || !packed_cache->submit_graph(packed_graph_owners)) {
                 throw std::runtime_error("packed selected attention graph lease failed");
             }
         } else {
@@ -1009,7 +1033,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             const auto & positions = selected_metadata.native_positions();
             const auto & valid = selected_metadata.native_mask();
             const auto & queries = selected_metadata.query_positions();
-            const uint32_t n_kv = uint32_t(positions.size());
+            const uint32_t n_kv = uint32_t(self_kq_mask->ne[0]);
             const uint32_t n_queries = uint32_t(queries.size());
             GGML_ASSERT(self_kq_mask->ne[0] == n_kv);
             GGML_ASSERT(self_kq_mask->ne[1] == n_queries);
@@ -1018,7 +1042,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 using T = std::remove_reference_t<decltype(*data)>;
                 for (uint32_t query = 0; query < n_queries; ++query) {
                     for (uint32_t row = 0; row < n_kv; ++row) {
-                        const bool allowed = valid[row] != 0 &&
+                        const bool allowed = row < valid.size() && valid[row] != 0 &&
                             (!cparams.causal_attn || positions[row] <= queries[query]);
                         const float value = allowed
                             ? (hparams.use_alibi ? -std::abs(positions[row] - queries[query]) : 0.0f)
@@ -1208,7 +1232,8 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
 
     if (!direct) {
         res &= can_reuse_kq_mask(self_kq_mask, mctx, params.ubatch, params.cparams,
-                selected ? params.kv_attention_metadata.get_n_kv() : 0);
+                selected ? (packed ? packed_row_capacity
+                                   : params.kv_attention_metadata.get_n_kv()) : 0);
     }
     if (selected && !direct && !dense && !packed) {
         res &= self_selected_idxs != nullptr;
@@ -1218,13 +1243,15 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         res &= dense_source_row_begin != UINT32_MAX;
     }
     if (packed) {
+        res &= packed_current_idxs != nullptr;
+        res &= packed_current_idxs->ne[0] == params.ubatch.n_tokens;
         res &= !packed_layers.empty();
         for (const auto & layer : packed_layers) {
             res &= layer.k != nullptr && layer.v != nullptr;
             res &= layer.row_capacity != 0;
             res &= layer.k->ne[2] == int64_t(layer.row_capacity);
             res &= layer.v->ne[2] == int64_t(layer.row_capacity);
-            res &= layer.row_capacity >= params.kv_attention_metadata.get_n_kv();
+            res &= layer.row_capacity == packed_row_capacity;
         }
     }
     if (direct) {
@@ -1311,7 +1338,7 @@ bool llm_graph_input_attn_kv::refresh_selected_data(
                     layer.row_capacity == 0 ||
                     layer.k->ne[2] != int64_t(layer.row_capacity) ||
                     layer.v->ne[2] != int64_t(layer.row_capacity) ||
-                    layer.row_capacity < metadata.get_n_kv()) {
+                    layer.row_capacity != packed_row_capacity) {
                 return false;
             }
         }
@@ -3996,16 +4023,29 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             if (packed_pages.empty()) {
                 throw std::runtime_error("packed selected attention has no selected pages");
             }
-            const auto & packed_tail = packed_pages.back();
-            const uint64_t packed_required_rows = uint64_t(packed_tail.compact_row_begin) +
-                packed_tail.row_count;
-            const uint64_t packed_row_capacity =
-                (packed_required_rows + VBR_GENERATION_PAGE_CELLS - 1) /
-                VBR_GENERATION_PAGE_CELLS * VBR_GENERATION_PAGE_CELLS;
+            const auto pager_snapshot = pager->snapshot();
+            const uint32_t page_tokens = pager_snapshot.geometry.page_tokens;
+            const uint32_t attention_tokens = cparams.kv_attention_tokens != 0
+                ? cparams.kv_attention_tokens
+                : std::max<uint32_t>(page_tokens,
+                    (pager_snapshot.physical_page_count * page_tokens + 1) / 2);
+            const uint64_t bounded_pages = std::max<uint64_t>(1,
+                std::min<uint64_t>(pager_snapshot.physical_page_count,
+                    (uint64_t(attention_tokens) + page_tokens - 1) / page_tokens));
+            // Keep the owner and the attention mask at the admitted A
+            // capacity. Tail length and current-row locations are mutable
+            // descriptor values, not graph shape.
+            const uint64_t packed_row_capacity = bounded_pages * page_tokens;
             if (packed_row_capacity == 0 || packed_row_capacity > UINT32_MAX ||
-                    packed_row_capacity > pager->snapshot().physical_rows) {
+                    packed_row_capacity > pager_snapshot.physical_rows) {
                 throw std::runtime_error("packed selected attention row capacity overflows");
             }
+            inp->packed_row_capacity = uint32_t(packed_row_capacity);
+            inp->packed_current_idxs = ggml_new_tensor_1d(
+                    ctx0, GGML_TYPE_I64, ubatch.n_tokens);
+            inp->packed_current_rows.resize(ubatch.n_tokens);
+            ggml_set_input(inp->packed_current_idxs);
+            ggml_set_name(inp->packed_current_idxs, "kv_packed_current_rows");
             const auto storage_device = pager->residency_storage_tensor() != nullptr
                 ? ggml_backend_buft_get_device(ggml_backend_buffer_get_type(
                     pager->residency_storage_tensor()->buffer)) : nullptr;
@@ -4063,6 +4103,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 ggml_set_name(layer.v, "kv_packed_v");
                 ggml_backend_sched_set_tensor_backend(sched, layer.k, packed_backend);
                 ggml_backend_sched_set_tensor_backend(sched, layer.v, packed_backend);
+                inp->packed_graph_owners.push_back(layer.cache_entry);
                 const auto & queries = selected_metadata->query_positions();
                 for (size_t page_index = 0; page_index < selected_metadata->page_table().size(); ++page_index) {
                     const auto & page = selected_metadata->page_table()[page_index];
@@ -4123,7 +4164,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                                 page.page_generation, packed_cache->content_version(
                                     layer.cache_entry, uint32_t(page_index)),
                                 mctx_cur->get_vbr_epoch(), source_k_offset,
-                                source_v_offset, current_rows, row_count,
+                                source_v_offset, current_rows, page.row_count, row_count,
                                 uint64_t(row_count) * (source_k->nb[2] + source_v->nb[2]) });
                         row_begin = row_end;
                     }
@@ -4567,7 +4608,10 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
 
         if (!inp->direct_attention) {
             inp->self_kq_mask = build_attn_inp_kq_mask(ctx0, mctx_cur, ubatch, cparams,
-                    inp->selected_attention ? selected_metadata->get_n_kv() : 0);
+                    inp->selected_attention
+                        ? (inp->packed_attention ? inp->packed_row_capacity
+                                                  : selected_metadata->get_n_kv())
+                        : 0);
         }
         inp->self_kq_mask_cnv = inp->self_kq_mask;
     }
@@ -4660,34 +4704,42 @@ ggml_tensor * llm_graph_context::build_attn(
     }
 
     if (inp->packed_attention) {
-        // The host-side cache keeps historical packed bytes amortized. Rows
-        // written by this graph are copied again after the cache stores, so a
-        // current tail/new page cannot be observed one submission late.
-        const auto & pages = inp->selected_metadata.page_table();
         for (const auto & layer : inp->packed_layers) {
             if (layer.layer_id != uint32_t(il)) {
                 continue;
             }
-            for (const auto & copy : layer.copies) {
-                if (copy.page_index >= pages.size()) {
-                    throw std::runtime_error("packed selected attention copy index is out of range");
-                }
-                if (copy.current_rows) {
-                    // SET_ROWS returns a view of the cache destination. Use
-                    // that result as the source view so the graph records a
-                    // real write -> packed-copy -> attention dependency.
-                    ggml_tensor * current_k = ggml_view_4d(ctx0, cache_k_write,
-                            copy.source_k->ne[0], copy.source_k->ne[1], copy.row_count, 1,
-                            copy.source_k->nb[1], copy.source_k->nb[2], copy.source_k->nb[3],
-                            copy.source_offset_k);
-                    ggml_tensor * current_v = ggml_view_4d(ctx0, cache_v_write,
-                            copy.source_v->ne[0], copy.source_v->ne[1], copy.row_count, 1,
-                            copy.source_v->nb[1], copy.source_v->nb[2], copy.source_v->nb[3],
-                            copy.source_offset_v);
-                    ggml_build_forward_expand(gf, ggml_cpy(ctx0, current_k, copy.packed_k));
-                    ggml_build_forward_expand(gf, ggml_cpy(ctx0, current_v, copy.packed_v));
-                }
+            if (inp->packed_current_idxs == nullptr) {
+                throw std::runtime_error("packed selected attention current-row descriptor is unavailable");
             }
+            // Feed the stable Turbo4 owner from the same post-RoPE current
+            // rows that are committed by cache_k_write/cache_v_write. SET_ROWS
+            // quantizes F32/F16 into Turbo4 and accepts the mutable compact
+            // row IDs; gathering an already-quantized row would dequantize and
+            // re-quantize every token and is unsupported on CUDA.
+            const auto make_current_source = [&](ggml_tensor * current,
+                                                  ggml_tensor * owner) {
+                const int64_t n_head = owner->ne[1];
+                const int64_t cache_head = owner->ne[0];
+                if (current->ne[1] != n_head || current->ne[0] > cache_head ||
+                        current->ne[2] != int64_t(inp->packed_current_idxs->ne[0])) {
+                    throw std::runtime_error("packed selected attention current rows have invalid shape");
+                }
+                if (current->ne[0] < cache_head) {
+                    current = ggml_pad(ctx0, current, cache_head - current->ne[0], 0, 0, 0);
+                }
+                return ggml_view_2d(ctx0, current, cache_head * n_head,
+                        current->ne[2], current->nb[2], 0);
+            };
+            ggml_tensor * packed_k_owner = ggml_reshape_2d(ctx0, layer.k,
+                    layer.k->ne[0] * layer.k->ne[1], layer.k->ne[2]);
+            ggml_tensor * packed_v_owner = ggml_reshape_2d(ctx0, layer.v,
+                    layer.v->ne[0] * layer.v->ne[1], layer.v->ne[2]);
+            layer.current_k = ggml_set_rows(ctx0, packed_k_owner,
+                    make_current_source(k_cur, layer.k), inp->packed_current_idxs);
+            layer.current_v = ggml_set_rows(ctx0, packed_v_owner,
+                    make_current_source(v_cur, layer.v), inp->packed_current_idxs);
+            ggml_build_forward_expand(gf, layer.current_k);
+            ggml_build_forward_expand(gf, layer.current_v);
             break;
         }
     }
@@ -4725,16 +4777,17 @@ ggml_tensor * llm_graph_context::build_attn(
         if (layer_it == inp->packed_layers.end()) {
             throw std::runtime_error("selected packed attention layer is unavailable");
         }
+        // SET_ROWS returns a flat view used to express the write dependency;
+        // the owner remains the original 4-D attention tensor.
         k = layer_it->k;
         v = layer_it->v;
-        // The owner is padded to the pager's A capacity, but this graph
-        // instance exposes only the selected rows to the ordinary attention
-        // operator and its selected mask.
+        // The owner and mask use the admitted A capacity. Rows beyond the
+        // active selection are masked out as mutable descriptor values.
         k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1],
-                inp->selected_metadata.get_n_kv(), 1,
+                inp->packed_row_capacity, 1,
                 k->nb[1], k->nb[2], k->nb[3], 0);
         v = ggml_view_4d(ctx0, v, v->ne[0], v->ne[1],
-                inp->selected_metadata.get_n_kv(), 1,
+                inp->packed_row_capacity, 1,
                 v->nb[1], v->nb[2], v->nb[3], 0);
         v_for_unrotate = v;
     }

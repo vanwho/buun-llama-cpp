@@ -150,6 +150,12 @@ public:
             entry * cached,
             uint32_t page_index,
             uint64_t version) noexcept;
+    // Mark the selected page generations after the graph's current-row
+    // writes and any historical interval copies have been enqueued. Rebuild
+    // the dirty interval queue once for the whole selection.
+    void set_content_versions(
+            entry * cached,
+            const std::vector<llama_kv_attention_view_page> & pages) noexcept;
 
 private:
     static bool same_structural_key(
@@ -169,6 +175,7 @@ private:
     static void update_slots(
             entry & cached,
             const std::vector<llama_kv_attention_view_page> & pages);
+    static void rebuild_dirty_intervals(entry & cached) noexcept;
     static void release_entry(entry * cached) noexcept;
     std::vector<std::unique_ptr<entry>> entries_;
     std::vector<std::vector<entry *>> graph_leases_;
