@@ -246,6 +246,12 @@ LLAMA_API bool llama_set_embeddings_nextn_device(
         struct llama_context * ctx, struct llama_context * source,
         int32_t source_offset, int32_t destination_offset, int32_t n_rows);
 
+// Mark the target graph as native-MTP verification while it is being built.
+// This is a staging hook for speculative consumers; it does not alter public
+// context geometry or the draft KV allocation.
+LLAMA_API void llama_set_kv_attention_mtp_verification(
+        struct llama_context * ctx, bool enabled);
+
 // Set whether the context outputs the input embeddings of a specific layer
 LLAMA_API void llama_set_embeddings_layer_inp(struct llama_context * ctx, uint32_t lid, bool value);
 
