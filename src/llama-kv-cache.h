@@ -492,6 +492,12 @@ public:
     // return empty slot_info on failure
     slot_info find_slot(const llama_ubatch & ubatch, bool cont) const;
     void record_slot_failure(const llama_ubatch & ubatch) noexcept;
+    bool pager_write_row(
+            const llama_ubatch & ubatch, size_t token_index, size_t ticket_index,
+            uint32_t attention_layer, uint32_t & row) const noexcept;
+    bool validate_pager_write_batch(
+            const llama_ubatch & ubatch, const slot_info & sinfo,
+            size_t first_ticket) const noexcept;
 
     // emplace the ubatch context into slot: [sinfo.idxs[0...ubatch.n_tokens - 1]]
     // commit=false is used only by plan_slots() to suppress non-metadata side effects
@@ -1717,7 +1723,7 @@ private:
     // completion. The next cache mutation fails closed until the owner is
     // rebuilt or explicitly cleared.
     bool pager_write_failure_ = false;
-    llama_memory_failure_reason last_failure_reason_ =
+    mutable llama_memory_failure_reason last_failure_reason_ =
             llama_memory_failure_reason::none;
 
     std::vector<kv_layer> layers;

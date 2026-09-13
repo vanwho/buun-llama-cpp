@@ -2173,15 +2173,18 @@ llama_kv_pager_write_status llama_kv_pager::cancel_write(
 bool llama_kv_pager::physical_row(
         int32_t sequence_id, llama_pos position, uint32_t & row) const noexcept {
     row = UINT32_MAX;
-    if (!snapshot_.initialized || snapshot_.physical_page_count == 0 || position < 0 ||
+    if (!snapshot_.initialized || snapshot_.physical_page_count == 0 ||
+        snapshot_.geometry.page_tokens == 0 || position < 0 ||
         uint64_t(position) >= snapshot_.geometry.context_tokens) return false;
     const uint32_t logical = uint32_t(uint64_t(position) / snapshot_.geometry.page_tokens);
     const uint32_t offset = uint32_t(uint64_t(position) % snapshot_.geometry.page_tokens);
     const page_state * page = find_page(sequence_id, logical);
     if (page == nullptr || offset >= page->valid_rows.size() || !page->valid_rows[offset] ||
-        page->record.physical_slot == UINT32_MAX) return false;
-    const uint64_t physical = uint64_t(page->record.physical_slot) * snapshot_.geometry.page_tokens + offset;
-    if (physical > UINT32_MAX) return false;
+        page->record.physical_slot == UINT32_MAX ||
+        page->record.physical_slot >= snapshot_.physical_page_count) return false;
+    const uint64_t physical = uint64_t(page->record.physical_slot) *
+            snapshot_.geometry.page_tokens + offset;
+    if (physical > UINT32_MAX || physical >= snapshot_.physical_rows) return false;
     row = uint32_t(physical);
     return true;
 }
@@ -2207,6 +2210,66 @@ bool llama_kv_pager::physical_row(
         }
     }
     return physical_row(sequence_id, position, row);
+}
+
+bool llama_kv_pager::physical_row(
+        const llama_kv_pager_write_ticket & ticket, uint32_t attention_layer,
+        uint32_t & row) const noexcept {
+    row = UINT32_MAX;
+    if (!snapshot_.initialized || snapshot_.physical_page_count == 0 ||
+        ticket.sequence_id < 0 || ticket.sequence_generation == 0 ||
+        ticket.page_generation == 0 || ticket.position < 0 ||
+        snapshot_.geometry.page_tokens == 0 ||
+        uint64_t(ticket.position) >= snapshot_.geometry.context_tokens ||
+        ticket.physical_slot >= snapshot_.physical_page_count) {
+        return false;
+    }
+
+    const uint64_t logical64 = uint64_t(ticket.position) /
+            snapshot_.geometry.page_tokens;
+    const uint32_t offset = uint32_t(uint64_t(ticket.position) %
+            snapshot_.geometry.page_tokens);
+    if (logical64 > UINT32_MAX || ticket.logical_page != uint32_t(logical64) ||
+        offset >= snapshot_.geometry.page_tokens) {
+        return false;
+    }
+
+    const uint64_t expected_row = uint64_t(ticket.physical_slot) *
+            snapshot_.geometry.page_tokens + offset;
+    if (expected_row > UINT32_MAX || expected_row >= snapshot_.physical_rows ||
+        ticket.physical_row != uint32_t(expected_row)) {
+        return false;
+    }
+
+    const page_state * page = find_page(ticket.sequence_id, ticket.logical_page);
+    if (page == nullptr || page->record.physical_slot != ticket.physical_slot ||
+        page->record.id.sequence_generation != ticket.sequence_generation ||
+        page->record.id.page_generation != ticket.page_generation ||
+        offset >= page->valid_rows.size() || !page->valid_rows[offset]) {
+        return false;
+    }
+
+    const auto published = residency_.snapshot();
+    const auto it = std::find_if(published.pages().begin(), published.pages().end(),
+            [&](const llama_kv_page_record & record) {
+        return record.id == page->record.id &&
+            record.physical_slot == ticket.physical_slot &&
+            record.state != llama_kv_page_state::absent &&
+            record.state != llama_kv_page_state::invalid &&
+            record.valid_length > offset;
+    });
+    if (it == published.pages().end()) {
+        return false;
+    }
+
+    uint32_t mapped = UINT32_MAX;
+    if (!physical_row(ticket.sequence_id, ticket.position, attention_layer, mapped) ||
+        mapped != uint32_t(expected_row)) {
+        return false;
+    }
+
+    row = uint32_t(expected_row);
+    return true;
 }
 
 llama_kv_pager_write_status llama_kv_pager::mutate(
