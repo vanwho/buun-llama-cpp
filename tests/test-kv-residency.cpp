@@ -321,11 +321,95 @@ static llama_kv_residency_transfer_page transfer_page_for(
     return result;
 }
 
+static void test_layer_granular_identity_and_transfer() {
+    auto layer_record = [](uint32_t layer, uint32_t slot) {
+        auto result = resident(0, slot);
+        result.id.attention_layer = layer;
+        result.content_version = 17 + layer;
+        result.valid_length = 17;
+        return result;
+    };
+
+    // Two full-attention layers may retain the same logical page while owning
+    // different physical slots. The layer is part of the residency key, not
+    // an implicit property of the canonical host bundle.
+    llama_kv_residency_table table(2);
+    auto tx = table.begin();
+    assert(table.replace(tx, layer_record(0, 0)) == llama_kv_residency_status::ok);
+    assert(table.replace(tx, layer_record(1, 1)) == llama_kv_residency_status::ok);
+    assert(table.publish(tx) == llama_kv_residency_status::ok);
+    assert(table.snapshot().pages().size() == 2);
+
+    auto layer_transfer = [](uint32_t layer, uint32_t slot) {
+        auto result = transfer_page(slot);
+        result.page.attention_layer = layer;
+        result.layer = layer;
+        result.runs.clear();
+        result.runs.push_back({ UINT32_MAX, 0, layer, 0, 0, 17, 2, 0, 0 });
+        return result;
+    };
+    llama_kv_residency_transfer_plan upload;
+    assert(llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            { layer_transfer(0, 0), layer_transfer(1, 1) }, 64, {}, upload));
+    assert(upload.pages.size() == 2 && upload.runs.size() == 2);
+    assert(upload.useful_bytes == 68 && upload.aligned_bytes == 128);
+    assert(upload.runs[0].layer == 0 && upload.runs[1].layer == 1);
+
+    fake_transfer_backend fake;
+    llama_kv_residency_pool_backend backend {
+        &fake, fake_transfer_backend::reserve_slots,
+        fake_transfer_backend::release_slots, fake_transfer_backend::map_slot,
+        fake_transfer_backend::drop_slot, fake_transfer_backend::issue,
+        fake_transfer_backend::complete, fake_transfer_backend::cancel,
+    };
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create(
+            { 3, 128, 4, 8, 1024 }, backend, pool_status);
+    assert(pool && pool_status == llama_kv_residency_pool_status::ok);
+    llama_kv_residency_transfer_claim claim;
+    assert(pool->reserve(upload, 128, {}, claim) == llama_kv_residency_pool_status::ok);
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 256, 32, ring_status);
+    assert(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &fake;
+    transport.host_read = fake_transfer_backend::host_read;
+    transport.recheck = fake_transfer_backend::recheck;
+    assert(llama_kv_residency_execute_transfer(
+            *pool, upload, claim, backend, transport).status ==
+        llama_kv_residency_pool_status::ok);
+    assert(fake.slots[0][0] == 1 && fake.slots[1][0] == 33);
+    assert(fake.slots[0][1] == 2 && fake.slots[1][1] == 34);
+
+    // A cancellation/failure must not leave a layer mapping or a slot pinned.
+    auto cancelled = layer_transfer(0, 2);
+    llama_kv_residency_transfer_plan cancelled_plan;
+    assert(llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            { cancelled }, 4, {}, cancelled_plan));
+    llama_kv_residency_transfer_claim cancelled_claim;
+    assert(pool->reserve(cancelled_plan, 32, {}, cancelled_claim) ==
+        llama_kv_residency_pool_status::ok);
+    fake.fail_issue = true;
+    const auto failed = llama_kv_residency_execute_transfer(
+            *pool, cancelled_plan, cancelled_claim, backend, transport);
+    assert(failed.status != llama_kv_residency_pool_status::ok);
+    fake.fail_issue = false;
+    assert(pool->mapped_slots() == 2);
+}
+
 static void test_batched_transfer_pool() {
+    const auto single_page = transfer_page(0);
+    assert(single_page.layer == UINT32_MAX);
+    assert(single_page.page.attention_layer == UINT32_MAX);
+    assert(single_page.runs[0].lane == 0 && single_page.runs[0].layer == 0);
+    assert(llama_kv_page_id_valid(single_page.page, false));
     llama_kv_residency_transfer_plan upload;
     assert(llama_kv_residency_build_transfer_plan(
         llama_kv_residency_transfer_direction::h2d_promotion,
-        { transfer_page(0) }, 4, {}, upload));
+        { single_page }, 4, {}, upload));
     assert(upload.useful_bytes == 8 && upload.aligned_bytes == 8);
     assert(upload.runs.size() == 1 && upload.event_count == 1);
 
@@ -1049,6 +1133,7 @@ int main() {
     test_rejection_and_stale_publication();
     test_batched_transfer_pool();
     test_multi_page_h2d_uses_plan_local_page_indices();
+    test_layer_granular_identity_and_transfer();
     test_ggml_adapter_tensor_route();
     test_ggml_adapter_borrowed_storage();
     test_pool_reconcile_and_layer_major_run_view();

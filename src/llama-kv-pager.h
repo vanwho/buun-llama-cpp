@@ -37,6 +37,11 @@ struct llama_kv_pager_geometry {
     std::vector<uint64_t> layer_v_offsets;
     std::vector<uint64_t> layer_k_page_bytes;
     std::vector<uint64_t> layer_v_page_bytes;
+    // Equal initial H_l capacities and flattened layer-slot bases. These are
+    // separate from canonical bundle byte offsets so later policy updates can
+    // assign per-layer budgets without a union-based coupling.
+    std::vector<uint32_t> layer_slot_counts;
+    std::vector<uint32_t> layer_slot_bases;
     // Model layer IDs are not necessarily compact attention ordinals in a
     // hybrid model. Keep the checked map beside the offsets.
     std::vector<uint32_t> model_layer_ids;
@@ -246,6 +251,7 @@ struct llama_kv_pager_snapshot {
     uint32_t physical_page_count = 0;
     uint64_t physical_rows = 0;
     uint64_t physical_bytes = 0;
+    uint32_t physical_layer_slot_count = 0;
     uint64_t host_metadata_bytes = 0;
     uint64_t mtp_rows = 0;
     uint64_t host_budget_bytes = 0;
@@ -293,6 +299,7 @@ struct llama_kv_pager_write_ticket {
     uint32_t physical_slot = UINT32_MAX;
     uint32_t physical_row = UINT32_MAX;
     uint32_t page_generation = 0;
+    uint32_t attention_layer = UINT32_MAX;
     llama_pos position = -1;
     bool page_created = false;
     bool row_was_valid = false;
@@ -363,6 +370,9 @@ public:
     llama_kv_pager_write_status begin_write(
             int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
             llama_kv_pager_write_ticket & ticket) noexcept;
+    llama_kv_pager_write_status begin_write(
+            int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
+            uint32_t attention_layer, llama_kv_pager_write_ticket & ticket) noexcept;
     // Reserve all rows for one graph submission as one recoverable operation.
     // If any row cannot be admitted, previously reserved rows are cancelled in
     // reverse order and no partial batch remains visible to the caller.
@@ -381,7 +391,10 @@ public:
     llama_kv_pager_write_status cancel_write(
             const llama_kv_pager_write_ticket & ticket) noexcept;
     bool physical_row(
-            int32_t sequence_id, llama_pos position, uint32_t & row) const noexcept;
+        int32_t sequence_id, llama_pos position, uint32_t & row) const noexcept;
+    bool physical_row(
+        int32_t sequence_id, llama_pos position, uint32_t attention_layer,
+        uint32_t & row) const noexcept;
 
     // Apply a metadata mutation as one table publication. Payload movement is deliberately
     // deferred to the residency transfer owner; this method never publishes a half mutation.

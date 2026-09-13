@@ -430,11 +430,19 @@ public:
 
     ggml_tensor * get_k_idxs() const { return self_k_idxs; }
     ggml_tensor * get_v_idxs() const { return self_v_idxs; }
+    ggml_tensor * get_k_idxs(int32_t il) const;
+    ggml_tensor * get_v_idxs(int32_t il) const;
 
     ggml_tensor * get_kq_mask() const { return self_kq_mask_cnv; }
 
     ggml_tensor * self_k_idxs = nullptr; // I64 [n_batch]
     ggml_tensor * self_v_idxs = nullptr; // I64 [n_batch] or [n_batch*n_embd_v_gqa]
+    // A layer-paged cache has one physical row map per full-attention layer.
+    // Keep the legacy tensors above for non-paged/reference paths, while the
+    // vectors below bind cpy_k/cpy_v to the same layer ordinal used by the
+    // attention views.
+    std::vector<ggml_tensor *> self_k_idxs_by_layer;
+    std::vector<ggml_tensor *> self_v_idxs_by_layer;
 
     ggml_tensor * self_kq_mask     = nullptr; // F32/F16 [n_kv, n_batch/n_stream, 1, n_stream]
     ggml_tensor * self_kq_mask_cnv = nullptr; //         [n_kv, n_batch/n_stream, 1, n_stream]

@@ -709,8 +709,18 @@ void llm_graph_input_attn_no_cache::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
-    mctx->set_input_k_idxs(self_k_idxs, ubatch);
-    mctx->set_input_v_idxs(self_v_idxs, ubatch);
+    if (self_k_idxs_by_layer.empty()) {
+        mctx->set_input_k_idxs(self_k_idxs, ubatch);
+        mctx->set_input_v_idxs(self_v_idxs, ubatch);
+    } else {
+        const auto & layer_ids = direct_layer_ids;
+        GGML_ASSERT(layer_ids.size() == self_k_idxs_by_layer.size());
+        GGML_ASSERT(layer_ids.size() == self_v_idxs_by_layer.size());
+        for (size_t ordinal = 0; ordinal < layer_ids.size(); ++ordinal) {
+            mctx->set_input_k_idxs(self_k_idxs_by_layer[ordinal], ubatch, layer_ids[ordinal]);
+            mctx->set_input_v_idxs(self_v_idxs_by_layer[ordinal], ubatch, layer_ids[ordinal]);
+        }
+    }
 
     const bool initialize_selected = selected_attention && !selected_static_inputs_initialized;
     const bool content_changed = selected_attention && !exact_wave_attention &&
@@ -1012,6 +1022,24 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     }
 
     turbo_vmean_fill(self_vmean, turbo_vmean_data);
+}
+
+ggml_tensor * llm_graph_input_attn_kv::get_k_idxs(int32_t il) const {
+    if (self_k_idxs_by_layer.empty()) {
+        return self_k_idxs;
+    }
+    const auto it = std::find(direct_layer_ids.begin(), direct_layer_ids.end(), uint32_t(il));
+    return it == direct_layer_ids.end()
+        ? nullptr : self_k_idxs_by_layer[size_t(it - direct_layer_ids.begin())];
+}
+
+ggml_tensor * llm_graph_input_attn_kv::get_v_idxs(int32_t il) const {
+    if (self_v_idxs_by_layer.empty()) {
+        return self_v_idxs;
+    }
+    const auto it = std::find(direct_layer_ids.begin(), direct_layer_ids.end(), uint32_t(il));
+    return it == direct_layer_ids.end()
+        ? nullptr : self_v_idxs_by_layer[size_t(it - direct_layer_ids.begin())];
 }
 
 void llm_graph_input_attn_kv::refresh_direct_telemetry(
@@ -4246,6 +4274,22 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         inp->self_k_idxs = mctx_cur->build_input_k_idxs(ctx0, ubatch);
         inp->self_v_idxs = mctx_cur->build_input_v_idxs(ctx0, ubatch);
 
+        // The pager's physical row map is layer-scoped. Build all maps once
+        // in deterministic cache-layer order so each cpy node and its later
+        // attention load use the same layer ordinal. Legacy caches retain the
+        // single input tensors and avoid the additional graph inputs.
+        if (mctx_cur->get_kv_pager() != nullptr) {
+            inp->direct_layer_ids = mctx_cur->get_layer_ids();
+            inp->self_k_idxs_by_layer.reserve(inp->direct_layer_ids.size());
+            inp->self_v_idxs_by_layer.reserve(inp->direct_layer_ids.size());
+            for (const uint32_t layer_id : inp->direct_layer_ids) {
+                inp->self_k_idxs_by_layer.push_back(
+                        mctx_cur->build_input_k_idxs(ctx0, ubatch, layer_id));
+                inp->self_v_idxs_by_layer.push_back(
+                        mctx_cur->build_input_v_idxs(ctx0, ubatch, layer_id));
+            }
+        }
+
         if (!inp->direct_attention) {
             inp->self_kq_mask = build_attn_inp_kq_mask(ctx0, mctx_cur, ubatch, cparams,
                     inp->selected_attention ? selected_metadata->get_n_kv() : 0);
@@ -4325,8 +4369,11 @@ ggml_tensor * llm_graph_context::build_attn(
 
     // store to KV cache
     {
-        const auto & k_idxs = inp->get_k_idxs();
-        const auto & v_idxs = inp->get_v_idxs();
+        ggml_tensor * k_idxs = inp->get_k_idxs(il);
+        ggml_tensor * v_idxs = inp->get_v_idxs(il);
+        if (k_idxs == nullptr || v_idxs == nullptr) {
+            throw std::runtime_error("layer-paged KV row map is unavailable");
+        }
 
         ggml_build_forward_expand(gf, mctx_cur->cpy_k(ctx0, k_cur, k_idxs, il));
         ggml_build_forward_expand(gf, mctx_cur->cpy_v(ctx0, v_cur, v_idxs, il));

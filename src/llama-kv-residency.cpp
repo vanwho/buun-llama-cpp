@@ -1,4 +1,5 @@
 #include "llama-kv-residency.h"
+#include "llama-vbr-artifact-capture.h"
 
 #include <algorithm>
 #include <limits>
@@ -16,7 +17,8 @@ bool operator==(const llama_kv_page_id & a, const llama_kv_page_id & b) noexcept
         a.model_identity == b.model_identity && a.topology_identity == b.topology_identity &&
         a.codec_digest == b.codec_digest && a.codebook_digest == b.codebook_digest &&
         a.rotation_digest == b.rotation_digest && a.meansub_digest == b.meansub_digest &&
-        a.position_begin == b.position_begin && a.position_end == b.position_end;
+        a.position_begin == b.position_begin && a.position_end == b.position_end &&
+        a.attention_layer == b.attention_layer;
 }
 
 bool operator!=(const llama_kv_page_id & a, const llama_kv_page_id & b) noexcept { return !(a == b); }
@@ -24,7 +26,9 @@ bool operator!=(const llama_kv_page_id & a, const llama_kv_page_id & b) noexcept
 bool llama_kv_page_id_valid(const llama_kv_page_id & id, bool tail) noexcept {
     constexpr uint32_t page_size = VBR_GENERATION_PAGE_CELLS;
     if (id.sequence_id < 0 || id.position_begin < 0 || id.position_end <= id.position_begin ||
-        id.position_begin % page_size != 0) {
+        id.position_begin % page_size != 0 ||
+        (id.attention_layer != UINT32_MAX &&
+         id.attention_layer >= VBR_SELECTED_PAGE_TARGET_LAYERS)) {
         return false;
     }
     const uint64_t length = uint64_t(id.position_end) - uint64_t(id.position_begin);
@@ -108,7 +112,8 @@ llama_kv_residency_status llama_kv_residency_table::replace(
         if (existing.id.session_generation == page.id.session_generation &&
             existing.id.sequence_id == page.id.sequence_id &&
             existing.id.sequence_generation == page.id.sequence_generation &&
-            existing.id.logical_page == page.id.logical_page)
+            existing.id.logical_page == page.id.logical_page &&
+            existing.id.attention_layer == page.id.attention_layer)
             return llama_kv_residency_status::duplicate_logical_page;
         if (existing.physical_slot == page.physical_slot) {
             if (existing.pin_count != 0) return llama_kv_residency_status::pinned_slot;
@@ -139,7 +144,8 @@ llama_kv_residency_status llama_kv_residency_table::update(
         return existing.id.session_generation == page.id.session_generation &&
             existing.id.sequence_id == page.id.sequence_id &&
             existing.id.sequence_generation == page.id.sequence_generation &&
-            existing.id.logical_page == page.id.logical_page;
+            existing.id.logical_page == page.id.logical_page &&
+            existing.id.attention_layer == page.id.attention_layer;
     });
     // A restore may replace the logical identity after the pager has reserved
     // a physical slot.  Slot ownership is unique within this transaction and

@@ -524,7 +524,8 @@ bool llama_kv_residency_build_transfer_plan(
             }
             for (const auto & prior : output.pages) {
                 if (prior.page == input.page ||
-                    prior.physical_slot == input.physical_slot) {
+                    (prior.physical_slot == input.physical_slot &&
+                     prior.layer == input.layer)) {
                     output = {};
                     return false;
                 }
@@ -539,6 +540,10 @@ bool llama_kv_residency_build_transfer_plan(
                     run.side > 1 || run.row_count == 0 || run.row_bytes == 0 ||
                     run.first_physical_row > UINT32_MAX - run.row_count ||
                     run.useful_bytes() == 0) {
+                    output = {};
+                    return false;
+                }
+                if (input.layer != UINT32_MAX && run.layer != input.layer) {
                     output = {};
                     return false;
                 }

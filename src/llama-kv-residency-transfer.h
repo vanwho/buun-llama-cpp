@@ -44,6 +44,12 @@ struct llama_kv_residency_transfer_page {
     llama_kv_page_id page;
     uint64_t table_epoch = 0;
     uint32_t physical_slot = UINT32_MAX;
+    // Explicit request scope. It mirrors page.attention_layer when that
+    // identity is layer-granular and remains UINT32_MAX for a bundle.
+    uint32_t layer = UINT32_MAX;
+    uint64_t content_version = 0;
+    uint32_t valid_length = 0;
+    uint32_t consumer_events = 0;
     std::vector<llama_kv_residency_transfer_run> runs;
 };
 

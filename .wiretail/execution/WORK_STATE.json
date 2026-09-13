@@ -13,8 +13,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "28",
-  "current_task": "28-05",
-  "last_updated_utc": "2026-09-13T00:15:52+00:00",
+  "current_task": "28-06",
+  "last_updated_utc": "2026-09-13T01:02:27+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -5736,14 +5736,39 @@
       "cluster": "28d-layer-movement-v8",
       "title": "Make GPU residency and canonical transfers independently layer-granular",
       "packet": ".wiretail/execution/tasks/28-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "depends_on": [
         "28-04"
       ],
-      "commit": null,
-      "scope_revision": "gpu-hot-path-v8-20260912"
+      "commit": "5595cce066143e64d687e1dd82a8ee857cfe5795",
+      "scope_revision": "gpu-hot-path-v8-20260912",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/28-05-attempt-1-20260913T001609Z.jsonl:333",
+            "total_tokens": 42678618,
+            "total_tokens_derived": true,
+            "input_tokens": 42608828,
+            "cached_input_tokens": 41971200,
+            "output_tokens": 69790,
+            "thinking_tokens": 28149
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 42678618,
+          "input_tokens": 42608828,
+          "cached_input_tokens": 41971200,
+          "output_tokens": 69790,
+          "thinking_tokens": 28149
+        }
+      }
     },
     {
       "id": "28-06",
@@ -7472,15 +7497,28 @@
           "cached_input_tokens": 96960000,
           "output_tokens": 153993,
           "thinking_tokens": 69005
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/28-05-attempt-1-20260913T001609Z.jsonl:333",
+          "total_tokens": 42678618,
+          "total_tokens_derived": true,
+          "input_tokens": 42608828,
+          "cached_input_tokens": 41971200,
+          "output_tokens": 69790,
+          "thinking_tokens": 28149
         }
       ],
       "totals": {
-        "turns": 4,
-        "total_tokens": 218474284,
-        "input_tokens": 218128049,
-        "cached_input_tokens": 215124224,
-        "output_tokens": 346235,
-        "thinking_tokens": 144234
+        "turns": 5,
+        "total_tokens": 261152902,
+        "input_tokens": 260736877,
+        "cached_input_tokens": 257095424,
+        "output_tokens": 416025,
+        "thinking_tokens": 172383
       }
     },
     "29": {
@@ -7508,12 +7546,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 101,
-      "total_tokens": 2192117216,
-      "input_tokens": 2187128049,
-      "cached_input_tokens": 2146580480,
-      "output_tokens": 4989167,
-      "thinking_tokens": 1783335
+      "turns": 102,
+      "total_tokens": 2234795834,
+      "input_tokens": 2229736877,
+      "cached_input_tokens": 2188551680,
+      "output_tokens": 5058957,
+      "thinking_tokens": 1811484
     },
     "source": "Codex turn.completed usage events"
   }
