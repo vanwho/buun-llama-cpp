@@ -1,0 +1,44 @@
+{
+  "schema": "gpu-hot-path-v8-async-ranked-promotion-v1",
+  "task": "28-06",
+  "status": "complete",
+  "result": "complete",
+  "implementation": {
+    "mailbox": "fixed double-buffered candidate slots with compact layer/page identity, generation, score, requested bytes, content version, and speculation metadata",
+    "polling": "backend event polling without compute-stream synchronization; completed events are released and stale/rejected candidates are discarded before ready publication",
+    "scheduler": "layer-aware duplicate suppression, bounded pending/inflight/ready occupancy, refresh cadence/page/byte budgets, generation checks, minimum-ready hysteresis, and clean eviction callback boundary",
+    "policy": "live pager consumes validated mailbox candidates and no longer performs per-token blocking Q tensor readback",
+    "demand": "required requests retain explicit bounded ensure_ready waits while predictive requests remain asynchronous and backpressure-aware"
+  },
+  "tests": {
+    "cpu_build": "cmake --build build --target test-kv-prefetch test-kv-pager test-kv-policy -j2",
+    "cpu_build_result": "pass",
+    "cpu_prefetch": "build/bin/test-kv-prefetch",
+    "cpu_prefetch_result": "pass",
+    "cpu_pager": "build/bin/test-kv-pager",
+    "cpu_pager_result": "pass",
+    "cpu_policy": "build/bin/test-kv-policy",
+    "cpu_policy_result": "pass",
+    "cuda_build": "cmake --build build-cuda --target test-kv-prefetch test-kv-pager test-kv-policy llama-server -j2",
+    "cuda_build_result": "pass",
+    "cuda_prefetch_result": "pass",
+    "cuda_pager_result": "pass",
+    "cuda_policy_result": "pass",
+    "model_fixture_build": "cmake --build build-cuda --target test-kv-pager-model -j2",
+    "model_fixture_build_result": "pass",
+    "diff_check": "git diff --check",
+    "state_validation": "PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp python3 /srv/wiretail/task_state.py validate"
+  },
+  "cuda": {
+    "live_attempt": "LD_LIBRARY_PATH=build-cuda/bin build-cuda/bin/test-kv-pager-model --model /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf --mtp native",
+    "live_result": "blocked_by_resident_gpu_allocation",
+    "live_error": "cudaMalloc requested 12726.35 MiB; only about 210 MiB free while PID 1462393 retained 15456 MiB",
+    "resident_candidate_preserved": true,
+    "port_8080_touched": false,
+    "port_8092_touched": false
+  },
+  "deferred_verification": [
+    "Current-source live native-MTP ranked cold promotion/use requires an isolated GPU or teardown of the preserved resident candidate.",
+    "Task 28-07 remains unchanged."
+  ]
+}

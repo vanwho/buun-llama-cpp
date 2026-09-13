@@ -1,5 +1,7 @@
 #pragma once
 
+#include "llama-kv-residency.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -33,6 +35,121 @@ struct llama_kv_prefetch_intent {
     uint64_t host_offset = 0;
     uint64_t host_bytes = 0;
     bool prediction_hit_counted = false;
+    // Layer identity is part of the residency key.  The legacy page_id field
+    // remains valid for owner-side callers that use compact test identities.
+    uint32_t attention_layer = UINT32_MAX;
+    llama_kv_page_id identity;
+    uint64_t speculation_generation = 0;
+    bool speculation_rejected = false;
+};
+
+// GPU ranking publishes only compact metadata.  The mailbox owns two fixed
+// host slots; producers fill a slot through their backend's asynchronous
+// device-to-host operation and publish the completion event.  Consumers poll
+// that event at a boundary and never synchronize the compute stream.
+struct llama_kv_prefetch_candidate {
+    llama_kv_page_id identity;
+    uint32_t attention_layer = UINT32_MAX;
+    uint64_t generation = 0;
+    uint64_t table_epoch = 0;
+    float score = 0.0f;
+    uint64_t requested_bytes = 0;
+    uint64_t content_version = 0;
+    uint64_t speculation_generation = 0;
+    bool speculation_rejected = false;
+};
+
+enum class llama_kv_prefetch_mailbox_poll : uint8_t {
+    pending = 0,
+    completed,
+    failed,
+    stale_generation,
+};
+
+enum class llama_kv_prefetch_mailbox_status : uint8_t {
+    ok = 0,
+    not_configured,
+    invalid_argument,
+    full,
+    stale_generation,
+    cancelled,
+    _count,
+};
+
+const char * llama_kv_prefetch_mailbox_status_name(
+        llama_kv_prefetch_mailbox_status status) noexcept;
+
+struct llama_kv_prefetch_mailbox_backend {
+    void * context = nullptr;
+    llama_kv_prefetch_mailbox_poll (*poll)(
+            void * context, uint64_t event) noexcept = nullptr;
+    void (*cancel)(void * context, uint64_t event) noexcept = nullptr;
+    void (*release)(void * context, uint64_t event) noexcept = nullptr;
+};
+
+struct llama_kv_prefetch_mailbox_config {
+    uint32_t slot_count = 2;
+    uint32_t candidates_per_slot = 16;
+};
+
+class llama_kv_prefetch_mailbox {
+public:
+    explicit llama_kv_prefetch_mailbox(
+            const llama_kv_prefetch_mailbox_config & config = {}) noexcept;
+    ~llama_kv_prefetch_mailbox() = default;
+
+    llama_kv_prefetch_mailbox(const llama_kv_prefetch_mailbox &) = delete;
+    llama_kv_prefetch_mailbox & operator=(
+            const llama_kv_prefetch_mailbox &) = delete;
+
+    bool configured() const noexcept { return !slots_.empty(); }
+    uint32_t slot_count() const noexcept { return uint32_t(slots_.size()); }
+    uint32_t candidates_per_slot() const noexcept { return capacity_; }
+    uint32_t pending_slots() const noexcept;
+    uint32_t ready_slots() const noexcept;
+
+    // Reserve a writable fixed slot for a GPU producer. The returned pointer
+    // is stable until publish_pending(), publish_ready(), or abandon().
+    llama_kv_prefetch_mailbox_status acquire(
+            uint32_t & slot, llama_kv_prefetch_candidate *& records) noexcept;
+    llama_kv_prefetch_candidate * data(uint32_t slot) noexcept;
+    const llama_kv_prefetch_candidate * data(uint32_t slot) const noexcept;
+    llama_kv_prefetch_mailbox_status publish_pending(
+            uint32_t slot, uint32_t count, uint64_t generation,
+            uint64_t event) noexcept;
+    llama_kv_prefetch_mailbox_status publish_ready(
+            uint32_t slot, uint32_t count, uint64_t generation) noexcept;
+    void abandon(uint32_t slot) noexcept;
+
+    // Polls backend events without waiting. A stale generation or rejected
+    // speculative result is discarded before it reaches the ready queue.
+    llama_kv_prefetch_mailbox_status poll(
+            uint64_t generation, uint64_t table_epoch = 0) noexcept;
+    size_t take_ready(
+            std::vector<llama_kv_prefetch_candidate> & output,
+            uint32_t max_candidates = UINT32_MAX) noexcept;
+    void cancel() noexcept;
+    void set_backend(llama_kv_prefetch_mailbox_backend backend) noexcept {
+        backend_ = backend;
+    }
+
+private:
+    enum class slot_state : uint8_t { free = 0, writing, pending, ready };
+    struct slot {
+        std::vector<llama_kv_prefetch_candidate> records;
+        uint32_t count = 0;
+        uint64_t generation = 0;
+        uint64_t event = 0;
+        slot_state state = slot_state::free;
+    };
+
+    bool validate(const llama_kv_prefetch_candidate & candidate,
+                  uint64_t generation, uint64_t table_epoch) const noexcept;
+    void release(slot & value) noexcept;
+
+    llama_kv_prefetch_mailbox_backend backend_;
+    uint32_t capacity_ = 0;
+    std::vector<slot> slots_;
 };
 
 // A bounded previous-query record.  The scheduler never treats this as proof
@@ -126,6 +243,14 @@ struct llama_kv_prefetch_config {
     uint32_t prefetch_depth = 2;
     uint32_t wait_budget_steps = 2;
     uint32_t max_timeline_events = 256;
+    // These refresh controls apply to predictive (non-required) requests.
+    // A zero byte budget disables only that optional admission limit; demand
+    // misses remain independently bounded by max_events/max_pinned_slots.
+    uint32_t refresh_cadence = 8;
+    uint32_t max_cold_pages_per_refresh = 1;
+    uint64_t bytes_per_refresh = 0;
+    uint32_t min_resident_pages = 0;
+    uint32_t hysteresis_priority = 0;
 };
 
 struct llama_kv_prefetch_backend {
@@ -154,6 +279,10 @@ struct llama_kv_prefetch_backend {
                         const llama_kv_prefetch_intent & intent) noexcept = nullptr;
 
     uint64_t (*timestamp_us)(void * context) noexcept = nullptr;
+    bool (*generation_current)(void * context,
+                               const llama_kv_prefetch_intent & intent) noexcept = nullptr;
+    void (*discard_complete)(void * context,
+                             const llama_kv_prefetch_intent & intent) noexcept = nullptr;
 };
 
 struct llama_kv_prefetch_counters {
@@ -216,6 +345,10 @@ public:
     // configured predictive depth. Required pages use ensure_ready().
     llama_kv_prefetch_status prefetch(
             const std::vector<llama_kv_prefetch_intent> & intents) noexcept;
+    // Starts a bounded refresh window. Refresh identifiers are monotonic; a
+    // repeated identifier coalesces candidates without resetting budgets.
+    llama_kv_prefetch_status begin_refresh(
+            uint64_t refresh_id, bool force = false) noexcept;
     bool observe_query(uint64_t query_generation, uint32_t layer, uint64_t token,
                        const std::vector<llama_kv_prefetch_intent> & ranked) noexcept;
     std::vector<llama_kv_prefetch_intent> predict_next(
@@ -237,10 +370,11 @@ public:
     uint32_t queued_pages() const noexcept { return uint32_t(queue_.size()); }
     uint32_t active_events() const noexcept { return uint32_t(active_.size()); }
     uint32_t pinned_slots() const noexcept {
-        return uint32_t(queue_.size() + active_.size());
+        return uint32_t(queue_.size() + active_.size() + ready_.size());
     }
     uint64_t queued_bytes() const noexcept { return queued_bytes_; }
     bool stopped() const noexcept { return stopped_; }
+    uint64_t refresh_id() const noexcept { return refresh_id_; }
     const llama_kv_prefetch_counters & counters() const noexcept { return counters_; }
     const std::vector<llama_kv_prefetch_timeline_event> & timeline() const noexcept {
         return timeline_;
@@ -258,8 +392,8 @@ private:
                                 const llama_kv_prefetch_backend & backend);
     llama_kv_prefetch_status validate_intent(
             const llama_kv_prefetch_intent & intent) const noexcept;
-    bool is_ready(uint64_t page_id, uint64_t generation) const noexcept;
-    bool erase_queued(uint64_t page_id, uint64_t generation) noexcept;
+    bool is_ready(const llama_kv_prefetch_intent & intent) const noexcept;
+    bool erase_queued(const llama_kv_prefetch_intent & intent) noexcept;
     bool cancel_active(size_t index) noexcept;
     void mark_failure() noexcept;
     void record_timeline(llama_kv_prefetch_timeline_kind kind,
@@ -281,4 +415,7 @@ private:
     llama_kv_prefetch_predictor predictor_;
     std::vector<llama_kv_prefetch_timeline_event> timeline_;
     bool stopped_ = false;
+    uint64_t refresh_id_ = 0;
+    uint32_t refresh_pages_ = 0;
+    uint64_t refresh_bytes_ = 0;
 };

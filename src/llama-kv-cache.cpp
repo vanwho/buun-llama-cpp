@@ -2243,114 +2243,13 @@ void llama_kv_cache::set_kv_attention_telemetry(
 
 void llama_kv_cache::capture_kv_routing_query(
         ggml_tensor * tensor, int layer, const llama_ubatch & ubatch) {
-    if (tensor == nullptr && layer < 0) {
-        if (ubatch.n_tokens == 0 || ubatch.n_seq_tokens < ubatch.n_tokens ||
-            ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr ||
-            ubatch.n_seq_id[0] != 1 || ubatch.seq_id[0] == nullptr ||
-            ubatch.pos == nullptr || ubatch.n_pos == 0) return;
-        const int32_t sequence_id = ubatch.seq_id[0][0];
-        const llama_pos position = ubatch.pos[(ubatch.n_tokens - 1) * ubatch.n_pos];
-        for (auto & capture : pager_query_captures_) {
-            capture.sequence_id = sequence_id;
-            capture.position = position;
-            capture.token_index = uint64_t(std::max<llama_pos>(0, position));
-        }
-        return;
-    }
-    if (pager_ == nullptr || tensor == nullptr || layer < 0 ||
-        ubatch.n_tokens == 0 || ubatch.n_seq_tokens < ubatch.n_tokens ||
-        ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr ||
-        ubatch.n_seq_id[0] != 1 || ubatch.seq_id[0] == nullptr ||
-        ubatch.pos == nullptr || ubatch.n_pos == 0) {
-        return;
-    }
-    if (!layers.empty() && layer == int(layers.front().il)) {
-        pager_query_captures_.clear();
-    }
-    const int32_t sequence_id = ubatch.seq_id[0][0];
-    if (sequence_id < 0) return;
-    pager_query_captures_.push_back({
-        tensor, layer, sequence_id,
-        ubatch.pos[(ubatch.n_tokens - 1) * ubatch.n_pos],
-        uint64_t(std::max<llama_pos>(0,
-            ubatch.pos[(ubatch.n_tokens - 1) * ubatch.n_pos])),
-    });
-}
-
-void llama_kv_cache::collect_pager_routing_queries(
-        std::vector<llama_kv_routing_query> & output) noexcept {
-    output.clear();
-    if (pager_ == nullptr || pager_query_captures_.empty()) return;
-    try {
-        for (const auto & capture : pager_query_captures_) {
-            const auto layer_it = std::find_if(layers.begin(), layers.end(),
-                    [&](const auto & value) { return int(value.il) == capture.layer; });
-            if (layer_it == layers.end()) continue;
-            const uint32_t layer_index = uint32_t(layer_it - layers.begin());
-            const auto resident = pager_->residency(capture.sequence_id);
-            const auto inventory = pager_->exact_page_records(capture.sequence_id);
-            if (resident.epoch() == 0 || inventory.empty()) continue;
-            const uint32_t kv_heads = hparams.n_head_kv(layer_it->il);
-            if (kv_heads == 0 || capture.tensor->ne[0] <= 0 ||
-                capture.tensor->ne[1] <= 0 || capture.tensor->ne[2] <= 0 ||
-                (capture.tensor->type != GGML_TYPE_F32 &&
-                 capture.tensor->type != GGML_TYPE_F16)) {
-                continue;
-            }
-            const auto page = std::find_if(inventory.begin(), inventory.end(),
-                    [](const auto & value) { return value.id.position_end > value.id.position_begin; });
-            if (page == inventory.end()) continue;
-            const uint32_t query_heads = uint32_t(capture.tensor->ne[1]);
-            const uint32_t group = std::max<uint32_t>(1, query_heads / kv_heads);
-            for (uint32_t head_index = 0; head_index < kv_heads; ++head_index) {
-                const auto * summary = pager_->routing_summary_index().find(
-                        layer_index, head_index);
-                if (summary == nullptr || !summary->valid()) {
-                    if (head_index != 0) continue;
-                    summary = &pager_->routing_summaries();
-                }
-                const uint32_t vector_dim = uint32_t(summary->accounting().vector_dim);
-                const uint32_t query_head = std::min<uint32_t>(query_heads - 1,
-                    head_index * group);
-                if (vector_dim == 0 || capture.tensor->ne[0] < vector_dim ||
-                    capture.tensor->nb[1] < size_t(vector_dim) *
-                        ggml_type_size(capture.tensor->type)) continue;
-                llama_kv_routing_query query;
-                query.values.resize(vector_dim);
-                query.query_generation = ++pager_query_generation_;
-                query.token_index = capture.token_index;
-                query.table_epoch = resident.epoch();
-                query.model_identity = page->id.model_identity;
-                query.topology_identity = page->id.topology_identity;
-                query.representation_epoch = page->id.representation_epoch;
-                query.session_generation = page->id.session_generation;
-                query.sequence_generation = page->id.sequence_generation;
-                query.sequence_id = capture.sequence_id;
-                query.position = capture.position;
-                query.layer_index = layer_index;
-                query.head_index = head_index;
-                query.coordinate_identity = page->id.rotation_digest;
-                const size_t row_offset = size_t(capture.tensor->ne[2] - 1) * capture.tensor->nb[2] +
-                    size_t(query_head) * capture.tensor->nb[1];
-                if (capture.tensor->type == GGML_TYPE_F32 && capture.tensor->nb[0] == sizeof(float)) {
-                    ggml_backend_tensor_get(capture.tensor, query.values.data(), row_offset,
-                            size_t(vector_dim) * sizeof(float));
-                } else {
-                    std::vector<ggml_fp16_t> values(vector_dim);
-                    ggml_backend_tensor_get(capture.tensor, values.data(),
-                            row_offset, values.size() * sizeof(ggml_fp16_t));
-                    for (uint32_t d = 0; d < vector_dim; ++d) {
-                        query.values[d] = ggml_fp16_to_fp32(values[d]);
-                    }
-                }
-                if (std::all_of(query.values.begin(), query.values.end(),
-                        [](float value) { return std::isfinite(value); })) {
-                    output.push_back(std::move(query));
-                }
-            }
-        }
-    } catch (...) {
-        output.clear();
+    (void) tensor;
+    (void) layer;
+    // Query ranking is a graph/device producer now. This callback remains as
+    // a compatibility notification only and deliberately performs no tensor
+    // readback; producers publish compact records through the pager mailbox.
+    if (pager_ != nullptr && tensor == nullptr && layer < 0 && ubatch.n_tokens != 0) {
+        ++pager_query_generation_;
     }
 }
 
@@ -2384,8 +2283,15 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             }
         }
 
-        std::vector<llama_kv_routing_query> queries;
-        collect_pager_routing_queries(queries);
+        // GPU ranking publishes compact page/layer candidates into the
+        // pager-owned mailbox. Polling is intentionally nonblocking: the
+        // compute stream is not synchronized and a candidate is advisory
+        // until its copy/event has been published by the pager.
+        std::vector<llama_kv_prefetch_candidate> candidates;
+        (void) pager_->prefetch_candidate_mailbox().poll(0, snapshot.epoch());
+        pager_->prefetch_candidate_mailbox().take_ready(candidates,
+                pager_->snapshot().geometry.attention_layers == 0
+                    ? 0 : pager_->snapshot().geometry.attention_layers * 2);
         const auto host_pages = pager_->host_catalog()
             ? pager_->host_catalog()->pages()
             : std::vector<vbr_selected_page_host_view>{};
@@ -2408,11 +2314,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 return bundle_id == host_id;
             });
         };
-        if (queries.empty() && pager_->test_force_logical_page() == UINT32_MAX &&
+        if (candidates.empty() && pager_->test_force_logical_page() == UINT32_MAX &&
                 pager_fallback_used_) {
             return;
         }
-        if (queries.empty() && pager_->test_force_logical_page() == UINT32_MAX) {
+        if (candidates.empty() && pager_->test_force_logical_page() == UINT32_MAX) {
             // A normal server batch can reach the next write frontier before
             // attention publishes Qcur.  Once H is full, use the oldest
             // authenticated cold page as a conservative retrieval fallback so
@@ -2449,63 +2355,66 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             attributes[i].structural = attributes[i].current;
         }
         bool have_retrieval = false;
-        uint32_t retrieval_turn = 0;
         std::map<uint32_t, std::vector<llama_kv_routing_retrieval_entry>> attention_by_layer;
-        for (const auto & query : queries) {
-            const auto * summaries = pager_->routing_summary_index().find(
-                    query.layer_index, query.head_index);
-            if (summaries == nullptr || !summaries->valid()) continue;
-            llama_kv_routing_retrieval_config retrieval_config;
-            retrieval_config.capacity_pages = boundary.hot_capacity;
-            // Historical quota is the policy-derived attention budget A;
-            // residency capacity remains the independent reusable pool H.
-            retrieval_config.attention_capacity_pages = std::max<uint32_t>(1,
-                std::min(boundary.hot_capacity,
-                    boundary.hot_capacity * boundary.policy.historical_ratio /
-                    LLAMA_KV_POLICY_RATIO_SCALE));
-            retrieval_config.summary_top_k = retrieval_config.attention_capacity_pages;
-            // One rotating cold slot is enough to make pages without resident
-            // EMA observable, while its cost remains bounded by H.
-            retrieval_config.exploration_pages = inventory.size() > boundary.hot_capacity ? 1 : 0;
-            retrieval_config.exploration_seed = query.query_generation;
-            retrieval_config.exploration_turn = retrieval_turn++;
-            pager_->record_summary_read(summaries->accounting().charged_bytes);
-            const auto selected = llama_kv_routing_retrieve(
-                    snapshot, inventory, *summaries, query, retrieval_config, attributes,
-                    boundary.previous_target);
-            if (selected.status != llama_kv_routing_retrieval_status::ok &&
-                selected.status != llama_kv_routing_retrieval_status::stale_summary) {
+        std::sort(candidates.begin(), candidates.end(),
+                [](const auto & lhs, const auto & rhs) {
+            if (lhs.score != rhs.score) return lhs.score > rhs.score;
+            if (lhs.attention_layer != rhs.attention_layer) {
+                return lhs.attention_layer < rhs.attention_layer;
+            }
+            return lhs.identity.logical_page < rhs.identity.logical_page;
+        });
+        const auto same_bundle = [](const llama_kv_page_id & lhs,
+                                    const llama_kv_page_id & rhs) {
+            auto a = lhs;
+            auto b = rhs;
+            a.attention_layer = UINT32_MAX;
+            b.attention_layer = UINT32_MAX;
+            return a == b;
+        };
+        for (const auto & candidate : candidates) {
+            const auto found = std::find_if(inventory.begin(), inventory.end(),
+                    [&](const auto & page) {
+                return page.id == candidate.identity ||
+                    same_bundle(page.id, candidate.identity);
+            });
+            if (found == inventory.end()) continue;
+            const auto & selected_id = found->id;
+            auto & layer_selected = attention_by_layer[candidate.attention_layer];
+            if (std::find_if(layer_selected.begin(), layer_selected.end(),
+                    [&](const auto & old) { return old.id == selected_id; }) != layer_selected.end()) {
                 continue;
             }
-            have_retrieval = true;
-            auto & layer_selected = attention_by_layer[query.layer_index];
-            for (const auto & entry : selected.attention_selected) {
-                if (std::find_if(layer_selected.begin(), layer_selected.end(),
-                        [&](const auto & old) { return old.id == entry.id; }) == layer_selected.end()) {
-                    layer_selected.push_back(entry);
-                }
+            const llama_kv_routing_retrieval_entry entry {
+                selected_id, llama_kv_routing_retrieval_reason::summary,
+                candidate.score, true, false, 0,
+            };
+            if (layer_selected.size() < boundary.hot_capacity) {
+                layer_selected.push_back(entry);
             }
-            if (boundary.retrieval.selected.empty()) {
-                boundary.retrieval = selected;
-            } else {
-                for (const auto & entry : selected.selected) {
-                    const bool present = std::find_if(
-                            boundary.retrieval.selected.begin(),
-                            boundary.retrieval.selected.end(),
-                            [&](const auto & old) { return old.id == entry.id; }) !=
-                        boundary.retrieval.selected.end();
-                    if (!present) boundary.retrieval.selected.push_back(entry);
-                }
-                boundary.retrieval.metrics.summary_pages_scored = std::max(
-                        boundary.retrieval.metrics.summary_pages_scored,
-                        selected.metrics.summary_pages_scored);
-                boundary.retrieval.metrics.summary_complete =
-                    boundary.retrieval.metrics.summary_complete &&
-                    selected.metrics.summary_complete;
+            if (std::find_if(boundary.retrieval.selected.begin(),
+                    boundary.retrieval.selected.end(),
+                    [&](const auto & old) { return old.id == selected_id; }) ==
+                    boundary.retrieval.selected.end() &&
+                boundary.retrieval.selected.size() < boundary.hot_capacity) {
+                boundary.retrieval.selected.push_back(entry);
+            }
+            have_retrieval = true;
+            if (boundary.retrieval.query_generation == 0) {
+                boundary.retrieval.status = llama_kv_routing_retrieval_status::ok;
+                boundary.retrieval.table_epoch = snapshot.epoch();
+                boundary.retrieval.query_generation = candidate.generation;
+                boundary.retrieval.model_identity = selected_id.model_identity;
+                boundary.retrieval.topology_identity = selected_id.topology_identity;
+                boundary.retrieval.representation_epoch = selected_id.representation_epoch;
+                boundary.retrieval.session_generation = selected_id.session_generation;
+                boundary.retrieval.sequence_generation = selected_id.sequence_generation;
+                boundary.retrieval.sequence_id = selected_id.sequence_id;
+                boundary.retrieval.position = selected_id.position_begin;
             }
         }
         const uint32_t forced_page = pager_->test_force_logical_page();
-        if (forced_page != UINT32_MAX || queries.empty()) {
+        if (forced_page != UINT32_MAX || candidates.empty()) {
             const auto forced = std::find_if(inventory.begin(), inventory.end(),
                     [&](const auto & page) {
                 return (forced_page == UINT32_MAX || page.id.logical_page == forced_page) &&
@@ -2528,7 +2437,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         0.0f, false, false, 0 });
                 attention_by_layer[0].push_back(boundary.retrieval.selected.back());
                 have_retrieval = true;
-                if (forced_page == UINT32_MAX && queries.empty()) {
+                if (forced_page == UINT32_MAX && candidates.empty()) {
                     pager_fallback_used_ = true;
                 }
             }
