@@ -1,0 +1,48 @@
+{
+  "schema": "hotpath-v9",
+  "task": "35-02",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-13T20:34:40Z",
+  "provenance": {
+    "code_sha": "86dac805b76b6eae1a7c78f9014e708fd78f846b",
+    "source_diff_hash": "c839df3beddc6e9a222e8a6355d2b4595876ab4673913b0d5488ecd41acd0271",
+    "loaded_dso_hashes": {
+      "libggml-cuda.so": "0d4cdeddf8f019477af79cc17237a15f90cca586e179b3e798b3827b0c48b61a",
+      "libggml-cpu.so": "d8357dc2cf2b6501487b36830c83008d84d75dfb4f2a6167978ce1e32be7d5e9"
+    },
+    "raw_root": "/srv/ai/paged-kv/results/v9/35-02/20260913T203440Z-selector"
+  },
+  "layout": {
+    "src0": "F32 [D,n_head_q,n_queries,1]",
+    "src1": "F16 [D,2,n_head_kv,logical_pages]",
+    "src2": "I64 [4,logical_pages] native position/valid length/sequence generation/page generation",
+    "src3": "I32 [logical_pages] resident membership",
+    "src4": "I64 [4] query position/sequence generation/snapshot generation/refresh",
+    "output": "I32 [K_resident+K_cold], resident region then cold region, -1 padding",
+    "params": "fixed capacities, page size, query row; head geometry is shape-derived"
+  },
+  "source_symbols": [
+    "ggml_kv_page_select",
+    "ggml_compute_forward_kv_page_select",
+    "ggml_cuda_op_kv_page_select",
+    "llm_graph_context::build_attn_mha",
+    "llm_graph_context::cb",
+    "llama_memory_context_i::build_kv_page_select"
+  ],
+  "execution": {
+    "cpu_parity": "PASS: 6/6 cases",
+    "cuda_parity": "PASS: 6/6 cases on RTX 4080",
+    "cases": ["mixed signs", "invalid/future/stale entries", "exact ties", "no candidates", "K > valid count", "nquery 1/2/64", "non-contiguous layer IDs", "cold candidate wins"],
+    "synthetic_cuda_ms": {
+      "8K_pages_32": 0.0306,
+      "128K_pages_512": 0.0724,
+      "256K_pages_1024": 0.1143
+    },
+    "graph_producer": "post-positioned Q hook before attention permutation; explicit graph expansion; cache context returns not-configured until catalogue/mailbox binding",
+    "host_q_copy": false,
+    "device_synchronization_added": false
+  },
+  "deferred": [
+    "Production catalogue tensor publication and mailbox consumption remain the explicit next integration boundary (35-03)."
+  ]
+}

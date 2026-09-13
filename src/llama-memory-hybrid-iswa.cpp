@@ -366,6 +366,13 @@ uint32_t llama_memory_hybrid_iswa_context::get_max_graph_seqs() const {
     return std::min(ctx_attn->get_max_graph_seqs(), ctx_recr->get_max_graph_seqs());
 }
 
+ggml_tensor * llama_memory_hybrid_iswa_context::build_kv_page_select(
+        ggml_context * ctx, ggml_tensor * q, int layer,
+        const llama_ubatch & ubatch, uint32_t query_row) const {
+    return get_attn() != nullptr ? get_attn()->build_kv_page_select(
+            ctx, q, layer, ubatch, query_row) : nullptr;
+}
+
 uint64_t llama_memory_hybrid_iswa_context::get_vbr_epoch() const {
     return get_attn()->get_vbr_epoch();
 }

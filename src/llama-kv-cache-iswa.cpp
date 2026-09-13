@@ -838,6 +838,15 @@ uint32_t llama_kv_cache_iswa_context::get_max_graph_seqs() const {
     return std::min(ctx_base->get_max_graph_seqs(), ctx_swa->get_max_graph_seqs());
 }
 
+ggml_tensor * llama_kv_cache_iswa_context::build_kv_page_select(
+        ggml_context * ctx, ggml_tensor * q, int layer,
+        const llama_ubatch & ubatch, uint32_t query_row) const {
+    // The base cache owns the full-history catalogue. SWA remains on its
+    // native window and must not accidentally publish a second selector.
+    return ctx_base != nullptr ? ctx_base->build_kv_page_select(
+            ctx, q, layer, ubatch, query_row) : nullptr;
+}
+
 const llama_ubatch & llama_kv_cache_iswa_context::get_ubatch() const {
     assert(status == LLAMA_MEMORY_STATUS_SUCCESS);
 

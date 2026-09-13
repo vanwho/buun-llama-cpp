@@ -15573,6 +15573,19 @@ uint32_t llama_kv_cache_context::get_max_graph_seqs() const {
     return max_graph_seqs;
 }
 
+ggml_tensor * llama_kv_cache_context::build_kv_page_select(
+        ggml_context * ctx, ggml_tensor * q, int layer,
+        const llama_ubatch & ubatch, uint32_t query_row) const {
+    (void) ctx;
+    (void) q;
+    (void) layer;
+    (void) ubatch;
+    (void) query_row;
+    // The selector's catalogue tensors are installed by the mailbox owner at
+    // the next integration boundary. Keep this fail-closed until then.
+    return nullptr;
+}
+
 const llama_ubatch & llama_kv_cache_context::get_ubatch() const {
     assert(status == LLAMA_MEMORY_STATUS_SUCCESS);
 

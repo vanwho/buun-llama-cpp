@@ -7712,6 +7712,117 @@ struct test_top_k : public test_case {
     }
 };
 
+// GGML_OP_KV_PAGE_SELECT. Keep the catalogue metadata in the graph so the
+// backend comparison exercises the same generation/position filters as the
+// production selector. layer_id is intentionally non-contiguous in several
+// cases: the selector ranks logical pages and never derives identity from a
+// physical slot or a compact layer ordinal.
+struct test_kv_page_select : public test_case {
+    const int64_t n_queries;
+    const int scenario;
+    const int layer_id;
+    ggml_tensor * q = nullptr;
+    ggml_tensor * bounds = nullptr;
+    ggml_tensor * metadata = nullptr;
+    ggml_tensor * membership = nullptr;
+    ggml_tensor * query = nullptr;
+
+    test_kv_page_select(int64_t n_queries, int scenario, int layer_id)
+        : n_queries(n_queries), scenario(scenario), layer_id(layer_id) {}
+
+    std::string op_desc(ggml_tensor * t) override {
+        GGML_UNUSED(t);
+        return "KV_PAGE_SELECT";
+    }
+
+    std::string vars() override {
+        return VARS_TO_STR3(n_queries, scenario, layer_id);
+    }
+
+    double max_err() override { return 0.0; }
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        constexpr int64_t d = 8;
+        constexpr int64_t n_q_heads = 4;
+        constexpr int64_t n_kv_heads = 2;
+        constexpr int64_t n_pages = 7;
+        q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, n_q_heads, n_queries);
+        bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 2, n_kv_heads, n_pages);
+        metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 4, n_pages);
+        membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
+        query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
+        ggml_tensor * out = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
+                4, 4, 4, int(n_queries - 1));
+        ggml_set_name(out, "out");
+        return out;
+    }
+
+    void initialize_tensors(ggml_context * ctx) override {
+        GGML_UNUSED(ctx);
+        constexpr int64_t d = 8;
+        constexpr int64_t n_q_heads = 4;
+        constexpr int64_t n_kv_heads = 2;
+        constexpr int64_t n_pages = 7;
+
+        std::vector<float> q_data(size_t(d * n_q_heads * n_queries), 0.0f);
+        for (int64_t row = 0; row < n_queries; ++row) {
+            for (int64_t head = 0; head < n_q_heads; ++head) {
+                float * dst = q_data.data() + size_t((row * n_q_heads + head) * d);
+                dst[0] = 1.0f;
+                dst[1] = -2.0f;
+                dst[2] = 3.0f;
+                dst[3] = -4.0f;
+                dst[4] = 0.5f;
+                dst[5] = -0.75f;
+            }
+        }
+        ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
+
+        std::vector<ggml_fp16_t> bound_data(size_t(d * 2 * n_kv_heads * n_pages));
+        for (int64_t page = 0; page < n_pages; ++page) {
+            const float high = scenario == 1 ? 1.0f :
+                (page == 1 ? 2.0f : page == 2 ? 3.0f : page == 3 ? 2.0f : 1.0f);
+            for (int64_t head = 0; head < n_kv_heads; ++head) {
+                for (int64_t coord = 0; coord < d; ++coord) {
+                    const size_t base = size_t(coord + d * (2 * (head + n_kv_heads * page)));
+                    bound_data[base] = ggml_fp32_to_fp16(-1.0f);
+                    bound_data[base + d] = ggml_fp32_to_fp16(high);
+                }
+            }
+        }
+        ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
+
+        std::vector<int64_t> metadata_data(size_t(4 * n_pages));
+        for (int64_t page = 0; page < n_pages; ++page) {
+            metadata_data[size_t(0 + 4 * page)] = page == 4 ? 32 : page * 4;
+            metadata_data[size_t(1 + 4 * page)] = 4;
+            metadata_data[size_t(2 + 4 * page)] = page == 5 ? 8 : 7;
+            metadata_data[size_t(3 + 4 * page)] = 1;
+        }
+        if (scenario == 2) {
+            for (int64_t page = 0; page < n_pages; ++page) {
+                metadata_data[size_t(1 + 4 * page)] = 0;
+            }
+        } else if (scenario == 3) {
+            for (int64_t page = 1; page < n_pages; ++page) {
+                if (page != 2) metadata_data[size_t(1 + 4 * page)] = 0;
+            }
+        }
+        ggml_backend_tensor_set(metadata, metadata_data.data(), 0, ggml_nbytes(metadata));
+
+        const std::vector<int32_t> membership_data = { 1, 1, 0, 0, 0, 0, 0 };
+        ggml_backend_tensor_set(membership, membership_data.data(), 0, ggml_nbytes(membership));
+        const int64_t query_data[] = { 32, 7, 2, scenario == 2 ? 0 : 1 };
+        ggml_backend_tensor_set(query, query_data, 0, ggml_nbytes(query));
+
+        for (ggml_tensor * t = ggml_get_first_tensor(ctx); t != nullptr; t = ggml_get_next_tensor(ctx, t)) {
+            if (t != q && t != bounds && t != metadata && t != membership && t != query) {
+                init_tensor_uniform(t, 0.0f, 0.0f);
+            }
+        }
+    }
+};
+
 // qwen4exp QSA indexer top-k fusion: expand per-block scores to cells, add the f16 mask, top-k.
 struct test_topk_qsa : public test_case {
     const int64_t n_blocks;
@@ -11608,6 +11719,17 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
             test_cases.emplace_back(new test_top_k(GGML_TYPE_F32, {n, 2, 1, 3}, k, true));
         }
     }
+
+    // Current-Q page selection: exercise query-row shapes, mixed signs,
+    // multiple KV groups, deterministic ties, invalid generations, and
+    // capacities larger than the valid candidate set.
+    for (int64_t n_queries : { 1, 2, 64 }) {
+        test_cases.emplace_back(new test_kv_page_select(n_queries, 0, 3));
+    }
+    test_cases.emplace_back(new test_kv_page_select(2, 1, 17)); // exact ties
+    test_cases.emplace_back(new test_kv_page_select(1, 2, 29)); // no candidates
+    test_cases.emplace_back(new test_kv_page_select(64, 3, 41)); // K > valid count
+
     for (int64_t n : {4095, 4096, 4097, 16385}) {
         for (int k : {1, 16, 64}) {
             test_cases.emplace_back(new test_top_k(
