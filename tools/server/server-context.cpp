@@ -3931,6 +3931,26 @@ public:
                     {"summary_build_bytes", pager.summary_build_bytes},
                     {"summary_read_calls", pager.summary_read_calls},
                     {"summary_read_bytes", pager.summary_read_bytes},
+                    {"natural_proof", {
+                        {"query_generation", pager.natural_proof.query_generation},
+                        {"query_position", pager.natural_proof.query_position},
+                        {"catalogue_epoch", pager.natural_proof.catalogue_epoch},
+                        {"published_epoch", pager.natural_proof.published_epoch},
+                        {"page_generation", pager.natural_proof.page_generation},
+                        {"content_version", pager.natural_proof.content_version},
+                        {"logical_page", pager.natural_proof.logical_page},
+                        {"attention_layer", pager.natural_proof.attention_layer},
+                        {"selector_rank", pager.natural_proof.selector_rank},
+                        {"physical_slot", pager.natural_proof.physical_slot},
+                        {"candidate_was_cold", pager.natural_proof.candidate_was_cold},
+                        {"host_ready", pager.natural_proof.host_ready},
+                        {"promotion_published", pager.natural_proof.promotion_published},
+                        {"selected_in_last_graph",
+                            std::find(pager.execution.selected_page_ids.begin(),
+                                      pager.execution.selected_page_ids.end(),
+                                      pager.natural_proof.logical_page) !=
+                                pager.execution.selected_page_ids.end()},
+                    }},
                     {"host_seal_d2h_calls", pager.host_seal_d2h_calls},
                     {"host_seal_d2h_bytes", pager.host_seal_d2h_bytes},
                     {"host_seal_d2h_async_completions", pager.host_seal_d2h_async_completions},
@@ -15977,13 +15997,18 @@ private:
                     json slots_data = json::array();
 
                     int n_idle_slots = 0;
+                    const json pager_metrics = get_metrics().pager_metrics;
 
                     for (server_slot & slot : slots) {
                         if (!slot.is_processing()) {
                             n_idle_slots++;
                         }
 
-                        slots_data.push_back(slot.to_json(slots_debug == 0));
+                        auto slot_data = slot.to_json(slots_debug == 0);
+                        if (!pager_metrics.is_null()) {
+                            slot_data["pager_metrics"] = pager_metrics;
+                        }
+                        slots_data.push_back(std::move(slot_data));
                     }
                     SRV_DBG("n_idle_slots = %d\n", n_idle_slots);
 
