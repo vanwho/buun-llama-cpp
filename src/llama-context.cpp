@@ -2901,44 +2901,33 @@ bool llama_context::memory_update(bool optimize) {
         return false;
     }
 
-    // A memory update is allowed to reset the scheduler and the previous graph
-    // result below.  Those objects also own the direct-attention page-table
-    // views and the K/V write graph, so resetting them while the preceding
-    // decode is still queued leaves CUDA with stale graph-owned addresses.  In
-    // particular, a tail-growing append can enter this path before the caller
-    // asks for logits from the preceding append.  Make the graph fence the
-    // ownership boundary for every update, including the retry after a failed
-    // batch preparation.
+    // Probe before fencing. The common decode path has no shift/copy/recovery
+    // work, and a NO_UPDATE result cannot reset either the scheduler or the
+    // previous graph. Fencing that path was pure control churn.
+    const auto mctx = memory->init_update(this, optimize);
+    if (mctx->get_status() == LLAMA_MEMORY_STATUS_NO_UPDATE) {
+        return false;
+    }
+    if (mctx->get_status() == LLAMA_MEMORY_STATUS_FAILED_PREPARE ||
+            mctx->get_status() == LLAMA_MEMORY_STATUS_FAILED_COMPUTE) {
+        // Preserve the failure-boundary behavior for a failed preparation.
+        synchronize();
+        LLAMA_LOG_ERROR("%s: failed to prepare memory update\n", __func__);
+        return false;
+    }
+
+    // A successful update may reset the scheduler and previous graph. Those
+    // objects own the direct-attention page-table views and K/V write graph,
+    // so the fence remains the ownership boundary for real updates.
     synchronize();
 
-    {
-        const auto mctx = memory->init_update(this, optimize);
-        switch (mctx->get_status()) {
-            case LLAMA_MEMORY_STATUS_SUCCESS:
-                {
-                    // noop
-                } break;
-            case LLAMA_MEMORY_STATUS_NO_UPDATE:
-                {
-                    // no updates need to be performed
-                    return false;
-                }
-            case LLAMA_MEMORY_STATUS_FAILED_PREPARE:
-            case LLAMA_MEMORY_STATUS_FAILED_COMPUTE:
-                {
-                    LLAMA_LOG_ERROR("%s: failed to prepare memory update\n", __func__);
-                    return false;
-                }
-        }
+    // reset the previous graph result to make sure that it won't be reused
+    // TODO: change the mctx->apply() to return information if a graph reserve is needed
+    //       reset the graph result only if the memory module did reset the scheduler
+    gf_res_prev->reset();
 
-        // reset the previous graph result to make sure that it won't be reused
-        // TODO: change the mctx->apply() to return information if a graph reserve is needed
-        //       reset the graph result only if the memory module did reset the scheduler
-        gf_res_prev->reset();
-
-        if (!mctx->apply()) {
-            LLAMA_LOG_ERROR("%s: failed to apply memory update\n", __func__);
-        }
+    if (!mctx->apply()) {
+        LLAMA_LOG_ERROR("%s: failed to apply memory update\n", __func__);
     }
 
     // if the memory module did any computation, we have to reserve a new worst-case graph

@@ -1496,6 +1496,12 @@ private:
     int32_t pager_last_sequence_id_ = -1;
     uint64_t pager_query_generation_ = 0;
     bool pager_fallback_used_ = false;
+    // A policy boundary is needed after page maintenance or a ready routing
+    // candidate, not after every unchanged write-frontier publication.
+    bool pager_policy_dirty_ = false;
+    int32_t pager_policy_current_sequence_ = -1;
+    uint32_t pager_policy_current_page_ = UINT32_MAX;
+    uint32_t pager_policy_current_slot_ = UINT32_MAX;
     // Attention routes are query-domain specific. Keep the legacy aggregate
     // for callers that do not carry a layer, but never use it as the source
     // of a layer's selected working set.
