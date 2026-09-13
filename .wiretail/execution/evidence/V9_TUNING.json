@@ -1,0 +1,153 @@
+{
+  "schema": "hotpath-v9",
+  "task": "36-03",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-14T23:59:00Z",
+  "provenance": {
+    "code_sha": "da3ddea6401718fc86f9f9cf7b802d8c1d9f7403",
+    "source_diff_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "server_sha": "82b92cc7da404d2eddd8aaf5c218d9cc202f8167a3c727f61f467d75bb220255",
+    "loaded_dso_hashes": {
+      "libggml-cuda.so.0.22.0": "b55d857fecd7a3b511c829ff34284455fe86a65ddfeee8b2fa8701cad243540b",
+      "libllama-common.so.0.3.0": "bd2ab1d06b54a3adebdb2573c4dae442c7632cd5ba9a32625233a83158355314",
+      "libllama-server-impl.so": "bc32b87cd8fa4fd58979ab98c1f4096950ca61310c23df6c7638c8fd01a58110",
+      "libllama.so.0.3.0": "30c0a49ab85bc2bc61e9f6e4b56cc6604e98dacb53ea7f78be2db304c36dd656"
+    },
+    "model_hash": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e619",
+    "prompt_hash": "bd91460c9496f2851ee797142cfc902ef4bd926646a491541d38bf0f62feda09",
+    "raw_root": "/srv/ai/paged-kv/results/v9/36-03",
+    "effective_config_hash": "a94f773561c6790255d74a871bcac2a6b5fb477f3b99b553d815def1ffe6c309"
+  },
+  "config": {
+    "L": 8192,
+    "C_before": 0,
+    "C_after": 158,
+    "H": 8192,
+    "A_by_layer": 4096,
+    "B": 128,
+    "U": 128,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 8192,
+    "draft_device": "gpu",
+    "mtp_type": "native",
+    "n_max": 1,
+    "device": "CUDA0",
+    "final_profile_hash": "a94f773561c6790255d74a871bcac2a6b5fb477f3b99b553d815def1ffe6c309"
+  },
+  "execution": {
+    "target_attention_route": "selected packed prefill; q0 idle route label selected dense",
+    "target_layer_count": null,
+    "target_layer_count_reason": "not exposed by the bounded /slots snapshot",
+    "resident_bytes": 138412032,
+    "canonical_host_bytes": 0,
+    "selected_rows_by_layer": 4096,
+    "fresh_or_restored": "fresh direct candidate process",
+    "native_mtp_identity": "gpu/turbo4/turbo4"
+  },
+  "rates": {
+    "prefill_new_tokens": 30,
+    "cached_tokens": 0,
+    "committed_output_tokens": 128,
+    "pp_tok_s": 345.07746989199075,
+    "tg_tok_s": 73.76198922726476,
+    "proposed_tokens": 64,
+    "accepted_tokens": 63,
+    "comparisons": [
+      {
+        "label": "U64/A2048/B128/H4096",
+        "raw": "20260914T232000Z-u64",
+        "pp_tok_s": 351.2551517422255,
+        "tg_tok_s": 37.969793982475295,
+        "accepted_tokens": 2,
+        "acceptance_denominator": 124
+      },
+      {
+        "label": "U128/A2048/B128/H4096",
+        "raw": "20260914T232500Z-u128",
+        "pp_tok_s": 343.0335601166314,
+        "tg_tok_s": 71.58288932214386,
+        "accepted_tokens": 61,
+        "acceptance_denominator": 65
+      },
+      {
+        "label": "U256/A2048/B256/H4096",
+        "raw": "20260914T233000Z-u256-b256",
+        "pp_tok_s": 322.05773421648723,
+        "tg_tok_s": 72.07575331931545,
+        "accepted_tokens": 62,
+        "acceptance_denominator": 64
+      },
+      {
+        "label": "U128/A4096/B128/H4096",
+        "raw": "20260914T233500Z-u128-a4096",
+        "pp_tok_s": 345.07746989199075,
+        "tg_tok_s": 73.76198922726476,
+        "accepted_tokens": 63,
+        "acceptance_denominator": 64
+      }
+    ],
+    "repeat_raw": "20260915T000000Z-repeat-u128-a4096-hauto",
+    "repeat_tg_tok_s": {
+      "min": 69.6058990725425,
+      "median": 71.52685044749339,
+      "max": 72.7031667095062,
+      "samples": 3
+    }
+  },
+  "work": {
+    "pack_bytes": 69206016,
+    "host_copy_bytes": 0,
+    "h2d_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "graph_builds": 66,
+    "graph_replays": 0,
+    "queue_time_us": 1500947,
+    "wait_time_us": 97203,
+    "copy_time_us": 0,
+    "router_refreshes": null,
+    "router_refreshes_reason": "not exposed by the bounded snapshot"
+  },
+  "resources": {
+    "peak_bytes_by_category": {
+      "target_valid": 2652672,
+      "packed_workspace": 138412032,
+      "packed_dequant": 16777216,
+      "mtp_compute": 268435456,
+      "graph": 268435456,
+      "catalogue": 2103808
+    },
+    "safety_headroom_bytes": 201326592,
+    "auto_h_by_u": {
+      "U128": {"H": 8192, "admitted_tokens": 8192, "raw": "20260914T234000Z-auto-u128-a4096"},
+      "U256": {"H": 8192, "admitted_tokens": 8192, "raw": "20260914T234500Z-auto-u256-a4096"}
+    }
+  },
+  "cold_proof": {
+    "raw": "20260915T003000Z-cold-proof-h4096-a4096-u128",
+    "L": 8192,
+    "H": 4096,
+    "C_after_population": 5004,
+    "host_pages_after_population": 15,
+    "host_valid_rows_after_population": 3840,
+    "recall_status": "pass",
+    "recalled_topic": "cedar-orbit-17",
+    "h2d_bytes": 0,
+    "natural_proof": "not_proven: candidate_was_cold=false and promotion_published=false"
+  },
+  "decision": "pass",
+  "capability_proven": false,
+  "reason": "U128 materially improves q0 decode over U64; U256 is only a marginal optional throughput variant. A4096 improves the chosen U128 profile and fits the measured ledger. Auto H admits full L8192 for both U128 and U256. The cold run proves canonical host retention and coherent recall but not useful natural cold promotion.",
+  "next_action": "36-04: run the small three-prompt comparison with the chosen H8192/A4096/B128/U128/n-max1 profile and matched controls.",
+  "partial_checkpoint": {
+    "chosen_loaded": "/srv/ai/paged-kv/results/v9/36-03/20260915T004000Z-loaded-chosen-h8192-a4096-u128",
+    "candidate_bundle": "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-candidate",
+    "live_pid": 3597975,
+    "live_health": "HTTP 200",
+    "live_page_capacity": 32,
+    "live_attention_tokens": 4096
+  }
+}
