@@ -1,0 +1,30 @@
+{
+  "schema": "hotpath30-review-v1",
+  "task_id": "30-01",
+  "outcome": "partial_capability_requires_concrete_repairs",
+  "source": "evidence/HOTPATH29_SUMMARY.json",
+  "proved": {
+    "primary": "L8192/C6148/H4096 selective Turbo4 target GPU with native full-L Turbo4 GPU MTP; accepted live drafts",
+    "backing": "physical canonical host backing and D2H seals",
+    "scale": "L32768 first append and L131072 allocation plus 512-token smoke",
+    "rates": {"primary_q0_pp_tok_s": 212.17022060419407, "primary_q0_tg_tok_s": 33.65843757532775, "primary_repeat_median_tg_tok_s": 31.784152071400715, "all_gpu_control_tg_tok_s": 102.04860567052764, "scale_32768_first_tg_tok_s": 65.61392764970911, "scale_131072_smoke_tg_tok_s": 21.414651904833285}
+  },
+  "not_proved": [
+    "natural cold promotion/use: completed rows report useful H2D 0 and faults 0",
+    "durable L32768 continuation: second append illegal device memory access at CUDA synchronize",
+    "full-L populated 131072 operation: allocation and short smoke only; MTP accepted 0/2",
+    "matched offload ratio: controls differ in A and CPU-main-KV control was unavailable"
+  ],
+  "critical_path": [
+    "CUDA continuation/lifetime fault in the existing two-append L32768/H16384 reproducer",
+    "ranking-to-H2D-to-publication-to-attention-use path has no authenticated useful transfer",
+    "selected path repeatedly rebuilds/submits graphs, reads summaries, changes tables and seals pages"
+  ],
+  "scheduled": [
+    {"task": "31-01", "owner": "llama_context decode/update_memory/graph_reserve and llama-kv-residency-transfer claim events", "fixture": "L32768/H16384 1200+1400 append"},
+    {"task": "31-02", "owner": "llama_context::build_kv_attention_plan and residency promotion reserve/map/commit", "fixture": "L8192/H4096 natural cedar-orbit recall"},
+    {"task": "31-03", "owner": "selected attention plan/update_memory and CUDA graph input/update plumbing", "fixture": "L8192/H4096 unchanged decode trace"}
+  ],
+  "deferred_scope": ["256K", "YaRN", "broad quality matrices", "long soak/resilience", "upstream communication"],
+  "raw_summary": ".wiretail/execution/evidence/HOTPATH29_SUMMARY.json"
+}

@@ -961,3 +961,9 @@ receives `PROJECT_ROOT` from the shared runner.
   interrupted provider turn. Site data stays in execution metadata or/srv/ai.
 - Next: use the normal runner command on the project branch; new27-02 cluster
   prevents reusing the obsolete scaling session.
+
+## 2026-09-13T02:50:43+00:00 — 30-01 — done
+
+- Branch: `codex/task-30-01`
+- Commit at update: `e021947d2`
+- Summary: Reviewed HOTPATH29 findings, published HOTPATH30_01 evidence, and scheduled three concrete phase-31 repairs plus bounded follow-up evidence and phase-32 review.
