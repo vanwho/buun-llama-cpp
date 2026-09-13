@@ -596,7 +596,10 @@ private:
     llama_kv_pager_routing_summary_provider routing_summary_provider_;
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_routing_summary_index routing_summary_index_;
-    llama_kv_prefetch_mailbox prefetch_candidate_mailbox_;
+    // A complete refresh carries the bounded resident/cold regions for the
+    // attention layers. Keep the two-slot owner, but size each fixed slot for
+    // the runtime layer count rather than dropping later layer records.
+    llama_kv_prefetch_mailbox prefetch_candidate_mailbox_{ { 2, 128 } };
     llama_kv_page_id page_identity_;
     llama_kv_pager_allocation allocation_;
     bool owns_allocation_ = true;

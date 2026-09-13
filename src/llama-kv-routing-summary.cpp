@@ -660,6 +660,20 @@ const std::vector<float> * llama_kv_routing_summary_store::range_max(
     return it == pages_.end() || it->range_max.empty() ? nullptr : &it->range_max;
 }
 
+const std::vector<float> * llama_kv_routing_summary_store::range_min(
+        const llama_kv_page_id & id) const noexcept {
+    const auto it = std::find_if(pages_.begin(), pages_.end(),
+            [&](const auto & page) { return page.id == id; });
+    return it == pages_.end() || it->range_min.empty() ? nullptr : &it->range_min;
+}
+
+const std::vector<float> * llama_kv_routing_summary_store::range_max(
+        const llama_kv_page_id & id) const noexcept {
+    const auto it = std::find_if(pages_.begin(), pages_.end(),
+            [&](const auto & page) { return page.id == id; });
+    return it == pages_.end() || it->range_max.empty() ? nullptr : &it->range_max;
+}
+
 void llama_kv_routing_summary_store::rebuild_accounting(
         const llama_kv_routing_summary_config & config,
         std::chrono::steady_clock::time_point start) noexcept {

@@ -73,6 +73,8 @@ enum class llama_kv_routing_retrieval_reason : uint8_t {
     summary,
     exploration,
     fallback,
+    // Explicit test/diagnostic injection. It is never natural routing proof.
+    forced,
 };
 
 struct llama_kv_routing_retrieval_entry {

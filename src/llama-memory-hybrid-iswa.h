@@ -236,6 +236,16 @@ public:
     ggml_tensor * build_kv_page_select(
             ggml_context * ctx, ggml_tensor * q, int layer,
             const llama_ubatch & ubatch, uint32_t query_row) const override;
+    bool set_kv_page_select_inputs(
+            ggml_tensor * bounds, ggml_tensor * metadata,
+            ggml_tensor * membership, ggml_tensor * query, int layer,
+            const llama_ubatch & ubatch) const override;
+    bool can_reuse_kv_page_select(
+            const ggml_tensor * bounds, int layer,
+            const llama_ubatch & ubatch) const override;
+    void capture_kv_routing_query(
+            ggml_tensor * tensor, int layer,
+            const llama_ubatch & ubatch) const override;
 
     // tier epoch of the attention child (the recurrent child has no VBR)
     uint64_t get_vbr_epoch() const override;

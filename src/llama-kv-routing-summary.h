@@ -254,6 +254,10 @@ public:
     uint32_t subblock_count(uint32_t logical_page) const noexcept;
     const std::vector<float> * range_min(uint32_t logical_page) const noexcept;
     const std::vector<float> * range_max(uint32_t logical_page) const noexcept;
+    const std::vector<float> * range_min(
+            const llama_kv_page_id & id) const noexcept;
+    const std::vector<float> * range_max(
+            const llama_kv_page_id & id) const noexcept;
 
     llama_kv_routing_score_result score(
             const llama_kv_residency_snapshot & snapshot,

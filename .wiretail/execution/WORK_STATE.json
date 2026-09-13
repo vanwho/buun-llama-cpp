@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "35",
-  "current_task": "35-03",
-  "last_updated_utc": "2026-09-13T20:36:39+00:00",
+  "current_task": "35-04",
+  "last_updated_utc": "2026-09-13T21:05:41+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6818,7 +6818,7 @@
       "cluster": "35b-mailbox-promote-v9",
       "title": "Connect live Q snapshots to bounded per-layer selected sets",
       "packet": ".wiretail/execution/tasks/35-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -6833,7 +6833,32 @@
       "depends_on": [
         "35-02"
       ],
-      "commit": null
+      "commit": "e65b8be45c615e8ea5a90b9b06b8df0e45ebc1cb",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/35-03-attempt-1-20260913T203656Z.jsonl:299",
+            "total_tokens": 25401982,
+            "total_tokens_derived": true,
+            "input_tokens": 25335465,
+            "cached_input_tokens": 24774144,
+            "output_tokens": 66517,
+            "thinking_tokens": 24790
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 25401982,
+          "input_tokens": 25335465,
+          "cached_input_tokens": 24774144,
+          "output_tokens": 66517,
+          "thinking_tokens": 24790
+        }
+      }
     },
     {
       "id": "35-04",
@@ -9144,15 +9169,28 @@
           "cached_input_tokens": 56643072,
           "output_tokens": 114698,
           "thinking_tokens": 43781
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/35-03-attempt-1-20260913T203656Z.jsonl:299",
+          "total_tokens": 25401982,
+          "total_tokens_derived": true,
+          "input_tokens": 25335465,
+          "cached_input_tokens": 24774144,
+          "output_tokens": 66517,
+          "thinking_tokens": 24790
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 90549501,
-        "input_tokens": 90370770,
-        "cached_input_tokens": 88428288,
-        "output_tokens": 178731,
-        "thinking_tokens": 64645
+        "turns": 3,
+        "total_tokens": 115951483,
+        "input_tokens": 115706235,
+        "cached_input_tokens": 113202432,
+        "output_tokens": 245248,
+        "thinking_tokens": 89435
       }
     },
     "36": {
@@ -9191,12 +9229,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 126,
-      "total_tokens": 2981319813,
-      "input_tokens": 2974624289,
-      "cached_input_tokens": 2916971776,
-      "output_tokens": 6695524,
-      "thinking_tokens": 2450050
+      "turns": 127,
+      "total_tokens": 3006721795,
+      "input_tokens": 2999959754,
+      "cached_input_tokens": 2941745920,
+      "output_tokens": 6762041,
+      "thinking_tokens": 2474840
     },
     "source": "Codex turn.completed usage events"
   }

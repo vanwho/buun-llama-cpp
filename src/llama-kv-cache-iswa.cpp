@@ -847,6 +847,29 @@ ggml_tensor * llama_kv_cache_iswa_context::build_kv_page_select(
             ctx, q, layer, ubatch, query_row) : nullptr;
 }
 
+bool llama_kv_cache_iswa_context::set_kv_page_select_inputs(
+        ggml_tensor * bounds, ggml_tensor * metadata,
+        ggml_tensor * membership, ggml_tensor * query, int layer,
+        const llama_ubatch & ubatch) const {
+    return ctx_base != nullptr && ctx_base->set_kv_page_select_inputs(
+            bounds, metadata, membership, query, layer, ubatch);
+}
+
+bool llama_kv_cache_iswa_context::can_reuse_kv_page_select(
+        const ggml_tensor * bounds, int layer,
+        const llama_ubatch & ubatch) const {
+    return ctx_base != nullptr && ctx_base->can_reuse_kv_page_select(
+            bounds, layer, ubatch);
+}
+
+void llama_kv_cache_iswa_context::capture_kv_routing_query(
+        ggml_tensor * tensor, int layer,
+        const llama_ubatch & ubatch) const {
+    if (ctx_base != nullptr) {
+        ctx_base->capture_kv_routing_query(tensor, layer, ubatch);
+    }
+}
+
 const llama_ubatch & llama_kv_cache_iswa_context::get_ubatch() const {
     assert(status == LLAMA_MEMORY_STATUS_SUCCESS);
 

@@ -240,6 +240,31 @@ struct llama_memory_context_i {
         return nullptr;
     }
 
+    // Refresh the non-Q selector inputs on every submitted batch. These are
+    // graph-owned inputs so a reused graph can advance its generation and
+    // residency epoch without rebuilding the selector node.
+    virtual bool set_kv_page_select_inputs(
+            ggml_tensor * /* bounds */, ggml_tensor * /* metadata */,
+            ggml_tensor * /* membership */, ggml_tensor * /* query */,
+            int /* layer */, const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
+    // Selector graph reuse is valid only when the logical catalogue shape and
+    // sequence identity still match the captured node.
+    virtual bool can_reuse_kv_page_select(
+            const ggml_tensor * /* bounds */, int /* layer */,
+            const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
+    // Register the graph-produced selector output with the owning pager. The
+    // callback records ownership and generation metadata only; synchronization
+    // remains at the scheduler boundary.
+    virtual void capture_kv_routing_query(
+            ggml_tensor * /* tensor */, int /* layer */,
+            const llama_ubatch & /* ubatch */) const {}
+
     // TurboQuant: get rotation tensors for pre-rotate-queries optimization
     // Returns null for non-turbo memory types. Override in KV cache contexts.
     virtual ggml_tensor * get_turbo_rot_forward() const { return nullptr; }

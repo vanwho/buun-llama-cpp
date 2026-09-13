@@ -373,6 +373,29 @@ ggml_tensor * llama_memory_hybrid_iswa_context::build_kv_page_select(
             ctx, q, layer, ubatch, query_row) : nullptr;
 }
 
+bool llama_memory_hybrid_iswa_context::set_kv_page_select_inputs(
+        ggml_tensor * bounds, ggml_tensor * metadata,
+        ggml_tensor * membership, ggml_tensor * query, int layer,
+        const llama_ubatch & ubatch) const {
+    return get_attn() != nullptr && get_attn()->set_kv_page_select_inputs(
+            bounds, metadata, membership, query, layer, ubatch);
+}
+
+bool llama_memory_hybrid_iswa_context::can_reuse_kv_page_select(
+        const ggml_tensor * bounds, int layer,
+        const llama_ubatch & ubatch) const {
+    return get_attn() != nullptr && get_attn()->can_reuse_kv_page_select(
+            bounds, layer, ubatch);
+}
+
+void llama_memory_hybrid_iswa_context::capture_kv_routing_query(
+        ggml_tensor * tensor, int layer,
+        const llama_ubatch & ubatch) const {
+    if (get_attn() != nullptr) {
+        get_attn()->capture_kv_routing_query(tensor, layer, ubatch);
+    }
+}
+
 uint64_t llama_memory_hybrid_iswa_context::get_vbr_epoch() const {
     return get_attn()->get_vbr_epoch();
 }

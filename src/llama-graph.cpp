@@ -2457,6 +2457,51 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
         res->set_params(params);
     }
 
+namespace {
+
+// The selector's Q is part of the model graph, while its catalogue and
+// generation sidebands are mutable boundary inputs. Keep the latter in the
+// normal graph-input lifecycle so graph reuse never leaves a pointer to a
+// temporary llama_memory_context.
+class llm_graph_input_kv_page_select final : public llm_graph_input_i {
+public:
+    llm_graph_input_kv_page_select(
+            const llama_memory_context_i * mctx,
+            ggml_tensor * bounds,
+            ggml_tensor * metadata,
+            ggml_tensor * membership,
+            ggml_tensor * query,
+            int layer) :
+        mctx_(mctx), bounds_(bounds), metadata_(metadata),
+        membership_(membership), query_(query), layer_(layer) {
+    }
+
+    void set_input(const llama_ubatch * ubatch) override {
+        if (mctx_ == nullptr || ubatch == nullptr ||
+                !mctx_->set_kv_page_select_inputs(
+                    bounds_, metadata_, membership_, query_, layer_, *ubatch)) {
+            // A selector is advisory. The owner keeps the previous valid
+            // selection when a boundary cannot refresh its sideband inputs.
+        }
+    }
+
+    bool can_reuse(const llm_graph_params & params) override {
+        mctx_ = params.mctx;
+        return mctx_ != nullptr && mctx_->can_reuse_kv_page_select(
+                bounds_, layer_, params.ubatch);
+    }
+
+private:
+    const llama_memory_context_i * mctx_ = nullptr;
+    ggml_tensor * bounds_ = nullptr;
+    ggml_tensor * metadata_ = nullptr;
+    ggml_tensor * membership_ = nullptr;
+    ggml_tensor * query_ = nullptr;
+    int layer_ = -1;
+};
+
+} // namespace
+
 void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
     if (cb_func) {
         cb_func(ubatch, cur, name, il);
@@ -2472,6 +2517,10 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
                 ctx0, cur, il, ubatch, 0);
         if (selected != nullptr) {
             ggml_build_forward_expand(gf, selected);
+            mctx->capture_kv_routing_query(selected, il, ubatch);
+            res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
+                    mctx, selected->src[1], selected->src[2], selected->src[3],
+                    selected->src[4], il));
         }
     }
 
