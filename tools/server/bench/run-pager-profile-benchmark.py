@@ -192,7 +192,10 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
             model = str(pathlib.Path(model).resolve())
         except OSError:
             pass
-    pager = _command_value(command, "--kv-pager") or "not_present"
+    # Absence of --kv-pager is the explicit all-GPU control, not an unknown
+    # mode. Keeping this normalized makes control identity comparable to the
+    # launcher's off policy.
+    pager = _command_value(command, "--kv-pager") or "off"
     mtp = _command_value(command, "--spec-draft-kv-device") or "not_present"
     return {
         "profile": profile,
@@ -257,8 +260,10 @@ def service_snapshot(endpoint: str | None) -> dict[str, object]:
 
 def identity_mismatches(observed: dict[str, object], expected: dict[str, object]) -> list[str]:
     fields = ("profile", "binary", "model", "context", "pager_mode",
-              "page_size_tokens", "mtp_placement")
+              "mtp_placement")
     errors = [field for field in fields if observed.get(field) != expected.get(field)]
+    if expected.get("pager_mode") != "off" and observed.get("page_size_tokens") != expected.get("page_size_tokens"):
+        errors.append("page_size_tokens")
     if expected.get("mtp_placement") == "gpu":
         for field in ("mtp_type_k", "mtp_type_v"):
             if observed.get(field) != "turbo4":
@@ -266,7 +271,7 @@ def identity_mismatches(observed: dict[str, object], expected: dict[str, object]
     if "loaded_dsos" in expected and observed.get("loaded_dsos") != expected.get("loaded_dsos"):
         errors.append("loaded_dsos")
     for field in ("hot_pages", "vram_budget", "host_budget", "safety_headroom", "pin_recent"):
-        if field in expected and observed.get(field) != expected.get(field):
+        if expected.get(field) is not None and observed.get(field) != expected.get(field):
             errors.append(field)
     return errors
 
@@ -914,6 +919,14 @@ def _main() -> int:
                         help="run only this case label or prompt ID; repeat for a selection")
     parser.add_argument("--case-index", action="append", type=int, default=[],
                         help="run only this zero-based case index; repeat for a selection")
+    parser.add_argument("--one-case", action="store_true",
+                        help="run only canonical prompt 0")
+    parser.add_argument("--one-trial", action="store_true",
+                        help="run one measured trial and no warmup")
+    parser.add_argument("--generation-length", type=int, default=None,
+                        help="explicit maximum generated tokens for quick/smoke")
+    parser.add_argument("--progress-bound", type=float, default=None,
+                        help="apply one no-progress bound to prefill and decode")
     parser.add_argument("--connect-timeout", type=float, default=10.0,
                         help="connection deadline in seconds")
     parser.add_argument("--startup-timeout", type=float, default=180.0,
@@ -927,6 +940,10 @@ def _main() -> int:
     args = parser.parse_args()
     if args.page_size <= 0:
         parser.error("--page-size must be a positive integer")
+    if args.generation_length is not None and args.generation_length <= 0:
+        parser.error("--generation-length must be a positive integer")
+    if args.progress_bound is not None and args.progress_bound <= 0:
+        parser.error("--progress-bound must be positive")
     if (args.batch is None) != (args.ubatch is None):
         parser.error("--batch and --ubatch must be supplied together")
     if args.batch is not None:
@@ -941,6 +958,8 @@ def _main() -> int:
         parser.error("all timeout limits must be positive")
     if args.mtp == "native" and args.target != "fast":
         parser.error("native MTP is only available with the canonical Qwen3.8 fast profile")
+    if args.one_case:
+        args.case_index = [0]
     endpoint = os.environ.get("BENCH_ENDPOINT")
     output = pathlib.Path(args.output or f"pager-results/pager-{args.variant}-{args.target}-dry")
     corpus_path, frozen_corpus, corpus_errors = load_corpus()
@@ -963,6 +982,11 @@ def _main() -> int:
         os.environ["BENCH_RESUME"] = "1" if args.resume else "0"
         os.environ["BENCH_CASE_IDS"] = ",".join(args.case_id)
         os.environ["BENCH_CASE_INDEXES"] = ",".join(str(value) for value in args.case_index)
+        os.environ["BENCH_ONE_TRIAL"] = "1" if args.one_trial else "0"
+        if args.generation_length is not None:
+            os.environ["BENCH_GENERATION_LENGTH"] = str(args.generation_length)
+        if args.progress_bound is not None:
+            os.environ["BENCH_PROGRESS_BOUND"] = str(args.progress_bound)
         write_dry_run(output, args.target, args.variant, endpoint, context,
                       corpus(variant=args.variant, frozen=frozen_corpus, path=corpus_path),
                       corpus_path)
@@ -1013,6 +1037,11 @@ def _main() -> int:
     env["BENCH_RESUME"] = "1" if args.resume else "0"
     env["BENCH_CASE_IDS"] = ",".join(args.case_id)
     env["BENCH_CASE_INDEXES"] = ",".join(str(value) for value in args.case_index)
+    env["BENCH_ONE_TRIAL"] = "1" if args.one_trial else "0"
+    if args.generation_length is not None:
+        env["BENCH_GENERATION_LENGTH"] = str(args.generation_length)
+    if args.progress_bound is not None:
+        env["BENCH_PROGRESS_BOUND"] = str(args.progress_bound)
     env["BENCH_CONNECT_TIMEOUT"] = str(args.connect_timeout)
     env["BENCH_STARTUP_TIMEOUT"] = str(args.startup_timeout)
     env["BENCH_PREFILL_TIMEOUT"] = str(args.prefill_timeout)
@@ -1069,7 +1098,19 @@ def _main() -> int:
         validation_errors.append("post_run_service_unhealthy")
     if canonical_rc == 0:
         missing = missing_pager_fields(telemetry_after)
-        if missing:
+        records_have_failures = False
+        records_path = output / "records.jsonl"
+        if records_path.exists():
+            try:
+                records_have_failures = any(
+                    json.loads(line).get("error") is True
+                    for line in records_path.read_text().splitlines() if line.strip())
+            except (OSError, TypeError, json.JSONDecodeError):
+                records_have_failures = True
+        # Feature-off controls and failed/incomplete baselines remain useful
+        # identity/timing evidence even when the optional pager scrape is
+        # absent. A successful selected run still fails closed on its contract.
+        if args.mode != "off" and not records_have_failures and missing:
             validation_errors.append("missing_pager_telemetry:" + ",".join(missing))
         validation_errors.extend(
             "invalid_pager_telemetry:" + error
