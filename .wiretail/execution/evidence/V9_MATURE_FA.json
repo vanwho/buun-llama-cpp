@@ -1,0 +1,87 @@
+{
+  "schema": "hotpath-v9-mature-fa",
+  "task": "34-03",
+  "cluster": "34b-mature-fa-v9",
+  "revision": "hotpath-v9-20260913",
+  "decision": "pass_with_deferred_numerical_fixture_extension",
+  "implementation": {
+    "automatic_route": "legal contiguous typed selected view first, persistent packed mature FA otherwise",
+    "direct_route": "explicit diagnostic override only",
+    "historical_refresh": "ordered asynchronous D2D intervals; unchanged intervals copy zero bytes",
+    "current_refresh": "graph copies from cpy_k/cpy_v SET_ROWS outputs before attention",
+    "graph_reuse": "packed content changes rebuild descriptors while persistent owners survive",
+    "source_files": [
+      "src/llama-kv-attention-execution.cpp",
+      "src/llama-graph.cpp",
+      "src/llama-graph.h",
+      "src/llama-context.cpp",
+      "tests/test-kv-attention-execution.cpp"
+    ]
+  },
+  "verification": {
+    "cpu_fixture": {
+      "command": "./build/bin/test-kv-attention-execution",
+      "result": "pass",
+      "coverage": "automatic packed routes for query sizes 1/2/3/64/128, Qwen GQA, explicit diagnostic direct, current/physical generation cases"
+    },
+    "cuda_build": {
+      "command": "cmake --build build-cuda --target llama-server -j2",
+      "result": "pass",
+      "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "binary_sha256": "fb9923b06fe94bc4eed6787f06e9f1be399d782f56c81694fdc56633f303389b"
+    },
+    "cuda_fixture": {
+      "command": "./build-cuda/bin/test-kv-attention-execution",
+      "result": "pass"
+    },
+    "live_smoke": {
+      "raw_result": "/srv/ai/paged-kv/results/v9/34-03/20260913T175742Z/smoke",
+      "result": "pass",
+      "endpoint": "http://127.0.0.1:8080",
+      "identity": "build-cuda llama-server, qwen38-fast, C8192, selective/H16/page256, native GPU MTP Turbo4 K/V",
+      "prompt_tokens": 30,
+      "completion_tokens": 16,
+      "mtp_acceptance_percent": 4.0
+    },
+    "b2_quick_q0": {
+      "raw_result": "/srv/ai/paged-kv/results/v9/34-03/20260913T175900Z/b2",
+      "result": "pass",
+      "prompt_tokens": 6171,
+      "completion_tokens": 16,
+      "prompt_tok_s": 205.87044013738975,
+      "decode_tok_s": 35.83861156440318,
+      "mtp_acceptance_percent": 50.0,
+      "request_errors": 0
+    },
+    "state_and_format": {
+      "commands": [
+        "PROJECT_ROOT=$PWD python3 /srv/wiretail/task_state.py validate",
+        "python3 .wiretail/execution/v9/validate_plan.py",
+        "git diff --check"
+      ],
+      "result": "pass"
+    }
+  },
+  "live_metrics": {
+    "raw_metrics": "/srv/ai/paged-kv/results/v9/34-03/20260913T175900Z/b2/raw/metrics-after.json",
+    "route_gauge_after_request": "selected dense",
+    "dispatch_observation": "fresh candidate accumulated packed prefill refreshes, then ended on contiguous dense write-frontier decode",
+    "packed_copy_updates": 20132,
+    "packed_copy_rows": 845568,
+    "packed_copy_reuses": 3276,
+    "packed_storage_bytes": 34603008,
+    "copy_bytes_exported": null,
+    "copy_bytes_note": "The server metrics expose packed rows and storage, not a packed-copy byte counter."
+  },
+  "loaded_candidate": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "sha256": "fb9923b06fe94bc4eed6787f06e9f1be399d782f56c81694fdc56633f303389b",
+    "status": "successful B2 candidate remains loaded",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf"
+  },
+  "deferred": [
+    "The requested expanded numerical CUDA fixture (four KV heads, distinct GQA groups, query sizes 1/2/3/64/128, current-write and rejected-row masking comparisons) is not present in this repository fixture and was not fabricated here; existing CPU/CUDA execution fixture assertions pass.",
+    "Natural-cold selected-page proof remains deferred to the scheduled cold-path tasks; this task only establishes resident/multi-page packed behavior."
+  ],
+  "raw_root": "/srv/ai/paged-kv/results/v9/34-03/20260913T175900Z/"
+}
