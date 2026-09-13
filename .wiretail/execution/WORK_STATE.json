@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "34",
-  "current_task": "34-06",
-  "last_updated_utc": "2026-09-13T18:40:52+00:00",
+  "current_phase": "35",
+  "current_task": "35-01",
+  "last_updated_utc": "2026-09-13T18:52:27+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6673,7 +6673,7 @@
       "cluster": "34c-budget-probe-v9",
       "title": "Measure foundation overhead before adding dynamic cold selection",
       "packet": ".wiretail/execution/tasks/34-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -6690,7 +6690,32 @@
       "depends_on": [
         "34-05"
       ],
-      "commit": null
+      "commit": "68dc94bdc98bf97aa21923e4b12364cf2a9252fd",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/34-06-attempt-1-20260913T184110Z.jsonl:117",
+            "total_tokens": 26815545,
+            "total_tokens_derived": true,
+            "input_tokens": 26737366,
+            "cached_input_tokens": 25886976,
+            "output_tokens": 78179,
+            "thinking_tokens": 29175
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 26815545,
+          "input_tokens": 26737366,
+          "cached_input_tokens": 25886976,
+          "output_tokens": 78179,
+          "thinking_tokens": 29175
+        }
+      }
     },
     {
       "id": "35-01",
@@ -9018,15 +9043,28 @@
           "cached_input_tokens": 21898752,
           "output_tokens": 61493,
           "thinking_tokens": 26243
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/34-06-attempt-1-20260913T184110Z.jsonl:117",
+          "total_tokens": 26815545,
+          "total_tokens_derived": true,
+          "input_tokens": 26737366,
+          "cached_input_tokens": 25886976,
+          "output_tokens": 78179,
+          "thinking_tokens": 29175
         }
       ],
       "totals": {
-        "turns": 5,
-        "total_tokens": 121156343,
-        "input_tokens": 120854623,
-        "cached_input_tokens": 118411520,
-        "output_tokens": 301720,
-        "thinking_tokens": 128920
+        "turns": 6,
+        "total_tokens": 147971888,
+        "input_tokens": 147591989,
+        "cached_input_tokens": 144298496,
+        "output_tokens": 379899,
+        "thinking_tokens": 158095
       }
     },
     "35": {
@@ -9076,12 +9114,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 123,
-      "total_tokens": 2863954767,
-      "input_tokens": 2857516153,
-      "cached_input_tokens": 2802656512,
-      "output_tokens": 6438614,
-      "thinking_tokens": 2356230
+      "turns": 124,
+      "total_tokens": 2890770312,
+      "input_tokens": 2884253519,
+      "cached_input_tokens": 2828543488,
+      "output_tokens": 6516793,
+      "thinking_tokens": 2385405
     },
     "source": "Codex turn.completed usage events"
   }
