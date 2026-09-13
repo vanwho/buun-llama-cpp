@@ -1002,3 +1002,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-13T18:42:00+00:00 - 34-05 - done
 
 - Summary: Unified checked full-L/H/A admission with native Turbo4 draft, recurrent/compute, replacement, transfer-destination, and R1 catalogue accounting; synthetic L8192/L32768/L131072 and multi-slot draft tests pass. Authenticated native L8192 U64/U128 probes matched target ledger allocation to observed peak. Raw: `/srv/ai/paged-kv/results/v9/34-05/20260913T183506Z-u64-manual/`, `/srv/ai/paged-kv/results/v9/34-05/20260913T183554Z-u128/`.
+
+## 2026-09-13T19:02:00+00:00 - 34-06 - done
+
+- Summary: Added CUDA-event receipts for incremental tail H2D and append+attention; fixed-A contiguous versus packed Turbo4 fixture, planner/telemetry tests, and matched current all-GPU q0 passed. Packed overhead was 1–3%; first append+attention warmup is the dominant unresolved cost owned by the next phase. Canonical B2 site runner was deferred because required environment variables are absent. Raw: `/srv/ai/paged-kv/results/v9/34-06/20260913T184319Z-foundation/`, `/srv/ai/paged-kv/results/v9/34-06/20260913T184443Z-b2-quick/`, `/srv/ai/paged-kv/results/v9/34-06/20260913T184502Z-allgpu-q0/`.

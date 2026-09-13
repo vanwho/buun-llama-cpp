@@ -1,0 +1,83 @@
+{
+  "schema": "hotpath-v9",
+  "task": "34-06",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-13T18:44:00Z",
+  "provenance": {
+    "code_sha": "cd7ab5fcc76b92d191e0d1af850625bf0382a5cd",
+    "source_diff_hash": "117c526f5afd4de3c2827c2c06011e1b66e2896b5875b88fa01fef31d32f0898",
+    "server_sha256": "bfc347e7e35312dc86496739f2dd72ecbe00e374f25a79232a63eadbe2dbccb5",
+    "loaded_dso_hashes": {
+      "libllama.so": "e6f41bd75180f46b46773709d7a793f03b1e434808a53cc873f311bf6835cb7c",
+      "libggml-cuda.so": "a84ccc810bbdd37f3afab93b8dc2f7d0dfdb813723fd66c25000be328f0c4409"
+    },
+    "model": "/srv/ai/models/text/current.gguf",
+    "raw_roots": [
+      "/srv/ai/paged-kv/results/v9/34-06/20260913T184319Z-foundation",
+      "/srv/ai/paged-kv/results/v9/34-06/20260913T184443Z-b2-quick",
+      "/srv/ai/paged-kv/results/v9/34-06/20260913T184502Z-allgpu-q0"
+    ]
+  },
+  "config": {
+    "L": 8192,
+    "H": 4096,
+    "A": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 8192,
+    "draft_device": "gpu",
+    "mtp_type": "draft-mtp"
+  },
+  "cuda_event_ms": {
+    "small_selected_rows_530": {
+      "U16": {"contiguous": 0.020, "packed": 0.022},
+      "U64": {"contiguous": 0.023, "packed": 0.025},
+      "U128": {"contiguous": 0.028, "packed": 0.030}
+    },
+    "large_prefill": {
+      "A2048_U16": {"contiguous": 0.032, "packed": 0.033},
+      "A2048_U64": {"contiguous": 0.039, "packed": 0.041},
+      "A2048_U128": {"contiguous": 0.047, "packed": 0.049},
+      "A4096_U16": {"contiguous": 0.048, "packed": 0.049},
+      "A4096_U64": {"contiguous": 0.056, "packed": 0.057},
+      "A4096_U128": {"contiguous": 0.068, "packed": 0.069},
+      "A8192_U16": {"contiguous": 0.067, "packed": 0.068},
+      "A8192_U64": {"contiguous": 0.074, "packed": 0.076},
+      "A8192_U128": {"contiguous": 0.097, "packed": 0.098}
+    },
+    "incremental_tail": {
+      "kv_heads": 4,
+      "tail_h2d_ms": [0.002048, 0.005888, 0.001728],
+      "append_attention_ms": [22.969280, 1.246208, 1.299456],
+      "rows": [1203, 1267, 1331]
+    },
+    "decode_shapes_q_tokens": {"1": 0.299, "2": 0.299, "3": 0.303, "5": 0.307},
+    "split_control": {"q128_ms": 0.236, "reference_q128_ms": 9.184}
+  },
+  "execution": {
+    "fixture_passed": true,
+    "focused_planner_passed": true,
+    "focused_telemetry_passed": true,
+    "automatic_route": "packed for selected typed views; direct only on explicit diagnostic fixture route",
+    "automatic_full_a_copy": false,
+    "automatic_full_h_selection": false,
+    "blocking_upload": false,
+    "graph_stability": "capture/replay/rebuild counters exercised; current service capture=1, replay=0, rebuild=1 before a request",
+    "memory_receipt": "V9_MEMORY.json; current service packed workspace=69206000 bytes, dequant=8388610 bytes, graph=268435000 bytes"
+  },
+  "rates": {
+    "all_gpu_q0_current": {"prompt_tokens": 512, "output_tokens": 16, "prompt_ms": 384.392, "decode_ms": 430.646, "decode_tok_s": 34.8313928377, "accepted_tokens": 0},
+    "all_gpu_q0_33_03": {"prompt_tokens": 512, "output_tokens": 16, "prompt_ms": 463.142, "decode_ms": 424.742, "decode_tok_s": 35.3155562671, "accepted_tokens": 0}
+  },
+  "finding": {
+    "status": "foundation_stable",
+    "dominant_unresolved_cost": "the first append+attention event is 22.969 ms versus 1.246–1.299 ms for subsequent tails; source boundary is append metadata/page-table and first-use graph/kernel warmup, not tail H2D",
+    "next_task": "35-01",
+    "profile": "not run: packed overhead was 1–3% in the CUDA-event fixture, below the material-slowdown trigger"
+  }
+}
