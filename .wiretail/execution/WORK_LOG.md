@@ -967,3 +967,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-30-01`
 - Commit at update: `e021947d2`
 - Summary: Reviewed HOTPATH29 findings, published HOTPATH30_01 evidence, and scheduled three concrete phase-31 repairs plus bounded follow-up evidence and phase-32 review.
+
+## 2026-09-13T05:10:52+00:00 — 31-02 — done
+
+- Branch: `codex/task-31-02`
+- Commit at update: `93f0d3c8b`
+- Summary: Completed authenticated asynchronous cold promotion/use; local contracts, CUDA tests, L8192 checkpoint, natural hot-2 scale/recall, and service restoration passed.

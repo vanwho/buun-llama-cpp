@@ -865,6 +865,16 @@ llama_context::~llama_context() {
     // pending asynchronous copies into the output buffers finish before those buffers are freed.
     synchronize();
 
+    // kv_pager_owner is declared before the backend members, so ordinary
+    // reverse declaration-order destruction would tear down the CUDA backend
+    // before the pager's asynchronous host/transfer worker joins. Detach the
+    // memory observer and join the pager while its backend and storage are
+    // still alive.
+    if (memory && kv_pager_owner) {
+        memory->set_kv_pager(nullptr);
+    }
+    kv_pager_owner.reset();
+
     delete crosskv_proj;
 
     if (!model.hparams.no_alloc) {

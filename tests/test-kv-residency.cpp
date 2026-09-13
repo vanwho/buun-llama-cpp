@@ -104,6 +104,8 @@ struct fake_transfer_backend {
     bool fail_catalog = false;
     bool fail_map = false;
     bool stale = false;
+    bool observed_delayed_completion = false;
+    bool observed_h2d_without_mapping = false;
 
     static bool reserve_slots(void * opaque, uint32_t count, uint64_t bytes) noexcept {
         auto & self = *static_cast<fake_transfer_backend *>(opaque);
@@ -148,6 +150,11 @@ struct fake_transfer_backend {
             size > self.slots[completion.physical_slot].size() - offset) {
             return false;
         }
+        if (direction == llama_kv_residency_transfer_direction::h2d_promotion &&
+            completion.physical_slot < self.mapped.size() &&
+            !self.mapped[completion.physical_slot]) {
+            self.observed_h2d_without_mapping = true;
+        }
         pending_copy copy { ticket, direction, completion.physical_slot,
                             offset, host, size };
         if (asynchronous) {
@@ -175,6 +182,8 @@ struct fake_transfer_backend {
 
     static bool complete(void * opaque, uint64_t ticket) noexcept {
         auto & self = *static_cast<fake_transfer_backend *>(opaque);
+        self.observed_delayed_completion = self.observed_delayed_completion ||
+            !self.pending.empty();
         for (size_t i = 0; i < self.pending.size(); ++i) {
             if (self.pending[i].ticket == ticket) {
                 const auto copy = self.pending[i];
@@ -355,6 +364,10 @@ static void test_layer_granular_identity_and_transfer() {
     assert(upload.pages.size() == 2 && upload.runs.size() == 2);
     assert(upload.useful_bytes == 68 && upload.aligned_bytes == 128);
     assert(upload.runs[0].layer == 0 && upload.runs[1].layer == 1);
+    llama_kv_residency_transfer_plan duplicate;
+    assert(!llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            { layer_transfer(0, 0), layer_transfer(0, 1) }, 64, {}, duplicate));
 
     fake_transfer_backend fake;
     llama_kv_residency_pool_backend backend {
@@ -382,6 +395,11 @@ static void test_layer_granular_identity_and_transfer() {
         llama_kv_residency_pool_status::ok);
     assert(fake.slots[0][0] == 1 && fake.slots[1][0] == 33);
     assert(fake.slots[0][1] == 2 && fake.slots[1][1] == 34);
+    assert(fake.observed_delayed_completion && fake.pending.empty());
+    // The destination must be backend-addressable before the first async
+    // chunk is issued, while the residency table remains unpublished until
+    // completion and recheck.
+    assert(!fake.observed_h2d_without_mapping);
 
     // A cancellation/failure must not leave a layer mapping or a slot pinned.
     auto cancelled = layer_transfer(0, 2);
@@ -718,6 +736,7 @@ static void test_transfer_rollback_and_stale_completion() {
         fake.catalog_reserved == 0);
     fake.fail_catalog = false;
 
+    fake.fail_issue = false;
     fake.fail_map = true;
     assert(pool->reserve(upload, 32, {}, claim) ==
         llama_kv_residency_pool_status::ok);
@@ -800,6 +819,55 @@ static llama_kv_residency_transaction_result run_transaction(
     return llama_kv_residency_execute_transaction(
         table, *pool, request, backend, transport,
         transaction_hooks(transaction_fake));
+}
+
+static void test_published_mapping_matches_use_slot() {
+    llama_kv_residency_table table(2);
+    auto initial = table.begin();
+    assert(table.replace(initial, resident(0, 0)) == llama_kv_residency_status::ok);
+    assert(table.publish(initial) == llama_kv_residency_status::ok);
+
+    fake_transfer_backend fake;
+    llama_kv_residency_pool_backend backend {
+        &fake, fake_transfer_backend::reserve_slots,
+        fake_transfer_backend::release_slots, fake_transfer_backend::map_slot,
+        fake_transfer_backend::drop_slot, fake_transfer_backend::issue,
+        fake_transfer_backend::complete, fake_transfer_backend::cancel,
+    };
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create(
+            { 2, 64, 4, 4, 1024 }, backend, pool_status);
+    assert(pool && pool_status == llama_kv_residency_pool_status::ok);
+
+    llama_kv_residency_transfer_plan upload;
+    assert(llama_kv_residency_build_transfer_plan(
+            llama_kv_residency_transfer_direction::h2d_promotion,
+            { transfer_page_for(1, 0, 19) }, 4, {}, upload));
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    assert(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &fake;
+    transport.host_read = fake_transfer_backend::host_read;
+    transport.recheck = fake_transfer_backend::recheck;
+
+    llama_kv_residency_transaction_request request;
+    // The copy targets slot 0, but the desired publication claims slot 1.
+    // The transaction must reject this before mapping or publishing it.
+    request.desired_pages.push_back(resident(1, 1));
+    request.transfers.push_back(upload);
+    request.staging_capacity = 32;
+    fake_residency_transaction transaction_fake;
+    transaction_fake.pool = pool.get();
+    const auto result = llama_kv_residency_execute_transaction(
+            table, *pool, request, backend, transport,
+            transaction_hooks(transaction_fake));
+    assert(result.status == llama_kv_residency_transaction_status::stale_generation);
+    assert(!result.published && result.rollback_complete);
+    assert(table.snapshot().epoch() == 1 && table.snapshot().pages().size() == 1 &&
+        table.snapshot().pages()[0].id == page(0));
+    assert(pool->mapped_slots() == 0 && fake.pending.empty());
 }
 
 static void test_residency_transaction() {
@@ -1138,6 +1206,7 @@ int main() {
     test_ggml_adapter_borrowed_storage();
     test_pool_reconcile_and_layer_major_run_view();
     test_transfer_rollback_and_stale_completion();
+    test_published_mapping_matches_use_slot();
     test_residency_transaction();
     test_reseal_before_eviction();
     test_fixed_window_proof();

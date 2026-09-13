@@ -832,7 +832,11 @@ llama_kv_live_policy_result llama_kv_pager::apply_live_policy(
         }
         llama_kv_residency_transfer_transport transport;
         transport.upload_ring = upload_ring();
-        transport.force_synchronous = true;
+        // Keep the bounded upload ring's event path enabled for promotion.
+        // The transaction publishes the residency table only after every
+        // chunk completion and its epoch/identity recheck, so asynchronous
+        // H2D can overlap host reads without exposing an incomplete mapping.
+        transport.force_synchronous = false;
         transport.context = &context;
         transport.host_read = live_host_read;
         transport.recheck = live_recheck_transfer;
@@ -1997,11 +2001,16 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
 llama_kv_pager_write_status llama_kv_pager::begin_write(
         int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
         uint32_t attention_layer, llama_kv_pager_write_ticket & ticket) noexcept {
-    if (attention_layer != UINT32_MAX &&
-        attention_layer >= snapshot_.geometry.attention_layers) {
-        ticket = {};
-        ticket.attention_layer = attention_layer;
-        return llama_kv_pager_write_status::invalid_position;
+    if (attention_layer != UINT32_MAX) {
+        const auto & layer_ids = snapshot_.geometry.model_layer_ids;
+        const bool known = layer_ids.empty()
+            ? attention_layer < snapshot_.geometry.attention_layers
+            : std::find(layer_ids.begin(), layer_ids.end(), attention_layer) != layer_ids.end();
+        if (!known) {
+            ticket = {};
+            ticket.attention_layer = attention_layer;
+            return llama_kv_pager_write_status::invalid_position;
+        }
     }
     const auto status = begin_write(sequence_id, sequence_generation, position, ticket);
     if (status == llama_kv_pager_write_status::ok) {
@@ -2180,14 +2189,22 @@ bool llama_kv_pager::physical_row(
 bool llama_kv_pager::physical_row(
         int32_t sequence_id, llama_pos position, uint32_t attention_layer,
         uint32_t & row) const noexcept {
-    // The legacy write frontier is one logical row shared by all target
-    // layers. Layer-granular residency supplies a distinct slot map through
-    // its layer identity; until that map is populated, this compatibility
-    // view deliberately resolves the same row and never fabricates a layer.
-    if (attention_layer != UINT32_MAX &&
-        attention_layer >= snapshot_.geometry.attention_layers) {
-        row = UINT32_MAX;
-        return false;
+    // Graph inputs carry model layer IDs, while the pager geometry stores a
+    // compact ordinal for each admitted attention layer.  Do not compare the
+    // model ID with the ordinal count: sparse/non-contiguous layer IDs would
+    // make the last layers fall back to logical rows and let set_rows address
+    // beyond the bounded physical cache.
+    if (attention_layer != UINT32_MAX) {
+        const auto & layer_ids = snapshot_.geometry.model_layer_ids;
+        if (!layer_ids.empty()) {
+            if (std::find(layer_ids.begin(), layer_ids.end(), attention_layer) == layer_ids.end()) {
+                row = UINT32_MAX;
+                return false;
+            }
+        } else if (attention_layer >= snapshot_.geometry.attention_layers) {
+            row = UINT32_MAX;
+            return false;
+        }
     }
     return physical_row(sequence_id, position, row);
 }

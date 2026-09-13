@@ -904,6 +904,24 @@ int main() {
     assert(pager && write_allocations == 1 && status == llama_kv_pager_status::ok);
     pager->set_routing_summary_provider({ nullptr, build_routing_summary });
 
+    // Runtime graph inputs carry model layer IDs, not compact geometry
+    // ordinals.  Sparse IDs must still resolve to the same bounded physical
+    // row; an unknown ID must not silently fall back to a logical row.
+    auto sparse_geometry = geometry(1025);
+    sparse_geometry.model_layer_ids = { 4, 9 };
+    sparse_geometry.attention_layers = 2;
+    auto sparse_pager = llama_kv_pager::create(
+            config, sparse_geometry, resources(1024, 128), write_backend, status);
+    assert(sparse_pager && status == llama_kv_pager_status::ok);
+    llama_kv_pager_write_ticket sparse_ticket;
+    assert(sparse_pager->begin_write(0, 1, 3, 9, sparse_ticket) == llama_kv_pager_write_status::ok);
+    assert(sparse_ticket.attention_layer == 9);
+    uint32_t sparse_row = UINT32_MAX;
+    assert(sparse_pager->physical_row(0, 3, 4, sparse_row) && sparse_row == 3);
+    assert(sparse_pager->physical_row(0, 3, 9, sparse_row) && sparse_row == 3);
+    assert(!sparse_pager->physical_row(0, 3, 1, sparse_row));
+    assert(sparse_pager->cancel_write(sparse_ticket) == llama_kv_pager_write_status::ok);
+
     // A whole prefill batch reserves its write frontier before graph
     // submission. Crossing the physical H=4-page window must roll back every
     // earlier row rather than leaving a partially admitted prefix.
