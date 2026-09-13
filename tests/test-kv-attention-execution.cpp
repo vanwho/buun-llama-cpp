@@ -119,9 +119,9 @@ static void test_prefill_admission() {
     llama_kv_attention_execution large_execution(llama_kv_attention_execution_mode::selective);
     const auto large_decision = large_execution.prepare(
             selected_large, llama_kv_attention_execution_phase::prefill,
-            1, 1, true, {});
+            1, 1, true, {}, {}, false, true);
     assert(large_decision.status == llama_kv_attention_execution_status::ok);
-    assert(large_decision.route == llama_kv_attention_execution_route::selected_direct);
+    assert(large_decision.route == llama_kv_attention_execution_route::selected_packed);
 }
 
 static void test_routes_epochs_and_fences() {
@@ -140,54 +140,53 @@ static void test_routes_epochs_and_fences() {
 
     llama_kv_attention_execution execution(llama_kv_attention_execution_mode::selective);
     auto first = execution.prepare(selected_prefill, llama_kv_attention_execution_phase::prefill,
-            3, 7, true, scratch);
+            3, 7, true, scratch, {}, false, true);
     assert(first.status == llama_kv_attention_execution_status::ok);
-    assert(first.route == llama_kv_attention_execution_route::selected_direct);
+    assert(first.route == llama_kv_attention_execution_route::selected_packed);
     assert(first.graph_rebuild && execution.in_flight_graphs() == 1);
     execution.complete_one_graph();
 
     auto reused = execution.prepare(selected_prefill, llama_kv_attention_execution_phase::prefill,
-            3, 7, true, scratch);
+            3, 7, true, scratch, {}, false, true);
     assert(!reused.graph_rebuild && execution.in_flight_graphs() == 1);
     execution.complete_one_graph();
 
     auto representation = execution.prepare(selected_prefill, llama_kv_attention_execution_phase::prefill,
-            4, 7, true, scratch);
+            4, 7, true, scratch, {}, false, true);
     assert(representation.graph_rebuild);
     execution.complete_one_graph();
 
     auto shape = execution.prepare(selected_prefill, llama_kv_attention_execution_phase::prefill,
-            4, 8, true, scratch);
+            4, 8, true, scratch, {}, false, true);
     assert(shape.graph_rebuild);
     execution.complete_one_graph();
 
     auto direct = execution.prepare(selected_decode, llama_kv_attention_execution_phase::decode,
-            4, 8, true, scratch);
-    assert(direct.route == llama_kv_attention_execution_route::selected_direct);
+            4, 8, true, scratch, {}, false, true);
+    assert(direct.route == llama_kv_attention_execution_route::selected_packed);
     assert(direct.graph_rebuild && execution.in_flight_graphs() == 1);
 
-    // A second table epoch must coexist with the old graph until both complete.
-    // Direct CUDA keeps the graph shape and patches its mutable device inputs;
-    // the immutable view leases still fence both submissions independently.
+    // A second physical page mapping rebuilds the packed source views and
+    // coexists with the old graph until both submissions complete.
     auto changed_table = execution.prepare(metadata(snapshot(701), 1, 1),
-            llama_kv_attention_execution_phase::decode, 4, 8, true, scratch);
-    assert(!changed_table.graph_rebuild && execution.in_flight_graphs() == 2);
+            llama_kv_attention_execution_phase::decode, 4, 8, true, scratch, {}, false, true);
+    assert(changed_table.graph_rebuild && execution.in_flight_graphs() == 2);
     execution.complete_one_graph();
     execution.complete_one_graph();
     assert(execution.in_flight_graphs() == 0);
 
     const auto & route_metrics = execution.metrics();
-    assert(route_metrics.prefill_routes.selected_direct == 4);
-    assert(route_metrics.decode_routes.selected_direct == 2);
+    assert(route_metrics.prefill_routes.selected_packed == 4);
+    assert(route_metrics.decode_routes.selected_packed == 2);
     assert(route_metrics.selected_page_count == 2);
     assert(route_metrics.selected_page_ids.size() == 2 &&
            route_metrics.selected_page_ids[0] == 0 &&
            route_metrics.selected_page_ids[1] == 2);
     const auto selected_mtp = metadata(snapshot(), 2, 1);
     const auto mtp = execution.prepare(selected_mtp,
-            llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch);
-    assert(mtp.route == llama_kv_attention_execution_route::selected_direct);
-    assert(execution.metrics().mtp_verify_routes.selected_direct == 1);
+            llama_kv_attention_execution_phase::mtp_verify, 4, 8, true, scratch, {}, false, true);
+    assert(mtp.route == llama_kv_attention_execution_route::selected_packed);
+    assert(execution.metrics().mtp_verify_routes.selected_packed == 1);
     execution.complete_one_graph();
     assert(llama_kv_attention_execution_phase_name(
             llama_kv_attention_execution_phase::mtp_verify) == std::string("mtp_verify"));
@@ -208,21 +207,21 @@ static void test_routes_epochs_and_fences() {
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
 
-    // Qualified Turbo4 prefills use direct paging as well; the compact bridge
-    // remains available only when the direct shape contract is absent.
+    // Qualified Turbo4 prefills use the mature packed bridge automatically;
+    // direct paging is reserved for the explicit diagnostic override.
     llama_kv_attention_execution direct_over_packed(
             llama_kv_attention_execution_mode::selective);
     const auto direct_packed = direct_over_packed.prepare(selected_prefill,
             llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
             {}, false, true);
-    assert(direct_packed.route == llama_kv_attention_execution_route::selected_direct);
+    assert(direct_packed.route == llama_kv_attention_execution_route::selected_packed);
     direct_over_packed.complete_one_graph();
 
     const auto packed_prefill = metadata(snapshot(), 129, 1);
     const auto direct_policy = direct_over_packed.prepare(packed_prefill,
             llama_kv_attention_execution_phase::prefill, 8, 12, true, scratch,
             {}, false, true);
-    assert(direct_policy.route == llama_kv_attention_execution_route::selected_direct);
+    assert(direct_policy.route == llama_kv_attention_execution_route::selected_packed);
     direct_over_packed.complete_one_graph();
 
     // Forced routes compare the same metadata and fail closed when their
@@ -236,6 +235,15 @@ static void test_routes_epochs_and_fences() {
     assert(forced_packed.status == llama_kv_attention_execution_status::ok);
     assert(forced_packed.route == llama_kv_attention_execution_route::selected_packed);
     forced.complete_one_graph();
+    llama_kv_attention_execution diagnostic_direct(
+            llama_kv_attention_execution_mode::selective);
+    diagnostic_direct.set_route_override("direct");
+    const auto forced_direct = diagnostic_direct.prepare(selected_prefill,
+            llama_kv_attention_execution_phase::decode, 9, 13, true, scratch,
+            {}, false, true);
+    assert(forced_direct.status == llama_kv_attention_execution_status::ok);
+    assert(forced_direct.route == llama_kv_attention_execution_route::selected_direct);
+    diagnostic_direct.complete_one_graph();
     forced.set_route_override("dense");
     const auto refused_dense = forced.prepare(selected_prefill,
             llama_kv_attention_execution_phase::prefill, 10, 14, true, scratch,
@@ -359,8 +367,8 @@ static void test_view_sized_scratch_contract() {
     llama_kv_attention_execution execution(llama_kv_attention_execution_mode::selective);
 
     assert(execution.planned_route(selected,
-            llama_kv_attention_execution_phase::decode, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+            llama_kv_attention_execution_phase::decode, true, false, true) ==
+           llama_kv_attention_execution_route::selected_packed);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, true, false) ==
            llama_kv_attention_execution_route::selected_dense);
@@ -370,6 +378,11 @@ static void test_view_sized_scratch_contract() {
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, false, false) ==
            llama_kv_attention_execution_route::selected_reference);
+    for (const uint32_t query_count : { 1u, 2u, 3u, 64u, 128u }) {
+        assert(execution.planned_route(metadata(snapshot(), query_count, 1),
+                llama_kv_attention_execution_phase::prefill, true, false, true) ==
+               llama_kv_attention_execution_route::selected_packed);
+    }
 
     llama_kv_attention_scratch_request view;
     view.route = llama_kv_attention_execution_route::selected_reference;
@@ -408,8 +421,8 @@ static void test_view_sized_scratch_contract() {
 
     const auto max_query = metadata(snapshot(), 65, 1);
     assert(execution.planned_route(max_query,
-            llama_kv_attention_execution_phase::mtp_verify, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+            llama_kv_attention_execution_phase::mtp_verify, true, false, true) ==
+           llama_kv_attention_execution_route::selected_packed);
 }
 
 static void test_fallbacks_and_graph_key() {
@@ -424,36 +437,35 @@ static void test_fallbacks_and_graph_key() {
 
     auto prompt_shape = metadata(snapshot(), 65, 1);
     auto prompt_reference = execution.prepare(prompt_shape,
-            llama_kv_attention_execution_phase::decode, 1, 1, true, scratch);
-    assert(prompt_reference.route == llama_kv_attention_execution_route::selected_direct);
+            llama_kv_attention_execution_phase::decode, 1, 1, true, scratch, {}, false, true);
+    assert(prompt_reference.route == llama_kv_attention_execution_route::selected_packed);
     execution.complete_one_graph();
 
     auto tile64 = execution.prepare(metadata(snapshot(), 64, 1),
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch,
             {}, false, true);
-    assert(tile64.route == llama_kv_attention_execution_route::selected_direct);
+    assert(tile64.route == llama_kv_attention_execution_route::selected_packed);
     execution.complete_one_graph();
 
     auto tile3 = execution.prepare(metadata(snapshot(), 3, 1),
-            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
-    assert(tile3.route == llama_kv_attention_execution_route::selected_direct);
+            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch, {}, false, true);
+    assert(tile3.route == llama_kv_attention_execution_route::selected_packed);
     execution.complete_one_graph();
 
     auto tile65 = execution.prepare(metadata(snapshot(), 65, 1),
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch,
             {}, false, true);
-    assert(tile65.route == llama_kv_attention_execution_route::selected_direct);
+    assert(tile65.route == llama_kv_attention_execution_route::selected_packed);
     execution.complete_one_graph();
 
-    // Qwen3.5 uses 24 query heads and 4 KV heads (GQA ratio 6). The paged
-    // Turbo4 kernel indexes the ratio at runtime, so this valid geometry must
-    // take the same direct route as the four-way fixture.
+    // Qwen3.5 uses 24 query heads and 4 KV heads (GQA ratio 6). The mature
+    // packed FA path must preserve that real-model grouping.
     llama_kv_attention_execution qwen_gqa(
             llama_kv_attention_execution_mode::selective);
     const auto qwen_prefill = metadata(snapshot(), 3, 1, { 2, 0 }, 600, 24, 4);
     const auto qwen_direct = qwen_gqa.prepare(qwen_prefill,
-            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch);
-    assert(qwen_direct.route == llama_kv_attention_execution_route::selected_direct);
+            llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch, {}, false, true);
+    assert(qwen_direct.route == llama_kv_attention_execution_route::selected_packed);
     qwen_gqa.complete_one_graph();
 
     llama_kv_attention_execution observing(llama_kv_attention_execution_mode::observe);
@@ -553,14 +565,14 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     execution.reset_metrics();
 
     const auto first = execution.prepare(base, llama_kv_attention_execution_phase::decode,
-            11, 22, true, scratch);
-    assert(first.route == llama_kv_attention_execution_route::selected_direct);
+            11, 22, true, scratch, {}, false, true);
+    assert(first.route == llama_kv_attention_execution_route::selected_packed);
     assert(first.graph_rebuild);
 
     auto irrelevant_scratch = scratch;
     irrelevant_scratch.router_rows = 99;
     const auto reused = execution.prepare(base, llama_kv_attention_execution_phase::decode,
-            11, 22, true, irrelevant_scratch);
+            11, 22, true, irrelevant_scratch, {}, false, true);
     assert(!reused.graph_rebuild);
 
     const auto reference = execution.prepare(base, llama_kv_attention_execution_phase::decode,
@@ -592,10 +604,9 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     assert(counters.graph_replay_count == 4);
     assert(counters.graph_rebuild_count == counters.graph_capture_count);
     assert(counters.graph_submission_count == 9);
-    // The direct descriptor is uploaded at capture time. Replaying the same
-    // layout with changed content must not require another graph capture or
-    // table allocation.
-    assert(counters.table_upload_bytes == 2 * (4 * sizeof(uint32_t) + sizeof(int64_t)));
+    // Packed FA has no direct page-table upload. Its persistent owner and
+    // typed page copies carry the selected rows instead.
+    assert(counters.table_upload_bytes == 0);
     assert(counters.scratch_high_water_rows == irrelevant_scratch.required_rows());
     assert(counters.scratch_high_water_bytes == irrelevant_scratch.required_bytes());
     std::printf("kv-attention-profile submissions=%llu captures=%llu replays=%llu "
@@ -637,14 +648,14 @@ static void test_no_change_decode_replay() {
     llama_kv_attention_execution execution(llama_kv_attention_execution_mode::selective);
 
     const auto first = execution.prepare(stable,
-            llama_kv_attention_execution_phase::decode, 3, 11, true, scratch);
+            llama_kv_attention_execution_phase::decode, 3, 11, true, scratch, {}, false, true);
     assert(first.graph_rebuild);
     const auto no_change = execution.prepare(tail_advanced,
-            llama_kv_attention_execution_phase::decode, 3, 11, true, scratch);
-    assert(!no_change.graph_rebuild);
+            llama_kv_attention_execution_phase::decode, 3, 11, true, scratch, {}, false, true);
+    assert(no_change.graph_rebuild);
     assert(execution.in_flight_graphs() == 2);
-    assert(execution.metrics().graph_capture_count == 1);
-    assert(execution.metrics().graph_replay_count == 1);
+    assert(execution.metrics().graph_capture_count == 2);
+    assert(execution.metrics().graph_replay_count == 0);
     assert(execution.metrics().table_epoch_changes == 1);
 
     // Replaying the shape does not drop either immutable view lease while the

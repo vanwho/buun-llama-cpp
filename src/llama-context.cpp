@@ -2595,21 +2595,23 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         auto result = prepare_kv_attention({}, phase, representation_epoch, shape_epoch,
                 false, empty_scratch);
         result.reason = reason;
-        LLAMA_LOG_ERROR("%s: selected reference refused: %s\n", __func__, reason);
+        LLAMA_LOG_ERROR("%s: selected attention refused: %s\n", __func__, reason);
         return result;
     };
 
     // Live attention is intentionally limited to one Qwen sequence. Selective
-    // prefill, decode, and MTP may use the direct Turbo4 loader when the actual
-    // layer device and pager slab qualify; all other valid selected shapes
-    // retain the reference gather as the deterministic fallback.
+    // prefill, decode, and MTP use the mature Turbo4 FA route when the actual
+    // layer device and pager slab qualify: a contiguous selected view is used
+    // first, otherwise the persistent packed bridge is used. The custom direct
+    // loader remains an explicit diagnostic override; unsupported shapes retain
+    // the reference gather as the deterministic fallback.
     if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
         (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
         !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
         ubatch.n_tokens != ubatch.n_seq_tokens || ubatch.n_pos == 0 ||
         ubatch.pos == nullptr || ubatch.n_seq_id == nullptr || ubatch.seq_id == nullptr ||
         ubatch.n_seq_id[0] != 1) {
-        return refuse("unsupported Qwen selected-reference shape");
+        return refuse("unsupported Qwen selected-attention shape");
     }
 
     const llama_kv_cache_context * attention =
@@ -2624,7 +2626,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
 
     const llama_seq_id sequence_id = ubatch.seq_id[0][0];
     if (sequence_id < 0 || attention->get_kv_pager() == nullptr) {
-        return refuse("selected reference has no live pager sequence");
+        return refuse("selected attention has no live pager sequence");
     }
 
     const auto & pager = *attention->get_kv_pager();
@@ -2727,7 +2729,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             }
         }
         if (selected_pages.empty()) {
-            return refuse("bounded selected reference found no resident page");
+            return refuse("bounded selected attention found no resident page");
         }
     } catch (...) {
         return refuse("selected page metadata allocation failed");
@@ -2852,11 +2854,22 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 int64_t(metadata.head_dim_k()) * metadata.n_head_kv()));
         const uint64_t v_row = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0,
                 int64_t(metadata.head_dim_v()) * metadata.n_head_kv()));
+        const auto & packed_pages = metadata.page_table();
+        if (packed_pages.empty()) {
+            scratch.packed_bytes = UINT64_MAX;
+            return refuse("selected packed attention has no selected pages");
+        }
+        const auto & packed_tail = packed_pages.back();
+        const uint64_t packed_required_rows = uint64_t(packed_tail.compact_row_begin) +
+            packed_tail.row_count;
+        const uint64_t packed_row_capacity =
+            (packed_required_rows + VBR_GENERATION_PAGE_CELLS - 1) /
+            VBR_GENERATION_PAGE_CELLS * VBR_GENERATION_PAGE_CELLS;
         if (k_row > UINT64_MAX - v_row ||
-                uint64_t(metadata.get_n_kv()) > UINT64_MAX / (k_row + v_row)) {
+                packed_row_capacity > UINT64_MAX / (k_row + v_row)) {
             scratch.packed_bytes = UINT64_MAX;
         } else {
-            scratch.packed_bytes = uint64_t(metadata.get_n_kv()) * (k_row + v_row);
+            scratch.packed_bytes = packed_row_capacity * (k_row + v_row);
         }
     }
     const auto planned = kv_attention_execution.planned_route(metadata, phase,
@@ -2882,7 +2895,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         }
     }
     if (!direct_capable && !dense_capable && !packed_capable) {
-        LLAMA_LOG_DEBUG("%s: selected reference fallback reason=%s q=%u kv=%u query=%u\n",
+        LLAMA_LOG_DEBUG("%s: selected attention reference fallback reason=%s q=%u kv=%u query=%u\n",
                 __func__, direct_reason.c_str(), metadata.n_head_q(),
                 metadata.n_head_kv(), metadata.n_query_tokens());
     }

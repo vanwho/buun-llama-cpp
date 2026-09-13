@@ -582,17 +582,10 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         return llama_kv_attention_execution_route::selected_dense;
     }
 
-    if ((phase == llama_kv_attention_execution_phase::prefill ||
-         phase == llama_kv_attention_execution_phase::decode ||
-         phase == llama_kv_attention_execution_phase::mtp_verify) &&
-        direct_capable && direct_shape(metadata)) {
-        return llama_kv_attention_execution_route::selected_direct;
-    }
-
-    // Direct paging is the normal Turbo4 path for every qualified shape,
-    // including multi-token prefill. Keep the compact FA bridge only for
-    // shapes that cannot use the paged kernel; otherwise each graph would pay
-    // an avoidable full selected-view duplicate and pack copy.
+    // The mature Flash Attention bridge is the automatic selective route.
+    // The custom paged kernel remains available only through the explicit
+    // diagnostic override above; direct_capable is deliberately not an
+    // automatic fallback when the packed route is available.
     if (packed_capable) {
         return llama_kv_attention_execution_route::selected_packed;
     }
@@ -727,9 +720,9 @@ bool llama_kv_attention_execution::same_graph(
     // Direct CUDA keeps the page table, native positions, mask, and query
     // positions in graph-owned device inputs. A residency publication changes
     // the immutable view lease, but not the captured graph topology: set_input
-    // patches those inputs before the next submission. Reference, dense, and
-    // packed routes retain the epoch check because they do not have this
-    // mutable-device-input contract.
+    // patches those inputs before the next submission. Packed current-row copy
+    // intervals are graph nodes, so a changed content key must rebuild them;
+    // the packed owner itself remains persistent across that rebuild.
     const bool mutable_direct_inputs =
         route == llama_kv_attention_execution_route::selected_direct;
     return have_graph_ && metadata.graph_layout_key() == metadata_.graph_layout_key() &&
@@ -739,6 +732,8 @@ bool llama_kv_attention_execution::same_graph(
            ((route != llama_kv_attention_execution_route::selected_dense &&
              route != llama_kv_attention_execution_route::selected_packed) ||
             metadata.graph_physical_key() == metadata_.graph_physical_key()) &&
+           (route != llama_kv_attention_execution_route::selected_packed ||
+            metadata.graph_content_key() == metadata_.graph_content_key()) &&
            exact_graph_plan_.get() == graph_plan_.get();
 }
 
