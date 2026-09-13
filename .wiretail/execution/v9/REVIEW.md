@@ -51,7 +51,9 @@ If current speed problems make 256K exploration unhelpful, fix them first.
 Choose the next unused remediation phase (initially 39), and the following
 review phase (40). Add packets, bounded new cluster(s), and `WORK_STATE.json`
 entries in execution order; **do not just mention a next action in prose**.
-Use `recommended_model: Luna Medium`, `retry1_reasoning: high`, new revision
+Use the task-appropriate `recommended_model` (`Luna Medium` for bounded
+measurement/metadata or `Luna High` for implementation and diagnosis),
+`retry1_reasoning: high`, new revision
 ID, explicit `context_files`, `status: todo`, null commit/blocker, ordered
 dependencies. Preserve old tasks and all usage accounting. Group tasks by
 stable context and token/cache efficiency: keep a cohesive sequence together

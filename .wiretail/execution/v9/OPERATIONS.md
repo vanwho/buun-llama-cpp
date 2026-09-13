@@ -94,10 +94,11 @@ because another profile is running.
 
 ## Retry policy for these tasks
 
-Initial Luna Medium; retry1 same family High with the artifact-aware prefix;
-retry2 after Luna High assessment returns to Medium; retry3 after Terra High
-assessment returns to Medium. Task fields opt in to retry1 High; shared tool
-defaults unchanged. Assessments also receive the bounded context list. Three
+Initial task-recommended Luna Medium or Luna High; retry1 same family High with
+the artifact-aware prefix; retry2 after Luna High assessment returns to the
+task's original model/reasoning; retry3 after Terra High assessment returns to
+the task's original model/reasoning. Task fields opt in to retry1 High; shared
+tool defaults unchanged. Assessments also receive the bounded context list. Three
 substantive retries then block is correct if distinct repairs are exhausted.
 Provider/network transport backoff is not implementation progress. Never
 reset the budget by appending another diary-only task with the same failing

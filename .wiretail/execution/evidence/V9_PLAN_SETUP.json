@@ -11,7 +11,7 @@
   "new_tasks": 23,
   "new_clusters": 15,
   "next_task": "33-01",
-  "new_task_model": "Luna Medium",
+  "new_task_model": "Luna Medium or Luna High by task risk",
   "first_retry_reasoning": "high",
   "runner_defaults_changed": false,
   "archived_document_count": 15,

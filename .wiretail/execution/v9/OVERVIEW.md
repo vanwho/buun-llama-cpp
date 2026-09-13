@@ -99,10 +99,11 @@ the paging integration branch. Phase 33 performs that real merge first.
 | 37 | Conditional 32K and 128K findings, compact benchmark summary | `V9_SUMMARY.json/.md` |
 | 38 | Assess only V9 summary; close or schedule actual remediation tasks | `V9_REVIEW.json/.md` |
 
-All 23 new tasks use **Luna Medium**, with per-task `retry1_reasoning: high`.
-The first retry has the existing artifact-aware prefix and Luna High. Later
-task attempts return to Medium after the existing High same-family/next-family
-assessments. Wiretail shared defaults and model-family policy are unchanged.
+Tasks use an explicit risk-based recommendation: bounded setup and benchmark
+collection use **Luna Medium**, while merge, CUDA/pager ownership, asynchronous
+promotion, capacity diagnosis, and benchmark-review tasks use **Luna High**.
+All tasks opt into `retry1_reasoning: high`. Wiretail shared defaults and
+model-family policy are unchanged.
 
 ## Context and completion rules
 

@@ -23,8 +23,8 @@ def main() -> int:
         errors.append("current revision has no runnable task entries")
     for task in active:
         label = task["id"]
-        if task["recommended_model"] != "Luna Medium" or task.get("retry1_reasoning") != "high":
-            errors.append(f"{label}: expected explicit Luna Medium with first retry High")
+        if task["recommended_model"] not in {"Luna Medium", "Luna High"} or task.get("retry1_reasoning") != "high":
+            errors.append(f"{label}: expected explicit Luna Medium or Luna High with first retry High")
         paths = task.get("context_files")
         if not isinstance(paths, list) or not paths:
             errors.append(f"{label}: missing bounded context_files")
