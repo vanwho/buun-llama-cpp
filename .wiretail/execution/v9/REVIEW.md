@@ -23,8 +23,10 @@ under ~200 lines. No target-speed claim without matched raw measurements.
    insufficient. Freeze longer contexts until that edge is proven.
 4. Stable proof but slow -> attribute actual costs (GPU attention vs packing,
    CPU scheduling/sync, router, H2D/D2H wait, graph rebuilding, weight/recurrent
-   kernels, or lost MTP acceptance). Add at most three targeted implementation
-   tasks for dominant measured costs. Every task names current symbols,
+   kernels, or lost MTP acceptance). Add the smallest context-cohesive set of
+   targeted implementation tasks needed for the dominant measured costs;
+   keep related repairs in one cluster when their stable context remains
+   useful, and split at a real subsystem or context-budget boundary. Every task names current symbols,
    invariant, intended change, bounded fixture, before/after quick test and
    stop condition. No “research every optimization” task.
 5. Small fast but scale fails -> fix measured ledger/working-set/copy/selector
@@ -51,8 +53,13 @@ review phase (40). Add packets, bounded new cluster(s), and `WORK_STATE.json`
 entries in execution order; **do not just mention a next action in prose**.
 Use `recommended_model: Luna Medium`, `retry1_reasoning: high`, new revision
 ID, explicit `context_files`, `status: todo`, null commit/blocker, ordered
-dependencies. Preserve old tasks and all usage accounting. Each cluster at
-most three adjacent tasks, preferably two or one for a live test/review.
+dependencies. Preserve old tasks and all usage accounting. Group tasks by
+stable context and token/cache efficiency: keep a cohesive sequence together
+while its context remains useful and within provider/runner guardrails; split
+at subsystem, risk, provenance, toolchain, model, or context-budget boundaries.
+There is no fixed tasks-per-cluster cap; a one-task cluster is appropriate for
+an isolated live test or review, while a larger cohesive cluster is allowed
+when its prompt context remains bounded and productive.
 
 Copy this review's `completion_check` argv into the new review task, changing
 its `--review` receipt path to that review's new JSON. This outer-runner check

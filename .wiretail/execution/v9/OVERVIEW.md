@@ -121,6 +121,11 @@ summary must distinguish this. Review 38-01 must add real, ordered task/state/
 cluster entries before marking itself done if the capability is not met.
 Ending the list with only a prose recommendation is forbidden.
 
-Details are split into `INTEGRATION.md`, `FAST_PATH.md`, `ROUTING.md`,
+Cluster assignments are context-area decisions, not a fixed task-count rule:
+keep related tasks together for cached context until a real boundary or
+context-budget concern warrants a fresh cluster. The runner's default context
+guardrails are disabled, so a cohesive cluster may continue across many tasks;
+explicit limits or provider boundaries still cause rotation. Details are split into
+`INTEGRATION.md`, `FAST_PATH.md`, `ROUTING.md`,
 `BENCHMARKS.md`, `OPERATIONS.md`, and `REVIEW.md`. Packets choose which to read;
 do not automatically read them all.

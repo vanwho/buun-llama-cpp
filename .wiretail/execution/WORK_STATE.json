@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/v9/ROUTING.md",
   "benchmark_protocol": ".wiretail/execution/v9/BENCHMARKS.md",
   "scope_revision": "hotpath-v9-20260913",
-  "context_policy": "Only current packet/cluster, explicit context_files and named source; no archived plans, whole state/log or recursive historical handoffs. New V9 clusters start fresh.",
+  "context_policy": "Only current packet/cluster, explicit context_files and named source; no archived plans, whole state/log or recursive historical handoffs. Clusters are context areas with no fixed task-count cap: keep cohesive tasks together for cached context until a real subsystem/risk/provenance/toolchain/model/context-budget boundary; new V9 clusters start fresh.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
