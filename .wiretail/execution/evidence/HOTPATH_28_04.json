@@ -1,0 +1,91 @@
+{
+  "schema": "gpu-hot-path-v8-mma-prefill-v1",
+  "task": "28-04",
+  "status": "complete",
+  "result": "complete",
+  "implementation": {
+    "production_dispatch": "ggml_cuda_flash_attn_ext_mma_turbo4_paged_case",
+    "source_policy": "ggml_cuda_fattn_mma_paged_turbo4_policy",
+    "mature_pipeline": "flash_attn_ext_f16_process_tile with Turbo4 K/V tile dequantization, MMA, online softmax, GQA, native output write",
+    "page_policy": "device descriptor iteration with compact-row lookup, exact native positions/masks/causal filtering, and query-tile page selection skip",
+    "memory": "raw paged Turbo4 K/V and bounded shared tiles; no full-history F16 staging or host selection round trip",
+    "dispatch_boundary": "direct fused MMA for multi-query output calls without telemetry/split/partial state; established cooperative path retained for those contracts; explicit reference remains test-only"
+  },
+  "fixture": {
+    "test": "tests/test-cuda-fattn-paged-turbo4.cu",
+    "correctness_geometry": "Q heads 4, KV heads 1, head dimension 256, four logical pages, 530 selected rows, eight physical slots",
+    "correctness_coverage": [
+      "Q16/Q64 fused direct MMA output and Q128 timing path",
+      "native position gaps, native mask, causal filtering, all-masked row",
+      "logical permutation, physical gaps, one-row and 17-row tails",
+      "GQA output isolation and canary bounds",
+      "routing selector and optional descriptor route fields",
+      "page mass, split-KV, partial write and merge contracts",
+      "contiguous Turbo4 FA and non-contiguous pack+FA controls"
+    ],
+    "large_timing_geometry": "A2048/A4096/A8192, page size 256, Q16/Q64/Q128, U16/U64/U128 controls"
+  },
+  "validation": {
+    "device": "NVIDIA GeForce RTX 4080, compute capability 8.9, 15945 MiB",
+    "build_command": "cmake --build build-cuda --target test-cuda-fattn-paged-turbo4 llama-server -j2",
+    "build_result": "pass",
+    "correctness_command": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+    "correctness_result": "pass",
+    "correctness_raw": "/srv/ai/paged-kv/results/28-04/ordinary-final2.log",
+    "timing_command": "build-cuda/bin/test-cuda-fattn-paged-turbo4 --timing",
+    "timing_result": "pass",
+    "timing_raw": "/srv/ai/paged-kv/results/28-04/timing-large-final.log",
+    "compute_sanitizer_memcheck": {
+      "command": "compute-sanitizer --tool memcheck --error-exitcode 1 build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "result": "pass",
+      "error_summary": 0,
+      "raw": "/srv/ai/paged-kv/results/28-04/memcheck-final2.log"
+    },
+    "compute_sanitizer_synccheck": {
+      "command": "compute-sanitizer --tool synccheck --error-exitcode 1 build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "result": "pass",
+      "error_summary": 0,
+      "raw": "/srv/ai/paged-kv/results/28-04/synccheck-final2.log"
+    },
+    "git_diff_check": "pass"
+  },
+  "timing": {
+    "fixture_a530_ms": {
+      "q16": {"fused": 0.150, "contiguous": 0.020, "pack_plus_fa": 0.022},
+      "q64": {"fused": 0.153, "contiguous": 0.023, "pack_plus_fa": 0.025},
+      "q128": {"fused": 0.153, "contiguous": 0.028, "pack_plus_fa": 0.030}
+    },
+    "large_ms": {
+      "a2048": {
+        "q16": {"fused": 0.453, "contiguous": 0.032, "pack_plus_fa": 0.033},
+        "q64": {"fused": 0.458, "contiguous": 0.039, "pack_plus_fa": 0.040},
+        "q128": {"fused": 0.457, "contiguous": 0.047, "pack_plus_fa": 0.048}
+      },
+      "a4096": {
+        "q16": {"fused": 1.044, "contiguous": 0.047, "pack_plus_fa": 0.049},
+        "q64": {"fused": 1.052, "contiguous": 0.056, "pack_plus_fa": 0.057},
+        "q128": {"fused": 1.053, "contiguous": 0.068, "pack_plus_fa": 0.069}
+      },
+      "a8192": {
+        "q16": {"fused": 2.434, "contiguous": 0.067, "pack_plus_fa": 0.067},
+        "q64": {"fused": 2.309, "contiguous": 0.074, "pack_plus_fa": 0.075},
+        "q128": {"fused": 2.310, "contiguous": 0.097, "pack_plus_fa": 0.098}
+      }
+    },
+    "note": "CUDA-event fixture timings only. Dense controls include the graph-side pack operation but not host setup; no product throughput or universal crossover claim."
+  },
+  "live_append": {
+    "candidate": "resident native-MTP candidate on port 8080",
+    "candidate_pid": 1462393,
+    "coordinate": {"context": 131072, "hot_pages": 319, "page_size": 256, "batch": 128, "ubatch": 64},
+    "append_512": {"requested": 512, "rendered_delta": 527, "prompt_tokens": 6664, "prompt_ms": 38154.83, "prompt_per_second": 174.6567865719753, "raw": "/srv/ai/paged-kv/results/28-04-live-append-20260913/append-512.json"},
+    "append_2048": {"requested": 2048, "rendered_delta": 2063, "prompt_tokens": 8200, "prompt_ms": 54006.759, "prompt_per_second": 151.8328474404472, "raw": "/srv/ai/paged-kv/results/28-04-live-append-20260913/append-2048.json"},
+    "source_attribution": "resident 27-01 binary only; current build was not loaded",
+    "candidate_preserved": true,
+    "unrelated_port_8092_touched": false
+  },
+  "deferred_verification": [
+    "Current-source live append attribution requires replacing the preserved resident candidate and is deferred by the keep-loaded continuity contract.",
+    "Nsight Systems kernel/event attribution is unavailable because the installed image lacks the QDSTRM importer."
+  ]
+}
