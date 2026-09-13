@@ -256,6 +256,133 @@ static float time_dense_fa(
     return elapsed_ms / 20.0f;
 }
 
+static void time_large_prefill_cases(
+        ggml_backend_t backend,
+        cudaStream_t stream,
+        cudaEvent_t timing_start,
+        cudaEvent_t timing_stop) {
+    constexpr uint32_t n_head_q = 4;
+    constexpr uint32_t n_head_kv = 1;
+    constexpr uint32_t max_query_tokens = 128;
+    constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
+    constexpr size_t page_stride = 256 * row_bytes;
+
+    for (const uint32_t n_rows : { 2048u, 4096u, 8192u }) {
+        const uint32_t n_pages = n_rows / 256;
+        const uint32_t n_physical_pages = n_pages;
+        std::vector<ggml_cuda_fattn_turbo4_page> pages(n_pages);
+        for (uint32_t page = 0; page < n_pages; ++page) {
+            pages[page] = { page, page, page * 256, 256, int64_t(page * 256) };
+        }
+        assert(ggml_cuda_fattn_turbo4_page_table_valid(pages.data(), n_pages, n_rows));
+
+        std::vector<uint8_t> k_host(size_t(n_physical_pages) * page_stride, 0);
+        std::vector<uint8_t> v_host(size_t(n_physical_pages) * page_stride, 0);
+        for (uint32_t page = 0; page < n_pages; ++page) {
+            fill_turbo4_page(k_host, size_t(page) * page_stride, 8);
+            fill_turbo4_page(v_host, size_t(page) * page_stride, 9);
+        }
+        std::vector<float> q_host(size_t(max_query_tokens) * n_head_q * 256, 0.0f);
+        std::vector<int64_t> native_positions(n_rows);
+        for (uint32_t row = 0; row < n_rows; ++row) native_positions[row] = row;
+        std::vector<int64_t> query_positions(max_query_tokens);
+        for (uint32_t query = 0; query < max_query_tokens; ++query) {
+            query_positions[query] = int64_t(n_rows - max_query_tokens + query);
+        }
+
+        float * q_device = nullptr;
+        char * k_device = nullptr;
+        char * v_device = nullptr;
+        char * output_device = nullptr;
+        ggml_cuda_fattn_turbo4_page * pages_device = nullptr;
+        int64_t * native_positions_device = nullptr;
+        int64_t * query_positions_device = nullptr;
+        cuda_check(cudaMalloc(&q_device, q_host.size() * sizeof(float)), "large q allocation");
+        cuda_check(cudaMalloc(&k_device, k_host.size()), "large k allocation");
+        cuda_check(cudaMalloc(&v_device, v_host.size()), "large v allocation");
+        cuda_check(cudaMalloc(&output_device, q_host.size() * sizeof(float)), "large output allocation");
+        cuda_check(cudaMalloc(&pages_device, pages.size() * sizeof(pages[0])), "large page allocation");
+        cuda_check(cudaMalloc(&native_positions_device, native_positions.size() * sizeof(native_positions[0])),
+            "large positions allocation");
+        cuda_check(cudaMalloc(&query_positions_device, query_positions.size() * sizeof(query_positions[0])),
+            "large query positions allocation");
+        cuda_check(cudaMemcpy(q_device, q_host.data(), q_host.size() * sizeof(float), cudaMemcpyHostToDevice),
+            "large q copy");
+        cuda_check(cudaMemcpy(k_device, k_host.data(), k_host.size(), cudaMemcpyHostToDevice), "large k copy");
+        cuda_check(cudaMemcpy(v_device, v_host.data(), v_host.size(), cudaMemcpyHostToDevice), "large v copy");
+        cuda_check(cudaMemcpy(pages_device, pages.data(), pages.size() * sizeof(pages[0]), cudaMemcpyHostToDevice),
+            "large page copy");
+        cuda_check(cudaMemcpy(native_positions_device, native_positions.data(),
+            native_positions.size() * sizeof(native_positions[0]), cudaMemcpyHostToDevice), "large positions copy");
+        cuda_check(cudaMemcpy(query_positions_device, query_positions.data(),
+            query_positions.size() * sizeof(query_positions[0]), cudaMemcpyHostToDevice),
+            "large query positions copy");
+
+        ggml_cuda_fattn_turbo4_paged_params params;
+        params.q = q_device;
+        params.output = reinterpret_cast<float *>(output_device);
+        params.q_head_stride_bytes = 256 * sizeof(float);
+        params.q_query_stride_bytes = n_head_q * params.q_head_stride_bytes;
+        params.output_head_stride_bytes = 256 * sizeof(float);
+        params.output_query_stride_bytes = n_head_q * params.output_head_stride_bytes;
+        params.type_k = GGML_TYPE_TURBO4_0;
+        params.type_v = GGML_TYPE_TURBO4_0;
+        params.head_dim_k = 256;
+        params.head_dim_v = 256;
+        params.k = k_device;
+        params.v = v_device;
+        params.k_row_stride_bytes = row_bytes;
+        params.k_head_stride_bytes = size_t(n_physical_pages) * page_stride;
+        params.k_page_stride_bytes = page_stride;
+        params.v_row_stride_bytes = row_bytes;
+        params.v_head_stride_bytes = size_t(n_physical_pages) * page_stride;
+        params.v_page_stride_bytes = page_stride;
+        params.pages_host = pages.data();
+        params.pages_device = pages_device;
+        params.native_positions_device = native_positions_device;
+        params.query_positions_device = query_positions_device;
+        params.n_pages = n_pages;
+        params.n_physical_pages = n_physical_pages;
+        params.n_rows = n_rows;
+        params.n_head_q = n_head_q;
+        params.n_head_kv = n_head_kv;
+        params.n_batch = 1;
+        params.scale = 1.0f / std::sqrt(256.0f);
+
+        const std::vector<uint8_t> packed_k = pack_selected_storage(k_host, pages.data(),
+            n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
+        const std::vector<uint8_t> packed_v = pack_selected_storage(v_host, pages.data(),
+            n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
+        for (const uint32_t query_count : { 16u, 64u, 128u }) {
+            params.n_query_tokens = query_count;
+            const float direct_ms = time_paged_attention(backend, params, stream,
+                timing_start, timing_stop, 5, 20);
+            const std::vector<float> q_timing(q_host.begin(),
+                q_host.begin() + size_t(query_count) * n_head_q * 256);
+            const float contiguous_ms = time_dense_fa(backend, q_timing, k_host, v_host,
+                packed_k, packed_v, pages.data(), n_pages, n_rows, n_physical_pages,
+                n_head_q, n_head_kv, page_stride, row_bytes, false);
+            const float packed_ms = time_dense_fa(backend, q_timing, k_host, v_host,
+                packed_k, packed_v, pages.data(), n_pages, n_rows, n_physical_pages,
+                n_head_q, n_head_kv, page_stride, row_bytes, true);
+            assert(direct_ms >= 0.0f && contiguous_ms >= 0.0f && packed_ms >= 0.0f);
+            std::fprintf(stderr, "large timing table (A=%u, U=%u, pages=%u, warmups=5, iterations=20)\n",
+                n_rows, query_count, n_pages);
+            std::fprintf(stderr, "  fused paged MMA direct: %.3f ms\n", direct_ms);
+            std::fprintf(stderr, "  contiguous Turbo4 FA:   %.3f ms\n", contiguous_ms);
+            std::fprintf(stderr, "  non-contiguous pack+FA: %.3f ms\n", packed_ms);
+        }
+
+        cudaFree(query_positions_device);
+        cudaFree(native_positions_device);
+        cudaFree(pages_device);
+        cudaFree(output_device);
+        cudaFree(v_device);
+        cudaFree(k_device);
+        cudaFree(q_device);
+    }
+}
+
 int main(int argc, char ** argv) {
     const bool run_timing = argc == 2 && std::string(argv[1]) == "--timing";
     assert(argc == 1 || run_timing);
@@ -501,9 +628,10 @@ int main(int argc, char ** argv) {
     const float expected_528 = (17.0f * c8 + 255.0f * c9 + 255.0f * c10 + c11) / 528.0f;
     const float expected_529 = (17.0f * c8 + 255.0f * c9 + 256.0f * c10 + c11) / 529.0f;
 
-    // Multiquery verification uses one cooperative CTA per KV head/query.
-    // Verify each query's causal position and guard the following output
-    // query with a canary so adjacent query results cannot alias.
+    // Multiquery verification exercises the direct fused MMA prefill tiles for
+    // Q16/Q64 (and Q128 in timing mode). Verify each query's causal position
+    // and guard the following output query with a canary so adjacent query
+    // results cannot alias.
     const std::vector<float> output_canary(q_host.size(), -12345.0f);
     const std::vector<uint32_t> query_counts = run_timing
         ? std::vector<uint32_t>{ 1, 2, 3, 4, 5, 8, 16, 64, 128 }
@@ -526,7 +654,7 @@ int main(int argc, char ** argv) {
                 for (uint32_t d = 0; d < 256; ++d) {
                     const size_t index = (size_t(query) * n_head_q + head) * 256 + d;
                     if (query < query_count) {
-                        assert(std::fabs(multiquery_output[index] - oracle[index]) < 2.0e-6f);
+                        assert(std::fabs(multiquery_output[index] - oracle[index]) < 2.0e-4f);
                     } else {
                         assert(multiquery_output[index] == -12345.0f);
                     }
@@ -896,7 +1024,7 @@ int main(int argc, char ** argv) {
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
         const std::vector<uint8_t> packed_v = pack_selected_storage(v_host, pages,
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
-        for (const uint32_t query_count : { 64u, max_query_tokens }) {
+        for (const uint32_t query_count : { 16u, 64u, max_query_tokens }) {
             params.n_query_tokens = query_count;
             const float direct_ms = time_paged_attention(backend, params, stream,
                 timing_start, timing_stop, 5, 20);
@@ -910,10 +1038,11 @@ int main(int argc, char ** argv) {
                 n_head_q, n_head_kv, page_stride, row_bytes, true);
             std::fprintf(stderr, "timing table (U=%u, selected rows=%u, warmups=5, iterations=20)\n",
                 query_count, n_rows);
-            std::fprintf(stderr, "  repaired custom direct: %.3f ms\n", direct_ms);
+            std::fprintf(stderr, "  fused paged MMA direct: %.3f ms\n", direct_ms);
             std::fprintf(stderr, "  contiguous Turbo4 FA:   %.3f ms\n", contiguous_ms);
             std::fprintf(stderr, "  non-contiguous pack+FA: %.3f ms\n", packed_ms);
         }
+        time_large_prefill_cases(backend, stream, timing_start, timing_stop);
     }
     cudaFree(second_wave_pages_device);
 
