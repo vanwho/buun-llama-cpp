@@ -8,6 +8,7 @@
 #include <hipblas/hipblas.h>
 #include <hip/hip_fp16.h>
 #include <hip/hip_bf16.h>
+#include "hip-runtime.h"
 
 #if defined(GGML_HIP_ROCWMMA_FATTN)
 #include <rocwmma/rocwmma-version.hpp>
@@ -84,6 +85,8 @@
 #define cudaGetLastError hipGetLastError
 #define cudaPeekAtLastError hipPeekAtLastError
 #define cudaHostRegister hipHostRegister
+#define cudaHostAlloc hipHostMalloc
+#define cudaHostAllocPortable hipHostMallocPortable
 #define cudaHostRegisterPortable hipHostRegisterPortable
 #define cudaHostRegisterReadOnly hipHostRegisterReadOnly
 #define cudaHostUnregister hipHostUnregister
@@ -93,8 +96,8 @@
 #define cudaMallocHost(ptr, size) hipHostMalloc(ptr, size, hipHostMallocDefault)
 #define cudaMallocManaged hipMallocManaged
 #define cudaMemAdvise hipMemAdvise
-#define cudaMemcpy hipMemcpy
-#define cudaMemcpyAsync hipMemcpyAsync
+#define cudaMemcpy ggml_hip_memcpy
+#define cudaMemcpyAsync ggml_hip_memcpy_async
 #define cudaMemcpyPeerAsync hipMemcpyPeerAsync
 #define cudaMemoryTypeDevice hipMemoryTypeDevice
 #define cudaPointerAttributes hipPointerAttribute_t
@@ -150,6 +153,7 @@
 #define cudaKernelNodeParams hipKernelNodeParams
 #define cudaGraphExecDestroy hipGraphExecDestroy
 #define cudaGraphLaunch hipGraphLaunch
+#define cudaGraphUpload hipGraphUpload
 #define cudaErrorGraphExecUpdateFailure hipErrorGraphExecUpdateFailure
 #define cudaGraphExecUpdateResult hipGraphExecUpdateResult
 #define cudaGraphNodeType hipGraphNodeType
@@ -164,6 +168,9 @@
 #define cudaGraphGetNodes hipGraphGetNodes
 #define cudaGraphExecUpdate hipGraphExecUpdate
 #define cudaStreamCaptureModeRelaxed hipStreamCaptureModeRelaxed
+#define cudaStreamCaptureStatus hipStreamCaptureStatus
+#define cudaStreamCaptureStatusNone hipStreamCaptureStatusNone
+#define cudaStreamIsCapturing hipStreamIsCapturing
 #define cudaStreamBeginCapture hipStreamBeginCapture
 #define cudaGraph_t hipGraph_t
 #define cudaStream_t hipStream_t

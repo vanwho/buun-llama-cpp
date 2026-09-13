@@ -470,6 +470,34 @@ static bool silent_model_load_progress(float /*progress*/, void * /*user_data*/)
     return true;
 }
 
+static bool devices_support_vbr_vmm(const std::vector<ggml_backend_dev_t> & devices) {
+    if (devices.empty()) {
+        return false;
+    }
+    for (ggml_backend_dev_t device : devices) {
+        ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(device);
+        const auto get_iface = reg != nullptr
+            ? reinterpret_cast<ggml_backend_vbr_iface_fn_t>(
+                ggml_backend_reg_get_proc_address(reg, GGML_VBR_BACKEND_IFACE_PROC))
+            : nullptr;
+        const ggml_vbr_backend_iface * iface = get_iface != nullptr ? get_iface() : nullptr;
+        bool found = false;
+        if (iface != nullptr) {
+            const ggml_backend_buffer_type_t buft = ggml_backend_dev_buffer_type(device);
+            for (int i = 0; i < iface->get_device_count(); ++i) {
+                if (iface->buffer_type(i) == buft) {
+                    found = iface->vmm_available(i);
+                    break;
+                }
+            }
+        }
+        if (!found) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static std::pair<llama_model_ptr, llama_context_ptr> get_model_and_ctx(
         struct gguf_context * gguf_ctx, FILE * file, const size_t seed, const std::vector<ggml_backend_dev_t> & devs,
         const llama_split_mode split_mode = LLAMA_SPLIT_MODE_LAYER, bool encode = false,
@@ -986,6 +1014,9 @@ static void test_qwen4_qsa_layout_cpu(llama_model * model, size_t seed) {
 }
 
 static void test_qwen4_indexed_cache_admission(const size_t seed) {
+    // Keep model-level admission aligned with the implemented Meta split path.
+    // Otherwise the generic backend test below silently skips its tensor arm.
+    GGML_ASSERT(llm_arch_supports_sm_tensor(LLM_ARCH_QWEN4EXP));
     struct qsa_trace {
         size_t raw_key_nodes = 0;
         size_t score_nodes = 0;
@@ -1254,7 +1285,11 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
     // pin to Q8_0. This is a safe backend fallback, not an architecture refusal;
     // the fixed QSA child remains F16 in both asymmetric cases.
     const auto expect_cpu_turbo_fallback = [&](ggml_type type_k, ggml_type type_v) {
-        auto memory = make_indexed_memory(type_k, type_v, [](llama_cparams &) {});
+        auto memory = make_indexed_memory(type_k, type_v, [](llama_cparams & cparams) {
+            cparams.vbr_dynamic = true;
+            cparams.vbr_pin_k = true;
+            cparams.vbr_pin_v = true;
+        });
         auto * indexed_memory = dynamic_cast<llama_memory_hybrid_idx *>(memory.get());
         GGML_ASSERT(indexed_memory != nullptr);
         GGML_ASSERT(indexed_memory->get_mem_attn()->type_k() ==
@@ -2602,6 +2637,7 @@ static void test_dflash_loader_exact_identity() {
                 /* metadata        */ nullptr,
                 /* set_tensor_data */ nullptr,
                 /* user_data       */ nullptr,
+                /* tensor_source   */ nullptr,
                 /* fname           */ "",
                 splits,
                 file.get(),
@@ -2652,7 +2688,7 @@ static void test_dflash_loader_exact_identity() {
     GGML_ASSERT(mixed_file != nullptr);
     std::vector<std::string> splits;
     llama_model_loader mixed_loader(
-            nullptr, nullptr, nullptr, "", splits, mixed_file.get(), LLAMA_LOAD_MODE_NONE,
+            nullptr, nullptr, nullptr, nullptr, "", splits, mixed_file.get(), LLAMA_LOAD_MODE_NONE,
             false, true, false, nullptr, nullptr);
     GGML_ASSERT(llm_dflash_selector_family_from_loader(true, 1, mixed_loader) ==
             llm_dflash_selector_family::mixed);
@@ -2678,7 +2714,7 @@ static void test_dflash_loader_exact_identity() {
     GGML_ASSERT(partial_mixed_file != nullptr);
     splits.clear();
     llama_model_loader partial_mixed_loader(
-            nullptr, nullptr, nullptr, "", splits, partial_mixed_file.get(), LLAMA_LOAD_MODE_NONE,
+            nullptr, nullptr, nullptr, nullptr, "", splits, partial_mixed_file.get(), LLAMA_LOAD_MODE_NONE,
             false, true, false, nullptr, nullptr);
     GGML_ASSERT(llm_dflash_selector_family_from_loader(true, 1, partial_mixed_loader) ==
             llm_dflash_selector_family::mixed);
@@ -2701,7 +2737,7 @@ static void test_dflash_loader_exact_identity() {
     GGML_ASSERT(unidentified_file != nullptr);
     splits.clear();
     llama_model_loader unidentified_loader(
-            nullptr, nullptr, nullptr, "", splits, unidentified_file.get(), LLAMA_LOAD_MODE_NONE,
+            nullptr, nullptr, nullptr, nullptr, "", splits, unidentified_file.get(), LLAMA_LOAD_MODE_NONE,
             false, true, false, nullptr, nullptr);
     {
         llama_model_params params = llama_model_default_params();
@@ -3072,7 +3108,9 @@ static file_ptr make_qwen4_mtp_combined(
                     extra_ctx.get(), GGML_TYPE_F32, source->hparams.n_embd, n_qkv);
             ggml_set_name(qkv, "blk.1.attn_qkv.weight");
             saver.add_tensor(qkv);
-            for (const char * suffix : { "scale", "input_scale" }) {
+            // an F32 projection takes an output scale but no static activation scale
+            // (input_scale is only created for FP8/I8/Q4_A32/MXFP4/EXL3 weights)
+            for (const char * suffix : { "scale" }) {
                 ggml_tensor * scale = ggml_new_tensor_1d(extra_ctx.get(), GGML_TYPE_F32, 1);
                 ggml_set_name(scale, format("blk.1.attn_qkv.%s", suffix).c_str());
                 saver.add_tensor(scale);
@@ -3230,6 +3268,18 @@ static void test_qwen4_mtp_sidecar_contract(const size_t seed) {
     llama_model_ptr target_model(llama_model_load_from_file_ptr(
             target_file.get(), target_model_params));
     GGML_ASSERT(target_model != nullptr);
+
+    // A self-contained MTP drafter owns its embedding and output head. Sharing
+    // setup must not replace them with the target's tensors merely because the
+    // drafter was supplied through -md --spec-type draft-mtp.
+    ggml_tensor * self_embd = model->tok_embd;
+    ggml_tensor * self_out  = model->output;
+    GGML_ASSERT(self_embd != nullptr && self_out != nullptr);
+    GGML_ASSERT(self_embd != target_model->tok_embd);
+    llama_model_share_tensors(model.get(), target_model.get());
+    GGML_ASSERT(model->tok_embd == self_embd);
+    GGML_ASSERT(model->output   == self_out);
+
     uint8_t semantic_digest[32] = {};
     // This synthetic fixture intentionally has no production vocabulary, so
     // semantic identity is unavailable. It must nevertheless traverse the
@@ -3292,10 +3342,11 @@ static void test_qwen4_mtp_sidecar_contract(const size_t seed) {
     GGML_ASSERT(ggml_graph_get_tensor(shared_gf, "mtp_h_input") != nullptr);
     GGML_ASSERT(ggml_graph_get_tensor(shared_gf, "result_output") != nullptr);
 
-    // A target-only restore cannot recover the predecessor hidden row for its
-    // first nonzero suffix batch. It is therefore a bounded recovery boundary:
-    // clear stale draft KV, seed the carry from the verified target row, and
-    // resume draft filling on the following batch.
+    // A target-only VBR restore cannot recover the predecessor hidden row for
+    // its first suffix batch. That batch must become a bounded recovery
+    // boundary: discard stale draft KV, seed the next carry from the verified
+    // target output, then resume filling the draft cache on the following
+    // batch instead of remaining target-only forever.
     {
         llama_context_params recovery_target_params = target_ctx_params;
         recovery_target_params.n_ctx = 8;
@@ -3321,7 +3372,7 @@ static void test_qwen4_mtp_sidecar_contract(const size_t seed) {
         recovery_params.draft.ctx_dft = recovery_draft.get();
         recovery_params.draft.backend_sampling = false;
         common_speculative_ptr recovery_spec(
-                common_speculative_init(recovery_params, 1));
+            common_speculative_init(recovery_params, 1));
         GGML_ASSERT(recovery_spec != nullptr);
 
         auto decode_target = [&](llama_token token, llama_pos pos) {
@@ -3330,14 +3381,14 @@ static void test_qwen4_mtp_sidecar_contract(const size_t seed) {
             GGML_ASSERT(llama_decode(recovery_target.get(), target_batch) == 0);
             llama_synchronize(recovery_target.get());
             GGML_ASSERT(common_speculative_process(
-                    recovery_spec.get(), target_batch));
+                recovery_spec.get(), target_batch));
             llama_batch_free(target_batch);
         };
 
         decode_target(5, 0);
         decode_target(6, 1);
         GGML_ASSERT(llama_memory_seq_pos_max(
-                llama_get_memory(recovery_draft.get()), 0) == 1);
+            llama_get_memory(recovery_draft.get()), 0) == 1);
 
         common_speculative_sequence_transition(
                 recovery_spec.get(), 0,
@@ -3817,15 +3868,158 @@ static int test_backends(const llm_arch target_arch, const size_t seed, const in
                 if (!skip) {
                     if (logits_cpu.empty()) {
                         model_and_ctx_cpu = get_model_and_ctx(gguf_ctx.get(), nullptr, seed, {}, LLAMA_SPLIT_MODE_LAYER, encode);
+                        assert(model_and_ctx_cpu.first->supports_classic_vbr() ==
+                               (arch == LLM_ARCH_BAILINGMOE3));
+                        if (arch == LLM_ARCH_BAILINGMOE3) {
+                            assert(!model_and_ctx_cpu.first->supports_turbo_vbr());
+                        }
+                        if (arch == LLM_ARCH_QWEN4EXP) {
+                            assert(model_and_ctx_cpu.first->supports_turbo_vbr());
+                        }
+                        if (arch == LLM_ARCH_MINIMAX_M3 || arch == LLM_ARCH_GLM_DSA ||
+                                arch == LLM_ARCH_DEEPSEEK32 || arch == LLM_ARCH_DOTS3NOTE) {
+                            assert(!model_and_ctx_cpu.first->supports_turbo_vbr());
+                        }
                         logits_cpu = get_logits(model_and_ctx_cpu.first.get(), model_and_ctx_cpu.second.get(), tokens, encode);
                     }
                     if (dc.split_mode != LLAMA_SPLIT_MODE_TENSOR || llm_arch_supports_sm_tensor(arch)) {
                         model_and_ctx_dev = get_model_and_ctx(gguf_ctx.get(), nullptr, seed, dc.devs, dc.split_mode, encode);
+                        if (dc.split_mode == LLAMA_SPLIT_MODE_TENSOR &&
+                            (arch == LLM_ARCH_QWEN3NEXT || arch == LLM_ARCH_QWEN35 ||
+                             arch == LLM_ARCH_QWEN35MOE || arch == LLM_ARCH_QWEN4EXP)) {
+                            const auto live = llama_get_live_memory_breakdown(
+                                model_and_ctx_dev.second.get());
+                            std::vector<ggml_backend_dev_t> state_devices;
+                            for (const auto & [buft, row] : live) {
+                                const size_t bytes = row.attention + row.recurrent +
+                                    row.recurrent_rollback + row.rolling_window_tape;
+                                if (bytes == 0 || ggml_backend_buft_is_host(buft)) {
+                                    continue;
+                                }
+                                GGML_ASSERT(!ggml_backend_buft_is_meta(buft));
+                                const ggml_backend_dev_t device =
+                                    ggml_backend_buft_get_device(buft);
+                                GGML_ASSERT(device != nullptr);
+                                if (std::find(state_devices.begin(), state_devices.end(), device) ==
+                                    state_devices.end()) {
+                                    state_devices.push_back(device);
+                                }
+                            }
+                            GGML_ASSERT(!state_devices.empty());
+                            // The fixture has two KV heads, so only a two-device split is
+                            // guaranteed to give every child a nonzero state shard.
+                            if (dc.devs.size() == 2) {
+                                GGML_ASSERT(state_devices.size() == dc.devs.size());
+                                for (ggml_backend_dev_t device : dc.devs) {
+                                    GGML_ASSERT(std::find(
+                                        state_devices.begin(), state_devices.end(), device) !=
+                                        state_devices.end());
+                                }
+                            }
+                            const auto total = llama_get_memory_breakdown(
+                                model_and_ctx_dev.second.get());
+                            std::vector<ggml_backend_dev_t> compute_devices;
+                            for (const auto & [buft, row] : total) {
+                                if (row.compute == 0 || ggml_backend_buft_is_host(buft)) {
+                                    continue;
+                                }
+                                GGML_ASSERT(!ggml_backend_buft_is_meta(buft));
+                                const ggml_backend_dev_t device =
+                                    ggml_backend_buft_get_device(buft);
+                                GGML_ASSERT(device != nullptr);
+                                if (std::find(compute_devices.begin(), compute_devices.end(), device) ==
+                                    compute_devices.end()) {
+                                    compute_devices.push_back(device);
+                                }
+                            }
+                            GGML_ASSERT(compute_devices.size() == dc.devs.size());
+                            for (ggml_backend_dev_t device : dc.devs) {
+                                GGML_ASSERT(std::find(
+                                    compute_devices.begin(), compute_devices.end(), device) !=
+                                    compute_devices.end());
+                            }
+
+                            // A dry fit still owns one logical Meta device, so its estimated
+                            // compute row must remain Meta instead of being expanded into child
+                            // devices that the fitter cannot associate with the model.
+                            if (arch == LLM_ARCH_QWEN35 && dc.devs.size() > 1) {
+                                llama_model_params estimate_model_params = llama_model_default_params();
+                                estimate_model_params.progress_callback = silent_model_load_progress;
+                                estimate_model_params.no_alloc = true;
+                                estimate_model_params.load_mode = LLAMA_LOAD_MODE_NONE;
+                                estimate_model_params.split_mode = LLAMA_SPLIT_MODE_TENSOR;
+                                std::vector<ggml_backend_dev_t> estimate_devices = dc.devs;
+                                estimate_devices.push_back(nullptr);
+                                estimate_model_params.devices = estimate_devices.data();
+                                size_t estimate_seed = seed;
+                                llama_model_ptr estimate_model(llama_model_init_from_user(
+                                    gguf_ctx.get(), set_tensor_data, &estimate_seed,
+                                    estimate_model_params));
+                                GGML_ASSERT(estimate_model != nullptr);
+                                llama_context_params estimate_ctx_params = llama_context_default_params();
+                                estimate_ctx_params.n_ctx = 256;
+                                estimate_ctx_params.n_batch = 64;
+                                estimate_ctx_params.n_ubatch = 64;
+                                llama_context_ptr estimate_ctx(llama_init_from_model(
+                                    estimate_model.get(), estimate_ctx_params));
+                                GGML_ASSERT(estimate_ctx != nullptr);
+                                size_t non_host_compute_rows = 0;
+                                for (const auto & [buft, row] :
+                                        llama_get_memory_breakdown(estimate_ctx.get())) {
+                                    if (row.compute == 0 || ggml_backend_buft_is_host(buft)) {
+                                        continue;
+                                    }
+                                    ++non_host_compute_rows;
+                                    GGML_ASSERT(ggml_backend_buft_is_meta(buft));
+                                }
+                                GGML_ASSERT(non_host_compute_rows == 1);
+                            }
+
+                            // Pool discovery has a separate physical-backend contract from
+                            // memory accounting. Exercise it on one representative hybrid
+                            // architecture when exactly two VMM-capable devices are present.
+                            const bool supports_vbr_vmm = devices_support_vbr_vmm(dc.devs);
+                            if (arch == LLM_ARCH_QWEN35 && dc.devs.size() == 2 &&
+                                supports_vbr_vmm) {
+                                llama_context_params vbr_params = llama_context_default_params();
+                                vbr_params.n_ctx = 256;
+                                vbr_params.n_batch = 64;
+                                vbr_params.n_ubatch = 64;
+                                vbr_params.n_threads = 4;
+                                vbr_params.n_threads_batch = 4;
+                                vbr_params.kv_unified = true;
+                                vbr_params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+                                vbr_params.vbr_dynamic = true;
+                                vbr_params.vbr_budget_explicit = true;
+                                vbr_params.vbr_vram_budget_bytes = 64ull * 1024 * 1024;
+                                llama_context_ptr vbr_ctx(llama_init_from_model(
+                                    model_and_ctx_dev.first.get(), vbr_params));
+                                GGML_ASSERT(vbr_ctx != nullptr);
+
+                                std::vector<vbr_explicit_capture_runtime_pool> pools;
+                                uint32_t attention_children = 0;
+                                GGML_ASSERT(vbr_explicit_capture_runtime_pools(
+                                    *llama_get_memory(vbr_ctx.get()), pools, attention_children));
+                                GGML_ASSERT(attention_children == 1);
+                                GGML_ASSERT(pools.size() == dc.devs.size());
+                                std::vector<ggml_backend_dev_t> unmatched = dc.devs;
+                                for (const auto & pool : pools) {
+                                    GGML_ASSERT(pool.backend != nullptr);
+                                    GGML_ASSERT(pool.backend_device ==
+                                                ggml_backend_get_device(pool.backend));
+                                    const auto it = std::find(
+                                        unmatched.begin(), unmatched.end(), pool.backend_device);
+                                    GGML_ASSERT(it != unmatched.end());
+                                    unmatched.erase(it);
+                                }
+                                GGML_ASSERT(unmatched.empty());
+                            }
+                        }
                         logits_dev = get_logits(model_and_ctx_dev.first.get(), model_and_ctx_dev.second.get(), tokens, encode);
                         const double nmse_val = nmse(logits_cpu, logits_dev);
                         snprintf(nmse_str, sizeof(nmse_str), "(%.2e)", nmse_val);
                         status_nmse = "\033[1;32mOK\033[0m";
-                        if (nmse_val > 1e-4) {
+                        if (!(nmse_val <= 1e-4)) {
                             all_ok = false;
                             status_nmse = "\033[1;31mFAIL\033[0m";
                         }
@@ -3839,6 +4033,13 @@ static int test_backends(const llm_arch target_arch, const size_t seed, const in
                         llama_model_saver ms = llama_model_saver(model_and_ctx_dev.first.get());
                         ms.add_kv_from_model();
                         ms.add_tensors_from_model();
+                        for (const ggml_tensor * tensor : {
+                                model_and_ctx_dev.first->per_layer_tok_embd_scale,
+                                model_and_ctx_dev.first->per_layer_tok_embd_bias }) {
+                            if (tensor) {
+                                GGML_ASSERT(gguf_find_tensor(ms.gguf_ctx, tensor->name) >= 0);
+                            }
+                        }
                         ms.save(file.get());
                         rewind(file.get());
 

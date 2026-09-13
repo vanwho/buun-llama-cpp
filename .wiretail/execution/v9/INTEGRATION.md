@@ -78,6 +78,27 @@ No model-format migration (EXL3/safetensors), MoE/Blackwell tuning, or dynamic
 VBR ladder is part of this merge campaign. Existing upstream functionality
 must remain available when the pager is off.
 
+## Turbo4 host backing versus CPU TCQ fixtures
+
+The target contract uses `GGML_TYPE_TURBO4_0` (Turbo4/PolarQuant 4-bit) for
+canonical sealed host pages, GPU target pages, and native-MTP K/V. Host RAM is
+backing storage: the pager transfers encoded Turbo4 bytes to CUDA, where the
+Turbo4 attention path consumes them. It must not convert canonical pager pages
+to F16, Q8_0, or standard q4_0 merely because a CPU-only fixture is present.
+
+`GGML_TYPE_TURBO3_TCQ` is a separate 3-bit trellis-coded format. Accurate TCQ
+quantize/dequantize is CUDA-only in this tree; the CPU reference routines are
+stubs. A CPU `test-llama-archs` result that specifically reports unsupported
+`turbo3_tcq`/missing TurboQuant CUDA backend is an expected fixture limitation
+and is recorded as `expected_cpu_backend_limitation`. It is not a merge failure
+and does not permit changing the pager representation. Any result involving
+Turbo4, host capture bytes, CUDA Turbo4 attention/transfers, MTP Turbo4/Turbo4,
+or memory/lifetime correctness remains a substantive failure and must be fixed.
+
+The evidence must include a Turbo4 host-byte capture/round-trip check and the
+CUDA Turbo4 page/attention check. F16/Q8_0 may appear only as ordinary CPU
+controls or explicitly labeled fallback paths.
+
 ## Tests and receipt
 
 First configure CPU and CUDA builds with tests enabled. Use an explicitly

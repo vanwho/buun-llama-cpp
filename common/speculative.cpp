@@ -2891,11 +2891,12 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                             return false;
                         }
                         const float * h_tgt = llama_get_embeddings_nextn_ith(
-                                ctx_tgt, i_batch_end[seq_id]);
+                            ctx_tgt, i_batch_end[seq_id]);
                         if (!h_tgt) {
                             return false;
                         }
-                        std::memcpy(pending_h[seq_id].data(), h_tgt, row_bytes);
+                        std::memcpy(
+                            pending_h[seq_id].data(), h_tgt, row_bytes);
                         pending_h_lifecycle[seq_id].target_process_refreshed();
                         verify_h_rows[seq_id] = 0;
                     }
@@ -5849,10 +5850,10 @@ common_speculative_init_result::common_speculative_init_result(
         }
 
         if (external_mtp_sidecar) {
-            // The loader borrows exact pointers so the compact file can be
-            // constructed. Normalize them for the drafter scheduler now:
-            // same-device tensors stay shared; foreign/meta tensors become
-            // draft-owned gathered copies.
+            // Normalize tensors omitted or borrowed by compact sidecars for the
+            // drafter scheduler. Self-contained MTP models retain their own
+            // embedding/head. Same-device target tensors stay shared;
+            // foreign/meta tensors become draft-owned gathered copies.
             llama_model_share_tensors(model_dft, model_tgt);
         }
 

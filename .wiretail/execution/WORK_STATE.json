@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "33",
-  "current_task": "33-02",
-  "last_updated_utc": "2026-09-13T14:42:53+00:00",
+  "current_task": "33-03",
+  "last_updated_utc": "2026-09-13T15:47:18+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6338,7 +6338,7 @@
       "cluster": "33b-merge-v9",
       "title": "Resolve the pinned upstream merge and preserve both feature sets",
       "packet": ".wiretail/execution/tasks/33-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -6352,8 +6352,33 @@
       "depends_on": [
         "33-01"
       ],
-      "commit": null,
-      "upstream_merge_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795"
+      "commit": "21c758fa449c5e3c2d5e5f4737052b46aae92725",
+      "upstream_merge_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/33-02-attempt-1-20260913T144310Z.jsonl:239",
+            "total_tokens": 34155742,
+            "total_tokens_derived": true,
+            "input_tokens": 34105738,
+            "cached_input_tokens": 33427200,
+            "output_tokens": 50004,
+            "thinking_tokens": 17319
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 34155742,
+          "input_tokens": 34105738,
+          "cached_input_tokens": 33427200,
+          "output_tokens": 50004,
+          "thinking_tokens": 17319
+        }
+      }
     },
     {
       "id": "33-03",
@@ -8740,15 +8765,28 @@
           "cached_input_tokens": 4540928,
           "output_tokens": 19531,
           "thinking_tokens": 4498
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/33-02-attempt-1-20260913T144310Z.jsonl:239",
+          "total_tokens": 34155742,
+          "total_tokens_derived": true,
+          "input_tokens": 34105738,
+          "cached_input_tokens": 33427200,
+          "output_tokens": 50004,
+          "thinking_tokens": 17319
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 4708187,
-        "input_tokens": 4688656,
-        "cached_input_tokens": 4540928,
-        "output_tokens": 19531,
-        "thinking_tokens": 4498
+        "turns": 2,
+        "total_tokens": 38863929,
+        "input_tokens": 38794394,
+        "cached_input_tokens": 37968128,
+        "output_tokens": 69535,
+        "thinking_tokens": 21817
       }
     },
     "34": {
@@ -8809,12 +8847,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 116,
-      "total_tokens": 2694773315,
-      "input_tokens": 2688729356,
-      "cached_input_tokens": 2637413120,
-      "output_tokens": 6043959,
-      "thinking_tokens": 2195605
+      "turns": 117,
+      "total_tokens": 2728929057,
+      "input_tokens": 2722835094,
+      "cached_input_tokens": 2670840320,
+      "output_tokens": 6093963,
+      "thinking_tokens": 2212924
     },
     "source": "Codex turn.completed usage events"
   }

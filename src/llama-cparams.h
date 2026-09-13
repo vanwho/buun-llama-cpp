@@ -27,6 +27,7 @@ struct llama_cparams {
     enum llama_moe_cache_mode moe_cache_mode;
     size_t moe_cache_budget_mib;
     int32_t moe_cache_expert_parallel;
+    int32_t moe_cache_cpu_overlap;
     std::string moe_cache_profile_path;
 
     float rope_freq_base;
@@ -66,6 +67,7 @@ struct llama_cparams {
     // Resolved from the normalized KV pager configuration. Keeping the typed
     // value in cparams makes admission and graph planning use one A budget.
     uint32_t kv_attention_tokens = 0;
+    enum llama_vbr_codec vbr_codec = LLAMA_VBR_CODEC_TURBO;
 
     double vbr_min_bits = 0.0;
     uint64_t vbr_vram_budget_bytes = 0;

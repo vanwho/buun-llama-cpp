@@ -1,4 +1,5 @@
 #include "llama-kv-cache.h"
+#include "llama-vbr-codec.h"
 
 #include "llama-vbr-artifact-capture.h"
 #include "llama-vbr-explicit-capture.h"
@@ -20,6 +21,7 @@
 #include <cassert>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <functional>
@@ -56,6 +58,48 @@ static llama_memory_failure_reason pager_failure_reason(
     return llama_memory_failure_reason::invalid_frontier;
 }
 
+uint64_t llama_memory_vbr_budget_bytes_resolve(const llama_memory_vbr_params & params) {
+    if (const char * env = getenv("VBR_BUDGET_MIB")) {
+        return (uint64_t) strtoull(env, nullptr, 10) * 1024 * 1024;
+    }
+    return params.budget_bytes;
+}
+
+void llama_memory_vbr_budget_partition(
+        uint64_t total,
+        const std::vector<llama_memory_vbr_budget_cost> & costs,
+        std::vector<uint64_t> & result) {
+    uint64_t entry_total = 0;
+    uint64_t floor_total = 0;
+    for (const auto & cost : costs) {
+        entry_total += cost.entry;
+        floor_total += cost.floor;
+    }
+
+    const uint64_t base_total = total < floor_total ? 0 : total < entry_total ? floor_total : entry_total;
+    const uint64_t extra_total = total - base_total;
+    const auto weight = [&](const llama_memory_vbr_budget_cost & cost) {
+        return total < floor_total ? cost.floor
+             : total < entry_total ? cost.entry > cost.floor ? cost.entry - cost.floor : 0
+             : cost.entry;
+    };
+    uint64_t weight_total = 0;
+    for (const auto & cost : costs) {
+        weight_total += weight(cost);
+    }
+
+    result.resize(costs.size());
+    uint64_t assigned = 0;
+    for (size_t i = 0; i < costs.size(); ++i) {
+        const uint64_t base = total < floor_total ? 0 : total < entry_total ? costs[i].floor : costs[i].entry;
+        result[i] = i + 1 == costs.size() ? total - assigned
+            : base + (weight_total > 0
+                ? (uint64_t) ((long double) extra_total * weight(costs[i]) / weight_total)
+                : 0);
+        assigned += result[i];
+    }
+}
+
 // Dynamic-VBR degrade tier ladder and measured price order (generated table).
 enum vbr_tier : uint8_t {
     VBR_TIER_T8,
@@ -63,10 +107,13 @@ enum vbr_tier : uint8_t {
     VBR_TIER_T3_TCQ,
     VBR_TIER_T2_TCQ,
     VBR_TIER_T1_TCQ,
-    VBR_TIER_COUNT,
 };
 bool llama_kv_cache::vbr_hard_seal_classify(
         vbr_hard_seal_classification & out) const noexcept {
+    if (vbr_params_.codec == LLAMA_VBR_CODEC_CLASSIC) {
+        out = {};
+        return true; // every classic representation remains full-domain
+    }
     return vbr_classify_hard_seal(
         vbr_degrade_order_, VBR_TIER_T4, out);
 }
@@ -193,26 +240,30 @@ bool llama_kv_cache::vbr_hard_seal_step_blocked(
     return verdict == vbr_hard_seal_guard_result::hard_lease_blocked;
 }
 
-// a type the degrade ladder can move: the five turbo tiers plus F16, which is the default dynamic
-// entry tier (full-quality until budget pressure; the measured orders' first band is
-// fp16->t8). Anything else living in a VMM pool — an explicitly non-vbr side of a mixed
-// -ct config (q8_0, bf16) — is PINNED: the transcode dequant has no source support for it,
-// so a step touching it must be skipped, never executed (it would GGML_ABORT mid-decode).
-static bool vbr_type_is_movable(ggml_type t) {
-    return t == GGML_TYPE_F16 ||
-           t == GGML_TYPE_TURBO8_0 || t == GGML_TYPE_TURBO4_0 || t == GGML_TYPE_TURBO3_TCQ ||
-           t == GGML_TYPE_TURBO2_TCQ || t == GGML_TYPE_TURBO1_TCQ;
+// Tensor-split step graphs benefit from fewer read-extent shape changes. Scope
+// that policy to this cache's model; creating another model must not change it.
+uint32_t llama_kv_cache::get_pad_floor() const {
+    static const uint32_t env_cells = [] {
+        const char * env = getenv("LLAMA_KV_PAD");
+        uint32_t v = env != nullptr ? (uint32_t) atoi(env) : 256u;
+        if (v < 256u || (v & (v - 1)) != 0) {
+            v = 256u;
+        }
+        return v;
+    }();
+    return std::max(env_cells, model.split_mode() == LLAMA_SPLIT_MODE_TENSOR ? 2048u : 256u);
 }
 
-static ggml_type vbr_tier_type(uint8_t tier) {
-    switch (tier) {
-        case VBR_TIER_T8:     return GGML_TYPE_TURBO8_0;
-        case VBR_TIER_T4:     return GGML_TYPE_TURBO4_0;
-        case VBR_TIER_T3_TCQ: return GGML_TYPE_TURBO3_TCQ;
-        case VBR_TIER_T2_TCQ: return GGML_TYPE_TURBO2_TCQ;
-        case VBR_TIER_T1_TCQ: return GGML_TYPE_TURBO1_TCQ;
-        default:              GGML_ABORT("invalid vbr tier %d", (int) tier);
+// Resolve a ladder step to its codec-owned representation type. Movability is defined by
+// membership in the selected ladder; a concrete type outside it (for example bf16, or q8_0
+// under the Turbo codec) is pinned and must never be passed to the transcode path.
+static ggml_type vbr_tier_type(llama_vbr_codec codec, uint8_t tier) {
+    const auto & ladder = llama_vbr_ladder(codec);
+    const size_t rung = size_t(tier) + 1; // step 0 targets the rung below F16
+    if (rung >= ladder.n_rungs) {
+        GGML_ABORT("invalid %s VBR tier %d", ladder.name, (int) tier);
     }
+    return ladder.rungs[rung];
 }
 
 struct llama_kv_cache::vbr_shared_scratch_registry {
@@ -985,6 +1036,9 @@ llama_kv_cache::llama_kv_cache(
 
     turbo_vbr_layer_policy vbr_layer_policy =
         turbo_vbr_layer_policy_from_env(hparams.n_layer_all, type_k, type_v, kv_size);
+    if (vbr_params_.dynamic && vbr_params_.codec == LLAMA_VBR_CODEC_CLASSIC && vbr_layer_policy.enabled) {
+        throw std::runtime_error("VBR_LAYER_SCHEDULE is Turbo-specific and cannot be used with classic VBR");
+    }
     if (vbr_layer_policy.enabled && turbo_vbr_layer_strict_enabled() && vbr_layer_policy.ignored_bands > 0) {
         throw std::runtime_error(format(
                 "VBR_LAYER_SCHEDULE contains unsupported segmented bands but VBR_LAYER_STRICT=1 was set: %s",
@@ -999,15 +1053,16 @@ llama_kv_cache::llama_kv_cache(
     };
     std::map<ggml_backend_buffer_type_t, ggml_context_ptr, ggml_backend_buft_comparator> ctx_map;
 
-    // create a context for each buffer type. Dynamic VBR counts as turbo-managed even when
-    // the ENTRY types are f16 — later degrades flip tensors to turbo tiers, which need the
-    // rotation matrices, the padded allocs and the VMM/extent machinery from the start.
-    const bool is_turbo = ggml_type_is_turbo(type_k) || ggml_type_is_turbo(type_v) ||
-                          vbr_layer_policy.has_turbo || vbr_params_.dynamic;
+    // Create a context for each buffer type. Turbo VBR needs its padded layout and rotation
+    // tensors even at an F16 entry; classic VBR needs only the shared VMM/extent machinery.
+    const bool dynamic_turbo_layout = vbr_params_.dynamic &&
+        llama_vbr_ladder(vbr_params_.codec).needs_turbo_layout;
+    const bool needs_turbo_layout = ggml_type_is_turbo(type_k) || ggml_type_is_turbo(type_v) ||
+        vbr_layer_policy.has_turbo || dynamic_turbo_layout;
     auto ctx_for_buft = [&](ggml_backend_buffer_type_t buft) -> ggml_context * {
         auto it = ctx_map.find(buft);
         if (it == ctx_map.end()) {
-            const size_t n_turbo_extra = is_turbo ? 8 : 0; // rotation matrices + safety margin
+            const size_t n_turbo_extra = needs_turbo_layout ? 8 : 0; // rotation matrices + safety margin
             ggml_init_params params = {
                 /*.mem_size   =*/ size_t((2u*(1 + n_stream)*n_layer + n_turbo_extra)*ggml_tensor_overhead()),
                 /*.mem_buffer =*/ NULL,
@@ -1210,14 +1265,14 @@ llama_kv_cache::llama_kv_cache(
         uint32_t n_embd_k_alloc = n_embd_k_gqa;
         uint32_t n_embd_v_alloc = n_embd_v_gqa;
         {
-            if (ggml_type_is_turbo(layer_type_k) || vbr_params_.dynamic) {
+            if (ggml_type_is_turbo(layer_type_k) || dynamic_turbo_layout) {
                 uint32_t head_k = hparams.n_embd_head_k(il);
                 uint32_t padded = ((head_k + 127) / 128) * 128;
                 if (padded > head_k) {
                     n_embd_k_alloc = padded * hparams.n_head_kv(il);
                 }
             }
-            if ((ggml_type_is_turbo(layer_type_v) || vbr_params_.dynamic) && !v_trans) {
+            if ((ggml_type_is_turbo(layer_type_v) || dynamic_turbo_layout) && !v_trans) {
                 uint32_t head_v = hparams.n_embd_head_v(il);
                 uint32_t padded = ((head_v + 127) / 128) * 128;
                 if (padded > head_v) {
@@ -1312,9 +1367,7 @@ llama_kv_cache::llama_kv_cache(
         layer_is_shared.push_back(false);
 
         // TurboQuant: create rotation matrix tensors (once, shared across layers)
-        if (turbo_rotation == nullptr &&
-            (ggml_type_is_turbo(type_k) || ggml_type_is_turbo(type_v) || vbr_layer_policy.has_turbo ||
-             vbr_params_.dynamic)) {
+        if (turbo_rotation == nullptr && needs_turbo_layout) {
             turbo_rotation = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 128, 128);
             ggml_format_name(turbo_rotation, "turbo_rotation");  // R (forward)
             turbo_rotation_inv = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 128, 128);
@@ -1359,19 +1412,20 @@ llama_kv_cache::llama_kv_cache(
         vbr_dynamic_wanted = strcmp(m, "dynamic") == 0;
     }
     const bool vbr_vmm_wanted = vbr_dynamic_wanted && !hparams.no_alloc &&
-                                (vbr_layer_policy.enabled || is_turbo) && n_stream == 1 && !v_trans;
+                                (vbr_layer_policy.enabled || needs_turbo_layout || vbr_params_.dynamic) &&
+                                n_stream == 1 && !v_trans;
     if (vbr_dynamic_wanted && !vbr_vmm_wanted && !hparams.no_alloc) {
         // fail loud, not silent: the caller asked for the degrade controller and would otherwise
         // get a static max-tier cache while the logs still advertise dynamic VBR
         LLAMA_LOG_WARN("%s: dynamic VBR requested but the controller cannot arm (%s) — this cache "
                 "stays static at its entry tiers\n", __func__,
-                !(vbr_layer_policy.enabled || is_turbo) ? "KV is not turbo-typed" :
+                !(vbr_layer_policy.enabled || needs_turbo_layout || vbr_params_.dynamic) ? "KV is not VBR-managed" :
                 n_stream != 1 ? "KV is split per sequence (n_stream > 1; run with --kv-unified)" :
                 "the V cache is transposed (flash attention is off)");
     }
-    LLAMA_LOG_DEBUG("%s: VBR_VMM gate: dynamic=%d no_alloc=%d policy=%d is_turbo=%d n_stream=%u v_trans=%d -> wanted=%d\n",
+    LLAMA_LOG_DEBUG("%s: VBR_VMM gate: dynamic=%d no_alloc=%d policy=%d turbo_layout=%d n_stream=%u v_trans=%d -> wanted=%d\n",
             __func__, (int) vbr_dynamic_wanted, (int) hparams.no_alloc, (int) vbr_layer_policy.enabled,
-            (int) is_turbo, n_stream, (int) v_trans, (int) vbr_vmm_wanted);
+            (int) needs_turbo_layout, n_stream, (int) v_trans, (int) vbr_vmm_wanted);
 
     auto try_vmm_alloc = [&](ggml_context * c, ggml_backend_buffer_type_t bft) -> ggml_backend_buffer_t {
         const std::vector<llama_vbr_dev> devs = llama_vbr_backend_devs_for_buft(bft);
@@ -1686,7 +1740,7 @@ llama_kv_cache::llama_kv_cache(
     // Record per-(layer,side) dynamic-VBR descriptors over the just-placed KV tensors.
     // Pure bookkeeping: allocation behavior above is unchanged. The runtime controller uses
     // these to transcode a tensor down a tier in place and return the freed bytes to the pool.
-    if ((vbr_layer_policy.enabled || is_turbo) && !hparams.no_alloc) {
+    if ((vbr_layer_policy.enabled || needs_turbo_layout || vbr_params_.dynamic) && !hparams.no_alloc) {
         // Per-pool tensor instances: a tensor placed in a plain device buffer is its own (single)
         // instance; a tensor behind the meta buffer (-sm tensor) has one shard instance per simple
         // device. Instances with no bytes (zero-width shard) are skipped.
@@ -1813,15 +1867,16 @@ llama_kv_cache::llama_kv_cache(
                 vbr_degrade_order_.size(), 0);
             vbr_capture_unit_attempt_boundary_.assign(
                 layers.size() * 2, UINT64_MAX);
-            // co-tenancy band cap: demand-driven sheds may only spend the leading f16->t8
-            // band of the price order — the one cheap AND domain-reversible rung (sub-t8
-            // sheds imprint irreversible re-encode error into existing tokens). A custom
-            // VBR_DEGRADE_ORDER carries no band guarantee, so it disables demand shedding.
-            t8_band_end_ = 0;
+            // Co-tenancy band cap: demand-driven sheds may only spend the leading
+            // entry-to-first-rung band of the price order. For Turbo this is the one
+            // cheap AND domain-reversible F16->T8 rung; classic representations all
+            // remain full-domain. A custom VBR_DEGRADE_ORDER carries no band guarantee,
+            // so it disables demand shedding.
+            first_band_end_ = 0;
             if (getenv("VBR_DEGRADE_ORDER") == nullptr) {
-                while (t8_band_end_ < vbr_degrade_order_.size() &&
-                       vbr_degrade_order_[t8_band_end_].tier == VBR_TIER_T8) {
-                    t8_band_end_++;
+                while (first_band_end_ < vbr_degrade_order_.size() &&
+                       vbr_degrade_order_[first_band_end_].tier == VBR_TIER_T8) {
+                    first_band_end_++;
                 }
             }
             // consent comes ONLY from the typed flag (or its documented LLAMA_ARG env,
@@ -1829,16 +1884,17 @@ llama_kv_cache::llama_kv_cache(
             // developer override still moves the floor VALUE but never grants peer-yield
             // consent (bare presence of a debug env must not consent to sub-t8 loss)
             vbr_floor_typed_ = vbr_params_.min_bits_explicit;
-            LLAMA_LOG_INFO("%s: co-tenancy: f16->t8 band = %zu of %zu order steps%s%s\n",
-                    __func__, t8_band_end_, vbr_degrade_order_.size(),
-                    t8_band_end_ == 0 ? " (demand shedding disabled)" : "",
-                    t8_band_end_ != 0 && vbr_floor_typed_
+            LLAMA_LOG_INFO("%s: co-tenancy: %s->%s band = %zu of %zu order steps%s%s\n",
+                    __func__, ggml_type_name(type_k),
+                    ggml_type_name(llama_vbr_ladder(vbr_params_.codec).rungs[1]),
+                    first_band_end_, vbr_degrade_order_.size(),
+                    first_band_end_ == 0 ? " (demand shedding disabled)" : "",
+                    first_band_end_ != 0 && vbr_floor_typed_
                         ? " — explicit floor: peer yield consented to the floor" : "");
             vbr_floor_clamp_order();
-            vbr_budget_bytes_    = (size_t) vbr_params_.budget_bytes;
+            vbr_budget_bytes_    = (size_t) llama_memory_vbr_budget_bytes_resolve(vbr_params_);
             vbr_budget_explicit_ = vbr_params_.budget_explicit;
-            if (const char * env = getenv("VBR_BUDGET_MIB")) {
-                vbr_budget_bytes_    = (size_t) strtoull(env, nullptr, 10) * 1024 * 1024;
+            if (getenv("VBR_BUDGET_MIB") != nullptr) {
                 vbr_budget_explicit_ = true; // forced-budget instrumentation must never grow
             }
             // Deterministic freeze is test/gating only (see header). Read after the budget
@@ -1955,7 +2011,8 @@ llama_kv_cache::llama_kv_cache(
             // — erases sink-row requant accumulation across any hop count for ~8 MiB + µs per
             // degrade. VBR_STASH_ROWS overrides (0 disables).
             const char * stash_env = getenv("VBR_STASH_ROWS");
-            vbr_stash_rows_ = stash_env ? (uint32_t) atoi(stash_env) : 128;
+            vbr_stash_rows_ = vbr_params_.codec == LLAMA_VBR_CODEC_CLASSIC
+                ? 0 : (stash_env ? (uint32_t) atoi(stash_env) : 128);
             if (vbr_stash_rows_ > 0) {
                 LLAMA_LOG_INFO("%s: VBR f16 sink-stash: %u rows per (layer,side)\n",
                         __func__, vbr_stash_rows_);
@@ -2012,11 +2069,10 @@ llama_kv_cache::llama_kv_cache(
                     for (uint32_t side = 0; side < 2; ++side) {
                         const ggml_tensor * tensor = side != 0 ? layers[ikv].v : layers[ikv].k;
                         const int32_t type = tensor != nullptr ? static_cast<int32_t>(tensor->type) : -1;
-                        const vbr_repr_domain domain =
-                                tensor != nullptr && ggml_is_turbo_kv_type(tensor->type) &&
-                                                tensor->type != GGML_TYPE_TURBO8_0
-                                        ? vbr_repr_domain::tapped
-                                        : vbr_repr_domain::full;
+                        const vbr_repr_domain domain = tensor != nullptr &&
+                                !llama_vbr_codec_full_domain(vbr_params_.codec, tensor->type)
+                            ? vbr_repr_domain::tapped
+                            : vbr_repr_domain::full;
                         GGML_ASSERT(vbr_generation_->initialize_unit(
                                 static_cast<uint32_t>(ikv * 2 + side), type, domain));
                     }
@@ -2078,11 +2134,13 @@ llama_kv_cache::llama_kv_cache(
         // turbo types have their own FWHT rotation — skip upstream Hadamard rotation
         const bool is_turbo_k = ggml_type_is_turbo(type_k) || vbr_layer_policy.has_turbo_k;
         const bool is_turbo_v = ggml_type_is_turbo(type_v) || vbr_layer_policy.has_turbo_v;
+        const bool classic_dynamic = vbr_params_.dynamic &&
+            vbr_params_.codec == LLAMA_VBR_CODEC_CLASSIC;
 
         attn_rot_k =
             !attn_rot_disable &&
             n_embd_head_k_all > 0 &&
-            ggml_is_quantized(type_k) && !is_turbo_k &&
+            (ggml_is_quantized(type_k) || classic_dynamic) && !is_turbo_k &&
             hparams.n_embd_head_k() % 64 == 0;
 
         // always create Hadamard rotation tensors for DeepSeek lightning indexers
@@ -2095,7 +2153,7 @@ llama_kv_cache::llama_kv_cache(
         attn_rot_v =
             !attn_rot_disable &&
             n_embd_head_v_all > 0 &&
-            ggml_is_quantized(type_v) && !is_turbo_v &&
+            (ggml_is_quantized(type_v) || classic_dynamic) && !is_turbo_v &&
             hparams.n_embd_head_v() % 64 == 0;
     }
 
@@ -4037,25 +4095,20 @@ std::map<ggml_backend_buffer_type_t, size_t> llama_kv_cache::memory_breakdown() 
             GGML_ASSERT(ggml_backend_buffer_get_base(buf.get()) == nullptr);
             ret[buft] += ggml_backend_alloc_ctx_tensors_from_buft_size(ctx.get(), buft);
         } else {
-            // GGML_ASSERT(ggml_backend_buffer_get_base(buf.get()) != nullptr); // multi_buffer does not have a defined base
-            // for VMM-backed buffers the buffer size is the VA reservation — report the
-            // mapped-physical bytes instead (summed across the per-device buffers under a
-            // meta buffer; -sm tensor)
-            size_t sz      = 0;
-            bool   any_vmm = false;
-            for (ggml_backend_buffer_t pb : kv_phys_buffers(buf.get())) {
-                const vbr_pool * p = kv_vmm_pool_for(vbr_pools_, pb);
-                if (p != nullptr) {
-                    sz     += p->be->vmm_pool_mapped(p->vmm);
-                    any_vmm = true;
-                } else {
-                    sz += pb != nullptr ? ggml_backend_buffer_get_size(pb) : 0;
+            // Meta is a logical wrapper, not a residency domain. Attribute
+            // each tensor-split child to its physical buffer type so memory
+            // accounting and capture can bind it to the corresponding device.
+            // VMM buffers report mapped physical bytes rather than VA reserve.
+            for (ggml_backend_buffer_t physical : kv_phys_buffers(buf.get())) {
+                if (physical == nullptr) {
+                    continue;
                 }
+                const vbr_pool * pool = kv_vmm_pool_for(vbr_pools_, physical);
+                const size_t size = pool != nullptr
+                    ? pool->be->vmm_pool_mapped(pool->vmm)
+                    : ggml_backend_buffer_get_size(physical);
+                ret[ggml_backend_buffer_get_type(physical)] += size;
             }
-            if (!any_vmm) {
-                sz = ggml_backend_buffer_get_size(buf.get());
-            }
-            ret[buft] += sz;
         }
     }
 
@@ -4396,6 +4449,53 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare_with_slots(
         vbr_last_used_ = used_now;
         vbr_last_wm_ = wm_next;
         vbr_trace_emit("prepare", wm_next, used_now);
+    }
+
+    // Grow flash-attention f16 dequant scratch to this batch's watermark outside the graphs, for
+    // the sides that are dequant-active after the wave above — see vbr_scratch_reserve. Runs for
+    // every turbo-typed cache (bookkeeping pools exist even without the dynamic controller);
+    // non-turbo caches have no pools and skip in O(1).
+    // A paged target owns its bounded attention workspace separately. Do not
+    // reinstate the unbounded H/L reserve for that cache; ordinary and draft
+    // caches retain the upstream watermark sizing.
+    if (pager_plan_ == nullptr &&
+            (!vbr_pools_.empty() || !vbr_shared_scratch_bindings_.empty())) {
+        size_t scratch_cells = vbr_watermark_cells(n_tokens);
+        if (n_stream > 1) {
+            // A non-unified graph views K/V as [head_dim, heads, n_kv, stream_span], and the
+            // CUDA materializer flattens all four dimensions into one shared f16 scratch. Predict
+            // the largest flattened view in this batch from the already-planned physical slots.
+            // Keep prior ubatch inserts in the prediction; ignoring a later purge can only make
+            // this an upper bound. Dynamic VBR is forced unified and retains the original path.
+            std::array<uint32_t, LLAMA_MAX_SEQ> used_max_p1 = {};
+            for (uint32_t s = 0; s < n_stream; ++s) {
+                used_max_p1[s] = v_cells[s].used_max_p1();
+            }
+            scratch_cells = 0;
+            const uint32_t n_pad_cur = std::max(n_pad, get_pad_floor());
+            for (const auto & sinfo : sinfos) {
+                uint32_t n_kv = 0;
+                for (size_t s = 0; s < sinfo.n_stream(); ++s) {
+                    const uint32_t stream = sinfo.strm[s];
+                    for (const uint32_t idx : sinfo.idxs[s]) {
+                        used_max_p1[stream] = std::max(used_max_p1[stream], idx + 1);
+                    }
+                    n_kv = std::max(n_kv,
+                            std::min(v_cells[stream].size(), GGML_PAD(used_max_p1[stream], n_pad_cur)));
+                }
+                const size_t stream_span = (size_t) sinfo.s1 - sinfo.s0 + 1;
+                scratch_cells = std::max(scratch_cells, (size_t) n_kv * stream_span);
+            }
+        }
+        llama_kv_attention_scratch_request scratch_request;
+        scratch_request.materialized_k_rows = scratch_cells;
+        scratch_request.materialized_v_rows = scratch_cells;
+        if (!vbr_scratch_reserve(scratch_request)) {
+            LLAMA_LOG_ERROR("%s: f16 dequant scratch reserve failed (device memory exhausted) — "
+                    "failing this batch recoverably\n", __func__);
+            vbr_tree_force(); // same routing as the try_map failure above
+            return {};
+        }
     }
 
     return sinfos;
@@ -5196,7 +5296,7 @@ bool llama_kv_cache::vbr_commit_submitted() {
 // floor), optionally projected forward by an incoming batch's tokens. prepare()'s predictive
 // budget check and ensure_mapped's backing MUST agree on this formula — keep it in one place.
 uint32_t llama_kv_cache::vbr_watermark_cells(uint32_t extra_tokens) const {
-    const uint32_t n_pad_cur = std::max(n_pad, 256u);
+    const uint32_t n_pad_cur = std::max(n_pad, get_pad_floor());
     uint32_t wm = 0;
     for (uint32_t s = 0; s < n_stream; ++s) {
         const auto & cells = v_cells[s];
@@ -5236,27 +5336,29 @@ void llama_kv_cache::vbr_attach_ledger_tree(
 void llama_kv_cache::vbr_finalize_ledger_tree() {
     GGML_ASSERT(vbr_ledger_owner_ && vbr_tree_root() == this);
 
-    // Constructor-time live budgets were derived before the peer backlink existed. Repair
-    // only that fallback path; fit-provided and explicit scalar budgets retain their split.
-    auto finalize_child = [](llama_kv_cache * child) {
-        if (child == nullptr || child->vbr_budget_from_scalar_) {
+    vbr_tree_pools_.clear();
+    auto collect_child = [&](llama_kv_cache * child) {
+        if (child == nullptr) {
             return;
         }
-        size_t derived_total = 0;
-        for (auto & p : child->vbr_pools_) {
-            if (p.vmm == nullptr) {
-                continue;
+        for (auto & pool : child->vbr_pools_) {
+            if (pool.vmm != nullptr) {
+                vbr_tree_pools_.push_back(&pool);
             }
-            p.budget = std::max(child->vbr_pool_reach(p), p.budget_base);
-            p.budget_eff_stamp = ~0ull;
-            derived_total += p.budget;
-        }
-        if (derived_total > 0) {
-            child->vbr_budget_bytes_ = std::max(derived_total, child->vbr_floor_cost_bytes_);
         }
     };
-    finalize_child(this);
-    finalize_child(vbr_ledger_sibling_);
+    collect_child(this);
+    collect_child(vbr_ledger_sibling_);
+    vbr_tree_device_pools_scratch_.reserve(vbr_tree_pools_.size());
+    vbr_tree_budget_costs_scratch_.reserve(vbr_tree_pools_.size());
+    vbr_tree_budget_shares_scratch_.reserve(vbr_tree_pools_.size());
+
+    // Constructor-time live budgets were derived before the peer backlink existed. Repair
+    // only that fallback path; fit-provided and explicit scalar budgets retain their split.
+    if (!vbr_budget_from_scalar_ ||
+            (vbr_ledger_sibling_ != nullptr && !vbr_ledger_sibling_->vbr_budget_from_scalar_)) {
+        vbr_rederive_tree_budget();
+    }
 }
 
 void llama_kv_cache::vbr_finalize_failed_child(uint32_t n_tokens, bool root_ran) {
@@ -5404,12 +5506,7 @@ size_t llama_kv_cache::vbr_budget_eff_uncached(const vbr_pool & p) const {
         const size_t headroom_eff = own_headroom + ledger_headroom * (n_live - 1);
         if (n_live > 1) {
             constexpr size_t quantum = 64ull * 1024 * 1024;
-            size_t va_total = 0;
-            for (const auto & q : vbr_pools_) {
-                va_total += q.vmm != nullptr ? q.size : 0;
-            }
-            const size_t floor_share = va_total > 0
-                ? (size_t) ((double) vbr_floor_cost_bytes_ * (double) p.size / (double) va_total) : 0;
+            const size_t floor_share = p.floor_cost;
             const size_t spare = budget_eff > mapped_now ? budget_eff - mapped_now : 0;
             budget_eff = std::max(floor_share, mapped_now + spare / n_live / quantum * quantum);
         }
@@ -5449,38 +5546,82 @@ size_t llama_kv_cache::vbr_pool_reach(const vbr_pool & p) const {
     const size_t mapped_now = p.be->vmm_pool_mapped(p.vmm);
     const size_t spare = free_b > vbr_growth_headroom_ ? free_b - vbr_growth_headroom_ : 0;
 
-    double share = vbr_params_.device_share;
-    if (vbr_ledger_root_ != nullptr) {
-        const llama_kv_cache * root = vbr_tree_root();
-        size_t denom = 0;
-        auto add_child = [&](const llama_kv_cache * child) {
-            if (child == nullptr) {
-                return;
+    // A child owns its mapped pages outright; only currently free device memory is divided.
+    const size_t reach_raw = mapped_now + (size_t) ((double) spare * vbr_params_.device_share);
+    return std::max(mapped_now, reach_raw / quantum * quantum);
+}
+
+void llama_kv_cache::vbr_rederive_tree_budget() {
+    GGML_ASSERT(vbr_ledger_owner_ && vbr_tree_root() == this);
+    constexpr size_t quantum = 64ull * 1024 * 1024;
+
+    for (size_t first = 0; first < vbr_tree_pools_.size(); ++first) {
+        vbr_pool * const seed = vbr_tree_pools_[first];
+        bool seen = false;
+        for (size_t i = 0; i < first; ++i) {
+            seen |= vbr_tree_pools_[i]->device == seed->device;
+        }
+        if (seen) {
+            continue;
+        }
+
+        vbr_tree_device_pools_scratch_.clear();
+        vbr_tree_budget_costs_scratch_.clear();
+        size_t mapped_total = 0;
+        size_t lower_total = 0;
+        for (vbr_pool * pool : vbr_tree_pools_) {
+            if (pool->device != seed->device) {
+                continue;
             }
-            for (const auto & q : child->vbr_pools_) {
-                // Child constructors eagerly assign device ordinals before tree attachment.
-                // Do not couple constructor-time normalization to marker-key resolution.
-                if (q.vmm != nullptr && q.device == p.device) {
-                    denom += q.size;
-                }
-            }
-        };
-        add_child(root);
-        add_child(root->vbr_ledger_sibling_);
-        share = denom > 0
-                ? root->vbr_tree_device_share_ * (double) p.size / (double) denom
-                : root->vbr_tree_device_share_;
+            const size_t mapped = pool->be->vmm_pool_mapped(pool->vmm);
+            const size_t lower = std::max(pool->floor_cost, mapped);
+            vbr_tree_device_pools_scratch_.push_back(pool);
+            vbr_tree_budget_costs_scratch_.push_back({ pool->entry_cost, lower });
+            mapped_total += mapped;
+            lower_total += lower;
+        }
+
+        size_t free_b = 0, total_b = 0;
+        seed->be->get_device_memory(seed->device, &free_b, &total_b);
+        const size_t spare = free_b > vbr_growth_headroom_ ? free_b - vbr_growth_headroom_ : 0;
+        const size_t extra = (size_t) ((double) spare * vbr_tree_device_share_);
+        const size_t reach = mapped_total + extra / quantum * quantum;
+        llama_memory_vbr_budget_partition(
+                std::max(reach, lower_total),
+                vbr_tree_budget_costs_scratch_,
+                vbr_tree_budget_shares_scratch_);
+        for (size_t i = 0; i < vbr_tree_device_pools_scratch_.size(); ++i) {
+            auto & pool = *vbr_tree_device_pools_scratch_[i];
+            pool.budget = (size_t) vbr_tree_budget_shares_scratch_[i];
+            pool.budget_eff_stamp = ~0ull;
+        }
     }
 
-    // A child owns its mapped pages outright; only currently free device memory is divided.
-    const size_t reach_raw = mapped_now + (size_t) ((double) spare * share);
-    return std::max(mapped_now, reach_raw / quantum * quantum);
+    auto refresh_total = [](llama_kv_cache * child) {
+        if (child == nullptr) {
+            return;
+        }
+        child->vbr_budget_bytes_ = 0;
+        for (const auto & pool : child->vbr_pools_) {
+            child->vbr_budget_bytes_ += pool.vmm != nullptr ? pool.budget : 0;
+        }
+    };
+    refresh_total(this);
+    refresh_total(vbr_ledger_sibling_);
+    vbr_tree_budget_refresh_stamp_ = vbr_boundary_count_;
 }
 
 void llama_kv_cache::vbr_rederive_budget() {
     // skip the FIRST boundary: cuBLAS workspaces and CUDA-graph pools allocate lazily during
     // the first graph_compute, so free measured before it overstates reality
     if (vbr_boundary_count_ == 0) {
+        return;
+    }
+    if (vbr_ledger_root_ != nullptr) {
+        llama_kv_cache * root = vbr_tree_root();
+        if (root->vbr_tree_budget_refresh_stamp_ != root->vbr_boundary_count_) {
+            root->vbr_rederive_tree_budget();
+        }
         return;
     }
     for (size_t pi = 0; pi < vbr_pools_.size(); ++pi) {
@@ -5962,11 +6103,13 @@ void llama_kv_cache::vbr_invalidate_dirty_stash() {
 // Generic degrade-rank curves for models WITHOUT a baked order (matrix v3, 2026-07-05).
 // Derived by averaging the five measured models' cheap-first price orders (q27, qwen35moe,
 // g12, g26, g31 — dense, MoE-hybrid and SWA-mixed layouts) in NORMALIZED KV-layer position.
-// What generalized: the fp16->t8 band is near-universal (deep-first, front protected, K~V;
+// What generalized: the first full-domain band is near-universal (deep-first, front protected, K~V;
 // cross-model rank deviation 0.036); below t8 the robust invariants are final-layer V
 // maximally protected in EVERY band, front V cheapest at the bottom rungs, K positionally
 // flat. Sub-t8 mid-band shapes disagree across models (deviation ~0.2) — the mean is a
 // hedge, not a truth; a measured per-model order is always better.
+// Classic deliberately reuses only the first two positional bands for F16->Q8_0->Q4_0; it never
+// interprets a baked Turbo price table as classic pricing.
 // [band][is_v][grid p=0..1 step 1/16]; lower value = degrade earlier.
 static const float vbr_generic_rank[5][2][17] = {
     { // fp16-t8
@@ -6000,6 +6143,13 @@ void llama_kv_cache::vbr_load_degrade_order() {
         return;
     }
     if (const char * path = getenv("VBR_DEGRADE_ORDER")) {
+        static const std::map<std::string, uint8_t> turbo_tiers = {
+            {"t8", VBR_TIER_T8}, {"t4", VBR_TIER_T4}, {"t3", VBR_TIER_T3_TCQ},
+            {"t2", VBR_TIER_T2_TCQ}, {"t1", VBR_TIER_T1_TCQ},
+        };
+        static const std::map<std::string, uint8_t> classic_tiers = {
+            {"q8", 0}, {"q8_0", 0}, {"q4", 1}, {"q4_0", 1},
+        };
         std::ifstream f(path);
         std::string tok;
         bool ok = (bool) f;
@@ -6012,10 +6162,8 @@ void llama_kv_cache::vbr_load_degrade_order() {
             }
             const char side = tok[colon - 1];
             const std::string tier = tok.substr(colon + 1);
-            static const std::map<std::string, uint8_t> tiers = {
-                {"t8", VBR_TIER_T8}, {"t4", VBR_TIER_T4}, {"t3", VBR_TIER_T3_TCQ},
-                {"t2", VBR_TIER_T2_TCQ}, {"t1", VBR_TIER_T1_TCQ},
-            };
+            const auto & tiers = vbr_params_.codec == LLAMA_VBR_CODEC_CLASSIC
+                ? classic_tiers : turbo_tiers;
             const auto it = tiers.find(tier);
             // the layer id must be the ENTIRE prefix and a valid layer (atoi silently accepted
             // garbage as layer 0 and >255 truncated through the uint8 cast)
@@ -6048,6 +6196,13 @@ void llama_kv_cache::vbr_load_degrade_order() {
         LLAMA_LOG_WARN("%s: VBR_DEGRADE_ORDER %s unreadable or malformed (near '%s') — using baked order\n",
                 __func__, path, tok.c_str());
         vbr_degrade_order_.clear();
+    }
+    // Measured tables are Turbo-specific. Classic deliberately uses the
+    // conservative generic curves; a model popular enough to justify a full
+    // measured sweep is expected to use the full Turbo ladder instead.
+    if (vbr_params_.codec == LLAMA_VBR_CODEC_CLASSIC) {
+        vbr_synth_generic_order();
+        return;
     }
     // Arch-keyed baked orders (matrix v3, 2026-07-05): per-model price orders measured under the
     // deployment-true tap config with reliability-gated statistics (bench-validated lens per
@@ -6113,10 +6268,10 @@ void llama_kv_cache::vbr_synth_generic_order() {
     if (n == 0) {
         return;
     }
-    static const uint8_t band_tier[5] = {
-        VBR_TIER_T8, VBR_TIER_T4, VBR_TIER_T3_TCQ, VBR_TIER_T2_TCQ, VBR_TIER_T1_TCQ,
-    };
-    for (int band = 0; band < 5; ++band) {
+    const int n_bands = (int) llama_vbr_ladder(vbr_params_.codec).n_rungs - 1;
+    GGML_ASSERT(n_bands > 0 &&
+        (size_t) n_bands <= sizeof(vbr_generic_rank) / sizeof(vbr_generic_rank[0]));
+    for (int band = 0; band < n_bands; ++band) {
         std::vector<std::pair<float, uint16_t>> cells; // rank, (i<<1)|is_v
         cells.reserve(n * 2);
         for (size_t i = 0; i < n; ++i) {
@@ -6124,6 +6279,10 @@ void llama_kv_cache::vbr_synth_generic_order() {
             const int   i0 = std::min((int) x, 15);
             const float fr = x - (float) i0;
             for (int is_v = 0; is_v < 2; ++is_v) {
+                const auto & layer = layers[map_layer_ids.at((uint8_t) ils[i])];
+                if ((is_v ? layer.v : layer.k) == nullptr) {
+                    continue;
+                }
                 const float r = vbr_generic_rank[band][is_v][i0] * (1.0f - fr)
                               + vbr_generic_rank[band][is_v][i0 + 1] * fr;
                 cells.push_back({ r, (uint16_t) ((i << 1) | is_v) });
@@ -6133,25 +6292,25 @@ void llama_kv_cache::vbr_synth_generic_order() {
                 [](const auto & a, const auto & b) { return a.first < b.first; });
         for (const auto & c : cells) {
             vbr_degrade_order_.push_back({ (uint8_t) ils[c.second >> 1],
-                                           (uint8_t) (c.second & 1), band_tier[band] });
+                                           (uint8_t) (c.second & 1), (uint8_t) band });
         }
     }
-    LLAMA_LOG_INFO("%s: VBR degrade order: %zu generic steps (cross-model curves, %zu KV layers)\n",
-            __func__, vbr_degrade_order_.size(), n);
+    LLAMA_LOG_INFO("%s: VBR degrade order: %zu generic %s steps (cross-model curves, %zu KV layers)\n",
+            __func__, vbr_degrade_order_.size(), llama_vbr_ladder(vbr_params_.codec).name, n);
 }
 
 bool llama_kv_cache::vbr_unit_movable(ggml_type t, bool is_v) const {
-    return vbr_type_is_movable(t) && !vbr_side_pinned(is_v);
+    return llama_vbr_codec_contains(vbr_params_.codec, t) && !vbr_side_pinned(is_v);
 }
 
 // resolve a --vbr-floor value: env override, then the bottom-tier default for 0/auto
-static double vbr_resolve_floor_bpv(double min_bits) {
+static double vbr_resolve_floor_bpv(llama_vbr_codec codec, double min_bits) {
     double floor_bpv = min_bits;
     if (const char * env = getenv("VBR_MIN_BITS")) {
-        floor_bpv = atof(env); // "auto"/"none" parse to 0 -> the t1 default below
+        floor_bpv = atof(env); // "auto"/"none" parse to 0 -> codec endpoint below
     }
     if (floor_bpv <= 0.0) {
-        floor_bpv = 8.0 * ggml_type_size(GGML_TYPE_TURBO1_TCQ) / ggml_blck_size(GGML_TYPE_TURBO1_TCQ);
+        floor_bpv = llama_vbr_type_bits_per_value(llama_vbr_ladder(codec).default_floor);
     }
     return floor_bpv;
 }
@@ -6178,8 +6337,14 @@ void llama_kv_cache::vbr_sim_seed(std::vector<ggml_type> & sim, bool pooled_only
             if (t == nullptr || (pooled_only && !vbr_unit_pooled(ikv, side != 0))) {
                 continue; // absent, or (runtime) not VMM-pooled — only pooled units can degrade
             }
-            const ggml_type entry = side ? (entry_v != GGML_TYPE_COUNT ? entry_v : t->type)
-                                         : (entry_k != GGML_TYPE_COUNT ? entry_k : t->type);
+            // Dry fit supplies the requested device entry types explicitly,
+            // but CPU-bound dynamic units are construction-pinned at Q8_0.
+            // Preserve their realized type so fit and live capacity agree.
+            const bool host_unit = t->buffer != nullptr &&
+                ggml_backend_buft_is_host(ggml_backend_buffer_get_type(t->buffer));
+            const ggml_type entry = host_unit ? t->type
+                : side ? (entry_v != GGML_TYPE_COUNT ? entry_v : t->type)
+                       : (entry_k != GGML_TYPE_COUNT ? entry_k : t->type);
             // aggregate math on the canonical tensor: shard row sizes are additive across pools
             // (blocks never straddle the split), so this is exact under -sm tensor too
             sim[ikv*2 + side] = entry;
@@ -6190,7 +6355,7 @@ void llama_kv_cache::vbr_sim_seed(std::vector<ggml_type> & sim, bool pooled_only
                 *sum_vals += t->ne[0];
             }
             if (n_pinned != nullptr) {
-                *n_pinned += !vbr_unit_movable(entry, side != 0);
+                *n_pinned += host_unit || !vbr_unit_movable(entry, side != 0);
             }
         }
     }
@@ -6208,10 +6373,13 @@ bool llama_kv_cache::vbr_sim_step(const std::vector<ggml_type> & sim, size_t i,
     }
     slot = (size_t) it->second * 2 + (st.is_v ? 1 : 0);
     t    = st.is_v ? layers[it->second].v : layers[it->second].k;
-    if (sim[slot] == GGML_TYPE_COUNT || t == nullptr || !vbr_unit_movable(sim[slot], st.is_v != 0)) {
-        return false; // absent or pinned (runtime skips these steps identically)
+    const bool host_unit = t != nullptr && t->buffer != nullptr &&
+        ggml_backend_buft_is_host(ggml_backend_buffer_get_type(t->buffer));
+    if (sim[slot] == GGML_TYPE_COUNT || t == nullptr || host_unit ||
+        !vbr_unit_movable(sim[slot], st.is_v != 0)) {
+        return false; // absent, host-static, or side-pinned (runtime skips these identically)
     }
-    type_B = vbr_tier_type(st.tier);
+    type_B = vbr_tier_type(vbr_params_.codec, st.tier);
     if (sim[slot] == type_B ||
         ggml_row_size(type_B, t->ne[0]) >= ggml_row_size(sim[slot], t->ne[0])) {
         return false; // same no-op rule as vbr_degrade_next
@@ -6404,7 +6572,7 @@ double llama_kv_cache::memory_vbr_floor_bits_per_token(ggml_type entry_k, ggml_t
         vbr_load_degrade_order(); // dry contexts never reach the VMM arming block
     }
     const auto res = vbr_floor_sim(
-        vbr_resolve_floor_bpv(floor_bpv), !vbr_pools_.empty(), entry_k, entry_v);
+        vbr_resolve_floor_bpv(vbr_params_.codec, floor_bpv), !vbr_pools_.empty(), entry_k, entry_v);
     return res.floor_reachable ? res.bits_per_token : -1.0;
 }
 
@@ -6431,11 +6599,12 @@ double llama_kv_cache::memory_vbr_scratch_bytes_per_token(ggml_type entry_k, ggm
     // Project each side to its SETTLED (deep-fill) type, then ask the one authoritative
     // materialize predicate (ggml-vbr.h): the only genuine difference between "settled active"
     // and "currently active" is that an unpinned dynamic f16 side will leave f16 under pressure
-    // — represent it by any turbo tier and let the predicate own the pairing rules.
-    const double floor_eff = vbr_resolve_floor_bpv(floor_bpv);
+    // — represent it by the selected codec's first degraded rung and let the predicate own the
+    // pairing rules.
+    const double floor_eff = vbr_resolve_floor_bpv(vbr_params_.codec, floor_bpv);
     auto settled_type = [&](ggml_type t0, bool pinned) -> ggml_type {
         if (t0 == GGML_TYPE_F16 && !pinned && vbr_params_.dynamic && floor_eff < 16.0 - 1e-9) {
-            return GGML_TYPE_TURBO8_0; // representative: degrades off f16 under pressure
+            return llama_vbr_ladder(vbr_params_.codec).rungs[1]; // representative first degraded rung
         }
         return t0;
     };
@@ -6472,9 +6641,9 @@ double llama_kv_cache::memory_vbr_scratch_bytes_per_token(ggml_type entry_k, ggm
 // step that would take the aggregate below the floor — e.g. floor 4.25 with t4 = 4.125 bpv stops
 // with a few units still a tier higher. Strict-prefix clamp: the aggregate is monotone decreasing
 // along the order, and skipping ahead to a cheaper later step would violate the measured price
-// order. The default t1 floor (1.25) equals the full order's end point, so nothing clamps.
+// order. The default codec floor equals the full order's endpoint, so nothing clamps.
 void llama_kv_cache::vbr_floor_clamp_order() {
-    const double floor_bpv = vbr_resolve_floor_bpv(vbr_params_.min_bits);
+    const double floor_bpv = vbr_resolve_floor_bpv(vbr_params_.codec, vbr_params_.min_bits);
     const auto res = vbr_floor_sim(floor_bpv, /*pooled_only =*/ true);
     if (!res.floor_reachable) {
         throw std::runtime_error("VBR aggregate floor " + std::to_string(floor_bpv) +
@@ -6482,9 +6651,6 @@ void llama_kv_cache::vbr_floor_clamp_order() {
             std::to_string(res.initial_bpv) + " bits/value)");
     }
     vbr_degrade_limit_ = res.clamp_step;
-    if (res.bits_per_token == 0.0) {
-        return; // no VMM-pooled units
-    }
     if (res.n_pinned > 0) {
         LLAMA_LOG_INFO("%s: VBR: %zu (layer,side) units are PINNED at non-vbr types — degrade steps "
                 "touching them are skipped; they stay in the aggregate at their fixed bits/value\n",
@@ -6501,8 +6667,13 @@ void llama_kv_cache::vbr_floor_clamp_order() {
     // when dynamic mode reaches us without a fit-resolved one. Summed across pools (page rounding
     // uses each tensor's OWNING pool granularity).
     vbr_floor_cost_bytes_ = 0;
-    for (const auto & p : vbr_pools_) {
-        vbr_floor_cost_bytes_ += p.mapped_base;
+    for (auto & p : vbr_pools_) {
+        p.entry_cost = vbr_vmm_projected_bytes(p, get_size());
+        p.floor_cost = p.mapped_base;
+        vbr_floor_cost_bytes_ += p.floor_cost;
+    }
+    if (res.bits_per_token == 0.0) {
+        return; // no VMM-pooled units
     }
     for (size_t ikv = 0; ikv < layers.size(); ++ikv) {
         for (int side = 0; side < 2; ++side) {
@@ -6512,7 +6683,9 @@ void llama_kv_cache::vbr_floor_clamp_order() {
             // page rounding is per pool instance (per device shard under -sm tensor)
             for (const auto & [p, e] : vbr_units_of(ikv, side != 0)) {
                 const size_t need = ggml_row_size(res.end_types[ikv*2 + side], e->t->ne[0]) * (size_t) e->t->ne[1];
-                vbr_floor_cost_bytes_ += GGML_PAD(need, p->gran);
+                const size_t mapped = GGML_PAD(need, p->gran);
+                p->floor_cost += mapped;
+                vbr_floor_cost_bytes_ += mapped;
             }
         }
     }
@@ -6985,6 +7158,9 @@ bool llama_kv_cache::vbr_downward_policy_input(
         int demanded_device,
         vbr_downward_policy_child & output) const noexcept {
     output = {};
+    if (vbr_params_.codec == LLAMA_VBR_CODEC_CLASSIC) {
+        return false;
+    }
     try {
         if (source_types.size() != layers.size()*2 ||
             projected_wm_cells == 0 ||
@@ -7827,6 +8003,12 @@ bool llama_kv_cache::vbr_generation_capture_live_guarded(
 // checkpoint admission; the isolation gate strips only this bounded region.
 bool llama_kv_cache::vbr_capture_policy_snapshot(
         vbr_capture_stability_token & output) const noexcept {
+    // Portable classic artifact recipes are not part of the initial live
+    // ladder delivery. Refuse capture rather than labeling Q8/Q4 rows with
+    // Turbo codebook, rotation and tapped-domain identity.
+    if (vbr_params_.codec == LLAMA_VBR_CODEC_CLASSIC) {
+        return false;
+    }
     const auto * tracker = vbr_generation_tracker_get();
     if (tracker == nullptr || !tracker->stable()) {
         return false;
@@ -7840,25 +8022,28 @@ bool llama_kv_cache::vbr_capture_policy_snapshot(
     static constexpr char ORDER_DOMAIN[] =
         "buun.vbr.capture/degrade-order";
     order_hash.string(ORDER_DOMAIN, sizeof(ORDER_DOMAIN) - 1);
+    order_hash.u32(uint32_t(vbr_params_.codec));
     order_hash.u64(vbr_degrade_order_.size());
     for (const auto & step : vbr_degrade_order_) {
         order_hash.u32(step.il);
         order_hash.u32(step.is_v);
         order_hash.u32(step.tier);
+        order_hash.u32(uint32_t(vbr_tier_type(vbr_params_.codec, step.tier)));
     }
     output.degrade_order_digest = order_hash.finish();
     output.degrade_cursor = vbr_degrade_cursor_;
     const size_t floor_index =
         std::min(vbr_degrade_limit_, vbr_degrade_order_.size());
     output.floor_type = floor_index < vbr_degrade_order_.size()
-        ? int32_t(vbr_tier_type(vbr_degrade_order_[floor_index].tier))
-        : int32_t(GGML_TYPE_TURBO1_TCQ);
+        ? int32_t(vbr_tier_type(vbr_params_.codec, vbr_degrade_order_[floor_index].tier))
+        : int32_t(llama_vbr_ladder(vbr_params_.codec).default_floor);
     output.pressure_independent_settings =
         (uint64_t(vbr_params_.dynamic) << 0) |
         (uint64_t(vbr_params_.min_bits_explicit) << 1) |
         (uint64_t(vbr_params_.budget_explicit) << 2) |
         (uint64_t(vbr_params_.pin_k) << 3) |
-        (uint64_t(vbr_params_.pin_v) << 4);
+        (uint64_t(vbr_params_.pin_v) << 4) |
+        (uint64_t(vbr_params_.codec) << 8);
     output.completed_wave = std::all_of(
         vbr_pools_.begin(), vbr_pools_.end(),
         [](const auto & pool) {
@@ -9722,7 +9907,7 @@ bool llama_kv_cache::vbr_promote_next(uint32_t wm_next) {
             vbr_degrade_cursor_--;
             continue;
         }
-        if (t->type != vbr_tier_type(st.tier)) {
+        if (t->type != vbr_tier_type(vbr_params_.codec, st.tier)) {
             vbr_degrade_cursor_--; // this entry's degrade never applied (skipped no-op) — free rewind
             continue;
         }
@@ -9731,11 +9916,12 @@ bool llama_kv_cache::vbr_promote_next(uint32_t wm_next) {
         for (size_t j = vbr_degrade_cursor_ - 1; j-- > 0; ) {
             const auto & pj = vbr_degrade_order_[j];
             if (pj.il == st.il && pj.is_v == st.is_v) {
-                type_B = vbr_tier_type(pj.tier);
+                type_B = vbr_tier_type(vbr_params_.codec, pj.tier);
                 break;
             }
         }
-        if (type_B == GGML_TYPE_F16 || type_B == GGML_TYPE_TURBO8_0) {
+        if (!llama_vbr_codec_full_domain(vbr_params_.codec, t->type) &&
+                llama_vbr_codec_full_domain(vbr_params_.codec, type_B)) {
             // promotion CAPS below the tap boundary: sources under t8 store mean-subtracted
             // rows (V - mu_V), and neither t8 nor f16 decode restores the means (turbo_tap_mu
             // gates t8 out of the tap; f16 has no add-back) — promoting across the boundary
@@ -9847,9 +10033,8 @@ bool llama_kv_cache::vbr_promote_next(uint32_t wm_next) {
                     static_cast<uint32_t>(ikv * 2 + (st.is_v != 0)),
                     static_cast<int32_t>(type_A),
                     static_cast<int32_t>(type_B),
-                    type_B == GGML_TYPE_F16 || type_B == GGML_TYPE_TURBO8_0
-                            ? vbr_repr_domain::full
-                            : vbr_repr_domain::tapped,
+                    llama_vbr_codec_full_domain(vbr_params_.codec, type_B)
+                        ? vbr_repr_domain::full : vbr_repr_domain::tapped,
                     promote_hops,
                     vbr_repr_transition::promote,
                     vbr_mutation_registrant::promote_next,
@@ -9957,7 +10142,7 @@ llama_kv_cache::vbr_degrade_result llama_kv_cache::vbr_degrade_next(uint32_t wm_
             retire_deferred();
             continue; // PINNED unit (explicit non-vbr side): the ladder never touches it
         }
-        const ggml_type type_B = vbr_tier_type(st.tier);
+        const ggml_type type_B = vbr_tier_type(vbr_params_.codec, st.tier);
         {
             // tier decision on the canonical tensor — relative row sizes are identical on every
             // instance (blocks never straddle the shard split)
@@ -10182,9 +10367,8 @@ llama_kv_cache::vbr_degrade_result llama_kv_cache::vbr_degrade_next(uint32_t wm_
                     static_cast<uint32_t>(ikv * 2 + (st.is_v != 0)),
                     static_cast<int32_t>(type_A),
                     static_cast<int32_t>(type_B),
-                    type_B == GGML_TYPE_F16 || type_B == GGML_TYPE_TURBO8_0
-                            ? vbr_repr_domain::full
-                            : vbr_repr_domain::tapped,
+                    llama_vbr_codec_full_domain(vbr_params_.codec, type_B)
+                        ? vbr_repr_domain::full : vbr_repr_domain::tapped,
                     promote_hops,
                     transition,
                     vbr_mutation_registrant::degrade_next,
@@ -12484,9 +12668,8 @@ void llama_kv_cache::vbr_tx_apply(vbr_shed_tx & tx, vbr_operation_id operation_i
                     static_cast<uint32_t>(step.ikv * 2 + (step.is_v ? 1 : 0)),
                     static_cast<int32_t>(step.type_a),
                     static_cast<int32_t>(step.type_b),
-                    step.type_b == GGML_TYPE_F16 || step.type_b == GGML_TYPE_TURBO8_0
-                            ? vbr_repr_domain::full
-                            : vbr_repr_domain::tapped,
+                    llama_vbr_codec_full_domain(child->vbr_params_.codec, step.type_b)
+                        ? vbr_repr_domain::full : vbr_repr_domain::tapped,
                     promote_hops,
                     transition,
                     vbr_mutation_registrant::degrade_next,
@@ -13210,7 +13393,7 @@ uint32_t llama_kv_cache::get_n_kv(const slot_info & sinfo) const {
 
     // pad the n_kv value so that the graph remains constant across batches and can be reused
     // note: this also helps some backends with performance (f.ex https://github.com/ggml-org/llama.cpp/pull/16812#issuecomment-3455112220)
-    const uint32_t n_pad_cur = std::max(n_pad, 256u);
+    const uint32_t n_pad_cur = std::max(n_pad, get_pad_floor());
 
     for (uint32_t s = 0; s < sinfo.n_stream(); ++s) {
         const auto & cells = v_cells[sinfo.strm[s]];

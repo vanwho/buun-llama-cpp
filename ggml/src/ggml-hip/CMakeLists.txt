@@ -62,6 +62,7 @@ list(APPEND GGML_HEADERS_ROCM "../../include/ggml-cuda.h")
 
 file(GLOB   GGML_SOURCES_ROCM "../ggml-cuda/*.cu")
 list(FILTER GGML_SOURCES_ROCM EXCLUDE REGEX "../ggml-cuda/bsa_.*\\.cu$")
+list(FILTER GGML_SOURCES_ROCM EXCLUDE REGEX "../ggml-cuda/humming-fp8\\.cu$")
 file(GLOB   SRCS "../ggml-cuda/template-instances/fattn-tile*.cu")
 list(APPEND GGML_SOURCES_ROCM ${SRCS})
 file(GLOB   SRCS "../ggml-cuda/template-instances/fattn-mma*.cu")
@@ -96,6 +97,9 @@ ggml_add_backend_library(ggml-hip
                          ${GGML_HEADERS_ROCM}
                          ${GGML_SOURCES_ROCM}
                         )
+
+# HIP always builds the Turbo instances above. Enable their shared dispatch too.
+target_compile_definitions(ggml-hip PRIVATE GGML_CUDA_TURBO_FA)
 
 # TODO: do not use CUDA definitions for HIP
 if (NOT GGML_BACKEND_DL)
