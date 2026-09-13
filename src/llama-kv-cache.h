@@ -1857,6 +1857,9 @@ public:
     }
     const llama_ubatch & get_ubatch() const override;
     uint32_t get_max_graph_seqs() const override;
+    ggml_tensor * build_kv_page_select(
+            ggml_context * ctx, ggml_tensor * q, int layer,
+            const llama_ubatch & ubatch, uint32_t query_row) const override;
 
     // VBR tier-flip epoch of the underlying cache (0 when VBR is off — the counter never moves)
     uint64_t get_vbr_epoch() const override;

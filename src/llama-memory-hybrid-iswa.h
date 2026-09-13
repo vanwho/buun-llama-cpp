@@ -233,6 +233,9 @@ public:
     const llama_ubatch & get_ubatch() const override;
 
     uint32_t get_max_graph_seqs() const override;
+    ggml_tensor * build_kv_page_select(
+            ggml_context * ctx, ggml_tensor * q, int layer,
+            const llama_ubatch & ubatch, uint32_t query_row) const override;
 
     // tier epoch of the attention child (the recurrent child has no VBR)
     uint64_t get_vbr_epoch() const override;

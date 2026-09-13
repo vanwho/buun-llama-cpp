@@ -231,6 +231,15 @@ struct llama_memory_context_i {
         return std::numeric_limits<uint32_t>::max();
     }
 
+    // Build the optional selector while the graph still owns the real,
+    // post-positioned Q tensor. A null result is the explicit
+    // not-configured path; callers must not substitute a host Q readback.
+    virtual ggml_tensor * build_kv_page_select(
+            ggml_context * /* ctx */, ggml_tensor * /* q */, int /* layer */,
+            const llama_ubatch & /* ubatch */, uint32_t /* query_row */) const {
+        return nullptr;
+    }
+
     // TurboQuant: get rotation tensors for pre-rotate-queries optimization
     // Returns null for non-turbo memory types. Override in KV cache contexts.
     virtual ggml_tensor * get_turbo_rot_forward() const { return nullptr; }
@@ -295,9 +304,9 @@ struct llama_memory_i {
     // completion bookkeeping has crossed the scheduler fence.
     virtual void apply_kv_pager_policy() {}
 
-    // Graph construction records the final projected/positioned Q tensor for
-    // the pager's post-fence routing boundary. Non-attention memories ignore
-    // this hook; the cache reads the tensor only after scheduler completion.
+    // Compatibility boundary notification for pager generations. The live Q
+    // graph producer uses build_kv_page_select above; this hook must not read
+    // a tensor or perform a host/device synchronization.
     virtual void capture_kv_routing_query(
             ggml_tensor * /* tensor */, int /* layer */,
             const llama_ubatch & /* ubatch */) {}

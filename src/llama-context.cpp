@@ -7802,13 +7802,6 @@ llm_graph_cb llama_context::graph_get_cb() const {
             ggml_set_name(cur, name);
         }
 
-        // Qcur is emitted after the model-specific position transform. Keep
-        // the tensor handle beside its runtime layer ordinal; the cache reads
-        // the completed value only at the existing post-fence policy boundary.
-        if (strcmp(name, "Qcur") == 0 && memory) {
-            memory->capture_kv_routing_query(cur, il, ubatch);
-        }
-
         // - norm may be automatically assigned to the backend of the previous layer, increasing data transfer between backends
         // - force the last op of the layer on the specified backend to avoid running it on the backend of the next layer due to scheduling
         // FIXME: fix in ggml_backend_sched

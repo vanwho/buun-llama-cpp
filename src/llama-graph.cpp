@@ -2462,6 +2462,19 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
         cb_func(ubatch, cur, name, il);
     }
 
+    if (strcmp(name, "Qcur_routing") == 0 && mctx != nullptr) {
+        // This callback is reached from build_attn_mha before its head/query
+        // permutation. A configured memory owner may therefore attach one
+        // selector node to the actual post-RoPE Q dependency without copying
+        // Q to the host. Expand the result explicitly so it cannot be
+        // optimized out.
+        ggml_tensor * selected = mctx->build_kv_page_select(
+                ctx0, cur, il, ubatch, 0);
+        if (selected != nullptr) {
+            ggml_build_forward_expand(gf, selected);
+        }
+    }
+
     // DFlash GPU capture staging: embed a copy of this captured layer's output into
     // its staging tensor. This replaces the eval-callback capture for staged ubatches
     // — the callback would otherwise chop the graph at every captured layer (a full
@@ -3619,6 +3632,11 @@ ggml_tensor * llm_graph_context::build_attn_mha(
                float   kq_scale,
                  int   il,
                 bool   sparse_mask) const {
+    // q is still [D, n_head_q, n_query] here. The selector contract is before
+    // the attention-specific permutation below, and row zero is the causal
+    // boundary for a multi-token microbatch.
+    cb(q, "Qcur_routing", il);
+
     const bool v_trans = v->nb[1] > v->nb[2];
 
     // split the batch into streams if needed
