@@ -1190,6 +1190,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.summary_build_bytes = kv_pager_owner->summary_build_bytes();
     result.summary_read_calls = kv_pager_owner->summary_read_calls();
     result.summary_read_bytes = kv_pager_owner->summary_read_bytes();
+    result.natural_proof = kv_pager_owner->natural_proof();
     result.host_seal_d2h_calls = kv_pager_owner->host_seal_d2h_calls();
     result.host_seal_d2h_bytes = kv_pager_owner->host_seal_d2h_bytes();
     result.host_seal_d2h_async_completions = kv_pager_owner->host_seal_d2h_async_completions();

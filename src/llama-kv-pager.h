@@ -265,6 +265,25 @@ struct llama_kv_pager_snapshot {
     bool initialized = false;
 };
 
+// One bounded, process-local receipt for a naturally ranked cold page.  This
+// is diagnostic state only: it is populated after the normal policy boundary
+// commits a candidate and never participates in selection or residency.
+struct llama_kv_pager_natural_proof {
+    uint64_t query_generation = 0;
+    uint64_t query_position = 0;
+    uint64_t catalogue_epoch = 0;
+    uint64_t published_epoch = 0;
+    uint64_t page_generation = 0;
+    uint64_t content_version = 0;
+    uint32_t logical_page = UINT32_MAX;
+    uint32_t attention_layer = UINT32_MAX;
+    uint32_t selector_rank = UINT32_MAX;
+    uint32_t physical_slot = UINT32_MAX;
+    bool candidate_was_cold = false;
+    bool host_ready = false;
+    bool promotion_published = false;
+};
+
 enum class llama_kv_pager_status : uint8_t {
     ok = 0,
     disabled,
@@ -485,6 +504,13 @@ public:
             ? UINT64_MAX : summary_read_bytes_ + bytes;
     }
 
+    const llama_kv_pager_natural_proof & natural_proof() const noexcept {
+        return natural_proof_;
+    }
+    void record_natural_proof(const llama_kv_pager_natural_proof & proof) noexcept {
+        natural_proof_ = proof;
+    }
+
     const llama_kv_routing_summary_store & routing_summaries() const noexcept {
         return routing_summaries_;
     }
@@ -596,6 +622,7 @@ private:
     llama_kv_pager_routing_summary_provider routing_summary_provider_;
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_routing_summary_index routing_summary_index_;
+    llama_kv_pager_natural_proof natural_proof_;
     // A complete refresh carries the bounded resident/cold regions for the
     // attention layers. Keep the two-slot owner, but size each fixed slot for
     // the runtime layer count rather than dropping later layer records.

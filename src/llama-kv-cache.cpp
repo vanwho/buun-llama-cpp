@@ -2426,8 +2426,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         llama_kv_prefetch_candidate candidate;
                         candidate.identity = page.id;
                         candidate.attention_layer = output->layer;
+                        candidate.selector_rank = uint32_t(rank);
                         candidate.generation = output->query_generation;
                         candidate.table_epoch = output->table_epoch;
+                        candidate.query_position = output->query_position;
                         // Selector rank is intentionally the only score. Raw
                         // layer scores are not comparable across layers.
                         candidate.score = -float(rank);
@@ -2895,6 +2897,44 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             }
         }
         const auto result = pager_->apply_live_policy(boundary);
+        if (result.status == llama_kv_live_policy_status::committed) {
+            // Retain only the first candidate that was genuinely cold before
+            // this boundary and became resident in the committed target. The
+            // record is an audit receipt; it is not consulted by policy.
+            for (const auto & candidate : candidates) {
+                const auto before = std::find_if(inventory.begin(), inventory.end(),
+                        [&](const auto & page) {
+                    return page.id == candidate.identity ||
+                        same_bundle(page.id, candidate.identity);
+                });
+                if (before == inventory.end() || before->physical_slot != UINT32_MAX) {
+                    continue;
+                }
+                const auto after = std::find_if(result.target_pages.begin(),
+                        result.target_pages.end(), [&](const auto & page) {
+                    return page.id == before->id || same_bundle(page.id, before->id);
+                });
+                if (after == result.target_pages.end() || after->physical_slot == UINT32_MAX) {
+                    continue;
+                }
+                llama_kv_pager_natural_proof proof;
+                proof.query_generation = candidate.generation;
+                proof.query_position = candidate.query_position;
+                proof.catalogue_epoch = candidate.table_epoch;
+                proof.published_epoch = pager_->residency(pager_last_sequence_id_).epoch();
+                proof.page_generation = after->id.page_generation;
+                proof.content_version = after->content_version;
+                proof.logical_page = after->id.logical_page;
+                proof.attention_layer = candidate.attention_layer;
+                proof.selector_rank = candidate.selector_rank;
+                proof.physical_slot = after->physical_slot;
+                proof.candidate_was_cold = true;
+                proof.host_ready = has_host(before->id) != host_pages.end();
+                proof.promotion_published = true;
+                pager_->record_natural_proof(proof);
+                break;
+            }
+        }
         if (result.status == llama_kv_live_policy_status::committed ||
             result.status == llama_kv_live_policy_status::no_change ||
             result.status == llama_kv_live_policy_status::safe_fallback) {
