@@ -533,8 +533,16 @@ bool llama_kv_attention_execution::same_graph(
         uint64_t representation_epoch,
         uint64_t shape_epoch,
         llama_kv_attention_execution_route route) const noexcept {
+    // Direct CUDA keeps the page table, native positions, mask, and query
+    // positions in graph-owned device inputs. A residency publication changes
+    // the immutable view lease, but not the captured graph topology: set_input
+    // patches those inputs before the next submission. Reference, dense, and
+    // packed routes retain the epoch check because they do not have this
+    // mutable-device-input contract.
+    const bool mutable_direct_inputs =
+        route == llama_kv_attention_execution_route::selected_direct;
     return have_graph_ && metadata.graph_layout_key() == metadata_.graph_layout_key() &&
-           metadata.table_epoch() == metadata_.table_epoch() &&
+           (mutable_direct_inputs || metadata.table_epoch() == metadata_.table_epoch()) &&
            phase == phase_ && representation_epoch == representation_epoch_ &&
            shape_epoch == shape_epoch_ && route == route_ &&
            ((route != llama_kv_attention_execution_route::selected_dense &&

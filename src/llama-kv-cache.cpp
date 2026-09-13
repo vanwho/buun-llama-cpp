@@ -2162,6 +2162,10 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     GGML_ASSERT(pager_pending_writes_.empty());
     pager_ = pager;
     pager_fallback_used_ = false;
+    pager_policy_dirty_ = pager_ != nullptr;
+    pager_policy_current_sequence_ = -1;
+    pager_policy_current_page_ = UINT32_MAX;
+    pager_policy_current_slot_ = UINT32_MAX;
     if (pager_ != nullptr) {
         pager_->set_routing_summary_provider({
             this, &llama_kv_cache::pager_routing_summary_build,
@@ -2255,7 +2259,26 @@ void llama_kv_cache::capture_kv_routing_query(
 
 void llama_kv_cache::seal_kv_pager_pages() {
     if (pager_ != nullptr) {
-        (void) pager_->seal_ready_pages();
+        pager_policy_dirty_ = pager_policy_dirty_ || pager_->seal_ready_pages() != 0;
+        if (pager_last_sequence_id_ >= 0) {
+            const auto snapshot = pager_->residency(pager_last_sequence_id_);
+            uint32_t current_page = UINT32_MAX;
+            uint32_t current_slot = UINT32_MAX;
+            for (const auto & page : snapshot.pages()) {
+                if (pager_->is_current_page(page.id)) {
+                    current_page = page.id.logical_page;
+                    current_slot = page.physical_slot;
+                    break;
+                }
+            }
+            pager_policy_dirty_ = pager_policy_dirty_ ||
+                pager_policy_current_sequence_ != pager_last_sequence_id_ ||
+                pager_policy_current_page_ != current_page ||
+                pager_policy_current_slot_ != current_slot;
+            pager_policy_current_sequence_ = pager_last_sequence_id_;
+            pager_policy_current_page_ = current_page;
+            pager_policy_current_slot_ = current_slot;
+        }
     }
 }
 
@@ -2270,8 +2293,23 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
     }
     try {
         const auto snapshot = pager_->residency(pager_last_sequence_id_);
+        if (snapshot.epoch() == 0) return;
+
+        // Poll the mailbox before deciding whether a policy boundary is
+        // needed. A completed device candidate is an independent reason to
+        // rebuild the target; an unchanged write frontier is not.
+        auto & mailbox = pager_->prefetch_candidate_mailbox();
+        (void) mailbox.poll(0, snapshot.epoch());
+        const bool have_ready_candidate = mailbox.ready_slots() != 0;
+        if (!pager_policy_dirty_ && !have_ready_candidate) {
+            return;
+        }
+
         auto inventory = pager_->exact_page_records(pager_last_sequence_id_);
-        if (snapshot.epoch() == 0 || inventory.empty()) return;
+        if (inventory.empty()) {
+            pager_policy_dirty_ = false;
+            return;
+        }
         // A routed list is advisory. Keep the last authenticated selection
         // until a new transaction commits; a refused/stale boundary must not
         // turn a bounded route into an implicit dense route.
@@ -2288,8 +2326,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         // compute stream is not synchronized and a candidate is advisory
         // until its copy/event has been published by the pager.
         std::vector<llama_kv_prefetch_candidate> candidates;
-        (void) pager_->prefetch_candidate_mailbox().poll(0, snapshot.epoch());
-        pager_->prefetch_candidate_mailbox().take_ready(candidates,
+        mailbox.take_ready(candidates,
                 pager_->snapshot().geometry.attention_layers == 0
                     ? 0 : pager_->snapshot().geometry.attention_layers * 2);
         const auto host_pages = pager_->host_catalog()
@@ -2316,6 +2353,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         };
         if (candidates.empty() && pager_->test_force_logical_page() == UINT32_MAX &&
                 pager_fallback_used_) {
+            pager_policy_dirty_ = false;
             return;
         }
         if (candidates.empty() && pager_->test_force_logical_page() == UINT32_MAX) {
@@ -2330,7 +2368,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 return page.physical_slot == UINT32_MAX &&
                     has_host(page.id) != host_pages.end();
             });
-            if (!has_cold_host) return;
+            if (!has_cold_host) {
+                pager_policy_dirty_ = false;
+                return;
+            }
         }
 
         llama_kv_live_policy_boundary boundary;
@@ -2442,7 +2483,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 }
             }
         }
-        if (!have_retrieval) return;
+        if (!have_retrieval) {
+            pager_policy_dirty_ = false;
+            return;
+        }
         for (const auto & record : inventory) {
             llama_kv_live_policy_page page;
             page.record = record;
@@ -2633,6 +2677,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         if (result.status == llama_kv_live_policy_status::committed ||
             result.status == llama_kv_live_policy_status::no_change ||
             result.status == llama_kv_live_policy_status::safe_fallback) {
+            pager_policy_dirty_ = false;
             auto & per_layer = pager_attention_selection_by_layer_[pager_last_sequence_id_];
             for (const auto & layer_entries : attention_by_layer) {
                 auto & selected = per_layer[layer_entries.first];
@@ -2657,10 +2702,17 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         if (result.status != llama_kv_live_policy_status::committed &&
             result.status != llama_kv_live_policy_status::no_change &&
             result.status != llama_kv_live_policy_status::safe_fallback) {
+            // A failed transaction must remain eligible for a later retry;
+            // do not turn a transient transfer/authentication failure into a
+            // permanently stale selected set.
+            pager_policy_dirty_ = true;
             LLAMA_LOG_DEBUG("%s: live policy boundary refused: %s\n", __func__,
                     llama_kv_live_policy_status_name(result.status));
         }
     } catch (...) {
+        // Keep the authenticated target in place, but retain the retry owner
+        // when a boundary failed before it could publish a new target.
+        pager_policy_dirty_ = true;
         LLAMA_LOG_DEBUG("%s: live policy boundary unavailable\n", __func__);
     }
 }
@@ -3302,6 +3354,10 @@ void llama_kv_cache::clear(bool data) {
         return;
     }
     pager_fallback_used_ = false;
+    pager_policy_dirty_ = pager_ != nullptr;
+    pager_policy_current_sequence_ = -1;
+    pager_policy_current_page_ = UINT32_MAX;
+    pager_policy_current_slot_ = UINT32_MAX;
     for (uint32_t s = 0; s < n_stream; ++s) {
         v_cells[s].reset();
         v_heads[s] = 0;

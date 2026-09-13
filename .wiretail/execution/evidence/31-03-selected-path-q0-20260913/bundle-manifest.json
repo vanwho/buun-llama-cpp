@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "immutable": true,
+  "root": "/tmp/buun-llama-cpp-31-03-bundle.dBarqw",
+  "executable": "bin/llama-server",
+  "library_path": "/tmp/buun-llama-cpp-31-03-bundle.dBarqw/bin",
+  "source_commit": "1720207ecd069a1df751270a5b851551ae7c09de",
+  "source_diff_sha256": "7777b9b5a1c2ad13f100959c4bbb5f766ab4bc7e55205beb810195f841b08e6d",
+  "files": [
+    {
+      "path": "bin/libggml-base.so.0.22.0",
+      "sha256": "12bdbe23e9a773a8937ccde9bae86a05e43cc7315d00eb2a2c8dca5faf3edcb1",
+      "size": 1420072,
+      "build_id": "fec1593311de76484c700143de418ca516aef480"
+    },
+    {
+      "path": "bin/libggml-cpu.so.0.22.0",
+      "sha256": "bee3ea4ac6d32aeddd7db6ea6ba944286313a0c67a4bcbcdb9d3132bf9989e5a",
+      "size": 1257280,
+      "build_id": "f3e2d6c46fcccfc5e17c4e38426149c4c2b4d2d2"
+    },
+    {
+      "path": "bin/libggml-cuda.so.0.22.0",
+      "sha256": "116aad7c3ce22300e2f02909e6e1e25672d2d15e9754df499e97a0b4849e2f33",
+      "size": 482306288,
+      "build_id": "6e08551905ecca36a4075589cf57367003d15aa3"
+    },
+    {
+      "path": "bin/libggml.so.0.22.0",
+      "sha256": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+      "size": 59496,
+      "build_id": "d40123b7f1cb62ccf8e505f4c491365bbe4c704e"
+    },
+    {
+      "path": "bin/libllama-common.so.0.3.0",
+      "sha256": "e41ab9810438c13a4bc03348fd5d31a5555638a875cd9ad37405a1ea11bfe8e9",
+      "size": 6964080,
+      "build_id": "3a4ef20c5fd14079beb87d3de06b0557b49fc613"
+    },
+    {
+      "path": "bin/libllama-server-impl.so",
+      "sha256": "d8a79f44c2ac38fb32358821fe187fe085ceec5e84bb94087c010e3f417b0c6d",
+      "size": 9836328,
+      "build_id": "f79cea9bafedf866dddfac6c5a1a6d54409c1d58"
+    },
+    {
+      "path": "bin/libllama.so.0.3.0",
+      "sha256": "491f98ce5331cb4312055cb0d6d49977c36538c793e8bbc410231f5c525175b4",
+      "size": 12055328,
+      "build_id": "5a953769058a63ec35d83943b0aa3e2bfa38cb7c"
+    },
+    {
+      "path": "bin/libmtmd.so.0.3.0",
+      "sha256": "f7a3ba5bfc7fdfdd35ec9fc58e8c82631c9b3698f253977d1052fa66d62c5c2e",
+      "size": 1965672,
+      "build_id": "a44b01f09020ca31f8857cbb5a537b7e0cce87ee"
+    },
+    {
+      "path": "bin/llama-server",
+      "sha256": "5b8ff4825be5a36461b8ef0602daa16baeaf3e7467ae1d14d6fb828725f19b77",
+      "size": 17904,
+      "build_id": "c547cbeda9bcd56679986dc56a7a6143ea7f04a9"
+    }
+  ]
+}

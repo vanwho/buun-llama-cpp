@@ -167,9 +167,11 @@ static void test_routes_epochs_and_fences() {
     assert(direct.graph_rebuild && execution.in_flight_graphs() == 1);
 
     // A second table epoch must coexist with the old graph until both complete.
+    // Direct CUDA keeps the graph shape and patches its mutable device inputs;
+    // the immutable view leases still fence both submissions independently.
     auto changed_table = execution.prepare(metadata(snapshot(701), 1, 1),
             llama_kv_attention_execution_phase::decode, 4, 8, true, scratch);
-    assert(changed_table.graph_rebuild && execution.in_flight_graphs() == 2);
+    assert(!changed_table.graph_rebuild && execution.in_flight_graphs() == 2);
     execution.complete_one_graph();
     execution.complete_one_graph();
     assert(execution.in_flight_graphs() == 0);
@@ -582,6 +584,36 @@ static void test_epoch_matrix_and_lifetime_metrics() {
     assert(fenced.in_flight_graphs() == 0);
 }
 
+static void test_no_change_decode_replay() {
+    const auto stable = metadata(snapshot(), 1, 1);
+    const auto tail_advanced = metadata(snapshot(701), 1, 1);
+    assert(stable.graph_layout_key() == tail_advanced.graph_layout_key());
+    assert(stable.graph_physical_key() != tail_advanced.graph_physical_key());
+    assert(stable.table_epoch() != tail_advanced.table_epoch());
+
+    llama_kv_attention_scratch_request scratch;
+    scratch.resident_rows = stable.get_n_kv();
+    scratch.bytes_per_row = 64;
+    llama_kv_attention_execution execution(llama_kv_attention_execution_mode::selective);
+
+    const auto first = execution.prepare(stable,
+            llama_kv_attention_execution_phase::decode, 3, 11, true, scratch);
+    assert(first.graph_rebuild);
+    const auto no_change = execution.prepare(tail_advanced,
+            llama_kv_attention_execution_phase::decode, 3, 11, true, scratch);
+    assert(!no_change.graph_rebuild);
+    assert(execution.in_flight_graphs() == 2);
+    assert(execution.metrics().graph_capture_count == 1);
+    assert(execution.metrics().graph_replay_count == 1);
+    assert(execution.metrics().table_epoch_changes == 1);
+
+    // Replaying the shape does not drop either immutable view lease while the
+    // mutable descriptor input is refreshed for the next submission.
+    execution.complete_one_graph();
+    execution.complete_one_graph();
+    assert(execution.in_flight_graphs() == 0);
+}
+
 int main() {
     test_prefill_admission();
     test_routes_epochs_and_fences();
@@ -589,5 +621,6 @@ int main() {
     test_view_sized_scratch_contract();
     test_fallbacks_and_graph_key();
     test_epoch_matrix_and_lifetime_metrics();
+    test_no_change_decode_replay();
     return 0;
 }
