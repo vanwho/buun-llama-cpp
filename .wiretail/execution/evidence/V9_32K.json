@@ -1,0 +1,86 @@
+{
+  "schema": "hotpath-v9",
+  "task": "37-01",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-13T23:54:55Z",
+  "provenance": {
+    "code_sha": "52fe0c827e984aaa52600b75770049ffbeb2a2af",
+    "source_diff_hash": null,
+    "source_diff_hash_reason": "measurement was not launched",
+    "server_sha": null,
+    "model_hash": null,
+    "prompt_hash": null,
+    "raw_root": null,
+    "raw_root_reason": "no live run was launched",
+    "effective_config_hash": null
+  },
+  "eligibility": {
+    "small_receipt": ".wiretail/execution/evidence/V9_SMALL.json",
+    "small_path_substantive_capability_fault": "natural promotion/use is not proven: no candidate publication and zero H2D bytes",
+    "cold_receipt": ".wiretail/execution/evidence/V9_COLD_PROOF.json",
+    "required_edge": "current-Q attention sample/catalogue candidate publication -> natural cold promotion/use",
+    "eligible": false
+  },
+  "config": {
+    "L": 32768,
+    "C_before": 0,
+    "C_after": 0,
+    "H": 16384,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 32768,
+    "draft_device": "gpu",
+    "mtp_type": "native"
+  },
+  "execution": {
+    "target_attention_route": null,
+    "target_attention_route_reason": "not_run: 32K eligibility gate failed",
+    "target_layer_count": null,
+    "resident_bytes": null,
+    "canonical_host_bytes": null,
+    "selected_rows_by_layer": null,
+    "fresh_or_restored": null
+  },
+  "rates": {
+    "prefill_new_tokens": null,
+    "prefill_seconds": null,
+    "cached_tokens": null,
+    "committed_output_tokens": null,
+    "decode_seconds": null,
+    "ttft_seconds": null,
+    "pp_tok_s": null,
+    "tg_tok_s": null,
+    "proposed_tokens": null,
+    "accepted_tokens": null
+  },
+  "work": {
+    "pack_bytes": null,
+    "host_copy_bytes": null,
+    "h2d_bytes": null,
+    "selected_cold_pages_used": null,
+    "graph_builds": null,
+    "graph_replays": null,
+    "router_refreshes": null,
+    "queue_time_us": null,
+    "copy_time_us": null,
+    "wait_time_us": null
+  },
+  "resources": {
+    "peak_bytes_by_category": null,
+    "safety_headroom_bytes": null,
+    "cpu_rss": null
+  },
+  "decision": {
+    "result": "not_run",
+    "capability_proven": false,
+    "reason": "The small-path eligibility gate failed: V9_SMALL and V9_COLD_PROOF both record no natural current-Q catalogue candidate publication and zero H2D transfer, so a larger workload would not be valid evidence.",
+    "next_action": "37-04 summary must preserve this not_run child finding and schedule repair of attention-sample/catalogue publication before a new bounded 32K run.",
+    "partial_checkpoint": null
+  }
+}

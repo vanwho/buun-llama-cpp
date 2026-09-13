@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "37",
-  "current_task": "37-01",
-  "last_updated_utc": "2026-09-13T23:53:01+00:00",
+  "current_task": "37-02",
+  "last_updated_utc": "2026-09-13T23:56:49+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7155,7 +7155,7 @@
       "cluster": "37a-32k-v9",
       "title": "Measure bounded 32K history with 16K hot and cached append",
       "packet": ".wiretail/execution/tasks/37-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -7171,7 +7171,32 @@
       "depends_on": [
         "36-04"
       ],
-      "commit": null
+      "commit": "52fe0c827e984aaa52600b75770049ffbeb2a2af",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/37-01-attempt-1-20260913T235319Z.jsonl:40",
+            "total_tokens": 871977,
+            "total_tokens_derived": true,
+            "input_tokens": 863698,
+            "cached_input_tokens": 801280,
+            "output_tokens": 8279,
+            "thinking_tokens": 1395
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 871977,
+          "input_tokens": 863698,
+          "cached_input_tokens": 801280,
+          "output_tokens": 8279,
+          "thinking_tokens": 1395
+        }
+      }
     },
     {
       "id": "37-02",
@@ -9434,14 +9459,28 @@
       }
     },
     "37": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/37-01-attempt-1-20260913T235319Z.jsonl:40",
+          "total_tokens": 871977,
+          "total_tokens_derived": true,
+          "input_tokens": 863698,
+          "cached_input_tokens": 801280,
+          "output_tokens": 8279,
+          "thinking_tokens": 1395
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 871977,
+        "input_tokens": 863698,
+        "cached_input_tokens": 801280,
+        "output_tokens": 8279,
+        "thinking_tokens": 1395
       }
     },
     "38": {
@@ -9458,12 +9497,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 133,
-      "total_tokens": 3172433319,
-      "input_tokens": 3165206798,
-      "cached_input_tokens": 3103249920,
-      "output_tokens": 7226521,
-      "thinking_tokens": 2644361
+      "turns": 134,
+      "total_tokens": 3173305296,
+      "input_tokens": 3166070496,
+      "cached_input_tokens": 3104051200,
+      "output_tokens": 7234800,
+      "thinking_tokens": 2645756
     },
     "source": "Codex turn.completed usage events"
   }
