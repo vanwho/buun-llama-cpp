@@ -1,0 +1,15 @@
+{
+  "schema": "hotpath-v9-integration",
+  "task": "33-02",
+  "decision": "pass_with_expected_fixture_limits",
+  "upstream_merge_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
+  "merge_head_verified": true,
+  "source_diff_sha256": "a003f5112d73585143d36fa724d7e0278796e3b449a0f48c26203e1f5997840a",
+  "resolved_conflict_count": 5,
+  "cpu_qwen4_contract": "pass",
+  "cuda_turbo4_attention": "pass",
+  "live_feature_off_native_mtp": "pass",
+  "raw_roots": ["/srv/ai/paged-kv/results/v9/33-02/20260913T154026Z", "/srv/ai/paged-kv/results/v9/33-02/20260913T154123Z"],
+  "candidate": {"path": "/srv/ai/paged-kv/v9/build-33-02-cuda/bin/llama-server", "sha256": "7d56055896994e4472ac7c035b0690d8458c0c7eef68233efdebe494bfa61280", "loaded_after": true},
+  "deferred": ["expected_cpu_backend_limitation: turbo3_tcq", "existing synthetic qwen4exp CUDA VBR non-finite fixture", "phase 34 selected pager capability proof"]
+}
