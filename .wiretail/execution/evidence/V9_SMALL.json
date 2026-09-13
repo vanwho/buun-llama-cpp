@@ -1,0 +1,104 @@
+{
+  "schema": "hotpath-v9",
+  "task": "36-04",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-15T02:45:00Z",
+  "provenance": {
+    "code_sha": "90bb4f5e9a7e6c3cd41654a69d6a1ec7fe043859",
+    "source_diff_sha256": "2d14243b02feb3247ea662c6826d3c785ef2741fb7c5ec1ac1bfe0e0b76e3d02",
+    "server_sha": "82b92cc7da404d2eddd8aaf5c218d9cc202f8167a3c727f61f467d75bb220255",
+    "model_sha": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e619",
+    "loaded_dso_hashes": {
+      "libggml-cuda.so.0.22.0": "b55d857fecd7a3b511c829ff34284455fe86a65ddfeee8b2fa8701cad243540b",
+      "libllama-common.so.0.3.0": "9134c5f194579b136c2c55eaa5ea070d2cee174430d47f9bb94725073b5d116f",
+      "libllama-server-impl.so": "bc32b87cd8fa4fd58979ab98c1f4096950ca61310c23df6c7638c8fd01a58110",
+      "libllama.so.0.3.0": "5565c8ed582875a42b9b8a1ea7aa9552f6c65d7bd13c5c2533d72a0e547d44e0"
+    },
+    "prompt_contract": "tools/server/bench/run-final-curve.py QUESTIONS, token-counted C6144",
+    "raw_root": "/srv/ai/paged-kv/results/v9/36-04",
+    "cold_proof": ".wiretail/execution/evidence/V9_TUNING.json"
+  },
+  "config": {
+    "L": 8192,
+    "C": 6144,
+    "selected": {"H": 4096, "A_by_layer": 4096, "B": 128, "U": 128},
+    "controls": {"cpu_kv": "--no-kv-offload", "all_gpu": "pager off, KV offload enabled"},
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 8192,
+    "draft_device": "gpu",
+    "mtp_type": "native",
+    "sampling": {"temperature": 0, "seed": 42, "thinking": "off", "max_tokens": 128}
+  },
+  "identity": {
+    "executable": "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-candidate/bin/llama-server",
+    "model": "/srv/ai/models/text/current.gguf",
+    "model_resolved": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "selected_loaded_pid": 3626509,
+    "selected_loaded_health": 200,
+    "selected_loaded_port_owner": 3626509,
+    "selected_loaded_page_capacity": 16,
+    "selected_loaded_attention_tokens": 4096,
+    "selected_loaded_target_backend": "CUDA",
+    "selected_loaded_mtp_backend": "gpu"
+  },
+  "rates": {
+    "selected": {
+      "raw": "/srv/ai/paged-kv/results/v9/36-04/20260915T010000Z-selected-h4096-a4096-u128",
+      "rows": [
+        {"q": 0, "pp_tok_s": 214.230229, "tg_tok_s": 43.680536, "ttft_s": 28.688931, "output": 128, "draft": 66, "accepted": 60},
+        {"q": 1, "pp_tok_s": 215.644261, "tg_tok_s": 39.610922, "ttft_s": 28.499172, "output": 128, "draft": 72, "accepted": 55},
+        {"q": 2, "pp_tok_s": 214.908561, "tg_tok_s": 42.327580, "ttft_s": 28.596637, "output": 128, "draft": 67, "accepted": 59}
+      ],
+      "median": {"pp_tok_s": 214.908561, "tg_tok_s": 42.327580, "ttft_s": 28.596637}
+    },
+    "cpu_kv": {
+      "raw": "/srv/ai/paged-kv/results/v9/36-04/20260915T013000Z-cpu-kv-h4096-control",
+      "rows": [
+        {"q": 0, "pp_tok_s": 723.488287, "tg_tok_s": 12.374966, "ttft_s": 8.501091, "output": 128, "draft": 126, "accepted": 0},
+        {"q": 1, "pp_tok_s": 729.510133, "tg_tok_s": 12.389607, "ttft_s": 8.429707, "output": 128, "draft": 126, "accepted": 0},
+        {"q": 2, "pp_tok_s": 733.696304, "tg_tok_s": 12.640500, "ttft_s": 8.382475, "output": 128, "draft": 126, "accepted": 0}
+      ],
+      "median": {"pp_tok_s": 729.510133, "tg_tok_s": 12.389607, "ttft_s": 8.429707}
+    },
+    "all_gpu": {
+      "raw": "/srv/ai/paged-kv/results/v9/36-04/20260915T020000Z-allgpu-h8192-control",
+      "rows": [
+        {"q": 0, "pp_tok_s": 1436.449389, "tg_tok_s": 40.296862, "ttft_s": 4.286097, "output": 128, "draft": 126, "accepted": 0},
+        {"q": 1, "pp_tok_s": 1445.611004, "tg_tok_s": 40.112503, "ttft_s": 4.258900, "output": 128, "draft": 126, "accepted": 0},
+        {"q": 2, "pp_tok_s": 1440.239215, "tg_tok_s": 40.323826, "ttft_s": 4.274444, "output": 128, "draft": 126, "accepted": 0}
+      ],
+      "median": {"pp_tok_s": 1440.239215, "tg_tok_s": 40.296862, "ttft_s": 4.274444}
+    }
+  },
+  "ratios": {
+    "selected_over_cpu_kv": {
+      "decode_by_prompt": [3.529750, 3.197109, 3.348569],
+      "prefill_by_prompt": [0.296107, 0.295601, 0.292912],
+      "ttft_by_prompt": [3.374735, 3.380802, 3.411479],
+      "sample_count": 3
+    },
+    "selected_over_all_gpu": {
+      "decode_by_prompt": [1.083969, 0.987496, 1.049692],
+      "prefill_by_prompt": [0.149139, 0.149172, 0.149217],
+      "ttft_by_prompt": [6.693487, 6.691675, 6.690142],
+      "sample_count": 3
+    }
+  },
+  "cold_proof_linkage": {
+    "speed_workload": "fresh C6144 three-prompt requests above",
+    "proof_workload": "36-03 incremental C5004 plus cedar-orbit-17 recall",
+    "recall_status": "pass",
+    "natural_promotion_proven": false,
+    "reason": "The proof recall had canonical host retention but no natural candidate publication or H2D transfer; it is not a cold-promotion speed measurement."
+  },
+  "decision": {
+    "result": "pass",
+    "capability_proven": false,
+    "reason": "All nine matched requests passed and both controls are real; selected-vs-control ratios are reported without claiming dense-equivalent sparse attention or natural cold promotion.",
+    "next_action": "37-01"
+  }
+}
