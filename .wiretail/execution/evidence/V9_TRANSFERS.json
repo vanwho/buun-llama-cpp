@@ -1,0 +1,44 @@
+{
+  "task": "35-04",
+  "cluster": "35b-mailbox-promote-v9",
+  "result": "complete",
+  "objective": "Integrate clean host-canonical asynchronous promotion and eviction",
+  "promotion": {
+    "source": "canonical host bundle with epoch-qualified page identity",
+    "destination": "reserved physical slot mapped before H2D",
+    "publication": "residency table publishes only after ring events and recheck",
+    "scope": "at most two H2D cold bundles per R4 refresh",
+    "atomicity": "cache planner requires key and value units for every requested layer",
+    "staging": "pager-owned bounded H2D ring is charged through existing host ledger"
+  },
+  "eviction": {
+    "clean_only": true,
+    "requires_host_ready": true,
+    "consumer_events_pin": true,
+    "new_d2h_for_clean_victim": false,
+    "rollback_restores_dropped_mappings": true
+  },
+  "transaction": {
+    "phases": ["snapshot", "plan", "reserve", "pin", "reseal", "drop", "load", "fence", "recheck", "retire", "publish", "release"],
+    "stale_generation": "source identity and completion rechecks fail closed",
+    "destination_reuse": "victim drop precedes promotion reservation and mapping",
+    "graph_lease": "consumer_events and transaction pin hooks prevent premature victim reuse"
+  },
+  "tests": {
+    "cpu_fixture": "test-kv-residency",
+    "policy_fixture": "test-kv-policy",
+    "focused_ctest": "6/6 passed: policy, prefetch, residency, pager, routing-summary, routing-retrieval",
+    "cuda_library_build": "pass (CUDA 12.4, sm_89)",
+    "controlled_transfer": "pass with deterministic FNV-1a checksums",
+    "state_validation": "pass",
+    "plan_validation": "pass",
+    "diff_check": "pass"
+  },
+  "controlled_transfer": {
+    "raw_result": "/srv/ai/paged-kv/results/v9/35-04/20260913T211445Z-transfer/RESULT.md",
+    "slot0_fnv1a": "14393466223062011500",
+    "slot1_fnv1a": "15923943770356951276",
+    "qualification": "transport proof only; no native natural-promotion claim"
+  },
+  "loaded_candidate": "current worktree; source identity recorded in handoff-35-04.md"
+}

@@ -5,7 +5,17 @@
 
 #include <cassert>
 #include <cstring>
+#include <iostream>
 #include <vector>
+
+static uint64_t fnv1a(const uint8_t * bytes, size_t size) {
+    uint64_t hash = 1469598103934665603ull;
+    for (size_t i = 0; i < size; ++i) {
+        hash ^= bytes[i];
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
 
 static llama_kv_page_id page(uint32_t index, llama_pos end = -1) {
     llama_kv_page_id id;
@@ -395,6 +405,12 @@ static void test_layer_granular_identity_and_transfer() {
         llama_kv_residency_pool_status::ok);
     assert(fake.slots[0][0] == 1 && fake.slots[1][0] == 33);
     assert(fake.slots[0][1] == 2 && fake.slots[1][1] == 34);
+    const uint64_t slot0_checksum = fnv1a(fake.slots[0].data(), 34);
+    const uint64_t slot1_checksum = fnv1a(fake.slots[1].data(), 34);
+    assert(slot0_checksum == 14393466223062011500ull);
+    assert(slot1_checksum == 15923943770356951276ull);
+    std::cout << "controlled h2d checksum slot0=" << slot0_checksum
+              << " slot1=" << slot1_checksum << '\n';
     assert(fake.observed_delayed_completion && fake.pending.empty());
     // The destination must be backend-addressable before the first async
     // chunk is issued, while the residency table remains unpublished until
@@ -928,6 +944,34 @@ static void test_residency_transaction() {
         llama_kv_residency_transaction_phase::_count,
         transaction_fake, transfer_fake, table);
     assert(result.status == llama_kv_residency_transaction_status::dirty_victim);
+    assert(table.snapshot().epoch() == 1 && transfer_fake.pending.empty());
+
+    table = llama_kv_residency_table(2);
+    auto loading_tx = table.begin();
+    auto loading = resident(0, 0);
+    loading.state = llama_kv_page_state::loading_gpu;
+    assert(table.replace(loading_tx, loading) == llama_kv_residency_status::ok);
+    assert(table.publish(loading_tx) == llama_kv_residency_status::ok);
+    transaction_fake = {};
+    transfer_fake = {};
+    result = run_transaction(
+        llama_kv_residency_transaction_phase::_count,
+        transaction_fake, transfer_fake, table);
+    assert(result.status == llama_kv_residency_transaction_status::dirty_victim);
+    assert(table.snapshot().epoch() == 1 && transfer_fake.pending.empty());
+
+    table = llama_kv_residency_table(2);
+    auto leased_tx = table.begin();
+    auto leased = resident(0, 0);
+    leased.consumer_events = 1;
+    assert(table.replace(leased_tx, leased) == llama_kv_residency_status::ok);
+    assert(table.publish(leased_tx) == llama_kv_residency_status::ok);
+    transaction_fake = {};
+    transfer_fake = {};
+    result = run_transaction(
+        llama_kv_residency_transaction_phase::_count,
+        transaction_fake, transfer_fake, table);
+    assert(result.status == llama_kv_residency_transaction_status::all_pinned);
     assert(table.snapshot().epoch() == 1 && transfer_fake.pending.empty());
 
     table = llama_kv_residency_table(2);

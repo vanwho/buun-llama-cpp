@@ -277,6 +277,27 @@ llama_kv_residency_execute_transaction(
                 }
             }
         }
+        if (request.max_h2d_pages != 0) {
+            uint32_t h2d_pages = 0;
+            for (const auto & plan : request.transfers) {
+                if (plan.direction != llama_kv_residency_transfer_direction::h2d_promotion) {
+                    continue;
+                }
+                if (plan.pages.size() > UINT32_MAX - h2d_pages) {
+                    result.status = llama_kv_residency_transaction_status::insufficient_slots;
+                    result.failed_phase = llama_kv_residency_transaction_phase::plan;
+                    result.rollback_complete = true;
+                    return result;
+                }
+                h2d_pages += uint32_t(plan.pages.size());
+            }
+            if (h2d_pages > request.max_h2d_pages) {
+                result.status = llama_kv_residency_transaction_status::insufficient_slots;
+                result.failed_phase = llama_kv_residency_transaction_phase::plan;
+                result.rollback_complete = true;
+                return result;
+            }
+        }
 
         auto table_tx = table.begin();
         std::vector<bool> replace_desired(desired.size(), false);
@@ -325,6 +346,17 @@ llama_kv_residency_execute_transaction(
             const bool has_seal = find_page_plan(
                 request.transfers, old.id,
                 llama_kv_residency_transfer_direction::d2h_seal) != nullptr;
+            const bool clean_host_ready = old.host_valid && !old.dirty &&
+                (old.state == llama_kv_page_state::gpu_host_clean ||
+                 old.state == llama_kv_page_state::host_clean);
+            if ((remove || changed) && old.consumer_events != 0) {
+                // A graph lease is an external lifetime pin even when the
+                // page record's admission pin has already been released.
+                result.status = llama_kv_residency_transaction_status::all_pinned;
+                result.failed_phase = llama_kv_residency_transaction_phase::plan;
+                result.rollback_complete = true;
+                return result;
+            }
             if (old.dirty && (remove || changed) && !has_reseal) {
                 result.status = llama_kv_residency_transaction_status::dirty_victim;
                 result.failed_phase = llama_kv_residency_transaction_phase::reseal;
@@ -339,6 +371,15 @@ llama_kv_residency_execute_transaction(
             }
             const bool needs_drop = remove ||
                 desired[exact].physical_slot != old.physical_slot;
+            if (needs_drop && !has_reseal && !has_seal && !clean_host_ready) {
+                // Only a host-ready clean mapping may be dropped without a
+                // new D2H seal. This keeps loading/inflight pages out of the
+                // victim set and makes clean eviction strictly no-D2H.
+                result.status = llama_kv_residency_transaction_status::dirty_victim;
+                result.failed_phase = llama_kv_residency_transaction_phase::drop;
+                result.rollback_complete = true;
+                return result;
+            }
             if (needs_drop &&
                 ((!old.dirty && old.host_valid) || has_reseal || has_seal)) {
                 victims.push_back(old);

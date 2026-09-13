@@ -581,6 +581,23 @@ struct live_transfer_context {
     std::vector<llama_kv_page_record> desired;
 };
 
+// A canonical host object is bundle-scoped (attention_layer == UINT32_MAX).
+// A transfer may be layer-scoped, so its concrete layer identity is allowed
+// to resolve to that same bundle. The reverse direction is intentionally not
+// allowed: a bundle request must never consume a layer-only host object.
+bool same_canonical_host_page(
+        const llama_kv_page_id & requested,
+        const llama_kv_page_id & host) noexcept {
+    if (requested == host) return true;
+    if (requested.attention_layer == UINT32_MAX &&
+        host.attention_layer != UINT32_MAX) return false;
+    auto requested_bundle = requested;
+    auto host_bundle = host;
+    requested_bundle.attention_layer = UINT32_MAX;
+    host_bundle.attention_layer = UINT32_MAX;
+    return requested_bundle == host_bundle;
+}
+
 const vbr_selected_page_host_view * live_host_page(
         const live_transfer_context & context, uint32_t page_index) noexcept {
     if (page_index >= context.host_pages.size()) return nullptr;
@@ -611,13 +628,17 @@ bool live_has_host(void * opaque, const llama_kv_page_id & id,
     auto * context = static_cast<live_transfer_context *>(opaque);
     if (!context) return false;
     for (const auto & page : context->host_pages) {
-        if (page.page.identity != id) continue;
+        if (!same_canonical_host_page(id, page.page.identity)) continue;
         uint64_t bytes = 0;
         for (const auto & unit : page.page.units) {
             if (!unit.bytes || unit.bytes->size() > UINT64_MAX - bytes) return false;
             bytes += unit.bytes->size();
         }
-        return bytes == useful_bytes;
+        // A concrete layer promotion reads only its two units from the
+        // canonical full bundle. The plan has already authenticated every
+        // run and its offset; requiring the bundle to be at least as large as
+        // the bounded request keeps this check valid for both scopes.
+        return useful_bytes != 0 && bytes >= useful_bytes;
     }
     return false;
 }
@@ -819,7 +840,9 @@ llama_kv_live_policy_result llama_kv_pager::apply_live_policy(
             if (transfer.direction != llama_kv_residency_transfer_direction::h2d_promotion) continue;
             for (const auto & page : transfer.pages) {
                 const auto found = std::find_if(host_pages.begin(), host_pages.end(),
-                        [&](const auto & value) { return value.page.identity == page.page; });
+                        [&](const auto & value) {
+                    return same_canonical_host_page(page.page, value.page.identity);
+                });
                 if (found == host_pages.end()) {
                     output.status = llama_kv_live_policy_status::missing_host_source;
                     output.base_epoch = residency_.snapshot().epoch();

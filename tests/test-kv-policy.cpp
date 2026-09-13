@@ -90,6 +90,7 @@ static llama_kv_live_policy_boundary live_boundary(
     // published an attention sample.
     boundary.previous_target = { live_page_id(0), live_page_id(2) };
     boundary.transaction.staging_capacity = 32;
+    boundary.transaction.max_h2d_pages = 2;
     boundary.transaction.transfers.push_back(promotion);
 
     llama_kv_live_policy_page current;
@@ -297,6 +298,13 @@ static void test_live_policy_multi_promotion() {
     transport.context = &fake;
     transport.host_read = live_transfer_fake::host_read;
     transport.recheck = live_transfer_fake::recheck;
+
+    auto bounded = boundary;
+    bounded.transaction.max_h2d_pages = 1;
+    const auto refused = llama_kv_live_policy_apply(
+            table, *pool, bounded, backend, transport);
+    assert(refused.status == llama_kv_live_policy_status::transaction_failed);
+    assert(!refused.published && table.snapshot().epoch() == 1);
 
     const auto result = llama_kv_live_policy_apply(
             table, *pool, boundary, backend, transport);
