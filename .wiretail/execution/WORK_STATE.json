@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "34",
-  "current_task": "34-02",
-  "last_updated_utc": "2026-09-13T16:28:24+00:00",
+  "current_task": "34-03",
+  "last_updated_utc": "2026-09-13T16:44:36+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -6482,7 +6482,7 @@
       "cluster": "34a-address-owner-v9",
       "title": "Make A-sized Turbo4 packed storage persistent and generation-safe",
       "packet": ".wiretail/execution/tasks/34-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -6496,7 +6496,32 @@
       "depends_on": [
         "34-01"
       ],
-      "commit": null
+      "commit": "f00436f46e58a7928d0366e8e7cb02c125fe3786",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/34-02-attempt-1-20260913T162841Z.jsonl:127",
+            "total_tokens": 26167696,
+            "total_tokens_derived": true,
+            "input_tokens": 26094283,
+            "cached_input_tokens": 25505024,
+            "output_tokens": 73413,
+            "thinking_tokens": 33108
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 26167696,
+          "input_tokens": 26094283,
+          "cached_input_tokens": 25505024,
+          "output_tokens": 73413,
+          "thinking_tokens": 33108
+        }
+      }
     },
     {
       "id": "34-03",
@@ -8866,15 +8891,28 @@
           "cached_input_tokens": 15769344,
           "output_tokens": 39769,
           "thinking_tokens": 16929
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/34-02-attempt-1-20260913T162841Z.jsonl:127",
+          "total_tokens": 26167696,
+          "total_tokens_derived": true,
+          "input_tokens": 26094283,
+          "cached_input_tokens": 25505024,
+          "output_tokens": 73413,
+          "thinking_tokens": 33108
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 16072557,
-        "input_tokens": 16032788,
-        "cached_input_tokens": 15769344,
-        "output_tokens": 39769,
-        "thinking_tokens": 16929
+        "turns": 2,
+        "total_tokens": 42240253,
+        "input_tokens": 42127071,
+        "cached_input_tokens": 41274368,
+        "output_tokens": 113182,
+        "thinking_tokens": 50037
       }
     },
     "35": {
@@ -8924,12 +8962,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 119,
-      "total_tokens": 2758870981,
-      "input_tokens": 2752694318,
-      "cached_input_tokens": 2700014336,
-      "output_tokens": 6176663,
-      "thinking_tokens": 2244239
+      "turns": 120,
+      "total_tokens": 2785038677,
+      "input_tokens": 2778788601,
+      "cached_input_tokens": 2725519360,
+      "output_tokens": 6250076,
+      "thinking_tokens": 2277347
     },
     "source": "Codex turn.completed usage events"
   }
