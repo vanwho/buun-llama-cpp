@@ -52,6 +52,17 @@ enum class llama_kv_attention_execution_route_override : uint8_t {
 // kernel uses the same bound for its fixed shared-memory query workspace.
 constexpr uint32_t LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE = 64;
 
+// Compact packed storage is page-aligned in rows. This is the selected-view
+// extent, not the admitted physical cache window.
+uint32_t llama_kv_attention_packed_row_capacity(
+        const llama_kv_attention_operator_metadata & metadata,
+        uint32_t page_tokens = VBR_GENERATION_PAGE_CELLS) noexcept;
+
+size_t llama_kv_attention_packed_allocation_bytes(
+        uint32_t row_capacity,
+        size_t k_bytes_per_row,
+        size_t v_bytes_per_row) noexcept;
+
 // Context-lifetime destination storage for the bounded packed Turbo4 bridge.
 // Graphs retain only source views and copy descriptors. Entries from an older
 // graph are retired at the scheduler fence, after all in-flight consumers have
@@ -132,6 +143,11 @@ public:
             uint32_t row_capacity = 0) noexcept;
 
     void begin_graph_build() noexcept;
+    // Discard owners created by the current graph build when graph
+    // construction or input binding fails before submit_graph(). Existing
+    // leased owners are left alive; they belong to an already submitted
+    // graph and are released only at its completion fence.
+    void abort_graph_build() noexcept;
     // A graph input calls this once after all packed owners have been bound.
     // The lease is released only at the scheduler completion boundary.
     bool submit_graph(const std::vector<entry *> & owners) noexcept;
@@ -179,6 +195,8 @@ private:
     static void release_entry(entry * cached) noexcept;
     std::vector<std::unique_ptr<entry>> entries_;
     std::vector<std::vector<entry *>> graph_leases_;
+    std::vector<entry *> graph_build_entries_;
+    bool graph_build_active_ = false;
     uint64_t next_owner_generation_ = 1;
 };
 

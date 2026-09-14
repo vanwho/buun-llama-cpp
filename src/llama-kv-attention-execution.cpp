@@ -33,6 +33,37 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
 
 } // namespace
 
+uint32_t llama_kv_attention_packed_row_capacity(
+        const llama_kv_attention_operator_metadata & metadata,
+        uint32_t page_tokens) noexcept {
+    if (!metadata.valid() || page_tokens == 0) {
+        return 0;
+    }
+    uint64_t selected_rows = 0;
+    for (const auto & page : metadata.page_table()) {
+        const uint64_t page_end = uint64_t(page.compact_row_begin) + page.row_count;
+        selected_rows = std::max(selected_rows, page_end);
+    }
+    if (selected_rows == 0 || selected_rows > UINT64_MAX - page_tokens + 1) {
+        return 0;
+    }
+    const uint64_t pages = (selected_rows + page_tokens - 1) / page_tokens;
+    const uint64_t rows = pages * page_tokens;
+    return rows > UINT32_MAX ? 0 : uint32_t(rows);
+}
+
+size_t llama_kv_attention_packed_allocation_bytes(
+        uint32_t row_capacity,
+        size_t k_bytes_per_row,
+        size_t v_bytes_per_row) noexcept {
+    if (k_bytes_per_row > SIZE_MAX - v_bytes_per_row) {
+        return SIZE_MAX;
+    }
+    const size_t bytes_per_row = k_bytes_per_row + v_bytes_per_row;
+    return row_capacity > 0 && bytes_per_row > SIZE_MAX / row_capacity
+        ? SIZE_MAX : size_t(row_capacity) * bytes_per_row;
+}
+
 llama_kv_attention_packed_cache::~llama_kv_attention_packed_cache() {
     for (auto & cached : entries_) {
         release_entry(cached.get());
@@ -56,9 +87,22 @@ void llama_kv_attention_packed_cache::release_entry(entry * cached) noexcept {
 }
 
 void llama_kv_attention_packed_cache::begin_graph_build() noexcept {
+    abort_graph_build();
+    graph_build_active_ = true;
     for (auto & cached : entries_) {
         cached->current_graph_use = false;
     }
+}
+
+void llama_kv_attention_packed_cache::abort_graph_build() noexcept {
+    graph_build_active_ = false;
+    for (entry * cached : graph_build_entries_) {
+        if (cached != nullptr && cached->in_flight_leases == 0) {
+            cached->draining = true;
+        }
+    }
+    graph_build_entries_.clear();
+    release_completed();
 }
 
 bool llama_kv_attention_packed_cache::same_domain(
@@ -191,6 +235,13 @@ bool llama_kv_attention_packed_cache::submit_graph(
             }
         }
         graph_leases_.push_back(std::move(unique));
+        // A submitted owner is now protected by graph_leases_; it must not be
+        // reclaimed by a later build-abort cleanup.
+        for (entry * owner : graph_leases_.back()) {
+            graph_build_entries_.erase(std::remove(graph_build_entries_.begin(),
+                    graph_build_entries_.end(), owner), graph_build_entries_.end());
+        }
+        graph_build_active_ = false;
         return true;
     } catch (...) {
         for (entry * owner : unique) {
@@ -221,6 +272,13 @@ void llama_kv_attention_packed_cache::complete_all_graphs() noexcept {
 }
 
 void llama_kv_attention_packed_cache::release_completed() noexcept {
+    // A sequence clear or structural replacement can retire a provisional
+    // owner before the build guard runs. Remove its pointer before erasing the
+    // owning unique_ptr, otherwise a later abort would inspect freed storage.
+    graph_build_entries_.erase(std::remove_if(graph_build_entries_.begin(),
+            graph_build_entries_.end(), [](const entry * cached) {
+                return cached == nullptr || cached->draining;
+            }), graph_build_entries_.end());
     entries_.erase(std::remove_if(entries_.begin(), entries_.end(), [](auto & cached) {
         if (!cached->draining || cached->in_flight_leases != 0) {
             return false;
@@ -240,6 +298,8 @@ void llama_kv_attention_packed_cache::clear_sequence(int32_t sequence_id) noexce
 }
 
 void llama_kv_attention_packed_cache::clear() noexcept {
+    graph_build_active_ = false;
+    graph_build_entries_.clear();
     for (auto & cached : entries_) {
         cached->draining = true;
     }
@@ -349,6 +409,14 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
             }
         }
         entries_.push_back(std::move(cached));
+        if (graph_build_active_) {
+            try {
+                graph_build_entries_.push_back(entries_.back().get());
+            } catch (...) {
+                entries_.pop_back();
+                return nullptr;
+            }
+        }
         return entries_.back().get();
     } catch (...) {
         return nullptr;

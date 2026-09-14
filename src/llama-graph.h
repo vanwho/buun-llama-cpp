@@ -411,7 +411,14 @@ public:
         kv_attention_metrics(kv_attention_metrics),
         kv_attention_telemetry(kv_attention_telemetry) {
     }
-    ~llm_graph_input_attn_kv() = default;
+    ~llm_graph_input_attn_kv() override {
+        // A scheduler allocation or input-binding failure can destroy the
+        // graph input before submit_graph(). Reclaim any provisional packed
+        // owners so the next build and context teardown see no stale lease.
+        if (packed_cache != nullptr) {
+            packed_cache->abort_graph_build();
+        }
+    }
 
     void set_input(const llama_ubatch * ubatch) override;
 
@@ -465,8 +472,9 @@ public:
     bool selected_static_inputs_initialized = false;
     uint64_t selected_content_key = 0;
     ggml_tensor * self_selected_idxs = nullptr; // I32 [selected physical rows]
-    // Packed attention has a pager-sized, graph-stable row capacity. The
-    // compact destination of each current cache row is mutable input data.
+    // Packed attention has a selected-view, page-aligned, graph-stable row
+    // capacity. The compact destination of each current cache row is mutable
+    // input data.
     uint32_t packed_row_capacity = 0;
     ggml_tensor * packed_current_idxs = nullptr; // I64 [n_tokens]
     std::vector<int64_t> packed_current_rows;

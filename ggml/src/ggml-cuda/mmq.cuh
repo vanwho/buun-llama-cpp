@@ -1548,6 +1548,47 @@ static size_t mmq_get_nbytes_shared(const ggml_cuda_mmq_config & config, const i
     return nbs_ids + nbs_x + GGML_PAD(nbs_y, config.nthreads*sizeof(int));
 }
 
+// The opt-in limit applies to the complete per-block shared allocation.  A
+// kernel's statically allocated portion therefore has to be subtracted before
+// admitting its dynamic MMQ tile.  Comparing only the tile size with
+// sharedMemPerBlockOptin can select a J that fails in cudaFuncSetAttribute
+// before the kernel is launched (notably on Ada with Q2_K).
+static size_t mmq_get_max_dynamic_shared(const void * kernel, const int id) {
+#if !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA)
+    cudaFuncAttributes attr = {};
+    CUDA_CHECK(cudaFuncGetAttributes(&attr, kernel));
+    const size_t device_limit = ggml_cuda_info().devices[id].smpbo;
+    const size_t static_shared = attr.sharedSizeBytes;
+    return static_shared >= device_limit ? 0 : device_limit - static_shared;
+#else
+    GGML_UNUSED(kernel);
+    return ggml_cuda_info().devices[id].smpbo;
+#endif
+}
+
+template <ggml_type type, bool fallback>
+static size_t mmq_get_max_dynamic_shared_for_J(const int J, const int id) {
+    switch (J) {
+        case   8: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,   8, fallback>), id);
+        case  16: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  16, fallback>), id);
+        case  24: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  24, fallback>), id);
+        case  32: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  32, fallback>), id);
+        case  40: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  40, fallback>), id);
+        case  48: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  48, fallback>), id);
+        case  56: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  56, fallback>), id);
+        case  64: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  64, fallback>), id);
+        case  72: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  72, fallback>), id);
+        case  80: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  80, fallback>), id);
+        case  88: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  88, fallback>), id);
+        case  96: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type,  96, fallback>), id);
+        case 104: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type, 104, fallback>), id);
+        case 112: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type, 112, fallback>), id);
+        case 120: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type, 120, fallback>), id);
+        case 128: return mmq_get_max_dynamic_shared((const void *) (mul_mat_q<type, 128, fallback>), id);
+        default: return 0;
+    }
+}
+
 template <ggml_type type, int J, bool fallback>
 static void launch_mul_mat_q(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) {
     const int id = ggml_cuda_get_device();
@@ -1561,9 +1602,6 @@ static void launch_mul_mat_q(ggml_backend_cuda_context & ctx, const mmq_args & a
     const int nbytes_shared = mmq_get_nbytes_shared(config, cc);
 
     const dim3 block_dims(warp_size, nwarps, 1);
-
-    CUDA_SET_SHARED_MEMORY_LIMIT((mul_mat_q<type, J, false>), nbytes_shared);
-    CUDA_SET_SHARED_MEMORY_LIMIT((mul_mat_q<type, J,  true>), nbytes_shared);
 
     // Stream-K partitions the dense rectangular grid, including empty per-expert tiles. For
     // sparse MUL_MAT_ID this creates more imbalance than it removes on the measured SM86 and
@@ -1610,7 +1648,8 @@ static void launch_mul_mat_q(ggml_backend_cuda_context & ctx, const mmq_args & a
                 if (use_sparse_persistent_kernel) {
                     constexpr size_t persistent_header = 4*sizeof(int);
                     CUDA_SET_SHARED_MEMORY_LIMIT(
-                        (mul_mat_q_sparse_persistent<type, J, fallback>), nbytes_shared + persistent_header);
+                        (mul_mat_q_sparse_persistent<type, J, fallback>),
+                        nbytes_shared + persistent_header);
                     ggml_cuda_pool_alloc<unsigned int> tile_prefix(ctx.pool(), args.nchannels_y + 1);
                     ggml_cuda_pool_alloc<unsigned int> work_counter(ctx.pool(), 1);
                     const uint3 nty_fd = init_fastdiv_values(nty);
@@ -1636,6 +1675,7 @@ static void launch_mul_mat_q(ggml_backend_cuda_context & ctx, const mmq_args & a
     }
 
     if (!ggml_cuda_mmq_get_stream_k(type, J, fallback, cc)) {
+        CUDA_SET_SHARED_MEMORY_LIMIT((mul_mat_q<type, J, fallback>), nbytes_shared);
         mul_mat_q<type, J, fallback><<<block_nums_xy_tiling, block_dims, nbytes_shared, stream>>>
             (args.x, args.y, args.ids_dst, args.expert_bounds, args.dst, nullptr, args.y_scale,
              blocks_per_ne00_fd, args.nrows_x, args.ncols_dst, args.stride_row_x, args.ncols_y, args.nrows_dst,
@@ -1673,6 +1713,7 @@ static void launch_mul_mat_q(ggml_backend_cuda_context & ctx, const mmq_args & a
     const dim3 block_nums_fixup(block_nums_stream_k.x, config.I/warp_size, 1);
     const dim3 block_dims_fixup(block_dims.x, block_dims.y/2, block_dims.z);
 
+    CUDA_SET_SHARED_MEMORY_LIMIT((mul_mat_q<type, J, fallback>), nbytes_shared);
     mul_mat_q<type, J, fallback><<<block_nums_stream_k, block_dims, nbytes_shared, stream>>>
         (args.x, args.y, args.ids_dst, args.expert_bounds, args.dst, tmp_fixup.ptr, args.y_scale,
          blocks_per_ne00_fd, args.nrows_x, args.ncols_dst, args.stride_row_x, args.ncols_y, args.nrows_dst,
@@ -1695,7 +1736,6 @@ template <ggml_type type, bool fallback>
 void mul_mat_q_switch_J(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) {
     const int    id    = ggml_cuda_get_device();
     const int    cc    = ggml_cuda_info().devices[id].cc;
-    const size_t smpbo = ggml_cuda_info().devices[id].smpbo;
 
     int J_best        = 0;
     int ntiles_J_best = INT_MAX;
@@ -1726,7 +1766,10 @@ void mul_mat_q_switch_J(ggml_backend_cuda_context & ctx, const mmq_args & args, 
             continue;
         }
 
-        if (mmq_get_nbytes_shared(config, cc) > smpbo) {
+        const size_t nbytes_shared = mmq_get_nbytes_shared(config, cc);
+        const size_t admission_bytes = nbytes_shared + 4*sizeof(int);
+        if (admission_bytes < nbytes_shared || admission_bytes >
+                mmq_get_max_dynamic_shared_for_J<type, fallback>(J, id)) {
             continue;
         }
 

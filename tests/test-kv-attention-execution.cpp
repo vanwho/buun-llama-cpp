@@ -286,6 +286,14 @@ static void test_packed_cache_identity_and_versions() {
     ggml_tensor * source_v = ggml_new_tensor_4d(context, GGML_TYPE_TURBO4_0, 256, 4, 2048, 1);
     assert(source_k != nullptr && source_v != nullptr);
 
+    const auto selected_metadata = metadata(snap, 1, 1);
+    assert(selected_metadata.get_n_kv() == 444);
+    assert(llama_kv_attention_packed_row_capacity(selected_metadata) == 512);
+    const size_t k_row_bytes = ggml_row_size(source_k->type, source_k->ne[0] * source_k->ne[1]);
+    const size_t v_row_bytes = ggml_row_size(source_v->type, source_v->ne[0] * source_v->ne[1]);
+    assert(llama_kv_attention_packed_allocation_bytes(512, k_row_bytes, v_row_bytes) ==
+           size_t(512) * (k_row_bytes + v_row_bytes));
+
     constexpr uint32_t row_capacity = 1024;
     auto * first = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v,
             backend, row_capacity);
@@ -353,6 +361,16 @@ static void test_packed_cache_identity_and_versions() {
     assert(larger->k->ne[2] == 1536);
     assert(cache.size() == 2);
     cache.clear_sequence(0);
+    assert(cache.size() == 0);
+
+    // Owners created during a graph build are provisional until the graph
+    // lease is submitted. A failed allocation/bind must reclaim that owner
+    // without touching already completed cache state.
+    cache.begin_graph_build();
+    auto * provisional = cache.find_or_create(
+            3, 0, 15, 19, view.pages(), source_k, source_v, backend, 512);
+    assert(provisional != nullptr && cache.size() == 1);
+    cache.abort_graph_build();
     assert(cache.size() == 0);
 
     ggml_free(context);
