@@ -1,0 +1,2913 @@
+{
+  "append_probes": {
+    "append256": {
+      "append_cache_n": 6271,
+      "append_prompt_tokens": 6407,
+      "append_status": "pass",
+      "prefix_prompt_tokens": 6144,
+      "prefix_status": "pass",
+      "prefix_tokens": 6144,
+      "raw_append_sha256": "47b244f549a8b5a190eef5dd729395883885d826e1e1a4db11e34cb8cc27d46c",
+      "raw_prefix_sha256": "691e3a76cf3f141df4e8b8704a8c516c6d391f8915bca6c2c5dd597246c9e065",
+      "requested_tokens": 256
+    },
+    "append64": {
+      "append_cache_n": 6271,
+      "append_prompt_tokens": 6319,
+      "append_status": "pass",
+      "prefix_prompt_tokens": 6144,
+      "prefix_status": "pass",
+      "prefix_tokens": 6144,
+      "raw_append_sha256": "b5b4222000fe0ba2962fc926fd25233101524bb3df8fef81cbeb4bfa29a1db31",
+      "raw_prefix_sha256": "08f4ed909e3f132e77ebd14540549b3ffc361a90caab44c6ecb6e568185b9a20",
+      "requested_tokens": 64
+    }
+  },
+  "configuration": {
+    "attended_rows": 2048,
+    "batch_tokens": 128,
+    "context_tokens": 8192,
+    "draft_kv": "turbo4",
+    "hot_rows": 4096,
+    "max_tokens": 128,
+    "measured_trials_per_prompt": 3,
+    "native_gpu_mtp": true,
+    "page_size_tokens": 256,
+    "prompt_tokens": 6144,
+    "sampling": {
+      "seed": 42,
+      "temperature": 0,
+      "thinking": "off"
+    },
+    "target_kv": "turbo4",
+    "ubatch_tokens": 128,
+    "warmups": 1
+  },
+  "diagnostic": {
+    "cache_claim": "Append cache_n is reported as observed; no cache-hit percentage is inferred.",
+    "failed_initial_all_gpu": {
+      "artifact": "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/all-gpu",
+      "reason": "CUDA illegal memory access after context checkpoint creation; bounded retry added explicit checkpoint/cache disabling flags.",
+      "status": "runtime_fault"
+    },
+    "speed_claim": "Measured cold-prefill throughput and decode timing only; no universal 3x/5x speedup claim is made."
+  },
+  "matrix": {
+    "all-gpu-v2": {
+      "identity": {
+        "bundle_identity": "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/candidate-bundle/bin/llama-server",
+        "bundle_manifest_sha256": "c6bbd6812ff5fbbef9a2a0c595b148a55797c64bcd6580773965a0bff624ce15",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "runtime": {
+          "allocated_context_rows": 8192,
+          "attended_rows": 4096,
+          "batch_tokens": 128,
+          "cache_condition": "cold-prefill",
+          "cached_rows": 0,
+          "cuda_query_tile": 64,
+          "effective_batch": 128,
+          "hot_capacity_pages": 16,
+          "hot_capacity_tokens": 4096,
+          "hot_rows": 4096,
+          "logical_context_tokens": 8192,
+          "measured_request_tokens": 6144,
+          "mode": "off",
+          "mtp_history": "fresh_full_history",
+          "mtp_history_ready": true,
+          "mtp_placement": "gpu",
+          "mtp_type_k": "turbo4",
+          "mtp_type_v": "turbo4",
+          "page_size_tokens": 256,
+          "prefill_policy": "runtime",
+          "prompt_tokens": 6144,
+          "requested_context_tokens": 8192,
+          "requested_prompt_tokens": 6144,
+          "reset_mode": "fresh",
+          "restore_shape": "none",
+          "target_placement": "CUDA",
+          "target_type_k": "turbo4",
+          "target_type_v": "turbo4",
+          "ubatch_tokens": 128
+        }
+      },
+      "questions": {
+        "0": {
+          "cases": [
+            {
+              "case_id": "q0-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7466171.455977019,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3991543.839016231,
+                "wall_decode_us": 3460465.0,
+                "wall_prefill_us": 3982649.0
+              },
+              "raw_sha256": "f148649de83b4df1093fa3c0ecd2add0b05715eb2bbab06132fb49df02bf906f",
+              "status": "pass"
+            },
+            {
+              "case_id": "q0-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7491690.450988244,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3999651.223013643,
+                "wall_decode_us": 3477534.0,
+                "wall_prefill_us": 3988463.0
+              },
+              "raw_sha256": "b0d06a005bf18dd959f4019950b2b96539cc0e1ddd50987ed2993e5477641184",
+              "status": "pass"
+            },
+            {
+              "case_id": "q0-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7449274.482991314,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3983318.974991562,
+                "wall_decode_us": 3452071.0,
+                "wall_prefill_us": 3975115.0
+              },
+              "raw_sha256": "6b028641d1b432df0bd3a5396fd2a2b77427369d9e04ac793174185f5b8148fc",
+              "status": "pass"
+            }
+          ],
+          "movement": {},
+          "statistics": {
+            "completion_latency_us": {
+              "max": 7491690.450988244,
+              "median": 7466171.455977019,
+              "min": 7449274.482991314
+            },
+            "decode_tok_s": {
+              "max": 37.07919101316282,
+              "median": 36.989248554746254,
+              "min": 36.807691887412176
+            },
+            "mtp_acceptance_percent": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "mtp_accepted_tokens": {
+              "max": 0,
+              "median": 0,
+              "min": 0
+            },
+            "mtp_proposed_tokens": {
+              "max": 251,
+              "median": 251,
+              "min": 251
+            },
+            "prefill_tok_s": {
+              "max": 1545.6156614336944,
+              "median": 1542.6918114049217,
+              "min": 1540.4430227884777
+            },
+            "ttft_tok_s": {
+              "max": 1542.4323381014233,
+              "median": 1539.2540449998592,
+              "min": 1536.1339420417364
+            }
+          }
+        },
+        "1": {
+          "cases": [
+            {
+              "case_id": "q1-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7758316.57400704,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3976398.1149881147,
+                "wall_decode_us": 3450601.0,
+                "wall_prefill_us": 3967504.0
+              },
+              "raw_sha256": "7507b327cd5ec026fc823281c5790b0de4846cc5ef47b46829bcf30c17cc8461",
+              "status": "pass"
+            },
+            {
+              "case_id": "q1-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7445143.186021596,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3980113.753990736,
+                "wall_decode_us": 3451395.0,
+                "wall_prefill_us": 3970659.0
+              },
+              "raw_sha256": "70cfe5c6c2c8dba364aaf59413b994cabcffdcbd8d06458a4704ac7b45b29e33",
+              "status": "pass"
+            },
+            {
+              "case_id": "q1-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7452045.297017321,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3985682.761995122,
+                "wall_decode_us": 3452421.0,
+                "wall_prefill_us": 3977374.0
+              },
+              "raw_sha256": "7bc87d36b47c4ee23b1745880c6ea95eb97d221717b5f1252aa1ba284718c5bf",
+              "status": "pass"
+            }
+          ],
+          "movement": {},
+          "statistics": {
+            "completion_latency_us": {
+              "max": 7758316.57400704,
+              "median": 7452045.297017321,
+              "min": 7445143.186021596
+            },
+            "decode_tok_s": {
+              "max": 37.09498722106671,
+              "median": 37.08645344853313,
+              "min": 37.07543199395438
+            },
+            "mtp_acceptance_percent": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "mtp_accepted_tokens": {
+              "max": 0,
+              "median": 0,
+              "min": 0
+            },
+            "mtp_proposed_tokens": {
+              "max": 251,
+              "median": 251,
+              "min": 251
+            },
+            "prefill_tok_s": {
+              "max": 1548.5806693578634,
+              "median": 1547.3502005586479,
+              "min": 1544.7378094189785
+            },
+            "ttft_tok_s": {
+              "max": 1545.1169179568842,
+              "median": 1543.6744725799867,
+              "min": 1541.5175684791543
+            }
+          }
+        },
+        "2": {
+          "cases": [
+            {
+              "case_id": "q2-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7441623.985010665,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3976458.0549963284,
+                "wall_decode_us": 3450860.0,
+                "wall_prefill_us": 3967606.0
+              },
+              "raw_sha256": "3ac1cefbd824ecba3fe9386c16dc86e7c776cac6e0f3368f08de9f6da47b4bc4",
+              "status": "pass"
+            },
+            {
+              "case_id": "q2-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7442045.383999357,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3976335.2449808735,
+                "wall_decode_us": 3451620.0,
+                "wall_prefill_us": 3965941.0
+              },
+              "raw_sha256": "b8ae77bd2c4946ab8230fdbb2febc3ca99e2d2ddeb1b2f7715862e9edaad50e0",
+              "status": "pass"
+            },
+            {
+              "case_id": "q2-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 7439137.740002479,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 3975184.7309817094,
+                "wall_decode_us": 3450144.0,
+                "wall_prefill_us": 3966719.0
+              },
+              "raw_sha256": "47d1505809f3bc4aeb9431d385d3f4308eddb31ee0d238fe816b5fe3330ba40f",
+              "status": "pass"
+            }
+          ],
+          "movement": {},
+          "statistics": {
+            "completion_latency_us": {
+              "max": 7442045.383999357,
+              "median": 7441623.985010665,
+              "min": 7439137.740002479
+            },
+            "decode_tok_s": {
+              "max": 37.099900757765475,
+              "median": 37.09220310299462,
+              "min": 37.084035901982254
+            },
+            "mtp_acceptance_percent": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "mtp_accepted_tokens": {
+              "max": 0,
+              "median": 0,
+              "min": 0
+            },
+            "mtp_proposed_tokens": {
+              "max": 251,
+              "median": 251,
+              "min": 251
+            },
+            "prefill_tok_s": {
+              "max": 1549.190973844543,
+              "median": 1548.8871281278055,
+              "min": 1548.540858139644
+            },
+            "ttft_tok_s": {
+              "max": 1545.5885489081866,
+              "median": 1545.1413478667976,
+              "min": 1545.0936272998542
+            }
+          }
+        }
+      },
+      "source": "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/all-gpu-v2/SPEED25_02_ATTRIBUTION.json",
+      "source_sha256": "31921c4dbbaf32900a63d7e36ae9dfc4f4e968683d77c5c15d47a9594626a9aa"
+    },
+    "cpu-main": {
+      "identity": {
+        "bundle_identity": "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/candidate-bundle/bin/llama-server",
+        "bundle_manifest_sha256": "c6bbd6812ff5fbbef9a2a0c595b148a55797c64bcd6580773965a0bff624ce15",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "runtime": {
+          "allocated_context_rows": 8192,
+          "attended_rows": 4096,
+          "batch_tokens": 128,
+          "cache_condition": "cold-prefill",
+          "cached_rows": 0,
+          "cuda_query_tile": 64,
+          "effective_batch": 128,
+          "hot_capacity_pages": 16,
+          "hot_capacity_tokens": 4096,
+          "hot_rows": 4096,
+          "logical_context_tokens": 8192,
+          "measured_request_tokens": 6144,
+          "mode": "off",
+          "mtp_history": "fresh_full_history",
+          "mtp_history_ready": true,
+          "mtp_placement": "gpu",
+          "mtp_type_k": "turbo4",
+          "mtp_type_v": "turbo4",
+          "page_size_tokens": 256,
+          "prefill_policy": "runtime",
+          "prompt_tokens": 6144,
+          "requested_context_tokens": 8192,
+          "requested_prompt_tokens": 6144,
+          "reset_mode": "fresh",
+          "restore_shape": "none",
+          "target_placement": "CUDA",
+          "target_type_k": "turbo4",
+          "target_type_v": "turbo4",
+          "ubatch_tokens": 128
+        }
+      },
+      "questions": {
+        "0": {
+          "cases": [
+            {
+              "case_id": "q0-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22363941.015995808,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9665842.182002962,
+                "wall_decode_us": 12684048.0,
+                "wall_prefill_us": 9656813.0
+              },
+              "raw_sha256": "7d998f80cc108f18206de59a08f92ee8623746501d53402a6cee2af4826fcd5f",
+              "status": "pass"
+            },
+            {
+              "case_id": "q0-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22209133.955999278,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9660742.720006965,
+                "wall_decode_us": 12533752.0,
+                "wall_prefill_us": 9650974.0
+              },
+              "raw_sha256": "3b1b994c41646b3792b0193699853655b7520afc7e893210e0f4f45e423c4fe6",
+              "status": "pass"
+            },
+            {
+              "case_id": "q0-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22214826.962997906,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9697795.77999725,
+                "wall_decode_us": 12503136.0,
+                "wall_prefill_us": 9688649.0
+              },
+              "raw_sha256": "50efa900ae1e2f29d3ce6e9d6f57af0cdf03455b6aa7dace8a8db625c9f45e57",
+              "status": "pass"
+            }
+          ],
+          "movement": {},
+          "statistics": {
+            "completion_latency_us": {
+              "max": 22363941.015995808,
+              "median": 22214826.962997906,
+              "min": 22209133.955999278
+            },
+            "decode_tok_s": {
+              "max": 10.237431633151875,
+              "median": 10.212424819000727,
+              "min": 10.091415611167665
+            },
+            "mtp_acceptance_percent": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "mtp_accepted_tokens": {
+              "max": 0,
+              "median": 0,
+              "min": 0
+            },
+            "mtp_proposed_tokens": {
+              "max": 251,
+              "median": 251,
+              "min": 251
+            },
+            "prefill_tok_s": {
+              "max": 636.6196821170589,
+              "median": 636.2347494975827,
+              "min": 634.1441412523046
+            },
+            "ttft_tok_s": {
+              "max": 635.9759469917412,
+              "median": 635.640421632338,
+              "min": 633.5460283328159
+            }
+          }
+        },
+        "1": {
+          "cases": [
+            {
+              "case_id": "q1-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22283618.67199419,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9727332.081994973,
+                "wall_decode_us": 12542087.0,
+                "wall_prefill_us": 9718263.0
+              },
+              "raw_sha256": "7c4cea4a2cafe194750a587fc40c2b2ed035b723dbc97e2557a1328e91de4640",
+              "status": "pass"
+            },
+            {
+              "case_id": "q1-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22371879.161015384,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9682272.928010207,
+                "wall_decode_us": 12675214.0,
+                "wall_prefill_us": 9672523.0
+              },
+              "raw_sha256": "7a56c935513f451270acd0fa2ff0e785faa919537a6dcf67a3ab182970a58b18",
+              "status": "pass"
+            },
+            {
+              "case_id": "q1-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22542515.870009083,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9704098.093992798,
+                "wall_decode_us": 12830400.0,
+                "wall_prefill_us": 9695391.0
+              },
+              "raw_sha256": "1d40ca2c386576b0fb240f150231150c8d5091f8d01a6a468b61e06f1dbee2ae",
+              "status": "pass"
+            }
+          ],
+          "movement": {},
+          "statistics": {
+            "completion_latency_us": {
+              "max": 22542515.870009083,
+              "median": 22371879.161015384,
+              "min": 22283618.67199419
+            },
+            "decode_tok_s": {
+              "max": 10.20563802499536,
+              "median": 10.098448830923092,
+              "min": 9.976306272602569
+            },
+            "mtp_acceptance_percent": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "mtp_accepted_tokens": {
+              "max": 0,
+              "median": 0,
+              "min": 0
+            },
+            "mtp_proposed_tokens": {
+              "max": 251,
+              "median": 251,
+              "min": 251
+            },
+            "prefill_tok_s": {
+              "max": 635.2013843751005,
+              "median": 633.7031688562122,
+              "min": 632.2117440122787
+            },
+            "ttft_tok_s": {
+              "max": 634.5617445079238,
+              "median": 633.1345726815528,
+              "min": 631.6223141361007
+            }
+          }
+        },
+        "2": {
+          "cases": [
+            {
+              "case_id": "q2-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22486741.15797621,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9662400.041997898,
+                "wall_decode_us": 12809919.0,
+                "wall_prefill_us": 9653714.0
+              },
+              "raw_sha256": "ca0634e109fc175f2f51cdae6c9a36f8ac95092f4dc0ede8c420ec642e70f1e4",
+              "status": "pass"
+            },
+            {
+              "case_id": "q2-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22530730.936996408,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9654077.998973662,
+                "wall_decode_us": 12863019.0,
+                "wall_prefill_us": 9644998.0
+              },
+              "raw_sha256": "8c6d7d33c4168ce667d058ae86d92469f531b661c1ac78586e6178522e5ec82a",
+              "status": "pass"
+            },
+            {
+              "case_id": "q2-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 22229540.45899678,
+                "generated_tokens": 128,
+                "host_committed_bytes": 0,
+                "host_committed_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "host_committed_rows": 0,
+                "host_committed_rows_reason": "feature-off control has no pager allocation telemetry",
+                "mtp_acceptance_percent": 0.0,
+                "mtp_accepted_tokens": 0,
+                "mtp_proposed_tokens": 251,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "host_seal_d2h_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "inventory_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_capture_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_launch_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "logical_graph_update_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_changed": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "seal_pages_scanned": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "store_copy_count": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_build_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_bytes": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  },
+                  "summary_read_calls": {
+                    "reason": "server did not export this optional metric",
+                    "value": null
+                  }
+                },
+                "pinned_ring_bytes": 0,
+                "pinned_ring_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "target_gpu_bytes": null,
+                "target_gpu_bytes_reason": "feature-off control has no pager allocation telemetry",
+                "ttft_us": 9629863.85601107,
+                "wall_decode_us": 12585543.0,
+                "wall_prefill_us": 9621169.0
+              },
+              "raw_sha256": "2c1ffa12ab3e6452d4e1cba657d1a74a732ce4429939810dc797bbb18b1f6168",
+              "status": "pass"
+            }
+          ],
+          "movement": {},
+          "statistics": {
+            "completion_latency_us": {
+              "max": 22530730.936996408,
+              "median": 22486741.15797621,
+              "min": 22229540.45899678
+            },
+            "decode_tok_s": {
+              "max": 10.170399481373192,
+              "median": 9.99225678163929,
+              "min": 9.951007613375989
+            },
+            "mtp_acceptance_percent": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "mtp_accepted_tokens": {
+              "max": 0,
+              "median": 0,
+              "min": 0
+            },
+            "mtp_proposed_tokens": {
+              "max": 251,
+              "median": 251,
+              "min": 251
+            },
+            "prefill_tok_s": {
+              "max": 638.5918384761768,
+              "median": 637.0141289816753,
+              "min": 636.4389912524858
+            },
+            "ttft_tok_s": {
+              "max": 638.0152504611833,
+              "median": 636.4149948501739,
+              "min": 635.8668626112486
+            }
+          }
+        }
+      },
+      "source": "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/cpu-main/SPEED25_02_ATTRIBUTION.json",
+      "source_sha256": "b5e76b54af0b1861c0105de98c489ba5963a36040dd79eaf427c517c2aec7dfd"
+    },
+    "selective-v2": {
+      "identity": {
+        "bundle_identity": "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/candidate-bundle/bin/llama-server",
+        "bundle_manifest_sha256": "c6bbd6812ff5fbbef9a2a0c595b148a55797c64bcd6580773965a0bff624ce15",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "runtime": {
+          "allocated_context_rows": 8192,
+          "attended_rows": 2048,
+          "batch_tokens": 128,
+          "cache_condition": "cold-prefill",
+          "cached_rows": 0,
+          "cuda_query_tile": 64,
+          "effective_batch": 128,
+          "hot_capacity_pages": 16,
+          "hot_capacity_tokens": 4096,
+          "hot_rows": 4096,
+          "logical_context_tokens": 8192,
+          "measured_request_tokens": 6144,
+          "mode": "selective",
+          "mtp_history": "fresh_full_history",
+          "mtp_history_ready": true,
+          "mtp_placement": "gpu",
+          "mtp_type_k": "turbo4",
+          "mtp_type_v": "turbo4",
+          "page_size_tokens": 256,
+          "prefill_policy": "runtime",
+          "prompt_tokens": 6144,
+          "requested_context_tokens": 8192,
+          "requested_prompt_tokens": 6144,
+          "reset_mode": "fresh",
+          "restore_shape": "none",
+          "target_placement": "CUDA",
+          "target_type_k": "turbo4",
+          "target_type_v": "turbo4",
+          "ubatch_tokens": 128
+        }
+      },
+      "questions": {
+        "0": {
+          "cases": [
+            {
+              "case_id": "q0-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 52431376.994005404,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 91.11111111111111,
+                "mtp_accepted_tokens": 82,
+                "mtp_proposed_tokens": 90,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 208,
+                  "host_seal_d2h_bytes": 103809000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 71,
+                  "logical_graph_launch_count": 93,
+                  "logical_graph_update_count": 71,
+                  "seal_calls": 14531,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 8999,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207620000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 49121326.763997786,
+                "wall_decode_us": 3295924.0,
+                "wall_prefill_us": 49113203.0
+              },
+              "raw_sha256": "3f57d613de0fad1429e53acc53e15c6d1653e4e156838a5e97edcc34a420136e",
+              "status": "pass"
+            },
+            {
+              "case_id": "q0-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 51774453.21402047,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 91.11111111111111,
+                "mtp_accepted_tokens": 82,
+                "mtp_proposed_tokens": 90,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 239,
+                  "host_seal_d2h_bytes": 103810000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 73,
+                  "logical_graph_launch_count": 93,
+                  "logical_graph_update_count": 73,
+                  "seal_calls": 14531,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 8999,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207620000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 48407317.30402331,
+                "wall_decode_us": 3358419.0,
+                "wall_prefill_us": 48398836.0
+              },
+              "raw_sha256": "3c71897ae23d48ace11304eced5165c680c89414eb76e0f9ede7994d7277d803",
+              "status": "pass"
+            },
+            {
+              "case_id": "q0-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 52558215.232013024,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 91.11111111111111,
+                "mtp_accepted_tokens": 82,
+                "mtp_proposed_tokens": 90,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 218,
+                  "host_seal_d2h_bytes": 103810000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 76,
+                  "logical_graph_launch_count": 93,
+                  "logical_graph_update_count": 76,
+                  "seal_calls": 14530,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 8997,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207620000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 49208184.42699965,
+                "wall_decode_us": 3336801.0,
+                "wall_prefill_us": 49200233.0
+              },
+              "raw_sha256": "405f46b5f6b1f243a8a8ee9393f6083551a9f79589a6ae06a11689f741eb1b20",
+              "status": "pass"
+            }
+          ],
+          "movement": {
+            "copy_time_us": {
+              "max": 220730.0,
+              "median": 219650.0,
+              "min": 217750.0
+            },
+            "d2h_useful_bytes": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "faults": {
+              "max": 344.0,
+              "median": 342.0,
+              "min": 340.0
+            },
+            "h2d_useful_bytes": {
+              "max": 1487900000.0,
+              "median": 1479300000.0,
+              "min": 1470600000.0
+            },
+            "selected_page_count": {
+              "max": 7.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "wait_time_us": {
+              "max": 130310.0,
+              "median": 130170.0,
+              "min": 129560.0
+            },
+            "waits": {
+              "max": 93.0,
+              "median": 93.0,
+              "min": 93.0
+            }
+          },
+          "statistics": {
+            "completion_latency_us": {
+              "max": 52558215.232013024,
+              "median": 52431376.994005404,
+              "min": 51774453.21402047
+            },
+            "decode_tok_s": {
+              "max": 38.83584694307272,
+              "median": 38.36009399421781,
+              "min": 38.11317170370939
+            },
+            "mtp_acceptance_percent": {
+              "max": 91.11111111111111,
+              "median": 91.11111111111111,
+              "min": 91.11111111111111
+            },
+            "mtp_accepted_tokens": {
+              "max": 82,
+              "median": 82,
+              "min": 82
+            },
+            "mtp_proposed_tokens": {
+              "max": 90,
+              "median": 90,
+              "min": 90
+            },
+            "prefill_tok_s": {
+              "max": 126.94520173997573,
+              "median": 125.09874381436698,
+              "min": 124.877457389277
+            },
+            "ttft_tok_s": {
+              "max": 126.92296004367401,
+              "median": 125.07805478298047,
+              "min": 124.85727875440365
+            }
+          }
+        },
+        "1": {
+          "cases": [
+            {
+              "case_id": "q1-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 53556127.66600098,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 70.47619047619048,
+                "mtp_accepted_tokens": 74,
+                "mtp_proposed_tokens": 105,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 224,
+                  "host_seal_d2h_bytes": 103810000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 84,
+                  "logical_graph_launch_count": 101,
+                  "logical_graph_update_count": 84,
+                  "seal_calls": 14623,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 9210,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207610000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 49533034.145017155,
+                "wall_decode_us": 4008023.0,
+                "wall_prefill_us": 49524745.0
+              },
+              "raw_sha256": "e6446ecd7a8a2c678096355d427bfe382c6958909f97f1ab5452882c8c7afb88",
+              "status": "pass"
+            },
+            {
+              "case_id": "q1-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 52868508.56000092,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 67.5925925925926,
+                "mtp_accepted_tokens": 73,
+                "mtp_proposed_tokens": 108,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 232,
+                  "host_seal_d2h_bytes": 103810000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 82,
+                  "logical_graph_launch_count": 102,
+                  "logical_graph_update_count": 82,
+                  "seal_calls": 14639,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 9241,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207620000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 48710521.59499959,
+                "wall_decode_us": 4143299.0,
+                "wall_prefill_us": 48702551.0
+              },
+              "raw_sha256": "6cff714e0a891b83710b93ebf139adb0c7358f4182a2b2083974547137c5be64",
+              "status": "pass"
+            },
+            {
+              "case_id": "q1-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 53623763.00699543,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 70.47619047619048,
+                "mtp_accepted_tokens": 74,
+                "mtp_proposed_tokens": 105,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 223,
+                  "host_seal_d2h_bytes": 103810000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 85,
+                  "logical_graph_launch_count": 101,
+                  "logical_graph_update_count": 85,
+                  "seal_calls": 14624,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 9212,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207620000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 49591489.65697386,
+                "wall_decode_us": 4017237.0,
+                "wall_prefill_us": 49580431.0
+              },
+              "raw_sha256": "eee312b7e63c467093464bd0dc726b57876844f825484ca223fcbb74d6858e3c",
+              "status": "pass"
+            }
+          ],
+          "movement": {
+            "copy_time_us": {
+              "max": 253930.0,
+              "median": 250140.0,
+              "min": 242650.0
+            },
+            "d2h_useful_bytes": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "faults": {
+              "max": 396.0,
+              "median": 390.0,
+              "min": 379.0
+            },
+            "h2d_useful_bytes": {
+              "max": 1712900000.0,
+              "median": 1690100000.0,
+              "min": 1639300000.0
+            },
+            "selected_page_count": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "wait_time_us": {
+              "max": 145200.0,
+              "median": 143910.0,
+              "min": 143090.0
+            },
+            "waits": {
+              "max": 102.0,
+              "median": 101.0,
+              "min": 101.0
+            }
+          },
+          "statistics": {
+            "completion_latency_us": {
+              "max": 53623763.00699543,
+              "median": 53556127.66600098,
+              "min": 52868508.56000092
+            },
+            "decode_tok_s": {
+              "max": 31.935944479360526,
+              "median": 31.862695678646794,
+              "min": 30.893256798507664
+            },
+            "mtp_acceptance_percent": {
+              "max": 70.47619047619048,
+              "median": 70.47619047619048,
+              "min": 67.5925925925926
+            },
+            "mtp_accepted_tokens": {
+              "max": 74,
+              "median": 74,
+              "min": 73
+            },
+            "mtp_proposed_tokens": {
+              "max": 108,
+              "median": 105,
+              "min": 105
+            },
+            "prefill_tok_s": {
+              "max": 126.1535561042788,
+              "median": 124.05919505491649,
+              "min": 123.919858623254
+            },
+            "ttft_tok_s": {
+              "max": 126.13291335871706,
+              "median": 124.0384342701943,
+              "min": 123.89222510753905
+            }
+          }
+        },
+        "2": {
+          "cases": [
+            {
+              "case_id": "q2-measured-1",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 53472545.55401742,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 80.41237113402062,
+                "mtp_accepted_tokens": 78,
+                "mtp_proposed_tokens": 97,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 226,
+                  "host_seal_d2h_bytes": 103800000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 82,
+                  "logical_graph_launch_count": 97,
+                  "logical_graph_update_count": 82,
+                  "seal_calls": 14577,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 9105,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207620000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 49805587.13001665,
+                "wall_decode_us": 3652807.0,
+                "wall_prefill_us": 49797358.0
+              },
+              "raw_sha256": "51709a9a7377572f0ed663b4bbdc387b4af0c5ea068b2f07ba2afd3fb02c34c6",
+              "status": "pass"
+            },
+            {
+              "case_id": "q2-measured-2",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 53105300.34700059,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 77.0,
+                "mtp_accepted_tokens": 77,
+                "mtp_proposed_tokens": 100,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 235,
+                  "host_seal_d2h_bytes": 103810000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 81,
+                  "logical_graph_launch_count": 98,
+                  "logical_graph_update_count": 81,
+                  "seal_calls": 14591,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 9134,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207620000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 49300147.359026596,
+                "wall_decode_us": 3790390.0,
+                "wall_prefill_us": 49291107.0
+              },
+              "raw_sha256": "a5566197d0c965a0cfdc4ad80d519585ab8aeac89692d482700688f40a186bcc",
+              "status": "pass"
+            },
+            {
+              "case_id": "q2-measured-3",
+              "measurements": {
+                "committed_tokens": 128,
+                "completion_latency_us": 53025226.18198418,
+                "generated_tokens": 128,
+                "host_committed_bytes": 64880600,
+                "host_committed_rows": 3840,
+                "mtp_acceptance_percent": 78.57142857142857,
+                "mtp_accepted_tokens": 77,
+                "mtp_proposed_tokens": 98,
+                "optional": {
+                  "cuda_capture_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_launch_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "cuda_update_count": {
+                    "reason": "CUDA event spans not enabled",
+                    "value": null
+                  },
+                  "graph_construction_us": 223,
+                  "host_seal_d2h_bytes": 103810000,
+                  "host_seal_d2h_calls": 2304,
+                  "inventory_copy_count": 24,
+                  "logical_graph_capture_count": 78,
+                  "logical_graph_launch_count": 98,
+                  "logical_graph_update_count": 78,
+                  "seal_calls": 14582,
+                  "seal_pages_changed": 24,
+                  "seal_pages_scanned": 9125,
+                  "store_copy_count": 1536,
+                  "summary_build_bytes": 207610000,
+                  "summary_build_calls": 1536,
+                  "summary_read_bytes": 0,
+                  "summary_read_calls": 0
+                },
+                "pinned_ring_bytes": 0,
+                "target_gpu_bytes": 69206000,
+                "ttft_us": 49286941.93399861,
+                "wall_decode_us": 3723954.0,
+                "wall_prefill_us": 49278311.0
+              },
+              "raw_sha256": "9deecf9891640abe1166bdd3ed6e6eb05747d67dca833f212399aa54c9a3c753",
+              "status": "pass"
+            }
+          ],
+          "movement": {
+            "copy_time_us": {
+              "max": 238980.0,
+              "median": 236050.0,
+              "min": 232560.0
+            },
+            "d2h_useful_bytes": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "faults": {
+              "max": 373.0,
+              "median": 368.0,
+              "min": 363.0
+            },
+            "h2d_useful_bytes": {
+              "max": 1613400000.0,
+              "median": 1591700000.0,
+              "min": 1570100000.0
+            },
+            "selected_page_count": {
+              "max": 0.0,
+              "median": 0.0,
+              "min": 0.0
+            },
+            "wait_time_us": {
+              "max": 137940.0,
+              "median": 137520.0,
+              "min": 136600.0
+            },
+            "waits": {
+              "max": 98.0,
+              "median": 98.0,
+              "min": 97.0
+            }
+          },
+          "statistics": {
+            "completion_latency_us": {
+              "max": 53472545.55401742,
+              "median": 53105300.34700059,
+              "min": 53025226.18198418
+            },
+            "decode_tok_s": {
+              "max": 35.04154476269893,
+              "median": 34.37206796861615,
+              "min": 33.76961209796354
+            },
+            "mtp_acceptance_percent": {
+              "max": 80.41237113402062,
+              "median": 78.57142857142857,
+              "min": 77.0
+            },
+            "mtp_accepted_tokens": {
+              "max": 78,
+              "median": 77,
+              "min": 77
+            },
+            "mtp_proposed_tokens": {
+              "max": 100,
+              "median": 98,
+              "min": 97
+            },
+            "prefill_tok_s": {
+              "max": 124.67959788638048,
+              "median": 124.64723099036912,
+              "min": 123.38003955952843
+            },
+            "ttft_tok_s": {
+              "max": 124.65776448917416,
+              "median": 124.62437394469707,
+              "min": 123.35965408782737
+            }
+          }
+        }
+      },
+      "source": "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/selective-v2/SPEED25_02_ATTRIBUTION.json",
+      "source_sha256": "1e99c60e9d42322eb7a9cf473b0d4f81f95148ebb633387dbb56b90d408155ff"
+    }
+  },
+  "proofs": {
+    "matched_three_prompt_matrix": true,
+    "paging_speed_claim_validation": true
+  },
+  "ratios_by_question": {
+    "0": {
+      "selective-v2_over_all-gpu-v2": {
+        "decode_tok_s": 1.0370606458101637,
+        "prefill_tok_s": 0.08109120881405352
+      },
+      "selective-v2_over_cpu-main": {
+        "decode_tok_s": 3.7562180064079334,
+        "prefill_tok_s": 0.19662356372888162
+      }
+    },
+    "1": {
+      "selective-v2_over_all-gpu-v2": {
+        "decode_tok_s": 0.8591464730609621,
+        "prefill_tok_s": 0.08017525380494134
+      },
+      "selective-v2_over_cpu-main": {
+        "decode_tok_s": 3.1552069245603387,
+        "prefill_tok_s": 0.1957686203129365
+      }
+    },
+    "2": {
+      "selective-v2_over_all-gpu-v2": {
+        "decode_tok_s": 0.9266655817982713,
+        "prefill_tok_s": 0.08047534822052181
+      },
+      "selective-v2_over_cpu-main": {
+        "decode_tok_s": 3.439870363597402,
+        "prefill_tok_s": 0.19567420143353648
+      }
+    }
+  },
+  "schema_version": 1,
+  "task": "51-02",
+  "validation_errors": []
+}
