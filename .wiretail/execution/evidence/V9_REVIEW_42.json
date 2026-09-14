@@ -1,0 +1,116 @@
+{
+  "schema": "hotpath-v9-review",
+  "task": "42-01",
+  "revision": "hotpath-v9-20260914-r2",
+  "utc": "2026-09-14T01:43:50Z",
+  "goal_met": false,
+  "next_task_ids": ["43-01", "43-02", "43-03", "44-01"],
+  "capability": {
+    "active_campaign_met": false,
+    "overall_256k_demonstrated": false,
+    "natural_cold_proven": false,
+    "fullL_gpu_turbo4_mtp": true,
+    "measured_cpu_speedup": false,
+    "status": "identity and coherent bounded recall are present, but the live selected-packed current-Q producer still publishes no sample; cold selection and scale are gated"
+  },
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "route": "selected_packed",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "invariant": "selected <= A_by_layer <= H <= L",
+    "invariant_pass": true
+  },
+  "key_rates_and_ratios": {
+    "units": "tok/s for rates; ratios are selected divided by named control",
+    "selected_prefill_tok_s": [604.104903, 589.050994, 613.198431],
+    "selected_decode_tok_s": [33.760322, 33.610701, 32.982836],
+    "cpu_main_kv_prefill_tok_s": [227.193209, 205.641857, 210.078732],
+    "cpu_main_kv_decode_tok_s": [9.924077, 9.918328, 9.987244],
+    "all_gpu_prefill_tok_s": [609.937786, 575.537488, 610.571263],
+    "all_gpu_decode_tok_s": [36.715082, 36.828024, 36.845967],
+    "selected_over_all_gpu_decode": [0.9198, 0.9121, 0.8952],
+    "selected_over_cpu_main_kv_decode": [3.4012, 3.3882, 3.3029],
+    "measured_cpu_speedup": null,
+    "cpu_speedup_reason": "three paired samples exist, but the receipt does not define this route as an equivalent throughput claim"
+  },
+  "sample_counts": {
+    "selected_comparison": 3,
+    "cpu_main_kv_control": 3,
+    "all_gpu_control": 3,
+    "natural_cold_runs": 1,
+    "natural_cold_attention": 0,
+    "scale_32k": 0,
+    "scale_128k": 0,
+    "scale_256k": 0
+  },
+  "natural_cold": {
+    "fixture": "incremental C>H natural recall",
+    "occupied_tokens": 5004,
+    "recall_prompt_tokens": 5052,
+    "cached_rows": 5017,
+    "committed_output_tokens": 20,
+    "ttft_ms": 303.902158,
+    "decode_tok_s": 31.080336,
+    "mtp_proposed": 19,
+    "mtp_accepted": 9,
+    "acceptance_percent": 47.368421,
+    "attention_samples": 0,
+    "candidate_published": false,
+    "promotion_published": false,
+    "transfer_submitted": 0,
+    "h2d_useful_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "coherent_recall": true,
+    "coherent_append": true,
+    "eligible_for_scale": false
+  },
+  "memory_bytes": {
+    "target_allocated": 69206000,
+    "target_valid": 2618880,
+    "host_valid": 0,
+    "weights": 13695600000,
+    "mtp_compute": 268435000,
+    "packed_workspace": 69206000,
+    "headroom": 201327000,
+    "full_256k_total": null
+  },
+  "failure_cause": {
+    "classification": "missing real Q-to-cold-to-target-use proof",
+    "measured": "current-Q attention samples and publication counters remained zero; therefore no catalogue candidate, promotion, useful H2D, or selected cold-page use was observed",
+    "symbols": [
+      "llm_graph_context::build_attn_inp_kv",
+      "llm_graph_input_attn_kv::refresh_direct_telemetry",
+      "llama_context::publish_kv_attention_telemetry",
+      "llama_kv_attention_telemetry::publish_completed"
+    ],
+    "runtime": "not observed; natural recall, append, and matched requests completed without crash, non-finite output, or completion error",
+    "selection_quality": "unmeasured because no non-sentinel current-Q candidate was published"
+  },
+  "uncertainty": [
+    "The phase-41 result identifies a missing production producer/publication edge; selection quality cannot be judged until a real sample reaches the catalogue.",
+    "The CPU-main-KV route has three samples, but measured_cpu_speedup remains null because the receipt does not define it as an equivalent throughput comparison.",
+    "32K, 128K, and 256K memory/capability values are not measurements; no scale process or allocation was launched."
+  ],
+  "next_action": {
+    "order": [
+      "repair the selected-packed production page-mass producer-to-publication boundary and preserve exact drop accounting",
+      "rerun focused tests, the C>H natural-cold fixture, and matched original q0/q1/q2 controls with the existing B1-B5 receipt boundary",
+      "only after candidate, attention sample, promotion, useful H2D, selected cold-page use, and coherent recall all pass, reopen bounded 32K and conditionally 128K"
+    ],
+    "stop_condition": "Do not launch 32K, 128K, or 256K while any natural-cold eligibility field is absent; do not claim CPU speedup from the non-equivalent route or label 128K as 256K.",
+    "preserved_contract": "Keep selected-packed Turbo4 attention, target/draft Turbo4, full-L GPU native MTP, canonical CPU history, and the existing pager/mailbox; do not revive the superseded direct-kernel path."
+  },
+  "phase_appended": true,
+  "appended_tasks": ["43-01", "43-02", "43-03", "44-01"]
+}
