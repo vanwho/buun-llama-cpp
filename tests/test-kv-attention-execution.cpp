@@ -334,6 +334,20 @@ static void test_packed_cache_identity_and_versions() {
     assert(reordered_entry == first);
     assert(reordered_entry->k == first->k && reordered_entry->v == first->v);
 
+    // Owner sizing follows the compact extent, not the order in which a
+    // caller presents the selected pages.  This is the small first-request
+    // boundary that previously let the last page under-size the destination.
+    auto unsorted_pages = view.pages();
+    assert(unsorted_pages.size() >= 2);
+    std::swap(unsorted_pages.front(), unsorted_pages.back());
+    unsorted_pages.back().compact_row_begin = 0;
+    unsorted_pages.front().compact_row_begin = row_capacity - unsorted_pages.front().row_count;
+    auto * unsorted_entry = cache.find_or_create(
+            4, 1, 11, 17, unsorted_pages, source_k, source_v, backend, 0);
+    assert(unsorted_entry != nullptr);
+    assert(unsorted_entry->k->ne[2] == row_capacity);
+    cache.clear_sequence(1);
+
     const auto tail_snapshot = snapshot(600);
     auto tail = llama_kv_attention_view::build(tail_snapshot, { 2, 0 }, view_status);
     assert(view_status == llama_kv_attention_view_status::ok);

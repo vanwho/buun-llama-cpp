@@ -235,7 +235,11 @@ bool llama_kv_attention_packed_cache::submit_graph(
                 ++owner->in_flight_leases;
             }
         }
-        graph_leases_.push_back(std::move(unique));
+        // Copy the small owner list into the lease before changing the build
+        // state.  Keeping `unique` intact until push_back succeeds means an
+        // allocation failure cannot strand the incremented leases on a
+        // moved-from temporary.
+        graph_leases_.push_back(unique);
         // A submitted owner is now protected by graph_leases_; it must not be
         // reclaimed by a later build-abort cleanup.
         for (entry * owner : graph_leases_.back()) {
@@ -322,11 +326,18 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
     }
 
     uint64_t required_rows = 0;
-    const auto & last = pages.back();
-    if (uint64_t(last.compact_row_begin) + last.row_count > UINT32_MAX) {
-        return nullptr;
+    // The page vector is a selection, not an ownership-order contract.  In
+    // particular, a small first request can arrive with its last selected
+    // page not being the page with the greatest compact destination row.
+    // Size the owner from the complete compact extent or the following graph
+    // copy can address beyond the allocation.
+    for (const auto & page : pages) {
+        const uint64_t page_end = uint64_t(page.compact_row_begin) + page.row_count;
+        if (page_end > UINT32_MAX) {
+            return nullptr;
+        }
+        required_rows = std::max(required_rows, page_end);
     }
-    required_rows = uint64_t(last.compact_row_begin) + last.row_count;
     if (row_capacity == 0) {
         row_capacity = uint32_t(required_rows);
     }
