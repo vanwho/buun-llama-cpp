@@ -1062,3 +1062,15 @@ receives `PROJECT_ROOT` from the shared runner.
   passed for17 new tasks;8 receipt guardrail unit tests passed; Wiretail state
   valid245tasks; next task49-01; git diff --check passed. Historical task/phase
   token usage preserved. No claim to account tokens not reported by Codex.
+
+## 2026-09-14 — V10 testing refinement — two-document round trip
+
+- Added T3 to the V10 test contract and task51-01: tokenize two deterministic,
+  disjoint multi-page documents, ingest/ask A, append B plus filler until the
+  measured hot capacity is exceeded, ask B, then ask A again without restating
+  A. The test must verify actual A host residency before the third query and
+  the complete selector→H2D→publication→target-use edge chain.
+- This is an organic, human-readable promotion scenario and is separate from
+  T0's deterministic production fixture and T1's controlled real-model query.
+  Document correctness is recorded separately from physical page use; no
+  candidate ID or force-promotion API is permitted.

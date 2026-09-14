@@ -100,6 +100,43 @@ separately from useful recall. Do not block all performance work on one exact
 answer once the physical chain works. Conversely never call zero promotions
 successful paging performance.
 
+### T3 — two-document cold-to-hot round trip (51-01)
+
+This is the preferred human-readable organic promotion scenario. Generate two
+local deterministic documents outside portable source, each containing several
+pages of filler plus unique facts/nonces that do not occur in the other
+document. Tokenize them first. Choose their sizes so
+`pages(document_A) + pages(document_B) + required system/recent overhead > H`
+while each document is large enough to span multiple pages. Set the bounded
+test's recent/pinned allowance explicitly and record it; do not assume that a
+requested H means document A is cold. A cold boundary is valid only after the
+actual inventory shows A host-backed and B/current pages resident.
+
+Run one cached conversation in this order:
+
+1. Ingest document A, ask its unique fact, and retain the exact cached prefix.
+2. Ingest document B plus only enough deterministic filler to cross the
+   measured hot capacity. Ask B's unique fact to verify the current path.
+3. Ask A's unique fact again without including A's contents or answer in the
+   request. Allow the normal accepted-token refresh cadence and asynchronous
+   copy/target-consume boundary.
+
+Use the actual model tokenizer and original request transport; do not send a
+client-side `page_id`, call a force-promote API, or rebuild the context from
+scratch between steps. Capture C/cache_n, document token/page ranges, residency
+before each query, cold eligibility/ranks, stable IDs, queued/completed/published/
+used events, H2D bytes and output. The third query is a physical promotion
+proof only when A's page ID appears in the completed target graph after being
+cold; a correct A answer by itself can come from MTP/recurrent state and is
+not sufficient. If A never became cold, mark setup invalid and fix sizing or
+recent/pin accounting; do not call it a promotion. If A is cold/eligible but
+not selected, preserve it as policy evidence and diagnose T0/T1 wiring first.
+
+Use distinct fact values and a prompt that requires the value, not a broad
+"summarize the file" request. Record answer correctness separately. One
+reverse-order A/B run is optional only if the first round trip is mechanically
+valid; do not turn this into a large document corpus or 24-case matrix.
+
 ## Speed methodology, deliberately small for iteration
 
 1. Repair iteration: one original q0, one cold fill and one64/128-token cached

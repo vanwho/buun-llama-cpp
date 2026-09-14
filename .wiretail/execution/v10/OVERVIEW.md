@@ -52,7 +52,7 @@ staging count against the same measured GPU budget before maximizing H.
 | --- | --- | --- |
 | 49 | Honest build/workload identity; cold metadata and scoring; ownership and first overflow; actual CUDA promotion proof | Fixed production chain, small reproducible tests |
 | 50 | Persistent GPU catalogue; real cadence; overlapped events; mature-FA/ingest optimization; fair MTP and memory tuning | Measured hot-path cost attribution and repaired fast path |
-| 51 | Deliberate and organic live promotion, matched original-three-prompt comparison, conditional scaling, generated findings | `V10_SUMMARY.json/.md` and referenced raw runs |
+| 51 | Deliberate, two-document and organic live promotion, matched original-three-prompt comparison, conditional scaling, generated findings | `V10_SUMMARY.json/.md` and referenced raw runs |
 | 52 | Review only phase51 findings; complete or schedule specific remaining work | Honest capability/performance decision |
 
 Small primary coordinate: L8192/H4096; start B128/U128 and compare U64 only

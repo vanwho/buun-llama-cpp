@@ -8911,7 +8911,8 @@
       ],
       "required_proofs": [
         "controlled_model_query_promotion",
-        "organic_chain_observation"
+        "organic_chain_observation",
+        "file_roundtrip_promotion"
       ],
       "completion_check": [
         "python3",

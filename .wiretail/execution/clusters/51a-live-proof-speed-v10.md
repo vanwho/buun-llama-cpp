@@ -3,7 +3,7 @@
 Revision: `hotpath-v10-20260914`.
 Tasks: `51-01`, `51-02`.
 
-First reproduce deliberate actual-model and organic selection/transfer/use with the current built candidate, then collect a small matched original-three-prompt speed comparison. Share the loaded candidate and useful benchmark context; controls explicitly switch profile and return to selected.
+First reproduce deliberate actual-model, two-document file-round-trip and organic selection/transfer/use with the current built candidate, then collect a small matched original-three-prompt speed comparison. Share the loaded candidate and useful benchmark context; controls explicitly switch profile and return to selected.
 
 Read each task's explicit context_files and packet, then named source by symbol.
 Do not load whole state/log or earlier plan/phase diaries. Cluster size follows
