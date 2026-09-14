@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "task": "49-07",
+  "source_commit": "aa2786dcd02e98de079f273fb20bc8358b8f4fe5",
+  "checks": {
+    "mtp_record_contract": {
+      "status": "pass",
+      "command": ["python3", "-m", "unittest", "tools.server.bench.test_pager_benchmark_adapter", "tools.server.bench.test_resume_contract"],
+      "exit_code": 0,
+      "artifacts": [{"path": "/srv/ai/paged-kv/results/v10/49-07/contract-tests.txt", "sha256": "ba2b458acd9db0b72dd0a9f155e359cd79ffeae66bad6228aca739c789fe8262"}],
+      "measurements": {"tests": 42, "native_valid_examples": ["draft12_accepted8", "draft12_accepted0"]}
+    },
+    "three_prompt_native_acceptance": {
+      "status": "pass",
+      "command": ["/srv/ai/benchmarks/run-profile-benchmark.sh", "fast", "/srv/ai/paged-kv/results/v10/49-07/20260914T080419Z-49-07-mtp-smoke-candidate-8080", "--mode", "off", "--mtp", "native", "--one-trial", "--generation-length", "16"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/49-07/20260914T080419Z-49-07-mtp-smoke-candidate-8080/records.jsonl", "sha256": "bab7a3a39d021069818eb149fbfbb6897b3e89c78eb4d03757003cbc550b5f56"},
+        {"path": "/srv/ai/paged-kv/results/v10/49-07/20260914T080419Z-49-07-mtp-smoke-candidate-8080/run-config.json", "sha256": "d6b6ee6b64f373988b1c40305664ab1feb4a8bdd3a6a2ad85ed9afd37d8edb7a"},
+        {"path": "/srv/ai/paged-kv/results/v10/49-07/20260914T080419Z-49-07-mtp-smoke-candidate-8080/raw/startup-mtp.log", "sha256": "c1ec46f3c455d7c9ba546c269d237631e5efb8f93da36c7f43c2ed61b5846414"},
+        {"path": ".wiretail/execution/evidence/V10_MTP_SMOKE.json", "sha256": "faf7d46c01dd33d7e3123e5a390a6bea99e73a76ea99ab94130b0d18341ff2c6"}
+      ],
+      "measurements": {"prompts": 3, "draft_deltas": [27, 27, 27], "accepted_deltas": [0, 0, 0], "acceptance_percent": [0.0, 0.0, 0.0], "counter_source": "prometheus_counter_delta"}
+    },
+    "mtp_off_isolation": {
+      "status": "pass",
+      "command": ["/srv/ai/benchmarks/run-profile-benchmark.sh", "fast", "/srv/ai/paged-kv/results/v10/49-07/20260914T080517Z-49-07-mtp-off-isolation", "--mode", "off", "--mtp", "off", "--restore-control", "--one-trial", "--generation-length", "16"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/49-07/20260914T080517Z-49-07-mtp-off-isolation/records.jsonl", "sha256": "437ed2a8223cd9830f72736bf14f6cd771da13c84da3d8d1b2bb0f1993a46a19"},
+        {"path": "/srv/ai/paged-kv/results/v10/49-07/20260914T080517Z-49-07-mtp-off-isolation/run-config.json", "sha256": "5b428c441a8362b4f0de84c88957ce3d01ee6470b952c533a5169a88ad4ffda9"}
+      ],
+      "measurements": {"prompts": 3, "mtp_source": "off", "acceptance_claim": false}
+    }
+  }
+}

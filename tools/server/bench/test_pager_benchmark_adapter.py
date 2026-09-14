@@ -123,6 +123,54 @@ def telemetry() -> dict[str, object]:
     }
 
 
+def native_identity() -> dict[str, object]:
+    return {
+        "command": "/opt/llama-server --spec-type draft-mtp --spec-draft-n-max 2 "
+                   "--spec-draft-type-k turbo4 --spec-draft-type-v turbo4 "
+                   "--spec-draft-kv-device gpu",
+        "mtp_placement": "gpu",
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
+        "spec_type": "draft-mtp",
+        "spec_draft_n_max": 2,
+    }
+
+
+def startup_observation() -> dict[str, object]:
+    return {
+        "draft_backend": "gpu", "type_k": "turbo4", "type_v": "turbo4",
+        "reserved_rows": 8192, "reserved_bytes": 8781824,
+    }
+
+
+def mtp_record(draft: int | None = 12, accepted: int | None = 8,
+               rate: float | None = 66.6666667) -> dict[str, object]:
+    before = {
+        "llamacpp:spec_decode_num_draft_tokens_total": 100,
+        "llamacpp:spec_decode_num_accepted_tokens_total": 50,
+    }
+    after = {
+        "llamacpp:spec_decode_num_draft_tokens_total": 100 + (draft or 0),
+        "llamacpp:spec_decode_num_accepted_tokens_total": 50 + (accepted or 0),
+    }
+    return {
+        "phase": "measured", "prompt_index": 0, "case_key": "q0",
+        "request_start": "2026-09-14T10:00:00+00:00",
+        "request_end": "2026-09-14T10:00:01+00:00",
+        "mtp_source": "prometheus_counter_delta",
+        "mtp_counters": {"before": before, "after": after,
+                          "delta": {
+                              "llamacpp:spec_decode_num_draft_tokens_total": 12,
+                              "llamacpp:spec_decode_num_accepted_tokens_total": accepted or 0,
+                          }},
+        "mtp_journal_excerpt_sha256": "a" * 64,
+        "mtp": {"mode": "native", "draft_tokens": draft,
+                "accepted_tokens": accepted, "acceptance_percent": rate,
+                "journal_case_key": "q0"},
+        "timings": {}, "error": False, "http_code": 200,
+    }
+
+
 class AdapterContractTests(unittest.TestCase):
     def write_canonical_artifacts(self, output: pathlib.Path, expected: dict[str, object]) -> None:
         output.mkdir(parents=True, exist_ok=True)
@@ -170,6 +218,121 @@ class AdapterContractTests(unittest.TestCase):
 
         errors = adapter.validate_live_telemetry(not_present)
         self.assertIn("mtp_rows_fabricated_without_mtp", errors)
+
+    def test_native_mtp_rows_reject_missing_and_invalid_observations(self) -> None:
+        self.assertEqual([], adapter.validate_native_mtp_record(mtp_record()))
+        zero = mtp_record(12, 0, 0.0)
+        self.assertEqual([], adapter.validate_native_mtp_record(zero))
+        fixtures = {
+            "missing draft": mtp_record(None, 8, 66.6666667),
+            "zero draft": mtp_record(0, 0, 0.0),
+            "accepted exceeds": mtp_record(12, 13, 108.3333),
+            "bad percentage": mtp_record(12, 8, 66.0),
+        }
+        for name, record in fixtures.items():
+            with self.subTest(name=name):
+                self.assertTrue(adapter.validate_native_mtp_record(record))
+
+    def test_native_mtp_counters_reject_reset_and_stale_journal(self) -> None:
+        reset = mtp_record()
+        reset["mtp_counters"]["after"]["llamacpp:spec_decode_num_draft_tokens_total"] = 99
+        self.assertIn("mtp_counter_reset", adapter.validate_native_mtp_record(reset))
+        stale = mtp_record()
+        stale["mtp"]["journal_case_key"] = "q1"
+        self.assertIn("mtp_journal_stale", adapter.validate_native_mtp_record(stale))
+
+    def test_native_mtp_identity_rejects_wrong_device_and_spec_none(self) -> None:
+        self.assertEqual([], adapter.validate_native_runtime_identity(
+            native_identity(), startup_observation()))
+        wrong_device = native_identity()
+        wrong_device["command"] = wrong_device["command"].replace(
+            "--spec-draft-kv-device gpu", "--spec-draft-kv-device cpu")
+        self.assertIn("mtp_spec_draft_device_invalid",
+                      adapter.validate_native_runtime_identity(wrong_device, startup_observation()))
+        spec_none = native_identity()
+        spec_none["command"] = spec_none["command"].replace(
+            "--spec-type draft-mtp", "--spec-type none")
+        self.assertIn("mtp_spec_type_not_draft_mtp",
+                      adapter.validate_native_runtime_identity(spec_none, startup_observation()))
+
+    def test_cumulative_native_counters_keep_three_prompt_rows_independent(self) -> None:
+        parsed = adapter.parse_mtp_counters(
+            '# HELP ignored\n'
+            'llamacpp:spec_decode_num_draft_tokens_total{slot="0"} 100\n'
+            'llamacpp:spec_decode_num_accepted_tokens_total{slot="0"} 50\n')
+        self.assertEqual({
+            "llamacpp:spec_decode_num_draft_tokens_total": 100,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 50,
+        }, parsed)
+        counters = [
+            ({"llamacpp:spec_decode_num_draft_tokens_total": 100,
+              "llamacpp:spec_decode_num_accepted_tokens_total": 50},
+             {"llamacpp:spec_decode_num_draft_tokens_total": 112,
+              "llamacpp:spec_decode_num_accepted_tokens_total": 58}),
+            ({"llamacpp:spec_decode_num_draft_tokens_total": 112,
+              "llamacpp:spec_decode_num_accepted_tokens_total": 58},
+             {"llamacpp:spec_decode_num_draft_tokens_total": 124,
+              "llamacpp:spec_decode_num_accepted_tokens_total": 58}),
+            ({"llamacpp:spec_decode_num_draft_tokens_total": 124,
+              "llamacpp:spec_decode_num_accepted_tokens_total": 58},
+             {"llamacpp:spec_decode_num_draft_tokens_total": 130,
+              "llamacpp:spec_decode_num_accepted_tokens_total": 61}),
+        ]
+        rows = []
+        for index, (before, after) in enumerate(counters):
+            delta, errors = adapter.mtp_counter_delta(before, after)
+            self.assertEqual([], errors)
+            self.assertIsNotNone(delta)
+            row = mtp_record(delta["llamacpp:spec_decode_num_draft_tokens_total"],
+                             delta["llamacpp:spec_decode_num_accepted_tokens_total"],
+                             100 * delta["llamacpp:spec_decode_num_accepted_tokens_total"] /
+                             delta["llamacpp:spec_decode_num_draft_tokens_total"])
+            row["prompt_index"] = index
+            row["case_key"] = f"q{index}"
+            row["mtp"]["journal_case_key"] = f"q{index}"
+            row["mtp_counters"] = {"before": before, "after": after, "delta": delta}
+            rows.append(row)
+        self.assertEqual([0, 1, 2], [row["prompt_index"] for row in rows])
+        self.assertEqual([12, 12, 6], [row["mtp"]["draft_tokens"] for row in rows])
+        self.assertEqual([8, 0, 3], [row["mtp"]["accepted_tokens"] for row in rows])
+
+    def test_feature_off_is_explicit_and_old_records_are_rejected(self) -> None:
+        off = {"phase": "measured", "timings": {}, "error": False,
+               "mtp_source": "off", "mtp": {"mode": "off"},
+               "prompt_index": 0}
+        self.assertEqual([], adapter.validate_native_mtp_record(off, mtp_requested=False))
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            (output / "run-config.json").write_text(json.dumps({
+                "launcher": {"mtp": "native"},
+                "runtime_identity": {"active": native_identity(),
+                                      "startup_observation": startup_observation()},
+                "resume": {"case_indexes": [0]},
+            }) + "\n")
+            old = {"phase": "measured", "prompt_index": 0,
+                   "timings": {}, "error": False, "http_code": 200}
+            (output / "records.jsonl").write_text(json.dumps(old) + "\n")
+            self.assertIn("mtp_observation_missing", adapter.record_validation_errors(output))
+
+    def test_native_campaign_requires_three_valid_requested_prompt_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            (output / "run-config.json").write_text(json.dumps({
+                "launcher": {"mtp": "native"},
+                "runtime_identity": {"active": native_identity(),
+                                      "startup_observation": startup_observation()},
+                "request": {"prompts": ["q0", "q1", "q2"]},
+            }) + "\n")
+            records = []
+            for index in range(3):
+                record = mtp_record()
+                record["prompt_index"] = index
+                record["case_key"] = f"q{index}"
+                record["mtp"]["journal_case_key"] = f"q{index}"
+                records.append(record)
+            (output / "records.jsonl").write_text(
+                "".join(json.dumps(record) + "\n" for record in records))
+            self.assertEqual([], adapter.record_validation_errors(output))
 
     def test_measured_fields_do_not_use_estimate_or_counter_substitutes(self) -> None:
         envelope = adapter.pager_envelope("short", telemetry())

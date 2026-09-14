@@ -26,7 +26,11 @@ from pager_benchmark_contract import (
     CORPUS_SCHEMA,
     ContextResolutionError,
     corpus_context_ceiling,
+    mtp_counter_delta,
+    parse_mtp_counters,
     resolve_context,
+    validate_native_mtp_record,
+    validate_native_runtime_identity,
     validate_corpus,
     validate_live_telemetry,
 )
@@ -222,6 +226,8 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
         "mtp_placement": mtp,
         "mtp_type_k": _command_value(command, "--spec-draft-type-k") or "not_present",
         "mtp_type_v": _command_value(command, "--spec-draft-type-v") or "not_present",
+        "spec_type": _command_value(command, "--spec-type") or "none",
+        "spec_draft_n_max": _command_value(command, "--spec-draft-n-max"),
         "proc_maps": map_paths,
         "loaded_dsos": _loaded_project_dsos(map_paths),
         "loaded_file_hashes": loaded_file_hashes,
@@ -425,6 +431,27 @@ def verify_restoration(before: dict[str, object], after: dict[str, object],
     return errors
 
 
+def _benchmark_mtp_requested(config: dict[str, object] | None) -> bool:
+    launcher = config.get("launcher") if isinstance(config, dict) else None
+    if isinstance(launcher, dict):
+        return launcher.get("mtp") == "native"
+    return False
+
+
+def _requested_prompt_indexes(config: dict[str, object] | None) -> set[int]:
+    if not isinstance(config, dict):
+        return set()
+    resume = config.get("resume")
+    if isinstance(resume, dict) and isinstance(resume.get("case_indexes"), list) and resume["case_indexes"]:
+        return {int(value) for value in resume["case_indexes"] if isinstance(value, int) and value >= 0}
+    request = config.get("request")
+    prompts = request.get("prompts") if isinstance(request, dict) else None
+    if isinstance(prompts, list):
+        return set(range(len(prompts)))
+    prompts = config.get("prompts")
+    return set(range(len(prompts))) if isinstance(prompts, list) else set()
+
+
 def record_validation_errors(output: pathlib.Path) -> list[str]:
     records_path = output / "records.jsonl"
     if not records_path.exists():
@@ -436,6 +463,22 @@ def record_validation_errors(output: pathlib.Path) -> list[str]:
         return ["malformed_records"]
     if not records:
         return ["empty_records"]
+    config: dict[str, object] | None = None
+    config_path = output / "run-config.json"
+    if config_path.exists():
+        try:
+            loaded = json.loads(config_path.read_text())
+            config = loaded if isinstance(loaded, dict) else None
+        except (OSError, TypeError, json.JSONDecodeError):
+            errors.append("malformed_run_config")
+    mtp_requested = _benchmark_mtp_requested(config)
+    if mtp_requested:
+        identity_config = config.get("runtime_identity") if isinstance(config, dict) else None
+        active_identity = identity_config.get("active") if isinstance(identity_config, dict) else None
+        if not isinstance(active_identity, dict) and isinstance(identity_config, dict):
+            active_identity = identity_config.get("candidate")
+        startup = identity_config.get("startup_observation") if isinstance(identity_config, dict) else None
+        errors.extend(validate_native_runtime_identity(active_identity, startup))
     if any(record.get("error") is True and
            record.get("error_class") not in {"incomplete_timeout", "unsupported"}
            for record in records):
@@ -451,6 +494,16 @@ def record_validation_errors(output: pathlib.Path) -> list[str]:
            for record in records if record.get("error") is not True and
            record.get("phase") != "capability"):
         errors.append("missing_record_timings")
+    measured = [record for record in records
+                if record.get("error") is not True and record.get("phase") == "measured"]
+    for record in measured:
+        errors.extend(validate_native_mtp_record(record, mtp_requested=mtp_requested))
+    if mtp_requested:
+        requested_indexes = _requested_prompt_indexes(config)
+        measured_indexes = {record.get("prompt_index") for record in measured
+                            if isinstance(record.get("prompt_index"), int)}
+        if requested_indexes and not requested_indexes.issubset(measured_indexes):
+            errors.append("missing_native_prompt_measurement")
     return errors
 
 
@@ -499,6 +552,12 @@ def read_server_metrics(endpoint: str) -> tuple[dict[str, object] | None, str | 
         values[name] = value
         if label_value:
             values[name] = label_value
+    mtp_values = parse_mtp_counters(body)
+    if mtp_values is not None:
+        values["mtp_draft_tokens_total"] = mtp_values[
+            "llamacpp:spec_decode_num_draft_tokens_total"]
+        values["mtp_accepted_tokens_total"] = mtp_values[
+            "llamacpp:spec_decode_num_accepted_tokens_total"]
     if not values:
         return None, None
     values["mode"] = mode or "unknown"
@@ -977,6 +1036,7 @@ def enrich(output: pathlib.Path, target: str, variant: str, before: dict[str, ob
         "candidate": requested_identity,
         "active": previous_identity.get("active") if isinstance(previous_identity, dict) else None,
         "observed_before": previous_identity.get("observed_before") if isinstance(previous_identity, dict) else None,
+        "startup_observation": previous_identity.get("startup_observation") if isinstance(previous_identity, dict) else None,
         "before": before.get("identity"), "after": after.get("identity"),
         "requested": requested_identity,
     }

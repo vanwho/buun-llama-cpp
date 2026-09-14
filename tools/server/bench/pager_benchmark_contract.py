@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
+import shlex
 import tempfile
 import time
 import uuid
@@ -51,6 +53,10 @@ REQUIRED_REQUEST_TELEMETRY = (
     "mtp_placement", "hot_page_budget", "snapshot_monotonic_us",
 )
 REQUEST_ROUTES = {"selected_direct", "selected_reference", "fallback"}
+
+MTP_DRAFT_COUNTER = "llamacpp:spec_decode_num_draft_tokens_total"
+MTP_ACCEPTED_COUNTER = "llamacpp:spec_decode_num_accepted_tokens_total"
+MTP_ACCEPTANCE_TOLERANCE_PERCENT = 0.0001
 
 
 LIVE_TELEMETRY_NUMERIC_FIELDS = (
@@ -138,6 +144,174 @@ def validate_request_telemetry(value: Mapping[str, Any] | None) -> list[str]:
     errors.extend(validate_live_telemetry(value))
     # Keep the result deterministic for report consumers and avoid duplicate
     # messages when a malformed field is both missing and invalid.
+    return list(dict.fromkeys(errors))
+
+
+def _integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def parse_mtp_counters(prometheus_text: str) -> dict[str, int] | None:
+    """Extract the two native-MTP counters without manufacturing absent values."""
+    if not isinstance(prometheus_text, str):
+        return None
+    counters: dict[str, int] = {}
+    for line in prometheus_text.splitlines():
+        fields = line.split()
+        if len(fields) < 2:
+            continue
+        name = fields[0].split("{", 1)[0]
+        if name not in {MTP_DRAFT_COUNTER, MTP_ACCEPTED_COUNTER}:
+            continue
+        raw = fields[-1]
+        try:
+            number = float(raw)
+        except ValueError:
+            continue
+        if not math.isfinite(number) or number < 0 or not number.is_integer():
+            continue
+        counters[name] = counters.get(name, 0) + int(number)
+    if set(counters) != {MTP_DRAFT_COUNTER, MTP_ACCEPTED_COUNTER}:
+        return None
+    return counters
+
+
+def mtp_counter_delta(before: Mapping[str, Any] | None,
+                      after: Mapping[str, Any] | None) -> tuple[dict[str, int] | None, list[str]]:
+    """Calculate a request-scoped delta and reject counter resets."""
+    if not isinstance(before, Mapping) or not isinstance(after, Mapping):
+        return None, ["mtp_observation_missing"]
+    result: dict[str, int] = {}
+    errors: list[str] = []
+    for name in (MTP_DRAFT_COUNTER, MTP_ACCEPTED_COUNTER):
+        old = before.get(name)
+        new = after.get(name)
+        if not _integer(old) or not _integer(new) or old < 0 or new < 0:
+            errors.append("mtp_observation_missing")
+            continue
+        if new < old:
+            errors.append("mtp_counter_reset")
+            continue
+        result[name] = new - old
+    return (result if not errors else None), list(dict.fromkeys(errors))
+
+
+def validate_native_runtime_identity(identity: Mapping[str, Any] | None,
+                                     startup: Mapping[str, Any] | None = None) -> list[str]:
+    """Require effective native-MTP flags and observed GPU Turbo4 startup placement."""
+    if not isinstance(identity, Mapping):
+        return ["mtp_runtime_identity_missing"]
+    command = identity.get("command")
+    if isinstance(command, str):
+        try:
+            argv = shlex.split(command)
+        except ValueError:
+            argv = []
+    elif isinstance(command, Sequence) and not isinstance(command, (str, bytes)):
+        argv = [str(item) for item in command]
+    else:
+        argv = []
+
+    def option(name: str) -> str | None:
+        try:
+            index = argv.index(name)
+        except ValueError:
+            return None
+        return argv[index + 1] if index + 1 < len(argv) else None
+
+    errors: list[str] = []
+    if option("--spec-type") != "draft-mtp":
+        errors.append("mtp_spec_type_not_draft_mtp")
+    draft_max = option("--spec-draft-n-max")
+    if draft_max is None or not draft_max.isdigit() or int(draft_max) < 1:
+        errors.append("mtp_spec_draft_n_max_invalid")
+    for name, expected, error in (
+        ("--spec-draft-type-k", "turbo4", "mtp_spec_draft_type_k_invalid"),
+        ("--spec-draft-type-v", "turbo4", "mtp_spec_draft_type_v_invalid"),
+        ("--spec-draft-kv-device", "gpu", "mtp_spec_draft_device_invalid"),
+    ):
+        if option(name) != expected:
+            errors.append(error)
+
+    observed = startup if isinstance(startup, Mapping) else {}
+    backend = str(observed.get("draft_backend", "")).lower()
+    if backend != "gpu" and not backend.startswith("cuda"):
+        errors.append("mtp_startup_gpu_backend_missing")
+    if str(observed.get("type_k", "")).lower() != "turbo4":
+        errors.append("mtp_startup_turbo4_k_missing")
+    if str(observed.get("type_v", "")).lower() != "turbo4":
+        errors.append("mtp_startup_turbo4_v_missing")
+    for field, error in (("reserved_rows", "mtp_startup_reserved_rows_missing"),
+                         ("reserved_bytes", "mtp_startup_reserved_bytes_missing")):
+        value = observed.get(field)
+        if not _integer(value) or value <= 0:
+            errors.append(error)
+    return list(dict.fromkeys(errors))
+
+
+def validate_native_mtp_record(record: Mapping[str, Any] | None,
+                               *, mtp_requested: bool = True) -> list[str]:
+    """Validate one measured row, preserving genuine zero acceptance."""
+    if not isinstance(record, Mapping):
+        return ["mtp_record_not_object"]
+    mtp = record.get("mtp")
+    if not isinstance(mtp, Mapping):
+        return ["mtp_observation_missing"] if mtp_requested else ["mtp_off_not_explicit"]
+    if not mtp_requested:
+        if mtp.get("mode") != "off" or record.get("mtp_source") != "off":
+            return ["mtp_off_not_explicit"]
+        return []
+
+    errors: list[str] = []
+    if mtp.get("mode") not in {"native", "draft-mtp"}:
+        errors.append("mtp_mode_not_native")
+    source = record.get("mtp_source", mtp.get("source"))
+    if not isinstance(source, str) or "prometheus" not in source:
+        errors.append("mtp_counter_source_missing")
+
+    draft = mtp.get("draft_tokens", mtp.get("mtp_draft_tokens"))
+    accepted = mtp.get("accepted_tokens", mtp.get("mtp_accepted_tokens"))
+    rate = mtp.get("acceptance_percent", mtp.get("acceptance_rate"))
+    if not _integer(draft) or draft <= 0:
+        errors.append("mtp_observation_missing" if draft in (None, 0) else "mtp_draft_tokens_invalid")
+    if not _integer(accepted) or accepted < 0:
+        errors.append("mtp_observation_missing" if accepted is None else "mtp_accepted_tokens_invalid")
+    if _integer(draft) and _integer(accepted) and draft > 0 and accepted > draft:
+        errors.append("mtp_accepted_exceeds_draft")
+    if isinstance(rate, bool) or not isinstance(rate, (int, float)) or not math.isfinite(rate):
+        errors.append("mtp_acceptance_percent_invalid")
+    elif _integer(draft) and _integer(accepted) and draft > 0:
+        expected = 100.0 * accepted / draft
+        if abs(float(rate) - expected) > MTP_ACCEPTANCE_TOLERANCE_PERCENT:
+            errors.append("mtp_acceptance_percent_mismatch")
+
+    counters = record.get("mtp_counters")
+    if not isinstance(counters, Mapping):
+        errors.append("mtp_observation_missing")
+    else:
+        before = counters.get("before")
+        after = counters.get("after")
+        delta = counters.get("delta")
+        computed, delta_errors = mtp_counter_delta(before, after)
+        errors.extend(delta_errors)
+        if computed is not None:
+            expected_delta = {
+                MTP_DRAFT_COUNTER: draft,
+                MTP_ACCEPTED_COUNTER: accepted,
+            }
+            if computed != expected_delta or delta != computed:
+                errors.append("mtp_counter_delta_mismatch")
+
+    journal_key = mtp.get("journal_case_key", record.get("journal_case_key"))
+    case = record.get("case_key")
+    if journal_key is not None and case is not None and journal_key != case:
+        errors.append("mtp_journal_stale")
+    if not isinstance(record.get("mtp_journal_excerpt_sha256"), str) and \
+            not isinstance(mtp.get("journal_excerpt_sha256"), str):
+        errors.append("mtp_journal_excerpt_hash_missing")
+    for field in ("request_start", "request_end", "case_key"):
+        if not isinstance(record.get(field), str) or not record[field]:
+            errors.append(f"mtp_{field}_missing")
     return list(dict.fromkeys(errors))
 
 

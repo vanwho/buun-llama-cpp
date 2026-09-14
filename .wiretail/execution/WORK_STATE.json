@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "49",
-  "current_task": "49-07",
-  "last_updated_utc": "2026-09-14T07:52:24+00:00",
+  "current_phase": "50",
+  "current_task": "50-01",
+  "last_updated_utc": "2026-09-14T08:10:58+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8873,7 +8873,7 @@
       "cluster": "49d-mtp-evidence-v10",
       "title": "Make native-MTP acceptance a hard benchmark precondition",
       "packet": ".wiretail/execution/tasks/49-07.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -8900,7 +8900,32 @@
       "depends_on": [
         "49-06"
       ],
-      "commit": null
+      "commit": "b08f70cbf2e53dce83a44759131519b3f53394c4",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/49-07-attempt-1-20260914T075242Z.jsonl:153",
+            "total_tokens": 11207616,
+            "total_tokens_derived": true,
+            "input_tokens": 11161144,
+            "cached_input_tokens": 10937088,
+            "output_tokens": 46472,
+            "thinking_tokens": 17037
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 11207616,
+          "input_tokens": 11161144,
+          "cached_input_tokens": 10937088,
+          "output_tokens": 46472,
+          "thinking_tokens": 17037
+        }
+      }
     },
     {
       "id": "50-01",
@@ -12013,15 +12038,28 @@
           "cached_input_tokens": 57745152,
           "output_tokens": 106743,
           "thinking_tokens": 41132
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/49-07-attempt-1-20260914T075242Z.jsonl:153",
+          "total_tokens": 11207616,
+          "total_tokens_derived": true,
+          "input_tokens": 11161144,
+          "cached_input_tokens": 10937088,
+          "output_tokens": 46472,
+          "thinking_tokens": 17037
         }
       ],
       "totals": {
-        "turns": 6,
-        "total_tokens": 184265543,
-        "input_tokens": 183895712,
-        "cached_input_tokens": 180530688,
-        "output_tokens": 369831,
-        "thinking_tokens": 135939
+        "turns": 7,
+        "total_tokens": 195473159,
+        "input_tokens": 195056856,
+        "cached_input_tokens": 191467776,
+        "output_tokens": 416303,
+        "thinking_tokens": 152976
       }
     },
     "50": {
@@ -12060,12 +12098,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 165,
-      "total_tokens": 3496991649,
-      "input_tokens": 3488900976,
-      "cached_input_tokens": 3418617856,
-      "output_tokens": 8090673,
-      "thinking_tokens": 2943086
+      "turns": 166,
+      "total_tokens": 3508199265,
+      "input_tokens": 3500062120,
+      "cached_input_tokens": 3429554944,
+      "output_tokens": 8137145,
+      "thinking_tokens": 2960123
     },
     "source": "Codex turn.completed usage events"
   }
