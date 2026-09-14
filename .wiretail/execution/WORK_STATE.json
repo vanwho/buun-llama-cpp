@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "43",
-  "current_task": "43-01",
-  "last_updated_utc": "2026-09-14T01:47:29+00:00",
+  "current_task": "43-02",
+  "last_updated_utc": "2026-09-14T02:11:12+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7917,7 +7917,7 @@
       "cluster": "43a-current-q-producer-v9",
       "packet": ".wiretail/execution/tasks/43-01.md",
       "title": "Repair the selected-packed current-Q producer boundary",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -7938,7 +7938,32 @@
       "depends_on": [
         "42-01"
       ],
-      "commit": null
+      "commit": "a2efe658196bdab1f23a87814229230fd1109117",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/43-01-attempt-1-20260914T014747Z.jsonl:262",
+            "total_tokens": 17863364,
+            "total_tokens_derived": true,
+            "input_tokens": 17819162,
+            "cached_input_tokens": 17300480,
+            "output_tokens": 44202,
+            "thinking_tokens": 21979
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 17863364,
+          "input_tokens": 17819162,
+          "cached_input_tokens": 17300480,
+          "output_tokens": 44202,
+          "thinking_tokens": 21979
+        }
+      }
     },
     {
       "id": "43-02",
@@ -10442,14 +10467,28 @@
       }
     },
     "43": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/43-01-attempt-1-20260914T014747Z.jsonl:262",
+          "total_tokens": 17863364,
+          "total_tokens_derived": true,
+          "input_tokens": 17819162,
+          "cached_input_tokens": 17300480,
+          "output_tokens": 44202,
+          "thinking_tokens": 21979
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 17863364,
+        "input_tokens": 17819162,
+        "cached_input_tokens": 17300480,
+        "output_tokens": 44202,
+        "thinking_tokens": 21979
       }
     },
     "44": {
@@ -10466,12 +10505,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 148,
-      "total_tokens": 3241911417,
-      "input_tokens": 3234410960,
-      "cached_input_tokens": 3169747456,
-      "output_tokens": 7500457,
-      "thinking_tokens": 2730830
+      "turns": 149,
+      "total_tokens": 3259774781,
+      "input_tokens": 3252230122,
+      "cached_input_tokens": 3187047936,
+      "output_tokens": 7544659,
+      "thinking_tokens": 2752809
     },
     "source": "Codex turn.completed usage events"
   }
