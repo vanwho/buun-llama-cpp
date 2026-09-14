@@ -1,0 +1,5 @@
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15945 MiB):
+  Device 0: NVIDIA GeForce RTX 4080, compute capability 8.9, VMM: yes, VRAM: 15945 MiB
+ggml_backend_cuda_buffer_type_alloc_buffer: allocating 128.00 MiB on device 0: cudaMalloc failed: out of memory
+remap contents: allocation failed
+scratch boundary: full-L K/V reserve failed
