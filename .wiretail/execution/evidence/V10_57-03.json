@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task": "57-03",
+  "source_commit": "15bf72a189198ffc6fafdb6c329f0d5fb53b8c49",
+  "checks": {
+    "post_contract_promotion_and_quality": {
+      "status": "pass",
+      "command": ["jq", "-n", "--slurpfile", "native", "/srv/ai/paged-kv/results/v10/57-03/20260914T190757Z/curve-native-q0q1q2/SPEED25_02_ATTRIBUTION.json", "promotion-quality extraction"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/57-03/proofs/promotion-quality.json", "sha256": "306a927eaa1f34f98d28a105798f5f329b7d807e8036cebfc4d609c11c3a011c"}
+      ],
+      "finding": {"controlled_physical": "not_run", "organic_physical": "not_run", "answer_quality": "separate_field_not_run"}
+    },
+    "post_contract_matched_matrix": {
+      "status": "pass",
+      "command": ["jq", "-n", "matched native/control invariant extraction"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/57-03/20260914T190757Z/curve-native-q0q1q2/SPEED25_02_ATTRIBUTION.json", "sha256": "fec9dbd9c4f4cfc32b9aa52d87979c8d6888659321353dacb6b1731260c8577d"},
+        {"path": "/srv/ai/paged-kv/results/v10/57-03/20260914T191009Z/curve-off-q0/SPEED25_02_ATTRIBUTION.json", "sha256": "07a48fce5ae924ab8a58990b36f0fb08cac2fb5e1ee2e9a9dee2e02c31d0812d"},
+        {"path": "/srv/ai/paged-kv/results/v10/57-03/20260914T191036Z/curve-cpu-main-q0/SPEED25_02_ATTRIBUTION.json", "sha256": "38854ed8bf9c776f3e330646a71e7ec1b0acff3b863bbe524cf8400f67fde1a8"},
+        {"path": "/srv/ai/paged-kv/results/v10/57-03/proofs/matched-matrix.json", "sha256": "5d17b8d408e9771785cd269120202979bbf08cab2382ac67321fcd5a937391e8"}
+      ],
+      "finding": {"native_rows": 3, "controls": ["feature_off", "cpu_main_kv_gpu_draft"]}
+    },
+    "post_contract_occupancy_boundary": {
+      "status": "pass",
+      "command": ["jq", "full-L occupancy boundary finding extraction"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/57-03/20260914T191137Z/occupancy-full-L/INTERACTIVE29_01_SCALE.json", "sha256": "7d296c4098ffd5c24d3d8d2d277acb7e6243c4712f4b77f9df201ba8f64dd24d"},
+        {"path": "/srv/ai/paged-kv/results/v10/57-03/proofs/occupancy-boundary.json", "sha256": "b6aafffff5412cebf6da50037094d3b8d7208de45cbc13431c6cbc81766e2855"}
+      ],
+      "finding": {"allocation_rows": 262144, "occupied_frontier": 0, "status": "failed", "reason": "CUDA graph abort during first full-L request; service restarted healthy"}
+    }
+  }
+}
