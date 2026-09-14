@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "50-05",
+  "source_commit": "07c926b1be3cab815754622d6fa8f73092b0c825",
+  "checks": {
+    "generic_live_geometry": {
+      "status": "pass",
+      "command": ["./build/bin/test-kv-pager"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/evidence/dynamic-geometry-final.log", "sha256": "a660b8ef0d9b187b40b651a0a662a23d1ca28d1545a96bcf4a7fd52228c4bc55"},
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/20260914T-evidence/cuda-final.log", "sha256": "5721014df9e5b8590151d4bc445b561d78ea2ce3d9fe77a920d0cb9c5de825cb"}
+      ]
+    },
+    "mtp_control_state_parity": {
+      "status": "pass",
+      "command": ["python3", "tools/server/bench/run-final-curve.py", "--context", "77824", "--prompt-tokens", "6144", "--question-index", "0", "--cache-condition", "live-continuation", "--reset-mode", "paired-restore", "--batch-tokens", "128", "--ubatch-tokens", "128"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/20260914T-live-q0-b128-u128-v5/cold/SPEED25_02_ATTRIBUTION.json", "sha256": "a779d89234c0038aa6094e2b66d52c6c589aeca79710baa8bb891aa02f333522"},
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/20260914T-live-q0-b128-u128-v5/append/SPEED25_02_ATTRIBUTION.json", "sha256": "7c9906cb9ca14172dd159b4a5cbe3b367844189e6e01dbd4d3faa4e2df80fa7d"},
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/20260914T-evidence/local-tests.log", "sha256": "74bad80476cc37458594b73859d7ead36c62b84f3bbfd7ed7be7aff6ffecbf90"}
+      ]
+    },
+    "scratch_capacity_tuning": {
+      "status": "pass",
+      "command": ["./build/bin/test-cache-budget"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/20260914T-evidence/local-tests.log", "sha256": "74bad80476cc37458594b73859d7ead36c62b84f3bbfd7ed7be7aff6ffecbf90"},
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/final-candidate-identity.prom", "sha256": "aef007a2f4a026d6966d6ef5382bbcfa0b113639e16d6b3cf010b7c47c3299cb"},
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/20260914T-tune-b64-u64/cold/SPEED25_02_ATTRIBUTION.json", "sha256": "00d0f210600fb4f36cf1f6081d5605429401b97d99a685d4abffda8f65dd24e1"},
+        {"path": "/srv/ai/paged-kv/results/v10/50-05/20260914T-tune-nmax1/cold/SPEED25_02_ATTRIBUTION.json", "sha256": "74fdc72b016afe18eb6af35eed2cc529cd52c64230cf04563c1e5445f272ff05"}
+      ]
+    }
+  }
+}

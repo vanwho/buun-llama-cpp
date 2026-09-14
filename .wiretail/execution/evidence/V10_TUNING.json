@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "task": "50-05",
+  "source_commit": "07c926b1be3cab815754622d6fa8f73092b0c825",
+  "candidate": {
+    "context_tokens": 77824,
+    "page_size_tokens": 256,
+    "batch_tokens": 128,
+    "ubatch_tokens": 128,
+    "draft_n_max": 2,
+    "target_kv": "CUDA/turbo4",
+    "draft_kv": "GPU/turbo4",
+    "hot_tokens": 30208,
+    "headroom_bytes": 201327000,
+    "A": "runtime scratch reservation; no portable A CLI knob",
+    "scratch_high_water_bytes": 31653900
+  },
+  "ledger_bytes": {
+    "weights": 13695600000,
+    "fixed_context": 131072,
+    "recurrent_state": 470680000,
+    "mtp_compute": 268435000,
+    "graph": 268435000,
+    "turbo4_scratch": 128,
+    "routing_table": 79691800,
+    "staging": 128,
+    "external": 293384000,
+    "mtp_kv": 82313200,
+    "packed_workspace": 510394000,
+    "packed_dequant": 76546000,
+    "catalogue": 19986200,
+    "charged": 16206500000,
+    "usable_device": 16720200000
+  },
+  "measurements": [
+    {"B": 128, "U": 128, "n_max": 2, "phase": "cold", "prefill_us": 32861726, "decode_us": 3207707, "draft": 90, "accepted": 81},
+    {"B": 128, "U": 128, "n_max": 2, "phase": "paired_append", "prefill_us": 32714145, "decode_us": 3214426, "draft": 90, "accepted": 81},
+    {"B": 64, "U": 64, "n_max": 2, "phase": "cold", "prefill_us": 35167107, "decode_us": 9702148, "draft": 247, "accepted": 2},
+    {"B": 128, "U": 64, "n_max": 2, "phase": "cold", "prefill_us": 35317007, "decode_us": 9720851, "draft": 247, "accepted": 2},
+    {"B": 128, "U": 64, "n_max": 1, "phase": "cold", "prefill_us": 35400957, "decode_us": 8172635, "draft": 125, "accepted": 1}
+  ],
+  "decision": "Retain B128/U128/n_max2: it is the only tested point with strong organic MTP acceptance and materially lower decode time. The paired append observed LCP=6144 but the recurrent trim rejected and correctly fell back to full prompt processing; no state or acceptance was forced."
+}
