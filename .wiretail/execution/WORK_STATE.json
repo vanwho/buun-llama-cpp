@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "61",
-  "current_task": "61-03",
-  "last_updated_utc": "2026-09-14T21:17:53+00:00",
+  "current_task": "61-04",
+  "last_updated_utc": "2026-09-14T21:30:29+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -10794,7 +10794,7 @@
       "cluster": "61c-bounded-revalidation-v10",
       "title": "Run bounded post-boundary V10 revalidation",
       "packet": ".wiretail/execution/tasks/61-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -10819,16 +10819,30 @@
       "depends_on": [
         "61-02"
       ],
-      "commit": null,
+      "commit": "ba19eb37dfad944928c90dc3ced2de27d1234b52",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/61-03-attempt-1-20260914T211811Z.jsonl:69",
+            "total_tokens": 3397038,
+            "total_tokens_derived": true,
+            "input_tokens": 3385591,
+            "cached_input_tokens": 3261952,
+            "output_tokens": 11447,
+            "thinking_tokens": 2719
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 3397038,
+          "input_tokens": 3385591,
+          "cached_input_tokens": 3261952,
+          "output_tokens": 11447,
+          "thinking_tokens": 2719
         }
       }
     },
@@ -14214,15 +14228,28 @@
           "cached_input_tokens": 18776320,
           "output_tokens": 48367,
           "thinking_tokens": 20352
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/61-03-attempt-1-20260914T211811Z.jsonl:69",
+          "total_tokens": 3397038,
+          "total_tokens_derived": true,
+          "input_tokens": 3385591,
+          "cached_input_tokens": 3261952,
+          "output_tokens": 11447,
+          "thinking_tokens": 2719
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 44368228,
-        "input_tokens": 44267857,
-        "cached_input_tokens": 43229696,
-        "output_tokens": 100371,
-        "thinking_tokens": 42331
+        "turns": 3,
+        "total_tokens": 47765266,
+        "input_tokens": 47653448,
+        "cached_input_tokens": 46491648,
+        "output_tokens": 111818,
+        "thinking_tokens": 45050
       }
     },
     "62": {
@@ -14239,12 +14266,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 198,
-      "total_tokens": 4061129924,
-      "input_tokens": 4051538825,
-      "cached_input_tokens": 3967662592,
-      "output_tokens": 9591099,
-      "thinking_tokens": 3508765
+      "turns": 199,
+      "total_tokens": 4064526962,
+      "input_tokens": 4054924416,
+      "cached_input_tokens": 3970924544,
+      "output_tokens": 9602546,
+      "thinking_tokens": 3511484
     },
     "source": "Codex turn.completed usage events"
   }
