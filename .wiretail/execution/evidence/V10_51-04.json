@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "task": "51-04",
+  "source_commit": "0499d875a086ca0e48ff8fd48d2858fdcf342aa2",
+  "checks": {
+    "capacity_256k_findings": {
+      "status": "pass",
+      "command": ["python3", ".wiretail/execution/v10/validate.py", "--task", "51-04", "--receipt", ".wiretail/execution/evidence/V10_51-04.json"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_256K.json", "sha256": "78bcdc1f4b0eb64e4dee3bd2782d34ba34422315e084d763b8c8bb5280bc7f8f"},
+        {"path": ".wiretail/execution/evidence/V10_256K.md", "sha256": "d8eda1c759a7b9f32cffaaa564bc9ce995f3dd6c069f5d0a440419853d83ceaa"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-04/20260914T-256k-h30208/server.log", "sha256": "4c6badb6fbf7b240af871196fa8751673bf80baae59ebd9c0787296eaeccdc92"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-04/20260914T-256k-h30208/INTERACTIVE29_01_SCALE.json", "sha256": "f4560bc8a46fe586a16415ac1740e936688257721356953098421338fb382fd7"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-04/20260914T-256k-h16384/server.log", "sha256": "32ca74efd22a04f2a6db3dd7c67a95c7f7a2bc414c4967d2895ab1cb79d308a2"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-04/20260914T-256k-h16384-u64/server.log", "sha256": "6d5eecd48c7bfdad8ade2ce1660d490027bb019f1531d30b90d7711f64d15f19"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-04/20260914T-256k-h16384/INTERACTIVE29_01_SCALE.json", "sha256": "355111c78a9ad73273139f6de09e58d8e428b370376be969d3ac748945b61814"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-04/20260914T-256k-h16384-u64/INTERACTIVE29_01_SCALE.json", "sha256": "52add64dc5708432d7b37521e6663a6e2e31d7bc9eb48b8e64d2819c4bb50771"}
+      ]
+    }
+  }
+}
