@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <vector>
 
@@ -285,6 +286,8 @@ static void test_packed_cache_identity_and_versions() {
     ggml_tensor * source_k = ggml_new_tensor_4d(context, GGML_TYPE_TURBO4_0, 256, 4, 2048, 1);
     ggml_tensor * source_v = ggml_new_tensor_4d(context, GGML_TYPE_TURBO4_0, 256, 4, 2048, 1);
     assert(source_k != nullptr && source_v != nullptr);
+    ggml_set_name(source_k, "cache_k_l3_ms7");
+    ggml_set_name(source_v, "cache_v_l3_ms7");
 
     const auto selected_metadata = metadata(snap, 1, 1);
     assert(selected_metadata.get_n_kv() == 444);
@@ -298,6 +301,8 @@ static void test_packed_cache_identity_and_versions() {
     auto * first = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v,
             backend, row_capacity);
     assert(first != nullptr);
+    assert(std::strcmp(first->k->name, source_k->name) == 0);
+    assert(std::strcmp(first->v->name, source_v->name) == 0);
     assert(first->k->ne[2] == row_capacity && first->v->ne[2] == row_capacity);
     assert(cache.content_version(first, 0) == UINT64_MAX);
     cache.set_content_version(first, 0, 91);
@@ -306,6 +311,17 @@ static void test_packed_cache_identity_and_versions() {
     auto * reused = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v,
             backend, row_capacity);
     assert(reused == first && cache.content_version(reused, 0) == 91);
+
+    // A graph replay must retain the same owner and its encoded-domain names
+    // through submission; submitting duplicate references must still create
+    // one lease for this graph.
+    cache.begin_graph_build();
+    auto * replay = cache.find_or_create(3, 0, 11, 17, view.pages(), source_k, source_v,
+            backend, row_capacity);
+    assert(replay == first);
+    assert(cache.submit_graph({ replay, replay }));
+    cache.complete_one_graph();
+    cache.release_completed();
 
     auto * representation_refresh = cache.find_or_create(
             3, 0, 12, 17, view.pages(), source_k, source_v, backend, row_capacity);

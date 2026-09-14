@@ -4151,8 +4151,6 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 layer.v = layer.cache_entry->v;
                 ggml_set_input(layer.k);
                 ggml_set_input(layer.v);
-                ggml_set_name(layer.k, "kv_packed_k");
-                ggml_set_name(layer.v, "kv_packed_v");
                 ggml_backend_sched_set_tensor_backend(sched, layer.k, packed_backend);
                 ggml_backend_sched_set_tensor_backend(sched, layer.v, packed_backend);
                 inp->packed_graph_owners.push_back(layer.cache_entry);
@@ -4788,6 +4786,13 @@ ggml_tensor * llm_graph_context::build_attn(
                     layer.k->ne[0] * layer.k->ne[1], layer.k->ne[2]);
             ggml_tensor * packed_v_owner = ggml_reshape_2d(ctx0, layer.v,
                     layer.v->ne[0] * layer.v->ne[1], layer.v->ne[2]);
+            // set_rows receives these reshaped destinations, whose view name
+            // is not guaranteed to follow the stable owner. Preserve the
+            // cache-domain names on the actual CUDA destinations so Turbo4's
+            // mean-subtraction dispatch sees the same K/V semantics as the
+            // source cache and packed owner.
+            ggml_set_name(packed_k_owner, layer.k->name);
+            ggml_set_name(packed_v_owner, layer.v->name);
             layer.current_k = ggml_set_rows(ctx0, packed_k_owner,
                     make_current_source(k_cur, layer.k), inp->packed_current_idxs);
             layer.current_v = ggml_set_rows(ctx0, packed_v_owner,
