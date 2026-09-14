@@ -113,16 +113,20 @@ bool llama_kv_attention_telemetry::snapshot_matches(
 }
 
 llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reject_stale(
-        llama_kv_attention_telemetry_drop_reason reason) noexcept {
+        llama_kv_attention_telemetry_drop_reason reason,
+        uint64_t table_epoch, uint64_t token_index,
+        uint32_t page_count, uint32_t token_count) noexcept {
     ++counters_.stale_dropped;
-    record_drop(reason);
+    record_drop(reason, table_epoch, token_index, page_count, token_count);
     return llama_kv_attention_telemetry_status::stale_epoch;
 }
 
 llama_kv_attention_telemetry_status llama_kv_attention_telemetry::reject_invalid(
-        llama_kv_attention_telemetry_drop_reason reason) noexcept {
+        llama_kv_attention_telemetry_drop_reason reason,
+        uint64_t table_epoch, uint64_t token_index,
+        uint32_t page_count, uint32_t token_count) noexcept {
     ++counters_.invalid_dropped;
-    record_drop(reason);
+    record_drop(reason, table_epoch, token_index, page_count, token_count);
     return llama_kv_attention_telemetry_status::invalid_argument;
 }
 
@@ -268,10 +272,14 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
         return llama_kv_attention_telemetry_status::disabled;
     }
     if (sample.table_epoch != table_epoch_ || snapshot.epoch() != table_epoch_) {
-        return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_snapshot);
+        return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_snapshot,
+                sample.table_epoch, sample.token_index,
+                uint32_t(sample.page_count), sample.token_count);
     }
     if (!snapshot_matches(snapshot)) {
-        return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_identity);
+        return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_identity,
+                sample.table_epoch, sample.token_index,
+                uint32_t(sample.page_count), sample.token_count);
     }
     if (sample.token_count != 0 && sample.token_index % sample_interval_tokens_ != 0) {
         record_drop(llama_kv_attention_telemetry_drop_reason::sampling_skipped,
@@ -280,13 +288,19 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
         return llama_kv_attention_telemetry_status::sampling_skipped;
     }
     if (sample.page_mass == nullptr) {
-        return reject_invalid(llama_kv_attention_telemetry_drop_reason::no_output);
+        return reject_invalid(llama_kv_attention_telemetry_drop_reason::no_output,
+                sample.table_epoch, sample.token_index,
+                uint32_t(sample.page_count), sample.token_count);
     }
     if (sample.pages == nullptr || sample.page_count == 0) {
-        return reject_invalid(llama_kv_attention_telemetry_drop_reason::no_metadata);
+        return reject_invalid(llama_kv_attention_telemetry_drop_reason::no_metadata,
+                sample.table_epoch, sample.token_index,
+                uint32_t(sample.page_count), sample.token_count);
     }
     if (sample.token_count == 0 || sample.layer_count == 0 || sample.head_count == 0) {
-        return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_shape);
+        return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                sample.table_epoch, sample.token_index,
+                uint32_t(sample.page_count), sample.token_count);
     }
     if (sample.page_count > logical_page_count_ ||
         sample.head_stride_bytes < sizeof(float) * logical_page_count_ ||
@@ -295,18 +309,24 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
         !stride_product_fits(sample.token_stride_bytes, sample.token_count) ||
         sample.layer_stride_bytes < sample.head_stride_bytes * sample.head_count ||
         sample.token_stride_bytes < sample.layer_stride_bytes * sample.layer_count) {
-        return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_shape);
+        return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_shape,
+                sample.table_epoch, sample.token_index,
+                uint32_t(sample.page_count), sample.token_count);
     }
     const auto publish_begin = std::chrono::steady_clock::now();
     for (size_t i = 0; i < sample.page_count; ++i) {
         const auto & page = sample.pages[i];
         if (!valid_page(page.id.logical_page) || !pages_[page.id.logical_page].value.known ||
             pages_[page.id.logical_page].value.id != page.id) {
-            return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_identity);
+            return reject_stale(llama_kv_attention_telemetry_drop_reason::stale_identity,
+                    sample.table_epoch, sample.token_index,
+                    uint32_t(sample.page_count), sample.token_count);
         }
         for (size_t j = 0; j < i; ++j) {
             if (sample.pages[j].id.logical_page == page.id.logical_page) {
-                return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_argument);
+                return reject_invalid(llama_kv_attention_telemetry_drop_reason::invalid_argument,
+                        sample.table_epoch, sample.token_index,
+                        uint32_t(sample.page_count), sample.token_count);
             }
         }
     }
@@ -324,7 +344,9 @@ llama_kv_attention_telemetry_status llama_kv_attention_telemetry::publish_comple
                 for (size_t i = 0; i < sample.page_count; ++i) {
                     const float mass = head_base[sample.pages[i].id.logical_page];
                     if (!std::isfinite(mass) || mass < 0.0f || mass > 1.0f) {
-                        return reject_invalid(llama_kv_attention_telemetry_drop_reason::nonfinite);
+                        return reject_invalid(llama_kv_attention_telemetry_drop_reason::nonfinite,
+                                sample.table_epoch, sample.token_index,
+                                uint32_t(sample.page_count), sample.token_count);
                     }
                 }
             }
