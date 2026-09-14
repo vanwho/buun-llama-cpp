@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "task": "49-07",
+  "candidate": {
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "binary_sha256": "3a1ede2205e0d8face9252a438cc77c0efe49898d807f1f57b06d4b07b2431e7",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "endpoint": "http://127.0.0.1:8080/v1/chat/completions"
+  },
+  "native": {
+    "run": "/srv/ai/paged-kv/results/v10/49-07/20260914T080419Z-49-07-mtp-smoke-candidate-8080",
+    "effective_args": "--spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4 --spec-draft-kv-device gpu",
+    "startup": {
+      "draft_backend": "gpu",
+      "type_k": "turbo4",
+      "type_v": "turbo4",
+      "reserved_rows": 77824,
+      "reserved_bytes": 82313216
+    },
+    "records": [
+      {"prompt_index": 0, "case_id": "fast/off/measured/1/0", "draft_tokens": 27, "accepted_tokens": 0, "acceptance_percent": 0.0, "before_draft": 0, "after_draft": 27},
+      {"prompt_index": 1, "case_id": "fast/off/measured/1/1", "draft_tokens": 27, "accepted_tokens": 0, "acceptance_percent": 0.0, "before_draft": 27, "after_draft": 54},
+      {"prompt_index": 2, "case_id": "fast/off/measured/1/2", "draft_tokens": 27, "accepted_tokens": 0, "acceptance_percent": 0.0, "before_draft": 54, "after_draft": 81}
+    ]
+  },
+  "feature_off": {
+    "run": "/srv/ai/paged-kv/results/v10/49-07/20260914T080517Z-49-07-mtp-off-isolation",
+    "prompt_indexes": [0, 1, 2],
+    "mtp_source": "off",
+    "mtp_mode": "off",
+    "acceptance_claim": false
+  }
+}
