@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "task": "61-03",
+  "source_commit": "ba19eb37dfad944928c90dc3ced2de27d1234b52",
+  "checks": {
+    "phase61_bounded_revalidation": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".wiretail/execution/v10",
+        "-p",
+        "test_*.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_61-03_FINDING.json",
+          "sha256": "a353af2094512258e565eeb862504f171267e217f92bf91935a93bad656b38bd"
+        }
+      ],
+      "finding_status": "failed_at_first_invalid_boundary"
+    }
+  }
+}

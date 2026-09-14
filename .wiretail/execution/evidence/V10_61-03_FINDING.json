@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "task": "61-03",
+  "revision": "hotpath-v10-20260914",
+  "result": "failed_at_first_invalid_boundary",
+  "live_run": {
+    "path": "/srv/ai/paged-kv/results/v10/61-03/smoke-selective-20260914T212056Z",
+    "runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "adapter": "tools/server/bench/run-pager-profile-benchmark.py",
+    "exit_code": 1,
+    "failure_class": "canonical_runner_interrupted",
+    "reason": "The corrected exact-token admission succeeded, but the first selected request made no prefill progress within the bounded window; it was interrupted and the runner restored the managed profile.",
+    "observed_identity": {
+      "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "binary": "/srv/ai/paged-kv/results/v10/61-02/candidate-bundle/bin/llama-server",
+      "L_tokens": 262144,
+      "C_tokens": null,
+      "H_tokens": 16384,
+      "A_tokens": null,
+      "B_tokens": 128,
+      "U_tokens": 64,
+      "target_kv": "turbo4/gpu",
+      "draft_kv": "turbo4/gpu"
+    }
+  },
+  "requested_rows": {
+    "matched_original_q0_q1_q2": {
+      "status": "not_run",
+      "rows": 27,
+      "reason": "Stopped after the first invalid small-path smoke; no measured row was claimed. Requested modes were selective native, all-GPU feature-off, and CPU-main-KV with GPU draft; each required one warmup and three measured trials for q0/q1/q2."
+    },
+    "cached_append_64": {"status": "not_run", "reason": "small-path smoke did not establish a usable frontier"},
+    "cached_append_256": {"status": "not_run", "reason": "small-path smoke did not establish a usable frontier"},
+    "controlled_T1_model_query": {"status": "not_run", "reason": "bounded campaign stopped at first invalid boundary"},
+    "organic_T2_or_T3_round_trip": {"status": "not_run", "reason": "bounded campaign stopped at first invalid boundary"},
+    "pilot_L32768": {"status": "not_run", "reason": "small-path smoke prerequisite failed"},
+    "pilot_L128K": {"status": "not_run", "reason": "small-path smoke prerequisite failed"},
+    "occupied_C262144": {"status": "not_run", "reason": "allocation/startup was not relabeled as occupancy; no valid occupied frontier was established"}
+  },
+  "smoke": {
+    "status": "failed",
+    "actual_L_tokens": 8192,
+    "actual_C_tokens": null,
+    "actual_H_tokens": 4096,
+    "actual_A_tokens": null,
+    "actual_B_tokens": 128,
+    "actual_U_tokens": 64,
+    "prompt_admission": "exact tokenizer preflight accepted",
+    "response": "none",
+    "mtp_denominators": "not_observed because no response completed",
+    "restoration": "restored, exit_code=0"
+  },
+  "interpretation": "No speed, promotion, answer-quality, cached-append, pilot, or occupied-C262144 claim is made. The failed request is retained as the next repair/revalidation boundary."
+}
