@@ -967,10 +967,10 @@ int main() {
     assert(!tail_pager->physical_row(0, 513, v_row));
 
     // A whole prefill batch reserves its write frontier before graph
-    // submission. Crossing the physical H=4-page window must roll back every
+    // submission. Crossing the physical H=2-page window must roll back every
     // earlier row rather than leaving a partially admitted prefix.
     std::vector<llama_pos> oversized_positions;
-    for (llama_pos position = 0; position < 5 * 256; ++position) {
+    for (llama_pos position = 0; position <= 1024; ++position) {
         oversized_positions.push_back(position);
     }
     std::vector<llama_kv_pager_write_ticket> batch_tickets;
@@ -980,6 +980,35 @@ int main() {
            oversized_status == llama_kv_pager_write_status::all_pinned);
     assert(batch_tickets.empty());
     assert(pager->residency().pages().empty());
+
+    // Once the hot window is full, a failed crossing batch must not evict a
+    // cleanly committed prefix or leave a partial new page behind.
+    auto full_resources = resources(1024, 128);
+    auto full_pager = llama_kv_pager::create(config, geometry(1025),
+            full_resources, write_backend, status);
+    assert(full_pager && status == llama_kv_pager_status::ok);
+    llama_kv_pager_write_ticket full_ticket;
+    for (llama_pos position : { llama_pos(0), llama_pos(256) }) {
+        assert(full_pager->begin_write(0, 11, position, full_ticket) ==
+                llama_kv_pager_write_status::ok);
+        assert(full_pager->complete_write(full_ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    const auto full_before = full_pager->residency();
+    std::vector<llama_pos> crossing_positions;
+    for (llama_pos position = 512; position <= 768; ++position) {
+        crossing_positions.push_back(position);
+    }
+    assert(full_pager->begin_write_batch(0, 11, crossing_positions, batch_tickets) ==
+            llama_kv_pager_write_status::no_victim);
+    assert(batch_tickets.empty());
+    const auto full_after = full_pager->residency();
+    assert(full_after.epoch() == full_before.epoch());
+    assert(full_after.pages().size() == full_before.pages().size());
+    for (size_t i = 0; i < full_before.pages().size(); ++i) {
+        assert(full_after.pages()[i].id == full_before.pages()[i].id);
+        assert(full_after.pages()[i].physical_slot == full_before.pages()[i].physical_slot);
+    }
 
     std::vector<llama_pos> batch_positions;
     for (llama_pos position = 0; position < 300; ++position) {
