@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "summary_id": "V10_SUMMARY_61",
+  "revision": "hotpath-v10-20260914",
+  "result": "current_findings",
+  "scope": "phase-61 bounded revalidation artifacts only",
+  "identity": {
+    "requested": {
+      "model": "qwen-3.8",
+      "mode": "selective",
+      "L_tokens": 8192,
+      "C_tokens": 6144,
+      "H_tokens": 8192,
+      "A_tokens": 4096,
+      "B_tokens": 128,
+      "U_tokens": 64
+    },
+    "observed": {
+      "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "bundle": "/srv/ai/paged-kv/results/v10/61-02/candidate-bundle/bin/llama-server",
+      "bundle_manifest_sha256": "9558779109d2a65a3977b1d4d614ea10cd78f0ad6f406a2251d63c90efa9c521",
+      "endpoint_executable_sha256": "b673549822c98f0965d3406f576a50111fa8c4a06ce7e6ce8d555a8a15f1fffa",
+      "endpoint_pid": 1284589,
+      "tokenizer_template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+      "source_commit": "a13ad971ec12fd340aabae4249eb5683979f0b25"
+    },
+    "immutable": {
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "bundle_manifest_sha256": "9558779109d2a65a3977b1d4d614ea10cd78f0ad6f406a2251d63c90efa9c521",
+      "source_commit": "a13ad971ec12fd340aabae4249eb5683979f0b25",
+      "loaded_project_dso_hashes": {
+        "libggml-base.so.0.22.0": "76c60c8e7a493f5595aa41c9a3ee5b77fb6c21d9bab495f07468c8aef8d42dbd",
+        "libggml-cuda.so.0.22.0": "f42db693f505ff769ef311f5c8d44a27bd77bab32c70736150232fb4460c27af",
+        "libllama-common.so.0.3.0": "c2bafee32691e9184e09548c656858f1872c01d6876f1c336646212ab7305381",
+        "libllama-server-impl.so": "524dded7de3eea5aaf0073fe9f69a538ec3173988716cf0c9a0f00a3c6a31130",
+        "libllama.so.0.3.0": "36301cd54ebe3369096fb1b2d21556531ac86896996485bab11d154cbd90e6f8"
+      }
+    }
+  },
+  "geometry": {
+    "small_path_smoke": {
+      "status": "failed",
+      "L_tokens": 8192,
+      "C_tokens": null,
+      "H_tokens": 4096,
+      "A_tokens": null,
+      "B_tokens": 128,
+      "U_tokens": 64,
+      "reason": "exact-token admission succeeded, but the first request stalled before a response or occupied frontier was observed"
+    },
+    "full_L_allocation": {
+      "status": "measured",
+      "L_tokens": 262144,
+      "C_tokens": null,
+      "H_tokens": 16384,
+      "A_tokens": null,
+      "B_tokens": 128,
+      "U_tokens": 64,
+      "draft_capacity_tokens": 262144,
+      "target_gpu_bytes": 276824000,
+      "host_committed_bytes": 17301500,
+      "packed_storage_bytes": 21626900,
+      "reason": "allocation/startup and one first-request fixture were captured; this is not occupied C262144"
+    },
+    "vbr_resume_repair": {
+      "status": "measured",
+      "L_tokens": 262144,
+      "C_tokens": 1200,
+      "H_tokens": 30208,
+      "A_tokens": null,
+      "B_tokens": 128,
+      "U_tokens": 128,
+      "scratch_reserved_k_bytes": 536870912,
+      "scratch_reserved_v_bytes": 536870912,
+      "scratch_charged_physical_bytes": 1073741824,
+      "scratch_replay_projection_bytes": 1073741824,
+      "reason": "managed resume reached the bounded 1200-token frontier with scratch charged once"
+    }
+  },
+  "placements": {
+    "target": {"status": "measured", "device": "CUDA", "k": "turbo4", "v": "turbo4"},
+    "native_mtp_draft": {"status": "measured", "device": "GPU", "k": "turbo4", "v": "turbo4", "capacity_rows": 262144}
+  },
+  "rates": {
+    "cold_prefill": {"status": "not_run", "sample_count": 0, "tok_s": null, "reason": "no revalidation request completed"},
+    "cached_append_64": {"status": "not_run", "sample_count": 0, "tok_s": null, "reason": "small-path smoke did not establish a usable frontier"},
+    "cached_append_256": {"status": "not_run", "sample_count": 0, "tok_s": null, "reason": "small-path smoke did not establish a usable frontier"},
+    "committed_decode": {"status": "not_run", "sample_count": 0, "tok_s": null, "reason": "no response completed"}
+  },
+  "mtp_request_scoped_deltas": {
+    "status": "not_observed",
+    "rows": [],
+    "reason": "no response completed; draft and accepted counters were therefore not observed and are not serialized as zero"
+  },
+  "requested_rows": {
+    "matched_original_q0_q1_q2": {"status": "not_run", "rows": 27, "reason": "stopped after first invalid small-path smoke; no measured row claimed"},
+    "controlled_T1_model_query": {"status": "not_run", "reason": "bounded campaign stopped at first invalid boundary"},
+    "organic_T2_or_T3_round_trip": {"status": "not_run", "reason": "bounded campaign stopped at first invalid boundary"},
+    "answer_quality": {"status": "not_run", "reason": "no quality prompt completed"},
+    "pilot_L32768": {"status": "not_run", "reason": "small-path smoke prerequisite failed"},
+    "pilot_L128K": {"status": "not_run", "reason": "small-path smoke prerequisite failed"},
+    "occupied_C262144": {"status": "not_run", "reason": "allocation/startup was not relabeled as occupancy; no valid occupied frontier was established"}
+  },
+  "promotion_edges": {
+    "controlled_physical": {"status": "not_run", "reason": "bounded campaign stopped before T1"},
+    "organic_physical": {"status": "not_run", "reason": "bounded campaign stopped before T2/T3"},
+    "target_graph_consumption": {"status": "not_run", "reason": "no phase-61 revalidation response completed"}
+  },
+  "allocation_vs_occupancy": {
+    "allocation_startup": {"status": "measured", "L_tokens": 262144, "draft_rows": 262144, "H_tokens": 16384},
+    "occupied_C262144": {"status": "not_run", "reason": "the first small-path request stalled and no occupied full-context frontier was established"}
+  },
+  "artifacts": [
+    {"path": ".wiretail/execution/evidence/V10_61-01.json", "sha256": "b63376994ef6dc2f3c19730f19f738542521b04ecc7bd3d6dde7415d578e59f9"},
+    {"path": ".wiretail/execution/evidence/V10_61-02.json", "sha256": "9da127455934a47a4b605b80bcaea1d7661c0311999f72c75bba3086fb183c5a"},
+    {"path": ".wiretail/execution/evidence/V10_61-03.json", "sha256": "fd87e79a0cd4e7ba9c59e4bcfee1c5a47eb15bb2b25495b48d8ed1b2c074f5af"},
+    {"path": ".wiretail/execution/evidence/V10_61-03_FINDING.json", "sha256": "a353af2094512258e565eeb862504f171267e217f92bf91935a93bad656b38bd"}
+  ],
+  "interpretation": "Phase 61 proves the two repair fixtures and preserves a truthful first revalidation failure. It makes no speed, MTP acceptance, promotion, answer-quality, pilot, or occupied-C262144 claim. Allocation, correctness, and table state are not occupancy or capability substitutes."
+}
