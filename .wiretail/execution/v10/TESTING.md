@@ -24,6 +24,15 @@ Revision: `hotpath-v10-20260914`.
   MTP `-ctkd turbo4 -ctvd turbo4 --spec-draft-kv-device gpu`, full-L draft
   capacity and same model/weights. CPU-main-KV control legitimately uses
   `--no-kv-offload` plus explicit GPU draft. Do not misclassify it as all-CPU.
+- Native MTP is tested at two levels. Startup placement is only a necessary
+  precondition; every measured native request must also report a positive
+  number of draft tokens and an acceptance percentage. `draft_tokens > 0`
+  with `accepted_tokens == 0` is a real 0% result. Missing/null counters are
+  `mtp_observation_missing` and invalidate that row; never serialize them as
+  zero or infer them from `--spec-type` or reservation flags. Use a
+  request-scoped delta of `llamacpp:spec_decode_num_draft_tokens_total` and
+  `llamacpp:spec_decode_num_accepted_tokens_total` under the lifecycle lock,
+  retaining the original journal acceptance line as corroboration.
 - Never infer C from `--ctx-size` or `--context` launcher arguments. Record
   tokenizer counts, observed evaluated tokens, reused cache tokens, output
   tokens and actual occupied frontier. A 30-token prompt at L8192 is not C6144.
@@ -99,6 +108,37 @@ treat it as policy/quality evidence; report nonzero physical promotions
 separately from useful recall. Do not block all performance work on one exact
 answer once the physical chain works. Conversely never call zero promotions
 successful paging performance.
+
+## Native-MTP acceptance gate for the original three prompts (49-07/51-02)
+
+Use the installed canonical runner, not a custom direct server command. The
+MTP-on process must have all of these effective arguments:
+
+`--spec-type draft-mtp --spec-draft-n-max N` where `N >= 1`,
+`--spec-draft-type-k turbo4 --spec-draft-type-v turbo4`, and
+`--spec-draft-kv-device gpu`. The target uses `-ctk turbo4 -ctv turbo4`; the
+CPU-main-KV control adds `--no-kv-offload` but keeps the same GPU draft.
+`--spec-type none` is feature-off and cannot be called an MTP run. Record the
+endpoint-owning PID command line and startup lines confirming
+`MTP KV type_k=turbo4 type_v=turbo4`, GPU backend and reserved rows/bytes.
+
+Run the exact original three prompts from `run-profile-benchmark.sh` with the
+same request body/template, seed, sampling and output length for selected,
+CPU-main-KV and all-GPU modes. For every measured prompt and trial, capture
+metrics immediately before the request and after its response while the
+lifecycle lock excludes other requests. Compute deltas for draft and accepted
+counters. Require `draft_delta > 0`, `0 <= accepted_delta <= draft_delta`,
+and `acceptance_percent = 100 * accepted_delta / draft_delta`; do not use a
+previous cumulative total, a journal line from another request, or a launcher
+estimate.
+
+The native campaign is valid only when all three measured prompt rows have
+these denominators. A row with missing counters fails as setup/observation and
+is rerun after fixing extraction; it is not a 0% acceptance result. A genuine
+0% row is retained and reported. If all modes show 0%, diagnose draft/target
+state, prompt synchronization and rollback before making a speed comparison.
+MTP acceptance is not expected in feature-off rows; those explicitly record
+`mtp=off` and are never native-MTP evidence.
 
 ### T3 — two-document cold-to-hot round trip (51-01)
 

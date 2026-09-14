@@ -1,7 +1,7 @@
 # Current hot-KV execution package
 
 Start with [V10 overview](v10/OVERVIEW.md) and the
-[2026-09-14 audit](v10/ASSESSMENT.md). Phases49–52 contain17 concrete tasks,
+[2026-09-14 audit](v10/ASSESSMENT.md). Phases49–52 contain19 concrete tasks,
 with explicit risk-based Luna Medium/High and High first retry. Task48-01's
 user-requested audit is complete; next implementation task is49-01. Wiretail
 shared defaults are unchanged. Scheduling/usage state is `WORK_STATE.json`.

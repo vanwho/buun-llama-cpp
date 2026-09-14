@@ -1074,3 +1074,16 @@ receives `PROJECT_ROOT` from the shared runner.
   T0's deterministic production fixture and T1's controlled real-model query.
   Document correctness is recorded separately from physical page use; no
   candidate ID or force-promotion API is permitted.
+
+## 2026-09-14 — V10 MTP evidence gate refinement
+
+- Added task49-07 before catalogue/performance work. Native MTP-on rows now
+  require effective `draft-mtp`, positive `--spec-draft-n-max`, GPU Turbo4
+  draft placement/types, startup reservation evidence, and request-scoped
+  positive draft-token denominators for every original q0/q1/q2 measured row.
+- Missing counters are `mtp_observation_missing`; genuine accepted=0 with a
+  positive draft denominator remains valid 0% data. Feature-off rows are
+  explicitly excluded. The canonical runner must capture before/after
+  Prometheus draft/accepted counter deltas under its lifecycle lock and retain
+  the journal acceptance line as corroboration; no launcher flag can fabricate
+  an acceptance percentage.

@@ -25,7 +25,7 @@
     "cluster_context_dir": ".wiretail/execution/clusters",
     "default_model": "gpt-5.6-luna",
     "default_reasoning": "low",
-    "task_model_policy": "V10 tasks49-52 have explicit risk-based Luna Medium/High recommendations and retry1_reasoning=high. Shared runner defaults unchanged.",
+    "task_model_policy": "V10 tasks49-52 have explicit risk-based Luna Medium/High recommendations and retry1_reasoning=high. Shared runner defaults unchanged. Native MTP acceptance is a mandatory evidence precondition before V10 speed claims.",
     "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
@@ -8718,6 +8718,41 @@
       "commit": null
     },
     {
+      "id": "49-07",
+      "phase": "49",
+      "cluster": "49d-mtp-evidence-v10",
+      "title": "Make native-MTP acceptance a hard benchmark precondition",
+      "packet": ".wiretail/execution/tasks/49-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/49-06.md"
+      ],
+      "required_proofs": [
+        "mtp_record_contract",
+        "three_prompt_native_acceptance",
+        "mtp_off_isolation"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "49-07",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_49-07.json"
+      ],
+      "depends_on": [
+        "49-06"
+      ],
+      "commit": null
+    },
+    {
       "id": "50-01",
       "phase": "50",
       "cluster": "50a-gpu-catalogue-v10",
@@ -8748,7 +8783,7 @@
         ".wiretail/execution/evidence/V10_50-01.json"
       ],
       "depends_on": [
-        "49-06"
+        "49-07"
       ],
       "commit": null
     },
