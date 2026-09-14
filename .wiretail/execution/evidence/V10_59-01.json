@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "task": "59-01",
+  "source_commit": "febe398654afd09b23af443c5d69b328d5a249ca",
+  "checks": {
+    "full_l_first_request_boundary_repair": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "59-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_59-01.json"
+      ],
+      "exit_code": 0,
+      "fixtures": [
+        {
+          "name": "L262144/H30208/B128/U128",
+          "prompt_tokens": 1200,
+          "completion_tokens": 8,
+          "target_kv": "Turbo4/CUDA",
+          "draft_kv": "Turbo4/GPU",
+          "route": "packed-prefill",
+          "graph_submissions": 18,
+          "graph_completions": 18
+        },
+        {
+          "name": "L262144/H16384/B128/U64",
+          "prompt_tokens": 1200,
+          "completion_tokens": 8,
+          "target_kv": "Turbo4/CUDA",
+          "draft_kv": "Turbo4/GPU",
+          "route": "packed-prefill",
+          "graph_submissions": 27,
+          "graph_completions": 27
+        }
+      ],
+      "observations": {
+        "requested_context_tokens": 262144,
+        "resolved_context_tokens": 262144,
+        "target_valid_rows": 1207,
+        "target_tokens_processed": 1220,
+        "graph_replay_count": 13,
+        "graph_rebuild_count": 14,
+        "scratch_high_water_bytes": 26542080,
+        "pending_pager_writes_after_request": 0,
+        "unexpected_graph_replay_scratch_growth": false
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_59-01_H30208_B128_U128.sse",
+          "sha256": "19573b3a6af986a1937d4d6c787fc8801bbc59c84c15266e47af17b16d676c49"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_59-01_H16384_B128_U64.sse",
+          "sha256": "71b1dbf8ba6ab0b97b811de6e71e5a12f3f606dcf2687f43a60fad82a1ff46df"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_59-01_metrics_H16384.txt",
+          "sha256": "c90890afec7835aa94622a7d8e46378d6f466273839d4fef3ddfcfefea54e825"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_59-01_test_cuda_kv.txt",
+          "sha256": "ec5d1d45c24922748a9cf1e06c9135ade6f8dd5d4f4ecf6ec1d678e7927c0074"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_59-01_test_vbr.txt",
+          "sha256": "e924264a2872b5a652862bf19e266725f653f87ab5803086d068e8bf73e85854"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_59-01_test_cpu_kv.txt",
+          "sha256": "ec5d1d45c24922748a9cf1e06c9135ade6f8dd5d4f4ecf6ec1d678e7927c0074"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_59-01_test_cache_budget.txt",
+          "sha256": "199c683d0625cae9b66846b4e90d6923fefdbf3353f41c991daab0c43deb1568"
+        }
+      ]
+    }
+  }
+}
