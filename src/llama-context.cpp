@@ -6118,7 +6118,7 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     }
 
     // set the input data for the input tensors
-    {
+    try {
         // FIXME this call causes a crash if any model inputs were not used in the graph and were therefore not allocated
         res->set_inputs(&ubatch);
 
@@ -6142,6 +6142,15 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
                     ggml_backend_sched_get_tensor_backend(sched.get(), destination_tensor),
                     source_view, destination_view);
         }
+    } catch (...) {
+        // set_inputs can reject a selected packed allocation or graph lease
+        // after the graph input has opened a pager write batch. Keep that
+        // refusal recoverable and clear the batch before the exception reaches
+        // the request loop.
+        if (mctx) {
+            mctx->finish(false);
+        }
+        throw;
     }
 
     const auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);

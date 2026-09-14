@@ -1,6 +1,7 @@
 #include "llama-kv-attention-execution.h"
 
 #include "llama-impl.h"
+#include "llama-vram-demand.h"
 
 #include "ggml.h"
 
@@ -398,7 +399,8 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         }
         ggml_set_name(cached->k, "kv_packed_cache_k");
         ggml_set_name(cached->v, "kv_packed_cache_v");
-        cached->buffer = ggml_backend_alloc_ctx_tensors(cached->context, backend);
+        cached->buffer = llama_vram_hold_alloc_ctx_tensors(cached->context,
+                ggml_backend_get_default_buffer_type(backend));
         if (cached->buffer == nullptr) {
             return nullptr;
         }

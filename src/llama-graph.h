@@ -411,14 +411,7 @@ public:
         kv_attention_metrics(kv_attention_metrics),
         kv_attention_telemetry(kv_attention_telemetry) {
     }
-    ~llm_graph_input_attn_kv() override {
-        // A scheduler allocation or input-binding failure can destroy the
-        // graph input before submit_graph(). Reclaim any provisional packed
-        // owners so the next build and context teardown see no stale lease.
-        if (packed_cache != nullptr) {
-            packed_cache->abort_graph_build();
-        }
-    }
+    ~llm_graph_input_attn_kv() override;
 
     void set_input(const llama_ubatch * ubatch) override;
 

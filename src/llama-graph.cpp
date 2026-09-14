@@ -19,6 +19,15 @@
 #include "llama-memory-hybrid-iswa.h"
 #include "llama-memory-recurrent.h"
 
+llm_graph_input_attn_kv::~llm_graph_input_attn_kv() {
+    // A scheduler allocation or input-binding failure can destroy the graph
+    // input before submission. Cancel provisional packed owners; pager writes
+    // are canceled at the process_ubatch exception boundary while mctx lives.
+    if (packed_cache != nullptr) {
+        packed_cache->abort_graph_build();
+    }
+}
+
 #include <cassert>
 #include <algorithm>
 #include <cmath>
