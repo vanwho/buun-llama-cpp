@@ -1,0 +1,31 @@
+{
+    "schema_version": 1,
+    "task": "58-01",
+    "source_commit": "8af8982cc4289c3a8bb8628e17fc5943dc5f0eda",
+    "checks": {
+        "phase57_benchmark_review": {
+            "status": "pass",
+            "command": [
+                "python3",
+                ".wiretail/execution/v10/validate.py",
+                "--task",
+                "58-01",
+                "--receipt",
+                ".wiretail/execution/evidence/V10_58-01.json",
+                "--review",
+                ".wiretail/execution/evidence/V10_REVIEW_58.json"
+            ],
+            "exit_code": 0,
+            "artifacts": [
+                {
+                    "path": ".wiretail/execution/evidence/V10_REVIEW_58.json",
+                    "sha256": "a0e24a807d21c6d739788ab9565a63070c41dc9c6cf2b61a68d57787a119e30d"
+                },
+                {
+                    "path": ".wiretail/execution/evidence/V10_SUMMARY_57.json",
+                    "sha256": "bd4930e1c09abe1255905ed68b4319d0230b010eb9c08cdcf3509d041979aca3"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,96 @@
+{
+    "schema_version": 1,
+    "review": "V10_REVIEW_58",
+    "revision": "hotpath-v10-20260914",
+    "reviewed_task": "58-01",
+    "reviewed_phase": 57,
+    "summary": {
+        "path": ".wiretail/execution/evidence/V10_SUMMARY_57.json",
+        "sha256": "bd4930e1c09abe1255905ed68b4319d0230b010eb9c08cdcf3509d041979aca3"
+    },
+    "goal_met": false,
+    "capabilities": {
+        "build_identity_valid": true,
+        "required_turbo4_placements": true,
+        "controlled_model_promotion": false,
+        "organic_cold_promotion": false,
+        "stable_target_consumption": false,
+        "full_256k_occupancy": false,
+        "practical_speed_goal_met": false,
+        "useful_answer_quality_proven": false
+    },
+    "capability_basis": {
+        "build_identity_valid": "The phase-57 summary records the requested workload, observed bundle manifest, endpoint executable hash, resolved model hash, source commit, and template identity.",
+        "required_turbo4_placements": "The summary measures target K/V as Turbo4 on CUDA and full-L draft K/V as Turbo4 on GPU with 262144 rows.",
+        "controlled_model_promotion": "False: the phase-57 promotion-quality evidence explicitly marks T1 not_run.",
+        "organic_cold_promotion": "False: the phase-57 promotion-quality evidence explicitly marks T2/T3 not_run.",
+        "stable_target_consumption": "False: no controlled or organic promotion reached a completed target graph using a promoted cold page in this summary.",
+        "full_256k_occupancy": "False: full-L allocation/startup was measured, but the first request returned an invalid response with C_tokens=0; allocation is not occupied C262144.",
+        "practical_speed_goal_met": "False/not decidable: native selective prefill and decode are measured with real denominators, but cached append is absent and matched controls stopped after q0, so no complete paired claim exists.",
+        "useful_answer_quality_proven": "False: the summary keeps useful answer quality as a separate not_run field."
+    },
+    "current_rates": {
+        "geometry": "L8192/C6144/H8192/A4096/B128/U64",
+        "cold_prefill_tok_s": {
+            "median": 180.8879673730395,
+            "range": [180.70832191528703, 180.9869497627772],
+            "samples": 3
+        },
+        "cached_append_tok_s": {
+            "median": null,
+            "range": [null, null],
+            "samples": 0,
+            "status": "not_run"
+        },
+        "committed_decode_tok_s": {
+            "median": 25.949824392672742,
+            "range": [24.98147857564977, 28.17940772168608],
+            "samples": 3
+        },
+        "mtp_request_scoped_deltas": [
+            {"case_id": "q0-measured-1", "draft_delta": 29, "accepted_delta": 16, "acceptance_percent": 55.172413793103445},
+            {"case_id": "q1-measured-1", "draft_delta": 31, "accepted_delta": 15, "acceptance_percent": 48.38709677419355},
+            {"case_id": "q2-measured-1", "draft_delta": 32, "accepted_delta": 14, "acceptance_percent": 43.75}
+        ]
+    },
+    "capacity_and_proof_boundaries": {
+        "8K": "Measured at L8192/C6144/H8192/A4096/B128/U64 for three native rows; controls, append, and promotion claims remain incomplete.",
+        "32K": "Not run; the campaign stopped at the full-L repair/occupancy boundary.",
+        "128K": "Not run; the campaign stopped at the full-L repair/occupancy boundary.",
+        "256K_allocation": "Measured full-L allocation/startup with 262144 draft rows and H30208, but no occupied-context claim follows.",
+        "C262144": "Not proven: the recorded failure has C_tokens=0 and an invalid response before an occupied frontier was established."
+    },
+    "physical_and_quality_findings": {
+        "controlled_physical": "not_run",
+        "organic_physical": "not_run",
+        "stable_target_consumption": "not_run",
+        "useful_answer_quality": "not_run"
+    },
+    "dominant_measured_gaps": [
+        {
+            "owner": "llama_kv_cache::vbr_scratch_reserve / ggml_backend_cuda_kv_dequant_scratch_memory",
+            "fixture": "L262144/H30208/B128/U128 with the bounded 1200-token request",
+            "finding": "The full-L first request still returned an invalid response before C advanced; the measured summary does not certify the combined VBR resource boundary."
+        },
+        {
+            "owner": "llama_kv_attention_packed_cache::find_or_create / submit_graph / CUDA launch_mul_mat_q",
+            "fixture": "L262144/H16384/B128/U64 first request",
+            "finding": "The alternate full-L boundary is also not a successful occupied-context proof; packed allocation, launch resources, or ownership must be revalidated before another curve."
+        },
+        {
+            "owner": "canonical V10 bounded revalidation chain",
+            "fixture": "L8192/C6144 original q0/q1/q2 plus append, T1/T2-or-T3, and full-L boundaries",
+            "finding": "Cached append, complete controls, controlled and organic physical promotion, useful answer quality, and occupied C262144 remain unmeasured or failed."
+        }
+    ],
+    "next_action": "Repair the remaining full-L first-request resource boundary, then run one bounded matched/promotion/quality/occupancy revalidation, summarize only phase-59 evidence, and review it.",
+    "phase_appended": true,
+    "appended_phases": [59, 60],
+    "next_task_ids": ["59-01", "59-02", "59-03", "60-01"],
+    "successor_contracts": {
+        "59-01": "Repair the measured full-L first-request boundary at vbr_scratch_reserve, ggml_backend_cuda_kv_dequant_scratch_memory, packed-cache find_or_create/submit_graph, and launch_mul_mat_q; the smallest fixtures are L262144/H30208/B128/U128 and L262144/H16384/B128/U64; before C=0/invalid response, after C>=1200 with charged resources, clean ownership, and Turbo4/GPU placement.",
+        "59-02": "Use the canonical V10 runner for 27 matched q0/q1/q2 rows, cached append 64/256, T1 plus one organic T2/T3 edge, separate answer quality, conditional pilots, and the actual C262144 boundary; preserve real MTP denominators and failed/not-run rows.",
+        "59-03": "Aggregate only phase-59 identity, geometry, rates, MTP, promotion, quality, pilot, allocation, and occupied-context evidence into V10_SUMMARY_59.json/.md.",
+        "60-01": "Read only the phase-59 summary and repeat this review algorithm; schedule more work only for a concrete measured gap."
+    }
+}
