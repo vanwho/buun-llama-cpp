@@ -11552,8 +11552,11 @@ static void ggml_compute_forward_turbo_wht_f32(
     int direction;
     memcpy(&direction, dst->op_params, sizeof(int));
 
-    const float * s_first = (direction == 0) ? turbo_wht_s1 : turbo_wht_s2;
-    const float * s_second = (direction == 0) ? turbo_wht_s2 : turbo_wht_s1;
+    // CPU is the deterministic reference path. InnerQ calibration is a CUDA
+    // runtime scale, so direction 2 retains the same forward basis here and
+    // applies no unavailable device calibration.
+    const float * s_first = (direction == 0 || direction == 2) ? turbo_wht_s1 : turbo_wht_s2;
+    const float * s_second = (direction == 0 || direction == 2) ? turbo_wht_s2 : turbo_wht_s1;
 
     const int64_t n_total = ggml_nelements(src);
     const int64_t n_groups = n_total / 128;

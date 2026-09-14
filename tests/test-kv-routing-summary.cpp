@@ -1,6 +1,7 @@
 #include "llama-kv-routing-summary.h"
 
 #include <cassert>
+#include <limits>
 
 static llama_kv_page_record make_page(uint32_t logical, uint32_t slot, llama_pos end,
                                       uint32_t generation = 1) {
@@ -191,6 +192,11 @@ int main() {
     assert(llama_kv_routing_summary_score_ranges(
             range_query, range_min, range_max, 1, 2, range_score));
     assert(range_score == 10.0f);
+    const float nonfinite_query[] = { std::numeric_limits<float>::quiet_NaN(), -2.0f };
+    assert(!llama_kv_routing_summary_score_ranges(
+            nonfinite_query, range_min, range_max, 1, 2, range_score));
+    assert(store.score(snap, { std::numeric_limits<float>::quiet_NaN(), 0, 0, 0 }, 1).status ==
+           llama_kv_routing_summary_status::invalid_argument);
 
     // Page seals update one summary without rereading the other pages.
     llama_kv_residency_table incremental_table(8);

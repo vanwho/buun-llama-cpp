@@ -12,6 +12,26 @@ static __constant__ float d_turbo_wht_s2[128] = {
      1,-1, 1,-1,-1,-1,-1, 1,-1, 1,-1, 1,-1,-1, 1, 1,-1, 1,-1, 1, 1,-1, 1,-1,-1,-1,-1, 1,-1,-1, 1,-1,
      1,-1, 1, 1, 1,-1,-1, 1,-1, 1,-1, 1, 1,-1,-1, 1,-1, 1,-1, 1, 1,-1, 1,-1, 1,-1,-1,-1,-1,-1, 1,-1};
 
+// Keep the router scale in this compilation unit. CUDA device symbols with
+// the same name are otherwise duplicated by nvcc and can retain zero-filled
+// copies in unrelated translation units.
+static __device__ float d_innerq_channel_scale_inv_router[128];
+static __device__ int d_innerq_router_scale_ready;
+
+void turbo_innerq_update_turbo_wht_scales(const float * scale_inv) {
+    int cur_device;
+    cudaGetDevice(&cur_device);
+    int device_count;
+    cudaGetDeviceCount(&device_count);
+    int ready = 1;
+    for (int id = 0; id < device_count; id++) {
+        cudaSetDevice(id);
+        cudaMemcpyToSymbol(d_innerq_channel_scale_inv_router, scale_inv, 128 * sizeof(float));
+        cudaMemcpyToSymbol(d_innerq_router_scale_ready, &ready, sizeof(ready));
+    }
+    cudaSetDevice(cur_device);
+}
+
 // One block per 128-element group. 128 threads per block.
 static __global__ void k_turbo_wht(
         const float * __restrict__ src, float * __restrict__ dst,
@@ -21,14 +41,19 @@ static __global__ void k_turbo_wht(
     const int64_t offset = group * 128;
     if (offset >= n_elements) return;
 
-    const float * s_first  = (direction == 0) ? d_turbo_wht_s1 : d_turbo_wht_s2;
-    const float * s_second = (direction == 0) ? d_turbo_wht_s2 : d_turbo_wht_s1;
+    const bool router_transpose = direction == 2;
+    const float * s_first  = (direction == 0 || router_transpose) ? d_turbo_wht_s1 : d_turbo_wht_s2;
+    const float * s_second = (direction == 0 || router_transpose) ? d_turbo_wht_s2 : d_turbo_wht_s1;
 
     __shared__ float buf[128];
 
     // Load and apply first signs
     if (threadIdx.x < 128) {
-        buf[threadIdx.x] = src[offset + threadIdx.x] * s_first[threadIdx.x];
+        float value = src[offset + threadIdx.x];
+        if (router_transpose && d_innerq_router_scale_ready) {
+            value *= d_innerq_channel_scale_inv_router[threadIdx.x];
+        }
+        buf[threadIdx.x] = value * s_first[threadIdx.x];
     }
     __syncthreads();
 

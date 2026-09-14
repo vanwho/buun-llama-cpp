@@ -761,6 +761,12 @@ llama_kv_routing_score_result llama_kv_routing_summary_store::score(
         if (query.size() != vector_dim_) result.status = llama_kv_routing_summary_status::invalid_argument;
         return result;
     }
+    if (std::any_of(query.begin(), query.end(), [](float value) {
+            return !std::isfinite(value);
+        })) {
+        result.status = llama_kv_routing_summary_status::invalid_argument;
+        return result;
+    }
     for (const auto & summary_page : pages_) {
         const auto it = std::find_if(inventory.begin(), inventory.end(),
                 [&](const auto & record) { return same_logical(record.id, summary_page.id); });

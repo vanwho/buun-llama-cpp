@@ -23,6 +23,25 @@ uint64_t advance_content_version(uint64_t version) noexcept {
     return version == std::numeric_limits<uint64_t>::max() ? 1 : version + 1;
 }
 
+uint64_t routing_coordinate_identity(
+        uint64_t codec_digest, uint64_t codebook_digest,
+        uint64_t rotation_digest, uint64_t meansub_digest) noexcept {
+    // A rotation digest alone does not identify the coefficient coordinates:
+    // codec/codebook/calibration changes must stale retained summaries too.
+    uint64_t hash = 1469598103934665603ull;
+    const uint64_t values[] = {
+        5, // router coordinate contract revision
+        codec_digest, codebook_digest, rotation_digest, meansub_digest,
+    };
+    for (const uint64_t value : values) {
+        for (size_t byte = 0; byte < sizeof(value); ++byte) {
+            hash ^= uint8_t(value >> (byte * 8));
+            hash *= 1099511628211ull;
+        }
+    }
+    return hash == 0 ? 1 : hash;
+}
+
 // The catalog is the authority for cold-page metadata.  Keep this conversion
 // in one place so exact and routing inventories cannot disagree about which
 // canonical pages are executable candidates.
@@ -1785,7 +1804,8 @@ void llama_kv_pager::bind_representation_identity(
     // Summary vectors are authenticated by the same representation identity
     // as page records. This prevents a retained summary from being compared
     // with a query captured under a different codec/rotation domain.
-    routing_summary_config_.coordinate_identity = rotation_digest;
+    routing_summary_config_.coordinate_identity = routing_coordinate_identity(
+            codec_digest, codebook_digest, rotation_digest, meansub_digest);
 }
 
 llama_kv_pager_write_status llama_kv_pager::publish_page(page_state & page) noexcept {
