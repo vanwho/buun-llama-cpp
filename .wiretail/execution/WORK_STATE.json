@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "37",
-  "current_task": "37-03",
-  "last_updated_utc": "2026-09-14T00:00:21+00:00",
+  "current_task": "37-04",
+  "last_updated_utc": "2026-09-14T00:02:28+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7252,7 +7252,7 @@
       "cluster": "37b-128k-v9",
       "title": "Populate feasible 128K history and record speed at useful frontiers",
       "packet": ".wiretail/execution/tasks/37-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -7266,7 +7266,32 @@
       "depends_on": [
         "37-02"
       ],
-      "commit": null
+      "commit": "6ffcfd4a899e56c835316a196bb4dcca9ab36615",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/37-03-attempt-1-20260914T000038Z.jsonl:28",
+            "total_tokens": 1627909,
+            "total_tokens_derived": true,
+            "input_tokens": 1613154,
+            "cached_input_tokens": 1441280,
+            "output_tokens": 14755,
+            "thinking_tokens": 4256
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 1627909,
+          "input_tokens": 1613154,
+          "cached_input_tokens": 1441280,
+          "output_tokens": 14755,
+          "thinking_tokens": 4256
+        }
+      }
     },
     {
       "id": "37-04",
@@ -9510,15 +9535,28 @@
           "cached_input_tokens": 697088,
           "output_tokens": 9599,
           "thinking_tokens": 3370
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/37-03-attempt-1-20260914T000038Z.jsonl:28",
+          "total_tokens": 1627909,
+          "total_tokens_derived": true,
+          "input_tokens": 1613154,
+          "cached_input_tokens": 1441280,
+          "output_tokens": 14755,
+          "thinking_tokens": 4256
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 1645212,
-        "input_tokens": 1627334,
-        "cached_input_tokens": 1498368,
-        "output_tokens": 17878,
-        "thinking_tokens": 4765
+        "turns": 3,
+        "total_tokens": 3273121,
+        "input_tokens": 3240488,
+        "cached_input_tokens": 2939648,
+        "output_tokens": 32633,
+        "thinking_tokens": 9021
       }
     },
     "38": {
@@ -9535,12 +9573,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 135,
-      "total_tokens": 3174078531,
-      "input_tokens": 3166834132,
-      "cached_input_tokens": 3104748288,
-      "output_tokens": 7244399,
-      "thinking_tokens": 2649126
+      "turns": 136,
+      "total_tokens": 3175706440,
+      "input_tokens": 3168447286,
+      "cached_input_tokens": 3106189568,
+      "output_tokens": 7259154,
+      "thinking_tokens": 2653382
     },
     "source": "Codex turn.completed usage events"
   }

@@ -1022,3 +1022,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-13T23:58:37+00:00 - 37-02 - done
 
 - Summary: Recorded 128K as not_run because 37-01's 32K capability gate is false; no full-L draft/allocation/pilot was launched. Receipt: `.wiretail/execution/evidence/V9_128K_PILOT.json`.
+
+## 2026-09-14T00:01:06+00:00 - 37-03 - done
+
+- Summary: Recorded 128K population as not_run because the 37-02 pilot was ineligible; no sequence, frontier, or rate was invented. Receipt: `.wiretail/execution/evidence/V9_128K.json`.
