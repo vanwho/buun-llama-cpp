@@ -120,11 +120,11 @@ def build(inputs: dict[str, dict[str, Any]], source_paths: dict[str, Path]) -> t
     errors = validate_small(small)
     identity, identity_errors = _identity(small)
     errors += identity_errors
-    scale, cold, capacity, tuning = (inputs[name] for name in ("scale", "cold", "capacity", "tuning"))
+    scale, cold, capacity, tuning, revalidation = (inputs[name] for name in ("scale", "cold", "capacity", "tuning", "revalidation"))
     config = small["configuration"]
     summary: dict[str, Any] = {
         "schema": "hotpath-v10-summary",
-        "task": "51-05",
+        "task": "53-04",
         "revision": REVISION,
         "result": "current_findings" if not errors else "invalid_source_bundle",
         "units": {"rates": "tok/s", "durations": "microseconds where suffixed _us", "bytes": "integer bytes", "geometry": "integer tokens/pages/rows", "ratios": "selected divided by named control"},
@@ -139,6 +139,7 @@ def build(inputs: dict[str, dict[str, Any]], source_paths: dict[str, Path]) -> t
         "capacity_ledger_and_tradeoffs": capacity.get("allocation_ledger"),
         "scale_states": {"32K": next((x for x in scale["coordinates"] if x["label"].startswith("L32768")), None), "128K": next((x for x in scale["coordinates"] if x["label"].startswith("L131072")), None), "256K": capacity},
         "failures_uncertainties_quality": {"failures": capacity.get("attempts"), "uncertainties": ["C262144 occupancy and quality were not run.", "CPU-main and all-GPU controls are diagnostic placement controls; unmatched rows must remain null."], "optional_quality_improvements": ["Repair CUDA VBR scratch and packed-attention/shared-memory reserve before another 256K request." ]},
+        "phase53_revalidation": revalidation,
         "next_bottlenecks": [{"owner_symbol": "ggml_cuda_fattn::kv_dequant_scratch", "smallest_reproducible_input": "L262144/H30208/B128/U128, 1200-token request", "impact": "first request aborts before C advances", "prior_attempt": "H reduction and allocation ladder", "next_experiment": "account VBR f16 scratch against reserve and retry bounded request"}, {"owner_symbol": "launch_mul_mat_q / selected packed attention allocation", "smallest_reproducible_input": "L262144/H16384/B128/U64", "impact": "request-path allocation/shared-memory failure", "prior_attempt": "reduced H and U", "next_experiment": "measure packed buffer and dynamic shared-memory reserve; not worth another occupancy run until fixed"}],
         "validation_errors": errors,
         "provenance": {name: {"path": str(path), "sha256": digest(path)} for name, path in source_paths.items()},
@@ -153,7 +154,10 @@ def markdown(summary: dict[str, Any]) -> str:
             row = summary["original3prompt"]["modes"][mode].get(q, {}).get("cases", [])
             s = summary["original3prompt"]["modes"][mode].get(q, {}).get("statistics", {})
             lines.append(f"| {q} | {mode} | {len(row)} | {s.get('prefill_tok_s', {}).get('median', 'null')} / {s.get('decode_tok_s', {}).get('median', 'null')} |")
-    lines += ["", "## Capacity, failures, and next bottlenecks", "", "- 32K and 128K states are retained as measured pilots; 256K startup and request failures are not full-occupancy proof.", "- See `next_bottlenecks` in the JSON for the smallest reproducer and next experiment.", "", "## Validation", "", "```json", json.dumps(summary["validation_errors"], indent=2), "```", ""]
+    revalidation = summary["phase53_revalidation"]
+    matched = revalidation.get("matched_three_prompt_revalidation", {})
+    request = revalidation.get("bounded_revalidation", {}).get("256k_request", {})
+    lines += ["", "## Phase-53 revalidation", "", f"- Production-chain fixture: `{revalidation.get('bounded_revalidation', {}).get('production_chain', {}).get('status', 'unknown')}`.", f"- 256K request: `{request.get('status', 'unknown')}`; observed C: `{request.get('actual_C', 'null')}`.", f"- Matched q0/q1/q2 revalidation: `{matched.get('status', 'unknown')}`; append probes and MTP counters: `{matched.get('matrix', {}).get('append_probes', {})}` / `{matched.get('matrix', {}).get('mtp_counters', 'unknown')}`.", "- Failed and not-run rows remain explicit in the JSON under `phase53_revalidation` and `failures_uncertainties_quality`.", "", "## Capacity, failures, and next bottlenecks", "", "- 32K and 128K states are retained as measured pilots; 256K startup and request failures are not full-occupancy proof.", "- See `next_bottlenecks` in the JSON for the smallest reproducer and next experiment.", "", "## Validation", "", "```json", json.dumps(summary["validation_errors"], indent=2), "```", ""]
     return "\n".join(lines)
 
 
@@ -163,7 +167,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     root = args.evidence_root
-    paths = {"cold": root / "V10_COLD_PROOF.json", "small": root / "v10-51-02/V10_SMALL.json", "scale": root / "V10_SCALE.json", "capacity": root / "V10_256K.json", "tuning": root / "V10_TUNING.json"}
+    paths = {"cold": root / "V10_COLD_PROOF.json", "small": root / "v10-51-02/V10_SMALL.json", "scale": root / "V10_SCALE.json", "capacity": root / "V10_256K.json", "tuning": root / "V10_TUNING.json", "revalidation": root / "V10_53-03_FINDINGS.json"}
     inputs = {name: read(path) for name, path in paths.items()}
     summary, errors = build(inputs, paths)
     args.output.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
