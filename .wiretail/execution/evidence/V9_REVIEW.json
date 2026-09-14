@@ -1,0 +1,71 @@
+{
+  "schema": "hotpath-v9-review",
+  "task": "38-01",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-14T00:20:00Z",
+  "goal_met": false,
+  "next_task_ids": ["39-01", "39-02", "39-03", "39-04", "40-01"],
+  "capability": {
+    "active_campaign_met": false,
+    "overall_256k_demonstrated": false,
+    "natural_cold_proven": false,
+    "fullL_gpu_turbo4_mtp": true,
+    "measured_cpu_speedup": true,
+    "status": "identity and small matched decode are proven; natural cold selection/promotion and scale are not proven"
+  },
+  "key_rates_and_ratios": {
+    "selected_decode_tok_s": [43.680536, 39.610922, 42.327580],
+    "cpu_main_kv_decode_tok_s": [12.374966, 12.389607, 12.640500],
+    "all_gpu_decode_tok_s": [40.296862, 40.112503, 40.323826],
+    "selected_over_cpu_main_kv_decode": [3.529750, 3.197109, 3.348569],
+    "selected_over_cpu_main_kv_decode_median": 3.416378,
+    "selected_over_all_gpu_decode": [1.083969, 0.987496, 1.049692],
+    "selected_over_all_gpu_decode_median": 1.050394,
+    "selected_prefill_over_cpu_main_kv_median": 0.294593,
+    "selected_prefill_over_all_gpu_median": 0.149217,
+    "selected_ttft_over_all_gpu_median": 6.690142,
+    "units": "tok/s for rates; ratios are selected divided by named control"
+  },
+  "sample_counts": {
+    "matched_small_profiles": 3,
+    "matched_small_prompts": 3,
+    "cold_attention_samples": 0,
+    "cold_skipped_samples": 10,
+    "cold_h2d_bytes": 0,
+    "cold_selected_pages_used": 0,
+    "scale_32k_runs": 0,
+    "scale_128k_runs": 0
+  },
+  "frontiers": {
+    "small": {"L": 8192, "C": 6144, "H": 4096, "A_by_layer": 4096, "B": 128, "U": 128},
+    "cold_diagnostic": {"L": 8192, "C_before": 5377, "C_after": 5415, "H": 4096, "A_by_layer": 2048, "B": 128, "U": 64},
+    "active_campaign": "up to 131072 requested, but 32K gate and 128K pilot were not run"
+  },
+  "failure_cause": {
+    "classification": "missing real Q-to-cold-to-target-use proof",
+    "measured": "The selected packed cold receipt reported attention_samples=0, no candidate publication, transfer_submitted=0, h2d_bytes=0, and selected_cold_pages_used=0.",
+    "first_boundary": [
+      "llm_graph_context::build_attn_inp_kv",
+      "llama_context::publish_kv_attention_telemetry",
+      "llama_kv_attention_telemetry::publish_completed"
+    ],
+    "secondary_check": [
+      "llm_graph_context::build_attn_mha",
+      "llm_graph_context::build_attn",
+      "llama_kv_attention_execution::prepare"
+    ],
+    "measured_hot_cost_context": "The first append+attention event was 22.969280 ms versus 1.246208–1.299456 ms for later tails; the cold receipt had 115 graph builds, 115 router refreshes, and 4,896,310 us queue time."
+  },
+  "uncertainty": [
+    "No usable current-Q sample or catalogue candidate was published, so selection quality is unmeasured rather than failed.",
+    "The A4096/recent512 diagnostic selected all 16 pages and cannot prove ranking.",
+    "256K memory values remain an estimate; full-L draft, catalogue, and larger graph/scratch allocations were not measured."
+  ],
+  "next_action": {
+    "order": ["repair current-Q publication", "check packed Q/layout", "rerun bounded natural proof and matched controls", "summarize", "review phase 39"],
+    "stop_condition": "Do not launch 32K or 128K until a non-sentinel current-Q candidate, attention_samples>0, useful H2D promotion, selected cold-page use, and coherent committed recall are all recorded.",
+    "preserved_contract": "Keep mature Turbo4 packed attention, target/draft Turbo4, full-L GPU native MTP, canonical CPU history, and the existing pager/mailbox; do not revive the superseded direct-kernel performance path."
+  },
+  "phase_appended": true,
+  "appended_tasks": ["39-01", "39-02", "39-03", "39-04", "40-01"]
+}
