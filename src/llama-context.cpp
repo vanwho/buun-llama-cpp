@@ -7650,6 +7650,16 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
         if (input == nullptr || input->direct_telemetry_published) {
             continue;
         }
+        // Page-mass telemetry is produced only by the explicit direct paged
+        // attention node.  Packed, dense, and exact-wave routes still have a
+        // valid Q/selector path, but no page-mass output to publish here.
+        // Treat those inputs as handled without manufacturing a no_output
+        // drop; otherwise every normal packed submission corrupts the drop
+        // counters and obscures the actual publication boundary.
+        if (!input->direct_attention || input->exact_wave_attention) {
+            input->direct_telemetry_published = true;
+            continue;
+        }
         input->direct_telemetry_published = true;
         if (input->direct_telemetry_skipped) {
             kv_attention_telemetry->record_skipped_sample();

@@ -2543,6 +2543,12 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
         ggml_tensor * selected = mctx->build_kv_page_select(
                 ctx0, cur, il, ubatch, 0);
         if (selected != nullptr) {
+            // The selector is consumed after the scheduler fence by the
+            // pager's mailbox producer.  Expanding it makes the node run,
+            // but does not keep its compact ID buffer alive after the last
+            // graph consumer; without an output flag the allocator may
+            // recycle it before the pager reads the completed Q sample.
+            ggml_set_output(selected);
             ggml_build_forward_expand(gf, selected);
             mctx->capture_kv_routing_query(selected, il, ubatch);
             res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
