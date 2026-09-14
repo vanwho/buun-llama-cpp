@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "52",
-  "current_task": "52-01",
-  "last_updated_utc": "2026-09-14T15:35:22+00:00",
+  "current_phase": "53",
+  "current_task": "53-01",
+  "last_updated_utc": "2026-09-14T15:46:11+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -25,7 +25,7 @@
     "cluster_context_dir": ".wiretail/execution/clusters",
     "default_model": "gpt-5.6-luna",
     "default_reasoning": "low",
-    "task_model_policy": "V10 tasks49-52 have explicit risk-based Luna Medium/High recommendations and retry1_reasoning=high. Shared runner defaults unchanged. Native MTP acceptance is a mandatory evidence precondition before V10 speed claims.",
+    "task_model_policy": "V10 tasks49-54 have explicit risk-based Luna Medium/High recommendations and retry1_reasoning=high. Shared runner defaults unchanged. Native MTP acceptance is a mandatory evidence precondition before V10 speed claims.",
     "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
@@ -42,7 +42,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "V10 tasks49-52; historical done tasks are records, not current capability proof",
+    "active_scope": "V10 tasks49-54; historical done tasks are records, not current capability proof",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -9551,7 +9551,7 @@
       "cluster": "52a-benchmark-review-v10",
       "title": "Assess current capability and schedule only needed remediation",
       "packet": ".wiretail/execution/tasks/52-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -9579,6 +9579,199 @@
       ],
       "depends_on": [
         "51-05"
+      ],
+      "commit": "62a9dc427486f7417c036528930ea56638d55ed0",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/52-01-attempt-1-20260914T153540Z.jsonl:230",
+            "total_tokens": 4827861,
+            "total_tokens_derived": true,
+            "input_tokens": 4796831,
+            "cached_input_tokens": 4631040,
+            "output_tokens": 31030,
+            "thinking_tokens": 10302
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 4827861,
+          "input_tokens": 4796831,
+          "cached_input_tokens": 4631040,
+          "output_tokens": 31030,
+          "thinking_tokens": 10302
+        }
+      }
+    },
+    {
+      "id": "53-01",
+      "phase": "53",
+      "cluster": "53a-vbr-scratch-v10",
+      "title": "Repair VBR scratch reservation at the full-L request boundary",
+      "packet": ".wiretail/execution/tasks/53-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/52-01.md",
+        ".wiretail/execution/evidence/V10_SUMMARY.json"
+      ],
+      "required_proofs": [
+        "vbr_scratch_boundary_repair"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "53-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_53-01.json"
+      ],
+      "depends_on": [
+        "52-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "53-02",
+      "phase": "53",
+      "cluster": "53b-packed-allocation-v10",
+      "title": "Repair packed selected-attention allocation and launch resources",
+      "packet": ".wiretail/execution/tasks/53-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY.json"
+      ],
+      "required_proofs": [
+        "packed_attention_resource_repair"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "53-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_53-02.json"
+      ],
+      "depends_on": [
+        "53-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "53-03",
+      "phase": "53",
+      "cluster": "53c-bounded-revalidation-v10",
+      "title": "Revalidate cold use, 256K request progress, and matched speed",
+      "packet": ".wiretail/execution/tasks/53-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY.json"
+      ],
+      "required_proofs": [
+        "bounded_revalidation_findings",
+        "matched_three_prompt_revalidation"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "53-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_53-03.json"
+      ],
+      "depends_on": [
+        "53-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "53-04",
+      "phase": "53",
+      "cluster": "53d-summary-v10",
+      "title": "Generate the compact phase-53 benchmark summary",
+      "packet": ".wiretail/execution/tasks/53-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY.json"
+      ],
+      "required_proofs": [
+        "phase53_summary_generated_and_validated"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "53-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_53-04.json"
+      ],
+      "depends_on": [
+        "53-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "54-01",
+      "phase": "54",
+      "cluster": "54a-review-v10",
+      "title": "Review the phase-53 summary and schedule only measured next work",
+      "packet": ".wiretail/execution/tasks/54-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md"
+      ],
+      "required_proofs": [
+        "phase53_benchmark_review"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "54-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_54-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_54.json"
+      ],
+      "depends_on": [
+        "53-04"
       ],
       "commit": null
     }
@@ -12493,6 +12686,42 @@
       }
     },
     "52": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/52-01-attempt-1-20260914T153540Z.jsonl:230",
+          "total_tokens": 4827861,
+          "total_tokens_derived": true,
+          "input_tokens": 4796831,
+          "cached_input_tokens": 4631040,
+          "output_tokens": 31030,
+          "thinking_tokens": 10302
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 4827861,
+        "input_tokens": 4796831,
+        "cached_input_tokens": 4631040,
+        "output_tokens": 31030,
+        "thinking_tokens": 10302
+      }
+    },
+    "53": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "54": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -12506,12 +12735,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 177,
-      "total_tokens": 3861367083,
-      "input_tokens": 3852411671,
-      "cached_input_tokens": 3774348032,
-      "output_tokens": 8955412,
-      "thinking_tokens": 3260184
+      "turns": 178,
+      "total_tokens": 3866194944,
+      "input_tokens": 3857208502,
+      "cached_input_tokens": 3778979072,
+      "output_tokens": 8986442,
+      "thinking_tokens": 3270486
     },
     "source": "Codex turn.completed usage events"
   }
