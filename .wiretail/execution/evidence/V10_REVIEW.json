@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "52-01",
+  "reviewed_phase": 51,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY.json",
+    "sha256": "6eabb13e53d497e49acced3014baf9845a3120bf29e6a1339af7f1a9677108a5"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "organic_cold_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "Candidate bundle and installed model fingerprints are recorded and matched.",
+    "required_turbo4_placements": "Target and native draft K/V are Turbo4; draft placement is GPU.",
+    "controlled_model_promotion": "The controlled edge records selector publication, queued/completed H2D, mapping publication, and target graph use.",
+    "organic_cold_promotion": "Organic and file-roundtrip edges record cold eligibility, rank, completed H2D, publication, and target graph use.",
+    "stable_target_consumption": "The completed target graph references the promoted mapping in the recorded edges.",
+    "full_256k_occupancy": "False: all three 256K first-request attempts have max_observed_C=0.",
+    "practical_speed_goal_met": "False: selective prefill is about 8% of all-GPU and 20% of CPU-main median rates, and 256K request progress is absent."
+  },
+  "current_rates": {
+    "sample_counts": {
+      "original_three_prompt_cells": 9,
+      "rows_per_cell": 3,
+      "total_rows": 27,
+      "controlled_physical_edges": 1,
+      "organic_physical_edges": 1,
+      "file_roundtrip_physical_edges": 1
+    },
+    "prefill_tok_s_median_by_question": {
+      "selective-v2": {"q0": 125.09874381436698, "q1": 124.05919505491649, "q2": 124.64723099036912},
+      "cpu-main": {"q0": 636.2347494975827, "q1": 633.7031688562122, "q2": 637.0141289816753},
+      "all-gpu-v2": {"q0": 1542.6918114049217, "q1": 1547.3502005586479, "q2": 1548.8871281278055}
+    },
+    "decode_tok_s_median_by_question": {
+      "selective-v2": {"q0": 38.36009399421781, "q1": 31.862695678646794, "q2": 34.37206796861615},
+      "cpu-main": {"q0": 10.212424819000727, "q1": 10.098448830923092, "q2": 9.99225678163929},
+      "all-gpu-v2": {"q0": 36.989248554746254, "q1": 37.08645344853313, "q2": 37.09220310299462}
+    },
+    "mtp": "Selective rows have positive draft and acceptance deltas; controls are feature-off diagnostic placement controls."
+  },
+  "caveats": [
+    "Selective prefill remains dominated by its measured hot path and is not a practical end-to-end win.",
+    "32K and 128K are measured pilots; 256K startup is not occupied-context proof.",
+    "Useful answer quality is not inferred from physical promotion and remains false.",
+    "No 256K speed, quality, soak, or full occupied frontier was measured after the first-request failures."
+  ],
+  "dominant_bottlenecks": [
+    {
+      "owner_symbol": "ggml_cuda_fattn::kv_dequant_scratch",
+      "fixture": "L262144/H30208/B128/U128, 1200-token request",
+      "finding": "VBR f16 dequant scratch grows to 512 MiB after the boundary reserve misses it."
+    },
+    {
+      "owner_symbol": "launch_mul_mat_q / selected packed attention allocation",
+      "fixture": "L262144/H16384/B128/U64",
+      "finding": "Packed buffer/shared-memory allocation fails before C advances and cleanup sees pending pager writes."
+    }
+  ],
+  "likelihood_and_constraints": {
+    "classification": "fixable_measured_implementation_bottlenecks",
+    "hard_external_constraint": false,
+    "reason": "Both failures identify portable CUDA ownership boundaries and minimal reproducible inputs; no user choice is required yet."
+  },
+  "next_action": "Repair VBR scratch boundary accounting, repair packed allocation/shared-memory cleanup, run the bounded 256K retry and matched matrix, then summarize and review.",
+  "phase_appended": true,
+  "appended_phases": [53, 54],
+  "next_task_ids": ["53-01", "53-02", "53-03", "53-04", "54-01"]
+}
+
