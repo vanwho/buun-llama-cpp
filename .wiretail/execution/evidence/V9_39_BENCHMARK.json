@@ -1,0 +1,109 @@
+{
+  "schema": "hotpath-v9",
+  "task": "39-03",
+  "revision": "hotpath-v9-20260914",
+  "utc": "2026-09-14T00:45:00Z",
+  "result": "pass_with_unmet_capability",
+  "provenance": {
+    "source_commit": "09b41e8a1881a570f633eab301a5aaad3719ec49",
+    "source_diff_sha256": "4252fc4b796a83a54ec7d383f2815e11c169745e8f1a2c755819705714b19e04",
+    "server": "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-candidate/bin/llama-server",
+    "server_sha256": "82b92cc7da404d2eddd8aaf5c218d9cc202f8167a3c727f61f467d75bb220255",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "loaded_dso_hashes": {
+      "libggml-cuda.so.0.22.0": "b55d857fecd7a3b511c829ff34284455fe86a65ddfeee8b2fa8701cad243540b",
+      "libllama-common.so.0.3.0": "9134c5f194579b136c2c55eaa5ea070d2cee174430d47f9bb94725073b5d116f",
+      "libllama-server-impl.so": "bc32b87cd8fa4fd58979ab98c1f4096950ca61310c23df6c7638c8fd01a58110",
+      "libllama.so.0.3.0": "5565c8ed582875a42b9b8a1ea7aa9552f6c65d7bd13c5c2533d72a0e547d44e0"
+    },
+    "raw_root": "/srv/ai/paged-kv/results/v9/39-03"
+  },
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "route": "selected_packed"
+  },
+  "natural_cold": {
+    "fixture": "incremental C>H natural recall",
+    "raw_run": "/srv/ai/paged-kv/results/v9/39-03/20260914T003957Z-natural-cold-incremental",
+    "occupied_tokens": 5004,
+    "recall_prompt_tokens": 5052,
+    "cached_rows": 5017,
+    "committed_output_tokens": 20,
+    "decode_tok_s": 33.703599899243976,
+    "mtp_proposed": 147,
+    "mtp_accepted": 42,
+    "attention_samples": 0,
+    "promotion_published": false,
+    "selected_cold_pages_used": 0,
+    "h2d_useful_bytes": 0,
+    "transfer_submitted": 0,
+    "coherent_recall": true,
+    "coherent_append": true,
+    "eligible_for_scale": false,
+    "failure": "current-Q publication/promotion/use proof remains absent"
+  },
+  "comparisons": {
+    "prompt_ids": [0, 1, 2],
+    "selected_packed": {
+      "raw_runs": [
+        "/srv/ai/paged-kv/results/v9/39-03/20260914T003806Z-selected-quick",
+        "/srv/ai/paged-kv/results/v9/39-03/20260914T004053Z-selected-q1q2"
+      ],
+      "samples": 3,
+      "prefill_tok_s": [297.85839811753493, 276.9827347428677, 587.3838343577587],
+      "committed_decode_tok_s": [35.27793130210844, 34.364930669428844, 33.99904534964003],
+      "mtp_acceptance_percent": [4.0, 81.0, 0.0],
+      "errors": 0
+    },
+    "cpu_main_kv_gpu_weights_native_mtp": {
+      "samples": 0,
+      "status": "not_run",
+      "reason": "site launcher lacks the required --no-kv-offload configuration boundary; no denominator substituted"
+    },
+    "all_gpu": {
+      "raw_run": "/srv/ai/paged-kv/results/v9/39-03/20260914T004148Z-allgpu-controls",
+      "samples": 3,
+      "prefill_tok_s": [316.02566128369625, 579.0760519881611, 598.8792402789067],
+      "committed_decode_tok_s": [36.484544629791046, 36.62875830528253, 36.734706864270464],
+      "mtp_acceptance_percent": [0.0, 0.0, 0.0],
+      "errors": 0
+    }
+  },
+  "memory": {
+    "target_allocated_bytes": 69206000,
+    "target_valid_bytes": 68378100,
+    "canonical_host_bytes": 82182100,
+    "host_valid_bytes": 64880600,
+    "weights_bytes": 13695600000,
+    "mtp_compute_bytes": 268435000,
+    "packed_workspace_bytes": 69206000,
+    "headroom_bytes": 201327000
+  },
+  "failures": [
+    "natural current-Q attention sample and publication counters remain zero",
+    "no useful H2D promotion or selected cold-page use",
+    "benchmark adapter reports profile metadata unavailable (profile: null)"
+  ],
+  "deferred_scale": {
+    "status": "not_run",
+    "reason": "natural-cold eligibility invariant failed; no 32K or 128K process/allocation was launched"
+  },
+  "decision": {
+    "capability_proven": false,
+    "next_action": "phase-39 summary must preserve the failed natural publication/promotion gate",
+    "partial_checkpoint": true
+  }
+}
