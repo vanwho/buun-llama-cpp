@@ -1283,6 +1283,46 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
                 return nullptr;
             }
         }
+        // Selector readback uses the same bounded ownership rule as the
+        // residency rings: two fixed slots, allocated from the device's host
+        // buffer type, and never reused while their completion event is live.
+        // If a backend cannot provide pinned/event-capable storage, leave the
+        // optional path disabled; the cache will retain the last selection.
+        if (resources.host_backend != nullptr) {
+            const auto device = ggml_backend_get_device(resources.host_backend);
+            ggml_backend_dev_props props{};
+            if (device != nullptr) ggml_backend_dev_get_props(device, &props);
+            const auto host_buft = device != nullptr
+                ? ggml_backend_dev_host_buffer_type(device) : nullptr;
+            const size_t bytes = size_t(output->prefetch_candidate_mailbox_.candidates_per_slot()) *
+                sizeof(llama_kv_prefetch_candidate);
+            try {
+                output->prefetch_candidate_buffers_.reserve(
+                        output->prefetch_candidate_mailbox_.slot_count());
+                if (device != nullptr && host_buft != nullptr &&
+                        props.caps.async && props.caps.host_buffer && props.caps.events &&
+                        bytes != 0) {
+                    for (uint32_t slot = 0;
+                            slot < output->prefetch_candidate_mailbox_.slot_count(); ++slot) {
+                        auto buffer = ggml_backend_buft_alloc_buffer(host_buft, bytes);
+                        if (buffer == nullptr || !ggml_backend_buffer_is_host(buffer) ||
+                                ggml_backend_buffer_get_size(buffer) < bytes ||
+                                !output->prefetch_candidate_mailbox_.attach_storage(
+                                    slot, static_cast<llama_kv_prefetch_candidate *>(
+                                        ggml_backend_buffer_get_base(buffer))) ) {
+                            if (buffer != nullptr) ggml_backend_buffer_free(buffer);
+                            throw std::bad_alloc();
+                        }
+                        output->prefetch_candidate_buffers_.push_back(buffer);
+                    }
+                }
+            } catch (...) {
+                for (auto buffer : output->prefetch_candidate_buffers_) {
+                    ggml_backend_buffer_free(buffer);
+                }
+                output->prefetch_candidate_buffers_.clear();
+            }
+        }
         return output;
     } catch (...) {
         status = llama_kv_pager_status::allocation;
@@ -1291,9 +1331,16 @@ std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
 }
 
 llama_kv_pager::~llama_kv_pager() {
+    // Event-backed selector slots own in-flight device-to-host operations.
+    // Cancel them before tearing down the host backend and pinned storage.
+    prefetch_candidate_mailbox_.cancel();
     host_.reset();
     residency_pool_.reset();
     residency_adapter_.reset();
+    for (auto buffer : prefetch_candidate_buffers_) {
+        ggml_backend_buffer_free(buffer);
+    }
+    prefetch_candidate_buffers_.clear();
     if (owns_allocation_ && allocation_.handle && backend_.release) {
         backend_.release(allocation_);
     }

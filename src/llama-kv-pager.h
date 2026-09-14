@@ -453,6 +453,10 @@ public:
     ggml_backend_t host_backend() const noexcept {
         return host_ ? resources_host_backend_ : nullptr;
     }
+    bool selector_async_enabled() const noexcept {
+        return prefetch_candidate_buffers_.size() ==
+            prefetch_candidate_mailbox_.slot_count();
+    }
     uint64_t host_source_namespace() const noexcept {
         return host_ ? resources_host_source_namespace_ : 0;
     }
@@ -629,6 +633,7 @@ private:
     // A complete refresh carries the bounded resident/cold regions for the
     // attention layers. Keep the two-slot owner, but size each fixed slot for
     // the runtime layer count rather than dropping later layer records.
+    std::vector<ggml_backend_buffer_t> prefetch_candidate_buffers_;
     llama_kv_prefetch_mailbox prefetch_candidate_mailbox_{ { 2, 128 } };
     llama_kv_page_id page_identity_;
     llama_kv_pager_allocation allocation_;

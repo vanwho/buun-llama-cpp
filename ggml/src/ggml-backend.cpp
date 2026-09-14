@@ -617,6 +617,12 @@ void ggml_backend_event_record(ggml_backend_event_t event, ggml_backend_t backen
     backend->iface.event_record(backend, event);
 }
 
+bool ggml_backend_event_query(ggml_backend_event_t event) {
+    return event != nullptr && event->device != nullptr &&
+        event->device->iface.event_query != nullptr &&
+        event->device->iface.event_query(event->device, event);
+}
+
 void ggml_backend_event_synchronize(ggml_backend_event_t event) {
     GGML_ASSERT(event);
     GGML_ASSERT(event->device->iface.event_synchronize);

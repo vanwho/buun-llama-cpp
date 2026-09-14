@@ -92,6 +92,12 @@ struct llama_kv_prefetch_mailbox_backend {
             void * context, uint64_t event) noexcept = nullptr;
     void (*cancel)(void * context, uint64_t event) noexcept = nullptr;
     void (*release)(void * context, uint64_t event) noexcept = nullptr;
+    // Optional producer completion hook.  The event has completed and the
+    // slot contains compact producer bytes; the hook expands those bytes
+    // into the authenticated candidate records before validation.
+    bool (*complete)(void * context, uint32_t slot, const void * raw,
+            llama_kv_prefetch_candidate * records, uint32_t * count,
+            uint64_t generation) noexcept = nullptr;
 };
 
 struct llama_kv_prefetch_mailbox_config {
@@ -139,11 +145,15 @@ public:
     void set_backend(llama_kv_prefetch_mailbox_backend backend) noexcept {
         backend_ = backend;
     }
+    // Attach fixed owner-provided storage (normally pinned host memory) to a
+    // slot.  Internal vectors remain the fallback for deterministic CPU tests.
+    bool attach_storage(uint32_t slot, llama_kv_prefetch_candidate * records) noexcept;
 
 private:
     enum class slot_state : uint8_t { free = 0, writing, pending, ready };
     struct slot {
         std::vector<llama_kv_prefetch_candidate> records;
+        llama_kv_prefetch_candidate * external_records = nullptr;
         uint32_t count = 0;
         uint64_t generation = 0;
         uint64_t event = 0;
@@ -153,6 +163,14 @@ private:
     bool validate(const llama_kv_prefetch_candidate & candidate,
                   uint64_t generation, uint64_t table_epoch) const noexcept;
     void release(slot & value) noexcept;
+    llama_kv_prefetch_candidate * records(slot & value) noexcept {
+        return value.external_records != nullptr
+            ? value.external_records : value.records.data();
+    }
+    const llama_kv_prefetch_candidate * records(const slot & value) const noexcept {
+        return value.external_records != nullptr
+            ? value.external_records : value.records.data();
+    }
 
     llama_kv_prefetch_mailbox_backend backend_;
     uint32_t capacity_ = 0;
