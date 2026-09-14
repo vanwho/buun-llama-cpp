@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_63",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "63-04",
+  "reviewed_phase": 63,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_63.json",
+    "sha256": "da5270ece710848ff476fe7000c114bb1add33993308ec2865bdc32249062d85"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "The phase-63 summary records requested, observed, and immutable model, bundle, endpoint, source, and template identity.",
+    "required_turbo4_placements": "The summary measures target Turbo4 K/V on CUDA and native-MTP draft Turbo4 K/V on GPU with 8192 rows.",
+    "controlled_model_promotion": "False: no controlled T1 cold-page promotion campaign was run.",
+    "organic_cold_promotion": "False: no organic T2/T3 cold-to-hot round trip was run.",
+    "stable_target_consumption": "False: packed target-route requests completed, but no physically promoted cold page was published and consumed by a completed target graph.",
+    "full_256k_occupancy": "False: neither full-L allocation/startup nor an occupied C262144 frontier was run.",
+    "practical_speed_goal_met": "False: cold-prefill and decode are measured, but cached append and a complete paired speed matrix are absent.",
+    "useful_answer_quality_proven": "False: no answer-quality prompt or correctness rubric was executed."
+  },
+  "current_rates": {
+    "geometry": "L8192/C1200/H4096/A=null/B128/U64; A was not exported",
+    "cold_prefill_tok_s": {"median": 478.6853385861071, "range": [475.0087975587715, 481.7135514452009], "samples": 9, "status": "measured"},
+    "cached_append_tok_s": {"median": null, "range": [null, null], "samples": 0, "status": "not_run"},
+    "committed_decode_tok_s": {"median": 27.028747252440652, "range": [26.351827499237075, 27.084194275799227], "samples": 9, "status": "measured"},
+    "mtp_request_scoped_deltas": {"mode": "selective_native", "rows": 9, "draft_delta": 59, "accepted_delta": 0, "acceptance_percent": 0.0, "denominator_status": "measured"}
+  },
+  "capacity_and_proof_boundaries": {
+    "8K": "Measured L8192/H4096/B128/U64 cold-prefill and decode with real native-MTP denominators; cached append and paging claims remain incomplete.",
+    "32K": "Not run; the bounded phase-63 campaign stopped at the small coordinate.",
+    "128K": "Not run; the bounded phase-63 campaign stopped at the small coordinate.",
+    "256K_allocation": "Not run; phase 63 made no full-L allocation attempt.",
+    "C262144": "Not proven: no occupied full-context frontier was established."
+  },
+  "physical_and_quality_findings": {
+    "controlled_physical": "not_run",
+    "organic_physical": "not_run",
+    "stable_target_consumption": "not_run",
+    "useful_answer_quality": "not_run"
+  },
+  "dominant_measured_gaps": [
+    {"owner": "canonical V10 selector -> transfer -> target graph chain", "fixture": "T1 controlled model query and T3 organic two-document round trip", "finding": "Neither controlled nor organic physical cold-page promotion, followed by target-graph consumption, has been measured."},
+    {"owner": "canonical V10 cached conversation benchmark", "fixture": "L8192/C6144/H4096 with original q0/q1/q2", "finding": "Cached append 64/256, complete paired controls, and useful answer quality remain unmeasured despite successful cold-prefill/decode rows."},
+    {"owner": "full-L allocation and bounded progress path", "fixture": "L32768/H16384, L131072 safe H, and L262144", "finding": "The pilots, full-L allocation, and occupied C262144 boundary were not run; allocation and occupancy must remain separate."}
+  ],
+  "next_action": "Run one bounded promotion/quality advancement, one conditional scale/occupancy advancement, then the matched cached-append benchmark; summarize only phase-64 evidence and review it.",
+  "phase_appended": true,
+  "appended_phases": [64, 65],
+  "next_task_ids": ["64-01", "64-02", "64-03", "64-04", "65-01"],
+  "successor_contracts": {
+    "64-01": "Measure one bounded controlled T1 and, only after a valid chain, one organic T3 round trip plus separate answer quality; count physical use only after completed H2D, publication, and target-graph consumption.",
+    "64-02": "Measure conditional L32768/L131072 pilots, L262144 allocation/startup, and occupied C262144 with actual geometry and explicit stop reasons; never infer occupancy from allocation.",
+    "64-03": "Run the canonical matched q0/q1/q2 selective/native, CPU-main-KV/GPU-draft, and all-GPU/GPU-draft matrix with independent cold-prefill, cached append 64/256, committed decode, and real request-scoped MTP denominators.",
+    "64-04": "Aggregate only phase-64 identity, geometry, rates, MTP, promotion, quality, pilot, allocation, and occupancy evidence into V10_SUMMARY_64.json/.md.",
+    "65-01": "Review only V10_SUMMARY_64.json/.md with explicit capability booleans and append successors only for concrete measured gaps."
+  }
+}
