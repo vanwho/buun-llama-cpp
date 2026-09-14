@@ -471,10 +471,20 @@ def run_request(endpoint: str, key: str, model: str,
     record["cached_rows"] = cached
     record["server_pp_tok_s"] = timings.get("prompt_per_second")
     record["server_tg_tok_s"] = timings.get("predicted_per_second")
+    draft_tokens = timings.get("draft_n")
+    accepted_draft_tokens = timings.get("draft_n_accepted")
+    if not isinstance(draft_tokens, int) or draft_tokens < 0:
+        draft_tokens = None
+    if not isinstance(accepted_draft_tokens, int) or accepted_draft_tokens < 0:
+        accepted_draft_tokens = None
+    acceptance_percent = None
+    if draft_tokens is not None and accepted_draft_tokens is not None and draft_tokens > 0:
+        acceptance_percent = 100.0 * accepted_draft_tokens / draft_tokens
     record["speed_measurements"] = {
         "generated_tokens": record["output_tokens"], "committed_tokens": record["output_tokens"],
-        "mtp_proposed_tokens": _delta(before, record["after"]).get("predicted_tokens", 0),
-        "mtp_accepted_tokens": _delta(before, record["after"]).get("accepted_tokens", 0),
+        "mtp_proposed_tokens": draft_tokens,
+        "mtp_accepted_tokens": accepted_draft_tokens,
+        "mtp_acceptance_percent": acceptance_percent,
         "wall_prefill_us": timings.get("prompt_ms", None) * 1000 if isinstance(timings.get("prompt_ms"), (int, float)) else None,
         "wall_decode_us": timings.get("predicted_ms", None) * 1000 if isinstance(timings.get("predicted_ms"), (int, float)) else None,
         "ttft_us": stream.get("ttft_us"),
