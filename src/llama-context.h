@@ -133,6 +133,7 @@ struct llama_kv_pager_metrics_snapshot {
     llama_kv_attention_telemetry_counters attention;
     llama_kv_attention_telemetry_accounting attention_accounting;
     llama_kv_attention_execution_metrics execution;
+    llama_kv_pager_rejection_histogram rejection_histogram;
 };
 
 // Authenticated immutable sequence-file bytes. The pathname is consumed only
@@ -754,6 +755,11 @@ private:
     llama_memory_ptr memory;
     std::unique_ptr<llama_kv_pager> kv_pager_owner;
     llama_kv_attention_execution kv_attention_execution;
+    struct kv_attention_proof_graph {
+        uint64_t table_epoch = 0;
+        std::vector<uint32_t> selected_page_ids;
+    };
+    std::vector<kv_attention_proof_graph> kv_attention_proof_graphs_;
     llama_memory_failure_reason last_memory_failure_reason_ =
             llama_memory_failure_reason::none;
     bool kv_attention_mtp_verification_ = false;

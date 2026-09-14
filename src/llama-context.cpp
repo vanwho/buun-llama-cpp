@@ -1192,6 +1192,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.summary_read_calls = kv_pager_owner->summary_read_calls();
     result.summary_read_bytes = kv_pager_owner->summary_read_bytes();
     result.natural_proof = kv_pager_owner->natural_proof();
+    result.rejection_histogram = kv_pager_owner->rejection_histogram();
     result.host_seal_d2h_calls = kv_pager_owner->host_seal_d2h_calls();
     result.host_seal_d2h_bytes = kv_pager_owner->host_seal_d2h_bytes();
     result.host_seal_d2h_async_completions = kv_pager_owner->host_seal_d2h_async_completions();
@@ -2250,6 +2251,29 @@ void llama_context::synchronize() {
     while (kv_attention_execution.in_flight_graphs() != 0) {
         kv_attention_execution.complete_one_graph();
     }
+    // A graph's selected-page list is overwritten by each later graph. Keep
+    // the per-submission list captured at prepare time so the completion
+    // boundary can prove use of a page promoted by an earlier policy fence.
+    if (kv_pager_owner != nullptr) {
+        for (const auto & graph : kv_attention_proof_graphs_) {
+            kv_pager_owner->record_natural_proof_target_use(
+                    graph.selected_page_ids, graph.table_epoch, 0);
+        }
+    }
+    kv_attention_proof_graphs_.clear();
+    const auto completed_route = kv_attention_execution.route();
+    const bool selected_graph = completed_route == llama_kv_attention_execution_route::selected_dense ||
+        completed_route == llama_kv_attention_execution_route::selected_packed ||
+        completed_route == llama_kv_attention_execution_route::selected_direct ||
+        completed_route == llama_kv_attention_execution_route::exact_direct;
+    if (kv_attention_wait && selected_graph && kv_pager_owner) {
+        // The execution metrics carry the immutable logical IDs from the
+        // graph metadata. Stamp target use only after the scheduler fence;
+        // pre-fence selection is intentionally not proof of consumption.
+        kv_pager_owner->record_natural_proof_target_use(
+                kv_attention_execution.metrics().selected_page_ids,
+                kv_attention_execution.table_epoch(), 0);
+    }
     // The scheduler fence is also the completion boundary for packed owners.
     // Keep retired owners alive until this point; a graph rebuild may have
     // replaced its page selection while the previous graph still reads it.
@@ -2327,6 +2351,19 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
     auto result = kv_attention_execution.prepare(metadata, phase, representation_epoch,
             shape_epoch, direct_capable, scratch, direct_reason,
             dense_capable, packed_capable);
+    const bool selected_route = result.route == llama_kv_attention_execution_route::selected_dense ||
+        result.route == llama_kv_attention_execution_route::selected_packed ||
+        result.route == llama_kv_attention_execution_route::selected_direct ||
+        result.route == llama_kv_attention_execution_route::exact_direct;
+    if (selected_route && kv_pager_owner != nullptr) {
+        kv_attention_proof_graph graph;
+        graph.table_epoch = metadata.table_epoch();
+        graph.selected_page_ids.reserve(metadata.page_table().size());
+        for (const auto & page : metadata.page_table()) {
+            graph.selected_page_ids.push_back(page.logical_page);
+        }
+        kv_attention_proof_graphs_.push_back(std::move(graph));
+    }
     kv_attention_execution.record_graph_construction_us(uint64_t(std::max<int64_t>(
             0, ggml_time_us() - started)));
     return result;

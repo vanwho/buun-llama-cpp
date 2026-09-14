@@ -302,6 +302,32 @@ struct llama_kv_pager_natural_proof {
     bool candidate_was_cold = false;
     bool host_ready = false;
     bool promotion_published = false;
+    // One bounded physical edge receipt. These flags are set only at the
+    // corresponding owner boundary; a table epoch or attention sample alone
+    // never implies a completed target use.
+    bool selector_published = false;
+    bool h2d_queued = false;
+    bool h2d_completed = false;
+    bool mapping_published = false;
+    bool target_graph_used = false;
+    uint64_t h2d_useful_bytes = 0;
+    uint64_t h2d_aligned_bytes = 0;
+    uint64_t target_use_epoch = 0;
+    uint64_t target_use_query_generation = 0;
+};
+
+// Bounded rejection accounting for the current-Q promotion boundary. The
+// counters are diagnostic only and deliberately avoid retaining prompts,
+// tensors, or candidate vectors.
+struct llama_kv_pager_rejection_histogram {
+    uint64_t no_candidate = 0;
+    uint64_t invalid_candidate = 0;
+    uint64_t not_cold = 0;
+    uint64_t identity_mismatch = 0;
+    uint64_t missing_host_source = 0;
+    uint64_t admission_rejected = 0;
+    uint64_t transfer_rejected = 0;
+    uint64_t publication_rejected = 0;
 };
 
 enum class llama_kv_pager_status : uint8_t {
@@ -534,6 +560,23 @@ public:
     void record_natural_proof(const llama_kv_pager_natural_proof & proof) noexcept {
         natural_proof_ = proof;
     }
+    // Called after the scheduler fence with the logical IDs from the graph
+    // metadata that just completed. This is the only target-use edge in the
+    // natural receipt; selected IDs from an uncompleted graph are insufficient.
+    void record_natural_proof_target_use(
+            const std::vector<uint32_t> & selected_page_ids,
+            uint64_t table_epoch, uint64_t query_generation) noexcept;
+    const llama_kv_pager_rejection_histogram & rejection_histogram() const noexcept {
+        return rejection_histogram_;
+    }
+    void record_rejection_no_candidate() noexcept;
+    void record_rejection_invalid_candidate() noexcept;
+    void record_rejection_not_cold() noexcept;
+    void record_rejection_identity_mismatch() noexcept;
+    void record_rejection_missing_host_source() noexcept;
+    void record_rejection_admission() noexcept;
+    void record_rejection_transfer() noexcept;
+    void record_rejection_publication() noexcept;
 
     const llama_kv_routing_summary_store & routing_summaries() const noexcept {
         return routing_summaries_;
@@ -649,6 +692,7 @@ private:
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_routing_summary_index routing_summary_index_;
     llama_kv_pager_natural_proof natural_proof_;
+    llama_kv_pager_rejection_histogram rejection_histogram_;
     // A complete refresh carries the bounded resident/cold regions for the
     // attention layers. Keep the two-slot owner, but size each fixed slot for
     // the runtime layer count rather than dropping later layer records.
