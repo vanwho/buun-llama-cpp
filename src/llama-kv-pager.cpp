@@ -1552,16 +1552,35 @@ void llama_kv_pager::drain_host_completions() noexcept {
         for (const auto & item : completed) {
             auto page_it = std::find_if(pages_.begin(), pages_.end(),
                     [&](const auto & page) {
-                return page.present && page.record.id == item.page &&
-                    page.host_inflight &&
+                const auto & current = page.record.id;
+                const bool immutable_identity =
+                    current.session_generation == item.page.session_generation &&
+                    current.sequence_id == item.page.sequence_id &&
+                    current.sequence_generation == item.page.sequence_generation &&
+                    current.logical_page == item.page.logical_page &&
+                    current.page_generation == item.page.page_generation &&
+                    current.representation_epoch == item.page.representation_epoch &&
+                    current.model_identity == item.page.model_identity &&
+                    current.topology_identity == item.page.topology_identity &&
+                    current.codec_digest == item.page.codec_digest &&
+                    current.codebook_digest == item.page.codebook_digest &&
+                    current.rotation_digest == item.page.rotation_digest &&
+                    current.meansub_digest == item.page.meansub_digest &&
+                    current.position_begin == item.page.position_begin &&
+                    current.attention_layer == item.page.attention_layer;
+                // position_end is a mutable tail boundary.  It may advance
+                // after capture preparation, so do not strand the write
+                // frontier when the completion carries the earlier tail.
+                return page.present && immutable_identity && page.host_inflight &&
                     page.host_inflight_version == item.content_version;
             });
             if (page_it == pages_.end()) continue;
             auto & page = *page_it;
+            const bool capture_is_current = page.record.id == item.page;
             page.host_inflight = false;
             page.host_inflight_version = 0;
             if (page.record.pin_count != 0) page.record.pin_count--;
-            if (item.result.status == llama_kv_pager_host_status::ok) {
+            if (item.result.status == llama_kv_pager_host_status::ok && capture_is_current) {
                 page.record.host_valid = true;
                 page.record.dirty = false;
                 page.record.state = llama_kv_page_state::gpu_host_clean;
@@ -2027,8 +2046,20 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     if (page != nullptr && page->host_inflight) {
         // The GPU source slot is pinned until its D2H event has completed. A
         // tail rewrite must wait for that publication rather than racing the
-        // canonical copy or silently overwriting its version.
-        return llama_kv_pager_write_status::transaction;
+        // canonical copy or silently overwriting its version.  The completion
+        // may already be ready, but not yet drained by synchronize(); consume
+        // it here before failing a valid append boundary.  This is one bounded
+        // wait per affected page boundary, never one wait per row.
+        if (host_ && host_->async_enabled()) {
+            drain_host_completions();
+            if (page->host_inflight) {
+                (void) host_->wait();
+                drain_host_completions();
+            }
+        }
+        if (page->host_inflight) {
+            return llama_kv_pager_write_status::transaction;
+        }
     }
     const uint64_t content_version_before = page != nullptr ? page->content_version : 0;
     const llama_kv_page_id previous_id = page != nullptr ? page->record.id : llama_kv_page_id{};
@@ -2233,9 +2264,6 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                         (sequence_generation == 0 ? 1 : sequence_generation)) {
                     return llama_kv_pager_write_status::stale_generation;
                 }
-                if (page->host_inflight) {
-                    return llama_kv_pager_write_status::transaction;
-                }
                 continue;
             }
             if (std::find(new_logical_pages.begin(), new_logical_pages.end(), logical) ==
@@ -2287,6 +2315,33 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
             return any_page && all_pinned
                 ? llama_kv_pager_write_status::all_pinned
                 : llama_kv_pager_write_status::no_victim;
+        }
+
+        // A cached append can legitimately rewrite the page that was just
+        // handed to the asynchronous host-seal worker.  Drain ready
+        // completions and, only if one of this batch's pages remains in
+        // flight, wait for the bounded worker queue once.  Waiting on the
+        // batch boundary preserves the authenticated host publication while
+        // avoiding the old immediate transaction failure and any per-row
+        // polling loop.
+        const auto has_inflight_target = [&]() {
+            for (const llama_pos position : positions) {
+                const uint32_t logical = uint32_t(uint64_t(position) /
+                        snapshot_.geometry.page_tokens);
+                const auto * page = find_page(sequence_id, logical);
+                if (page != nullptr && page->host_inflight) return true;
+            }
+            return false;
+        };
+        if (host_ && host_->async_enabled() && has_inflight_target()) {
+            drain_host_completions();
+            if (has_inflight_target()) {
+                (void) host_->wait();
+                drain_host_completions();
+            }
+        }
+        if (has_inflight_target()) {
+            return llama_kv_pager_write_status::transaction;
         }
 
         tickets.reserve(positions.size());

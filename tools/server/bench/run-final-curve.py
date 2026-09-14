@@ -604,6 +604,8 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
     counter_telemetry = dict(after_telemetry)
     if isinstance(movement, Mapping):
         counter_telemetry.update(movement)
+    usage = record.get("usage") if isinstance(record.get("usage"), Mapping) else {}
+    details = usage.get("prompt_tokens_details", {})
     cached = details.get("cached_tokens") if isinstance(details, Mapping) else None
     measured_prompt = usage.get("prompt_tokens")
     allocated = after_telemetry.get("context_tokens") or _command_int(identity, "-c")
