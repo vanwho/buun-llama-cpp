@@ -1,0 +1,126 @@
+{
+  "schema": "v10-phase-summary-v1",
+  "schema_version": 1,
+  "task": "63-03",
+  "summary_id": "V10_SUMMARY_63",
+  "revision": "hotpath-v10-20260914",
+  "result": "current_findings",
+  "scope": "phase-63 receipt and bounded raw manifests only",
+  "identity": {
+    "requested": {
+      "model": "qwen-3.8",
+      "mode": "selective",
+      "L_tokens": 8192,
+      "C_tokens": 1200,
+      "H_tokens": 4096,
+      "A_tokens": null,
+      "B_tokens": 128,
+      "U_tokens": 64,
+      "reason": "A was not exported by the bounded revalidation manifest"
+    },
+    "observed": {
+      "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "bundle": "/srv/ai/paged-kv/results/v10/63-01/candidate-bundle/bin/llama-server",
+      "bundle_manifest_sha256": "246b6861a9d81b30f8afd071f61a83216570ed92a4946e028b792bac90208e3f",
+      "endpoint_executable_sha256": "eff60ced6facdf5a23bdd4f0de463093efb914da6cefdb99190c0273ef55b3c7",
+      "endpoint_pid": 1373809,
+      "tokenizer_template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+      "source_commit": "49cf30f7bc14db52e1ff8d95f731c0f14dacaa23"
+    },
+    "immutable": {
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "bundle_manifest_sha256": "246b6861a9d81b30f8afd071f61a83216570ed92a4946e028b792bac90208e3f",
+      "source_commit": "49cf30f7bc14db52e1ff8d95f731c0f14dacaa23",
+      "endpoint_executable_sha256": "eff60ced6facdf5a23bdd4f0de463093efb914da6cefdb99190c0273ef55b3c7"
+    }
+  },
+  "geometry": {
+    "bounded_revalidation": {
+      "status": "measured",
+      "L_tokens": 8192,
+      "C_tokens": 1200,
+      "H_tokens": 4096,
+      "A_tokens": null,
+      "B_tokens": 128,
+      "U_tokens": 64,
+      "page_tokens": 256,
+      "reason": "nine fresh cold-prefill requests completed; A was not exported"
+    },
+    "full_L_allocation": {
+      "status": "not_run",
+      "L_tokens": 262144,
+      "reason": "phase-63 bounded campaign did not run a full-L allocation"
+    },
+    "occupied_C262144": {
+      "status": "not_run",
+      "reason": "allocation and startup were not run, and no occupied C262144 frontier was established"
+    }
+  },
+  "placements": {
+    "target": {"status": "measured", "device": "CUDA", "k": "turbo4", "v": "turbo4"},
+    "native_mtp_draft": {"status": "measured", "device": "GPU", "k": "turbo4", "v": "turbo4", "capacity_rows": 8192}
+  },
+  "rates": {
+    "cold_prefill": {
+      "status": "measured",
+      "sample_count": 9,
+      "tok_s_median": 478.6853385861071,
+      "tok_s_range": [475.0087975587715, 481.7135514452009],
+      "basis": "server prompt_per_second, independent of cached append and decode"
+    },
+    "cached_append_64": {"status": "not_run", "sample_count": 0, "tok_s_median": null, "reason": "fresh cold-prefill only; no cached append segment"},
+    "cached_append_256": {"status": "not_run", "sample_count": 0, "tok_s_median": null, "reason": "fresh cold-prefill only; no cached append segment"},
+    "committed_decode": {
+      "status": "measured",
+      "sample_count": 9,
+      "tok_s_median": 27.028747252440652,
+      "tok_s_range": [26.351827499237075, 27.084194275799227],
+      "basis": "server predicted_per_second for 32 committed output tokens"
+    }
+  },
+  "mtp_request_scoped_deltas": {
+    "status": "measured",
+    "denominator_semantics": "request-scoped Prometheus delta; no cumulative or inferred values",
+    "rows": [
+      {"case_id": "q0-measured-1", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0},
+      {"case_id": "q0-measured-2", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0},
+      {"case_id": "q0-measured-3", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0},
+      {"case_id": "q1-measured-1", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0},
+      {"case_id": "q1-measured-2", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0},
+      {"case_id": "q1-measured-3", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0},
+      {"case_id": "q2-measured-1", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0},
+      {"case_id": "q2-measured-2", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0},
+      {"case_id": "q2-measured-3", "mode": "selective_native", "status": "measured", "draft_delta": 59, "accepted_delta": 0, "denominator": 59, "acceptance_percent": 0.0}
+    ],
+    "reason": "all nine measured native rows have positive real denominators; zero acceptance is a genuine result"
+  },
+  "rows": {
+    "matched_original_q0_q1_q2": {"status": "measured", "count": 9, "reason": "three measured trials for each original question under the bounded cold-prefill coordinate"},
+    "controlled_T1_model_query": {"status": "not_run", "reason": "no controlled model-query promotion campaign in phase 63"},
+    "organic_T2_or_T3_round_trip": {"status": "not_run", "reason": "no organic cold-to-hot round trip in phase 63"},
+    "answer_quality": {"status": "not_run", "reason": "the bounded requests were neutral benchmark prompts and no quality evaluation was run"},
+    "pilot_L32768": {"status": "not_run", "reason": "bounded campaign stopped at the L8192 revalidation"},
+    "pilot_L128K": {"status": "not_run", "reason": "bounded campaign stopped at the L8192 revalidation"},
+    "full_L_256K_allocation": {"status": "not_run", "reason": "no phase-63 full-L allocation attempt"},
+    "occupied_C262144": {"status": "not_run", "reason": "no occupied full-context frontier; do not infer occupancy from allocation"}
+  },
+  "promotion_edges": {
+    "controlled_physical": {"status": "not_run", "reason": "no T1 controlled cold-page promotion"},
+    "organic_physical": {"status": "not_run", "reason": "no T2/T3 organic cold-page promotion"},
+    "target_graph_consumption": {"status": "measured", "route": "selected packed prefill", "completed_requests": 9, "physical_promotion_claim": false, "reason": "packed target route completed, but no promoted cold page was queued, published, and consumed"}
+  },
+  "allocation_vs_occupancy": {
+    "allocation_startup": {"status": "not_run", "L_tokens": 262144, "reason": "not part of the bounded phase-63 run"},
+    "occupied_C262144": {"status": "not_run", "reason": "not established; a successful 8K request does not certify full-L occupancy"}
+  },
+  "answer_quality": {"status": "not_run", "reason": "no answer-quality prompt or correctness rubric was executed"},
+  "artifacts": [
+    {"path": ".wiretail/execution/evidence/V10_63-01.json", "sha256": "8b3b8d4cdda0aa5048c685d0fe3c4d458cdcb49fa15febc841892eca9fff27ac"},
+    {"path": ".wiretail/execution/evidence/V10_63-02.json", "sha256": "cdea40cab6ac19f98706dca6dbf887356a5da9873ddb0b292dc8d56ba89ad48b"},
+    {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/canonical-cold/SPEED25_02_ATTRIBUTION.json", "sha256": "e65e712952970d8bb6eedca9f172ed0f51387bd87e75341b83ff2b7d37e49402"},
+    {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/canonical-cold/case-manifest.json", "sha256": "749d9b558af7a20b1951041f13c9645bb8c5fbb7b057728a9c1aaf039e37e8de"},
+    {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/canonical-cold/bundle-manifest.json", "sha256": "246b6861a9d81b30f8afd071f61a83216570ed92a4946e028b792bac90208e3f"}
+  ],
+  "interpretation": "Phase 63 establishes a successful L8192/H4096/B128/U64 cold-prefill revalidation with independent cold-prefill and decode rates and genuine 0% native-MTP acceptance. It does not establish cached-append rates, physical promotion, answer quality, pilots, full-L allocation, or occupied C262144. Target route completion is reported separately from physical promotion."
+}
