@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "task": "61-02",
+  "source_commit": "a13ad971ec12fd340aabae4249eb5683979f0b25",
+  "checks": {
+    "full_l_packed_graph_boundary_repair": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-final-curve.py",
+        "--suite",
+        "micro",
+        "--context",
+        "262144",
+        "--prompt-tokens",
+        "1200",
+        "--question-index",
+        "0",
+        "--max-tokens",
+        "8",
+        "--mode",
+        "selective",
+        "--batch-tokens",
+        "128",
+        "--ubatch-tokens",
+        "64",
+        "--server-bin",
+        "/srv/ai/paged-kv/results/v10/61-02/candidate-bundle/bin/llama-server"
+      ],
+      "exit_code": 0,
+      "fixture": {
+        "logical_capacity_tokens": 262144,
+        "prompt_tokens": 1200,
+        "batch_tokens": 128,
+        "ubatch_tokens": 64,
+        "page_size_tokens": 256,
+        "hot_capacity_pages": 64,
+        "target_kv": "turbo4/cuda",
+        "draft_kv": "turbo4/gpu",
+        "route": "selected-packed-prefill"
+      },
+      "before_after": {
+        "C_tokens": { "before": 0, "after": 1207 },
+        "invalid_first_responses": { "before": 1, "after": 0 },
+        "completed_target_graph_uses": { "before": 0, "after": 1 }
+      },
+      "observations": {
+        "target_valid_rows": 1207,
+        "target_tokens_processed": 1220,
+        "response_status": "pass",
+        "response_tokens": 8,
+        "graph_capture_count": 14,
+        "graph_replay_count": 13,
+        "graph_rebuild_count": 14,
+        "graph_submission_count": 27,
+        "graph_completion_count": 27,
+        "prefill_packed_routes": 19,
+        "packed_storage_bytes": 21626900,
+        "packed_copy_updates": 4306,
+        "packed_copy_rows": 121408,
+        "packed_copy_reuses": 2318,
+        "packed_inflight_consumers_high_water": 1,
+        "launch_resource_failure": false,
+        "stable_owner_replay_assertion": true
+      },
+      "commands": [
+        {
+          "argv": ["./build-cuda/bin/test-kv-attention-execution"],
+          "exit_code": 0
+        },
+        {
+          "argv": ["cmake", "--build", "build-cuda", "--target", "test-kv-attention-execution", "llama-server", "-j2"],
+          "exit_code": 0
+        }
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_REVIEW_60.json",
+          "sha256": "793c9283efa1416522436005be331a8a04968eb5d881296a4ca1526bff2521cc"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_59-01_metrics_H16384.txt",
+          "sha256": "c90890afec7835aa94622a7d8e46378d6f466273839d4fef3ddfcfefea54e825"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_61-02_H16384_B128_U64.sse",
+          "sha256": "ae3b239bf486763a9d2d66de312fe9f1f26370987569203a238405ad89518432"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_61-02_live.json",
+          "sha256": "c949c2a5260187333280f55d30c8dfec1f1f8f34b5c5dda46c9a17fab8a34ba5"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_61-02_unit.txt",
+          "sha256": "bc6c0180924d52c1b52247a0dcc26517a183720e012bfa433bed64d4c7e76b3a"
+        }
+      ]
+    }
+  }
+}
