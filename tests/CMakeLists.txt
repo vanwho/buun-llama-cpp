@@ -602,6 +602,19 @@ llama_build_and_test(test-backend-ops.cpp)
 
 if (TARGET ggml-cuda)
     enable_language(CUDA)
+    llama_build_and_test(test-cuda-kv-promotion.cpp)
+    target_include_directories(test-cuda-kv-promotion PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/ggml/src)
+    target_link_libraries(test-cuda-kv-promotion PRIVATE llama)
+    target_compile_definitions(test-cuda-kv-promotion PRIVATE GGML_USE_CUDA)
+    if (MSVC)
+        target_compile_options(test-cuda-kv-promotion PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(test-cuda-kv-promotion PRIVATE -UNDEBUG)
+    endif()
+    set_property(TEST test-cuda-kv-promotion PROPERTY LABELS "cuda")
+    set_tests_properties(test-cuda-kv-promotion PROPERTIES SKIP_RETURN_CODE 77)
     add_executable(test-cuda-fattn-paged-turbo4 test-cuda-fattn-paged-turbo4.cu)
     target_link_libraries(test-cuda-fattn-paged-turbo4 PRIVATE ggml-cuda ggml-base)
     target_include_directories(test-cuda-fattn-paged-turbo4 PRIVATE
