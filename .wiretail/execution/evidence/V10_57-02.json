@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "task": "57-02",
+  "source_commit": "64a1b0021bbe5a1299f705f2d36670a9aa3791d1",
+  "checks": {
+    "immutable_bundle_identity_contract_repair": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tools.server.bench.test_bundle_identity_contract"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/57-02/20260914T185841Z/identity-contract.txt",
+          "sha256": "0e02c9ca76e74c70b310872fe0942fa697581d9fadd59fa54daaabdb1b329fbc"
+        }
+      ]
+    }
+  }
+}
