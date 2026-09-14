@@ -3152,10 +3152,19 @@ bool ggml_backend_cuda_kv_dequant_scratch_reserve(
     return true;
 }
 
+static size_t kv_dequant_scratch_physical_add(size_t lhs, size_t rhs) {
+    // Scratch grows are recoverable boundary operations. Preserve a conservative physical
+    // ledger even if a malformed/partially transitioned representation would overflow the
+    // aggregate instead of wrapping it to a small value and admitting another allocation.
+    return rhs > SIZE_MAX - lhs ? SIZE_MAX : lhs + rhs;
+}
+
 static size_t kv_dequant_scratch_side_physical_now(const ggml_cuda_fattn_scratch_side & side) {
     // The allocator normally owns exactly one representation. Sum both so the query remains
     // physically exact even if it observes a fallback-to-VMM transition between state updates.
-    return side.cuda_size + (side.vmm != nullptr ? ggml_backend_cuda_vmm_pool_mapped(side.vmm) : 0);
+    return kv_dequant_scratch_physical_add(
+            side.cuda_size,
+            side.vmm != nullptr ? ggml_backend_cuda_vmm_pool_mapped(side.vmm) : 0);
 }
 
 static size_t kv_dequant_scratch_round_up(size_t bytes, size_t granularity) {
@@ -3223,10 +3232,12 @@ void ggml_backend_cuda_kv_dequant_scratch_memory(
     const size_t v_projected = kv_dequant_scratch_side_physical_if_reserved(
             ctx, v_bytes, ctx.fattn_scratch.v);
 
-    GGML_ASSERT(k_now <= SIZE_MAX - v_now);
-    GGML_ASSERT(k_projected <= SIZE_MAX - v_projected);
-    *physical_now = k_now + v_now;
-    *physical_if_reserved = k_projected + v_projected;
+    *physical_now = kv_dequant_scratch_physical_add(k_now, v_now);
+    *physical_if_reserved = kv_dequant_scratch_physical_add(k_projected, v_projected);
+    // A failed second-side reserve may leave the first side grow-only resident. The query is
+    // the authoritative reconciliation point for the cache ledger, so projection must never
+    // report less than what is already physically present.
+    *physical_if_reserved = std::max(*physical_if_reserved, *physical_now);
 }
 
 void ggml_cuda_fattn_scratch_free(ggml_backend_cuda_context & ctx) {
