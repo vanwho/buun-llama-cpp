@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "task": "51-05",
+  "source_commit": "176712e952caa6021a131759610955d8d51c5b2b",
+  "checks": {
+    "summary_generated_and_validated": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/aggregate-v10-summary.py",
+        "--output",
+        ".wiretail/execution/evidence/V10_SUMMARY.json"
+      ],
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_SUMMARY.json", "sha256": "6eabb13e53d497e49acced3014baf9845a3120bf29e6a1339af7f1a9677108a5"},
+        {"path": ".wiretail/execution/evidence/V10_SUMMARY.md", "sha256": "feb9644e29229401e4160af329164d70e7147518d34b850f1ffda3aae619e002"},
+        {"path": ".wiretail/execution/evidence/V10_51-05.test.log", "sha256": "95122bf49f4388e388fc93c4805776cd27fca8d014e778c91ba662f6517dff83"}
+      ]
+    }
+  }
+}
