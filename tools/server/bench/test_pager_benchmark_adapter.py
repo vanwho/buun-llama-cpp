@@ -296,6 +296,7 @@ class AdapterContractTests(unittest.TestCase):
             executable = root / "bin" / "llama-server"
             executable.write_bytes(b"candidate")
             executable.chmod(0o555)
+            adapter.write_build_receipt(root, str(executable))
             output = pathlib.Path(directory) / "result"
             manifest = adapter.write_bundle_manifest(output, str(executable))
             self.assertIsNotNone(manifest)
@@ -303,6 +304,37 @@ class AdapterContractTests(unittest.TestCase):
             self.assertEqual("bin/llama-server", files[0]["path"])
             self.assertEqual(adapter._sha256_file(executable), files[0]["sha256"])
             self.assertEqual("bin/llama-server", manifest["executable"])
+
+    def test_missing_receipt_is_not_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory) / "bundle"
+            root.mkdir()
+            executable = root / "llama-server"
+            executable.write_bytes(b"candidate")
+            executable.chmod(0o555)
+            with self.assertRaisesRegex(ValueError, "missing immutable build-receipt"):
+                adapter.write_bundle_manifest(pathlib.Path(directory) / "result", str(executable))
+
+    def test_changed_project_dso_invalidates_build_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory) / "bundle"
+            (root / "bin").mkdir(parents=True)
+            executable = root / "bin/llama-server"
+            dso = root / "libllama.so"
+            executable.write_bytes(b"candidate")
+            dso.write_bytes(b"dso-v1")
+            executable.chmod(0o555)
+            adapter.write_build_receipt(root, str(executable))
+            dso.write_bytes(b"dso-v2")
+            with self.assertRaisesRegex(ValueError, "does not match bundled"):
+                adapter.write_bundle_manifest(pathlib.Path(directory) / "result", str(executable))
+
+    def test_comparative_source_identity_does_not_use_invoking_checkout(self) -> None:
+        manifest = {"source": {"head": "old", "fingerprint_sha256": "old-build"},
+                    "invocation_source": {"head": "new"}}
+        self.assertEqual([], adapter.comparative_identity_errors(manifest, "old-build"))
+        self.assertEqual(["built_source_fingerprint_mismatch"],
+                         adapter.comparative_identity_errors(manifest, "new-build"))
 
     def test_restoration_rejects_wrong_runtime_identity(self) -> None:
         errors = adapter.verify_restoration(

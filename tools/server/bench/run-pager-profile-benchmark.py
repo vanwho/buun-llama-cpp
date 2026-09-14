@@ -18,6 +18,7 @@ import subprocess
 import sys
 import time
 import re
+from collections import defaultdict
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -199,6 +200,12 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
     pager = _command_value(command, "--kv-pager") or "off"
     no_kv_offload = "--no-kv-offload" in command
     mtp = _command_value(command, "--spec-draft-kv-device") or "not_present"
+    loaded_file_hashes: dict[str, str] = {}
+    loaded_file_build_ids: dict[str, str | None] = {}
+    for path in [binary, *_loaded_project_dsos(map_paths)]:
+        if path and pathlib.Path(path).is_file():
+            loaded_file_hashes[path] = _sha256_file(pathlib.Path(path))
+            loaded_file_build_ids[path] = _build_id(pathlib.Path(path))
     return {
         "profile": profile,
         "main_pid": pid,
@@ -217,6 +224,8 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
         "mtp_type_v": _command_value(command, "--spec-draft-type-v") or "not_present",
         "proc_maps": map_paths,
         "loaded_dsos": _loaded_project_dsos(map_paths),
+        "loaded_file_hashes": loaded_file_hashes,
+        "loaded_file_build_ids": loaded_file_build_ids,
         "hot_pages": _command_value(command, "--kv-hot-pages"),
         "vram_budget": _command_value(command, "--kv-vram-budget"),
         "host_budget": _command_value(command, "--kv-host-budget"),
@@ -226,7 +235,7 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
 
 
 def service_snapshot(endpoint: str | None) -> dict[str, object]:
-    active_path = os.environ.get("LLAMA_ACTIVE_PROFILE")
+    active_path = os.environ.get("LLAMA_ACTIVE_PROFILE", "/srv/ai/config/llama/active-profile")
     profile = None
     if active_path:
         active = pathlib.Path(active_path)
@@ -622,6 +631,93 @@ def _build_id(path: pathlib.Path) -> str | None:
     return None
 
 
+def _source_root() -> pathlib.Path:
+    """Return the checkout containing this adapter, without trusting cwd."""
+    return pathlib.Path(__file__).resolve().parents[3]
+
+
+def _git_source_fingerprint() -> dict[str, object]:
+    """Fingerprint the source inputs without including generated evidence."""
+    root = _source_root()
+
+    def git_bytes(arguments: list[str]) -> bytes | None:
+        try:
+            result = subprocess.run(["git", *arguments], cwd=root,
+                                    capture_output=True, check=False)
+        except OSError:
+            return None
+        return result.stdout if result.returncode == 0 else None
+
+    head = _git_value(["-C", str(root), "rev-parse", "HEAD"])
+    staged = git_bytes(["diff", "--cached", "--binary"])
+    worktree = git_bytes(["diff", "--binary"])
+    # Untracked source can be a real build input.  Deliberately ignore results,
+    # build trees, and metadata so a receipt does not recursively change itself.
+    untracked = git_bytes(["ls-files", "--others", "--exclude-standard"])
+    source_names: list[str] = []
+    if untracked:
+        for name in untracked.decode(errors="replace").splitlines():
+            path = pathlib.Path(name)
+            if (path.parts and path.parts[0] in {".wiretail", "build", "build-cuda", "results"}) or \
+                    any(part in {"build", "results"} for part in path.parts):
+                continue
+            if path.suffix.lower() in {".c", ".cc", ".cpp", ".cu", ".h", ".hpp", ".py", ".cmake"}:
+                source_names.append(name)
+    untracked_payload = "\n".join(source_names).encode()
+
+    def digest(value: bytes | None) -> str | None:
+        return hashlib.sha256(value).hexdigest() if value is not None else None
+
+    parts = {
+        "head": head or "unknown",
+        "staged_diff_sha256": digest(staged) or "unknown",
+        "worktree_diff_sha256": digest(worktree) or "unknown",
+        "untracked_source_sha256": digest(untracked_payload) or "unknown",
+        "untracked_source": source_names,
+    }
+    canonical = json.dumps(parts, sort_keys=True, separators=(",", ":")).encode()
+    parts["fingerprint_sha256"] = hashlib.sha256(canonical).hexdigest()
+    return parts
+
+
+def _bundle_files(root: pathlib.Path) -> list[dict[str, object]]:
+    files: list[dict[str, object]] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.is_symlink() or path.name == "build-receipt.json":
+            continue
+        relative = path.relative_to(root)
+        files.append({"path": str(relative), "sha256": _sha256_file(path),
+                      "size": path.stat().st_size, "build_id": _build_id(path)})
+    return files
+
+
+def write_build_receipt(root: pathlib.Path, server_bin: str) -> pathlib.Path:
+    """Write the build-time identity after the caller has successfully built/copied."""
+    root = root.resolve()
+    executable = pathlib.Path(server_bin).resolve()
+    try:
+        executable.relative_to(root)
+    except ValueError as error:
+        raise ValueError("candidate executable is outside PAGER_BUNDLE_ROOT") from error
+    if not executable.is_file():
+        raise ValueError(f"candidate executable is not a regular file: {executable}")
+    files = _bundle_files(root)
+    receipt = {
+        "schema_version": 1, "immutable": True,
+        "source": _git_source_fingerprint(),
+        "toolchain": {"cc": os.environ.get("CC", "unknown"),
+                       "cxx": os.environ.get("CXX", "unknown"),
+                       "cflags": os.environ.get("CFLAGS", "unknown"),
+                       "cmake_build_type": os.environ.get("CMAKE_BUILD_TYPE", "unknown")},
+        "executable": str(executable.relative_to(root)),
+        "files": files,
+    }
+    path = root / "build-receipt.json"
+    path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+    path.chmod(0o444)
+    return path
+
+
 def write_bundle_manifest(output: pathlib.Path, server_bin: str | None) -> dict[str, object] | None:
     """Record the immutable bundle that the site launcher is asked to use."""
     if not server_bin:
@@ -636,16 +732,30 @@ def write_bundle_manifest(output: pathlib.Path, server_bin: str | None) -> dict[
         raise ValueError("candidate executable is outside PAGER_BUNDLE_ROOT")
     if not executable.is_file():
         raise ValueError(f"candidate executable is not a regular file: {executable}")
-    files: list[dict[str, object]] = []
-    writable_files: list[str] = []
-    for path in sorted(root.rglob("*")):
-        if not path.is_file() or path.is_symlink():
-            continue
-        relative = path.relative_to(root)
-        if path.stat().st_mode & 0o222:
-            writable_files.append(str(relative))
-        files.append({"path": str(relative), "sha256": _sha256_file(path),
-                      "size": path.stat().st_size, "build_id": _build_id(path)})
+    receipt_path_text = os.environ.get("PAGER_BUILD_RECEIPT")
+    receipt_path = pathlib.Path(receipt_path_text).resolve() if receipt_path_text else root / "build-receipt.json"
+    if not receipt_path.is_file():
+        raise ValueError("candidate bundle is missing immutable build-receipt.json")
+    try:
+        receipt = json.loads(receipt_path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid immutable build receipt: {error}") from error
+    if receipt.get("immutable") is not True or receipt.get("schema_version") != 1:
+        raise ValueError("invalid immutable build receipt")
+    receipt_files = {item.get("path"): item for item in receipt.get("files", [])
+                     if isinstance(item, dict)}
+    if receipt.get("executable") != str(executable.relative_to(root)):
+        raise ValueError("build receipt executable does not match candidate")
+    if not receipt_files or receipt_files.get(str(executable.relative_to(root)), {}).get("sha256") != _sha256_file(executable):
+        raise ValueError("build receipt does not match candidate executable")
+    files = _bundle_files(root)
+    current_hashes = {str(item["path"]): item.get("sha256") for item in files}
+    for name, item in receipt_files.items():
+        if current_hashes.get(str(name)) != item.get("sha256"):
+            raise ValueError("build receipt does not match bundled project files")
+    writable_files = [str(path.relative_to(root)) for path in root.rglob("*")
+                      if path.is_file() and not path.is_symlink() and
+                      path.name != "build-receipt.json" and path.stat().st_mode & 0o222]
     if writable_files:
         raise ValueError("candidate bundle is writable: " + ", ".join(writable_files[:4]))
     manifest: dict[str, object] = {
@@ -654,8 +764,9 @@ def write_bundle_manifest(output: pathlib.Path, server_bin: str | None) -> dict[
         "root": str(root),
         "executable": str(executable.relative_to(root)),
         "library_path": str(executable.parent),
-        "source_commit": _git_value(["rev-parse", "HEAD"]),
-        "source_diff_sha256": _git_diff_hash(),
+        "build_receipt": str(receipt_path),
+        "source": receipt.get("source", {"head": "unknown"}),
+        "invocation_source": _git_source_fingerprint(),
         "files": files,
     }
     path = output / "bundle-manifest.json"
@@ -689,9 +800,22 @@ def bundle_identity_errors(identity: dict[str, object], manifest: dict[str, obje
     expected = {str((root / str(item["path"])).resolve())
                 for item in manifest.get("files", []) if isinstance(item, dict) and "path" in item}
     errors: list[str] = []
+    receipt = manifest.get("build_receipt")
+    if not isinstance(receipt, str) or not pathlib.Path(receipt).is_file():
+        errors.append("bundle_build_receipt_missing")
     binary = identity.get("binary")
     if isinstance(binary, str) and str(pathlib.Path(binary).resolve()) not in expected:
         errors.append("bundle_executable_not_manifested")
+    hashes = manifest.get("files", [])
+    expected_hashes = {str((root / str(item["path"])).resolve()): item.get("sha256")
+                       for item in hashes if isinstance(item, dict) and "path" in item}
+    observed_hashes = identity.get("loaded_file_hashes")
+    if isinstance(observed_hashes, dict):
+        for path, digest in observed_hashes.items():
+            if path in expected_hashes and digest != expected_hashes[path]:
+                errors.append("bundle_loaded_file_hash_mismatch")
+    elif expected:
+        errors.append("bundle_loaded_file_hashes_missing")
     observed = identity.get("loaded_dsos")
     if isinstance(observed, list):
         outside = [path for path in observed if isinstance(path, str) and
@@ -701,6 +825,18 @@ def bundle_identity_errors(identity: dict[str, object], manifest: dict[str, obje
     elif expected:
         errors.append("bundle_loaded_dso_identity_missing")
     return errors
+
+
+def comparative_identity_errors(manifest: dict[str, object] | None,
+                                required_source_fingerprint: str | None) -> list[str]:
+    """Guard comparisons against a receipt built from a different repair."""
+    if not required_source_fingerprint:
+        return []
+    source = manifest.get("source") if isinstance(manifest, dict) else None
+    built = source.get("fingerprint_sha256") if isinstance(source, dict) else None
+    if built != required_source_fingerprint:
+        return ["built_source_fingerprint_mismatch"]
+    return []
 
 
 DEFAULT_CORPUS = pathlib.Path(__file__).with_name("fixtures") / "pager-corpus-v4.json"

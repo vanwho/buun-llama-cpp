@@ -28,10 +28,37 @@ from pager_benchmark_contract import (
     validate_speed_evidence,
     resolve_batch_tokens,
     resolve_hot_capacity,
+    validate_workload_geometry,
+    workload_geometry,
+    aggregate_paired_trials,
 )
 
 
 class ResumeContractTests(unittest.TestCase):
+    def test_geometry_rejects_declared_work_not_observed(self) -> None:
+        self.assertIn("hot_pages_geometry_mismatch", validate_workload_geometry(
+            {"hot_tokens": 4096, "page_size_tokens": 256},
+            {"hot_pages": 8, "page_size_tokens": 256}))
+        self.assertIn("requested_context_not_occupied", validate_workload_geometry(
+            {"context_tokens": 6144, "assert_occupied": True},
+            {"prompt_tokens": 30}))
+        geometry = workload_geometry(
+            {"context_tokens": 6144},
+            {"prompt_tokens": 100, "cached_tokens": 70})
+        self.assertEqual(30, geometry["measured"]["new_tokens"])
+
+    def test_pairing_keeps_duplicate_trials_and_nulls_unmatched_controls(self) -> None:
+        records = [
+            {"q_index": 0, "prompt_token_sha256": "p", "config_identity": "c", "trial_index": 0,
+             "mode": "selected", "timings": {"prompt_per_second": 20}},
+            {"q_index": 0, "prompt_token_sha256": "p", "config_identity": "c", "trial_index": 0,
+             "mode": "selected", "timings": {"prompt_per_second": 21}},
+            {"q_index": 1, "prompt_token_sha256": "p1", "config_identity": "c", "trial_index": 0,
+             "mode": "selected", "timings": {"prompt_per_second": 20}},
+        ]
+        pairs = aggregate_paired_trials(records)
+        self.assertEqual(2, len(pairs[0]["trials"]))
+        self.assertIsNone(pairs[1]["ratios"]["selected"])
     def test_incremental_endpoint_disconnect_resume_and_frontier_guard(self) -> None:
         """Completed turns checkpoint once; resume sends only the missing turn."""
         path = HERE / "run-incremental-scale.py"

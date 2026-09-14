@@ -14,6 +14,7 @@ import os
 import tempfile
 import time
 import uuid
+from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
@@ -206,6 +207,74 @@ class MandatoryPromptTooLarge(PromptSizingError):
 
 class ResumeError(ValueError):
     """Raised when a durable campaign cannot safely be resumed."""
+
+
+def validate_workload_geometry(requested: Mapping[str, Any], observed: Mapping[str, Any]) -> list[str]:
+    """Reject labels that claim more work than the request actually performed."""
+    errors: list[str] = []
+    for name in ("logical_context_tokens", "page_size_tokens", "hot_tokens", "batch_tokens", "ubatch_tokens"):
+        value = observed.get(name)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0):
+            errors.append(f"observed_{name}_invalid")
+    requested_context = requested.get("logical_context_tokens", requested.get("context_tokens"))
+    observed_prompt = observed.get("measured_request_tokens", observed.get("prompt_tokens"))
+    if isinstance(requested_context, (int, float)) and isinstance(observed_prompt, (int, float)) and observed_prompt > requested_context:
+        errors.append("measured_request_tokens_exceed_context")
+    if isinstance(requested.get("logical_context_tokens", requested.get("context_tokens")), (int, float)) and \
+            isinstance(observed_prompt, (int, float)) and observed_prompt < requested.get("logical_context_tokens", requested.get("context_tokens")) and requested.get("assert_occupied", False):
+        errors.append("requested_context_not_occupied")
+    requested_hot = requested.get("hot_tokens")
+    observed_hot = observed.get("hot_tokens")
+    page_tokens = observed.get("page_size_tokens", requested.get("page_size_tokens"))
+    if isinstance(requested_hot, (int, float)) and isinstance(observed_hot, (int, float)) and requested_hot != observed_hot:
+        errors.append("hot_capacity_mismatch")
+    if isinstance(requested_hot, (int, float)) and isinstance(observed.get("hot_pages"), (int, float)) and isinstance(page_tokens, (int, float)) and requested_hot != observed["hot_pages"] * page_tokens:
+        errors.append("hot_pages_geometry_mismatch")
+    return errors
+
+
+def workload_geometry(requested: Mapping[str, Any], observed: Mapping[str, Any]) -> dict[str, Any]:
+    """Return requested/effective/measured geometry with no estimate substitution."""
+    page_tokens = observed.get("page_size_tokens", requested.get("page_size_tokens"))
+    hot_pages = observed.get("hot_pages")
+    hot_tokens = observed.get("hot_tokens")
+    if hot_tokens is None and isinstance(hot_pages, int) and isinstance(page_tokens, int):
+        hot_tokens = hot_pages * page_tokens
+    measured = observed.get("measured_request_tokens", observed.get("prompt_tokens"))
+    cached = observed.get("cached_tokens")
+    new_tokens = observed.get("new_tokens")
+    if new_tokens is None and isinstance(measured, (int, float)) and isinstance(cached, (int, float)):
+        new_tokens = max(0, measured - cached)
+    return {"requested": dict(requested), "observed": dict(observed),
+            "effective": {"logical_context_tokens": observed.get("logical_context_tokens", requested.get("logical_context_tokens")),
+                           "page_size_tokens": page_tokens, "hot_pages": hot_pages,
+                           "hot_tokens": hot_tokens, "batch_tokens": observed.get("batch_tokens", requested.get("batch_tokens")),
+                           "ubatch_tokens": observed.get("ubatch_tokens", requested.get("ubatch_tokens"))},
+            "measured": {"request_tokens": measured, "cached_tokens": observed.get("cached_tokens", 0),
+            "new_tokens": new_tokens}}
+
+
+def aggregate_paired_trials(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Pair only identical workload/config inputs; retain every original trial."""
+    groups: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+    for record in records:
+        key = tuple(record.get(field) for field in
+                    ("q_index", "prompt_token_sha256", "config_identity", "trial_index"))
+        groups[json.dumps(key, sort_keys=True)].append(record)
+    result: list[dict[str, Any]] = []
+    for key, items in groups.items():
+        by_mode = {str(item.get("mode")): item for item in items}
+        rates: dict[str, Any] = {}
+        for field in ("prompt_per_second", "predicted_per_second"):
+            values = {mode: item.get("timings", {}).get(field) if isinstance(item.get("timings"), Mapping) else None
+                      for mode, item in by_mode.items()}
+            rates[field] = values
+        result.append({"pair_key": key, "trials": [dict(item) for item in items],
+                       "modes": sorted(by_mode), "rates": rates,
+                       "ratios": {mode: (value / rates["prompt_per_second"].get("control")
+                                           if isinstance(value, (int, float)) and isinstance(rates["prompt_per_second"].get("control"), (int, float)) and rates["prompt_per_second"]["control"] else None)
+                                  for mode, value in rates["prompt_per_second"].items() if mode != "control"}})
+    return result
 
 
 def _atomic_write_json(path: Path, value: Any) -> None:
