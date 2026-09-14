@@ -2582,9 +2582,10 @@ public:
             ggml_tensor * metadata,
             ggml_tensor * membership,
             ggml_tensor * query,
+            ggml_tensor * selected,
             int layer) :
         mctx_(mctx), bounds_(bounds), metadata_(metadata),
-        membership_(membership), query_(query), layer_(layer) {
+        membership_(membership), query_(query), selected_(selected), layer_(layer) {
     }
 
     void set_input(const llama_ubatch * ubatch) override {
@@ -2593,7 +2594,13 @@ public:
                     bounds_, metadata_, membership_, query_, layer_, *ubatch)) {
             // A selector is advisory. The owner keeps the previous valid
             // selection when a boundary cannot refresh its sideband inputs.
+            return;
         }
+        // Graph reuse skips llm_graph_context::cb(), which is where the
+        // selector output is first registered with the pager. Re-register it
+        // here after its generation/epoch sidebands have been refreshed so a
+        // completed current-Q result can reach the next policy boundary.
+        mctx_->capture_kv_routing_query(selected_, layer_, *ubatch);
     }
 
     bool can_reuse(const llm_graph_params & params) override {
@@ -2608,6 +2615,7 @@ private:
     ggml_tensor * metadata_ = nullptr;
     ggml_tensor * membership_ = nullptr;
     ggml_tensor * query_ = nullptr;
+    ggml_tensor * selected_ = nullptr;
     int layer_ = -1;
 };
 
@@ -2637,7 +2645,7 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
             mctx->capture_kv_routing_query(selected, il, ubatch);
             res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
                     mctx, selected->src[1], selected->src[2], selected->src[3],
-                    selected->src[4], il));
+                    selected->src[4], selected, il));
         }
     }
 
