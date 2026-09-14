@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "55",
-  "current_task": "55-02",
-  "last_updated_utc": "2026-09-14T18:14:16+00:00",
+  "current_task": "55-03",
+  "last_updated_utc": "2026-09-14T18:29:29+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -9966,7 +9966,7 @@
       "cluster": "55b-bounded-revalidation-v10",
       "title": "Revalidate full-L progress and the matched hot-path matrix",
       "packet": ".wiretail/execution/tasks/55-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -9993,7 +9993,32 @@
       "depends_on": [
         "55-01"
       ],
-      "commit": null
+      "commit": "0ee38678091906d8dea035088d13440a267d40f3",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/55-02-attempt-1-20260914T181435Z.jsonl:123",
+            "total_tokens": 6530547,
+            "total_tokens_derived": true,
+            "input_tokens": 6506356,
+            "cached_input_tokens": 6201088,
+            "output_tokens": 24191,
+            "thinking_tokens": 7445
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 6530547,
+          "input_tokens": 6506356,
+          "cached_input_tokens": 6201088,
+          "output_tokens": 24191,
+          "thinking_tokens": 7445
+        }
+      }
     },
     {
       "id": "55-03",
@@ -13099,15 +13124,28 @@
           "cached_input_tokens": 24034304,
           "output_tokens": 55723,
           "thinking_tokens": 26124
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/55-02-attempt-1-20260914T181435Z.jsonl:123",
+          "total_tokens": 6530547,
+          "total_tokens_derived": true,
+          "input_tokens": 6506356,
+          "cached_input_tokens": 6201088,
+          "output_tokens": 24191,
+          "thinking_tokens": 7445
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 24678091,
-        "input_tokens": 24622368,
-        "cached_input_tokens": 24034304,
-        "output_tokens": 55723,
-        "thinking_tokens": 26124
+        "turns": 2,
+        "total_tokens": 31208638,
+        "input_tokens": 31128724,
+        "cached_input_tokens": 30235392,
+        "output_tokens": 79914,
+        "thinking_tokens": 33569
       }
     },
     "56": {
@@ -13124,12 +13162,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 184,
-      "total_tokens": 3952184905,
-      "input_tokens": 3942962196,
-      "cached_input_tokens": 3862469120,
-      "output_tokens": 9222709,
-      "thinking_tokens": 3376271
+      "turns": 185,
+      "total_tokens": 3958715452,
+      "input_tokens": 3949468552,
+      "cached_input_tokens": 3868670208,
+      "output_tokens": 9246900,
+      "thinking_tokens": 3383716
     },
     "source": "Codex turn.completed usage events"
   }

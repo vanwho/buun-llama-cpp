@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "task": "55-02",
+  "proof": ["full_l_request_progress", "matched_three_prompt_matrix"],
+  "source_commit": "0ee38678091906d8dea035088d13440a267d40f3",
+  "build": {
+    "build_dir": "build-cuda",
+    "cuda": true,
+    "candidate": "build-cuda/bin/llama-server",
+    "candidate_sha256": "24333b2639ca140e53e1ddd53f60b2d2b954bee8f0d723351db0802b723032ce",
+    "libllama_sha256": "445d02d5c2890ee3e511faa2544be0d3d826343884683c1a5cc7804f180c19f5",
+    "libggml_cuda_sha256": "6038dba6fe594020bb27b29208f3e77ad2a0e366d333b048f62d1a1d4d5039bf"
+  },
+  "checks": {
+    "full_l_request_progress": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "tools/server/bench/run-final-curve.py", "--suite", "micro", "--context", "262144", "--prompt-tokens", "1200", "--trials", "1"],
+      "result": {
+        "L": 262144,
+        "C": 1200,
+        "H": 30208,
+        "A": 1280,
+        "B": 128,
+        "U": 128,
+        "request_tokens": 1200,
+        "target_kv": "turbo4/gpu",
+        "draft_kv": "turbo4/gpu/native-full-L",
+        "draft_rows": 262144,
+        "packed_storage_bytes": 21626900,
+        "graph_replay_count": 4,
+        "raw_run": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/full-l-retry",
+        "status": "pass"
+      },
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/full-l-retry/progress.json", "sha256": "2490e788eacd0412d8fd5ebbb5c7415b31a7a116583224c8dcc0762db97176c2"},
+        {"path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/full-l-retry/raw-q0-measured-1.sse", "sha256": "6bd6301bbae80b8f756fea2bc7e3c11839e2770ca2d97f7a4642be0a1aa5436c"}
+      ]
+    },
+    "matched_three_prompt_matrix": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "tools/server/bench/run-final-curve.py", "--suite", "curve", "--context", "8192", "--prompt-tokens", "6144", "--trials", "3", "--batch-tokens", "128", "--ubatch-tokens", "128"],
+      "result": {
+        "shape": {"L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 128},
+        "selective_native_rows": 9,
+        "selective_native_rows_status": "pass",
+        "controls": {
+          "cpu_main_kv_gpu_draft": {"status": "not_run", "reason": "mtp_observation_missing"},
+          "all_gpu_gpu_draft": {"status": "not_run", "reason": "mtp_observation_missing"}
+        },
+        "append_probes": {
+          "64": {"status": "pass", "raw_run": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/append-64"},
+          "256": {"status": "pass", "raw_run": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/append-256"}
+        },
+        "stop_condition": "native MTP Prometheus counters were absent from /metrics; no missing counter was converted to zero",
+        "raw_run": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry"
+      },
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/case-state.jsonl", "sha256": "91087ed942e1eb637b2b46459bcde5c6e5ae0057fb46b288e7d8c7040bbf7687"},
+        {"path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/progress.json", "sha256": "665fc6411112888db1835edf4f8b08ecf98f600aaace77a645fae3e0a10032d0"},
+        {"path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/append-64/case-state.jsonl", "sha256": "1c0aa48b8f848107357aa693e63c4938571e00a59773e199115f285f3c856655"},
+        {"path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/append-256/case-state.jsonl", "sha256": "ebccb70e644a607068dbf3d0f633a0e143b097c045dcfe7ab0e9222b514b66b2"}
+      ]
+    }
+  }
+}
