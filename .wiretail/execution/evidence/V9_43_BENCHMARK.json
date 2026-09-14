@@ -1,0 +1,152 @@
+{
+  "schema": "hotpath-v9-benchmark",
+  "task": "43-02",
+  "revision": "hotpath-v9-20260914-r2",
+  "utc": "2026-09-14",
+  "result": "pass_with_unmet_natural_cold_eligibility",
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "route": "selected_packed",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "candidate_bundle": "/srv/ai/paged-kv/results/v9/43-02/20260914T021611Z-candidate/bin/llama-server",
+    "source_commit": "09e62c8b3bb53e3833ad633d1535be2c058d7058"
+  },
+  "raw_results_root": "/srv/ai/paged-kv/results/v9/43-02/",
+  "raw_runs": {
+    "selected_controls": "/srv/ai/paged-kv/results/v9/43-02/20260914T021621Z-selected-controls",
+    "natural_cold": "/srv/ai/paged-kv/results/v9/43-02/20260914T021813Z-natural-cold-incremental",
+    "cpu_main_kv": "/srv/ai/paged-kv/results/v9/43-02/20260914T021906Z-cpu-main-kv",
+    "all_gpu": "/srv/ai/paged-kv/results/v9/43-02/20260914T022221Z-all-gpu"
+  },
+  "natural_cold": {
+    "fixture": "incremental C>H natural recall/append",
+    "occupied_tokens": 5006,
+    "recall_prompt_tokens": 5048,
+    "cached_rows": 5014,
+    "committed_output_tokens": 8,
+    "coherent_recall": true,
+    "coherent_append": true,
+    "attention_samples": 36,
+    "attention_mass_samples": 36,
+    "attention_publish_time_us": 565,
+    "attention_d2h_bytes": 5345280,
+    "candidate_published": false,
+    "promotion_published": false,
+    "transfer_submitted": 0,
+    "h2d_useful_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "natural_proof": {
+      "candidate_was_cold": false,
+      "host_ready": false,
+      "promotion_published": false,
+      "selected_in_last_graph": false
+    },
+    "eligible_for_scale": false,
+    "failure_class": "selection-quality",
+    "failure": "measurement/selection boundary: current-Q publication is present, but no cold candidate, promotion, useful H2D, or selected cold-page use was observed"
+  },
+  "matched_controls": {
+    "prompt_ids": [0, 1, 2],
+    "samples_each": 3,
+    "committed_output_tokens_each": 128,
+    "selected_packed": {
+      "prefill_tok_s": [658.631364, 648.633065, 674.276357],
+      "decode_tok_s": [34.188145, 34.135766, 33.875176],
+      "ttft_ms": [58.895, 56.969, 51.511],
+      "mtp_proposed": [2994, 2994, 2994],
+      "mtp_accepted": [9, 9, 9],
+      "errors": 0
+    },
+    "cpu_main_kv_gpu_weights_native_mtp": {
+      "target_kv_placement": "cpu",
+      "mtp_placement": "gpu",
+      "prefill_tok_s": [225.638557, 206.771380, 212.767574],
+      "decode_tok_s": [9.986478, 10.071997, 10.073711],
+      "ttft_ms": [132.956, 130.579, 132.087],
+      "mtp_proposed": null,
+      "mtp_accepted": null,
+      "errors": 0
+    },
+    "all_gpu": {
+      "prefill_tok_s": [652.429211, 624.277457, 635.396101],
+      "decode_tok_s": [36.693070, 36.818339, 36.833491],
+      "ttft_ms": [58.669, 57.881, 51.972],
+      "mtp_proposed": null,
+      "mtp_accepted": null,
+      "errors": 0
+    },
+    "selected_over_all_gpu_decode": [0.931, 0.927, 0.920],
+    "selected_over_cpu_decode": [3.423, 3.389, 3.365],
+    "measured_cpu_speedup": null,
+    "ratio_note": "Ratios are descriptive only; the CPU control is not declared an equivalent throughput claim."
+  },
+  "memory_bytes": {
+    "target_allocated": 69206016,
+    "target_valid": 67415040,
+    "host_valid": 64880640,
+    "weights": 13695551488,
+    "mtp_compute": 268435456,
+    "packed_workspace": 69206016,
+    "headroom": 201326592,
+    "full_256k_total": null,
+    "source": "natural-cold final /slots pager_metrics",
+    "controls_unmeasured_categories": null
+  },
+  "producer_publication_counters": {
+    "attention_samples": 36,
+    "attention_mass_samples": 36,
+    "attention_publish_time_us": 565,
+    "attention_dropped_no_output": 0,
+    "attention_dropped_no_metadata": 0,
+    "attention_dropped_stale_snapshot": 0,
+    "attention_dropped_invalid_argument": 0,
+    "candidate_published": false,
+    "promotion_published": false
+  },
+  "sample_counts": {
+    "selected_comparison": 3,
+    "cpu_main_kv_control": 3,
+    "all_gpu_control": 3,
+    "natural_cold_growth": 6,
+    "natural_cold_recall": 1,
+    "natural_cold_attention": 36,
+    "scale_32k": 0,
+    "scale_128k": 0,
+    "scale_256k": 0
+  },
+  "failure_classification": {
+    "measurement_failure": {
+      "status": "reduced_but_not_failed",
+      "details": "Current-Q attention samples and publication counters are nonzero."
+    },
+    "runtime_failure": {
+      "status": "not_observed",
+      "details": "All natural and matched requests completed with coherent output and zero control errors."
+    },
+    "selection_quality": {
+      "status": "failed_gate",
+      "details": "No non-sentinel cold candidate, promotion publication, useful H2D, or selected cold-page use."
+    }
+  },
+  "deferred_scale": {
+    "status": "not_run",
+    "reason": "Natural-cold eligibility invariant failed; stopped at L8192 before 32K."
+  },
+  "provenance": {
+    "selected_bundle_manifest_sha256": "4fca6c3bec00b8becdd6fd123d461d834dedef5f01b62b74e7493e4d561c76c9",
+    "natural_summary_sha256": "31b47282e62d2fd54ee1403dfbaffee32462a1214650cf2aafdb15d777094f86",
+    "focused_tests": "./build-cuda/bin/test-kv-attention-telemetry ./build-cuda/bin/test-kv-attention-execution ./build-cuda/bin/test-kv-pager-model ./build-cuda/bin/test-arg-parser"
+  }
+}
