@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "task": "50-04",
+  "source_commit": "7bd78c63dca33f55d993c050298d04ea82fe6b62",
+  "checks": {
+    "packed_current_row_parity": {
+      "status": "pass",
+      "command": ["./build/bin/test-kv-pager-model", "./build-cuda/bin/test-cuda-kv-promotion"],
+      "exit_code": 0,
+      "artifacts": [{
+        "path": ".wiretail/execution/evidence/V10_50-04-packed-current-row-parity.log",
+        "sha256": "40df04ca2b4334cc6d91a080108873a84d003d06031ef64b811209fc9cfdfc41"
+      }]
+    },
+    "hotpath_cost_attribution": {
+      "status": "pass",
+      "command": [
+        "python3", "tools/server/bench/run-final-curve.py", "--suite", "curve",
+        "--context", "77824", "--prompt-tokens", "6144", "--question-index", "0",
+        "--mode", "off", "--cache-condition", "cold-prefill", "--reset-mode", "fresh",
+        "--batch-tokens", "128", "--ubatch-tokens", "64",
+        "--server-bin", "/srv/ai/paged-kv/results/v10/50-04/20260914T114025Z-final-clean/bundle/bin/llama-server"
+      ],
+      "exit_code": 0,
+      "artifacts": [{
+        "path": ".wiretail/execution/evidence/V10_50-04-hotpath-cost-attribution.log",
+        "sha256": "563e1f7b180dafcabf300a5556f1be49db9557b4ead0d1c5422c0af6134b3477"
+      }]
+    },
+    "matched_ingest_before_after": {
+      "status": "pass",
+      "command": [
+        "python3", "-", "/srv/ai/paged-kv/results/v10/50-04/20260914T114025Z-final-clean",
+        "matched exact-history driver: q0 cold C6144 plus two paired-restore continuations"
+      ],
+      "exit_code": 0,
+      "artifacts": [{
+        "path": ".wiretail/execution/evidence/V10_50-04-matched-ingest-before-after.log",
+        "sha256": "e17abdacb3487618f7a4681fdc052e45b83998075cd8a118aa56e5bf99280e05"
+      }]
+    }
+  }
+}

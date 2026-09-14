@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "50",
-  "current_task": "50-04",
-  "last_updated_utc": "2026-09-14T10:48:45+00:00",
+  "current_task": "50-05",
+  "last_updated_utc": "2026-09-14T11:45:33+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -9125,7 +9125,7 @@
       "cluster": "50b-hotpath-ownership-v10",
       "title": "Optimize real ingest and cached-append mature-FA costs",
       "packet": ".wiretail/execution/tasks/50-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -9152,7 +9152,32 @@
       "depends_on": [
         "50-03"
       ],
-      "commit": null
+      "commit": "6703eac37c7a76e359637d7f880c4dd453c4850a",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/50-04-attempt-1-20260914T104903Z.jsonl:424",
+            "total_tokens": 57579628,
+            "total_tokens_derived": true,
+            "input_tokens": 57430918,
+            "cached_input_tokens": 56110336,
+            "output_tokens": 148710,
+            "thinking_tokens": 58555
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 57579628,
+          "input_tokens": 57430918,
+          "cached_input_tokens": 56110336,
+          "output_tokens": 148710,
+          "thinking_tokens": 58555
+        }
+      }
     },
     {
       "id": "50-05",
@@ -12203,15 +12228,28 @@
           "cached_input_tokens": 22872576,
           "output_tokens": 68554,
           "thinking_tokens": 28710
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/50-04-attempt-1-20260914T104903Z.jsonl:424",
+          "total_tokens": 57579628,
+          "total_tokens_derived": true,
+          "input_tokens": 57430918,
+          "cached_input_tokens": 56110336,
+          "output_tokens": 148710,
+          "thinking_tokens": 58555
         }
       ],
       "totals": {
-        "turns": 4,
-        "total_tokens": 75638792,
-        "input_tokens": 75424000,
-        "cached_input_tokens": 73322240,
-        "output_tokens": 214792,
-        "thinking_tokens": 92235
+        "turns": 5,
+        "total_tokens": 133218420,
+        "input_tokens": 132854918,
+        "cached_input_tokens": 129432576,
+        "output_tokens": 363502,
+        "thinking_tokens": 150790
       }
     },
     "51": {
@@ -12239,12 +12277,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 170,
-      "total_tokens": 3583838057,
-      "input_tokens": 3575486120,
-      "cached_input_tokens": 3502877184,
-      "output_tokens": 8351937,
-      "thinking_tokens": 3052358
+      "turns": 171,
+      "total_tokens": 3641417685,
+      "input_tokens": 3632917038,
+      "cached_input_tokens": 3558987520,
+      "output_tokens": 8500647,
+      "thinking_tokens": 3110913
     },
     "source": "Codex turn.completed usage events"
   }
