@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "task": "55-03",
+  "proof": ["phase55_summary_generated_and_validated"],
+  "source_commit": "f2ba57de4ef5a2e3433c576223f922eec73e186f",
+  "checks": {
+    "phase55_summary_generated_and_validated": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/aggregate-v10-summary.py",
+        "--phase55",
+        "--output",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_55.json",
+          "sha256": "b12b1af153d5b5aa2d1d1bbe538591b9086551895ae805726e0f8b2bd9fbd215"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_55.md",
+          "sha256": "20244d01b76cce494625c02587a50299161ef7829aa7d5720e52a095da7868cd"
+        }
+      ],
+      "summary": {
+        "json": ".wiretail/execution/evidence/V10_SUMMARY_55.json",
+        "markdown": ".wiretail/execution/evidence/V10_SUMMARY_55.md",
+        "validation": "aggregator returned status=pass and existing summary regression tests passed"
+      }
+    }
+  }
+}

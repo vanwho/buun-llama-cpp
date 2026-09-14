@@ -1,0 +1,996 @@
+{
+  "boundaries": {
+    "allocation_256K": {
+      "L_tokens": 262144,
+      "draft_rows": 262144,
+      "fixtures": [
+        {
+          "A_tokens": 1280,
+          "B_tokens": 128,
+          "C_tokens": 1207,
+          "H_tokens": 30208,
+          "L_tokens": 262144,
+          "U_tokens": 128,
+          "draft_kv": "Turbo4/GPU/native-full-L",
+          "draft_rows": 262144,
+          "fixture": "L262144/H30208/B128/U128",
+          "graph_replay_count": 4,
+          "packed_storage_bytes": 21626880,
+          "reason": "full-L fixture completed",
+          "request_tokens": 1200,
+          "scratch_high_water_bytes": 6266880,
+          "status": "measured",
+          "target_kv": "Turbo4/CUDA"
+        },
+        {
+          "A_tokens": null,
+          "B_tokens": 128,
+          "C_tokens": 1207,
+          "H_tokens": 16384,
+          "L_tokens": 262144,
+          "U_tokens": 64,
+          "draft_kv": "Turbo4/GPU/native-full-L",
+          "draft_rows": 262144,
+          "fixture": "L262144/H16384/B128/U64",
+          "graph_replay_count": 13,
+          "packed_storage_bytes": 21626880,
+          "reason": "full-L fixture completed",
+          "request_tokens": 1200,
+          "scratch_high_water_bytes": 6266880,
+          "status": "measured",
+          "target_kv": "Turbo4/CUDA"
+        }
+      ],
+      "reason": "full-L allocation/startup and bounded C1207 request completed",
+      "status": "measured"
+    },
+    "occupied_C262144": {
+      "reason": "phase-55 measured C1207 only; allocation is not full occupancy proof",
+      "status": "not_run"
+    },
+    "pilot_128K": {
+      "reason": "not part of the bounded phase-55 campaign; phase-53 rates intentionally excluded",
+      "status": "not_run"
+    },
+    "pilot_32K": {
+      "reason": "not part of the bounded phase-55 campaign; phase-53 rates intentionally excluded",
+      "status": "not_run"
+    },
+    "proof_8K": {
+      "A_tokens": 2048,
+      "B_tokens": 128,
+      "C_tokens": 6144,
+      "H_tokens": 4096,
+      "L_tokens": 8192,
+      "U_tokens": 128,
+      "reason": "matched selective matrix completed 9 rows",
+      "status": "measured"
+    }
+  },
+  "geometry": {
+    "full_L_fixtures": [
+      {
+        "A_tokens": 1280,
+        "B_tokens": 128,
+        "C_tokens": 1207,
+        "H_tokens": 30208,
+        "L_tokens": 262144,
+        "U_tokens": 128,
+        "draft_kv": "Turbo4/GPU/native-full-L",
+        "draft_rows": 262144,
+        "fixture": "L262144/H30208/B128/U128",
+        "graph_replay_count": 4,
+        "packed_storage_bytes": 21626880,
+        "reason": "full-L fixture completed",
+        "request_tokens": 1200,
+        "scratch_high_water_bytes": 6266880,
+        "status": "measured",
+        "target_kv": "Turbo4/CUDA"
+      },
+      {
+        "A_tokens": null,
+        "B_tokens": 128,
+        "C_tokens": 1207,
+        "H_tokens": 16384,
+        "L_tokens": 262144,
+        "U_tokens": 64,
+        "draft_kv": "Turbo4/GPU/native-full-L",
+        "draft_rows": 262144,
+        "fixture": "L262144/H16384/B128/U64",
+        "graph_replay_count": 13,
+        "packed_storage_bytes": 21626880,
+        "reason": "full-L fixture completed",
+        "request_tokens": 1200,
+        "scratch_high_water_bytes": 6266880,
+        "status": "measured",
+        "target_kv": "Turbo4/CUDA"
+      }
+    ],
+    "matched_8K": {
+      "A": 2048,
+      "B": 128,
+      "C": 6144,
+      "H": 4096,
+      "L": 8192,
+      "U": 128,
+      "page_tokens": 256,
+      "reason": "receipt reports the observed bounded matrix shape",
+      "status": "measured"
+    },
+    "raw_campaign_export": {
+      "matrix_A_tokens": 4096,
+      "matrix_H_tokens": 8192,
+      "reason": "retained because the attribution export records requested campaign geometry; receipt shape is authoritative for the measured matrix",
+      "status": "measured"
+    }
+  },
+  "mtp_request_scoped_deltas": {
+    "reason": "required Prometheus counters were absent from /metrics; no zero or cumulative value was substituted",
+    "status": "not_run"
+  },
+  "next_bottlenecks": [
+    {
+      "impact": "prevents native MTP acceptance and CPU/all-GPU comparison",
+      "owner": "metrics exporter / benchmark observation",
+      "reproducer": "55-02 matched matrix with /metrics before and after each request"
+    },
+    {
+      "impact": "campaign exports omit loaded executable, DSO, model, and bundle identity",
+      "owner": "run-final-curve.py profile identity",
+      "reproducer": "55-02 full-L and matrix campaigns"
+    },
+    {
+      "impact": "must schedule promotion/quality follow-up without treating allocation as C262144 occupancy",
+      "owner": "phase-56 benchmark review",
+      "reproducer": "V10_SUMMARY_55.json boundaries"
+    }
+  ],
+  "placements": {
+    "full_L_draft": {
+      "capacity_rows": 262144,
+      "device": "GPU",
+      "k": "turbo4",
+      "status": "measured",
+      "v": "turbo4"
+    },
+    "target": {
+      "device": "CUDA",
+      "k": "turbo4",
+      "status": "measured",
+      "v": "turbo4"
+    }
+  },
+  "promotion_edges": {
+    "controlled_physical": {
+      "reason": "phase-55 bounded revalidation did not run T1; phase-53 promotion evidence is excluded",
+      "status": "not_run"
+    },
+    "organic_physical": {
+      "reason": "phase-55 bounded revalidation did not run T2/T3; phase-53 promotion evidence is excluded",
+      "status": "not_run"
+    }
+  },
+  "provenance": {
+    "V10_55-01": {
+      "path": ".wiretail/execution/evidence/V10_55-01.json",
+      "sha256": "60374f9a9c4a3189712cfe047e9eaa126ca5632c110de1883ff1acc131021a0b"
+    },
+    "V10_55-02": {
+      "path": ".wiretail/execution/evidence/V10_55-02.json",
+      "sha256": "3f4ea867a84820a7dc4444d7a507028e6346220d34ed05f3faa9637f36950c86"
+    },
+    "append256": {
+      "path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/append-256/SPEED25_02_ATTRIBUTION.json",
+      "sha256": "c16d7eb02e5881d753cf922ee3f8f08a7d1c210dcf62c15e013f028936702bb9"
+    },
+    "append64": {
+      "path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/append-64/SPEED25_02_ATTRIBUTION.json",
+      "sha256": "88e9e9d5f99d7ee71b352ae2172b1888c8c29ce9624f612e6d18341e86b9824c"
+    },
+    "full_l": {
+      "path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/full-l-retry/SPEED25_02_ATTRIBUTION.json",
+      "sha256": "fe87b26f801542ff7e3edb84b00bd891f98c3f8a1166daca3cc2ce203522b1c5"
+    },
+    "matrix": {
+      "path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/SPEED25_02_ATTRIBUTION.json",
+      "sha256": "21c82759dfbb3ff94d33e9423db8e34daf6ab58b931fad7451f9d4eb5a79400d"
+    }
+  },
+  "rates": {
+    "cached_append": {
+      "max_tok_s": 602.4550041418781,
+      "median_tok_s": 456.823361276136,
+      "min_tok_s": 311.1917184103938,
+      "reason": null,
+      "sample_count": 2,
+      "status": "measured"
+    },
+    "cold_prefill": {
+      "max_tok_s": 186.61948044942247,
+      "median_tok_s": 186.03546464552537,
+      "min_tok_s": 185.35708587044113,
+      "reason": null,
+      "sample_count": 9,
+      "status": "measured"
+    },
+    "committed_decode": {
+      "max_tok_s": 13.150308436374903,
+      "median_tok_s": 13.103881635913153,
+      "min_tok_s": 13.03070604437444,
+      "reason": null,
+      "sample_count": 9,
+      "status": "measured"
+    },
+    "sample_counts": {
+      "cached_append": 2,
+      "cold_prefill": 9,
+      "committed_decode": 9
+    }
+  },
+  "result": "current_findings",
+  "revision": "hotpath-v10-20260914",
+  "rows": {
+    "all_gpu_gpu_draft": [
+      {
+        "case_id": "q0-trial-1",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q0-trial-2",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q0-trial-3",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q1-trial-1",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q1-trial-2",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q1-trial-3",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q2-trial-1",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q2-trial-2",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q2-trial-3",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      }
+    ],
+    "cached_append": [
+      {
+        "case_id": "q0-measured-1",
+        "geometry": {
+          "A_tokens": 256,
+          "B_tokens": 128,
+          "C_tokens": 64,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": null,
+            "draft": null
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 311.1917184103938
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 1000000.0
+          },
+          "prefill": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/append-64/raw-q0-measured-1.sse",
+        "raw_sha256": "fb39c2456e14d600e6dda744169b0025d511cfd27632520694c36452baf33872",
+        "reason": "completed raw measurement",
+        "source": "55-02/append64",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 1.0,
+          "wall_prefill": 205661.0
+        },
+        "tokens": {
+          "committed": 1,
+          "generated": 1,
+          "prompt": 64
+        }
+      },
+      {
+        "case_id": "q0-measured-1",
+        "geometry": {
+          "A_tokens": 256,
+          "B_tokens": 128,
+          "C_tokens": 256,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": null,
+            "draft": null
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 602.4550041418781
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 1000000.0
+          },
+          "prefill": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/append-256/raw-q0-measured-1.sse",
+        "raw_sha256": "2a81dc8e665415a33ee32c12048a5075479acd8dd6f90f26e2826e88c6da6d70",
+        "reason": "completed raw measurement",
+        "source": "55-02/append256",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 1.0,
+          "wall_prefill": 424928.0
+        },
+        "tokens": {
+          "committed": 1,
+          "generated": 1,
+          "prompt": 256
+        }
+      }
+    ],
+    "cpu_main_kv_gpu_draft": [
+      {
+        "case_id": "q0-trial-1",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q0-trial-2",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q0-trial-3",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q1-trial-1",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q1-trial-2",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q1-trial-3",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q2-trial-1",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q2-trial-2",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      },
+      {
+        "case_id": "q2-trial-3",
+        "reason": "mtp_observation_missing stopped the matched control campaign",
+        "status": "not_run"
+      }
+    ],
+    "full_L": [
+      {
+        "case_id": "q0-measured-1",
+        "geometry": {
+          "A_tokens": 1280,
+          "B_tokens": 128,
+          "C_tokens": 1200,
+          "H_tokens": 25088,
+          "L_tokens": 262144,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": null,
+            "draft": null
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 500000.0
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 477.6507226855434
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/full-l-retry/raw-q0-measured-1.sse",
+        "raw_sha256": "6bd6301bbae80b8f756fea2bc7e3c11839e2770ca2d97f7a4642be0a1aa5436c",
+        "reason": "completed raw measurement",
+        "source": "55-02/full-l-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2.0,
+          "wall_prefill": 2512296.0
+        },
+        "tokens": {
+          "committed": 1,
+          "generated": 1,
+          "prompt": 1200
+        }
+      }
+    ],
+    "selective_native": [
+      {
+        "case_id": "q0-measured-1",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.103881635913153
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 185.35708587044113
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q0-measured-1.sse",
+        "raw_sha256": "d6c0e5d9b4f684a921d0aee2e461737048a0b93194e8a29b7372cc742c644cb0",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4884049.0,
+          "wall_prefill": 33146831.0
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      },
+      {
+        "case_id": "q0-measured-2",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.132569181964058
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 186.17142079004498
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q0-measured-2.sse",
+        "raw_sha256": "116635962763dc9374d7140536854d98493fd12a38c91a666926f66a5fd20523",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4873380.0,
+          "wall_prefill": 33001843.0
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      },
+      {
+        "case_id": "q0-measured-3",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.150308436374903
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 186.61948044942247
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q0-measured-3.sse",
+        "raw_sha256": "0582273c8e08fb86a69038bf364df1ee0980e7fc8069fb2ac9814a0147378b5b",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4866806.0,
+          "wall_prefill": 32922608.0
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-1",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.099244378275067
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 185.82976650477744
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q1-measured-1.sse",
+        "raw_sha256": "083ba5ee1f8dd8b9a43b6a1b279e9aa0f130dd0c97c0751a4e9b0a594fc7e120",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4885778.0,
+          "wall_prefill": 33062517.999999996
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-2",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.044687021270178
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 186.3138412989374
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q1-measured-2.sse",
+        "raw_sha256": "6b028a43d6a4e03e6247f6e355ae559e6eeaf60ab28d6d8a20aea70fdd3dbe2e",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4906212.0,
+          "wall_prefill": 32976616.0
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-3",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.106949017654651
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 186.03546464552537
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q1-measured-3.sse",
+        "raw_sha256": "b4f219d93ed7596434fd9383a8788f88f3ed58a272ae07a266242b7c640d6dda",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4882906.0,
+          "wall_prefill": 33025961.000000004
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-1",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.03070604437444
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 185.8759902192441
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q2-measured-1.sse",
+        "raw_sha256": "957eab6b016aeab13f1075adb9b123819feb128549992917a088cf5ec7045f3b",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4911476.0,
+          "wall_prefill": 33054296.000000004
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-2",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.093474519177951
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 186.11518894417617
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q2-measured-2.sse",
+        "raw_sha256": "acd3182dffe69021bc00c86a32706e1d7a078f5f4ac6534a7bdc348b3f5756f2",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4887931.0,
+          "wall_prefill": 33011814.0
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-3",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 128,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": null,
+          "accepted_delta": null,
+          "draft_delta": null,
+          "raw_observed": {
+            "accepted": 0,
+            "draft": 123
+          },
+          "reason": "request-scoped native MTP counters were absent; raw cumulative-looking fields are not used",
+          "status": "not_run"
+        },
+        "rates": {
+          "cached_append": {
+            "sample_count": 0,
+            "status": "not_applicable",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "tok_s": 13.115460935702068
+          },
+          "prefill": {
+            "sample_count": 1,
+            "tok_s": 185.6346516082641
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z/matrix-selective-retry/raw-q2-measured-3.sse",
+        "raw_sha256": "448bec3f3b7348ba225a1dcd5a7482a556227ac8947175b97e97e41f7409e6eb",
+        "reason": "completed raw measurement",
+        "source": "55-02/matrix-selective-retry",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 4879737.0,
+          "wall_prefill": 33097269.0
+        },
+        "tokens": {
+          "committed": 64,
+          "generated": 64,
+          "prompt": 6144
+        }
+      }
+    ]
+  },
+  "schema": "hotpath-v10-phase55-summary",
+  "source_identity": {
+    "bundle_manifest": {
+      "reason": "phase-55 receipts contain no bundle manifest",
+      "sha256": null,
+      "status": "not_recorded"
+    },
+    "candidate": {
+      "libggml_cuda_sha256": "6038dba6fe594020bb27b29208f3e77ad2a0e366d333b048f62d1a1d4d5039bf",
+      "libllama_sha256": "445d02d5c2890ee3e511faa2544be0d3d826343884683c1a5cc7804f180c19f5",
+      "path": "build-cuda/bin/llama-server",
+      "sha256": "24333b2639ca140e53e1ddd53f60b2d2b954bee8f0d723351db0802b723032ce",
+      "source_commits": [
+        "9462e6ca674a3ed024ebfb163f0454b247816df8",
+        "0ee38678091906d8dea035088d13440a267d40f3"
+      ]
+    },
+    "model": {
+      "name": "qwen38-fast-turbo4-mtp",
+      "path": "/srv/ai/models/text/current.gguf",
+      "reason": null,
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "status": "measured"
+    }
+  },
+  "task": "55-03",
+  "units": {
+    "bytes": "integer bytes",
+    "durations": "microseconds",
+    "geometry": "tokens and rows",
+    "rates": "tok/s"
+  },
+  "useful_answer_quality": {
+    "reason": "answer-quality prompts were outside the bounded phase-55 campaign",
+    "status": "not_run"
+  }
+}
