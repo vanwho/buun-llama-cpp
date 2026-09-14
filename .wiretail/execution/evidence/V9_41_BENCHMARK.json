@@ -1,0 +1,79 @@
+{
+  "schema": "hotpath-v9-benchmark",
+  "task": "41-03",
+  "revision": "hotpath-v9-20260914",
+  "utc": "2026-09-14T01:45:00Z",
+  "result": "pass_with_unmet_capability",
+  "provenance": {
+    "source_commit": "5a9ca5b0e",
+    "server": "/srv/ai/paged-kv/results/v9/41-03/20260914T012621Z-candidate/bin/llama-server",
+    "server_sha256": "ebc2cac869de80023daa278f020b40588d33c64028e53baff61a1cdf61896d3c",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "raw_root": "/srv/ai/paged-kv/results/v9/41-03",
+    "raw_runs": {
+      "selected_packed": "/srv/ai/paged-kv/results/v9/41-03/20260914T012630Z-selected-controls",
+      "natural_cold": "/srv/ai/paged-kv/results/v9/41-03/20260914T012816Z-natural-cold-incremental",
+      "cpu_main_kv": "/srv/ai/paged-kv/results/v9/41-03/20260914T012910Z-cpu-main-kv",
+      "all_gpu": "/srv/ai/paged-kv/results/v9/41-03/20260914T013235Z-all-gpu"
+    }
+  },
+  "identity": {
+    "target_backend": "CUDA", "target_k": "turbo4", "target_v": "turbo4",
+    "draft_k": "turbo4", "draft_v": "turbo4", "draft_device": "GPU",
+    "mtp_type": "native", "route": "selected_packed", "L": 8192,
+    "H": 4096, "A_by_layer": 2048, "B": 128, "U": 64, "page_tokens": 256
+  },
+  "units": {"rates": "tok/s", "durations": "ms", "bytes": "integer bytes", "ratios": "dimensionless selected divided by named control"},
+  "geometry": {
+    "invariant": "selected <= A_by_layer <= H <= L",
+    "measured": {"L": 8192, "occupied_tokens": 5004, "recall_prompt_tokens": 5052, "cached_rows": 5017, "invariant_pass": true},
+    "scale": {"32K": {"measured": false, "status": "not_run"}, "128K": {"measured": false, "status": "not_run"}, "256K": {"measured": false, "status": "not_demonstrated"}}
+  },
+  "natural_cold": {
+    "fixture": "incremental C>H natural recall", "occupied_tokens": 5004, "recall_prompt_tokens": 5052,
+    "cached_rows": 5017, "committed_output_tokens": 20, "ttft_ms": 303.902158,
+    "decode_tok_s": 31.080336, "mtp_proposed": 19, "mtp_accepted": 9,
+    "attention_samples": 0, "candidate_published": false, "promotion_published": false,
+    "selected_cold_pages_used": 0, "h2d_useful_bytes": 0, "transfer_submitted": 0,
+    "coherent_recall": true, "coherent_append": true, "eligible_for_scale": false,
+    "failure": "measurement boundary: current-Q publication/promotion/use proof absent"
+  },
+  "matched_controls": {
+    "prompt_ids": [0, 1, 2], "committed_output_tokens_each": 128,
+    "selected_packed": {
+      "samples": 3, "prefill_tok_s": [604.104903, 589.050994, 613.198431],
+      "committed_decode_tok_s": [33.760322, 33.610701, 32.982836],
+      "ttft_ms": [50.509333, 47.057333, 46.592667], "mtp_proposed": [745, 747, 753],
+      "mtp_accepted": [4, 3, 0], "errors": 0
+    },
+    "cpu_main_kv_gpu_weights_native_mtp": {
+      "samples": 3, "target_kv_placement": "cpu", "mtp_placement": "gpu",
+      "prefill_tok_s": [227.193209, 205.641857, 210.078732],
+      "committed_decode_tok_s": [9.924077, 9.918328, 9.987244],
+      "ttft_ms": [132.049667, 131.305000, 133.288333], "mtp_proposed": [753, 753, 753],
+      "mtp_accepted": [0, 0, 0], "errors": 0
+    },
+    "all_gpu": {
+      "samples": 3, "prefill_tok_s": [609.937786, 575.537488, 610.571263],
+      "committed_decode_tok_s": [36.715082, 36.828024, 36.845967],
+      "ttft_ms": [50.140667, 47.865667, 46.218667], "mtp_proposed": [753, 753, 753],
+      "mtp_accepted": [0, 0, 0], "errors": 0
+    },
+    "selected_over_all_gpu_decode": [0.9198, 0.9121, 0.8952],
+    "selected_over_cpu_decode": [3.4012, 3.3882, 3.3029],
+    "measured_cpu_speedup": null
+  },
+  "memory_bytes": {
+    "target_allocated": 69206000, "target_valid": 2618880, "host_valid": 0,
+    "weights": 13695600000, "mtp_compute": 268435000, "packed_workspace": 69206000,
+    "headroom": 201327000, "full_256k_total": null
+  },
+  "failures": {
+    "measurement": {"status": "failed", "cause": "current-Q attention sample/publication counters remained zero"},
+    "runtime": {"status": "not_observed", "errors": 0, "details": "all natural and matched requests completed coherently"},
+    "selection_quality": {"status": "unmeasured", "details": "no candidate, useful H2D promotion, or selected cold-page use"}
+  },
+  "sample_counts": {"selected_comparison": 3, "cpu_main_kv_control": 3, "all_gpu_control": 3, "natural_cold_runs": 1, "natural_cold_attention": 0, "scale_32k": 0, "scale_128k": 0, "scale_256k": 0},
+  "deferred_scale": {"status": "not_run", "reason": "natural-cold eligibility invariant failed; stop before 32K"}
+}
