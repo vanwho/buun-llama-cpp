@@ -1,0 +1,1944 @@
+{
+  "allocation_vs_occupancy": {
+    "allocation_startup": "measured",
+    "occupied_C262144": "failed",
+    "occupied_frontier": "C1000",
+    "reason": "allocation and startup are separate from actual occupied context"
+  },
+  "answer_quality": {
+    "reason": "no answer-quality prompts were run in the bounded 59-02 campaign",
+    "status": "not_run"
+  },
+  "full_L_attempt": {
+    "case_id": "scale-L32768-H16384-incremental",
+    "reason": "resume recovery rejected after managed slot reset; no full occupancy claim",
+    "request_paths": [
+      "/srv/ai/paged-kv/results/v10/59-02/full-L-C262144/request-00.json"
+    ],
+    "response_paths": [
+      "/srv/ai/paged-kv/results/v10/59-02/full-L-C262144/raw-00.sse",
+      "/srv/ai/paged-kv/results/v10/59-02/full-L-C262144/raw-01.sse"
+    ],
+    "status": "failed"
+  },
+  "geometry": {
+    "allocation_256K": {
+      "A_tokens": null,
+      "B_tokens": 128,
+      "C_tokens": 1000,
+      "H_tokens": 30208,
+      "L_tokens": 262144,
+      "U_tokens": 64,
+      "draft_capacity_tokens": 262144,
+      "reason": "full-L allocation/startup and a bounded C1000 request were captured",
+      "status": "measured"
+    },
+    "matched_8K": {
+      "A_tokens": 4096,
+      "B_tokens": 128,
+      "C_tokens": 6144,
+      "H_tokens": 8192,
+      "L_tokens": 8192,
+      "U_tokens": 64,
+      "page_tokens": 256,
+      "reason": "all 27 matched 59-02 rows completed",
+      "status": "measured"
+    },
+    "occupied_C262144": {
+      "C_tokens": 1000,
+      "L_tokens": 262144,
+      "reason": "managed resume stopped at the C1000 frontier; expected 1000 but observed 0 after slot reset; occupied C262144 was not reached",
+      "status": "failed"
+    },
+    "pilot_128K": {
+      "reason": "59-02 stopped at the full-L boundary; no 128K pilot was run",
+      "status": "not_run"
+    },
+    "pilot_32K": {
+      "reason": "59-02 stopped at the full-L boundary; no 32K pilot was run",
+      "status": "not_run"
+    }
+  },
+  "identity": {
+    "immutable": {
+      "bundle_manifest_sha256": "e947cf6ceccc49e4507aed2753505acdd5d3677411d415ea3ef76d842eec118f",
+      "endpoint_executable_sha256": "d56f9fa3426360ffdad876e0d9c9efb9b4b1337a0b8e8520292de7ebb06cc43d",
+      "loaded_project_dso_hashes": {
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/libggml-base.so.0.22.0": "62b5f0d178e3c6285e2b4b8050717b82243c5ddc91644f90f88c96d1ef19922d",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/libggml-cpu.so.0.22.0": "a7a77b270aea94f18143b0180cb651b25b7b0c078c156baa7c43dbabd8aaca56",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/libggml-cuda.so.0.22.0": "4301bd978d7896e3bfcb97e7bd0d720d7b0b6c3dd8463cad511136b2d6ead451",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/libllama-common.so.0.3.0": "6f3fcbf263889a3a3ce91b7f907e1f16be974f3f7d44c80da4af4111b9658a25",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/libllama-server-impl.so": "38735d250744315397fbbbfa2cd682855d3aa355310caf076aaeb8b72373988f",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/libllama.so.0.3.0": "20787cced708a2a730ad0095a779c3bdb549f6c0436bc80be85c3509d723ea46",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/libmtmd.so.0.3.0": "d8580a78355d1a3f261e99f8179050e38792f5953f87484e79710515f12b308f",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/llama-server": "d56f9fa3426360ffdad876e0d9c9efb9b4b1337a0b8e8520292de7ebb06cc43d"
+      },
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "source_commit": "febe398654afd09b23af443c5d69b328d5a249ca"
+    },
+    "observed": {
+      "bundle_identity": "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/llama-server",
+      "bundle_manifest_sha256": "e947cf6ceccc49e4507aed2753505acdd5d3677411d415ea3ef76d842eec118f",
+      "endpoint_executable": "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/llama-server",
+      "endpoint_executable_sha256": "d56f9fa3426360ffdad876e0d9c9efb9b4b1337a0b8e8520292de7ebb06cc43d",
+      "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "source_commit": "febe398654afd09b23af443c5d69b328d5a249ca",
+      "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a"
+    },
+    "requested": {
+      "C_tokens": 6144,
+      "L_tokens": 8192,
+      "mode": "selective",
+      "model": "qwen-3.8"
+    }
+  },
+  "mtp_request_scoped_deltas": {
+    "reason": "per-request before/after counters are retained; feature-off controls explicitly use mtp=off",
+    "rows": [
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-1",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-2",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-3",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-1",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-2",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-3",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-1",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-2",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-3",
+        "denominator": 59,
+        "draft_delta": 59,
+        "mode": "selective_native",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "measured"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-1",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-2",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-3",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-1",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-2",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-3",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-1",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-2",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-3",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "all_gpu_control",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-1",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-2",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q0-measured-3",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-1",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-2",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q1-measured-3",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-1",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-2",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      },
+      {
+        "acceptance_percent": 0.0,
+        "accepted_delta": 0,
+        "case_id": "q2-measured-3",
+        "denominator": 0,
+        "draft_delta": 0,
+        "mode": "cpu_main_kv_gpu_draft",
+        "reason": "request-scoped Prometheus delta recorded",
+        "status": "off"
+      }
+    ],
+    "status": "measured"
+  },
+  "placements": {
+    "draft": {
+      "device": "gpu",
+      "k": "turbo4",
+      "status": "measured",
+      "v": "turbo4"
+    },
+    "full_L_draft": {
+      "capacity_rows": 262144,
+      "device": "GPU",
+      "k": "turbo4",
+      "status": "measured",
+      "v": "turbo4"
+    },
+    "target": {
+      "device": "CUDA",
+      "k": "turbo4",
+      "status": "measured",
+      "v": "turbo4"
+    }
+  },
+  "promotion_edges": {
+    "controlled_physical": {
+      "reason": "T1 controlled model-query promotion was not run after the full-L boundary",
+      "status": "not_run"
+    },
+    "organic_physical": {
+      "reason": "T2/T3 organic cold promotion was not run after the full-L boundary",
+      "status": "not_run"
+    }
+  },
+  "provenance": {
+    "all_gpu": {
+      "path": ".wiretail/execution/evidence/V10_59-02_all_gpu_control.json",
+      "sha256": "6bf190ceb0698bc4f7d59f3bd520c2d25b5a0257ef94e9584d796dd85cba04c6"
+    },
+    "cpu_main": {
+      "path": ".wiretail/execution/evidence/V10_59-02_cpu_main_kv_control.json",
+      "sha256": "961cea01df93b4a7d3f7bd148beb48f9e0b542560aa10da3bfd553f39a1a5411"
+    },
+    "full_l": {
+      "path": ".wiretail/execution/evidence/V10_59-02_full_L_occupancy.json",
+      "sha256": "1c102c8918231727f827a90091c93937d1d0fbd779ba578c4ea5e0f05e4f0248"
+    },
+    "native": {
+      "path": ".wiretail/execution/evidence/V10_59-02_native_matrix.json",
+      "sha256": "bd93114d4bd37cef8d96cd89820a23a0dffa5e493d2e0d96b1321c83fc5e4578"
+    },
+    "receipt": {
+      "path": ".wiretail/execution/evidence/V10_59-02.json",
+      "sha256": "b6101acb5c8b10a4520c62c61fc9e1a353d2c13d0f1f68cecfab8070bbda6c73"
+    }
+  },
+  "rates": {
+    "cached_append": {
+      "reason": "64- and 256-token cached-append probes were not run after the full-L stop",
+      "status": "not_run"
+    },
+    "committed_decode": {
+      "all_gpu_control": {
+        "max_tok_s": 38.08657793287479,
+        "median_tok_s": 38.07416132736045,
+        "min_tok_s": 37.00957969839506,
+        "reason": null,
+        "sample_count": 9,
+        "status": "measured"
+      },
+      "cpu_main_kv_gpu_draft": {
+        "max_tok_s": 10.459991187457424,
+        "median_tok_s": 10.404467157974276,
+        "min_tok_s": 10.319325064544154,
+        "reason": null,
+        "sample_count": 9,
+        "status": "measured"
+      },
+      "selective_native": {
+        "max_tok_s": 12.796063930734906,
+        "median_tok_s": 12.677138246965708,
+        "min_tok_s": 12.533001939873706,
+        "reason": null,
+        "sample_count": 9,
+        "status": "measured"
+      }
+    },
+    "prefill": {
+      "all_gpu_control": {
+        "max_tok_s": 1256.1131761242816,
+        "median_tok_s": 1255.3911941173153,
+        "min_tok_s": 1252.4645665053793,
+        "reason": null,
+        "sample_count": 9,
+        "status": "measured"
+      },
+      "cpu_main_kv_gpu_draft": {
+        "max_tok_s": 446.3817035811888,
+        "median_tok_s": 445.7631604608077,
+        "min_tok_s": 444.97578235237927,
+        "reason": null,
+        "sample_count": 9,
+        "status": "measured"
+      },
+      "selective_native": {
+        "max_tok_s": 169.58504851653242,
+        "median_tok_s": 169.23090228992217,
+        "min_tok_s": 168.8552995829406,
+        "reason": null,
+        "sample_count": 9,
+        "status": "measured"
+      }
+    }
+  },
+  "result": "current_findings",
+  "revision": "hotpath-v10-20260914",
+  "rows": {
+    "all_gpu_control": [
+      {
+        "case_id": "q0-measured-1",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 37.66846337389364
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1254.0559340787863
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q0-measured-1.sse",
+        "raw_sha256": "03dc6c1a4be67e1e0303a81ed4409319f3cf5b4571eb989c96af27f2b13dd806",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 849517.0,
+          "wall_prefill": 4899303.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q0-measured-2",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 37.00957969839506
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1252.4645665053793
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q0-measured-2.sse",
+        "raw_sha256": "30811ae5f63b934a616748868baa22fda5f8bae0a1926433ff01f1407f982352",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 864641.0,
+          "wall_prefill": 4905528.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q0-measured-3",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 38.08657793287479
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1255.0539720190784
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q0-measured-3.sse",
+        "raw_sha256": "289a924462ae2d7a282dee271256326257d6589b367d3e785859437564c813aa",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 840191.0,
+          "wall_prefill": 4895407.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-1",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 38.06320156725233
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1255.5528172079398
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q1-measured-1.sse",
+        "raw_sha256": "2b10935d21322b3d262f23b68583e5148c6209dd264f74ce0cf86dbbb35c23b8",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 840707.0,
+          "wall_prefill": 4893462.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-2",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 38.07416132736045
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1255.2198677769697
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q1-measured-2.sse",
+        "raw_sha256": "e9e210333d1b933bcad0f6261e7f6f97ff13d2ac91cbf32641224ecb30813216",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 840465.0,
+          "wall_prefill": 4894760.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-3",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 38.081728148823395
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1256.1131761242816
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q1-measured-3.sse",
+        "raw_sha256": "b216f9d9ada7e80ccc1160e526368edfa89d93f45e806d462b98055a347138e3",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 840298.0,
+          "wall_prefill": 4891279.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-1",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 38.0818187876653
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1255.3911941173153
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q2-measured-1.sse",
+        "raw_sha256": "38a23d4ed0cbe6821f3ebd8ced309a326bd28a057c42e7f1aa90b64977a8ba12",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 840296.0,
+          "wall_prefill": 4894092.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-2",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 38.07538450189068
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1255.8009768022246
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q2-measured-2.sse",
+        "raw_sha256": "4ad63793ce1f500e8d51535d078dcf77842817c97a04f3a2941f77d85946fef1",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 840438.0,
+          "wall_prefill": 4892495.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-3",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 38.03542286475673
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 1255.6888180747248
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/all-gpu-q0q1q2/raw-q2-measured-3.sse",
+        "raw_sha256": "9cd8598146eab53c262fd323364c72572ee6a777a5b31482dba9f78218393286",
+        "reason": "completed raw measurement",
+        "source": "59-02/all-gpu-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 841321.0,
+          "wall_prefill": 4892932.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      }
+    ],
+    "cpu_main_kv_gpu_draft": [
+      {
+        "case_id": "q0-measured-1",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.356627221941551
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 446.33354860597046
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q0-measured-1.sse",
+        "raw_sha256": "4d8bb3185bd4e097f18817d6c21361d10875a9c50a302e3c663b3b7cb5bb524e",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3089809.0,
+          "wall_prefill": 13765490.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q0-measured-2",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.404467157974276
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 446.3817035811888
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q0-measured-2.sse",
+        "raw_sha256": "5ed2c5311d388f4f890f25182eb03f5b526d33d4fc64c48092df4ccf075d9025",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3075602.0,
+          "wall_prefill": 13764005.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q0-measured-3",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.319325064544154
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 446.3571870227169
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q0-measured-3.sse",
+        "raw_sha256": "971bda11a25f1ab79e14fa3eb9c0624f9d71f1eefdc7ee19c0c148da860276e7",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3100978.0,
+          "wall_prefill": 13764761.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-1",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.373464160005497
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 444.97578235237927
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q1-measured-1.sse",
+        "raw_sha256": "780bb0394b576433002028d651737e798db6035185e8879c933b3f764f37c805",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3084794.0,
+          "wall_prefill": 13807493.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-2",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.45210925197847
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 445.7631604608077
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q1-measured-2.sse",
+        "raw_sha256": "dd14c4acaee2238f79e0f84779ff3e326688dc7df3b2d6d5ae906253362925f6",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3061583.0,
+          "wall_prefill": 13783104.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-3",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.430053939675828
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 445.2555284083028
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q1-measured-3.sse",
+        "raw_sha256": "eeb47927e5e0c065d3e065fef032646eed81f63bbedfb9da57fc368b6eef1282",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3068057.0,
+          "wall_prefill": 13798818.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-1",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.346932651815369
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 445.784539069017
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q2-measured-1.sse",
+        "raw_sha256": "39ef92d1bffc88a8473f8763c4d70ce35dea95d062410205d508530b9c579d36",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3092704.0,
+          "wall_prefill": 13782443.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-2",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.459991187457424
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 445.2922843037586
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q2-measured-2.sse",
+        "raw_sha256": "1514a9ced1799a363019a5a22c7c7697714ee833dfef738c63e75b4c5b2d7de4",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3059276.0,
+          "wall_prefill": 13797679.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-3",
+        "geometry": {
+          "A_tokens": 8192,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 0,
+          "draft_delta": 0,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "off"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 10.436779209935814
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 445.0966668967975
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/cpu-main-kv-q0q1q2/raw-q2-measured-3.sse",
+        "raw_sha256": "f38cb01b1c988e31112d1145be2724a147c83fe4f4ac8bedc68e001576751832",
+        "reason": "completed raw measurement",
+        "source": "59-02/cpu-main-kv-control",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 3066080.0,
+          "wall_prefill": 13803743.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      }
+    ],
+    "selective_native": [
+      {
+        "case_id": "q0-measured-1",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.638649939413472
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 168.8552995829406
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q0-measured-1.sse",
+        "raw_sha256": "fb9a1fac0a7b46401055ecc8287f7000df7df3cf1c957b3b4a1cb44dfd73b26c",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2531916.0,
+          "wall_prefill": 36386184.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q0-measured-2",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.677138246965708
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 169.35497475276765
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q0-measured-2.sse",
+        "raw_sha256": "60657b102a730acfdc594f4f1dbf4d328574d9e18e7c157138ff04dd7f0efff6",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2524229.0,
+          "wall_prefill": 36278828.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q0-measured-3",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.796063930734906
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 169.4681782948666
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q0-measured-3.sse",
+        "raw_sha256": "62e8997f15294987d7742464558df5a36ae33397ec977e13a6951c3c62a5234f",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2500769.0,
+          "wall_prefill": 36254594.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-1",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.646596781045913
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 169.16379204318392
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q1-measured-1.sse",
+        "raw_sha256": "070ab29f0915cfcca0d6fb21a82efa13053195ab089eb6bced8bef62e8cd4e84",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2530325.0,
+          "wall_prefill": 36319829.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-2",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.641071394006
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 169.58504851653242
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q1-measured-2.sse",
+        "raw_sha256": "0ec9647f287a5770b0475b0d680635d622d0b13693b767d24d3e453140e28be3",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2531431.0,
+          "wall_prefill": 36229609.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q1-measured-3",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.742784895817778
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 169.2894592954186
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q1-measured-3.sse",
+        "raw_sha256": "43b2da7305ea0531b21534729521a3b7929fe911ca3e2611869be09ba0454631",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2511225.0,
+          "wall_prefill": 36292868.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-1",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.75103602167676
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 169.23090228992217
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q2-measured-1.sse",
+        "raw_sha256": "d5ef5f67f37c3723428a4e37ee575c6f31c7c10abfcbe4d7ea33ac1f5bba615c",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2509600.0,
+          "wall_prefill": 36305426.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-2",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.533001939873706
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 169.06946275564016
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q2-measured-2.sse",
+        "raw_sha256": "476f07995bb2d0f27e085d41ceca1446240ee21bbcd8897b5c778000a2e9a861",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2553259.0,
+          "wall_prefill": 36340093.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      },
+      {
+        "case_id": "q2-measured-3",
+        "geometry": {
+          "A_tokens": 4096,
+          "B_tokens": 128,
+          "C_tokens": 6144,
+          "H_tokens": 8192,
+          "L_tokens": 8192,
+          "U_tokens": 64,
+          "page_tokens": 256
+        },
+        "mtp": {
+          "acceptance_percent": 0.0,
+          "accepted_delta": 0,
+          "denominator": 59,
+          "draft_delta": 59,
+          "reason": "request-scoped Prometheus delta recorded",
+          "status": "measured"
+        },
+        "rates": {
+          "cached_append": {
+            "reason": "59-02 stopped at the full-L boundary before cached-append probes",
+            "sample_count": 0,
+            "status": "not_run",
+            "tok_s": null
+          },
+          "committed_decode": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 12.719389596493265
+          },
+          "prefill": {
+            "sample_count": 1,
+            "status": "measured",
+            "tok_s": 168.9528883505471
+          }
+        },
+        "raw_path": "/srv/ai/paged-kv/results/v10/59-02/native-q0q1q2/raw-q2-measured-3.sse",
+        "raw_sha256": "e9faec46f4f7b1f55fb7b5d0f657057534d597b85d29032c8ec160daab22c6e2",
+        "reason": "completed raw measurement",
+        "source": "59-02/selective-native",
+        "status": "measured",
+        "timings_us": {
+          "wall_decode": 2515844.0,
+          "wall_prefill": 36365167.0
+        },
+        "tokens": {
+          "committed": 32,
+          "generated": 32,
+          "measured_prompt": 6144,
+          "requested_prompt": 6144
+        }
+      }
+    ]
+  },
+  "schema": "hotpath-v10-phase59-summary",
+  "task": "59-03",
+  "tokens": {
+    "committed_per_row": 32,
+    "full_L_occupied": 1000,
+    "full_L_requested": 262142,
+    "generated_per_row": 32,
+    "matched_prompt": 6144
+  },
+  "units": {
+    "bytes": "integer bytes",
+    "durations": "microseconds",
+    "geometry": "tokens and rows",
+    "rates": "tok/s"
+  },
+  "useful_answer_quality": {
+    "reason": "no answer-quality prompts were run in the bounded 59-02 campaign",
+    "status": "not_run"
+  }
+}
