@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "task": "49-06",
+  "source_commit": "0072e9629a7c01a165e148aea46e1bf038333fbd",
+  "checks": {
+    "cuda_production_promotion_chain": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-06-live/cuda-promotion.log",
+          "sha256": "bf08a88fdc4c6412005f7230cb022132bf7754b54c20791216cbac3e44b4ebfa"
+        }
+      ],
+      "measurements": {
+        "seed": "0x49060001",
+        "winner_logical_page": 0,
+        "score_margin": 297.858948,
+        "copy_bytes": 1081344,
+        "published_epoch": 6174,
+        "owner_generation": 100,
+        "checksum": "0x3e1c5cadefa47a9a",
+        "reference_tolerance": 0.002,
+        "perturb_delta": 0.000680,
+        "native_query_shapes": [1, 2, 3],
+        "prefill": "pass"
+      }
+    },
+    "mature_fa_consumption_parity": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-06-live/cuda-promotion.log",
+          "sha256": "bf08a88fdc4c6412005f7230cb022132bf7754b54c20791216cbac3e44b4ebfa"
+        }
+      ]
+    },
+    "live_cold_inventory": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-incremental-scale.py",
+        "--new-session",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/49-06-live",
+        "--endpoint",
+        "http://127.0.0.1:8080/v1/chat/completions",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--server-bin",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--context",
+        "8192",
+        "--hot-pages",
+        "16",
+        "--page-size",
+        "256",
+        "--batch-tokens",
+        "128",
+        "--ubatch-tokens",
+        "128",
+        "--target-tokens",
+        "6144",
+        "--turn-delta",
+        "768",
+        "--max-tokens",
+        "128"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-06-live/INTERACTIVE29_01_SCALE.json",
+          "sha256": "739c27da983d7dcffef4bb396650b29c60f71fa790b83508368764dab91858dc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-06-live/metrics.txt",
+          "sha256": "4fdd180206cf900597d76df081886821a8cf30b00f845cf85bb5597611c988ba"
+        }
+      ],
+      "measurements": {
+        "candidate_binary_sha256": "3a1ede2205e0d8face9252a438cc77c0efe49898d807f1f57b06d4b07b2431e7",
+        "occupied_after_tokens": 6144,
+        "turns": 9,
+        "page_size_tokens": 256,
+        "hot_capacity_pages": 16,
+        "host_pages": 15,
+        "logical_pages": 32,
+        "selected_packed_route": true,
+        "exact_cold_pages_metric": 0,
+        "exact_h2d_useful_bytes_metric": 0
+      }
+    }
+  }
+}
