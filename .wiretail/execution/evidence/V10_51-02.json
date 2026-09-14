@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "task": "51-02",
+  "source_commit": "81d0583ba6165838ac37bc466be4a50ac634f6e5",
+  "checks": {
+    "matched_three_prompt_matrix": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/aggregate-v10-small.py",
+        "--root",
+        "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/V10_SMALL.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/v10-51-02/V10_SMALL.json",
+          "sha256": "328e86a21a73ff3a69e4d7153b10f0157a6e17d7ecd4a945abb0a73ad01e1153"
+        },
+        {
+          "path": ".wiretail/execution/evidence/v10-51-02/selective-v2.json",
+          "sha256": "1e99c60e9d42322eb7a9cf473b0d4f81f95148ebb633387dbb56b90d408155ff"
+        },
+        {
+          "path": ".wiretail/execution/evidence/v10-51-02/cpu-main.json",
+          "sha256": "b5e76b54af0b1861c0105de98c489ba5963a36040dd79eaf427c517c2aec7dfd"
+        },
+        {
+          "path": ".wiretail/execution/evidence/v10-51-02/all-gpu-v2.json",
+          "sha256": "31921c4dbbaf32900a63d7e36ae9dfc4f4e968683d77c5c15d47a9594626a9aa"
+        }
+      ]
+    },
+    "paging_speed_claim_validation": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/aggregate-v10-small.py",
+        "--root",
+        "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/V10_SMALL.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/v10-51-02/V10_SMALL.md",
+          "sha256": "a1ac7960f8f9d04a321c53deff768df3b54bb016eb93200c58a3d0323552fe31"
+        },
+        {
+          "path": ".wiretail/execution/evidence/v10-51-02/V10_SMALL.json",
+          "sha256": "328e86a21a73ff3a69e4d7153b10f0157a6e17d7ecd4a945abb0a73ad01e1153"
+        }
+      ]
+    }
+  }
+}
