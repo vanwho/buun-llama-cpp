@@ -1044,3 +1044,21 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-46-01`
 - Commit at update: `ca961f6c3`
 - Summary: Reviewed phase-45 summary; recorded unmet natural-cold selection gate and appended ordered phase-47 repair, proof, summary, and phase-48 review tasks.
+
+## 2026-09-14 — 48-01 — done; V10 scheduled
+
+- User-requested source/raw audit at integration tip `44458ad37`. No live
+  benchmark or service mutation; no runtime implementation changed.
+- Corrected phase47 stale phase43 bundle/source-stamp, short-prompt/occupied
+  context, hot capacity and unmatched-control interpretations. Preserved raw
+  evidence. Recorded genuine phase36 SSE rates and0% MTP control acceptance.
+- Identified cold host inventory valid_length0, query/coefficient mismatch,
+  CPU summary/full upload work, ineffective cadence, extra telemetry FA and
+  snapshot/admission ownership risks. Detailed evidence in V10 ASSESSMENT.
+- Appended17 code-directed tasks49–52; active revision hotpath-v10-20260914.
+  Named-proof completion receipts; fresh context-area clusters; risk-based
+  Luna Medium/High and High first retry. No shared Wiretail default changes.
+- Validation: V10 context validator passed; V9 review successor validator
+  passed for17 new tasks;8 receipt guardrail unit tests passed; Wiretail state
+  valid245tasks; next task49-01; git diff --check passed. Historical task/phase
+  token usage preserved. No claim to account tokens not reported by Codex.

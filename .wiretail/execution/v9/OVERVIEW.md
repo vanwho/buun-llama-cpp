@@ -1,5 +1,9 @@
 # V9 — fast bounded attention with asynchronous cold KV
 
+Historical plan, superseded2026-09-14 by `../v10/OVERVIEW.md` and current
+state tasks49–52. Do not load this document for current implementation. Useful
+findings and corrections are folded into `../v10/ASSESSMENT.md`.
+
 Authoritative execution revision: `hotpath-v9-20260913`. Applies to phases
 33–38 and their explicitly scheduled successors. Old phases are history, not
 requirements to reopen. This document replaces all earlier plan amendments.

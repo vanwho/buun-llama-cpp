@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "review_task": "48-01",
+  "assessment_date": "2026-09-14",
+  "goal_met": false,
+  "source_audited": "44458ad37",
+  "assessment": ".wiretail/execution/v10/ASSESSMENT.md",
+  "new_live_benchmarks_run_in_audit": false,
+  "capabilities": {
+    "current_source_built_and_model_tested": false,
+    "current_q_cold_promotion_and_target_use_proven": false,
+    "historical_small_selective_decode_faster_than_cpu_kv": true,
+    "fair_validated_native_mtp_comparison": false,
+    "fast_selective_prefill": false,
+    "full_256k_occupied_context_proven": false
+  },
+  "phase36_raw_findings": {
+    "actual_prompt_tokens": 6144,
+    "measured_trials_per_prompt_mode": 1,
+    "selective_prompt_tok_s": [214.23022901504376, 215.64426109690487, 214.90856084964156],
+    "selective_decode_tok_s": [43.33928139376398, 39.30146139544326, 41.99689619789202],
+    "cpu_kv_prompt_tok_s": [723.4882874735492, 729.5101334704331, 733.6963044228249],
+    "cpu_kv_decode_tok_s": [12.278286295411894, 12.292812866606527, 12.54174574385489],
+    "allgpu_prompt_tok_s": [1436.4493888894474, 1445.6110035843813, 1440.239214732072],
+    "allgpu_decode_tok_s": [39.98204271089583, 39.79912410589074, 40.00879563444184],
+    "rate_definition": "returned SSE timings.prompt_per_second and predicted_per_second",
+    "caveat": "CPU and GPU controls each accepted0/126 MTP drafts; selective accepted55-60 of66-72. No validated cold retrieval chain. Do not advertise fair MTP paging speedup.",
+    "raw_parent": "/srv/ai/paged-kv/results/v9/36-04"
+  },
+  "phase47_corrections": {
+    "actual_short_prompt_tokens": [30, 27, 28],
+    "declared_occupied_context_not_verified": 6144,
+    "observed_hot_pages": 8,
+    "page_tokens": 256,
+    "observed_hot_capacity_tokens": 2048,
+    "short_q0_selective_prompt_tok_s": 667.720,
+    "short_q0_selective_decode_tok_s": 34.246843,
+    "short_q0_cpu_prompt_tok_s": 222.80978,
+    "short_q0_cpu_decode_tok_s": 10.074093,
+    "short_q0_allgpu_prompt_tok_s": 651.140581,
+    "short_q0_allgpu_decode_tok_s": 36.640541,
+    "valid_long_context_speed_claim": false,
+    "unmatched_q1_q2_ratios_valid": false,
+    "loaded_bundle": "/srv/ai/paged-kv/results/v9/43-02/20260914T021611Z-candidate",
+    "libllama_sha256_unchanged_from_phase43": "99d46d8e2a8e1a7bca0c6a67a8a2553b2949e80b93eaa35be49856dc904e5a91",
+    "cause": "write_bundle_manifest stamps current checkout HEAD onto supplied old binary hashes; short launch smoke confused with actual occupancy",
+    "natural_cold_raw": "/srv/ai/paged-kv/results/v9/47-02/20260914T033641Z-natural-cold-incremental"
+  },
+  "source_findings": [
+    "exact_page_records/routing_inventory leave host-only valid_length=0; CUDA rejects cold pages",
+    "router raw post-RoPE Q is not transformed into the stored Turbo4 summary coefficient basis",
+    "CPU summary decoding and full catalogue uploads remain in the CUDA selective hot path",
+    "score kernel still scans when refresh disabled; rank repeats scans",
+    "kv_packed_page_mass_producer adds extra attention solely for telemetry",
+    "submitted logical ID/epoch/partition ownership requires end-to-end proof",
+    "first-overflow no_victim requires bounded write-frontier and event/lease test"
+  ],
+  "next_action": "Repair build/workload identity, metadata/math/ownership and deterministic cold promotion first, then GPU catalogue/hot-path costs and bounded real comparisons.",
+  "phase_appended": ["49", "50", "51", "52"],
+  "next_task_ids": ["49-01", "49-02", "49-03", "49-04", "49-05", "49-06", "50-01", "50-02", "50-03", "50-04", "50-05", "51-01", "51-02", "51-03", "51-04", "51-05", "52-01"]
+}

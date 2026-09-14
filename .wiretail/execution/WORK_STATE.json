@@ -1,23 +1,23 @@
 {
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
-  "canonical_plan": ".wiretail/execution/v9/OVERVIEW.md",
-  "active_plan_amendment": ".wiretail/execution/v9/OVERVIEW.md",
-  "technical_change_spec": ".wiretail/execution/v9/FAST_PATH.md",
-  "execution_cookbook": ".wiretail/execution/v9/OPERATIONS.md",
-  "implementation_contracts": ".wiretail/execution/v9/ROUTING.md",
-  "benchmark_protocol": ".wiretail/execution/v9/BENCHMARKS.md",
-  "scope_revision": "hotpath-v9-20260914-r3",
-  "context_policy": "Only current packet/cluster, explicit context_files and named source; no archived plans, whole state/log or recursive historical handoffs. Clusters are context areas with no fixed task-count cap: keep cohesive tasks together for cached context until a real subsystem/risk/provenance/toolchain/model/context-budget boundary; new V9 clusters start fresh.",
+  "canonical_plan": ".wiretail/execution/v10/OVERVIEW.md",
+  "active_plan_amendment": ".wiretail/execution/v10/OVERVIEW.md",
+  "technical_change_spec": ".wiretail/execution/v10/OVERVIEW.md",
+  "execution_cookbook": ".wiretail/execution/v10/TESTING.md",
+  "implementation_contracts": ".wiretail/execution/v10/OVERVIEW.md",
+  "benchmark_protocol": ".wiretail/execution/v10/TESTING.md",
+  "scope_revision": "hotpath-v10-20260914",
+  "context_policy": "Current V10 packet/cluster, explicit context_files and named source only. No V9/older plans, whole state/log or recursive historical handoffs. Cohesive context-area clusters have no fixed task-count cap; fresh V10 IDs exclude stale sessions.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
-  "current_phase": "48",
-  "current_task": "48-01",
-  "last_updated_utc": "2026-09-14T03:45:47+00:00",
+  "status": "in_progress",
+  "current_phase": "49",
+  "current_task": "49-01",
+  "last_updated_utc": "2026-09-14T04:21:15.787580+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -25,7 +25,7 @@
     "cluster_context_dir": ".wiretail/execution/clusters",
     "default_model": "gpt-5.6-luna",
     "default_reasoning": "low",
-    "task_model_policy": "V9 tasks33-01 through38-01 use explicit risk-based Luna Medium or Luna High recommendations and opt into retry1_reasoning=high. Shared Wiretail fallback remains Luna Low; historical recommendations are not active.",
+    "task_model_policy": "V10 tasks49-52 have explicit risk-based Luna Medium/High recommendations and retry1_reasoning=high. Shared runner defaults unchanged.",
     "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
@@ -42,19 +42,19 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "foundation_tasks": "Historical tasks00-32 remain completed records, not current context or proof. Active implementation is33-36; findings37; review38.",
-    "native_mtp_context": "exactly the resolved target per-sequence context for each run",
-    "native_mtp_residency": "Turbo4 K/V fully GPU-resident and never a target pager victim",
-    "target_hot_capacity": "H in checked physical page units after measured peak allocations and full-L GPU MTP; tune selected A independently; maximize safe useful H without hardcoded70K/77K",
-    "target_cold_backing": "canonical opaque Turbo4 pages in CPU RAM",
-    "speed_policy": "Prove and optimize primary8192 logical/4096 hot first, then32768/16384 and up to131072 with maximum safe H; compare prefill/decode and memory, no arbitrary speed gates",
-    "test_context_policy": "V9 focused fixtures/smoke then quick8192/4096, original3prompt matched controls,32768/16384,131072 only after natural cold proof and bounded pilot/ETA. No mandatory48case/six-coordinate matrix;256K ledger estimate only in this live campaign.",
-    "speed_target": "annotate historical 3x/5x CPU KV and 70% comparable all-GPU comparisons without gating completion of measurement tasks",
-    "full_context_proof": "Current maximum131072 resolved target and full-L GPU Turbo4 native-MTP; first allocate/short smoke then incremental retained occupancy beyond H and near L minus generation reserve, natural cold recall and useful committed generation. Startup alone is insufficient.",
-    "required_final_status": "38-01 reviews only V9_SUMMARY; capability is distinct from task completion. If goal unmet, append real remediation/benchmark/summary/review task/state/cluster entries before completing review; prose-only scheduling forbidden.",
-    "stretch_goal": "YaRN after base capability is demonstrated; unscheduled option, not current completion gate",
-    "quality_resilience_scope": "Experimental speed prototype: retain minimal numerical/causal/byte/lifetime proof; broad quality matrices, exact hybrid CPU attention, checkpoint/soak, YaRN and upstream readiness are unscheduled options",
-    "future_context_goal": "262144 remains overall extension with estimated ledger in37-04; review records it separately and schedules a bounded next validation when measured128K speed/capacity justify it. YaRN remains later optional work. Current live ceiling131072."
+    "active_scope": "V10 tasks49-52; historical done tasks are records, not current capability proof",
+    "native_mtp_context": "equals resolved target per-sequence logical context L",
+    "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
+    "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
+    "target_hot_capacity": "dynamic H after full-L draft, weights, recurrent state, A workspace, scratch, GPU catalogue and reserve; no fixed70K/77K production constant",
+    "attention_path": "mature Turbo4 packed/contiguous FA; no telemetry-only extra attention, CPU attention or F16 gather in selective production",
+    "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
+    "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
+    "speed_policy": "small L8192/H4096 physical paging first; prefill, cached append and committed decode separate; ratios findings, not inherited3x/5x gates",
+    "scale_policy": "conditional32K/128K pilot then honest262144 allocation and occupied-context feasibility; no mandatory long matrix or unbounded slow progress loop",
+    "task_completion": "named required implementation tests and hashed raw receipt; no deferred CUDA/live substitution; benchmark failed findings stay explicitly failed",
+    "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
+    "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication"
   },
   "external_gates": [
     {
@@ -8493,7 +8493,7 @@
       "cluster": "48a-review-v9",
       "packet": ".wiretail/execution/tasks/48-01.md",
       "title": "Review phase-47 summary and schedule the next measured action",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -8506,6 +8506,605 @@
       ],
       "depends_on": [
         "47-03"
+      ],
+      "commit": null,
+      "completion_note": "User-requested source/raw audit completed; V10 corrects stale-bundle/wrong-workload interpretation and schedules17 concrete successor tasks. No runtime goal claim."
+    },
+    {
+      "id": "49-01",
+      "phase": "49",
+      "cluster": "49a-evidence-identity-v10",
+      "title": "Make candidate provenance and workload geometry unambiguous",
+      "packet": ".wiretail/execution/tasks/49-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/v10/ASSESSMENT.md"
+      ],
+      "required_proofs": [
+        "adapter_identity_regressions",
+        "workload_pairing_regressions",
+        "live_candidate_identity"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "49-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_49-01.json"
+      ],
+      "depends_on": [
+        "48-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "49-02",
+      "phase": "49",
+      "cluster": "49b-selector-correctness-v10",
+      "title": "Restore valid cold-page metadata from canonical host storage",
+      "packet": ".wiretail/execution/tasks/49-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/49-01.md"
+      ],
+      "required_proofs": [
+        "host_inventory_roundtrip",
+        "invalid_host_metadata",
+        "cuda_cold_eligibility"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "49-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_49-02.json"
+      ],
+      "depends_on": [
+        "49-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "49-03",
+      "phase": "49",
+      "cluster": "49b-selector-correctness-v10",
+      "title": "Align router Q with Turbo4 page-summary coordinates",
+      "packet": ".wiretail/execution/tasks/49-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/49-02.md"
+      ],
+      "required_proofs": [
+        "turbo4_coordinate_parity",
+        "cuda_rank_reference",
+        "router_q_causality"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "49-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_49-03.json"
+      ],
+      "depends_on": [
+        "49-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "49-04",
+      "phase": "49",
+      "cluster": "49b-selector-correctness-v10",
+      "title": "Repair immutable selector submissions and remove telemetry-only FA",
+      "packet": ".wiretail/execution/tasks/49-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/49-03.md"
+      ],
+      "required_proofs": [
+        "submission_identity_lifecycle",
+        "cold_budget_independence",
+        "no_telemetry_attention_graph"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "49-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_49-04.json"
+      ],
+      "depends_on": [
+        "49-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "49-05",
+      "phase": "49",
+      "cluster": "49c-residency-proof-v10",
+      "title": "Make first overflow and batch write admission progress safely",
+      "packet": ".wiretail/execution/tasks/49-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/49-04.md"
+      ],
+      "required_proofs": [
+        "write_frontier_lifecycle",
+        "rollback_capacity_safety",
+        "live_first_overflow"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "49-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_49-05.json"
+      ],
+      "depends_on": [
+        "49-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "49-06",
+      "phase": "49",
+      "cluster": "49c-residency-proof-v10",
+      "title": "Prove real cold GPU-selector promotion and target consumption",
+      "packet": ".wiretail/execution/tasks/49-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/49-05.md"
+      ],
+      "required_proofs": [
+        "cuda_production_promotion_chain",
+        "mature_fa_consumption_parity",
+        "live_cold_inventory"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "49-06",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_49-06.json"
+      ],
+      "depends_on": [
+        "49-05"
+      ],
+      "commit": null
+    },
+    {
+      "id": "50-01",
+      "phase": "50",
+      "cluster": "50a-gpu-catalogue-v10",
+      "title": "Build a persistent incremental GPU page-summary catalogue",
+      "packet": ".wiretail/execution/tasks/50-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/49-06.md"
+      ],
+      "required_proofs": [
+        "gpu_summary_reference",
+        "incremental_catalogue_reuse",
+        "live_gpu_summary_path"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "50-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_50-01.json"
+      ],
+      "depends_on": [
+        "49-06"
+      ],
+      "commit": null
+    },
+    {
+      "id": "50-02",
+      "phase": "50",
+      "cluster": "50a-gpu-catalogue-v10",
+      "title": "Skip inactive selector work and rank pages in parallel",
+      "packet": ".wiretail/execution/tasks/50-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/50-01.md"
+      ],
+      "required_proofs": [
+        "cadence_commit_semantics",
+        "cuda_parallel_rank",
+        "skipped_refresh_cost"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "50-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_50-02.json"
+      ],
+      "depends_on": [
+        "50-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "50-03",
+      "phase": "50",
+      "cluster": "50b-hotpath-ownership-v10",
+      "title": "Overlap selector snapshots and page movement with compute",
+      "packet": ".wiretail/execution/tasks/50-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/50-02.md"
+      ],
+      "required_proofs": [
+        "async_snapshot_ownership",
+        "async_transfer_publication",
+        "live_overlap_trace"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "50-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_50-03.json"
+      ],
+      "depends_on": [
+        "50-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "50-04",
+      "phase": "50",
+      "cluster": "50b-hotpath-ownership-v10",
+      "title": "Optimize real ingest and cached-append mature-FA costs",
+      "packet": ".wiretail/execution/tasks/50-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/50-03.md"
+      ],
+      "required_proofs": [
+        "packed_current_row_parity",
+        "hotpath_cost_attribution",
+        "matched_ingest_before_after"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "50-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_50-04.json"
+      ],
+      "depends_on": [
+        "50-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "50-05",
+      "phase": "50",
+      "cluster": "50c-capacity-mtp-v10",
+      "title": "Generalize live geometry and tune fair MTP and scratch settings",
+      "packet": ".wiretail/execution/tasks/50-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/50-04.md"
+      ],
+      "required_proofs": [
+        "generic_live_geometry",
+        "mtp_control_state_parity",
+        "scratch_capacity_tuning"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "50-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_50-05.json"
+      ],
+      "depends_on": [
+        "50-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "51-01",
+      "phase": "51",
+      "cluster": "51a-live-proof-speed-v10",
+      "title": "Prove controlled model-query promotion and organic cold focus",
+      "packet": ".wiretail/execution/tasks/51-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/50-05.md",
+        ".wiretail/execution/evidence/V10_TUNING.json"
+      ],
+      "required_proofs": [
+        "controlled_model_query_promotion",
+        "organic_chain_observation"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "51-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_51-01.json"
+      ],
+      "depends_on": [
+        "50-05"
+      ],
+      "commit": null
+    },
+    {
+      "id": "51-02",
+      "phase": "51",
+      "cluster": "51a-live-proof-speed-v10",
+      "title": "Measure matched real-paging three-prompt throughput",
+      "packet": ".wiretail/execution/tasks/51-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/51-01.md",
+        ".wiretail/execution/evidence/V10_TUNING.json",
+        ".wiretail/execution/evidence/V10_COLD_PROOF.json"
+      ],
+      "required_proofs": [
+        "matched_three_prompt_matrix",
+        "paging_speed_claim_validation"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "51-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_51-02.json"
+      ],
+      "depends_on": [
+        "51-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "51-03",
+      "phase": "51",
+      "cluster": "51b-scale-findings-v10",
+      "title": "Run conditional 32K and 128K memory and throughput pilots",
+      "packet": ".wiretail/execution/tasks/51-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/51-02.md",
+        ".wiretail/execution/evidence/V10_SMALL.json",
+        ".wiretail/execution/evidence/V10_COLD_PROOF.json",
+        ".wiretail/execution/evidence/V10_TUNING.json"
+      ],
+      "required_proofs": [
+        "scale_pilot_findings"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "51-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_51-03.json"
+      ],
+      "depends_on": [
+        "51-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "51-04",
+      "phase": "51",
+      "cluster": "51b-scale-findings-v10",
+      "title": "Determine 256K feasibility without false occupancy claims",
+      "packet": ".wiretail/execution/tasks/51-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/51-03.md",
+        ".wiretail/execution/evidence/V10_SCALE.json",
+        ".wiretail/execution/evidence/V10_TUNING.json"
+      ],
+      "required_proofs": [
+        "capacity_256k_findings"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "51-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_51-04.json"
+      ],
+      "depends_on": [
+        "51-03"
+      ],
+      "commit": null
+    },
+    {
+      "id": "51-05",
+      "phase": "51",
+      "cluster": "51c-summary-v10",
+      "title": "Generate one trustworthy current benchmark summary",
+      "packet": ".wiretail/execution/tasks/51-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/51-04.md",
+        ".wiretail/execution/evidence/V10_COLD_PROOF.json",
+        ".wiretail/execution/evidence/V10_SMALL.json",
+        ".wiretail/execution/evidence/V10_SCALE.json",
+        ".wiretail/execution/evidence/V10_256K.json",
+        ".wiretail/execution/evidence/V10_TUNING.json"
+      ],
+      "required_proofs": [
+        "summary_generated_and_validated"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "51-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_51-05.json"
+      ],
+      "depends_on": [
+        "51-04"
+      ],
+      "commit": null
+    },
+    {
+      "id": "52-01",
+      "phase": "52",
+      "cluster": "52a-benchmark-review-v10",
+      "title": "Assess current capability and schedule only needed remediation",
+      "packet": ".wiretail/execution/tasks/52-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/51-05.md",
+        ".wiretail/execution/evidence/V10_SUMMARY.json",
+        ".wiretail/execution/evidence/V10_SUMMARY.md"
+      ],
+      "required_proofs": [
+        "current_benchmark_review"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "52-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_52-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW.json"
+      ],
+      "depends_on": [
+        "51-05"
       ],
       "commit": null
     }

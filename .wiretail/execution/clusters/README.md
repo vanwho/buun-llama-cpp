@@ -1,6 +1,6 @@
-# Active cluster contract — V9
+# Active cluster contract — V10
 
-New `*-v9` clusters are context areas: group consecutive tasks that share
+New `*-v10` clusters are context areas: group consecutive tasks that share
 stable source/design context and benefit from the same Codex prompt-cache
 prefix. There is no fixed task-count cap. Keep a cohesive sequence together
 while its context remains useful and within provider/runner guardrails; split
