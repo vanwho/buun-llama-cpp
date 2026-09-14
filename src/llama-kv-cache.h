@@ -674,6 +674,16 @@ private:
         const llama_kv_page_record & page,
         const llama_kv_routing_summary_config & config,
         llama_kv_routing_page_input & output) noexcept;
+    static llama_kv_prefetch_mailbox_poll pager_selector_event_poll(
+        void * context, uint64_t event) noexcept;
+    static void pager_selector_event_cancel(
+        void * context, uint64_t event) noexcept;
+    static void pager_selector_event_release(
+        void * context, uint64_t event) noexcept;
+    static bool pager_selector_complete(
+        void * context, uint32_t slot, const void * raw,
+        llama_kv_prefetch_candidate * records, uint32_t * count,
+        uint64_t generation) noexcept;
     static bool pager_host_snapshot_acquire(
         void * context,
         const vbr_selected_page_capture_request & request,
@@ -1561,8 +1571,22 @@ private:
         // later residency-table inventory.
         std::vector<page_descriptor> pages;
         bool refresh_enabled = false;
+        bool readback_submitted = false;
+        uint32_t readback_slot = UINT32_MAX;
     };
     mutable std::vector<pager_routing_output> pager_routing_outputs_;
+    struct pager_selector_submission {
+        struct segment {
+            pager_routing_output output;
+            uint32_t raw_offset = 0;
+            uint32_t count = 0;
+        };
+        bool active = false;
+        bool complete = false;
+        uint64_t generation = 0;
+        std::vector<segment> segments;
+    };
+    std::array<pager_selector_submission, 2> pager_selector_submissions_;
     struct pager_selector_page_state {
         llama_kv_page_id identity;
         uint64_t content_version = 0;

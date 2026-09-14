@@ -118,7 +118,7 @@ llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::acquire(
         slots_[i].state = slot_state::writing;
         slots_[i].count = 0;
         slot = i;
-        records = slots_[i].records.data();
+        records = this->records(slots_[i]);
         return llama_kv_prefetch_mailbox_status::ok;
     }
     return llama_kv_prefetch_mailbox_status::full;
@@ -127,13 +127,23 @@ llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::acquire(
 llama_kv_prefetch_candidate * llama_kv_prefetch_mailbox::data(
         uint32_t slot) noexcept {
     return slot < slots_.size() && slots_[slot].state == slot_state::writing
-        ? slots_[slot].records.data() : nullptr;
+        ? records(slots_[slot]) : nullptr;
 }
 
 const llama_kv_prefetch_candidate * llama_kv_prefetch_mailbox::data(
         uint32_t slot) const noexcept {
     return slot < slots_.size() && slots_[slot].state != slot_state::free
-        ? slots_[slot].records.data() : nullptr;
+        ? records(slots_[slot]) : nullptr;
+}
+
+bool llama_kv_prefetch_mailbox::attach_storage(
+        uint32_t slot, llama_kv_prefetch_candidate * storage) noexcept {
+    if (slot >= slots_.size() || storage == nullptr ||
+            slots_[slot].state != slot_state::free) {
+        return false;
+    }
+    slots_[slot].external_records = storage;
+    return true;
 }
 
 llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::publish_pending(
@@ -147,15 +157,19 @@ llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::publish_pending(
             : llama_kv_prefetch_mailbox_status::invalid_argument;
     }
     auto & value = slots_[slot];
-    for (uint32_t i = 0; i < count; ++i) {
-        if (!validate(value.records[i], generation, 0)) {
-            release(value);
-            return llama_kv_prefetch_mailbox_status::invalid_argument;
-        }
-        for (uint32_t j = 0; j < i; ++j) {
-            if (same_candidate(value.records[i], value.records[j])) {
+    // A completion hook owns decoding for raw compact producer output.  The
+    // legacy path still validates records at publication for CPU callers.
+    if (backend_.complete == nullptr) {
+        for (uint32_t i = 0; i < count; ++i) {
+            if (!validate(records(value)[i], generation, 0)) {
                 release(value);
                 return llama_kv_prefetch_mailbox_status::invalid_argument;
+            }
+            for (uint32_t j = 0; j < i; ++j) {
+                if (same_candidate(records(value)[i], records(value)[j])) {
+                    release(value);
+                    return llama_kv_prefetch_mailbox_status::invalid_argument;
+                }
             }
         }
     }
@@ -176,12 +190,12 @@ llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::publish_ready(
     }
     auto & value = slots_[slot];
     for (uint32_t i = 0; i < count; ++i) {
-        if (!validate(value.records[i], generation, 0)) {
+        if (!validate(records(value)[i], generation, 0)) {
             release(value);
             return llama_kv_prefetch_mailbox_status::invalid_argument;
         }
         for (uint32_t j = 0; j < i; ++j) {
-            if (same_candidate(value.records[i], value.records[j])) {
+            if (same_candidate(records(value)[i], records(value)[j])) {
                 release(value);
                 return llama_kv_prefetch_mailbox_status::invalid_argument;
             }
@@ -224,14 +238,33 @@ llama_kv_prefetch_mailbox_status llama_kv_prefetch_mailbox::poll(
                 : llama_kv_prefetch_mailbox_status::cancelled;
             continue;
         }
+        uint32_t decoded_count = value.count;
+        if (backend_.complete != nullptr && !backend_.complete(
+                backend_.context, uint32_t(&value - slots_.data()),
+                records(value), records(value), &decoded_count,
+                value.generation)) {
+            if (backend_.cancel && value.event) backend_.cancel(backend_.context, value.event);
+            if (backend_.release && value.event) backend_.release(backend_.context, value.event);
+            release(value);
+            result = llama_kv_prefetch_mailbox_status::cancelled;
+            continue;
+        }
+        if (decoded_count == 0 || decoded_count > value.count) {
+            if (backend_.cancel && value.event) backend_.cancel(backend_.context, value.event);
+            if (backend_.release && value.event) backend_.release(backend_.context, value.event);
+            release(value);
+            result = llama_kv_prefetch_mailbox_status::cancelled;
+            continue;
+        }
+        value.count = decoded_count;
         bool valid = true;
         for (uint32_t i = 0; i < value.count; ++i) {
-            if (!validate(value.records[i], generation, table_epoch)) {
+            if (!validate(records(value)[i], generation, table_epoch)) {
                 valid = false;
                 break;
             }
             for (uint32_t j = 0; j < i; ++j) {
-                if (same_candidate(value.records[i], value.records[j])) {
+                if (same_candidate(records(value)[i], records(value)[j])) {
                     valid = false;
                     break;
                 }
@@ -262,7 +295,7 @@ size_t llama_kv_prefetch_mailbox::take_ready(
             if (value.state != slot_state::ready) continue;
             for (uint32_t i = 0; i < value.count &&
                     output.size() - before < max_candidates; ++i) {
-                output.push_back(value.records[i]);
+                output.push_back(records(value)[i]);
             }
             release(value);
             if (output.size() - before >= max_candidates) break;
