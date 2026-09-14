@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "task": "63-02",
+  "source_commit": "49cf30f7bc14db52e1ff8d95f731c0f14dacaa23",
+  "checks": {
+    "phase63_bounded_revalidation": {
+      "status": "pass",
+      "command": [
+        "LLAMA_SERVER_PID=1373809",
+        "python3",
+        "tools/server/bench/run-final-curve.py",
+        "--suite",
+        "curve",
+        "--context",
+        "8192",
+        "--prompt-tokens",
+        "1200",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/canonical-cold",
+        "--endpoint",
+        "http://127.0.0.1:8080",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--mode",
+        "selective",
+        "--warmups",
+        "1",
+        "--trials",
+        "3",
+        "--max-tokens",
+        "32",
+        "--cache-condition",
+        "cold-prefill",
+        "--reset-mode",
+        "fresh",
+        "--hot-pages",
+        "16",
+        "--page-size",
+        "256",
+        "--batch-tokens",
+        "128",
+        "--ubatch-tokens",
+        "64",
+        "--server-bin",
+        "/srv/ai/paged-kv/results/v10/63-01/candidate-bundle/bin/llama-server"
+      ],
+      "exit_code": 0,
+      "finding": {
+        "smoke": "pass",
+        "canonical_rows": 9,
+        "canonical_status": "all_pass",
+        "native_mtp": "measured request-scoped deltas; 59 drafts and 0 accepted per row",
+        "acceptance_percent": 0.0,
+        "geometry": {"L": 8192, "C": 1200, "H": 4096, "A": 8, "B": 128, "U": 64},
+        "target_kv": "CUDA turbo4",
+        "draft_kv": "GPU turbo4",
+        "dependent_rows": "not_run: bounded task stopped after canonical matrix; no claims made for cached append, promotion, quality, pilots, or C262144 occupancy"
+      },
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/smoke/server.log", "sha256": "f00b96540310935a4072dc3b9ed342a29b87f857f5b280547037faf028cada8d"},
+        {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/smoke/benchmark/SPEED25_02_ATTRIBUTION.json", "sha256": "c1d9b89982ae22b36a7b3eed5aa3beb3c1f6621cd86feada7d7106d2a5e1113e"},
+        {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/canonical-cold/SPEED25_02_ATTRIBUTION.json", "sha256": "e65e712952970d8bb6eedca9f172ed0f51387bd87e75341b83ff2b7d37e49402"},
+        {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/canonical-cold/case-manifest.json", "sha256": "749d9b558af7a20b1951041f13c9645bb8c5fbb7b057728a9c1aaf039e37e8de"},
+        {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/canonical-cold/case-state.jsonl", "sha256": "78d8b0fd36767cb1882716394622d84a18426267d64e8ba0792fa309c9c5ef27"},
+        {"path": "/srv/ai/paged-kv/results/v10/63-02/20260914T222348Z/canonical-cold/bundle-manifest.json", "sha256": "246b6861a9d81b30f8afd071f61a83216570ed92a4946e028b792bac90208e3f"}
+      ]
+    }
+  }
+}
