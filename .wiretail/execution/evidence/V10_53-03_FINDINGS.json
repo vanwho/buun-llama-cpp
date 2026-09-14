@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "task": "53-03",
+  "coordinate": {
+    "L": 262144,
+    "H": 30208,
+    "A": null,
+    "B": 128,
+    "U": 128,
+    "page_tokens": 256,
+    "target_kv": "turbo4",
+    "draft_kv": "turbo4",
+    "draft_device": "gpu"
+  },
+  "bounded_revalidation": {
+    "production_chain": {
+      "status": "pass",
+      "binary": "build-cuda/bin/test-cuda-fattn-paged-turbo4",
+      "exit_code": 0,
+      "observed": [
+        "split incremental tail H2D and append+attention",
+        "paged Turbo4 query/decode shapes",
+        "split-KV capacity 1 and 2",
+        "reference-control comparison"
+      ],
+      "raw_log": "/srv/ai/paged-kv/results/v10/53-03/20260914T-53-03-chain-current/production-chain-current.log"
+    },
+    "256k_request": {
+      "status": "failed_setup",
+      "request_started": false,
+      "actual_C": null,
+      "reason": "Managed endpoint could not load the full-L candidate after the fixture: unrelated immich_ml CUDA process used 4054 MiB, leaving about 11612 MiB; model weights require 13061.10 MiB and CUDA allocation failed.",
+      "raw_log": "/srv/ai/paged-kv/results/v10/53-03/20260914T-53-03-chain-current/service-journal.log"
+    },
+    "stale_fixture_diagnosis": {
+      "status": "superseded_failure",
+      "binary": "build-cuda-test/bin/test-cuda-fattn-paged-turbo4",
+      "exit_code": 134,
+      "reason": "The endpoint build's fixture was timestamped before the current source; the current build-cuda fixture was rerun and passed.",
+      "raw_log": "/srv/ai/paged-kv/results/v10/53-03/20260914T-53-03-chain/production-chain.log"
+    }
+  },
+  "matched_three_prompt_revalidation": {
+    "status": "not_run",
+    "reason": "Packet stop condition: the live candidate could not be loaded after the physical-chain smoke, so q0/q1/q2 speed rows were not started.",
+    "matrix": {
+      "coordinates": "L8192/C6144/H4096/A2048/B128/U128",
+      "warmup": 1,
+      "measurements": 3,
+      "modes": {
+        "selective": {"q0": "not_run", "q1": "not_run", "q2": "not_run"},
+        "cpu-main-kv-gpu-mtp": {"q0": "not_run", "q1": "not_run", "q2": "not_run"},
+        "all-gpu-gpu-mtp": {"q0": "not_run", "q1": "not_run", "q2": "not_run"}
+      },
+      "append_probes": {"64": "not_run", "256": "not_run"},
+      "committed_decode": "not_run",
+      "mtp_counters": "not_observed"
+    }
+  },
+  "external_gpu_process": {"pid": 877971, "process": "immich_ml", "used_memory_mib": 4054},
+  "service_final_state": "inactive_after_failed_restore_attempt",
+  "deferred_verification": "Retry the 256K request and matched q0/q1/q2 matrix after the unrelated CUDA process releases the GPU; restart the authorized llama-server.service and require healthy endpoint identity before measuring."
+}

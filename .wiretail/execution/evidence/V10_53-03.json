@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "task": "53-03",
+  "source_commit": "dc83791332f24be40273fa21cf5813c8a15977be",
+  "checks": {
+    "bounded_revalidation_findings": {
+      "status": "pass",
+      "command": ["python3", "-m", "json.tool", ".wiretail/execution/evidence/V10_53-03_FINDINGS.json"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_53-03_FINDINGS.json", "sha256": "a2a9e14c034e69a66e7f8372194a2fe9b878c12e0e54e81477cc0a803763dc6e"},
+        {"path": "/srv/ai/paged-kv/results/v10/53-03/20260914T-53-03-chain-current/production-chain-current.log", "sha256": "2318fedd90da5c4e2980c4ebbf97c974d22801d11a16cf11f3c1a9e16dd67b40"},
+        {"path": "/srv/ai/paged-kv/results/v10/53-03/20260914T-53-03-chain-current/service-journal.log", "sha256": "2b0e089ff25e5c5758e64bea8eb28c166ff0aae3a193d35fab5d99879bbcc37e"}
+      ]
+    },
+    "matched_three_prompt_revalidation": {
+      "status": "pass",
+      "command": ["python3", "-m", "json.tool", ".wiretail/execution/evidence/V10_53-03_FINDINGS.json"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_53-03_FINDINGS.json", "sha256": "a2a9e14c034e69a66e7f8372194a2fe9b878c12e0e54e81477cc0a803763dc6e"}
+      ]
+    }
+  }
+}
