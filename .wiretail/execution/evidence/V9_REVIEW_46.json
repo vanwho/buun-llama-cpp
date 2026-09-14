@@ -1,0 +1,113 @@
+{
+  "schema": "hotpath-v9-review",
+  "task": "46-01",
+  "phase": "46",
+  "revision": "hotpath-v9-20260914-r3",
+  "utc": "2026-09-14T03:10:00Z",
+  "goal_met": false,
+  "next_task_ids": ["47-01", "47-02", "47-03", "48-01"],
+  "capability": {
+    "active_campaign_met": false,
+    "overall_256k_demonstrated": false,
+    "natural_cold_proven": false,
+    "fullL_gpu_turbo4_mtp": true,
+    "measured_cpu_speedup": false,
+    "status": "identity, geometry, coherent L8192 recall/append, current-Q publication, and native GPU MTP are present; candidate selection, promotion, useful H2D, selected cold-page use, and scale remain unproven"
+  },
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "route": "selected_packed",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "invariant": "selected <= A_by_layer <= H <= L",
+    "invariant_pass": true,
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf"
+  },
+  "key_rates_and_ratios": {
+    "units": "tok/s for rates; ratios are selected divided by named control",
+    "selected_prefill_tok_s": [304.667506, 578.084186, 601.077646],
+    "selected_decode_tok_s": [34.783609, 34.439847, 34.168792],
+    "cpu_main_kv_prefill_tok_s": [153.640512, 204.737784, 213.469954],
+    "cpu_main_kv_decode_tok_s": [10.121513, 10.084606, 10.153031],
+    "all_gpu_prefill_tok_s": [301.604536, 579.710145, 599.276588],
+    "all_gpu_decode_tok_s": [36.529628, 36.668661, 36.782105],
+    "selected_over_all_gpu_decode": [0.952, 0.939, 0.929],
+    "selected_over_cpu_main_kv_decode": [3.437, 3.415, 3.365],
+    "measured_cpu_speedup": null,
+    "cpu_speedup_reason": "three paired samples exist, but the receipt does not declare equivalent throughput"
+  },
+  "sample_counts": {
+    "selected_comparison": 3,
+    "cpu_main_kv_control": 3,
+    "all_gpu_control": 3,
+    "natural_cold_growth": 6,
+    "natural_cold_recall": 1,
+    "natural_cold_attention": 26,
+    "scale_32k": 0,
+    "scale_128k": 0,
+    "scale_256k": 0
+  },
+  "natural_cold": {
+    "fixture": "incremental C>H natural recall/append with fresh recovery service",
+    "occupied_tokens_before_recall": 5004,
+    "recall_prompt_tokens": 5052,
+    "committed_output_tokens": 8,
+    "coherent_recall": true,
+    "coherent_append": true,
+    "attention_samples": 26,
+    "attention_mass_samples": 26,
+    "candidate_published": false,
+    "promotion_published": false,
+    "transfer_submitted": 0,
+    "h2d_useful_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "eligible_for_scale": false,
+    "failure_class": "selection-quality",
+    "failure": "No non-sentinel cold candidate, host-ready promotion, useful H2D, or selected cold-page use was observed."
+  },
+  "failure_cause": {
+    "classification": "missing real Q-to-cold-to-target-use proof",
+    "measured": "Current-Q publication passed with 26 samples, but no candidate or promotion reached useful H2D or selected target use.",
+    "symbols": [
+      "llama_kv_attention_telemetry::publish_completed",
+      "llama_kv_cache::capture_kv_routing_query",
+      "llama_kv_cache::apply_pager_live_policy",
+      "llama_kv_prefetch_mailbox::poll",
+      "llama_kv_prefetch_mailbox::take_ready"
+    ],
+    "runtime": "recovered_after_failure; the first natural run failed at C=2807 during KV pager batch-write reservation, and a fresh managed recovery completed coherently",
+    "selection_quality": "failed gate; no non-sentinel cold candidate, authenticated promotion, useful H2D, or selected cold-page use"
+  },
+  "uncertainty": [
+    "The post-publication candidate and promotion bridge remains unproven beyond current-Q publication.",
+    "CPU-main-KV ratios are descriptive only; measured_cpu_speedup remains null because equivalent throughput is undefined.",
+    "32K, 128K, and 256K are not measurements because the natural-cold gate stopped the campaign."
+  ],
+  "next_action": {
+    "order": [
+      "Instrument and repair the first missing candidate-readiness or promotion edge while preserving exact epoch, generation, sequence, and page identity.",
+      "Rerun focused checks, the bounded C>H natural fixture, and matched q0/q1/q2 controls with the existing B1-B5 boundary.",
+      "Only after candidate, promotion, useful H2D, selected cold-page use, and coherent recall/append pass, reopen bounded 32K and conditionally 128K."
+    ],
+    "stop_condition": "Do not launch 32K, 128K, or 256K while any natural-cold eligibility field is absent; do not claim CPU speedup from the non-equivalent route or label 128K as 256K.",
+    "preserved_contract": "Keep selected-packed Turbo4 attention, target/draft Turbo4, full-L GPU native MTP, canonical CPU history, and the existing pager/mailbox; do not revive the superseded direct-kernel path."
+  },
+  "phase_appended": true,
+  "appended_tasks": ["47-01", "47-02", "47-03", "48-01"],
+  "provenance": {
+    "summary_json": ".wiretail/execution/evidence/V9_SUMMARY_45.json",
+    "summary_markdown": ".wiretail/execution/evidence/V9_SUMMARY_45.md",
+    "benchmark_receipt": ".wiretail/execution/evidence/V9_45_BENCHMARK.json",
+    "raw_results_root": "/srv/ai/paged-kv/results/v9/45-02/"
+  }
+}
