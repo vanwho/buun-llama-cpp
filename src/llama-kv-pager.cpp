@@ -1032,6 +1032,7 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
         !mul(result.admitted_pages, result.page_charge_bytes, bytes)) { status = llama_kv_pager_status::overflow; return false; }
     output.geometry = geometry;
     output.admission = result;
+    output.router_refresh_tokens = config.router_refresh_tokens;
     output.logical_page_count = uint32_t(logical);
     output.physical_page_count = uint32_t(result.admitted_pages);
     output.physical_rows = rows;

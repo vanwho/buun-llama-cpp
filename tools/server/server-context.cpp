@@ -3788,6 +3788,7 @@ public:
                     {"host_budget_bytes", pager.host_budget_bytes},
                     {"vram_budget_bytes", pager.vram_budget_bytes},
                     {"router_top_k", pager.router_top_k},
+                    {"router_refresh_tokens", pager.router_refresh_tokens},
                     {"router_explore", pager.router_explore ? uint64_t(1) : uint64_t(0)},
                     {"pin_recent_tokens", pager.pin_recent_tokens},
                     {"prefetch_depth", pager.prefetch_depth},
@@ -19970,12 +19971,17 @@ private:
         std::exception_ptr speculative_exception;
         const int64_t t_verify_start = ggml_time_us();
         int64_t t_verify_elapsed = 0;
+        const bool speculative_verification = std::any_of(
+            slots.begin(), slots.end(), [](const server_slot & slot) {
+                return slot.can_speculate() && !slot.spec_draft.empty();
+            });
         const std::exception_ptr yield_exception =
             queue_tasks.yield_to_queue_capture_exception([&]() {
             const bool mtp_verification = server_is_native_mtp_verification_batch(
                 params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP),
                 batch_view.n_tokens, has_prompt_tokens);
-            ctx_tgt->set_kv_attention_mtp_verification(mtp_verification);
+            ctx_tgt->set_kv_attention_mtp_verification(
+                mtp_verification || speculative_verification);
             try {
                 ret = llama_decode(ctx_tgt, batch_view);
             } catch (...) {
@@ -20875,7 +20881,12 @@ private:
                                 for (int j = n_past_before; j < slot.prompt.n_tokens(); ++j) {
                                     common_batch_add(batch_reeval, toks[j], j, { slot.id }, false);
                                 }
+                                // Re-evaluation reconstructs an already
+                                // committed speculative prefix. Do not count
+                                // it as a second accepted-token advance.
+                                ctx_tgt->set_kv_attention_mtp_verification(true);
                                 const int ret_reeval = llama_decode(ctx_tgt, batch_reeval);
+                                ctx_tgt->set_kv_attention_mtp_verification(false);
                                 llama_batch_free(batch_reeval);
                                 if (ret_reeval != 0) {
                                     // the backup was restored to n_past_before but slot.prompt.tokens
@@ -20926,6 +20937,17 @@ private:
                 slot.mandatory_recovery_reset(
                     server_cache_destruction_reason::restore_failure);
                 return;
+            }
+
+            // The rollback owner is now at the accepted target frontier. The
+            // target verification itself was intentionally excluded from the
+            // ordinary decode counter; draft proposals and rejected suffixes
+            // therefore cannot advance routing cadence.
+            const int64_t accepted_delta =
+                rollback_frontier.accepted_token_count - slot.n_tokens_before_draft;
+            if (accepted_delta > 0) {
+                ctx_tgt->note_kv_pager_accepted_tokens(uint32_t(std::min<int64_t>(
+                        accepted_delta, std::numeric_limits<uint32_t>::max())));
             }
 
             for (size_t i = 0; i < ids.size(); ++i) {

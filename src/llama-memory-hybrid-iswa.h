@@ -65,6 +65,9 @@ public:
     void apply_kv_pager_policy() noexcept override {
         mem_attn->apply_kv_pager_policy();
     }
+    void note_kv_pager_accepted_tokens(uint32_t count) override {
+        mem_attn->note_kv_pager_accepted_tokens(count);
+    }
 
     //
     // llama_memory_i

@@ -12,6 +12,15 @@ static std::string pager_lower(std::string value) {
     return value;
 }
 
+bool llama_kv_pager_refresh_due(
+        uint64_t submission_id, uint64_t accepted_tokens,
+        uint64_t refresh_watermark, bool policy_dirty,
+        uint32_t cadence) noexcept {
+    return submission_id == 1 || policy_dirty ||
+        (accepted_tokens >= refresh_watermark &&
+         accepted_tokens - refresh_watermark >= std::max<uint64_t>(1, cadence));
+}
+
 bool llama_kv_pager_parse_size(const std::string & raw, llama_kv_pager_auto_size & out) {
     const std::string s = pager_lower(raw);
     if (s == "auto") { out = {}; return true; }
@@ -64,6 +73,7 @@ bool llama_kv_pager_config::validate(std::string & error) const {
         error = "hot-page cap contradicts an empty VRAM budget"; return false;
     }
     if (hotset_policy.empty()) { error = "hot-page policy must not be empty"; return false; }
+    if (router_refresh_tokens == 0) { error = "router refresh cadence must be positive"; return false; }
     if (telemetry_interval_tokens == 0) { error = "telemetry interval must be positive"; return false; }
     return true;
 }
@@ -93,6 +103,7 @@ std::string llama_kv_pager_config::summary() const {
            " hotset_policy=" + hotset_policy +
            " hot_pages_cap=" + count_name(hot_pages) +
            " router_top_k=" + std::to_string(router_top_k) +
+           " router_refresh_tokens=" + std::to_string(router_refresh_tokens) +
            " attention_tokens=" + std::to_string(attention_tokens) +
            " router_explore=" + std::to_string(router_explore) +
            " prefetch_depth=" + std::to_string(prefetch_depth) +

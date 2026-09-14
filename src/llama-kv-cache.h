@@ -185,6 +185,7 @@ public:
     void capture_kv_routing_query(
             ggml_tensor * tensor, int layer,
             const llama_ubatch & ubatch) override;
+    void note_kv_pager_accepted_tokens(uint32_t count) override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
     llama_memory_failure_reason last_failure_reason() const noexcept {
@@ -1516,6 +1517,8 @@ private:
     llama_kv_attention_telemetry * kv_attention_telemetry_ = nullptr;
     int32_t pager_last_sequence_id_ = -1;
     uint64_t pager_query_generation_ = 0;
+    uint64_t pager_query_accepted_tokens_ = 0;
+    uint64_t pager_query_refresh_watermark_ = 0;
     bool pager_query_refresh_enabled_ = true;
     // A policy boundary is needed after page maintenance or a ready routing
     // candidate, not after every unchanged write-frontier publication.

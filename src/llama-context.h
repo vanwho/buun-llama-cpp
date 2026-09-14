@@ -99,6 +99,7 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t host_budget_bytes = 0;
     uint64_t vram_budget_bytes = 0;
     uint64_t router_top_k = 0;
+    uint64_t router_refresh_tokens = 0;
     uint64_t pin_recent_tokens = 0;
     uint64_t prefetch_depth = 0;
     uint32_t test_forced_logical_page = UINT32_MAX;
@@ -436,6 +437,14 @@ struct llama_context {
     // ordinary multi-token prefill without changing the public C API.
     void set_kv_attention_mtp_verification(bool enabled) noexcept {
         kv_attention_mtp_verification_ = enabled;
+    }
+    // Commit-side notification used by the pager cadence.  Speculative
+    // verification calls this only after its rollback owner has committed the
+    // accepted frontier; ordinary decode calls it after a successful decode.
+    void note_kv_pager_accepted_tokens(uint32_t count) noexcept {
+        if (memory && count != 0) {
+            memory->note_kv_pager_accepted_tokens(count);
+        }
     }
     llama_kv_attention_execution_decision prepare_kv_attention(
             const llama_kv_attention_operator_metadata & metadata,
