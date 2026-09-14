@@ -67,6 +67,7 @@ PAGER_FIELDS = (
 TRANSIENT_OVERRIDE_NAMES = (
     "AI_BENCHMARK_CLEAN", "AI_BENCHMARK_CONTEXT", "AI_BENCHMARK_KV_PAGER",
     "AI_BENCHMARK_PAGE_SIZE", "AI_BENCHMARK_DEVICE", "AI_BENCHMARK_MTP",
+    "AI_BENCHMARK_NO_KV_OFFLOAD",
     "AI_BENCHMARK_SERVER_BIN", "AI_BENCHMARK_KV_HOT_PAGES",
     "AI_BENCHMARK_KV_VRAM_BUDGET", "AI_BENCHMARK_KV_HOST_BUDGET",
     "AI_BENCHMARK_KV_SAFETY_HEADROOM", "AI_BENCHMARK_KV_PIN_RECENT",
@@ -196,6 +197,7 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
     # mode. Keeping this normalized makes control identity comparable to the
     # launcher's off policy.
     pager = _command_value(command, "--kv-pager") or "off"
+    no_kv_offload = "--no-kv-offload" in command
     mtp = _command_value(command, "--spec-draft-kv-device") or "not_present"
     return {
         "profile": profile,
@@ -208,6 +210,8 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
         "context": _command_value(command, "-c"),
         "pager_mode": pager,
         "page_size_tokens": _command_value(command, "--kv-page-size"),
+        "target_kv_placement": "cpu" if no_kv_offload else "gpu",
+        "no_kv_offload": no_kv_offload,
         "mtp_placement": mtp,
         "mtp_type_k": _command_value(command, "--spec-draft-type-k") or "not_present",
         "mtp_type_v": _command_value(command, "--spec-draft-type-v") or "not_present",
@@ -260,7 +264,7 @@ def service_snapshot(endpoint: str | None) -> dict[str, object]:
 
 def identity_mismatches(observed: dict[str, object], expected: dict[str, object]) -> list[str]:
     fields = ("profile", "binary", "model", "context", "pager_mode",
-              "mtp_placement")
+              "target_kv_placement", "mtp_placement")
     errors = [field for field in fields if observed.get(field) != expected.get(field)]
     if expected.get("pager_mode") != "off" and observed.get("page_size_tokens") != expected.get("page_size_tokens"):
         errors.append("page_size_tokens")
@@ -755,7 +759,9 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
         "model": {"sha256": os.environ.get("PAGER_MODEL_SHA256", frozen_corpus.get("model_sha256", "0" * 64))},
         "tokenizer": {"sha256": os.environ.get("PAGER_TOKENIZER_SHA256", frozen_corpus.get("tokenizer_sha256", "1" * 64))},
         "context": context,
-        "placement": {"target_kv": "not_configured", "mtp_rows": None,
+        "placement": {"target_kv": "cpu" if os.environ.get("BENCH_NO_KV_OFFLOAD", "0") == "1" else "gpu",
+                       "no_kv_offload": os.environ.get("BENCH_NO_KV_OFFLOAD", "0") == "1", "mtp_rows": None,
+                       "mtp_placement": "gpu" if os.environ.get("BENCH_MTP", "native") == "native" else "not_present",
                        "mtp_kv_type": "not_configured", "mtp_backend": "not_configured", "mtp_bytes": None},
         "service": {"status": "not_started"},
         "lifecycle": {"policy": "restore-on-request-or-failure; keep-loaded-on-success",
@@ -773,6 +779,9 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
                      "prompt_context_target_tokens": resolved_context,
                      "token_sizing": "exact-rendered-token-preflight",
                      "mtp": os.environ.get("BENCH_MTP", "native"),
+                     "mtp_placement": "gpu" if os.environ.get("BENCH_MTP", "native") == "native" else "not_present",
+                     "target_kv_placement": "cpu" if os.environ.get("BENCH_NO_KV_OFFLOAD", "0") == "1" else "gpu",
+                     "no_kv_offload": os.environ.get("BENCH_NO_KV_OFFLOAD", "0") == "1",
                      "draft_kv": "turbo4"},
         "prompt": {"target_context_tokens": resolved_context,
                     "occupied_prompt_tokens": None,
@@ -795,6 +804,9 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
         f"dry_run=true\nvariant={variant}\ntarget={target}\n"
         f"requested_context={context['requested']}\nresolved_context={resolved_context}\n"
         f"context_mode={context['mode']}\ndiagnostic_only={str(context['diagnostic_only']).lower()}\n"
+        f"target_kv_placement={'cpu' if os.environ.get('BENCH_NO_KV_OFFLOAD', '0') == '1' else 'gpu'}\n"
+        f"no_kv_offload={str(os.environ.get('BENCH_NO_KV_OFFLOAD', '0') == '1').lower()}\n"
+        f"mtp_placement={'gpu' if os.environ.get('BENCH_MTP', 'native') == 'native' else 'not_present'}\n"
     )
     (output / "records.jsonl").write_text("")
     (output / "summary.json").write_text("[]\n")
@@ -913,6 +925,8 @@ def _main() -> int:
                         help="explicitly permit a sub-ceiling diagnostic run")
     parser.add_argument("--mtp", choices=("native", "off"), default="native",
                         help="native MTP companion policy")
+    parser.add_argument("--no-kv-offload", action="store_true",
+                        help="keep target KV on the CPU while native MTP remains independently GPU-resident")
     parser.add_argument("--resume", action="store_true",
                         help="resume matching completed canonical cases in output")
     parser.add_argument("--case-id", action="append", default=[],
@@ -979,6 +993,7 @@ def _main() -> int:
         os.environ["BENCH_CONTEXT"] = str(context["resolved"])
         os.environ["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
         os.environ["BENCH_MTP"] = args.mtp
+        os.environ["BENCH_NO_KV_OFFLOAD"] = "1" if args.no_kv_offload else "0"
         os.environ["BENCH_RESUME"] = "1" if args.resume else "0"
         os.environ["BENCH_CASE_IDS"] = ",".join(args.case_id)
         os.environ["BENCH_CASE_INDEXES"] = ",".join(str(value) for value in args.case_index)
@@ -1034,6 +1049,7 @@ def _main() -> int:
     env["BENCH_CONTEXT"] = str(context["resolved"])
     env["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
     env["BENCH_MTP"] = args.mtp
+    env["BENCH_NO_KV_OFFLOAD"] = "1" if args.no_kv_offload else "0"
     env["BENCH_RESUME"] = "1" if args.resume else "0"
     env["BENCH_CASE_IDS"] = ",".join(args.case_id)
     env["BENCH_CASE_INDEXES"] = ",".join(str(value) for value in args.case_index)
