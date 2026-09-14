@@ -21,6 +21,7 @@
 #include <cassert>
 #include <cctype>
 #include <cmath>
+#include <cinttypes>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -2420,25 +2421,43 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             return;
         }
         std::vector<llama_kv_prefetch_candidate> produced;
+        // The selector output is laid out as [resident, cold].  The two
+        // regions are not generally equal: admission normally gives the
+        // resident side A pages and the cold side only the bounded refresh
+        // window.  Keep the split identical to build_kv_page_select() so a
+        // cold rank remains a cold candidate at this owner-side boundary.
+        uint64_t selector_resident_limit = pager_->snapshot().admission.attention_pages;
+        if (selector_resident_limit == 0) {
+            selector_resident_limit = std::max<uint64_t>(1,
+                    (uint64_t(snapshot.slot_capacity()) + 1) / 2);
+        }
+        selector_resident_limit = std::min<uint64_t>(selector_resident_limit,
+                snapshot.slot_capacity());
         uint32_t routing_slot = UINT32_MAX;
         llama_kv_prefetch_candidate * routing_records = nullptr;
         const bool mailbox_busy = mailbox.acquire(routing_slot, routing_records) !=
             llama_kv_prefetch_mailbox_status::ok;
+        bool current_refresh_ready = false;
         for (auto output = pager_routing_outputs_.begin();
                 output != pager_routing_outputs_.end();) {
             const auto inventory = pager_->exact_page_records(output->sequence_id);
+            const bool current_output = output->tensor != nullptr &&
+                output->query_generation == pager_query_generation_ &&
+                output->table_epoch == snapshot.epoch() &&
+                output->sequence_id == pager_last_sequence_id_;
             const bool usable = output->tensor != nullptr &&
                 output->refresh_enabled &&
                 output->query_generation != 0 &&
-                output->table_epoch == snapshot.epoch() &&
-                output->sequence_id == pager_last_sequence_id_ &&
+                current_output &&
                 output->tensor->buffer != nullptr && !inventory.empty();
+            current_refresh_ready = current_refresh_ready || usable;
             if (usable && !mailbox_busy) {
                 const size_t count = size_t(output->tensor->ne[0]);
                 std::vector<int32_t> ids(count, -1);
                 ggml_backend_tensor_get(output->tensor, ids.data(), 0,
                         count * sizeof(ids[0]));
-                const size_t resident = count / 2;
+                const size_t resident = std::min<size_t>(count,
+                        size_t(selector_resident_limit));
                 const auto append_region = [&](size_t begin, size_t region) {
                     for (size_t rank = 0; rank < region; ++rank) {
                         const int32_t index = ids[begin + rank];
@@ -2463,7 +2482,14 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 append_region(0, resident);
                 append_region(resident, count - resident);
             }
-            if (!usable || !mailbox_busy) {
+            // A query built before the write-frontier seal can carry a
+            // current, but deliberately disabled, selector result.  It is
+            // not evidence and must not be consumed; retaining the record
+            // lets the next graph boundary refresh it after the dirty wakeup.
+            // Stale identities and consumed/invalid enabled results are still
+            // dropped here, preserving the fail-closed ownership rule.
+            if (!current_output || (!mailbox_busy &&
+                    (usable || output->refresh_enabled))) {
                 output = pager_routing_outputs_.erase(output);
             } else {
                 // Two in-flight refreshes are the hard bound. Leave this
@@ -2549,7 +2575,17 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             // No completed device snapshot is not permission to invent a
             // cold page. Keep the last valid selection and retry at the next
             // graph boundary.
-            pager_policy_dirty_ = false;
+            if (pager_policy_dirty_ && !current_refresh_ready) {
+                // The dirty transition happened after the last query's
+                // selector was built, or its result was not readable at the
+                // scheduler fence. Do not clear the only retry wakeup.
+                LLAMA_LOG_DEBUG("%s: current-Q candidate readiness deferred: "
+                        "generation=%" PRIu64 " epoch=%" PRIu64 " outputs=%zu\n",
+                        __func__, pager_query_generation_, snapshot.epoch(),
+                        pager_routing_outputs_.size());
+            } else {
+                pager_policy_dirty_ = false;
+            }
             return;
         }
 
