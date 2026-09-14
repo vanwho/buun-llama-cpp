@@ -248,6 +248,7 @@ struct llama_kv_pager_admission_attempt {
 struct llama_kv_pager_snapshot {
     llama_kv_pager_geometry geometry;
     llama_cache_budget_admission_result admission;
+    uint32_t router_refresh_tokens = 8;
     uint32_t logical_page_count = 0;
     uint32_t physical_page_count = 0;
     uint64_t physical_rows = 0;

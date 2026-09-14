@@ -3,6 +3,7 @@
 #include "ggml-cpu.h"
 #include "llama-kv-prefetch.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <limits>
@@ -158,7 +159,7 @@ int main() {
     assert(ctx != nullptr);
     ggml_tensor * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, n_q_heads, n_q);
     ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 2, n_kv_heads, n_pages);
-    ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 4, n_pages);
+    ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 8, n_pages);
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
     ggml_tensor * query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
@@ -196,11 +197,11 @@ int main() {
         }
     }
     std::vector<int64_t> page_data = {
-        0, 4, 1, 1,
-        4, 4, 1, 2,
-        8, 4, 1, 1,
-        12, 4, 1, 1,
-        8, 4, 2, 1,
+        0, 4, 1, 1, -1, -1, 1, 1,
+        4, 4, 1, 2, -1, -1, 1, 1,
+        8, 4, 1, 1, -1, -1, 1, 1,
+        12, 4, 1, 1, -1, -1, 1, 1,
+        8, 4, 2, 1, -1, -1, 1, 1,
     };
     const std::vector<int32_t> member = { 1, 1, 0, 0, 0 };
     const std::vector<int64_t> query_data = { 12, 1, 2, 1 };
@@ -229,6 +230,38 @@ int main() {
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
     for (const int32_t value : output) assert(value == -1);
+
+    // A refreshed query must reject a page whose summary sideband is stale,
+    // before its bounds participate in scoring.
+    std::fill(q_data.begin(), q_data.end(), 1.0f);
+    for (int64_t page = 0; page < n_pages; ++page) page_data[8 * page + 6] = 0;
+    ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
+    ggml_backend_tensor_set(metadata, page_data.data(), 0, ggml_nbytes(metadata));
+    const int64_t refresh = 1;
+    ggml_backend_tensor_set(query, &refresh, 3 * sizeof(int64_t), sizeof(refresh));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
+    assert(output[0] == -1);
+
+    // Equal negative scores still use the ascending logical-page tie break.
+    std::fill(q_data.begin(), q_data.end(), -1.0f);
+    for (int64_t page = 0; page < n_pages; ++page) {
+        page_data[8 * page + 6] = 1;
+        for (int64_t head = 0; head < n_kv_heads; ++head) {
+            for (int64_t coord = 0; coord < d; ++coord) {
+                const size_t base = size_t(coord + d * (2 * (head + n_kv_heads * page)));
+                bound_data[base] = ggml_fp32_to_fp16(1.0f);
+                bound_data[base + d] = ggml_fp32_to_fp16(2.0f);
+            }
+        }
+    }
+    ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
+    ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
+    ggml_backend_tensor_set(metadata, page_data.data(), 0, ggml_nbytes(metadata));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
+    assert(output[0] == 0 && output[1] == 1);
+    assert(output[2] == 2 && output[3] == -1);
 
     // A disabled refresh and a stale snapshot publish only padding, never a
     // candidate from the previous generation.

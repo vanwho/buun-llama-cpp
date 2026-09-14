@@ -336,6 +336,10 @@ struct llama_memory_i {
             ggml_tensor * /* tensor */, int /* layer */,
             const llama_ubatch & /* ubatch */) {}
 
+    // Count tokens only at the committed target frontier.  The default keeps
+    // recurrent-only and out-of-tree memories inert.
+    virtual void note_kv_pager_accepted_tokens(uint32_t /* count */) {}
+
     // split the input batch into a set of ubatches and verify that they can fit into the cache
     // return a context object containing the ubatches and memory state required to process them
     // check the llama_memory_context_i::get_status() for the result

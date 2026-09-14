@@ -30,6 +30,7 @@ static void test(void) {
     assert(params.kv_pager.mode == llama_kv_pager_mode::off);
     assert(params.kv_pager.vram_budget.automatic);
     assert(params.kv_pager.router_top_k == 8);
+    assert(params.kv_pager.router_refresh_tokens == 8);
     assert(params.kv_pager.router_explore == 2);
     assert(params.kv_pager.prefetch_depth == 2);
     assert(params.kv_pager.telemetry_interval_tokens == 4);
@@ -55,6 +56,7 @@ static void test(void) {
     params.kv_pager.pin_recent = { false, 512 };
     params.kv_pager.hot_pages = { false, 7 };
     params.kv_pager.router_top_k = 3;
+    params.kv_pager.router_refresh_tokens = 3;
     params.kv_pager.router_explore = 2;
     params.kv_pager.prefetch_depth = 4;
     params.kv_pager.telemetry = false;
@@ -65,8 +67,28 @@ static void test(void) {
     assert(pager_summary.find("host_budget_bytes=2048") != std::string::npos);
     assert(pager_summary.find("hot_pages_cap=7") != std::string::npos);
     assert(pager_summary.find("router_top_k=3") != std::string::npos);
+    assert(pager_summary.find("router_refresh_tokens=3") != std::string::npos);
     assert(pager_summary.find("telemetry=off") != std::string::npos);
     assert(pager_summary.find("debug=on") != std::string::npos);
+
+    // Submission identity and cadence are independent: rejected/draft rows
+    // do not move the accepted-token watermark, while a later committed batch
+    // crosses the configured threshold.
+    uint64_t submission = 1;
+    uint64_t accepted = 0;
+    uint64_t watermark = 0;
+    assert(llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    accepted += 1;
+    assert(!llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    accepted += 2;
+    assert(!llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    accepted += 3;
+    assert(!llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    accepted += 64;
+    assert(llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    watermark = accepted;
+    assert(!llama_kv_pager_refresh_due(submission++, accepted, watermark, false, 8));
+    assert(llama_kv_pager_refresh_due(submission, accepted, watermark, true, 8));
 
     auto assert_output_limits = [](int32_t n_batch, int32_t n_parallel, int32_t n_draft,
                                    int32_t total, int32_t per_seq) {

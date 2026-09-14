@@ -8653,15 +8653,21 @@ static float ggml_kv_page_select_score(
         for (int64_t q_head = kv_head * group; q_head < (kv_head + 1) * group; ++q_head) {
             const char * q_data = (const char *) q->data + q_head * q->nb[1] + query_row * q->nb[2];
             float score = 0.0f;
+            bool valid = true;
             for (int64_t d = 0; d < q->ne[0]; ++d) {
                 const float qi = *(const float *)(q_data + d * q->nb[0]);
                 const char * b = (const char *) bounds->data + d * bounds->nb[0] +
                     kv_head * bounds->nb[2] + page * bounds->nb[3];
                 const float lo = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b));
                 const float hi = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b + bounds->nb[1]));
+                if (!std::isfinite(qi) || !std::isfinite(lo) ||
+                        !std::isfinite(hi) || lo > hi) {
+                    valid = false;
+                    break;
+                }
                 score += qi >= 0.0f ? qi * hi : qi * lo;
             }
-            best = std::max(best, score);
+            if (valid && std::isfinite(score)) best = std::max(best, score);
         }
     }
     return std::isfinite(best) ? best : -INFINITY;
@@ -8682,12 +8688,13 @@ static bool ggml_kv_page_select_eligible(
     const int64_t valid_length = value(1);
     const int64_t sequence_generation = value(2);
     const int64_t page_generation = value(3);
+    const int64_t summary_ready = metadata->ne[0] >= 7 ? value(6) : 1;
     const int64_t query_position = *(const int64_t *)((const char *) query->data + 0 * query->nb[0]);
     const int64_t query_sequence_generation = *(const int64_t *)((const char *) query->data + 1 * query->nb[0]);
     const int64_t snapshot_generation = *(const int64_t *)((const char *) query->data + 2 * query->nb[0]);
     const int64_t refresh_enabled = *(const int64_t *)((const char *) query->data + 3 * query->nb[0]);
     const int membership_value = *(const int *)((const char *) membership->data + page * membership->nb[0]);
-    if (!refresh_enabled || membership_value != expected_membership || valid_length <= 0 ||
+    if (!refresh_enabled || membership_value != expected_membership || summary_ready == 0 || valid_length <= 0 ||
             valid_length > page_size ||
             sequence_generation != query_sequence_generation || page_generation <= 0 ||
             page_generation > snapshot_generation || position_begin < 0 ||

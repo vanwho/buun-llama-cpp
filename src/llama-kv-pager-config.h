@@ -36,6 +36,9 @@ struct llama_kv_pager_config {
     // Release-candidate routing defaults. Capacity and page count remain
     // runtime-derived; these values only bound evidence and lookahead.
     uint32_t router_top_k = 8;
+    // Refresh the GPU routing catalogue after this many accepted target
+    // tokens.  This is a policy cadence, not a graph/submission ID.
+    uint32_t router_refresh_tokens = 8;
     // Per-layer rows attended by selective attention, inclusive of current,
     // recent and sink rows. Zero lets the runtime derive a bounded value from
     // the admitted hot-page capacity.
@@ -58,6 +61,13 @@ struct llama_kv_pager_config {
     std::string mode_name() const;
     std::string summary() const;
 };
+
+// Request cadence is evaluated against the committed target-token watermark,
+// while the submission ID remains an independent graph/mailbox identity.
+bool llama_kv_pager_refresh_due(
+        uint64_t submission_id, uint64_t accepted_tokens,
+        uint64_t refresh_watermark, bool policy_dirty,
+        uint32_t cadence) noexcept;
 
 enum class llama_kv_pager_capability_reason : uint8_t {
     ok = 0,

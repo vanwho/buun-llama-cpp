@@ -1141,6 +1141,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.host_budget_bytes = snapshot.host_budget_bytes;
     result.vram_budget_bytes = snapshot.vram_budget_bytes;
     result.router_top_k = kv_pager.router_top_k;
+    result.router_refresh_tokens = kv_pager.router_refresh_tokens;
     result.router_explore = kv_pager.router_explore;
     result.pin_recent_tokens = kv_pager.pin_recent.automatic ? 0 : kv_pager.pin_recent.value;
     result.prefetch_depth = kv_pager.prefetch_depth;
@@ -7045,6 +7046,13 @@ int llama_context::decode(const llama_batch & batch_inp) {
     // C1: the decode transaction succeeds exactly here; its destructor delivers
     // finish(true) -> extents submitted, owners awaiting the synchronize fence.
     decode_txn.succeed();
+
+    // This is an ordinary committed target decode. Native speculative
+    // verification and its re-evaluation are explicitly accounted for by the
+    // rollback/commit owner in the server, so they leave this disabled.
+    if (!kv_attention_mtp_verification_) {
+        note_kv_pager_accepted_tokens(n_tokens_all);
+    }
 
     return 0;
 }

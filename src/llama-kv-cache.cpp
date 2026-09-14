@@ -2242,6 +2242,10 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     // graph is outstanding.
     GGML_ASSERT(pager_pending_writes_.empty());
     pager_ = pager;
+    pager_query_generation_ = 0;
+    pager_query_accepted_tokens_ = 0;
+    pager_query_refresh_watermark_ = 0;
+    pager_query_refresh_enabled_ = true;
     pager_policy_dirty_ = pager_ != nullptr;
     pager_policy_current_sequence_ = -1;
     pager_policy_current_page_ = UINT32_MAX;
@@ -2334,8 +2338,14 @@ void llama_kv_cache::capture_kv_routing_query(
     if (tensor == nullptr && layer < 0) {
         pager_query_generation_ = pager_query_generation_ == UINT64_MAX
             ? UINT64_MAX : pager_query_generation_ + 1;
-        pager_query_refresh_enabled_ = pager_query_generation_ == 1 ||
-            pager_query_generation_ % 8 == 0 || pager_policy_dirty_;
+        const bool refresh = llama_kv_pager_refresh_due(
+            pager_query_generation_, pager_query_accepted_tokens_,
+            pager_query_refresh_watermark_, pager_policy_dirty_,
+            pager_->snapshot().router_refresh_tokens);
+        pager_query_refresh_enabled_ = refresh;
+        if (refresh) {
+            pager_query_refresh_watermark_ = pager_query_accepted_tokens_;
+        }
         return;
     }
 
@@ -2416,6 +2426,13 @@ void llama_kv_cache::capture_kv_routing_query(
         // The mailbox remains fail-closed if a graph cannot register its
         // compact output; the last valid selection is left untouched.
     }
+}
+
+void llama_kv_cache::note_kv_pager_accepted_tokens(uint32_t count) {
+    if (pager_ == nullptr || count == 0) return;
+    pager_query_accepted_tokens_ = pager_query_accepted_tokens_ >
+            UINT64_MAX - uint64_t(count)
+        ? UINT64_MAX : pager_query_accepted_tokens_ + uint64_t(count);
 }
 
 void llama_kv_cache::seal_kv_pager_pages() {
@@ -16278,12 +16295,15 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         const bool membership_changed = summary_changed || previous.resident != resident;
         if (!membership_changed) continue;
 
+        const bool summary_ready = summary_version != 0 &&
+            summary_version == record.content_version;
+        const bool summary_update = resident && summary_changed;
         int64_t page_data[8] = {
             record.id.position_begin, int64_t(record.valid_length),
             int64_t(record.id.sequence_generation), int64_t(record.id.page_generation),
             int64_t(record.physical_slot),
             int64_t(kv->get_stream_for_seq(ubatch.seq_id[0][0])),
-            int64_t(resident && summary_changed), int64_t(resident && summary_changed) };
+            int64_t(summary_ready), int64_t(summary_update) };
         std::vector<ggml_fp16_t> bound_data;
         if (summary_changed) {
             bound_data.assign(size_t(bounds_values), ggml_fp32_to_fp16(0.0f));
