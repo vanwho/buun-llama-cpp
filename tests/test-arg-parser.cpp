@@ -624,6 +624,21 @@ static void test(void) {
         }
     }
     {
+        common_params cpu_main_kv;
+        argv = {"binary_name", "-m", "model.gguf", "--no-kv-offload"};
+        assert(true == common_params_parse(argv.size(), list_str_to_char(argv).data(),
+                                           cpu_main_kv, LLAMA_EXAMPLE_SPECULATIVE));
+        assert(cpu_main_kv.no_kv_offload);
+        assert(!common_context_params_to_llama(cpu_main_kv).offload_kqv);
+
+        // Target CPU-main-KV must not rewrite the independent native-MTP
+        // GPU placement selected by the speculative projection.
+        cpu_main_kv.speculative.draft.kv_device = common_speculative_draft_kv_device::GPU;
+        const auto mtp_projection = common_base_params_to_speculative(cpu_main_kv);
+        assert(!mtp_projection.no_kv_offload);
+        assert(common_context_params_to_llama(mtp_projection).offload_kqv);
+    }
+    {
         common_params placement;
         argv = {"binary_name", "-m", "model.gguf", "--spec-draft-kv-device", "bogus"};
         assert(false == common_params_parse(argv.size(), list_str_to_char(argv).data(), placement, LLAMA_EXAMPLE_SPECULATIVE));

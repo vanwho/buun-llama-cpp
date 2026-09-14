@@ -32,6 +32,8 @@ def identity(profile: str, pid: int, *, binary: str = "/opt/llama-server") -> di
         "context": "22016",
         "pager_mode": "selective",
         "page_size_tokens": "256",
+        "target_kv_placement": "gpu",
+        "no_kv_offload": False,
         "mtp_placement": "gpu",
         "mtp_type_k": "turbo4",
         "mtp_type_v": "turbo4",
@@ -193,7 +195,22 @@ class AdapterContractTests(unittest.TestCase):
             self.assertFalse(config["context"]["diagnostic_only"])
             self.assertEqual(22016, config["launcher"]["context"])
             self.assertEqual("exact-rendered-token-preflight", config["launcher"]["token_sizing"])
+            self.assertEqual("gpu", config["launcher"]["target_kv_placement"])
+            self.assertFalse(config["launcher"]["no_kv_offload"])
             self.assertIsNone(config["prompt"]["occupied_prompt_tokens"])
+
+    def test_cpu_main_kv_dry_run_records_independent_gpu_mtp(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(adapter.os.environ, {}, clear=True), \
+                patch.object(adapter.sys, "argv", [
+                    "run-pager-profile-benchmark.py", "fast", "short",
+                    directory, "--dry-run", "--no-kv-offload"]):
+            self.assertEqual(0, adapter.main())
+            config = json.loads((pathlib.Path(directory) / "run-config.json").read_text())
+            self.assertEqual("cpu", config["launcher"]["target_kv_placement"])
+            self.assertTrue(config["launcher"]["no_kv_offload"])
+            self.assertEqual("gpu", config["launcher"]["mtp_placement"])
+            self.assertTrue(config["placement"]["no_kv_offload"])
 
     def test_sub_ceiling_requires_explicit_diagnostic_flag(self) -> None:
         with tempfile.TemporaryDirectory() as directory, \
