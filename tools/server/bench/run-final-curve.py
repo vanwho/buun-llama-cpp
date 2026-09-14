@@ -22,9 +22,13 @@ sys.path.insert(0, str(HERE))
 
 from pager_benchmark_contract import (  # noqa: E402
     CaseStateStore,
+    MTP_ACCEPTED_COUNTER,
+    MTP_DRAFT_COUNTER,
     PromptFit,
     ResumeError,
     fit_prompt,
+    mtp_counter_delta,
+    parse_mtp_counters,
     resolve_batch_tokens,
     resolve_hot_capacity,
     sha256_json,
@@ -330,8 +334,9 @@ def _metric_number(value: Any) -> int | float | None:
 
 
 def parse_metrics(raw: bytes) -> dict[str, Any]:
+    text = raw.decode(errors="replace")
     metrics: dict[str, Any] = {}
-    for line in raw.decode(errors="replace").splitlines():
+    for line in text.splitlines():
         if not line.startswith("llamacpp:kv_pager_") or line.startswith("#"):
             continue
         name, _, value = line.partition(" ")
@@ -354,6 +359,9 @@ def parse_metrics(raw: bytes) -> dict[str, Any]:
                 parsed = labels.split(prefix, 1)[1].split('"', 1)[0]
                 break
         metrics[key] = parsed
+    mtp_counters = parse_mtp_counters(text)
+    if mtp_counters is not None:
+        metrics.update(mtp_counters)
     return metrics
 
 
@@ -361,6 +369,8 @@ def snapshot(endpoint: str, key: str) -> dict[str, Any]:
     root = endpoint.split("/v1/", 1)[0].rstrip("/")
     metrics_status, metrics_raw = request_json(root + "/metrics", key, timeout=15.0)
     slots_status, slots_raw = request_json(root + "/slots", key, timeout=15.0)
+    metrics_text = metrics_raw.decode(errors="replace") if metrics_status == 200 else ""
+    mtp_counters = parse_mtp_counters(metrics_text) if metrics_status == 200 else None
     try:
         slots: Any = json.loads(slots_raw) if slots_status == 200 else None
     except json.JSONDecodeError:
@@ -368,6 +378,7 @@ def snapshot(endpoint: str, key: str) -> dict[str, Any]:
     return {"utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "metrics_http": metrics_status,
             "metrics": parse_metrics(metrics_raw) if metrics_status == 200 else None,
+            "mtp_counters": mtp_counters,
             "slots_http": slots_status, "slots": slots}
 
 
@@ -389,14 +400,71 @@ def _telemetry(snapshot_value: Mapping[str, Any]) -> dict[str, Any] | None:
     return result
 
 
+def _snapshot_mtp_counters(snapshot_value: Mapping[str, Any] | None) -> Mapping[str, Any] | None:
+    if not isinstance(snapshot_value, Mapping):
+        return None
+    counters = snapshot_value.get("mtp_counters")
+    if isinstance(counters, Mapping):
+        return counters
+    metrics = snapshot_value.get("metrics")
+    if not isinstance(metrics, Mapping):
+        return None
+    return {name: metrics.get(name) for name in (MTP_DRAFT_COUNTER, MTP_ACCEPTED_COUNTER)}
+
+
+def _mtp_observation(before: Mapping[str, Any] | None,
+                     after: Mapping[str, Any] | None,
+                     *, feature_off: bool) -> dict[str, Any]:
+    before_counters = _snapshot_mtp_counters(before)
+    after_counters = _snapshot_mtp_counters(after)
+    errors: list[str] = []
+    delta: dict[str, int] | None = None
+    if not feature_off:
+        delta, errors = mtp_counter_delta(before_counters, after_counters)
+        if delta is not None:
+            if delta[MTP_DRAFT_COUNTER] <= 0:
+                delta = None
+                errors.append("mtp_observation_missing")
+            elif delta[MTP_ACCEPTED_COUNTER] > delta[MTP_DRAFT_COUNTER]:
+                delta = None
+                errors.append("mtp_accepted_exceeds_draft")
+        errors = list(dict.fromkeys(errors))
+    if feature_off:
+        mtp = {"mode": "off", "status": "off", "draft_tokens": 0,
+               "accepted_tokens": 0, "acceptance_percent": 0.0}
+        source = "off"
+    elif delta is None:
+        mtp = {"mode": "native", "status": "not_run",
+               "draft_tokens": None, "accepted_tokens": None,
+               "acceptance_percent": None,
+               "reason": errors[0] if errors else "mtp_observation_missing"}
+        source = "prometheus_counter_delta"
+    else:
+        draft = delta[MTP_DRAFT_COUNTER]
+        accepted = delta[MTP_ACCEPTED_COUNTER]
+        mtp = {"mode": "native", "status": "measured",
+               "draft_tokens": draft, "accepted_tokens": accepted,
+               "acceptance_percent": 100.0 * accepted / draft if draft > 0 else None}
+        source = "prometheus_counter_delta"
+    return {"source": source, "mtp": mtp,
+            "counters": {"before": before_counters, "after": after_counters,
+                         "delta": delta, "errors": errors}}
+
+
 def _delta(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, int | float]:
     first = _telemetry(before) or {}
     second = _telemetry(after) or {}
     result: dict[str, int | float] = {}
     for name, value in second.items():
+        if name in {MTP_DRAFT_COUNTER, MTP_ACCEPTED_COUNTER}:
+            continue
         prior = first.get(name)
         if _metric_number(value) is not None and _metric_number(prior) is not None:
             result[name] = value - prior  # type: ignore[operator]
+    mtp_delta, _ = mtp_counter_delta(_snapshot_mtp_counters(before),
+                                     _snapshot_mtp_counters(after))
+    if mtp_delta is not None:
+        result.update(mtp_delta)
     return result
 
 
@@ -459,6 +527,10 @@ def run_request(endpoint: str, key: str, model: str,
         after = snapshot(endpoint, key)
         record.update({"after": after, "movement_delta": _delta(before, after),
                        "raw_path": str(raw_path)})
+        mtp_observation = _mtp_observation(before, after, feature_off=mode == "off")
+        record.update({"mtp_source": mtp_observation["source"],
+                       "mtp": mtp_observation["mtp"],
+                       "mtp_counters": mtp_observation["counters"]})
         if raw_path.exists():
             record["raw_bytes"] = raw_path.stat().st_size
             record["raw_sha256"] = _sha256_file(raw_path)
@@ -471,15 +543,11 @@ def run_request(endpoint: str, key: str, model: str,
     record["cached_rows"] = cached
     record["server_pp_tok_s"] = timings.get("prompt_per_second")
     record["server_tg_tok_s"] = timings.get("predicted_per_second")
-    draft_tokens = timings.get("draft_n")
-    accepted_draft_tokens = timings.get("draft_n_accepted")
-    if not isinstance(draft_tokens, int) or draft_tokens < 0:
-        draft_tokens = None
-    if not isinstance(accepted_draft_tokens, int) or accepted_draft_tokens < 0:
-        accepted_draft_tokens = None
-    acceptance_percent = None
-    if draft_tokens is not None and accepted_draft_tokens is not None and draft_tokens > 0:
-        acceptance_percent = 100.0 * accepted_draft_tokens / draft_tokens
+    mtp_observation = _mtp_observation(before, after, feature_off=mode == "off")
+    mtp = mtp_observation["mtp"]
+    draft_tokens = mtp.get("draft_tokens")
+    accepted_draft_tokens = mtp.get("accepted_tokens")
+    acceptance_percent = mtp.get("acceptance_percent")
     record["speed_measurements"] = {
         "generated_tokens": record["output_tokens"], "committed_tokens": record["output_tokens"],
         "mtp_proposed_tokens": draft_tokens,
@@ -490,6 +558,10 @@ def run_request(endpoint: str, key: str, model: str,
         "ttft_us": stream.get("ttft_us"),
         "completion_latency_us": record.get("elapsed_seconds", 0) * 1_000_000,
     }
+    record.update({"mtp_source": mtp_observation["source"],
+                  "mtp": mtp, "mtp_counters": mtp_observation["counters"]})
+    if mtp["status"] == "not_run":
+        record["mtp_observation_error"] = mtp["reason"]
     for name in ("wall_prefill_us", "wall_decode_us", "ttft_us"):
         if record["speed_measurements"].get(name) is None:
             record["speed_measurements"][name + "_reason"] = "server did not export this stage metric"
@@ -629,6 +701,8 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
         hot_capacity = resolve_hot_capacity(allocated, page_size, "auto")
     hot_rows = hot_capacity["hot_capacity_tokens"]
     feature_off = args.mode == "off"
+    mtp_observation = _mtp_observation(record.get("before"), record.get("after"),
+                                       feature_off=feature_off)
     target_placement = after_telemetry.get("target_placement")
     target_type_k = after_telemetry.get("target_type_k") or _command_value(identity, "-ctk")
     target_type_v = after_telemetry.get("target_type_v") or _command_value(identity, "-ctv")
@@ -673,6 +747,10 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
         "mode": args.mode, "prefill_policy": args.prefill_policy,
     }
     speed = dict(record.get("speed_measurements", {}))
+    mtp = mtp_observation["mtp"]
+    speed.update({"mtp_proposed_tokens": mtp["draft_tokens"],
+                  "mtp_accepted_tokens": mtp["accepted_tokens"],
+                  "mtp_acceptance_percent": mtp["acceptance_percent"]})
     speed.update({"target_gpu_bytes": after_telemetry.get("target_allocated_bytes"),
                   "host_committed_rows": after_telemetry.get("host_valid_rows"),
                   "host_committed_bytes": after_telemetry.get("host_valid_bytes"),
@@ -725,10 +803,17 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
         "gpu_memory_total_mib": gpu_identity.get("memory_total_mib", "runtime-unreported"),
         "build": identity.get("binary"),
     }
+    record_with_mtp = dict(record)
+    record_with_mtp.update({"mtp_source": mtp_observation["source"], "mtp": mtp,
+                            "mtp_counters": mtp_observation["counters"]})
+    if mtp["status"] == "not_run":
+        record_with_mtp["mtp_observation_error"] = mtp["reason"]
     return {"case_id": record.get("case_id"), "status": record.get("status"),
+            "mtp": mtp, "mtp_source": mtp_observation["source"],
+            "mtp_counters": mtp_observation["counters"],
             "runtime": runtime, "measurements": speed, "provenance": provenance,
             "raw_path": record.get("raw_path"), "raw_sha256": record.get("raw_sha256"),
-            "record": record}
+            "record": record_with_mtp}
 
 
 def _raw_index(records: list[Mapping[str, Any]]) -> list[dict[str, Any]]:

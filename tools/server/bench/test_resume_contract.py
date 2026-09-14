@@ -246,6 +246,96 @@ class ResumeContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.resolve_reset_mode("target-only-restore", "cold-prefill")
 
+    def test_final_curve_observes_request_scoped_native_mtp_counters(self) -> None:
+        path = HERE / "run-final-curve.py"
+        spec = importlib.util.spec_from_file_location("run_final_curve_mtp_test", path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        before_raw = (
+            b"llamacpp:kv_pager_selected_pages 1\n"
+            b"llamacpp:spec_decode_num_draft_tokens_total 100\n"
+            b"llamacpp:spec_decode_num_accepted_tokens_total 50\n")
+        after_raw = (
+            b"llamacpp:kv_pager_selected_pages 2\n"
+            b"llamacpp:spec_decode_num_draft_tokens_total 112\n"
+            b"llamacpp:spec_decode_num_accepted_tokens_total 58\n")
+        before_metrics = module.parse_metrics(before_raw)
+        after_metrics = module.parse_metrics(after_raw)
+        self.assertEqual(100, before_metrics[
+            "llamacpp:spec_decode_num_draft_tokens_total"])
+        self.assertEqual(50, before_metrics[
+            "llamacpp:spec_decode_num_accepted_tokens_total"])
+        movement = module._delta({"metrics": before_metrics}, {"metrics": after_metrics})
+        self.assertEqual(12, movement[
+            "llamacpp:spec_decode_num_draft_tokens_total"])
+        self.assertEqual(8, movement[
+            "llamacpp:spec_decode_num_accepted_tokens_total"])
+        with patch.object(module, "request_json", side_effect=[
+                (200, after_raw), (200, b"[]")]):
+            observed = module.snapshot("http://server/v1/chat/completions", "")
+        self.assertEqual({
+            "llamacpp:spec_decode_num_draft_tokens_total": 112,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 58,
+        }, observed["mtp_counters"])
+
+        args = SimpleNamespace(
+            reset_mode="fresh", cache_condition="cold-prefill", context=8192,
+            page_size=256, hot_pages=16, mode="selective", batch_tokens=128,
+            ubatch_tokens=128, prefill_policy="runtime")
+        identity = {"command": "server -c 8192 -b 128 -ub 128 -ctk turbo4 -ctv turbo4"}
+        case = module._case_record(
+            {"case_id": "mtp-fixture", "status": "pass", "mode": "selective",
+             "before": {"metrics": before_metrics}, "after": {"metrics": after_metrics},
+             "usage": {"prompt_tokens": 1200, "prompt_tokens_details": {"cached_tokens": 0}},
+             "speed_measurements": {}}, {"token_count": 1200}, args, identity,
+            "template", "model", "config", None,
+            {"gpu": "fixture", "driver": "fixture", "memory_total_mib": "1"})
+        self.assertEqual("measured", case["mtp"]["status"])
+        self.assertEqual(12, case["measurements"]["mtp_proposed_tokens"])
+        self.assertEqual(8, case["measurements"]["mtp_accepted_tokens"])
+        self.assertAlmostEqual(66.66666666666667,
+                               case["measurements"]["mtp_acceptance_percent"])
+
+        reset_metrics = dict(after_metrics)
+        reset_metrics["llamacpp:spec_decode_num_draft_tokens_total"] = 99
+        reset_case = module._case_record(
+            {"case_id": "mtp-reset", "status": "pass", "before": {"metrics": before_metrics},
+             "after": {"metrics": reset_metrics}, "usage": {"prompt_tokens": 1200},
+             "speed_measurements": {}}, {"token_count": 1200}, args, identity,
+            "template", "model", "config", None,
+            {"gpu": "fixture", "driver": "fixture", "memory_total_mib": "1"})
+        self.assertEqual("not_run", reset_case["mtp"]["status"])
+        self.assertIsNone(reset_case["measurements"]["mtp_proposed_tokens"])
+        self.assertIsNone(reset_case["measurements"]["mtp_accepted_tokens"])
+        self.assertIn("mtp_counter_reset", reset_case["mtp"]["reason"])
+        self.assertNotIn("llamacpp:spec_decode_num_draft_tokens_total",
+                         module._delta({"metrics": before_metrics}, {"metrics": reset_metrics}))
+
+        missing_metrics = dict(after_metrics)
+        missing_metrics.pop("llamacpp:spec_decode_num_accepted_tokens_total")
+        missing_case = module._case_record(
+            {"case_id": "mtp-missing", "status": "pass", "before": {"metrics": before_metrics},
+             "after": {"metrics": missing_metrics}, "usage": {"prompt_tokens": 1200},
+             "speed_measurements": {}}, {"token_count": 1200}, args, identity,
+            "template", "model", "config", None,
+            {"gpu": "fixture", "driver": "fixture", "memory_total_mib": "1"})
+        self.assertEqual("not_run", missing_case["mtp"]["status"])
+        self.assertIn("mtp_observation_missing", missing_case["mtp"]["reason"])
+
+        args.mode = "off"
+        off_case = module._case_record(
+            {"case_id": "mtp-off", "status": "pass", "before": {"metrics": before_metrics},
+             "after": {"metrics": after_metrics}, "usage": {"prompt_tokens": 1200},
+             "speed_measurements": {}}, {"token_count": 1200}, args, identity,
+            "template", "model", "config", None,
+            {"gpu": "fixture", "driver": "fixture", "memory_total_mib": "1"})
+        self.assertEqual("off", off_case["mtp"]["mode"])
+        self.assertEqual("off", off_case["mtp_source"])
+        self.assertEqual(0, off_case["measurements"]["mtp_proposed_tokens"])
+
     def test_long_prompt_fitter_expands_neutral_padding(self) -> None:
         path = HERE / "run-final-curve.py"
         spec = importlib.util.spec_from_file_location("run_final_curve_test", path)

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task": "57-01",
+  "source_commit": "b6647bfead430204234f0732ee01e586f8d6a1e9",
+  "checks": {
+    "mtp_counter_observation_contract_repair": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tools.server.bench.test_resume_contract.ResumeContractTests.test_final_curve_observes_request_scoped_native_mtp_counters"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/57-01/20260914T185000Z-contract/test.stdout",
+          "sha256": "24cefc2bc38a1c71e18591075993695fc72546b32ff6b5baab3d98032ce96fb5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/57-01/20260914T185000Z-contract/live-parser-observation.json",
+          "sha256": "c48910307e532dafd3c7464177c3889d27ff859371e1af6a8b56a95806e8ac6c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/57-01/20260914T185000Z-live-metrics/metrics.raw",
+          "sha256": "8074c6eb786a76f71251c3444f9c953a587460d787f49f2c533695b0ddc56e16"
+        }
+      ],
+      "invariants": {
+        "draft_delta": 12,
+        "accepted_delta": 8,
+        "acceptance_percent": 66.66666666666667,
+        "reset_and_missing": "not_run",
+        "feature_off": "mtp=off"
+      }
+    }
+  }
+}
