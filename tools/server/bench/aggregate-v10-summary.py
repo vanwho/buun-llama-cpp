@@ -18,6 +18,7 @@ REVISION = "hotpath-v10-20260914"
 MODES = ("selective-v2", "cpu-main", "all-gpu-v2")
 QUESTIONS = ("0", "1", "2")
 PHASE55_RAW = Path("/srv/ai/paged-kv/results/v10/55-02/20260914T181730Z")
+PHASE57_RAW = Path("/srv/ai/paged-kv/results/v10/57-03")
 
 
 def digest(path: Path) -> str:
@@ -361,16 +362,135 @@ def phase55_markdown(summary: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _phase57_case(raw: dict[str, Any], case: dict[str, Any], source: str) -> dict[str, Any]:
+    runtime = case.get("runtime", raw.get("runtime", {}))
+    measurements = case.get("measurements", {})
+    mtp = case.get("mtp", {})
+
+    def rate(tokens: Any, duration_us: Any) -> float | None:
+        if not isinstance(tokens, (int, float)) or not isinstance(duration_us, (int, float)) or duration_us <= 0:
+            return None
+        return tokens * 1_000_000.0 / duration_us
+
+    status = "measured" if case.get("status") == "pass" else "failed"
+    reason = "completed raw measurement" if status == "measured" else case.get("error", "raw case did not pass")
+    return {
+        "status": status,
+        "reason": reason,
+        "source": source,
+        "case_id": case.get("case_id"),
+        "geometry": {"L_tokens": runtime.get("logical_context_tokens"), "C_tokens": runtime.get("measured_request_tokens"),
+                     "H_tokens": runtime.get("hot_rows"), "A_tokens": runtime.get("attended_rows"),
+                     "B_tokens": runtime.get("batch_tokens"), "U_tokens": runtime.get("ubatch_tokens"),
+                     "page_tokens": runtime.get("page_size_tokens")},
+        "tokens": {"prompt": runtime.get("measured_request_tokens"), "generated": measurements.get("generated_tokens"),
+                   "committed": measurements.get("committed_tokens")},
+        "rates": {"prefill": {"tok_s": rate(runtime.get("measured_request_tokens"), measurements.get("wall_prefill_us")), "sample_count": 1},
+                  "cached_append": {"tok_s": None, "sample_count": 0, "status": "not_run", "reason": "no cached-append phase-57 raw manifest"},
+                  "committed_decode": {"tok_s": rate(measurements.get("committed_tokens"), measurements.get("wall_decode_us")), "sample_count": 1}},
+        "timings_us": {"wall_prefill": measurements.get("wall_prefill_us"), "wall_decode": measurements.get("wall_decode_us")},
+        "mtp": {"status": mtp.get("status", "not_run"), "draft_delta": mtp.get("draft_tokens"),
+                "accepted_delta": mtp.get("accepted_tokens"), "acceptance_percent": mtp.get("acceptance_percent"),
+                "denominator": mtp.get("draft_tokens"), "reason": mtp.get("reason")},
+        "raw_path": case.get("raw_path"),
+        "raw_sha256": case.get("raw_sha256"),
+    }
+
+
+def _phase57_stats(rows: list[dict[str, Any]], field: str) -> dict[str, Any]:
+    values = [row["rates"][field]["tok_s"] for row in rows if row["status"] == "measured" and row["rates"][field]["tok_s"] is not None]
+    return {"status": "measured" if values else "not_run", "sample_count": len(values),
+            "median_tok_s": statistics.median(values) if values else None, "min_tok_s": min(values) if values else None,
+            "max_tok_s": max(values) if values else None, "reason": None if values else "no valid timing samples"}
+
+
+def build_phase57(root: Path) -> tuple[dict[str, Any], dict[str, Path]]:
+    receipt_paths = {f"V10_57-0{i}": root / f"V10_57-0{i}.json" for i in range(1, 4)}
+    receipts = {name: read(path) for name, path in receipt_paths.items()}
+    raw_paths = {
+        "native": PHASE57_RAW / "20260914T190757Z/curve-native-q0q1q2/SPEED25_02_ATTRIBUTION.json",
+        "feature_off": PHASE57_RAW / "20260914T191009Z/curve-off-q0/SPEED25_02_ATTRIBUTION.json",
+        "cpu_main_kv": PHASE57_RAW / "20260914T191036Z/curve-cpu-main-q0/SPEED25_02_ATTRIBUTION.json",
+        "occupancy": PHASE57_RAW / "20260914T191137Z/occupancy-full-L/INTERACTIVE29_01_SCALE.json",
+        "promotion_quality": PHASE57_RAW / "proofs/promotion-quality.json",
+        "matched_matrix": PHASE57_RAW / "proofs/matched-matrix.json",
+        "occupancy_boundary": PHASE57_RAW / "proofs/occupancy-boundary.json",
+    }
+    raw = {name: read(path) for name, path in raw_paths.items()}
+    native = [_phase57_case(raw["native"], case, "57-03/curve-native-q0q1q2") for case in raw["native"]["cases"]]
+    off = [_phase57_case(raw["feature_off"], case, "57-03/curve-off-q0") for case in raw["feature_off"]["cases"]]
+    cpu = [_phase57_case(raw["cpu_main_kv"], case, "57-03/curve-cpu-main-q0") for case in raw["cpu_main_kv"]["cases"]]
+    not_run = lambda case_id, reason: {"status": "not_run", "case_id": case_id, "reason": reason}
+    controls = {
+        "feature_off": off + [not_run(f"q{q}-measured-1", "phase-57 control campaign stopped after q0") for q in (1, 2)],
+        "cpu_main_kv_gpu_draft": cpu + [not_run(f"q{q}-measured-1", "phase-57 control campaign stopped after q0") for q in (1, 2)],
+    }
+    identity = raw["native"].get("identity", {})
+    provenance = raw["native"].get("provenance", {})
+    runtime = raw["native"].get("runtime", {})
+    requested = raw["native"].get("campaign", {})
+    occupancy_config = raw["occupancy"].get("configuration", {})
+    summary = {
+        "schema": "hotpath-v10-phase57-summary", "task": "57-04", "revision": REVISION, "result": "current_findings",
+        "units": {"rates": "tok/s", "durations": "microseconds", "bytes": "integer bytes", "geometry": "tokens and rows"},
+        "identity": {"requested": {"model": requested.get("model"), "mode": requested.get("mode"), "L_tokens": requested.get("context"), "C_tokens": requested.get("prompt_tokens")},
+                     "observed": {"bundle": provenance.get("bundle_identity"), "bundle_manifest_sha256": provenance.get("bundle_manifest_sha256"),
+                                  "model": provenance.get("resolved_model"), "model_sha256": provenance.get("resolved_model_sha256"),
+                                  "executable_sha256": provenance.get("endpoint_executable_sha256"), "source_commit": provenance.get("source_commit"),
+                                  "template_id": provenance.get("tokenizer_template_id")}},
+        "placements": {"target": {"status": "measured", "device": runtime.get("target_placement"), "k": runtime.get("target_type_k"), "v": runtime.get("target_type_v")},
+                       "full_L_draft": {"status": "measured", "device": occupancy_config.get("draft_kv_device"), "k": occupancy_config.get("draft_k_type"),
+                                        "v": occupancy_config.get("draft_v_type"), "capacity_rows": occupancy_config.get("draft_capacity_tokens")}},
+        "geometry": {"matched_8K": {"status": "measured", "L_tokens": runtime.get("logical_context_tokens"), "C_tokens": runtime.get("measured_request_tokens"),
+                                      "H_tokens": runtime.get("hot_rows"), "A_tokens": runtime.get("attended_rows"), "B_tokens": runtime.get("batch_tokens"), "U_tokens": runtime.get("ubatch_tokens"),
+                                      "page_tokens": runtime.get("page_size_tokens"), "reason": "phase-57 native raw manifest"},
+                     "full_L": {"status": "failed", "L_tokens": occupancy_config.get("logical_capacity_tokens"), "H_tokens": occupancy_config.get("hot_capacity_tokens"),
+                                "B_tokens": occupancy_config.get("batch_tokens"), "U_tokens": occupancy_config.get("ubatch_tokens"), "reason": raw["occupancy_boundary"]["failed_record"].get("error")}},
+        "rows": {"selective_native": native, **controls},
+        "rates": {"cold_prefill": _phase57_stats(native, "prefill"), "cached_append": {"status": "not_run", "sample_count": 0, "median_tok_s": None, "min_tok_s": None, "max_tok_s": None, "reason": "phase-57 campaign has no cached-append raw manifest"},
+                  "committed_decode": _phase57_stats(native, "committed_decode"), "sample_counts": {"cold_prefill": len(native), "cached_append": 0, "committed_decode": len(native)}},
+        "mtp_request_scoped_deltas": {"status": "measured", "rows": [{"case_id": row["case_id"], **row["mtp"]} for row in native], "reason": "Prometheus before/after deltas preserved per native request"},
+        "promotion_edges": {"controlled_physical": {"status": "not_run", "reason": "T1 was not run in the bounded phase-57 campaign"}, "organic_physical": {"status": "not_run", "reason": "T2/T3 were not run in the bounded phase-57 campaign"}},
+        "useful_answer_quality": {"status": "not_run", "reason": "quality proof is explicitly separate_field_not_run; no answer-quality result was captured"},
+        "boundaries": {"proof_8K": {"status": "measured", "L_tokens": runtime.get("logical_context_tokens"), "C_tokens": runtime.get("measured_request_tokens"), "H_tokens": runtime.get("hot_rows"), "A_tokens": runtime.get("attended_rows"), "B_tokens": runtime.get("batch_tokens"), "U_tokens": runtime.get("ubatch_tokens"), "reason": "native q0/q1/q2 rows completed"},
+                       "pilot_32K": {"status": "not_run", "reason": "campaign stopped at the full-L repair/occupancy boundary"}, "pilot_128K": {"status": "not_run", "reason": "campaign stopped at the full-L repair/occupancy boundary"},
+                       "allocation_256K": {"status": "measured", "L_tokens": occupancy_config.get("logical_capacity_tokens"), "draft_rows": occupancy_config.get("draft_capacity_tokens"), "H_tokens": occupancy_config.get("hot_capacity_tokens"), "reason": "full-L allocation/startup snapshot was captured before the first request fault"},
+                       "occupied_C262144": {"status": "failed", "C_tokens": 0, "reason": raw["occupancy_boundary"]["failed_record"].get("error") + "; service restarted healthy; no occupied frontier was established"}},
+        "failures": [{"status": "failed", "boundary": "occupied_C262144", "reason": raw["occupancy_boundary"]["failed_record"].get("error"), "raw_path": raw["occupancy_boundary"]["failed_record"].get("raw_path")}],
+        "provenance": {name: {"path": str(path), "sha256": digest(path)} for name, path in {**receipt_paths, **raw_paths}.items()},
+    }
+    return summary, {**receipt_paths, **raw_paths}
+
+
+def phase57_markdown(summary: dict[str, Any]) -> str:
+    g = summary["geometry"]["matched_8K"]
+    lines = ["# V10 phase-57 benchmark summary", "", f"- Result: **{summary['result']}**", f"- Revision: `{summary['revision']}`", f"- Matched geometry: L={g['L_tokens']}, C={g['C_tokens']}, H={g['H_tokens']}, A={g['A_tokens']}, B={g['B_tokens']}, U={g['U_tokens']}", "", "## Identity and placement", "", f"- Requested model/mode: `{summary['identity']['requested']['model']}` / `{summary['identity']['requested']['mode']}`.", f"- Observed model hash: `{summary['identity']['observed']['model_sha256']}`; bundle manifest: `{summary['identity']['observed']['bundle_manifest_sha256']}`.", "- Target and full-L draft placement are Turbo4 on CUDA/GPU as recorded in JSON.", "", "## Rates and request-scoped MTP", "", "| workload | status | samples | median tok/s | range |", "|---|---|---:|---:|---:|"]
+    for name in ("cold_prefill", "cached_append", "committed_decode"):
+        item = summary["rates"][name]
+        lines.append(f"| {name} | {item['status']} | {item['sample_count']} | {item['median_tok_s']} | {item['min_tok_s']}–{item['max_tok_s']} |")
+    for row in summary["mtp_request_scoped_deltas"]["rows"]:
+        lines.append(f"\n- `{row['case_id']}`: draft={row['draft_delta']}, accepted={row['accepted_delta']}, acceptance={row['acceptance_percent']}%.")
+    lines += ["", "## Promotion, quality, and boundaries", "", "- Controlled and organic physical promotion are explicit not-run findings; useful answer quality is also not run.", "- The full-L allocation boundary was measured, but the first request failed before advancing occupancy; this is not a C262144 occupancy proof.", "- 32K and 128K pilots are not run and no historical phase-55 rate is merged.", "", "See the JSON for every raw row, reason, denominator, and checksum.", ""]
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence-root", type=Path, default=Path(".wiretail/execution/evidence"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--phase55", action="store_true", help="aggregate only the phase-55 receipts and raw runs")
+    parser.add_argument("--phase57", action="store_true", help="aggregate only the phase-57 receipts and raw runs")
     args = parser.parse_args()
     if args.phase55:
         summary, _ = build_phase55(args.evidence_root)
         args.output.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
         args.output.with_suffix(".md").write_text(phase55_markdown(summary))
+        print(json.dumps({"output": str(args.output), "errors": [], "status": "pass"}, sort_keys=True))
+        return 0
+    if args.phase57:
+        summary, _ = build_phase57(args.evidence_root)
+        args.output.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+        args.output.with_suffix(".md").write_text(phase57_markdown(summary))
         print(json.dumps({"output": str(args.output), "errors": [], "status": "pass"}, sort_keys=True))
         return 0
     root = args.evidence_root
