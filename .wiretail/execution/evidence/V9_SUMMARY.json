@@ -1,0 +1,392 @@
+{
+  "schema": "hotpath-v9-summary",
+  "task": "37-04",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-14T00:06:02Z",
+  "result": "pass_with_unmet_capability",
+  "scope": "Compact aggregation of the v9 integration, foundation, cold-proof, small-comparison, 32K, 128K-pilot, and 128K receipts.",
+  "active_campaign_met": false,
+  "overall_256k_demonstrated": false,
+  "natural_cold_proven": false,
+  "fullL_gpu_turbo4_mtp": true,
+  "measured_cpu_speedup": true,
+  "receipt_index": ".wiretail/execution/evidence/V9_SUMMARY_INDEX.json",
+  "aggregation_raw_root": "/srv/ai/paged-kv/results/v9/37-04/20260914T000602Z-summary",
+  "input_receipts": [
+    {
+      "requested": ".wiretail/execution/evidence/V9_INTEGRATION.json",
+      "status": "missing",
+      "fallback": ".wiretail/execution/evidence/33-03-integration.json",
+      "fallback_schema": "hotpath-v9-integration",
+      "fallback_result": "pass_with_expected_fixture_limits",
+      "reason": "The named v9 alias is absent; its immediate predecessor result path supplies the integration contract."
+    },
+    {
+      "path": ".wiretail/execution/evidence/V9_FOUNDATION.json",
+      "task": "34-06",
+      "status": "pass",
+      "raw_roots": [
+        "/srv/ai/paged-kv/results/v9/34-06/20260913T184319Z-foundation",
+        "/srv/ai/paged-kv/results/v9/34-06/20260913T184443Z-b2-quick",
+        "/srv/ai/paged-kv/results/v9/34-06/20260913T184502Z-allgpu-q0"
+      ]
+    },
+    {
+      "path": ".wiretail/execution/evidence/V9_COLD_PROOF.json",
+      "task": "35-05",
+      "status": "fail",
+      "raw_roots": [
+        "/srv/ai/paged-kv/results/v9/35-05/20260914T000000Z-natural-b",
+        "/srv/ai/paged-kv/results/v9/35-05/20260914T000100Z-natural-c",
+        "/srv/ai/paged-kv/results/v9/35-05/20260914T000200Z-diagnostic-a4096-recent512",
+        "/srv/ai/paged-kv/results/v9/35-05/20260914T000300Z-natural-append",
+        "/srv/ai/paged-kv/results/v9/35-05/20260914T000400Z-receipt"
+      ]
+    },
+    {
+      "path": ".wiretail/execution/evidence/V9_SMALL.json",
+      "task": "36-04",
+      "status": "pass",
+      "raw_roots": [
+        "/srv/ai/paged-kv/results/v9/36-04/20260915T010000Z-selected-h4096-a4096-u128",
+        "/srv/ai/paged-kv/results/v9/36-04/20260915T013000Z-cpu-kv-h4096-control",
+        "/srv/ai/paged-kv/results/v9/36-04/20260915T020000Z-allgpu-h8192-control"
+      ]
+    },
+    {
+      "path": ".wiretail/execution/evidence/V9_32K.json",
+      "task": "37-01",
+      "status": "not_run",
+      "reason": "The natural cold-promotion eligibility edge was absent."
+    },
+    {
+      "path": ".wiretail/execution/evidence/V9_128K_PILOT.json",
+      "task": "37-02",
+      "status": "not_run",
+      "reason": "The 32K prerequisite was not eligible; no runtime was instantiated."
+    },
+    {
+      "path": ".wiretail/execution/evidence/V9_128K.json",
+      "task": "37-03",
+      "status": "not_run",
+      "reason": "The 128K pilot was not eligible; no population or ledger was instantiated."
+    }
+  ],
+  "identity": {
+    "integration": {
+      "merge_head": "0af11d567396f20b88ddf12c462f9456428d8ec5",
+      "upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
+      "candidate": "/srv/ai/paged-kv/v9/build-33-02-cuda/bin/llama-server",
+      "candidate_sha256": "7d56055896994e4472ac7c035b0690d8458c0c7eef68233efdebe494bfa61280",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "target_backend": "CUDA",
+      "target_kv": "turbo4/turbo4",
+      "draft_kv": "turbo4/turbo4",
+      "draft_device": "gpu",
+      "native_mtp": true,
+      "dynamic_context_rows_tested": [256, 4096, 32768]
+    },
+    "selected_small": {
+      "executable": "/srv/ai/paged-kv/results/v9/36-01/20260913T224500Z-candidate/bin/llama-server",
+      "server_sha256": "82b92cc7da404d2eddd8aaf5c218d9cc202f8167a3c727f61f467d75bb220255",
+      "model_symlink": "/srv/ai/models/text/current.gguf",
+      "model_resolved": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "loaded_pid": 3626509,
+      "health_http": 200,
+      "loaded_port_owner": 3626509,
+      "target_backend": "CUDA",
+      "mtp_backend": "gpu",
+      "page_capacity": 16,
+      "attention_tokens": 4096,
+      "loaded_dso_hashes": {
+        "libggml-cuda.so.0.22.0": "b55d857fecd7a3b511c829ff34284455fe86a65ddfeee8b2fa8701cad243540b",
+        "libllama-common.so.0.3.0": "9134c5f194579b136c2c55eaa5ea070d2cee174430d47f9bb94725073b5d116f",
+        "libllama-server-impl.so": "bc32b87cd8fa4fd58979ab98c1f4096950ca61310c23df6c7638c8fd01a58110",
+        "libllama.so.0.3.0": "5565c8ed582875a42b9b8a1ea7aa9552f6c65d7bd13c5c2533d72a0e547d44e0"
+      }
+    },
+    "scale_identity": {
+      "32k": "requested only; no process or allocation",
+      "128k_pilot": "requested only; no process or allocation",
+      "128k": "requested only; no process or allocation"
+    }
+  },
+  "validated_contract": {
+    "revision_consistent": true,
+    "units": {
+      "rates": "tok/s",
+      "durations": "seconds unless field ends _ms or _us",
+      "bytes": "integer bytes",
+      "context_and_rows": "integer tokens/rows",
+      "ratios": "dimensionless selected divided by named control"
+    },
+    "geometry_checks": [
+      {"scope": "foundation", "L": 8192, "C": null, "H": 4096, "A_by_layer": 2048, "B": 128, "U": 64, "selected_le_A_le_H_le_L": true},
+      {"scope": "cold proof", "L": 8192, "C_before": 5377, "C_after": 5415, "H": 4096, "A_by_layer": 2048, "B": 128, "U": 64, "selected_le_A_le_H_le_L": true, "C_after_le_L": true, "C_after_gt_H": true},
+      {"scope": "small comparison", "L": 8192, "C": 6144, "H": 4096, "A_by_layer": 4096, "B": 128, "U": 128, "selected_le_A_le_H_le_L": true},
+      {"scope": "32K requested", "L": 32768, "C_before": 0, "C_after": 0, "H": 16384, "A_by_layer": 2048, "B": 128, "U": 64, "selected_le_A_le_H_le_L": true, "measured": false},
+      {"scope": "128K requested", "L": 131072, "C_before": null, "C_after": null, "H": null, "A_by_layer": null, "B": null, "U": null, "selected_le_A_le_H_le_L": null, "measured": false}
+    ],
+    "type_checks": {
+      "measured_selected": {"target_k": "turbo4", "target_v": "turbo4", "draft_k": "turbo4", "draft_v": "turbo4", "draft_L": 8192, "draft_device": "gpu", "mtp_type": "native", "pass": true},
+      "scale_requests": {"target_k": "turbo4", "target_v": "turbo4", "draft_k": "turbo4", "draft_v": "turbo4", "draft_device": "gpu", "mtp_type": "native", "measured": false}
+    },
+    "formula_checks": [
+      "selected_over_cpu_kv.decode = selected.tg_tok_s / cpu_kv.tg_tok_s; three paired samples are present",
+      "selected_over_all_gpu.decode = selected.tg_tok_s / all_gpu.tg_tok_s; three paired samples are present",
+      "accepted_tokens <= proposed_tokens for every recorded small and cold row",
+      "cold natural promotion requires attention_samples > 0, a cold candidate, promotion publication, selected_cold_pages_used > 0, and useful H2D bytes; the receipt has none of these",
+      "unknown counters and unavailable ratios remain null rather than zero or extrapolated"
+    ]
+  },
+  "frontiers": {
+    "small_speed": {
+      "occupied_context": 6144,
+      "L": 8192,
+      "selected_H": 4096,
+      "selected_A_by_layer": 4096,
+      "samples_per_profile": 3,
+      "profiles": ["selected", "cpu_main_kv", "all_gpu"]
+    },
+    "cold_proof": {
+      "occupied_context": {"before": 5377, "after": 5415},
+      "L": 8192,
+      "H": 4096,
+      "A_by_layer": 2048,
+      "normal_samples": 2,
+      "diagnostic_samples": 1,
+      "selection_quality": "not measured: no current-Q sample/candidate was published; the diagnostic selected all 16 pages"
+    },
+    "scale": {
+      "32K": "not_run behind failed natural-cold gate",
+      "128K_pilot": "not_run behind failed 32K gate",
+      "128K_population": "not_run behind failed pilot"
+    }
+  },
+  "small_comparison": {
+    "workload": "Original three token-counted prompts; fresh slots; temperature 0; seed 42; thinking off; 128 committed output tokens.",
+    "rows": {
+      "selected": {
+        "raw": "/srv/ai/paged-kv/results/v9/36-04/20260915T010000Z-selected-h4096-a4096-u128",
+        "pp_tok_s": [214.230229, 215.644261, 214.908561],
+        "tg_tok_s": [43.680536, 39.610922, 42.32758],
+        "ttft_s": [28.688931, 28.499172, 28.596637],
+        "proposed_tokens": [66, 72, 67],
+        "accepted_tokens": [60, 55, 59],
+        "committed_output_tokens": [128, 128, 128],
+        "median": {"pp_tok_s": 214.908561, "tg_tok_s": 42.32758, "ttft_s": 28.596637}
+      },
+      "cpu_main_kv": {
+        "raw": "/srv/ai/paged-kv/results/v9/36-04/20260915T013000Z-cpu-kv-h4096-control",
+        "mode": "--no-kv-offload; GPU model weights; GPU Turbo4 draft",
+        "pp_tok_s": [723.488287, 729.510133, 733.696304],
+        "tg_tok_s": [12.374966, 12.389607, 12.6405],
+        "ttft_s": [8.501091, 8.429707, 8.382475],
+        "proposed_tokens": [126, 126, 126],
+        "accepted_tokens": [0, 0, 0],
+        "committed_output_tokens": [128, 128, 128],
+        "median": {"pp_tok_s": 729.510133, "tg_tok_s": 12.389607, "ttft_s": 8.429707}
+      },
+      "all_gpu": {
+        "raw": "/srv/ai/paged-kv/results/v9/36-04/20260915T020000Z-allgpu-h8192-control",
+        "mode": "pager off; KV offload enabled",
+        "pp_tok_s": [1436.449389, 1445.611004, 1440.239215],
+        "tg_tok_s": [40.296862, 40.112503, 40.323826],
+        "ttft_s": [4.286097, 4.2589, 4.274444],
+        "proposed_tokens": [126, 126, 126],
+        "accepted_tokens": [0, 0, 0],
+        "committed_output_tokens": [128, 128, 128],
+        "median": {"pp_tok_s": 1440.239215, "tg_tok_s": 40.296862, "ttft_s": 4.274444}
+      }
+    },
+    "ratios": {
+      "selected_over_cpu_kv": {
+        "decode_by_prompt": [3.52975, 3.197109, 3.348569],
+        "decode_median": 3.416378,
+        "prefill_by_prompt": [0.296107, 0.295601, 0.292912],
+        "prefill_median": 0.294593,
+        "ttft_by_prompt": [3.374735, 3.380802, 3.411479],
+        "ttft_median": 3.392364,
+        "sample_count": 3
+      },
+      "selected_over_all_gpu": {
+        "decode_by_prompt": [1.083969, 0.987496, 1.049692],
+        "decode_median": 1.050394,
+        "prefill_by_prompt": [0.149139, 0.149172, 0.149217],
+        "prefill_median": 0.149217,
+        "ttft_by_prompt": [6.693487, 6.691675, 6.690142],
+        "ttft_median": 6.690142,
+        "sample_count": 3
+      }
+    },
+    "interpretation": "The CPU-main-KV denominator is real and the selected route is faster on committed decode. The all-GPU control is also real; selected decode is approximately equal to it, while selected prefill and TTFT are substantially slower. This is not a dense-equivalent or overall speed win."
+  },
+  "append_decode_and_work": {
+    "cold_proof": {
+      "frontier": {"L": 8192, "C_before": 5377, "C_after": 5415, "H": 4096, "A_by_layer": 2048, "B": 128, "U": 64},
+      "route": "selected packed",
+      "prefill_new_tokens": 34,
+      "cached_tokens": 5381,
+      "prefill_seconds": 0.291353,
+      "committed_output_tokens": 15,
+      "decode_seconds": 0.468757,
+      "ttft_seconds": 0.303597,
+      "pp_tok_s": 116.696928,
+      "tg_tok_s": 29.866221,
+      "proposed_tokens": 16,
+      "accepted_tokens": 7,
+      "pack_bytes": 34603008,
+      "host_copy_bytes": 90832896,
+      "h2d_bytes": 0,
+      "selected_cold_pages_used": 0,
+      "graph_builds": 115,
+      "graph_replays": 0,
+      "router_refreshes": 115,
+      "queue_time_us": 4896310,
+      "copy_time_us": 0,
+      "wait_time_us": 109555,
+      "attention_samples": 0,
+      "attention_skipped": 10,
+      "transfer_submitted": 0,
+      "transfer_event_completions": 0,
+      "recall": "cedar; coherent cold-topic answer and append-after-recall passed",
+      "natural_use": false
+    },
+    "foundation_fixture": {
+      "route": "packed for selected typed views; direct only explicit diagnostic fixture",
+      "packed_event_overhead": "1–3% versus contiguous across measured A/U shapes",
+      "incremental_tail_h2d_ms": [0.002048, 0.005888, 0.001728],
+      "incremental_append_attention_ms": [22.96928, 1.246208, 1.299456],
+      "dominant_measured_event": "first append+attention event; includes append metadata/page-table and first-use graph/kernel warmup, not tail H2D"
+    },
+    "memory": {
+      "cold_peak_bytes_by_category": {
+        "target_valid": 64965120,
+        "host_valid": 64880640,
+        "host_pageable": 90832896,
+        "packed_workspace": 69206016
+      },
+      "safety_headroom_bytes": 201326592,
+      "cpu_rss": null,
+      "cpu_rss_reason": "not captured by the bounded receipt",
+      "foundation_fixed_categories": {
+        "graph_bytes": 268435000,
+        "packed_workspace_bytes": 69206000,
+        "packed_dequant_bytes": 8388610
+      }
+    }
+  },
+  "failure_classification": {
+    "measurement_failure": "The live packed path published no usable current-Q attention sample or catalogue candidate: attention_samples=0, attention_skipped=10, transfer_submitted=0, and h2d_bytes=0. The 32K and 128K gates therefore correctly remained not_run.",
+    "runtime_failure": "No selected small-request crash, non-finite result, or output-completion failure was recorded. The cold-topic recall and append-after-recall were coherent, but that does not prove cold transfer.",
+    "selection_quality": "Unmeasured, not failed: the normal candidate set was absent and the A4096/recent512 diagnostic selected all 16 pages, so recall cannot be attributed to attention-ranked cold selection.",
+    "latency_dominators": [
+      "Foundation: first incremental append+attention event 22.969280 ms versus 1.246208–1.299456 ms for later tails.",
+      "Cold receipt: 115 graph builds, 0 replays, 115 router refreshes, and 4,896,310 us queue time; this identifies graph/router churn as a measured hot-loop cost.",
+      "Small comparison: selected prefill and TTFT are slower than all-GPU, but no per-category small receipt exists, so a finer attribution would be speculation."
+    ]
+  },
+  "ledger_256k_estimate": {
+    "status": "estimate_only_not_demonstrated",
+    "L": 262144,
+    "assumed_C": 262144,
+    "assumed_page_tokens": 256,
+    "logical_pages": 1024,
+    "basis": "Measured C5415/H4096 cold receipt and foundation fixed-category receipt; missing categories remain null.",
+    "categories": {
+      "canonical_host_history": {
+        "estimate_bytes": 3140917912,
+        "formula": "ceil(64880640 * 262144 / 5415)",
+        "basis": "Proportional estimate from measured canonical host valid bytes at C_after=5415",
+        "confidence": "low; page metadata and partial final page may change the slope"
+      },
+      "target_hot_H4096": {
+        "estimate_bytes": 64965120,
+        "formula": "hold measured H=4096 target_valid constant",
+        "basis": "Measured cold target_valid",
+        "confidence": "conditional on retaining H4096"
+      },
+      "target_hot_H16384_sensitivity": {
+        "estimate_bytes": 259860480,
+        "formula": "64965120 * 16384 / 4096",
+        "basis": "Linear page-capacity sensitivity only; not a fit or allocation",
+        "confidence": "low"
+      },
+      "full_L_draft_gpu": {
+        "estimate_bytes": null,
+        "formula": null,
+        "basis": "No authoritative draft-context byte counter was present in the selected receipts",
+        "confidence": "unmeasured"
+      },
+      "all_history_catalogue": {
+        "estimate_bytes": null,
+        "formula": "llama_context_catalogue_reserve_bytes: sum over full-attention layers of page_count * (2 * F16 KV row + validity/generation/position metadata), aligned",
+        "basis": "The source formula is known, but model geometry/catalogue_bytes was not present in the selected receipts",
+        "confidence": "unmeasured"
+      },
+      "packed_workspace": {
+        "estimate_bytes": 69206016,
+        "formula": "hold measured two-owner A=4096 workspace constant",
+        "basis": "Measured cold peak",
+        "confidence": "conditional on retaining A=4096"
+      },
+      "dequant_scratch": {
+        "estimate_bytes": 8388610,
+        "formula": "hold measured foundation category constant",
+        "basis": "Foundation bounded memory receipt",
+        "confidence": "conditional"
+      },
+      "graph": {
+        "estimate_bytes": 268435000,
+        "formula": "hold measured graph category constant",
+        "basis": "Foundation bounded memory receipt",
+        "confidence": "conditional; larger full-L graph shape is unmeasured"
+      },
+      "measured_category_partial_sum": {
+        "estimate_bytes": 3551912658,
+        "formula": "3140917912 + 64965120 + 69206016 + 8388610 + 268435000",
+        "basis": "Host estimate plus H4096 target and fixed measured categories",
+        "confidence": "not a total: excludes weights, full-L draft, catalogue, recurrent state, transfer ring, and other admission charges"
+      }
+    },
+    "must_prove_next": [
+      "A real full-L=262144 GPU draft allocation with target/draft K/V Turbo4, native MTP, and authoritative admission/headroom bytes",
+      "Catalogue and graph/scratch bytes at the resolved 256K geometry, with no inferred values standing in for null counters",
+      "Natural current-Q catalogue candidate publication followed by authenticated H2D promotion and target attention use before any 256K achievement claim"
+    ]
+  },
+  "next_actions": [
+    {
+      "order": 1,
+      "action": "Repair the first missing edge: make a completed current-Q attention sample reach the catalogue/policy producer and publish a candidate with its identity tuple.",
+      "source_symbols": ["src/llama-graph.cpp:llm_graph_context::build_attn_inp_kv", "src/llama-context.cpp:llama_context::publish_kv_attention_telemetry", "src/llama-kv-attention-telemetry.cpp:llama_kv_attention_telemetry::publish_completed"],
+      "cheapest_discriminating_test": "Run the existing focused attention-telemetry tests, then one bounded C>H natural recall request; require attention_samples>0 and a non-sentinel query/catalogue candidate before considering scale.",
+      "stop_condition": "If the natural request still has zero samples, zero candidate publication, or zero H2D, do not launch 32K."
+    },
+    {
+      "order": 2,
+      "action": "Check packed-route Q transform/grouping against the selected Turbo4 K/V layout and preserve the full-L GPU native-MTP contract.",
+      "source_symbols": ["src/llama-graph.cpp:llm_graph_context::build_attn_mha", "src/llama-graph.cpp:llm_graph_context::build_attn", "src/llama-kv-attention-execution.cpp:llama_kv_attention_execution::prepare"],
+      "cheapest_discriminating_test": "Use the existing CUDA selected-packed/multi-KV-head attention fixture and compare its output/route metadata with the contiguous typed-view control at A4096/U128.",
+      "stop_condition": "Stop at the first Q/layout or route mismatch; do not revive the superseded direct-kernel performance path."
+    },
+    {
+      "order": 3,
+      "action": "After actions 1–2 pass, rerun one natural cold proof and the original-three-prompt comparison; only then reopen the bounded 32K gate and conditionally the 128K pilot.",
+      "source_symbols": ["src/llama-kv-cache.cpp:llama_kv_cache::apply_pager_live_policy", "src/llama-context.cpp:llama_context::get_kv_pager_metrics"],
+      "cheapest_discriminating_test": "Use the existing incremental recall harness at C>H and inspect candidate_was_cold, promotion_published, selected_cold_pages_used, useful H2D bytes, and committed recall before any scale allocation.",
+      "stop_condition": "Do not claim 32K/128K/256K capability unless the natural cold proof and full-L GPU-Turbo4 ledger are both measured."
+    }
+  ],
+  "deferred_verification": [
+    "No new live campaign was launched for this aggregation task; 32K and both 128K receipts remain honest not_run findings behind the failed natural-cold gate.",
+    "256K remains an estimate/design extension, not a demonstrated runtime result.",
+    "CPU RSS, full-L draft bytes at 256K, catalogue bytes at 256K, and larger-context graph/scratch growth are null because the selected receipts did not measure them."
+  ],
+  "decision": {
+    "capability_proven": false,
+    "reason": "The compact small comparison and full-L GPU Turbo4 native-MTP identity are valid, but natural cold selection/promotion is not proven and the larger campaign was correctly not run.",
+    "next_action": "Repair current-Q attention-sample/catalogue publication, verify packed Q/layout, then rerun the bounded natural proof before scale."
+  }
+}

@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "37",
-  "current_task": "37-04",
-  "last_updated_utc": "2026-09-14T00:02:28+00:00",
+  "current_phase": "38",
+  "current_task": "38-01",
+  "last_updated_utc": "2026-09-14T00:12:12+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7299,7 +7299,7 @@
       "cluster": "37c-summary-v9",
       "title": "Create compact benchmark summary and measured next-step diagnosis",
       "packet": ".wiretail/execution/tasks/37-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -7320,7 +7320,32 @@
       "depends_on": [
         "37-03"
       ],
-      "commit": null
+      "commit": "ce209a1a23ad1f3cb7ed7b0a7160bfc8f65d14e2",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/37-04-attempt-1-20260914T000245Z.jsonl:98",
+            "total_tokens": 3231244,
+            "total_tokens_derived": true,
+            "input_tokens": 3202506,
+            "cached_input_tokens": 3051776,
+            "output_tokens": 28738,
+            "thinking_tokens": 10069
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 3231244,
+          "input_tokens": 3202506,
+          "cached_input_tokens": 3051776,
+          "output_tokens": 28738,
+          "thinking_tokens": 10069
+        }
+      }
     },
     {
       "id": "38-01",
@@ -9548,15 +9573,28 @@
           "cached_input_tokens": 1441280,
           "output_tokens": 14755,
           "thinking_tokens": 4256
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/37-04-attempt-1-20260914T000245Z.jsonl:98",
+          "total_tokens": 3231244,
+          "total_tokens_derived": true,
+          "input_tokens": 3202506,
+          "cached_input_tokens": 3051776,
+          "output_tokens": 28738,
+          "thinking_tokens": 10069
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 3273121,
-        "input_tokens": 3240488,
-        "cached_input_tokens": 2939648,
-        "output_tokens": 32633,
-        "thinking_tokens": 9021
+        "turns": 4,
+        "total_tokens": 6504365,
+        "input_tokens": 6442994,
+        "cached_input_tokens": 5991424,
+        "output_tokens": 61371,
+        "thinking_tokens": 19090
       }
     },
     "38": {
@@ -9573,12 +9611,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 136,
-      "total_tokens": 3175706440,
-      "input_tokens": 3168447286,
-      "cached_input_tokens": 3106189568,
-      "output_tokens": 7259154,
-      "thinking_tokens": 2653382
+      "turns": 137,
+      "total_tokens": 3178937684,
+      "input_tokens": 3171649792,
+      "cached_input_tokens": 3109241344,
+      "output_tokens": 7287892,
+      "thinking_tokens": 2663451
     },
     "source": "Codex turn.completed usage events"
   }
