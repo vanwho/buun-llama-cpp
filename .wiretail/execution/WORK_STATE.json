@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "49",
-  "current_task": "49-02",
-  "last_updated_utc": "2026-09-14T05:26:37+00:00",
+  "current_task": "49-03",
+  "last_updated_utc": "2026-09-14T05:33:58+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8576,7 +8576,7 @@
       "cluster": "49b-selector-correctness-v10",
       "title": "Restore valid cold-page metadata from canonical host storage",
       "packet": ".wiretail/execution/tasks/49-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -8602,7 +8602,32 @@
       "depends_on": [
         "49-01"
       ],
-      "commit": null
+      "commit": "016d2be905374e3662307aeafaccb3202eb28cd3",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/49-02-attempt-1-20260914T052654Z.jsonl:72",
+            "total_tokens": 3187211,
+            "total_tokens_derived": true,
+            "input_tokens": 3174225,
+            "cached_input_tokens": 3060480,
+            "output_tokens": 12986,
+            "thinking_tokens": 4017
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 3187211,
+          "input_tokens": 3174225,
+          "cached_input_tokens": 3060480,
+          "output_tokens": 12986,
+          "thinking_tokens": 4017
+        }
+      }
     },
     {
       "id": "49-03",
@@ -11823,15 +11848,28 @@
           "cached_input_tokens": 13782784,
           "output_tokens": 32183,
           "thinking_tokens": 8837
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/49-02-attempt-1-20260914T052654Z.jsonl:72",
+          "total_tokens": 3187211,
+          "total_tokens_derived": true,
+          "input_tokens": 3174225,
+          "cached_input_tokens": 3060480,
+          "output_tokens": 12986,
+          "thinking_tokens": 4017
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 14064754,
-        "input_tokens": 14032571,
-        "cached_input_tokens": 13782784,
-        "output_tokens": 32183,
-        "thinking_tokens": 8837
+        "turns": 2,
+        "total_tokens": 17251965,
+        "input_tokens": 17206796,
+        "cached_input_tokens": 16843264,
+        "output_tokens": 45169,
+        "thinking_tokens": 12854
       }
     },
     "50": {
@@ -11870,12 +11908,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 160,
-      "total_tokens": 3326790860,
-      "input_tokens": 3319037835,
-      "cached_input_tokens": 3251869952,
-      "output_tokens": 7753025,
-      "thinking_tokens": 2815984
+      "turns": 161,
+      "total_tokens": 3329978071,
+      "input_tokens": 3322212060,
+      "cached_input_tokens": 3254930432,
+      "output_tokens": 7766011,
+      "thinking_tokens": 2820001
     },
     "source": "Codex turn.completed usage events"
   }
