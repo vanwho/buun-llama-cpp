@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "49",
-  "current_task": "49-06",
-  "last_updated_utc": "2026-09-14T07:19:06+00:00",
+  "current_task": "49-07",
+  "last_updated_utc": "2026-09-14T07:52:24+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8813,7 +8813,7 @@
       "cluster": "49c-residency-proof-v10",
       "title": "Prove real cold GPU-selector promotion and target consumption",
       "packet": ".wiretail/execution/tasks/49-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -8840,7 +8840,32 @@
       "depends_on": [
         "49-05"
       ],
-      "commit": null
+      "commit": "0710ef9ede45e0de4a18f41c61bfa7a5426540ac",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/49-06-attempt-1-20260914T071924Z.jsonl:366",
+            "total_tokens": 58769330,
+            "total_tokens_derived": true,
+            "input_tokens": 58662587,
+            "cached_input_tokens": 57745152,
+            "output_tokens": 106743,
+            "thinking_tokens": 41132
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 58769330,
+          "input_tokens": 58662587,
+          "cached_input_tokens": 57745152,
+          "output_tokens": 106743,
+          "thinking_tokens": 41132
+        }
+      }
     },
     {
       "id": "49-07",
@@ -11975,15 +12000,28 @@
           "cached_input_tokens": 18805504,
           "output_tokens": 40347,
           "thinking_tokens": 18309
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/49-06-attempt-1-20260914T071924Z.jsonl:366",
+          "total_tokens": 58769330,
+          "total_tokens_derived": true,
+          "input_tokens": 58662587,
+          "cached_input_tokens": 57745152,
+          "output_tokens": 106743,
+          "thinking_tokens": 41132
         }
       ],
       "totals": {
-        "turns": 5,
-        "total_tokens": 125496213,
-        "input_tokens": 125233125,
-        "cached_input_tokens": 122785536,
-        "output_tokens": 263088,
-        "thinking_tokens": 94807
+        "turns": 6,
+        "total_tokens": 184265543,
+        "input_tokens": 183895712,
+        "cached_input_tokens": 180530688,
+        "output_tokens": 369831,
+        "thinking_tokens": 135939
       }
     },
     "50": {
@@ -12022,12 +12060,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 164,
-      "total_tokens": 3438222319,
-      "input_tokens": 3430238389,
-      "cached_input_tokens": 3360872704,
-      "output_tokens": 7983930,
-      "thinking_tokens": 2901954
+      "turns": 165,
+      "total_tokens": 3496991649,
+      "input_tokens": 3488900976,
+      "cached_input_tokens": 3418617856,
+      "output_tokens": 8090673,
+      "thinking_tokens": 2943086
     },
     "source": "Codex turn.completed usage events"
   }
