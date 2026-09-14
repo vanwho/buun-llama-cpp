@@ -1,0 +1,178 @@
+{
+  "schema": "hotpath-v9-benchmark",
+  "task": "45-02",
+  "revision": "hotpath-v9-20260914-r3",
+  "utc": "2026-09-14T02:56:51Z",
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "route": "selected_packed",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "source_commit": "645f9dfce13093492c8ec72f627dfc161d15a251",
+    "candidate_binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "candidate_binary_sha256": "ebc2cac869de80023daa278f020b40588d33c64028e53baff61a1cdf61896d3c",
+    "source_diff_sha256": "42d1e2c9a5fa6f3d963f79b90d0e908ba22a34396263376485222cf20d0f6f56"
+  },
+  "provenance": {
+    "producer": "selected-packed current-Q attention telemetry and pager metrics",
+    "loaded_dso_hashes": {
+      "libggml-cuda.so.0.22.0": "b55d857fecd7a3b511c829ff34284455fe86a65ddfeee8b2fa8701cad243540b",
+      "libllama.so.0.3.0": "41c9846103686a5e8ba549c2724fcf52820886520a193cb7aaf52ab96d735169",
+      "libllama-server-impl.so": "bc32b87cd8fa4fd58979ab98c1f4096950ca61310c23df6c7638c8fd01a58110"
+    },
+    "model_hash": null,
+    "prompt_hash": null,
+    "effective_config_hash": null,
+    "raw_root": "/srv/ai/paged-kv/results/v9/45-02/",
+    "raw_runs": {
+      "all_gpu": "20260914T024837Z-selected-controls",
+      "selected_packed": "20260914T024949Z-selected-controls",
+      "natural_failed_runtime": "20260914T025050Z-natural-cold-incremental",
+      "natural_recovery": "20260914T025217Z-natural-cold-recovery",
+      "cpu_main_kv": "20260914T025330Z-cpu-main-kv"
+    }
+  },
+  "config": {
+    "L": 8192,
+    "C_before": 5004,
+    "C_after": 5052,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 8192,
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "invariant": "selected <= A_by_layer <= H <= L",
+    "selected_rows_by_layer": 2048
+  },
+  "execution": {
+    "target_attention_route": "selected packed",
+    "target_layer_count": null,
+    "resident_bytes": 68175360,
+    "canonical_host_bytes": 64880640,
+    "selected_rows_by_layer": 2048,
+    "fresh_or_restored": "fresh slot for matched controls; fresh service and slot for recovery natural run",
+    "candidate": {"non_sentinel_current_q": false, "published": false},
+    "promotion": {"published": false},
+    "transfer": {"submitted": 0, "useful_h2d_bytes": 0},
+    "memory": {
+      "target_allocated_bytes": 69206016,
+      "target_valid_bytes": 68175360,
+      "host_valid_bytes": 64880640,
+      "weights_bytes": 13695551488,
+      "mtp_compute_bytes": 268435456,
+      "packed_workspace_bytes": 69206016,
+      "headroom_bytes": 201326592
+    },
+    "natural_proof": {
+      "candidate_was_cold": false,
+      "host_ready": false,
+      "promotion_published": false,
+      "selected_in_last_graph": false,
+      "selected_cold_pages_used": 0
+    }
+  },
+  "rates": {
+    "selected_packed": {
+      "prefill_tok_s": [304.667506, 578.084186, 601.077646],
+      "decode_tok_s": [34.783609, 34.439847, 34.168792],
+      "ttft_ms": [98.468, 46.706, 46.583],
+      "committed_output_tokens": [128, 128, 128],
+      "proposed_tokens": [245, 249, 251],
+      "accepted_tokens": [3, 1, 0]
+    },
+    "cpu_main_kv_gpu_weights_native_mtp": {
+      "prefill_tok_s": [153.640512, 204.737784, 213.469954],
+      "decode_tok_s": [10.121513, 10.084606, 10.153031],
+      "ttft_ms": [195.261, 131.876, 131.166],
+      "committed_output_tokens": [128, 128, 128],
+      "proposed_tokens": [251, 251, 251],
+      "accepted_tokens": [0, 0, 0]
+    },
+    "all_gpu_pager_off": {
+      "prefill_tok_s": [301.604536, 579.710145, 599.276588],
+      "decode_tok_s": [36.529628, 36.668661, 36.782105],
+      "ttft_ms": [99.468, 46.575, 46.723],
+      "committed_output_tokens": [128, 128, 128],
+      "proposed_tokens": [251, 251, 251],
+      "accepted_tokens": [0, 0, 0]
+    },
+    "natural_incremental": {
+      "prefill_tok_s": [802.507032, 377.310646, 235.744365, 171.19522, 147.522793, 143.329956, 128.867877],
+      "decode_tok_s": [31.540843, 25.633947, 34.696737, 33.920152, 33.056927, 33.20121, 31.073271],
+      "committed_output_tokens": [14, 14, 14, 14, 14, 14, 8],
+      "proposed_tokens": [21, 20, 30, null, null, null, 7],
+      "accepted_tokens": [1, 1, 2, null, null, null, 3]
+    }
+  },
+  "work": {
+    "pack_bytes": null,
+    "host_copy_bytes": null,
+    "h2d_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "graph_builds": 67,
+    "graph_replays": 73,
+    "attention_samples": 26,
+    "attention_mass_samples": 26,
+    "attention_d2h_bytes": 1803264,
+    "queue_samples": null,
+    "copy_samples": null,
+    "wait_samples": null
+  },
+  "resources": {
+    "peak_bytes_by_category": {
+      "target_allocated": 69206016,
+      "target_valid": 68175360,
+      "host_valid": 64880640,
+      "weights": 13695551488,
+      "mtp_compute": 268435456,
+      "packed_workspace": 69206016,
+      "headroom": 201326592
+    },
+    "safety_headroom_bytes": 201326592,
+    "CPU_RSS": null
+  },
+  "failure_classification": {
+    "measurement": {"status": "pass", "cause": "26 current-Q attention samples and positive attention publication were observed."},
+    "runtime": {"status": "recovered_after_failure", "cause": "The first fresh natural run failed at C=2807 with KV pager batch write reservation transaction; a fresh managed restart completed the bounded recovery run."},
+    "selection_quality": {"status": "failed_gate", "cause": "No non-sentinel cold candidate, host-ready promotion, useful H2D, or selected cold-page use was observed."}
+  },
+  "sample_counts": {
+    "selected_comparison": 3,
+    "cpu_main_kv_control": 3,
+    "all_gpu_control": 3,
+    "natural_cold_growth": 6,
+    "natural_cold_recall": 1,
+    "natural_cold_attention": 26,
+    "scale_32k": 0,
+    "scale_128k": 0,
+    "scale_256k": 0
+  },
+  "decision": {
+    "decision": "fail",
+    "capability_proven": false,
+    "reason": "The L8192 natural incremental/recall run completed coherently after restart, but natural-cold eligibility was not met.",
+    "active_up_to_128k": {"status": "not_run", "reason": "Stopped before 32K because natural-cold eligibility failed."},
+    "overall_256k": {"status": "not_demonstrated"},
+    "next_action": "Repair or instrument candidate/promotion selection after current-Q publication, then repeat the bounded L8192 natural fixture.",
+    "partial_checkpoint": "Natural recovery reached C=5004 and recall C=5052 with coherent output; no cold promotion/use.",
+    "deferred_scale": {"status": "not_run", "reason": "B5 gate failed; no 32K, 128K, or 256K scale claim."}
+  }
+}
