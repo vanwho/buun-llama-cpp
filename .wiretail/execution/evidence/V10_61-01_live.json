@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "task": "61-01",
+  "fixture": {
+    "logical_capacity_tokens": 262144,
+    "requested_hot_capacity_tokens": 30208,
+    "observed_hot_capacity_pages": 98,
+    "batch_tokens": 128,
+    "ubatch_tokens": 128,
+    "target_kv": "turbo4/gpu",
+    "draft_kv": "turbo4/gpu"
+  },
+  "result": {
+    "occupied_tokens_before": 0,
+    "occupied_tokens_after": 1200,
+    "invalid_response_count_before": 1,
+    "invalid_response_count_after": 0,
+    "requests": [
+      {
+        "turn": 0,
+        "status": "pass",
+        "occupied_after_tokens": 1000,
+        "scratch_high_water_rows": 1000,
+        "scratch_high_water_bytes": 21397500
+      },
+      {
+        "turn": 1,
+        "status": "pass",
+        "occupied_before_tokens": 1000,
+        "occupied_after_tokens": 1200,
+        "cached_tokens": 1000,
+        "scratch_high_water_rows": 1200,
+        "scratch_high_water_bytes": 26542100
+      }
+    ],
+    "managed_resume_frontier_check": {
+      "status": "pass",
+      "occupied_tokens": 1200,
+      "next_turn_index": 2
+    }
+  },
+  "scratch_ledger_assertion": {
+    "reserved_k_bytes": 536870912,
+    "reserved_v_bytes": 536870912,
+    "charged_physical_bytes": 1073741824,
+    "charged_once": true,
+    "replay_physical_bytes": 1073741824,
+    "replay_projection_bytes": 1073741824
+  },
+  "raw_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/v10/59-02/full-L-C262144/raw-01.sse",
+      "sha256": "557e7acd4a87063fb25afa90b28fc8a59cff9b5f0ecd0ee91d96253e5301c1a4"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/61-01-full-L-C262144-final2/INTERACTIVE29_01_SCALE.json",
+      "sha256": "336adf1f22bcd3390e70d7aed330fd77eb962232b8984ed84950c6848a4c811f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/61-01-full-L-C262144-final2/incremental-state.json",
+      "sha256": "e1e53ca2908c2dc51afb5eb3597259ef7033781108f14fdf7431b4e69a67c8cb"
+    }
+  ],
+  "candidate": {
+    "binary": "build-cuda/bin/llama-server",
+    "binary_sha256": "6eba63422284d5023ccef664ce4c262add5d3433297a457c4ae53f90d32ca04a",
+    "libllama_sha256": "16f9aeeee56534bdd6a76d83f58000a35133c4ca7a73e95f7a3ebf9e407a4e85",
+    "libggml_cuda_sha256": "0a373e08fe1e93488f8aa6cc8841c087cc9e678a47fe93d1d82457f0e43ebae4"
+  }
+}

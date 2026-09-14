@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "task": "61-01",
+  "source_commit": "03917ace27855ca9b3c43da09353a939d52c1845",
+  "checks": {
+    "full_l_vbr_resume_boundary_repair": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-incremental-scale.py",
+        "--new-session/--resume",
+        "--context",
+        "262144",
+        "--hot-pages",
+        "118",
+        "--batch-tokens",
+        "128",
+        "--ubatch-tokens",
+        "128",
+        "--target-tokens",
+        "1200"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_61-01_live.json",
+          "sha256": "cb1a32b63aa5cc839ce2a1d7a40aa68e6057009160a9796ad3719614acfa0559"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_61-01_scratch-test.log",
+          "sha256": "3b340149d2cd1142cd73cfd191ad2a62a7478900e32b978a54f96f2daf6c8f8c"
+        }
+      ]
+    }
+  }
+}
