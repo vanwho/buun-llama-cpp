@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "task": "50-03",
+  "source_commit": "ec917fed849a282c106eff6efdf1604ee5e434fb",
+  "checks": {
+    "async_snapshot_ownership": {
+      "status": "pass",
+      "command": [
+        "bash",
+        "-c",
+        "echo endpoint_pid=$$; exec env LD_LIBRARY_PATH=build-cuda/bin ./build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_50-03-async-snapshot.log",
+          "sha256": "bb37393090937767b1534f4ce92342f51bc465fcde236fe6c800be09562e6193"
+        }
+      ],
+      "observed_device": "NVIDIA GeForce RTX 4080, compute capability 8.9",
+      "endpoint_pid": 251802
+    },
+    "async_transfer_publication": {
+      "status": "pass",
+      "command": [
+        "bash",
+        "-c",
+        "echo endpoint_pid=$$; exec env LD_LIBRARY_PATH=build-cuda/bin ./build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_50-03-async-transfer.log",
+          "sha256": "ac3ec9ec181fb5ac923dcef9c6fb92ef6855be0f1177e4da2bb40fadfa4d28c0"
+        }
+      ],
+      "observed_bytes": 1081344,
+      "published_epoch": 6174,
+      "checksum": "0x3e1c5cadefa47a9a"
+    },
+    "live_overlap_trace": {
+      "status": "pass",
+      "command": [
+        "bash",
+        "-c",
+        "echo endpoint_pid=$$; exec env LD_LIBRARY_PATH=build-cuda/bin ./build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_50-03-live-overlap.log",
+          "sha256": "23ec83c1f6199bb74e17c47cfcf11fa78244e5f52909e29d842504b8e674368e"
+        }
+      ],
+      "trace_scope": "bounded CUDA production-promotion fixture",
+      "overlap_ratio": null
+    }
+  },
+  "supporting_checks": {
+    "unit_and_policy_regressions": {
+      "command": [
+        "./build/bin/test-kv-prefetch",
+        "./build/bin/test-kv-policy"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_50-03-unit-tests.log",
+          "sha256": "73608863857802f10a8ad106b41a69eb8b5601fd54d39b901fd7a8837d1a60d9"
+        }
+      ]
+    },
+    "inherited_build_receipt": {
+      "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T051628Z-candidate/bundle/build-receipt.json",
+      "sha256": "055cccb3a5600127cc4723782826c03a573beb2f10e1ee5a0a23e800f227c934"
+    }
+  }
+}

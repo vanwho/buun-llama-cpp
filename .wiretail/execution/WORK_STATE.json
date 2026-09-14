@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "50",
-  "current_task": "50-03",
-  "last_updated_utc": "2026-09-14T09:58:15+00:00",
+  "current_task": "50-04",
+  "last_updated_utc": "2026-09-14T10:48:45+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -9065,7 +9065,7 @@
       "cluster": "50b-hotpath-ownership-v10",
       "title": "Overlap selector snapshots and page movement with compute",
       "packet": ".wiretail/execution/tasks/50-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -9092,7 +9092,32 @@
       "depends_on": [
         "50-02"
       ],
-      "commit": null
+      "commit": "03893c4119da8ee43de2149a0c4c76984825a39b",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/50-03-attempt-1-20260914T095832Z.jsonl:329",
+            "total_tokens": 23623666,
+            "total_tokens_derived": true,
+            "input_tokens": 23555112,
+            "cached_input_tokens": 22872576,
+            "output_tokens": 68554,
+            "thinking_tokens": 28710
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 23623666,
+          "input_tokens": 23555112,
+          "cached_input_tokens": 22872576,
+          "output_tokens": 68554,
+          "thinking_tokens": 28710
+        }
+      }
     },
     {
       "id": "50-04",
@@ -12165,15 +12190,28 @@
           "cached_input_tokens": 24064000,
           "output_tokens": 68631,
           "thinking_tokens": 29785
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/50-03-attempt-1-20260914T095832Z.jsonl:329",
+          "total_tokens": 23623666,
+          "total_tokens_derived": true,
+          "input_tokens": 23555112,
+          "cached_input_tokens": 22872576,
+          "output_tokens": 68554,
+          "thinking_tokens": 28710
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 52015126,
-        "input_tokens": 51868888,
-        "cached_input_tokens": 50449664,
-        "output_tokens": 146238,
-        "thinking_tokens": 63525
+        "turns": 4,
+        "total_tokens": 75638792,
+        "input_tokens": 75424000,
+        "cached_input_tokens": 73322240,
+        "output_tokens": 214792,
+        "thinking_tokens": 92235
       }
     },
     "51": {
@@ -12201,12 +12239,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 169,
-      "total_tokens": 3560214391,
-      "input_tokens": 3551931008,
-      "cached_input_tokens": 3480004608,
-      "output_tokens": 8283383,
-      "thinking_tokens": 3023648
+      "turns": 170,
+      "total_tokens": 3583838057,
+      "input_tokens": 3575486120,
+      "cached_input_tokens": 3502877184,
+      "output_tokens": 8351937,
+      "thinking_tokens": 3052358
     },
     "source": "Codex turn.completed usage events"
   }
