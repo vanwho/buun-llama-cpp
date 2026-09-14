@@ -1,0 +1,24 @@
+{
+  "schema": "hotpath-v9-summary-index",
+  "task": "37-04",
+  "revision": "hotpath-v9-20260913",
+  "summary": ".wiretail/execution/evidence/V9_SUMMARY.json",
+  "summary_markdown": ".wiretail/execution/evidence/V9_SUMMARY.md",
+  "receipts": [
+    {"requested": ".wiretail/execution/evidence/V9_INTEGRATION.json", "resolved": ".wiretail/execution/evidence/33-03-integration.json", "status": "fallback"},
+    {"path": ".wiretail/execution/evidence/V9_FOUNDATION.json", "task": "34-06", "status": "pass"},
+    {"path": ".wiretail/execution/evidence/V9_COLD_PROOF.json", "task": "35-05", "status": "fail"},
+    {"path": ".wiretail/execution/evidence/V9_SMALL.json", "task": "36-04", "status": "pass"},
+    {"path": ".wiretail/execution/evidence/V9_32K.json", "task": "37-01", "status": "not_run"},
+    {"path": ".wiretail/execution/evidence/V9_128K_PILOT.json", "task": "37-02", "status": "not_run"},
+    {"path": ".wiretail/execution/evidence/V9_128K.json", "task": "37-03", "status": "not_run"}
+  ],
+  "raw_roots": [
+    "/srv/ai/paged-kv/results/v9/34-06/",
+    "/srv/ai/paged-kv/results/v9/35-05/",
+    "/srv/ai/paged-kv/results/v9/36-04/"
+  ],
+  "new_raw_root": "/srv/ai/paged-kv/results/v9/37-04/20260914T000602Z-summary",
+  "new_raw_root_manifest": "aggregation.json",
+  "new_raw_root_reason": "Aggregation manifest only; 37-04 launched no live campaign."
+}
