@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "60",
-  "current_task": "60-01",
-  "last_updated_utc": "2026-09-14T20:19:14+00:00",
+  "current_phase": "61",
+  "current_task": "61-01",
+  "last_updated_utc": "2026-09-14T20:26:08+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -10618,7 +10618,7 @@
       "cluster": "60a-review-v10",
       "title": "Review the phase-59 summary and schedule only measured next work",
       "packet": ".wiretail/execution/tasks/60-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -10644,6 +10644,242 @@
       ],
       "depends_on": [
         "59-03"
+      ],
+      "commit": "b9f4bc01bd0bed76a8bb2c25a34fdac095f61afa",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/60-01-attempt-1-20260914T201932Z.jsonl:54",
+            "total_tokens": 1157548,
+            "total_tokens_derived": true,
+            "input_tokens": 1137281,
+            "cached_input_tokens": 1066496,
+            "output_tokens": 20267,
+            "thinking_tokens": 8817
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 1157548,
+          "input_tokens": 1137281,
+          "cached_input_tokens": 1066496,
+          "output_tokens": 20267,
+          "thinking_tokens": 8817
+        }
+      }
+    },
+    {
+      "id": "61-01",
+      "phase": "61",
+      "cluster": "61a-full-l-resource-v10",
+      "title": "Repair the combined full-L VBR scratch/resume boundary",
+      "packet": ".wiretail/execution/tasks/61-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/60-01.md"
+      ],
+      "required_proofs": [
+        "full_l_vbr_resume_boundary_repair"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "61-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_61-01.json"
+      ],
+      "depends_on": [
+        "60-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "61-02",
+      "phase": "61",
+      "cluster": "61b-packed-graph-v10",
+      "title": "Repair the alternate full-L packed-graph launch boundary",
+      "packet": ".wiretail/execution/tasks/61-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/60-01.md"
+      ],
+      "required_proofs": [
+        "full_l_packed_graph_boundary_repair"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "61-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_61-02.json"
+      ],
+      "depends_on": [
+        "61-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "61-03",
+      "phase": "61",
+      "cluster": "61c-bounded-revalidation-v10",
+      "title": "Run bounded post-boundary V10 revalidation",
+      "packet": ".wiretail/execution/tasks/61-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/60-01.md"
+      ],
+      "required_proofs": [
+        "phase61_bounded_revalidation"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "61-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_61-03.json"
+      ],
+      "depends_on": [
+        "61-02"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "61-04",
+      "phase": "61",
+      "cluster": "61d-summary-v10",
+      "title": "Generate the phase-61 benchmark summary",
+      "packet": ".wiretail/execution/tasks/61-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/60-01.md"
+      ],
+      "required_proofs": [
+        "phase61_summary_generated_and_validated"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "61-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_61-04.json"
+      ],
+      "depends_on": [
+        "61-03"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "62-01",
+      "phase": "62",
+      "cluster": "62a-review-v10",
+      "title": "Review the phase-61 summary and schedule only measured next work",
+      "packet": ".wiretail/execution/tasks/62-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/60-01.md"
+      ],
+      "required_proofs": [
+        "phase61_benchmark_review"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "62-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_62-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_62.json"
+      ],
+      "depends_on": [
+        "61-04"
       ],
       "commit": null,
       "token_usage": {
@@ -13899,6 +14135,42 @@
       }
     },
     "60": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/60-01-attempt-1-20260914T201932Z.jsonl:54",
+          "total_tokens": 1157548,
+          "total_tokens_derived": true,
+          "input_tokens": 1137281,
+          "cached_input_tokens": 1066496,
+          "output_tokens": 20267,
+          "thinking_tokens": 8817
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 1157548,
+        "input_tokens": 1137281,
+        "cached_input_tokens": 1066496,
+        "output_tokens": 20267,
+        "thinking_tokens": 8817
+      }
+    },
+    "61": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "62": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -13912,12 +14184,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 195,
-      "total_tokens": 4015604148,
-      "input_tokens": 4006133687,
-      "cached_input_tokens": 3923366400,
-      "output_tokens": 9470461,
-      "thinking_tokens": 3457617
+      "turns": 196,
+      "total_tokens": 4016761696,
+      "input_tokens": 4007270968,
+      "cached_input_tokens": 3924432896,
+      "output_tokens": 9490728,
+      "thinking_tokens": 3466434
     },
     "source": "Codex turn.completed usage events"
   }

@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_60",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "60-01",
+  "reviewed_phase": 59,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_59.json",
+    "sha256": "b4899020b61bacad63e6fadf6d0d109ce7a0f660f1400fc6f3cd280c7fde5914"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "The phase-59 summary records requested, observed, and immutable bundle identity, endpoint and DSO hashes, resolved model hash, source commit, and template identity.",
+    "required_turbo4_placements": "The summary measures Turbo4 target K/V on CUDA and full-L native draft K/V on GPU with 262144 rows.",
+    "controlled_model_promotion": "False: the summary records T1 controlled physical promotion as not_run after the full-L stop.",
+    "organic_cold_promotion": "False: the summary records T2/T3 organic physical promotion as not_run after the full-L stop.",
+    "stable_target_consumption": "False: no promotion reached a completed target graph using a cold promoted page.",
+    "full_256k_occupancy": "False: 256K allocation/startup is measured, but occupied C262144 failed at the managed resume/slot-reset boundary and stopped at C1000.",
+    "practical_speed_goal_met": "False: prefill and committed decode have matched native/control rows, but cached append is not_run and the full bounded capability matrix is incomplete.",
+    "useful_answer_quality_proven": "False: no answer-quality prompts were run in the bounded phase-59 campaign."
+  },
+  "current_rates": {
+    "geometry": "L8192/C6144/H8192/A4096/B128/U64",
+    "cold_prefill_tok_s": {
+      "median": 169.23090228992217,
+      "range": [168.8552995829406, 169.58504851653242],
+      "samples": 9
+    },
+    "cached_append_tok_s": {
+      "median": null,
+      "range": [null, null],
+      "samples": 0,
+      "status": "not_run"
+    },
+    "committed_decode_tok_s": {
+      "median": 12.677138246965708,
+      "range": [12.533001939873706, 12.796063930734906],
+      "samples": 9
+    },
+    "mtp_request_scoped_deltas": {
+      "mode": "selective_native",
+      "rows": 9,
+      "draft_delta": 59,
+      "accepted_delta": 0,
+      "acceptance_percent": 0.0,
+      "denominator_status": "measured"
+    }
+  },
+  "capacity_and_proof_boundaries": {
+    "8K": "Measured at L8192/C6144/H8192/A4096/B128/U64 with native and feature-off/control rates, but append and paging claims remain incomplete.",
+    "32K": "Not run; phase 59 stopped at the full-L repair/occupancy boundary.",
+    "128K": "Not run; phase 59 stopped at the full-L repair/occupancy boundary.",
+    "256K_allocation": "Measured full-L allocation/startup with L262144, draft capacity 262144, H30208, and actual C1000; no occupied-context claim follows.",
+    "C262144": "Not proven: the managed resume stopped at the C1000 frontier and the post-reset response observed C=0/invalid."
+  },
+  "physical_and_quality_findings": {
+    "controlled_physical": "not_run",
+    "organic_physical": "not_run",
+    "stable_target_consumption": "not_run",
+    "useful_answer_quality": "not_run"
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "llama_kv_cache::vbr_scratch_reserve / ggml_backend_cuda_kv_dequant_scratch_memory",
+      "fixture": "L262144/H30208/B128/U128 with the bounded 1200-token request",
+      "finding": "The managed slot reset/resume boundary still returns an invalid first request before the occupied frontier advances; combined VBR scratch reservation and charged bytes need a focused repair."
+    },
+    {
+      "owner": "llama_kv_attention_packed_cache::find_or_create / submit_graph / CUDA launch_mul_mat_q",
+      "fixture": "L262144/H16384/B128/U64 first request",
+      "finding": "The alternate full-L boundary has no successful occupied-context proof; packed allocation, graph replay ownership, or launch resources need isolated revalidation."
+    },
+    {
+      "owner": "canonical V10 bounded revalidation chain",
+      "fixture": "L8192/C6144 original q0/q1/q2 plus 64/256 append, T1/T2-or-T3, and full-L boundaries",
+      "finding": "Cached append, controlled and organic physical promotion, useful answer quality, pilots, and occupied C262144 remain unmeasured or failed."
+    }
+  ],
+  "next_action": "Repair the two measured full-L boundaries, then run one bounded matched/promotion/quality/occupancy revalidation, summarize only phase-61 evidence, and review it.",
+  "phase_appended": true,
+  "appended_phases": [61, 62],
+  "next_task_ids": ["61-01", "61-02", "61-03", "61-04", "62-01"],
+  "successor_contracts": {
+    "61-01": "Repair llama_kv_cache::vbr_scratch_reserve and ggml_backend_cuda_kv_dequant_scratch_memory on L262144/H30208/B128/U128 with a bounded 1200-token request; before C=0 and one invalid response, after C>=1200 and zero invalid responses with reserved=charged scratch bytes.",
+    "61-02": "After 61-01, repair llama_kv_attention_packed_cache::find_or_create, submit_graph, and CUDA launch_mul_mat_q on L262144/H16384/B128/U64; before C=0, one invalid response, and zero completed target graphs, after C>=1000, zero invalid responses, and one completed target-graph use.",
+    "61-03": "Run the canonical bounded q0/q1/q2 matched matrix plus 64/256 cached append, one controlled T1, one organic T2/T3 edge, separate answer quality, conditional 32K/128K pilots, and occupied C262144; retain actual geometry, identities, denominators, and failed/not_run rows.",
+    "61-04": "Aggregate and validate only phase-61 identity, geometry, rates, MTP, promotion, quality, pilot, allocation, and occupied-context evidence into V10_SUMMARY_61.json/.md.",
+    "62-01": "Review only V10_SUMMARY_61.json/.md with the current capability matrix; append at most three ordered measured successors only for concrete gaps, or set all required capability booleans explicitly and leave no successor chain."
+  }
+}
