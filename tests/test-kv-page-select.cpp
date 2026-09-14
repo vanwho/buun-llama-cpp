@@ -8,6 +8,19 @@
 #include <limits>
 #include <vector>
 
+struct selector_event_state {
+    bool complete = false;
+};
+
+static llama_kv_prefetch_mailbox_poll selector_event_poll(
+        void * context, uint64_t) noexcept {
+    return static_cast<selector_event_state *>(context)->complete
+        ? llama_kv_prefetch_mailbox_poll::completed
+        : llama_kv_prefetch_mailbox_poll::pending;
+}
+
+static void selector_event_release(void *, uint64_t) noexcept {}
+
 static llama_kv_page_id fixture_page(uint32_t logical_page) {
     llama_kv_page_id id;
     id.session_generation = 1;
@@ -43,8 +56,15 @@ static void test_live_selector_mailbox(const std::vector<int32_t> & output) {
         candidate.attention_layer = 3;
         candidate.generation = 7;
         candidate.table_epoch = 11;
-        candidate.score = -float(rank);
+        candidate.score = 1.0f / (1.0f + float(rank));
         candidate.requested_bytes = 4096;
+        candidate.content_version = 1;
+        candidate.summary_version = 1;
+        candidate.speculation_generation = 1;
+        candidate.selector_rank = uint32_t(rank);
+        candidate.query_position = 257;
+        candidate.cold = rank >= 2;
+        candidate.rollback_generation = candidate.identity.page_generation;
     }
     assert(written != 0);
     assert(mailbox.publish_ready(slot, written, 7) ==
@@ -67,6 +87,58 @@ static void test_live_selector_mailbox(const std::vector<int32_t> & output) {
     }
     assert(mailbox.acquire(slot, records) == llama_kv_prefetch_mailbox_status::full);
     mailbox.cancel();
+
+    // A device-to-host enqueue is not readiness. The fixed slot remains
+    // owned until its event completes, and a harmless table epoch change is
+    // not used as a global-generation rejection at this boundary.
+    selector_event_state event;
+    llama_kv_prefetch_mailbox pending({ 2, 2 });
+    pending.set_backend({ &event, selector_event_poll, nullptr, selector_event_release });
+    assert(pending.acquire(slot, records) == llama_kv_prefetch_mailbox_status::ok);
+    records[0].identity = fixture_page(4);
+    records[0].attention_layer = 3;
+    records[0].generation = 9;
+    records[0].table_epoch = 12;
+    records[0].score = 1.0f;
+    records[0].requested_bytes = 4096;
+    records[0].content_version = 1;
+    records[0].summary_version = 1;
+    records[0].speculation_generation = 1;
+    records[0].selector_rank = 0;
+    records[0].query_position = 257;
+    records[0].rollback_generation = records[0].identity.page_generation;
+    assert(pending.publish_pending(slot, 1, 9, 41) ==
+           llama_kv_prefetch_mailbox_status::ok);
+    assert(pending.pending_slots() == 1 && pending.ready_slots() == 0);
+    assert(pending.poll(9, 0) == llama_kv_prefetch_mailbox_status::ok);
+    assert(pending.pending_slots() == 1);
+    event.complete = true;
+    assert(pending.poll(9, 0) == llama_kv_prefetch_mailbox_status::ok);
+    assert(pending.pending_slots() == 0 && pending.ready_slots() == 1);
+    std::vector<llama_kv_prefetch_candidate> completed;
+    assert(pending.take_ready(completed) == 1);
+    assert(completed[0].identity == fixture_page(4) &&
+           completed[0].content_version == 1 &&
+           completed[0].query_position == 257);
+
+    // A result from a reused query generation is discarded before it can be
+    // observed by policy.
+    event.complete = true;
+    assert(pending.acquire(slot, records) == llama_kv_prefetch_mailbox_status::ok);
+    records[0].identity = fixture_page(1);
+    records[0].attention_layer = 3;
+    records[0].generation = 8;
+    records[0].score = 1.0f;
+    records[0].requested_bytes = 4096;
+    records[0].content_version = 1;
+    records[0].summary_version = 1;
+    records[0].speculation_generation = 1;
+    records[0].query_position = 257;
+    records[0].rollback_generation = records[0].identity.page_generation;
+    assert(pending.publish_pending(slot, 1, 8, 42) ==
+           llama_kv_prefetch_mailbox_status::ok);
+    assert(pending.poll(9, 0) == llama_kv_prefetch_mailbox_status::stale_generation);
+    assert(pending.ready_slots() == 0 && pending.pending_slots() == 0);
 }
 
 int main() {

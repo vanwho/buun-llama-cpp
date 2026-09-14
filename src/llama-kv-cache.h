@@ -1531,6 +1531,12 @@ private:
         std::map<uint32_t, std::vector<llama_kv_page_id>>>
         pager_attention_selection_by_layer_;
     struct pager_routing_output {
+        struct page_descriptor {
+            llama_kv_page_id identity;
+            uint64_t content_version = 0;
+            uint64_t summary_version = 0;
+        };
+
         ggml_tensor * tensor = nullptr;
         uint32_t layer = UINT32_MAX;
         llama_seq_id sequence_id = -1;
@@ -1538,6 +1544,19 @@ private:
         uint64_t table_epoch = 0;
         uint64_t query_position = 0;
         uint64_t sequence_generation = 0;
+        uint64_t session_generation = 0;
+        uint64_t rollback_generation = 0;
+        uint32_t resident_offset = 0;
+        uint32_t resident_count = 0;
+        uint32_t cold_offset = 0;
+        uint32_t cold_count = 0;
+        uint32_t query_head_count = 0;
+        uint32_t kv_head_count = 0;
+        uint32_t query_count = 0;
+        // This is the immutable submission descriptor. The selector returns
+        // indices into this exact order; it must never be decoded through a
+        // later residency-table inventory.
+        std::vector<page_descriptor> pages;
         bool refresh_enabled = false;
     };
     mutable std::vector<pager_routing_output> pager_routing_outputs_;
