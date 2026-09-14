@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "task": "55-01",
+  "proof": "full_l_resource_boundary_repair",
+  "source_commit": "9462e6ca674a3ed024ebfb163f0454b247816df8",
+  "build": {
+    "build_dir": "build-cuda",
+    "cuda": true,
+    "candidate": "build-cuda/bin/llama-server",
+    "candidate_sha256": "24333b2639ca140e53e1ddd53f60b2d2b954bee8f0d723351db0802b723032ce",
+    "libllama_sha256": "445d02d5c2890ee3e511faa2544be0d3d826343884683c1a5cc7804f180c19f5",
+    "libggml_cuda_sha256": "6038dba6fe594020bb27b29208f3e77ad2a0e366d333b048f62d1a1d4d5039bf"
+  },
+  "checks": {
+    "full_l_resource_boundary_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "bash",
+        "-lc",
+        "LD_LIBRARY_PATH=build-cuda/bin build-cuda/bin/test-vbr-vmm"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/55-01/20260914T-full-L-H30208-B128-U128-A1280/raw/focused-tests.log",
+          "sha256": "d98f7f6e4ecf481299f94bf00bc7f8603d7ef8a7f7aab537b586d89abbe9ffd3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/55-01/20260914T-full-L-H30208-B128-U128-A1280/raw/server.log",
+          "sha256": "11b09fc349efb34da439951faf0653e7e1741f1579a5592e0f5c2cccfcaa878e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/55-01/20260914T-full-L-H30208-B128-U128-A1280/curve-1200/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "463016f809de319426b9f3c83e077e180a686f7f5baf56d84ce425e99a626e1f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/55-01/20260914T-full-L-H16384-B128-U64/raw/server.log",
+          "sha256": "14a66b668c41d7fe2f65e4aa6174b6d81e0d77808b7dd00858873db54762086c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/55-01/20260914T-full-L-H16384-B128-U64/curve-1200/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "fe5a96fc40babc231df8d429da73b93b4ebaa12d39a317968de1afe0535c75aa"
+        }
+      ],
+      "local_invariants": {
+        "physical_if_reserved_ge_required": true,
+        "scratch_physical_bytes": 1073741824,
+        "scratch_required_bytes": 1073741824,
+        "scratch_replay_physical_bytes": 1073741824,
+        "pending_pager_writes_after_refusal": 0,
+        "launch_shared_memory_within_device_limit": true
+      },
+      "live_fixtures": [
+        {
+          "fixture": "L262144/H30208/B128/U128",
+          "request_tokens": 1200,
+          "attention_tokens": 1280,
+          "status": "pass",
+          "observed_C": 1207,
+          "observed_H": 30208,
+          "target_kv": "Turbo4/CUDA",
+          "draft_kv": "Turbo4/GPU/native-full-L",
+          "packed_storage_bytes": 21626880,
+          "scratch_high_water_bytes": 6266880,
+          "graph_replay_count": 4
+        },
+        {
+          "fixture": "L262144/H16384/B128/U64",
+          "request_tokens": 1200,
+          "status": "pass",
+          "observed_C": 1207,
+          "observed_H": 16384,
+          "target_kv": "Turbo4/CUDA",
+          "draft_kv": "Turbo4/GPU/native-full-L",
+          "packed_storage_bytes": 21626880,
+          "scratch_high_water_bytes": 6266880,
+          "graph_replay_count": 13
+        }
+      ]
+    }
+  }
+}

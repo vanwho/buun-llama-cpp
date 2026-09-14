@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "55",
-  "current_task": "55-01",
-  "last_updated_utc": "2026-09-14T17:39:30+00:00",
+  "current_task": "55-02",
+  "last_updated_utc": "2026-09-14T18:14:16+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -9906,7 +9906,7 @@
       "cluster": "55a-full-l-resource-v10",
       "title": "Close the full-L CUDA resource boundary",
       "packet": ".wiretail/execution/tasks/55-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -9933,7 +9933,32 @@
       "depends_on": [
         "54-01"
       ],
-      "commit": null
+      "commit": "36d92d81a5ee0ed23f3ba661d0498d4a65e98cab",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/55-01-attempt-1-20260914T173948Z.jsonl:291",
+            "total_tokens": 24678091,
+            "total_tokens_derived": true,
+            "input_tokens": 24622368,
+            "cached_input_tokens": 24034304,
+            "output_tokens": 55723,
+            "thinking_tokens": 26124
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 24678091,
+          "input_tokens": 24622368,
+          "cached_input_tokens": 24034304,
+          "output_tokens": 55723,
+          "thinking_tokens": 26124
+        }
+      }
     },
     {
       "id": "55-02",
@@ -13061,14 +13086,28 @@
       }
     },
     "55": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/55-01-attempt-1-20260914T173948Z.jsonl:291",
+          "total_tokens": 24678091,
+          "total_tokens_derived": true,
+          "input_tokens": 24622368,
+          "cached_input_tokens": 24034304,
+          "output_tokens": 55723,
+          "thinking_tokens": 26124
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 24678091,
+        "input_tokens": 24622368,
+        "cached_input_tokens": 24034304,
+        "output_tokens": 55723,
+        "thinking_tokens": 26124
       }
     },
     "56": {
@@ -13085,12 +13124,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 183,
-      "total_tokens": 3927506814,
-      "input_tokens": 3918339828,
-      "cached_input_tokens": 3838434816,
-      "output_tokens": 9166986,
-      "thinking_tokens": 3350147
+      "turns": 184,
+      "total_tokens": 3952184905,
+      "input_tokens": 3942962196,
+      "cached_input_tokens": 3862469120,
+      "output_tokens": 9222709,
+      "thinking_tokens": 3376271
     },
     "source": "Codex turn.completed usage events"
   }

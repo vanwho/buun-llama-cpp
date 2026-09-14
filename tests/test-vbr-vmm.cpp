@@ -355,10 +355,23 @@ static bool test_vbr_scratch_boundary(const ggml_vbr_backend_iface * be, int dev
         ok = false;
     }
 
+    // A graph replay reuses the same full-L workspace. Re-requesting the exact
+    // submitted view must not grow the physical scratch backing.
+    size_t physical_after_replay = 0;
+    size_t projected_after_replay = 0;
+    be->kv_dequant_scratch_memory(backend, side_bytes, side_bytes,
+            &physical_after_replay, &projected_after_replay);
+    if (ok && physical_after_replay != physical_now) {
+        std::fprintf(stderr,
+                "scratch boundary: replay grew physical bytes from %zu to %zu\n",
+                physical_now, physical_after_replay);
+        ok = false;
+    }
+
     ggml_backend_free(backend);
     if (ok) {
-        std::printf("PASS: VBR scratch boundary K=%zu V=%zu physical=%zu\n",
-                side_bytes, side_bytes, physical_now);
+        std::printf("PASS: VBR scratch boundary K=%zu V=%zu physical=%zu replay=%zu\n",
+                side_bytes, side_bytes, physical_now, physical_after_replay);
     }
     return ok;
 }

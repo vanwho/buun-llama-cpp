@@ -6529,13 +6529,12 @@ bool llama_kv_cache::vbr_scratch_reserve(
     const size_t v_cells = size_t(v_rows);
     size_t submitted_k_cells = k_cells;
     size_t submitted_v_cells = v_cells;
-    if (!vbr_params_.dynamic && pager_plan_ == nullptr) {
-        // Static MTP graphs submit the full cache tensor as their K/V view even
+    if (pager_plan_ == nullptr) {
+        // Non-paged graphs submit the full cache tensor as their K/V view even
         // while the memory context reports only the rows populated by the
-        // current batch.  Charge that realized view here; using the current
+        // current batch. Charge that realized view here; using the current
         // frontier would leave the first full-context graph to grow scratch
-        // during execution.  Dynamic paged attention keeps its bounded request
-        // rows and must not inherit this full-cache fallback.
+        // during execution. Paged attention keeps its bounded request rows.
         for (const auto & layer : layers) {
             if (layer.k != nullptr && layer.k->ne[1] > 0) {
                 submitted_k_cells = std::max(submitted_k_cells,
