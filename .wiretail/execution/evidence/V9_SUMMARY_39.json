@@ -1,0 +1,164 @@
+{
+  "schema": "hotpath-v9-summary",
+  "task": "39-04",
+  "revision": "hotpath-v9-20260914",
+  "utc": "2026-09-14T00:45:00Z",
+  "result": "pass_with_unmet_capability",
+  "scope": "Compact phase-39 implementation and bounded benchmark aggregation.",
+  "active_campaign_met": false,
+  "overall_256k_demonstrated": false,
+  "natural_cold_proven": false,
+  "fullL_gpu_turbo4_mtp": true,
+  "measured_cpu_speedup": null,
+  "provenance": {
+    "benchmark_receipt": ".wiretail/execution/evidence/V9_39_BENCHMARK.json",
+    "benchmark_sha256": "8593c98c94422e8d85f75b53315b90311bfa015d47b17328f4c6f1d1f0f2350c",
+    "source_commit": "09b41e8a1881a570f633eab301a5aaad3719ec49",
+    "source_diff_sha256": "4252fc4b796a83a54ec7d383f2815e11c169745e8f1a2c755819705714b19e04",
+    "raw_results_root": "/srv/ai/paged-kv/results/v9/39-03/"
+  },
+  "implementation_validation": {
+    "39-01": "done; telemetry/model tests passed",
+    "39-02": "done; execution/view tests passed; selected packed Q/layout consistent",
+    "39-03": "done; focused tests and bounded CUDA revalidation passed",
+    "runtime_errors": 0,
+    "focused_commands": [
+      "cmake --build build --target test-kv-attention-telemetry test-kv-attention-execution test-kv-pager-model -j2",
+      "./build/bin/test-kv-attention-telemetry",
+      "./build/bin/test-kv-attention-execution",
+      "./build/bin/test-kv-pager-model"
+    ]
+  },
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "route": "selected_packed",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "server_sha256": "82b92cc7da404d2eddd8aaf5c218d9cc202f8167a3c727f61f467d75bb220255"
+  },
+  "units": {
+    "rates": "tok/s",
+    "durations": "seconds unless field ends _ms or _us",
+    "bytes": "integer bytes",
+    "counts_and_geometry": "integer tokens, rows, pages, or samples",
+    "ratios": "dimensionless selected divided by named control"
+  },
+  "geometry": {
+    "invariant": "selected <= A_by_layer <= H <= L",
+    "measured": {
+      "L": 8192,
+      "occupied_tokens": 5004,
+      "recall_prompt_tokens": 5052,
+      "cached_rows": 5017,
+      "H": 4096,
+      "A_by_layer": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "invariant_pass": true
+    },
+    "scale": {
+      "32K": {"L": 32768, "measured": false, "status": "not_run"},
+      "128K": {"L": 131072, "measured": false, "status": "not_run"},
+      "256K": {"L": 262144, "measured": false, "status": "not_demonstrated"}
+    }
+  },
+  "natural_cold": {
+    "fixture": "incremental C>H natural recall",
+    "raw_run": "/srv/ai/paged-kv/results/v9/39-03/20260914T003957Z-natural-cold-incremental",
+    "candidate": {"published": false, "non_sentinel": false},
+    "attention_samples": 0,
+    "promotion_published": false,
+    "transfer_submitted": 0,
+    "h2d_useful_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "coherent_recall": true,
+    "coherent_append": true,
+    "mtp": {"proposed": 147, "accepted": 42, "acceptance_percent": 28.571429},
+    "eligible_for_scale": false,
+    "failure": "measurement boundary: current-Q publication/promotion/use proof absent",
+    "selection_quality": "unmeasured; no candidate was published"
+  },
+  "matched_controls": {
+    "prompt_ids": [0, 1, 2],
+    "committed_output_tokens_each": 128,
+    "selected_packed": {
+      "samples": 3,
+      "prefill_tok_s": [297.858398, 276.982735, 587.383834],
+      "decode_tok_s": [35.277931, 34.364931, 33.999045],
+      "mtp_proposed": null,
+      "mtp_accepted": null,
+      "mtp_acceptance_percent": [4.0, 81.0, 0.0]
+    },
+    "cpu_main_kv_gpu_weights_native_mtp": {
+      "samples": 0,
+      "status": "not_run",
+      "reason": "site launcher lacks explicit --no-kv-offload boundary; no denominator substituted"
+    },
+    "all_gpu": {
+      "samples": 3,
+      "prefill_tok_s": [316.025661, 579.076051, 598.879241],
+      "decode_tok_s": [36.484545, 36.628758, 36.734706],
+      "mtp_proposed": [126, 126, 126],
+      "mtp_accepted": [0, 0, 0],
+      "mtp_acceptance_percent": [0.0, 0.0, 0.0]
+    },
+    "selected_over_all_gpu_decode": [0.966927, 0.938737, 0.925052],
+    "selected_over_all_gpu_decode_median": 0.938737,
+    "measured_cpu_speedup": null
+  },
+  "memory_bytes": {
+    "target_allocated": 69206000,
+    "target_valid": 68378100,
+    "canonical_host": 82182100,
+    "host_valid": 64880600,
+    "weights": 13695600000,
+    "mtp_compute": 268435000,
+    "packed_workspace": 69206000,
+    "headroom": 201327000,
+    "cpu_rss": null,
+    "full_256k_total": null,
+    "note": "Measured L8192 categories only; larger-context catalogue, draft, graph, and scratch allocations were not measured."
+  },
+  "sample_counts": {
+    "selected_comparison": 3,
+    "all_gpu_control": 3,
+    "cpu_main_kv_control": 0,
+    "natural_cold_attention": 0,
+    "natural_cold_runs": 1,
+    "scale_32k": 0,
+    "scale_128k": 0,
+    "scale_256k": 0
+  },
+  "failure_classification": {
+    "measurement_failure": {
+      "status": "failed",
+      "cause": "current-Q attention sample/publication counters remained zero",
+      "symbols": ["llm_graph_context::build_attn_inp_kv", "llama_context::publish_kv_attention_telemetry", "llama_kv_attention_telemetry::publish_completed"]
+    },
+    "runtime_failure": {"status": "not_observed", "details": "No crash, non-finite output, or completion error; recall and append were coherent."},
+    "selection_quality": {"status": "unmeasured", "details": "No non-sentinel candidate, useful H2D promotion, or selected cold-page use."}
+  },
+  "uncertainty": [
+    "Natural current-Q selection quality is unmeasured, not failed, because no candidate was published.",
+    "The CPU-main-KV comparison is unavailable for this revalidation; the all-GPU control is the only current decode denominator.",
+    "32K, 128K, and 256K memory/capability values are not measurements; no scale process or allocation was launched."
+  ],
+  "next_actions": [
+    {"order": 1, "action": "Repair or instrument current-Q publication through llm_graph_context::build_attn_inp_kv, llama_context::publish_kv_attention_telemetry, and llama_kv_attention_telemetry::publish_completed; rerun the C>H fixture and stop if samples/candidate/H2D remain zero."},
+    {"order": 2, "action": "Expose an explicit --no-kv-offload launcher boundary and rerun the three matched CPU-main-KV controls; preserve null speedup until those samples exist."},
+    {"order": 3, "action": "Only after natural candidate, attention sample, useful H2D, selected cold-page use, and coherent recall are all present, reopen the bounded 32K gate and conditionally the 128K pilot."}
+  ],
+  "deferred_scale": {"status": "not_run", "reason": "natural-cold eligibility invariant failed; no 32K or 128K process/allocation was launched"}
+}
