@@ -8,6 +8,7 @@
 #include "fattn-vec.cuh"
 #include "fattn-wmma-f16.cuh"
 #include "fattn.cuh"
+#include "turbo-wht.cuh"
 #include "ggml-backend-impl.h"
 
 #include <atomic>
@@ -27,6 +28,7 @@ void turbo_innerq_update_fattn_scales(const float * scale_inv) {
         cudaMemcpyToSymbol(d_innerq_channel_scale_inv_fattn, scale_inv, 128 * sizeof(float));
     }
     cudaSetDevice(cur_device);
+    turbo_innerq_update_turbo_wht_scales(scale_inv);
 }
 
 void turbo_innerq_init_fattn() {
@@ -41,6 +43,7 @@ void turbo_innerq_init_fattn() {
         cudaMemcpyToSymbol(d_innerq_channel_scale_inv_fattn, ones, sizeof(ones));
     }
     cudaSetDevice(cur_device);
+    turbo_innerq_update_turbo_wht_scales(ones);
 }
 
 // Q² calibration: host-side management

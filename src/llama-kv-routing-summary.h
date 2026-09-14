@@ -9,8 +9,9 @@
 
 // Experimental, internal-only routing representation. The vectors are in the
 // stored Turbo4 coefficient domain and are deliberately kept separate from
-// the KV page. Query producers use the same representation, so no inverse
-// rotation is applied while sealing a page.
+// the KV page. Query producers apply the transpose of the mature FA
+// reconstruction (including active InnerQ calibration) before scoring, so
+// no inverse rotation is applied while sealing a page.
 constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 4;
 
 enum class llama_kv_routing_summary_form : uint8_t {

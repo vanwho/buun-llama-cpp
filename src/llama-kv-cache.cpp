@@ -39,6 +39,28 @@
 extern "C" void dequantize_row_turbo4_0(
         const void * x, float * y, int64_t k);
 
+namespace {
+
+float fp16_outward_lower(float value) {
+    const ggml_fp16_t encoded = ggml_fp32_to_fp16(value);
+    const float rounded = ggml_fp16_to_fp32(encoded);
+    if (!std::isfinite(value) || rounded <= value) return rounded;
+    const ggml_fp16_t adjacent = value < 0.0f
+        ? ggml_fp16_t(encoded + 1) : ggml_fp16_t(encoded - 1);
+    return ggml_fp16_to_fp32(adjacent);
+}
+
+float fp16_outward_upper(float value) {
+    const ggml_fp16_t encoded = ggml_fp32_to_fp16(value);
+    const float rounded = ggml_fp16_to_fp32(encoded);
+    if (!std::isfinite(value) || rounded >= value) return rounded;
+    const ggml_fp16_t adjacent = value < 0.0f
+        ? ggml_fp16_t(encoded - 1) : ggml_fp16_t(encoded + 1);
+    return ggml_fp16_to_fp32(adjacent);
+}
+
+} // namespace
+
 static llama_memory_failure_reason pager_failure_reason(
         llama_kv_pager_write_status status) noexcept {
     switch (status) {
@@ -15902,7 +15924,15 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     ggml_set_name(metadata, "kv_routing_page_metadata");
     ggml_set_name(membership, "kv_routing_resident_membership");
     ggml_set_name(query, "kv_routing_query_metadata");
-    return ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
+    // Turbo4 stores dequantized K in its forward coefficient domain. Mature
+    // FA reconstructs it as D * (S1 * H * S2) * coeff, so the router uses the
+    // transpose on Q: (S2 * H * S1) * D * Q. Direction 2 applies the active
+    // InnerQ inverse scale D on CUDA; the CPU reference retains identity D.
+    // This node is router-only: target attention retains its original Q and
+    // performs its own fused transform.
+    if (q->ne[0] % 128 != 0) return nullptr;
+    ggml_tensor * routing_q = ggml_turbo_wht(ctx, ggml_cont(ctx, q), 2);
+    return ggml_kv_page_select(ctx, routing_q, bounds, metadata, membership, query,
             k_resident, k_cold, snapshot.geometry.page_tokens, int(query_row));
 }
 
@@ -15979,8 +16009,8 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
                 }
                 const size_t base = d + size_t(dim) * 2 *
                     (head + size_t(kv_heads) * page_index);
-                bound_data[base] = ggml_fp32_to_fp16(lo);
-                bound_data[base + size_t(dim)] = ggml_fp32_to_fp16(hi);
+                bound_data[base] = ggml_fp32_to_fp16(fp16_outward_lower(lo));
+                bound_data[base + size_t(dim)] = ggml_fp32_to_fp16(fp16_outward_upper(hi));
             }
         }
     }

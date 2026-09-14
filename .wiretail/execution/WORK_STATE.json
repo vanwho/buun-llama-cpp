@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "49",
-  "current_task": "49-03",
-  "last_updated_utc": "2026-09-14T05:33:58+00:00",
+  "current_task": "49-04",
+  "last_updated_utc": "2026-09-14T06:28:29+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8635,7 +8635,7 @@
       "cluster": "49b-selector-correctness-v10",
       "title": "Align router Q with Turbo4 page-summary coordinates",
       "packet": ".wiretail/execution/tasks/49-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -8661,7 +8661,32 @@
       "depends_on": [
         "49-02"
       ],
-      "commit": null
+      "commit": "a8779146714bc84331964947be9adb0eaa34a2cc",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/49-03-attempt-1-20260914T053416Z.jsonl:262",
+            "total_tokens": 33593523,
+            "total_tokens_derived": true,
+            "input_tokens": 33531345,
+            "cached_input_tokens": 32929280,
+            "output_tokens": 62178,
+            "thinking_tokens": 21761
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 33593523,
+          "input_tokens": 33531345,
+          "cached_input_tokens": 32929280,
+          "output_tokens": 62178,
+          "thinking_tokens": 21761
+        }
+      }
     },
     {
       "id": "49-04",
@@ -11861,15 +11886,28 @@
           "cached_input_tokens": 3060480,
           "output_tokens": 12986,
           "thinking_tokens": 4017
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/49-03-attempt-1-20260914T053416Z.jsonl:262",
+          "total_tokens": 33593523,
+          "total_tokens_derived": true,
+          "input_tokens": 33531345,
+          "cached_input_tokens": 32929280,
+          "output_tokens": 62178,
+          "thinking_tokens": 21761
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 17251965,
-        "input_tokens": 17206796,
-        "cached_input_tokens": 16843264,
-        "output_tokens": 45169,
-        "thinking_tokens": 12854
+        "turns": 3,
+        "total_tokens": 50845488,
+        "input_tokens": 50738141,
+        "cached_input_tokens": 49772544,
+        "output_tokens": 107347,
+        "thinking_tokens": 34615
       }
     },
     "50": {
@@ -11908,12 +11946,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 161,
-      "total_tokens": 3329978071,
-      "input_tokens": 3322212060,
-      "cached_input_tokens": 3254930432,
-      "output_tokens": 7766011,
-      "thinking_tokens": 2820001
+      "turns": 162,
+      "total_tokens": 3363571594,
+      "input_tokens": 3355743405,
+      "cached_input_tokens": 3287859712,
+      "output_tokens": 7828189,
+      "thinking_tokens": 2841762
     },
     "source": "Codex turn.completed usage events"
   }

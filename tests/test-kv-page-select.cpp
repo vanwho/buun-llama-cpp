@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <limits>
 #include <vector>
 
 static llama_kv_page_id fixture_page(uint32_t logical_page) {
@@ -78,11 +79,12 @@ int main() {
     constexpr int64_t d = 4;
     constexpr int64_t n_q_heads = 4;
     constexpr int64_t n_kv_heads = 2;
+    constexpr int64_t n_q = 3;
     constexpr int64_t n_pages = 5;
     ggml_init_params init = { 2 * 1024 * 1024, nullptr, true };
     ggml_context * ctx = ggml_init(init);
     assert(ctx != nullptr);
-    ggml_tensor * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, n_q_heads, 1);
+    ggml_tensor * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, n_q_heads, n_q);
     ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 2, n_kv_heads, n_pages);
     ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 4, n_pages);
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
@@ -97,12 +99,18 @@ int main() {
     ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
     assert(buffer != nullptr);
 
-    std::vector<float> q_data(size_t(d * n_q_heads), 0.0f);
-    for (int64_t head = 0; head < n_q_heads; ++head) {
-        q_data[size_t(head * d) + 0] = 1.0f;
-        q_data[size_t(head * d) + 1] = -2.0f;
-        q_data[size_t(head * d) + 2] = 3.0f;
-        q_data[size_t(head * d) + 3] = -4.0f;
+    std::vector<float> q_data(size_t(d * n_q_heads * n_q), 0.0f);
+    for (int64_t row = 0; row < n_q; ++row) {
+        for (int64_t head = 0; head < n_q_heads; ++head) {
+            const size_t base = size_t((row * n_q_heads + head) * d);
+            // Only row zero is causal for this selector invocation. Make the
+            // later rows deliberately different so query-row handling cannot
+            // accidentally select a future token.
+            q_data[base + 0] = row == 0 ? 1.0f : 100.0f;
+            q_data[base + 1] = row == 0 ? -2.0f : 100.0f;
+            q_data[base + 2] = row == 0 ? 3.0f : 100.0f;
+            q_data[base + 3] = row == 0 ? -4.0f : 100.0f;
+        }
     }
     std::vector<ggml_fp16_t> bound_data(size_t(d * 2 * n_kv_heads * n_pages));
     for (int64_t page = 0; page < n_pages; ++page) {
@@ -139,6 +147,16 @@ int main() {
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
     assert(output == first_output);
     test_live_selector_mailbox(output);
+
+    // Non-finite query coordinates are not valid scores. The CUDA reduction
+    // must reject every candidate rather than allowing NaN comparisons to
+    // choose an arbitrary page.
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    for (float & value : q_data) value = nan;
+    ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
+    for (const int32_t value : output) assert(value == -1);
 
     // A disabled refresh and a stale snapshot publish only padding, never a
     // candidate from the previous generation.

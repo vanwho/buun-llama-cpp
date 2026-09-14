@@ -37,11 +37,13 @@ __global__ void page_select_scores(
     if (page >= n_pages) return;
 
     __shared__ float reduction[256];
+    __shared__ int invalid_reduction[256];
     float best = -FLT_MAX;
     const int group = n_q_heads / n_kv_heads;
     for (int kv_head = 0; kv_head < n_kv_heads; ++kv_head) {
         for (int q_head = kv_head * group; q_head < (kv_head + 1) * group; ++q_head) {
             float partial = 0.0f;
+            int invalid = 0;
             const char * q_row = (const char *) q + q_head * q_nb1 + query_row * q_nb2;
             for (int coord = threadIdx.x; coord < d; coord += blockDim.x) {
                 const float qi = *(const float *)(q_row + coord * q_nb0);
@@ -49,15 +51,28 @@ __global__ void page_select_scores(
                     kv_head * bounds_nb2 + page * bounds_nb3;
                 const float lo = __half2float(*(const half *) b);
                 const float hi = __half2float(*(const half *) (b + bounds_nb1));
-                partial += qi >= 0.0f ? qi * hi : qi * lo;
+                if (!isfinite(qi) || !isfinite(lo) || !isfinite(hi) || lo > hi) {
+                    invalid = 1;
+                } else {
+                    partial += qi >= 0.0f ? qi * hi : qi * lo;
+                }
             }
             reduction[threadIdx.x] = partial;
+            invalid_reduction[threadIdx.x] = invalid;
             __syncthreads();
+            for (int width = blockDim.x / 2; width > 0; width >>= 1) {
+                if (threadIdx.x < width) {
+                    invalid_reduction[threadIdx.x] |= invalid_reduction[threadIdx.x + width];
+                }
+                __syncthreads();
+            }
             for (int width = blockDim.x / 2; width > 0; width >>= 1) {
                 if (threadIdx.x < width) reduction[threadIdx.x] += reduction[threadIdx.x + width];
                 __syncthreads();
             }
-            if (threadIdx.x == 0) best = max(best, reduction[0]);
+            if (threadIdx.x == 0 && invalid_reduction[0] == 0 && isfinite(reduction[0])) {
+                best = max(best, reduction[0]);
+            }
             __syncthreads();
         }
     }
@@ -84,6 +99,7 @@ __global__ void page_select_rank(
         for (int page = threadIdx.x; page < n_pages; page += blockDim.x) {
             if (!page_select_eligible(metadata, metadata_nb0, metadata_nb1,
                     membership, membership_nb0, query, query_nb0, page, expected_membership, page_size)) continue;
+            if (!isfinite(scores[page]) || scores[page] == -FLT_MAX) continue;
             bool selected = false;
             for (int prior = 0; prior < rank; ++prior) {
                 if (output[begin + prior] == page) {
