@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "task": "49-05",
+  "source_commit": "139f12e238095a3075dbaf58170f9310d3539468",
+  "checks": {
+    "write_frontier_lifecycle": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-kv-pager"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-05/test-kv-pager.log",
+          "sha256": "ade5c313f451630d1a8951a379dc4703e8e72767db40a3ed009e3c5895f87637"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-05/test-kv-residency.log",
+          "sha256": "acb4b7cf01428a5b4615fff203c92cca36165b1bf08720fa517343e20ad66bc1"
+        }
+      ]
+    },
+    "rollback_capacity_safety": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-kv-pager"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-05/test-kv-pager.log",
+          "sha256": "ade5c313f451630d1a8951a379dc4703e8e72767db40a3ed009e3c5895f87637"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-05/build.log",
+          "sha256": "48bf4965effe50e648e39fc56d1aec6fb039d3f410d31a4d5383a1e6c82196b7"
+        }
+      ]
+    },
+    "live_first_overflow": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-incremental-scale.py",
+        "--new-session",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/49-05-incremental-20260914-retry",
+        "--endpoint",
+        "http://127.0.0.1:8080/v1/chat/completions",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--context",
+        "8192",
+        "--hot-pages",
+        "16",
+        "--page-size",
+        "256",
+        "--batch-tokens",
+        "128",
+        "--ubatch-tokens",
+        "128",
+        "--target-tokens",
+        "6144",
+        "--turn-delta",
+        "768",
+        "--max-tokens",
+        "16"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-05-incremental-20260914-retry/INTERACTIVE29_01_SCALE.json",
+          "sha256": "ec6097ef2d8108b936f01f6a5d5204389c3ba66469a8314f864cb522fcbd724a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-05-incremental-20260914-retry/proof-summary.json",
+          "sha256": "e4477a079238da5fcc02b894550d0fd7e31fe1ada4787f871ad43716e86f8864"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-05-incremental-20260914-retry/run.log",
+          "sha256": "11a76ba03a85f0afbb158453407b288a3b7714e4105b52e860f702ed88d5db8a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-05-incremental-20260914-retry/candidate-identity.txt",
+          "sha256": "392fa76990dff692efa93b45338787aa49e03cc3137906e6332b11a70757dc98"
+        }
+      ]
+    }
+  }
+}
