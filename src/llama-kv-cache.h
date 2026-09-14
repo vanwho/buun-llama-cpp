@@ -732,11 +732,17 @@ private:
         struct device_row {
             const ggml_vbr_backend_iface * be = nullptr;
             int device = -1;
+            // Scratch belongs to the compute backend context rather than to a VBR pool.
+            // Retain the owner so preflight can reconcile actual aggregate K+V residency
+            // after a managed reset or a partially successful grow.
+            ggml_backend_t compute_backend = nullptr;
             uint64_t available = 0;
             uint64_t scratch_k_needed = 0;
             uint64_t scratch_v_needed = 0;
             uint64_t scratch_k_current = 0;
             uint64_t scratch_v_current = 0;
+            uint64_t scratch_physical_needed = 0;
+            uint64_t scratch_physical_current = 0;
         };
         uint32_t watermark_cells = 0;
         bool active = false;

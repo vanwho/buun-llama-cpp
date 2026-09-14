@@ -337,9 +337,9 @@ static bool test_vbr_scratch_boundary(const ggml_vbr_backend_iface * be, int dev
         ok = false;
     }
     be->kv_dequant_scratch_memory(backend, 0, 0, &physical_now, &physical_if_reserved);
-    if (ok && physical_now < required_bytes) {
+    if (ok && physical_now != required_bytes) {
         std::fprintf(stderr,
-                "scratch boundary: resident physical bytes %zu below required %zu\n",
+                "scratch boundary: resident physical bytes %zu did not charge K+V once as %zu\n",
                 physical_now, required_bytes);
         ok = false;
     }
@@ -361,10 +361,11 @@ static bool test_vbr_scratch_boundary(const ggml_vbr_backend_iface * be, int dev
     size_t projected_after_replay = 0;
     be->kv_dequant_scratch_memory(backend, side_bytes, side_bytes,
             &physical_after_replay, &projected_after_replay);
-    if (ok && physical_after_replay != physical_now) {
+    if (ok && (physical_after_replay != physical_now ||
+               projected_after_replay != physical_after_replay)) {
         std::fprintf(stderr,
-                "scratch boundary: replay grew physical bytes from %zu to %zu\n",
-                physical_now, physical_after_replay);
+                "scratch boundary: replay changed physical ledger now=%zu replay=%zu projected=%zu\n",
+                physical_now, physical_after_replay, projected_after_replay);
         ok = false;
     }
 

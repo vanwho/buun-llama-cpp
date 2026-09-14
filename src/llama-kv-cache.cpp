@@ -12066,12 +12066,18 @@ bool llama_kv_cache::vbr_import_destination_pricing_begin(
                 vbr_import_destination_pricing::device_row created;
                 created.be = p.be;
                 created.device = p.device;
+                created.compute_backend = p.compute_backend;
                 size_t free_bytes = 0;
                 size_t total = 0;
                 p.be->get_device_memory(p.device, &free_bytes, &total);
                 created.available = free_bytes;
                 output.devices.push_back(created);
                 device = output.devices.end() - 1;
+            } else if (device->compute_backend != p.compute_backend) {
+                // A backend/device normally has one main compute context. Refuse an
+                // ambiguous aggregate rather than charging one context's scratch against
+                // another context's owner.
+                return false;
             }
             device->scratch_k_current = std::max<uint64_t>(
                 device->scratch_k_current, p.scratch_k_reserved);
@@ -12100,6 +12106,26 @@ bool llama_kv_cache::vbr_import_destination_pricing_begin(
                 }
             }
         }
+        for (auto & device : output.devices) {
+            if (device.compute_backend == nullptr ||
+                device.be->kv_dequant_scratch_memory == nullptr) {
+                // Legacy providers have no physical scratch query. Preserve their
+                // requested-byte behavior; CUDA providers take the measured path below.
+                device.scratch_physical_current = add(
+                    device.scratch_k_current, device.scratch_v_current);
+                device.scratch_physical_needed = add(
+                    device.scratch_k_needed, device.scratch_v_needed);
+                continue;
+            }
+            size_t physical_now = 0;
+            size_t physical_projected = 0;
+            device.be->kv_dequant_scratch_memory(
+                    device.compute_backend,
+                    device.scratch_k_needed, device.scratch_v_needed,
+                    &physical_now, &physical_projected);
+            device.scratch_physical_current = physical_now;
+            device.scratch_physical_needed = physical_projected;
+        }
         std::sort(
             output.devices.begin(), output.devices.end(),
             [](const auto & lhs, const auto & rhs) {
@@ -12127,6 +12153,9 @@ bool llama_kv_cache::vbr_import_destination_pricing_apply(
         }
         const size_t ikv = step.slot/2;
         const bool is_v = (step.slot & 1u) != 0;
+        const auto saturating_add = [](uint64_t lhs, uint64_t rhs) {
+            return rhs > UINT64_MAX - lhs ? UINT64_MAX : lhs + rhs;
+        };
         if (ikv >= layers.size()) {
             return false;
         }
@@ -12202,6 +12231,26 @@ bool llama_kv_cache::vbr_import_destination_pricing_apply(
                         v_row*pricing.watermark_cells);
                 }
             }
+            if (device.compute_backend != nullptr &&
+                device.be->kv_dequant_scratch_memory != nullptr) {
+                size_t physical_now = 0;
+                size_t physical_projected = 0;
+                device.be->kv_dequant_scratch_memory(
+                        device.compute_backend,
+                        device.scratch_k_needed, device.scratch_v_needed,
+                        &physical_now, &physical_projected);
+                device.scratch_physical_current = physical_now;
+                device.scratch_physical_needed = physical_projected;
+            } else {
+                device.scratch_physical_current = std::max<uint64_t>(
+                        device.scratch_physical_current,
+                        saturating_add(device.scratch_k_current,
+                                       device.scratch_v_current));
+                device.scratch_physical_needed = std::max<uint64_t>(
+                        device.scratch_physical_needed,
+                        saturating_add(device.scratch_k_needed,
+                                       device.scratch_v_needed));
+            }
         }
         return true;
     } catch (...) {
@@ -12257,20 +12306,19 @@ llama_memory_vbr_preflight_data llama_kv_cache::vbr_import_destination_preflight
                 kv += growth;
             }
         }
-        const uint64_t scratch_k =
-            device.scratch_k_needed > device.scratch_k_current
-                ? device.scratch_k_needed - device.scratch_k_current : 0;
-        const uint64_t scratch_v =
-            device.scratch_v_needed > device.scratch_v_current
-                ? device.scratch_v_needed - device.scratch_v_current : 0;
+        // Scratch is one grow-only K+V allocation domain in the compute backend. Charge
+        // the measured aggregate endpoint once; subtracting the cache's requested K/V
+        // memo double-charges bytes surviving a managed reset and misses a K-side partial
+        // grow when the V-side reserve fails.
+        const uint64_t scratch =
+            device.scratch_physical_needed > device.scratch_physical_current
+                ? device.scratch_physical_needed - device.scratch_physical_current : 0;
         uint64_t needed = kv;
-        for (const uint64_t value : { scratch_k, scratch_v }) {
-            if (value > UINT64_MAX-needed) {
-                overflow = true;
-                needed = UINT64_MAX;
-            } else {
-                needed += value;
-            }
+        if (scratch > UINT64_MAX-needed) {
+            overflow = true;
+            needed = UINT64_MAX;
+        } else {
+            needed += scratch;
         }
         const int64_t deficit = overflow
             ? INT64_MAX
