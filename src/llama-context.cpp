@@ -1371,6 +1371,11 @@ void llama_context::plan_kv_pager() {
     resources.routing_summary.representative_count = 4;
     resources.routing_summary.form = llama_kv_routing_summary_form::minmax_ranges;
     resources.routing_summary.subblock_tokens = 64;
+    if (geometry.unit_descriptors.size() > UINT32_MAX) {
+        throw std::runtime_error("KV pager geometry has too many live K/V units");
+    }
+    resources.host_capture_limits.max_units =
+            uint32_t(geometry.unit_descriptors.size());
     const uint64_t logical_pages = (geometry.context_tokens - 1) /
         geometry.page_tokens + 1;
     resources.admission.routing_bytes =
@@ -1632,6 +1637,11 @@ void llama_context::init_kv_pager() {
     resources.routing_summary.subblock_tokens = 64;
     resources.routing_summary.layer_index = 0;
     resources.routing_summary.head_index = 0;
+    if (geometry.unit_descriptors.size() > UINT32_MAX) {
+        throw std::runtime_error("KV pager geometry has too many live K/V units");
+    }
+    resources.host_capture_limits.max_units =
+            uint32_t(geometry.unit_descriptors.size());
     const uint64_t logical_pages = (geometry.context_tokens - 1) / geometry.page_tokens + 1;
     resources.admission.routing_bytes =
         llama_kv_routing_summary_device_layout::make(

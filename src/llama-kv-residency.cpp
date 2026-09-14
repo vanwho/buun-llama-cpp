@@ -26,9 +26,7 @@ bool operator!=(const llama_kv_page_id & a, const llama_kv_page_id & b) noexcept
 bool llama_kv_page_id_valid(const llama_kv_page_id & id, bool tail) noexcept {
     constexpr uint32_t page_size = VBR_GENERATION_PAGE_CELLS;
     if (id.sequence_id < 0 || id.position_begin < 0 || id.position_end <= id.position_begin ||
-        id.position_begin % page_size != 0 ||
-        (id.attention_layer != UINT32_MAX &&
-         id.attention_layer >= VBR_SELECTED_PAGE_TARGET_LAYERS)) {
+        id.position_begin % page_size != 0) {
         return false;
     }
     const uint64_t length = uint64_t(id.position_end) - uint64_t(id.position_begin);

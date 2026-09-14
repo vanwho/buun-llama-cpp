@@ -57,6 +57,8 @@ bool operator!=(const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) noex
 // `tail` is true for a committed page with fewer than
 // VBR_GENERATION_PAGE_CELLS positions. A tail may remain canonical after GPU
 // eviction; padding never becomes a valid position.
+// The generic page identity has no model-specific layer bound. Callers that
+// own live geometry validate attention_layer against that geometry separately.
 bool llama_kv_page_id_valid(const llama_kv_page_id & id, bool tail) noexcept;
 bool llama_kv_page_id_is_tail(const llama_kv_page_id & id) noexcept;
 uint32_t llama_kv_page_count(uint32_t logical_cells) noexcept;

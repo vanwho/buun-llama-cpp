@@ -693,9 +693,10 @@ struct vbr_selected_page_capture_request {
     uint32_t child_id = UINT32_MAX;
     uint32_t stream_index = UINT32_MAX;
     std::vector<vbr_selected_page_range> pages;
-    // The request is intentionally explicit even though the supported target
-    // has a fixed shape.  Capture refuses anything other than every K/V unit
-    // in layers [0, 16), in canonical logical-unit order-independent form.
+    // Legacy callers leave this at the fixed serialized width. Live callers
+    // set it from their runtime unit descriptors. The two schemas are never
+    // inferred from payload bytes.
+    uint32_t unit_count = VBR_SELECTED_PAGE_REQUIRED_UNITS;
     std::vector<uint32_t> required_unit_ids;
     // Indexed by logical unit ID. These are the generation tuples observed by
     // the caller before the transfer and are checked again against the live

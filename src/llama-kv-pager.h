@@ -23,6 +23,22 @@
 class vbr_h2d_chunk_ring;
 struct llama_model;
 
+// Runtime transport geometry. This is deliberately process-local and is not
+// the legacy fixed-width VBR snapshot schema. A unit is one K or V tensor for
+// one admitted attention layer, in compact layer order.
+struct llama_kv_pager_unit_geometry {
+    uint32_t logical_unit_id = UINT32_MAX;
+    uint32_t layer = UINT32_MAX;
+    uint32_t model_layer_id = UINT32_MAX;
+    uint8_t side = 0; // 0 = K, 1 = V
+    ggml_type type = GGML_TYPE_COUNT;
+    uint32_t kv_heads = 0;
+    uint32_t head_length = 0;
+    uint64_t row_bytes = 0;
+    uint64_t page_bytes = 0;
+    uint64_t offset = 0;
+};
+
 struct llama_kv_pager_geometry {
     uint64_t context_tokens = 0;
     uint32_t page_tokens = 256;
@@ -46,6 +62,9 @@ struct llama_kv_pager_geometry {
     // Model layer IDs are not necessarily compact attention ordinals in a
     // hybrid model. Keep the checked map beside the offsets.
     std::vector<uint32_t> model_layer_ids;
+    // Complete live K/V bundle descriptors. Legacy VBR artifacts retain
+    // their fixed schema; live capture uses this vector instead.
+    std::vector<llama_kv_pager_unit_geometry> unit_descriptors;
 };
 
 // Construct geometry from model metadata without allocating context-sized

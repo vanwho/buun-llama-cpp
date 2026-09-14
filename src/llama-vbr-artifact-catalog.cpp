@@ -92,7 +92,8 @@ vbr_selected_page_host_key selected_page_host_key(
 bool page_payload_valid(const vbr_selected_page_descriptor & page,
                         uint64_t & payload,
                         uint64_t & metadata) noexcept {
-    if (page.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+    if (page.units.empty() || page.units.size() % 2 != 0 ||
+        page.units.size() > UINT32_MAX ||
         page.positions.empty() ||
         page.positions.size() > VBR_GENERATION_PAGE_CELLS ||
         (page.tail && page.positions.size() == VBR_GENERATION_PAGE_CELLS) ||
@@ -107,10 +108,13 @@ bool page_payload_valid(const vbr_selected_page_descriptor & page,
         !add_u64(metadata, positions_bytes, metadata)) {
         return false;
     }
-    std::array<bool, VBR_SELECTED_PAGE_REQUIRED_UNITS> seen = {};
+    std::vector<bool> seen(page.units.size(), false);
     for (const auto & unit : page.units) {
-        if (unit.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+        if (unit.logical_unit_id >= page.units.size() ||
             seen[unit.logical_unit_id] || !unit.bytes ||
+            unit.layer != unit.logical_unit_id / 2 ||
+            unit.side != (unit.logical_unit_id & 1u
+                ? vbr_artifact_side::value : vbr_artifact_side::key) ||
             !unit.bytes->authenticated() || unit.bytes->size() == 0 ||
             unit.bytes->size() != unit.transfer.bytes ||
             unit.row_bytes == 0 ||

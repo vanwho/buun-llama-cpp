@@ -65,6 +65,99 @@ static void test_layer_slot_geometry() {
     assert(snapshot.physical_bytes == 256);
 }
 
+static void test_dynamic_live_geometry_and_capture() {
+    // Live geometry is not tied to the legacy 16-layer VBR snapshot width.
+    for (const uint32_t layers : { 1u, 3u, 17u, 31u }) {
+        llama_kv_pager_geometry layered;
+        layered.context_tokens = 512;
+        layered.page_tokens = 256;
+        layered.attention_layers = layers;
+        layered.kv_heads = 2;
+        layered.key_length = 128;
+        layered.value_length = 128;
+        layered.page_bytes = uint64_t(layers) * 2 * 64;
+        layered.layer_k_offsets.resize(layers);
+        layered.layer_v_offsets.resize(layers);
+        layered.layer_k_page_bytes.assign(layers, 64);
+        layered.layer_v_page_bytes.assign(layers, 64);
+        layered.model_layer_ids.reserve(layers);
+        layered.unit_descriptors.reserve(size_t(layers) * 2);
+        uint64_t offset = 0;
+        for (uint32_t layer = 0; layer < layers; ++layer) {
+            layered.model_layer_ids.push_back(layer * 2 + 1);
+            layered.layer_k_offsets[layer] = offset;
+            layered.layer_v_offsets[layer] = offset + 64;
+            layered.unit_descriptors.push_back({
+                layer * 2, layer, layer * 2 + 1, 0, GGML_TYPE_TURBO4_0,
+                2, 128, 64, 64, offset,
+            });
+            layered.unit_descriptors.push_back({
+                layer * 2 + 1, layer, layer * 2 + 1, 1, GGML_TYPE_TURBO4_0,
+                2, 128, 64, 64, offset + 64,
+            });
+            offset += 128;
+        }
+        llama_kv_pager_config config;
+        config.mode = llama_kv_pager_mode::selective;
+        config.hot_pages.automatic = false;
+        config.hot_pages.value = 2;
+        llama_kv_pager_snapshot snapshot;
+        llama_kv_pager_status status;
+        assert(llama_kv_pager_plan(
+                config, layered, resources(1u << 20, layered.page_bytes),
+                snapshot, status));
+        assert(snapshot.geometry.unit_descriptors.size() == size_t(layers) * 2);
+        assert(snapshot.geometry.model_layer_ids.back() == (layers - 1) * 2 + 1);
+        assert(snapshot.geometry.layer_slot_bases.back() ==
+                (layers - 1) * snapshot.physical_page_count);
+    }
+
+    llama_kv_page_id page;
+    page.session_generation = 1;
+    page.sequence_id = 0;
+    page.sequence_generation = 1;
+    page.page_generation = 1;
+    page.representation_epoch = 1;
+    page.model_identity = 1;
+    page.topology_identity = 1;
+    page.codec_digest = page.codebook_digest = page.rotation_digest = page.meansub_digest = 1;
+    page.position_begin = 0;
+    page.position_end = VBR_GENERATION_PAGE_CELLS;
+    vbr_selected_page_capture_request request;
+    request.source_namespace = 1;
+    request.child_id = 0;
+    request.stream_index = 0;
+    request.unit_count = 6;
+    request.expected_unit_generations.resize(request.unit_count);
+    vbr_selected_page_range range;
+    range.identity = page;
+    range.positions.resize(VBR_GENERATION_PAGE_CELLS);
+    range.physical_cells.resize(VBR_GENERATION_PAGE_CELLS);
+    for (uint32_t row = 0; row < VBR_GENERATION_PAGE_CELLS; ++row) {
+        range.positions[row] = llama_pos(row);
+        range.physical_cells[row] = row;
+    }
+    request.pages.push_back(std::move(range));
+    std::vector<vbr_selected_page_unit_source> sources;
+    for (uint32_t unit = 0; unit < request.unit_count; ++unit) {
+        request.required_unit_ids.push_back(unit);
+        vbr_selected_page_unit_source source;
+        source.logical_unit_id = unit;
+        source.row_count = VBR_GENERATION_PAGE_CELLS;
+        source.row_bytes = 1;
+        source.source_identity = unit + 1;
+        source.source.size = VBR_GENERATION_PAGE_CELLS;
+        sources.push_back(source);
+    }
+    vbr_selected_page_capture_limits limits;
+    limits.max_units = request.unit_count;
+    vbr_selected_page_capture_quote quote;
+    assert(vbr_selected_page_capture_project(request, sources, limits, quote) ==
+            vbr_selected_page_capture_status::ok);
+    assert(quote.unit_count == request.unit_count);
+    assert(quote.payload_bytes == uint64_t(request.unit_count) * VBR_GENERATION_PAGE_CELLS);
+}
+
 static void test_full_256k_capacity_plan() {
     llama_kv_pager_config config;
     config.mode = llama_kv_pager_mode::selective;
@@ -752,6 +845,7 @@ static void test_pager_host_mutation() {
 
 int main() {
     test_layer_slot_geometry();
+    test_dynamic_live_geometry_and_capture();
     test_host_seal_boundary();
     test_cuda_async_host_publication();
     test_compact_checkpoint_page_identity();
