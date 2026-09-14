@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "task": "64-01",
+  "source_commit": "8af4898c3e656ca30ec0eee05604bee2950505e2",
+  "baseline": {
+    "controlled_physical": "not_run",
+    "organic_physical": "not_run",
+    "answer_quality": "not_run"
+  },
+  "candidate": {
+    "model": "/srv/ai/models/text/current.gguf",
+    "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "immutable_bundle_source_head": "49cf30f7bc14db52e1ff8d95f731c0f14dacaa23",
+    "endpoint_pid": 1414458,
+    "endpoint_executable": "/srv/ai/paged-kv/results/v10/63-01/candidate-bundle/bin/llama-server",
+    "endpoint_port": 8080,
+    "target": "CUDA turbo4 K/V",
+    "native_mtp": "GPU turbo4 K/V",
+    "geometry": {
+      "L": 8192,
+      "C_fixture_a": 2035,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_size": 256,
+      "physical_pool_capacity_bytes": 69206016,
+      "page_bytes": 4325376
+    },
+    "identity_artifact": "/srv/ai/paged-kv/results/v10/64-01/20260915T005500Z/provenance/identity.json"
+  },
+  "findings": {
+    "t0_production_chain": {
+      "status": "measured",
+      "result": "pass",
+      "seed": "0x49060001",
+      "winner_logical_page": 0,
+      "copy_bytes": 1081344,
+      "published_epoch": 6174,
+      "owner_generation": 100,
+      "mature_fa_consumption_parity": "pass"
+    },
+    "t1_controlled_model_query": {
+      "setup_label": "controlled_model_query",
+      "status": "failed",
+      "promotion_status": "not_run",
+      "answer_quality_status": "not_run",
+      "attempts": [
+        {
+          "status": "failed",
+          "reason": "segmentation fault after model initialization and before the selected-only result; no proof JSON emitted",
+          "logical_page": null,
+          "page_generation": null,
+          "physical_slot": null,
+          "h2d_useful_bytes": null
+        },
+        {
+          "status": "failed",
+          "reason": "matching older model-query harness also segfaulted after initialization; no proof JSON emitted",
+          "logical_page": null,
+          "page_generation": null,
+          "physical_slot": null,
+          "h2d_useful_bytes": null
+        }
+      ],
+      "forced_page_used": false,
+      "client_page_id_used": false
+    },
+    "t3_two_document_round_trip": {
+      "status": "failed",
+      "setup": {
+        "status": "measured",
+        "document_a_tokens": 2035,
+        "document_b_plus_history_tokens": 4073,
+        "third_query_tokens": 4110,
+        "cold_boundary": "physical pool H=4096; the natural proof page was cold before promotion",
+        "documents": {
+          "A": {"nonce": "AURORA-CEDAR-161"},
+          "B": {"nonce": "EMBER-QUARTZ-947"}
+        }
+      },
+      "attempts": [
+        {
+          "label": "oversized-safety-attempt",
+          "status": "failed",
+          "reason": "measured prompt was 14161 tokens, exceeding L8192; no result was used as evidence"
+        },
+        {
+          "label": "resized-t3",
+          "status": "failed_response_but_physical_edge_measured",
+          "reason": "first A request returned HTTP 500: KV pager batch write reservation failed: transaction; campaign was not treated as a successful A/B/A round trip",
+          "physical_promotion": {
+            "status": "measured",
+            "logical_page": 12,
+            "attention_layer": 3,
+            "selector_rank": 0,
+            "page_generation": 41,
+            "content_version": 41,
+            "physical_slot": 12,
+            "query_generation": 68,
+            "query_position": 4225,
+            "catalogue_epoch": 8618,
+            "published_epoch": 8683,
+            "target_use_epoch": 8880,
+            "target_use_query_generation": 68,
+            "h2d_useful_bytes": 4325376,
+            "h2d_aligned_bytes": 4325376,
+            "candidate_was_cold": true,
+            "host_ready": true,
+            "selector_published": true,
+            "h2d_queued": true,
+            "h2d_completed": true,
+            "mapping_published": true,
+            "target_graph_used": true
+          },
+          "answer_quality": {
+            "status": "failed",
+            "reason": "response content was 12 slash characters (////////////); expected nonce was not present"
+          },
+          "mtp": {
+            "status": "measured",
+            "draft_tokens": 24,
+            "accepted_tokens": 0,
+            "acceptance_percent": 0.0
+          }
+        },
+        {
+          "label": "resized-t3-following-rows",
+          "status": "not_run_for_claims",
+          "reason": "retained raw B and A-again responses after the first invalid response; neither is used to claim a round trip, new promotion, or quality"
+        }
+      ],
+      "forced_page_used": false,
+      "client_page_id_used": false
+    },
+    "answer_quality": {
+      "status": "failed",
+      "reason": "the concise nonce prompt was executed in the same conversation fixture, but the model response did not contain the expected nonce",
+      "expected": ["AURORA-CEDAR-161", "EMBER-QUARTZ-947"],
+      "observed_first_response": "////////////"
+    }
+  },
+  "checks": {
+    "phase64_promotion_quality_advancement": {
+      "status": "pass",
+      "command": ["python3", ".wiretail/execution/evidence/V10_64-01_validation.py"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005000Z/t0/test-cuda-kv-promotion.log", "sha256": "bf08a88fdc4c6412005f7230cb022132bf7754b54c20791216cbac3e44b4ebfa"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005000Z/t1/controlled-model-query.stdout", "sha256": "bb2bf5e4e7cd3677cfd7c419e71fb1e77cfcc81303282025ac048727a72eb3c8"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005000Z/t1/controlled-model-query-matched.stdout", "sha256": "5c41a2870c25f2059d6101201eb6106ac025fd61b069e4786198fab513195d1d"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005500Z/t3/summary.json", "sha256": "14dd2618c8d686435c8b2751faa04618903369c4cc6670b332474b87d2a89d39"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005500Z/t3/raw-t3-a.sse", "sha256": "3149dbebaea9ae131b74345a1fa44d9847f4068288c4cde897238d7ffc408848"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005500Z/t3/t3-a.json", "sha256": "8b268eda3a5933a173ef1226c93716fdc80918a3f5adb54fda554a605e73128c"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005500Z/t3/t3-b.json", "sha256": "a340d60265ec879ba86e3deed126a437321c7671258ec2e118c11827a4bbde99"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005500Z/t3/t3-a-again.json", "sha256": "360868e0d107dcf6c25667a88990c37cdc1e6fd32f99963de00fc3e767ee0554"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005500Z/provenance/identity.json", "sha256": "1d5bf14b1d4e827d3003e04e697dba9fe7df476e7a9c96faddd396268ecd0dd0"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-01/20260915T005500Z/validation.txt", "sha256": "074d386a7b211ea46ecba69e30046a708fe36147a3b835a68ffca0573d1eaa76"},
+        {"path": ".wiretail/execution/evidence/V10_64-01_validation.py", "sha256": "76be5b3bbcd74878dd9052dd72d773a5062bcfa60e4f45234cc8815b3e90b28f"}
+      ]
+    }
+  }
+}
