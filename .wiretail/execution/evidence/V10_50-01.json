@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "task": "50-01",
+  "source_commit": "7c98f7f66121fefea7e69fa6232a1bf98d32acfe",
+  "checks": {
+    "gpu_summary_reference": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build-cuda/bin/test-cuda-kv-page-summary",
+        "--cpu-only"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/50-01/20260914T1105Z/cpu-summary.txt",
+          "sha256": "4585f78b140babb87adf8c291e885612d97e3bd7034566e8a33440a16d09c0b6"
+        }
+      ]
+    },
+    "incremental_catalogue_reuse": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build-cuda/bin/test-cuda-kv-page-summary",
+        "--cpu-only"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/50-01/20260914T1105Z/cpu-summary.txt",
+          "sha256": "4585f78b140babb87adf8c291e885612d97e3bd7034566e8a33440a16d09c0b6"
+        }
+      ]
+    },
+    "live_gpu_summary_path": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "env",
+        "LD_LIBRARY_PATH=build-cuda/bin",
+        "./build-cuda/bin/test-cuda-kv-page-summary"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/50-01/20260914T090831Z/cuda-summary.txt",
+          "sha256": "c4adc49b1f89318ecb6d36cd94333f888b4052c39fcf0e54786d4110bec84e05"
+        }
+      ]
+    }
+  }
+}
