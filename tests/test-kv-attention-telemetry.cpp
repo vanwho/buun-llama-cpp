@@ -137,6 +137,23 @@ int main() {
     sample.token_index = 2;
     assert(sampled.publish_completed(snapshot, sample) == llama_kv_attention_telemetry_status::ok);
 
+    // A completed selected route without a page-mass producer must be
+    // rejected at publication, not silently marked handled. The trace keeps
+    // the exact identity of that rejected event for the live boundary.
+    llama_kv_attention_telemetry missing_output(config);
+    assert(missing_output.initialize(snapshot) == llama_kv_attention_telemetry_status::ok);
+    sample = make_sample(snapshot, mass.data(), snapshot.pages().size());
+    sample.page_mass = nullptr;
+    sample.token_index = 8;
+    assert(missing_output.publish_completed(snapshot, sample) ==
+            llama_kv_attention_telemetry_status::invalid_argument);
+    assert(missing_output.counters().dropped_no_output == 1);
+    assert(missing_output.counters().trace_epoch == snapshot.epoch());
+    assert(missing_output.counters().trace_token_index == 8);
+    assert(missing_output.counters().trace_page_count == snapshot.pages().size());
+    assert(missing_output.counters().trace_drop_reason ==
+            llama_kv_attention_telemetry_drop_reason::no_output);
+
     // Off has no telemetry work and rejects even malformed/null samples.
     config.mode = llama_kv_attention_telemetry_mode::off;
     llama_kv_attention_telemetry off(config);

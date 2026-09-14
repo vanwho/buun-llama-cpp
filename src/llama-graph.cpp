@@ -746,6 +746,13 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     };
 
     if (selected_attention) {
+        if ((direct_attention || packed_attention) && kv_attention_telemetry != nullptr) {
+            direct_telemetry_published = false;
+            direct_telemetry_skipped = false;
+            direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::none;
+            direct_telemetry_token_index = ubatch->pos != nullptr
+                ? uint64_t(std::max<llama_pos>(0, ubatch->pos[0])) : 0;
+        }
         if (exact_wave_attention) {
             direct_telemetry_published = false;
             if (direct_explicit_native_metadata && !direct_native_positions_host.empty()) {
@@ -865,10 +872,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 }
             }
             refresh_direct_telemetry(ubatch);
-            if (direct_page_mass != nullptr && ubatch->pos != nullptr) {
-                direct_telemetry_token_index = uint64_t(
-                        std::max<llama_pos>(0, ubatch->pos[0]));
-            } else if (direct_page_mass == nullptr && kv_attention_telemetry != nullptr &&
+            if (direct_page_mass == nullptr && kv_attention_telemetry != nullptr &&
                        kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
                        ubatch->pos != nullptr &&
                        !kv_attention_telemetry->cadence_due(uint64_t(
@@ -1008,6 +1012,15 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             if (packed_cache == nullptr || !packed_cache->submit_graph(packed_graph_owners)) {
                 throw std::runtime_error("packed selected attention graph lease failed");
             }
+            if (kv_attention_telemetry != nullptr &&
+                    kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off) {
+                if (ubatch->pos == nullptr || !kv_attention_telemetry->cadence_due(
+                        direct_telemetry_token_index)) {
+                    direct_telemetry_skipped = true;
+                } else {
+                    refresh_direct_telemetry(ubatch);
+                }
+            }
         } else {
             GGML_ASSERT(self_selected_idxs != nullptr);
             GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
@@ -1119,65 +1132,74 @@ ggml_tensor * llm_graph_input_attn_kv::get_v_idxs(int32_t il) const {
 
 void llm_graph_input_attn_kv::refresh_direct_telemetry(
         const llama_ubatch * ubatch) noexcept {
-    if (!direct_attention || direct_page_mass == nullptr ||
+    if ((!direct_attention && !packed_attention) ||
         kv_attention_telemetry == nullptr || mctx == nullptr) {
         return;
     }
     direct_telemetry_pages.clear();
     direct_telemetry_snapshot = {};
+    direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::none;
     const auto * pager = mctx->get_kv_pager();
     if (pager == nullptr || ubatch == nullptr || ubatch->n_seq_id == nullptr ||
         ubatch->seq_id == nullptr || ubatch->n_seq_id[0] == 0 ||
         ubatch->seq_id[0] == nullptr) {
-        kv_attention_telemetry->record_drop(
-                llama_kv_attention_telemetry_drop_reason::no_metadata);
+        direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::no_metadata;
         return;
     }
     const llama_seq_id sequence_id = ubatch->seq_id[0][0];
     if (sequence_id < 0) {
-        kv_attention_telemetry->record_drop(
-                llama_kv_attention_telemetry_drop_reason::no_metadata);
+        direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::no_metadata;
         return;
     }
     try {
         const auto snapshot = pager->residency(sequence_id);
         if (snapshot.epoch() == 0) {
-            kv_attention_telemetry->record_drop(
-                    llama_kv_attention_telemetry_drop_reason::stale_snapshot);
+            direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::stale_snapshot;
             return;
         }
+        direct_telemetry_snapshot = snapshot;
         if (kv_attention_telemetry->reconcile(snapshot) !=
                 llama_kv_attention_telemetry_status::ok) {
-            kv_attention_telemetry->record_drop(
-                    llama_kv_attention_telemetry_drop_reason::stale_snapshot,
-                    snapshot.epoch());
+            direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::stale_snapshot;
             return;
         }
         std::vector<llama_kv_page_record> pages;
-        pages.reserve(direct_active_page_count);
-        for (uint32_t page_index = 0; page_index < direct_active_page_count; ++page_index) {
-            const auto & view_page = direct_pages_host[page_index];
+        const auto append_page = [&](uint32_t logical_page, uint32_t physical_slot) {
             const auto it = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
                     [&](const auto & record) {
-                return record.id.logical_page == view_page.logical_page &&
-                    record.physical_slot == view_page.source_physical_slot;
+                return record.id.logical_page == logical_page &&
+                    record.physical_slot == physical_slot;
             });
             if (it == snapshot.pages().end()) {
-                kv_attention_telemetry->record_drop(
-                        llama_kv_attention_telemetry_drop_reason::stale_identity,
-                        snapshot.epoch(), direct_telemetry_token_index,
-                        direct_active_page_count);
-                return;
+                return false;
             }
             pages.push_back(*it);
+            return true;
+        };
+        if (packed_attention) {
+            const auto & view_pages = selected_metadata.page_table();
+            pages.reserve(view_pages.size());
+            for (const auto & view_page : view_pages) {
+                if (!append_page(view_page.logical_page, view_page.source_physical_slot)) {
+                    direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::stale_identity;
+                    return;
+                }
+            }
+        } else {
+            pages.reserve(direct_active_page_count);
+            for (uint32_t page_index = 0; page_index < direct_active_page_count; ++page_index) {
+                const auto & view_page = direct_pages_host[page_index];
+                if (!append_page(view_page.logical_page, view_page.source_physical_slot)) {
+                    direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::stale_identity;
+                    return;
+                }
+            }
         }
-        direct_telemetry_snapshot = snapshot;
         direct_telemetry_pages = std::move(pages);
     } catch (...) {
         direct_telemetry_pages.clear();
         direct_telemetry_snapshot = {};
-        kv_attention_telemetry->record_drop(
-                llama_kv_attention_telemetry_drop_reason::no_metadata);
+        direct_telemetry_drop_reason = llama_kv_attention_telemetry_drop_reason::no_metadata;
     }
 }
 

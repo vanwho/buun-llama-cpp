@@ -6,6 +6,7 @@
 #include "llama-adapter.h"
 #include "llama-kv-attention-op.h"
 #include "llama-kv-attention-execution.h"
+#include "llama-kv-attention-telemetry.h"
 
 #include <cstdint>
 #include <vector>
@@ -569,6 +570,8 @@ public:
     uint64_t direct_telemetry_token_index = 0;
     bool direct_telemetry_published = false;
     bool direct_telemetry_skipped = false;
+    llama_kv_attention_telemetry_drop_reason direct_telemetry_drop_reason =
+        llama_kv_attention_telemetry_drop_reason::none;
     std::vector<uint64_t> direct_layer_k_offsets;
     std::vector<uint64_t> direct_layer_v_offsets;
     // Cold waves use a compact layer-major staging slab whose offsets are

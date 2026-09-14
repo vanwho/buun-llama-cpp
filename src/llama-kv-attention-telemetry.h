@@ -193,10 +193,14 @@ private:
     bool snapshot_matches(const llama_kv_residency_snapshot & snapshot) const noexcept;
     llama_kv_attention_telemetry_status reject_stale(
             llama_kv_attention_telemetry_drop_reason reason =
-                llama_kv_attention_telemetry_drop_reason::stale_snapshot) noexcept;
+                llama_kv_attention_telemetry_drop_reason::stale_snapshot,
+            uint64_t table_epoch = 0, uint64_t token_index = 0,
+            uint32_t page_count = 0, uint32_t token_count = 0) noexcept;
     llama_kv_attention_telemetry_status reject_invalid(
             llama_kv_attention_telemetry_drop_reason reason =
-                llama_kv_attention_telemetry_drop_reason::invalid_argument) noexcept;
+                llama_kv_attention_telemetry_drop_reason::invalid_argument,
+            uint64_t table_epoch = 0, uint64_t token_index = 0,
+            uint32_t page_count = 0, uint32_t token_count = 0) noexcept;
 
     llama_kv_attention_telemetry_mode mode_;
     uint32_t logical_page_count_ = 0;
