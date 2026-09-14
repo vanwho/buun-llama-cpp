@@ -1,0 +1,172 @@
+{
+  "schema": "hotpath-v9-summary",
+  "task": "47-03",
+  "phase": "47",
+  "revision": "hotpath-v9-20260914-r3",
+  "utc": "2026-09-14T03:40:13Z",
+  "result": "bounded_revalidation_passed_with_unmet_natural_cold_eligibility",
+  "scope": "Compact phase-47 implementation and bounded benchmark aggregation.",
+  "active_campaign_met": false,
+  "overall_256k_demonstrated": false,
+  "natural_cold_proven": false,
+  "fullL_gpu_turbo4_mtp": true,
+  "measured_cpu_speedup": null,
+  "units": {
+    "rates": "tok/s",
+    "durations": "milliseconds unless the field name ends in _us",
+    "bytes": "integer bytes",
+    "counts_and_geometry": "integer tokens, rows, pages, or samples",
+    "ratios": "dimensionless selected divided by named control"
+  },
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "route": "selected_packed",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "candidate_binary": "/srv/ai/paged-kv/results/v9/43-02/20260914T021611Z-candidate/bin/llama-server",
+    "candidate_binary_sha256": "ebc2cac869de80023daa278f020b40588d33c64028e53baff61a1cdf61896d3c"
+  },
+  "geometry": {
+    "invariant": "selected <= A_by_layer <= H <= L",
+    "measured": {
+      "occupied_tokens_before_recall": 5004,
+      "recall_prompt_tokens": 5050,
+      "selected_rows_by_layer": 2048,
+      "invariant_pass": true
+    },
+    "scale": {
+      "32K": {"L": 32768, "measured": false, "status": "not_run"},
+      "128K": {"L": 131072, "measured": false, "status": "not_run"},
+      "256K": {"L": 262144, "measured": false, "status": "not_demonstrated"}
+    }
+  },
+  "current_q": {
+    "producer": "selected-packed current-Q attention telemetry and pager metrics",
+    "attention_samples": 2,
+    "attention_mass_samples": 2,
+    "attention_publish_time_us": null,
+    "publication": {"candidate_published": false, "promotion_published": false},
+    "status": "positive current-Q samples observed, but candidate and promotion publication were absent"
+  },
+  "natural_cold": {
+    "fixture": "incremental C>H natural recall/append with fresh managed service lifecycle",
+    "occupied_tokens_before_recall": 5004,
+    "recall_prompt_tokens": 5050,
+    "coherent_recall": true,
+    "coherent_append": true,
+    "transfer_submitted": 0,
+    "h2d_useful_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "eligible_for_scale": false,
+    "actual_cold_use_counters": {
+      "candidate_was_cold": false,
+      "host_ready": false,
+      "promotion_published": false,
+      "selected_in_last_graph": false,
+      "selected_cold_pages_used": 0
+    },
+    "failure_class": "selection-quality",
+    "failure": "No non-sentinel cold candidate, host-ready promotion, useful H2D, or selected cold-page use was observed."
+  },
+  "control_placement": {
+    "selected_packed": "target K/V selected-packed route; Turbo4 K/V and native GPU MTP",
+    "cpu_main_kv_gpu_weights_native_mtp": "target K/V on CPU; model weights, draft, and native MTP on GPU",
+    "all_gpu_pager_off": "target K/V on GPU; pager off control"
+  },
+  "matched_controls": {
+    "prompt_ids": [0, 1, 2],
+    "committed_output_tokens": 128,
+    "selected_packed": {
+      "samples": 3,
+      "prefill_tok_s": [667.720181, 275.603009, 598.853623],
+      "decode_tok_s": [34.246843, 34.482384, 34.367144],
+      "mtp_proposed": [249, 247, 249],
+      "mtp_accepted": [1, 2, 1],
+      "errors": 0
+    },
+    "cpu_main_kv_gpu_weights_native_mtp": {
+      "samples": 1,
+      "prefill_tok_s": [222.809780, null, null],
+      "decode_tok_s": [10.074093, null, null],
+      "mtp_proposed": [251, null, null],
+      "mtp_accepted": [0, null, null],
+      "errors": 0
+    },
+    "all_gpu_pager_off": {
+      "samples": 1,
+      "prefill_tok_s": [651.140581, null, null],
+      "decode_tok_s": [36.640541, null, null],
+      "mtp_proposed": [251, null, null],
+      "mtp_accepted": [0, null, null],
+      "errors": 0
+    },
+    "selected_over_all_gpu_decode": [0.935, 0.941, 0.938],
+    "selected_over_cpu_decode": [3.400, null, null],
+    "ratio_note": "Descriptive ratios only; measured_cpu_speedup remains null because controls are not equivalent-throughput measurements."
+  },
+  "memory_bytes": {
+    "target_allocated": null,
+    "target_valid": null,
+    "host_valid": null,
+    "weights": null,
+    "mtp_compute": null,
+    "packed_workspace": null,
+    "headroom": null,
+    "full_256k_total": null,
+    "source": "V9_47_BENCHMARK resources; no memory category samples reported"
+  },
+  "sample_counts": {
+    "selected_comparison": 3,
+    "cpu_main_kv_control": 1,
+    "all_gpu_control": 1,
+    "natural_cold_growth": 6,
+    "natural_cold_recall": 1,
+    "natural_cold_attention": 2,
+    "scale_32k": 0,
+    "scale_128k": 0,
+    "scale_256k": 0
+  },
+  "failure_classification": {
+    "measurement_failure": {"status": "pass", "cause": "Natural recall published positive current-Q samples with no invalid or non-finite drops."},
+    "runtime_failure": {"status": "pass", "cause": "Natural incremental append and recall completed coherently; no runtime failure."},
+    "selection_quality": {"status": "failed_gate", "cause": "No non-sentinel cold candidate, promotion publication, useful H2D, or selected cold-page use.", "source_symbols": ["llama_kv_attention_telemetry::publish_completed", "llama_kv_cache::capture_kv_routing_query", "llama_kv_cache::apply_pager_live_policy", "llama_kv_prefetch_mailbox::poll", "llama_kv_prefetch_mailbox::take_ready"]}
+  },
+  "uncertainty": [
+    "Candidate, promotion, useful H2D, and selected cold-page use remain unproven beyond current-Q publication.",
+    "CPU-main-KV and all-GPU controls have only q0 cells in this retry; q1/q2 cells remain null rather than inferred.",
+    "32K, 128K, and 256K values are not measurements because the natural-cold gate stopped the campaign."
+  ],
+  "next_actions": [
+    {"order": 1, "action": "Repair or instrument candidate and promotion selection after current-Q publication, then rerun the bounded L8192 natural fixture."},
+    {"order": 2, "action": "Retain the explicit CPU-main-KV and all-GPU control boundaries; keep measured_cpu_speedup null until equivalent throughput is defined."},
+    {"order": 3, "action": "Run bounded 32K and conditional 128K validation only after cold candidate, useful H2D, selected cold use, and coherent recall pass."}
+  ],
+  "deferred_scale": {"status": "not_run", "reason": "Natural-cold eligibility failed; stopped at L8192 before 32K."},
+  "provenance": {
+    "benchmark_receipt": ".wiretail/execution/evidence/V9_47_BENCHMARK.json",
+    "benchmark_sha256": "9a62dab50b27fd5a5b0fac342bab2180ab8c08e235c6ae6b2dc448723e7a9437",
+    "source_commit": "c2b9f1d82",
+    "candidate_binary": "/srv/ai/paged-kv/results/v9/43-02/20260914T021611Z-candidate/bin/llama-server",
+    "raw_results_root": "/srv/ai/paged-kv/results/v9/47-02/",
+    "raw_runs": {
+      "selected_controls": "20260914T033523Z-selected-controls",
+      "selected_q1q2": "20260914T034013Z-selected-q1q2",
+      "natural_cold": "20260914T033641Z-natural-cold-incremental",
+      "cpu_main_kv": "20260914T033718Z-cpu-main-kv",
+      "all_gpu_pager_off": "20260914T033839Z-all-gpu-pager-off"
+    },
+    "model_hash": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "bundle_manifest": "/srv/ai/paged-kv/results/v9/43-02/20260914T021611Z-candidate/bundle-manifest.json"
+  }
+}
