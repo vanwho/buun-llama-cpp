@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "51",
-  "current_task": "51-04",
-  "last_updated_utc": "2026-09-14T15:25:40+00:00",
+  "current_task": "51-05",
+  "last_updated_utc": "2026-09-14T15:30:21+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -9428,7 +9428,7 @@
       "cluster": "51b-scale-findings-v10",
       "title": "Determine 256K feasibility without false occupancy claims",
       "packet": ".wiretail/execution/tasks/51-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -9455,7 +9455,32 @@
       "depends_on": [
         "51-03"
       ],
-      "commit": null
+      "commit": "0499d875a086ca0e48ff8fd48d2858fdcf342aa2",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/51-04-attempt-1-20260914T152558Z.jsonl:42",
+            "total_tokens": 6185739,
+            "total_tokens_derived": true,
+            "input_tokens": 6154540,
+            "cached_input_tokens": 5983232,
+            "output_tokens": 31199,
+            "thinking_tokens": 6372
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 6185739,
+          "input_tokens": 6154540,
+          "cached_input_tokens": 5983232,
+          "output_tokens": 31199,
+          "thinking_tokens": 6372
+        }
+      }
     },
     {
       "id": "51-05",
@@ -12405,15 +12430,28 @@
           "cached_input_tokens": 3770624,
           "output_tokens": 20190,
           "thinking_tokens": 4441
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/51-04-attempt-1-20260914T152558Z.jsonl:42",
+          "total_tokens": 6185739,
+          "total_tokens_derived": true,
+          "input_tokens": 6154540,
+          "cached_input_tokens": 5983232,
+          "output_tokens": 31199,
+          "thinking_tokens": 6372
         }
       ],
       "totals": {
-        "turns": 3,
-        "total_tokens": 175213270,
-        "input_tokens": 174882759,
-        "cached_input_tokens": 171621888,
-        "output_tokens": 330511,
-        "thinking_tokens": 118026
+        "turns": 4,
+        "total_tokens": 181399009,
+        "input_tokens": 181037299,
+        "cached_input_tokens": 177605120,
+        "output_tokens": 361710,
+        "thinking_tokens": 124398
       }
     },
     "52": {
@@ -12430,12 +12468,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 175,
-      "total_tokens": 3853171856,
-      "input_tokens": 3844260354,
-      "cached_input_tokens": 3766462720,
-      "output_tokens": 8911502,
-      "thinking_tokens": 3251691
+      "turns": 176,
+      "total_tokens": 3859357595,
+      "input_tokens": 3850414894,
+      "cached_input_tokens": 3772445952,
+      "output_tokens": 8942701,
+      "thinking_tokens": 3258063
     },
     "source": "Codex turn.completed usage events"
   }
