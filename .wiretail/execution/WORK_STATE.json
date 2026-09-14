@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "37",
-  "current_task": "37-02",
-  "last_updated_utc": "2026-09-13T23:56:49+00:00",
+  "current_task": "37-03",
+  "last_updated_utc": "2026-09-14T00:00:21+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7204,7 +7204,7 @@
       "cluster": "37b-128k-v9",
       "title": "Validate full-L 128K draft and memory capacity with a short pilot",
       "packet": ".wiretail/execution/tasks/37-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -7219,7 +7219,32 @@
       "depends_on": [
         "37-01"
       ],
-      "commit": null
+      "commit": "660f50bed01044d7f052835640d31105ed451627",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/37-02-attempt-1-20260913T235707Z.jsonl:50",
+            "total_tokens": 773235,
+            "total_tokens_derived": true,
+            "input_tokens": 763636,
+            "cached_input_tokens": 697088,
+            "output_tokens": 9599,
+            "thinking_tokens": 3370
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 773235,
+          "input_tokens": 763636,
+          "cached_input_tokens": 697088,
+          "output_tokens": 9599,
+          "thinking_tokens": 3370
+        }
+      }
     },
     {
       "id": "37-03",
@@ -9472,15 +9497,28 @@
           "cached_input_tokens": 801280,
           "output_tokens": 8279,
           "thinking_tokens": 1395
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/37-02-attempt-1-20260913T235707Z.jsonl:50",
+          "total_tokens": 773235,
+          "total_tokens_derived": true,
+          "input_tokens": 763636,
+          "cached_input_tokens": 697088,
+          "output_tokens": 9599,
+          "thinking_tokens": 3370
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 871977,
-        "input_tokens": 863698,
-        "cached_input_tokens": 801280,
-        "output_tokens": 8279,
-        "thinking_tokens": 1395
+        "turns": 2,
+        "total_tokens": 1645212,
+        "input_tokens": 1627334,
+        "cached_input_tokens": 1498368,
+        "output_tokens": 17878,
+        "thinking_tokens": 4765
       }
     },
     "38": {
@@ -9497,12 +9535,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 134,
-      "total_tokens": 3173305296,
-      "input_tokens": 3166070496,
-      "cached_input_tokens": 3104051200,
-      "output_tokens": 7234800,
-      "thinking_tokens": 2645756
+      "turns": 135,
+      "total_tokens": 3174078531,
+      "input_tokens": 3166834132,
+      "cached_input_tokens": 3104748288,
+      "output_tokens": 7244399,
+      "thinking_tokens": 2649126
     },
     "source": "Codex turn.completed usage events"
   }
