@@ -1,0 +1,110 @@
+{
+  "schema": "hotpath-v9",
+  "task": "37-03",
+  "revision": "hotpath-v9-20260913",
+  "utc": "2026-09-14T00:01:06Z",
+  "provenance": {
+    "code_sha": "6ffcfd4a899e56c835316a196bb4dcca9ab36615",
+    "code_sha_role": "inspected only; no 128K population was launched",
+    "source_diff_hash": null,
+    "source_diff_hash_reason": "no production source change; population was gated off",
+    "server_sha": null,
+    "server_sha_reason": "no candidate was started for this not_run task",
+    "loaded_dso_hashes": null,
+    "model_hash": null,
+    "prompt_hash": null,
+    "raw_root": null,
+    "raw_root_reason": "no raw run directory was created because the pilot was ineligible",
+    "effective_config_hash": null,
+    "effective_config_hash_reason": "no runtime configuration was instantiated"
+  },
+  "eligibility": {
+    "prerequisite": ".wiretail/execution/evidence/V9_128K_PILOT.json",
+    "eligible": false,
+    "reason": "37-02 is not_run: the 32K prerequisite gate lacks natural current-Q catalogue candidate publication and records zero H2D bytes",
+    "required_before_population": "eligible 128K pilot with a resolved full-L ledger and retained target+draft state"
+  },
+  "config": {
+    "L": 131072,
+    "C_before": null,
+    "C_after": null,
+    "H": null,
+    "A_by_layer": null,
+    "B": null,
+    "U": null,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 131072,
+    "draft_device": "gpu",
+    "mtp_type": "native",
+    "status": "requested_only; not instantiated",
+    "unmeasured_fields_reason": "the prerequisite pilot was ineligible before population, ledger resolution, or state retention"
+  },
+  "execution": {
+    "target_attention_route": null,
+    "target_attention_route_reason": "not_run: ineligible 128K pilot",
+    "target_layer_count": null,
+    "target_layer_count_reason": "not_run",
+    "resident_bytes": null,
+    "resident_bytes_reason": "no target allocation",
+    "canonical_host_bytes": null,
+    "canonical_host_bytes_reason": "no target history was populated",
+    "selected_rows_by_layer": null,
+    "selected_rows_by_layer_reason": "no attention workspace was created",
+    "fresh_or_restored": null,
+    "fresh_or_restored_reason": "no runtime sequence",
+    "occupied_frontier": null,
+    "occupied_frontier_reason": "no append or retained state"
+  },
+  "rates": {
+    "prefill_new_tokens": null,
+    "prefill_seconds": null,
+    "cached_tokens": null,
+    "committed_output_tokens": null,
+    "decode_seconds": null,
+    "ttft_seconds": null,
+    "pp_tok_s": null,
+    "tg_tok_s": null,
+    "proposed_tokens": null,
+    "accepted_tokens": null,
+    "eta_seconds": null,
+    "reason": "not_run"
+  },
+  "work": {
+    "pack_bytes": null,
+    "host_copy_bytes": null,
+    "h2d_bytes": null,
+    "selected_cold_pages_used": null,
+    "graph_builds": null,
+    "graph_replays": null,
+    "router_refreshes": null,
+    "queue_time_us": null,
+    "copy_time_us": null,
+    "wait_time_us": null,
+    "append_chunks": null,
+    "reason": "not_run; no population, recall, graph, or transfer work occurred"
+  },
+  "resources": {
+    "peak_bytes_by_category": null,
+    "peak_bytes_reason": "no runtime allocation",
+    "safety_headroom_bytes": null,
+    "cpu_rss": null,
+    "cpu_rss_reason": "no process was launched"
+  },
+  "campaign": {
+    "status": "not_run",
+    "frontiers": [],
+    "cold_recall": null,
+    "reason": "The population campaign cannot begin until the 32K natural cold-promotion capability gate is repaired and rerun. No throughput or ETA is extrapolated."
+  },
+  "decision": {
+    "result": "not_run",
+    "capability_proven": false,
+    "reason": "The matching 37-02 pilot is ineligible because V9_32K.json records no natural current-Q catalogue candidate publication and zero H2D bytes. The packet requires continuing only an eligible pilot; no target-only restore or fresh population would provide valid 128K evidence.",
+    "next_action": "37-04 must preserve this not_run finding and schedule repair/rerun of attention-sample/catalogue publication and the bounded 32K gate before a new 128K pilot/population.",
+    "partial_checkpoint": null
+  }
+}
