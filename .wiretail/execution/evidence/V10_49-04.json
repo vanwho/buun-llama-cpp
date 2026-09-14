@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "task": "49-04",
+  "source_commit": "7673c531d46da81fe86ff6ff36b12ca9ee9a0179",
+  "checks": {
+    "submission_identity_lifecycle": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-kv-page-select"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-04/20260914T-selector-lifecycle-final/page-select.log",
+          "sha256": "04bcb146d7087505c624af04cc5c3e1c3f38f0a1bed07176cf428d153cc04564"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-04/20260914T-selector-lifecycle-final/prefetch.log",
+          "sha256": "5d7fe763fd505b749446119e564b7507b74b3100089fc24e9d6ad564e5bbea57"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T051628Z-candidate/bundle/build-receipt.json",
+          "sha256": "055cccb3a5600127cc4723782826c03a573beb2f10e1ee5a0a23e800f227c934"
+        }
+      ]
+    },
+    "cold_budget_independence": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-kv-attention-execution"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-04/20260914T-selector-lifecycle-final/attention-execution.log",
+          "sha256": "ec5d1d45c24922748a9cf1e06c9135ade6f8dd5d4f4ecf6ec1d678e7927c0074"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-04/20260914T-selector-lifecycle-final/pager-model.log",
+          "sha256": "d9005c8b37e1f33e2af656fe51c6e79681d75287a746fe719c2c43d26f901cbb"
+        }
+      ]
+    },
+    "no_telemetry_attention_graph": {
+      "status": "pass",
+      "command": [
+        "bash",
+        "-c",
+        "set -e; ! rg -q 'kv_packed_page_mass_producer|kv_packed_telemetry|kv_packed_page_mass' src/llama-graph.cpp; rg -q 'ggml_flash_attn_ext_turbo4' src/llama-graph.cpp; rg -q 'build_kv_page_select\\(' src/llama-graph.cpp; ! rg -q 'packed_attention && .*direct_page_mass|direct_page_mass.*packed_attention' src/llama-graph.cpp"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-04/20260914T-selector-lifecycle-final/no-telemetry-graph.log",
+          "sha256": "e2c3ca6857c59a9975b194694e019d8f2fe8c8f53a28aa5b595bd2f2002634a5"
+        }
+      ]
+    }
+  }
+}

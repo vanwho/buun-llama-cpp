@@ -1367,6 +1367,13 @@ bool llama_kv_pager::test_page_checksums(uint32_t logical_page,
     }
 }
 
+uint64_t llama_kv_pager::routing_summary_content_version(
+        const llama_kv_page_id & id) const noexcept {
+    const auto * page = find_page(id.sequence_id, id.logical_page);
+    return page != nullptr && page->record.id == id
+        ? page->summary_content_version : 0;
+}
+
 void llama_kv_pager::set_host_provider(
         llama_kv_pager_host_provider provider) noexcept {
     if (host_) {

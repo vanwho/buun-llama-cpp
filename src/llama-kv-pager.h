@@ -573,6 +573,8 @@ public:
     bool test_page_checksums(uint32_t logical_page, uint64_t & host_checksum,
             uint64_t & device_checksum, uint32_t & physical_slot,
             uint64_t & page_generation, uint64_t & content_version) const noexcept;
+    uint64_t routing_summary_content_version(
+            const llama_kv_page_id & id) const noexcept;
 
 private:
     struct page_state {

@@ -7650,12 +7650,12 @@ void llama_context::publish_kv_attention_telemetry() noexcept {
         if (input == nullptr || input->direct_telemetry_published) {
             continue;
         }
-        // Exact-wave graphs currently do not produce the page-mass sidecar.
-        // Dense/reference routes are not eligible for this selected-Q proof.
-        // Selected-packed inputs do reach this boundary, however: publish
-        // their captured identity and report the missing producer precisely.
+        // Exact-wave graphs and packed selective graphs do not produce the
+        // diagnostic page-mass sidecar. Packed attention's production graph
+        // is intentionally only the mature packed FA consumer; direct mode
+        // remains the explicit diagnostic route.
         if (input->exact_wave_attention ||
-            (!input->direct_attention && !input->packed_attention)) {
+            input->packed_attention || !input->direct_attention) {
             input->direct_telemetry_published = true;
             continue;
         }

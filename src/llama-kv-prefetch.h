@@ -55,12 +55,15 @@ struct llama_kv_prefetch_candidate {
     float score = 0.0f;
     uint64_t requested_bytes = 0;
     uint64_t content_version = 0;
+    uint64_t summary_version = 0;
     uint64_t speculation_generation = 0;
     bool speculation_rejected = false;
     // Diagnostic receipt fields are kept after the legacy aggregate-init
     // prefix so existing mailbox tests and callers remain source-compatible.
     uint32_t selector_rank = UINT32_MAX;
     uint64_t query_position = 0;
+    bool cold = false;
+    uint64_t rollback_generation = 0;
 };
 
 enum class llama_kv_prefetch_mailbox_poll : uint8_t {

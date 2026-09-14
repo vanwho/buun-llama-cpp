@@ -2363,6 +2363,48 @@ void llama_kv_cache::capture_kv_routing_query(
         ? uint64_t(ubatch.pos[0]) + 1 : uint64_t(ubatch.pos[0]);
     value.sequence_generation = snapshot.pages().empty()
         ? 0 : snapshot.pages().front().id.sequence_generation;
+    value.session_generation = snapshot.pages().empty()
+        ? 0 : snapshot.pages().front().id.session_generation;
+    value.rollback_generation = 0;
+    value.resident_offset = 0;
+    value.cold_offset = 0;
+    value.resident_count = 0;
+    value.cold_count = 0;
+    value.query_head_count = tensor->src[0] != nullptr
+        ? uint32_t(std::max<int64_t>(0, tensor->src[0]->ne[1])) : 0;
+    value.kv_head_count = tensor->src[1] != nullptr
+        ? uint32_t(std::max<int64_t>(0, tensor->src[1]->ne[2])) : 0;
+    value.query_count = tensor->src[0] != nullptr
+        ? uint32_t(std::max<int64_t>(0, tensor->src[0]->ne[2] * tensor->src[0]->ne[3])) : 0;
+    if (tensor->op != GGML_OP_KV_PAGE_SELECT || tensor->src[1] == nullptr ||
+            tensor->src[1]->ne[3] != int64_t(pager_->exact_page_records(sequence_id).size())) {
+        return;
+    }
+    const int k_resident = tensor->op_params[0];
+    const int k_cold = tensor->op_params[1];
+    const int output_count = int(tensor->ne[0]);
+    if (k_resident < 0 || k_cold < 0 || output_count < 0 ||
+            output_count != k_resident + k_cold) {
+        return;
+    }
+    const auto inventory = pager_->exact_page_records(sequence_id);
+    if (inventory.empty()) return;
+    value.resident_count = uint32_t(k_resident);
+    value.cold_offset = uint32_t(k_resident);
+    value.cold_count = uint32_t(k_cold);
+    try {
+        value.pages.reserve(inventory.size());
+        for (const auto & page : inventory) {
+            value.rollback_generation = std::max<uint64_t>(
+                    value.rollback_generation, page.id.page_generation);
+            const uint64_t summary_version = pager_->routing_summary_content_version(page.id);
+            value.pages.push_back({ page.id, page.content_version,
+                    summary_version });
+        }
+    } catch (...) {
+        value.pages.clear();
+        return;
+    }
     value.refresh_enabled = pager_query_refresh_enabled_;
     try {
         if (it == pager_routing_outputs_.end()) {
@@ -2429,80 +2471,90 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         // the mailbox is populated by draining pager_routing_outputs_ below,
         // so using mailbox readiness as the only wakeup would deadlock the
         // natural selector path.
-        (void) mailbox.poll(0, snapshot.epoch());
+        (void) mailbox.poll(0, 0);
         const bool have_current_refresh = std::any_of(
                 pager_routing_outputs_.begin(), pager_routing_outputs_.end(),
                 [&](const auto & output) {
             return output.tensor != nullptr && output.refresh_enabled &&
                 output.query_generation == pager_query_generation_ &&
-                output.table_epoch == snapshot.epoch() &&
-                output.sequence_id == pager_last_sequence_id_;
+                output.sequence_id == pager_last_sequence_id_ &&
+                !output.pages.empty();
         });
         if (!pager_policy_dirty_ && mailbox.ready_slots() == 0 &&
                 !have_current_refresh) {
             return;
         }
         std::vector<llama_kv_prefetch_candidate> produced;
-        // The selector output is laid out as [resident, cold].  The two
-        // regions are not generally equal: admission normally gives the
-        // resident side A pages and the cold side only the bounded refresh
-        // window.  Keep the split identical to build_kv_page_select() so a
-        // cold rank remains a cold candidate at this owner-side boundary.
-        uint64_t selector_resident_limit = pager_->snapshot().admission.attention_pages;
-        if (selector_resident_limit == 0) {
-            selector_resident_limit = std::max<uint64_t>(1,
-                    (uint64_t(snapshot.slot_capacity()) + 1) / 2);
-        }
-        selector_resident_limit = std::min<uint64_t>(selector_resident_limit,
-                snapshot.slot_capacity());
         uint32_t routing_slot = UINT32_MAX;
         llama_kv_prefetch_candidate * routing_records = nullptr;
-        const bool mailbox_busy = mailbox.acquire(routing_slot, routing_records) !=
-            llama_kv_prefetch_mailbox_status::ok;
+        const bool mailbox_has_work = mailbox.pending_slots() != 0 ||
+            mailbox.ready_slots() != 0;
+        const bool mailbox_busy = mailbox_has_work ||
+            mailbox.acquire(routing_slot, routing_records) !=
+                llama_kv_prefetch_mailbox_status::ok;
         bool current_refresh_ready = false;
+        std::vector<ggml_tensor *> consumed_outputs;
         for (auto output = pager_routing_outputs_.begin();
                 output != pager_routing_outputs_.end();) {
-            const auto inventory = pager_->exact_page_records(output->sequence_id);
             const bool current_output = output->tensor != nullptr &&
                 output->query_generation == pager_query_generation_ &&
-                output->table_epoch == snapshot.epoch() &&
                 output->sequence_id == pager_last_sequence_id_;
             const bool usable = output->tensor != nullptr &&
                 output->refresh_enabled &&
                 output->query_generation != 0 &&
                 current_output &&
-                output->tensor->buffer != nullptr && !inventory.empty();
+                output->tensor->buffer != nullptr && !output->pages.empty() &&
+                output->resident_offset <= output->pages.size() &&
+                output->cold_offset <= output->pages.size() &&
+                output->resident_count <= output->pages.size() - output->resident_offset &&
+                output->cold_count <= output->pages.size() - output->cold_offset;
             current_refresh_ready = current_refresh_ready || usable;
             if (usable && !mailbox_busy) {
                 const size_t count = size_t(output->tensor->ne[0]);
+                const size_t expected = size_t(output->resident_count) +
+                    size_t(output->cold_count);
+                if (count != expected) {
+                    ++output;
+                    continue;
+                }
                 std::vector<int32_t> ids(count, -1);
                 ggml_backend_tensor_get(output->tensor, ids.data(), 0,
                         count * sizeof(ids[0]));
-                const size_t resident = std::min<size_t>(count,
-                        size_t(selector_resident_limit));
-                const auto append_region = [&](size_t begin, size_t region) {
+                const auto append_region = [&](size_t begin, size_t region,
+                                                bool cold) {
                     for (size_t rank = 0; rank < region; ++rank) {
                         const int32_t index = ids[begin + rank];
-                        if (index < 0 || size_t(index) >= inventory.size()) continue;
-                        const auto & page = inventory[size_t(index)];
-                        if (page.id.sequence_generation == 0 || page.valid_length == 0) continue;
+                        if (index < 0 || size_t(index) >= output->pages.size()) continue;
+                        const auto & page = output->pages[size_t(index)];
+                        if (page.identity.sequence_id != output->sequence_id ||
+                                page.identity.session_generation != output->session_generation ||
+                                page.identity.sequence_generation == 0 ||
+                                page.identity.page_generation == 0 ||
+                                page.content_version == 0 ||
+                                page.summary_version != page.content_version) continue;
                         llama_kv_prefetch_candidate candidate;
-                        candidate.identity = page.id;
+                        candidate.identity = page.identity;
                         candidate.attention_layer = output->layer;
                         candidate.selector_rank = uint32_t(rank);
                         candidate.generation = output->query_generation;
                         candidate.table_epoch = output->table_epoch;
                         candidate.query_position = output->query_position;
-                        // Selector rank is intentionally the only score. Raw
-                        // layer scores are not comparable across layers.
-                        candidate.score = -float(rank);
+                        candidate.speculation_generation = output->sequence_generation;
+                        candidate.rollback_generation = output->rollback_generation;
+                        candidate.cold = cold;
+                        // This priority is meaningful only within the layer
+                        // that produced the rank. Cross-layer ordering is
+                        // done by the stable bundle policy below.
+                        candidate.score = 1.0f / (1.0f + float(rank));
                         candidate.requested_bytes = pager_->snapshot().geometry.page_bytes;
                         candidate.content_version = page.content_version;
+                        candidate.summary_version = page.summary_version;
                         produced.push_back(candidate);
                     }
                 };
-                append_region(0, resident);
-                append_region(resident, count - resident);
+                append_region(output->resident_offset, output->resident_count, false);
+                append_region(output->cold_offset, output->cold_count, true);
+                consumed_outputs.push_back(output->tensor);
             }
             // A query built before the write-frontier seal can carry a
             // current, but deliberately disabled, selector result.  It is
@@ -2510,8 +2562,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             // lets the next graph boundary refresh it after the dirty wakeup.
             // Stale identities and consumed/invalid enabled results are still
             // dropped here, preserving the fail-closed ownership rule.
-            if (!current_output || (!mailbox_busy &&
-                    (usable || output->refresh_enabled))) {
+            if (!current_output || (!mailbox_busy && !usable &&
+                    output->refresh_enabled)) {
                 output = pager_routing_outputs_.erase(output);
             } else {
                 // Two in-flight refreshes are the hard bound. Leave this
@@ -2520,8 +2572,45 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 ++output;
             }
         }
+        bool routing_published = false;
         if (!mailbox_busy) {
             std::sort(produced.begin(), produced.end(),
+                    [](const auto & lhs, const auto & rhs) {
+                if (lhs.attention_layer != rhs.attention_layer) {
+                    return lhs.attention_layer < rhs.attention_layer;
+                }
+                if (lhs.cold != rhs.cold) return lhs.cold < rhs.cold;
+                if (lhs.selector_rank != rhs.selector_rank) {
+                    return lhs.selector_rank < rhs.selector_rank;
+                }
+                return lhs.identity.logical_page < rhs.identity.logical_page;
+            });
+            uint32_t written = 0;
+            const auto same_candidate_bundle = [](const auto & lhs, const auto & rhs) {
+                auto a = lhs.identity;
+                auto b = rhs.identity;
+                a.attention_layer = UINT32_MAX;
+                b.attention_layer = UINT32_MAX;
+                return a == b;
+            };
+            const auto write_candidate = [&](const auto & candidate) {
+                if (written == mailbox.candidates_per_slot()) return;
+                const bool duplicate = std::find_if(routing_records,
+                        routing_records + written, [&](const auto & old) {
+                    return old.identity == candidate.identity &&
+                        old.attention_layer == candidate.attention_layer;
+                }) != routing_records + written;
+                if (!duplicate) routing_records[written++] = candidate;
+            };
+            // Reserve mailbox capacity for two distinct cold bundles before
+            // resident ranks can fill the fixed slot. This is transport-side
+            // protection; bundle quality/order is decided below by policy.
+            uint32_t cold_bundles_written = 0;
+            std::vector<llama_kv_prefetch_candidate> cold_order;
+            for (const auto & candidate : produced) {
+                if (candidate.cold) cold_order.push_back(candidate);
+            }
+            std::sort(cold_order.begin(), cold_order.end(),
                     [](const auto & lhs, const auto & rhs) {
                 if (lhs.score != rhs.score) return lhs.score > rhs.score;
                 if (lhs.identity.logical_page != rhs.identity.logical_page) {
@@ -2529,19 +2618,47 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 }
                 return lhs.attention_layer < rhs.attention_layer;
             });
-            uint32_t written = 0;
-            for (const auto & candidate : produced) {
-                if (written == mailbox.candidates_per_slot()) break;
-                const bool duplicate = std::find_if(routing_records,
+            for (const auto & candidate : cold_order) {
+                if (!candidate.cold || cold_bundles_written == 2) continue;
+                // A page can appear in both output regions when the logical
+                // inventory is smaller than A. Prefer its resident rank so
+                // an all-resident query cannot be turned into a cold fault.
+                const bool also_resident = std::find_if(produced.begin(),
+                        produced.end(), [&](const auto & old) {
+                    return !old.cold && same_candidate_bundle(old, candidate);
+                }) != produced.end();
+                if (also_resident) continue;
+                const bool duplicate_bundle = std::find_if(routing_records,
                         routing_records + written, [&](const auto & old) {
-                    return old.identity == candidate.identity &&
-                        old.attention_layer == candidate.attention_layer;
+                    return old.cold && same_candidate_bundle(old, candidate);
                 }) != routing_records + written;
-                if (!duplicate) routing_records[written++] = candidate;
+                if (duplicate_bundle) continue;
+                const uint32_t before = written;
+                write_candidate(candidate);
+                if (written != before) ++cold_bundles_written;
+            }
+            for (const auto & candidate : produced) {
+                if (!candidate.cold) write_candidate(candidate);
+            }
+            for (const auto & candidate : produced) {
+                if (candidate.cold) write_candidate(candidate);
             }
             if (written == 0 || mailbox.publish_ready(routing_slot, written,
                     produced.front().generation) != llama_kv_prefetch_mailbox_status::ok) {
                 mailbox.abandon(routing_slot);
+            } else {
+                routing_published = true;
+            }
+        }
+        if (routing_published && !consumed_outputs.empty()) {
+            for (auto output = pager_routing_outputs_.begin();
+                    output != pager_routing_outputs_.end();) {
+                if (std::find(consumed_outputs.begin(), consumed_outputs.end(),
+                        output->tensor) != consumed_outputs.end()) {
+                    output = pager_routing_outputs_.erase(output);
+                } else {
+                    ++output;
+                }
             }
         }
         const bool have_ready_candidate = mailbox.ready_slots() != 0;
@@ -2651,14 +2768,6 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     pager_snapshot.geometry.model_layer_ids.end(), layer) !=
                 pager_snapshot.geometry.model_layer_ids.end();
         };
-        std::sort(candidates.begin(), candidates.end(),
-                [](const auto & lhs, const auto & rhs) {
-            if (lhs.score != rhs.score) return lhs.score > rhs.score;
-            if (lhs.attention_layer != rhs.attention_layer) {
-                return lhs.attention_layer < rhs.attention_layer;
-            }
-            return lhs.identity.logical_page < rhs.identity.logical_page;
-        });
         const auto same_bundle = [](const llama_kv_page_id & lhs,
                                     const llama_kv_page_id & rhs) {
             auto a = lhs;
@@ -2667,54 +2776,161 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             b.attention_layer = UINT32_MAX;
             return a == b;
         };
+        struct cold_bundle {
+            llama_kv_prefetch_candidate candidate;
+            float priority = 0.0f;
+            std::vector<uint32_t> nominating_layers;
+        };
+        std::map<uint32_t, std::vector<llama_kv_prefetch_candidate>> resident_by_layer;
+        std::vector<cold_bundle> cold_bundles;
+        const auto add_retrieval_identity = [&](const llama_kv_routing_retrieval_entry & entry,
+                                                uint64_t generation) {
+            if (boundary.retrieval.query_generation != 0) return;
+            const auto & id = entry.id;
+            boundary.retrieval.status = llama_kv_routing_retrieval_status::ok;
+            boundary.retrieval.table_epoch = snapshot.epoch();
+            boundary.retrieval.query_generation = generation;
+            boundary.retrieval.model_identity = id.model_identity;
+            boundary.retrieval.topology_identity = id.topology_identity;
+            boundary.retrieval.representation_epoch = id.representation_epoch;
+            boundary.retrieval.session_generation = id.session_generation;
+            boundary.retrieval.sequence_generation = id.sequence_generation;
+            boundary.retrieval.sequence_id = id.sequence_id;
+            boundary.retrieval.position = id.position_begin;
+        };
+        const auto append_boundary = [&](const llama_kv_routing_retrieval_entry & entry,
+                                         uint64_t generation, size_t limit) {
+            if (std::find_if(boundary.retrieval.selected.begin(),
+                    boundary.retrieval.selected.end(),
+                    [&](const auto & old) { return same_bundle(old.id, entry.id); }) !=
+                    boundary.retrieval.selected.end() ||
+                    boundary.retrieval.selected.size() >= limit) {
+                return;
+            }
+            boundary.retrieval.selected.push_back(entry);
+            add_retrieval_identity(entry, generation);
+            have_retrieval = true;
+        };
         for (const auto & candidate : candidates) {
             if (candidate.generation == 0 ||
                     candidate.generation != pager_query_generation_ ||
-                    candidate.table_epoch != snapshot.epoch()) {
-                // A ready slot can outlive the query that produced it. It is
-                // advisory data, so stale generation/table tuples are simply
-                // dropped at the consumer boundary.
+                    candidate.query_position == 0 ||
+                    !is_attention_layer(candidate.attention_layer) ||
+                    candidate.identity.sequence_id != pager_last_sequence_id_ ||
+                    candidate.identity.sequence_generation == 0 ||
+                    candidate.identity.page_generation == 0 ||
+                    candidate.speculation_generation != candidate.identity.sequence_generation ||
+                    candidate.rollback_generation < candidate.identity.page_generation ||
+                    candidate.content_version == 0 ||
+                    candidate.summary_version != candidate.content_version) {
                 continue;
             }
+            // The current inventory is consulted only to authenticate the
+            // sealed descriptor's identity and content version. It is never
+            // used to decode the selector's returned index.
             const auto found = std::find_if(inventory.begin(), inventory.end(),
                     [&](const auto & page) {
-                return page.id == candidate.identity ||
-                    same_bundle(page.id, candidate.identity);
+                return (page.id == candidate.identity ||
+                        same_bundle(page.id, candidate.identity)) &&
+                    page.content_version == candidate.content_version &&
+                    pager_->routing_summary_content_version(page.id) ==
+                        candidate.summary_version;
             });
             if (found == inventory.end()) continue;
-            const auto & selected_id = found->id;
-            if (!is_attention_layer(candidate.attention_layer)) continue;
-            auto & layer_selected = attention_by_layer[candidate.attention_layer];
-            if (std::find_if(layer_selected.begin(), layer_selected.end(),
-                    [&](const auto & old) { return old.id == selected_id; }) != layer_selected.end()) {
+            if (!candidate.cold) {
+                auto & layer_candidates = resident_by_layer[candidate.attention_layer];
+                if (std::find_if(layer_candidates.begin(), layer_candidates.end(),
+                        [&](const auto & old) { return same_bundle(old.identity,
+                            candidate.identity); }) == layer_candidates.end()) {
+                    layer_candidates.push_back(candidate);
+                }
                 continue;
             }
+            const bool also_resident = std::find_if(candidates.begin(), candidates.end(),
+                    [&](const auto & old) {
+                auto a = old.identity;
+                auto b = candidate.identity;
+                a.attention_layer = UINT32_MAX;
+                b.attention_layer = UINT32_MAX;
+                return !old.cold && a == b;
+            }) != candidates.end();
+            if (also_resident) continue;
+            auto bundle = std::find_if(cold_bundles.begin(), cold_bundles.end(),
+                    [&](const auto & old) { return same_bundle(old.candidate.identity,
+                        candidate.identity); });
+            if (bundle == cold_bundles.end()) {
+                cold_bundle value;
+                value.candidate = candidate;
+                value.priority = candidate.score;
+                value.nominating_layers.push_back(candidate.attention_layer);
+                cold_bundles.push_back(std::move(value));
+            } else {
+                bundle->priority = std::max(bundle->priority, candidate.score);
+                if (std::find(bundle->nominating_layers.begin(),
+                        bundle->nominating_layers.end(), candidate.attention_layer) ==
+                        bundle->nominating_layers.end()) {
+                    bundle->nominating_layers.push_back(candidate.attention_layer);
+                }
+                if (candidate.score > bundle->candidate.score ||
+                        (candidate.score == bundle->candidate.score &&
+                         candidate.attention_layer < bundle->candidate.attention_layer)) {
+                    bundle->candidate = candidate;
+                }
+            }
+        }
+        // Reserve the shared cold admission window before filling the union
+        // with resident ranks. This makes the two-cold-bundle limit explicit
+        // and prevents a large resident route from consuming it.
+        const size_t cold_budget = std::min<size_t>(2, cold_bundles.size());
+        const size_t resident_boundary_limit = boundary.hot_capacity > cold_budget
+            ? boundary.hot_capacity - cold_budget : 0;
+        for (auto & layer : resident_by_layer) {
+            std::sort(layer.second.begin(), layer.second.end(),
+                    [](const auto & lhs, const auto & rhs) {
+                if (lhs.selector_rank != rhs.selector_rank) {
+                    return lhs.selector_rank < rhs.selector_rank;
+                }
+                return lhs.identity.logical_page < rhs.identity.logical_page;
+            });
+            auto & selected = attention_by_layer[layer.first];
+            for (const auto & candidate : layer.second) {
+                if (selected.size() >= attention_page_limit) break;
+                const llama_kv_routing_retrieval_entry entry {
+                    candidate.identity, llama_kv_routing_retrieval_reason::summary,
+                    candidate.score, true, false, 0,
+                };
+                selected.push_back(entry);
+                append_boundary(entry, candidate.generation, resident_boundary_limit);
+            }
+        }
+        std::sort(cold_bundles.begin(), cold_bundles.end(),
+                [](const auto & lhs, const auto & rhs) {
+            if (lhs.priority != rhs.priority) return lhs.priority > rhs.priority;
+            if (lhs.nominating_layers.size() != rhs.nominating_layers.size()) {
+                return lhs.nominating_layers.size() > rhs.nominating_layers.size();
+            }
+            if (lhs.candidate.identity.logical_page != rhs.candidate.identity.logical_page) {
+                return lhs.candidate.identity.logical_page < rhs.candidate.identity.logical_page;
+            }
+            return lhs.candidate.attention_layer < rhs.candidate.attention_layer;
+        });
+        for (size_t bundle_index = 0; bundle_index < cold_budget; ++bundle_index) {
+            const auto & bundle = cold_bundles[bundle_index];
+            const auto & candidate = bundle.candidate;
             const llama_kv_routing_retrieval_entry entry {
-                selected_id, llama_kv_routing_retrieval_reason::summary,
-                candidate.score, true, false, 0,
+                candidate.identity, llama_kv_routing_retrieval_reason::summary,
+                bundle.priority, true, false, 0,
             };
-            if (layer_selected.size() < attention_page_limit) {
-                layer_selected.push_back(entry);
-            }
-            if (std::find_if(boundary.retrieval.selected.begin(),
-                    boundary.retrieval.selected.end(),
-                    [&](const auto & old) { return old.id == selected_id; }) ==
-                    boundary.retrieval.selected.end() &&
-                boundary.retrieval.selected.size() < boundary.hot_capacity) {
-                boundary.retrieval.selected.push_back(entry);
-            }
-            have_retrieval = true;
-            if (boundary.retrieval.query_generation == 0) {
-                boundary.retrieval.status = llama_kv_routing_retrieval_status::ok;
-                boundary.retrieval.table_epoch = snapshot.epoch();
-                boundary.retrieval.query_generation = candidate.generation;
-                boundary.retrieval.model_identity = selected_id.model_identity;
-                boundary.retrieval.topology_identity = selected_id.topology_identity;
-                boundary.retrieval.representation_epoch = selected_id.representation_epoch;
-                boundary.retrieval.session_generation = selected_id.session_generation;
-                boundary.retrieval.sequence_generation = selected_id.sequence_generation;
-                boundary.retrieval.sequence_id = selected_id.sequence_id;
-                boundary.retrieval.position = selected_id.position_begin;
+            append_boundary(entry, candidate.generation, boundary.hot_capacity);
+            for (const uint32_t layer : bundle.nominating_layers) {
+                auto & selected = attention_by_layer[layer];
+                if (selected.size() >= attention_page_limit ||
+                        std::find_if(selected.begin(), selected.end(),
+                            [&](const auto & old) { return same_bundle(old.id, entry.id); }) !=
+                            selected.end()) {
+                    continue;
+                }
+                selected.push_back(entry);
             }
         }
         const uint32_t forced_page = pager_->test_force_logical_page();
