@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "46",
-  "current_task": "46-01",
-  "last_updated_utc": "2026-09-14T03:00:50+00:00",
+  "current_phase": "47",
+  "current_task": "47-01",
+  "last_updated_utc": "2026-09-14T03:06:04+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8283,7 +8283,7 @@
       "cluster": "46a-review-v9",
       "packet": ".wiretail/execution/tasks/46-01.md",
       "title": "Review phase-45 summary and schedule the next measured action",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -8296,6 +8296,141 @@
       ],
       "depends_on": [
         "45-03"
+      ],
+      "commit": "ca961f6c3a630ceed033b7a01370690f17a9795a",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/46-01-attempt-1-20260914T030107Z.jsonl:38",
+            "total_tokens": 813748,
+            "total_tokens_derived": true,
+            "input_tokens": 798952,
+            "cached_input_tokens": 697344,
+            "output_tokens": 14796,
+            "thinking_tokens": 4145
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 813748,
+          "input_tokens": 798952,
+          "cached_input_tokens": 697344,
+          "output_tokens": 14796,
+          "thinking_tokens": 4145
+        }
+      }
+    },
+    {
+      "id": "47-01",
+      "phase": "47",
+      "cluster": "47a-current-q-candidate-boundary-v9",
+      "packet": ".wiretail/execution/tasks/47-01.md",
+      "title": "Repair and instrument the current-Q candidate readiness boundary",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r3",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_45.json",
+        ".wiretail/execution/evidence/V9_SUMMARY_45.md",
+        ".wiretail/execution/handoffs/46-01.md",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-cache.h",
+        "src/llama-kv-attention-telemetry.cpp",
+        "src/llama-kv-attention-telemetry.h",
+        "src/llama-kv-prefetch.cpp",
+        "src/llama-kv-prefetch.h",
+        "src/llama-graph.cpp",
+        "src/llama-graph.h",
+        "tests/test-kv-attention-telemetry.cpp",
+        "tests/test-kv-attention-execution.cpp",
+        "tests/test-kv-page-select.cpp",
+        "tests/test-kv-pager-model.cpp"
+      ],
+      "depends_on": [
+        "46-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "47-02",
+      "phase": "47",
+      "cluster": "47b-bounded-revalidation-v9",
+      "packet": ".wiretail/execution/tasks/47-02.md",
+      "title": "Revalidate natural cold use and matched controls",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r3",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_45.json",
+        ".wiretail/execution/handoffs/47-01.md",
+        "tests/test-kv-attention-telemetry.cpp",
+        "tests/test-kv-attention-execution.cpp",
+        "tests/test-kv-page-select.cpp",
+        "tests/test-kv-pager-model.cpp",
+        "tests/test-arg-parser.cpp"
+      ],
+      "depends_on": [
+        "47-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "47-03",
+      "phase": "47",
+      "cluster": "47c-summary-v9",
+      "packet": ".wiretail/execution/tasks/47-03.md",
+      "title": "Create compact phase-47 benchmark summary",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r3",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_47_BENCHMARK.json",
+        ".wiretail/execution/handoffs/47-02.md"
+      ],
+      "depends_on": [
+        "47-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "48-01",
+      "phase": "48",
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v9/validate_plan.py",
+        "--review",
+        ".wiretail/execution/evidence/V9_REVIEW_48.json"
+      ],
+      "cluster": "48a-review-v9",
+      "packet": ".wiretail/execution/tasks/48-01.md",
+      "title": "Review phase-47 summary and schedule the next measured action",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r3",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_47.json",
+        ".wiretail/execution/evidence/V9_SUMMARY_47.md",
+        ".wiretail/execution/handoffs/47-03.md"
+      ],
+      "depends_on": [
+        "47-03"
       ],
       "commit": null
     }
@@ -10853,6 +10988,42 @@
       }
     },
     "46": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/46-01-attempt-1-20260914T030107Z.jsonl:38",
+          "total_tokens": 813748,
+          "total_tokens_derived": true,
+          "input_tokens": 798952,
+          "cached_input_tokens": 697344,
+          "output_tokens": 14796,
+          "thinking_tokens": 4145
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 813748,
+        "input_tokens": 798952,
+        "cached_input_tokens": 697344,
+        "output_tokens": 14796,
+        "thinking_tokens": 4145
+      }
+    },
+    "47": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "48": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -10866,12 +11037,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 155,
-      "total_tokens": 3287216743,
-      "input_tokens": 3279575412,
-      "cached_input_tokens": 3213500672,
-      "output_tokens": 7641331,
-      "thinking_tokens": 2781681
+      "turns": 156,
+      "total_tokens": 3288030491,
+      "input_tokens": 3280374364,
+      "cached_input_tokens": 3214198016,
+      "output_tokens": 7656127,
+      "thinking_tokens": 2785826
     },
     "source": "Codex turn.completed usage events"
   }
