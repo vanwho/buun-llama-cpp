@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "task": "53-04",
+  "source_commit": "5473a825820f690bb10b07c240aa34013563782b",
+  "checks": {
+    "phase53_summary_generated_and_validated": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/aggregate-v10-summary.py",
+        "--output",
+        ".wiretail/execution/evidence/V10_SUMMARY_53.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/53-04/20260914T-53-04-summary/aggregate.log",
+          "sha256": "d3e351a2f8708a94966d28906468c7ed9ff55f563099e542c37bd5204ee5008d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_53.json",
+          "sha256": "0ab9f3d9975a172ac5159b4590a35b6813fddcf841fb2d4f8f9cb6c6ed0bdbc6"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_53.md",
+          "sha256": "d9d4b7d566be529df4a1eea5ec87fa30a48f1d4ddeb389caecdd11c55c56acab"
+        }
+      ]
+    }
+  }
+}
