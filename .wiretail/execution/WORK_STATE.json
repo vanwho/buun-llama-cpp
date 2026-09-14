@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "39",
-  "current_task": "39-03",
-  "last_updated_utc": "2026-09-14T00:35:17+00:00",
+  "current_task": "39-04",
+  "last_updated_utc": "2026-09-14T00:44:57+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7506,7 +7506,7 @@
       "cluster": "39c-bounded-revalidation-v9",
       "packet": ".wiretail/execution/tasks/39-03.md",
       "title": "Revalidate natural cold use and matched small controls",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -7524,7 +7524,32 @@
       "depends_on": [
         "39-02"
       ],
-      "commit": null
+      "commit": "09b41e8a1881a570f633eab301a5aaad3719ec49",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/39-03-attempt-1-20260914T003535Z.jsonl:90",
+            "total_tokens": 6873074,
+            "total_tokens_derived": true,
+            "input_tokens": 6856928,
+            "cached_input_tokens": 6639104,
+            "output_tokens": 16146,
+            "thinking_tokens": 3367
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 6873074,
+          "input_tokens": 6856928,
+          "cached_input_tokens": 6639104,
+          "output_tokens": 16146,
+          "thinking_tokens": 3367
+        }
+      }
     },
     {
       "id": "39-04",
@@ -9851,15 +9876,28 @@
           "cached_input_tokens": 1085440,
           "output_tokens": 5412,
           "thinking_tokens": 1753
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/39-03-attempt-1-20260914T003535Z.jsonl:90",
+          "total_tokens": 6873074,
+          "total_tokens_derived": true,
+          "input_tokens": 6856928,
+          "cached_input_tokens": 6639104,
+          "output_tokens": 16146,
+          "thinking_tokens": 3367
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 15116866,
-        "input_tokens": 15082883,
-        "cached_input_tokens": 14455552,
-        "output_tokens": 33983,
-        "thinking_tokens": 16167
+        "turns": 3,
+        "total_tokens": 21989940,
+        "input_tokens": 21939811,
+        "cached_input_tokens": 21094656,
+        "output_tokens": 50129,
+        "thinking_tokens": 19534
       }
     },
     "40": {
@@ -9876,12 +9914,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 140,
-      "total_tokens": 3195827422,
-      "input_tokens": 3188483639,
-      "cached_input_tokens": 3125340416,
-      "output_tokens": 7343783,
-      "thinking_tokens": 2687573
+      "turns": 141,
+      "total_tokens": 3202700496,
+      "input_tokens": 3195340567,
+      "cached_input_tokens": 3131979520,
+      "output_tokens": 7359929,
+      "thinking_tokens": 2690940
     },
     "source": "Codex turn.completed usage events"
   }
