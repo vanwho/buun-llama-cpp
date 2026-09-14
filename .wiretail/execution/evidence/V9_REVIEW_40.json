@@ -1,0 +1,99 @@
+{
+  "schema": "hotpath-v9-review",
+  "task": "40-01",
+  "revision": "hotpath-v9-20260914",
+  "utc": "2026-09-14T00:51:11Z",
+  "goal_met": false,
+  "next_task_ids": ["41-01", "41-02", "41-03", "41-04", "42-01"],
+  "capability": {
+    "active_campaign_met": false,
+    "overall_256k_demonstrated": false,
+    "natural_cold_proven": false,
+    "fullL_gpu_turbo4_mtp": true,
+    "measured_cpu_speedup": false,
+    "status": "identity and coherent bounded recall are present, but current-Q publication and natural cold selection/promotion/use are unproven; scale is gated"
+  },
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "route": "selected_packed",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "invariant": "selected <= A_by_layer <= H <= L",
+    "invariant_pass": true
+  },
+  "key_rates_and_ratios": {
+    "units": "tok/s for rates; ratios are selected divided by named control",
+    "selected_prefill_tok_s": [297.858398, 276.982735, 587.383834],
+    "selected_decode_tok_s": [35.277931, 34.364931, 33.999045],
+    "all_gpu_prefill_tok_s": [316.025661, 579.076051, 598.879241],
+    "all_gpu_decode_tok_s": [36.484545, 36.628758, 36.734706],
+    "selected_over_all_gpu_decode": [0.966927, 0.938737, 0.925052],
+    "selected_over_all_gpu_decode_median": 0.938737,
+    "cpu_main_kv_speedup": null
+  },
+  "sample_counts": {
+    "selected_comparison": 3,
+    "all_gpu_control": 3,
+    "cpu_main_kv_control": 0,
+    "natural_cold_runs": 1,
+    "natural_cold_attention": 0,
+    "scale_32k": 0,
+    "scale_128k": 0,
+    "scale_256k": 0
+  },
+  "natural_cold": {
+    "fixture": "incremental C>H natural recall",
+    "occupied_tokens": 5004,
+    "recall_prompt_tokens": 5052,
+    "cached_rows": 5017,
+    "attention_samples": 0,
+    "candidate_published": false,
+    "promotion_published": false,
+    "transfer_submitted": 0,
+    "h2d_useful_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "coherent_recall": true,
+    "coherent_append": true,
+    "mtp_proposed": 147,
+    "mtp_accepted": 42,
+    "acceptance_percent": 28.571429,
+    "eligible_for_scale": false
+  },
+  "failure_cause": {
+    "classification": "missing real Q-to-cold-to-target-use proof",
+    "measured": "current-Q sample/publication counters remained zero, so no catalogue candidate, promotion, useful H2D, or selected cold-page use could be observed",
+    "symbols": [
+      "llm_graph_context::build_attn_inp_kv",
+      "llama_context::publish_kv_attention_telemetry",
+      "llama_kv_attention_telemetry::publish_completed"
+    ],
+    "runtime": "not observed; no crash, non-finite output, or completion error",
+    "selection_quality": "unmeasured because no candidate was published"
+  },
+  "uncertainty": [
+    "Natural current-Q selection quality is unmeasured, not failed, because no candidate was published.",
+    "The CPU-main-KV comparison has zero current samples because the site launcher lacks an explicit --no-kv-offload boundary; no denominator was substituted.",
+    "32K, 128K, and 256K memory/capability values are not measurements; no scale process or allocation was launched."
+  ],
+  "next_action": {
+    "order": [
+      "repair/instrument live current-Q publication at the graph-result telemetry boundary",
+      "expose and verify the explicit --no-kv-offload CPU-main-KV/GPU-native-MTP launcher profile",
+      "rerun focused tests, the C>H natural proof, and matched q0/q1/q2 controls; summarize and review phase 41"
+    ],
+    "stop_condition": "Do not launch 32K or 128K until a non-sentinel current-Q candidate, attention_samples>0, published promotion, useful H2D, selected cold-page use, and coherent committed recall are all recorded.",
+    "preserved_contract": "Keep mature selected-packed Turbo4 attention, target/draft Turbo4, full-L GPU native MTP, canonical CPU history, and the existing pager/mailbox; do not revive the superseded direct-kernel path."
+  },
+  "phase_appended": true,
+  "appended_tasks": ["41-01", "41-02", "41-03", "41-04", "42-01"]
+}
