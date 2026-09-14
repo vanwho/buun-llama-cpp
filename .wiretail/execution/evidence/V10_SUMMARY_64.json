@@ -1,0 +1,99 @@
+{
+  "schema": "hotpath-v10-summary",
+  "schema_version": 1,
+  "task": "64-04",
+  "phase": "64",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase64_measured_with_unmet_promotion_quality_and_occupancy_boundaries",
+  "active_campaign_met": false,
+  "overall_256k_demonstrated": false,
+  "units": {"rates": "tok/s", "durations": "milliseconds unless field ends in _us", "bytes": "integer bytes", "geometry": "integer tokens"},
+  "identity": {
+    "requested": {
+      "model_profile": "/srv/ai/models/text/current.gguf",
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V",
+      "L": 8192, "H": 4096, "A": 2048, "B": 128, "U": 64,
+      "page_tokens": 256
+    },
+    "observed": {
+      "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "target_backend": "CUDA", "target_k": "turbo4", "target_v": "turbo4",
+      "draft_device": "GPU", "draft_k": "turbo4", "draft_v": "turbo4",
+      "L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 64,
+      "page_tokens": 256, "target_capacity_bytes": 69206016,
+      "page_bytes": 4325376
+    },
+    "immutable": {
+      "source_commits": [
+        "8af4898c3e656ca30ec0eee05604bee2950505e2",
+        "b65756f88c763f6502431001461c3508837d6cfa",
+        "c1f6c707a63a0d0bc94605aa43e2b919591884e2"
+      ],
+      "candidate_bundle": "/srv/ai/paged-kv/results/v10/61-02/candidate-bundle/bin/llama-server",
+      "candidate_binary_sha256": "b673549822c98f0965d3406f576a50111fa8c4a06ce7e6ce8d555a8a15f1fffa",
+      "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a"
+    },
+    "identity_note": "Requested launcher values, observed runtime values, and immutable bundle/build identity are retained separately."
+  },
+  "geometry_and_bytes": {
+    "small_path": {"status": "measured", "L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 64, "target_allocated_bytes": 69206016, "page_bytes": 4325376, "reason": "Observed by matched phase-64 campaign."},
+    "pilot_L32768": {"status": "failed", "L": 32768, "C": 11800, "H": 16384, "A": 8192, "B": 128, "U": 64, "target_allocated_bytes": 276824000, "reason": "Three cached rows completed; next row reached C14336 and hit the 180-second prefill deadline."},
+    "pilot_L128K": {"status": "measured", "L": 131072, "C": 1024, "H": 16384, "A": 8192, "B": 128, "U": 64, "target_allocated_bytes": 276824000, "reason": "Bounded two-row forward-progress pilot only."},
+    "full_L_allocation": {"status": "measured", "L": 262144, "C": 1200, "H": 16384, "A": 8192, "B": 128, "U": 64, "target_allocated_bytes": 276824000, "reason": "Full-L allocation/startup and bounded request rows completed; this is not occupied-L proof."},
+    "occupied_C262144": {"status": "failed", "L": 262144, "C": 1200, "reason": "Observed frontier remained C1200; allocation/startup cannot establish occupied C262144."}
+  },
+  "placement": {
+    "selected": {"status": "measured", "target_k": "turbo4", "target_v": "turbo4", "target_device": "GPU", "draft_k": "turbo4", "draft_v": "turbo4", "draft_device": "GPU"},
+    "cpu_main_kv_control": {"status": "measured", "target_k": "turbo4", "target_v": "turbo4", "target_device": "CPU", "weights_device": "GPU", "draft_device": "GPU", "mtp": "feature-off control"},
+    "all_gpu_control": {"status": "measured", "target_device": "GPU", "pager": "off", "mtp": "feature-off control"}
+  },
+  "rates": {
+    "status": "measured",
+    "cold_prefill": {
+      "geometry": {"L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 64},
+      "selected_native": {"status": "measured", "samples": 9, "tok_s_median": 117.53945161762235, "tok_s_range": [117.35685767845061, 169.3594422892126]},
+      "cpu_main_kv_control": {"status": "measured", "samples": 9, "tok_s_median": 446.80221170003665, "tok_s_range": [445.1055021024064, 449.3097238039596]},
+      "all_gpu_control": {"status": "measured", "samples": 9, "tok_s_median": 1249.420434856878, "tok_s_range": [1245.5047091592437, 1250.3530863614644]}
+    },
+    "cached_append": {
+      "status": "measured", "prefix_C": 6144, "observed_cache_n": 6271,
+      "append_64": {"status": "measured", "prompt_tokens": 6319, "prompt_tok_s": 90.95542994442245, "committed_decode_tok_s": 21.44919329584014, "draft": 6, "accepted": 2},
+      "append_256": {"status": "measured", "prompt_tokens": 6407, "prompt_tok_s": 89.85752956543973, "committed_decode_tok_s": 42.85169601614193, "draft": 88, "accepted": 82}
+    },
+    "committed_decode": {
+      "status": "measured", "output_tokens": 128, "samples": 27,
+      "selected_native_tok_s_median": 13.140189787796283,
+      "cpu_main_kv_control_tok_s_median": 10.081129276988552,
+      "all_gpu_control_tok_s_median": 36.78672850699179
+    },
+    "rate_note": "The first selected cold-prefill sample is retained in the range; no rate from phase 63 is used."
+  },
+  "mtp": {
+    "selected_native": {"status": "measured", "rows": 9, "draft_tokens_total": 2259, "accepted_tokens_total": 0, "acceptance_percent": 0.0, "denominator": "request-scoped draft counter deltas"},
+    "organic_edge": {"status": "measured", "draft_tokens": 24, "accepted_tokens": 0, "acceptance_percent": 0.0},
+    "append_64": {"status": "measured", "draft_tokens": 6, "accepted_tokens": 2, "acceptance_percent": 33.33333333333333},
+    "append_256": {"status": "measured", "draft_tokens": 88, "accepted_tokens": 82, "acceptance_percent": 93.18181818181819},
+    "controls": {"status": "not_run", "reason": "Controls are explicit feature-off rows; native-MTP denominators do not apply."}
+  },
+  "promotion": {
+    "controlled_physical": {"status": "measured", "result": "pass", "proof": "T0 production fixture; winner logical page 0, copy_bytes 1081344, mature-FA parity pass", "model_query": "failed", "model_query_reason": "Both controlled model-query attempts segfaulted after initialization before proof JSON."},
+    "organic_physical": {"status": "measured", "result": "failed_round_trip", "logical_page": 12, "attention_layer": 3, "selector_rank": 0, "page_generation": 41, "content_version": 41, "physical_slot": 12, "query_generation": 68, "catalogue_epoch": 8618, "published_epoch": 8683, "target_use_epoch": 8880, "h2d_useful_bytes": 4325376, "candidate_was_cold": true, "host_ready": true, "selector_published": true, "h2d_queued": true, "h2d_completed": true, "mapping_published": true, "target_graph_used": true, "reason": "First A request failed HTTP 500 at KV pager batch-write reservation; edge is not an A/B/A success."},
+    "target_graph_use": {"status": "measured", "controlled": "measured", "organic": "measured", "reason": "T0 parity and T3 target-use epoch/graph-use fields were recorded."}
+  },
+  "answer_quality": {"status": "failed", "reason": "Expected AURORA-CEDAR-161 nonce was absent; observed response was 12 slash characters.", "expected": ["AURORA-CEDAR-161", "EMBER-QUARTZ-947"], "observed": "////////////"},
+  "pilots": {"L32768": "failed", "L128K": "measured", "full_L262144_allocation": "measured", "occupied_C262144": "failed"},
+  "allocation": {"full_L": {"status": "measured", "L": 262144, "target_allocated_bytes": 276824000, "H": 16384, "A": 8192, "B": 128, "U": 64}, "occupied_C262144": {"status": "failed", "reason": "Only C1200 was observed."}},
+  "requested_rows": {
+    "phase64_promotion_quality_advancement": {"status": "measured", "reason": "T0 passed; T1 and answer quality remain failed as separately recorded."},
+    "phase64_scale_occupancy_advancement": {"status": "measured", "reason": "Scale and full-L allocation findings were generated with explicit failed occupancy boundary."},
+    "phase64_matched_benchmark": {"status": "measured", "reason": "27 matched rows and 64/256 cached append probes completed."},
+    "phase64_summary_generated_and_validated": {"status": "measured", "reason": "This JSON/Markdown pair passed the dedicated summary validator and V10 receipt validator."}
+  },
+  "provenance": {
+    "receipts": [".wiretail/execution/evidence/V10_64-01.json", ".wiretail/execution/evidence/V10_64-02.json", ".wiretail/execution/evidence/V10_64-03.json"],
+    "raw_roots": ["/srv/ai/paged-kv/results/v10/64-01/", "/srv/ai/paged-kv/results/v10/64-02/", "/srv/ai/paged-kv/results/v10/64-03/"],
+    "aggregation_scope": "phase-64 receipts and raw manifests only"
+  }
+}
