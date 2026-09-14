@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "56-01",
+  "proof": ["phase55_benchmark_review"],
+  "source_commit": "642a561be5bd42b3dfa0646817529028f1fcaac4",
+  "checks": {
+    "phase55_benchmark_review": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "56-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_56-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_56.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_REVIEW_56.json",
+          "sha256": "36b69a1fd4dfc4f3b1ee4eef2e55b9e2348b1464f563297aabd41e466739b750"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_REVIEW_56.md",
+          "sha256": "e39dd16faeb31c691870f3b28461d93e1222699140caab3e31d5b8b16a098d66"
+        }
+      ],
+      "summary": {
+        "review": ".wiretail/execution/evidence/V10_REVIEW_56.json",
+        "successors": ["57-01", "57-02", "57-03", "57-04", "58-01"],
+        "goal_met": false
+      }
+    }
+  }
+}

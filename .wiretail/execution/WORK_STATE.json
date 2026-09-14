@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "56",
-  "current_task": "56-01",
-  "last_updated_utc": "2026-09-14T18:35:09+00:00",
+  "current_phase": "57",
+  "current_task": "57-01",
+  "last_updated_utc": "2026-09-14T18:43:33+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -10083,7 +10083,7 @@
       "cluster": "56a-review-v10",
       "title": "Review the phase-55 summary and schedule only measured next work",
       "packet": ".wiretail/execution/tasks/56-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -10109,7 +10109,264 @@
       "depends_on": [
         "55-03"
       ],
-      "commit": null
+      "commit": "642a561be5bd42b3dfa0646817529028f1fcaac4",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/56-01-attempt-1-20260914T183527Z.jsonl:140",
+            "total_tokens": 2483331,
+            "total_tokens_derived": true,
+            "input_tokens": 2458550,
+            "cached_input_tokens": 2306304,
+            "output_tokens": 24781,
+            "thinking_tokens": 7588
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 2483331,
+          "input_tokens": 2458550,
+          "cached_input_tokens": 2306304,
+          "output_tokens": 24781,
+          "thinking_tokens": 7588
+        }
+      }
+    },
+    {
+      "id": "57-01",
+      "phase": "57",
+      "cluster": "57a-mtp-observation-v10",
+      "title": "Restore request-scoped native-MTP observation",
+      "packet": ".wiretail/execution/tasks/57-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.md",
+        ".wiretail/execution/handoffs/56-01.md"
+      ],
+      "required_proofs": [
+        "mtp_counter_observation_contract_repair"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "57-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_57-01.json"
+      ],
+      "depends_on": [
+        "56-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "57-02",
+      "phase": "57",
+      "cluster": "57b-bundle-identity-v10",
+      "title": "Enforce immutable measured bundle identity",
+      "packet": ".wiretail/execution/tasks/57-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.md",
+        ".wiretail/execution/handoffs/56-01.md"
+      ],
+      "required_proofs": [
+        "immutable_bundle_identity_contract_repair"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "57-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_57-02.json"
+      ],
+      "depends_on": [
+        "57-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "57-03",
+      "phase": "57",
+      "cluster": "57c-bounded-revalidation-v10",
+      "title": "Run bounded post-contract promotion, quality, and occupancy checks",
+      "packet": ".wiretail/execution/tasks/57-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.md",
+        ".wiretail/execution/handoffs/56-01.md"
+      ],
+      "required_proofs": [
+        "post_contract_promotion_and_quality",
+        "post_contract_matched_matrix",
+        "post_contract_occupancy_boundary"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "57-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_57-03.json"
+      ],
+      "depends_on": [
+        "57-02"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "57-04",
+      "phase": "57",
+      "cluster": "57d-summary-v10",
+      "title": "Generate the phase-57 benchmark summary",
+      "packet": ".wiretail/execution/tasks/57-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_55.md",
+        ".wiretail/execution/handoffs/56-01.md"
+      ],
+      "required_proofs": [
+        "phase57_summary_generated_and_validated"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "57-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_57-04.json"
+      ],
+      "depends_on": [
+        "57-03"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "58-01",
+      "phase": "58",
+      "cluster": "58a-review-v10",
+      "title": "Review the phase-57 summary and schedule only measured next work",
+      "packet": ".wiretail/execution/tasks/58-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/handoffs/56-01.md"
+      ],
+      "required_proofs": [
+        "phase57_benchmark_review"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "58-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_58-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_58.json"
+      ],
+      "depends_on": [
+        "57-04"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
     }
   ],
   "last_checkpoint_commit": "e154151d62e583563343a15128392b69030dcf48",
@@ -13187,6 +13444,42 @@
       }
     },
     "56": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/56-01-attempt-1-20260914T183527Z.jsonl:140",
+          "total_tokens": 2483331,
+          "total_tokens_derived": true,
+          "input_tokens": 2458550,
+          "cached_input_tokens": 2306304,
+          "output_tokens": 24781,
+          "thinking_tokens": 7588
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 2483331,
+        "input_tokens": 2458550,
+        "cached_input_tokens": 2306304,
+        "output_tokens": 24781,
+        "thinking_tokens": 7588
+      }
+    },
+    "57": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "58": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -13200,12 +13493,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 186,
-      "total_tokens": 3960520748,
-      "input_tokens": 3951259991,
-      "cached_input_tokens": 3870328320,
-      "output_tokens": 9260757,
-      "thinking_tokens": 3387201
+      "turns": 187,
+      "total_tokens": 3963004079,
+      "input_tokens": 3953718541,
+      "cached_input_tokens": 3872634624,
+      "output_tokens": 9285538,
+      "thinking_tokens": 3394789
     },
     "source": "Codex turn.completed usage events"
   }
