@@ -1018,3 +1018,7 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-13T23:54:55+00:00 - 37-01 - done
 
 - Summary: Recorded bounded 32K as not_run because the required small-path natural cold-promotion gate remains unproven: no current-Q catalogue candidate publication and zero H2D bytes. No live workload was launched. Receipt: `.wiretail/execution/evidence/V9_32K.json`.
+
+## 2026-09-13T23:58:37+00:00 - 37-02 - done
+
+- Summary: Recorded 128K as not_run because 37-01's 32K capability gate is false; no full-L draft/allocation/pilot was launched. Receipt: `.wiretail/execution/evidence/V9_128K_PILOT.json`.
