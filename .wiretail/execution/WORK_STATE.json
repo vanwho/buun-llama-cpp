@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "50",
-  "current_task": "50-05",
-  "last_updated_utc": "2026-09-14T11:45:33+00:00",
+  "current_phase": "51",
+  "current_task": "51-01",
+  "last_updated_utc": "2026-09-14T12:31:00+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -9185,7 +9185,7 @@
       "cluster": "50c-capacity-mtp-v10",
       "title": "Generalize live geometry and tune fair MTP and scratch settings",
       "packet": ".wiretail/execution/tasks/50-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -9212,7 +9212,32 @@
       "depends_on": [
         "50-04"
       ],
-      "commit": null
+      "commit": "6b06bce184542ee1fd4336101ba1d0b2b0c46171",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/50-05-attempt-1-20260914T114552Z.jsonl:396",
+            "total_tokens": 36540901,
+            "total_tokens_derived": true,
+            "input_tokens": 36460557,
+            "cached_input_tokens": 35853312,
+            "output_tokens": 80344,
+            "thinking_tokens": 22752
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 36540901,
+          "input_tokens": 36460557,
+          "cached_input_tokens": 35853312,
+          "output_tokens": 80344,
+          "thinking_tokens": 22752
+        }
+      }
     },
     {
       "id": "51-01",
@@ -12241,15 +12266,28 @@
           "cached_input_tokens": 56110336,
           "output_tokens": 148710,
           "thinking_tokens": 58555
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/50-05-attempt-1-20260914T114552Z.jsonl:396",
+          "total_tokens": 36540901,
+          "total_tokens_derived": true,
+          "input_tokens": 36460557,
+          "cached_input_tokens": 35853312,
+          "output_tokens": 80344,
+          "thinking_tokens": 22752
         }
       ],
       "totals": {
-        "turns": 5,
-        "total_tokens": 133218420,
-        "input_tokens": 132854918,
-        "cached_input_tokens": 129432576,
-        "output_tokens": 363502,
-        "thinking_tokens": 150790
+        "turns": 6,
+        "total_tokens": 169759321,
+        "input_tokens": 169315475,
+        "cached_input_tokens": 165285888,
+        "output_tokens": 443846,
+        "thinking_tokens": 173542
       }
     },
     "51": {
@@ -12277,12 +12315,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 171,
-      "total_tokens": 3641417685,
-      "input_tokens": 3632917038,
-      "cached_input_tokens": 3558987520,
-      "output_tokens": 8500647,
-      "thinking_tokens": 3110913
+      "turns": 172,
+      "total_tokens": 3677958586,
+      "input_tokens": 3669377595,
+      "cached_input_tokens": 3594840832,
+      "output_tokens": 8580991,
+      "thinking_tokens": 3133665
     },
     "source": "Codex turn.completed usage events"
   }

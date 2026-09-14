@@ -2722,12 +2722,13 @@ bool selected_page_id_valid(
 }
 
 bool selected_page_required_units_valid(
-        const std::vector<uint32_t> & required) {
-    if (required.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS) {
+        const std::vector<uint32_t> & required, uint32_t unit_count) {
+    if (unit_count == 0 || unit_count % 2 != 0 ||
+        required.size() != unit_count) {
         return false;
     }
     for (uint32_t unit : required) {
-        if (unit >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+        if (unit >= unit_count ||
             std::count(required.begin(), required.end(), unit) != 1) {
             return false;
         }
@@ -2998,20 +2999,21 @@ vbr_selected_page_capture_status vbr_selected_page_capture_project(
             request.pages.empty() ||
             request.pages.size() > limits.max_pages ||
             limits.max_pages == 0 ||
-            limits.max_units < VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+            request.unit_count > limits.max_units ||
             limits.max_positions == 0 || limits.max_segments == 0 ||
             limits.max_payload_bytes == 0 ||
             limits.max_source_operations == 0 ||
-            !selected_page_required_units_valid(request.required_unit_ids) ||
+            !selected_page_required_units_valid(request.required_unit_ids,
+                                                request.unit_count) ||
             request.expected_unit_generations.size() !=
-                VBR_SELECTED_PAGE_REQUIRED_UNITS ||
-            sources.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS) {
-            return sources.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS
+                request.unit_count ||
+            sources.size() != request.unit_count) {
+            return sources.size() == request.unit_count
                 ? vbr_selected_page_capture_status::invalid_argument
                 : vbr_selected_page_capture_status::missing_unit;
         }
         for (const auto & source : sources) {
-            if (source.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS) {
+            if (source.logical_unit_id >= request.unit_count) {
                 return vbr_selected_page_capture_status::missing_unit;
             }
             if (selected_page_source_for(sources, source.logical_unit_id) !=
@@ -3035,7 +3037,7 @@ vbr_selected_page_capture_status vbr_selected_page_capture_project(
         output.child_id = request.child_id;
         output.stream_index = request.stream_index;
         output.page_count = uint32_t(request.pages.size());
-        output.unit_count = VBR_SELECTED_PAGE_REQUIRED_UNITS;
+        output.unit_count = request.unit_count;
         for (size_t page_index = 0; page_index < request.pages.size();
              ++page_index) {
             const auto & page = request.pages[page_index];
@@ -3178,9 +3180,9 @@ vbr_selected_page_capture_status vbr_selected_page_capture_transfer(
             snapshot.child_id != request.child_id ||
             snapshot.stream_index != request.stream_index ||
             snapshot.pages.size() != request.pages.size() ||
-            snapshot.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+            snapshot.units.size() != request.unit_count ||
             snapshot.unit_descriptors.size() !=
-                VBR_SELECTED_PAGE_REQUIRED_UNITS) {
+                request.unit_count) {
             return vbr_selected_page_capture_status::snapshot_unavailable;
         }
         for (size_t i = 0; i < request.pages.size(); ++i) {
@@ -3272,7 +3274,7 @@ vbr_selected_page_capture_status vbr_selected_page_capture_transfer(
             page_result.identity = page.identity;
             page_result.tail = page.tail;
             page_result.positions = page.positions;
-            page_result.units.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+            page_result.units.reserve(request.unit_count);
             for (uint32_t unit : request.required_unit_ids) {
                 const auto * source = selected_page_source_for(sources, unit);
                 const auto * descriptor = selected_page_descriptor_for(
@@ -3340,7 +3342,7 @@ vbr_selected_page_capture_status vbr_selected_page_capture_transfer(
                 }
                 page_result.units.push_back(std::move(unit_result));
             }
-            if (page_result.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+            if (page_result.units.size() != request.unit_count ||
                 page_result.payload_bytes == 0) {
                 return vbr_selected_page_capture_status::incomplete;
             }

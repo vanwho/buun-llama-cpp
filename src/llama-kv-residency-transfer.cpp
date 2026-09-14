@@ -206,7 +206,9 @@ llama_kv_residency_ggml_adapter::llama_kv_residency_ggml_adapter(
       bytes_per_slot_(config.bytes_per_slot),
       force_synchronous_(config.force_synchronous),
       storage_tensor_(config.external_storage),
-      external_storage_(config.external_storage != nullptr) {
+      external_storage_(config.external_storage != nullptr),
+      layer_count_(config.layer_count != 0
+          ? config.layer_count : uint32_t(config.layer_k_offsets.size())) {
     run_offsets_.reserve(config.layer_k_offsets.size() + config.layer_v_offsets.size());
     run_page_bytes_.reserve(config.layer_k_page_bytes.size() + config.layer_v_page_bytes.size());
     for (size_t i = 0; i < config.layer_k_offsets.size(); ++i) {
@@ -245,7 +247,8 @@ llama_kv_residency_ggml_adapter::create(
         (config.page_tokens == 0 || config.layer_k_offsets.size() != config.layer_v_offsets.size() ||
          config.layer_k_offsets.size() != config.layer_k_page_bytes.size() ||
          config.layer_k_offsets.size() != config.layer_v_page_bytes.size() ||
-         config.layer_k_offsets.size() > VBR_SELECTED_PAGE_TARGET_LAYERS)) {
+         (config.layer_count != 0 &&
+          config.layer_k_offsets.size() != config.layer_count))) {
         return nullptr;
     }
     try {
@@ -412,7 +415,7 @@ ggml_tensor * llama_kv_residency_ggml_adapter::run_tensor(
         const llama_kv_residency_completion &,
         const llama_kv_residency_transfer_run & run) noexcept {
     auto * self = static_cast<llama_kv_residency_ggml_adapter *>(context);
-    if (!self || run.layer >= VBR_SELECTED_PAGE_TARGET_LAYERS || run.side > 1) {
+    if (!self || run.layer >= self->layer_count_ || run.side > 1) {
         return nullptr;
     }
     const size_t index = size_t(run.layer) * 2 + run.side;
@@ -536,7 +539,8 @@ bool llama_kv_residency_build_transfer_plan(
                 return false;
             }
             for (const auto & run : input.runs) {
-                if (run.lane == UINT32_MAX || run.layer >= VBR_SELECTED_PAGE_TARGET_LAYERS ||
+                if (run.lane == UINT32_MAX ||
+                    (limits.max_layers != 0 && run.layer >= limits.max_layers) ||
                     run.side > 1 || run.row_count == 0 || run.row_bytes == 0 ||
                     run.first_physical_row > UINT32_MAX - run.row_count ||
                     run.useful_bytes() == 0) {

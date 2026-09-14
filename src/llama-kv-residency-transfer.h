@@ -56,6 +56,9 @@ struct llama_kv_residency_transfer_page {
 struct llama_kv_residency_transfer_limits {
     uint32_t max_pages = 1024;
     uint32_t max_runs = 1048576;
+    // The default preserves the legacy transfer-plan contract. Live callers
+    // set this to the resolved attention-layer count.
+    uint32_t max_layers = 16;
     uint64_t max_useful_bytes = uint64_t(16)*1024*1024*1024;
 };
 
@@ -173,6 +176,7 @@ struct llama_kv_residency_ggml_adapter_config {
     // a byte view for the selected layer/side, allowing a transfer to address
     // the exact tensor storage consumed by attention.
     uint32_t page_tokens = 0;
+    uint32_t layer_count = 0;
     std::vector<uint64_t> layer_k_offsets;
     std::vector<uint64_t> layer_v_offsets;
     std::vector<uint64_t> layer_k_page_bytes;
@@ -222,6 +226,7 @@ private:
     bool force_synchronous_ = false;
     ggml_tensor * storage_tensor_ = nullptr;
     bool external_storage_ = false;
+    uint32_t layer_count_ = 0;
     std::vector<ggml_tensor *> slot_tensors_;
     std::vector<ggml_tensor *> run_tensors_;
     std::vector<uint64_t> run_offsets_;

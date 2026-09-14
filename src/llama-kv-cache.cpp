@@ -2378,9 +2378,13 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     if (pager_ == nullptr || pager_->host_catalog() == nullptr) {
         return;
     }
-    if (layers.size() < VBR_SELECTED_PAGE_TARGET_LAYERS) {
+    const auto & geometry = pager_->snapshot().geometry;
+    if (geometry.attention_layers == 0 ||
+        geometry.unit_descriptors.size() != size_t(geometry.attention_layers) * 2 ||
+        geometry.attention_layers != layers.size()) {
         pager_ = nullptr;
-        throw std::runtime_error("KV pager target has fewer than 16 attention layers");
+        throw std::runtime_error(
+                "KV pager live geometry has no complete K/V descriptor for every attention layer");
     }
 
     pager_host_lineage_ = vbr_lineage_uuid_allocate();
@@ -2409,9 +2413,17 @@ void llama_kv_cache::set_kv_pager(llama_kv_pager * pager) {
     codebook_hash.string("buun.kv-pager/codebook/v1", 25);
     rotation_hash.string("buun.kv-pager/rotation/v1", 24);
     meansub_hash.string("buun.kv-pager/meansub/v1", 24);
-    for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
-        const auto & layer = layers[unit / 2];
-        const bool value_side = (unit & 1u) != 0;
+    for (const auto & unit_geometry : geometry.unit_descriptors) {
+        const uint32_t unit = unit_geometry.logical_unit_id;
+        if (unit >= geometry.unit_descriptors.size() ||
+            unit_geometry.layer >= layers.size() ||
+            unit_geometry.model_layer_id != layers[unit_geometry.layer].il ||
+            unit_geometry.side > 1) {
+            pager_ = nullptr;
+            throw std::runtime_error("KV pager live geometry descriptor mapping is invalid");
+        }
+        const auto & layer = layers[unit_geometry.layer];
+        const bool value_side = unit_geometry.side != 0;
         vbr_explicit_representation_identity identity;
         if (!vbr_explicit_capture_representation_identity(
                     &policy, GGML_TYPE_TURBO4_0, value_side,
@@ -3170,11 +3182,17 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 std::vector<bool> has_value(geometry.layer_v_page_bytes.size(), false);
                 uint64_t host_offset = 0;
                 for (const auto & unit : selected_host->page.units) {
-                    if (unit.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
-                        unit.layer >= VBR_SELECTED_PAGE_TARGET_LAYERS || !unit.bytes ||
-                        unit.layer >= geometry.layer_k_page_bytes.size() ||
-                        unit.layer >= geometry.layer_v_page_bytes.size() ||
-                        unit.valid_rows == 0 || unit.row_bytes == 0) {
+                    const auto unit_geometry = std::find_if(
+                            geometry.unit_descriptors.begin(),
+                            geometry.unit_descriptors.end(),
+                            [&](const auto & candidate) {
+                        return candidate.logical_unit_id == unit.logical_unit_id;
+                    });
+                    if (unit_geometry == geometry.unit_descriptors.end() ||
+                        unit.layer != unit_geometry->layer ||
+                        unit.side != (unit_geometry->side == 1
+                            ? vbr_artifact_side::value : vbr_artifact_side::key) ||
+                        !unit.bytes || unit.valid_rows == 0 || unit.row_bytes == 0) {
                         promotion_valid = false;
                         break;
                     }
@@ -3192,21 +3210,14 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         promotion_valid = false;
                         break;
                     }
-                    const uint32_t expected_unit = unit.layer * 2 +
-                        (unit.side == vbr_artifact_side::value ? 1u : 0u);
-                    if (unit.logical_unit_id != expected_unit ||
-                        unit.layer >= has_key.size()) {
+                    if (unit.layer >= has_key.size()) {
                         promotion_valid = false;
                         break;
                     }
                     const bool value = unit.side == vbr_artifact_side::value;
                     const size_t layer = unit.layer;
-                    const uint64_t page_bytes = value
-                        ? geometry.layer_v_page_bytes[layer]
-                        : geometry.layer_k_page_bytes[layer];
-                    const uint64_t layer_offset = value
-                        ? geometry.layer_v_offsets[layer]
-                        : geometry.layer_k_offsets[layer];
+                    const uint64_t page_bytes = unit_geometry->page_bytes;
+                    const uint64_t layer_offset = unit_geometry->offset;
                     if (unit.bytes->size() != uint64_t(unit.valid_rows) * unit.row_bytes ||
                         uint64_t(unit.valid_rows) * unit.row_bytes > page_bytes ||
                         uint64_t(selected_slot) > UINT64_MAX / page_bytes ||
@@ -3230,7 +3241,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 }
                 const uint32_t first_layer = transfer_layer == UINT32_MAX ? 0 : transfer_layer;
                 const uint32_t last_layer = transfer_layer == UINT32_MAX
-                    ? uint32_t(geometry.layer_k_page_bytes.size()) : transfer_layer + 1;
+                    ? geometry.attention_layers : transfer_layer + 1;
                 if (transfer_page.runs.empty() || last_layer > has_key.size() ||
                     !std::all_of(has_key.begin() + first_layer,
                                  has_key.begin() + last_layer,
@@ -3254,7 +3265,9 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 llama_kv_residency_transfer_plan plan;
                 if (!llama_kv_residency_build_transfer_plan(
                         llama_kv_residency_transfer_direction::h2d_promotion,
-                        promotion_pages, 1, {}, plan)) {
+                        promotion_pages, 1,
+                        { 1024, 1048576, geometry.attention_layers,
+                          uint64_t(16)*1024*1024*1024 }, plan)) {
                     boundary.transaction.transfers.clear();
                 } else {
                     boundary.transaction.transfers.push_back(std::move(plan));
@@ -3417,7 +3430,6 @@ bool llama_kv_cache::pager_host_prepare(
         vbr_selected_page_capture_snapshot_provider & snapshots) noexcept {
     auto * cache = static_cast<llama_kv_cache *>(context);
     if (cache == nullptr || cache->pager_ == nullptr ||
-        cache->layers.size() < VBR_SELECTED_PAGE_TARGET_LAYERS ||
         page.id.position_begin < 0 ||
         page.id.position_end <= page.id.position_begin ||
         page.id.position_end - page.id.position_begin > llama_pos(VBR_GENERATION_PAGE_CELLS)) {
@@ -3427,8 +3439,12 @@ bool llama_kv_cache::pager_host_prepare(
     request.source_namespace = cache->pager_->host_source_namespace();
     request.child_id = cache->pager_->host_child_id();
     request.stream_index = cache->pager_->host_stream_index();
-    request.expected_unit_generations.resize(VBR_SELECTED_PAGE_REQUIRED_UNITS);
-    for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+    const auto & geometry = cache->pager_->snapshot().geometry;
+    if (geometry.unit_descriptors.size() != size_t(geometry.attention_layers) * 2 ||
+        geometry.attention_layers != cache->layers.size()) return false;
+    request.unit_count = uint32_t(geometry.unit_descriptors.size());
+    request.expected_unit_generations.resize(request.unit_count);
+    for (uint32_t unit = 0; unit < request.unit_count; ++unit) {
         request.required_unit_ids.push_back(unit);
     }
     vbr_selected_page_range range;
@@ -3452,10 +3468,15 @@ bool llama_kv_cache::pager_host_prepare(
         return false;
     }
     const uint32_t stream = cache->get_stream_for_seq(page.id.sequence_id);
-    sources.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
-    for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
-        const auto * tensor = (unit & 1u)
-            ? cache->layers[unit / 2].v : cache->layers[unit / 2].k;
+    sources.reserve(request.unit_count);
+    for (const auto & unit_geometry : geometry.unit_descriptors) {
+        const uint32_t unit = unit_geometry.logical_unit_id;
+        if (unit >= request.unit_count || unit_geometry.layer >= cache->layers.size() ||
+            unit_geometry.model_layer_id != cache->layers[unit_geometry.layer].il ||
+            unit_geometry.side > 1) return false;
+        const auto * tensor = unit_geometry.side
+            ? cache->layers[unit_geometry.layer].v
+            : cache->layers[unit_geometry.layer].k;
         if (tensor == nullptr || tensor->type != GGML_TYPE_TURBO4_0 ||
             tensor->ne[0] <= 0 || tensor->ne[1] <= 0 || tensor->ne[2] <= int64_t(stream)) {
             return false;
@@ -3465,7 +3486,8 @@ bool llama_kv_cache::pager_host_prepare(
         const uint64_t stream_bytes = rows * row_bytes;
         const uint64_t physical = uint64_t(page.physical_slot) *
                 VBR_GENERATION_PAGE_CELLS;
-        if (row_bytes == 0 || rows > UINT32_MAX ||
+        if (row_bytes == 0 || row_bytes != unit_geometry.row_bytes ||
+            tensor->type != unit_geometry.type || rows > UINT32_MAX ||
             physical + count > rows ||
             stream_bytes / row_bytes != rows) {
             return false;
@@ -3654,31 +3676,40 @@ bool llama_kv_cache::pager_host_snapshot_acquire(
     auto * cache = static_cast<llama_kv_cache *>(context);
     output = {};
     if (cache == nullptr || cache->pager_ == nullptr || request.pages.size() != 1 ||
-        request.required_unit_ids.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS ||
-        cache->layers.size() < VBR_SELECTED_PAGE_TARGET_LAYERS ||
+        request.unit_count == 0 ||
+        request.required_unit_ids.size() != request.unit_count ||
         !vbr_lineage_uuid_is_set(cache->pager_host_lineage_) ||
         request.pages[0].identity.representation_epoch !=
             std::max<uint64_t>(1, cache->vbr_representation_epoch())) {
         return false;
     }
+    const auto & geometry = cache->pager_->snapshot().geometry;
+    if (request.unit_count != geometry.unit_descriptors.size() ||
+        geometry.unit_descriptors.size() != size_t(geometry.attention_layers) * 2 ||
+        cache->layers.size() != geometry.attention_layers) return false;
     try {
         output.source_namespace = request.source_namespace;
         output.child_id = request.child_id;
         output.stream_index = request.stream_index;
         output.pages.push_back(request.pages[0].identity);
-        output.units.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
-        output.unit_descriptors.reserve(VBR_SELECTED_PAGE_REQUIRED_UNITS);
+        output.units.reserve(request.unit_count);
+        output.unit_descriptors.reserve(request.unit_count);
         const uint64_t repr_gen = std::max<uint64_t>(
                 1, cache->vbr_representation_epoch());
         const vbr_explicit_representation_policy policy {
             LLAMA_COMMIT, std::strlen(LLAMA_COMMIT),
         };
-        for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
-            const auto & layer = cache->layers[unit / 2];
-            const bool value_side = (unit & 1u) != 0;
+        for (const auto & unit_geometry : geometry.unit_descriptors) {
+            const uint32_t unit = unit_geometry.logical_unit_id;
+            if (unit >= request.unit_count || unit_geometry.layer >= cache->layers.size() ||
+                unit_geometry.model_layer_id != cache->layers[unit_geometry.layer].il ||
+                unit_geometry.side > 1) return false;
+            const auto & layer = cache->layers[unit_geometry.layer];
+            const bool value_side = unit_geometry.side != 0;
             const auto * tensor = value_side ? layer.v : layer.k;
             if (tensor == nullptr || tensor->type != GGML_TYPE_TURBO4_0 ||
-                tensor->ne[0] <= 0 || tensor->ne[1] <= 0) return false;
+                tensor->ne[0] <= 0 || tensor->ne[1] <= 0 ||
+                ggml_row_size(tensor->type, tensor->ne[0]) != unit_geometry.row_bytes) return false;
             const uint64_t row_bytes = ggml_row_size(tensor->type, tensor->ne[0]);
             vbr_explicit_representation_identity identity;
             if (!vbr_explicit_capture_representation_identity(
@@ -3756,8 +3787,8 @@ bool llama_kv_cache::pager_host_snapshot_acquire(
             descriptor.shards.push_back(shard);
             output.unit_descriptors.push_back(std::move(descriptor));
         }
-        return output.units.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS &&
-               output.unit_descriptors.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS;
+        return output.units.size() == request.unit_count &&
+               output.unit_descriptors.size() == request.unit_count;
     } catch (...) {
         output = {};
         return false;
@@ -3773,10 +3804,11 @@ bool llama_kv_cache::pager_host_snapshot_recheck(
     request.source_namespace = expected.source_namespace;
     request.child_id = expected.child_id;
     request.stream_index = expected.stream_index;
+    request.unit_count = uint32_t(expected.units.size());
     vbr_selected_page_range range;
     range.identity = expected.pages[0];
     request.pages.push_back(std::move(range));
-    for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+    for (uint32_t unit = 0; unit < request.unit_count; ++unit) {
         request.required_unit_ids.push_back(unit);
     }
     vbr_selected_page_capture_snapshot current;
@@ -13936,12 +13968,23 @@ bool llama_kv_cache::pager_geometry(
                 layer.k->type != GGML_TYPE_TURBO4_0 ||
                 layer.v->type != GGML_TYPE_TURBO4_0 ||
                 layer.k->ne[0] <= 0 || layer.v->ne[0] <= 0) return false;
-            ++output.attention_layers;
-            output.kv_heads = hparams.n_head_kv(layer.il);
-            output.key_length = uint32_t(layer.k->ne[0] / std::max<uint32_t>(1, output.kv_heads));
-            output.value_length = uint32_t(layer.v->ne[0] / std::max<uint32_t>(1, output.kv_heads));
-            const uint64_t k = uint64_t(ggml_row_size(layer.k->type, layer.k->ne[0])) * page_tokens;
-            const uint64_t v = uint64_t(ggml_row_size(layer.v->type, layer.v->ne[0])) * page_tokens;
+            const uint32_t ordinal = output.attention_layers;
+            const uint32_t heads = hparams.n_head_kv(layer.il);
+            if (heads == 0 || uint64_t(layer.k->ne[0]) % heads != 0 ||
+                uint64_t(layer.v->ne[0]) % heads != 0) return false;
+            const uint32_t key_length = uint32_t(layer.k->ne[0] / heads);
+            const uint32_t value_length = uint32_t(layer.v->ne[0] / heads);
+            if (ordinal == 0) {
+                output.kv_heads = heads;
+                output.key_length = key_length;
+                output.value_length = value_length;
+            }
+            const uint64_t k_row = ggml_row_size(layer.k->type, layer.k->ne[0]);
+            const uint64_t v_row = ggml_row_size(layer.v->type, layer.v->ne[0]);
+            if (k_row == 0 || v_row == 0 || k_row > UINT64_MAX / page_tokens ||
+                v_row > UINT64_MAX / page_tokens) return false;
+            const uint64_t k = k_row * page_tokens;
+            const uint64_t v = v_row * page_tokens;
             output.layer_k_offsets.push_back(layer_offset);
             output.layer_k_page_bytes.push_back(k);
             if (layer_offset > UINT64_MAX - k) return false;
@@ -13949,9 +13992,18 @@ bool llama_kv_cache::pager_geometry(
             output.layer_v_offsets.push_back(layer_offset + k);
             output.layer_v_page_bytes.push_back(v);
             if (k > UINT64_MAX - v || output.page_bytes > UINT64_MAX - k - v) return false;
+            output.unit_descriptors.push_back({
+                ordinal * 2, ordinal, layer.il, 0, layer.k->type, heads,
+                key_length, k_row, k, layer_offset,
+            });
+            output.unit_descriptors.push_back({
+                ordinal * 2 + 1, ordinal, layer.il, 1, layer.v->type, heads,
+                value_length, v_row, v, layer_offset + k,
+            });
             output.page_bytes += k + v;
             if (layer_offset > UINT64_MAX - k - v) return false;
             layer_offset += k + v;
+            ++output.attention_layers;
         }
         return output.attention_layers != 0 && output.kv_heads != 0 &&
                output.key_length != 0 && output.value_length != 0 &&
@@ -13959,7 +14011,8 @@ bool llama_kv_cache::pager_geometry(
                output.layer_v_offsets.size() == output.attention_layers &&
                output.model_layer_ids.size() == output.attention_layers &&
                output.layer_k_page_bytes.size() == output.attention_layers &&
-               output.layer_v_page_bytes.size() == output.attention_layers;
+               output.layer_v_page_bytes.size() == output.attention_layers &&
+               output.unit_descriptors.size() == size_t(output.attention_layers) * 2;
     } catch (...) {
         output = {};
         return false;
