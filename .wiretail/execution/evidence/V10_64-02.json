@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "task": "64-02",
+  "source_commit": "b65756f88c763f6502431001461c3508837d6cfa",
+  "candidate": {
+    "model": "/srv/ai/models/text/current.gguf",
+    "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "endpoint_executable": "/srv/ai/paged-kv/results/v10/61-02/candidate-bundle/bin/llama-server",
+    "target": "CUDA turbo4 K/V",
+    "native_mtp": "GPU turbo4 K/V",
+    "batch_tokens": 128,
+    "ubatch_tokens": 64,
+    "page_size_tokens": 256,
+    "hot_capacity_tokens": 16384
+  },
+  "findings": {
+    "pilot_L32768": {
+      "status": "failed",
+      "L_tokens": 32768,
+      "C_tokens": 11800,
+      "frontier_tokens": 14336,
+      "H_tokens": 16384,
+      "A_tokens": 8192,
+      "B_tokens": 128,
+      "U_tokens": 64,
+      "target_allocated_bytes": 276824000,
+      "progress": "three completed cached rows; fourth reached frontier then prefill deadline",
+      "stop_reason": "prefill deadline expired at 180 seconds"
+    },
+    "pilot_L128K": {
+      "status": "measured",
+      "L_tokens": 131072,
+      "C_tokens": 1024,
+      "H_tokens": 16384,
+      "A_tokens": 8192,
+      "B_tokens": 128,
+      "U_tokens": 64,
+      "target_allocated_bytes": 276824000,
+      "progress": "two bounded forward-progress rows",
+      "stop_reason": "bounded pilot target reached; no larger occupancy claim"
+    },
+    "full_L_256K_allocation": {
+      "status": "measured",
+      "L_tokens": 262144,
+      "C_tokens": 1200,
+      "H_tokens": 16384,
+      "A_tokens": 8192,
+      "B_tokens": 128,
+      "U_tokens": 64,
+      "target_allocated_bytes": 276824000,
+      "progress": "allocation/startup and two bounded request rows",
+      "stop_reason": "bounded cached request stopped at C1200"
+    },
+    "occupied_C262144": {
+      "status": "failed",
+      "L_tokens": 262144,
+      "C_tokens": 1200,
+      "stop_reason": "observed frontier remained below 262144; allocation/startup is not occupancy proof"
+    }
+  },
+  "checks": {
+    "phase64_scale_occupancy_advancement": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_64-02_validation.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/64-02/phase64-scale-validation.txt",
+          "sha256": "b123b812f19f77bdec305a00291fc54498e0ffa88777935e0235261a79f070dd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/64-02/20260914T231208Z-L262144-boundary/INTERACTIVE29_01_SCALE.json",
+          "sha256": "d2a6b32a9ab105edff8c0be74ca1f0e299724c222acce773dd0b6506e4390ce2"
+        }
+      ]
+    }
+  }
+}
