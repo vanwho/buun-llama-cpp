@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "task": "64-03",
+  "source_commit": "c1f6c707a63a0d0bc94605aa43e2b919591884e2",
+  "finding": {
+    "status": "measured",
+    "geometry": {"L_tokens": 8192, "C_tokens": 6144, "H_tokens": 4096, "A_tokens": 2048, "B_tokens": 128, "U_tokens": 64},
+    "matrix": "q0/q1/q2; one warmup and three measured trials; selective native, CPU-main-KV/GPU-draft, all-GPU/GPU-draft",
+    "cold_prefill_rows": 27,
+    "cached_append": {"64": "measured", "256": "measured"},
+    "append_cache_n": {"64": 6271, "256": 6271},
+    "control_mtp": "explicit feature-off control rows; native placement is retained in runtime identity"
+  },
+  "checks": {
+    "phase64_matched_benchmark": {
+      "status": "pass",
+      "command": ["python3", "tools/server/bench/run-final-curve.py", "--suite", "curve", "--context", "8192", "--prompt-tokens", "6144", "--warmups", "1", "--trials", "3", "--max-tokens", "128", "--batch-tokens", "128", "--ubatch-tokens", "64"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/64-03/20260915T-matched-q0q1q2/selective-final/SPEED25_02_ATTRIBUTION.json", "sha256": "74f1344f7c26e5609177f3c619182c4e10d63b7c9a83c810b21b7d6b733e9d2a"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-03/20260915T-matched-q0q1q2/cpu-main/SPEED25_02_ATTRIBUTION.json", "sha256": "dd59c312027b7bcb075b71fd239663ff8046ab701b4ba43ff169602560b8b5c8"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-03/20260915T-matched-q0q1q2/all-gpu/SPEED25_02_ATTRIBUTION.json", "sha256": "c887d10c97d92f572462319bfb8250c32b47bb8ecf763caa1dae5bd6d5c6ea75"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-03/20260915T-matched-q0q1q2/append64/append-result.json", "sha256": "c943eca097a23079ea1fdb29afce19e357a0f99e515a96b82497a00e746faff1"},
+        {"path": "/srv/ai/paged-kv/results/v10/64-03/20260915T-matched-q0q1q2/append256/append-result.json", "sha256": "116486a7756762d7b2e1bf59cc574f268dd28a7c8228f6275df53652bc574068"}
+      ]
+    }
+  }
+}
