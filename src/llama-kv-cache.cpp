@@ -6527,6 +6527,26 @@ bool llama_kv_cache::vbr_scratch_reserve(
     }
     const size_t k_cells = size_t(k_rows);
     const size_t v_cells = size_t(v_rows);
+    size_t submitted_k_cells = k_cells;
+    size_t submitted_v_cells = v_cells;
+    if (!vbr_params_.dynamic && pager_plan_ == nullptr) {
+        // Static MTP graphs submit the full cache tensor as their K/V view even
+        // while the memory context reports only the rows populated by the
+        // current batch.  Charge that realized view here; using the current
+        // frontier would leave the first full-context graph to grow scratch
+        // during execution.  Dynamic paged attention keeps its bounded request
+        // rows and must not inherit this full-cache fallback.
+        for (const auto & layer : layers) {
+            if (layer.k != nullptr && layer.k->ne[1] > 0) {
+                submitted_k_cells = std::max(submitted_k_cells,
+                        size_t(layer.k->ne[1]));
+            }
+            if (layer.v != nullptr && layer.v->ne[1] > 0) {
+                submitted_v_cells = std::max(submitted_v_cells,
+                        size_t(layer.v->ne[1]));
+            }
+        }
+    }
     for (auto & p : vbr_pools_) {
         if (p.be == nullptr || p.device < 0) {
             continue;
@@ -6534,10 +6554,21 @@ bool llama_kv_cache::vbr_scratch_reserve(
         GGML_ASSERT(p.compute_backend != nullptr);
         size_t scratch_k_row = p.scratch_k_row;
         size_t scratch_v_row = p.scratch_v_row;
+        // The graph admission contract carries the exact K/V view widths used by the CUDA
+        // materializer.  Prefer those widths over the cache-wide maximum: a full-L cache can
+        // expose a much narrower submitted view (or a hybrid layer can have a different head
+        // width), and the allocator must charge the bytes the graph will actually submit.
+        if (request.materialized_k_bytes_per_row != 0) {
+            scratch_k_row = request.materialized_k_bytes_per_row;
+        }
+        if (request.materialized_v_bytes_per_row != 0) {
+            scratch_v_row = request.materialized_v_bytes_per_row;
+        }
         // active-side row maxima change only on a tier flip — memoize on the tier epoch so the
         // per-boundary cost is two multiplies (static caches compute this exactly once)
-        if (request.attention_layer != UINT32_MAX ||
-            p.scratch_rows_epoch != vbr_tier_epoch_) {
+        if ((request.materialized_k_bytes_per_row == 0 && request.materialized_v_bytes_per_row == 0) &&
+            (request.attention_layer != UINT32_MAX ||
+            p.scratch_rows_epoch != vbr_tier_epoch_)) {
             const size_t first_layer = request.attention_layer != UINT32_MAX
                 ? size_t(request.attention_layer) : 0;
             const size_t last_layer = request.attention_layer != UINT32_MAX
@@ -6572,12 +6603,12 @@ bool llama_kv_cache::vbr_scratch_reserve(
                 p.scratch_rows_epoch = vbr_tier_epoch_;
             }
         }
-        if ((k_cells != 0 && scratch_k_row > SIZE_MAX / k_cells) ||
-            (v_cells != 0 && scratch_v_row > SIZE_MAX / v_cells)) {
+        if ((submitted_k_cells != 0 && scratch_k_row > SIZE_MAX / submitted_k_cells) ||
+            (submitted_v_cells != 0 && scratch_v_row > SIZE_MAX / submitted_v_cells)) {
             return false;
         }
-        const size_t k_bytes = scratch_k_row * k_cells;
-        const size_t v_bytes = scratch_v_row * v_cells;
+        const size_t k_bytes = scratch_k_row * submitted_k_cells;
+        const size_t v_bytes = scratch_v_row * submitted_v_cells;
         if (k_bytes == 0 && v_bytes == 0) {
             continue;
         }
@@ -6617,6 +6648,78 @@ bool llama_kv_cache::vbr_scratch_reserve(
         p.scratch_k_reserved = std::max(p.scratch_k_reserved, k_bytes);
         p.scratch_v_reserved = std::max(p.scratch_v_reserved, v_bytes);
     }
+
+    // A native MTP drafter can use a static Turbo4 KV cache: it has the same CUDA fattn scratch
+    // consumer but deliberately has no dynamic-VBR pool or shared-owner binding.  Do not let that
+    // controller-free cache skip the boundary reserve and discover the 512 MiB view only inside
+    // graph execution.  Resolve its existing compute backend from the cache tensor's buft and
+    // reserve the exact submitted view widths supplied by the attention contract.
+    if (vbr_pools_.empty() && vbr_shared_scratch_bindings_.empty() &&
+        (request.materialized_k_bytes_per_row != 0 || request.materialized_v_bytes_per_row != 0)) {
+        size_t k_row = request.materialized_k_bytes_per_row;
+        size_t v_row = request.materialized_v_bytes_per_row;
+        if (k_row == 0 || v_row == 0) {
+            for (const auto & layer : layers) {
+                bool need_k = false;
+                bool need_v = false;
+                ggml_vbr_kv_dequant_sides(layer.k ? layer.k->type : GGML_TYPE_F16,
+                                          layer.v ? layer.v->type : GGML_TYPE_F16,
+                                          &need_k, &need_v);
+                if (need_k && layer.k) {
+                    k_row = std::max(k_row, ggml_row_size(GGML_TYPE_F16, layer.k->ne[0]));
+                }
+                if (need_v && layer.v) {
+                    v_row = std::max(v_row, ggml_row_size(GGML_TYPE_F16, layer.v->ne[0]));
+                }
+            }
+        }
+        if ((submitted_k_cells != 0 && k_row > SIZE_MAX / submitted_k_cells) ||
+            (submitted_v_cells != 0 && v_row > SIZE_MAX / submitted_v_cells)) {
+            return false;
+        }
+        const size_t k_bytes = k_row * submitted_k_cells;
+        const size_t v_bytes = v_row * submitted_v_cells;
+        ggml_backend_buffer_type_t buft = nullptr;
+        for (const auto & layer : layers) {
+            if (layer.k != nullptr && layer.k->buffer != nullptr) {
+                buft = ggml_backend_buffer_get_type(layer.k->buffer);
+                break;
+            }
+            if (layer.v != nullptr && layer.v->buffer != nullptr) {
+                buft = ggml_backend_buffer_get_type(layer.v->buffer);
+                break;
+            }
+        }
+        const auto devs = buft != nullptr ? llama_vbr_backend_devs_for_buft(buft) :
+            std::vector<llama_vbr_dev>();
+        std::vector<ggml_backend_t> seen_backends;
+        for (const auto & d : devs) {
+            ggml_backend_t compute_backend = vbr_params_.compute_backend_for_buft
+                ? vbr_params_.compute_backend_for_buft(d.buft) : nullptr;
+            if (d.be == nullptr || compute_backend == nullptr ||
+                std::find(seen_backends.begin(), seen_backends.end(), compute_backend) !=
+                    seen_backends.end()) {
+                continue;
+            }
+            seen_backends.push_back(compute_backend);
+            size_t physical_now = 0;
+            size_t physical_projected = 0;
+            d.be->kv_dequant_scratch_memory(compute_backend, k_bytes, v_bytes,
+                    &physical_now, &physical_projected);
+            LLAMA_LOG_DEBUG("%s: static-Turbo4 scratch owner=%p device=%d k_rows=%llu "
+                    "v_rows=%llu requested_k=%zu requested_v=%zu physical_now=%zu "
+                    "physical_projected=%zu\n", __func__, (void *) compute_backend, d.device,
+                    (unsigned long long) submitted_k_cells,
+                    (unsigned long long) submitted_v_cells,
+                    k_bytes, v_bytes, physical_now, physical_projected);
+            if (!d.be->kv_dequant_scratch_reserve(compute_backend, k_bytes, v_bytes)) {
+                vbr_flush_deferred_unmaps();
+                if (!d.be->kv_dequant_scratch_reserve(compute_backend, k_bytes, v_bytes)) {
+                    return false;
+                }
+            }
+        }
+    }
     // Shared aliases are deliberately absent from vbr_pools_. Their live tensor types follow
     // the owner, so use the delegated epoch and reserve against this context's compute backend.
     // Multiple iSWA children call this serially on the same backend; the grow-only backend
@@ -6642,6 +6745,12 @@ bool llama_kv_cache::vbr_scratch_reserve(
                 }
             }
             b.rows_epoch = owner_epoch;
+        }
+        if (request.materialized_k_bytes_per_row != 0) {
+            b.k_row = request.materialized_k_bytes_per_row;
+        }
+        if (request.materialized_v_bytes_per_row != 0) {
+            b.v_row = request.materialized_v_bytes_per_row;
         }
         if ((k_cells != 0 && b.k_row > SIZE_MAX / k_cells) ||
             (v_cells != 0 && b.v_row > SIZE_MAX / v_cells)) {

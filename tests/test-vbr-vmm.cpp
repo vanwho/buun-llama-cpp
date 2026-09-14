@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <array>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 static bool expect_eq(const char * label, size_t actual, size_t expected) {
@@ -300,6 +301,68 @@ static bool test_classic_transcode(const ggml_vbr_backend_iface * be, int device
     return ok;
 }
 
+static bool test_vbr_scratch_boundary(const ggml_vbr_backend_iface * be, int device) {
+    // This is the smallest full-L boundary that previously reached the in-graph grower.  The
+    // submitted view is 262144 rows x 2048 bytes on each f16 side: each side is exactly 512 MiB,
+    // independent of the persistent Turbo4 representation.
+    constexpr size_t rows = 262144;
+    constexpr size_t bytes_per_row = 2048;
+    constexpr size_t side_bytes = rows * bytes_per_row;
+    constexpr size_t required_bytes = side_bytes * 2;
+
+    if (be->kv_dequant_scratch_reserve == nullptr || be->kv_dequant_scratch_memory == nullptr) {
+        std::fprintf(stderr, "scratch boundary: CUDA VBR scratch callbacks are unavailable\n");
+        return false;
+    }
+
+    ggml_backend_t backend = be->backend_init(device);
+    if (backend == nullptr) {
+        std::fprintf(stderr, "scratch boundary: backend init failed\n");
+        return false;
+    }
+
+    size_t physical_now = 0;
+    size_t physical_if_reserved = 0;
+    be->kv_dequant_scratch_memory(backend, side_bytes, side_bytes,
+            &physical_now, &physical_if_reserved);
+    bool ok = physical_if_reserved >= required_bytes;
+    if (!ok) {
+        std::fprintf(stderr,
+                "scratch boundary: projected physical bytes %zu below required %zu\n",
+                physical_if_reserved, required_bytes);
+    }
+
+    if (ok && !be->kv_dequant_scratch_reserve(backend, side_bytes, side_bytes)) {
+        std::fprintf(stderr, "scratch boundary: full-L K/V reserve failed\n");
+        ok = false;
+    }
+    be->kv_dequant_scratch_memory(backend, 0, 0, &physical_now, &physical_if_reserved);
+    if (ok && physical_now < required_bytes) {
+        std::fprintf(stderr,
+                "scratch boundary: resident physical bytes %zu below required %zu\n",
+                physical_now, required_bytes);
+        ok = false;
+    }
+
+    // An invalid oversized request is a recoverable boundary failure.  It must not discard the
+    // valid full-L backing, and a following ordinary reserve must still succeed.
+    if (ok && be->kv_dequant_scratch_reserve(backend, std::numeric_limits<size_t>::max(), 0)) {
+        std::fprintf(stderr, "scratch boundary: oversized retry unexpectedly succeeded\n");
+        ok = false;
+    }
+    if (ok && !be->kv_dequant_scratch_reserve(backend, side_bytes, side_bytes)) {
+        std::fprintf(stderr, "scratch boundary: reserve retry failed after recoverable refusal\n");
+        ok = false;
+    }
+
+    ggml_backend_free(backend);
+    if (ok) {
+        std::printf("PASS: VBR scratch boundary K=%zu V=%zu physical=%zu\n",
+                side_bytes, side_bytes, physical_now);
+    }
+    return ok;
+}
+
 int main(int argc, char ** argv) {
     const int device = argc > 1 ? std::atoi(argv[1]) : 0;
     const ggml_vbr_backend_iface * be = ggml_backend_cuda_vbr_iface();
@@ -323,6 +386,7 @@ int main(int argc, char ** argv) {
     bool ok = true;
     ok = test_remap_contents(be, device) && ok;
     ok = test_classic_transcode(be, device) && ok;
+    ok = test_vbr_scratch_boundary(be, device) && ok;
     auto range = [&](size_t first_page, size_t n_pages) {
         return be->vmm_pool_mapped_in_range(pool, first_page * g, n_pages * g);
     };

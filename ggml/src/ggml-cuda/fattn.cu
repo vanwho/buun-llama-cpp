@@ -3041,6 +3041,12 @@ static half * kv_dequant_scratch_try(
         ggml_backend_cuda_context & ctx,
         size_t need_bytes,
         ggml_cuda_fattn_scratch_side & side) {
+    // Keep invalid interface requests recoverable.  In particular, do not cast a size larger
+    // than int64_t into next_pow2_i64 or reserve a practically unbounded VA range while handling
+    // a failed boundary retry.
+    if (need_bytes > size_t(INT64_MAX)) {
+        return nullptr;
+    }
     // Steady-state fast-out: the watermark is 256-cell padded, so need_bytes is unchanged for
     // 255 of every 256 boundaries — skip the device set + chunk-set walk entirely.
     if (side.vmm != nullptr && need_bytes <= side.vmm_hw) {
@@ -3050,52 +3056,60 @@ static half * kv_dequant_scratch_try(
                                       // the cudaMalloc fallback allocates on the current device
     if (ggml_backend_cuda_vmm_available(ctx.device)) {
         if (side.vmm == nullptr || need_bytes > side.vmm_va) {
-            if (side.vmm) {
-                ggml_backend_cuda_vmm_pool_free(side.vmm);
-                side.vmm = nullptr;
-                side.vmm_va = 0;
-                side.vmm_hw = 0;
-                ctx.fattn_scratch.epoch++; // old base dies with the reservation, even if
-                                           // the re-reserve below fails
-            }
             const size_t va = (size_t) next_pow2_i64((int64_t) need_bytes);
-            side.vmm = ggml_backend_cuda_vmm_pool_init(ctx.device, va);
-            if (side.vmm) {
+            // Grow into a candidate pool first.  Keeping the old pool alive until the candidate
+            // has all of its physical pages prevents a recoverable reserve failure from turning
+            // a previously valid graph address into an empty side.
+            ggml_vbr_vmm_pool * candidate = ggml_backend_cuda_vmm_pool_init(ctx.device, va);
+            if (candidate != nullptr && ggml_backend_cuda_vmm_pool_map(candidate, 0, need_bytes)) {
+                ggml_vbr_vmm_pool * old = side.vmm;
+                side.vmm = candidate;
                 side.vmm_va = va;
-                ctx.fattn_scratch.epoch++; // base moved with the new reservation
+                side.vmm_hw = need_bytes;
+                if (old != nullptr) {
+                    ggml_backend_cuda_vmm_pool_free(old);
+                }
+                if (side.cuda_buf != nullptr) {
+                    CUDA_CHECK(cudaFree(side.cuda_buf));
+                    side.cuda_buf  = nullptr;
+                    side.cuda_size = 0;
+                }
+                ctx.fattn_scratch.epoch++; // the backing address changed after a complete grow
+                return (half *) ggml_backend_cuda_vmm_pool_base(side.vmm);
             }
+            if (candidate != nullptr) {
+                ggml_backend_cuda_vmm_pool_free(candidate);
+            }
+            // The old VMM pool, if any, remains authoritative.  Fall through to the existing
+            // pool map for same-VA growth; otherwise the cudaMalloc fallback below may still
+            // provide a larger representation without invalidating the old one first.
         }
         if (side.vmm) {
-            // A prior VA-reservation failure may have left this side on cudaMalloc fallback.
-            // Release that physical allocation before mapping the VMM pool; otherwise both full
-            // scratch copies coexist and the old copy can itself make the VMM map fail.
-            if (side.cuda_buf) {
-                CUDA_CHECK(cudaFree(side.cuda_buf));
-                side.cuda_buf  = nullptr;
-                side.cuda_size = 0;
-                ctx.fattn_scratch.epoch++; // captured users of the fallback address are stale
+            if (need_bytes <= side.vmm_va) {
+                if (!ggml_backend_cuda_vmm_pool_map(side.vmm, 0, need_bytes)) {
+                    return nullptr; // physical exhaustion — caller decides recoverably
+                }
+                side.vmm_hw = std::max(side.vmm_hw, need_bytes);
+                return (half *) ggml_backend_cuda_vmm_pool_base(side.vmm);
             }
-            if (!ggml_backend_cuda_vmm_pool_map(side.vmm, 0, need_bytes)) {
-                return nullptr; // physical exhaustion — caller decides (reserve fails
-                                // recoverably; the in-graph wrapper below aborts)
-            }
-            side.vmm_hw = need_bytes;
-            return (half *) ggml_backend_cuda_vmm_pool_base(side.vmm);
         }
         // VA reservation failed — fall through to the cudaMalloc path.
     }
     const size_t alloc = (size_t) next_pow2_i64((int64_t) need_bytes);
     if (alloc > side.cuda_size) {
-        if (side.cuda_buf) {
-            CUDA_CHECK(cudaFree(side.cuda_buf));
-            side.cuda_buf  = nullptr;
-            side.cuda_size = 0;
-            ctx.fattn_scratch.epoch++; // old address gone even if the grow below fails
-        }
         half * p = nullptr;
         if (cudaMalloc(&p, alloc) != cudaSuccess) {
             (void) cudaGetLastError(); // clear the OOM so later CUDA_CHECKs don't trip on it
             return nullptr;
+        }
+        if (side.vmm != nullptr) {
+            ggml_backend_cuda_vmm_pool_free(side.vmm);
+            side.vmm = nullptr;
+            side.vmm_va = 0;
+            side.vmm_hw = 0;
+        }
+        if (side.cuda_buf != nullptr) {
+            CUDA_CHECK(cudaFree(side.cuda_buf));
         }
         side.cuda_buf  = p;
         side.cuda_size = alloc;

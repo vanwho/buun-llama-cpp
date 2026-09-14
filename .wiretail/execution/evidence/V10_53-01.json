@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "task": "53-01",
+  "source_commit": "3acbeb228d10f3e8c6abc676c400dc1a879be8b5",
+  "checks": {
+    "vbr_scratch_boundary_repair": {
+      "status": "pass",
+      "command": [
+        "timeout",
+        "180s",
+        "build-cuda-test/bin/test-vbr-vmm",
+        "0"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/v10-53-01-scratch.log",
+          "sha256": "7111b21830f6faad15b7bbb8510f3d6b297d7b54848746f83f9d5d592f4b50f8"
+        }
+      ]
+    }
+  }
+}
