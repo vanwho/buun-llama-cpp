@@ -2569,7 +2569,7 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
             ggml_build_forward_expand(gf, selected);
             mctx->capture_kv_routing_query(selected, il, ubatch);
             res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
-                    mctx, selected->src[1], selected->src[2], selected->src[3],
+                    mctx, selected->src[1]->src[2], selected->src[2], selected->src[3],
                     selected->src[4], selected, il));
         }
     }

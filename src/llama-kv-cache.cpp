@@ -16127,7 +16127,10 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
         return nullptr;
     }
 
-    const uint64_t page_count = inventory.size();
+    // Selector coordinates are logical page IDs, not positions in the
+    // current inventory.  The latter changes on eviction and context growth,
+    // which needlessly invalidated an otherwise reusable graph.
+    const uint64_t page_count = snapshot.logical_page_count;
     const uint64_t hot_capacity = snapshot.physical_page_count;
     uint64_t attention_pages = snapshot.admission.attention_pages;
     if (attention_pages == 0) {
@@ -16136,12 +16139,12 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     attention_pages = std::min(attention_pages, hot_capacity);
     if (attention_pages == 0 || attention_pages > INT32_MAX) return nullptr;
     const int k_resident = int(std::min(attention_pages, page_count));
-    const int k_cold = int(std::min<uint64_t>(2, page_count));
+    const int k_cold = int(std::min<uint64_t>(2, inventory.size()));
     if (k_resident + k_cold == 0) return nullptr;
 
     ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16,
             q->ne[0], 2, snapshot.geometry.kv_heads, page_count);
-    ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 4, page_count);
+    ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 8, page_count);
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, page_count);
     ggml_tensor * query = ggml_new_tensor_4d(ctx, GGML_TYPE_I64, 4, 1, 1, 1);
     if (bounds == nullptr || metadata == nullptr || membership == nullptr || query == nullptr) {
@@ -16163,7 +16166,17 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     // performs its own fused transform.
     if (q->ne[0] % 128 != 0) return nullptr;
     ggml_tensor * routing_q = ggml_turbo_wht(ctx, ggml_cont(ctx, q), 2);
-    return ggml_kv_page_select(ctx, routing_q, bounds, metadata, membership, query,
+    const auto layer_index = size_t(layer_it - snapshot.geometry.model_layer_ids.begin());
+    if (layer_index >= kv->layers.size() || kv->layers[layer_index].k == nullptr) {
+        return nullptr;
+    }
+    // The catalogue is the persistent mutable input.  The summary node owns
+    // the device-side refreshed view and copies cold/unchanged pages through
+    // from that catalogue, so eviction never destroys a previously sealed
+    // bound.
+    ggml_tensor * summary = ggml_kv_page_summary(ctx, kv->layers[layer_index].k,
+            metadata, bounds, snapshot.geometry.page_tokens);
+    return ggml_kv_page_select(ctx, routing_q, summary, metadata, membership, query,
             k_resident, k_cold, snapshot.geometry.page_tokens, int(query_row));
 }
 
@@ -16174,13 +16187,14 @@ bool llama_kv_cache_context::can_reuse_kv_page_select(
             ubatch.n_tokens == 0 || ubatch.n_seqs_unq != 1 ||
             ubatch.seq_id == nullptr || ubatch.n_seq_id == nullptr ||
             ubatch.n_seq_id[0] != 1 || ubatch.seq_id[0] == nullptr) return false;
-    const auto & geometry = kv->pager_->snapshot().geometry;
+    const auto & pager_snapshot = kv->pager_->snapshot();
+    const auto & geometry = pager_snapshot.geometry;
     if (std::find(geometry.model_layer_ids.begin(), geometry.model_layer_ids.end(),
             uint32_t(layer)) == geometry.model_layer_ids.end()) return false;
     const auto inventory = kv->pager_->exact_page_records(ubatch.seq_id[0][0]);
-    return !inventory.empty() && uint64_t(bounds->ne[3]) == inventory.size() &&
+    return !inventory.empty() && uint64_t(bounds->ne[3]) == pager_snapshot.logical_page_count &&
         bounds->ne[0] == int64_t(geometry.key_length) &&
-        bounds->ne[2] == int64_t(geometry.kv_heads);
+        bounds->ne[2] == int64_t(geometry.kv_heads) && bounds->buffer != nullptr;
 }
 
 void llama_kv_cache_context::capture_kv_routing_query(
@@ -16208,42 +16222,128 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             pager.snapshot().geometry.model_layer_ids.begin());
     const uint32_t kv_heads = pager.snapshot().geometry.kv_heads;
     const uint32_t dim = uint32_t(bounds->ne[0]);
-    std::vector<ggml_fp16_t> bound_data(size_t(dim) * 2 * kv_heads * inventory.size(),
-            ggml_fp32_to_fp16(0.0f));
-    std::vector<int64_t> page_data(size_t(4) * inventory.size(), 0);
-    std::vector<int32_t> resident_data(inventory.size(), 0);
-    for (size_t page_index = 0; page_index < inventory.size(); ++page_index) {
-        const auto & record = inventory[page_index];
-        page_data[page_index * 4 + 0] = record.id.position_begin;
-        page_data[page_index * 4 + 1] = record.valid_length;
-        page_data[page_index * 4 + 2] = int64_t(record.id.sequence_generation);
-        page_data[page_index * 4 + 3] = int64_t(record.id.page_generation);
+    const uint32_t capacity = pager.snapshot().logical_page_count;
+    if (capacity == 0 || uint64_t(bounds->ne[3]) != capacity ||
+            uint64_t(metadata->ne[1]) != capacity ||
+            uint64_t(membership->ne[0]) != capacity) return false;
+
+    llama_kv_cache::pager_selector_input_state * state = nullptr;
+    try {
+        auto it = std::find_if(kv->pager_selector_inputs_.begin(),
+                kv->pager_selector_inputs_.end(), [&](const auto & value) {
+            return value.bounds == bounds;
+        });
+        if (it == kv->pager_selector_inputs_.end()) {
+            kv->pager_selector_inputs_.push_back({});
+            it = kv->pager_selector_inputs_.end() - 1;
+            it->bounds = bounds;
+            it->metadata = metadata;
+            it->membership = membership;
+            it->sequence_id = ubatch.seq_id[0][0];
+            it->layer = uint32_t(layer);
+            it->capacity = capacity;
+            it->pages.resize(capacity);
+        }
+        state = &*it;
+        if (state->metadata != metadata || state->membership != membership ||
+                state->sequence_id != ubatch.seq_id[0][0] ||
+                state->layer != uint32_t(layer) || state->capacity != capacity) {
+            state->metadata = metadata;
+            state->membership = membership;
+            state->sequence_id = ubatch.seq_id[0][0];
+            state->layer = uint32_t(layer);
+            state->capacity = capacity;
+            state->pages.assign(capacity, {});
+        }
+    } catch (...) {
+        return false;
+    }
+
+    const uint64_t bounds_page_bytes = bounds->nb[3];
+    const uint64_t bounds_values = uint64_t(dim) * 2 * kv_heads;
+    if (bounds_values > std::numeric_limits<uint64_t>::max() / sizeof(ggml_fp16_t) ||
+            bounds_page_bytes < bounds_values * sizeof(ggml_fp16_t) ||
+            metadata->ne[0] < 8 || metadata->nb[1] < 8 * sizeof(int64_t)) return false;
+    for (const auto & record : inventory) {
+        if (record.id.logical_page >= capacity) return false;
+        const uint32_t page_index = record.id.logical_page;
         const bool resident = record.physical_slot != UINT32_MAX &&
             record.state != llama_kv_page_state::host_clean;
-        resident_data[page_index] = resident ? 1 : 0;
-        for (uint32_t head = 0; head < kv_heads; ++head) {
-            const auto * summary = pager.routing_summary_index().find(layer_ordinal, head);
-            const auto * lower = summary != nullptr ? summary->range_min(record.id) : nullptr;
-            const auto * upper = summary != nullptr ? summary->range_max(record.id) : nullptr;
-            if (lower == nullptr || upper == nullptr || lower->size() < dim ||
-                    upper->size() < dim) {
-                page_data[page_index * 4 + 1] = 0;
-                continue;
-            }
-            for (uint32_t d = 0; d < dim; ++d) {
-                float lo = std::numeric_limits<float>::infinity();
-                float hi = -std::numeric_limits<float>::infinity();
-                const size_t blocks = lower->size() / dim;
-                for (size_t block = 0; block < blocks; ++block) {
-                    lo = std::min(lo, (*lower)[block * dim + d]);
-                    hi = std::max(hi, (*upper)[block * dim + d]);
+        const uint64_t summary_version = pager.routing_summary_content_version(record.id);
+        auto & previous = state->pages[page_index];
+        const bool identity_changed = !previous.valid || previous.identity != record.id;
+        const bool summary_changed = identity_changed ||
+            previous.content_version != record.content_version ||
+            previous.summary_version != summary_version;
+        const bool membership_changed = summary_changed || previous.resident != resident;
+        if (!membership_changed) continue;
+
+        int64_t page_data[8] = {
+            record.id.position_begin, int64_t(record.valid_length),
+            int64_t(record.id.sequence_generation), int64_t(record.id.page_generation),
+            int64_t(record.physical_slot),
+            int64_t(kv->get_stream_for_seq(ubatch.seq_id[0][0])),
+            int64_t(resident && summary_changed), int64_t(resident && summary_changed) };
+        std::vector<ggml_fp16_t> bound_data;
+        if (summary_changed) {
+            bound_data.assign(size_t(bounds_values), ggml_fp32_to_fp16(0.0f));
+            for (uint32_t head = 0; head < kv_heads; ++head) {
+                const auto * summary = pager.routing_summary_index().find(layer_ordinal, head);
+                const auto * lower = summary != nullptr ? summary->range_min(record.id) : nullptr;
+                const auto * upper = summary != nullptr ? summary->range_max(record.id) : nullptr;
+                if (lower == nullptr || upper == nullptr || lower->size() < dim ||
+                        upper->size() < dim) {
+                    page_data[1] = 0;
+                    continue;
                 }
-                const size_t base = d + size_t(dim) * 2 *
-                    (head + size_t(kv_heads) * page_index);
-                bound_data[base] = ggml_fp32_to_fp16(fp16_outward_lower(lo));
-                bound_data[base + size_t(dim)] = ggml_fp32_to_fp16(fp16_outward_upper(hi));
+                const size_t blocks = lower->size() / dim;
+                for (uint32_t d = 0; d < dim; ++d) {
+                    float lo = std::numeric_limits<float>::infinity();
+                    float hi = -std::numeric_limits<float>::infinity();
+                    for (size_t block = 0; block < blocks; ++block) {
+                        lo = std::min(lo, (*lower)[block * dim + d]);
+                        hi = std::max(hi, (*upper)[block * dim + d]);
+                    }
+                    const size_t base = d + size_t(dim) * 2 * head;
+                    bound_data[base] = ggml_fp32_to_fp16(fp16_outward_lower(lo));
+                    bound_data[base + dim] = ggml_fp32_to_fp16(fp16_outward_upper(hi));
+                }
             }
         }
+        if (summary_changed) {
+            ggml_backend_tensor_set(bounds, bound_data.data(),
+                    size_t(page_index) * bounds_page_bytes,
+                    bound_data.size() * sizeof(bound_data[0]));
+        }
+        ggml_backend_tensor_set(metadata, page_data,
+                size_t(page_index) * metadata->nb[1], sizeof(page_data));
+        const int32_t membership_value = resident ? 1 : 0;
+        ggml_backend_tensor_set(membership, &membership_value,
+                size_t(page_index) * membership->nb[0], sizeof(membership_value));
+        previous.identity = record.id;
+        previous.content_version = record.content_version;
+        previous.summary_version = summary_version;
+        previous.resident = resident;
+        previous.valid = true;
+    }
+    // Clear logical IDs that disappeared from the exact inventory. This is a
+    // bounded metadata walk and prevents a reused graph from retaining a
+    // candidate from an erased sequence generation.
+    for (uint32_t page_index = 0; page_index < capacity; ++page_index) {
+        auto & previous = state->pages[page_index];
+        if (!previous.valid) continue;
+        const bool present = std::find_if(inventory.begin(), inventory.end(),
+                [&](const auto & record) { return record.id.logical_page == page_index; }) != inventory.end();
+        if (present) continue;
+        const int64_t page_data[8] = { 0, 0, 0, 0, -1, -1, 0, 0 };
+        const int32_t membership_value = 0;
+        std::vector<ggml_fp16_t> zeros(size_t(bounds_values), ggml_fp32_to_fp16(0.0f));
+        ggml_backend_tensor_set(bounds, zeros.data(), size_t(page_index) * bounds_page_bytes,
+                zeros.size() * sizeof(zeros[0]));
+        ggml_backend_tensor_set(metadata, page_data, size_t(page_index) * metadata->nb[1], sizeof(page_data));
+        ggml_backend_tensor_set(membership, &membership_value,
+                size_t(page_index) * membership->nb[0], sizeof(membership_value));
+        previous = {};
     }
     const llama_pos position = ubatch.pos[0];
     const int64_t query_position = position < std::numeric_limits<llama_pos>::max()
@@ -16259,12 +16359,6 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     const int64_t refresh_enabled = kv->pager_query_refresh_enabled_ ? 1 : 0;
     const int64_t query_data[4] = {
         query_position, sequence_generation, snapshot_generation, refresh_enabled };
-    ggml_backend_tensor_set(bounds, bound_data.data(), 0,
-            bound_data.size() * sizeof(bound_data[0]));
-    ggml_backend_tensor_set(metadata, page_data.data(), 0,
-            page_data.size() * sizeof(page_data[0]));
-    ggml_backend_tensor_set(membership, resident_data.data(), 0,
-            resident_data.size() * sizeof(resident_data[0]));
     ggml_backend_tensor_set(query, query_data, 0, sizeof(query_data));
 
     for (auto & output : kv->pager_routing_outputs_) {

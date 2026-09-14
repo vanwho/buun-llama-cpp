@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "50",
-  "current_task": "50-01",
-  "last_updated_utc": "2026-09-14T08:10:58+00:00",
+  "current_task": "50-02",
+  "last_updated_utc": "2026-09-14T09:10:50+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8933,7 +8933,7 @@
       "cluster": "50a-gpu-catalogue-v10",
       "title": "Build a persistent incremental GPU page-summary catalogue",
       "packet": ".wiretail/execution/tasks/50-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -8960,7 +8960,45 @@
       "depends_on": [
         "49-07"
       ],
-      "commit": null
+      "commit": "cf06ac964aad34b854b8981ee33b00fac588b35b",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/50-01-attempt-1-20260914T081116Z.jsonl:296",
+            "total_tokens": 25016257,
+            "total_tokens_derived": true,
+            "input_tokens": 24949182,
+            "cached_input_tokens": 24412160,
+            "output_tokens": 67075,
+            "thinking_tokens": 29655
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/50-01-attempt-2-20260914T090631Z.jsonl:73",
+            "total_tokens": 2141281,
+            "total_tokens_derived": true,
+            "input_tokens": 2130749,
+            "cached_input_tokens": 1973504,
+            "output_tokens": 10532,
+            "thinking_tokens": 4085
+          }
+        ],
+        "totals": {
+          "turns": 2,
+          "total_tokens": 27157538,
+          "input_tokens": 27079931,
+          "cached_input_tokens": 26385664,
+          "output_tokens": 77607,
+          "thinking_tokens": 33740
+        }
+      }
     },
     {
       "id": "50-02",
@@ -12063,14 +12101,41 @@
       }
     },
     "50": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/50-01-attempt-1-20260914T081116Z.jsonl:296",
+          "total_tokens": 25016257,
+          "total_tokens_derived": true,
+          "input_tokens": 24949182,
+          "cached_input_tokens": 24412160,
+          "output_tokens": 67075,
+          "thinking_tokens": 29655
+        },
+        {
+          "attempt": 2,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/50-01-attempt-2-20260914T090631Z.jsonl:73",
+          "total_tokens": 2141281,
+          "total_tokens_derived": true,
+          "input_tokens": 2130749,
+          "cached_input_tokens": 1973504,
+          "output_tokens": 10532,
+          "thinking_tokens": 4085
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 2,
+        "total_tokens": 27157538,
+        "input_tokens": 27079931,
+        "cached_input_tokens": 26385664,
+        "output_tokens": 77607,
+        "thinking_tokens": 33740
       }
     },
     "51": {
@@ -12098,12 +12163,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 166,
-      "total_tokens": 3508199265,
-      "input_tokens": 3500062120,
-      "cached_input_tokens": 3429554944,
-      "output_tokens": 8137145,
-      "thinking_tokens": 2960123
+      "turns": 168,
+      "total_tokens": 3535356803,
+      "input_tokens": 3527142051,
+      "cached_input_tokens": 3455940608,
+      "output_tokens": 8214752,
+      "thinking_tokens": 2993863
     },
     "source": "Codex turn.completed usage events"
   }
