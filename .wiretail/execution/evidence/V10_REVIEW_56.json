@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_56",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "56-01",
+  "reviewed_phase": 55,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_55.json",
+    "sha256": "b12b1af153d5b5aa2d1d1bbe538591b9086551895ae805726e0f8b2bd9fbd215"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": false,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "The candidate executable, loaded project-library hashes, and resolved model hash are recorded, but the phase-55 summary explicitly has no immutable bundle manifest, so complete build identity is not valid.",
+    "required_turbo4_placements": "The summary measures target Turbo4 on CUDA and native full-L Turbo4 draft KV on GPU with 262144 rows.",
+    "controlled_model_promotion": "False: phase-55 explicitly did not run the T1 controlled model-query edge.",
+    "organic_cold_promotion": "False: phase-55 explicitly did not run T2/T3 organic or file-round-trip promotion.",
+    "stable_target_consumption": "False for this phase summary: no phase-55 promotion edge reached completed target-graph use, so target consumption cannot be inherited from phase-53.",
+    "full_256k_occupancy": "False: the measured full-L fixtures allocated 262144 draft rows but observed only C1207; occupied C262144 is explicitly not_run.",
+    "practical_speed_goal_met": "False/not decidable: selective-only rates are measured, but controls and request-scoped native-MTP denominators are absent, so no paired practical comparison is valid.",
+    "useful_answer_quality_proven": "False: answer-quality prompts were outside the bounded phase-55 campaign and must remain separate from physical promotion."
+  },
+  "current_rates": {
+    "geometry": "L8192/C6144/H4096/A2048/B128/U128",
+    "cold_prefill_tok_s": {"median": 186.03546464552537, "range": [185.35708587044113, 186.61948044942247], "samples": 9},
+    "cached_append_tok_s": {"median": 456.823361276136, "range": [311.1917184103938, 602.4550041418781], "samples": 2},
+    "committed_decode_tok_s": {"median": 13.103881635913153, "range": [13.03070604437444, 13.150308436374903], "samples": 9},
+    "mtp_request_scoped_deltas": "not_run: required Prometheus counters were absent from the observed /metrics response"
+  },
+  "capacity_and_proof_boundaries": {
+    "8K": "Measured matched selective geometry at L8192/C6144/H4096/A2048/B128/U128; this phase did not establish the missing controls or promotion edges.",
+    "32K": "Not run in phase 55; phase-53 rates are intentionally excluded.",
+    "128K": "Not run in phase 55; phase-53 rates are intentionally excluded.",
+    "256K_allocation": "Measured allocation/startup with full-L Turbo4/GPU draft rows 262144, including H30208 and H16384 fixtures.",
+    "C262144": "Not proven: the bounded full-L request reached C1207 only; allocation is not occupancy."
+  },
+  "physical_and_quality_findings": {
+    "controlled_physical": "not_run",
+    "organic_physical": "not_run",
+    "useful_answer_quality": "not_run",
+    "stable_target_consumption": "not_run"
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "run-final-curve.py::parse_metrics / snapshot / _delta / _case_record",
+      "fixture": "phase-55 matched matrix with /metrics before and after each request",
+      "finding": "The parser retains kv_pager telemetry but drops the two server-emitted native-MTP counters, preventing request-scoped denominators and both control modes."
+    },
+    {
+      "owner": "run-final-curve.py::_runtime_identity / main / _write_receipt",
+      "fixture": "phase-55 full-L and matched campaign exports",
+      "finding": "Candidate and model hashes exist, but no immutable bundle manifest was recorded; loaded executable/DSO provenance is therefore incomplete."
+    },
+    {
+      "owner": "canonical bounded revalidation chain",
+      "fixture": "L8192/C6144/H4096 plus L262144/C1207 full-L fixture",
+      "finding": "Phase-55 excluded controlled and organic promotion, useful answer quality, and occupied C262144; these are measured gaps, not startup or answer-quality substitutes."
+    }
+  ],
+  "next_action": "Repair the two benchmark contracts, rerun one bounded matched/control and promotion-quality campaign, preserve a truthful full-L occupancy stop, summarize only phase-57 evidence, then review it.",
+  "phase_appended": true,
+  "appended_phases": [57, 58],
+  "next_task_ids": ["57-01", "57-02", "57-03", "57-04", "58-01"],
+  "successor_contracts": {
+    "57-01": "Repair run-final-curve.py::parse_metrics and its snapshot/delta/receipt path to retain server-emitted native-MTP counters; fixture 100/50 to 112/58 must yield 12/8 and missing/reset data must remain not_run.",
+    "57-02": "Require run-final-curve.py::_runtime_identity/main/_write_receipt to capture an immutable bundle manifest and endpoint-loaded executable/DSO/model hashes; mismatch or writable bundle stops measurement.",
+    "57-03": "After both repairs, run bounded controls, T1/T2-or-T3 promotion and quality, and full-L occupancy with real MTP denominators and explicit stop conditions; keep allocation separate from C262144.",
+    "57-04": "Aggregate only phase-57 raw evidence into V10_SUMMARY_57.json/.md with every row measured/failed/not_run and all geometry, rates, identity, MTP, promotion, quality, and occupancy boundaries.",
+    "58-01": "Read only the phase-57 summary and repeat this review algorithm; schedule further work only for a concrete measured gap."
+  }
+}
