@@ -1,0 +1,13 @@
+{
+  "schema": "hotpath-v9-summary-index",
+  "task": "39-04",
+  "revision": "hotpath-v9-20260914",
+  "summary": ".wiretail/execution/evidence/V9_SUMMARY_39.json",
+  "summary_markdown": ".wiretail/execution/evidence/V9_SUMMARY_39.md",
+  "receipts": [
+    {"path": ".wiretail/execution/evidence/V9_39_BENCHMARK.json", "task": "39-03", "status": "pass_with_unmet_capability", "sha256": "8593c98c94422e8d85f75b53315b90311bfa015d47b17328f4c6f1d1f0f2350c"}
+  ],
+  "raw_roots": ["/srv/ai/paged-kv/results/v9/39-03/"],
+  "new_raw_root": null,
+  "new_raw_root_reason": "Summary aggregation launched no live campaign."
+}
