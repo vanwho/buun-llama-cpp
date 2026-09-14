@@ -3035,11 +3035,19 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         const uint64_t packed_row_capacity =
             (packed_required_rows + VBR_GENERATION_PAGE_CELLS - 1) /
             VBR_GENERATION_PAGE_CELLS * VBR_GENERATION_PAGE_CELLS;
-        if (k_row > UINT64_MAX - v_row ||
-                packed_row_capacity > UINT64_MAX / (k_row + v_row)) {
+        const uint64_t attention_layers = pager.snapshot().geometry.attention_layers;
+        if (attention_layers == 0 || k_row > UINT64_MAX - v_row ||
+                packed_row_capacity > UINT64_MAX / (k_row + v_row) ||
+                packed_row_capacity * (k_row + v_row) >
+                    UINT64_MAX / attention_layers) {
             scratch.packed_bytes = UINT64_MAX;
         } else {
-            scratch.packed_bytes = packed_row_capacity * (k_row + v_row);
+            // The graph creates one compact K/V destination per attention
+            // layer. Charge the complete cross-layer allocation before graph
+            // construction; charging only one layer lets the first request
+            // discover the remaining owners inside find_or_create().
+            scratch.packed_bytes = packed_row_capacity * (k_row + v_row) *
+                attention_layers;
         }
     }
     const auto planned = kv_attention_execution.planned_route(metadata, phase,
@@ -6081,25 +6089,36 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
 
         n_reused++;
     } else {
-        res->reset();
+        try {
+            res->reset();
 
-        ggml_backend_sched_reset(sched.get());
-        ggml_backend_sched_set_eval_callback(sched.get(), cparams.cb_eval, cparams.cb_eval_user_data);
+            ggml_backend_sched_reset(sched.get());
+            ggml_backend_sched_set_eval_callback(sched.get(), cparams.cb_eval, cparams.cb_eval_user_data);
 
-        gf = model.build_graph(gparams);
+            gf = model.build_graph(gparams);
 
-        if (!gf) {
-            if (mctx) mctx->finish(false);
-            LLAMA_LOG_ERROR("%s: failed to initialize graph\n", __func__);
-            ret = GGML_STATUS_FAILED;
-            return nullptr;
-        }
+            if (!gf) {
+                if (mctx) mctx->finish(false);
+                LLAMA_LOG_ERROR("%s: failed to initialize graph\n", __func__);
+                ret = GGML_STATUS_FAILED;
+                return nullptr;
+            }
 
-        if (!ggml_backend_sched_alloc_graph(sched.get(), gf)) {
-            if (mctx) mctx->finish(false);
-            LLAMA_LOG_ERROR("%s: failed to allocate graph\n", __func__);
-            ret = GGML_STATUS_ALLOC_FAILED;
-            return nullptr;
+            if (!ggml_backend_sched_alloc_graph(sched.get(), gf)) {
+                if (mctx) mctx->finish(false);
+                LLAMA_LOG_ERROR("%s: failed to allocate graph\n", __func__);
+                ret = GGML_STATUS_ALLOC_FAILED;
+                return nullptr;
+            }
+        } catch (...) {
+            // Graph construction can refuse a packed owner after apply()
+            // opened the pager write batch. Keep the batch lifecycle explicit
+            // at this boundary even when a graph-input guard is bypassed by
+            // another construction failure.
+            if (mctx) {
+                mctx->finish(false);
+            }
+            throw;
         }
 
     }
