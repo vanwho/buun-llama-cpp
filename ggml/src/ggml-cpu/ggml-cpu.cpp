@@ -449,6 +449,11 @@ static bool ggml_backend_cpu_device_supports_op(ggml_backend_dev_t dev, const st
             op->src[3]->type == GGML_TYPE_I32 && op->src[4]->type == GGML_TYPE_I64;
     }
 
+    if (op->op == GGML_OP_KV_PAGE_SUMMARY) {
+        return op->type == GGML_TYPE_F16 && op->src[0]->type == GGML_TYPE_TURBO4_0 &&
+            op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F16;
+    }
+
     // check extra buffer types
     // note: only the first sources are checked for extra buffer types to reduce overhead, increase if necessary
     for (int i = 0; i < 4; i++) {

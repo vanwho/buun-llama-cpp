@@ -59,6 +59,7 @@
 #include "ggml-cuda/sumrows.cuh"
 #include "ggml-cuda/top-k.cuh"
 #include "ggml-cuda/kv-page-select.cuh"
+#include "ggml-cuda/kv-page-summary.cuh"
 #include "ggml-cuda/mean.cuh"
 #include "ggml-cuda/tsembd.cuh"
 #include "ggml-cuda/topk-moe.cuh"
@@ -3710,6 +3711,9 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
             break;
         case GGML_OP_KV_PAGE_SELECT:
             ggml_cuda_op_kv_page_select(ctx, dst);
+            break;
+        case GGML_OP_KV_PAGE_SUMMARY:
+            ggml_cuda_op_kv_page_summary(ctx, dst);
             break;
         case GGML_OP_ARGSORT:
             ggml_cuda_op_argsort(ctx, dst);
@@ -9107,6 +9111,9 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
             return op->type == GGML_TYPE_I32 && op->src[0]->type == GGML_TYPE_F32 &&
                 op->src[1]->type == GGML_TYPE_F16 && op->src[2]->type == GGML_TYPE_I64 &&
                 op->src[3]->type == GGML_TYPE_I32 && op->src[4]->type == GGML_TYPE_I64;
+        case GGML_OP_KV_PAGE_SUMMARY:
+            return op->type == GGML_TYPE_F16 && op->src[0]->type == GGML_TYPE_TURBO4_0 &&
+                op->src[1]->type == GGML_TYPE_I64 && op->src[2]->type == GGML_TYPE_F16;
         case GGML_OP_REPEAT:
             {
                 // the CUDA REPEAT path only implements F32/F16; other types assert at runtime

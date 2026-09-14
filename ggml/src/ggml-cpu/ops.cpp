@@ -8752,6 +8752,94 @@ void ggml_compute_forward_kv_page_select(
     ggml_compute_forward_kv_page_select_f32(params, dst);
 }
 
+// ggml_compute_forward_kv_page_summary
+
+static ggml_fp16_t ggml_kv_page_summary_lower(float value) {
+    return ggml_fp32_to_fp16(std::nextafter(value, -INFINITY));
+}
+
+static ggml_fp16_t ggml_kv_page_summary_upper(float value) {
+    return ggml_fp32_to_fp16(std::nextafter(value, INFINITY));
+}
+
+void ggml_compute_forward_kv_page_summary(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    GGML_ASSERT(params->ith >= 0 && params->ith < params->nth);
+    const ggml_tensor * k = dst->src[0];
+    const ggml_tensor * metadata = dst->src[1];
+    const ggml_tensor * catalogue = dst->src[2];
+    GGML_ASSERT(k->type == GGML_TYPE_TURBO4_0 &&
+                metadata->type == GGML_TYPE_I64 && metadata->ne[0] >= 8 &&
+                catalogue->type == GGML_TYPE_F16);
+
+    const int page_size = ggml_get_op_params_i32(dst, 0);
+    const int64_t dim = dst->ne[0];
+    const int64_t n_heads = dst->ne[2];
+    const int64_t n_pages = dst->ne[3];
+    const size_t row_bytes = ggml_row_size(k->type, k->ne[0]);
+    GGML_ASSERT(page_size > 0 && k->ne[0] == dim * n_heads &&
+               k->nb[0] == ggml_type_size(k->type) && k->nb[1] >= row_bytes);
+
+    const int64_t pages_per_thread = (n_pages + params->nth - 1) / params->nth;
+    const int64_t page_begin = std::min<int64_t>(n_pages, pages_per_thread * params->ith);
+    const int64_t page_end = std::min<int64_t>(n_pages, page_begin + pages_per_thread);
+    std::vector<float> decoded(size_t(k->ne[0]));
+    for (int64_t page = page_begin; page < page_end; ++page) {
+        // Copy the previous catalogue page first.  This is what preserves
+        // cold summaries while a resident page is being refreshed.
+        for (int64_t head = 0; head < n_heads; ++head) {
+            for (int64_t coord = 0; coord < dim; ++coord) {
+                const char * src = (const char *) catalogue->data +
+                    coord * catalogue->nb[0] + head * catalogue->nb[2] + page * catalogue->nb[3];
+                char * out = (char *) dst->data +
+                    coord * dst->nb[0] + head * dst->nb[2] + page * dst->nb[3];
+                *(ggml_fp16_t *)(out) = *(const ggml_fp16_t *)(src);
+                *(ggml_fp16_t *)(out + dst->nb[1]) =
+                    *(const ggml_fp16_t *)(src + catalogue->nb[1]);
+            }
+        }
+
+        const int64_t * page_data = (const int64_t *)((const char *) metadata->data +
+                page * metadata->nb[1]);
+        const int64_t physical_slot = page_data[4];
+        const int64_t valid_rows = page_data[1];
+        const int64_t stream = page_data[5];
+        if (page_data[6] == 0 || page_data[7] == 0 || physical_slot < 0 ||
+                stream < 0 || stream >= k->ne[2] || valid_rows <= 0 ||
+                valid_rows > page_size || physical_slot >
+                    (k->ne[1] - valid_rows) / page_size) {
+            continue;
+        }
+
+        std::vector<float> minimum(size_t(dim * n_heads), INFINITY);
+        std::vector<float> maximum(size_t(dim * n_heads), -INFINITY);
+        for (int64_t row = 0; row < valid_rows; ++row) {
+            const char * source = (const char *) k->data + stream * k->nb[2] +
+                (physical_slot * page_size + row) * k->nb[1];
+            dequantize_row_turbo4_0((const block_turbo4_0 *) source,
+                    decoded.data(), k->ne[0]);
+            for (int64_t head = 0; head < n_heads; ++head) {
+                for (int64_t coord = 0; coord < dim; ++coord) {
+                    const size_t index = size_t(head * dim + coord);
+                    const float value = decoded[index];
+                    minimum[index] = std::min(minimum[index], value);
+                    maximum[index] = std::max(maximum[index], value);
+                }
+            }
+        }
+        for (int64_t head = 0; head < n_heads; ++head) {
+            for (int64_t coord = 0; coord < dim; ++coord) {
+                const size_t index = size_t(head * dim + coord);
+                char * out = (char *) dst->data + coord * dst->nb[0] +
+                    head * dst->nb[2] + page * dst->nb[3];
+                *(ggml_fp16_t *)(out) = ggml_kv_page_summary_lower(minimum[index]);
+                *(ggml_fp16_t *)(out + dst->nb[1]) = ggml_kv_page_summary_upper(maximum[index]);
+            }
+        }
+    }
+}
+
 static void ggml_compute_forward_flash_attn_ext_f16_one_chunk(
         const ggml_compute_params * params,
         ggml_tensor * dst,

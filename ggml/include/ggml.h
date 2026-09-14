@@ -746,6 +746,9 @@ extern "C" {
         // resident membership, and the query/snapshot metadata respectively.
         GGML_OP_KV_PAGE_SELECT,
 
+        // Incrementally update a min/max catalogue from packed Turbo4 K.
+        GGML_OP_KV_PAGE_SUMMARY,
+
         GGML_OP_COUNT,
     };
 
@@ -2634,6 +2637,17 @@ extern "C" {
             int                   k_cold,
             int                   page_size,
             int                   query_row);
+
+    // Metadata fields are [position, valid length, sequence generation,
+    // page generation, physical slot, stream, ready, update]. A page is
+    // decoded only when ready/update are non-zero; otherwise the existing
+    // catalogue is copied through unchanged.
+    GGML_API struct ggml_tensor * ggml_kv_page_summary(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * k,
+            struct ggml_tensor  * page_metadata,
+            struct ggml_tensor  * catalogue,
+            int                   page_size);
 
     GGML_API struct ggml_tensor * ggml_arange(
             struct ggml_context * ctx,

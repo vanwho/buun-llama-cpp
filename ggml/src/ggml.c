@@ -1445,9 +1445,10 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
 
     "GLU",
     "KV_PAGE_SELECT",
+    "KV_PAGE_SUMMARY",
 };
 
-static_assert(GGML_OP_COUNT == 107, "GGML_OP_COUNT != 107");
+static_assert(GGML_OP_COUNT == 108, "GGML_OP_COUNT != 108");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1566,9 +1567,10 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
 
     "glu(x)",
     "kv_page_select(q, bounds, metadata, resident, query)",
+    "kv_page_summary(k, metadata, catalogue)",
 };
 
-static_assert(GGML_OP_COUNT == 107, "GGML_OP_COUNT != 107");
+static_assert(GGML_OP_COUNT == 108, "GGML_OP_COUNT != 108");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -5879,7 +5881,7 @@ struct ggml_tensor * ggml_kv_page_select(
     GGML_ASSERT(bounds->type == GGML_TYPE_F16 && bounds->ne[0] == q->ne[0] &&
                 bounds->ne[1] == 2 && bounds->ne[2] > 0 && bounds->ne[3] > 0);
     GGML_ASSERT(q->ne[1] % bounds->ne[2] == 0);
-    GGML_ASSERT(page_metadata->type == GGML_TYPE_I64 && page_metadata->ne[0] == 4 &&
+    GGML_ASSERT(page_metadata->type == GGML_TYPE_I64 && page_metadata->ne[0] >= 4 &&
                 page_metadata->ne[1] == bounds->ne[3]);
     GGML_ASSERT(resident_membership->type == GGML_TYPE_I32 &&
                 resident_membership->ne[0] == bounds->ne[3]);
@@ -5899,6 +5901,35 @@ struct ggml_tensor * ggml_kv_page_select(
     ggml_set_op_params_i32(result, 1, k_cold);
     ggml_set_op_params_i32(result, 2, page_size);
     ggml_set_op_params_i32(result, 3, query_row);
+    return result;
+}
+
+// ggml_kv_page_summary
+
+struct ggml_tensor * ggml_kv_page_summary(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * k,
+        struct ggml_tensor  * page_metadata,
+        struct ggml_tensor  * catalogue,
+        int                   page_size) {
+    GGML_ASSERT(k != NULL && page_metadata != NULL && catalogue != NULL);
+    GGML_ASSERT(k->type == GGML_TYPE_TURBO4_0 && k->ne[0] > 0 &&
+                k->ne[0] % QK_TURBO4 == 0 && k->ne[1] > 0 && k->ne[2] > 0);
+    GGML_ASSERT(page_metadata->type == GGML_TYPE_I64 && page_metadata->ne[0] >= 8 &&
+                page_metadata->ne[1] > 0);
+    GGML_ASSERT(catalogue->type == GGML_TYPE_F16 && catalogue->ne[0] > 0 &&
+                catalogue->ne[1] == 2 && catalogue->ne[2] > 0 &&
+                catalogue->ne[3] == page_metadata->ne[1]);
+    GGML_ASSERT(k->ne[0] / catalogue->ne[2] == catalogue->ne[0]);
+    GGML_ASSERT(page_size > 0);
+
+    struct ggml_tensor * result = ggml_new_tensor_4d(ctx, GGML_TYPE_F16,
+            catalogue->ne[0], catalogue->ne[1], catalogue->ne[2], catalogue->ne[3]);
+    result->op = GGML_OP_KV_PAGE_SUMMARY;
+    result->src[0] = k;
+    result->src[1] = page_metadata;
+    result->src[2] = catalogue;
+    ggml_set_op_params_i32(result, 0, page_size);
     return result;
 }
 

@@ -1560,6 +1560,25 @@ private:
         bool refresh_enabled = false;
     };
     mutable std::vector<pager_routing_output> pager_routing_outputs_;
+    struct pager_selector_page_state {
+        llama_kv_page_id identity;
+        uint64_t content_version = 0;
+        uint64_t summary_version = 0;
+        bool resident = false;
+        bool valid = false;
+    };
+    struct pager_selector_input_state {
+        ggml_tensor * bounds = nullptr;
+        ggml_tensor * metadata = nullptr;
+        ggml_tensor * membership = nullptr;
+        llama_seq_id sequence_id = -1;
+        uint32_t layer = UINT32_MAX;
+        uint32_t capacity = 0;
+        std::vector<pager_selector_page_state> pages;
+    };
+    // Graph inputs own the stable logical catalogue.  This cache is only the
+    // host-side dirty map; the tensors remain owned by the graph allocator.
+    mutable std::vector<pager_selector_input_state> pager_selector_inputs_;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;
     uint64_t pager_host_controller_generation_ = 1;
