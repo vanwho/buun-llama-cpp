@@ -89,6 +89,9 @@ int main() {
     ggml_tensor * query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
                                                   2, 2, 4, 0);
+    // The production pager reads this compact result after the scheduler
+    // fence.  Keep the selector output alive for that graph-result boundary.
+    ggml_set_output(selected);
     ggml_cgraph * graph = ggml_new_graph_custom(ctx, 32, false);
     ggml_build_forward_expand(graph, selected);
     ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
