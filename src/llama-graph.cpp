@@ -908,6 +908,40 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             }
             ggml_backend_tensor_set(packed_current_idxs, packed_current_rows.data(), 0,
                     packed_current_rows.size() * sizeof(packed_current_rows[0]));
+            // The packed attention path remains the production consumer, but
+            // the selected-Q telemetry sidecar reads the same physical pager
+            // view through the descriptor-aware CUDA producer. Keep its
+            // mutable control/query inputs ordered on the pager backend.
+            if (direct_page_mass != nullptr) {
+                direct_active_page_count = uint32_t(pages.size());
+                direct_active_row_count = selected_metadata.get_n_kv();
+                direct_active_tail_length = pages.back().row_count;
+                direct_selection_generation = selected_metadata.graph_content_key();
+                direct_device_control.active_page_count = direct_active_page_count;
+                direct_device_control.active_row_count = direct_active_row_count;
+                direct_device_control.active_tail_length = direct_active_tail_length;
+                direct_device_control.page_capacity = direct_page_capacity;
+                direct_device_control.row_capacity = direct_row_capacity;
+                direct_device_control.selection_generation = direct_selection_generation;
+                for (size_t page_index = 0; page_index < pages.size(); ++page_index) {
+                    const auto & page = pages[page_index];
+                    direct_pages_host[page_index] = {
+                        page.logical_page, page.source_physical_slot,
+                        page.compact_row_begin, page.row_count,
+                        page.native_position_begin };
+                }
+                set_direct_tensor(direct_pages, &direct_device_control, 0,
+                        sizeof(direct_device_control));
+                set_direct_tensor(direct_pages, direct_pages_host.data(),
+                        sizeof(direct_device_control),
+                        direct_pages_host.size() * sizeof(direct_pages_host[0]));
+                const auto & queries = selected_metadata.query_positions();
+                if (direct_query_positions_uploaded != queries) {
+                    set_direct_tensor(direct_query_positions, queries.data(), 0,
+                            queries.size() * sizeof(queries[0]));
+                    direct_query_positions_uploaded = queries;
+                }
+            }
             const int64_t pack_start = kv_attention_metrics && update_selected
                 ? ggml_time_us() : 0;
             uint64_t packed_bytes = 0;
@@ -1275,6 +1309,19 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
             res &= layer.v->ne[2] == int64_t(layer.row_capacity);
             res &= layer.row_capacity == packed_row_capacity;
         }
+        const uint32_t telemetry_ordinal = params.kv_attention_telemetry != nullptr
+            ? params.kv_attention_telemetry->layer_index() : UINT32_MAX;
+        const bool telemetry_layer_valid = telemetry_ordinal < direct_layer_ids.size();
+        const uint32_t telemetry_model_layer = telemetry_layer_valid
+            ? direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
+        const bool telemetry_enabled = params.kv_attention_telemetry != nullptr &&
+            params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+            telemetry_layer_valid &&
+            params.kv_attention_telemetry->head_begin() < uint32_t(
+                hparams.n_head(telemetry_model_layer)) &&
+            params.kv_attention_telemetry->cadence_due(params.ubatch.pos != nullptr
+                ? uint64_t(std::max<llama_pos>(0, params.ubatch.pos[0])) : 0);
+        res &= (direct_page_mass != nullptr) == telemetry_enabled;
     }
     if (direct) {
         res &= direct_pages != nullptr && direct_native_positions != nullptr &&
@@ -2037,6 +2084,21 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
         res &= inp_attn->direct_native_mask->ne[0] == inp_attn->direct_row_capacity;
         res &= inp_attn->direct_query_positions->ne[0] == int64_t(
                 params.kv_attention_metadata.query_positions().size());
+    }
+    if (packed) {
+        const uint32_t telemetry_ordinal = params.kv_attention_telemetry != nullptr
+            ? params.kv_attention_telemetry->layer_index() : UINT32_MAX;
+        const bool telemetry_layer_valid = telemetry_ordinal < inp_attn->direct_layer_ids.size();
+        const uint32_t telemetry_model_layer = telemetry_layer_valid
+            ? inp_attn->direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
+        const bool telemetry_enabled = params.kv_attention_telemetry != nullptr &&
+            params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+            telemetry_layer_valid &&
+            params.kv_attention_telemetry->head_begin() < uint32_t(
+                inp_attn->hparams.n_head(telemetry_model_layer)) &&
+            params.kv_attention_telemetry->cadence_due(params.ubatch.pos != nullptr
+                ? uint64_t(std::max<llama_pos>(0, params.ubatch.pos[0])) : 0);
+        res &= (inp_attn->direct_page_mass != nullptr) == telemetry_enabled;
     }
 
     res &= inp_rs->s_copy->ne[0] == mctx->get_recr()->get_n_rs();
@@ -4199,6 +4261,93 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 }
                 inp->packed_layers.push_back(std::move(layer));
             }
+
+            // Selected-packed attention consumes the compact duplicate through
+            // the normal graph path.  Build a bounded, single-layer page-mass
+            // sidecar from the same current Q and the pager's physical K/V
+            // view; this keeps the production attention route unchanged while
+            // giving publication a real GPU producer to fence and read.
+            const uint32_t telemetry_ordinal = kv_attention_telemetry != nullptr
+                ? kv_attention_telemetry->layer_index() : UINT32_MAX;
+            const bool telemetry_layer_valid = telemetry_ordinal < layer_ids.size();
+            const uint32_t telemetry_model_layer = telemetry_layer_valid
+                ? layer_ids[telemetry_ordinal] : UINT32_MAX;
+            const bool telemetry_enabled = kv_attention_telemetry != nullptr &&
+                kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+                telemetry_layer_valid &&
+                kv_attention_telemetry->head_begin() < uint32_t(
+                    hparams.n_head(telemetry_model_layer)) &&
+                kv_attention_telemetry->cadence_due(ubatch.pos != nullptr
+                    ? uint64_t(std::max<llama_pos>(0, ubatch.pos[0])) : 0);
+            const uint32_t telemetry_head_total = telemetry_layer_valid
+                ? uint32_t(hparams.n_head(telemetry_model_layer)) : 0;
+            if (telemetry_enabled && pager_snapshot.logical_page_count != 0) {
+                const uint64_t page_capacity64 = std::max<uint64_t>(
+                        packed_pages.size(), pager_snapshot.logical_page_count);
+                const uint64_t row_capacity64 = page_capacity64 * page_tokens;
+                if (page_capacity64 > UINT32_MAX || row_capacity64 > UINT32_MAX) {
+                    throw std::runtime_error("packed telemetry capacity overflows");
+                }
+                inp->direct_storage = pager->residency_storage_tensor();
+                inp->direct_bytes_per_slot = pager->residency_bytes_per_slot();
+                inp->direct_page_capacity = uint32_t(page_capacity64);
+                inp->direct_row_capacity = uint32_t(row_capacity64);
+                inp->direct_active_page_count = uint32_t(packed_pages.size());
+                inp->direct_active_row_count = selected_metadata->get_n_kv();
+                inp->direct_active_tail_length = packed_pages.back().row_count;
+                inp->direct_selection_generation = selected_metadata->graph_content_key();
+                inp->direct_explicit_native_metadata = false;
+                inp->direct_layer_k_offsets = pager_snapshot.geometry.layer_k_offsets;
+                inp->direct_layer_v_offsets = pager_snapshot.geometry.layer_v_offsets;
+                inp->direct_layer_ids = pager_snapshot.geometry.model_layer_ids;
+                if (packed_pages.empty() || inp->direct_storage == nullptr ||
+                        inp->direct_bytes_per_slot == 0 ||
+                        inp->direct_layer_k_offsets.size() != layer_ids.size() ||
+                        inp->direct_layer_v_offsets.size() != layer_ids.size() ||
+                        pager_snapshot.geometry.layer_k_page_bytes.size() != layer_ids.size() ||
+                        pager_snapshot.geometry.layer_v_page_bytes.size() != layer_ids.size() ||
+                        inp->direct_layer_ids != layer_ids) {
+                    throw std::runtime_error("packed telemetry pager geometry is unavailable");
+                }
+                inp->direct_pages_host.resize(inp->direct_page_capacity, {
+                        UINT32_MAX, UINT32_MAX, 0, 0, -1 });
+                for (size_t page_index = 0; page_index < packed_pages.size(); ++page_index) {
+                    const auto & page = packed_pages[page_index];
+                    inp->direct_pages_host[page_index] = {
+                        page.logical_page, page.source_physical_slot,
+                        page.compact_row_begin, page.row_count,
+                        page.native_position_begin };
+                }
+                inp->direct_pages = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                        int64_t(sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                            inp->direct_page_capacity * sizeof(inp->direct_pages_host[0])));
+                inp->direct_native_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                        inp->direct_row_capacity);
+                inp->direct_native_mask = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
+                        inp->direct_row_capacity);
+                inp->direct_query_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
+                        selected_metadata->query_positions().size());
+                ggml_set_input(inp->direct_pages);
+                ggml_set_input(inp->direct_native_positions);
+                ggml_set_input(inp->direct_native_mask);
+                ggml_set_input(inp->direct_query_positions);
+                ggml_set_name(inp->direct_pages, "kv_packed_telemetry_pages");
+                ggml_set_name(inp->direct_native_positions, "kv_packed_telemetry_positions");
+                ggml_set_name(inp->direct_native_mask, "kv_packed_telemetry_mask");
+                ggml_set_name(inp->direct_query_positions, "kv_packed_telemetry_queries");
+                inp->direct_backend = packed_backend;
+                ggml_backend_sched_set_tensor_backend(sched, inp->direct_pages, packed_backend);
+                ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_positions, packed_backend);
+                ggml_backend_sched_set_tensor_backend(sched, inp->direct_native_mask, packed_backend);
+                ggml_backend_sched_set_tensor_backend(sched, inp->direct_query_positions, packed_backend);
+                inp->direct_page_mass = ggml_new_tensor_3d(ctx0, GGML_TYPE_F32,
+                        pager_snapshot.logical_page_count, telemetry_head_total,
+                        selected_metadata->n_query_tokens());
+                ggml_set_input(inp->direct_page_mass);
+                ggml_set_output(inp->direct_page_mass);
+                ggml_set_name(inp->direct_page_mass, "kv_packed_page_mass");
+                ggml_backend_sched_set_tensor_backend(sched, inp->direct_page_mass, packed_backend);
+            }
         } else {
             const auto * pager = mctx_cur->get_kv_pager();
             if (pager == nullptr || pager->residency_storage_tensor() == nullptr) {
@@ -4778,6 +4927,56 @@ ggml_tensor * llm_graph_context::build_attn(
     ggml_tensor * k = mctx_cur->get_k(ctx0, il);
     ggml_tensor * v = mctx_cur->get_v(ctx0, il);
     ggml_tensor * v_for_unrotate = v;
+
+    if (inp->packed_attention && inp->direct_page_mass != nullptr) {
+        const auto layer_it = std::find(inp->direct_layer_ids.begin(),
+                inp->direct_layer_ids.end(), uint32_t(il));
+        const uint32_t telemetry_ordinal = inp->kv_attention_telemetry->layer_index();
+        if (layer_it != inp->direct_layer_ids.end() &&
+                size_t(layer_it - inp->direct_layer_ids.begin()) == telemetry_ordinal) {
+            const size_t layer_ordinal = size_t(layer_it - inp->direct_layer_ids.begin());
+            if (layer_ordinal >= inp->direct_layer_k_offsets.size() ||
+                    layer_ordinal >= inp->direct_layer_v_offsets.size()) {
+                throw std::runtime_error("packed telemetry layer mapping is out of range");
+            }
+            ggml_tensor * k_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
+                    inp->direct_layer_k_offsets[layer_ordinal]);
+            ggml_tensor * v_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
+                    inp->direct_layer_v_offsets[layer_ordinal]);
+            if (k_raw == nullptr || v_raw == nullptr) {
+                throw std::runtime_error("packed telemetry storage view failed");
+            }
+            k_raw->nb[1] = ggml_row_size(k->type, k->ne[0]);
+            k_raw->nb[2] = k->nb[2];
+            k_raw->nb[3] = inp->mctx->get_kv_pager()->snapshot().geometry.layer_k_page_bytes[layer_ordinal];
+            v_raw->nb[1] = ggml_row_size(v->type, v->ne[0]);
+            v_raw->nb[2] = v->nb[2];
+            v_raw->nb[3] = inp->mctx->get_kv_pager()->snapshot().geometry.layer_v_page_bytes[layer_ordinal];
+
+            ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
+                ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
+            ggml_flash_attn_ext_paged_turbo4_params telemetry_params = {};
+            telemetry_params.head_dim_k = inp->selected_metadata.head_dim_k();
+            telemetry_params.head_dim_v = inp->selected_metadata.head_dim_v();
+            telemetry_params.n_head_kv = inp->selected_metadata.n_head_kv();
+            telemetry_params.scale = kq_scale;
+            telemetry_params.causal = true;
+            telemetry_params.page_mass = inp->direct_page_mass;
+            telemetry_params.page_capacity = inp->direct_page_capacity;
+            telemetry_params.row_capacity = inp->direct_row_capacity;
+            telemetry_params.active_page_count_host = &inp->direct_active_page_count;
+            telemetry_params.active_row_count_host = &inp->direct_active_row_count;
+            telemetry_params.explicit_native_metadata = false;
+            ggml_tensor * telemetry_producer = ggml_flash_attn_ext_paged_turbo4(
+                    ctx0, q_direct, k_raw, v_raw, inp->direct_storage,
+                    inp->direct_pages, inp->direct_native_positions,
+                    inp->direct_native_mask, inp->direct_query_positions,
+                    &telemetry_params, inp->direct_pages_host.data());
+            ggml_build_forward_expand(gf, telemetry_producer);
+            ggml_set_output(telemetry_producer);
+            ggml_set_name(telemetry_producer, "kv_packed_page_mass_producer");
+        }
+    }
 
     if (inp->dense_attention) {
         const auto * pager = mctx_cur->get_kv_pager();
