@@ -4647,8 +4647,23 @@ llama_memory_context_ptr llama_kv_cache::init_batch(
         balloc.split_reset();
 
         std::vector<llama_ubatch> ubatches;
+        // A pager-backed graph must not straddle an unbounded number of page
+        // frontiers.  The next graph can then fence, seal and reap the page
+        // that just became eligible before reserving the following chunk.
+        // Logical batch scheduling remains owned by balloc; this only bounds
+        // the physical microbatch U and never exceeds the requested B.
+        uint32_t pager_ubatch = n_ubatch;
+        if (pager_ != nullptr && pager_->snapshot().initialized &&
+                pager_->snapshot().physical_page_count != 0 &&
+                pager_->snapshot().geometry.page_tokens != 0) {
+            pager_ubatch = std::min(pager_ubatch,
+                    pager_->snapshot().geometry.page_tokens);
+            pager_ubatch = std::max<uint32_t>(1, pager_ubatch);
+        }
         while (true) {
-            auto ubatch = n_stream == 1 ? balloc.split_simple(n_ubatch) : balloc.split_equal(n_ubatch, true, 0);
+            auto ubatch = n_stream == 1
+                ? balloc.split_simple(pager_ubatch)
+                : balloc.split_equal(pager_ubatch, true, 0);
 
             if (ubatch.n_tokens == 0) {
                 break;

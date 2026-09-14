@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "49",
-  "current_task": "49-05",
-  "last_updated_utc": "2026-09-14T06:59:15+00:00",
+  "current_task": "49-06",
+  "last_updated_utc": "2026-09-14T07:19:06+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8753,7 +8753,7 @@
       "cluster": "49c-residency-proof-v10",
       "title": "Make first overflow and batch write admission progress safely",
       "packet": ".wiretail/execution/tasks/49-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -8780,7 +8780,32 @@
       "depends_on": [
         "49-04"
       ],
-      "commit": null
+      "commit": "ae72927b5253496baf76cc226c0c16a694509ded",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/49-05-attempt-1-20260914T065933Z.jsonl:218",
+            "total_tokens": 19239882,
+            "total_tokens_derived": true,
+            "input_tokens": 19199535,
+            "cached_input_tokens": 18805504,
+            "output_tokens": 40347,
+            "thinking_tokens": 18309
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 19239882,
+          "input_tokens": 19199535,
+          "cached_input_tokens": 18805504,
+          "output_tokens": 40347,
+          "thinking_tokens": 18309
+        }
+      }
     },
     {
       "id": "49-06",
@@ -11937,15 +11962,28 @@
           "cached_input_tokens": 54207488,
           "output_tokens": 115394,
           "thinking_tokens": 41883
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/49-05-attempt-1-20260914T065933Z.jsonl:218",
+          "total_tokens": 19239882,
+          "total_tokens_derived": true,
+          "input_tokens": 19199535,
+          "cached_input_tokens": 18805504,
+          "output_tokens": 40347,
+          "thinking_tokens": 18309
         }
       ],
       "totals": {
-        "turns": 4,
-        "total_tokens": 106256331,
-        "input_tokens": 106033590,
-        "cached_input_tokens": 103980032,
-        "output_tokens": 222741,
-        "thinking_tokens": 76498
+        "turns": 5,
+        "total_tokens": 125496213,
+        "input_tokens": 125233125,
+        "cached_input_tokens": 122785536,
+        "output_tokens": 263088,
+        "thinking_tokens": 94807
       }
     },
     "50": {
@@ -11984,12 +12022,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 163,
-      "total_tokens": 3418982437,
-      "input_tokens": 3411038854,
-      "cached_input_tokens": 3342067200,
-      "output_tokens": 7943583,
-      "thinking_tokens": 2883645
+      "turns": 164,
+      "total_tokens": 3438222319,
+      "input_tokens": 3430238389,
+      "cached_input_tokens": 3360872704,
+      "output_tokens": 7983930,
+      "thinking_tokens": 2901954
     },
     "source": "Codex turn.completed usage events"
   }

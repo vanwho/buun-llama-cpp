@@ -2803,6 +2803,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             if (selected_pages.size() >= bounded_pages) return;
             (void) append_page(id);
         };
+        // A write batch can create the next frontier after the last policy
+        // boundary. Reserve its page before consuming advisory routed slots;
+        // otherwise the packed owner may lack the current query row exactly
+        // at the first H crossing.
+        for (const auto & page : pager_snapshot.pages()) {
+            if (pager.is_current_page(page.id)) append_fallback(page.id);
+        }
         if (!routed_pages.empty()) {
             bool routed_valid = true;
             for (const auto & id : routed_pages) {

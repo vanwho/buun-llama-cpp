@@ -2156,6 +2156,91 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
         return llama_kv_pager_write_status::ok;
     }
     try {
+        // Admission must be decided before begin_write() can evict a clean
+        // page.  Otherwise a batch that crosses H can fail after its first
+        // new page and ticket cancellation cannot restore the evicted page.
+        std::vector<uint32_t> written_logical_pages;
+        std::vector<uint32_t> new_logical_pages;
+        new_logical_pages.reserve(positions.size());
+        written_logical_pages.reserve(positions.size());
+        for (const llama_pos position : positions) {
+            if (sequence_id < 0 || position < 0 ||
+                    snapshot_.geometry.page_tokens == 0 ||
+                    uint64_t(position) >= snapshot_.geometry.context_tokens) {
+                return llama_kv_pager_write_status::invalid_position;
+            }
+            const uint64_t logical64 = uint64_t(position) /
+                    snapshot_.geometry.page_tokens;
+            if (logical64 >= snapshot_.logical_page_count || logical64 > UINT32_MAX) {
+                return llama_kv_pager_write_status::overflow;
+            }
+            const uint32_t logical = uint32_t(logical64);
+            if (std::find(written_logical_pages.begin(), written_logical_pages.end(), logical) ==
+                    written_logical_pages.end()) {
+                written_logical_pages.push_back(logical);
+            }
+            const auto * page = find_page(sequence_id, logical);
+            if (page != nullptr) {
+                if (page->record.id.sequence_generation !=
+                        (sequence_generation == 0 ? 1 : sequence_generation)) {
+                    return llama_kv_pager_write_status::stale_generation;
+                }
+                if (page->host_inflight) {
+                    return llama_kv_pager_write_status::transaction;
+                }
+                continue;
+            }
+            if (std::find(new_logical_pages.begin(), new_logical_pages.end(), logical) ==
+                    new_logical_pages.end()) {
+                new_logical_pages.push_back(logical);
+            }
+        }
+
+        const auto available_slots = [&]() {
+            uint32_t available = 0;
+            for (uint32_t slot = 0; slot < slot_pages_.size(); ++slot) {
+                if (slot_pages_[slot] < 0) {
+                    ++available;
+                    continue;
+                }
+                const page_state * page = find_slot(slot);
+                if (page != nullptr && page->record.pin_count == 0 &&
+                        std::find(written_logical_pages.begin(), written_logical_pages.end(),
+                            page->record.id.logical_page) == written_logical_pages.end() &&
+                        page->record.host_valid &&
+                        (page->record.state == llama_kv_page_state::host_clean ||
+                         page->record.state == llama_kv_page_state::gpu_host_clean)) {
+                    ++available;
+                }
+            }
+            return available;
+        };
+
+        // A completion may be the only producer that can turn a slot into a
+        // clean host-backed victim.  Wait once at this capacity boundary, not
+        // once per token or once per attempted row.
+        if (available_slots() < new_logical_pages.size() && host_ &&
+                host_->async_enabled()) {
+            drain_host_completions();
+            if (available_slots() < new_logical_pages.size() && host_inflight_pages() != 0) {
+                (void) host_->wait();
+                drain_host_completions();
+            }
+        }
+
+        if (available_slots() < new_logical_pages.size()) {
+            bool any_page = false;
+            bool all_pinned = true;
+            for (const auto & page : pages_) {
+                if (!page.present) continue;
+                any_page = true;
+                all_pinned = all_pinned && page.record.pin_count != 0;
+            }
+            return any_page && all_pinned
+                ? llama_kv_pager_write_status::all_pinned
+                : llama_kv_pager_write_status::no_victim;
+        }
+
         tickets.reserve(positions.size());
         for (const llama_pos position : positions) {
             llama_kv_pager_write_ticket ticket;
