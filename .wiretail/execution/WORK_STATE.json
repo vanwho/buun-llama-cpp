@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "45",
-  "current_task": "45-01",
-  "last_updated_utc": "2026-09-14T02:36:05+00:00",
+  "current_task": "45-02",
+  "last_updated_utc": "2026-09-14T02:46:54+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8120,7 +8120,7 @@
       "cluster": "45a-current-q-selection-v9",
       "packet": ".wiretail/execution/tasks/45-01.md",
       "title": "Repair the current-Q candidate and promotion bridge",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -8146,7 +8146,32 @@
       "depends_on": [
         "44-01"
       ],
-      "commit": null
+      "commit": "11b539f1e75359b96af1cdeac3b34b4c90c7d747",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/45-01-attempt-1-20260914T023623Z.jsonl:184",
+            "total_tokens": 10370467,
+            "total_tokens_derived": true,
+            "input_tokens": 10346689,
+            "cached_input_tokens": 10098944,
+            "output_tokens": 23778,
+            "thinking_tokens": 12274
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 10370467,
+          "input_tokens": 10346689,
+          "cached_input_tokens": 10098944,
+          "output_tokens": 23778,
+          "thinking_tokens": 12274
+        }
+      }
     },
     {
       "id": "45-02",
@@ -10727,14 +10752,28 @@
       }
     },
     "45": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/45-01-attempt-1-20260914T023623Z.jsonl:184",
+          "total_tokens": 10370467,
+          "total_tokens_derived": true,
+          "input_tokens": 10346689,
+          "cached_input_tokens": 10098944,
+          "output_tokens": 23778,
+          "thinking_tokens": 12274
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 10370467,
+        "input_tokens": 10346689,
+        "cached_input_tokens": 10098944,
+        "output_tokens": 23778,
+        "thinking_tokens": 12274
       }
     },
     "46": {
@@ -10751,12 +10790,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 152,
-      "total_tokens": 3271101138,
-      "input_tokens": 3263510692,
-      "cached_input_tokens": 3197884672,
-      "output_tokens": 7590446,
-      "thinking_tokens": 2764306
+      "turns": 153,
+      "total_tokens": 3281471605,
+      "input_tokens": 3273857381,
+      "cached_input_tokens": 3207983616,
+      "output_tokens": 7614224,
+      "thinking_tokens": 2776580
     },
     "source": "Codex turn.completed usage events"
   }
