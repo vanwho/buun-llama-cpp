@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "task": "51-03",
+  "source_commit": "fde2f75a13be9846bb187a4c1383687f247c6bbe",
+  "checks": {
+    "scale_pilot_findings": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-incremental-scale.py",
+        "--new-session",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/51-03/20260914T-32k-h16384-supervised2",
+        "--context",
+        "32768",
+        "--hot-pages",
+        "64",
+        "--target-tokens",
+        "24576"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_SCALE.json", "sha256": "9eb8bb1c5e319ef029502f1a01cab130475f1c3155e9e10fd133f11f2addd1c5"},
+        {"path": ".wiretail/execution/evidence/V10_SCALE.md", "sha256": "ed44494be02a3b675d80c81c414b398ea3e913aa0d32354b2701ac04cbbc3309"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-03/20260914T-32k-h16384-supervised2/INTERACTIVE29_01_SCALE.json", "sha256": "c3a062deb1614891a959ced6948c95c7e2472471385aa82d604df24c5d47ce08"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-03/20260914T-32k-h16384-supervised2/server.log", "sha256": "358c487e87eaf24e68afac74b455f4eae02e3da3f255e29cbe9537231504482c"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-03/20260914T-128k-h30208-probe3/INTERACTIVE29_01_SCALE.json", "sha256": "ed485b1be2c0eb0a9efdcd0dfdc7768970a4c8f27990a472b28723172418fab8"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-03/20260914T-128k-h30208-probe3/server.log", "sha256": "1e41df06a270901d0373dc00b61fc60b8c690a393cea70442df2a4312e83f339"},
+        {"path": "/srv/ai/paged-kv/results/v10/51-03/20260914T-128k-h30208-probe2/server.log", "sha256": "2fff76ceb3a2c99e29304b639879ae00b45247314d6e055d282502c09bb1253d"}
+      ]
+    }
+  }
+}

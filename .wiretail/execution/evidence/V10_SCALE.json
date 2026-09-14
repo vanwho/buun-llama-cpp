@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "task": "51-03",
+  "revision": "hotpath-v10-20260914",
+  "status": "measured",
+  "source_commit": "fde2f75a13be9846bb187a4c1383687f247c6bbe",
+  "prerequisite": {
+    "small_physical_promotion": "pass",
+    "native_mtp_matrix": "pass",
+    "source": ".wiretail/execution/evidence/v10-51-02/V10_SMALL.json"
+  },
+  "configuration": {
+    "page_size_tokens": 256,
+    "batch_tokens": 128,
+    "ubatch_tokens": 128,
+    "draft_n_max": 2,
+    "target_kv": "turbo4/gpu",
+    "draft_kv": "turbo4/gpu",
+    "candidate_bundle": "/srv/ai/paged-kv/results/v10/51-02/20260914T-matched-q0q1q2/candidate-bundle",
+    "allocation_ledger": ".wiretail/execution/evidence/V10_TUNING.json"
+  },
+  "coordinates": [
+    {
+      "label": "L32768/H16384",
+      "logical_capacity_tokens": 32768,
+      "hot_capacity_tokens": 16384,
+      "hot_capacity_pages": 64,
+      "status": "measured",
+      "checkpoints": [
+        {"name": "warm", "occupied_tokens": 1200, "cached_tokens": 0, "status": "measured"},
+        {"name": "below_H", "occupied_tokens": 15240, "cached_tokens": 13849, "status": "measured"},
+        {"name": "above_H", "occupied_tokens": 16644, "cached_tokens": 15253, "status": "measured"},
+        {"name": "next_useful", "occupied_tokens": 24580, "cached_tokens": 23677, "status": "measured"}
+      ],
+      "requests": 18,
+      "final_occupied_tokens": 24580,
+      "elapsed_seconds": 524.02640437,
+      "estimated_remaining_to_logical_capacity_seconds": 340,
+      "estimated_total_to_logical_capacity_seconds": 864,
+      "promotion": {
+        "h2d_useful_bytes": 0,
+        "h2d_aligned_bytes": 0,
+        "transfer_submitted": 0,
+        "target_graph_used_promoted_page": false,
+        "reason": "The bounded conversation crossed H but did not produce an eligible organic cold promotion; no promotion is claimed."
+      },
+      "observed_memory": {
+        "host_valid_bytes_at_final_sample": 21626800,
+        "host_seal_d2h_bytes_at_final_sample": 21626800,
+        "scratch_high_water_bytes_max": 7372820,
+        "full_l_draft_reservation_bytes": 34734080,
+        "charged_bytes_ledger": 16206500000,
+        "usable_device_bytes_ledger": 16720200000,
+        "headroom_bytes_ledger": 201327000
+      },
+      "raw": "/srv/ai/paged-kv/results/v10/51-03/20260914T-32k-h16384-supervised2"
+    },
+    {
+      "label": "L131072/H30208",
+      "logical_capacity_tokens": 131072,
+      "hot_capacity_tokens": 30208,
+      "hot_capacity_pages": 118,
+      "status": "measured",
+      "checkpoints": [
+        {"name": "warm", "occupied_tokens": 1200, "cached_tokens": 0, "status": "measured"},
+        {"name": "short_cached_probe", "occupied_tokens": 4204, "cached_tokens": 4021, "status": "measured"}
+      ],
+      "requests": 4,
+      "final_occupied_tokens": 4204,
+      "elapsed_seconds": 18.150086417,
+      "estimated_remaining_to_H_seconds": 185,
+      "estimated_remaining_to_logical_capacity": "not_run: short probe did not establish a trustworthy near-L extrapolation",
+      "startup": {
+        "status": "pass",
+        "full_l_draft_rows": 131072,
+        "full_l_draft_reservation_bytes": 138543104,
+        "target_compute_device": "GPU",
+        "model_load": "pass"
+      },
+      "promotion": {
+        "h2d_useful_bytes": 0,
+        "transfer_submitted": 0,
+        "target_graph_used_promoted_page": false,
+        "reason": "The short probe remained below H; no organic promotion claim is made."
+      },
+      "observed_memory": {
+        "host_valid_bytes_at_final_sample": 4325400,
+        "scratch_high_water_bytes": 1073200,
+        "charged_bytes": "not exported by this runtime snapshot",
+        "headroom_bytes": "not exported by this runtime snapshot"
+      },
+      "raw": "/srv/ai/paged-kv/results/v10/51-03/20260914T-128k-h30208-probe3"
+    }
+  ],
+  "failed_attempts": [
+    {
+      "coordinate": "L131072/H30208",
+      "status": "failed",
+      "reason": "Initial startup while the 77K systemd profile still held VRAM failed cudaMalloc for the 13,695,514,488-byte model buffer; the retry stopped the profile and startup passed.",
+      "raw": "/srv/ai/paged-kv/results/v10/51-03/20260914T-128k-h30208-probe2/server.log"
+    }
+  ],
+  "not_run": [
+    {"coordinate": "L131072/full occupancy", "reason": "Practical-budget stop after a successful short cached-ingest probe; no full-L quality/soak claim."},
+    {"coordinate": "L262144", "reason": "Outside this task's conditional 32K/128K pilot scope."}
+  ],
+  "raw_references": [
+    "/srv/ai/paged-kv/results/v10/51-03/20260914T-32k-h16384-supervised2/INTERACTIVE29_01_SCALE.json",
+    "/srv/ai/paged-kv/results/v10/51-03/20260914T-32k-h16384-supervised2/server.log",
+    "/srv/ai/paged-kv/results/v10/51-03/20260914T-128k-h30208-probe3/INTERACTIVE29_01_SCALE.json",
+    "/srv/ai/paged-kv/results/v10/51-03/20260914T-128k-h30208-probe3/server.log",
+    "/srv/ai/paged-kv/results/v10/51-03/20260914T-128k-h30208-probe3/raw-03.sse"
+  ]
+}
