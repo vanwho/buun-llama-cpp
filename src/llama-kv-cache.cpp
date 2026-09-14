@@ -2340,6 +2340,7 @@ void llama_kv_cache::capture_kv_routing_query(
         ? uint64_t(ubatch.pos[0]) + 1 : uint64_t(ubatch.pos[0]);
     value.sequence_generation = snapshot.pages().empty()
         ? 0 : snapshot.pages().front().id.sequence_generation;
+    value.refresh_enabled = pager_query_refresh_enabled_;
     try {
         if (it == pager_routing_outputs_.end()) {
             pager_routing_outputs_.push_back(value);
@@ -2400,9 +2401,22 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         // the whole snapshot before any ID can affect residency policy.
         // Poll first, then gate the expensive output/inventory walk. Stable
         // hot-loop boundaries have no router work to do until a committed
-        // page/frontier change or a completed candidate arrives.
+        // page/frontier change, a completed candidate, or a current-Q refresh
+        // result arrives. The last case is the producer-to-mailbox bridge:
+        // the mailbox is populated by draining pager_routing_outputs_ below,
+        // so using mailbox readiness as the only wakeup would deadlock the
+        // natural selector path.
         (void) mailbox.poll(0, snapshot.epoch());
-        if (!pager_policy_dirty_ && mailbox.ready_slots() == 0) {
+        const bool have_current_refresh = std::any_of(
+                pager_routing_outputs_.begin(), pager_routing_outputs_.end(),
+                [&](const auto & output) {
+            return output.tensor != nullptr && output.refresh_enabled &&
+                output.query_generation == pager_query_generation_ &&
+                output.table_epoch == snapshot.epoch() &&
+                output.sequence_id == pager_last_sequence_id_;
+        });
+        if (!pager_policy_dirty_ && mailbox.ready_slots() == 0 &&
+                !have_current_refresh) {
             return;
         }
         std::vector<llama_kv_prefetch_candidate> produced;
@@ -2414,6 +2428,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 output != pager_routing_outputs_.end();) {
             const auto inventory = pager_->exact_page_records(output->sequence_id);
             const bool usable = output->tensor != nullptr &&
+                output->refresh_enabled &&
                 output->query_generation != 0 &&
                 output->table_epoch == snapshot.epoch() &&
                 output->sequence_id == pager_last_sequence_id_ &&
@@ -15962,6 +15977,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             output.table_epoch = sequence.epoch();
             output.query_position = uint64_t(query_position);
             output.sequence_generation = uint64_t(sequence_generation);
+            output.refresh_enabled = kv->pager_query_refresh_enabled_;
         }
     }
     return true;

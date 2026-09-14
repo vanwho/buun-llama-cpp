@@ -1538,6 +1538,7 @@ private:
         uint64_t table_epoch = 0;
         uint64_t query_position = 0;
         uint64_t sequence_generation = 0;
+        bool refresh_enabled = false;
     };
     mutable std::vector<pager_routing_output> pager_routing_outputs_;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
