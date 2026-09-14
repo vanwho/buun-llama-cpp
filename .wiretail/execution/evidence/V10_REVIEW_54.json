@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_54",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "54-01",
+  "reviewed_phase": 53,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_53.json",
+    "sha256": "0ab9f3d9975a172ac5159b4590a35b6813fddcf841fb2d4f8f9cb6c6ed0bdbc6"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "organic_cold_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "The summary records the bundle manifest and installed model hashes; the measured source bundle is identified.",
+    "required_turbo4_placements": "Target K/V are Turbo4 on CUDA and native draft K/V are Turbo4 on GPU; full-L draft placement is measured at the 128K pilot and the 256K allocation ledger.",
+    "controlled_model_promotion": "The controlled edge records selector publication, queued/completed H2D, mapping publication, and completed target-graph use for logical page 15.",
+    "organic_cold_promotion": "The organic and file-roundtrip edges record a cold eligible page, rank 0, completed H2D, publication, and target-graph use; this is not an answer-quality claim.",
+    "stable_target_consumption": "The recorded target graph uses the published promoted mapping at the query generation and target-use epochs.",
+    "full_256k_occupancy": "False: 256K startup/allocation is recorded, but all three prior first-request attempts have max_observed_C=0 and phase-53 retry request_started=false.",
+    "practical_speed_goal_met": "False: selective prefill medians are 124.059–125.099 tok/s versus 633.703–637.014 CPU-main and 1542.692–1548.887 all-GPU; the matched phase-53 revalidation was not run.",
+    "useful_answer_quality_proven": "False: physical promotion is present, but the summary explicitly keeps useful answer quality false."
+  },
+  "current_rates": {
+    "geometry": "L8192/C6144/H4096/A2048/B128/U128",
+    "sample_counts": {
+      "original_three_prompt_cells": 9,
+      "rows_per_cell": 3,
+      "total_rows": 27,
+      "controlled_physical_edges": 1,
+      "organic_physical_edges": 1,
+      "file_roundtrip_physical_edges": 1,
+      "cached_append_probes": 2,
+      "phase53_matched_revalidation_rows": 0
+    },
+    "prefill_tok_s_median_by_question": {
+      "selective-v2": {"q0": 125.09874381436698, "q1": 124.05919505491649, "q2": 124.64723099036912},
+      "cpu-main": {"q0": 636.2347494975827, "q1": 633.7031688562122, "q2": 637.0141289816753},
+      "all-gpu-v2": {"q0": 1542.6918114049217, "q1": 1547.3502005586479, "q2": 1548.8871281278055}
+    },
+    "decode_tok_s_median_by_question": {
+      "selective-v2": {"q0": 38.36009399421781, "q1": 31.862695678646794, "q2": 34.37206796861615},
+      "cpu-main": {"q0": 10.212424819000727, "q1": 10.098448830923092, "q2": 9.99225678163929},
+      "all-gpu-v2": {"q0": 36.989248554746254, "q1": 37.08645344853313, "q2": 37.09220310299462}
+    },
+    "cached_append": {
+      "64": {"status": "pass", "prefix_tokens": 6144, "append_prompt_tokens": 6319, "append_cache_n": 6271},
+      "256": {"status": "pass", "prefix_tokens": 6144, "append_prompt_tokens": 6407, "append_cache_n": 6271},
+      "rate_finding": "No matched append rate was measured in phase-53 revalidation."
+    },
+    "committed_decode_mtp": {
+      "selective": "Valid native-MTP rows have positive proposed and accepted deltas; acceptance medians span 70.476%–91.111% across q1/q2/q0.",
+      "controls": "CPU-main and all-GPU rows proposed drafts but accepted zero; they are feature-off/placement diagnostics, not native-MTP acceptance evidence."
+    }
+  },
+  "capacity_and_proof_boundaries": {
+    "8K": "Physical controlled, organic, and file-roundtrip promotion proof at L8192/C6144/H4096; useful answer quality remains unproven.",
+    "32K": "Measured pilot reached C24580 with H16384; no organic promotion claim was made.",
+    "128K": "Measured pilot reached C4204 with H30208 and full-L draft rows 131072; this is not a full-L occupancy result.",
+    "256K_allocation": "Startup/allocation was feasible with a 262144-row Turbo4/GPU draft reservation, but the first request failed before C advanced.",
+    "C262144": "Not proven; no request reached occupied full context, and no full-context quality or soak ran."
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "ggml_cuda_fattn::kv_dequant_scratch / llama_kv_cache::vbr_scratch_reserve",
+      "fixture": "L262144/H30208/B128/U128, 1200-token request",
+      "finding": "The last measured attempt aborted while VBR f16 dequant scratch grew toward 512 MiB; phase-53 could not perform its live post-repair retry because another CUDA process displaced the candidate."
+    },
+    {
+      "owner": "llama_kv_attention_packed_cache::find_or_create / submit_graph / launch_mul_mat_q",
+      "fixture": "L262144/H16384/B128/U64",
+      "finding": "The last measured attempt failed packed allocation or dynamic shared-memory configuration before C advanced and cleanup saw pending pager writes."
+    },
+    {
+      "owner": "selective prefill pager-to-target path",
+      "fixture": "matched original q0/q1/q2, 3 samples per mode/question",
+      "finding": "Measured selective prefill is only about 8.0% of all-GPU and 19.6% of CPU-main; optional counters show large summary-build/H2D/wait activity, but the phase-53 matched attribution run is not available."
+    }
+  ],
+  "quality_and_uncertainty": {
+    "physical_promotion": "Pass as a separate controlled and organic transport/consumption claim.",
+    "useful_answer_quality": "Not proven; do not infer it from target graph use or an answer alone.",
+    "phase53_revalidation": "256K failed_setup because immich_ml used 4054 MiB and the candidate could not load; q0/q1/q2, append64/256, and MTP counter revalidation were not_run.",
+    "hard_external_constraint": false,
+    "classification": "fixable measured implementation boundary plus deferred live verification; no user choice required"
+  },
+  "next_action": "Repair or complete the combined full-L resource boundary, run the bounded full-L and matched revalidation with real MTP deltas, summarize only phase-55 findings, then review them.",
+  "phase_appended": true,
+  "appended_phases": [55, 56],
+  "next_task_ids": ["55-01", "55-02", "55-03", "56-01"],
+  "successor_contracts": {
+    "55-01": "Exact CUDA/KV resource owners; full-L two-fixture boundary regression; before C=0/failure versus after reserved-bytes and C>0 completion; stop at first resource or ownership mismatch.",
+    "55-02": "Existing V10 harness; 1200-token full-L request plus 27 matched rows and 64/256 append probes; require request-scoped MTP denominators and explicit failed/not-run rows.",
+    "55-03": "Existing V10 aggregator; phase-55-only identity, geometry, rates, capacity, promotion, quality, and failure summary.",
+    "56-01": "Read only phase-55 summary and repeat this review algorithm; append another measured chain only if a concrete gap remains."
+  }
+}

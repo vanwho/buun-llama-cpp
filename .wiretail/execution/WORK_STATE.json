@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "54",
-  "current_task": "54-01",
-  "last_updated_utc": "2026-09-14T17:32:07+00:00",
+  "current_phase": "55",
+  "current_task": "55-01",
+  "last_updated_utc": "2026-09-14T17:39:30+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -9847,7 +9847,7 @@
       "cluster": "54a-review-v10",
       "title": "Review the phase-53 summary and schedule only measured next work",
       "packet": ".wiretail/execution/tasks/54-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -9872,6 +9872,167 @@
       ],
       "depends_on": [
         "53-04"
+      ],
+      "commit": "cd2d8a6796ed2d570f41deef1bdfd4bbcb42a62b",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/54-01-attempt-1-20260914T173226Z.jsonl:65",
+            "total_tokens": 2309036,
+            "total_tokens_derived": true,
+            "input_tokens": 2287432,
+            "cached_input_tokens": 2168576,
+            "output_tokens": 21604,
+            "thinking_tokens": 7270
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 2309036,
+          "input_tokens": 2287432,
+          "cached_input_tokens": 2168576,
+          "output_tokens": 21604,
+          "thinking_tokens": 7270
+        }
+      }
+    },
+    {
+      "id": "55-01",
+      "phase": "55",
+      "cluster": "55a-full-l-resource-v10",
+      "title": "Close the full-L CUDA resource boundary",
+      "packet": ".wiretail/execution/tasks/55-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_53.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_53.md",
+        ".wiretail/execution/handoffs/54-01.md"
+      ],
+      "required_proofs": [
+        "full_l_resource_boundary_repair"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "55-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_55-01.json"
+      ],
+      "depends_on": [
+        "54-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "55-02",
+      "phase": "55",
+      "cluster": "55b-bounded-revalidation-v10",
+      "title": "Revalidate full-L progress and the matched hot-path matrix",
+      "packet": ".wiretail/execution/tasks/55-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_53.json",
+        ".wiretail/execution/handoffs/54-01.md"
+      ],
+      "required_proofs": [
+        "full_l_request_progress",
+        "matched_three_prompt_matrix"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "55-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_55-02.json"
+      ],
+      "depends_on": [
+        "55-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "55-03",
+      "phase": "55",
+      "cluster": "55c-summary-v10",
+      "title": "Generate the phase-55 benchmark summary",
+      "packet": ".wiretail/execution/tasks/55-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md"
+      ],
+      "required_proofs": [
+        "phase55_summary_generated_and_validated"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "55-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_55-03.json"
+      ],
+      "depends_on": [
+        "55-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "56-01",
+      "phase": "56",
+      "cluster": "56a-review-v10",
+      "title": "Review the phase-55 summary and schedule only measured next work",
+      "packet": ".wiretail/execution/tasks/56-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md"
+      ],
+      "required_proofs": [
+        "phase55_benchmark_review"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "56-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_56-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_56.json"
+      ],
+      "depends_on": [
+        "55-03"
       ],
       "commit": null
     }
@@ -12875,6 +13036,42 @@
       }
     },
     "54": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/54-01-attempt-1-20260914T173226Z.jsonl:65",
+          "total_tokens": 2309036,
+          "total_tokens_derived": true,
+          "input_tokens": 2287432,
+          "cached_input_tokens": 2168576,
+          "output_tokens": 21604,
+          "thinking_tokens": 7270
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 2309036,
+        "input_tokens": 2287432,
+        "cached_input_tokens": 2168576,
+        "output_tokens": 21604,
+        "thinking_tokens": 7270
+      }
+    },
+    "55": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "56": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -12888,12 +13085,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 182,
-      "total_tokens": 3925197778,
-      "input_tokens": 3916052396,
-      "cached_input_tokens": 3836266240,
-      "output_tokens": 9145382,
-      "thinking_tokens": 3342877
+      "turns": 183,
+      "total_tokens": 3927506814,
+      "input_tokens": 3918339828,
+      "cached_input_tokens": 3838434816,
+      "output_tokens": 9166986,
+      "thinking_tokens": 3350147
     },
     "source": "Codex turn.completed usage events"
   }
