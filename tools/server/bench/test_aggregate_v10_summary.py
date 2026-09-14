@@ -45,6 +45,26 @@ class SummaryValidationTests(unittest.TestCase):
         self.assertTrue(errors)
         self.assertIsNone(ratios["1"]["selective-v2_over_cpu-main"])
 
+    def test_phase59_keeps_all_boundaries_and_row_statuses(self):
+        root = HERE.parents[2] / ".wiretail/execution/evidence"
+        built, paths = summary.build_phase59(root)
+        self.assertEqual("59-03", built["task"])
+        self.assertEqual("measured", built["geometry"]["matched_8K"]["status"])
+        self.assertEqual("not_run", built["geometry"]["pilot_32K"]["status"])
+        self.assertEqual("not_run", built["geometry"]["pilot_128K"]["status"])
+        self.assertEqual("measured", built["geometry"]["allocation_256K"]["status"])
+        self.assertEqual("failed", built["geometry"]["occupied_C262144"]["status"])
+        self.assertEqual("not_run", built["rates"]["cached_append"]["status"])
+        self.assertEqual("not_run", built["promotion_edges"]["controlled_physical"]["status"])
+        self.assertEqual("not_run", built["promotion_edges"]["organic_physical"]["status"])
+        self.assertEqual("not_run", built["answer_quality"]["status"])
+        self.assertEqual(27, sum(len(rows) for rows in built["rows"].values()))
+        self.assertTrue(all(row["status"] in {"measured", "failed", "not_run"} for rows in built["rows"].values() for row in rows))
+        self.assertEqual(59, built["rows"]["selective_native"][0]["mtp"]["denominator"])
+        self.assertEqual(0, built["rows"]["selective_native"][0]["mtp"]["accepted_delta"])
+        self.assertEqual("off", built["rows"]["all_gpu_control"][0]["mtp"]["status"])
+        self.assertIn("full_l", paths)
+
 
 if __name__ == "__main__":
     unittest.main()
