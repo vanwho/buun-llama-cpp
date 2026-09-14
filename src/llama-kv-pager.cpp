@@ -23,6 +23,10 @@ uint64_t advance_content_version(uint64_t version) noexcept {
     return version == std::numeric_limits<uint64_t>::max() ? 1 : version + 1;
 }
 
+void increment_counter(uint64_t & value) noexcept {
+    if (value != std::numeric_limits<uint64_t>::max()) ++value;
+}
+
 uint64_t routing_coordinate_identity(
         uint64_t codec_digest, uint64_t codebook_digest,
         uint64_t rotation_digest, uint64_t meansub_digest) noexcept {
@@ -124,6 +128,62 @@ bool canonical_host_page_record(
 }
 
 } // namespace
+
+void llama_kv_pager::record_natural_proof_target_use(
+        const std::vector<uint32_t> & selected_page_ids,
+        uint64_t table_epoch, uint64_t query_generation) noexcept {
+    auto & proof = natural_proof_;
+    if (!proof.mapping_published || proof.logical_page == UINT32_MAX ||
+            std::find(selected_page_ids.begin(), selected_page_ids.end(),
+                proof.logical_page) == selected_page_ids.end()) {
+        return;
+    }
+    const auto snapshot = residency_.snapshot();
+    const auto found = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+            [&](const auto & page) {
+        return page.id.logical_page == proof.logical_page &&
+            page.id.page_generation == proof.page_generation &&
+            page.content_version == proof.content_version &&
+            page.physical_slot != UINT32_MAX;
+    });
+    if (found == snapshot.pages().end()) return;
+    proof.target_graph_used = true;
+    proof.target_use_epoch = table_epoch != 0 ? table_epoch : snapshot.epoch();
+    proof.target_use_query_generation = query_generation != 0
+        ? query_generation : proof.query_generation;
+}
+
+void llama_kv_pager::record_rejection_no_candidate() noexcept {
+    increment_counter(rejection_histogram_.no_candidate);
+}
+
+void llama_kv_pager::record_rejection_invalid_candidate() noexcept {
+    increment_counter(rejection_histogram_.invalid_candidate);
+}
+
+void llama_kv_pager::record_rejection_not_cold() noexcept {
+    increment_counter(rejection_histogram_.not_cold);
+}
+
+void llama_kv_pager::record_rejection_identity_mismatch() noexcept {
+    increment_counter(rejection_histogram_.identity_mismatch);
+}
+
+void llama_kv_pager::record_rejection_missing_host_source() noexcept {
+    increment_counter(rejection_histogram_.missing_host_source);
+}
+
+void llama_kv_pager::record_rejection_admission() noexcept {
+    increment_counter(rejection_histogram_.admission_rejected);
+}
+
+void llama_kv_pager::record_rejection_transfer() noexcept {
+    increment_counter(rejection_histogram_.transfer_rejected);
+}
+
+void llama_kv_pager::record_rejection_publication() noexcept {
+    increment_counter(rejection_histogram_.publication_rejected);
+}
 
 bool llama_kv_pager_geometry_from_model(
         const llama_model & model,
@@ -1445,8 +1505,17 @@ bool llama_kv_pager::test_page_checksums(uint32_t logical_page,
 uint64_t llama_kv_pager::routing_summary_content_version(
         const llama_kv_page_id & id) const noexcept {
     const auto * page = find_page(id.sequence_id, id.logical_page);
-    return page != nullptr && page->record.id == id
-        ? page->summary_content_version : 0;
+    if (page != nullptr && page->record.id == id) {
+        return page->summary_content_version;
+    }
+    // Cold records have no resident page_state. Their retained summary
+    // carries the version captured at the same seal boundary as host bytes.
+    // Host-only records normalize content_version to page_generation. The
+    // resident-side mutable content counter is not serialized into the host
+    // identity, so use the identity version when a matching retained summary
+    // exists rather than leaking that transient counter into cold admission.
+    return routing_summaries_.content_version(id) != 0
+        ? uint64_t(id.page_generation) : 0;
 }
 
 void llama_kv_pager::set_host_provider(
@@ -1974,7 +2043,13 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(
     if (host_ && !preserve_host) {
         (void) host_->invalidate(page.record.id);
     }
-    invalidate_routing_summaries({ page.record.id });
+    // An eviction with preserve_host=true leaves the canonical bytes alive;
+    // its sealed routing summary is part of that cold-page authority and must
+    // remain selectable for a later natural promotion.  Destructive removal
+    // still invalidates the summary together with the host object.
+    if (!preserve_host) {
+        invalidate_routing_summaries({ page.record.id });
+    }
     page = {};
     if (current_page_index_ == page_index) {
         current_page_index_ = UINT32_MAX;
@@ -2116,9 +2191,15 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
             if (slot_pages_[i] < 0) { slot = i; break; }
         }
         if (slot == UINT32_MAX) {
+            // A page may only leave the target pool after both canonical host
+            // bytes and its immutable routing summary have been published.
+            // Give the maintenance queue one bounded opportunity to finish
+            // that pair before selecting an eviction victim.
+            (void) seal_ready_pages();
             for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
                 page_state * candidate = find_slot(i);
                 if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
+                    candidate->summary_content_version == candidate->content_version &&
                     (candidate->record.state == llama_kv_page_state::host_clean ||
                      candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
                     if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
@@ -2146,6 +2227,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
                 for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
                     page_state * candidate = find_slot(i);
                     if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
+                            candidate->summary_content_version == candidate->content_version &&
                             (candidate->record.state == llama_kv_page_state::host_clean ||
                              candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
                         if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {

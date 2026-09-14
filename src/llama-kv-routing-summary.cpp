@@ -384,6 +384,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
             }
             page summary;
             summary.id = record.id;
+            summary.content_version = record.content_version;
             const uint64_t row_count = uint64_t(record.id.position_end - record.id.position_begin);
             const bool made = config.form == llama_kv_routing_summary_form::minmax_ranges
                 ? make_ranges(*it, row_count, config, summary.range_min,
@@ -507,6 +508,7 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
             }
             page summary;
             summary.id = inputs[i].id;
+            summary.content_version = record->content_version;
             const uint64_t row_count = uint64_t(record->id.position_end - record->id.position_begin);
             const bool made = config.form == llama_kv_routing_summary_form::minmax_ranges
                 ? make_ranges(inputs[i], row_count, config, summary.range_min,
@@ -672,6 +674,13 @@ const std::vector<float> * llama_kv_routing_summary_store::range_max(
     const auto it = std::find_if(pages_.begin(), pages_.end(),
             [&](const auto & page) { return page.id == id; });
     return it == pages_.end() || it->range_max.empty() ? nullptr : &it->range_max;
+}
+
+uint64_t llama_kv_routing_summary_store::content_version(
+        const llama_kv_page_id & id) const noexcept {
+    const auto it = std::find_if(pages_.begin(), pages_.end(),
+            [&](const auto & page) { return page.id == id; });
+    return it == pages_.end() ? 0 : it->content_version;
 }
 
 void llama_kv_routing_summary_store::rebuild_accounting(

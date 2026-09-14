@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "task": "51-01",
+  "source_commit": "81d0583ba6165838ac37bc466be4a50ac634f6e5",
+  "checks": {
+    "controlled_model_query_promotion": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-pager-model",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--tokens-file",
+        "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/model-tokens.txt",
+        "--context8192",
+        "--n-batch128",
+        "--n-ubatch128",
+        "--hot-pages16",
+        "--generate16",
+        "--mtp",
+        "off",
+        "--selected-only",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/controlled-model-query.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/controlled-model-query.json",
+          "sha256": "2169cd2c0b4aef34359d1e2c2c8628c2075ee04b588b9e3bac42090e88cdb77a"
+        }
+      ]
+    },
+    "organic_chain_observation": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/tmp/run-v10-api.py",
+        "http://127.0.0.1:18080",
+        "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/final-live-campaign2"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/final-live-campaign2/summary.json",
+          "sha256": "d7cd0e32b3ecde2ab2f9ce631b12928270be5c8ee6692f44f1bb4d6fc4cb3c51"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/server-final.log",
+          "sha256": "6becc8458bc61fd1ac605877c3d472ddf91e043c0b4d045c7c096415396262a1"
+        }
+      ]
+    },
+    "file_roundtrip_promotion": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/tmp/run-v10-api.py",
+        "http://127.0.0.1:18080",
+        "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/t3-only-campaign",
+        "t3only"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/t3-only-campaign/summary.json",
+          "sha256": "28c3dabb1834ea0c4ba75d6f0ee65614247e1d186bd5d3554f107c5fba465c60"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/server-t3-only.log",
+          "sha256": "b71a2999d2a7c0dbf2d702ceaa5cd50b2d0999cb9640cf8699096e195d40a4a6"
+        }
+      ]
+    }
+  },
+  "proof": ".wiretail/execution/evidence/V10_COLD_PROOF.json"
+}

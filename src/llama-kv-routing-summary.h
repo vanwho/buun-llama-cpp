@@ -259,6 +259,7 @@ public:
             const llama_kv_page_id & id) const noexcept;
     const std::vector<float> * range_max(
             const llama_kv_page_id & id) const noexcept;
+    uint64_t content_version(const llama_kv_page_id & id) const noexcept;
 
     llama_kv_routing_score_result score(
             const llama_kv_residency_snapshot & snapshot,
@@ -278,6 +279,8 @@ private:
 
     struct page {
         llama_kv_page_id id;
+        // Retained summaries remain authoritative after device eviction.
+        uint64_t content_version = 0;
         std::vector<float> vectors;
         float radius = 0.0f;
         uint64_t source_bytes = 0;

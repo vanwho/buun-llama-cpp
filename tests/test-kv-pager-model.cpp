@@ -38,6 +38,7 @@ struct options {
     uint32_t generate = 0;
     uint32_t force_page = UINT32_MAX;
     bool native_mtp = false;
+    bool selected_only = false;
     bool help = false;
 };
 
@@ -52,6 +53,7 @@ static void usage(const char * argv0) {
             "usage: %s [--model MODEL.gguf] [--tokens id,id,... | --tokens-file FILE]\n"
             "       [--context N] [--n-batch N] [--n-ubatch N] [--hot-pages N] [--generate N]\n"
             "       [--force-page N]  (opt-in promotion-mechanics seam)\n"
+            "       [--selected-only]  (run one selected real-model context)\n"
             "       [--mtp off|native] [--output FILE]\n"
             "       %s --help\n\n"
             "Without --model, run deterministic domain/indexing/mask and MTP F5 probes.\n"
@@ -141,6 +143,8 @@ static bool parse_options(int argc, char ** argv, options & output) {
             if (errno != 0 || stop == raw || *stop != '\0' ||
                     value > std::numeric_limits<uint32_t>::max()) return false;
             output.force_page = uint32_t(value);
+        } else if (arg == "--selected-only") {
+            output.selected_only = true;
         } else if (arg == "--mtp" && i + 1 < argc) {
             const std::string value = argv[++i];
             if (value == "off") {
@@ -459,6 +463,26 @@ static void write_model_metrics(std::ostream & out, const model_run & run) {
         << ", \"forced_checksum_equal\": "
         << (integrity.test_forced_host_checksum != 0 &&
             integrity.test_forced_host_checksum == integrity.test_forced_device_checksum ? "true" : "false")
+        << ", \"natural_proof\": {\"logical_page\": "
+        << (after.natural_proof.logical_page == UINT32_MAX
+                ? -1 : int64_t(after.natural_proof.logical_page))
+        << ", \"selector_published\": " << (after.natural_proof.selector_published ? "true" : "false")
+        << ", \"h2d_queued\": " << (after.natural_proof.h2d_queued ? "true" : "false")
+        << ", \"h2d_completed\": " << (after.natural_proof.h2d_completed ? "true" : "false")
+        << ", \"mapping_published\": " << (after.natural_proof.mapping_published ? "true" : "false")
+        << ", \"target_graph_used\": " << (after.natural_proof.target_graph_used ? "true" : "false")
+        << ", \"h2d_useful_bytes\": " << after.natural_proof.h2d_useful_bytes
+        << ", \"h2d_aligned_bytes\": " << after.natural_proof.h2d_aligned_bytes
+        << "}, \"rejection_histogram\": {\"no_candidate\": "
+        << after.rejection_histogram.no_candidate
+        << ", \"invalid_candidate\": " << after.rejection_histogram.invalid_candidate
+        << ", \"not_cold\": " << after.rejection_histogram.not_cold
+        << ", \"identity_mismatch\": " << after.rejection_histogram.identity_mismatch
+        << ", \"missing_host_source\": " << after.rejection_histogram.missing_host_source
+        << ", \"admission_rejected\": " << after.rejection_histogram.admission_rejected
+        << ", \"transfer_rejected\": " << after.rejection_histogram.transfer_rejected
+        << ", \"publication_rejected\": " << after.rejection_histogram.publication_rejected
+        << "}"
         << "}";
 }
 
@@ -606,6 +630,25 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
 }
 
 static bool run_model_compare(const options & opts, std::ostream & out) {
+    if (opts.selected_only) {
+        model_run selected;
+        std::string error;
+        if (!run_model_once(opts, llama_kv_pager_mode::selective, selected, error)) {
+            out << "{\"driver\":\"test-kv-pager-model\",\"mode\":\"model-selected-only\","
+                   "\"status\":\"error\",\"error\":\"" << error << "\"}\n";
+            return false;
+        }
+        out << "{\n  \"driver\": \"test-kv-pager-model\",\n"
+            << "  \"mode\": \"model-selected-only\",\n"
+            << "  \"mtp\": " << (opts.native_mtp ? "true" : "false") << ",\n"
+            << "  \"tokens\": " << opts.tokens.size() << ",\n"
+            << "  \"selected\": ";
+        write_model_metrics(out, selected);
+        out << "\n}\n";
+        const auto & proof = selected.final_metrics.natural_proof;
+        return proof.selector_published && proof.h2d_queued && proof.h2d_completed &&
+            proof.mapping_published && proof.target_graph_used;
+    }
     model_run dense;
     model_run selected;
     std::string error;
