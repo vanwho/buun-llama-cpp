@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "task": "59-02",
+  "source_commit": "febe398654afd09b23af443c5d69b328d5a249ca",
+  "checks": {
+    "phase59_bounded_revalidation": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-final-curve.py",
+        "--suite",
+        "curve",
+        "--context",
+        "8192",
+        "--prompt-tokens",
+        "6144",
+        "--question-index",
+        "0",
+        "--question-index",
+        "1",
+        "--question-index",
+        "2",
+        "--trials",
+        "3",
+        "--batch-tokens",
+        "128",
+        "--ubatch-tokens",
+        "64",
+        "--server-bin",
+        "/srv/ai/paged-kv/results/v10/59-01/candidate-bundle/bin/llama-server"
+      ],
+      "exit_code": 0,
+      "findings": {
+        "matrix": "27 matched rows complete: selective native, all-GPU native, and CPU-main-KV GPU-draft controls; q0/q1/q2; three trials",
+        "geometry": "L8192/C6144/B128/U64, page size 256",
+        "native_denominators": "all nine selective rows have draft_delta=59 and accepted_delta=0",
+        "full_l": "L262144 allocation loaded and C=1000 was occupied; C262144 was not reached",
+        "promotion": "T1/T2/T3 not_run; no physical promotion or answer-quality claim",
+        "append": "64/256 append probes not_run after the full-L stop boundary"
+      },
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_59-02_native_matrix.json", "sha256": "bd93114d4bd37cef8d96cd89820a23a0dffa5e493d2e0d96b1321c83fc5e4578"},
+        {"path": ".wiretail/execution/evidence/V10_59-02_all_gpu_control.json", "sha256": "6bf190ceb0698bc4f7d59f3bd520c2d25b5a0257ef94e9584d796dd85cba04c6"},
+        {"path": ".wiretail/execution/evidence/V10_59-02_cpu_main_kv_control.json", "sha256": "961cea01df93b4a7d3f7bd148beb48f9e0b542560aa10da3bfd553f39a1a5411"},
+        {"path": ".wiretail/execution/evidence/V10_59-02_cpu_pager_boundary.log", "sha256": "20f2c697668fce53d6706ac036e8ece08dc81b2fe2b68da8779e1aa6408b420e"},
+        {"path": ".wiretail/execution/evidence/V10_59-02_full_L_occupancy.json", "sha256": "1c102c8918231727f827a90091c93937d1d0fbd779ba578c4ea5e0f05e4f0248"},
+        {"path": ".wiretail/execution/evidence/V10_59-02_full_L_raw_00.sse", "sha256": "f0575682d4d1aeaa4c0723f6b220bcc340c9f95b69b6bc13edcb96e513d0d61b"},
+        {"path": ".wiretail/execution/evidence/V10_59-02_full_L_resume.log", "sha256": "7780a5b212096b2e60cbeffcc335da57e10c7ed7c12a9296e3f169baf073e5bd"},
+        {"path": ".wiretail/execution/evidence/V10_59-01.json", "sha256": "01bbd79a7d509f5a1c21caaf72211224f9229da029279fd8a7344a3f4a2c1a00"}
+      ]
+    }
+  }
+}
