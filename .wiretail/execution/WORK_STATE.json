@@ -7,7 +7,7 @@
   "execution_cookbook": ".wiretail/execution/v9/OPERATIONS.md",
   "implementation_contracts": ".wiretail/execution/v9/ROUTING.md",
   "benchmark_protocol": ".wiretail/execution/v9/BENCHMARKS.md",
-  "scope_revision": "hotpath-v9-20260914-r2",
+  "scope_revision": "hotpath-v9-20260914-r3",
   "context_policy": "Only current packet/cluster, explicit context_files and named source; no archived plans, whole state/log or recursive historical handoffs. Clusters are context areas with no fixed task-count cap: keep cohesive tasks together for cached context until a real subsystem/risk/provenance/toolchain/model/context-budget boundary; new V9 clusters start fresh.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "44",
-  "current_task": "44-01",
-  "last_updated_utc": "2026-09-14T02:28:49+00:00",
+  "current_phase": "45",
+  "current_task": "45-01",
+  "last_updated_utc": "2026-09-14T02:36:05+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8074,19 +8074,153 @@
       "cluster": "44a-review-v9",
       "packet": ".wiretail/execution/tasks/44-01.md",
       "title": "Review phase-43 summary and schedule the next measured action",
+      "status": "done",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r3",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_43.json",
+        ".wiretail/execution/evidence/V9_SUMMARY_43.md"
+      ],
+      "depends_on": [
+        "43-03"
+      ],
+      "commit": "a4cbb1bbbda01dc4c6f8062447dc94275f59a74e",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/44-01-attempt-1-20260914T022907Z.jsonl:56",
+            "total_tokens": 2369896,
+            "total_tokens_derived": true,
+            "input_tokens": 2349156,
+            "cached_input_tokens": 2185984,
+            "output_tokens": 20740,
+            "thinking_tokens": 7398
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 2369896,
+          "input_tokens": 2349156,
+          "cached_input_tokens": 2185984,
+          "output_tokens": 20740,
+          "thinking_tokens": 7398
+        }
+      }
+    },
+    {
+      "id": "45-01",
+      "phase": "45",
+      "cluster": "45a-current-q-selection-v9",
+      "packet": ".wiretail/execution/tasks/45-01.md",
+      "title": "Repair the current-Q candidate and promotion bridge",
       "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
-      "scope_revision": "hotpath-v9-20260914-r2",
+      "scope_revision": "hotpath-v9-20260914-r3",
       "context_files": [
         ".wiretail/execution/v9/REVIEW.md",
         ".wiretail/execution/evidence/V9_SUMMARY_43.json",
         ".wiretail/execution/evidence/V9_SUMMARY_43.md",
-        ".wiretail/execution/handoffs/43-03.md"
+        ".wiretail/execution/handoffs/44-01.md",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-cache.h",
+        "src/llama-kv-attention-telemetry.cpp",
+        "src/llama-kv-attention-telemetry.h",
+        "src/llama-kv-prefetch.cpp",
+        "src/llama-kv-prefetch.h",
+        "src/llama-graph.cpp",
+        "src/llama-graph.h",
+        "tests/test-kv-attention-telemetry.cpp",
+        "tests/test-kv-attention-execution.cpp",
+        "tests/test-kv-page-select.cpp",
+        "tests/test-kv-pager-model.cpp"
       ],
       "depends_on": [
-        "43-03"
+        "44-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "45-02",
+      "phase": "45",
+      "cluster": "45b-bounded-revalidation-v9",
+      "packet": ".wiretail/execution/tasks/45-02.md",
+      "title": "Revalidate natural cold use and matched controls",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r3",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/v9/BENCHMARKS.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_43.json",
+        ".wiretail/execution/handoffs/45-01.md",
+        "tests/test-kv-attention-telemetry.cpp",
+        "tests/test-kv-attention-execution.cpp",
+        "tests/test-kv-page-select.cpp",
+        "tests/test-kv-pager-model.cpp",
+        "tests/test-arg-parser.cpp"
+      ],
+      "depends_on": [
+        "45-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "45-03",
+      "phase": "45",
+      "cluster": "45c-summary-v9",
+      "packet": ".wiretail/execution/tasks/45-03.md",
+      "title": "Create compact phase-45 benchmark summary",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r3",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_45_BENCHMARK.json",
+        ".wiretail/execution/handoffs/45-02.md"
+      ],
+      "depends_on": [
+        "45-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "46-01",
+      "phase": "46",
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v9/validate_plan.py",
+        "--review",
+        ".wiretail/execution/evidence/V9_REVIEW_46.json"
+      ],
+      "cluster": "46a-review-v9",
+      "packet": ".wiretail/execution/tasks/46-01.md",
+      "title": "Review phase-45 summary and schedule the next measured action",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r3",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_45.json",
+        ".wiretail/execution/evidence/V9_SUMMARY_45.md",
+        ".wiretail/execution/handoffs/45-03.md"
+      ],
+      "depends_on": [
+        "45-03"
       ],
       "commit": null
     }
@@ -10568,6 +10702,42 @@
       }
     },
     "44": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/44-01-attempt-1-20260914T022907Z.jsonl:56",
+          "total_tokens": 2369896,
+          "total_tokens_derived": true,
+          "input_tokens": 2349156,
+          "cached_input_tokens": 2185984,
+          "output_tokens": 20740,
+          "thinking_tokens": 7398
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 2369896,
+        "input_tokens": 2349156,
+        "cached_input_tokens": 2185984,
+        "output_tokens": 20740,
+        "thinking_tokens": 7398
+      }
+    },
+    "45": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "46": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -10581,12 +10751,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 151,
-      "total_tokens": 3268731242,
-      "input_tokens": 3261161536,
-      "cached_input_tokens": 3195698688,
-      "output_tokens": 7569706,
-      "thinking_tokens": 2756908
+      "turns": 152,
+      "total_tokens": 3271101138,
+      "input_tokens": 3263510692,
+      "cached_input_tokens": 3197884672,
+      "output_tokens": 7590446,
+      "thinking_tokens": 2764306
     },
     "source": "Codex turn.completed usage events"
   }
