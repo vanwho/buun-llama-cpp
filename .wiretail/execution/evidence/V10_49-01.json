@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "task": "49-01",
+  "source_commit": "c330270e4a92ce7c083be91dd33dd2d75c7b10ec",
+  "checks": {
+    "adapter_identity_regressions": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tools.server.bench.test_pager_benchmark_adapter"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T052402Z-identity-smoke-final/adapter-workload-regressions.txt",
+          "sha256": "850757b60714000184909d8631e54df84fd26f58d1b6ec6eb92115d111804279"
+        }
+      ]
+    },
+    "workload_pairing_regressions": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tools.server.bench.test_resume_contract"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T052402Z-identity-smoke-final/adapter-workload-regressions.txt",
+          "sha256": "850757b60714000184909d8631e54df84fd26f58d1b6ec6eb92115d111804279"
+        }
+      ]
+    },
+    "live_candidate_identity": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-profile-benchmark.py",
+        "fast",
+        "short",
+        "/srv/ai/paged-kv/results/v10/49-01/20260914T052402Z-identity-smoke-final",
+        "--one-case",
+        "--one-trial",
+        "--generation-length",
+        "1",
+        "--progress-bound",
+        "30"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T052402Z-identity-smoke-final/live-observed-identity.json",
+          "sha256": "3f3eb044139ca6f586cbdcac83ad614e9a639d237d5604dba84385e1c9368b5f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T052402Z-identity-smoke-final/run-config.json",
+          "sha256": "5fa68150ec4d936afb0401281fcd1d71aad92e4824509f62942cd67028b765bc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T052402Z-identity-smoke-final/lifecycle-state.json",
+          "sha256": "fd47dcba0ffc06377047ca71399488f8406835115c4cc35db341c666deec7ec7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T051628Z-candidate/bundle/build-receipt.json",
+          "sha256": "055cccb3a5600127cc4723782826c03a573beb2f10e1ee5a0a23e800f227c934"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T051628Z-candidate/bundle-manifest.json",
+          "sha256": "00567f4d82aced1b6a050d235ae36541c30fa2bb6bd153c77ef7daa98442dbcf"
+        }
+      ]
+    }
+  }
+}

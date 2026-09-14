@@ -466,7 +466,7 @@ def run_request(endpoint: str, key: str, model: str,
     stream = record.get("stream_metrics") if isinstance(record.get("stream_metrics"), Mapping) else {}
     usage = record.get("usage") if isinstance(record.get("usage"), Mapping) else {}
     details = usage.get("prompt_tokens_details", {})
-    cached = details.get("cached_tokens", 0) if isinstance(details, Mapping) else 0
+    cached = details.get("cached_tokens") if isinstance(details, Mapping) else None
     record["output_tokens"] = usage.get("completion_tokens", stream.get("completion_tokens", 0))
     record["cached_rows"] = cached
     record["server_pp_tok_s"] = timings.get("prompt_per_second")
@@ -604,8 +604,10 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
     counter_telemetry = dict(after_telemetry)
     if isinstance(movement, Mapping):
         counter_telemetry.update(movement)
-    allocated = _command_int(identity, "-c") or args.context
-    page_size = _command_int(identity, "--kv-page-size") or args.page_size
+    cached = details.get("cached_tokens") if isinstance(details, Mapping) else None
+    measured_prompt = usage.get("prompt_tokens")
+    allocated = after_telemetry.get("context_tokens") or _command_int(identity, "-c")
+    page_size = after_telemetry.get("page_tokens") or _command_int(identity, "--kv-page-size") or args.page_size
     physical_pages = after_telemetry.get("physical_pages")
     if isinstance(physical_pages, (int, float)):
         hot_capacity = resolve_hot_capacity(allocated, page_size, int(physical_pages))
@@ -631,8 +633,10 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
         if hot_rows is None:
             hot_rows = allocated
     runtime = {
-        "logical_context_tokens": args.context, "prompt_tokens": fit.get("token_count"),
-        "cached_rows": record.get("cached_rows", 0),
+        "logical_context_tokens": allocated, "requested_context_tokens": args.context,
+        "prompt_tokens": measured_prompt, "requested_prompt_tokens": fit.get("token_count"),
+        "cached_rows": cached,
+        "measured_request_tokens": measured_prompt,
         "effective_batch": _command_int(identity, "-ub") or _command_int(identity, "-b"),
         "batch_tokens": _command_int(identity, "-b") or args.batch_tokens,
         "ubatch_tokens": _command_int(identity, "-ub") or args.ubatch_tokens,
@@ -692,7 +696,13 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
         if speed.get("pinned_ring_bytes") is None:
             speed["pinned_ring_bytes"] = 0
     provenance = {
-        "source_commit": _git(["rev-parse", "HEAD"]), "source_diff_sha256": _source_diff_hash(),
+        "source_commit": (manifest.get("source", {}).get("head", "unknown")
+                          if isinstance(manifest, Mapping) and isinstance(manifest.get("source"), Mapping)
+                          else "unknown"),
+        "source_diff_sha256": (manifest.get("source", {}).get("fingerprint_sha256")
+                               if isinstance(manifest, Mapping) and isinstance(manifest.get("source"), Mapping)
+                               else None),
+        "invocation_source": manifest.get("invocation_source") if manifest else None,
         "bundle_identity": identity.get("binary"),
         "bundle_manifest_sha256": manifest.get("manifest_sha256") if manifest else None,
         "model_sha256": model_hash,
