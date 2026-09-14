@@ -397,8 +397,12 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         if (cached->k == nullptr || cached->v == nullptr) {
             return nullptr;
         }
-        ggml_set_name(cached->k, "kv_packed_cache_k");
-        ggml_set_name(cached->v, "kv_packed_cache_v");
+        // Keep the source tensor's semantic name on the packed owner. CUDA
+        // set_rows uses the cache name to select the Turbo mean-subtraction
+        // parameters; replacing it with a generic packed-cache name makes
+        // current rows disagree with the already encoded historical rows.
+        ggml_set_name(cached->k, source_k->name);
+        ggml_set_name(cached->v, source_v->name);
         cached->buffer = llama_vram_hold_alloc_ctx_tensors(cached->context,
                 ggml_backend_get_default_buffer_type(backend));
         if (cached->buffer == nullptr) {
