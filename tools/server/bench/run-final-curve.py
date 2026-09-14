@@ -625,7 +625,12 @@ def _runtime_identity(adapter: Any, output: pathlib.Path,
             pass
     identity = adapter.runtime_identity(profile)
     configured_bin = str(server_bin) if server_bin is not None else os.environ.get("BENCH_SERVER_BIN")
-    manifest = adapter.write_bundle_manifest(output, configured_bin) if configured_bin else None
+    if not configured_bin:
+        raise ValueError("measured campaign requires --server-bin or BENCH_SERVER_BIN")
+    manifest = adapter.write_bundle_manifest(output, configured_bin)
+    errors = adapter.bundle_identity_errors(identity, manifest)
+    if errors:
+        raise ValueError("invalid immutable bundle identity: " + ", ".join(errors))
     return identity, manifest
 
 
@@ -796,6 +801,18 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
         "bundle_identity": identity.get("binary"),
         "bundle_manifest_sha256": manifest.get("manifest_sha256") if manifest else None,
         "model_sha256": model_hash,
+        "endpoint_pid": identity.get("main_pid", identity.get("pid")),
+        "endpoint_executable": identity.get("exe", identity.get("binary")),
+        "endpoint_executable_sha256": (
+            identity.get("loaded_file_hashes", {}).get(identity.get("exe", identity.get("binary")))
+            if isinstance(identity.get("loaded_file_hashes"), Mapping) else None),
+        "endpoint_loaded_project_dso_hashes": {
+            path: identity.get("loaded_file_hashes", {}).get(path)
+            for path in identity.get("loaded_dsos", [])
+            if isinstance(identity.get("loaded_file_hashes"), Mapping)
+        },
+        "resolved_model": identity.get("model"),
+        "resolved_model_sha256": model_hash,
         "tokenizer_template_sha256": hashlib.sha256(template_id.encode()).hexdigest(),
         "tokenizer_template_id": template_id, "config_sha256": config_hash,
         "gpu": gpu_identity.get("gpu", "runtime-unreported"),
@@ -908,6 +925,11 @@ def main() -> int:
     gpu_identity = _gpu_identity()
     model_path = pathlib.Path(str(identity.get("model"))) if identity.get("model") else None
     model_hash = _cached_file_hash(model_path, output)
+    if model_path is None or model_hash is None:
+        raise ValueError("measured campaign requires a resolved model and model hash")
+    identity_errors = adapter.bundle_identity_errors(identity, manifest, model_hash)
+    if identity_errors:
+        raise ValueError("invalid measured identity: " + ", ".join(identity_errors))
     renderer = ServerPromptRenderer(endpoint, args.model, key, timeout=args.startup_timeout,
                                     request_options=request_options(chat_template_kwargs={"enable_thinking": False}))
     source_commit = _git(["rev-parse", "HEAD"])

@@ -793,6 +793,10 @@ def write_bundle_manifest(output: pathlib.Path, server_bin: str | None) -> dict[
         raise ValueError(f"candidate executable is not a regular file: {executable}")
     receipt_path_text = os.environ.get("PAGER_BUILD_RECEIPT")
     receipt_path = pathlib.Path(receipt_path_text).resolve() if receipt_path_text else root / "build-receipt.json"
+    try:
+        receipt_path.relative_to(root)
+    except ValueError as error:
+        raise ValueError("immutable build receipt is outside PAGER_BUNDLE_ROOT") from error
     if not receipt_path.is_file():
         raise ValueError("candidate bundle is missing immutable build-receipt.json")
     try:
@@ -852,37 +856,65 @@ def _git_diff_hash() -> str | None:
     return hashlib.sha256(result.stdout).hexdigest() if result.returncode == 0 else None
 
 
-def bundle_identity_errors(identity: dict[str, object], manifest: dict[str, object] | None) -> list[str]:
+def bundle_identity_errors(identity: dict[str, object], manifest: dict[str, object] | None,
+                          model_hash: str | None = None) -> list[str]:
+    """Fail closed unless the endpoint identity is fully covered by the bundle.
+
+    ``loaded_file_hashes`` is the endpoint observation, while ``files`` is the
+    immutable build declaration.  A file not declared by the latter is just as
+    invalid as a declared file whose bytes changed; silently ignoring either
+    case would make a speed row incomparable.
+    """
+    errors: list[str] = []
     if manifest is None:
-        return []
-    root = pathlib.Path(str(manifest["root"]))
+        return ["bundle_manifest_missing"]
+    root_text = manifest.get("root")
+    if not isinstance(root_text, str):
+        return ["bundle_manifest_root_missing"]
+    root = pathlib.Path(root_text).resolve()
     expected = {str((root / str(item["path"])).resolve())
                 for item in manifest.get("files", []) if isinstance(item, dict) and "path" in item}
-    errors: list[str] = []
     receipt = manifest.get("build_receipt")
     if not isinstance(receipt, str) or not pathlib.Path(receipt).is_file():
         errors.append("bundle_build_receipt_missing")
     binary = identity.get("binary")
-    if isinstance(binary, str) and str(pathlib.Path(binary).resolve()) not in expected:
+    executable = manifest.get("executable")
+    if not isinstance(binary, str):
+        errors.append("bundle_executable_identity_missing")
+    elif str(pathlib.Path(binary).resolve()) not in expected:
         errors.append("bundle_executable_not_manifested")
+    elif isinstance(executable, str) and str(pathlib.Path(binary).resolve()) != str((root / executable).resolve()):
+        errors.append("bundle_executable_mismatch")
     hashes = manifest.get("files", [])
     expected_hashes = {str((root / str(item["path"])).resolve()): item.get("sha256")
                        for item in hashes if isinstance(item, dict) and "path" in item}
     observed_hashes = identity.get("loaded_file_hashes")
     if isinstance(observed_hashes, dict):
         for path, digest in observed_hashes.items():
-            if path in expected_hashes and digest != expected_hashes[path]:
+            resolved_path = str(pathlib.Path(str(path)).resolve())
+            if resolved_path not in expected_hashes:
+                errors.append("bundle_loaded_file_not_manifested")
+            elif digest != expected_hashes[resolved_path]:
                 errors.append("bundle_loaded_file_hash_mismatch")
-    elif expected:
+    else:
         errors.append("bundle_loaded_file_hashes_missing")
     observed = identity.get("loaded_dsos")
     if isinstance(observed, list):
         outside = [path for path in observed if isinstance(path, str) and
-                   str(pathlib.Path(path).resolve()) not in expected]
+                   str(pathlib.Path(path).resolve()) not in expected_hashes]
         if outside:
             errors.append("bundle_loaded_dso_outside_manifest")
-    elif expected:
+        if isinstance(observed_hashes, dict):
+            for path in observed:
+                if isinstance(path, str) and str(pathlib.Path(path).resolve()) not in observed_hashes:
+                    errors.append("bundle_loaded_dso_hash_missing")
+    else:
         errors.append("bundle_loaded_dso_identity_missing")
+    if model_hash is not None:
+        if not isinstance(identity.get("model"), str):
+            errors.append("resolved_model_missing")
+        elif not model_hash:
+            errors.append("resolved_model_hash_missing")
     return errors
 
 
