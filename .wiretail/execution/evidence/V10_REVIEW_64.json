@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_64",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "65-01",
+  "reviewed_phase": 64,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_64.json",
+    "sha256": "6d5349019056f4a8bdc7edb8428f38336290a76eea81f9878b3d5b0b853a20d2"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": true,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "The phase-64 summary preserves requested, observed, and immutable model, candidate bundle, source, and template identity.",
+    "required_turbo4_placements": "The summary measures target Turbo4 K/V on CUDA and native-MTP draft Turbo4 K/V on GPU at the observed full-L and small-path geometries.",
+    "controlled_model_promotion": "False: both controlled model-query attempts segfaulted after initialization before producing proof JSON; the passing T0 fixture is not an actual-model T1 proof.",
+    "organic_cold_promotion": "False: the organic row found a cold candidate and completed the transfer/publication/target-use edge, but the first A response failed HTTP 500, so the complete organic A/B/A round trip is not proven.",
+    "stable_target_consumption": "True for the production chain: T0 mature-FA parity passed and the organic edge records completed H2D, mapping publication, and target-graph use. This does not upgrade the failed model-level promotion or answer-quality claims.",
+    "full_256k_occupancy": "False: full-L L262144 allocation/startup was measured only at observed C1200; occupied C262144 was not reached.",
+    "practical_speed_goal_met": "False: prefill, cached append, and committed decode are measured at L8192/C6144, but selected cold-prefill median 117.539 tok/s trails the all-GPU control at 1249.420 tok/s and the complete physical/quality goal remains unmet.",
+    "useful_answer_quality_proven": "False: expected nonce AURORA-CEDAR-161 was absent and the observed response was twelve slash characters."
+  },
+  "current_rates": {
+    "geometry": "L8192/C6144/H4096/A2048/B128/U64; 256-token pages",
+    "cold_prefill_tok_s": {
+      "selected_native": {"median": 117.53945161762235, "range": [117.35685767845061, 169.3594422892126], "samples": 9},
+      "cpu_main_kv_control": {"median": 446.80221170003665, "range": [445.1055021024064, 449.3097238039596], "samples": 9},
+      "all_gpu_control": {"median": 1249.420434856878, "range": [1245.5047091592437, 1250.3530863614644], "samples": 9}
+    },
+    "cached_append_tok_s": {
+      "observed_cache_n": 6271,
+      "append_64": {"prompt_tok_s": 90.95542994442245, "committed_decode_tok_s": 21.44919329584014, "samples": 1},
+      "append_256": {"prompt_tok_s": 89.85752956543973, "committed_decode_tok_s": 42.85169601614193, "samples": 1}
+    },
+    "committed_decode_tok_s": {
+      "selected_native": {"median": 13.140189787796283, "samples": 27},
+      "cpu_main_kv_control": {"median": 10.081129276988552, "samples": 27},
+      "all_gpu_control": {"median": 36.78672850699179, "samples": 27}
+    },
+    "mtp_request_scoped_deltas": {
+      "selected_native": {"rows": 9, "draft_delta": 2259, "accepted_delta": 0, "acceptance_percent": 0.0, "denominator_status": "measured"},
+      "append_64": {"draft_delta": 6, "accepted_delta": 2, "acceptance_percent": 33.33333333333333, "denominator_status": "measured"},
+      "append_256": {"draft_delta": 88, "accepted_delta": 82, "acceptance_percent": 93.18181818181819, "denominator_status": "measured"},
+      "controls": {"status": "feature_off", "denominator_status": "not_applicable"}
+    }
+  },
+  "capacity_and_proof_boundaries": {
+    "8K": "Measured L8192/C6144/H4096/A2048/B128/U64 rates, T0 production-chain promotion, and target-graph consumption; actual-model controlled promotion, organic A/B/A completion, and quality remain unproven.",
+    "32K": "Failed at observed C14336 when the next cached row hit the 180-second prefill deadline; no larger-context claim follows.",
+    "128K": "Measured only as a bounded L131072/H16384 forward-progress pilot at C1024; it is not an occupied-capacity proof.",
+    "256K_allocation": "Measured full-L L262144 allocation/startup with H16384/A8192/B128/U64 and target allocation 276824000 bytes at observed C1200; allocation is separate from occupancy.",
+    "C262144": "Failed/not proven: the observed frontier remained C1200."
+  },
+  "physical_and_quality_findings": {
+    "controlled_physical": "failed_before_proof_json",
+    "organic_physical": "failed_round_trip_after_target_use_edge",
+    "stable_target_consumption": "measured_T0_and_organic_target_graph_use",
+    "useful_answer_quality": "failed_expected_AURORA_CEDAR_161_absent"
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "canonical T1 model-query and first organic A pager boundary",
+      "fixture": "phase-64 L8192/C6144/H4096/A2048/B128/U64 controlled query and T3 A/B/A conversation",
+      "finding": "Both T1 attempts segfaulted before proof JSON and the first organic A response failed HTTP 500 at KV pager batch-write reservation; repair and rerun the smallest production boundary before claiming model-level promotion or quality."
+    },
+    {
+      "owner": "full-L allocation-to-occupied-frontier path",
+      "fixture": "L32768/H16384, L131072/H16384, and L262144 with actual observed frontier",
+      "finding": "L32768 stopped at C14336, L128K is only a bounded C1024 pilot, and full-L L262144 stopped at C1200; occupied C262144 remains unmeasured."
+    }
+  ],
+  "next_action": "Repair and remeasure the controlled-model/first-A promotion boundary, repair and measure the occupied C262144 path, then run one bounded matched benchmark, summary, and review; preserve measured failures and do not expand the curve.",
+  "phase_appended": true,
+  "appended_phases": [66, 67],
+  "next_task_ids": ["66-01", "66-02", "66-03", "66-04", "67-01"],
+  "successor_contracts": {
+    "66-01": "Repair the measured T1 segfault and first organic A HTTP-500/KV pager batch-write boundary; rerun controlled model promotion, then one organic A/B/A edge and separate nonce answer quality, retaining actual IDs, generations, bytes, and stop reasons.",
+    "66-02": "After the small path is valid, isolate and repair the observed C1200 full-L boundary; conditionally recheck L32768/L131072 and attempt occupied C262144 while keeping allocation/startup separate from occupancy.",
+    "66-03": "Run the bounded canonical q0/q1/q2 selective/native, CPU-main-KV/GPU-draft, and all-GPU/GPU-draft matrix with independent cold-prefill, cached append 64/256, committed decode, and request-scoped MTP denominators.",
+    "66-04": "Aggregate only phase-66 identity, geometry, rates, MTP, promotion, quality, pilot, allocation, and occupancy evidence into V10_SUMMARY_66.json/.md.",
+    "67-01": "Review only V10_SUMMARY_66.json/.md with explicit capability booleans and append successors only for concrete measured gaps."
+  }
+}
