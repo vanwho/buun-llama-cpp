@@ -1,0 +1,141 @@
+{
+  "schema": "hotpath-v9-benchmark",
+  "task": "47-02",
+  "revision": "hotpath-v9-20260914-r3",
+  "utc": "2026-09-14T03:40:13Z",
+  "identity": {
+    "target_backend": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "route": "selected_packed",
+    "L": 8192,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "candidate_binary": "/srv/ai/paged-kv/results/v9/43-02/20260914T021611Z-candidate/bin/llama-server",
+    "candidate_binary_sha256": "ebc2cac869de80023daa278f020b40588d33c64028e53baff61a1cdf61896d3c"
+  },
+  "provenance": {
+    "source_commit": "c2b9f1d82",
+    "raw_root": "/srv/ai/paged-kv/results/v9/47-02/",
+    "raw_runs": {
+      "selected_controls": "20260914T033523Z-selected-controls",
+      "selected_q1q2": "20260914T034013Z-selected-q1q2",
+      "natural_cold": "20260914T033641Z-natural-cold-incremental",
+      "cpu_main_kv": "20260914T033718Z-cpu-main-kv",
+      "all_gpu_pager_off": "20260914T033839Z-all-gpu-pager-off"
+    },
+    "model_hash": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "bundle_manifest": "/srv/ai/paged-kv/results/v9/43-02/20260914T021611Z-candidate/bundle-manifest.json"
+  },
+  "config": {
+    "L": 8192,
+    "C_before": 5004,
+    "C_after": 5050,
+    "H": 4096,
+    "A_by_layer": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_L": 8192,
+    "draft_device": "GPU",
+    "mtp_type": "native",
+    "invariant": "selected <= A_by_layer <= H <= L",
+    "selected_rows_by_layer": 2048
+  },
+  "execution": {
+    "target_attention_route": "selected packed",
+    "fresh_or_restored": "fresh slot and managed service lifecycle",
+    "candidate": {"non_sentinel_current_q": false, "published": false},
+    "promotion": {"published": false},
+    "transfer": {"submitted": 0, "useful_h2d_bytes": 0},
+    "natural_proof": {
+      "candidate_was_cold": false,
+      "host_ready": false,
+      "promotion_published": false,
+      "selected_in_last_graph": false,
+      "selected_cold_pages_used": 0
+    }
+  },
+  "rates": {
+    "selected_packed": {
+      "prefill_tok_s": [667.720181, 275.603009, 598.853623],
+      "decode_tok_s": [34.246843, 34.482384, 34.367144],
+      "committed_output_tokens": [128, 128, 128],
+      "proposed_tokens": [249, 247, 249],
+      "accepted_tokens": [1, 2, 1],
+      "prompts": [0, 1, 2]
+    },
+    "cpu_main_kv_gpu_weights_native_mtp": {
+      "prefill_tok_s": [222.809780, null, null],
+      "decode_tok_s": [10.074093, null, null],
+      "committed_output_tokens": [128, null, null],
+      "proposed_tokens": [251, null, null],
+      "accepted_tokens": [0, null, null],
+      "prompts": [0, null, null]
+    },
+    "all_gpu_pager_off": {
+      "prefill_tok_s": [651.140581, null, null],
+      "decode_tok_s": [36.640541, null, null],
+      "committed_output_tokens": [128, null, null],
+      "proposed_tokens": [251, null, null],
+      "accepted_tokens": [0, null, null],
+      "prompts": [0, null, null]
+    }
+  },
+  "work": {
+    "h2d_bytes": 0,
+    "selected_cold_pages_used": 0,
+    "natural_attention_samples": 2,
+    "natural_attention_mass_samples": 2,
+    "natural_attention_d2h_bytes": 18430,
+    "natural_graph_builds": 2,
+    "natural_graph_replays": 3,
+    "queue_samples": null,
+    "copy_samples": null,
+    "wait_samples": null
+  },
+  "resources": {"peak_bytes_by_category": null, "safety_headroom_bytes": null, "CPU_RSS": null},
+  "failure_classification": {
+    "measurement": {"status": "pass", "cause": "Natural recall published positive current-Q samples with no invalid or non-finite drops."},
+    "runtime": {"status": "pass", "cause": "Natural incremental append and recall completed coherently; no runtime failure."},
+    "selection_quality": {"status": "failed_gate", "cause": "No non-sentinel cold candidate, promotion publication, useful H2D, or selected cold-page use."}
+  },
+  "sample_counts": {
+    "selected_comparison": 3,
+    "cpu_main_kv_control": 1,
+    "all_gpu_control": 1,
+    "natural_cold_growth": 6,
+    "natural_cold_recall": 1,
+    "natural_cold_attention": 2,
+    "scale_32k": 0,
+    "scale_128k": 0,
+    "scale_256k": 0
+  },
+  "decision": {
+    "decision": "fail",
+    "capability_proven": false,
+    "reason": "L8192 natural append reached C=5004 and cold-topic recall reached C=5050 coherently, but natural-cold eligibility was not met.",
+    "active_up_to_128k": {"status": "not_run", "reason": "Stopped before 32K because natural-cold eligibility failed."},
+    "overall_256k": {"status": "not_demonstrated"},
+    "next_action": "Repair or instrument candidate/promotion selection after current-Q publication, then repeat the bounded L8192 natural fixture.",
+    "partial_checkpoint": "Natural append/recall succeeded; candidate_was_cold, host_ready, promotion_published, selected_in_last_graph, and selected_cold_pages_used were all false/zero.",
+    "deferred_scale": {"status": "not_run", "reason": "B5 gate failed; no 32K, 128K, or 256K scale claim."}
+  },
+  "notes": [
+    "Focused tests and git diff --check passed.",
+    "All-GPU control requests completed, but its adapter cleanup reported a profile identity warning caused by a mistyped active-profile override; request measurements and runtime identity remain recorded.",
+    "CPU and all-GPU controls include only prompt 0 in this retry; prompt 1/2 control cells are null rather than inferred."
+  ]
+}
