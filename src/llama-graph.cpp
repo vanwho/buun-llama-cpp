@@ -992,11 +992,6 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         packed_bytes = packed_bytes > UINT64_MAX - copy.bytes
                             ? UINT64_MAX : packed_bytes + copy.bytes;
                     }
-                    if (packed_cache != nullptr) {
-                        // One queue rebuild per layer, after all dirty
-                        // intervals have been handled.
-                        packed_cache->set_content_versions(layer.cache_entry, pages);
-                    }
                 }
                 if (kv_attention_metrics != nullptr && packed_bytes != 0) {
                     kv_attention_metrics->record_pack(packed_bytes, uint64_t(std::max<int64_t>(
@@ -1011,6 +1006,15 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             }
             if (packed_cache == nullptr || !packed_cache->submit_graph(packed_graph_owners)) {
                 throw std::runtime_error("packed selected attention graph lease failed");
+            }
+            // Publish copied generations only after the owner lease has been
+            // acquired. If submission is refused, the asynchronous copies
+            // remain uncommitted and the next build will refresh them rather
+            // than observing a stale published version.
+            if (packed_cache != nullptr) {
+                for (const auto & layer : packed_layers) {
+                    packed_cache->set_content_versions(layer.cache_entry, pages);
+                }
             }
         } else {
             GGML_ASSERT(self_selected_idxs != nullptr);
@@ -3997,6 +4001,24 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
     bool packed_attention = false,
     llama_kv_attention_packed_cache * packed_cache = nullptr) {
 
+    struct packed_graph_build_guard {
+        llama_kv_attention_packed_cache * cache;
+        const llama_kv_cache_context * mctx;
+        bool committed = false;
+
+        ~packed_graph_build_guard() {
+            if (committed) {
+                return;
+            }
+            if (cache != nullptr) {
+                cache->abort_graph_build();
+            }
+            if (mctx != nullptr) {
+                const_cast<llama_kv_cache_context *>(mctx)->finish(false);
+            }
+        }
+    } build_guard { packed_cache, mctx_cur };
+
     if (packed_cache != nullptr) {
         packed_cache->begin_graph_build();
     }
@@ -4048,18 +4070,16 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             }
             const auto pager_snapshot = pager->snapshot();
             const uint32_t page_tokens = pager_snapshot.geometry.page_tokens;
-            const uint32_t attention_tokens = cparams.kv_attention_tokens != 0
-                ? cparams.kv_attention_tokens
-                : std::max<uint32_t>(page_tokens,
-                    (pager_snapshot.physical_page_count * page_tokens + 1) / 2);
-            const uint64_t bounded_pages = std::max<uint64_t>(1,
-                std::min<uint64_t>(pager_snapshot.physical_page_count,
-                    (uint64_t(attention_tokens) + page_tokens - 1) / page_tokens));
-            // Keep the owner and the attention mask at the admitted A
-            // capacity. Tail length and current-row locations are mutable
-            // descriptor values, not graph shape.
-            const uint64_t packed_row_capacity = bounded_pages * page_tokens;
-            if (packed_row_capacity == 0 || packed_row_capacity > UINT32_MAX ||
+            if (page_tokens == 0) {
+                throw std::runtime_error("packed selected attention has invalid page geometry");
+            }
+            // The compact owner is sized from the selected view itself. The
+            // admitted physical window is an upper bound only; charging it
+            // here duplicated the full A window for sparse selections and was
+            // the source of the multi-megabyte allocation failure.
+            const uint32_t packed_row_capacity = llama_kv_attention_packed_row_capacity(
+                    *selected_metadata, page_tokens);
+            if (packed_row_capacity == 0 ||
                     packed_row_capacity > pager_snapshot.physical_rows) {
                 throw std::runtime_error("packed selected attention row capacity overflows");
             }
@@ -4653,6 +4673,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
         }
     }
 
+    build_guard.committed = true;
     return inp;
 }
 

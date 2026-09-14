@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "53",
-  "current_task": "53-02",
-  "last_updated_utc": "2026-09-14T16:52:05+00:00",
+  "current_task": "53-03",
+  "last_updated_utc": "2026-09-14T17:23:40+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -9672,7 +9672,7 @@
       "cluster": "53b-packed-allocation-v10",
       "title": "Repair packed selected-attention allocation and launch resources",
       "packet": ".wiretail/execution/tasks/53-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -9697,7 +9697,32 @@
       "depends_on": [
         "53-01"
       ],
-      "commit": null
+      "commit": "1cd5b8276adcff4ce67e63296ea89275ac94c04f",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/53-02-attempt-1-20260914T165223Z.jsonl:182",
+            "total_tokens": 16905344,
+            "total_tokens_derived": true,
+            "input_tokens": 16862738,
+            "cached_input_tokens": 16348928,
+            "output_tokens": 42606,
+            "thinking_tokens": 20193
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 16905344,
+          "input_tokens": 16862738,
+          "cached_input_tokens": 16348928,
+          "output_tokens": 42606,
+          "thinking_tokens": 20193
+        }
+      }
     },
     {
       "id": "53-03",
@@ -12749,15 +12774,28 @@
           "cached_input_tokens": 38461184,
           "output_tokens": 98246,
           "thinking_tokens": 47104
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/53-02-attempt-1-20260914T165223Z.jsonl:182",
+          "total_tokens": 16905344,
+          "total_tokens_derived": true,
+          "input_tokens": 16862738,
+          "cached_input_tokens": 16348928,
+          "output_tokens": 42606,
+          "thinking_tokens": 20193
         }
       ],
       "totals": {
-        "turns": 1,
-        "total_tokens": 39449799,
-        "input_tokens": 39351553,
-        "cached_input_tokens": 38461184,
-        "output_tokens": 98246,
-        "thinking_tokens": 47104
+        "turns": 2,
+        "total_tokens": 56355143,
+        "input_tokens": 56214291,
+        "cached_input_tokens": 54810112,
+        "output_tokens": 140852,
+        "thinking_tokens": 67297
       }
     },
     "54": {
@@ -12774,12 +12812,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 179,
-      "total_tokens": 3905644743,
-      "input_tokens": 3896560055,
-      "cached_input_tokens": 3817440256,
-      "output_tokens": 9084688,
-      "thinking_tokens": 3317590
+      "turns": 180,
+      "total_tokens": 3922550087,
+      "input_tokens": 3913422793,
+      "cached_input_tokens": 3833789184,
+      "output_tokens": 9127294,
+      "thinking_tokens": 3337783
     },
     "source": "Codex turn.completed usage events"
   }

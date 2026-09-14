@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "task": "53-02",
+  "source_commit": "dc83791332f24be40273fa21cf5813c8a15977be",
+  "checks": {
+    "packed_attention_resource_repair": {
+      "status": "pass",
+      "command": ["./build-cuda/bin/test-kv-attention-execution"],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/53-02/20260914T-53-02-resource-repair/raw.log",
+          "sha256": "1861f481f74086a45d791379524120768eafcbcb6f3dc820f13371d88ff2953e"
+        }
+      ]
+    }
+  }
+}
