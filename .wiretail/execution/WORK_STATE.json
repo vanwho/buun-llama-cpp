@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "39",
-  "current_task": "39-01",
-  "last_updated_utc": "2026-09-14T00:19:45+00:00",
+  "current_task": "39-02",
+  "last_updated_utc": "2026-09-14T00:32:39+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7405,7 +7405,7 @@
       "cluster": "39a-current-q-publication-v9",
       "packet": ".wiretail/execution/tasks/39-01.md",
       "title": "Repair current-Q attention sample and candidate publication",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -7423,7 +7423,32 @@
       "depends_on": [
         "38-01"
       ],
-      "commit": null
+      "commit": "68a946591c7b117eeaafad08bc9a9ed1302e512d",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/39-01-attempt-1-20260914T002002Z.jsonl:211",
+            "total_tokens": 13905207,
+            "total_tokens_derived": true,
+            "input_tokens": 13876636,
+            "cached_input_tokens": 13370112,
+            "output_tokens": 28571,
+            "thinking_tokens": 14414
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 13905207,
+          "input_tokens": 13876636,
+          "cached_input_tokens": 13370112,
+          "output_tokens": 28571,
+          "thinking_tokens": 14414
+        }
+      }
     },
     {
       "id": "39-02",
@@ -9775,14 +9800,28 @@
       }
     },
     "39": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/39-01-attempt-1-20260914T002002Z.jsonl:211",
+          "total_tokens": 13905207,
+          "total_tokens_derived": true,
+          "input_tokens": 13876636,
+          "cached_input_tokens": 13370112,
+          "output_tokens": 28571,
+          "thinking_tokens": 14414
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 13905207,
+        "input_tokens": 13876636,
+        "cached_input_tokens": 13370112,
+        "output_tokens": 28571,
+        "thinking_tokens": 14414
       }
     },
     "40": {
@@ -9799,12 +9838,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 138,
-      "total_tokens": 3180710556,
-      "input_tokens": 3173400756,
-      "cached_input_tokens": 3110884864,
-      "output_tokens": 7309800,
-      "thinking_tokens": 2671406
+      "turns": 139,
+      "total_tokens": 3194615763,
+      "input_tokens": 3187277392,
+      "cached_input_tokens": 3124254976,
+      "output_tokens": 7338371,
+      "thinking_tokens": 2685820
     },
     "source": "Codex turn.completed usage events"
   }
