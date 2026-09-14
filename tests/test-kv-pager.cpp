@@ -688,6 +688,14 @@ static void test_pager_host_mutation() {
     assert(retained_tail_pages.size() == 1);
     assert(retained_tail_pages[0].page.identity == cold_tail_id);
     assert(retained_tail_pages[0].page.tail);
+    const auto cold_records = tail_pager->exact_page_records(0);
+    const auto cold_record = std::find_if(cold_records.begin(), cold_records.end(),
+            [&](const auto & record) { return record.id == cold_tail_id; });
+    assert(cold_record != cold_records.end());
+    assert(cold_record->valid_length == 17);
+    assert(cold_record->content_version == cold_tail_id.page_generation);
+    assert(cold_record->host_valid && !cold_record->dirty);
+    assert(cold_record->physical_slot == UINT32_MAX);
     assert(tail_pager->cancel_write(ticket) == llama_kv_pager_write_status::ok);
 
     auto hole_pager = llama_kv_pager::create(

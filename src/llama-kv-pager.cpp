@@ -23,6 +23,86 @@ uint64_t advance_content_version(uint64_t version) noexcept {
     return version == std::numeric_limits<uint64_t>::max() ? 1 : version + 1;
 }
 
+// The catalog is the authority for cold-page metadata.  Keep this conversion
+// in one place so exact and routing inventories cannot disagree about which
+// canonical pages are executable candidates.
+bool stable_page_identity_equal(
+        const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) noexcept {
+    return lhs.session_generation == rhs.session_generation &&
+           lhs.sequence_id == rhs.sequence_id &&
+           lhs.sequence_generation == rhs.sequence_generation &&
+           lhs.logical_page == rhs.logical_page &&
+           lhs.attention_layer == rhs.attention_layer;
+}
+
+bool canonical_host_page_record(
+        const vbr_selected_page_host_view & host_page,
+        uint32_t page_tokens,
+        llama_kv_page_record & output) noexcept {
+    output = {};
+    const auto & page = host_page.page;
+    const auto & id = page.identity;
+    if (host_page.obsolete || host_page.dirty || page_tokens == 0 ||
+            id.sequence_id < 0 || id.session_generation == 0 ||
+            id.sequence_generation == 0 || id.page_generation == 0 ||
+            id.position_begin < 0 || id.position_end <= id.position_begin ||
+            uint64_t(id.position_begin) % page_tokens != 0) {
+        return false;
+    }
+    const uint64_t extent = uint64_t(id.position_end) - uint64_t(id.position_begin);
+    if (extent == 0 || extent > page_tokens ||
+            page.positions.size() != extent ||
+            page.positions.front() != id.position_begin ||
+            page.positions.back() != id.position_end - 1 ||
+            page.tail != (extent != page_tokens)) {
+        return false;
+    }
+    for (uint64_t row = 0; row < extent; ++row) {
+        if (page.positions[size_t(row)] != id.position_begin + llama_pos(row)) {
+            return false;
+        }
+    }
+    if (page.units.size() != VBR_SELECTED_PAGE_REQUIRED_UNITS) return false;
+
+    std::array<bool, VBR_SELECTED_PAGE_REQUIRED_UNITS> seen = {};
+    uint64_t repr_gen = 0;
+    int32_t current_type = -1;
+    for (const auto & unit : page.units) {
+        if (unit.logical_unit_id >= VBR_SELECTED_PAGE_REQUIRED_UNITS ||
+                seen[unit.logical_unit_id] || unit.layer != unit.logical_unit_id / 2 ||
+                unit.side != ((unit.logical_unit_id & 1u)
+                    ? vbr_artifact_side::value : vbr_artifact_side::key) ||
+                unit.valid_rows != extent || unit.row_bytes == 0 ||
+                extent > std::numeric_limits<uint64_t>::max() / unit.row_bytes ||
+                !unit.bytes || unit.bytes->size() != extent * unit.row_bytes ||
+                unit.representation.current_type != GGML_TYPE_TURBO4_0 ||
+                unit.representation.wm_cells < extent ||
+                unit.representation.shards.empty()) {
+            return false;
+        }
+        if (repr_gen == 0) {
+            repr_gen = unit.representation.repr_gen;
+            current_type = unit.representation.current_type;
+        } else if (unit.representation.repr_gen != repr_gen ||
+                unit.representation.current_type != current_type) {
+            return false;
+        }
+        seen[unit.logical_unit_id] = true;
+    }
+    if (!std::all_of(seen.begin(), seen.end(), [](bool value) { return value; })) {
+        return false;
+    }
+
+    output.id = id;
+    output.physical_slot = UINT32_MAX;
+    output.state = llama_kv_page_state::host_clean;
+    output.host_valid = true;
+    output.dirty = false;
+    output.content_version = id.page_generation;
+    output.valid_length = uint32_t(extent);
+    return true;
+}
+
 } // namespace
 
 bool llama_kv_pager_geometry_from_model(
@@ -548,22 +628,23 @@ std::vector<llama_kv_page_record> llama_kv_pager::exact_page_records(
             }
             const bool resident_page = std::any_of(output.begin(), output.end(),
                     [&](const llama_kv_page_record & page) {
-                        return page.id == id;
+                        return stable_page_identity_equal(page.id, id);
                     });
             if (resident_page) {
                 continue;
             }
             llama_kv_page_record page;
-            page.id = id;
-            page.state = llama_kv_page_state::host_clean;
-            page.host_valid = true;
-            page.dirty = false;
-            output.push_back(page);
+            if (canonical_host_page_record(host_page, snapshot_.geometry.page_tokens, page)) {
+                output.push_back(page);
+            }
         }
         std::sort(output.begin(), output.end(),
                 [](const llama_kv_page_record & lhs,
                    const llama_kv_page_record & rhs) {
-            return lhs.id.logical_page < rhs.id.logical_page;
+            if (lhs.id.logical_page != rhs.id.logical_page) {
+                return lhs.id.logical_page < rhs.id.logical_page;
+            }
+            return lhs.id.attention_layer < rhs.id.attention_layer;
         });
     } catch (...) {
         output.clear();
@@ -1289,25 +1370,22 @@ llama_kv_routing_page_inventory llama_kv_pager::routing_inventory() const noexce
             const auto & id = host_page.page.identity;
             const auto existing = std::find_if(output.begin(), output.end(),
                     [&](const auto & page) {
-                return page.id.session_generation == id.session_generation &&
-                       page.id.sequence_id == id.sequence_id &&
-                       page.id.sequence_generation == id.sequence_generation &&
-                       page.id.logical_page == id.logical_page;
+                return stable_page_identity_equal(page.id, id);
             });
             if (existing != output.end()) continue;
             llama_kv_page_record page;
-            page.id = id;
-            page.physical_slot = UINT32_MAX;
-            page.state = llama_kv_page_state::host_clean;
-            page.host_valid = true;
-            page.dirty = false;
-            output.push_back(page);
+            if (canonical_host_page_record(host_page, snapshot_.geometry.page_tokens, page)) {
+                output.push_back(page);
+            }
         }
         std::sort(output.begin(), output.end(), [](const auto & lhs, const auto & rhs) {
             if (lhs.id.sequence_id != rhs.id.sequence_id) {
                 return lhs.id.sequence_id < rhs.id.sequence_id;
             }
-            return lhs.id.logical_page < rhs.id.logical_page;
+            if (lhs.id.logical_page != rhs.id.logical_page) {
+                return lhs.id.logical_page < rhs.id.logical_page;
+            }
+            return lhs.id.attention_layer < rhs.id.attention_layer;
         });
     } catch (...) {
         output.clear();

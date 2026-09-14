@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "task": "49-02",
+  "source_commit": "55999a0255a602714f152029904f1ab05b8d4126",
+  "checks": {
+    "host_inventory_roundtrip": {
+      "status": "pass",
+      "command": ["build-cuda/bin/test-kv-pager"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/49-02/20260914T-selector-fix/focused-tests-final.log", "sha256": "9c4ac6f8d562843f2be92e26423151e467b0c8f460f21e41e5fd6b6524134b0b"},
+        {"path": "/srv/ai/paged-kv/results/v10/49-01/20260914T051628Z-candidate/bundle/build-receipt.json", "sha256": "055cccb3a5600127cc4723782826c03a573beb2f10e1ee5a0a23e800f227c934"},
+        {"path": "/srv/ai/paged-kv/results/v10/49-01/20260914T052402Z-identity-smoke-final/live-observed-identity.json", "sha256": "3f3eb044139ca6f586cbdcac83ad614e9a639d237d5604dba84385e1c9368b5f"}
+      ]
+    },
+    "invalid_host_metadata": {
+      "status": "pass",
+      "command": ["build-cuda/bin/test-kv-pager"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/49-02/20260914T-selector-fix/focused-tests-final.log", "sha256": "9c4ac6f8d562843f2be92e26423151e467b0c8f460f21e41e5fd6b6524134b0b"}
+      ]
+    },
+    "cuda_cold_eligibility": {
+      "status": "pass",
+      "command": ["build-cuda/bin/test-kv-page-select"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/49-02/20260914T-selector-fix/focused-tests-final.log", "sha256": "9c4ac6f8d562843f2be92e26423151e467b0c8f460f21e41e5fd6b6524134b0b"},
+        {"path": "/srv/ai/paged-kv/results/v10/49-01/20260914T051628Z-candidate/bundle/build-receipt.json", "sha256": "055cccb3a5600127cc4723782826c03a573beb2f10e1ee5a0a23e800f227c934"},
+        {"path": "/srv/ai/paged-kv/results/v10/49-01/20260914T052402Z-identity-smoke-final/live-observed-identity.json", "sha256": "3f3eb044139ca6f586cbdcac83ad614e9a639d237d5604dba84385e1c9368b5f"}
+      ]
+    }
+  }
+}
