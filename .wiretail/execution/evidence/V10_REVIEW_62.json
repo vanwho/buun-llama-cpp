@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_62",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "62-01",
+  "reviewed_phase": 61,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_61.json",
+    "sha256": "95e3b6bc35899f260776fd8cbdc525e73c261eb06a649a07276226f61030037c"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "The phase-61 summary records requested, observed, and immutable model, bundle, endpoint, DSO, source, and template identity.",
+    "required_turbo4_placements": "The summary measures target Turbo4 K/V on CUDA and native-MTP Turbo4 K/V on GPU with full-L draft capacity of 262144 rows.",
+    "controlled_model_promotion": "False: the controlled T1 row is not_run because the first small-path smoke stalled before a response.",
+    "organic_cold_promotion": "False: the organic T2/T3 row is not_run because the bounded campaign stopped at the same invalid boundary.",
+    "stable_target_consumption": "False: no completed target graph consumed a physically promoted cold page in phase 61.",
+    "full_256k_occupancy": "False: full-L allocation/startup is measured, but no valid occupied C262144 frontier was established.",
+    "practical_speed_goal_met": "False: cold prefill, cached append, and committed decode have zero phase-61 samples because no revalidation response completed.",
+    "useful_answer_quality_proven": "False: no quality prompt completed in the bounded phase-61 campaign."
+  },
+  "current_rates": {
+    "geometry": "L8192/C6144/H8192/A4096/B128/U64 requested; exact smoke L8192/H4096/B128/U64",
+    "cold_prefill_tok_s": {"median": null, "range": [null, null], "samples": 0, "status": "not_run"},
+    "cached_append_tok_s": {"median": null, "range": [null, null], "samples": 0, "status": "not_run"},
+    "committed_decode_tok_s": {"median": null, "range": [null, null], "samples": 0, "status": "not_run"},
+    "mtp_request_scoped_deltas": {"mode": "not_observed", "rows": 0, "draft_delta": null, "accepted_delta": null, "acceptance_percent": null, "denominator_status": "not_observed"}
+  },
+  "capacity_and_proof_boundaries": {
+    "8K": "The exact-token first-request smoke was admitted but stalled before a response or occupied frontier; no 8K performance or paging proof follows.",
+    "32K": "Not run; the phase-61 small-path prerequisite failed.",
+    "128K": "Not run; the phase-61 small-path prerequisite failed.",
+    "256K_allocation": "Measured full-L allocation/startup with L262144 and draft capacity 262144; this is not occupied C262144.",
+    "C262144": "Not proven: no valid occupied full-context frontier was established."
+  },
+  "physical_and_quality_findings": {
+    "controlled_physical": "not_run",
+    "organic_physical": "not_run",
+    "stable_target_consumption": "not_run",
+    "useful_answer_quality": "not_run"
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "llama_kv_attention_packed_cache::find_or_create / submit_graph / CUDA launch_mul_mat_q",
+      "fixture": "L8192/H4096/A4096/B128/U64 exact-token first-request smoke",
+      "finding": "Admission succeeds but the first request stalls before a response or occupied frontier; the existing packed selected-attention resource/graph boundary needs one focused repair and smoke proof."
+    },
+    {
+      "owner": "canonical V10 bounded revalidation chain",
+      "fixture": "L8192/C6144 original q0/q1/q2 plus append, promotion, quality, pilots, and full-L occupancy",
+      "finding": "Cached append, controlled and organic physical promotion, completed target consumption, answer quality, pilots, and occupied C262144 remain unmeasured."
+    }
+  ],
+  "next_action": "Repair the measured exact-token small-path first-request boundary, then run one bounded revalidation, summary, and review; do not schedule promotion or speed work before a valid response/frontier exists.",
+  "phase_appended": true,
+  "appended_phases": [63],
+  "next_task_ids": ["63-01", "63-02", "63-03", "63-04"],
+  "successor_contracts": {
+    "63-01": "Repair llama_kv_attention_packed_cache::find_or_create, submit_graph, and the CUDA launch_mul_mat_q boundary for the exact L8192/H4096/A4096/B128/U64 first-request smoke; before responses=0 and occupied_frontier=null, after one response, occupied_frontier>=1, and zero invalid responses.",
+    "63-02": "After 63-01, run the bounded canonical q0/q1/q2, append, promotion, quality, pilot, allocation, and occupied-context checks; retain every row as measured, failed, or not_run with real MTP denominators.",
+    "63-03": "Aggregate only phase-63 evidence into V10_SUMMARY_63.json/.md while preserving identity, actual geometry, rates, promotion edges, quality, pilots, allocation, and occupied-context boundaries.",
+    "63-04": "Review only V10_SUMMARY_63.json/.md with explicit capability booleans and append successors only for concrete measured gaps."
+  }
+}
