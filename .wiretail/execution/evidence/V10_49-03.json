@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "task": "49-03",
+  "source_commit": "1924f8f08d1539cd94c29d79e06c554cc4496550",
+  "checks": {
+    "turbo4_coordinate_parity": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-kv-routing-summary"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-03/20260914T-coordinate-parity-final/focused-tests.log",
+          "sha256": "7bfef9f404e14e11ab6dae99cd26523b719c017e5fe719634fd279b23b8f8dc8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-01/20260914T051628Z-candidate/bundle/build-receipt.json",
+          "sha256": "055cccb3a5600127cc4723782826c03a573beb2f10e1ee5a0a23e800f227c934"
+        }
+      ]
+    },
+    "cuda_rank_reference": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-kv-page-select"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-03/20260914T-coordinate-parity-final/focused-tests.log",
+          "sha256": "7bfef9f404e14e11ab6dae99cd26523b719c017e5fe719634fd279b23b8f8dc8"
+        }
+      ]
+    },
+    "router_q_causality": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-kv-page-select"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/49-03/20260914T-coordinate-parity-final/focused-tests.log",
+          "sha256": "7bfef9f404e14e11ab6dae99cd26523b719c017e5fe719634fd279b23b8f8dc8"
+        }
+      ]
+    }
+  }
+}
