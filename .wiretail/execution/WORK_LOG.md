@@ -1026,3 +1026,9 @@ receives `PROJECT_ROOT` from the shared runner.
 ## 2026-09-14T00:01:06+00:00 - 37-03 - done
 
 - Summary: Recorded 128K population as not_run because the 37-02 pilot was ineligible; no sequence, frontier, or rate was invented. Receipt: `.wiretail/execution/evidence/V9_128K.json`.
+
+## 2026-09-14T01:46:33+00:00 — 42-01 — done
+
+- Branch: `codex/task-42-01`
+- Commit at update: `29fb133eb`
+- Summary: Reviewed V9_SUMMARY_41: identity and coherent L8192 recall passed, but current-Q publication, natural cold promotion/use, and scale eligibility remained unproven; appended ordered 43-01/43-02/43-03/44-01 chain.

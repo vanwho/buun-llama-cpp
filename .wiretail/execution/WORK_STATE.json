@@ -7,7 +7,7 @@
   "execution_cookbook": ".wiretail/execution/v9/OPERATIONS.md",
   "implementation_contracts": ".wiretail/execution/v9/ROUTING.md",
   "benchmark_protocol": ".wiretail/execution/v9/BENCHMARKS.md",
-  "scope_revision": "hotpath-v9-20260914",
+  "scope_revision": "hotpath-v9-20260914-r2",
   "context_policy": "Only current packet/cluster, explicit context_files and named source; no archived plans, whole state/log or recursive historical handoffs. Clusters are context areas with no fixed task-count cap: keep cohesive tasks together for cached context until a real subsystem/risk/provenance/toolchain/model/context-budget boundary; new V9 clusters start fresh.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "42",
-  "current_task": "42-01",
-  "last_updated_utc": "2026-09-14T01:39:40+00:00",
+  "current_phase": "43",
+  "current_task": "43-01",
+  "last_updated_utc": "2026-09-14T01:47:29+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -7871,11 +7871,11 @@
       "cluster": "42a-review-v9",
       "packet": ".wiretail/execution/tasks/42-01.md",
       "title": "Review phase-41 summary and schedule the next measured action",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
-      "scope_revision": "hotpath-v9-20260914",
+      "scope_revision": "hotpath-v9-20260914-r2",
       "context_files": [
         ".wiretail/execution/v9/REVIEW.md",
         ".wiretail/execution/evidence/V9_SUMMARY_41.json",
@@ -7883,6 +7883,135 @@
       ],
       "depends_on": [
         "41-04"
+      ],
+      "commit": "29fb133ebeaca3cb3f7c3a2e94ac1bc960c865ad",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/42-01-attempt-1-20260914T013958Z.jsonl:78",
+            "total_tokens": 2597252,
+            "total_tokens_derived": true,
+            "input_tokens": 2575361,
+            "cached_input_tokens": 2456832,
+            "output_tokens": 21891,
+            "thinking_tokens": 7830
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 2597252,
+          "input_tokens": 2575361,
+          "cached_input_tokens": 2456832,
+          "output_tokens": 21891,
+          "thinking_tokens": 7830
+        }
+      }
+    },
+    {
+      "id": "43-01",
+      "phase": "43",
+      "cluster": "43a-current-q-producer-v9",
+      "packet": ".wiretail/execution/tasks/43-01.md",
+      "title": "Repair the selected-packed current-Q producer boundary",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r2",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_41.json",
+        ".wiretail/execution/evidence/V9_SUMMARY_41.md",
+        ".wiretail/execution/handoffs/42-01.md",
+        "src/llama-graph.cpp",
+        "src/llama-graph.h",
+        "src/llama-context.cpp",
+        "src/llama-kv-attention-telemetry.cpp",
+        "src/llama-kv-attention-telemetry.h",
+        "tests/test-kv-attention-telemetry.cpp",
+        "tests/test-kv-attention-execution.cpp"
+      ],
+      "depends_on": [
+        "42-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "43-02",
+      "phase": "43",
+      "cluster": "43b-bounded-revalidation-v9",
+      "packet": ".wiretail/execution/tasks/43-02.md",
+      "title": "Revalidate natural cold use and matched controls",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r2",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_41.json",
+        ".wiretail/execution/evidence/V9_SUMMARY_41.md",
+        ".wiretail/execution/handoffs/43-01.md",
+        "tests/test-kv-attention-telemetry.cpp",
+        "tests/test-kv-attention-execution.cpp",
+        "tests/test-kv-pager-model.cpp",
+        "tests/test-arg-parser.cpp"
+      ],
+      "depends_on": [
+        "43-01"
+      ],
+      "commit": null
+    },
+    {
+      "id": "43-03",
+      "phase": "43",
+      "cluster": "43c-summary-v9",
+      "packet": ".wiretail/execution/tasks/43-03.md",
+      "title": "Create compact phase-43 benchmark summary",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r2",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_43_BENCHMARK.json",
+        ".wiretail/execution/handoffs/43-02.md"
+      ],
+      "depends_on": [
+        "43-02"
+      ],
+      "commit": null
+    },
+    {
+      "id": "44-01",
+      "phase": "44",
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v9/validate_plan.py",
+        "--review",
+        ".wiretail/execution/evidence/V9_REVIEW_44.json"
+      ],
+      "cluster": "44a-review-v9",
+      "packet": ".wiretail/execution/tasks/44-01.md",
+      "title": "Review phase-43 summary and schedule the next measured action",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v9-20260914-r2",
+      "context_files": [
+        ".wiretail/execution/v9/REVIEW.md",
+        ".wiretail/execution/evidence/V9_SUMMARY_43.json",
+        ".wiretail/execution/evidence/V9_SUMMARY_43.md",
+        ".wiretail/execution/handoffs/43-03.md"
+      ],
+      "depends_on": [
+        "43-03"
       ],
       "commit": null
     }
@@ -10288,6 +10417,42 @@
       }
     },
     "42": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/42-01-attempt-1-20260914T013958Z.jsonl:78",
+          "total_tokens": 2597252,
+          "total_tokens_derived": true,
+          "input_tokens": 2575361,
+          "cached_input_tokens": 2456832,
+          "output_tokens": 21891,
+          "thinking_tokens": 7830
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 2597252,
+        "input_tokens": 2575361,
+        "cached_input_tokens": 2456832,
+        "output_tokens": 21891,
+        "thinking_tokens": 7830
+      }
+    },
+    "43": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "44": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -10301,12 +10466,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 147,
-      "total_tokens": 3239314165,
-      "input_tokens": 3231835599,
-      "cached_input_tokens": 3167290624,
-      "output_tokens": 7478566,
-      "thinking_tokens": 2723000
+      "turns": 148,
+      "total_tokens": 3241911417,
+      "input_tokens": 3234410960,
+      "cached_input_tokens": 3169747456,
+      "output_tokens": 7500457,
+      "thinking_tokens": 2730830
     },
     "source": "Codex turn.completed usage events"
   }
