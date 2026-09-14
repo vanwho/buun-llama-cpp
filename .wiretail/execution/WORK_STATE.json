@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "49",
-  "current_task": "49-01",
-  "last_updated_utc": "2026-09-14T04:21:15.787580+00:00",
+  "current_task": "49-02",
+  "last_updated_utc": "2026-09-14T05:26:37+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -8516,7 +8516,7 @@
       "cluster": "49a-evidence-identity-v10",
       "title": "Make candidate provenance and workload geometry unambiguous",
       "packet": ".wiretail/execution/tasks/49-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna Medium",
       "retry1_reasoning": "high",
@@ -8543,7 +8543,32 @@
       "depends_on": [
         "48-01"
       ],
-      "commit": null
+      "commit": "2470936fecc6bbdd2f05754942507ffdbf9bbe49",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "medium",
+            "source": ".wiretail/build/49-01-attempt-1-20260914T050959Z.jsonl:158",
+            "total_tokens": 14064754,
+            "total_tokens_derived": true,
+            "input_tokens": 14032571,
+            "cached_input_tokens": 13782784,
+            "output_tokens": 32183,
+            "thinking_tokens": 8837
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 14064754,
+          "input_tokens": 14032571,
+          "cached_input_tokens": 13782784,
+          "output_tokens": 32183,
+          "thinking_tokens": 8837
+        }
+      }
     },
     {
       "id": "49-02",
@@ -11783,16 +11808,74 @@
         "output_tokens": 0,
         "thinking_tokens": 0
       }
+    },
+    "49": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "medium",
+          "source": ".wiretail/build/49-01-attempt-1-20260914T050959Z.jsonl:158",
+          "total_tokens": 14064754,
+          "total_tokens_derived": true,
+          "input_tokens": 14032571,
+          "cached_input_tokens": 13782784,
+          "output_tokens": 32183,
+          "thinking_tokens": 8837
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 14064754,
+        "input_tokens": 14032571,
+        "cached_input_tokens": 13782784,
+        "output_tokens": 32183,
+        "thinking_tokens": 8837
+      }
+    },
+    "50": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "51": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
+    },
+    "52": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
+      }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 159,
-      "total_tokens": 3312726106,
-      "input_tokens": 3305005264,
-      "cached_input_tokens": 3238087168,
-      "output_tokens": 7720842,
-      "thinking_tokens": 2807147
+      "turns": 160,
+      "total_tokens": 3326790860,
+      "input_tokens": 3319037835,
+      "cached_input_tokens": 3251869952,
+      "output_tokens": 7753025,
+      "thinking_tokens": 2815984
     },
     "source": "Codex turn.completed usage events"
   }
