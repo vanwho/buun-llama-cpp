@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "57-04",
+  "source_commit": "29e42c1bf02abcf3871b726a46f287e785c6616d",
+  "checks": {
+    "phase57_summary_generated_and_validated": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/aggregate-v10-summary.py",
+        "--phase57",
+        "--output",
+        ".wiretail/execution/evidence/V10_SUMMARY_57.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_57.json",
+          "sha256": "bd4930e1c09abe1255905ed68b4319d0230b010eb9c08cdcf3509d041979aca3"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_57.md",
+          "sha256": "5b2191001143d6c8e82abcb855911bf9306e403a067482abf2dc715731f40cb9"
+        }
+      ],
+      "invariants": {
+        "phase": 57,
+        "native_rows": 3,
+        "native_mtp_denominators": [29, 31, 32],
+        "controlled_physical": "not_run",
+        "organic_physical": "not_run",
+        "useful_answer_quality": "not_run",
+        "occupied_C262144": "failed"
+      }
+    }
+  }
+}
