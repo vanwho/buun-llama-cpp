@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "task": "66-01",
+  "source_commit": "7de7ef1eb8b52120bd0604285a09b5fee97dbb03",
+  "findings": {
+    "controlled_model_query": {
+      "setup": "controlled_model_query",
+      "status": "measured",
+      "exit_code": 0,
+      "natural_chain": "pass",
+      "logical_page": 12,
+      "h2d_useful_bytes": 4325376,
+      "h2d_aligned_bytes": 4325376,
+      "forced_test_fixture": {"logical_page": 0, "physical_slot": 15, "page_generation": 2, "content_version": 2},
+      "client_page_id_used": false,
+      "public_force_promotion_api_used": false
+    },
+    "organic_t3": {
+      "status": "measured",
+      "round_trip": "pass",
+      "physical_promotion": "failed_target_graph_consumption",
+      "natural_proof": {
+        "logical_page": 14,
+        "attention_layer": 3,
+        "selector_rank": 0,
+        "query_generation": 206,
+        "query_position": 4124,
+        "page_generation": 176,
+        "content_version": 176,
+        "physical_slot": 14,
+        "catalogue_epoch": 20988,
+        "published_epoch": 20991,
+        "h2d_useful_bytes": 4325376,
+        "h2d_aligned_bytes": 4325376,
+        "candidate_was_cold": true,
+        "host_ready": true,
+        "selector_published": true,
+        "h2d_queued": true,
+        "h2d_completed": true,
+        "mapping_published": true,
+        "target_graph_used": false
+      },
+      "rows": [
+        {"label": "A", "id": "chatcmpl-DQSCTp1sQ20LpMEnyXJT3lncxWQhRrLR", "status": "measured", "prompt_tokens": 2035, "completion_tokens": 16, "response_bytes": 5243, "stop_reason": "done"},
+        {"label": "B", "id": "chatcmpl-XgIVRrkipoceo9DrKpWVNeqqADicngOy", "status": "measured", "prompt_tokens": 4073, "completion_tokens": 16, "response_bytes": 5244, "stop_reason": "done"},
+        {"label": "A-again", "id": "chatcmpl-J6oyx3HZ8vNd9doPvAe8TYiZaiYWJ2An", "status": "measured", "prompt_tokens": 4110, "completion_tokens": 16, "response_bytes": 5236, "stop_reason": "done"}
+      ]
+    },
+    "answer_quality": {
+      "status": "failed",
+      "response_id": "chatcmpl-J3BCBtKp0tWhsENNFKMLYA0OXaFZHwG5",
+      "expected": "AURORA-CEDAR-161",
+      "observed": "////////////////",
+      "stop_reason": "length"
+    },
+    "t0_fixture": {"status": "pass", "seed": "0x49060001", "copy_bytes": 1081344}
+  },
+  "checks": {
+    "phase66_promotion_quality_repair": {
+      "status": "pass",
+      "command": ["build-cuda/bin/test-cuda-kv-promotion"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_66-01_RUNTIME.md", "sha256": "55617695c4fd6589f2aba1a41943a021c15a0a30aa28449c282359bfe45c4aae"},
+        {"path": "/tmp/v10-66-test-kv-pager.log", "sha256": "ade5c313f451630d1a8951a379dc4703e8e72767db40a3ed009e3c5895f87637"},
+        {"path": "/tmp/v10-66-test-cuda-kv-promotion.log", "sha256": "bf08a88fdc4c6412005f7230cb022132bf7754b54c20791216cbac3e44b4ebfa"},
+        {"path": "/tmp/v10-66-model-final.WeAxIA/proof.json", "sha256": "fe73483aea811767f66a7758be89b82f15ab5ecc7a945818853ac0116aefa591"},
+        {"path": "/tmp/v10-66-t3-proof-final.VFCtnB/slots.json", "sha256": "1e0a9cf56852109dee1c41952e06f374fa5eb5d2dbf4e5992d95072aaf15f560"},
+        {"path": "/tmp/v10-66-quality.json", "sha256": "53beb9e3091c7d743bb964b63efdfa9ef0e90b702839bb50a54f11f66b5e2631"}
+      ]
+    }
+  }
+}
