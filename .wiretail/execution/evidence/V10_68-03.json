@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "task": "68-03",
+  "source_commit": "5fd117271ad3def22bc6a6deb3f4737d21b05fb4",
+  "revision": "hotpath-v10-20260914",
+  "result": {
+    "status": "measured_partial",
+    "claim": "full-L startup and occupied advancement were measured; occupied C262144 was not established",
+    "model": "Qwen3.8-27B-UD-IQ4_XS",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "placement": "target CUDA Turbo4 K/V; native-MTP GPU Turbo4 K/V",
+    "geometry": {
+      "logical_capacity_L": 262144,
+      "durable_frontier_C": 12000,
+      "live_snapshot_C": 12127,
+      "hot_capacity_H": 8192,
+      "attention_window_A": 4096,
+      "batch_B": 128,
+      "ubatch_U": 64,
+      "page_size": 256
+    },
+    "allocation": {
+      "target_allocated_bytes": 138412032,
+      "draft_rows": 262144,
+      "draft_bytes": 276955136,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592,
+      "packed_workspace_bytes": 138412032,
+      "packed_dequant_bytes": 16777216,
+      "catalogue_bytes": 67321856,
+      "target_valid_rows": 8031,
+      "target_valid_bytes": 135691776,
+      "attention_pages": 16,
+      "attention_tokens": 4096
+    },
+    "full_L_startup": {
+      "status": "pass",
+      "target_allocated_bytes": 423886848,
+      "draft_rows": 262144,
+      "draft_bytes": 276955136,
+      "auto_hot_capacity_H": 25088
+    },
+    "larger_hot_set_boundary": {
+      "status": "failed_runtime_fault",
+      "H": 25088,
+      "last_successful_C": 1200,
+      "first_failure": "cudaMalloc failed while allocating 2.06 MiB with 3.2 MiB free; decode() failed: packed selected attention allocation failed"
+    },
+    "recovery": {
+      "status": "pass_bounded",
+      "H": 8192,
+      "completed_turns": 9,
+      "last_successful_C": 12000,
+      "live_snapshot_C": 12127,
+      "c262144_attempted": false,
+      "stop_reason": "bounded wall/ETA: measured prompt-processing rate fell to 70.02 tokens/s at C=12000, so extending to C=262144 was not actionable in this task run"
+    }
+  },
+  "checks": {
+    "phase68_occupancy_advancement": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_68-03_validation.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/68-03/phase68_occupancy_validation.log",
+          "sha256": "efc5cb045f5bdb221f34ce26bf0ed8ee9b15dba365abe0f4bf8f32d77166c2ff"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/68-03/full-L-startup-20260915T025912Z/run-config.json",
+          "sha256": "fd481a4fb746bb65956dd52aa523cacac94a861663e87629cac64933e31b9cff"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/68-03/full-L-H8192-startup-20260915T030138Z/run-config.json",
+          "sha256": "25f5f0905ace12c533c177a79e84e0b1d34b0a3cc33eeff1546c55b0a9fb2569"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/68-03/bounded-L262144-H25088-20260915T030032Z/INTERACTIVE29_01_SCALE.json",
+          "sha256": "5322a56b4918e22cd9df23cd2a96504789f107a9d1a5944537cd85aacd5b2d21"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/68-03/bounded-L262144-H8192-retry-20260915T030513Z/INTERACTIVE29_01_SCALE.json",
+          "sha256": "719037e84365f6f8cd3d30685a3480d10e50ab9854ca060b6ebe7ae8de6752d6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/68-03/bounded-L262144-H8192-retry-20260915T030513Z/incremental-state.json",
+          "sha256": "3893b1c58c68f75e63dcf88989abd7ee824a9ae527c6700e3c115c1925c28264"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/68-03/llama-server-68-03-journal.txt",
+          "sha256": "e1a5a78a5b3f3f342228ea2963a09cfba859246ca2881a78ce2dfc69d4807e46"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/68-03/candidate-bundle-20260915T025740Z/build-receipt.json",
+          "sha256": "32973fe0057b45c288dcd283471776fc20535dd0b722dd3621a9e2938d50b2d7"
+        }
+      ]
+    }
+  }
+}
