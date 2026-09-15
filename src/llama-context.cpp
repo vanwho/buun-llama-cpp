@@ -2351,7 +2351,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
     auto result = kv_attention_execution.prepare(metadata, phase, representation_epoch,
             shape_epoch, direct_capable, scratch, direct_reason,
             dense_capable, packed_capable);
-    const bool selected_route = result.route == llama_kv_attention_execution_route::selected_dense ||
+    const bool selected_route = result.route == llama_kv_attention_execution_route::selected_reference ||
+        result.route == llama_kv_attention_execution_route::selected_dense ||
         result.route == llama_kv_attention_execution_route::selected_packed ||
         result.route == llama_kv_attention_execution_route::selected_direct ||
         result.route == llama_kv_attention_execution_route::exact_direct;
@@ -2761,11 +2762,10 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     };
 
     // Live attention is intentionally limited to one Qwen sequence. Selective
-    // prefill, decode, and MTP use the mature Turbo4 FA route when the actual
-    // layer device and pager slab qualify: a contiguous selected view is used
-    // first, otherwise the persistent packed bridge is used. The custom direct
-    // loader remains an explicit diagnostic override; unsupported shapes retain
-    // the reference gather as the deterministic fallback.
+    // prefill, decode, and MTP retain the selected-page snapshot and physical
+    // residency contract, while the canonical reference consumer remains the
+    // automatic answer-quality boundary. The packed Turbo4 bridge remains
+    // available through its explicit process-scoped diagnostic override.
     if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
         (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
         !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
@@ -2857,6 +2857,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         // at the first H crossing.
         for (const auto & page : pager_snapshot.pages()) {
             if (pager.is_current_page(page.id)) append_fallback(page.id);
+        }
+        // The first logical page is the durable prompt/sink prefix. Reserve
+        // it before advisory routed pages so a later turn cannot lose facts
+        // from the beginning of the conversation merely because the router
+        // prefers the newest bounded window.
+        for (const auto & page : pager_snapshot.pages()) {
+            if (page.id.logical_page == 0) append_fallback(page.id);
         }
         if (!routed_pages.empty()) {
             bool routed_valid = true;
@@ -3018,7 +3025,10 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 dense_view.reason, metadata.page_table().size(), sample.c_str());
     }
     const bool dense_capable = fa_capable && dense_view.eligible;
-    const bool packed_capable = fa_capable && !dense_view.eligible;
+    const bool packed_backend_capable = fa_capable && !dense_view.eligible;
+    const bool packed_capable = packed_backend_capable &&
+        kv_attention_execution.route_override() !=
+            llama_kv_attention_execution_route_override::automatic;
     if (packed_capable) {
         const uint64_t k_row = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0,
                 int64_t(metadata.head_dim_k()) * metadata.n_head_kv()));
