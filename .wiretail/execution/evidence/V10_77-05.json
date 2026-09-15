@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "task": "77-05",
+  "source_commit": "2a41383464bf06bf2fbbebe19e39d7556f5be1c9",
+  "revision": "hotpath-v10-20260914",
+  "result": "matched_v10_matrix_measured",
+  "checks": {
+    "phase77_matched_benchmark": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_77-05_validation.py",
+        "--selected",
+        "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-selected-native",
+        "--cpu",
+        "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-cpu-main-kv-gpu-draft",
+        "--all-gpu",
+        "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-all-gpu-gpu-draft",
+        "--output",
+        ".wiretail/execution/evidence/V10_77-05_FINDINGS.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_77-05_validation.py", "sha256": "b51e163788de50df83d0f8ac3900fd9eb73cdc05fd72fa6dc973cb389b809979"},
+        {"path": ".wiretail/execution/evidence/V10_77-05_FINDINGS.json", "sha256": "f6748c74a9f5dcce088cda5692272926aeab13d1b713230a31b520c57e328900"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-selected-native/run-config.json", "sha256": "d4b0a275a738418162621806a771baf63ba093188f55a6c3d7a9b8971083fc43"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-selected-native/records.jsonl", "sha256": "1241fc0b575cca99b7efa1d0713b572be2179c0ae50bebadbb90ddd566225260"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-selected-native/summary.json", "sha256": "a463f56177695bbeb0122b44a10b47dc1c791c16f17987b4bc96c930f4d11fc7"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-cpu-main-kv-gpu-draft/run-config.json", "sha256": "cafac8ebd0b092321d7376dde16aed8a01d33b2e5aba7a9739282b8ff6647e5c"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-cpu-main-kv-gpu-draft/records.jsonl", "sha256": "a6c4c101fbc48421f3cc77d146d89e7d5d97da7ffa9e26fed9eae3ea3a12b523"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-cpu-main-kv-gpu-draft/summary.json", "sha256": "36588094840d6ca33e55a62d2f91abe5ff09d7ac643cc0ced5ef79208143fef3"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-all-gpu-gpu-draft/run-config.json", "sha256": "3cd7e6cef6c15a56bdb439ba9da0d7d06793e7181cd140da0d5b4b6050663fad"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-all-gpu-gpu-draft/records.jsonl", "sha256": "643a8c5c0f42f4b66213006180deeb37749f0f7c9257efa39a1d48434e8019af"},
+        {"path": "/srv/ai/paged-kv/results/v10/77-05/20260915T-77-05-all-gpu-gpu-draft/summary.json", "sha256": "a8c490bace1b966f04ca2ec6b43dbe38df207e8aee6eec589c51dbd4975c1089"}
+      ],
+      "findings": {
+        "measured_rows": 27,
+        "rows_per_campaign": 9,
+        "coordinate": {"L": 8192, "C_observed": 30, "H": 8192, "A": 2048, "B": 128, "U": 64},
+        "cached_append": "measured_predecessor_capture; cache_n=6143 for append-64 and append-256",
+        "occupancy": "retained predecessor boundary; durable C13034/live C13049 at L262144",
+        "native_mtp": "request-scoped denominators present; selected prompt 0 accepted 1/249 and prompts 1-2 accepted 0/251; controls also measured with 0 acceptance"
+      }
+    }
+  }
+}
