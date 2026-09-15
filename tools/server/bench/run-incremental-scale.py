@@ -367,6 +367,8 @@ def main() -> int:
         })
         attempt_records.append(record)
         if record.get("status") != "pass":
+            record["failure_category"] = "runtime_fault"
+            record["stop_reason"] = record.get("error") or "request failed without an error message"
             break
         response_text = str(record.get("response", {}).get("content", ""))
         completed_messages = request_messages + [{"role": "assistant", "content": response_text}]
@@ -402,9 +404,14 @@ def main() -> int:
                           "decode_tok_s": record.get("server_tg_tok_s")}), flush=True)
         turn += 1
 
+    failed_attempt = next((record for record in attempt_records
+                           if record.get("status") != "pass"), None)
+    stop_reason = failed_attempt.get("stop_reason") if isinstance(failed_attempt, Mapping) else None
+    failure_category = failed_attempt.get("failure_category") if isinstance(failed_attempt, Mapping) else None
+    hot_capacity_tokens = args.hot_pages * args.page_size
     config = {
         "schema": "interactive-speed-v8", "stage": "scale",
-        "case_id": "scale-L32768-H16384-incremental",
+        "case_id": f"scale-L{args.context}-H{hot_capacity_tokens}-incremental",
         "started_utc": started, "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "configuration": {
             "logical_capacity_tokens": args.context, "page_size_tokens": args.page_size,
@@ -417,6 +424,7 @@ def main() -> int:
         },
         "history": {"occupied_before_tokens": 0, "occupied_after_tokens": prior_tokens,
                     "turns": len(records), "target_tokens": args.target_tokens,
+                    "stop_reason": stop_reason,
                     "records": [{"turn": r["turn"], "rendered_tokens": r["rendered_tokens"],
                                  "cached_tokens": r.get("cached_rows"),
                                  "occupied_after_tokens": r.get("occupied_after_tokens"),
@@ -429,9 +437,10 @@ def main() -> int:
         "movement": {"records": [{"turn": r["turn"], "movement_delta": r.get("movement_delta"),
                                     "before": r.get("before"), "after": r.get("after")} for r in records]},
         "memory": {"source": "per-request metrics snapshots", "records": [r.get("after") for r in records]},
-        "outcome": {"request_completed": all(r.get("status") == "pass" for r in records),
+        "outcome": {"request_completed": failed_attempt is None and prior_tokens >= args.target_tokens,
                     "measurement_valid": bool(records), "natural_joint_proof": False,
-                    "failure_category": next((r.get("failure_category") for r in attempt_records if r.get("failure_category")), None)},
+                    "failure_category": failure_category, "stop_reason": stop_reason,
+                    "last_successful_occupied_tokens": prior_tokens},
         "raw": {"request_paths": [r["request_path"] for r in records],
                 "response_paths": [r.get("raw_path") for r in attempt_records], "records": attempt_records,
                 "checkpoint": str(state_path)},
