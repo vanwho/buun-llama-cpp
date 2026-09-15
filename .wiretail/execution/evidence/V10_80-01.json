@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "task": "80-01",
+  "source_commit": "4e518ea1bbbafd62a71b228cd7e1aff05a62445c",
+  "checks": {
+    "phase79_benchmark_review": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_80-01_validation.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_80-01_validation.log",
+          "sha256": "13a441b5461e4ab8842c543ffd933e330b42a9e15f2b277f17e28d7f23e3a9bf"
+        }
+      ]
+    }
+  }
+}
