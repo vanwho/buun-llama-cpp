@@ -1093,3 +1093,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-49-03`
 - Commit at update: `1924f8f08`
 - Summary: Turbo4 router-coordinate transform, finite-score handling, causal/GQA selector checks, receipt, and handoff completed
+
+## 2026-09-15T10:14:38+00:00 — 77-01 — done
+
+- Branch: `codex/task-77-01`
+- Commit at update: `5ab63ce81`
+- Summary: Reviewed phase-76 summary; recorded explicit capability matrix and scheduled three measured repairs/advancements followed by benchmark, summary, and review.
