@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_72",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "73-01",
+  "reviewed_phase": 72,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_72.json",
+    "sha256": "cb42f3c832a1feede0d055e56288a80491c9cffcd05d51497d833cd9a6e412fd",
+    "markdown_path": ".wiretail/execution/evidence/V10_SUMMARY_72.md",
+    "markdown_sha256": "6bb8e6ac40f75feed856ea3c367aa6ce785f8553adc4f1aebe4570afca5e7d5e"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "organic_cold_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false,
+    "cached_append_reuse_proven": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "Phase 72 preserves the resolved Qwen model hash, immutable phase-72 source commits, candidate binary hash, and canonical template identity.",
+    "required_turbo4_placements": "The summary measures target Turbo4 K/V on CUDA and native-MTP draft Turbo4 K/V on GPU; the CPU-main-KV/GPU-draft and all-GPU feature-off controls are separately identified.",
+    "controlled_model_promotion": "The bounded captured-model query reports a cold logical page with completed H2D, mapping publication, and completed target-graph use without a client page ID or public force-promotion API.",
+    "organic_cold_promotion": "The selected/native benchmark reports a natural cold candidate reaching completed target-graph use; this is separate from the controlled-model proof and from answer quality.",
+    "stable_target_consumption": "Both phase-72 physical rows report target_graph_used=true after the promotion chain; correctness and occupancy are not inferred from this physical result.",
+    "full_256k_occupancy": "False: full-L allocation passed, but the bounded run stopped at durable C40001/live C40014. Allocation and the L262144 request do not establish occupied C262144.",
+    "practical_speed_goal_met": "False: cold prefill and committed decode have three-trial rows, but cached append 64/256 is not_run and the matched rows observed C39–42 or C27–30 rather than the requested C6144 coordinate.",
+    "useful_answer_quality_proven": "False: phase 72 ran no answer-quality campaign; target-graph use and benchmark completion do not establish the expected nonce answers.",
+    "cached_append_reuse_proven": "False: the C6143 prefix did not commit a live cache frontier, so neither append-64 nor append-256 was executed or inferred."
+  },
+  "current_findings": {
+    "verified_coordinate": "Measured controlled C6144 at L8192/H4096/A2048/B128/U64, with a cold page consumed by the target graph.",
+    "frontier": "Measured L262144/H8192/A4096/B128/U64 forward progress to durable C40001/live C40014 in 29 turns; this is not full-L occupancy.",
+    "allocation": "Measured L262144 target allocation 138412032 bytes and draft allocation 276955136 bytes with admission/headroom evidence; allocation remains distinct from occupancy.",
+    "rates": "Measured three-trial cold-prefill and 128-token committed-decode rows; selected/native observed C39–42 and controls C27–30, so these are not C6144 rates.",
+    "native_mtp": "Measured nine positive request-scoped denominators totaling 2229 drafted and 15 accepted tokens, or 0.67294751% acceptance."
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "organic answer-quality boundary",
+      "fixture": "deterministic cached A/B/A conversation with distinct expected nonces",
+      "finding": "No phase-72 quality row exists. Measure correctness independently from the already measured organic physical target-graph chain.",
+      "scheduled_task": "74-01"
+    },
+    {
+      "owner": "canonical cached-prefix benchmark",
+      "fixture": "L8192/C6144/H4096/A2048/B128/U64 with 64- and 256-token appends",
+      "finding": "The prefix observed C6143 but did not commit a live frontier; cached append reuse, timings, and their native-MTP denominators remain unmeasured.",
+      "scheduled_task": "74-02"
+    },
+    {
+      "owner": "packed selected-attention full-L route",
+      "fixture": "L262144/H8192 with durable C40001/live C40014",
+      "finding": "The bounded run advanced only to C40001/C40014 and recorded selected-reference rather than packed attention. Repair that measured boundary before another occupancy advancement.",
+      "scheduled_task": "74-03"
+    }
+  ],
+  "next_action": "Run the three ordered measured advancements for answer quality, cached append, and the packed full-L occupancy boundary; then run the matched benchmark, summarize only phase-74 evidence, and review it.",
+  "phase_appended": true,
+  "appended_phases": [74, 75],
+  "next_task_ids": ["74-01", "74-02", "74-03", "74-04", "74-05", "75-01"],
+  "successor_contracts": {
+    "74-01": "Measure one bounded deterministic organic A/B/A answer-quality campaign with expected nonces and canonical transport; keep correctness separate from physical promotion.",
+    "74-02": "Establish actual cached-prefix reuse at C6144 or retain its measured boundary, then measure independent 64/256 append rows with cache_n and request-scoped native-MTP denominators.",
+    "74-03": "Repair the selected-reference/packed-attention boundary, then use a dry-run ledger and bounded probe to advance L262144 occupancy while keeping allocation separate from C262144.",
+    "74-04": "Run the canonical q0/q1/q2 selected/native and feature-off control matrix with independent prefill, cached append, decode, actual geometry, and real native-MTP denominators.",
+    "74-05": "Aggregate only phase-74 identity, geometry, rates, MTP, promotion, answer quality, allocation, pilot, and occupancy evidence into V10_SUMMARY_74.json/.md.",
+    "75-01": "Review only V10_SUMMARY_74.json/.md with explicit capability booleans and append successors only for concrete measured gaps."
+  }
+}
