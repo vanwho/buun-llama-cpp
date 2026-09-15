@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "task": "77-03",
+  "source_commit": "c7d1c2ca4e3d8a18bff07748f54e475ab414a1b6",
+  "checks": {
+    "phase77_answer_quality": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_77-03.md",
+          "sha256": "4a67981d366761641f81bd4dba3cd4c115b742e31b33857eba1080c542d05c34"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/organic-answer-quality.json",
+          "sha256": "3e60cac6b11f805e8bacab491208eb23d6e5372aafbc2340e34af3f389aab932"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/server.log",
+          "sha256": "52464867678759fc2f67e57ca883db6a4a03ae7de9288bff52436af2dce32db6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/raw/raw-a.sse",
+          "sha256": "3eaf537416e3ad16a51bdd32d57e150506868d6c96947a1a2ec5d6ce0aa622e5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/raw/raw-b.sse",
+          "sha256": "c64a20361267ee8f6b3b7a466af023258a6ff784c0141fec3b38140289afd2f6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/raw/raw-a-again.sse",
+          "sha256": "35c1dc1d27dba2f78476ac1703ce0ecbe83286e66a6c3f69fd54853319d2b6a8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/token-arrays/tokens-a.json",
+          "sha256": "15621ba96b3c449b75ec6001c18b9f4dea50d56ae297c0e8149b264928bb8a8b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/token-arrays/tokens-b.json",
+          "sha256": "3e7982d5f2768477c3aae6adc909d88ad305122ca9e870e34671a8c879eb9cb2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/token-arrays/tokens-a-again.json",
+          "sha256": "7c49a665e5cabd2cff2b97d63647c42acaf6e2f7d873f0c83d50ec1bc5d32fdb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/identity/process-final.json",
+          "sha256": "33be21225722ceb87920abdbc885d2b3dc086b4f46fac87e3c758b2b0aa0fd21"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/identity/build-receipt.json",
+          "sha256": "58cd7028fd5906c5d03359b66e3e4112a3d54bf9465807513714c0a4e43f6098"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/identity/slots-after-a.json",
+          "sha256": "ab39c25c71893c3274d66d0b4304b799506559e9bcfc8b80eb443cfaa26f4d3c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/identity/slots-after-b.json",
+          "sha256": "1fa47d6fd1d59eb746749cccff6208969264705d79ccf8800e154bbef50a9d41"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-03/20260915T143000Z-repaired-query-boundary-ab-a/identity/slots-after-a-again.json",
+          "sha256": "4c031dce6225bc472732cfd205aaaaaa1b9821946d59ecd0d68c2e15356dfa99"
+        }
+      ],
+      "finding": {
+        "status": "answer_quality_pass",
+        "expected_b": "COBALT-MAPLE-731",
+        "observed": {
+          "a": "ASTRAL-PINE-482",
+          "b": "COBALT-MAPLE-731",
+          "a_again": "ASTRAL-PINE-482"
+        },
+        "all_correct": true,
+        "physical_promotion_separate": true
+      }
+    }
+  }
+}
