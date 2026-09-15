@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_81",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "82-01",
+  "reviewed_phase": 81,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_81.json",
+    "sha256": "7995ed379e6cacc30b95617ab8dced8b96b4a3f32af527dd304f9c2eee63ebf6",
+    "markdown_path": ".wiretail/execution/evidence/V10_SUMMARY_81.md",
+    "markdown_sha256": "24e3fe2651262a962db1a66f0e781716f01227384cc1336ea104444879bcb8b5"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "controlled_physical_promotion": true,
+    "organic_cold_promotion": true,
+    "organic_physical_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_allocation_measured": true,
+    "full_256k_occupancy": false,
+    "occupied_C262144": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false,
+    "cached_append_reuse_proven": true,
+    "cached_append_256_reuse_proven": true,
+    "cached_append_rates_proven": true,
+    "prefill_proven": true,
+    "committed_decode_proven": true,
+    "native_mtp_denominators_proven": true,
+    "pilots_measured": true
+  },
+  "capability_basis": {
+    "build_identity_valid": "The phase-81 summary records resolved model and hash, immutable tested source identities, endpoint executable hash, template identity, and sampling.",
+    "required_turbo4_placements": "Selected/native and full-L rows measure CUDA Turbo4 target KV and GPU Turbo4 native-MTP KV; feature-off controls are identified separately.",
+    "controlled_model_promotion": "The summary deliberately retains the prior controlled capability and does not present it as a phase-81 rerun.",
+    "controlled_physical_promotion": "The prior controlled production-chain proof remains a distinct retained capability; phase 81 did not rerun it.",
+    "organic_cold_promotion": "The prior organic cold-page capability remains retained and separate from the phase-81 benchmark.",
+    "organic_physical_promotion": "The prior organic selector-to-H2D-to-publication capability remains retained and separate from phase-81 rate evidence.",
+    "stable_target_consumption": "Prior target-graph consumption evidence remains distinct; phase-81 rates and allocation are not substituted for it.",
+    "full_256k_allocation_measured": "Phase 81 measures full L262144 target, native-MTP, packed workspace, charged, reserved, headroom, host, and VRAM bytes.",
+    "full_256k_occupancy": "False: the bounded packed route stopped at durable C33952 and live C33967.",
+    "occupied_C262144": "False for the same measured occupancy boundary; allocation and partial progress are not full occupancy.",
+    "practical_speed_goal_met": "False: the selected/native route is measured, but the observed phase-81 rate rows do not establish the project's practical speed objective.",
+    "useful_answer_quality_proven": "False: phase 81 explicitly reports answer quality not_run and does not inherit an unreported phase-81 oracle.",
+    "cached_append_reuse_proven": "The observed coordinate reports cache_n=6143 for the 64-token append.",
+    "cached_append_256_reuse_proven": "The observed coordinate reports cache_n=6146 for the 256-token request and retains its 253 realized new tokens.",
+    "cached_append_rates_proven": "Phase 81 reports independent measured rates for both cached append sizes.",
+    "prefill_proven": "The selected/native observed coordinate measures cold prefill at actual C6143.",
+    "committed_decode_proven": "The selected/native observed coordinate measures 64 committed output tokens.",
+    "native_mtp_denominators_proven": "Request-scoped draft and accepted deltas are present for selected/native matched and committed-decode rows; the missing cold-prefill observation remains not_run and controls remain feature-off.",
+    "pilots_measured": "The summary records cached appends, verified-coordinate forward progress, full-L allocation, and bounded occupancy with explicit statuses."
+  },
+  "current_findings": {
+    "identity_and_placement": "Requested L8192/C6144/H4096/A2048/B128/U64 remains distinct from observed L8192/C_prefix6143/H8192/A4096/B128/U64 and immutable build identity; Turbo4 placement is explicit.",
+    "promotion": "Controlled and organic physical promotion and target consumption remain retained prior capabilities, not phase-81 reruns.",
+    "answer_quality": "Phase 81 has no answer-quality oracle, so correctness remains a separate unmeasured boundary.",
+    "cache_and_rates": "Cache reuse, 64/256 cached-append rates, cold prefill, and committed decode are measured at the observed coordinate.",
+    "native_mtp": "Native-MTP denominators are measured with genuine zero acceptance in selected/native rows; the cold-prefill observation is explicitly missing rather than fabricated.",
+    "occupancy": "Full-L allocation and partial packed forward progress are measured, but occupied C262144 remains unestablished after the operator wall-budget stop.",
+    "speed": "The selected/native coordinate is measured, but its practical speed objective is not declared met merely from having rate rows."
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "verified-coordinate answer quality",
+      "fixture": "installed Qwen target and deterministic organic A/B/A cached conversation",
+      "finding": "Phase 81 reports answer_quality=not_run. Run one bounded answer-quality oracle with disjoint facts and keep correctness separate from physical promotion and target-graph use.",
+      "scheduled_task": "83-01"
+    },
+    {
+      "owner": "full-L occupied frontier",
+      "fixture": "L262144/H8192/A4096/B128/U64 packed route at durable C33952/live C33967",
+      "finding": "Allocation and partial forward progress are measured, but occupied C262144 remains failed; advance it with the established ledger and bounded probe.",
+      "scheduled_task": "83-02"
+    }
+  ],
+  "next_action": "Run the bounded answer-quality measurement and occupied-frontier advancement, then run the matched benchmark, summarize phase 83, and review it.",
+  "phase_appended": true,
+  "appended_phases": [83, 84],
+  "next_task_ids": ["83-01", "83-02", "83-03", "83-04", "84-01"],
+  "successor_contracts": {
+    "83-01": "Remeasure one deterministic organic answer-quality boundary at the actual cached coordinate, retaining correctness, cache, and identity fields without conflating physical promotion.",
+    "83-02": "Advance L262144 occupancy from durable C33952/live C33967 with a dry-run ledger and bounded packed-route probe, preserving allocation versus occupancy.",
+    "83-03": "Run the canonical q0/q1/q2 selected/native and feature-off matrix after the two measured tasks with actual geometry and request-scoped native-MTP denominators.",
+    "83-04": "Aggregate only phase-83 identity, placement, promotion, quality, rates, cache, MTP, allocation, pilots, and occupancy evidence into V10_SUMMARY_83.json/.md.",
+    "84-01": "Review only V10_SUMMARY_83.json/.md with explicit capability booleans and schedule successors only for concrete measured gaps."
+  }
+}
