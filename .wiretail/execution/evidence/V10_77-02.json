@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "task": "77-02",
+  "source_commit": "ede0f90fb98e00f3ed061418afa0061c5108c661",
+  "revision": "hotpath-v10-20260914",
+  "result": "selected_packed_route_and_native_mtp_cached_reuse_repaired",
+  "checks": {
+    "phase77_route_and_mtp_cache": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/validate-phase77-route-mtp.py",
+        "/srv/ai/paged-kv/results/v10/77-02-live-mtp-repaired3/coordinate.json",
+        "/srv/ai/paged-kv/results/v10/77-02-live-mtp-observe/coordinate.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-02-live-mtp-repaired3/coordinate.json",
+          "sha256": "ffe0277d8797387392956158873bb244b13ca68f3f7c753f92ec4c10a9bb2968"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-02-live-mtp-observe/coordinate.json",
+          "sha256": "44974b467934b053de61f95b76723882d11ae915123041d2db64341be8e44283"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-02-live-mtp-repaired3/raw-append-64.sse",
+          "sha256": "bc58a5017b76366e5d073f339d38b242db69139601fff021ed9179c24ca0fc84"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-02-live-mtp-repaired3/raw-append-256.sse",
+          "sha256": "2161405022ea56f6e08d6767dc44a5d5eb0c29093cbf53928e2631129d103a93"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-02-live-mtp-observe/raw-append-64.sse",
+          "sha256": "91f87954be5fff0f3bfd452ae2d5667ca814cd50dc17e3f8ec0d6bfea2800a4c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-02-live-mtp-observe/raw-append-256.sse",
+          "sha256": "37bf28928bb9fd4b0e2840bf1eaa3e3a489f2a20b2ad4494ea784e92cec80193"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_77-02_completion.log",
+          "sha256": "4e357965138eded8e6a028ab0b5fa5b332a848ec4e1869eb380ed222d3756ffc"
+        }
+      ]
+    }
+  }
+}
