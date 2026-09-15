@@ -1,0 +1,298 @@
+{
+  "schema": "hotpath-v10-summary",
+  "schema_version": 1,
+  "task": "68-05",
+  "phase": "68",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase68_repaired_promotion_cache_reuse_and_matched_benchmark_with_occupancy_quality_boundaries",
+  "active_campaign_met": false,
+  "overall_256k_demonstrated": false,
+  "units": {
+    "rates": "tok/s",
+    "durations": "milliseconds unless field ends in _us",
+    "bytes": "integer bytes",
+    "geometry": "integer tokens"
+  },
+  "identity": {
+    "requested": {
+      "model_profile": "/srv/ai/models/text/current.gguf",
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "observed": {
+      "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "matched_benchmark_L": 8192,
+      "matched_benchmark_C": 30,
+      "matched_benchmark_C_note": "Short clean-isolated prompt rows observed C=30, not requested C6144 occupancy.",
+      "matched_benchmark_H": 4096,
+      "matched_benchmark_A": 2048,
+      "matched_benchmark_B": 128,
+      "matched_benchmark_U": 64,
+      "page_tokens": 256,
+      "target_backend": "CUDA",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "draft_device": "GPU",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4",
+      "full_L": 262144,
+      "full_L_occupied_frontier_C": 12000,
+      "full_L_live_snapshot_C": 12127,
+      "full_L_H": 8192,
+      "full_L_A": 4096,
+      "full_L_B": 128,
+      "full_L_U": 64
+    },
+    "immutable": {
+      "source_commits": [
+        "904362589e594682918778d0aa4aac42325bcf5c",
+        "469adb98a9e7c4232309ce5106f3a88d121c4b03",
+        "5fd117271ad3def22bc6a6deb3f4737d21b05fb4"
+      ],
+      "candidate_bundles": [
+        {
+          "task": "68-01",
+          "path": "/srv/ai/paged-kv/results/v10/68-01/candidate-bundle-final/bin/llama-server",
+          "sha256": "527a3c9818003f28e4895a96bb0cfdec4ea47f5cb8bb8d48e6e1667a22333797"
+        },
+        {
+          "task": "68-03/68-04",
+          "path": "/srv/ai/paged-kv/results/v10/68-03/candidate-bundle-20260915T025740Z/bin/llama-server",
+          "sha256": "4b1266c668b471d2735e2489490f5875da124596e548ed2e734fe6f70adf1e69"
+        }
+      ],
+      "template_id": "pager-corpus-v4; canonical qwen38-fast profile"
+    },
+    "identity_note": "Requested launcher values, observed runtime values, and immutable source/bundle identities are retained separately; short benchmark prompts do not establish C6144."
+  },
+  "geometry_and_bytes": {
+    "matched_benchmark": {
+      "status": "measured",
+      "L": 8192,
+      "C": 30,
+      "requested_C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_allocated_bytes": 69206016,
+      "page_bytes": 4325376,
+      "reason": "All 3 prompts x 3 trials per mode completed, but clean short prompts observed only C=30."
+    },
+    "full_L_startup": {
+      "status": "measured",
+      "L": 262144,
+      "C": 30,
+      "H": 25088,
+      "A": 8192,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_allocated_bytes": 423886848,
+      "draft_rows": 262144,
+      "draft_bytes": 276955136,
+      "reason": "Full-L startup and placement passed; allocation is not occupied-context proof."
+    },
+    "full_L_recovery": {
+      "status": "measured",
+      "L": 262144,
+      "C": 12000,
+      "live_snapshot_C": 12127,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 138412032,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592,
+      "packed_workspace_bytes": 138412032,
+      "packed_dequant_bytes": 16777216,
+      "catalogue_bytes": 67321856,
+      "target_valid_rows": 8031,
+      "target_valid_bytes": 135691776,
+      "attention_pages": 16,
+      "attention_tokens": 4096,
+      "reason": "Bounded H8192 recovery completed nine turns through durable C12000."
+    }
+  },
+  "placement": {
+    "selected_native": {
+      "status": "measured",
+      "target_device": "CUDA",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "draft_device": "GPU",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4",
+      "pager": "selective"
+    },
+    "cpu_main_kv_gpu_draft": {
+      "status": "measured",
+      "target_device": "CPU",
+      "weights_device": "GPU",
+      "draft_device": "GPU",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "mtp": "feature-off control"
+    },
+    "all_gpu_gpu_draft": {
+      "status": "measured",
+      "target_device": "CUDA",
+      "draft_device": "GPU",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "mtp": "feature-off control",
+      "pager": "off"
+    }
+  },
+  "rates": {
+    "status": "measured",
+    "geometry": {"L": 8192, "C": 30, "requested_C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 64},
+    "cold_prefill": {
+      "status": "measured",
+      "samples_per_row": 9,
+      "rate_basis": "observed prompt_n / wall prompt_ms",
+      "selected_native": {"tok_s_median": 649.476, "tok_s_range": [459.598, 698.389]},
+      "cpu_main_kv_gpu_draft": {"tok_s_median": 295.004, "tok_s_range": [279.952, 302.853]},
+      "all_gpu_gpu_draft": {"tok_s_median": 652.174, "tok_s_range": [477.259, 715.188]}
+    },
+    "cached_append": {
+      "status": "measured",
+      "rate_basis": "observed new prompt tokens / wall prompt_ms; restored checkpoint cache_n",
+      "append_64": {"status": "measured", "requested_tokens": 64, "prompt_delta": 65, "cache_n": 6087, "new_prompt_tokens": 133, "prompt_ms": 1840.129, "tok_s": 72.278, "decode_tokens": 128, "decode_ms": 9436.667, "decode_tok_s": 13.564},
+      "append_256": {"status": "measured", "requested_tokens": 256, "prompt_delta": 257, "cache_n": 6087, "new_prompt_tokens": 325, "prompt_ms": 3927.097, "tok_s": 82.758, "decode_tokens": 128, "decode_ms": 9720.085, "decode_tok_s": 13.169},
+      "reason": "Both append lengths reused the restored context checkpoint without prefix reset."
+    },
+    "committed_decode": {
+      "status": "measured",
+      "output_tokens": 128,
+      "samples_per_row": 9,
+      "rate_basis": "observed predicted_n / wall predicted_ms",
+      "selected_native": {"tok_s_median": 33.557, "tok_s_range": [33.321, 33.954]},
+      "cpu_main_kv_gpu_draft": {"tok_s_median": 17.960, "tok_s_range": [17.934, 18.027]},
+      "all_gpu_gpu_draft": {"tok_s_median": 49.778, "tok_s_range": [49.717, 49.801]}
+    },
+    "rate_note": "Rates are recomputed only from phase-68 raw records; the matched benchmark rows observed short C=30 rather than C6144."
+  },
+  "mtp": {
+    "selected_native": {
+      "status": "measured",
+      "rows": 9,
+      "draft_tokens_total": 2243,
+      "accepted_tokens_total": 8,
+      "acceptance_percent": 0.35666518,
+      "denominator": "sum of request-scoped Prometheus counter deltas"
+    },
+    "cached_append": {
+      "status": "measured",
+      "append_64": {"draft_tokens": 251, "accepted_tokens": 0, "acceptance_percent": 0.0, "denominator_valid": true},
+      "append_256": {"draft_tokens": 251, "accepted_tokens": 0, "acceptance_percent": 0.0, "denominator_valid": true}
+    },
+    "controls": {"status": "not_run", "reason": "Both comparison modes were explicit feature-off controls; native-MTP denominators do not apply."}
+  },
+  "promotion": {
+    "controlled_model_query": {
+      "status": "measured",
+      "result": "pass",
+      "setup": "controlled_model_query",
+      "logical_page": 12,
+      "h2d_useful_bytes": 4325376,
+      "h2d_aligned_bytes": 4325376,
+      "client_page_id_used": false,
+      "public_force_promotion_api_used": false,
+      "target_graph_used": true
+    },
+    "organic_t3": {
+      "status": "measured",
+      "round_trip": "pass",
+      "logical_page": 0,
+      "candidate_was_cold": true,
+      "host_ready": true,
+      "selector_published": true,
+      "h2d_queued": true,
+      "h2d_completed": true,
+      "mapping_published": true,
+      "target_graph_used": true,
+      "h2d_useful_bytes": 4325376,
+      "answer_quality": "failed separately",
+      "reason": "A/B/A transport and natural target-graph consumption passed; nonce answer quality did not."
+    },
+    "target_graph_use": {
+      "status": "measured",
+      "controlled": "pass",
+      "organic": "pass",
+      "reason": "Both physical promotion assertions report target_graph_used=true; this does not imply correct answer quality."
+    }
+  },
+  "answer_quality": {
+    "status": "failed",
+    "expected": "AURORA-CEDAR-161",
+    "observed_a": "////////////////",
+    "observed_b": "////////////////",
+    "observed_a_again": "////////////////",
+    "reason": "The bounded organic conversation completed, but the expected nonce was absent from all three responses."
+  },
+  "pilots": {
+    "L262144_H25088": {"status": "failed", "last_successful_C": 1200, "reason": "Packed selected-attention allocation failed on the next continuation: CUDA allocation of 2.06 MiB with 3.2 MiB free."},
+    "L262144_H8192": {"status": "measured", "last_durable_C": 12000, "live_snapshot_C": 12127, "turns": 9, "reason": "Bounded forward-progress recovery; selected packed route remained active."},
+    "occupied_C262144": {"status": "failed", "last_durable_C": 12000, "reason": "The bounded recovery stopped at C12000; occupied C262144 was not reached or claimed."}
+  },
+  "allocation": {
+    "status": "measured",
+    "full_L_startup": {"L": 262144, "H": 25088, "target_allocated_bytes": 423886848, "draft_rows": 262144, "draft_bytes": 276955136},
+    "recovery": {"L": 262144, "H": 8192, "target_allocated_bytes": 138412032, "packed_workspace_bytes": 138412032, "packed_dequant_bytes": 16777216, "catalogue_bytes": 67321856, "charged_bytes": 15965452416, "reserved_bytes": 2068443264, "headroom_bytes": 201326592},
+    "note": "Allocation and reserve/slack are reported separately from physical promotion and occupied-context proof."
+  },
+  "occupied_C262144": {
+    "status": "failed",
+    "last_durable_C": 12000,
+    "live_snapshot_C": 12127,
+    "reason": "Full-L allocation/startup passed, but no run established occupied C262144."
+  },
+  "requested_rows": {
+    "phase68_identity_placement": {"status": "measured", "reason": "Requested, observed, and immutable identities plus Turbo4 target/native-MTP placement are recorded."},
+    "phase68_controlled_and_organic_promotion": {"status": "measured", "reason": "Controlled and organic physical promotion both reached target-graph use; answer quality is separate and failed."},
+    "phase68_cached_append": {"status": "measured", "reason": "Append-64 and append-256 reused cache_n=6087 with valid native-MTP denominators."},
+    "phase68_matched_benchmark": {"status": "measured", "reason": "Three prompts x three measured trials completed in selected/native and both feature-off controls."},
+    "phase68_answer_quality": {"status": "failed", "reason": "Expected AURORA-CEDAR-161 was absent from all bounded organic responses."},
+    "phase68_full_L_allocation": {"status": "measured", "reason": "L262144 startup and allocation completed; this is not occupancy proof."},
+    "phase68_occupied_C262144": {"status": "failed", "reason": "Durable C12000/live C12127 was the final bounded frontier."},
+    "phase68_summary_generated_and_validated": {"status": "measured", "reason": "This JSON/Markdown pair passed the dedicated summary validation and V10 receipt validator."}
+  },
+  "provenance": {
+    "receipts": [
+      ".wiretail/execution/evidence/V10_68-01.json",
+      ".wiretail/execution/evidence/V10_68-02.json",
+      ".wiretail/execution/evidence/V10_68-03.json",
+      ".wiretail/execution/evidence/V10_68-04.json"
+    ],
+    "raw_roots": [
+      "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z",
+      "/srv/ai/paged-kv/results/v10/68-02/append-final-20260915T044447Z",
+      "/srv/ai/paged-kv/results/v10/68-03/",
+      "/srv/ai/paged-kv/results/v10/68-04/"
+    ],
+    "raw_manifests": [
+      "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/t3/slots-final.json",
+      "/srv/ai/paged-kv/results/v10/68-02/append-final-20260915T044447Z/append-64/manifest.json",
+      "/srv/ai/paged-kv/results/v10/68-03/full-L-startup-20260915T025912Z/run-config.json",
+      "/srv/ai/paged-kv/results/v10/68-03/full-L-H8192-startup-20260915T030138Z/run-config.json",
+      "/srv/ai/paged-kv/results/v10/68-03/bounded-L262144-H8192-retry-20260915T030513Z/INTERACTIVE29_01_SCALE.json",
+      "/srv/ai/paged-kv/results/v10/68-03/bounded-L262144-H8192-retry-20260915T030513Z/incremental-state.json",
+      "/srv/ai/paged-kv/results/v10/68-04/20260915T032408Z-selected-native/records.jsonl",
+      "/srv/ai/paged-kv/results/v10/68-04/20260915T032550Z-all-gpu-control/records.jsonl",
+      "/srv/ai/paged-kv/results/v10/68-04/20260915T032703Z-cpu-main-kv-control/records.jsonl"
+    ],
+    "aggregation_scope": "phase-68 receipts and phase-68 raw manifests only"
+  }
+}

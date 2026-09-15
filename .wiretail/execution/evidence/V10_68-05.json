@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "task": "68-05",
+  "source_commit": "5fd117271ad3def22bc6a6deb3f4737d21b05fb4",
+  "checks": {
+    "phase68_summary_generated_and_validated": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_68-05_validation.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_68.json",
+          "sha256": "5ff9bb8288ea8ae1959cc4c18512d9ada9409f9a7e5ad6f41d30ad515ae6fb30"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_68.md",
+          "sha256": "ece72b624be1c23edec61a99c3cb52a7122bd5065f94113979d4c749545d7e74"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_68-05_completion.log",
+          "sha256": "ea76a50cf694242b4c0ad16ac3e24b126c2adca1efacd7d83af0355fd79327e9"
+        }
+      ]
+    }
+  }
+}
