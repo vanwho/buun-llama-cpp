@@ -343,6 +343,18 @@ def restore_profile(profile: str | None,
             "transient_overrides": override_result}
 
 
+def restore_profile_locked(profile: str | None,
+                           overrides: dict[str, str] | None = None) -> dict[str, object]:
+    """Restore the managed profile under the same lock as other lifecycle work."""
+    lock = LifecycleLock()
+    if not lock.acquire():
+        return {"attempted": False, "state": "lifecycle_lock_unavailable"}
+    try:
+        return restore_profile(profile, overrides)
+    finally:
+        lock.release()
+
+
 def healthy(snapshot: dict[str, object]) -> bool:
     value = snapshot.get("health")
     return isinstance(value, dict) and value.get("http_code") == 200
@@ -1367,7 +1379,7 @@ def _main() -> int:
         # The canonical runner restores its own failed attempts. This second,
         # idempotent call covers failures discovered only by this adapter after
         # the runner returned success, and covers a runner startup exception.
-        restoration = restore_profile(before.get("profile"), before.get("transient_overrides"))
+        restoration = restore_profile_locked(before.get("profile"), before.get("transient_overrides"))
         after = service_snapshot(endpoint)
         validation_errors.extend(verify_restoration(before, after, restoration))
 
@@ -1416,19 +1428,13 @@ def _main() -> int:
 
 
 def main() -> int:
-    # Dry runs do not mutate a service and do not need to contend with a live
-    # benchmark. Every live path, including adapter-side restoration, shares
-    # the same bounded owner so two callers cannot restart the service at once.
+    # The canonical runner owns the lifecycle lock while it mutates systemd.
+    # Holding this process's lock across its child would deadlock because both
+    # processes use the same lock path. Adapter-side restoration takes the lock
+    # separately after the canonical runner exits.
     if "--dry-run" in sys.argv:
         return _main()
-    lock = LifecycleLock()
-    if not lock.acquire():
-        print("pager benchmark: lifecycle lock is busy or unavailable", file=sys.stderr)
-        return 75
-    try:
-        return _main()
-    finally:
-        lock.release()
+    return _main()
 
 
 if __name__ == "__main__":

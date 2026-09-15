@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "task": "66-02",
+  "source_commit": "be7f5f0b496a39360efba8bd68af06b6bc2d06d3",
+  "revision": "hotpath-v10-20260914",
+  "findings": {
+    "small_path_smoke": {
+      "status": "measured",
+      "geometry": "L8192/C30/H4096/A2048/B128/U64",
+      "placement": "target CUDA Turbo4 K/V; native-MTP GPU Turbo4 K/V",
+      "native_mtp": {"draft_tokens": 9, "accepted_tokens": 1, "acceptance_percent": 11.11111111}
+    },
+    "full_L_allocation": {
+      "status": "measured",
+      "L": 262144,
+      "C": 30,
+      "H": 16384,
+      "A": 8192,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_allocated_bytes": 276824064,
+      "draft_rows": 262144,
+      "draft_bytes": 276955136,
+      "placement": "target CUDA Turbo4 K/V; native-MTP GPU Turbo4 K/V",
+      "stop_reason": "bounded startup smoke completed; allocation is not occupancy proof"
+    },
+    "occupied_full_L_h16384": {
+      "status": "failed",
+      "L": 262144,
+      "last_successful_C": 4002,
+      "next_requested_C": 5403,
+      "H": 16384,
+      "A": 8192,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 276824064,
+      "stop_reason": "HTTP 500: decode() failed: packed selected attention allocation failed"
+    },
+    "occupied_full_L_h8192": {
+      "status": "measured_partial",
+      "L": 262144,
+      "last_successful_C": 9606,
+      "live_snapshot_C": 9733,
+      "H": 8192,
+      "A": 8192,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 138412032,
+      "draft_rows": 262144,
+      "draft_bytes": 276955136,
+      "completed_turns": 7,
+      "stop_reason": "operator bounded wall-time stop while next request continued slow progress; C262144 not claimed"
+    },
+    "required_boundary": {
+      "status": "failed",
+      "L": 262144,
+      "occupied_frontier": 9606,
+      "claim": "occupied C262144 was not established"
+    }
+  },
+  "checks": {
+    "phase66_occupancy_advancement": {
+      "status": "pass",
+      "command": ["python3", ".wiretail/execution/evidence/V10_66-02_validation.py"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/66-02/phase66_occupancy_validation.log", "sha256": "76bf2c5c28629aa1d7402e380d199420c639c34979e01a7c3923d3fc57af941b"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-02/candidate-bundle/build-receipt.json", "sha256": "ed4a3e120f29f5290723188a54281b120e0f3e79e0fe1232e3af02a48ee4adeb"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-02/full-L-startup/lifecycle-state.json", "sha256": "4d8340e054de7c027f37c72ae005ecf5c16f56975c2d7851e6b2ab2c2ad3fb85"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-02/occupied-L262144-C261000/INTERACTIVE29_01_SCALE.json", "sha256": "1181c80b629617ea9f14ff7e6984eadc5cd29b14e8684e3f032ab8de64090a2b"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-02/occupied-L262144-H8192/incremental-state.json", "sha256": "50021fd7b892b9fd555f673ad7683add2ed054040836ae617b27c88e91bad4d9"}
+      ]
+    }
+  }
+}
