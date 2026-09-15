@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "task": "76-04",
+  "source_commit": "bf2fb6941510dca25c09c7101c0ac74dd5d78e37",
+  "revision": "hotpath-v10-20260914",
+  "result": "matched_controls_measured_selected_native_failed_explicitly",
+  "checks": {
+    "phase76_matched_benchmark": {
+      "status": "pass",
+      "command": [
+        "sudo", "-n", "python3",
+        ".wiretail/execution/evidence/V10_76-04_validation.py",
+        "--root", "/srv/ai/paged-kv/results/v10/76-04"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_76-04_validation.py",
+          "sha256": "78230fad69098e280b0185f5720252bbbcf4db73fb9bd49217345a814079a164"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-cpu-main-kv-control/summary.json",
+          "sha256": "6e2ba1c2b4140cce2944bdf90c3b8c485c9b5d320f24f2921dca5296d36ffc6d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-cpu-main-kv-control/records.jsonl",
+          "sha256": "e180362355427279d14e199697e77b7ff7133e4efaade651e231804bdc9aceb2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-all-gpu-control-8192/summary.json",
+          "sha256": "d7f0d954cb596b810c484f9b732359e1b307ee03f743795d5d399f2ce7a86623"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-all-gpu-control-8192/records.jsonl",
+          "sha256": "e5ad5c846ff1de28029e3048908abc55f237028dba65b4a0be2a8e943cd59e36"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-selected-native-l262144/summary.json",
+          "sha256": "59d3b53f132e3740f6cc8f7122a57932c0b6a719426d0a361dca1c4f5188755a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-selected-native-l262144/raw/startup-mtp.log",
+          "sha256": "bd5cdd0af66bb6bf60e21005a54ed612cdd174bda35a66df1dc4125f9d8cb2cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-all-gpu-control/lifecycle-state.json",
+          "sha256": "9c196dad43712a19a3a9f872b7e5b96bc9b23a7309b0deda96085375b250e91f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/candidate-bundle-76-03/build-receipt.json",
+          "sha256": "a40ae8bf54f8ff2923f678da2c11b043126fdcdbd2adbacf44b1d6ad0dad4945"
+        }
+      ],
+      "findings": {
+        "identity": {
+          "source_commit": "bf2fb6941510dca25c09c7101c0ac74dd5d78e37",
+          "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+          "candidate_binary": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/candidate-bundle-76-03/bin/llama-server",
+          "candidate_binary_sha256": "cde2694b609428fdb310be703def9140c06fbb8cda2a9c6f4912014c20a5b93a"
+        },
+        "geometry": {
+          "runnable_L": 8192,
+          "runnable_H": 8192,
+          "runnable_A": 2048,
+          "B": 128,
+          "U": 64,
+          "page_tokens": 256,
+          "selected_native_attempted_L": [8192, 262144]
+        },
+        "placement": {
+          "selected_native": "target CUDA Turbo4 K/V; draft GPU Turbo4 K/V; selective pager",
+          "cpu_main_kv_gpu_draft": "target CPU K/V; GPU weights/draft; feature-off control",
+          "all_gpu_gpu_draft": "target CUDA K/V; GPU draft; feature-off control"
+        },
+        "controls": {
+          "cpu_main_kv_gpu_draft": {"status": "measured", "rows": 9, "prompt_tok_s_median": [312.3243175713661, 285.9805956869889, 289.77108084613155], "decode_tok_s_median": [17.898375560345993, 17.909857571505107, 17.877637285825553]},
+          "all_gpu_gpu_draft": {"status": "measured", "rows": 9, "prompt_tok_s_median": [682.4230568003458, 651.2458091126173, 673.69231509552], "decode_tok_s_median": [49.36365583348201, 49.34098701399613, 49.35678778252389]}
+        },
+        "selected_native": {
+          "status": "failed_rows_retained",
+          "rows": 12,
+          "reason": "selected attention refused: route override 'packed' is unsupported for this selected view/phase; HTTP 500 Compute error",
+          "native_draft_denominator": "positive request deltas were observed, but failed requests are not acceptance-rate evidence"
+        },
+        "cached_append": {
+          "status": "not_run",
+          "reason": "selected/native could not complete the first request after the repaired route change; no cached 64/256 rate is claimed"
+        },
+        "allocation_and_occupancy": {
+          "status": "retained_from_76-03",
+          "allocation_L262144": "measured",
+          "occupied_frontier": "durable C13034 / live C13049",
+          "full_occupied_L262144": "not established"
+        },
+        "promotion_and_quality": {
+          "status": "reported_separately_from_74-01",
+          "physical_promotion": "target graph used cold logical page 0",
+          "answer_quality": "A and A-again correct; B mismatch retained as quality finding"
+        },
+        "capacity_failure": "L262144 all-GPU control retained failed: CUDA KV allocation needed 8448.1 MiB with 2943.2 MiB free"
+      }
+    }
+  }
+}
