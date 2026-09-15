@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_70",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "71-01",
+  "reviewed_phase": 70,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_70.json",
+    "sha256": "27307d191b67736e00f77ede2c52fbba7424df77013e671681f319e9dc70d04f"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": true,
+    "cached_append_reuse_proven": true
+  },
+  "capability_basis": {
+    "build_identity_valid": "Phase 70 retains the resolved Qwen model hash, immutable source commits, candidate binary hash, and canonical template identity.",
+    "required_turbo4_placements": "Selected target K/V are Turbo4 on CUDA and native-MTP draft K/V are Turbo4 on GPU; full-L draft allocation and observed geometry are retained.",
+    "controlled_model_promotion": "Not proven: phase 70 ran the organic A/B/A path only and explicitly records the separate controlled captured-model query as not_run.",
+    "organic_cold_promotion": "The organic A/B/A page was actually cold and reached H2D completion and target-graph use without a client page ID or public force-promotion API.",
+    "stable_target_consumption": "The organic production route consumed the promoted page in a completed target graph; this physical claim remains separate from answer quality and controlled-query coverage.",
+    "full_256k_occupancy": "Full-L startup/allocation passed, but the bounded run stopped at durable C29297/live C30336 and did not occupy C262144.",
+    "practical_speed_goal_met": "Matched rates are measured only at observed clean C27/C28/C30 rather than occupied C6144, and the isolated cached-append rate row is not_run.",
+    "useful_answer_quality_proven": "The repaired organic A/B/A scenario returned AURORA-CEDAR-161, EMBER-OAK-204, and AURORA-CEDAR-161 again exactly.",
+    "cached_append_reuse_proven": "Phase 68 established restored cache reuse with valid native-MTP denominators; phase 70 does not invalidate that capability, but it did not capture a new isolated append-rate row."
+  },
+  "current_findings": {
+    "matched_geometry": {
+      "requested": {"L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 64},
+      "observed_C": [27, 28, 30],
+      "page_tokens": 256,
+      "interpretation": "The clean q0/q1/q2 rows are not an occupied C6144 speed comparison."
+    },
+    "rates": {
+      "cold_prefill_tok_s_median": {
+        "selected_native": 673.215978,
+        "cpu_main_kv_gpu_draft": 293.670355,
+        "all_gpu_gpu_draft": 652.567976
+      },
+      "committed_decode_tok_s_median": {
+        "selected_native": 33.2694229,
+        "cpu_main_kv_gpu_draft": 17.8468944,
+        "all_gpu_gpu_draft": 49.3559246
+      },
+      "native_mtp": {
+        "draft_tokens": 2247,
+        "accepted_tokens": 6,
+        "acceptance_percent": 0.26702225,
+        "rows": 9,
+        "denominator": "request-scoped Prometheus counter deltas"
+      },
+      "cached_append": {
+        "status": "not_run",
+        "reason": "Phase 70 did not capture an isolated 64/256-token cached-append timing row."
+      }
+    },
+    "capacity": {
+      "full_L_allocation": "measured",
+      "occupied_C262144": "failed",
+      "durable_C": 29297,
+      "checkpoint_live_C": 29312,
+      "final_live_C": 30336,
+      "reason": "The bounded occupancy run stopped under wall budget."
+    }
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "controlled model-query promotion",
+      "finding": "The required captured-model controlled residency proof was not run; organic promotion cannot substitute for it.",
+      "scheduled_task": "72-01"
+    },
+    {
+      "owner": "full-L allocation-to-occupied frontier",
+      "finding": "Allocation/startup is measured, but occupied C262144 remains unproven after the C30336 bounded frontier.",
+      "scheduled_task": "72-02"
+    },
+    {
+      "owner": "verified-coordinate performance",
+      "finding": "The benchmark observed C27–30 rather than C6144 and phase 70 has no isolated cached-append rate.",
+      "scheduled_task": "72-03"
+    }
+  ],
+  "next_action": "Run the three bounded measured advancements in order, then the verified-coordinate benchmark, phase summary, and a fresh review.",
+  "next_task_ids": ["72-01", "72-02", "72-03", "72-04", "72-05", "73-01"],
+  "phase_appended": true,
+  "appended_phases": [72, 73],
+  "successor_contracts": {
+    "72-01": "Run the missing bounded controlled-model query with nonresident sealed history, normal selection/transfer/publication/target-graph consumption, and no injected candidate ID or force API.",
+    "72-02": "Use a dry-run ledger and bounded probe to advance occupied C262144, retaining exact resource bytes/frontiers and the first stop reason without substituting allocation for occupancy.",
+    "72-03": "Establish actual C6144 cached-prefix occupancy or record the measured boundary, then measure isolated 64/256 appends with verified cache_n and MTP denominators.",
+    "72-04": "Run the canonical q0/q1/q2 selected/native and feature-off control matrix at the verified observed coordinate with independent prefill, append, decode, and raw trials.",
+    "72-05": "Aggregate only phase-72 identity, geometry, rates, MTP, promotion, answer quality, allocation, pilot, and occupancy findings into V10_SUMMARY_72.json/.md.",
+    "73-01": "Review only V10_SUMMARY_72.json/.md with explicit capability booleans and append successors only for concrete measured gaps."
+  }
+}
