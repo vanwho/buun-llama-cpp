@@ -770,6 +770,12 @@ private:
     std::vector<uint32_t> kv_attention_selected_pages_scratch_;
     std::vector<llama_pos> kv_attention_query_positions_scratch_;
     std::vector<int32_t> kv_attention_rows_scratch_;
+    // Keep the first page of the active prompt available to decode graphs.
+    // The prefill query position identifies it once; subsequent decode
+    // batches must not replace it with only the newest frontier page.
+    uint32_t kv_attention_request_page_ = UINT32_MAX;
+    uint32_t kv_attention_request_following_page_ = UINT32_MAX;
+    bool kv_attention_prefill_active_ = false;
     uint64_t kv_attention_dense_debug_layout_key_ = 0;
 
     // decode output (2-dimensional array: [n_outputs][n_vocab])
