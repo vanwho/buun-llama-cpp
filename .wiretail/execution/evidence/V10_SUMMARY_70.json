@@ -1,0 +1,169 @@
+{
+  "schema": "hotpath-v10-summary",
+  "schema_version": 1,
+  "task": "70-04",
+  "phase": "70",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase70_measured_quality_occupancy_and_matched_benchmark_with_honest_boundaries",
+  "active_campaign_met": false,
+  "units": {
+    "rates": "tok/s",
+    "durations": "milliseconds unless field ends in _us",
+    "bytes": "integer bytes",
+    "geometry": "integer tokens"
+  },
+  "identity": {
+    "requested": {
+      "model_profile": "/srv/ai/models/text/current.gguf",
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "observed": {
+      "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "benchmark_L": 8192,
+      "benchmark_observed_C": [27, 28, 30],
+      "benchmark_C_note": "Clean isolated benchmark prompts observed C=27, 28, and 30, not requested C6144; no rate is presented as a C6144 result.",
+      "benchmark_H": 4096,
+      "benchmark_A": 2048,
+      "benchmark_B": 128,
+      "benchmark_U": 64,
+      "page_tokens": 256,
+      "target_backend": "CUDA",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "draft_device": "GPU",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4",
+      "full_L": 262144,
+      "full_L_durable_C": 29297,
+      "full_L_checkpoint_live_C": 29312,
+      "full_L_final_live_C": 30336,
+      "full_L_H": 8192,
+      "full_L_A": 4096,
+      "full_L_B": 128,
+      "full_L_U": 64
+    },
+    "immutable": {
+      "source_commits": {
+        "70-01": "ac007eeee700b3f245144910815fc284fa84ee29",
+        "70-02": "5c08c503fcbd8b033df02374b4042a2197641560",
+        "70-03": "d0ad7b4a7969a8b62e631d24637ab31b275f453a"
+      },
+      "candidate_binary": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2/bin/llama-server",
+      "candidate_binary_sha256": "76404a3ace49a8f77a3567a8b26e98ba57c4e074827f7db7aab55d875eea3cae",
+      "template_id": "pager-corpus-v4; canonical qwen38-fast profile"
+    },
+    "identity_note": "Requested launcher values, observed runtime geometry, and immutable source/bundle identities are separate. L262144 allocation and C30336 occupancy are not interchangeable claims."
+  },
+  "geometry_and_bytes": {
+    "matched_benchmark": {
+      "status": "measured",
+      "requested": {"L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 64, "page_tokens": 256},
+      "observed_C": [27, 28, 30],
+      "target_allocated_bytes": 69206016,
+      "page_bytes": 4325376,
+      "reason": "All three prompts and three measured trials per mode completed, but the clean prompts did not occupy C6144."
+    },
+    "full_L_allocation": {
+      "status": "measured",
+      "L": 262144,
+      "C": 0,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_allocated_bytes": 138412032,
+      "draft_bytes": 276955136,
+      "packed_dequant_bytes": 16777216,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592,
+      "reason": "Full-L selective startup and allocation ledger passed; allocation is not occupied-context proof."
+    },
+    "occupied_C262144": {
+      "status": "failed",
+      "L": 262144,
+      "durable_C": 29297,
+      "checkpoint_live_C": 29312,
+      "final_live_C": 30336,
+      "reason": "The bounded run stopped after 21 durable turns at the operator wall budget; C262144 was not occupied."
+    }
+  },
+  "placement": {
+    "selected_native": {"status": "measured", "target_device": "CUDA", "target_k": "turbo4", "target_v": "turbo4", "draft_device": "GPU", "draft_k": "turbo4", "draft_v": "turbo4", "pager": "selective"},
+    "cpu_main_kv_gpu_draft": {"status": "measured", "target_device": "CPU", "weights_device": "GPU", "draft_device": "GPU", "target_k": "turbo4", "target_v": "turbo4", "mtp": "feature-off control"},
+    "all_gpu_gpu_draft": {"status": "measured", "target_device": "CUDA", "draft_device": "GPU", "target_k": "turbo4", "target_v": "turbo4", "mtp": "feature-off control", "pager": "off"}
+  },
+  "rates": {
+    "status": "measured",
+    "geometry_note": "Matched benchmark rates are observed short-prompt C27–30 rates, not C6144 rates.",
+    "cold_prefill": {
+      "status": "measured",
+      "samples_per_row": 3,
+      "selected_native": {"tok_s_median": 673.215978, "tok_s_range": [460.373755, 722.230247]},
+      "cpu_main_kv_gpu_draft": {"tok_s_median": 293.670355, "tok_s_range": [284.372169, 305.219249]},
+      "all_gpu_gpu_draft": {"tok_s_median": 652.567976, "tok_s_range": [477.183557, 709.555345]}
+    },
+    "cached_append": {
+      "status": "not_run",
+      "rate": null,
+      "reason": "Phase-70 occupancy records measured bounded incremental progress but did not capture an isolated 64/256-token cached-append timing row; no append rate is inferred."
+    },
+    "committed_decode": {
+      "status": "measured",
+      "output_tokens": 128,
+      "samples_per_row": 3,
+      "selected_native": {"tok_s_median": 33.2694229, "tok_s_range": [32.9815132, 33.4666554]},
+      "cpu_main_kv_gpu_draft": {"tok_s_median": 17.8468944, "tok_s_range": [17.8035669, 17.8932438]},
+      "all_gpu_gpu_draft": {"tok_s_median": 49.3559246, "tok_s_range": [49.3208289, 49.3800279]}
+    },
+    "incremental_occupancy_diagnostic": {
+      "status": "measured",
+      "basis": "rendered occupied tokens divided by turn wall time; not a cached-append rate",
+      "turns": 21,
+      "durable_C": 29297,
+      "final_live_C": 30336,
+      "reason": "Retained to describe the bounded occupancy run only."
+    }
+  },
+  "mtp": {
+    "selected_native": {"status": "measured", "rows": 9, "draft_tokens": 2247, "accepted_tokens": 6, "acceptance_percent": 0.26702225, "positive_denominator_rows": 9, "denominator": "sum of request-scoped Prometheus counter deltas"},
+    "controls": {"status": "not_run", "reason": "CPU-main-KV and all-GPU comparisons were explicit feature-off controls; native-MTP acceptance denominators do not apply."}
+  },
+  "promotion": {
+    "organic_t3": {"status": "measured", "result": "pass", "logical_page": 0, "candidate_was_cold": true, "host_ready": true, "target_graph_used": true, "h2d_useful_bytes": 4325376, "h2d_aligned_bytes": 4325376, "client_page_id_used": false, "public_force_promotion_api_used": false},
+    "controlled_model_query": {"status": "not_run", "reason": "Phase 70 ran the repaired organic A/B/A quality and promotion path; no separate controlled captured-model query was run."}
+  },
+  "answer_quality": {
+    "status": "measured",
+    "scenario": "phase-68 T3 A/B/A replay on repaired phase-70 candidate",
+    "expected": {"a": "AURORA-CEDAR-161", "b": "EMBER-OAK-204"},
+    "observed": {"a": "AURORA-CEDAR-161", "b": "EMBER-OAK-204", "a_again": "AURORA-CEDAR-161"},
+    "correct": true,
+    "reason": "All three exact nonce answers were returned with stop; answer correctness remains separate from physical promotion proof."
+  },
+  "pilots": {
+    "L262144_startup": {"status": "measured", "reason": "Full-L allocation and startup passed."},
+    "occupied_C262144": {"status": "failed", "reason": "Bounded run reached durable C29297/live C30336 and stopped under wall budget."},
+    "cached_append_rate": {"status": "not_run", "reason": "No isolated cached-append timing campaign in phase 70."}
+  },
+  "raw_sources": [
+    ".wiretail/execution/evidence/V10_70-01.json",
+    ".wiretail/execution/evidence/V10_70-02.json",
+    ".wiretail/execution/evidence/V10_70-03.json",
+    "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z",
+    "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-full-L262144-H8192",
+    "/srv/ai/paged-kv/results/v10/70-03/20260915T044316Z-selected-native",
+    "/srv/ai/paged-kv/results/v10/70-03/20260915T044451Z-cpu-main-kv-control",
+    "/srv/ai/paged-kv/results/v10/70-03/20260915T044659Z-all-gpu-control"
+  ]
+}

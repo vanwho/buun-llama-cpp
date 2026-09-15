@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "task": "70-04",
+  "source_commit": "d0ad7b4a7969a8b62e631d24637ab31b275f453a",
+  "checks": {
+    "phase70_summary_generated_and_validated": {
+      "status": "pass",
+      "command": ["python3", ".wiretail/execution/v10/validate.py", "--task", "70-04", "--receipt", ".wiretail/execution/evidence/V10_70-04.json"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_SUMMARY_70.json", "sha256": "27307d191b67736e00f77ede2c52fbba7424df77013e671681f319e9dc70d04f"},
+        {"path": ".wiretail/execution/evidence/V10_SUMMARY_70.md", "sha256": "57f80ab3e97fbfb8845a45c271082bd1c9f6c1b84bb3da0b136d4c1fc7fe3489"},
+        {"path": ".wiretail/execution/evidence/V10_70-01.json", "sha256": "35bc2a5dcdb5841f8fc8b3b8ca14b01757144f1d65e1ee263f00a8af721cdf79"},
+        {"path": ".wiretail/execution/evidence/V10_70-02.json", "sha256": "2d7d4fd223ec45d42cee46fde2f00010f98691e6851585fd66f52b7b9df13bd4"},
+        {"path": ".wiretail/execution/evidence/V10_70-03.json", "sha256": "359272eb9867681399e1388388c2867499eb922810f1747c8e9a5ae47eae65ec"}
+      ],
+      "finding": {"summary_json_valid": true, "summary_markdown_present": true, "phase70_rows_explicit_status": true, "c6144_limitation_preserved": true, "occupied_C262144_not_claimed": true}
+    }
+  }
+}
