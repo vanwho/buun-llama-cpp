@@ -463,9 +463,31 @@ static void write_model_metrics(std::ostream & out, const model_run & run) {
         << ", \"forced_checksum_equal\": "
         << (integrity.test_forced_host_checksum != 0 &&
             integrity.test_forced_host_checksum == integrity.test_forced_device_checksum ? "true" : "false")
-        << ", \"natural_proof\": {\"logical_page\": "
+        << ", \"natural_proof\": {\"query_generation\": "
+        << after.natural_proof.query_generation
+        << ", \"query_position\": " << after.natural_proof.query_position
+        << ", \"catalogue_epoch\": " << after.natural_proof.catalogue_epoch
+        << ", \"published_epoch\": " << after.natural_proof.published_epoch
+        << ", \"page_generation\": " << after.natural_proof.page_generation
+        << ", \"content_version\": " << after.natural_proof.content_version
+        << ", \"logical_page\": "
         << (after.natural_proof.logical_page == UINT32_MAX
                 ? -1 : int64_t(after.natural_proof.logical_page))
+        << ", \"attention_layer\": "
+        << (after.natural_proof.attention_layer == UINT32_MAX
+                ? -1 : int64_t(after.natural_proof.attention_layer))
+        << ", \"selector_rank\": "
+        << (after.natural_proof.selector_rank == UINT32_MAX
+                ? -1 : int64_t(after.natural_proof.selector_rank))
+        << ", \"physical_slot\": "
+        << (after.natural_proof.physical_slot == UINT32_MAX
+                ? -1 : int64_t(after.natural_proof.physical_slot))
+        << ", \"candidate_was_cold\": "
+        << (after.natural_proof.candidate_was_cold ? "true" : "false")
+        << ", \"host_ready\": "
+        << (after.natural_proof.host_ready ? "true" : "false")
+        << ", \"promotion_published\": "
+        << (after.natural_proof.promotion_published ? "true" : "false")
         << ", \"selector_published\": " << (after.natural_proof.selector_published ? "true" : "false")
         << ", \"h2d_queued\": " << (after.natural_proof.h2d_queued ? "true" : "false")
         << ", \"h2d_completed\": " << (after.natural_proof.h2d_completed ? "true" : "false")
@@ -473,6 +495,9 @@ static void write_model_metrics(std::ostream & out, const model_run & run) {
         << ", \"target_graph_used\": " << (after.natural_proof.target_graph_used ? "true" : "false")
         << ", \"h2d_useful_bytes\": " << after.natural_proof.h2d_useful_bytes
         << ", \"h2d_aligned_bytes\": " << after.natural_proof.h2d_aligned_bytes
+        << ", \"target_use_epoch\": " << after.natural_proof.target_use_epoch
+        << ", \"target_use_query_generation\": "
+        << after.natural_proof.target_use_query_generation
         << "}, \"rejection_histogram\": {\"no_candidate\": "
         << after.rejection_histogram.no_candidate
         << ", \"invalid_candidate\": " << after.rejection_histogram.invalid_candidate
