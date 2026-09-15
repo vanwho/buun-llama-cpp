@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_77",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "78-01",
+  "reviewed_phase": 77,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_77.json",
+    "sha256": "8adbd201b2daae9a22596ffd917650ce2925233552950aa92ffa3fdbc83badd2",
+    "markdown_path": ".wiretail/execution/evidence/V10_SUMMARY_77.md",
+    "markdown_sha256": "e9a3d157ee346491d3860f3a326b93e696788eb1ebd2fe9e9bbc75e8428e6593"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "controlled_physical_promotion": true,
+    "organic_cold_promotion": true,
+    "organic_physical_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_allocation_measured": true,
+    "full_256k_occupancy": false,
+    "occupied_C262144": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": true,
+    "cached_append_reuse_proven": true,
+    "cached_append_256_reuse_proven": true,
+    "cached_append_rates_proven": false,
+    "prefill_proven": true,
+    "committed_decode_proven": true,
+    "native_mtp_denominators_proven": true,
+    "pilots_measured": true
+  },
+  "capability_basis": {
+    "build_identity_valid": "The summary separates requested, observed, and immutable identity, records the resolved Qwen model hash and immutable tested source commits, and retains the canonical template and sampling identity.",
+    "required_turbo4_placements": "The summary measures CUDA target Turbo4 K/V, GPU native-MTP Turbo4 K/V, and separately identified CPU-main-KV/GPU-draft and all-GPU feature-off controls.",
+    "controlled_model_promotion": "The established V10 controlled-model capability remains distinct; phase 77 did not substitute its organic A/B/A result for that proof.",
+    "controlled_physical_promotion": "The established controlled physical-promotion capability remains distinct. The phase-77 route/cache coordinate explicitly did not rerun a deliberate controlled scenario, so its not_run row is not merged with organic promotion.",
+    "organic_cold_promotion": "The organic A-again row records the candidate as cold and host-ready before H2D.",
+    "organic_physical_promotion": "The organic A-again row queued and completed H2D, published the mapping, and used logical page 0 in the completed target graph.",
+    "stable_target_consumption": "Target-graph use is reported separately from mapping publication and answer correctness.",
+    "full_256k_allocation_measured": "The L262144 allocation records target, draft, charged, reserved, headroom, and budget bytes.",
+    "full_256k_occupancy": "False: the bounded occupancy run stopped at durable C32762/live C32773 and did not establish occupied C262144.",
+    "occupied_C262144": "False for the same explicit occupancy boundary; allocation and partial forward progress are not occupancy.",
+    "practical_speed_goal_met": "False: the matched matrix observed C30 rather than the requested C6144 coordinate, and cached-append rates were not run.",
+    "useful_answer_quality_proven": "The organic A/B/A rows all returned their expected nonces, independently of the physical promotion claim.",
+    "cached_append_reuse_proven": "The phase-77 repair and retained predecessor rows report nonzero cache_n for the 64-token append in the selected/native path.",
+    "cached_append_256_reuse_proven": "The phase-77 repair and retained predecessor rows report nonzero cache_n for the 256-token append; this establishes reuse, not its rate.",
+    "cached_append_rates_proven": "False: the summary explicitly records cached_append_rates as not_run.",
+    "prefill_proven": "The selected/native matched matrix contains nine measured cold-prefill rows with request-scoped native-MTP observations.",
+    "committed_decode_proven": "The selected/native matched matrix contains nine measured committed-decode rows with request-scoped native-MTP observations.",
+    "native_mtp_denominators_proven": "Selected/native rows retain request-scoped draft and accepted deltas with valid denominators; feature-off controls remain separate.",
+    "pilots_measured": "The summary records 64/256 append pilots, the L262144 allocation, and bounded occupancy advancement with explicit status.",
+    "next_work": "The remaining measured gaps are verified-coordinate speed/cached-append rates and occupied C262144. Established controlled promotion is not scheduled again merely because phase 77 did not rerun it."
+  },
+  "current_findings": {
+    "identity_and_placement": "Requested L8192/C6144/H4096/A2048/B128/U64 remains separate from observed quality, matched, cached-append, and occupancy coordinates; Turbo4 target and native-MTP placement are explicit.",
+    "promotion": "Controlled and organic physical promotion remain separate capabilities. The organic A-again page was cold, transferred, published, and consumed by the target graph; the controlled row was not rerun in this phase.",
+    "answer_quality": "The deterministic organic A/B/A campaign returned ASTRAL-PINE-482, COBALT-MAPLE-731, and ASTRAL-PINE-482 exactly.",
+    "cached_append": "64- and 256-token repair rows reuse a nonzero prefix, but no phase-wide cached-append rate campaign was run.",
+    "rates": "Cold prefill and committed decode are measured in the 27-row matrix, but the matched rows observed C30 rather than occupied C6144; this is not the requested practical-speed claim.",
+    "occupancy": "L262144 allocation is measured and the bounded frontier reached durable C32762/live C32773, but occupied C262144 remains unestablished."
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "verified-coordinate performance and cached-append rates",
+      "fixture": "L8192 selected/native Turbo4 target with full-L GPU Turbo4 draft near cached C6143",
+      "finding": "Phase-77 matched rates observed C30 and cached_append_rates was not_run; measure cold prefill, 64/256 cached append, and committed decode at the actual cached-prefix coordinate with request-scoped native-MTP denominators.",
+      "scheduled_task": "78-02"
+    },
+    {
+      "owner": "full-L occupied frontier",
+      "fixture": "L262144/H8192 packed route at durable C32762/live C32773",
+      "finding": "Allocation and forward progress are measured, but occupied C262144 remains a failed boundary; advance it with a ledger and bounded probe while retaining exact stop semantics.",
+      "scheduled_task": "78-03"
+    }
+  ],
+  "next_action": "Run the two ordered measured advancements for verified-coordinate performance/cached-append rates and occupied C262144; then run the matched benchmark, summarize only phase-78 evidence, and review it.",
+  "phase_appended": true,
+  "appended_phases": [78, 79],
+  "next_task_ids": ["78-02", "78-03", "78-04", "78-05", "79-01"],
+  "successor_contracts": {
+    "78-02": "Measure actual cached-prefix geometry near C6144 and independent selected/native cold-prefill, 64/256 cached-append, and committed-decode rates with Turbo4 placement and request-scoped MTP denominators.",
+    "78-03": "Advance L262144 occupancy from durable C32762/live C32773 with a dry-run ledger and bounded forward-progress probe; preserve allocation versus occupancy.",
+    "78-04": "Run the canonical matched q0/q1/q2 selected/native and feature-off control matrix after the two measured advancements, retaining actual geometry and raw rate/MTP rows.",
+    "78-05": "Aggregate only phase-78 identity, geometry, rates, MTP, promotion, answer quality, cache reuse, allocation, pilots, and occupancy evidence into V10_SUMMARY_78.json/.md.",
+    "79-01": "Review only V10_SUMMARY_78.json/.md with explicit capability booleans and append successors only for concrete measured gaps."
+  }
+}

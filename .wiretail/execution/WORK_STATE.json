@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "78",
-  "current_task": "78-01",
-  "last_updated_utc": "2026-09-15T12:33:28+00:00",
+  "current_task": "78-02",
+  "last_updated_utc": "2026-09-15T12:41:15+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -13814,7 +13814,7 @@
       "cluster": "78a-review-v10",
       "title": "Review the phase-77 summary and schedule only measured next work",
       "packet": ".wiretail/execution/tasks/78-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -13839,6 +13839,245 @@
       ],
       "depends_on": [
         "77-06"
+      ],
+      "commit": "afe80439723d7c6992aa02fa465ae03b9a7aa88e",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/78-01-attempt-1-20260915T123347Z.jsonl:70",
+            "total_tokens": 1887582,
+            "total_tokens_derived": true,
+            "input_tokens": 1865450,
+            "cached_input_tokens": 1719040,
+            "output_tokens": 22132,
+            "thinking_tokens": 8272
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 1887582,
+          "input_tokens": 1865450,
+          "cached_input_tokens": 1719040,
+          "output_tokens": 22132,
+          "thinking_tokens": 8272
+        }
+      }
+    },
+    {
+      "id": "78-02",
+      "phase": "78",
+      "cluster": "78b-performance-v10",
+      "title": "Measure verified-coordinate performance and cached-append rates",
+      "packet": ".wiretail/execution/tasks/78-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_77.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_77.md"
+      ],
+      "required_proofs": [
+        "phase78_verified_coordinate_performance"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "78-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_78-02.json"
+      ],
+      "depends_on": [
+        "78-01"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "78-03",
+      "phase": "78",
+      "cluster": "78c-occupancy-v10",
+      "title": "Advance the measured occupied C262144 frontier",
+      "packet": ".wiretail/execution/tasks/78-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_77.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_77.md"
+      ],
+      "required_proofs": [
+        "phase78_occupancy_advancement"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "78-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_78-03.json"
+      ],
+      "depends_on": [
+        "78-02"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "78-04",
+      "phase": "78",
+      "cluster": "78d-benchmark-v10",
+      "title": "Run the matched V10 benchmark after the measured advancements",
+      "packet": ".wiretail/execution/tasks/78-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_77.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_77.md"
+      ],
+      "required_proofs": [
+        "phase78_matched_benchmark"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "78-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_78-04.json"
+      ],
+      "depends_on": [
+        "78-03"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "78-05",
+      "phase": "78",
+      "cluster": "78e-summary-v10",
+      "title": "Generate the phase-78 benchmark summary",
+      "packet": ".wiretail/execution/tasks/78-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_77.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_77.md"
+      ],
+      "required_proofs": [
+        "phase78_summary_generated_and_validated"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "78-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_78-05.json"
+      ],
+      "depends_on": [
+        "78-04"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "79-01",
+      "phase": "79",
+      "cluster": "79a-review-v10",
+      "title": "Review the phase-78 summary and schedule only measured next work",
+      "packet": ".wiretail/execution/tasks/79-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md"
+      ],
+      "required_proofs": [
+        "phase78_benchmark_review"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "79-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_79-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_78.json"
+      ],
+      "depends_on": [
+        "78-05"
       ],
       "commit": null,
       "token_usage": {
@@ -18012,6 +18251,31 @@
       }
     },
     "78": {
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/78-01-attempt-1-20260915T123347Z.jsonl:70",
+          "total_tokens": 1887582,
+          "total_tokens_derived": true,
+          "input_tokens": 1865450,
+          "cached_input_tokens": 1719040,
+          "output_tokens": 22132,
+          "thinking_tokens": 8272
+        }
+      ],
+      "totals": {
+        "turns": 1,
+        "total_tokens": 1887582,
+        "input_tokens": 1865450,
+        "cached_input_tokens": 1719040,
+        "output_tokens": 22132,
+        "thinking_tokens": 8272
+      }
+    },
+    "79": {
       "turns": [],
       "totals": {
         "turns": 0,
@@ -18025,12 +18289,12 @@
   },
   "token_usage": {
     "totals": {
-      "turns": 249,
-      "total_tokens": 4512586784,
-      "input_tokens": 4501616822,
-      "cached_input_tokens": 4405985792,
-      "output_tokens": 10969962,
-      "thinking_tokens": 3939022
+      "turns": 250,
+      "total_tokens": 4514474366,
+      "input_tokens": 4503482272,
+      "cached_input_tokens": 4407704832,
+      "output_tokens": 10992094,
+      "thinking_tokens": 3947294
     },
     "source": "Codex turn.completed usage events"
   }
