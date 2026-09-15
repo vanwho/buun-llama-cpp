@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "task": "72-03",
+  "source_commit": "2bdf7cad2d863a4df94f2d763c9d07bb548de22b",
+  "checks": {
+    "phase72_verified_cached_append_coordinate": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/validate-cached-append-coordinate.py",
+        "/srv/ai/paged-kv/results/v10/72-03/20260915T060100Z-72-03-coordinate-bounded/coordinate.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-03/20260915T060100Z-72-03-coordinate-bounded/coordinate.json",
+          "sha256": "caac81268d049c6fc381744c82c3c71cd061373b7650043116b160715b9c677a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-03/20260915T060100Z-72-03-coordinate-bounded/raw-prefix.sse",
+          "sha256": "d5fe235d8611630b3beb97c450818336581c5b5363c0da2a29f1d070552c2e39"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-03/20260915T060100Z-72-03-coordinate-bounded/prefix-token-ids.json",
+          "sha256": "adaa5012e337a5195b529ea5ffaadff05619b95795afaf9d73a3a8eea13c8021"
+        }
+      ]
+    }
+  }
+}
