@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "task": "76-02",
+  "source_commit": "a4bc8a1404a0e565176a06afb4f7c8fb792347e9",
+  "checks": {
+    "phase76_cached_append": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_76-02_validation.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_76-02_validation.py",
+          "sha256": "9bc3f35fd1d0e92aefe66fba44bd8b1b4a6f279613a5345994ac2edece278562"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-02/20260915T103000Z-cached-append-repair/summary.json",
+          "sha256": "cb0dc48d13b29b985f0c81f518a197fca5bb4715e4018dd45aacb6263d9a91eb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-02/20260915T103000Z-cached-append-repair/mtp-summary.json",
+          "sha256": "e7ec809528e85c18af4cc63a5b6ee98ee0d42da8f7ef61a44c9d69db64ce15e8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-02/20260915T103000Z-cached-append-repair/metrics-final.txt",
+          "sha256": "8f6fd4c70ba39ba5c61f9725181720b04f67842160109261daaa4ec2877f0c10"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-02/20260915T103000Z-cached-append-repair/props.json",
+          "sha256": "00dd63f73323e5536a32cbbfacdf52e479dc4b82978caaa5e5e3a2cbf4bc68af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-02/20260915T103000Z-cached-append-repair/identity.json",
+          "sha256": "a5415b94888ee030ffd466a53c9bb64125b6659dbfe9203d6c78bbd51ce4edb4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-02/20260915T103000Z-cached-append-repair/raw-append-64.json",
+          "sha256": "8b3c1129c98ce24cabc9261e1e30fd787339eb620b2824e519748f89506cdb50"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-02/20260915T103000Z-cached-append-repair/raw-append-256.json",
+          "sha256": "5a52477988b96b989c1fa6b2c8f459520a5f0708ef15a560f4fbda4243942749"
+        }
+      ]
+    }
+  }
+}
