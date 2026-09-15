@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task": "74-02",
+  "source_commit": "1c8b489922263948df56e82ccbaea617ec7e4370",
+  "checks": {
+    "phase74_cached_append": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-cached-append-coordinate.py",
+        "/srv/ai/paged-kv/results/v10/74-02/20260915T064411Z-cached-append/coordinate.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-02/20260915T064411Z-cached-append/coordinate.json",
+          "sha256": "58bc06cb0dfa24c6088074dec84fb1ffcc23b6b53b841db44a8c6a5df11d91c4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-02/20260915T064411Z-cached-append/raw-prefix.sse",
+          "sha256": "34c4885ea145889b1dbb604c9e4947dcabd7664f468901b113abd2ee39b00be2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-02/20260915T064411Z-cached-append/raw-append-64.sse",
+          "sha256": "6f74dec8d76b8f350233424fe0a485be46fc109b17d1dc9deba51850a3541af4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-02/20260915T064411Z-cached-append/raw-append-256.sse",
+          "sha256": "fe822837dedcff365a3120df71c55a5ef4dbde4c9af7cbbc7e95d7bc03151a30"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-02/20260915T064648Z-cached-append-mtp/coordinate.json",
+          "sha256": "3314ad1d3275283a4ba4bc725bec98b1de6c9900bdb0cc1874f43cc0f4422268"
+        }
+      ]
+    }
+  }
+}
