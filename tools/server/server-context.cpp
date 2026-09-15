@@ -1580,8 +1580,11 @@ static bool server_cache_transient_seq_rm_impl(
         llama_memory_t mem,
         llama_seq_id seq_id,
         llama_pos p0,
-        llama_pos p1) {
-    return llama_memory_seq_rm_transient(mem, seq_id, p0, p1);
+        llama_pos p1,
+        bool attention_only = false) {
+    return attention_only
+        ? llama_memory_seq_rm_attn_transient(mem, seq_id, p0, p1)
+        : llama_memory_seq_rm_transient(mem, seq_id, p0, p1);
 }
 
 static server_cache_control_status server_cache_family_resolve_for_launch(
@@ -17718,8 +17721,6 @@ private:
                     const auto & input_tokens = slot.task->tokens;
                     std::unique_ptr<server_vbr_retier_freeze_scope> vbr_restore_freeze;
                     bool return_after_vbr_restore_trim = false;
-                    bool checkpoint_tgt_recurrent_installed = false;
-                    bool checkpoint_dft_recurrent_installed = false;
                     llama_pos checkpoint_installed_pos = -1;
 
                     // used to determine the number of tokens added to the batch for the current slot
@@ -18492,12 +18493,6 @@ private:
                                                     slot.cache_plan->restore_attempt_failed = true;
                                                 }
                                             } else {
-                                                checkpoint_tgt_recurrent_installed =
-                                                    llama_model_is_hybrid(model_tgt);
-                                                checkpoint_dft_recurrent_installed =
-                                                    ctx_dft && model_dft &&
-                                                    llama_model_is_hybrid(model_dft.get()) &&
-                                                    !it->data_dft.empty();
                                                 checkpoint_installed_pos = it->pos_max;
 
                                                 // The checkpoint that successfully
@@ -18797,12 +18792,20 @@ private:
                     // checkpoint bytes is redundant. Keep the old whole-memory path for every
                     // other case, especially [TAG_PROMPT_LOGITS]'s one-behind trim: recurrent
                     // rollback depth is then a real validity check and must still fail closed.
-                    const bool trim_tgt_attn_only =
-                        checkpoint_tgt_recurrent_installed &&
+                    // A restored checkpoint owns the complete non-replayable
+                    // frontier.  The suffix after that frontier only needs its
+                    // attention rows removed before replay.  Turbo4 attention
+                    // memories reject whole-sequence removal even though their
+                    // attention-only removal is supported; treating that
+                    // rejection as a failed restore throws away the valid
+                    // checkpoint and turns every cached append into a cold
+                    // prompt.  This also applies to non-hybrid checkpoints:
+                    // llama_memory_seq_rm_attn is equivalent there.
+                    const bool checkpoint_suffix =
+                        checkpoint_installed_pos >= 0 &&
                         (int64_t) p0 == (int64_t) checkpoint_installed_pos + 1;
-                    const bool trim_dft_attn_only =
-                        checkpoint_dft_recurrent_installed &&
-                        (int64_t) p0 == (int64_t) checkpoint_installed_pos + 1;
+                    const bool trim_tgt_attn_only = checkpoint_suffix;
+                    const bool trim_dft_attn_only = checkpoint_suffix;
                     if (trim_tgt_attn_only || trim_dft_attn_only) {
                         SLT_INF(slot,
                                 "CHECKPOINT_ATTN_ONLY_TRIM p0=%d target=%u draft=%u\n",
@@ -18815,13 +18818,20 @@ private:
                             ? llama_memory_vbr_state(
                                 llama_get_memory(ctx_tgt), slot.id, 0)
                             : llama_memory_vbr_state_data{};
-                    bool trim_ok = ::server_cache_live_range_drop_impl(
-                        llama_get_memory(ctx_tgt), slot.id, p0, -1,
-                        trim_tgt_attn_only);
+                    bool trim_ok = checkpoint_suffix
+                        ? server_cache_transient_seq_rm_impl(
+                              llama_get_memory(ctx_tgt), slot.id, p0, -1, true)
+                        : ::server_cache_live_range_drop_impl(
+                              llama_get_memory(ctx_tgt), slot.id, p0, -1,
+                              trim_tgt_attn_only);
                     if (trim_ok && ctx_dft) {
-                        trim_ok = ::server_cache_live_range_drop_impl(
-                            llama_get_memory(ctx_dft.get()), slot.id, p0, -1,
-                            trim_dft_attn_only);
+                        trim_ok = checkpoint_suffix
+                            ? server_cache_transient_seq_rm_impl(
+                                  llama_get_memory(ctx_dft.get()), slot.id,
+                                  p0, -1, true)
+                            : ::server_cache_live_range_drop_impl(
+                                  llama_get_memory(ctx_dft.get()), slot.id,
+                                  p0, -1, trim_dft_attn_only);
                     }
 
                     if (trim_ok && trim_tgt_attn_only) {
