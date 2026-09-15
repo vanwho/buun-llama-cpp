@@ -1,0 +1,157 @@
+{
+  "schema": "hotpath-v10-summary",
+  "schema_version": 1,
+  "task": "76-05",
+  "phase": "76",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase76_summary_generated_with_explicit_quality_cache_benchmark_and_occupancy_boundaries",
+  "active_campaign_met": false,
+  "units": {"rates": "tok/s", "durations": "milliseconds unless field ends in _us", "bytes": "integer bytes", "geometry": "integer tokens"},
+  "identity": {
+    "requested": {
+      "model_profile": "/srv/ai/models/text/current.gguf",
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "observed": {
+      "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "model_size_bytes": 14252845984,
+      "quality_C": [2034, 4080, 4126],
+      "cached_append_C": [6143, 6207, 6399],
+      "cached_append_H": 8192,
+      "matched_L": 8192,
+      "matched_H": 8192,
+      "matched_A": 2048,
+      "matched_B": 128,
+      "matched_U": 64,
+      "occupancy_L": 262144,
+      "occupancy_durable_C": 13034,
+      "occupancy_live_C": 13049,
+      "occupancy_H": 8192,
+      "occupancy_A": 4096,
+      "occupancy_B": 128,
+      "occupancy_U": 64
+    },
+    "immutable": {
+      "tested_source_commits": {
+        "76-01": "c7d1c2ca4e3d8a18bff07748f54e475ab414a1b6",
+        "76-02": "a4bc8a1404a0e565176a06afb4f7c8fb792347e9",
+        "76-03": "bf2fb6941510dca25c09c7101c0ac74dd5d78e37",
+        "76-04": "bf2fb6941510dca25c09c7101c0ac74dd5d78e37"
+      },
+      "candidate_binaries": {
+        "76-02": {"path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server", "sha256": "cf4192d250f3f6ecde3404b869f7eb83888614babde40496a96f98033765377e", "size_bytes": 17904},
+        "76-03": {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/candidate-bundle-76-03/bin/llama-server", "sha256": "cde2694b609428fdb310be703def9140c06fbb8cda2a9c6f4912014c20a5b93a", "size_bytes": 17904}
+      },
+      "template_and_identity_note": "Requested launcher geometry, observed runtime geometry, and immutable build identity remain separate; 76-04 selected/native failed rows are not speed evidence."
+    }
+  },
+  "geometry_and_bytes": {
+    "page": {"page_tokens": 256, "page_bytes": 4325376},
+    "cached_append": {"status": "measured", "L": 8192, "C": [6143, 6207, 6399], "H": 8192, "A": 2048, "B": 128, "U": 64, "page_bytes": 4325376},
+    "occupancy_allocation": {"status": "measured", "L": 262144, "C_durable": 13034, "C_live": 13049, "H": 8192, "A": 4096, "B": 128, "U": 64, "target_allocated_bytes": 138412032, "mtp_bytes": 276955136, "packed_storage_bytes": 69206016, "packed_workspace_bytes": 138412032, "charged_bytes": 15965452416, "reserved_bytes": 2068443264, "headroom_bytes": 201326592, "host_pageable_bytes": 216268800, "host_pinned_bytes": 0, "h2d_useful_bytes": 449839104, "h2d_aligned_bytes": 449839104, "d2h_useful_bytes": 0, "d2h_aligned_bytes": 0},
+    "occupied_C262144": {"status": "failed", "L": 262144, "requested_C": 262144, "last_durable_C": 13034, "last_live_C": 13049, "reason": "bounded occupancy run ended at the operator wall-budget boundary; full occupied L262144 was not established"}
+  },
+  "placement": {
+    "cached_append_native": {"status": "measured", "target_device": "CUDA", "target_k": "turbo4", "target_v": "turbo4", "draft_device": "GPU", "draft_k": "turbo4", "draft_v": "turbo4", "pager": "selective"},
+    "selected_native_matched": {"status": "failed", "target_device": "CUDA", "target_k": "turbo4", "target_v": "turbo4", "draft_device": "GPU", "draft_k": "turbo4", "draft_v": "turbo4", "pager": "selective", "reason": "selected packed route refused the selected view; HTTP 500 Compute error"},
+    "cpu_main_kv_gpu_draft": {"status": "measured", "target_device": "CPU", "weights_device": "GPU", "draft_device": "GPU", "target_k": "turbo4", "target_v": "turbo4", "mtp": "feature-off control"},
+    "all_gpu_gpu_draft": {"status": "measured", "target_device": "CUDA", "draft_device": "GPU", "target_k": "turbo4", "target_v": "turbo4", "mtp": "feature-off control", "pager": "off"}
+  },
+  "answer_quality": {
+    "status": "failed",
+    "campaign": "organic A/B/A",
+    "rows": {
+      "A": {"status": "measured", "correct": true, "expected": "ASTRAL-PINE-482", "observed": "ASTRAL-PINE-482", "C": 2034},
+      "B": {"status": "failed", "correct": false, "expected": "COBALT-MAPLE-731", "observed": "COBALT-ELM-117", "C": 4080},
+      "A_again": {"status": "measured", "correct": true, "expected": "ASTRAL-PINE-482", "observed": "ASTRAL-PINE-482", "C": 4126}
+    },
+    "reason": "B mismatch is retained as answer-quality/policy evidence and is not converted into a paging or target-graph failure"
+  },
+  "cached_append": {
+    "status": "measured",
+    "coordinate": {"L": 8192, "H": 8192, "A": 2048, "B": 128, "U": 64, "page_tokens": 256},
+    "non_mtp": {
+      "prefix": {"status": "measured", "C": 6143, "cache_n": 0, "new_prompt_tokens": 6143, "prompt_tok_s": 183.24885331500548},
+      "append_64": {"status": "measured", "C": 6207, "cache_n": 6143, "new_prompt_tokens": 64, "prompt_tok_s": 95.79475972728429},
+      "prefix_reset": {"status": "measured", "C": 6143, "cache_n": 0, "new_prompt_tokens": 6143, "prompt_tok_s": 129.88533131775318},
+      "append_256": {"status": "measured", "C": 6399, "cache_n": 6143, "new_prompt_tokens": 256, "prompt_tok_s": 96.5510809994525}
+    },
+    "native_mtp": {
+      "prefix": {"status": "measured", "C": 6143, "cache_n": 0, "new_prompt_tokens": 6143, "prompt_tok_s": 126.75645802797159, "draft_delta": 1, "accepted_delta": 0},
+      "append_64": {"status": "measured", "C": 6207, "cache_n": 0, "new_prompt_tokens": 6207, "prompt_tok_s": 126.17538561551817, "draft_delta": 1, "accepted_delta": 0, "reason": "MTP process did not reuse the prefix despite the non-MTP row reusing it"},
+      "prefix_reset": {"status": "measured", "C": 6143, "cache_n": 0, "new_prompt_tokens": 6143, "prompt_tok_s": 129.96537881406496, "draft_delta": 1, "accepted_delta": 0},
+      "append_256": {"status": "measured", "C": 6399, "cache_n": 0, "new_prompt_tokens": 6399, "prompt_tok_s": 124.88677683622937, "draft_delta": 1, "accepted_delta": 0}
+    },
+    "not_run": {"status": "not_run", "reason": "No additional cached-append campaign was run after the four-row repair capture; the rows above are the complete requested 64/256 evidence."}
+  },
+  "rates": {
+    "matched_benchmark": {
+      "status": "measured_for_controls_failed_for_selected_native",
+      "samples_per_prompt": 3,
+      "cpu_main_kv_gpu_draft": {"prompt_tok_s_median": [312.3243175713661, 285.9805956869889, 289.77108084613155], "decode_tok_s_median": [17.898375560345993, 17.909857571505107, 17.877637285825553]},
+      "all_gpu_gpu_draft": {"prompt_tok_s_median": [682.4230568003458, 651.2458091126173, 673.69231509552], "decode_tok_s_median": [49.36365583348201, 49.34098701399613, 49.35678778252389]},
+      "selected_native": {"status": "failed", "prompt_tok_s_median": [null, null, null], "decode_tok_s_median": [null, null, null], "reason": "all measured rows returned HTTP 500 from the selected packed route; no rate claim"}
+    },
+    "cold_prefill": {"status": "not_run", "reason": "Phase 76 did not run a new cold-prefill campaign separate from the matched benchmark and cached-append capture."},
+    "committed_decode": {"status": "not_run", "reason": "Selected/native matched requests failed before decode; controls are retained only in matched_benchmark and are not promoted to a separate phase-wide claim."}
+  },
+  "native_mtp": {
+    "status": "measured_with_zero_acceptance",
+    "cached_append": {"requests": 4, "draft_tokens": 4, "accepted_tokens": 0, "acceptance_percent": 0.0, "denominator": "request-scoped row deltas", "bounds_valid": true},
+    "matched_selected_native": {"status": "failed", "reason": "failed HTTP requests are not acceptance-rate evidence; matched rows retained zero diagnostic acceptance values only", "denominator": "not applicable"},
+    "controls": {"status": "not_run", "reason": "feature-off controls are not native-MTP evidence"}
+  },
+  "physical_promotion": {
+    "status": "measured",
+    "source": "76-01 organic A/B/A",
+    "request": "A-again",
+    "logical_page": 0,
+    "candidate_was_cold": true,
+    "h2d_queued": true,
+    "h2d_completed": true,
+    "mapping_published": true,
+    "target_graph_used": true,
+    "h2d_useful_bytes": 4325376,
+    "h2d_aligned_bytes": 4325376,
+    "answer_quality_separate": true
+  },
+  "pilots": {
+    "cached_append_64": {"status": "measured", "cache_n": 6143, "new_prompt_tokens": 64},
+    "cached_append_256": {"status": "measured", "cache_n": 6143, "new_prompt_tokens": 256},
+    "L262144_allocation": {"status": "measured", "C": 0, "target_allocated_bytes": 138412032, "mtp_bytes": 276955136},
+    "occupancy_frontier": {"status": "measured", "durable_C": 13034, "live_C": 13049},
+    "occupied_C262144": {"status": "failed", "reason": "operator_bounded_wall_budget_stop_after_durable_C13034_live_C13049"}
+  },
+  "requested_rows": {
+    "answer_quality": "measured_with_failed_B_row",
+    "cached_append_64": "measured_non_mtp_reuse; native_mtp_row_measured_without_reuse",
+    "cached_append_256": "measured_non_mtp_reuse; native_mtp_row_measured_without_reuse",
+    "cold_prefill": "not_run_with_concrete_reason",
+    "committed_decode": "not_run_as_separate_campaign_with_concrete_reason",
+    "native_mtp_denominators": "measured_request_scoped_4_draft_0_accepted_for_cached_append",
+    "physical_promotion": "measured",
+    "target_graph_use": "measured",
+    "L262144_allocation": "measured",
+    "occupied_C262144": "failed_with_concrete_stop_reason"
+  },
+  "raw_evidence": {
+    "receipts": [".wiretail/execution/evidence/V10_76-01.json", ".wiretail/execution/evidence/V10_76-02.json", ".wiretail/execution/evidence/V10_76-03.json", ".wiretail/execution/evidence/V10_76-04.json"],
+    "roots": [
+      "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference",
+      "/srv/ai/paged-kv/results/v10/76-02/20260915T103000Z-cached-append-repair",
+      "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement",
+      "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-cpu-main-kv-control",
+      "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-all-gpu-control-8192",
+      "/srv/ai/paged-kv/results/v10/76-04/20260915T-matched-selected-native-l262144"
+    ]
+  }
+}

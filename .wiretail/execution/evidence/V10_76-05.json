@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "task": "76-05",
+  "source_commit": "7323993c54e144f15be8334bf85f5220985f2fa4",
+  "checks": {
+    "phase76_summary_generated_and_validated": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_76-05_validation.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_76.json",
+          "sha256": "1c633300a55c57ac9b0db19b52c7664e3b739f9dd032c091666a774275e0fe32"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_76.md",
+          "sha256": "3760fa88e6162433fc727edc8184e85e8c06ef729387f025815820d7bf5b84d7"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_76-05_validation.py",
+          "sha256": "f008774117aee62913eaa481f751584d2571c0b689248ec1be3294e82b6ec356"
+        }
+      ]
+    }
+  }
+}
