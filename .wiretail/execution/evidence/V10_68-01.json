@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "task": "68-01",
+  "source_commit": "904362589e594682918778d0aa4aac42325bcf5c",
+  "candidate": {
+    "binary": "/srv/ai/paged-kv/results/v10/68-01/candidate-bundle-final/bin/llama-server",
+    "binary_sha256": "527a3c9818003f28e4895a96bb0cfdec4ea47f5cb8bb8d48e6e1667a22333797",
+    "model": "/srv/ai/models/text/current.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "context_tokens": 8192,
+    "page_size_tokens": 256,
+    "hot_pages": 16,
+    "batch": 128,
+    "ubatch": 64,
+    "target_kv": "gpu/turbo4",
+    "native_mtp": "gpu/turbo4",
+    "draft_rows": 8192
+  },
+  "findings": {
+    "organic_t3": {
+      "status": "measured",
+      "round_trip": "pass",
+      "same_rendered_prefix": true,
+      "client_page_id_used": false,
+      "public_force_promotion_api_used": false,
+      "rows": [
+        {"label": "A", "id": "chatcmpl-Km5PCoCQddLjiooePiWpSiojDdFCRJfv", "http_status": 200, "prompt_tokens": 2035, "completion_tokens": 16, "cache_n": 0, "stop_reason": "length"},
+        {"label": "B", "id": "chatcmpl-VeJt4n0l2j1iVjjF4ytbVnNcmpNhc8If", "http_status": 200, "prompt_tokens": 4073, "completion_tokens": 16, "cache_n": 0, "stop_reason": "length"},
+        {"label": "A-again", "id": "chatcmpl-cBQMDOoFiK8CVhxdx48C9Fg6hYpVzEnh", "http_status": 200, "prompt_tokens": 4110, "completion_tokens": 16, "cache_n": 0, "stop_reason": "length"}
+      ],
+      "natural_proof": {
+        "query_generation": 192,
+        "query_position": 4097,
+        "catalogue_epoch": 20867,
+        "published_epoch": 20883,
+        "page_generation": 135,
+        "content_version": 135,
+        "logical_page": 0,
+        "attention_layer": 3,
+        "selector_rank": 0,
+        "physical_slot": 15,
+        "candidate_was_cold": true,
+        "host_ready": true,
+        "promotion_published": true,
+        "selector_published": true,
+        "h2d_queued": true,
+        "h2d_completed": true,
+        "mapping_published": true,
+        "target_graph_used": true,
+        "h2d_useful_bytes": 4325376,
+        "h2d_aligned_bytes": 4325376,
+        "target_use_epoch": 20994,
+        "target_use_query_generation": 192,
+        "selected_in_last_graph": true
+      },
+      "final_selected_page_ids": [0, 1, 2, 3, 7, 8, 14, 16]
+    },
+    "answer_quality": {
+      "status": "failed",
+      "expected": "AURORA-CEDAR-161",
+      "observed_a": "////////////////",
+      "observed_b": "////////////////",
+      "observed_a_again": "////////////////",
+      "first_exact_stop_reason": "length",
+      "reason": "The bounded organic conversation completed, but the expected nonce was absent from all three responses."
+    },
+    "controlled_model_query": {
+      "status": "measured",
+      "result": "pass",
+      "separate_assertion": true,
+      "source": ".wiretail/execution/evidence/V10_66-01.json",
+      "natural_chain": "pass",
+      "forced_fixture_only": true,
+      "client_page_id_used": false,
+      "public_force_promotion_api_used": false
+    }
+  },
+  "checks": {
+    "phase68_organic_promotion_quality_repair": {
+      "status": "pass",
+      "command": [
+        "jq",
+        "-e",
+        "(.natural_proof.candidate_was_cold and .natural_proof.h2d_queued and .natural_proof.h2d_completed and .natural_proof.mapping_published and .natural_proof.target_graph_used and (.natural_proof.h2d_useful_bytes > 0) and (.natural_proof.h2d_aligned_bytes == .natural_proof.h2d_useful_bytes) and .rows[0].prompt_tokens == 2035 and .rows[1].prompt_tokens == 4073 and .rows[2].prompt_tokens == 4110 and ([.rows[].response.finish_reason] | all(. == \"length\")))",
+        "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/proof.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/proof.json", "sha256": "f302a52e6cf708b4e2f4dab414aa1a1947159bb2e0d6e59c9b12de859b862123"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/proof-validation.json", "sha256": "a17fcf0a2f50e2d495e4f90ce263410edc183add6c62699a2facbccf60410f74"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/runtime-identity.txt", "sha256": "0edb9ebdafa41798b4b3e5bbd7e5958da8b83b8e271b0129929bc2095f3f3af6"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/startup.log", "sha256": "9263bf652a3a7f4645c32528ca282f1bd1bfe73ae8b2e2c8dde41186211e6338"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/t3/slots-final.json", "sha256": "b5c489c8464488d029290b28e19087f55ea357b3f78b040c8a86a71f940fc94d"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/t3/raw-a.sse", "sha256": "65b11377e857ab1744553a8b4bc4e52d2d39a0ce666982aff9c182cfd3552de2"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/t3/raw-b.sse", "sha256": "5c43540bbace01f4e5b643e06b06f762636170b4d4380ebfbc98be24ac8d9777"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/t3/raw-a-again.sse", "sha256": "42d47b4bb48109372f472a1fca7e99a6c48dad6be29b1d15b7dcf83b5634f1f1"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/t3/preflight-a.json", "sha256": "ffcbdcc483aab5497d906a4ca5ee37df57bc5a160d90529f4fd2622a5c28d7af"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/t3/preflight-b.json", "sha256": "8c17dd01b579fee3becfa672c3a9ba0ba3f7355c67d50f576e1bc4f58f8efb6a"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-01/20260915T041500Z/t3/preflight-a-again.json", "sha256": "540718618bc0d4c795c75b45253c36c3c305f7f0b6ef71cc60fda008cc230ae5"},
+        {"path": "/tmp/v10-68-final-test-kv-pager.log", "sha256": "ade5c313f451630d1a8951a379dc4703e8e72767db40a3ed009e3c5895f87637"},
+        {"path": "/tmp/v10-68-final-test-kv-attention-execution.log", "sha256": "ec5d1d45c24922748a9cf1e06c9135ade6f8dd5d4f4ecf6ec1d678e7927c0074"},
+        {"path": "/tmp/v10-68-final-test-kv-pager-model.log", "sha256": "d9005c8b37e1f33e2af656fe51c6e79681d75287a746fe719c2c43d26f901cbb"}
+      ]
+    }
+  }
+}
