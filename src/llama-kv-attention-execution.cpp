@@ -691,13 +691,10 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         return llama_kv_attention_execution_route::selected_dense;
     }
 
-    // The mature Flash Attention bridge is the automatic selective route.
-    // The custom paged kernel remains available only through the explicit
-    // diagnostic override above; direct_capable is deliberately not an
-    // automatic fallback when the packed route is available.
-    if (packed_capable) {
-        return llama_kv_attention_execution_route::selected_packed;
-    }
+    // The compact packed bridge remains available only through the explicit
+    // diagnostic override above. Automatic dispatch must retain the
+    // canonical reference consumer for non-contiguous selected views until
+    // the packed route has an answer-quality proof.
     return llama_kv_attention_execution_route::selected_reference;
 }
 

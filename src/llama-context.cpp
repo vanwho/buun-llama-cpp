@@ -2810,6 +2810,24 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             ? cparams.kv_attention_tokens
             : std::max<uint32_t>(page_tokens,
                 (hot_capacity * page_tokens + 1) / 2);
+        if (phase != llama_kv_attention_execution_phase::prefill) {
+            kv_attention_prefill_active_ = false;
+        } else if (!kv_attention_prefill_active_) {
+            kv_attention_request_page_ = UINT32_MAX;
+            kv_attention_request_following_page_ = UINT32_MAX;
+            if (ubatch.pos[0] >= 0 && page_tokens != 0) {
+                const uint64_t query_position = uint64_t(ubatch.pos[0]);
+                const uint32_t query_page = uint32_t(query_position / page_tokens);
+                kv_attention_request_page_ = query_page;
+                if (query_position % page_tokens != 0 &&
+                        query_page < UINT32_MAX - 1) {
+                    kv_attention_request_following_page_ = query_page + 1;
+                }
+            }
+            kv_attention_prefill_active_ = true;
+        }
+        const uint32_t request_page = kv_attention_request_page_;
+        const uint32_t request_following_page = kv_attention_request_following_page_;
         const uint32_t bounded_pages = std::max<uint32_t>(1,
             std::min<uint64_t>(hot_capacity,
                 (uint64_t(attention_tokens) + page_tokens - 1) / page_tokens));
@@ -2865,6 +2883,21 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         for (const auto & page : pager_snapshot.pages()) {
             if (page.id.logical_page == 0) append_fallback(page.id);
         }
+        // A cached continuation can begin in the middle of the logical
+        // inventory. Preserve the page containing the first query row before
+        // consuming advisory routed slots; otherwise the first uncached page
+        // of a new prompt can be omitted even while the frontier and recent
+        // route remain resident. The query position is scheduler-owned, so
+        // this does not accept a client-selected page identity.
+        const auto append_request_boundary = [&]() {
+            for (const auto & page : pager_snapshot.pages()) {
+                if (page.id.logical_page == request_page ||
+                        page.id.logical_page == request_following_page) {
+                    append_fallback(page.id);
+                }
+            }
+        };
+        append_request_boundary();
         if (!routed_pages.empty()) {
             bool routed_valid = true;
             for (const auto & id : routed_pages) {
@@ -2885,6 +2918,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 for (const auto & page : pager_snapshot.pages()) {
                     if (page.id.logical_page == 0) append_fallback(page.id);
                 }
+                append_request_boundary();
                 for (auto page = pager_snapshot.pages().rbegin();
                         page != pager_snapshot.pages().rend(); ++page) {
                     append_fallback(page->id);
@@ -2900,6 +2934,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             for (const auto & page : pager_snapshot.pages()) {
                 if (page.id.logical_page == 0) append_fallback(page.id);
             }
+            append_request_boundary();
             for (auto page = pager_snapshot.pages().rbegin();
                     page != pager_snapshot.pages().rend(); ++page) {
                 append_fallback(page->id);
@@ -3026,14 +3061,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     }
     const bool dense_capable = fa_capable && dense_view.eligible;
     const auto route_override = kv_attention_execution.route_override();
-    // Automatic dispatch keeps the dense route for contiguous selected views.
-    // An explicit packed diagnostic request is different: the compact owner
-    // can represent a dense selected view too, and refusing it here prevents
+    // Automatic dispatch keeps the dense route for contiguous selected views
+    // and the canonical reference route otherwise. An explicit packed
+    // diagnostic request is different: the compact owner can represent a
+    // dense or non-contiguous selected view, and refusing it here prevents
     // the requested route from ever reaching the planner.
     const bool packed_capable = fa_capable &&
-        (route_override == llama_kv_attention_execution_route_override::packed ||
-         (route_override == llama_kv_attention_execution_route_override::automatic &&
-          !dense_view.eligible));
+        route_override == llama_kv_attention_execution_route_override::packed;
     if (packed_capable) {
         const uint64_t k_row = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0,
                 int64_t(metadata.head_dim_k()) * metadata.n_head_kv()));
