@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "task": "68-04",
+  "source_commit": "5fd117271ad3def22bc6a6deb3f4737d21b05fb4",
+  "revision": "hotpath-v10-20260914",
+  "result": {
+    "status": "measured_matched_matrix_with_cached_append_boundary",
+    "model": "Qwen3.8-27B-UD-IQ4_XS",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "geometry": {
+      "logical_capacity_L": 8192,
+      "occupied_context_C": 6144,
+      "hot_capacity_H": 4096,
+      "attention_window_A": 2048,
+      "batch_B": 128,
+      "ubatch_U": 64,
+      "page_size": 256,
+      "coordinate_note": "Requested matched coordinate; clean canonical prompt rows observed short prompts, not C6144 occupancy."
+    },
+    "placement": {
+      "selected_native": "target CUDA Turbo4 K/V; native MTP GPU Turbo4 K/V; selective pager",
+      "cpu_main_kv_control": "target CPU KV; GPU weights; feature-off control",
+      "all_gpu_control": "target CUDA Turbo4 K/V; feature-off control; pager off"
+    },
+    "matrix": {
+      "selected_native": {"status": "measured", "prompts": 3, "trials_per_prompt": 3},
+      "cpu_main_kv_control": {"status": "measured", "prompts": 3, "trials_per_prompt": 3},
+      "all_gpu_control": {"status": "measured", "prompts": 3, "trials_per_prompt": 3}
+    },
+    "native_mtp": {
+      "status": "measured",
+      "rows": 9,
+      "denominator": "request-scoped Prometheus counter delta",
+      "acceptance_claim_scope": "selected_native only"
+    },
+    "cached_append": {
+      "append_64": {"status": "failed_observation", "cache_n": 0},
+      "append_256": {"status": "failed_observation", "cache_n": 0},
+      "reason": "clean-isolated canonical matrix rows did not reuse a cached prefix; no cached append rate imported"
+    },
+    "raw_runs": [
+      "/srv/ai/paged-kv/results/v10/68-04/20260915T032408Z-selected-native",
+      "/srv/ai/paged-kv/results/v10/68-04/20260915T032550Z-all-gpu-control",
+      "/srv/ai/paged-kv/results/v10/68-04/20260915T032703Z-cpu-main-kv-control"
+    ]
+  },
+  "checks": {
+    "phase68_matched_benchmark": {
+      "status": "pass",
+      "command": ["python3", ".wiretail/execution/evidence/V10_68-04_validation.py"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/68-04/20260915T032408Z-selected-native/records.jsonl", "sha256": "64e5d5348d834650b515afd89eddcd7ec44d1267b7fbc2a2a16558e08a456a0f"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-04/20260915T032550Z-all-gpu-control/records.jsonl", "sha256": "409cd5a030dbed5af1b90e8955ad27ef3da76d41185ff76722ca34d7866c6b1b"},
+        {"path": "/srv/ai/paged-kv/results/v10/68-04/20260915T032703Z-cpu-main-kv-control/records.jsonl", "sha256": "f15bcee5318d9f44347d908816e3eac9781d599e0cc645e99bc1a7680ccb67b6"}
+      ]
+    }
+  }
+}
