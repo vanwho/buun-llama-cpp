@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "task": "74-01",
+  "source_commit": "91126bc8f76b70075c82ea54bf2f0264190172f6",
+  "checks": {
+    "phase74_answer_quality": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_74-01.md",
+          "sha256": "97f1e92bfda79207df6fbed6e3522bea6b8af354c6c3753fec206d7217f349a5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-01/20260915T063824Z-organic-ab-a/organic-answer-quality.json",
+          "sha256": "f668dbfab193842ab98b0429d4f00102e3e82d9e49d5b6160b9dd53eea47ccc5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-01/20260915T063824Z-organic-ab-a/raw/raw-a.sse",
+          "sha256": "042291cc4d523ea22533fbfe5cad6ac92217b5b08ff17dcaca9ecfe854fcd6e0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-01/20260915T063824Z-organic-ab-a/raw/raw-b.sse",
+          "sha256": "69d2c1cb1a2f692680f2071f6ded9b60e8d7ea069a395eb52429302db333778c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-01/20260915T063824Z-organic-ab-a/raw/raw-a-again.sse",
+          "sha256": "58e2fab8d83e4a27f67ac6a4a51f5b64c94b64d45c4607c891f7f461505dd345"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-01/20260915T063824Z-organic-ab-a/identity/process-before.json",
+          "sha256": "ae1226c45bf41d642831a942d47d5f66e10a91e5596dd818a511e45fc0ae0308"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2/build-receipt.json",
+          "sha256": "efa5ab7b2b82645e79234d16f0eebed07bddfd1d15faab6e46f1901c62dea70e"
+        }
+      ],
+      "requested": {
+        "transport": "POST http://127.0.0.1:8080/v1/chat/completions",
+        "model": "qwen38-fast-turbo4-mtp",
+        "L": 8192,
+        "H": 4096,
+        "A": 2048,
+        "B": 128,
+        "U": 64,
+        "page_tokens": 256,
+        "target_kv": "CUDA turbo4/turbo4",
+        "draft_kv": "GPU turbo4/turbo4",
+        "expected_nonces": {
+          "a": "ASTRAL-PINE-482",
+          "b": "COBALT-MAPLE-731",
+          "a_again": "ASTRAL-PINE-482"
+        }
+      },
+      "observed": {
+        "endpoint_health": "ok",
+        "pid": 2199278,
+        "binary_sha256": "76404a3ace49a8f77a3567a8b26e98ba57c4e074827f7db7aab55d875eea3cae",
+        "answers": [
+          {
+            "request": "A",
+            "expected": "ASTRAL-PINE-482",
+            "output": "ASTRAL-PINE-482",
+            "correct": true,
+            "failure_status": "none",
+            "C": 2034,
+            "cached_tokens": 0,
+            "completion_tokens": 9,
+            "first_stop_reason": "stop",
+            "selected_page_ids": [0, 1, 2, 3, 4, 5, 6, 7]
+          },
+          {
+            "request": "B",
+            "expected": "COBALT-MAPLE-731",
+            "output": "COBALT-ELM-117",
+            "correct": false,
+            "failure_status": "answer_mismatch",
+            "C": 4080,
+            "cached_tokens": 2042,
+            "completion_tokens": 11,
+            "first_stop_reason": "stop",
+            "selected_page_ids": [0, 9, 10, 11, 12, 13, 14, 15]
+          },
+          {
+            "request": "A-again",
+            "expected": "ASTRAL-PINE-482",
+            "output": "ASTRAL-PINE-482",
+            "correct": true,
+            "failure_status": "none",
+            "C": 4126,
+            "cached_tokens": 4091,
+            "completion_tokens": 9,
+            "first_stop_reason": "stop",
+            "selected_page_ids": [0, 15, 16],
+            "target_graph_used": true,
+            "cold_page_promoted": 0,
+            "h2d_useful_bytes": 4325376,
+            "h2d_aligned_bytes": 4325376
+          }
+        ],
+        "physical_promotion_claim": "separate from answer quality; A-again target graph used logical page 0",
+        "service_runtime": "selected native CUDA Turbo4 target and GPU Turbo4 draft"
+      },
+      "immutable": {
+        "source_head": "91126bc8f76b70075c82ea54bf2f0264190172f6",
+        "candidate_bundle": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2",
+        "build_receipt_sha256": "efa5ab7b2b82645e79234d16f0eebed07bddfd1d15faab6e46f1901c62dea70e",
+        "candidate_binary_sha256": "76404a3ace49a8f77a3567a8b26e98ba57c4e074827f7db7aab55d875eea3cae",
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a"
+      },
+      "finding": {
+        "status": "answer_quality_failed",
+        "reason": "B returned COBALT-ELM-117 for expected COBALT-MAPLE-731; A and A-again were correct, all HTTP responses were 200 with stop."
+      }
+    }
+  }
+}
