@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task": "79-04",
+  "source_commit": "39c35526505760ad536d66cdc850f1e03d41d328",
+  "revision": "hotpath-v10-20260914",
+  "checks": {
+    "phase79_matched_benchmark": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_79-04_validation.py",
+        "--rerun",
+        "/srv/ai/paged-kv/results/v10/79-04/20260915T-matched-selected-native",
+        "--matrix",
+        "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-selected-native",
+        "--matrix",
+        "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-cpu-main-kv-gpu-draft",
+        "--matrix",
+        "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-all-gpu-gpu-draft",
+        "--coordinate",
+        "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-cached-append-selected-native/coordinate.json",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/79-04/20260915T-matched-evidence/phase79-matched-validation.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/79-04/20260915T-matched-evidence/phase79-matched-validation.json", "sha256": "71a58d4eff72e17b1a04c6715fec6f7438f7550e9dbbf275abe782587e1176b2"},
+        {"path": "/srv/ai/paged-kv/results/v10/79-04/20260915T-matched-selected-native/case-state.jsonl", "sha256": "0a5c06e1317bd973215431897413b466593e228c728ed7f6bddfdb0907e1b845"},
+        {"path": "/srv/ai/paged-kv/results/v10/79-04/20260915T-matched-selected-native/bundle-manifest.json", "sha256": "791a1ed990906bdf5cf341349fb140612b974f28b7d912a3a8a87a6abf207fde"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-selected-native/records.jsonl", "sha256": "5caff69f8ef7f740f6b50595fe165756d5e20a4d00f6f09932cd1196a24e2e4a"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-cpu-main-kv-gpu-draft/records.jsonl", "sha256": "5163e00c402b3f462f112d1d34ec1b7e31651f3590e8d9cbb0d3790828c79521"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-all-gpu-gpu-draft/records.jsonl", "sha256": "5a8d6721e60e9735e191e2a925aea379a5a05334ff5ebdc77640db6e7d5e4dc3"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-cached-append-selected-native/coordinate.json", "sha256": "4c8de99660151146fcb29e2b5d26b390abe06809996a8e5abccb4f2760048b6d"}
+      ],
+      "finding": "The 27 retained q0/q1/q2 control rows are measured at observed C27-C30 and are not a C6144 claim. The fresh C6143 selected/native rerun timed out during prefill after the configured 300-second bound; no rate was fabricated for that coordinate. Cached append-64/256 remains measured with nonzero cache reuse."
+    }
+  }
+}
