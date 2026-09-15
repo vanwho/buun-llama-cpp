@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "task": "79-03",
+  "source_commit": "8196648b32cfe999a1d8fe4b2d96f5655accbd10",
+  "checks": {
+    "phase79_occupancy_advancement": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_79-03_validation.py",
+        "--setup",
+        "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/live-setup",
+        "--frontier",
+        "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier",
+        "--ledger",
+        "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/allocation-ledger.json",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/phase79_occupancy_validation.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_79-03.md",
+          "sha256": "8b85359415c687fd9ffad40a524823abde7cac741a4c659e86238c2c6d5b11a8"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_79-03_validation.py",
+          "sha256": "98151e3f221123b5f26b8a7a1381d664c6fa51fd5e6b179621b46bc41e42c143"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/INTERACTIVE29_01_SCALE.json",
+          "sha256": "8a83ea4e4c346958a29cd31306adcc4890c0a3d7f659878eed59b32e1c84f48c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/allocation-ledger.json",
+          "sha256": "c09a7961441d7412447b3288865a695fa6d3e866a942b67976c57e84e241a8d3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/phase79_occupancy_validation.json",
+          "sha256": "877bdf07c89ac5bba64675ffd0e37b60eaa87cf701804735047aea295aae30df"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/metrics-final.txt",
+          "sha256": "d954a36a36bc20eed43763579b9d418490057b66b3af26a3116b6165a3d05c1e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/slots-final.json",
+          "sha256": "3d61bc6eff18ea16652cac1e39ae26207cae466474c680e553298a3af669ff6d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/test-kv-attention-execution.txt",
+          "sha256": "079bc35681ea8207371abc28efd81d1942060c132c6e201b8de8b16640f41104"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/live-setup/startup-argv.txt",
+          "sha256": "408d3fb58acf693782cae2cbcc2be9e01152d99fd8437eaec986d7dcd081276b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/live-setup/startup-mtp.log",
+          "sha256": "e6d817be86bd9636958143a4c78f9179b7236adb3150cf507a79e1ef1e90b669"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/live-setup/metrics-before-probe.txt",
+          "sha256": "6d1441d55b3688dad8b653827f57a3bff7f6ef1cf12c01a19838c46f8be873f4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/live-setup/slots-before-probe.json",
+          "sha256": "1f84a111e9a6a9c1f4ecd49a040ba6cf47fe4ecc5658802763da3d38e75f3f4d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/identity/process-after.txt",
+          "sha256": "466c946bf0cfd7de41cda32053ce9c22b6df76958ad6c2e91a4be5ef217504d8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/identity/exe-after.txt",
+          "sha256": "7fc05c151fa112229b1dd3b0804bc0901907f47c7586f6f489ac86b4a508394e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/identity/binary-sha256.txt",
+          "sha256": "73f4cc37ab1093c0a3a5ed1017fe476a1bc85c99e40c50a58c23a458abc5a555"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/identity/model-sha256.txt",
+          "sha256": "b646805ce26b27aa5021effc044cfe15d51e89bf614049473c1c4120622d9778"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/raw-00.sse",
+          "sha256": "488acac3c24fa17acdce88c8773262da675c82b58ea6b56335b93be3ee539ac5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/raw-01.sse",
+          "sha256": "4d0a9f1f5417af69c44b3e80aef00e9472517c5319f51caf5ab0f1ffab9f88ac"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/raw-02.sse",
+          "sha256": "5fd478065d4cff4a5bf222b6740301984bc9fe96c14149fbdac731d348d9f11c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/raw-03.sse",
+          "sha256": "82909640b149680e231ba1f4ac4d0c51f6705948d8763e78176259c746d85191"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/raw-04.sse",
+          "sha256": "33b1f87c56ba3060fabe8f7d0b653555f0f1cea6f7059038bf8eb9fc4bda84cb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/raw-05.sse",
+          "sha256": "6ce8c4fadd71b46c0a71957c9110dd4e6e3f2abd2d0253ec88b7048f4120a889"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-03/20260915T-packed-occupancy/frontier/raw-06.sse",
+          "sha256": "90e42c39cd3278f6e685f1f32eb7f2b9482647f4104303d482d2cb19dd7d66dc"
+        }
+      ],
+      "finding": {
+        "full_L_allocation": "measured",
+        "partial_forward_progress": "measured",
+        "occupied_C262144": "not_established",
+        "L": 262144,
+        "durable_C": 33952,
+        "live_C": 33967,
+        "H": 8192,
+        "A": 4096,
+        "B": 128,
+        "U": 64,
+        "target_allocated_bytes": 138412032,
+        "draft_allocated_bytes": 276955136,
+        "packed_storage_bytes_startup": 4325376,
+        "packed_storage_bytes_final": 69206016,
+        "packed_workspace_bytes": 138412032,
+        "packed_dequant_bytes": 16777216,
+        "charged_bytes": 15965452416,
+        "reserved_bytes": 2068443264,
+        "headroom_bytes": 201326592,
+        "successful_turns": 7,
+        "response_statuses": ["pass", "pass", "pass", "pass", "pass", "pass", "pass"],
+        "route_counters": {
+          "prefill_packed_routes": 546,
+          "decode_packed_routes": 7,
+          "mtp_verify_packed_routes": 98,
+          "route_override_accepted": 651,
+          "route_override_refused": 0
+        },
+        "first_exact_stop_reason": "operator_bounded_wall_budget_stop_after_C33952"
+      }
+    }
+  }
+}
