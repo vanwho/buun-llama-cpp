@@ -2763,9 +2763,9 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
 
     // Live attention is intentionally limited to one Qwen sequence. Selective
     // prefill, decode, and MTP retain the selected-page snapshot and physical
-    // residency contract, while the canonical reference consumer remains the
-    // automatic answer-quality boundary. The packed Turbo4 bridge remains
-    // available through its explicit process-scoped diagnostic override.
+    // residency contract. The mature packed Turbo4 bridge is the automatic
+    // sparse route; the custom direct loader remains an explicit diagnostic
+    // override.
     if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
         (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
         !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
@@ -3025,10 +3025,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 dense_view.reason, metadata.page_table().size(), sample.c_str());
     }
     const bool dense_capable = fa_capable && dense_view.eligible;
-    const bool packed_backend_capable = fa_capable && !dense_view.eligible;
-    const bool packed_capable = packed_backend_capable &&
-        kv_attention_execution.route_override() !=
-            llama_kv_attention_execution_route_override::automatic;
+    const bool packed_capable = fa_capable && !dense_view.eligible;
     if (packed_capable) {
         const uint64_t k_row = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0,
                 int64_t(metadata.head_dim_k()) * metadata.n_head_kv()));

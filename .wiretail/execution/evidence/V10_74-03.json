@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "task": "74-03",
+  "source_commit": "a303f9056f7a5d72a3cb156256f054cdbdb0e926",
+  "checks": {
+    "phase74_occupancy_advancement": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_74-03_validation.py",
+        "--dry-run",
+        "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/dry-run",
+        "--setup",
+        "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/live-setup",
+        "--probe",
+        "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/short-probe",
+        "--frontier",
+        "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192",
+        "--bundle",
+        "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/candidate-bundle-74-03"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_74-03_validation.py",
+          "sha256": "1a3d2fd83ce290a9dc4e397243d18d6ca7d869bd338b1128444c3519936946e7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/dry-run/run-config.json",
+          "sha256": "98eeaa436d72c30940c5094d93b45c615b8b025e8a306c8943f5fc02e52239a3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/live-setup/startup-argv.txt",
+          "sha256": "d079579074d0a0cebe83b2d3d0524a7b7654fa18656ed02861e15a756b36c3e6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/live-setup/slots-before-probe.json",
+          "sha256": "1ad0a955054db1f5ef591326f03ab918bc711b642ff35562b2fc5789cb7ae464"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/short-probe/INTERACTIVE29_01_SCALE.json",
+          "sha256": "e0393c9cf5ea97c65feb372f9c77fb2e2f87fb4e8b39b05a4eb2c1fe0188cba9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/short-probe/slots-final.json",
+          "sha256": "bf37be5c03ddddfb288aa9cc72a94c22494e295c1378638c5a3de2934e342f49"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/INTERACTIVE29_01_SCALE.json",
+          "sha256": "034a5b53477bfc4356a9cff23e4677923507ba853b23441d111f1011617a9b12"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/incremental-state.json",
+          "sha256": "a93c543a5d0a9481b49fea5094a06c3ae1d7e1ae245d775b1f37a77d50d06208"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/allocation-ledger.json",
+          "sha256": "2aad7871852b25a470b3eadf0e109f0ae04f5fe1b4be34634d1afeeabf97604f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/slots-final.json",
+          "sha256": "b2854af677dff7da830d1f191d48d0c08772607f274ddda3f4f7328e9b5554c4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/phase74_occupancy_validation.log",
+          "sha256": "3e8b4451a94a2f890bd30aa9ce9e7e340bfab23444cecf0115ee824e8852be27"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/bundle-manifest.json",
+          "sha256": "ee77b1d843018cc7ef07e140f2288d95a9a7d6271c2f811aa179387191533fd0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/candidate-bundle-74-03/build-receipt.json",
+          "sha256": "352b61c8b6bddf805ccfd4cd1ebee037c9d598896e8cb59bc4cf2ad44e53c169"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-00.sse",
+          "sha256": "075b9360cff43caac755cc29674970ddc2b51bf6529e3b3b2a7cb546963dea42"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-01.sse",
+          "sha256": "0049daf8b0d49acf078d314ab339cafb758ec421de823c63d8389ec0f0a77c84"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-02.sse",
+          "sha256": "40e9c9d3af2ef44b6ae27ae9f2cf9bce0e1760b871a0a2b7279581a6ecc3bf53"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-03.sse",
+          "sha256": "7005efec17036504cc46fdd00ca3661702d9a0e1f8519243b2c4be1249aee8f4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-04.sse",
+          "sha256": "1a42e7ce7e99fe3da88260533b1b8969cf6406d243713bd53c666d00f4a1aec7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-05.sse",
+          "sha256": "595052c5f1bcb2b86977097bb4e4f37de939300ec59777497faa14cd84f8acb8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-06.sse",
+          "sha256": "c8a32f5a52bbf42391e34e64864485891bd54147fab24f09b63bddf36a3aa10f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-07.sse",
+          "sha256": "6f8cd2320c2bc6b9b25e6c463bdc395643a27ee323b43d28908386f8846590b9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-08.sse",
+          "sha256": "94d79d0cf274693b13a6e10926e05a5a0d22e958a9c13beea3236e62146af79a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/raw-09.sse",
+          "sha256": "c7bb47635ae6838e8262348834f539e9cb765e8bc6cbdfc6696d714df6ba195f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-00.json",
+          "sha256": "05b12e95f3bba6f35ac0291e8168dc470aed02c50a270439df4e4bd8205ca9b7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-01.json",
+          "sha256": "24285160e8a7b247a477b7e51ed8bb60b4ee0e6737e991c76a5bac008fc2ecec"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-02.json",
+          "sha256": "b62b5f33d0ac16e3d779e2a16e88ede42b039eb0603c72b14bfc064ad5093b3a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-03.json",
+          "sha256": "2a29230ec1bcd333c59af4317654f14bf083f2c243b3acdaf0a5e87ddf974c24"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-04.json",
+          "sha256": "69fe5925766f9359fbdaba7e7aa94dac2fc5bd5063a5d8bb64f8ce297f4fdb01"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-05.json",
+          "sha256": "424bc7515d9b93d3b5c3fdb32d3333a872323f9e7054d7a0ab5dd0e8d9252d8e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-06.json",
+          "sha256": "aeba8bb82afdf508f110947f675f2e4f3e4dc00c24f9d19ee023ef8392b36aab"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-07.json",
+          "sha256": "4200917daa9cfc4df04d48257abc3c2e4c6d31a2bfa0c995827f85943b90fc4a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-08.json",
+          "sha256": "5d41eeff9e1e14ed39afd64111cda322b5ecd6c9516b3d793879d5f02e0cd155"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/request-09.json",
+          "sha256": "92d825bf507ffcfefc989fdde9a86d6463727b7bd4cb9600b11a6ba41c3f67e4"
+        }
+      ]
+    }
+  },
+  "findings": {
+    "statuses": {
+      "allocation_startup": "measured",
+      "forward_progress": "measured",
+      "occupied_C262144": "not_established",
+      "first_exact_stop_reason": "operator_bounded_wall_budget_stop_after_C12408"
+    },
+    "geometry": {
+      "L": 262144,
+      "durable_C": 12408,
+      "live_C": 12535,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "bytes": {
+      "target_allocated_bytes": 138412032,
+      "mtp_bytes": 276955136,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592,
+      "packed_storage_bytes": 69206016,
+      "packed_workspace_bytes": 138412032,
+      "scratch_high_water_bytes": 85983232,
+      "host_pageable_bytes": 56229888,
+      "host_pinned_bytes": 0,
+      "h2d_useful_bytes": 666107904,
+      "h2d_aligned_bytes": 666107904,
+      "d2h_useful_bytes": 0,
+      "d2h_aligned_bytes": 0
+    },
+    "placement": {
+      "target_backend": "CUDA",
+      "target_type_k": "turbo4",
+      "target_type_v": "turbo4",
+      "mtp_backend": "gpu",
+      "mtp_type_k": "turbo4",
+      "mtp_type_v": "turbo4"
+    },
+    "route_boundary": {
+      "prefill_reference_routes": 0,
+      "prefill_packed_routes": 1204,
+      "decode_reference_routes": 0,
+      "decode_packed_routes": 9,
+      "mtp_verify_reference_routes": 0,
+      "mtp_verify_packed_routes": 950,
+      "route": "selected packed",
+      "route_override": "auto"
+    },
+    "physical": {
+      "faults": 154,
+      "evictions": 154,
+      "packed_copy_updates": 384414,
+      "packed_copy_rows": 36381472,
+      "packed_copy_reuses": 447234
+    },
+    "stop": {
+      "requested_C": 50000,
+      "durable_C": 12408,
+      "live_C": 12535,
+      "reason": "operator_bounded_wall_budget_stop_after_C12408"
+    },
+    "identity": {
+      "bundle": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/candidate-bundle-74-03/bin/llama-server",
+      "build_receipt": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/candidate-bundle-74-03/build-receipt.json",
+      "bundle_manifest": "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy/frontier-L262144-H8192/bundle-manifest.json"
+    }
+  },
+  "deferred_verification": []
+}
+
