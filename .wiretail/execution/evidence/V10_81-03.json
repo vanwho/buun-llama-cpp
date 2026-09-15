@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task": "81-03",
+  "source_commit": "303aa994f4aeb2fa4f861d9d0f607664e9576279",
+  "checks": {
+    "phase81_matched_benchmark": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_81-03_validation.py",
+        "--root",
+        "/srv/ai/paged-kv/results/v10/81-03/20260915T-final-matched-3trials",
+        "--coordinate-root",
+        "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/81-03/20260915T-final-matched-3trials/phase81-matched-validation.json"
+      ],
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_81-03_validation.py", "sha256": "ce02203ebd742b00997c4695a714076c9f0f0cf5f87a89ff37f4f9de6eb96bdf"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T-final-matched-3trials/phase81-matched-validation.json", "sha256": "2dbf326aa84fde5a136557e53a9530521784febfcc8edd46ff681b73b6a18684"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T-final-matched-3trials/selected-native/SPEED25_02_ATTRIBUTION.json", "sha256": "a15affdc27dd5a6ef5f3559bee7509a9722586ad0a07c0324270bcf7af035b9d"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T-final-matched-3trials/cpu-main-kv-gpu-draft/matrix/SPEED25_02_ATTRIBUTION.json", "sha256": "aeed53f79221d60cd44d6fc8f702b207a129d5baac400edbd784e45c694b79ad"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T-final-matched-3trials/all-gpu-gpu-draft/matrix/SPEED25_02_ATTRIBUTION.json", "sha256": "bd01105369e49f23696563e0a90b68cbbab5096e3c40e1e6931d9f6bb394d716"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/selected-native-coordinate/coordinate.json", "sha256": "e193cb678f2ab7a87c7ea9c79a79bc0ca7ac9f464ae48431ed93d985919494de"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/selected-native/raw-q0-measured-1.sse", "sha256": "e522f03119cc3e3208ddf6e5ef71739cc87063f6320b3901fe95a9098866df2f"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/selected-native/raw-q1-measured-1.sse", "sha256": "d6b90ca97cae45436035ab3a4f0437db42793070ffa209581ef0e2696a2b032b"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/selected-native/raw-q2-measured-1.sse", "sha256": "6f1df5e80caaf135302093ed3aa5d33efbeb8e82f97c7cb03beb06bacaf79b6e"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/matrix/raw-q0-measured-1.sse", "sha256": "0f434f180cf4d92090e3a27a472c7402959bbe20870b70ccb647ede9c2e2bc64"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/matrix/raw-q1-measured-1.sse", "sha256": "1782eadaa580c8b1ff88f3cab1e450de3dd7de6e1b2d54ff00e685ad4e94a757"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/matrix/raw-q2-measured-1.sse", "sha256": "e7ca387ac16beaa46b1f1cc8d054924811a1d456036b53b82a8aa8a2bac28d09"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/all-gpu-gpu-draft/matrix/raw-q0-measured-1.sse", "sha256": "9df4297b4f7f4fd4917cda7ebc231afc5498382a8a3cee0a0a2a47cc861b5b54"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/all-gpu-gpu-draft/matrix/raw-q1-measured-1.sse", "sha256": "ee7d57a0f8f1b9c0411f72db7196e80b9808345d4355fccc53078bb7e6370cab"},
+        {"path": "/srv/ai/paged-kv/results/v10/81-03/20260915T160531Z-phase81-direct/all-gpu-gpu-draft/matrix/raw-q2-measured-1.sse", "sha256": "089db455572a4c6dff7c416c7c5042fc67f009be7a77eef212857b27e98e2736"}
+      ]
+    }
+  }
+}
