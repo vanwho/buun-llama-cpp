@@ -1282,6 +1282,15 @@ def _main() -> int:
         return 2
     command = [runner, args.target, str(output)]
     env = os.environ.copy()
+    # The adapter uses the server base URL for health and metrics endpoints,
+    # while the canonical runner's BENCH_ENDPOINT contract is the completion
+    # route itself.  Keep those two URL shapes explicit at the handoff.
+    canonical_endpoint = endpoint.rstrip("/")
+    if canonical_endpoint.endswith("/v1"):
+        canonical_endpoint += "/chat/completions"
+    elif not canonical_endpoint.endswith("/v1/chat/completions"):
+        canonical_endpoint += "/v1/chat/completions"
+    env["BENCH_ENDPOINT"] = canonical_endpoint
     env["BENCH_SIZE"] = VARIANTS[args.variant]["size"]
     env["BENCH_PAGER_MODE"] = args.mode
     env["BENCH_DEVICE"] = args.device
