@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "75-01",
+  "source_commit": "3118b2f901af8cd37fb6060ea6414cbc09d02ac7",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase74_review_completed_and_phase76_successors_scheduled",
+  "checks": {
+    "phase74_benchmark_review": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "75-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_75-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_74.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_REVIEW_74.json",
+          "sha256": "a979a767e57a87f995673e324b29d91013b9e156687a5a642e8988199a678da3"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_75-01_completion.log",
+          "sha256": "66e3f953b4928f234c397f50ce1ce3c3df4d2de5db7a47c9fd0a7829227fd5f8"
+        }
+      ],
+      "findings": {
+        "goal_met": false,
+        "next_task_ids": ["76-01", "76-02", "76-03", "76-04", "76-05", "77-01"]
+      }
+    }
+  }
+}
