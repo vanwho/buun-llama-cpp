@@ -1,0 +1,85 @@
+{
+  "schema": "phase68_cached_append_repair",
+  "schema_version": 1,
+  "task": "68-02",
+  "revision": "hotpath-v10-20260914",
+  "source_commit": "469adb98a9e7c4232309ce5106f3a88d121c4b03",
+  "status": "pass",
+  "identity": {
+    "L": 8192,
+    "C": 6144,
+    "H": 4096,
+    "A": 2048,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "target_device": "CUDA",
+    "draft_device": "GPU"
+  },
+  "transport": {
+    "canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "template_sampling_output_preserved": true,
+    "slot_affinity_transport_field": "id_slot=0",
+    "warmups_per_length": 1,
+    "measurements_per_length": 1
+  },
+  "rows": [
+    {
+      "append_tokens_requested": 64,
+      "prompt_delta_tokens": 65,
+      "observed_cache_n": 6087,
+      "new_prompt_tokens": 133,
+      "committed_decode_tokens": 128,
+      "prompt_ms": 1840.129,
+      "decode_ms": 9436.667,
+      "mtp": {
+        "draft_tokens": 251,
+        "accepted_tokens": 0,
+        "denominator_valid": true
+      },
+      "prefix_state": {
+        "prefix_reset": false,
+        "reuse": "restored context checkpoint",
+        "cached_prefix_tokens": 6087
+      },
+      "artifacts": {
+        "response-measured-append.json": "3b1267b1d0df7e81ef7a9c2e39999f199e72727daafba3019f6563bc9283e2ce",
+        "slots-before-measured-append.json": "3a20dc3e2bd9be8fca55f4c1c4a07e83b7caf0bbf7027e7be5f11b6d67281108",
+        "slots-after-measured-append.json": "6df11b21d064446a251bb7806a9c20e6f415811e61f507cc8cf672bea087c7ce",
+        "metrics-before-measured-append.prom": "306fa4b05484384e2a0d6a6fab025b3a50e4e3e05c6c8d098010f93d2d84d01c",
+        "metrics-after-measured-append.prom": "8fbdcfa225d61070405951ec912f220da3c8d78b24ccae854c2c15addccc44e3"
+      }
+    },
+    {
+      "append_tokens_requested": 256,
+      "prompt_delta_tokens": 257,
+      "observed_cache_n": 6087,
+      "new_prompt_tokens": 325,
+      "committed_decode_tokens": 128,
+      "prompt_ms": 3927.097,
+      "decode_ms": 9720.085,
+      "mtp": {
+        "draft_tokens": 251,
+        "accepted_tokens": 0,
+        "denominator_valid": true
+      },
+      "prefix_state": {
+        "prefix_reset": false,
+        "reuse": "restored context checkpoint",
+        "cached_prefix_tokens": 6087
+      },
+      "artifacts": {
+        "response-measured-append.json": "9791834e76e183e8f83bd0755a8d917e76195ed4e0eaaa4040f93179a5c66fae",
+        "slots-before-measured-append.json": "1a37f6c6751c0344e4ecde668cc3ddaf89d0dea328119ff429e3497ba662b932",
+        "slots-after-measured-append.json": "aae4393fbcbe3257b2eaedeecac9d523fcb58542e5abaee29563f6fd7a18ee66",
+        "metrics-before-measured-append.prom": "ee18c0b09f2fce83a1d49c78bb8ec8b845dab1b4185effbde3688f60de5d836b",
+        "metrics-after-measured-append.prom": "9e3be7aa916f6ede0eba86ae5b9712a8f0223dc8f96bf8f9f19dde8e1089ee55"
+      }
+    }
+  ],
+  "raw_root": "/srv/ai/paged-kv/results/v10/68-02/append-final-20260915T044447Z"
+}
