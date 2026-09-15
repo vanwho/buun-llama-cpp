@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "task": "76-01",
+  "source_commit": "c7d1c2ca4e3d8a18bff07748f54e475ab414a1b6",
+  "checks": {
+    "phase76_answer_quality": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_76-01.md",
+          "sha256": "0f55305fcd3bd9aac1203a55e71688d7acc6dd607266b4ebdb7b9aab177a417b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference/organic-answer-quality.json",
+          "sha256": "f14e294bf2b10356c9b17ead33cfb4a120ca1bccb1408aecbd7b68f4e2a4b581"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference/raw/raw-a.sse",
+          "sha256": "ffb3e5994937ad84e4e1e89cdb41e69c1077e94ee7bae05ab46ed55813c0497f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference/raw/raw-b.sse",
+          "sha256": "d6011d1a7689d8b53efd5572541493ba1bf2eaf48ce4db0ff91fd6e6cb2f6fdd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference/raw/raw-a-again.sse",
+          "sha256": "af97dfc6d6dac00d1f8a64faf7aaa869b92357915cb2ba11e6bf781130333111"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference/slots/slots-after-b.json",
+          "sha256": "3773b6ef78cca7f95d40efa9a5dce42947582bd93ee4ce76ad2db782cac663d3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference/slots/slots-after-a-again.json",
+          "sha256": "ab8f9ec5027509f8d7f7e43be79b17ba608ad29e933af32a9fb4e920cccca35f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference/identity/process-after.json",
+          "sha256": "7d5807e770649a6bb6b69215029039c9fbf19e98b5ea6676da95514f562a39a9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/76-01/20260915T082159Z-answer-quality-reference/candidate-bundle-76-01/build-receipt.json",
+          "sha256": "48dc6a8c43c358709858572ba9d158ffdd0eda1b69bfe8f9d63bb407eb66361e"
+        }
+      ],
+      "finding": {
+        "status": "answer_quality_failed_b_row",
+        "expected": "COBALT-MAPLE-731",
+        "observed": "COBALT-ELM-117",
+        "a_and_a_again_correct": true,
+        "physical_promotion_separate": true
+      }
+    }
+  }
+}
