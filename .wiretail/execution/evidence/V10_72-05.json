@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "task": "72-05",
+  "source_commit": "50d33e7f038704abd13b3ba86e118cf812f2fc63",
+  "checks": {
+    "phase72_summary_generated_and_validated": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "72-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_72-05.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_72.json",
+          "sha256": "cb42f3c832a1feede0d055e56288a80491c9cffcd05d51497d833cd9a6e412fd"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_72.md",
+          "sha256": "6bb8e6ac40f75feed856ea3c367aa6ce785f8553adc4f1aebe4570afca5e7d5e"
+        },
+        {
+          "path": ".wiretail/execution/handoffs/72-05.md",
+          "sha256": "b6783efa26f1c084b33fd4c0ef3c21e4aa6f71ce759be193e8c2ff3a5c550b40"
+        }
+      ]
+    }
+  },
+  "findings": {
+    "summary_json": ".wiretail/execution/evidence/V10_SUMMARY_72.json",
+    "summary_markdown": ".wiretail/execution/evidence/V10_SUMMARY_72.md",
+    "source_receipts": [
+      ".wiretail/execution/evidence/V10_72-01.json",
+      ".wiretail/execution/evidence/V10_72-02.json",
+      ".wiretail/execution/evidence/V10_72-03.json",
+      ".wiretail/execution/evidence/V10_72-04.json"
+    ]
+  }
+}

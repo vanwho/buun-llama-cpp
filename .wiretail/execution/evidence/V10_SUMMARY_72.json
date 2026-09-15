@@ -1,0 +1,315 @@
+{
+  "schema": "hotpath-v10-summary",
+  "schema_version": 1,
+  "task": "72-05",
+  "phase": "72",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase72_summary_with_verified_coordinate_frontier_and_benchmark_boundaries",
+  "active_campaign_met": false,
+  "units": {
+    "rates": "tok/s",
+    "durations": "milliseconds unless field ends in _us",
+    "bytes": "integer bytes",
+    "geometry": "integer tokens"
+  },
+  "identity": {
+    "requested": {
+      "model_profile": "/srv/ai/models/text/current.gguf",
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "observed": {
+      "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "model_size_bytes": 14252845984,
+      "verified_coordinate": {
+        "status": "measured",
+        "L": 8192,
+        "C": 6144,
+        "H": 4096,
+        "A": 2048,
+        "B": 128,
+        "U": 64,
+        "page_tokens": 256,
+        "logical_pages": 32,
+        "physical_page_capacity": 16
+      },
+      "benchmark_observed_C_selected_native": [
+        39,
+        40,
+        42
+      ],
+      "benchmark_observed_C_controls": [
+        27,
+        28,
+        30
+      ],
+      "benchmark_observed_H": 8192,
+      "benchmark_observed_A": 2048,
+      "benchmark_observed_B": 128,
+      "benchmark_observed_U": 64,
+      "frontier_L": 262144,
+      "frontier_H": 8192,
+      "frontier_A": 4096,
+      "frontier_B": 128,
+      "frontier_U": 64,
+      "frontier_durable_C": 40001,
+      "frontier_live_C": 40014
+    },
+    "immutable": {
+      "tested_source_commits": {
+        "72-01": "49052e9f8845f63d5c0b12027e145435c6adb69c",
+        "72-02": "2af185fe0077a125c802ea6adbc0c5d097a51bbd",
+        "72-03": "2bdf7cad2d863a4df94f2d763c9d07bb548de22b",
+        "72-04": "91126bc8f76b70075c82ea54bf2f0264190172f6"
+      },
+      "candidate_binary": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2/bin/llama-server",
+      "candidate_binary_sha256": "76404a3ace49a8f77a3567a8b26e98ba57c4e074827f7db7aab55d875eea3cae",
+      "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a"
+    },
+    "identity_note": "Requested launcher values, observed runtime geometry, and immutable source/binary identities are separate. The verified C6144 fixture, the 8K/40K frontier, L262144 allocation, and occupied C262144 are distinct claims."
+  },
+  "geometry_and_bytes": {
+    "verified_C6144_coordinate": {
+      "status": "measured",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "page_bytes": 4325376,
+      "target_allocated_bytes": 69206016,
+      "reason": "The controlled model fixture filled the requested C6144 coordinate and proved a cold page through target-graph consumption."
+    },
+    "eight_K_frontier": {
+      "status": "measured",
+      "L": 262144,
+      "durable_C": 40001,
+      "live_C": 40014,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_allocated_bytes": 138412032,
+      "draft_bytes": 276955136,
+      "page_bytes": 4325376,
+      "reason": "The bounded frontier completed at requested campaign target C40000; it is an 8K hot-capacity proof, not full-L occupancy."
+    },
+    "L262144_allocation": {
+      "status": "measured",
+      "L": 262144,
+      "C": 0,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 138412032,
+      "draft_bytes": 276955136,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592,
+      "host_pageable_bytes": 674758656,
+      "reason": "Full-L startup/allocation and admission passed; allocation is not occupied-context proof."
+    },
+    "occupied_C262144": {
+      "status": "failed",
+      "L": 262144,
+      "requested_C": 262144,
+      "last_durable_C": 40001,
+      "last_live_C": 40014,
+      "reason": "The bounded phase-72 campaign stopped at C40001/C40014 after reaching its requested frontier; C262144 was not occupied."
+    }
+  },
+  "placement": {
+    "selected_native": {
+      "status": "measured",
+      "target_device": "CUDA",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "draft_device": "GPU",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4",
+      "pager": "selective"
+    },
+    "cpu_main_kv_gpu_draft": {
+      "status": "measured",
+      "target_device": "CPU",
+      "weights_device": "GPU",
+      "draft_device": "GPU",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "mtp": "feature-off control"
+    },
+    "all_gpu_gpu_draft": {
+      "status": "measured",
+      "target_device": "CUDA",
+      "draft_device": "GPU",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "mtp": "feature-off control",
+      "pager": "off"
+    }
+  },
+  "rates": {
+    "status": "measured",
+    "geometry_note": "The benchmark rates below are short-prompt rows at observed C39\u201342 (selected/native) and C27\u201330 (controls), not requested C6144 rates.",
+    "cold_prefill": {
+      "status": "measured",
+      "samples_per_row": 3,
+      "selected_native": {
+        "q0_tok_s_median": 925.7014392453328,
+        "q1_tok_s_median": 878.1608160140505,
+        "q2_tok_s_median": 927.6222722107558,
+        "samples_per_prompt": 3,
+        "range_across_trials": [
+          632.4187585133294,
+          995.2606635071089
+        ]
+      },
+      "cpu_main_kv_gpu_draft": {
+        "q0_tok_s_median": 311.54589070970155,
+        "q1_tok_s_median": 288.28290162079054,
+        "q2_tok_s_median": 296.6415933891302,
+        "samples_per_prompt": 3,
+        "range_across_trials": [
+          281.4640299394331,
+          311.7336547653685
+        ]
+      },
+      "all_gpu_gpu_draft": {
+        "q0_tok_s_median": 686.86036128855,
+        "q1_tok_s_median": 651.3872135102532,
+        "q2_tok_s_median": 674.39003829572,
+        "samples_per_prompt": 3,
+        "range_across_trials": [
+          475.36048169862147,
+          714.4217946275481
+        ]
+      }
+    },
+    "cached_append": {
+      "status": "not_run",
+      "append_64": null,
+      "append_256": null,
+      "reason": "The 72-03 prefix request observed 6143 prompt tokens but did not commit a live cache frontier; no 64- or 256-token cached-append rate is inferred."
+    },
+    "committed_decode": {
+      "status": "measured",
+      "output_tokens": 128,
+      "samples_per_row": 3,
+      "selected_native": {
+        "q0_tok_s_median": 33.43714645812419,
+        "q1_tok_s_median": 33.634899783889146,
+        "q2_tok_s_median": 33.63870389809009,
+        "samples_per_prompt": 3,
+        "range_across_trials": [
+          33.25458716917577,
+          33.70892686702333
+        ]
+      },
+      "cpu_main_kv_gpu_draft": {
+        "q0_tok_s_median": 17.88832165850377,
+        "q1_tok_s_median": 17.95124301049978,
+        "q2_tok_s_median": 17.94498547869167,
+        "samples_per_prompt": 3,
+        "range_across_trials": [
+          17.835169887717075,
+          17.992300145567626
+        ]
+      },
+      "all_gpu_gpu_draft": {
+        "q0_tok_s_median": 49.37954792440652,
+        "q1_tok_s_median": 49.38584617203306,
+        "q2_tok_s_median": 49.35337365283749,
+        "samples_per_prompt": 3,
+        "range_across_trials": [
+          49.33224724700812,
+          49.390321208203936
+        ]
+      }
+    }
+  },
+  "mtp": {
+    "selected_native": {
+      "status": "measured",
+      "rows": 9,
+      "draft_tokens": 2229,
+      "accepted_tokens": 15,
+      "acceptance_percent": 0.67294751,
+      "positive_denominator_rows": 9,
+      "denominator": "sum of request-scoped Prometheus counter deltas"
+    },
+    "controls": {
+      "status": "not_run",
+      "reason": "CPU-main-KV and all-GPU rows were explicit feature-off controls; native-MTP denominators do not apply."
+    }
+  },
+  "promotion": {
+    "controlled_model_query": {
+      "status": "measured",
+      "logical_page": 0,
+      "candidate_was_cold": true,
+      "host_ready": true,
+      "target_graph_used": true,
+      "h2d_useful_bytes": 4325376,
+      "h2d_aligned_bytes": 4325376,
+      "client_page_id_used": false,
+      "public_force_promotion_api_used": false,
+      "reason": "72-01 controlled captured-model query."
+    },
+    "organic_target_graph_use": {
+      "status": "measured",
+      "target_graph_used": true,
+      "reason": "The 72-04 selected/native benchmark recorded a natural cold candidate and completed target-graph use; it is not controlled-model evidence."
+    }
+  },
+  "answer_quality": {
+    "status": "not_run",
+    "reason": "Phase 72 receipts contain promotion, occupancy, coordinate, and speed evidence but no phase-72 answer-quality campaign; correctness is not inferred from target-graph use or benchmark completion."
+  },
+  "pilots": {
+    "short_probe_C4207": {
+      "status": "measured",
+      "durable_C": 4207,
+      "live_C": 4233,
+      "turns": 4
+    },
+    "frontier_C40001": {
+      "status": "measured",
+      "durable_C": 40001,
+      "live_C": 40014,
+      "turns": 29,
+      "duration_seconds": 1491
+    },
+    "cached_append_coordinate": {
+      "status": "not_run",
+      "reason": "C6144 live prefix frontier was not reached; append-64 and append-256 were not executed."
+    },
+    "occupied_C262144": {
+      "status": "failed",
+      "reason": "Bounded campaign ended at C40001/C40014."
+    }
+  },
+  "raw_sources": [
+    ".wiretail/execution/evidence/V10_72-01.json",
+    ".wiretail/execution/evidence/V10_72-02.json",
+    ".wiretail/execution/evidence/V10_72-03.json",
+    ".wiretail/execution/evidence/V10_72-04.json",
+    "/srv/ai/paged-kv/results/v10/72-01/20260915T052500Z/controlled-model-query-final.json",
+    "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-frontier-L262144-H8192/INTERACTIVE29_01_SCALE.json",
+    "/srv/ai/paged-kv/results/v10/72-03/20260915T060100Z-72-03-coordinate-bounded/coordinate.json",
+    "/srv/ai/paged-kv/results/v10/72-04/20260915T063000Z-72-04-selected-native-q012/summary.json",
+    "/srv/ai/paged-kv/results/v10/72-04/20260915T064000Z-72-04-all-gpu-q012/summary.json",
+    "/srv/ai/paged-kv/results/v10/72-04/20260915T065000Z-72-04-cpu-main-kv-q012/summary.json"
+  ]
+}
