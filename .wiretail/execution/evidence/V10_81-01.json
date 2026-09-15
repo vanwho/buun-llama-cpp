@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "task": "81-01",
+  "source_commit": "68cae9588f87fa8390c88ff17dbd362d4be25a98",
+  "revision": "hotpath-v10-20260914",
+  "result": "verified_coordinate_forward_progress_measured",
+  "checks": {
+    "phase80_coordinate_forward_progress": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_81-01_validation.py",
+        "--root",
+        "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_81-01_validation.py",
+          "sha256": "58b31e843ff9c4f75d4967c4d986179901ca725f5eae5ff45a23046136bed5e9"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_81-01_validation.log",
+          "sha256": "161108ac2dd11d94528eb032a65ff5d94fc31417eb5cafe06587413c241cd5c8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/phase81-coordinate-forward-progress.json",
+          "sha256": "96928ddd6a184be2fe347b7628a51e88f95f1532dc3ef8bd923b3b135ed33d70"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/cold-prefill.json",
+          "sha256": "95c5b32ba1f852597598f6c0a5870bcfe96d9fe1f6ac843ceeabc5eaadfbe590"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/committed-decode.json",
+          "sha256": "8f9e0f92be2942aff19a9b17cc86298680beb4be93577b0e4da3417212cd93cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/request-cold-prefill.json",
+          "sha256": "f213fe497f13f5cdf77f200e68dfcf16edd45ab1ce37718886e71f67af6190f8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/request-committed-decode.json",
+          "sha256": "03a005b35542911ff89e1ee054e7118f9e2d2be3f0bd2eb851fd3815b3b22d9a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/raw-cold-prefill.sse",
+          "sha256": "4a95fd907b75f9e2947c3c114723036d683229e62302e6b85896399cacebab59"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/raw-committed-decode.sse",
+          "sha256": "da9c1ad3a668d2eb59e9fdde9c04ac3ab93fb77adb7fd803558801da87a29418"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/prefix-token-ids.json",
+          "sha256": "adaa5012e337a5195b529ea5ffaadff05619b95795afaf9d73a3a8eea13c8021"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152609Z-81-01-verified-coordinate/decode-token-ids.json",
+          "sha256": "1d2dec37f10140edebdd0f4e68548d7a00e535707f98a2103ec0ab1eb5b85367"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152355Z-81-01-coordinate-setup-mtp/run-config.json",
+          "sha256": "46ba94c6600e0a987f2b28b0cb5ca1edd9c9d13941d616e23ce514625955a8ef"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152355Z-81-01-coordinate-setup-mtp/raw/startup-mtp.log",
+          "sha256": "65588d046bd8ed893c0032473aaf4553f4e360c027afac9fd69df4723148bf4f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/81-01/20260915T152355Z-81-01-coordinate-setup-mtp/lifecycle-state.json",
+          "sha256": "af4b2a8af79b6934f56f7846734fef801f2e141a518cb7fcb87911f14494e780"
+        }
+      ],
+      "finding": {
+        "coordinate": "L8192/H8192/A4096/B128/U64, observed C6143",
+        "cold_prefill": {"status": "measured", "prompt_tokens": 6143, "cache_n": 0, "tok_s": 166.57363164628924},
+        "committed_decode": {"status": "measured", "prompt_tokens": 6167, "cache_n": 6143, "predicted_n": 64, "tok_s": 13.319923201128516},
+        "native_mtp": {"draft_tokens": 123, "accepted_tokens": 0, "acceptance_percent": 0.0},
+        "diagnosis": "Phase-79's 300-second failure used -c 262144 and --kv-pin-recent 0; the repaired run uses the verified L8192 coordinate and has no allocation stop."
+      }
+    }
+  }
+}
