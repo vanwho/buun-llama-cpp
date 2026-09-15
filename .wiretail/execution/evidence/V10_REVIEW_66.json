@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_66",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "67-01",
+  "reviewed_phase": 66,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_66.json",
+    "sha256": "aef215d67b4f4603262e1b2b90d84fc71d2cd45c6538dc0216592f598609b0fa"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false,
+    "cached_append_reuse_proven": false
+  },
+  "capability_basis": {
+    "build_identity_valid": "Phase 66 preserves requested, observed, and immutable model, candidate bundle, source, and template identity.",
+    "required_turbo4_placements": "Target and native-MTP K/V are measured as Turbo4 on CUDA/GPU at the small coordinate, with full-L allocation geometry retained.",
+    "controlled_model_promotion": "The controlled model-query row passed with logical page 12, completed H2D, and target-graph use without a client page ID or force-promotion API.",
+    "organic_cold_promotion": "The organic candidate was cold and reached H2D completion and mapping publication, but the completed target graph did not consume it.",
+    "stable_target_consumption": "Controlled target-graph use passed, but the organic target-graph boundary failed; the combined capability is not proven.",
+    "full_256k_occupancy": "Full-L allocation was measured, but occupied progress stopped at durable C9606/live C9733 and never reached C262144.",
+    "practical_speed_goal_met": "Matched rates were measured, but cached append reuse was not established and selected cold-prefill performance remains far below the all-GPU control.",
+    "useful_answer_quality_proven": "The expected AURORA-CEDAR-161 nonce was absent; the bounded response was slash characters.",
+    "cached_append_reuse_proven": "Both exact-length append probes returned cache_n=0, so no cached reuse or append rate was inferred."
+  },
+  "current_rates": {
+    "geometry": "L8192/C6144/H4096/A2048/B128/U64; 256-token pages",
+    "cold_prefill_tok_s": {
+      "selected_native": {"median": 116.807, "range": [111.660, 152.036], "samples": 9},
+      "cpu_main_kv_gpu_draft": {"median": 449.099, "range": [446.962, 450.568], "samples": 9},
+      "all_gpu_gpu_draft": {"median": 1248.228, "range": [1247.775, 1252.064], "samples": 9}
+    },
+    "cached_append": {
+      "append_64": {"status": "failed", "observed_cache_n": 0},
+      "append_256": {"status": "failed", "observed_cache_n": 0}
+    },
+    "committed_decode_tok_s": {
+      "selected_native": {"median": 13.098, "samples": 9},
+      "cpu_main_kv_gpu_draft": {"median": 10.298, "samples": 9},
+      "all_gpu_gpu_draft": {"median": 37.084, "samples": 9}
+    },
+    "mtp_request_scoped_deltas": {
+      "selected_native": {"draft_delta": 2259, "accepted_delta": 0, "acceptance_percent": 0.0, "rows": 9},
+      "small_smoke": {"draft_delta": 9, "accepted_delta": 1, "acceptance_percent": 11.11111111},
+      "controls": {"status": "feature_off", "denominator_status": "not_applicable"}
+    }
+  },
+  "capacity_and_proof_boundaries": {
+    "8K": "Measured L8192/C6144/H4096/A2048/B128/U64 identity, controlled promotion, and matched rates; organic use, cache reuse, and answer quality remain failed.",
+    "pilots": "H16384 stopped at durable C4002 on packed selected-attention allocation; H8192 reached durable C9606/live C9733 in a bounded run.",
+    "256K_allocation": "Measured full-L L262144 allocation/startup at C30 with H16384/A8192/B128/U64; allocation is separate from occupancy.",
+    "C262144": "Failed/not proven: no occupied frontier reached C262144."
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "organic target-graph consumption and answer-quality boundary",
+      "fixture": "phase-66 L8192/C6144/H4096/B128/U64 A/B/A conversation",
+      "finding": "The candidate was cold and transferred, but target_graph_used was false and AURORA-CEDAR-161 was absent; repair the smallest organic consumer and retain quality as a separate assertion."
+    },
+    {
+      "owner": "cached append reuse observation boundary",
+      "fixture": "phase-66 exact 64- and 256-token append probes",
+      "finding": "Both HTTP 200 probes reported cache_n=0; repair prefix reuse/observation before deriving append rates."
+    },
+    {
+      "owner": "full-L allocation-to-occupied frontier",
+      "fixture": "phase-66 L262144 H16384/H8192 incremental runs",
+      "finding": "Packed selected-attention allocation stopped H16384 at C4002 and bounded H8192 stopped at C9606 durable; occupied C262144 remains unmeasured."
+    }
+  ],
+  "next_action": "Repair organic target consumption and answer quality, repair cached append reuse, advance occupied C262144, then run one bounded benchmark, summary, and review; preserve measured failures.",
+  "phase_appended": true,
+  "appended_phases": [68, 69],
+  "next_task_ids": ["68-01", "68-02", "68-03", "68-04", "68-05", "69-01"],
+  "successor_contracts": {
+    "68-01": "Repair the phase-66 organic target-graph consumption boundary and separately rerun the deterministic nonce answer check; retain actual IDs, generations, epochs, bytes, and exact stop reasons.",
+    "68-02": "Repair and measure exact 64/256-token cached append reuse with the canonical transport, observed cache_n, prefix state, and request-scoped MTP counters.",
+    "68-03": "Advance the measured full-L occupancy frontier with a dry-run ledger and bounded probe; keep allocation/startup separate from occupied C262144 and stop at the first exact resource or ownership boundary.",
+    "68-04": "Run the bounded canonical q0/q1/q2 selective/native, CPU-main-KV/GPU-draft, and all-GPU/GPU-draft matrix with independent prefill, append, decode, and real MTP denominators.",
+    "68-05": "Aggregate only phase-68 identity, geometry, rates, MTP, promotion, quality, pilot, allocation, and occupancy evidence into V10_SUMMARY_68.json/.md.",
+    "69-01": "Review only V10_SUMMARY_68.json/.md with explicit capability booleans and append successors only for concrete measured gaps."
+  }
+}
