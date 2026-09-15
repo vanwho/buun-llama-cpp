@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "task": "70-01",
+  "source_commit": "ac007eeee700b3f245144910815fc284fa84ee29",
+  "checks": {
+    "phase70_answer_quality_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "bash",
+        "-lc",
+        "exact phase-68 T3 A/B/A replay against the endpoint-owning repaired candidate; raw SSE and /slots snapshots captured under /srv/ai/paged-kv/results/v10/70-01/20260915T040103Z"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_70-01.md",
+          "sha256": "cfe1b7801d503abb11111daebb4e3e1de48933ab109dc7b895bbd3917ff02d32"
+        }
+      ],
+      "answers": {
+        "expected_a": "AURORA-CEDAR-161",
+        "expected_b": "EMBER-OAK-204",
+        "a": {
+          "output": "AURORA-CEDAR-161",
+          "prompt_tokens": 2035,
+          "completion_tokens": 11,
+          "first_stop_reason": "stop",
+          "selected_page_ids": [0, 1, 2, 3, 4, 5, 6, 7]
+        },
+        "b": {
+          "output": "EMBER-OAK-204",
+          "prompt_tokens": 4073,
+          "completion_tokens": 8,
+          "first_stop_reason": "stop",
+          "selected_page_ids": [0, 9, 10, 11, 12, 13, 14, 15]
+        },
+        "a_again": {
+          "output": "AURORA-CEDAR-161",
+          "prompt_tokens": 4110,
+          "completion_tokens": 11,
+          "first_stop_reason": "stop",
+          "selected_page_ids": [0, 14, 16],
+          "target_graph_used": true,
+          "cold_page_promoted": 0,
+          "h2d_useful_bytes": 4325376,
+          "h2d_aligned_bytes": 4325376
+        }
+      }
+    }
+  }
+}
