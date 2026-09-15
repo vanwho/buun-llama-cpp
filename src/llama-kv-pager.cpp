@@ -2820,6 +2820,30 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                 ? mutation.position_end : std::numeric_limits<llama_pos>::max();
             return page.record.id.position_end > begin && page.record.id.position_begin < end;
         };
+
+        // A cached append may first remove the divergent suffix from a page
+        // that was handed to the asynchronous host-seal worker by the
+        // preceding request.  That seal pins the page until its D2H event is
+        // published; treating the transient pin as a permanent all-pinned
+        // refusal makes an in-page append fall back to a cold prompt.  Drain
+        // ready completions and wait once for an overlapping host capture,
+        // preserving the same bounded boundary used by begin_write_batch().
+        if (mutation.kind == llama_kv_pager_mutation_kind::remove &&
+                host_ && host_->async_enabled()) {
+            drain_host_completions();
+            const auto has_inflight_target = [&]() {
+                for (const auto & page : next) {
+                    if (page.present && page.host_inflight &&
+                            selected(page, mutation.sequence_id) && overlaps(page)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            if (has_inflight_target()) {
+                wait_host_completions();
+            }
+        }
         const auto reject_pinned = [&](const auto & predicate) {
             for (const auto & page : next) {
                 if (page.present && page.record.pin_count != 0 && predicate(page)) {
