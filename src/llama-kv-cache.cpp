@@ -3455,6 +3455,27 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         append_if_resident(page);
                     }
                 }
+                // Reserve attention capacity for cold pages promoted by this
+                // authenticated retrieval. A routed resident list can fill
+                // the attention window before the new page is considered.
+                for (const auto & entry : boundary.retrieval.selected) {
+                    if (entry.reason != llama_kv_routing_retrieval_reason::summary &&
+                            entry.reason != llama_kv_routing_retrieval_reason::exploration) {
+                        continue;
+                    }
+                    const bool was_cold = std::any_of(inventory.begin(), inventory.end(),
+                            [&](const auto & page) {
+                        return same_bundle(page.id, entry.id) &&
+                            page.physical_slot == UINT32_MAX;
+                    });
+                    if (!was_cold) continue;
+                    const auto resident = std::find_if(result.target_pages.begin(),
+                            result.target_pages.end(), [&](const auto & page) {
+                        return same_bundle(page.id, entry.id) &&
+                            page.physical_slot != UINT32_MAX;
+                    });
+                    if (resident != result.target_pages.end()) append_if_resident(*resident);
+                }
                 const auto routed = attention_by_layer.find(layer);
                 if (routed != attention_by_layer.end()) {
                     for (const auto & entry : routed->second) {
