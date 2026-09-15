@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "task": "66-03",
+  "source_commit": "3357457e67cefb4cb76c82ae69254d4ec8b07600",
+  "revision": "hotpath-v10-20260914",
+  "findings": {
+    "matched_geometry": {
+      "status": "measured",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "prompts": [0, 1, 2],
+      "trials_per_prompt": 3
+    },
+    "selected_native": {
+      "status": "measured",
+      "artifact": "/srv/ai/paged-kv/results/v10/66-03/long-selective-native/SPEED25_02_ATTRIBUTION.json",
+      "draft_denominators_positive": true,
+      "accepted_bounds_valid": true,
+      "acceptance_percent_is_request_scoped": true
+    },
+    "cpu_main_kv_gpu_draft": {
+      "status": "measured",
+      "artifact": "/srv/ai/paged-kv/results/v10/66-03/long-cpu-main-kv-mtp/SPEED25_02_ATTRIBUTION.json",
+      "target_kv": "CPU",
+      "draft_device": "GPU",
+      "feature_off_control": true
+    },
+    "all_gpu_gpu_draft": {
+      "status": "measured",
+      "artifact": "/srv/ai/paged-kv/results/v10/66-03/long-all-gpu-mtp/SPEED25_02_ATTRIBUTION.json",
+      "target_kv": "CUDA",
+      "draft_device": "GPU",
+      "feature_off_control": true
+    },
+    "cached_append": {
+      "status": "measured_failed_cache_reuse",
+      "append64": "/srv/ai/paged-kv/results/v10/66-03/append-64/append-result.json",
+      "append256": "/srv/ai/paged-kv/results/v10/66-03/append-256/append-result.json",
+      "prompt_deltas": {"64": 65, "256": 257},
+      "observed_cache_n": {"64": 0, "256": 0},
+      "reason": "Both exact-length append requests returned HTTP 200 but the server reported no reused cache rows; no cache reuse was inferred."
+    },
+    "identity": {
+      "bundle": "/srv/ai/paged-kv/results/v10/66-02/candidate-bundle/bin/llama-server",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "build_receipt": "/srv/ai/paged-kv/results/v10/66-02/candidate-bundle/build-receipt.json"
+    }
+  },
+  "checks": {
+    "phase66_matched_benchmark": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-final-curve.py",
+        "--suite",
+        "curve",
+        "--context",
+        "8192",
+        "--prompt-tokens",
+        "6144",
+        "--question-index",
+        "0",
+        "--question-index",
+        "1",
+        "--question-index",
+        "2",
+        "--trials",
+        "3",
+        "--max-tokens",
+        "128"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/66-03/long-selective-native/SPEED25_02_ATTRIBUTION.json", "sha256": "986c7b207dfa14c652d9dfeb2c51c096b8e1bcf1d047b92bee350499b776cdaf"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-03/long-cpu-main-kv-mtp/SPEED25_02_ATTRIBUTION.json", "sha256": "d16f8563818021410bcbbc1adece072c4ed41ac04aa30dbc9362c376e25d97e1"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-03/long-all-gpu-mtp/SPEED25_02_ATTRIBUTION.json", "sha256": "8e4a6a8a94fca08fde598ea01b5cf57fbff15d0fe384da429f6de5d97d9a02fa"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-03/append-64/append-result.json", "sha256": "faeaa4e43fe7e7761fa9737c7941a512c3db5e89ecb39755f35a5af72bdf4028"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-03/append-256/append-result.json", "sha256": "8501cf57c1fad3ed41de139f331e0d6aaf7977473fb069eb308b6082047c5298"},
+        {"path": "/srv/ai/paged-kv/results/v10/66-02/candidate-bundle/build-receipt.json", "sha256": "ed4a3e120f29f5290723188a54281b120e0f3e79e0fe1232e3af02a48ee4adeb"}
+      ]
+    }
+  }
+}

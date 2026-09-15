@@ -189,6 +189,8 @@ class AdapterContractTests(unittest.TestCase):
         expected = identity("candidate", 202)
 
         def canonical(command: list[str], **_: object) -> object:
+            self.assertEqual(_["env"]["BENCH_ENDPOINT"],
+                             "http://127.0.0.1:8080/v1/chat/completions")
             self.write_canonical_artifacts(pathlib.Path(command[2]), expected)
             return adapter.subprocess.CompletedProcess(command, runner_rc)
 
