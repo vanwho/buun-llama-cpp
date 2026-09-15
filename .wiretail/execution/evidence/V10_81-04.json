@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "task": "81-04",
+  "source_commit": "3a79373ecc1848b368ff344787ab4d98f8e478ea",
+  "revision": "hotpath-v10-20260914",
+  "checks": {
+    "phase81_summary_generated_and_validated": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_81-04_validation.py",
+        "--summary",
+        ".wiretail/execution/evidence/V10_SUMMARY_81.json",
+        "--markdown",
+        ".wiretail/execution/evidence/V10_SUMMARY_81.md"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_81-04_validation.py", "sha256": "f3bce76345676c928050c8561e51a36fb0e51b855456d7ab20fbee967b6be191"},
+        {"path": ".wiretail/execution/evidence/V10_81-04_validation.log", "sha256": "d39c06375f2b75867393c845d13060ded1cf45f21e8e93e7d4e712f24ed082bf"},
+        {"path": ".wiretail/execution/evidence/V10_SUMMARY_81.json", "sha256": "7995ed379e6cacc30b95617ab8dced8b96b4a3f32af527dd304f9c2eee63ebf6"},
+        {"path": ".wiretail/execution/evidence/V10_SUMMARY_81.md", "sha256": "24e3fe2651262a962db1a66f0e781716f01227384cc1336ea104444879bcb8b5"}
+      ]
+    }
+  }
+}
