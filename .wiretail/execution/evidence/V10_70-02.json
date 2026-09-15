@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "task": "70-02",
+  "source_commit": "5c08c503fcbd8b033df02374b4042a2197641560",
+  "checks": {
+    "phase70_occupancy_advancement": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_70-02_validation.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-full-L262144-H8192/phase70_occupancy_validation.log",
+          "sha256": "b4bdbe730cb45821334960b79d9c20923d2eaee705d360481ef5c44907579132"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-dry-run/run-config.json",
+          "sha256": "dfe2ef156275110378f77259ab014b72111fb95a836aebb8dfc1aeef73f66935"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-live-setup/slots-before-probe.json",
+          "sha256": "a8aaa464722833380d3dcad7f5fdf224ad2acb9c4da50059d31acacbbe18c56d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-short-probe/incremental-state.json",
+          "sha256": "9eecdba85077b272b0c779ab81920d62c117c40e84f3048b2a3729f6de9a379f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-short-probe/INTERACTIVE29_01_SCALE.json",
+          "sha256": "bfc1abd253da9a82f9c878d6a20652806ee9b1b0ef15bd7020d146a2bc0c8a5e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-short-probe/slots-after-probe.json",
+          "sha256": "aa3cd7b7f763c7cbceb5d4fe09dc4b68147286e5c5d579182678d98299a85179"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-full-L262144-H8192/incremental-state.json",
+          "sha256": "6ebc124832712da41cea47da5c88cc252adbf9e336a7e8a2dfa1ae73966adae4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-full-L262144-H8192/slots-final-summary.json",
+          "sha256": "42bfa69d6108cb837abdaef6e6159c98620dd348a7fc3f7bf65f47781f503d9b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-full-L262144-H8192/slots-final-after-stop.json",
+          "sha256": "814e205c0e5158ac1d537b21963dba9ceb29ad8dfe0a354624d2a54463248caf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-02/20260915T041833Z-live-setup/startup-argv.txt",
+          "sha256": "edda152457554d08d30fcdc349e934f782aed447da1a7def976722a4e5bd2a1e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/startup-argv-final.txt",
+          "sha256": "5f1a4a1a0ad6844ab0e097bdecb606174ee4fa14dfd79fea0d7d3d35d88ac06c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_70-01.json",
+          "sha256": "35bc2a5dcdb5841f8fc8b3b8ca14b01757144f1d65e1ee263f00a8af721cdf79"
+        }
+      ],
+      "finding": {
+        "status": "measured_advancement",
+        "geometry": {
+          "L": 262144,
+          "durable_C": 29297,
+          "checkpoint_live_C": 29312,
+          "final_live_C": 30336,
+          "H": 8192,
+          "A": 4096,
+          "B": 128,
+          "U": 64,
+          "page_tokens": 256
+        },
+        "bytes": {
+          "page_bytes": 4325376,
+          "target_bytes": 138412032,
+          "draft_bytes": 276955136,
+          "packed_dequant_bytes": 16777216,
+          "charged_bytes": 15965452416,
+          "reserved_bytes": 2068443264,
+          "headroom_bytes": 201326592
+        },
+        "placement": {
+          "target_backend": "CUDA",
+          "target_k": "turbo4",
+          "target_v": "turbo4",
+          "draft_device": "GPU",
+          "draft_k": "turbo4",
+          "draft_v": "turbo4"
+        },
+        "candidate": {
+          "binary": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2/bin/llama-server",
+          "binary_sha256": "76404a3ace49a8f77a3567a8b26e98ba57c4e074827f7db7aab55d875eea3cae",
+          "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+          "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+        },
+        "responses": {
+          "short_probe": "pass",
+          "durable_full_run_turns": 21,
+          "inflight_raw_response": "interrupted_before_response"
+        },
+        "route_diagnosis": {
+          "final_route": "selected reference",
+          "packed_prefill_routes": 0,
+          "packed_mtp_verify_routes": 0,
+          "allocation_refusal": "none",
+          "faults": 25,
+          "evictions": 25
+        },
+        "occupied_C262144": {
+          "status": "not_established",
+          "reason": "The bounded attempt was stopped at the durable C29297/live C30336 frontier; allocation and requested L are not occupancy proof."
+        },
+        "first_exact_stop_reason": "operator_bounded_wall_budget_after_eta_review"
+      }
+    }
+  }
+}
