@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "task": "72-04",
+  "source_commit": "91126bc8f76b70075c82ea54bf2f0264190172f6",
+  "checks": {
+    "phase72_matched_benchmark": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-profile-benchmark.py",
+        "fast",
+        "short",
+        "/srv/ai/paged-kv/results/v10/72-04/<run>",
+        "--mode",
+        "selective/off",
+        "--mtp",
+        "native/off",
+        "--context",
+        "8192",
+        "--diagnostic",
+        "--batch",
+        "128",
+        "--ubatch",
+        "64",
+        "--generation-length",
+        "128"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T063000Z-72-04-selected-native-q012/run-config.json", "sha256": "53da3f198861d583411f82dffe7790b36765218fb2e126613ae44a03984c775e"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T063000Z-72-04-selected-native-q012/records.jsonl", "sha256": "1cd6d7d980e0f4dc0cdf9feed3fd6a38d61e91c37708d98aaaf067aea9a4c206"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T063000Z-72-04-selected-native-q012/summary.json", "sha256": "6a4709e29f555a8a11ed5f91c8e8b2517daa4a92e8e99014d2d335ba9be807cc"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T063000Z-72-04-selected-native-q012/lifecycle-state.json", "sha256": "3b4a443b89958bd0d2c4b04980862e1850eaaf08bb8ca84066a915a9958bad59"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T064000Z-72-04-all-gpu-q012/run-config.json", "sha256": "c1de1bd340cd541a73b7e825fecbbd6755e33a39d3ed473a8379c6a84d49a26e"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T064000Z-72-04-all-gpu-q012/records.jsonl", "sha256": "7a9652628eaac92e9c606ac402e3f72f2c2340e36bbcdd52e69a0ca2bfbeea39"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T064000Z-72-04-all-gpu-q012/summary.json", "sha256": "e69441a6a6c5e54a4d28c0fcb3cb8d66ce0b408fd53d460b15f5f75d4158809f"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T065000Z-72-04-cpu-main-kv-q012/run-config.json", "sha256": "630493f77f4390dd09b5f0b9f75c34762fe06f430b1f8000709e5f26b9800f3d"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T065000Z-72-04-cpu-main-kv-q012/records.jsonl", "sha256": "c2b0454be495f63fa8abf2aa772b4d39b20705f8c963d2829ffd85b0f8117b4b"},
+        {"path": "/srv/ai/paged-kv/results/v10/72-04/20260915T065000Z-72-04-cpu-main-kv-q012/summary.json", "sha256": "a5b62290e50b1565d587c45d646297626f31897cdf3b6aa7fb704486e9c44a07"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2/build-receipt.json", "sha256": "efa5ab7b2b82645e79234d16f0eebed07bddfd1d15faab6e46f1901c62dea70e"}
+      ],
+      "observed": {
+        "requested": {"L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 64, "page_tokens": 256},
+        "observed_C_selected_native": [39, 40, 42],
+        "observed_C_controls": [27, 28, 30],
+        "observed_L": 8192,
+        "observed_H_reported_by_harness": 167,
+        "observed_A": 2048,
+        "observed_B": 128,
+        "observed_U": 64,
+        "native_mtp_request_rows": 9,
+        "native_mtp_draft_tokens": 2229,
+        "native_mtp_accepted_tokens": 15,
+        "native_mtp_acceptance_percent": 0.67294751,
+        "cached_append_64_status": "not_run",
+        "cached_append_256_status": "not_run",
+        "coordinate_boundary": "The 72-03 fixture observed a 6143-token prefix but did not reach a live C6144 frontier; this matrix is diagnostic and reports actual short-prompt C values.",
+        "controls": "Feature-off controls are outside native-MTP acceptance claims."
+      }
+    }
+  }
+}
