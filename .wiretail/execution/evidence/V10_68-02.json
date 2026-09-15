@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "task": "68-02",
+  "source_commit": "469adb98a9e7c4232309ce5106f3a88d121c4b03",
+  "checks": {
+    "phase68_cached_append_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".wiretail/execution/v10",
+        "-p",
+        "test_*.py"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_68-02-proof.json",
+          "sha256": "b60d2d9f1938d7925cc2d79637427da6917910bd05c67e3d61db093341b4d8e5"
+        }
+      ]
+    }
+  }
+}
