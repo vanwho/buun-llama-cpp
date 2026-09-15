@@ -1,0 +1,88 @@
+{
+  "schema": "hotpath-v10-phase78-coordinate",
+  "schema_version": 1,
+  "task": "78-02",
+  "revision": "hotpath-v10-20260914",
+  "result": "measured",
+  "proof": "phase78_verified_coordinate_performance",
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "raw_run": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native",
+  "setup_run": "/srv/ai/paged-kv/results/v10/78-02/20260915T124554Z-78-02-coordinate-selected-native",
+  "identity": {
+    "target_device": "CUDA",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_device": "GPU",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "pager_mode": "selective",
+    "L": 8192,
+    "H": 8192,
+    "A_observed": 4096,
+    "B": 128,
+    "U": 64,
+    "page_tokens": 256,
+    "page_bytes": 4325376,
+    "target_allocated_bytes": 138412032
+  },
+  "frontier": {
+    "status": "measured",
+    "rows": {
+      "cold_prefill": {"C": 6143, "cache_n": 0, "target_valid_rows": 6143, "host_valid_rows": 5888},
+      "cached_append_64": {"C": 6207, "cache_n": 6143, "new_tokens": 64, "target_valid_rows": 6207, "host_valid_rows": 6144},
+      "cached_append_256": {"C": 6399, "cache_n": 6143, "new_tokens": 256, "target_valid_rows": 6399, "host_valid_rows": 6144},
+      "committed_decode": {"C": 6145, "cache_n": 6139, "predicted_n": 3, "target_valid_rows": 6145, "host_valid_rows": 5888}
+    },
+    "boundary": {
+      "status": "measured",
+      "reset_cache_n": 6139,
+      "reset_prompt_n": 4,
+      "reason": "four generated suffix tokens were divergent before the requested 6143-token prefix matched"
+    }
+  },
+  "rates": {
+    "cold_prefill": {"status": "measured", "denominator_tokens": 6143, "duration_ms": 33893.502, "tok_s": 181.2441806692032, "server_field": "prompt_per_second"},
+    "cached_append_64": {"status": "measured", "denominator_tokens": 64, "duration_ms": 849.548, "tok_s": 75.33417770390844, "server_field": "prompt_per_second"},
+    "cached_append_256": {"status": "measured", "denominator_tokens": 256, "duration_ms": 2828.026, "tok_s": 90.52250580440209, "server_field": "prompt_per_second"},
+    "committed_decode": {"status": "measured", "denominator_tokens": 3, "duration_ms": 65.681, "tok_s": 30.450206300147684, "server_field": "predicted_per_second", "requested_n_predict": 64, "stop_type": "eos"}
+  },
+  "native_mtp": {
+    "status": "measured",
+    "counter_source": "request-scoped Prometheus before/after deltas",
+    "cold_prefill": {"draft_tokens": 0, "accepted_tokens": 0, "denominator_status": "zero_work"},
+    "cached_append_64": {"draft_tokens": 0, "accepted_tokens": 0, "denominator_status": "zero_work"},
+    "cached_append_256": {"draft_tokens": 0, "accepted_tokens": 0, "denominator_status": "zero_work"},
+    "committed_decode": {"draft_tokens": 2, "accepted_tokens": 1, "acceptance_percent": 50.0}
+  },
+  "telemetry": {
+    "live_charged_bytes": 15372589952,
+    "reserved_bytes": 1475580800,
+    "headroom_bytes": 201326592,
+    "target_resident_bytes": {"cold_prefill": 103809024, "cached_append_64": 108134400, "cached_append_256": 108134400, "committed_decode": 108134400},
+    "summary_build_bytes": {"cold_prefill": 198967296, "cached_append_64": 207618048, "cached_append_256": 216268800, "committed_decode": 216268800},
+    "host_seal_d2h_bytes": {"cold_prefill": 99483648, "cached_append_64": 103809024, "cached_append_256": 108134400, "committed_decode": 108134400},
+    "wait_time_us": {"cold_prefill": 278077, "cached_append_64": 280953, "cached_append_256": 288597, "committed_decode": 294206},
+    "copy_time_us": {"cold_prefill": 0, "cached_append_64": 0, "cached_append_256": 0, "committed_decode": 0},
+    "graph_replay_count": 0,
+    "graph_rebuild_count": {"cold_prefill": 225, "cached_append_64": 227, "cached_append_256": 233, "committed_decode": 236},
+    "h2d_useful_bytes": 0,
+    "d2h_useful_bytes": 0,
+    "router_score_rank_time": "not exposed by this live telemetry schema",
+    "snapshot_readback": "not separately measured",
+    "catalogue_upload_bytes": 0,
+    "gpu_memory_snapshot": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/nvidia-smi.csv"
+  },
+  "controls": {
+    "status": "not_run",
+    "reason": "the selected/native coordinate produced the required verified rows; phase-77 controls are C≈30 and are not reused as C6144 claims"
+  },
+  "exact_failures_and_boundaries": [
+    "n_predict=1 cold/append requests performed zero native-MTP speculative work; 0/0 is retained, not inferred",
+    "the committed decode requested 64 tokens but ended at EOS after predicted_n=3",
+    "no result relabels the phase-77 C≈30 matrix or predecessor cache geometry as this C6144 measurement"
+  ]
+}

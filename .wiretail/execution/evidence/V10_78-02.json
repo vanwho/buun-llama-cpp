@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "task": "78-02",
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "revision": "hotpath-v10-20260914",
+  "result": "verified_coordinate_performance_measured",
+  "checks": {
+    "phase78_verified_coordinate_performance": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_78-02_validation.py",
+        "--root",
+        "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_78-02_validation.log", "sha256": "0c84805db6464b466d7a3694196dab069c652eca41796e878ccf36109ea31ef2"},
+        {"path": ".wiretail/execution/evidence/V10_78-02_FINDINGS.json", "sha256": "8da2e6b07eb2916799d572885080e80f548c0edf7485bb0ea26f67197b92a6e0"},
+        {"path": ".wiretail/execution/evidence/V10_78-02_validation.py", "sha256": "8536e423d5d61a59c9dbd2c07a941732d61470938abb244f73b6e277644c7b90"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/summary.json", "sha256": "f7ae06c6ef0c08f52732e76c50e2526d632dbcb62d8b104d9b3d6cae07301048"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/identity.json", "sha256": "736f2298fa9806b1afbb7d0f17a088688a2bc094857da773b1ab8ed551e619b0"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/setup-run-config.json", "sha256": "54bb61cdee6a1241df46ac2252197a257b536f15d631973a28852243ddda2739"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/responses/cold-prefill.json", "sha256": "9569b8c8184a61da620c2b95381582c4dc14324b24f27b2fca9d281c644bc688"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/responses/cached-append-64.json", "sha256": "d221a6dfb12a5e16d93936853280eb0a6e4fbf6b5b5764f31f34d0a8c8a2b7d7"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/responses/cached-append-256.json", "sha256": "9328e6c24c0be054a192921fc8888d17c568491c64c7f473ab7cf6e4956b38f1"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/responses/committed-decode-64.json", "sha256": "c803ba25a44829f5fc6389e33e54ccba831108000d8eb42aeb5a09d466d8f0e9"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/metrics/cold-prefill-after.prom", "sha256": "595d43e91da8b24b53cdc7a67a4e99d031e9f7be2493a901a41329b334180c95"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/slots/cold-prefill-after.json", "sha256": "f8b82e2fc955b24f203157994c5efe58e468aa8306a7be7aaf69e6849869ed2d"},
+        {"path": "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/nvidia-smi.csv", "sha256": "f55773adfe20b8370ad02d1a33e38c3c8c95aba10b706b2756cfb0785af71813"}
+      ],
+      "finding": {
+        "coordinate": "L8192 / requested C6144 / observed C6143 prefix / H8192 / A4096 observed / B128 / U64",
+        "rates_tok_s": {"cold_prefill": 181.2441806692032, "cached_append_64": 75.33417770390844, "cached_append_256": 90.52250580440209, "committed_decode": 30.450206300147684},
+        "native_mtp": {"append_and_prefill": "0/0 at n_predict=1", "committed_decode": "1 accepted / 2 drafted"},
+        "boundary": "prefix reset retained cache_n=6139 and prompt_n=4; decode stopped at EOS after predicted_n=3"
+      }
+    }
+  }
+}
