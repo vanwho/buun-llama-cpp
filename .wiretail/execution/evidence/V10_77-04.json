@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "task": "77-04",
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "checks": {
+    "phase77_occupancy_advancement": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--endpoint",
+        "http://127.0.0.1:8080/v1/chat/completions",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--target-tokens",
+        "32768",
+        "--turn-delta",
+        "3000",
+        "--initial-tokens",
+        "16000",
+        "--max-tokens",
+        "16",
+        "--wall-budget",
+        "900",
+        "--prefill-timeout",
+        "240",
+        "--total-timeout",
+        "360"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_77-04.md",
+          "sha256": "a56ccd0ad506b81e8d855f201c032cd181711f5e738336a5072bc8c2cc3afaa8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/INTERACTIVE29_01_SCALE.json",
+          "sha256": "e675f70b424a572d10f96e0b61811eee9cb40c00dfb6ad919368e345bad91be1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/allocation-ledger.json",
+          "sha256": "73b342954d2af6e7e29eae313c69b3f69e908c7aeed5c07fdbe18a21b81a63ec"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/phase77_occupancy_validation.json",
+          "sha256": "7d1bfd76de040e448e2ab0bda6c49fbf7097a77594815a51f31a9daa49be25ac"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/metrics-final.txt",
+          "sha256": "89c3a0d5042d4b15f4a27c0d176d376c49e5357b5789e7b7937eb3d8f1e66271"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/slots-final.json",
+          "sha256": "2056953a537da361716c656663d9d11336593ebb10684682540b198d7ce87868"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/live-setup-final/run-config.json",
+          "sha256": "3defa509b50189787d83cf4b80ca212f3a33b8865ec06c30076317fea690f3c9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/live-setup-final/raw/startup-mtp.log",
+          "sha256": "0e0c6df3116cfa39c45bd3791703f2ce4f986575b120145c25f4e4c44c937e3d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/raw-00.sse",
+          "sha256": "dae1034fc02075453f674c0fa2cd86666c9b5c3a6348f3475820cc71724e0996"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/raw-01.sse",
+          "sha256": "48fea66bd707eed3dc5afd15692afa60a25ea133c64bfab9224a798df09a997e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/raw-02.sse",
+          "sha256": "87b9f1b61319ccd96a384c7a75d4772617fb2f7163bfc1719f9c4a1174c8ebad"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/raw-03.sse",
+          "sha256": "3791ffb34b321f2c1f5dea20a2f9588598dbcce6d9d4640ccf8c98743171a834"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/raw-04.sse",
+          "sha256": "b574cfce97143934492172cc01e41b468f3a6be3b74926bf1aeeba39209aa624"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/raw-05.sse",
+          "sha256": "caa35aee3786cbcab601df3e996b562e3a230cbb7845ae4b9f5476f97e4e4bb7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/frontier/raw-06.sse",
+          "sha256": "4bf125048570cef6a49b338666aedf6db33013d1342610655cd6cbf5916ee1f0"
+        }
+      ],
+      "finding": {
+        "full_L_allocation": "measured",
+        "forward_progress": "measured",
+        "occupied_C262144": "not_established",
+        "L": 262144,
+        "durable_C": 32762,
+        "live_C": 32773,
+        "H": 8192,
+        "A": 4096,
+        "B": 128,
+        "U": 64,
+        "target_allocated_bytes": 138412032,
+        "draft_allocated_bytes": 276955136,
+        "packed_storage_bytes": 0,
+        "packed_workspace_bytes": 138412032,
+        "charged_bytes": 15965452416,
+        "reserved_bytes": 2068443264,
+        "headroom_bytes": 201326592,
+        "first_exact_stop_reason": "operator_bounded_wall_budget_stop_after_C32762"
+      }
+    }
+  }
+}
