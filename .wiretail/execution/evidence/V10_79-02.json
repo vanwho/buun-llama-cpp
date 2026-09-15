@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "task": "79-02",
+  "source_commit": "53bdeac064c6cb305e1c97a8ea0e8577f547e560",
+  "checks": {
+    "phase79_promotion_quality": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/validate-phase79-promotion-quality.py",
+        "--t1",
+        "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-controlled-model-query/controlled-model-query-gdb.json",
+        "--t3",
+        "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-organic-t3-quality-retry/organic-t3-summary.json",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-organic-t3-quality-retry/phase79-promotion-quality-validation.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-controlled-model-query/controlled-model-query-gdb.json",
+          "sha256": "73899b967a3560a25710d5e1334b55187194296fd53bc4420b49e6c30ad637a1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-controlled-model-query/t1-gdb.txt",
+          "sha256": "bb1dcd18e6c6b8d49dfc7443c9a3d007bd8da60282cc18717cd643f9be046ce8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-organic-t3-quality-retry/organic-t3-summary.json",
+          "sha256": "4e7c2045ec15caf53a42341dd5c436e3a22b2b452cd4722b284fe5f494d39e78"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-organic-t3-quality-retry/record-b.json",
+          "sha256": "cf108053a3a5ba52984bdfb1b0a1ed29b8a9f78839372d7f11a96142773292f5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-organic-t3-quality-retry/record-a-again.json",
+          "sha256": "786eb6fada7e1568d38d7c61b92a239d4c269992e58c48cdc0a3674194e7b0c0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/79-02/20260915T-live-organic-t3-quality-retry/phase79-promotion-quality-validation.json",
+          "sha256": "faa578d2618ac905685232d1c4e72312fb15afc1330a0c24ce0506582b1b4ff9"
+        }
+      ],
+      "attempt_notes": {
+        "t1_direct": "failed closed on native-MTP second model initialization due CUDA memory pressure; a no-MTP standalone retry exposed a driver teardown race, so the successful bounded CUDA run was captured under gdb and retained verbatim",
+        "t3_initial": "invalid setup because A became resident during B before the third-query boundary, and B's nonce answer was incorrect",
+        "t3_quality_retry": "pass; B retained a canonical host-backed A page before A-again and the three expected answers matched"
+      }
+    }
+  }
+}
