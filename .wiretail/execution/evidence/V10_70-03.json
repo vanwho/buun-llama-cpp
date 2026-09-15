@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "task": "70-03",
+  "source_commit": "d0ad7b4a7969a8b62e631d24637ab31b275f453a",
+  "checks": {
+    "phase70_matched_benchmark": {
+      "status": "pass",
+      "command": [
+        "sudo", "-n", "env", "BENCH_ENDPOINT=http://127.0.0.1:8080/v1/chat/completions",
+        "BENCH_SERVER_BIN=/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2/bin/llama-server",
+        "/srv/ai/benchmarks/run-profile-benchmark.sh", "fast",
+        "/srv/ai/paged-kv/results/v10/70-03/20260915T044316Z-selected-native",
+        "--mode", "selective", "--device", "auto", "--page-size", "256",
+        "--batch", "128", "--ubatch", "64", "--context", "8192", "--mtp", "native",
+        "--generation-length", "128"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044316Z-selected-native/run-config.json", "sha256": "d468db1569f95be4938731e2460e0a29d7607db7827c650c98668d2ced879df7"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044316Z-selected-native/records.jsonl", "sha256": "22c5288e0d97ae9a63126fe64eb4e10faa4645578b10b932c60ae2983d89113a"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044316Z-selected-native/lifecycle-state.json", "sha256": "476afbf52d89b84d149b090f4482bec3600d7c3a20060233bd3d49b99e95ae4e"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044316Z-selected-native/raw/startup-mtp.log", "sha256": "bae62c0b9e8aff321931a0ba3ca952fa1ef5a5addd2f4c413ccf3d24f735fde5"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044451Z-cpu-main-kv-control/run-config.json", "sha256": "dc3750c4cad2155181bab2b8755e6cd10b7ae00963fcbd7047bb5bbc99d90fda"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044451Z-cpu-main-kv-control/records.jsonl", "sha256": "ce4ab5d64ee82f99e3398090a89f652ffe15b848e2c3a9a96dceb6ec7b732de8"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044451Z-cpu-main-kv-control/lifecycle-state.json", "sha256": "ee57071ed8eaf903188d7536933c6269a369f0b6c791cbeb3e0567d88e36ef99"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044659Z-all-gpu-control/run-config.json", "sha256": "babd188a2f497379effa1d2dc12a03d6a6df60a746a6917b80c72c95a4fe0a6f"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044659Z-all-gpu-control/records.jsonl", "sha256": "f78ec128df7038316dce92c4917bbf2b403812dfbe8dc726894e167ad53303f2"},
+        {"path": "/srv/ai/paged-kv/results/v10/70-03/20260915T044659Z-all-gpu-control/lifecycle-state.json", "sha256": "6ccbdaae88c4713bb1671109441f4e4c434aef4274dede10158354625f9274ca"}
+      ],
+      "finding": {
+        "coordinate": {"requested_L": 8192, "observed_L": 8192, "requested_C": 6144, "observed_C": [27, 28, 30], "H": 4096, "A": 2048, "B": 128, "U": 64, "page_tokens": 256},
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "candidate_binary_sha256": "76404a3ace49a8f77a3567a8b26e98ba57c4e074827f7db7aab55d875eea3cae",
+        "rows": {"selected_native": 9, "cpu_main_kv_gpu_draft_control": 9, "all_gpu_gpu_draft_control": 9},
+        "rates_tok_s_median_min_max": {
+          "selected_native": {"cold_prefill": [673.215978, 460.373755, 722.230247], "committed_decode": [33.2694229, 32.9815132, 33.4666554]},
+          "cpu_main_kv_gpu_draft_control": {"cold_prefill": [293.670355, 284.372169, 305.219249], "committed_decode": [17.8468944, 17.8035669, 17.8932438]},
+          "all_gpu_gpu_draft_control": {"cold_prefill": [652.567976, 477.183557, 709.555345], "committed_decode": [49.3559246, 49.3208289, 49.3800279]}
+        },
+        "native_mtp": {"draft_tokens": 2247, "accepted_tokens": 6, "acceptance_percent": 0.26702225, "positive_denominator_rows": 9},
+        "controls": "feature-off; MTP counters intentionally null and excluded from native acceptance claims",
+        "raw_failure_retained": "/srv/ai/paged-kv/results/v10/70-03/20260915T044221Z-selected-native"
+      }
+    }
+  }
+}
