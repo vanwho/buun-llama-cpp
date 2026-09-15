@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "task": "76-03",
+  "source_commit": "bf2fb6941510dca25c09c7101c0ac74dd5d78e37",
+  "checks": {
+    "phase76_occupancy_advancement": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_76-03_validation.py",
+        "--dry-run",
+        "/srv/ai/paged-kv/results/v10/76-03/20260915T085802Z-allocation-dry-run",
+        "--setup",
+        "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/live-setup",
+        "--probe",
+        "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/short-probe",
+        "--packed-probe",
+        "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/packed-probe",
+        "--frontier",
+        "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean",
+        "--bundle",
+        "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/candidate-bundle-76-03",
+        "--manifest",
+        "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/live-setup/bundle-manifest.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/V10_76-03_validation.py", "sha256": "be174b15dbc8b0a01e21348ca7c3c36cebe18ae5c1efa6ff9c671166058573c6"},
+        {"path": "/srv/repos/vanwho/buun-llama-cpp/tools/server/bench/run-occupancy-frontier.py", "sha256": "f4251513e83629b6790c751e9821f80eb7fa3f3af2e810ebfd021db6ed19d767"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T085802Z-allocation-dry-run/run-config.json", "sha256": "50b99a73cb50c0faa3ffbdcd69801417a9bef8c50af9797bfd94f11cc03c7627"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/live-setup/setup-summary.json", "sha256": "627f1fa21347dc7e342a434a1ba259476a85ee6d0422ba9ba27b35621eb5e4fd"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/live-setup/startup-argv.txt", "sha256": "345404fab5f4669cbefa3f47277393347926a8b2613ea13f4fe58b4bd5c21ee3"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/live-setup/identity.json", "sha256": "0f48f9b6b2a8a8c33d9ecb18fb98a7722760a2273a89c8055115ee84d52b3fba"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/live-setup/bundle-manifest.json", "sha256": "7afa0d64450092bb161b065dabe4cac182b943efdfbad613e41817762eb529ce"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/candidate-bundle-76-03/build-receipt.json", "sha256": "a40ae8bf54f8ff2923f678da2c11b043126fdcdbd2adbacf44b1d6ad0dad4945"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/short-probe/INTERACTIVE29_01_SCALE.json", "sha256": "a6f1ab71b9ef5a23bdcc990242468670d27cf8c3362274c73bca845be9c67da2"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/short-probe/slots-final.json", "sha256": "61b42b20b4abae0b44dba838920188b8a478535288c33ff47f164846fc1ab080"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/short-probe/raw-04.sse", "sha256": "e203391fe135dffdf66cc667a0ebdfb8d85cbfe13b216106a6ce756d164eaf42"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/packed-probe/INTERACTIVE29_01_SCALE.json", "sha256": "59a463b4f3a0365b854d31ff1e784604f7e01f73f285585cfd84adb2439a7e49"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/packed-probe/slots-final.json", "sha256": "4d3bb231c88fcf788ab62152ecc9cb9485a38d7ccbf87fe5257a4beec7732573"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/packed-probe/metrics-final.txt", "sha256": "589c4d44c442db489f5610ba427c49c73e867eaa43455b2a2e7e32dfb29f26ea"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/packed-probe/raw-00.sse", "sha256": "82033db8c7df167c0c7db1d5961cd6d474f9539e76d8ce09eaa76e498a3c9d1a"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/INTERACTIVE29_01_SCALE.json", "sha256": "9251f085d5681c7d82805653ccd87bf89abd7cdb01ee015a030e9a292eeae55d"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/incremental-state.json", "sha256": "f3c5047e8af840df5521e1eeeb68c9e5be407b13d4dcf5bb5acdc384dcc3b7e1"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/allocation-ledger.json", "sha256": "189a9113ff7389169c4bd2ff42cd5d6248c42a80e1b6cd3991d339595e7144a1"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/slots-final.json", "sha256": "69cdcafa3ae0e6e1dc20a227fe88ad68e18463327e0ebcc89be014d27c26aac8"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/metrics-final.txt", "sha256": "d8fd96af23eaf6e4d34423ca94a1b9d623055c4ecdc470bfb78c13d9df33aaa0"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/phase76_occupancy_validation.log", "sha256": "158d43eedb220c9b7784dcaaa59fe0c92fd6b467abc816a29257c133bb0e3f0f"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/raw-00.sse", "sha256": "765ff2592ba7a732b6d8ca19ed48feb6f888ad4dad9d90102429a0727ede0dab"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/raw-01.sse", "sha256": "408244d269eaa0a6136e8760d1736c3674df209539fc6a6ea4a6843529c5b230"},
+        {"path": "/srv/ai/paged-kv/results/v10/76-03/20260915T110000Z-occupancy-advancement/frontier-clean/raw-02.sse", "sha256": "7e13494597d6f0db6f24d414d801d71d5326759f72488c40ea484ba29b3ef0b3"}
+      ]
+    }
+  }
+}
