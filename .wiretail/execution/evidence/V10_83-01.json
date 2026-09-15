@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "task": "83-01",
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "findings": {
+    "answer_quality": {
+      "status": "failed",
+      "oracle": "exact normalized nonce match",
+      "rows": 3,
+      "prompt_tokens": [3000, 6000, 6143],
+      "cached_tokens": [0, 2996, 5996],
+      "expected": ["EMBER-QUARTZ-914", "CIRRUS-VAULT-268", "EMBER-QUARTZ-914"],
+      "observed": ["////////////////////////////////", "////////////////////////////////", "////////////////////////////////"],
+      "correct_rows": 0,
+      "physical_promotion_or_target_graph_inferred": false,
+      "reason": "All three HTTP 200 rows ended with finish_reason=length after 32 slash tokens; no expected nonce was observed."
+    },
+    "native_mtp": {
+      "status": "measured",
+      "draft_tokens": [59, 59, 59],
+      "accepted_tokens": [0, 0, 0],
+      "acceptance_percent": [0.0, 0.0, 0.0]
+    },
+    "identity": {
+      "endpoint_pid": 3096300,
+      "binary_sha256": "b2800fff4b40d255163518b3e4fc812f0b9f081ff4d04367fe897002f0468378",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "L": 8192,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    }
+  },
+  "checks": {
+    "phase83_answer_quality": {
+      "status": "pass",
+      "command": ["python3", "-"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_83-01.md", "sha256": "300e752661196df75ec6b9665654c7e61c29778eb7aae72255247394fb654454"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/organic-answer-quality.json", "sha256": "993af6be5cdd250c39da5c69ef81770aebdf6b94b2c8473fed6884c354ca5753"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/validation.json", "sha256": "564aecad24830d633276ceaa8ec4b46574cf44e44b38944dbc1d3a36103a8219"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/raw/raw-a.sse", "sha256": "b03ccefed848e7eb7d9e86f81e25e9869690a23e026f1dfaba8d9b7cb9bd6f74"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/raw/raw-b.sse", "sha256": "11f7a4eb1cc29aa90799035fb10c61b7b664bb89af97a5026dc45db4bfa93c97"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/raw/raw-a-again.sse", "sha256": "bf4e47ba2e41670ccdf1bbbd6a54817eec388fa27bf90ca7a69f4709a8671e48"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/requests/request-a.json", "sha256": "4b3a04e12cde0017deebaa1b456909b472f483668a6a5fbd15da8fec4ffe1958"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/requests/request-b.json", "sha256": "0b9e161c7dffd4fe3cfaf79df0c2008439e2061117965ce32e16fc3582ed48ee"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/requests/request-a-again.json", "sha256": "7e61755a868d5c6a790d49f727702da723c255f7de6263f5545ca14f4ed38681"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/token-arrays/tokens-a.json", "sha256": "1458dceb4e3d2a485f41d6b204bdf7110690fcea820439e8269b083180752ed1"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/token-arrays/tokens-b.json", "sha256": "2b0ed91bbf7c50cf3e325994e0d37ac9df99e44632ceddc0026aca5306d465b1"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/token-arrays/tokens-a-again.json", "sha256": "fab6f4b4dca9ffae3baf0651c5fd29e82df6c93edf437dc197a6663b40d905a5"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/identity/process-before.json", "sha256": "d441f6b32fef14592b5449aefd5c52cfa66995aa04354b1b5a7204fcb4f2750c"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/identity/process-after.json", "sha256": "6634b266cb877a455123e12396311dff8b0fb21955740c7d9a2d6cb233d5de62"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/identity/build-receipt.json", "sha256": "8788e9ae80dbbd593ef08385f8f37b09a8561ac7d1d9b48e2c2cca117fd39a25"}
+      ]
+    }
+  }
+}
