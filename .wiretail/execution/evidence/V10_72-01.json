@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "task": "72-01",
+  "source_commit": "49052e9f8845f63d5c0b12027e145435c6adb69c",
+  "checks": {
+    "phase72_controlled_model_promotion": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-kv-pager-model",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--tokens-file",
+        "/srv/ai/paged-kv/results/v10/51-01/20260914T-live-proof-speed-v10/model-tokens.txt",
+        "--context",
+        "8192",
+        "--n-batch",
+        "128",
+        "--n-ubatch",
+        "64",
+        "--hot-pages",
+        "16",
+        "--generate",
+        "16",
+        "--mtp",
+        "off",
+        "--selected-only",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/72-01/20260915T052500Z/controlled-model-query-final.json"
+      ],
+      "environment": {
+        "LLAMA_KV_ATTENTION_ROUTE": "packed"
+      },
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-01/20260915T052500Z/controlled-model-query-final.json",
+          "sha256": "0447eb7129f5b5216d27303f6c729df680769c64deea6de7d319219b8733381d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-01/20260915T052500Z/controlled-model-query-final.stderr",
+          "sha256": "dca9555f6331e9a40c85ca8a5e4ffbe1dea4c44c4e5483dfba27c7ae05b3a668"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_72-01_RUNTIME.md",
+          "sha256": "baa35f0c0313e8844ce0997e2b1fb0525e392b5f8290c71770080211043601fe"
+        }
+      ]
+    }
+  },
+  "findings": {
+    "setup": "controlled_model_query",
+    "model": {
+      "requested": "/srv/ai/models/text/current.gguf",
+      "resolved": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "build": {
+      "source_commit": "49052e9f8845f63d5c0b12027e145435c6adb69c",
+      "test_binary_sha256": "6e384f90b85c558a2ea0f7fafbdb45ea12399779d6ca587dc7279cb012980be3",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "target_device": "CUDA"
+    },
+    "geometry": {
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "logical_pages": 32,
+      "physical_page_capacity": 16,
+      "page_bytes": 4325376
+    },
+    "natural_proof": {
+      "query_generation": 66,
+      "query_position": 4097,
+      "catalogue_epoch": 8326,
+      "published_epoch": 8392,
+      "logical_page": 0,
+      "attention_layer": 3,
+      "selector_rank": 0,
+      "page_generation": 5,
+      "content_version": 5,
+      "physical_slot": 15,
+      "candidate_was_cold": true,
+      "host_ready": true,
+      "promotion_published": true,
+      "selector_published": true,
+      "h2d_queued": true,
+      "h2d_completed": true,
+      "mapping_published": true,
+      "target_graph_used": true,
+      "target_use_epoch": 12462,
+      "target_use_query_generation": 66,
+      "h2d_useful_bytes": 4325376,
+      "h2d_aligned_bytes": 4325376
+    },
+    "answer_quality": {
+      "status": "measured_separately",
+      "source": ".wiretail/execution/evidence/V10_SUMMARY_70.json",
+      "correct": true,
+      "expected": {
+        "a": "AURORA-CEDAR-161",
+        "b": "EMBER-OAK-204"
+      },
+      "observed": {
+        "a": "AURORA-CEDAR-161",
+        "b": "EMBER-OAK-204",
+        "a_again": "AURORA-CEDAR-161"
+      }
+    },
+    "client_page_id_used": false,
+    "public_force_promotion_api_used": false
+  }
+}
