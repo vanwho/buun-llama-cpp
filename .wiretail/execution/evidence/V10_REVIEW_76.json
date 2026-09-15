@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_76",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "77-01",
+  "reviewed_phase": 76,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_76.json",
+    "sha256": "1c633300a55c57ac9b0db19b52c7664e3b739f9dd032c091666a774275e0fe32",
+    "markdown_path": ".wiretail/execution/evidence/V10_SUMMARY_76.md",
+    "markdown_sha256": "3760fa88e6162433fc727edc8184e85e8c06ef729387f025815820d7bf5b84d7"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "controlled_physical_promotion": true,
+    "organic_cold_promotion": true,
+    "organic_physical_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_allocation_measured": true,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false,
+    "cached_append_reuse_proven": false,
+    "cached_append_256_reuse_proven": false,
+    "prefill_proven": false,
+    "committed_decode_proven": false,
+    "native_mtp_denominators_proven": true,
+    "pilots_measured": true
+  },
+  "capability_basis": {
+    "build_identity_valid": "The phase-76 summary records the resolved Qwen model hash, immutable tested source identities, candidate binary hashes, and separate requested/observed/immutable identity.",
+    "required_turbo4_placements": "The measured native cached-append placement is CUDA target Turbo4 K/V with GPU draft Turbo4 K/V; the selected/native failed rows retain the same requested placement, and feature-off controls are separately identified.",
+    "controlled_model_promotion": "The established V10 matrix retains a distinct controlled-model promotion proof; the phase-76 organic A/B/A result is not substituted for it.",
+    "controlled_physical_promotion": "The established V10 controlled physical-promotion proof remains separate from the phase-76 organic promotion row.",
+    "organic_cold_promotion": "Phase-76 records logical page 0 cold before transfer and separately records the promotion chain.",
+    "organic_physical_promotion": "The organic A-again request queued and completed H2D, published the mapping, and used the cold logical page in the completed target graph.",
+    "stable_target_consumption": "Target-graph use is recorded independently of table publication and answer correctness.",
+    "full_256k_allocation_measured": "The L262144 allocation boundary is measured with target, native-MTP, packed, charged, reserved, and headroom bytes.",
+    "full_256k_occupancy": "False: the bounded run stopped at durable C13034/live C13049, far short of occupied C262144.",
+    "practical_speed_goal_met": "False: the selected/native matched route returned HTTP 500, and the successful controls do not establish a selected C6144 speed claim.",
+    "useful_answer_quality_proven": "False: A and A-again returned the expected nonce, while B returned COBALT-ELM-117 instead of COBALT-MAPLE-731.",
+    "cached_append_reuse_proven": "False for the production native-MTP path: non-MTP reused C6143, but native-MTP append rows had cache_n=0.",
+    "cached_append_256_reuse_proven": "False for native-MTP: the 256-token native row did not reuse the prefix; the non-MTP row is retained as a separate measured control.",
+    "prefill_proven": "False as a selected/native capability: phase-76 did not run a separate cold-prefill campaign and selected/native matched requests failed before completion.",
+    "committed_decode_proven": "False as a selected/native capability: selected/native matched requests failed before decode; control decode rates are not promoted to a phase-wide claim.",
+    "native_mtp_denominators_proven": "True for the successful cached-append native rows: four request-scoped drafts and zero accepts have valid bounds; failed selected/native rows are not acceptance evidence.",
+    "pilots_measured": "True for the measured cached append, L262144 allocation, and bounded occupancy frontier; the occupied-C262144 result remains failed."
+  },
+  "current_findings": {
+    "identity_and_placement": "The resolved Qwen model and immutable phase-76 provenance are explicit. Native cached append measured CUDA target and GPU draft Turbo4 placement, while selected/native matched rows failed at the packed selected-view route.",
+    "promotion": "Controlled physical/model promotion remain established distinct capabilities. Organic logical page 0 was cold, transferred, published, and consumed by the target graph; this is independent of the B answer mismatch.",
+    "answer_quality": "The deterministic organic A/B/A campaign still has a concrete B nonce mismatch: COBALT-ELM-117 versus COBALT-MAPLE-731.",
+    "cached_append": "Non-MTP reused C6143 for both 64- and 256-token appends. Native-MTP completed rows but reused no prefix, so production cached append remains unproven.",
+    "rates": "Controls have matched prompt/decode medians, but selected/native rows failed before decode. Cold prefill and committed decode therefore remain unproven as selected/native claims.",
+    "occupancy": "L262144 allocation is measured, but the bounded packed-route run stopped at durable C13034/live C13049 and did not establish occupied C262144."
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "selected/native packed route and native-MTP cache state",
+      "fixture": "L8192/C6143 cached prefix with selected/native Turbo4 target and GPU Turbo4 draft",
+      "finding": "Selected/native matched requests returned HTTP 500 because the selected packed route refused the selected view; native-MTP append rows also had cache_n=0 while non-MTP reused C6143.",
+      "scheduled_task": "77-02"
+    },
+    {
+      "owner": "organic answer-quality boundary",
+      "fixture": "deterministic cached A/B/A conversation with expected COBALT-MAPLE-731",
+      "finding": "B returned COBALT-ELM-117 while A and A-again were correct; reproduce and repair only a measured prompt, cache, selection, or synchronization cause.",
+      "scheduled_task": "77-03"
+    },
+    {
+      "owner": "full-L occupied frontier",
+      "fixture": "L262144/H8192 packed route at durable C13034/live C13049",
+      "finding": "The bounded wall-budget stop is a concrete measured boundary; advance it with a dry-run ledger and bounded probe while retaining allocation versus occupancy semantics.",
+      "scheduled_task": "77-04"
+    }
+  ],
+  "next_action": "Run the three ordered measured repairs/advancements for the selected/native route and native-MTP cache boundary, answer quality, and occupied C262144; then run the matched prefill/append/decode benchmark, summarize only phase-77 evidence, and review it.",
+  "phase_appended": true,
+  "appended_phases": [
+    77,
+    78
+  ],
+  "next_task_ids": [
+    "77-02",
+    "77-03",
+    "77-04",
+    "77-05",
+    "77-06",
+    "78-01"
+  ],
+  "successor_contracts": {
+    "77-02": "Repair the measured selected/native packed-route refusal and native-MTP cache_n=0 boundary, then verify actual L/C/H/A/B/U, target/draft Turbo4 placement, 64/256 cache reuse, and request-scoped MTP denominators.",
+    "77-03": "Reproduce and diagnose the phase-76 B nonce mismatch with canonical A/B/A transport; keep answer correctness separate from organic physical promotion and target-graph use.",
+    "77-04": "Use a dry-run ledger and bounded packed-route probe to advance L262144 occupancy from durable C13034/live C13049, recording bytes, frontiers, route counters, and the first exact stop reason.",
+    "77-05": "Run the canonical matched q0/q1/q2 selected/native and feature-off control matrix with independent cold prefill, cached append 64/256, committed decode, actual geometry, and request-scoped native-MTP denominators.",
+    "77-06": "Aggregate only phase-77 identity, geometry, rates, MTP, promotion, answer quality, cached append, allocation, pilot, and occupancy evidence into V10_SUMMARY_77.json/.md.",
+    "78-01": "Review only V10_SUMMARY_77.json/.md with explicit capability booleans and append successors only for concrete measured gaps."
+  }
+}
