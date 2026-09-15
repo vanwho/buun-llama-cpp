@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_78",
+  "revision": "hotpath-v10-20260914",
+  "reviewed_task": "79-01",
+  "reviewed_phase": 78,
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_78.json",
+    "sha256": "7fae9275f6a89e1fe820d25a7f885c810187c0f600f2e307b303afbdc23ea601",
+    "markdown_path": ".wiretail/execution/evidence/V10_SUMMARY_78.md",
+    "markdown_sha256": "510a7de9599be1eafa766d197144c24bf7909f2f3f35f36b385f9d02b3007809"
+  },
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": false,
+    "controlled_physical_promotion": false,
+    "organic_cold_promotion": false,
+    "organic_physical_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_allocation_measured": true,
+    "full_256k_occupancy": false,
+    "occupied_C262144": false,
+    "practical_speed_goal_met": false,
+    "useful_answer_quality_proven": false,
+    "cached_append_reuse_proven": true,
+    "cached_append_256_reuse_proven": true,
+    "cached_append_rates_proven": true,
+    "prefill_proven": true,
+    "committed_decode_proven": true,
+    "native_mtp_denominators_proven": true,
+    "pilots_measured": true
+  },
+  "capability_basis": {
+    "build_identity_valid": "The phase-78 summary separates requested, observed, and immutable identity, records the resolved Qwen model hash, immutable tested source commits, template, and sampling.",
+    "required_turbo4_placements": "The summary measures CUDA target Turbo4 K/V, GPU native-MTP Turbo4 K/V, and separately identified CPU-main-KV/GPU-draft and all-GPU controls.",
+    "controlled_model_promotion": "False: phase 78 contains no controlled model-query promotion campaign; performance and allocation rows do not establish this capability.",
+    "controlled_physical_promotion": "False: the summary explicitly records the controlled physical-promotion campaign as not_run.",
+    "organic_cold_promotion": "False: the summary explicitly records the organic cold-to-hot campaign as not_run.",
+    "organic_physical_promotion": "False: phase 78 contains no selector-to-H2D-to-publication promotion chain.",
+    "stable_target_consumption": "False: target-graph use is explicitly not_run and cannot be inferred from rates, cache reuse, or table state.",
+    "full_256k_allocation_measured": "The L262144 allocation records target, draft, workspace, charged, reserved, and headroom bytes.",
+    "full_256k_occupancy": "False: the bounded occupancy probe stopped at durable C33952/live C33963 and did not occupy L262144.",
+    "occupied_C262144": "False for the same explicit occupancy boundary; allocation and partial forward progress are not full occupancy.",
+    "practical_speed_goal_met": "False: the matched three-prompt matrix measured C27–30 rather than the verified cached C≈6144 coordinate, so it is not the requested stable long-context comparison.",
+    "useful_answer_quality_proven": "False: no phase-78 answer-quality campaign ran, and no correctness claim is inferred from performance requests.",
+    "cached_append_reuse_proven": "The verified coordinate reports 6143 reused tokens for the 64-token append and nonzero cache reuse for the 256-token row.",
+    "cached_append_256_reuse_proven": "The verified coordinate reports cache reuse for the 256-token append; its tokenizer-realized new-token count remains explicit.",
+    "cached_append_rates_proven": "The verified coordinate reports 75.334 tok/s for 64 new tokens and 90.523 tok/s for the 256-token request.",
+    "prefill_proven": "The verified coordinate and matched matrix contain measured cold-prefill rows with actual token denominators.",
+    "committed_decode_proven": "The verified coordinate and matched matrix contain measured committed-decode rows; the short EOS segment remains explicitly denominated.",
+    "native_mtp_denominators_proven": "Request-scoped draft/accepted deltas are retained, including zero-work rows, a 2/1 decode row, and positive-denominator matched selected-native rows; feature-off controls remain separate.",
+    "pilots_measured": "The summary measures cached append pilots, L262144 allocation, and bounded occupancy progress with explicit statuses."
+  },
+  "current_findings": {
+    "identity_and_placement": "Requested L8192/C6144/H4096/A2048/B128/U64 remains separate from observed L8192/H8192/A4096/B128/U64 coordinate rows, short-prompt matched rows, and L262144 occupancy geometry; Turbo4 placement is explicit.",
+    "promotion": "Controlled and organic physical promotion, cold eligibility, and target-graph use are all not_run in phase 78; none is inferred from performance or allocation evidence.",
+    "answer_quality": "No phase-78 answer-quality campaign ran, so answer correctness remains unmeasured in this summary.",
+    "cached_append": "64- and 256-token rows report actual cache reuse and independent rates at the verified cached coordinate; native-MTP zero-work rows remain truthful and are not converted into acceptance data.",
+    "rates": "The verified coordinate has cold-prefill, cached-append, and committed-decode rates, while the matched placement matrix remains a short-prefix comparison rather than a C6144 speed claim.",
+    "occupancy": "L262144 allocation and partial forward progress are measured, but the bounded frontier stopped at durable C33952/live C33963 and occupied C262144 remains unestablished."
+  },
+  "dominant_measured_gaps": [
+    {
+      "owner": "controlled and organic promotion, target consumption, and answer quality",
+      "fixture": "installed Qwen target with T1 controlled model-query capture and T3 two-document A/B/A cached conversation",
+      "finding": "Phase 78 records controlled promotion, organic promotion, target-graph use, and answer quality as not_run; execute both bounded promotion scenarios and report mechanics separately from fact correctness.",
+      "scheduled_task": "79-02"
+    },
+    {
+      "owner": "full-L occupied frontier",
+      "fixture": "L262144/H8192 packed route at durable C33952/live C33963",
+      "finding": "Allocation and forward progress are measured, but occupied C262144 remains a failed boundary; advance it with a ledger and bounded probe while retaining exact stop semantics.",
+      "scheduled_task": "79-03"
+    },
+    {
+      "owner": "stable matched long-context speed comparison",
+      "fixture": "canonical original q0/q1/q2 selected/native and feature-off placements at the verified cached-prefix coordinate",
+      "finding": "The phase-78 matched matrix is measured at C27–30 while the independent cached-coordinate rates are not a matched placement comparison; rerun the canonical matrix after the two advancements with actual geometry and denominators.",
+      "scheduled_task": "79-04"
+    }
+  ],
+  "next_action": "Run the bounded promotion/quality proof and occupied-frontier advancement, then run the matched verified-coordinate benchmark, summarize only phase-79 evidence, and review it.",
+  "phase_appended": true,
+  "appended_phases": [79, 80],
+  "next_task_ids": ["79-02", "79-03", "79-04", "79-05", "80-01"],
+  "successor_contracts": {
+    "79-02": "Execute T1 controlled model-query and T3 two-document organic promotion scenarios with complete selector-to-H2D-to-publication-to-target-use evidence; record answer correctness separately.",
+    "79-03": "Advance L262144 occupancy from durable C33952/live C33963 with an allocation ledger and bounded forward-progress probe, preserving the exact stop boundary.",
+    "79-04": "Run the canonical matched q0/q1/q2 selected/native and feature-off matrix at the actual verified cached-prefix geometry with cold prefill, 64/256 append, committed decode, and request-scoped native-MTP denominators.",
+    "79-05": "Aggregate only phase-79 identity, placement, promotion, answer quality, rates, cache reuse, MTP, allocation, pilots, and occupancy evidence into V10_SUMMARY_79.json/.md.",
+    "80-01": "Review only V10_SUMMARY_79.json/.md with explicit capability booleans and schedule successors only for concrete measured gaps."
+  }
+}
