@@ -3025,10 +3025,15 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 dense_view.reason, metadata.page_table().size(), sample.c_str());
     }
     const bool dense_capable = fa_capable && dense_view.eligible;
-    const bool packed_backend_capable = fa_capable && !dense_view.eligible;
-    const bool packed_capable = packed_backend_capable &&
-        kv_attention_execution.route_override() !=
-            llama_kv_attention_execution_route_override::automatic;
+    const auto route_override = kv_attention_execution.route_override();
+    // Automatic dispatch keeps the dense route for contiguous selected views.
+    // An explicit packed diagnostic request is different: the compact owner
+    // can represent a dense selected view too, and refusing it here prevents
+    // the requested route from ever reaching the planner.
+    const bool packed_capable = fa_capable &&
+        (route_override == llama_kv_attention_execution_route_override::packed ||
+         (route_override == llama_kv_attention_execution_route_override::automatic &&
+          !dense_view.eligible));
     if (packed_capable) {
         const uint64_t k_row = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0,
                 int64_t(metadata.head_dim_k()) * metadata.n_head_kv()));

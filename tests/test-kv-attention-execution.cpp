@@ -232,7 +232,7 @@ static void test_routes_epochs_and_fences() {
     forced.set_route_override("packed");
     const auto forced_packed = forced.prepare(selected_prefill,
             llama_kv_attention_execution_phase::prefill, 9, 13, true, scratch,
-            {}, false, true);
+            {}, true, true);
     assert(forced_packed.status == llama_kv_attention_execution_status::ok);
     assert(forced_packed.route == llama_kv_attention_execution_route::selected_packed);
     forced.complete_one_graph();
