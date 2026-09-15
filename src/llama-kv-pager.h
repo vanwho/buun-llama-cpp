@@ -667,6 +667,7 @@ private:
     void queue_maintenance(page_state & page) noexcept;
     void rebuild_maintenance_queue() noexcept;
     void drain_host_completions() noexcept;
+    void wait_host_completions() noexcept;
     void reconcile_live_target(
             const std::vector<llama_kv_page_record> & target) noexcept;
     page_state * find_page(int32_t sequence_id, uint32_t logical_page) noexcept;

@@ -876,6 +876,25 @@ const char * llama_kv_pager_status_name(llama_kv_pager_status status) noexcept {
 void llama_kv_pager::reconcile_live_target(
         const std::vector<llama_kv_page_record> & target) noexcept {
     try {
+        // A live-policy commit can replace the in-memory mirror while an
+        // asynchronous host seal is still completing.  Cancel captures whose
+        // immutable page identity is no longer retained before their mirror
+        // is recycled; otherwise a later completion can never authenticate to
+        // a page_state and the recycled state may carry its old version.
+        drain_host_completions();
+        if (host_) {
+            for (const auto & state : pages_) {
+                if (!state.present || !state.host_inflight) continue;
+                const bool retained = std::any_of(target.begin(), target.end(),
+                        [&](const auto & page) {
+                    return page.id == state.record.id &&
+                        page.content_version == state.host_inflight_version;
+                });
+                if (!retained) {
+                    (void) host_->invalidate(state.record.id);
+                }
+            }
+        }
         llama_kv_page_id old_current;
         bool had_current = current_page_index_ < pages_.size() &&
             pages_[current_page_index_].present;
@@ -890,6 +909,11 @@ void llama_kv_pager::reconcile_live_target(
                     break;
                 }
             }
+            const bool preserve_host_inflight = state != nullptr &&
+                state->host_inflight &&
+                state->host_inflight_version == page.content_version;
+            const uint64_t preserved_host_inflight_version =
+                preserve_host_inflight ? state->host_inflight_version : 0;
             if (state == nullptr) {
                 for (auto & candidate : pages_) {
                     if (!candidate.present) {
@@ -904,6 +928,12 @@ void llama_kv_pager::reconcile_live_target(
             }
             state->record = page;
             state->present = true;
+            state->content_version = page.content_version;
+            state->host_content_version = page.host_valid
+                ? page.content_version : 0;
+            state->host_inflight = preserve_host_inflight;
+            state->host_inflight_version = preserved_host_inflight_version;
+            state->maintenance_pending = false;
             state->completed_segments = snapshot_.geometry.attention_layers * 2;
             const uint32_t rows = uint32_t(std::min<uint64_t>(
                     snapshot_.geometry.page_tokens,
@@ -1670,7 +1700,14 @@ void llama_kv_pager::drain_host_completions() noexcept {
                 return page.present && immutable_identity && page.host_inflight &&
                     page.host_inflight_version == item.content_version;
             });
-            if (page_it == pages_.end()) continue;
+            if (page_it == pages_.end()) {
+                // The completion is no longer authoritative for any live
+                // page_state.  Do not leave its stale catalog object
+                // competing with a newer generation of the same logical
+                // page.
+                (void) host_->invalidate(item.page);
+                continue;
+            }
             auto & page = *page_it;
             const bool capture_is_current = page.record.id == item.page;
             page.host_inflight = false;
@@ -1703,6 +1740,41 @@ void llama_kv_pager::drain_host_completions() noexcept {
             queue_maintenance(page);
             (void) publish_page(page);
         }
+    }
+}
+
+void llama_kv_pager::wait_host_completions() noexcept {
+    if (!host_ || !host_->async_enabled()) return;
+    (void) host_->wait();
+    drain_host_completions();
+
+    // A live-policy reconciliation can invalidate the page identity between
+    // enqueue and completion.  The worker is quiescent after wait(), so an
+    // in-flight flag with no matching catalog entry is now stale bookkeeping,
+    // not an active device transfer.  Clear it fail-closed and let the next
+    // write reseal the current bytes.
+    const auto host_pages = host_->pages();
+    for (auto & page : pages_) {
+        if (!page.present || !page.host_inflight) continue;
+        const bool published = std::any_of(host_pages.begin(), host_pages.end(),
+                [&](const auto & host_page) {
+            return host_page.page.identity == page.record.id;
+        });
+        if (published) continue;
+        (void) host_->invalidate(page.record.id);
+        page.host_inflight = false;
+        page.host_inflight_version = 0;
+        if (page.record.pin_count != 0) page.record.pin_count--;
+        page.record.host_valid = false;
+        page.record.dirty = true;
+        const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+            std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                        [](uint8_t value) { return value != 0; });
+        page.record.state = full
+            ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
+        page.host_content_version = 0;
+        queue_maintenance(page);
+        (void) publish_page(page);
     }
 }
 
@@ -2155,8 +2227,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         if (host_ && host_->async_enabled()) {
             drain_host_completions();
             if (page->host_inflight) {
-                (void) host_->wait();
-                drain_host_completions();
+                wait_host_completions();
             }
         }
         if (page->host_inflight) {
@@ -2199,7 +2270,8 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
             for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
                 page_state * candidate = find_slot(i);
                 if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
-                    candidate->summary_content_version == candidate->content_version &&
+                    (routing_summary_provider_.build == nullptr ||
+                     candidate->summary_content_version == candidate->content_version) &&
                     (candidate->record.state == llama_kv_page_state::host_clean ||
                      candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
                     if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
@@ -2222,12 +2294,12 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
                 // bounds its notification queue, so waiting before this drain
                 // could otherwise wait for a worker that is waiting for room.
                 drain_host_completions();
-                (void) host_->wait();
-                drain_host_completions();
+                wait_host_completions();
                 for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
                     page_state * candidate = find_slot(i);
                     if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
-                            candidate->summary_content_version == candidate->content_version &&
+                            (routing_summary_provider_.build == nullptr ||
+                             candidate->summary_content_version == candidate->content_version) &&
                             (candidate->record.state == llama_kv_page_state::host_clean ||
                              candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
                         if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
@@ -2390,8 +2462,9 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                 }
                 const page_state * page = find_slot(slot);
                 if (page != nullptr && page->record.pin_count == 0 &&
-                        std::find(written_logical_pages.begin(), written_logical_pages.end(),
-                            page->record.id.logical_page) == written_logical_pages.end() &&
+                        (page->record.id.sequence_id != sequence_id ||
+                         std::find(written_logical_pages.begin(), written_logical_pages.end(),
+                             page->record.id.logical_page) == written_logical_pages.end()) &&
                         page->record.host_valid &&
                         (page->record.state == llama_kv_page_state::host_clean ||
                          page->record.state == llama_kv_page_state::gpu_host_clean)) {
@@ -2401,6 +2474,15 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
             return available;
         };
 
+        // The batch preflight must give completed full pages the same
+        // maintenance opportunity as begin_write().  A write frontier keeps
+        // its page pinned until the graph fence is complete; once the page is
+        // full, sealing publishes its host copy and releases that pin so the
+        // batch can evict it atomically when the next logical page crosses H.
+        if (available_slots() < new_logical_pages.size() && host_) {
+            (void) seal_ready_pages();
+        }
+
         // A completion may be the only producer that can turn a slot into a
         // clean host-backed victim.  Wait once at this capacity boundary, not
         // once per token or once per attempted row.
@@ -2408,8 +2490,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                 host_->async_enabled()) {
             drain_host_completions();
             if (available_slots() < new_logical_pages.size() && host_inflight_pages() != 0) {
-                (void) host_->wait();
-                drain_host_completions();
+                wait_host_completions();
             }
         }
 
@@ -2445,8 +2526,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
         if (host_ && host_->async_enabled() && has_inflight_target()) {
             drain_host_completions();
             if (has_inflight_target()) {
-                (void) host_->wait();
-                drain_host_completions();
+                wait_host_completions();
             }
         }
         if (has_inflight_target()) {
