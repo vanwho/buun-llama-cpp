@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "task": "72-02",
+  "source_commit": "2af185fe0077a125c802ea6adbc0c5d097a51bbd",
+  "checks": {
+    "phase72_occupancy_advancement": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_72-02_validation.py",
+        "--dry-run",
+        "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-dry-run",
+        "--setup",
+        "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-live-setup",
+        "--probe",
+        "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-short-probe",
+        "--frontier",
+        "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-frontier-L262144-H8192"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_72-02_validation.py",
+          "sha256": "fd8d18c0733e4df4ff0a7d91909ebd2f95f74589f84df89b8fe6e1ab03ac96ba"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-frontier-L262144-H8192/phase72_occupancy_validation.log",
+          "sha256": "f76d5d2ff26973de0c4da35d9e7c6c045a4606e275577f20bf6922ce8414af08"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-dry-run/run-config.json",
+          "sha256": "3f2c9d1a3988368199e387e5e9439eff6ea4f785547855964e8a11c28aad33b2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-live-setup/startup-argv.txt",
+          "sha256": "9786aceabc4a5e7b8b14408c087936451afb12daa021e7bf42e4ad925fd41102"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-live-setup/slots-before-probe.json",
+          "sha256": "439c0391ac516a9fa8f1bb50c35f9c6dd1ad2d89e2cbe3ee6ee86b7553e1c7cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-short-probe/INTERACTIVE29_01_SCALE.json",
+          "sha256": "9bd845b1ae361807044ae2a8e14b17c92eb08884fc7d62f84aa65248fc4b595d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-short-probe/incremental-state.json",
+          "sha256": "fce3838c18d005884a7647173beedbbdf47fc154fdf32fc430389574801a5357"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-frontier-L262144-H8192/INTERACTIVE29_01_SCALE.json",
+          "sha256": "aac341457eb9650f2ee859767047262428a8d6dbac524754e5db98166fac95aa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-frontier-L262144-H8192/incremental-state.json",
+          "sha256": "b5671ac526344c73f7e14916d59603117f264cc1a2f6181e7dbc1ca46515de1c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-frontier-L262144-H8192/slots-final.json",
+          "sha256": "2b95eb81f2010af314d7aa84f78f7acfdd762be82d3494f4b722b1950e3de285"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-frontier-L262144-H8192/process-identity.txt",
+          "sha256": "a1c7c5b54db584cb2f58e82220429707dfd2c91c9aeb0f2d7f5ee15a3d7a33dd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/72-02/20260915T052243Z-frontier-L262144-H8192/final-argv.txt",
+          "sha256": "9786aceabc4a5e7b8b14408c087936451afb12daa021e7bf42e4ad925fd41102"
+        }
+      ]
+    }
+  },
+  "findings": {
+    "statuses": {
+      "allocation_startup": "measured",
+      "forward_progress": "measured",
+      "occupied_C262144": "not_established"
+    },
+    "geometry": {
+      "L": 262144,
+      "durable_C": 40001,
+      "live_C": 40014,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "bytes": {
+      "target_bytes": 138412032,
+      "draft_bytes": 276955136,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592,
+      "page_bytes": 4325376,
+      "host_pageable_bytes": 674758656
+    },
+    "placement": {
+      "target_backend": "CUDA",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "draft_backend": "GPU",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4"
+    },
+    "campaign": {
+      "short_probe": {
+        "status": "pass",
+        "durable_C": 4207,
+        "live_C": 4233,
+        "turns": 4
+      },
+      "frontier": {
+        "status": "pass",
+        "turns": 29,
+        "duration_seconds": 1491,
+        "target_C": 40000,
+        "first_exact_stop_reason": "requested_campaign_frontier_C40000_reached"
+      },
+      "occupied_C262144": {
+        "status": "failed",
+        "reason": "The bounded campaign completed at durable C40001/live C40014; full-L allocation and the requested L do not prove occupied C262144."
+      }
+    },
+    "route_boundary": {
+      "prefill_selected_reference": 693,
+      "prefill_selected_packed": 0,
+      "mtp_verify_selected_reference": 466,
+      "faults": 25,
+      "evictions": 25,
+      "admission_refusal": "none",
+      "diagnosis": "Allocation, reserve/headroom, scratch, and ownership remained usable; the smallest actionable boundary is that packed attention was not engaged and selected-reference remained the production route."
+    },
+    "identity": {
+      "candidate_binary": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2/bin/llama-server",
+      "candidate_binary_sha256": "76404a3ace49a8f77a3567a8b26e98ba57c4e074827f7db7aab55d875eea3cae",
+      "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "endpoint_pid": 2073204
+    }
+  }
+}
