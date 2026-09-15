@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "task": "78-05",
+  "source_commit": "9eb189e037846997539d37e0655576cff1a0090d",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase78_summary_generated_and_validated",
+  "checks": {
+    "phase78_summary_generated_and_validated": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "78-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_78-05.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_SUMMARY_78.json", "sha256": "7fae9275f6a89e1fe820d25a7f885c810187c0f600f2e307b303afbdc23ea601"},
+        {"path": ".wiretail/execution/evidence/V10_SUMMARY_78.md", "sha256": "510a7de9599be1eafa766d197144c24bf7909f2f3f35f36b385f9d02b3007809"},
+        {"path": ".wiretail/execution/evidence/V10_78-05_completion.log", "sha256": "6035ab14b2688b296573699dcc61127d5a291ee53701271ffeaa215067f343d8"}
+      ],
+      "finding": {
+        "phase": 78,
+        "summary_json": ".wiretail/execution/evidence/V10_SUMMARY_78.json",
+        "summary_markdown": ".wiretail/execution/evidence/V10_SUMMARY_78.md",
+        "all_requested_rows_explicit": true
+      }
+    }
+  }
+}

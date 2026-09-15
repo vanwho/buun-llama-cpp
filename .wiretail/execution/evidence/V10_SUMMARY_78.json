@@ -1,0 +1,169 @@
+{
+  "schema": "hotpath-v10-summary",
+  "schema_version": 1,
+  "task": "78-05",
+  "phase": 78,
+  "revision": "hotpath-v10-20260914",
+  "result": "phase78_summary_generated_with_explicit_performance_and_occupancy_boundaries",
+  "active_campaign_met": false,
+  "units": {"rates": "tok/s", "durations": "milliseconds unless field ends in _us", "bytes": "integer bytes", "geometry": "integer tokens"},
+  "identity": {
+    "requested": {
+      "model_profile": "/srv/ai/models/text/current.gguf",
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "observed": {
+      "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "model_size_bytes": 14252845984,
+      "coordinate_L": 8192,
+      "coordinate_C": [6143, 6207, 6399],
+      "coordinate_frontier": [6144, 6208, 6400],
+      "coordinate_H": 8192,
+      "coordinate_A": 4096,
+      "coordinate_B": 128,
+      "coordinate_U": 64,
+      "matched_L": 8192,
+      "matched_C": [30, 27, 28],
+      "matched_H": 8192,
+      "matched_A": 4096,
+      "matched_B": 128,
+      "matched_U": 64,
+      "occupancy_L": 262144,
+      "occupancy_durable_C": 33952,
+      "occupancy_live_C": 33963,
+      "occupancy_H": 8192,
+      "occupancy_A": 4096,
+      "occupancy_B": 128,
+      "occupancy_U": 64
+    },
+    "immutable": {
+      "tested_source_commits": {
+        "78-01": "afe80439723d7c6992aa02fa465ae03b9a7aa88e",
+        "78-02": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+        "78-03": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+        "78-04": "b61d328a8cff891a24aa39597ca69f3a4598890b"
+      },
+      "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+      "sampling": {"seed": 42, "temperature": 0, "thinking": false},
+      "bundle_manifest_refs": [
+        "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native/identity.json",
+        "/srv/ai/paged-kv/results/v10/78-03/20260915T125947Z-occupancy-advancement/live-setup/run-config.json",
+        "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-selected-native/run-config.json"
+      ],
+      "identity_note": "Requested launcher geometry, observed runtime geometry, and immutable build identity remain separate."
+    }
+  },
+  "geometry_and_bytes": {
+    "page": {"page_tokens": 256, "page_bytes": 4325376},
+    "coordinate": {
+      "status": "measured",
+      "L": 8192,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "rows": {
+        "cold_prefill": {"C": 6143, "cache_n": 0, "new_prompt_tokens": 6143, "target_valid_rows": 6143, "host_valid_rows": 5888},
+        "cached_append_64": {"C": 6207, "cache_n": 6143, "new_prompt_tokens": 64, "target_valid_rows": 6207, "host_valid_rows": 6144},
+        "cached_append_256": {"C": 6399, "cache_n": 6143, "new_prompt_tokens": 256, "target_valid_rows": 6399, "host_valid_rows": 6144},
+        "committed_decode": {"C": 6145, "cache_n": 6139, "predicted_tokens": 3, "target_valid_rows": 6145, "host_valid_rows": 5888}
+      }
+    },
+    "full_L_allocation": {
+      "status": "measured",
+      "L": 262144,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 138412032,
+      "draft_allocated_bytes": 276955136,
+      "packed_storage_bytes": 0,
+      "packed_workspace_bytes": 138412032,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592
+    },
+    "occupied_C262144": {"status": "failed", "last_durable_C": 33952, "last_live_C": 33963, "reason": "operator_bounded_wall_budget_stop_after_C33952; full occupied L262144 was not established"}
+  },
+  "placement": {
+    "selected_native": {"status": "measured", "target_device": "CUDA", "target_k": "turbo4", "target_v": "turbo4", "draft_device": "GPU", "draft_k": "turbo4", "draft_v": "turbo4", "pager": "selective"},
+    "cpu_main_kv_gpu_draft": {"status": "measured", "target_device": "CPU", "weights_device": "GPU", "draft_device": "GPU", "target_k": "turbo4", "target_v": "turbo4", "pager": "off", "mtp": "feature-off control"},
+    "all_gpu_gpu_draft": {"status": "measured", "target_device": "CUDA", "draft_device": "GPU", "target_k": "turbo4", "target_v": "turbo4", "pager": "off", "mtp": "feature-off control"},
+    "native_mtp": {"status": "measured", "device": "GPU", "k": "turbo4", "v": "turbo4"}
+  },
+  "answer_quality": {"status": "not_run", "reason": "phase 78 ran performance, cache-coordinate, and occupancy campaigns only; no phase-78 organic answer-quality campaign was requested or executed"},
+  "physical_promotion": {
+    "controlled": {"status": "not_run", "reason": "phase 78 did not execute the controlled model-query physical-promotion scenario"},
+    "organic": {"status": "not_run", "reason": "phase 78 did not execute an organic cold-to-hot promotion scenario"},
+    "answer_quality_separate": true
+  },
+  "target_graph": {"status": "not_run", "reason": "phase 78 evidence contains no controlled or organic target-graph promotion proof"},
+  "cached_append": {
+    "status": "measured",
+    "coordinate": {"L": 8192, "H": 8192, "A": 4096, "B": 128, "U": 64, "prefix_C": 6143, "prefix_frontier": 6144, "append_64_C": 6207, "append_64_cache_n": 6143, "append_256_C": 6399, "append_256_cache_n": 6146, "append_256_new_prompt_tokens": 253},
+    "rates": {"append_64_tok_s": 75.33417770390844, "append_256_tok_s": 90.52250580440209, "source": "78-02 verified coordinate"},
+    "cache_reuse": {"status": "measured", "append_64_reused_tokens": 6143, "append_256_reused_tokens": 6146, "source": "78-04 coordinate"},
+    "native_mtp": {"status": "not_run", "reason": "78-04 coordinate rows retained mtp_observation_missing; no denominator was inferred"}
+  },
+  "rates": {
+    "matched_benchmark": {
+      "status": "measured",
+      "samples_per_prompt": 3,
+      "measured_rows": 27,
+      "selected_native": {"cold_prefill_tok_s_median": [101.96538275255551, 108.71633191096133, 104.49866764198757], "committed_decode_tok_s_median": [32.78425807922239, 33.04606002486343, 32.486161017534954]},
+      "cpu_main_kv_gpu_draft": {"cold_prefill_tok_s_median": [36.222369124052555, 36.719144443934454, 36.0626769325087], "committed_decode_tok_s_median": [10.059640811826627, 10.063235708597446, 10.005796591183087]},
+      "all_gpu_gpu_draft": {"cold_prefill_tok_s_median": [103.86373078520981, 110.22927689594357, 109.9989000109999], "committed_decode_tok_s_median": [36.776186580434036, 36.78184824085971, 36.77720690663041]}
+    },
+    "cold_prefill": {"status": "measured", "source": "78-02 verified coordinate", "samples": 1, "tok_s": 181.2441806692032, "denominator_tokens": 6143},
+    "committed_decode": {"status": "measured", "source": "78-02 verified coordinate", "samples": 1, "tok_s": 30.450206300147684, "denominator_tokens": 3, "reason": "requested 64 but stopped at EOS"}
+  },
+  "native_mtp": {
+    "status": "measured",
+    "denominator": "request-scoped Prometheus before/after deltas",
+    "verified_coordinate": {"cold_prefill": {"draft_tokens": 0, "accepted_tokens": 0, "status": "zero_work"}, "cached_append_64": {"draft_tokens": 0, "accepted_tokens": 0, "status": "zero_work"}, "cached_append_256": {"draft_tokens": 0, "accepted_tokens": 0, "status": "zero_work"}, "committed_decode": {"draft_tokens": 2, "accepted_tokens": 1, "acceptance_percent": 50.0}},
+    "matched_selected_native": {"draft_tokens": 5337, "accepted_tokens": 9, "acceptance_percent": 0.1686333145954657, "rows": 9},
+    "matched_controls": {"draft_tokens": 7155, "accepted_tokens": 0, "acceptance_percent": 0.0, "evidence_role": "feature-off controls, not native-MTP capability evidence"}
+  },
+  "pilots": {
+    "cached_append_64": {"status": "measured", "cache_n": 6143, "new_prompt_tokens": 64},
+    "cached_append_256": {"status": "measured", "cache_n": 6146, "new_prompt_tokens": 253},
+    "L262144_allocation": {"status": "measured", "C": 0, "target_allocated_bytes": 138412032, "draft_allocated_bytes": 276955136},
+    "occupancy_frontier": {"status": "measured", "successful_turns": 7, "durable_C": 33952, "live_C": 33963},
+    "occupied_C262144": {"status": "failed", "reason": "operator-bounded wall stop at durable C33952"}
+  },
+  "requested_rows": {
+    "answer_quality": "not_run_with_concrete_reason",
+    "cached_append_64": "measured_with_cache_reuse_and_rate",
+    "cached_append_256": "measured_with_cache_reuse_and_rate",
+    "cold_prefill": "measured_at_verified_coordinate_and_in_matched_matrix",
+    "committed_decode": "measured_at_verified_coordinate_and_in_matched_matrix",
+    "native_mtp_denominators": "measured_request_scoped",
+    "physical_promotion_controlled": "not_run_with_concrete_reason",
+    "physical_promotion_organic": "not_run_with_concrete_reason",
+    "target_graph_use": "not_run_with_concrete_reason",
+    "full_L_allocation": "measured",
+    "occupied_C262144": "failed_with_concrete_stop_reason"
+  },
+  "raw_evidence": {
+    "receipts": [".wiretail/execution/evidence/V10_78-01.json", ".wiretail/execution/evidence/V10_78-02.json", ".wiretail/execution/evidence/V10_78-03.json", ".wiretail/execution/evidence/V10_78-04.json"],
+    "findings": [".wiretail/execution/evidence/V10_78-02_FINDINGS.json"],
+    "roots": [
+      "/srv/ai/paged-kv/results/v10/78-02/20260915T124818Z-verified-coordinate-selected-native",
+      "/srv/ai/paged-kv/results/v10/78-03/20260915T125947Z-occupancy-advancement",
+      "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-selected-native",
+      "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-cpu-main-kv-gpu-draft",
+      "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-all-gpu-gpu-draft",
+      "/srv/ai/paged-kv/results/v10/78-04/20260915T-78-04-cached-append-selected-native"
+    ]
+  }
+}
