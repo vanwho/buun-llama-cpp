@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "task": "73-01",
+  "source_commit": "aab86d6657424d712f8334c66d59881522f19fae",
+  "checks": {
+    "phase72_benchmark_review": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "73-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_73-01.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_72.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_REVIEW_72.json",
+          "sha256": "17dd94f624d67d61b31ecf91e2bb41ea0c7ac2bd8939f80762685dcbd794f7b7"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_73-01_completion.log",
+          "sha256": "e26deec7779e5d4cbec34d5284bb77f550e00c88216c283c497314bb92f9ed24"
+        }
+      ]
+    }
+  },
+  "findings": {
+    "review": ".wiretail/execution/evidence/V10_REVIEW_72.json",
+    "goal_met": false,
+    "next_task_ids": ["74-01", "74-02", "74-03", "74-04", "74-05", "75-01"]
+  }
+}
