@@ -746,6 +746,33 @@ static void test_pager_host_mutation() {
     assert(rewritten_pages[0].page.units[0].bytes->read(0, &rewritten_byte, 1));
     assert(rewritten_byte == fixture.storage[0][0]);
 
+    // Batch admission must seal a completed write frontier before deciding
+    // that the one-page hot window has no victim.  The old preflight rejected
+    // this boundary before begin_write() got its normal maintenance chance.
+    llama_kv_pager_config batch_config = config;
+    batch_config.hot_pages.automatic = false;
+    batch_config.hot_pages.value = 1;
+    auto batch_pager = llama_kv_pager::create(
+            batch_config, geometry(512), host_resources, backend, status);
+    assert(batch_pager && status == llama_kv_pager_status::ok);
+    batch_pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    batch_pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+    for (llama_pos position = 0; position < 256; ++position) {
+        assert(batch_pager->begin_write(0, 1, position, ticket) ==
+                llama_kv_pager_write_status::ok);
+        assert(batch_pager->complete_write(ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    assert(batch_pager->residency().pages().size() == 1);
+    fixture.snapshot.pages[0] = batch_pager->residency().pages()[0].id;
+    std::vector<llama_kv_pager_write_ticket> batch_boundary_tickets;
+    assert(batch_pager->begin_write_batch(0, 1, { 256 },
+            batch_boundary_tickets) == llama_kv_pager_write_status::ok);
+    assert(batch_boundary_tickets.size() == 1);
+    assert(batch_boundary_tickets[0].logical_page == 1);
+    assert(batch_pager->cancel_write(batch_boundary_tickets[0]) ==
+            llama_kv_pager_write_status::ok);
+
     // A completed tail is sealed with only its committed rows. It must be
     // readable from the canonical catalog without turning padding into valid
     // positions, and a clean replacement must leave that host page alive.

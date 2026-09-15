@@ -292,14 +292,18 @@ static bool can_reuse_kq_mask(
 
 // impl
 
+static bool graph_input_allocated(const ggml_tensor * tensor) {
+    return tensor != nullptr && tensor->buffer != nullptr;
+}
+
 void llm_graph_input_embd::set_input(const llama_ubatch * ubatch) {
-    if (ubatch->token) {
+    if (ubatch->token && graph_input_allocated(tokens)) {
         const int64_t n_tokens = ubatch->n_tokens;
 
         ggml_backend_tensor_set(tokens, ubatch->token, 0, n_tokens*ggml_element_size(tokens));
     }
 
-    if (ubatch->embd) {
+    if (ubatch->embd && graph_input_allocated(embd)) {
         GGML_ASSERT(n_embd == embd->ne[0]);
 
         const int64_t n_tokens = ubatch->n_tokens;
@@ -341,9 +345,9 @@ void llm_graph_input_dflash_stage_rows::set_input(const llama_ubatch * ubatch) {
 void llm_graph_input_embd_h::set_input(const llama_ubatch * ubatch) {
     const int64_t n_tokens = ubatch->n_tokens;
 
-    if (ubatch->token) {
+    if (ubatch->token && graph_input_allocated(tokens)) {
         ggml_backend_tensor_set(tokens, ubatch->token, 0, n_tokens*ggml_element_size(tokens));
-    } else {
+    } else if (ubatch->embd && graph_input_allocated(embd)) {
         // note: mtmd embedding input goes through here
         GGML_ASSERT(ubatch->embd);
         GGML_ASSERT(n_embd == embd->ne[0]);
@@ -354,7 +358,7 @@ void llm_graph_input_embd_h::set_input(const llama_ubatch * ubatch) {
     // TODO: extend llama_ubatch to differentiate between token embeddings and hidden states
     //       for now, we assume that the hidden state is always provided as an embedding
     //       ref: https://github.com/ggml-org/llama.cpp/pull/23643
-    if (ubatch->embd) {
+    if (ubatch->embd && graph_input_allocated(h)) {
         GGML_ASSERT(n_embd == h->ne[0]);
 
         ggml_backend_tensor_set(h, ubatch->embd, 0, n_tokens*n_embd*ggml_element_size(h));
@@ -372,7 +376,7 @@ bool llm_graph_input_embd_h::can_reuse(const llm_graph_params & params) {
 }
 
 void llm_graph_input_pos::set_input(const llama_ubatch * ubatch) {
-    if (ubatch->pos && pos) {
+    if (ubatch->pos && graph_input_allocated(pos)) {
         const int64_t n_tokens = ubatch->n_tokens;
 
         if (ubatch->token && n_pos_per_embd == 4) {
@@ -403,7 +407,7 @@ bool llm_graph_input_pos::can_reuse(const llm_graph_params & params) {
 }
 
 void llm_graph_input_attn_temp::set_input(const llama_ubatch * ubatch) {
-    if (ubatch->pos && attn_scale) {
+    if (ubatch->pos && graph_input_allocated(attn_scale)) {
         const int64_t n_tokens = ubatch->n_tokens;
 
         GGML_ASSERT(f_attn_temp_scale != 0.0f);
@@ -422,7 +426,7 @@ void llm_graph_input_attn_temp::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_pos_bucket::set_input(const llama_ubatch * ubatch) {
-    if (pos_bucket) {
+    if (graph_input_allocated(pos_bucket)) {
         const int64_t n_tokens = ubatch->n_tokens;
 
         GGML_ASSERT(ggml_backend_buffer_is_host(pos_bucket->buffer));
@@ -727,15 +731,23 @@ void llm_graph_input_attn_no_cache::set_input(const llama_ubatch * ubatch) {
 
 void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
     if (self_k_idxs_by_layer.empty()) {
-        mctx->set_input_k_idxs(self_k_idxs, ubatch);
-        mctx->set_input_v_idxs(self_v_idxs, ubatch);
+        if (graph_input_allocated(self_k_idxs)) {
+            mctx->set_input_k_idxs(self_k_idxs, ubatch);
+        }
+        if (graph_input_allocated(self_v_idxs)) {
+            mctx->set_input_v_idxs(self_v_idxs, ubatch);
+        }
     } else {
         const auto & layer_ids = direct_layer_ids;
         GGML_ASSERT(layer_ids.size() == self_k_idxs_by_layer.size());
         GGML_ASSERT(layer_ids.size() == self_v_idxs_by_layer.size());
         for (size_t ordinal = 0; ordinal < layer_ids.size(); ++ordinal) {
-            mctx->set_input_k_idxs(self_k_idxs_by_layer[ordinal], ubatch, layer_ids[ordinal]);
-            mctx->set_input_v_idxs(self_v_idxs_by_layer[ordinal], ubatch, layer_ids[ordinal]);
+            if (graph_input_allocated(self_k_idxs_by_layer[ordinal])) {
+                mctx->set_input_k_idxs(self_k_idxs_by_layer[ordinal], ubatch, layer_ids[ordinal]);
+            }
+            if (graph_input_allocated(self_v_idxs_by_layer[ordinal])) {
+                mctx->set_input_v_idxs(self_v_idxs_by_layer[ordinal], ubatch, layer_ids[ordinal]);
+            }
         }
     }
 
@@ -747,6 +759,9 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
         ? ggml_time_us() : 0;
     const auto set_direct_tensor = [&](ggml_tensor * tensor, const void * data,
                                        size_t offset, size_t size) {
+        if (!graph_input_allocated(tensor)) {
+            return;
+        }
         if (direct_backend != nullptr) {
             ggml_backend_tensor_set_async(direct_backend, tensor, data, offset, size);
         } else {
@@ -915,8 +930,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 }
                 packed_current_rows[token] = int64_t(compact_row);
             }
-            ggml_backend_tensor_set(packed_current_idxs, packed_current_rows.data(), 0,
-                    packed_current_rows.size() * sizeof(packed_current_rows[0]));
+            if (graph_input_allocated(packed_current_idxs)) {
+                ggml_backend_tensor_set(packed_current_idxs, packed_current_rows.data(), 0,
+                        packed_current_rows.size() * sizeof(packed_current_rows[0]));
+            }
             const int64_t pack_start = kv_attention_metrics && update_selected
                 ? ggml_time_us() : 0;
             uint64_t packed_bytes = 0;
@@ -1026,9 +1043,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 }
             }
         } else {
-            GGML_ASSERT(self_selected_idxs != nullptr);
-            GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
-            if (update_selected) {
+            if (graph_input_allocated(self_selected_idxs)) {
+                GGML_ASSERT(selected_rows.size() == size_t(self_selected_idxs->ne[0]));
+            }
+            if (update_selected && graph_input_allocated(self_selected_idxs)) {
                 ggml_backend_tensor_set(self_selected_idxs, selected_rows.data(), 0,
                         selected_rows.size() * sizeof(selected_rows[0]));
             }
@@ -1086,7 +1104,8 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
 
     // DDTree: overwrite the tree×tree block of the attention mask with the visibility matrix
     // Sets BOTH allow (0) and block (-inf) to fully override seq_id-based masking
-    if (tree_mask && tree_mask->active && self_kq_mask) {
+    if (tree_mask && tree_mask->active && graph_input_allocated(self_kq_mask) &&
+            graph_input_allocated(self_k_idxs)) {
         GGML_ASSERT(ggml_backend_buffer_is_host(self_kq_mask->buffer));
 
         float   * mask_data = (float *)   self_kq_mask->data;
@@ -1376,9 +1395,13 @@ bool llm_graph_input_attn_kv::refresh_selected_data(
 }
 
 void llm_graph_input_attn_k::set_input(const llama_ubatch * ubatch) {
-    mctx->set_input_k_idxs(self_k_idxs, ubatch);
+    if (graph_input_allocated(self_k_idxs)) {
+        mctx->set_input_k_idxs(self_k_idxs, ubatch);
+    }
 
-    mctx->set_input_kq_mask(self_kq_mask, ubatch, cparams.causal_attn);
+    if (graph_input_allocated(self_kq_mask)) {
+        mctx->set_input_kq_mask(self_kq_mask, ubatch, cparams.causal_attn);
+    }
 }
 
 bool llm_graph_input_attn_k::can_reuse(const llm_graph_params & params) {
@@ -1408,7 +1431,7 @@ llm_graph_input_attn_kv_msa::llm_graph_input_attn_kv_msa(
 void llm_graph_input_attn_kv_msa::set_input(const llama_ubatch * ubatch) {
     llm_graph_input_attn_kv::set_input(ubatch);
 
-    if (self_k_idxs_idx) {
+    if (graph_input_allocated(self_k_idxs_idx)) {
         mctx_msa->get_idx()->set_input_k_idxs(self_k_idxs_idx, ubatch);
     }
 }
