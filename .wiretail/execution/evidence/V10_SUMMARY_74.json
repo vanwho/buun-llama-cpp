@@ -1,0 +1,227 @@
+{
+  "schema": "hotpath-v10-summary",
+  "schema_version": 1,
+  "task": "74-05",
+  "phase": "74",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase74_summary_generated_with_separate_quality_append_benchmark_and_occupancy_boundaries",
+  "active_campaign_met": false,
+  "units": {
+    "rates": "tok/s",
+    "durations": "milliseconds unless field ends in _us",
+    "bytes": "integer bytes",
+    "geometry": "integer tokens"
+  },
+  "identity": {
+    "requested": {
+      "model_profile": "/srv/ai/models/text/current.gguf",
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "observed": {
+      "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "model_size_bytes": 14252845984,
+      "benchmark_L": 8192,
+      "benchmark_C_selected_native": [39, 40, 42],
+      "benchmark_C_controls": [27, 28, 30],
+      "benchmark_H": 8192,
+      "benchmark_A": 2048,
+      "benchmark_B": 128,
+      "benchmark_U": 64,
+      "append_coordinate_L": 262144,
+      "append_coordinate_requested_C": 6144,
+      "append_coordinate_observed_prefix_frontier": [6144, 6131],
+      "occupancy_L": 262144,
+      "occupancy_durable_C": 12408,
+      "occupancy_live_C": 12535,
+      "occupancy_H": 8192,
+      "occupancy_A": 4096,
+      "occupancy_B": 128,
+      "occupancy_U": 64
+    },
+    "immutable": {
+      "tested_source_commits": {
+        "74-01": "91126bc8f76b70075c82ea54bf2f0264190172f6",
+        "74-02": "1c8b489922263948df56e82ccbaea617ec7e4370",
+        "74-03": "a303f9056f7a5d72a3cb156256f054cdbdb0e926",
+        "74-04": "1a3f4a42164d980f1abb4d17a1f7b8b1c3509379"
+      },
+      "candidate_binary": "/srv/ai/paged-kv/results/v10/70-01/20260915T040103Z/candidate-bundle-repaired2/bin/llama-server",
+      "candidate_binary_sha256": "76404a3ace49a8f77a3567a8b26e98ba57c4e074827f7db7aab55d875eea3cae",
+      "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+      "identity_note": "Requested launcher geometry, observed runtime geometry, and immutable build identity remain separate."
+    }
+  },
+  "geometry_and_bytes": {
+    "controlled_model_C6144": {
+      "status": "measured",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "page_bytes": 4325376,
+      "target_allocated_bytes": 69206016,
+      "reason": "74-01 A/B/A used the installed model and completed a target-graph promotion; the C6144 coordinate is retained as a controlled fixture boundary, not a benchmark-rate claim."
+    },
+    "occupancy_pilot": {
+      "status": "measured",
+      "L": 262144,
+      "durable_C": 12408,
+      "live_C": 12535,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_allocated_bytes": 138412032,
+      "mtp_bytes": 276955136,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592,
+      "packed_storage_bytes": 69206016,
+      "packed_workspace_bytes": 138412032,
+      "scratch_high_water_bytes": 85983232,
+      "host_pageable_bytes": 56229888,
+      "host_pinned_bytes": 0,
+      "h2d_useful_bytes": 666107904,
+      "h2d_aligned_bytes": 666107904,
+      "d2h_useful_bytes": 0,
+      "d2h_aligned_bytes": 0
+    },
+    "L262144_allocation": {
+      "status": "measured",
+      "L": 262144,
+      "C": 0,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 138412032,
+      "mtp_bytes": 276955136,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592,
+      "host_pageable_bytes": 674758656,
+      "reason": "Full-L allocation/admission passed; allocation is not occupied-context proof."
+    },
+    "occupied_C262144": {
+      "status": "failed",
+      "L": 262144,
+      "requested_C": 262144,
+      "last_durable_C": 12408,
+      "last_live_C": 12535,
+      "reason": "The bounded occupancy run stopped at C12408/C12535 after the operator wall-budget boundary; it did not occupy full L."
+    }
+  },
+  "placement": {
+    "selected_native": {"status": "measured", "target_device": "CUDA", "target_k": "turbo4", "target_v": "turbo4", "draft_device": "GPU", "draft_k": "turbo4", "draft_v": "turbo4", "pager": "selective"},
+    "cpu_main_kv_gpu_draft": {"status": "measured", "target_device": "CPU", "weights_device": "GPU", "draft_device": "GPU", "target_k": "turbo4", "target_v": "turbo4", "mtp": "feature-off control"},
+    "all_gpu_gpu_draft": {"status": "measured", "target_device": "CUDA", "draft_device": "GPU", "target_k": "turbo4", "target_v": "turbo4", "mtp": "feature-off control", "pager": "off"}
+  },
+  "rates": {
+    "cold_prefill": {
+      "status": "measured",
+      "geometry_note": "74-04 measured short prompts at observed C39-42 for selected/native and C27-30 for controls, not C6144 rates.",
+      "samples_per_prompt": 3,
+      "selected_native": {"q0_tok_s_median": 897.55096807283, "q1_tok_s_median": 877.4692885748999, "q2_tok_s_median": 883.9388314328647, "range_across_trials": [621.3654106588067, 938.9461447318414]},
+      "cpu_main_kv_gpu_draft": {"q0_tok_s_median": 304.89664003902675, "q1_tok_s_median": 279.09572983533354, "q2_tok_s_median": 291.9647139788534, "range_across_trials": [278.29600387552955, 308.92165746766625]},
+      "all_gpu_gpu_draft": {"q0_tok_s_median": 686.8446357433949, "q1_tok_s_median": 650.5397070161913, "q2_tok_s_median": 673.4492628135748, "range_across_trials": [479.2502396251198, 714.1156867412521]}
+    },
+    "cached_append": {
+      "status": "measured",
+      "coordinate": {"L": 262144, "requested_C": 6144, "page_tokens": 256},
+      "non_mtp": {
+        "prefix": {"status": "measured", "C": 6144, "cache_n": 0, "prompt_tok_s": 174.95339512684592},
+        "append_64": {"status": "measured", "C": 6208, "cache_n": 6143, "new_prompt_tokens": 64, "prompt_tok_s": 95.43734910833183},
+        "append_256": {"status": "measured", "C": 6400, "cache_n": 0, "new_prompt_tokens": 6399, "prompt_tok_s": 127.85574722772915, "reason": "row completed but did not reuse the prefix cache"}
+      },
+      "native_mtp": {
+        "prefix": {"status": "measured", "C": 6131, "cache_n": 0, "prompt_tok_s": 130.08069885600733, "decode_tok_s": 28.799769601843188},
+        "append_64": {"status": "measured", "C": 6182, "cache_n": 6130, "new_prompt_tokens": 49, "prompt_tok_s": 77.54023388666468, "decode_tok_s": 27.57821872285269},
+        "append_256": {"status": "measured", "C": 6374, "cache_n": 0, "new_prompt_tokens": 6371, "prompt_tok_s": 130.38911398458347, "decode_tok_s": 28.654937245687428, "reason": "row completed but did not reuse the prefix cache"}
+      },
+      "not_run": {"status": "not_run", "reason": "No phase-74 row measured a cached 256-token append with cache_n equal to the committed prefix; the rows above retain their actual cache behavior."}
+    },
+    "committed_decode": {
+      "status": "measured",
+      "output_tokens": 128,
+      "samples_per_prompt": 3,
+      "selected_native": {"q0_tok_s_median": 33.34901875107662, "q1_tok_s_median": 33.57436377902464, "q2_tok_s_median": 33.576272203631895},
+      "cpu_main_kv_gpu_draft": {"q0_tok_s_median": 17.893440476061322, "q1_tok_s_median": 17.867649396762832, "q2_tok_s_median": 17.88603917183414},
+      "all_gpu_gpu_draft": {"q0_tok_s_median": 49.37755125448141, "q1_tok_s_median": 49.28639509216168, "q2_tok_s_median": 49.340622795212326}
+    }
+  },
+  "native_mtp": {
+    "status": "measured",
+    "selected_native_benchmark": {"requests": 9, "draft_tokens": 2229, "accepted_tokens": 15, "acceptance_percent": 0.67294751, "denominator": "request-scoped prometheus counter deltas", "bounds_valid": true},
+    "cached_append_mtp": {"requests": 3, "draft_tokens": 6, "accepted_tokens": 3, "acceptance_percent": 50.0, "denominator": "request-scoped row deltas", "bounds_valid": true},
+    "controls": {"status": "not_run", "reason": "Feature-off controls are not native-MTP evidence; draft and accepted counters are intentionally zero/null."}
+  },
+  "answer_quality": {
+    "status": "failed",
+    "campaign": "organic A/B/A",
+    "rows": {"A": {"status": "measured", "correct": true, "C": 2034}, "B": {"status": "failed", "correct": false, "expected": "COBALT-MAPLE-731", "observed": "COBALT-ELM-117", "C": 4080}, "A_again": {"status": "measured", "correct": true, "C": 4126}},
+    "reason": "The B answer mismatch is retained as a quality/policy finding and is not converted into a paging or target-graph failure."
+  },
+  "physical_promotion": {
+    "status": "measured",
+    "source": "74-01 organic A/B/A",
+    "request": "A-again",
+    "logical_page": 0,
+    "candidate_was_cold": true,
+    "h2d_queued": true,
+    "h2d_completed": true,
+    "mapping_published": true,
+    "target_graph_used": true,
+    "h2d_useful_bytes": 4325376,
+    "h2d_aligned_bytes": 4325376,
+    "answer_quality_separate": true
+  },
+  "pilots": {
+    "cached_append_coordinate": {"status": "measured", "prefix_frontiers": [6144, 6131], "append_deltas_requested": [64, 256]},
+    "occupancy_short_probe": {"status": "measured", "durable_C": 4207, "live_C": 4233, "turns": 4},
+    "occupancy_frontier": {"status": "measured", "durable_C": 12408, "live_C": 12535, "turns": 29},
+    "full_L_allocation": {"status": "measured", "L": 262144, "C": 0},
+    "occupied_C262144": {"status": "failed", "reason": "operator_bounded_wall_budget_stop_after_C12408"}
+  },
+  "requested_rows": {
+    "answer_quality": "measured_with_failed_B_row",
+    "cached_append_64": "measured_for_non_mtp_and_native_mtp_coordinate_rows",
+    "cached_append_256": "measured_row_but_not_cached_reuse; no cached-rate claim",
+    "cold_prefill": "measured",
+    "committed_decode": "measured",
+    "native_mtp_denominators": "measured",
+    "physical_promotion": "measured",
+    "target_graph_use": "measured",
+    "L262144_allocation": "measured",
+    "occupied_C262144": "failed_with_concrete_stop_reason"
+  },
+  "raw_evidence": {
+    "receipts": [
+      ".wiretail/execution/evidence/V10_74-01.json",
+      ".wiretail/execution/evidence/V10_74-02.json",
+      ".wiretail/execution/evidence/V10_74-03.json",
+      ".wiretail/execution/evidence/V10_74-04.json"
+    ],
+    "roots": [
+      "/srv/ai/paged-kv/results/v10/74-01/20260915T063824Z-organic-ab-a",
+      "/srv/ai/paged-kv/results/v10/74-02/20260915T064411Z-cached-append",
+      "/srv/ai/paged-kv/results/v10/74-02/20260915T064648Z-cached-append-mtp",
+      "/srv/ai/paged-kv/results/v10/74-03/20260915T065919Z-packed-occupancy",
+      "/srv/ai/paged-kv/results/v10/74-04/20260915T-selected-native-q012-final",
+      "/srv/ai/paged-kv/results/v10/74-04/20260915T-all-gpu-q012-final",
+      "/srv/ai/paged-kv/results/v10/74-04/20260915T-cpu-main-kv-q012-final"
+    ]
+  }
+}
