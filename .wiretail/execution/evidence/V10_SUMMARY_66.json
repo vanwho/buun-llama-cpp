@@ -1,0 +1,271 @@
+{
+  "schema": "hotpath-v10-summary",
+  "schema_version": 1,
+  "task": "66-04",
+  "phase": "66",
+  "revision": "hotpath-v10-20260914",
+  "result": "phase66_measured_repairs_with_failed_cache_reuse_and_occupancy_boundaries",
+  "active_campaign_met": false,
+  "overall_256k_demonstrated": false,
+  "units": {
+    "rates": "tok/s",
+    "durations": "milliseconds unless field ends in _us",
+    "bytes": "integer bytes",
+    "geometry": "integer tokens"
+  },
+  "identity": {
+    "requested": {
+      "model_profile": "/srv/ai/models/text/current.gguf",
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V",
+      "L": 8192,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256
+    },
+    "observed": {
+      "resolved_model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "target_backend": "CUDA",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "draft_device": "GPU",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_capacity_bytes": 69206016,
+      "page_bytes": 4325376
+    },
+    "immutable": {
+      "source_commits": [
+        "7de7ef1eb8b52120bd0604285a09b5fee97dbb03",
+        "be7f5f0b496a39360efba8bd68af06b6bc2d06d3",
+        "3357457e67cefb4cb76c82ae69254d4ec8b07600"
+      ],
+      "candidate_bundle": "/srv/ai/paged-kv/results/v10/66-02/candidate-bundle/bin/llama-server",
+      "candidate_binary_sha256": "ad0db9bee123180099b864e523f9c12252f5ac2b79a58b852684010aa3e1bbca",
+      "bundle_manifest_sha256": "f0b32ecb3f029a598def9f8e85b8640a23741abdda54d6fce584e3b54e2f541a",
+      "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a"
+    },
+    "identity_note": "Requested launcher values, observed runtime values, and immutable build identity are retained separately."
+  },
+  "geometry_and_bytes": {
+    "small_path": {
+      "status": "measured",
+      "L": 8192,
+      "C": 6144,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_allocated_bytes": 69206016,
+      "page_bytes": 4325376,
+      "reason": "Matched phase-66 benchmark observed this coordinate."
+    },
+    "small_smoke": {
+      "status": "measured",
+      "L": 8192,
+      "C": 30,
+      "H": 4096,
+      "A": 2048,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 69206016,
+      "reason": "Native-MTP smoke completed with 9 drafted and 1 accepted token."
+    },
+    "full_L_allocation": {
+      "status": "measured",
+      "L": 262144,
+      "C": 30,
+      "H": 16384,
+      "A": 8192,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "target_allocated_bytes": 276824064,
+      "draft_rows": 262144,
+      "draft_bytes": 276955136,
+      "reason": "Full-L startup/allocation smoke completed; allocation is not occupancy proof."
+    },
+    "occupied_full_L_h16384": {
+      "status": "failed",
+      "L": 262144,
+      "C": 4002,
+      "H": 16384,
+      "A": 8192,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 276824064,
+      "reason": "Next requested C=5403 stopped with HTTP 500 packed selected attention allocation failure."
+    },
+    "occupied_full_L_h8192": {
+      "status": "measured",
+      "L": 262144,
+      "C": 9606,
+      "live_snapshot_C": 9733,
+      "H": 8192,
+      "A": 8192,
+      "B": 128,
+      "U": 64,
+      "target_allocated_bytes": 138412032,
+      "reason": "Seven turns completed; bounded wall-time stop. C262144 was not claimed."
+    },
+    "occupied_C262144": {
+      "status": "failed",
+      "L": 262144,
+      "C": 9606,
+      "reason": "The last durable occupied frontier was C=9606, with live snapshot C=9733; C262144 was not established."
+    }
+  },
+  "placement": {
+    "selected_native": {
+      "status": "measured",
+      "target_device": "CUDA",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "draft_device": "GPU",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4"
+    },
+    "cpu_main_kv_gpu_draft": {
+      "status": "measured",
+      "target_device": "CPU",
+      "weights_device": "GPU",
+      "draft_device": "GPU",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "mtp": "feature-off control"
+    },
+    "all_gpu_gpu_draft": {
+      "status": "measured",
+      "target_device": "CUDA",
+      "draft_device": "GPU",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "mtp": "feature-off control",
+      "pager": "off"
+    }
+  },
+  "rates": {
+    "status": "measured",
+    "geometry": {"L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 64},
+    "cold_prefill": {
+      "status": "measured",
+      "samples_per_row": 9,
+      "selected_native": {"tok_s_median": 116.807, "tok_s_range": [111.660, 152.036], "rate_basis": "6144 / wall_prefill_us"},
+      "cpu_main_kv_gpu_draft": {"tok_s_median": 449.099, "tok_s_range": [446.962, 450.568], "rate_basis": "6144 / wall_prefill_us"},
+      "all_gpu_gpu_draft": {"tok_s_median": 1248.228, "tok_s_range": [1247.775, 1252.064], "rate_basis": "6144 / wall_prefill_us"}
+    },
+    "cached_append": {
+      "status": "failed",
+      "append_64": {"status": "failed", "requested_tokens": 64, "prompt_delta": 65, "observed_cache_n": 0, "reason": "HTTP 200 but no reused cache rows were reported; no cached rate or reuse was inferred."},
+      "append_256": {"status": "failed", "requested_tokens": 256, "prompt_delta": 257, "observed_cache_n": 0, "reason": "HTTP 200 but no reused cache rows were reported; no cached rate or reuse was inferred."}
+    },
+    "committed_decode": {
+      "status": "measured",
+      "output_tokens": 128,
+      "samples_per_row": 9,
+      "selected_native": {"tok_s_median": 13.098, "tok_s_range": [12.708, 13.164], "rate_basis": "128 / wall_decode_us"},
+      "cpu_main_kv_gpu_draft": {"tok_s_median": 10.298, "tok_s_range": [10.117, 10.411], "rate_basis": "128 / wall_decode_us"},
+      "all_gpu_gpu_draft": {"tok_s_median": 37.084, "tok_s_range": [36.784, 37.102], "rate_basis": "128 / wall_decode_us"}
+    },
+    "rate_note": "All rates are recomputed from phase-66 raw attribution manifests; no earlier-phase rate is imported."
+  },
+  "mtp": {
+    "selected_native": {
+      "status": "measured",
+      "rows": 9,
+      "draft_tokens_total": 2259,
+      "accepted_tokens_total": 0,
+      "acceptance_percent": 0.0,
+      "denominator": "request-scoped draft counter deltas"
+    },
+    "small_smoke": {"status": "measured", "draft_tokens": 9, "accepted_tokens": 1, "acceptance_percent": 11.11111111, "denominator": "request-scoped counter delta"},
+    "controls": {"status": "not_run", "reason": "Both comparison modes are explicit feature-off controls; native-MTP denominators do not apply."},
+    "append_probes": {"status": "not_run", "reason": "Append manifests did not establish cache reuse, so their MTP counters are not promoted to benchmark rates."}
+  },
+  "promotion": {
+    "controlled_model_query": {
+      "status": "measured",
+      "result": "pass",
+      "setup": "controlled_model_query",
+      "logical_page": 12,
+      "h2d_useful_bytes": 4325376,
+      "h2d_aligned_bytes": 4325376,
+      "client_page_id_used": false,
+      "public_force_promotion_api_used": false,
+      "target_graph_used": true
+    },
+    "organic_t3": {
+      "status": "failed",
+      "round_trip": "measured_pass",
+      "physical_promotion": "failed_target_graph_consumption",
+      "logical_page": 14,
+      "attention_layer": 3,
+      "selector_rank": 0,
+      "page_generation": 176,
+      "content_version": 176,
+      "physical_slot": 14,
+      "query_generation": 206,
+      "catalogue_epoch": 20988,
+      "published_epoch": 20991,
+      "h2d_useful_bytes": 4325376,
+      "candidate_was_cold": true,
+      "host_ready": true,
+      "selector_published": true,
+      "h2d_queued": true,
+      "h2d_completed": true,
+      "mapping_published": true,
+      "target_graph_used": false,
+      "reason": "A/B/A transport completed, but the natural promoted page was not consumed by the target graph."
+    },
+    "target_graph_use": {
+      "status": "failed",
+      "controlled": "measured",
+      "organic": "failed",
+      "reason": "Controlled query used the mapping; organic T3 stopped before target-graph consumption."
+    }
+  },
+  "answer_quality": {
+    "status": "failed",
+    "expected": "AURORA-CEDAR-161",
+    "observed": "////////////////",
+    "reason": "The expected nonce was absent from the bounded response; answer quality is separate from physical promotion."
+  },
+  "pilots": {
+    "L262144_H16384": {"status": "failed", "reason": "Stopped at C4002 before the next C5403 request due to packed selected attention allocation failure."},
+    "L262144_H8192": {"status": "measured", "last_durable_C": 9606, "live_snapshot_C": 9733, "reason": "Bounded seven-turn forward-progress run."},
+    "occupied_C262144": {"status": "failed", "reason": "No run reached occupied C262144."}
+  },
+  "requested_rows": {
+    "phase66_controlled_promotion_and_quality": {"status": "failed", "reason": "Controlled model query passed, but organic target-graph consumption and nonce answer quality failed."},
+    "phase66_occupied_context": {"status": "failed", "reason": "Full-L allocation passed, but occupied frontier stopped at C9606 durable / C9733 live."},
+    "phase66_matched_benchmark": {"status": "measured", "reason": "Nine measured rows per selected/native and each feature-off control completed at L8192/C6144."},
+    "phase66_cached_append": {"status": "failed", "reason": "Both exact-length append probes returned cache_n=0, so cached reuse was not established."},
+    "phase66_summary_generated_and_validated": {"status": "measured", "reason": "This JSON/Markdown pair passed the dedicated summary validation and V10 receipt validator."}
+  },
+  "provenance": {
+    "receipts": [".wiretail/execution/evidence/V10_66-01.json", ".wiretail/execution/evidence/V10_66-02.json", ".wiretail/execution/evidence/V10_66-03.json"],
+    "raw_roots": ["/srv/ai/paged-kv/results/v10/66-02/", "/srv/ai/paged-kv/results/v10/66-03/"],
+    "raw_manifests": [
+      "/srv/ai/paged-kv/results/v10/66-02/full-L-startup/summary.json",
+      "/srv/ai/paged-kv/results/v10/66-02/occupied-L262144-H8192/incremental-state.json",
+      "/srv/ai/paged-kv/results/v10/66-02/occupied-L262144-C261000/INTERACTIVE29_01_SCALE.json",
+      "/srv/ai/paged-kv/results/v10/66-03/long-selective-native/SPEED25_02_ATTRIBUTION.json",
+      "/srv/ai/paged-kv/results/v10/66-03/long-cpu-main-kv-mtp/SPEED25_02_ATTRIBUTION.json",
+      "/srv/ai/paged-kv/results/v10/66-03/long-all-gpu-mtp/SPEED25_02_ATTRIBUTION.json",
+      "/srv/ai/paged-kv/results/v10/66-03/append-64/append-result.json",
+      "/srv/ai/paged-kv/results/v10/66-03/append-256/append-result.json"
+    ],
+    "aggregation_scope": "phase-66 receipts and raw manifests only"
+  }
+}
