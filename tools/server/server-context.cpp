@@ -18908,7 +18908,24 @@ private:
                         alora_disabled_id = enabled_loras[0];
                     }
 
-                    bool do_checkpoint = params_base.n_ctx_checkpoints > 0;
+                    // A native MTP drafter shares the prompt's target frontier, but a
+                    // hybrid target cannot roll its recurrent state back across a
+                    // prompt edit without a complete point-in-time image.  The clean
+                    // benchmark profile intentionally disables user-visible context
+                    // checkpoints; retain two in-memory rewind points nevertheless so
+                    // MTP prompt edits can reuse the stable prefix even after the
+                    // immediately newer prompt frontier has been sealed.  This is a live
+                    // cache-state aid only: configured checkpoint capacity and durable
+                    // retention policy are unchanged.
+                    const bool mtp_rewind_checkpoint =
+                        params_base.n_ctx_checkpoints == 0 &&
+                        params_base.speculative.uses_native_mtp_as_primary_drafter() &&
+                        ctx_dft != nullptr;
+                    const size_t checkpoint_capacity =
+                        mtp_rewind_checkpoint
+                            ? size_t(2)
+                            : size_t(std::max(0, params_base.n_ctx_checkpoints));
+                    bool do_checkpoint = checkpoint_capacity > 0;
 
                     // make checkpoints only for completion tasks
                     do_checkpoint = do_checkpoint && slot.task->type == SERVER_TASK_TYPE_COMPLETION;
@@ -19324,6 +19341,10 @@ private:
                                         qsa_size-
                                         uint64_t(ring_size)-
                                         uint64_t(spec_state.size());
+                            const bool draft_checkpoint_fits =
+                                !params_base.vbr_prompt_cache
+                                    ? draft_size != 0 && mtp_state_ready
+                                    : draft_vbr_fits;
                             if (!qsa_topology_ready) {
                                 SLT_ERR(slot, "%s",
                                     "skipping context checkpoint: QSA topology is unavailable\n");
@@ -19384,7 +19405,7 @@ private:
                             // checkpoint-backed MTP/DFlash prefix can be
                             // published as one atomic companion set.
                             if (!staged.empty() && capture_draft) {
-                                if (draft_vbr_fits) {
+                                if (draft_checkpoint_fits) {
                                     size_t draft_written = 0;
                                     next.data_dft.overwrite(
                                         draft_size,
@@ -19662,7 +19683,7 @@ private:
 
                         while (checkpoint_publication_allowed &&
                                slot.prompt.checkpoints.size() >=
-                                   (size_t) params_base.n_ctx_checkpoints) {
+                                   checkpoint_capacity) {
                             if (slot.lifecycle_authority &&
                                 slot.checkpoint_thin_priced(
                                     ckpt_id_task,
@@ -19777,9 +19798,10 @@ private:
 
                             SLT_WRN(slot,
                                     "created context checkpoint %d of %d (pos_min = %d, pos_max = %d, n_tokens = %" PRId64
-                                    ", size = %.3f MiB)\n",
-                                    (int) slot.prompt.checkpoints.size(), params_base.n_ctx_checkpoints, cur.pos_min,
-                                    cur.pos_max, cur.n_tokens, (float) cur.size() / 1024.0 / 1024.0);
+                                    ", size = %.3f MiB%s)\n",
+                                    (int) slot.prompt.checkpoints.size(), (int) checkpoint_capacity, cur.pos_min,
+                                    cur.pos_max, cur.n_tokens, (float) cur.size() / 1024.0 / 1024.0,
+                                    mtp_rewind_checkpoint ? ", MTP rewind" : "");
                         }
                     }
                 }
