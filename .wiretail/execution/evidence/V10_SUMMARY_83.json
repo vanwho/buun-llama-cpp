@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "task": "83-04",
+  "phase": 83,
+  "revision": "hotpath-v10-20260914",
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "identity": {
+    "requested": {
+      "model_profile": "installed Qwen3.8-27B-UD-IQ4_XS profile",
+      "L": 8192,
+      "C": [256, 6143],
+      "B": 128,
+      "primary_U": 128,
+      "secondary_U": 64,
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4",
+      "draft_device": "gpu"
+    },
+    "observed": {
+      "model": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "L": 8192,
+      "C": [256, 6143],
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "page_tokens": 256,
+      "native_mtp_rows": 12,
+      "feature_off_rows": 4,
+      "occupancy": {
+        "L": 262144,
+        "H": 8192,
+        "A": 4096,
+        "B": 128,
+        "U": 64,
+        "durable_C": 29134,
+        "live_C": 29149
+      }
+    },
+    "immutable": {
+      "candidate_source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+      "candidate_binary_sha256": "b2800fff4b40d255163518b3e4fc812f0b9f081ff4d04367fe897002f0468378",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "occupancy_endpoint_pid": 17073,
+      "matrix_endpoint_pid": 80118,
+      "target_backend": "CUDA",
+      "draft_backend": "GPU"
+    }
+  },
+  "claims": {
+    "full_L_allocation": {
+      "status": "measured",
+      "L": 262144,
+      "target_allocated_bytes": 138412032,
+      "mtp_bytes": 276955136,
+      "packed_workspace_bytes": 138412032,
+      "packed_dequant_bytes": 16777216,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592
+    },
+    "occupied_C262144": {
+      "status": "failed",
+      "durable_C": 29134,
+      "live_C": 29149,
+      "reason": "operator_bounded_wall_budget_stop_after_C29134"
+    },
+    "answer_quality": {
+      "status": "failed",
+      "oracle": "exact normalized nonce match",
+      "rows": 3,
+      "correct_rows": 0,
+      "expected": ["EMBER-QUARTZ-914", "CIRRUS-VAULT-268", "EMBER-QUARTZ-914"],
+      "observed": ["////////////////////////////////", "////////////////////////////////", "////////////////////////////////"],
+      "first_divergent_token": 0,
+      "reason": "All three rows finished at length after 32 slash tokens."
+    },
+    "native_mtp_placement": {
+      "status": "measured",
+      "selected_pager_C256": {"draft_tokens": 16, "accepted_tokens": 0, "acceptance_percent": 0.0},
+      "selected_pager_C6143": {"draft_tokens": 8, "accepted_tokens": 4, "acceptance_percent": 50.0},
+      "all_gpu": {"draft_tokens_per_row": 123, "accepted_tokens_per_row": 0, "acceptance_percent": 0.0},
+      "cpu_main_kv_gpu": {"draft_tokens_per_row": 123, "accepted_tokens_per_row": 0, "acceptance_percent": 0.0}
+    },
+    "token_output_parity": {
+      "status": "measured",
+      "result": "native output matched its same-placement feature-off control at C256 and C6143",
+      "first_divergent_token": null
+    },
+    "physical_promotion": {"status": "not_established"},
+    "target_graph_use": {"status": "not_established"},
+    "speed": {"status": "not_run", "reason": "Broad benchmark prohibited until the diagnostic matrix passes."}
+  },
+  "occupancy": {
+    "successful_turns": 8,
+    "route": "selected packed",
+    "route_counters": {"prefill": 473, "decode": 8, "mtp_verify": 112, "override_accepted": 593, "override_refused": 0},
+    "raw": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/frontier/phase83_occupancy_validation.json"
+  },
+  "answer_quality_raw": "/srv/ai/paged-kv/results/v10/83-01/20260915T164714Z-verified-coordinate-ab-a/organic-answer-quality.json",
+  "diagnosis_matrix": [
+    {"row": "all_gpu_feature_off/secondary-U64/C256", "geometry": "B128/U64", "C": 256, "failure_class": "common_model_or_output", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_feature_off/secondary-U64/C256/measured/raw.sse"},
+    {"row": "all_gpu_feature_off/secondary-U64/C6143", "geometry": "B128/U64", "C": 6143, "failure_class": "common_model_or_output", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_feature_off/secondary-U64/C6143/measured/raw.sse"},
+    {"row": "all_gpu_native_mtp/primary-U128/C256", "geometry": "requested B128/U128; observed B128/U64", "C": 256, "failure_class": "common_model_or_output", "secondary_failure": "native_mtp_only_zero_acceptance; observation_setup_launcher_ignored_U128", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_native_mtp/primary-U128/C256/measured/raw.sse"},
+    {"row": "all_gpu_native_mtp/primary-U128/C6143", "geometry": "requested B128/U128; observed B128/U64", "C": 6143, "failure_class": "common_model_or_output", "secondary_failure": "native_mtp_only_zero_acceptance; observation_setup_launcher_ignored_U128", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_native_mtp/primary-U128/C6143/measured/raw.sse"},
+    {"row": "all_gpu_native_mtp/secondary-U64/C256", "geometry": "B128/U64", "C": 256, "failure_class": "common_model_or_output", "secondary_failure": "native_mtp_only_zero_acceptance", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_native_mtp/secondary-U64/C256/measured/raw.sse"},
+    {"row": "all_gpu_native_mtp/secondary-U64/C6143", "geometry": "B128/U64", "C": 6143, "failure_class": "common_model_or_output", "secondary_failure": "native_mtp_only_zero_acceptance", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_native_mtp/secondary-U64/C6143/measured/raw.sse"},
+    {"row": "cpu_main_kv_gpu_native_mtp/primary-U128/C256", "geometry": "requested B128/U128; observed B128/U64", "C": 256, "failure_class": "common_model_or_output", "secondary_failure": "native_mtp_only_zero_acceptance; observation_setup_launcher_ignored_U128", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/cpu_main_kv_gpu_native_mtp/primary-U128/C256/measured/raw.sse"},
+    {"row": "cpu_main_kv_gpu_native_mtp/primary-U128/C6143", "geometry": "requested B128/U128; observed B128/U64", "C": 6143, "failure_class": "common_model_or_output", "secondary_failure": "native_mtp_only_zero_acceptance; observation_setup_launcher_ignored_U128", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/cpu_main_kv_gpu_native_mtp/primary-U128/C6143/measured/raw.sse"},
+    {"row": "cpu_main_kv_gpu_native_mtp/secondary-U64/C256", "geometry": "B128/U64", "C": 256, "failure_class": "common_model_or_output", "secondary_failure": "native_mtp_only_zero_acceptance", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/cpu_main_kv_gpu_native_mtp/secondary-U64/C256/measured/raw.sse"},
+    {"row": "cpu_main_kv_gpu_native_mtp/secondary-U64/C6143", "geometry": "B128/U64", "C": 6143, "failure_class": "common_model_or_output", "secondary_failure": "native_mtp_only_zero_acceptance", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/cpu_main_kv_gpu_native_mtp/secondary-U64/C6143/measured/raw.sse"},
+    {"row": "selected_pager_native_mtp/primary-U128/C256", "geometry": "requested B128/U128; observed B128/U64", "C": 256, "failure_class": "selected_pager_only", "secondary_failure": "native_mtp_only_zero_acceptance; observation_setup_launcher_ignored_U128", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_native_mtp/primary-U128/C256/measured/raw.sse"},
+    {"row": "selected_pager_native_mtp/primary-U128/C6143", "geometry": "requested B128/U128; observed B128/U64", "C": 6143, "failure_class": "pass_for_parity; native_mtp_acceptance_measured", "secondary_failure": "observation_setup_launcher_ignored_U128", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_native_mtp/primary-U128/C6143/measured/raw.sse"},
+    {"row": "selected_pager_native_mtp/secondary-U64/C256", "geometry": "B128/U64", "C": 256, "failure_class": "selected_pager_only", "secondary_failure": "native_mtp_only_zero_acceptance", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_native_mtp/secondary-U64/C256/measured/raw.sse"},
+    {"row": "selected_pager_native_mtp/secondary-U64/C6143", "geometry": "B128/U64", "C": 6143, "failure_class": "pass_for_parity; native_mtp_acceptance_measured", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_native_mtp/secondary-U64/C6143/measured/raw.sse"},
+    {"row": "selected_pager_feature_off/secondary-U64/C256", "geometry": "B128/U64", "C": 256, "failure_class": "selected_pager_only", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_feature_off/secondary-U64/C256/measured/raw.sse"},
+    {"row": "selected_pager_feature_off/secondary-U64/C6143", "geometry": "B128/U64", "C": 6143, "failure_class": "selected_pager_only", "first_divergent_token": null, "raw_pointer": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_feature_off/secondary-U64/C6143/measured/raw.sse"}
+  ],
+  "phase84_prerequisites": {
+    "missing_mtp_state_route_evidence": [
+      "Explain and rerun all-GPU and CPU-main-KV native rows with positive acceptance; both produced 123 drafted and 0 accepted per row.",
+      "Repair or explicitly account for the launcher U128 request being observed as U64 before any U128 comparison.",
+      "Capture selected-pager cold eligibility, submission, H2D completion, table publication, and completed target-graph-use IDs; the current matrix has selected-page IDs and route counters but no promotion proof.",
+      "Keep answer correctness separate from native-MTP acceptance and paging mechanics; the phase-83 nonce oracle remains failed."
+    ],
+    "stable_coordinate": "L8192/C6143/H8192/A4096/B128/U64, selected pager with Turbo4 target K/V and GPU Turbo4 native-MTP K/V",
+    "prohibited_broad_rows_until_matrix_passes": [
+      "three-prompt speed matrix",
+      "speed ratios or token-output parity claims beyond the bounded matrix",
+      "physical-promotion or target-graph-use claims",
+      "full occupied C262144 claim"
+    ]
+  },
+  "sources": [
+    ".wiretail/execution/evidence/V10_83-01.json",
+    ".wiretail/execution/evidence/V10_83-02.json",
+    ".wiretail/execution/evidence/V10_83-03.json",
+    ".wiretail/execution/evidence/V10_83-03-summary.json"
+  ]
+}

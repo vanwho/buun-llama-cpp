@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "task": "83-04",
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "findings": {
+    "phase83_diagnostic_summary": {
+      "status": "pass",
+      "rows": 16,
+      "nonpass_rows": 14,
+      "full_L_allocation": "measured",
+      "occupied_C262144": "failed_at_durable_C29134_live_C29149",
+      "answer_quality": "failed_0_of_3",
+      "native_output_parity": "no_divergent_token_against_same_placement_control"
+    }
+  },
+  "checks": {
+    "phase83_diagnostic_summary": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_SUMMARY_83_validation.py",
+        "--summary",
+        ".wiretail/execution/evidence/V10_SUMMARY_83.json",
+        "--report",
+        ".wiretail/execution/evidence/V10_SUMMARY_83.md",
+        "--output",
+        ".wiretail/execution/evidence/V10_SUMMARY_83_validation.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_83.json",
+          "sha256": "4d9d251626598d138ad998cf7ea7b28c206ea1735666c8c7c4b84136704709be"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_83.md",
+          "sha256": "eb4589965b98da146387a250e7d6830ca9bd9576fc814a515486e9bce9733a1b"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_83_validation.py",
+          "sha256": "ad01f9197347246ecd244203b99fa2c8be71e71449bcf48c6b301270fb9d12de"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_83_validation.json",
+          "sha256": "04f16e6e737fe5c2f1bd92713709189ab52fb00924a44df6732f2cd6236437a8"
+        }
+      ]
+    }
+  }
+}
