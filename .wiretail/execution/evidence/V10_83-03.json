@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "task": "83-03",
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "findings": {
+    "matrix": "16 bounded q0 rows at L8192/C256 and L8192/C6143",
+    "primary_geometry": "B128/U128 requested; launcher loaded effective U64 and the setup boundary was retained",
+    "secondary_geometry": "B128/U64 measured",
+    "native_mtp": "positive draft work in all native rows; all-GPU and CPU-main-KV accepted 0; selected-pager accepted 0 at C256 and 4/8 at C6143",
+    "output_classification": "feature-off/native outputs match within each placement; feature-off placement outputs differ, with all-GPU/CPU-main-KV slash output and selected-pager DIAG-83-03",
+    "identity": {
+      "candidate_source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+      "candidate_binary_sha256": "b2800fff4b40d255163518b3e4fc812f0b9f081ff4d04367fe897002f0468378",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "final_loaded_pid": 80118,
+      "final_command": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/candidate-bundle-77-04/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 128 -ub 64 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4"
+    }
+  },
+  "checks": {
+    "phase83_stable_mtp_matrix": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_83-03_validation.py",
+        "--run-root",
+        "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix",
+        "--output-json",
+        ".wiretail/execution/evidence/V10_83-03-summary.json",
+        "--output-md",
+        ".wiretail/execution/evidence/V10_83-03.md",
+        "--validation-output",
+        "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/validation.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_83-03-summary.json",
+          "sha256": "f2e0c48f9bad2691d3404cc01221d72129164a0798c751b98ab815a4146f5585"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_83-03.md",
+          "sha256": "41cc9779f8adc3217024840ae3db5fad13e823e6b5e712161cbf3b02e560a5a6"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_83-03_validation.py",
+          "sha256": "941179c13e3f6758f97c0c5a579ab8abe997fe39d105b91d8e7a43dc736f5666"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/summary.json",
+          "sha256": "c3e2a057111e51f1513b07678e6c5135e7b3a0703b3e459fa34a84730f1c0054"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/validation.json",
+          "sha256": "d24c260c427e2b864a08e34cd3506a852f607e1977e7482d5656f456ff050e29"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/final-state/process.cmdline",
+          "sha256": "8891e3ab35f20495158a437da711c2c38addb9542dd84467fa098305a7614f20"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/final-state/startup.journal.log",
+          "sha256": "d2ca17b036eeb46aa4946e16c4938f8c99cdccf2c7d85f2b4a71a2d372594d78"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/final-state/executable.sha256",
+          "sha256": "73f4cc37ab1093c0a3a5ed1017fe476a1bc85c99e40c50a58c23a458abc5a555"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/final-state/model.sha256",
+          "sha256": "b646805ce26b27aa5021effc044cfe15d51e89bf614049473c1c4120622d9778"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/77-04/20260915T114328Z-occupancy-advancement/candidate-bundle-77-04/build-receipt.json",
+          "sha256": "45040dc5c16492b63cdfed13c754ca38b60d91942fbd522ddbb54b187a5273d8"
+        }
+      ]
+    }
+  }
+}
