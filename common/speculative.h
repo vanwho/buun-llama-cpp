@@ -272,6 +272,26 @@ int32_t common_speculative_mtp_carry_row(
         int32_t verify_rows,
         uint16_t accepted_draft_tokens) noexcept;
 
+// Return the target position used for a native-MTP proposal row. Ordinary
+// MTP advances one position per proposal; shared-memory assistants keep all
+// proposal rows at the sampled position.
+llama_pos common_speculative_mtp_draft_position(
+        llama_pos sampled_position,
+        size_t    draft_index,
+        bool      shared_position) noexcept;
+
+// A target/draft rollback is owned by the acceptance controller. The guard
+// makes a repeated cleanup callback idempotent without hiding a new frontier.
+class common_speculative_mtp_rollback_guard {
+public:
+    bool should_apply(llama_pos frontier) noexcept;
+    void reset() noexcept;
+
+private:
+    llama_pos last_frontier = -1;
+    bool applied = false;
+};
+
 // Host-checkpoint codec for the deferred MTP hidden row. A complete draft
 // sequence image is not usable without this carry at a nonzero frontier.
 bool common_speculative_mtp_carry_state_save(

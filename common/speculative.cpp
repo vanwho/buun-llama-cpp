@@ -196,6 +196,39 @@ int32_t common_speculative_mtp_carry_row(
     return std::min<int32_t>(int32_t(accepted_draft_tokens), verify_rows - 1);
 }
 
+llama_pos common_speculative_mtp_draft_position(
+        llama_pos sampled_position,
+        size_t    draft_index,
+        bool      shared_position) noexcept {
+    if (sampled_position < 0 || draft_index > size_t(INT32_MAX)) {
+        return -1;
+    }
+    if (shared_position) {
+        return sampled_position;
+    }
+    const int64_t position = int64_t(sampled_position) + 1 +
+        int64_t(draft_index);
+    return position > INT32_MAX ? -1 : llama_pos(position);
+}
+
+bool common_speculative_mtp_rollback_guard::should_apply(
+        llama_pos frontier) noexcept {
+    if (frontier < 0) {
+        return false;
+    }
+    if (applied && last_frontier == frontier) {
+        return false;
+    }
+    last_frontier = frontier;
+    applied = true;
+    return true;
+}
+
+void common_speculative_mtp_rollback_guard::reset() noexcept {
+    last_frontier = -1;
+    applied = false;
+}
+
 common_speculative_checkpoint_policy common_speculative_checkpoint_policy_resolve(
         bool has_draft_context,
         bool vbr_prompt_cache,
@@ -2665,6 +2698,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     // Row 0 corresponds to the sampled token, row N to the Nth accepted draft token.
     std::vector<std::vector<float>> verify_h;
     std::vector<int32_t> verify_h_rows;
+    std::vector<common_speculative_mtp_rollback_guard> rollback_guards;
 
     std::vector<int>                i_last;
     std::vector<std::vector<float>> chain_h;
@@ -2806,6 +2840,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
 
         verify_h.assign(n_seq, {});
         verify_h_rows.assign(n_seq, 0);
+        rollback_guards.resize(n_seq);
     }
 
     ~common_speculative_impl_draft_mtp() override {
@@ -2899,15 +2934,26 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                                 mem_dft, seq_id, -1, -1)) {
                             return false;
                         }
-                        const float * h_tgt = llama_get_embeddings_nextn_ith(
-                            ctx_tgt, i_batch_end[seq_id]);
-                        if (!h_tgt) {
-                            return false;
+                        const int32_t n_rows = i_batch_end[seq_id] -
+                            i_batch_beg[seq_id] + 1;
+                        verify_h_rows[seq_id] = n_rows;
+                        verify_h[seq_id].resize((size_t) n_rows * n_embd);
+                        for (int32_t i = 0; i < n_rows; ++i) {
+                            const float * h = llama_get_embeddings_nextn_ith(
+                                ctx_tgt, i_batch_beg[seq_id] + i);
+                            if (!h) {
+                                return false;
+                            }
+                            std::memcpy(
+                                verify_h[seq_id].data() + (size_t) i * n_embd,
+                                h, row_bytes);
                         }
                         std::memcpy(
-                            pending_h[seq_id].data(), h_tgt, row_bytes);
+                            pending_h[seq_id].data(),
+                            verify_h[seq_id].data() +
+                                (size_t) (n_rows - 1) * n_embd,
+                            row_bytes);
                         pending_h_lifecycle[seq_id].target_process_refreshed();
-                        verify_h_rows[seq_id] = 0;
                     }
                 }
                 return true;
@@ -2937,17 +2983,47 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             // i.e. we cannot have seq_id like this: [0, 0, 0, 1, 1, 0, 1, 1]
             //                                                       ^--- this is a problem
             // TODO:this is generally true, but would be nice to assert it
-            // Keep the pending boundary row host-owned, but source the
-            // contiguous target rows directly from the target graph whenever
-            // both contexts use the same backend device. Only materialize the
-            // shifted rows on the host for the portable fallback.
-            const bool device_handoff = n_tokens > 1 && llama_set_embeddings_nextn_device(
-                    ctx_dft, ctx_tgt, 0, 1, n_tokens - 1);
+            // Keep the pending boundary row host-owned. A device handoff is
+            // valid only for one contiguous sequence; for multi-sequence
+            // batches, shifting one global row would pair a sequence with the
+            // preceding sequence's hidden state.
+            llama_seq_id contiguous_seq = -1;
+            int32_t active_sequences = 0;
+            for (llama_seq_id seq_id = 0; seq_id < (llama_seq_id) n_seq; ++seq_id) {
+                if (i_batch_beg[seq_id] >= 0) {
+                    contiguous_seq = seq_id;
+                    active_sequences++;
+                }
+            }
+            const bool one_contiguous_sequence = active_sequences == 1 &&
+                i_batch_beg[contiguous_seq] == 0 &&
+                i_batch_end[contiguous_seq] == n_tokens - 1;
+            const bool device_handoff = one_contiguous_sequence && n_tokens > 1 &&
+                llama_set_embeddings_nextn_device(ctx_dft, ctx_tgt, 0, 1, n_tokens - 1);
             if (device_handoff) {
                 SPC_TRC("MTP device hidden handoff: rows=%d\n", n_tokens - 1);
             } else {
-                const float * h_tgt = llama_get_embeddings_nextn(ctx_tgt);
-                std::memcpy(batch.embd + (size_t) 1 * n_embd, h_tgt, row_bytes * (n_tokens-1));
+                std::vector<int32_t> previous_row(n_tokens, -1);
+                std::vector<int32_t> last_row(n_seq, -1);
+                for (int32_t k = 0; k < n_tokens; ++k) {
+                    const llama_seq_id seq_id = batch_in.seq_id[k][0];
+                    if (seq_id >= 0 && seq_id < (llama_seq_id) n_seq) {
+                        previous_row[k] = last_row[seq_id];
+                        last_row[seq_id] = k;
+                    }
+                }
+                for (int32_t k = 0; k < n_tokens; ++k) {
+                    if (previous_row[k] < 0) {
+                        continue;
+                    }
+                    const float * h_tgt = llama_get_embeddings_nextn_ith(
+                        ctx_tgt, previous_row[k]);
+                    if (!h_tgt) {
+                        return false;
+                    }
+                    std::memcpy(batch.embd + (size_t) k * n_embd,
+                            h_tgt, row_bytes);
+                }
             }
 
             // fill the pending embeddings from a previous run
@@ -3068,6 +3144,8 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
             common_batch_add(batch, dp.id_last, dp.n_past, { seq_id }, true);
             std::memcpy(batch.embd + (size_t) (batch.n_tokens - 1) * n_embd, carry, row_bytes);
 
+            rollback_guards[seq_id].reset();
+
             i_last[seq_id] = batch.n_tokens - 1;
 
             if (chain_heads) {
@@ -3169,7 +3247,15 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                     common_batch_add(batch, id, dp.n_past, { seq_id }, true);
                     std::memcpy(batch.embd + (size_t) (batch.n_tokens - 1) * n_embd, h_row, row_bytes);
                 } else {
-                    common_batch_add(batch, id, dp.n_past + i + 1, { seq_id }, true);
+                    const llama_pos draft_position =
+                        common_speculative_mtp_draft_position(
+                            dp.n_past, result.size() - 1, false);
+                    if (draft_position < 0) {
+                        drafting[seq_id] = false;
+                        n_drafting--;
+                        continue;
+                    }
+                    common_batch_add(batch, id, draft_position, { seq_id }, true);
                     std::memcpy(batch.embd + (size_t) (batch.n_tokens - 1) * n_embd, h_row, row_bytes);
                 }
 
@@ -3259,6 +3345,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         }
 
         pending_h_lifecycle[seq_id].sequence_transition(event);
+        rollback_guards[seq_id].reset();
         verify_h_rows[seq_id] = 0;
         i_last[seq_id] = -1;
         adaptive_last_draft_size[seq_id] = 0;
@@ -6345,6 +6432,10 @@ void common_speculative_draft(common_speculative * spec) {
 }
 
 void common_speculative_accept(common_speculative * spec, llama_seq_id seq_id, uint16_t n_accepted) {
+    if (spec == nullptr || seq_id < 0 ||
+            seq_id >= (llama_seq_id) spec->impl_last.size()) {
+        return;
+    }
     common_speculative_impl * impl = spec->impl_last[seq_id];
 
     if (impl == nullptr) {
@@ -6970,15 +7061,24 @@ void common_speculative_update_logits(
 }
 
 bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t /*n_accepted*/) {
-    if (spec == nullptr) {
+    if (spec == nullptr || seq_id < 0) {
         return true;
     }
     for (auto & impl : spec->impls) {
         if (impl->type == COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
             auto * mtp = static_cast<common_speculative_impl_draft_mtp *>(impl.get());
+            if (seq_id >= (llama_seq_id) mtp->rollback_guards.size()) {
+                return false;
+            }
             auto * ctx_dft = mtp->params.ctx_dft;
-            if (ctx_dft == nullptr ||
-                    !llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
+            if (ctx_dft == nullptr) {
+                return false;
+            }
+            if (!mtp->rollback_guards[seq_id].should_apply(n_past)) {
+                continue;
+            }
+            if (!llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
+                mtp->rollback_guards[seq_id].reset();
                 return false;
             }
             // The server has already delivered this acceptance to every

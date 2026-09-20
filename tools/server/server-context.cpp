@@ -2856,7 +2856,7 @@ struct server_slot {
         return spec ? spec.get() : spec_shared;
     }
 
-    void capture_mtp_state_diagnostic(const llama_batch & batch) {
+    void capture_mtp_state_diagnostic(const llama_batch & batch, int32_t off) {
         if (!mtp_state_diagnostic_enabled || mtp_state_diagnostic_steps >= 8 ||
                 spec_draft.empty() || ctx_tgt == nullptr) {
             return;
@@ -2867,7 +2867,9 @@ struct server_slot {
         json target_ids = json::array();
         json target_positions = json::array();
         json draft_positions = json::array();
-        for (const int32_t row : spec_i_batch) {
+        json proposal_rows = json::array();
+        for (const int32_t global_row : spec_i_batch) {
+            const int32_t row = global_row - off;
             if (row < 0 || row >= batch.n_tokens || batch.token == nullptr ||
                     batch.pos == nullptr) {
                 continue;
@@ -2876,6 +2878,7 @@ struct server_slot {
             target_ids.push_back(batch.token[row]);
             target_positions.push_back(batch.pos[row]);
             if (rows.size() > 1) {
+                proposal_rows.push_back(row);
                 draft_positions.push_back(batch.pos[row]);
             }
         }
@@ -2890,6 +2893,10 @@ struct server_slot {
             {"target_input_positions", target_positions},
             {"draft_input_token_ids", spec_draft},
             {"draft_input_positions", draft_positions},
+            {"proposal_positions", draft_positions},
+            {"target_output_rows", rows},
+            {"proposal_output_rows", proposal_rows},
+            {"sampled_output_row", rows.front()},
             {"n_past", n_tokens_before_draft},
             {"cache_n", stats.n_prompt_cached},
             {"checkpoint_generation", spec_ckpt.checkpoint_epoch},
@@ -20196,7 +20203,7 @@ private:
                         if (slot.is_processing() && slot.can_speculate() &&
                                 !slot.spec_draft.empty()) {
                             try {
-                                slot.capture_mtp_state_diagnostic(batch_view);
+                                slot.capture_mtp_state_diagnostic(batch_view, off);
                             } catch (...) {
                                 // Diagnostics are strictly best effort and
                                 // must never change target verification.
@@ -20833,6 +20840,19 @@ private:
                 }
             }
 
+            // llama_context output accessors index the current ubatch, while
+            // spec_i_batch is assembled against the full server batch. Keep
+            // the persistent global mapping for lifecycle accounting, but use
+            // local rows for every target verification read.
+            std::vector<int32_t> verify_rows;
+            verify_rows.reserve(slot.spec_i_batch.size());
+            for (const int32_t global_row : slot.spec_i_batch) {
+                if (!is_inside_view(global_row)) {
+                    throw std::runtime_error("speculative output row escaped its decode view");
+                }
+                verify_rows.push_back(global_row - off);
+            }
+
             // The accepted tokens from the speculation. For the narrowly
             // proven raw-argmax case, verification copied only token ids from
             // the target graph; advance the ordinary sampler history with the
@@ -20844,7 +20864,7 @@ private:
             const bool accepted_from_synth = !synth_probs.empty();
             if (accepted_from_synth) {
                 ids = server_sample_and_accept_synth(
-                    slot.smpl.get(), slot.ctx_tgt, slot.spec_i_batch,
+                    slot.smpl.get(), slot.ctx_tgt, verify_rows,
                     slot.spec_draft, synth_probs, slot.spec_synth_rng,
                     /* is_replay = */ false);
             }
@@ -20856,16 +20876,16 @@ private:
                 if (argmax != nullptr) {
                     if (llama_get_logits_argmax_k(ctx_tgt) != 1 ||
                         llama_get_logits_argmax_n(ctx_tgt) !=
-                            (int32_t) slot.spec_i_batch.size()) {
+                            (int32_t) verify_rows.size()) {
                         throw std::runtime_error(
                             "DFlash target argmax output shape mismatch");
                     }
 
                     llama_tokens sampled;
-                    sampled.reserve(slot.spec_i_batch.size());
-                    for (size_t i = 0; i < slot.spec_i_batch.size(); ++i) {
+                    sampled.reserve(verify_rows.size());
+                    for (size_t i = 0; i < verify_rows.size(); ++i) {
                         const llama_token id = ctx_tgt->get_logits_argmax_ith(
-                            slot.spec_i_batch[i]);
+                            verify_rows[i]);
                         if (id == LLAMA_TOKEN_NULL) {
                             throw std::runtime_error(
                                 "DFlash target argmax row lookup failed");
@@ -20890,7 +20910,7 @@ private:
                         std::equal(proposal->selected.begin(), proposal->selected.end(),
                             slot.spec_draft.begin())) {
                     accepted_from_dflash_q = common_sampler_sample_and_accept_n_q(
-                        slot.smpl.get(), ctx_tgt, slot.spec_i_batch, slot.spec_draft,
+                        slot.smpl.get(), ctx_tgt, verify_rows, slot.spec_draft,
                         proposal->top_k, proposal->candidate_ids, proposal->q_rows,
                         proposal->q_covered_tokens, ids);
                     if (accepted_from_dflash_q) {
@@ -20903,7 +20923,7 @@ private:
                     !accepted_from_dflash_q) {
                 ids = common_sampler_sample_and_accept_n(
                     slot.smpl.get(), ctx_tgt,
-                    slot.spec_i_batch, slot.spec_draft);
+                    verify_rows, slot.spec_draft);
             }
 
             const auto rollback_frontier =
@@ -20924,8 +20944,7 @@ private:
 
             // Keep the small output-index table until token stop handling has
             // had a chance to retain the exact terminal vocabulary row.
-            const std::vector<int32_t> verified_output_rows =
-                slot.spec_i_batch;
+            const std::vector<int32_t> verified_output_rows = verify_rows;
 
 
             // update DFlash hidden state ring + CopySpec prompt window with accepted tokens.
