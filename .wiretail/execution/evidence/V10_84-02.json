@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "task": "84-02",
+  "source_commit": "dd00e605214d8d97243a1c9abdcaa7ac80d022e3",
+  "findings": {
+    "identity": {
+      "candidate": "v10-candidate-20260920g",
+      "candidate_binary_sha256": "6818b1e581598b25087dcba34e9e122194767788edca0db3d95f55c2eb871bde",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "L": 8192,
+      "H": 4096,
+      "B": 128,
+      "U": 128,
+      "page_tokens": 256,
+      "mtp": "off"
+    },
+    "route_boundary": "Automatic direct is promoted for the proven one-page Turbo4 decode/prefill shape. Multi-page prefill is fail-closed to selected_reference after live direct graph testing exposed an illegal-memory boundary; packed remains explicit diagnostic-only.",
+    "route_controls": {
+      "automatic": "selected_direct, zero packed-copy updates/epochs",
+      "reference": "selected_reference",
+      "packed": "explicit diagnostic route only",
+      "direct": "selected_direct, parity with automatic selected page set"
+    },
+    "organic_ab_a": {
+      "answers": [
+        "EMBER-QUARTZ-914",
+        "CIRRUS-VAULT-268",
+        "EMBER-QUARTZ-914"
+      ],
+      "correct_rows": 3,
+      "cold_cases": ["B", "A-again"],
+      "a_again_selected_page_ids": [0, 1, 2, 6, 14, 17, 23, 24],
+      "a_again_h2d_useful_bytes": 4325376,
+      "a_again_target_graph_used": true,
+      "a_again_graph_capture_count": 78,
+      "a_again_graph_replay_count": 1,
+      "a_again_graph_rebuild_count": 78,
+      "a_again_table_epoch_changes": 78,
+      "a_again_packed_copy_updates": 0
+    }
+  },
+  "checks": {
+    "phase84_route_promotion_diagnostic": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/phase84_route_promotion_diagnostic.py",
+        "--key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/84-02/run-1/organic-ab-a-auto-final-g-20260920"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_84-02.md",
+          "sha256": "46a246d1797bbff34e95d59aef48e5c8e08895eebca51a26fe19d5389fb49083"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/t0-test-cuda-kv-promotion-20260920.log",
+          "sha256": "4739ca28df92f5d2c0c637a130aa200b630b43685c625cf37891b9fa430435a6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/t1-test-kv-attention-execution-20260920.log",
+          "sha256": "b89593340b50c787a09aac0891db26a282b26787367b2e7274eea58208572e37"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/organic-ab-a-auto-final-g-c6143-20260920/summary.json",
+          "sha256": "7a0bdc78db151b59d7a49956fc11bae75ab23c720e4c08751cfa4595393a35e0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/organic-ab-a-auto-final-g-c6143-20260920/request-a.json",
+          "sha256": "24f877bd7d298525d7d4c185b5f409553a9c10d84bb45f6078d89881f90ffd80"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/organic-ab-a-auto-final-g-c6143-20260920/request-b.json",
+          "sha256": "16251df0cc5456e3cfc8c496d5dd5ba2314cdd572277f319c7ea1252371ab8ef"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/organic-ab-a-auto-final-g-c6143-20260920/request-a-again.json",
+          "sha256": "f2e2c6c21b1ccadc667f778b679b2b88499883efc6c612666155af8af2f96684"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/route-auto-control-final-20260920/records.jsonl",
+          "sha256": "b46e8d51bfd1c0cabd8d9869ace9fc3185d229ce4a08bacac6c385cc57c24c75"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/route-reference-control-20260920/records.jsonl",
+          "sha256": "f2602b0f99e6a13a79fa62e906519e29330dc2647df77ea1d3cd20c44808eb19"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/route-packed-control-final-20260920/records.jsonl",
+          "sha256": "1d7df071672bf9e6b15ed12badc9c599bddb0a8a59b69f73a57303e77190b6eb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/route-direct-control-final-20260920/records.jsonl",
+          "sha256": "a976faf4b5b877360d780e3e5503813d004caada79571c715fac1141fa7d8737"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-02/run-1/v10-candidate-20260920g/build-receipt.json",
+          "sha256": "4526b08537f1e4ea8e6ae92b5fcf1061a9bf16691fab7fb9fe1ce4827862e440"
+        }
+      ]
+    }
+  }
+}
