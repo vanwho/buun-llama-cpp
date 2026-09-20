@@ -211,6 +211,7 @@ public:
             uint64_t content_version) noexcept;
     size_t drain(
             std::vector<llama_kv_pager_host_completion> & output) noexcept;
+    bool completion_ready() const noexcept;
     // Wait until queued host captures have either completed or failed. This is
     // used only when a writer has no immediately evictable slot.
     size_t wait() noexcept;
@@ -248,7 +249,7 @@ private:
     std::shared_ptr<vbr_h2d_chunk_ring> upload_ring_;
     bool async_enabled_ = false;
     bool worker_stop_ = false;
-    std::mutex worker_mutex_;
+    mutable std::mutex worker_mutex_;
     std::condition_variable worker_cv_;
     std::deque<std::shared_ptr<pending_capture>> pending_;
     std::vector<std::shared_ptr<pending_capture>> active_;
@@ -482,7 +483,10 @@ public:
     void set_host_provider(llama_kv_pager_host_provider provider) noexcept;
     void set_routing_summary_provider(
             llama_kv_pager_routing_summary_provider provider) noexcept;
-    uint32_t seal_ready_pages() noexcept;
+    uint32_t seal_ready_pages(bool publish_catalogue = true) noexcept;
+    bool host_maintenance_pending() const noexcept;
+    bool catalogue_maintenance_pending() const noexcept;
+    void poll_host_completions() noexcept;
     bool invalidate_host_page(const llama_kv_page_id & page) noexcept;
     void bind_representation_identity(
             uint64_t model_identity,

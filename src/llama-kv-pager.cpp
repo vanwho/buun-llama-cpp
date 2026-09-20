@@ -301,7 +301,6 @@ llama_kv_pager_host::llama_kv_pager_host(
 struct llama_kv_pager_host::pending_capture {
     llama_kv_page_record page;
     uint64_t content_version = 0;
-    prepared_capture prepared;
     bool cancelled = false;
 };
 
@@ -538,25 +537,24 @@ llama_kv_pager_host_result llama_kv_pager_host::enqueue(
         return seal(page);
     }
     llama_kv_pager_host_result result;
-    prepared_capture prepared;
-    if (!prepare(page, prepared)) {
-        result.status = llama_kv_pager_host_status::prepare_failed;
+    if (!ring_ || !provider_.prepare ||
+            !llama_kv_page_id_valid(page.id, llama_kv_page_id_is_tail(page.id)) ||
+            page.physical_slot == UINT32_MAX ||
+            page.state == llama_kv_page_state::absent || page.pin_count != 0) {
+        result.status = llama_kv_pager_host_status::invalid_page;
         return result;
     }
     try {
         std::shared_ptr<pending_capture> job(new pending_capture);
         job->page = page;
         job->content_version = content_version;
-        job->prepared = std::move(prepared);
         {
             std::lock_guard<std::mutex> lock(worker_mutex_);
-            // Two queued pages plus the active page bound the amount of
-            // provider state retained outside the compute thread. If the
-            // queue is full, complete this page synchronously rather than
-            // refusing canonical publication indefinitely.
-            if (pending_.size() >= 2) {
-                return execute(page, job->prepared);
-            }
+            // Preparation acquires the immutable source snapshot and is host
+            // work too. Keep it, the D2H operation, and catalogue publication
+            // on the existing worker; enqueue is only the ownership handoff
+            // from the graph-fence owner. The worker's capture ring provides
+            // the actual bounded transfer backpressure.
             pending_.push_back(std::move(job));
         }
         worker_cv_.notify_one();
@@ -584,6 +582,15 @@ size_t llama_kv_pager_host::drain(
         output.clear();
     }
     return output.size();
+}
+
+bool llama_kv_pager_host::completion_ready() const noexcept {
+    try {
+        std::lock_guard<std::mutex> lock(worker_mutex_);
+        return !completed_.empty();
+    } catch (...) {
+        return false;
+    }
 }
 
 size_t llama_kv_pager_host::wait() noexcept {
@@ -620,17 +627,17 @@ void llama_kv_pager_host::worker_main() noexcept {
             std::lock_guard<std::mutex> lock(worker_mutex_);
             cancelled = job->cancelled;
         }
+        prepared_capture prepared;
         llama_kv_pager_host_result result;
         if (cancelled) {
             result.status = llama_kv_pager_host_status::capture_failed;
+        } else if (!prepare(job->page, prepared)) {
+            result.status = llama_kv_pager_host_status::prepare_failed;
         } else {
-            result = execute(job->page, job->prepared);
+            result = execute(job->page, prepared);
         }
         {
             std::unique_lock<std::mutex> lock(worker_mutex_);
-            worker_cv_.wait(lock, [&] {
-                return worker_stop_ || completed_.size() < 4;
-            });
             cancelled = job->cancelled;
             if (cancelled) {
                 vbr_selected_page_host_key key;
@@ -1778,7 +1785,45 @@ void llama_kv_pager::wait_host_completions() noexcept {
     }
 }
 
-uint32_t llama_kv_pager::seal_ready_pages() noexcept {
+bool llama_kv_pager::host_maintenance_pending() const noexcept {
+    if (!host_) return false;
+    if (host_->completion_ready()) return true;
+    for (const auto & page : pages_) {
+        if (!page.present || !page.maintenance_pending || page.host_inflight) continue;
+        const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+            std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                        [](uint8_t value) { return value != 0; });
+        const bool current_partial = current_page_index_ < pages_.size() &&
+            &pages_[current_page_index_] == &page && !full;
+        if (!current_partial && (!page.record.host_valid ||
+                page.host_content_version != page.content_version)) return true;
+    }
+    return false;
+}
+
+bool llama_kv_pager::catalogue_maintenance_pending() const noexcept {
+    if (routing_summary_provider_.build == nullptr) return false;
+    for (const auto & page : pages_) {
+        if (!page.present || !page.maintenance_pending || page.host_inflight ||
+                page.summary_content_version == page.content_version) continue;
+        const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
+            std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
+                        [](uint8_t value) { return value != 0; });
+        const bool current_partial = current_page_index_ < pages_.size() &&
+            &pages_[current_page_index_] == &page && !full;
+        if (!current_partial) return true;
+    }
+    return false;
+}
+
+void llama_kv_pager::poll_host_completions() noexcept {
+    drain_host_completions();
+}
+
+uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
+    const bool queued_work = !maintenance_queue_complete_ ||
+        !maintenance_page_indices_.empty() || !maintenance_processing_indices_.empty();
+    if (!queued_work && (!host_ || !host_->completion_ready())) return 0;
     ++seal_calls_;
     drain_host_completions();
     const bool full_scan = !maintenance_queue_complete_;
@@ -1819,11 +1864,12 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                         [](uint8_t value) { return value != 0; });
         const bool current_partial = current_page_index_ < pages_.size() &&
             &pages_[current_page_index_] == &page && !full;
-        if (current_partial && host_ && host_->async_enabled()) {
+        if (current_partial) {
             // The append tail is still mutable. Its asynchronous host copy is
             // intentionally deferred until a later page takes over, so its
-            // write-frontier pin must remain live in the meantime.
-            queue_maintenance(page);
+            // write-frontier pin must remain live in the meantime. This is
+            // also true for synchronous/fake lanes: the tail must not become
+            // canonical merely because a scheduler fence happened.
             continue;
         }
         const auto previous = page.record;
@@ -1877,13 +1923,11 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
             const bool full = page.valid_rows.size() == snapshot_.geometry.page_tokens &&
                 std::all_of(page.valid_rows.begin(), page.valid_rows.end(),
                         [](uint8_t value) { return value != 0; });
-            if (needs_host_seal && host_ && host_->async_enabled() && !full &&
-                current_page_index_ == page_index) {
+            if (!full && current_page_index_ == page_index) {
                 // The append frontier is still mutable. Leave its bytes in
                 // the GPU write slab and publish one contiguous tail only
                 // when a later page takes over; this avoids re-copying the
                 // complete prefix once per generated token.
-                queue_maintenance(page);
                 continue;
             }
 
@@ -1940,6 +1984,13 @@ uint32_t llama_kv_pager::seal_ready_pages() noexcept {
                     queue_maintenance(page);
                     continue;
                 }
+            }
+            if (needs_summary && !publish_catalogue) {
+                // Canonical host bytes can be made evictable independently of
+                // routing refresh. Keep the page queued so the next accepted-
+                // token refresh builds the catalogue in one coalesced batch.
+                queue_maintenance(page);
+                continue;
             }
             changed.push_back({ page_index, needs_summary, true });
         }
@@ -2254,7 +2305,15 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         page->record.dirty = true;
     }
 
+    // Crossing into another logical page closes the previous append tail.
+    // Release its frontier pin before admission, then clear the frontier
+    // identity so the bounded maintenance pass may seal that now-immutable
+    // tail before selecting a replacement slot.
     release_current_pin(page);
+    if (current_page_index_ < pages_.size() &&
+            (page == nullptr || &pages_[current_page_index_] != page)) {
+        current_page_index_ = UINT32_MAX;
+    }
     bool created = false;
     if (page == nullptr) {
         uint32_t slot = UINT32_MAX;
@@ -2266,7 +2325,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
             // bytes and its immutable routing summary have been published.
             // Give the maintenance queue one bounded opportunity to finish
             // that pair before selecting an eviction victim.
-            (void) seal_ready_pages();
+            (void) seal_ready_pages(false);
             for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
                 page_state * candidate = find_slot(i);
                 if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
@@ -2357,9 +2416,14 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.host_valid = false;
     page->record.dirty = true;
-    queue_maintenance(*page);
     page->record.pin_count++;
     current_page_index_ = uint32_t(page - pages_.data());
+    // The mutable tail is intentionally not a maintenance item. It becomes
+    // eligible when it fills, or when a later page takes over and releases
+    // the old frontier pin.
+    if (full) {
+        queue_maintenance(*page);
+    }
     if (publish_page(*page) != llama_kv_pager_write_status::ok) {
         page->valid_rows[offset] = row_was_valid;
         if (!created) {
@@ -2480,7 +2544,7 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
         // full, sealing publishes its host copy and releases that pin so the
         // batch can evict it atomically when the next logical page crosses H.
         if (available_slots() < new_logical_pages.size() && host_) {
-            (void) seal_ready_pages();
+            (void) seal_ready_pages(false);
         }
 
         // A completion may be the only producer that can turn a slot into a
@@ -2620,10 +2684,12 @@ llama_kv_pager_write_status llama_kv_pager::complete_write(
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.host_valid = false;
     page->record.dirty = true;
-    queue_maintenance(*page);
     // The partial page is the write frontier. Keep it pinned until a later page takes over.
     const bool is_current = current_page_index_ < pages_.size() &&
         &pages_[current_page_index_] == page;
+    if (full || !is_current) {
+        queue_maintenance(*page);
+    }
     if (!full && is_current) {
         // A partial page is the write frontier and remains protected until a
         // later page takes over or the post-graph fence releases it.
