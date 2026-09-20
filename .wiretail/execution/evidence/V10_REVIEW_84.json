@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_84",
+  "revision": "hotpath-v10-20260914",
+  "task": "85-01",
+  "goal_met": false,
+  "diagnosis": {
+    "native_mtp": "Both dense all-GPU and CPU-main-KV controls have a request-scoped positive draft denominator but accept 0/123; the phase-84 first-divergence receipt exposes no target argmax, so the common draft/verification proposal identity and rollback seam must be repaired before speed work.",
+    "direct_route": "The physical promotion chain completes, but automatic multi-page selected attention remains selected_reference after an independent direct CUDA illegal-memory boundary. Automatic packed copies remain zero and packed stays diagnostic-only.",
+    "host_bound_path": "The fixed append performs 64 summary builds, 96 host-seal D2H calls, and 24 graph rebuilds for 65 new prompt tokens; maintenance must be page/cadence coalesced before speed claims.",
+    "baseline": "Preserve L8192/C6143/H4096/A4096/B128/U128 and require direct counters, GPU utilization, and maintenance deltas in every repair smoke."
+  },
+  "stop_gates": [
+    "Do not claim all-GPU native-MTP speed until draft_delta > 0 and accepted_delta > 0 are observed request-scoped.",
+    "Do not claim automatic multi-page direct promotion until CUDA parity and completed target-graph use are proved.",
+    "Do not run 256K occupancy, six-point scaling, or broad quality claims until selected 256-token smoke is no longer host-bound."
+  ],
+  "next_task_ids": ["85-02", "85-03", "85-04", "85-05", "85-06", "85-07"],
+  "source_evidence": [
+    ".wiretail/execution/evidence/V10_SUMMARY_84.json",
+    ".wiretail/execution/evidence/V10_SUMMARY_84.md",
+    ".wiretail/execution/evidence/V10_84-01.json",
+    "/srv/ai/paged-kv/results/v10/84-01/run-1/mtp_diagnostic.json",
+    ".wiretail/execution/evidence/V10_84-02.json",
+    ".wiretail/execution/evidence/V10_84-03_speed_attribution.json"
+  ]
+}

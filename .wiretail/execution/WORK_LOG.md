@@ -1111,3 +1111,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-79-02`
 - Commit at update: `53bdeac06`
 - Summary: Controlled T1 and organic T3 promotion-quality proof passed; receipt and handoff recorded.
+
+## 2026-09-20T18:43:42+00:00 — 85-01 — done
+
+- Branch: `codex/task-85-01`
+- Commit at update: `5812ae119`
+- Summary: Reviewed phase-84 diagnostics and scheduled ordered MTP, direct-route, maintenance, focused revalidation, summary, and review successors.
