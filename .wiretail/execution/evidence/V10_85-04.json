@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "task": "85-04",
+  "source_commit": "b0b8d4bd07b213c50eeef80007235eb62610614b",
+  "checks": {
+    "pager_maintenance_regression": {
+      "status": "pass",
+      "command": [
+        "bash",
+        "-lc",
+        "./build-cuda/bin/test-kv-pager && ./build-cuda/bin/test-arg-parser && ./build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/tmp/v10-85-04-cuda-test-kv-pager.log", "sha256": "ade5c313f451630d1a8951a379dc4703e8e72767db40a3ed009e3c5895f87637"},
+        {"path": "/tmp/v10-85-04-cuda-test-arg-parser.log", "sha256": "2b42de858b8c3062c1abd2f7708b6652039f8301b1ea6f713da5722cb030bdfa"},
+        {"path": "/tmp/v10-85-04-cuda-test-cuda-kv-promotion.log", "sha256": "bf08a88fdc4c6412005f7230cb022132bf7754b54c20791216cbac3e44b4ebfa"},
+        {"path": "/tmp/v10-85-04-cpu-test-kv-pager.log", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+        {"path": "/tmp/v10-85-04-cpu-test-arg-parser.log", "sha256": "09e8ed8202846b5d079b5202014e873c91eadae75d6abba47144bf5ac9871318"}
+      ],
+      "finding": {
+        "complete_page_and_tail": "pass",
+        "async_completion": "pass",
+        "coalesced_publication_and_repeated_fence": "pass",
+        "refresh_cadence": "pass",
+        "cuda_promotion": "pass"
+      }
+    },
+    "maintenance_256_smoke": {
+      "status": "pass",
+      "command": ["./build-cuda/bin/test-kv-pager"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": "/tmp/v10-85-04-cuda-test-kv-pager.log", "sha256": "ade5c313f451630d1a8951a379dc4703e8e72767db40a3ed009e3c5895f87637"},
+        {"path": ".wiretail/execution/evidence/V10_85-04_smoke.md", "sha256": "ff09fb274e6968ed0c23399f9a8682c6ce700ab248a22bbbe474443b125db395"}
+      ],
+      "finding": {
+        "local_256_page_regression": "pass",
+        "live_http_completion": "deferred",
+        "live_deferred_reason": "The rebuilt working-tree server reached the endpoint but stalled at 91 graph completions versus 92 submissions with zero predicted tokens; the canonical adapter also requires an immutable build-receipt.json absent from this working-tree build.",
+        "live_observed_counters_artifact": ".wiretail/execution/evidence/V10_85-04_smoke.md"
+      }
+    }
+  }
+}
