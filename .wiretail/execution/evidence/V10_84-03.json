@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "task": "84-03",
+  "source_commit": "c36e277403d4f0b393e59efa7597be20c7453e2b",
+  "checks": {
+    "phase84_speed_attribution": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-phase84-speed-attribution.py",
+        "--root",
+        "/srv/ai/paged-kv/results/v10/84-03/run-1",
+        "--summary",
+        ".wiretail/execution/evidence/V10_84-03_speed_attribution.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_84-03_speed_attribution.json",
+          "sha256": "5d0eb307a25a236eb6b386f965b5f6c91446a491acc1288cf6990e8a72cfc6b3"
+        },
+        {
+          "path": "tools/server/bench/validate-phase84-speed-attribution.py",
+          "sha256": "ee08f8f79494cc2a99e5ced11cd130c5aec44e7222dbaeb844d0df3e3f514ddd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_native_mtp/measure/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "86518a2e26d471d5aab2fb9a238e19ecba1cfe3dd66239d28428713841a95d01"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_native_mtp/cached-append-fixed-ignoreeos/coordinate.json",
+          "sha256": "b577c03dc2cbfad3348e6b04c0682d93d6ed936c2aaef667311c7c3af5d7f546"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-03/run-1/final_selected_native_mtp_loaded/lifecycle-state.json",
+          "sha256": "1ce9aec48ba5329a5404e0347d7aa74863227836b1f01bff4f1d7756bfb7e37c"
+        }
+      ]
+    }
+  }
+}
