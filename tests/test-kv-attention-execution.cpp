@@ -213,25 +213,42 @@ static void test_routes_epochs_and_fences() {
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
 
-    // Automatic multi-query prefill stays on the canonical selected
-    // consumer; direct paged production dispatch is decode-only until its
-    // long-prefill graph boundary has an independent CUDA proof. The packed
-    // bridge remains a diagnostic-only override.
+    // Automatic multi-page Turbo4 prefill uses the persistent paged consumer.
+    // The compact packed bridge remains a diagnostic-only override.
     llama_kv_attention_execution direct_over_packed(
             llama_kv_attention_execution_mode::selective);
     const auto direct_packed = direct_over_packed.prepare(selected_prefill,
             llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
             {}, false, true);
-    assert(direct_packed.route == llama_kv_attention_execution_route::selected_reference);
+    assert(direct_packed.route == llama_kv_attention_execution_route::selected_direct);
+    assert(direct_over_packed.metrics().selected_page_ids.size() == 2 &&
+           direct_over_packed.metrics().selected_page_ids[0] == 0 &&
+           direct_over_packed.metrics().selected_page_ids[1] == 2);
     assert(direct_over_packed.metrics().pack_bytes == 0);
     assert(direct_over_packed.metrics().pack_epochs == 0);
     direct_over_packed.complete_one_graph();
 
-    const auto packed_prefill = metadata(snapshot(), 129, 1);
+    // A table/tail publication updates the mutable descriptor inputs while
+    // preserving the direct graph topology and physical page view.
+    const auto direct_replay = direct_over_packed.prepare(metadata(snapshot(701), 2, 1),
+            llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
+            {}, false, true);
+    assert(!direct_replay.graph_rebuild);
+    assert(direct_over_packed.metrics().selected_page_ids.size() == 2 &&
+           direct_over_packed.metrics().selected_page_ids[0] == 0 &&
+           direct_over_packed.metrics().selected_page_ids[1] == 2);
+    assert(direct_over_packed.metrics().pack_bytes == 0);
+    assert(direct_over_packed.metrics().pack_epochs == 0);
+    direct_over_packed.complete_one_graph();
+
+    // Production prefill direct dispatch is intentionally bounded to the
+    // tiny query tile accepted by the CUDA primitive; it still exercises a
+    // multi-page table and must not manufacture packed storage.
+    const auto packed_prefill = metadata(snapshot(), 2, 1);
     const auto direct_policy = direct_over_packed.prepare(packed_prefill,
             llama_kv_attention_execution_phase::prefill, 8, 12, true, scratch,
             {}, false, true);
-    assert(direct_policy.route == llama_kv_attention_execution_route::selected_reference);
+    assert(direct_policy.route == llama_kv_attention_execution_route::selected_direct);
     assert(direct_over_packed.metrics().pack_bytes == 0);
     assert(direct_over_packed.metrics().pack_epochs == 0);
     direct_over_packed.complete_one_graph();
@@ -461,10 +478,16 @@ static void test_view_sized_scratch_contract() {
 
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::decode, true, false, true) ==
-           llama_kv_attention_execution_route::selected_reference);
+           llama_kv_attention_execution_route::selected_direct);
     const auto single_page = metadata(snapshot(), 1, 1, { 0 }, 255);
     assert(execution.planned_route(single_page,
             llama_kv_attention_execution_phase::decode, true, false, true) ==
+           llama_kv_attention_execution_route::selected_direct);
+    assert(execution.planned_route(selected,
+            llama_kv_attention_execution_phase::mtp_verify, true, false, false) ==
+           llama_kv_attention_execution_route::selected_direct);
+    assert(execution.planned_route(selected,
+            llama_kv_attention_execution_phase::prefill, true, false, true) ==
            llama_kv_attention_execution_route::selected_direct);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, true, false) ==
@@ -589,6 +612,13 @@ static void test_fallbacks_and_graph_key() {
             1, 1, true, scratch);
     assert(refusal.status == llama_kv_attention_execution_status::invalid_metadata);
     assert(refusal.route == llama_kv_attention_execution_route::refusal);
+
+    llama_kv_attention_execution direct_guard(llama_kv_attention_execution_mode::selective);
+    direct_guard.set_route_override("direct");
+    const auto invalid_direct = direct_guard.prepare({},
+            llama_kv_attention_execution_phase::decode, 1, 1, true, scratch);
+    assert(invalid_direct.status == llama_kv_attention_execution_status::invalid_metadata);
+    assert(invalid_direct.route == llama_kv_attention_execution_route::refusal);
 
     llama_kv_attention_scratch_request overflow;
     overflow.resident_rows = UINT64_MAX;

@@ -35,14 +35,17 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
 bool production_direct_shape(
         const llama_kv_attention_operator_metadata & metadata,
         llama_kv_attention_execution_phase phase) noexcept {
-    // The paged Turbo4 CUDA graph is production-safe for one-query decode and
-    // the one-page prefill shape. Multi-page prefill remains on the canonical
-    // selected consumer until its long-prefill graph boundary has an
-    // independent proof; forcing that path would turn an unsupported shape
-    // into a device fault.
-    return direct_shape(metadata) && metadata.page_table().size() <= 1 &&
+    // The CUDA direct prefill primitive is graph-sized in tiny query tiles.
+    // The server may submit a larger ubatch, which must remain on the mature
+    // selected consumer and be split by the normal scheduler. Decode and MTP
+    // verification are already single/tiny-query shapes and keep the direct
+    // multi-page promotion.
+    const bool bounded_prefill = phase != llama_kv_attention_execution_phase::prefill ||
+        metadata.n_query_tokens() <= 2;
+    return direct_shape(metadata) && bounded_prefill &&
         (phase == llama_kv_attention_execution_phase::decode ||
-         phase == llama_kv_attention_execution_phase::prefill);
+         phase == llama_kv_attention_execution_phase::prefill ||
+         phase == llama_kv_attention_execution_phase::mtp_verify);
 }
 
 } // namespace
@@ -859,7 +862,7 @@ bool llama_kv_attention_execution::same_graph(
         route == llama_kv_attention_execution_route::selected_direct ||
         route == llama_kv_attention_execution_route::selected_packed;
     return have_graph_ && metadata.graph_layout_key() == metadata_.graph_layout_key() &&
-           (mutable_direct_inputs || metadata.table_epoch() == metadata_.table_epoch()) &&
+           (mutable_direct_inputs || metadata.table_epoch() == table_epoch_) &&
            phase == phase_ && representation_epoch == representation_epoch_ &&
            shape_epoch == shape_epoch_ && route == route_ &&
            ((route != llama_kv_attention_execution_route::selected_dense &&

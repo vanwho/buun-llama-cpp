@@ -119,7 +119,7 @@ struct ggml_cuda_fattn_mma_paged_turbo4_policy {
         if (explicit_native_metadata && native_positions != nullptr) {
             native_position = native_positions[compact_row];
         }
-        if (native_mask != nullptr && native_mask[compact_row] == 0) {
+        if (explicit_native_metadata && native_mask != nullptr && native_mask[compact_row] == 0) {
             return false;
         }
         return route_selected(query, page_index) &&

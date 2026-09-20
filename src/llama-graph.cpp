@@ -4286,6 +4286,10 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             }
             inp->direct_page_capacity = uint32_t(page_capacity64);
             inp->direct_row_capacity = uint32_t(row_capacity64);
+            inp->direct_physical_page_count = pager->snapshot().physical_page_count;
+            if (inp->direct_physical_page_count == 0) {
+                throw std::runtime_error("direct paged attention has no physical page capacity");
+            }
             inp->direct_active_page_count = uint32_t(selected_metadata->page_table().size());
             inp->direct_active_row_count = selected_metadata->get_n_kv();
             inp->direct_active_tail_length = selected_metadata->page_table().back().row_count;
@@ -4942,6 +4946,9 @@ ggml_tensor * llm_graph_context::build_attn(
             wave_params.partial_state_accumulate = previous_state != nullptr;
             wave_params.partial_state_output = wave_index + 1 < inp->exact_waves.size();
             wave_params.page_capacity = uint32_t(wave.pages_host.size());
+            wave_params.physical_page_count = cold
+                ? inp->exact_staging_pages
+                : pager->snapshot().physical_page_count;
             // The shared position input is graph-sized for the complete
             // exact plan.  The device active-row count still limits this
             // wave's traversal and keeps the padded suffix invalid.
@@ -5017,11 +5024,18 @@ ggml_tensor * llm_graph_context::build_attn(
         direct_params.scale = kq_scale;
         direct_params.causal = true;
         direct_params.page_mass = telemetry_page_mass;
-        direct_params.split_kv_scratch = inp->direct_split_kv_scratch;
+        // Ordinary direct prefill uses the fused multi-query MMA primitive.
+        // Keeping the optional split scratch attached here forces the CUDA
+        // dispatcher onto the cooperative fallback, whose long multi-page
+        // graph path is not safe for the production 128-token tile.  The
+        // scratch arena remains graph-owned for exact-wave/telemetry plans;
+        // it is deliberately not part of this ordinary direct node.
+        direct_params.split_kv_scratch = nullptr;
         direct_params.split_kv_partition_capacity = inp->direct_split_kv_partition_capacity;
         direct_params.split_kv_page_count = inp->direct_split_kv_page_count;
         direct_params.page_capacity = inp->direct_page_capacity;
         direct_params.row_capacity = inp->direct_row_capacity;
+        direct_params.physical_page_count = inp->direct_physical_page_count;
         direct_params.active_page_count_host = &inp->direct_active_page_count;
         direct_params.active_row_count_host = &inp->direct_active_row_count;
         direct_params.explicit_native_metadata = inp->direct_explicit_native_metadata;
