@@ -129,6 +129,7 @@ static void test_prefill_admission() {
 static void test_routes_epochs_and_fences() {
     const auto selected_prefill = metadata(snapshot(), 2, 1);
     const auto selected_decode = metadata(snapshot(), 1, 1);
+    const auto selected_single_page = metadata(snapshot(), 1, 1, { 0 }, 255);
     llama_kv_attention_scratch_request scratch;
     scratch.resident_rows = selected_prefill.get_n_kv();
     scratch.transfer_rows = 16;
@@ -196,7 +197,7 @@ static void test_routes_epochs_and_fences() {
 
     execution.set_route_override("auto");
     const auto dense = execution.prepare(selected_prefill,
-            llama_kv_attention_execution_phase::prefill, 5, 9, true, scratch,
+            llama_kv_attention_execution_phase::prefill, 5, 9, false, scratch,
             {}, true, false);
     assert(dense.route == llama_kv_attention_execution_route::selected_dense);
     execution.complete_one_graph();
@@ -212,14 +213,18 @@ static void test_routes_epochs_and_fences() {
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
 
-    // The packed bridge is reserved for the explicit diagnostic override;
-    // automatic dispatch keeps the canonical reference consumer.
+    // Automatic multi-query prefill stays on the canonical selected
+    // consumer; direct paged production dispatch is decode-only until its
+    // long-prefill graph boundary has an independent CUDA proof. The packed
+    // bridge remains a diagnostic-only override.
     llama_kv_attention_execution direct_over_packed(
             llama_kv_attention_execution_mode::selective);
     const auto direct_packed = direct_over_packed.prepare(selected_prefill,
             llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
             {}, false, true);
     assert(direct_packed.route == llama_kv_attention_execution_route::selected_reference);
+    assert(direct_over_packed.metrics().pack_bytes == 0);
+    assert(direct_over_packed.metrics().pack_epochs == 0);
     direct_over_packed.complete_one_graph();
 
     const auto packed_prefill = metadata(snapshot(), 129, 1);
@@ -227,7 +232,43 @@ static void test_routes_epochs_and_fences() {
             llama_kv_attention_execution_phase::prefill, 8, 12, true, scratch,
             {}, false, true);
     assert(direct_policy.route == llama_kv_attention_execution_route::selected_reference);
+    assert(direct_over_packed.metrics().pack_bytes == 0);
+    assert(direct_over_packed.metrics().pack_epochs == 0);
     direct_over_packed.complete_one_graph();
+
+    llama_kv_attention_execution explicit_reference(
+            llama_kv_attention_execution_mode::selective);
+    explicit_reference.set_route_override("reference");
+    const auto reference_control = explicit_reference.prepare(selected_prefill,
+            llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
+            {}, false, true);
+    assert(reference_control.route == llama_kv_attention_execution_route::selected_reference);
+    explicit_reference.complete_one_graph();
+
+    // The automatic route and the explicit direct diagnostic must consume
+    // the same selected logical pages. Output parity for this pair is proved
+    // by the CUDA route/promotion diagnostic; this unit test guards the
+    // dispatch and page-set contract without manufacturing a second FA.
+    llama_kv_attention_execution explicit_direct(
+            llama_kv_attention_execution_mode::selective);
+    explicit_direct.set_route_override("direct");
+    const auto explicit_direct_decision = explicit_direct.prepare(selected_single_page,
+            llama_kv_attention_execution_phase::decode, 7, 11, true, scratch,
+            {}, false, true);
+    assert(explicit_direct_decision.route == llama_kv_attention_execution_route::selected_direct);
+    const auto explicit_page_ids = explicit_direct.metrics().selected_page_ids;
+    explicit_direct.complete_one_graph();
+
+    llama_kv_attention_execution automatic_direct(
+            llama_kv_attention_execution_mode::selective);
+    const auto automatic_direct_decision = automatic_direct.prepare(selected_single_page,
+            llama_kv_attention_execution_phase::decode, 7, 11, true, scratch,
+            {}, false, true);
+    assert(automatic_direct_decision.route == llama_kv_attention_execution_route::selected_direct);
+    assert(automatic_direct.metrics().selected_page_ids == explicit_page_ids);
+    assert(automatic_direct.metrics().pack_bytes == 0);
+    assert(automatic_direct.metrics().pack_epochs == 0);
+    automatic_direct.complete_one_graph();
 
     // Forced routes compare the same metadata and fail closed when their
     // capability contract is absent. This is the diagnostic seam used by the
@@ -243,7 +284,7 @@ static void test_routes_epochs_and_fences() {
     llama_kv_attention_execution diagnostic_direct(
             llama_kv_attention_execution_mode::selective);
     diagnostic_direct.set_route_override("direct");
-    const auto forced_direct = diagnostic_direct.prepare(selected_prefill,
+    const auto forced_direct = diagnostic_direct.prepare(selected_single_page,
             llama_kv_attention_execution_phase::decode, 9, 13, true, scratch,
             {}, false, true);
     assert(forced_direct.status == llama_kv_attention_execution_status::ok);
@@ -421,6 +462,10 @@ static void test_view_sized_scratch_contract() {
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::decode, true, false, true) ==
            llama_kv_attention_execution_route::selected_reference);
+    const auto single_page = metadata(snapshot(), 1, 1, { 0 }, 255);
+    assert(execution.planned_route(single_page,
+            llama_kv_attention_execution_phase::decode, true, false, true) ==
+           llama_kv_attention_execution_route::selected_direct);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, true, false) ==
            llama_kv_attention_execution_route::selected_dense);

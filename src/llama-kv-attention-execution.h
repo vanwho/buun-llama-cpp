@@ -42,6 +42,7 @@ enum class llama_kv_attention_execution_route : uint8_t {
 // satisfy that route's geometry/capability contract.
 enum class llama_kv_attention_execution_route_override : uint8_t {
     automatic = 0,
+    reference,
     dense,
     packed,
     direct,
