@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "task": "85-06",
+  "source_commit": "d0472faa0e837c00a7e10983dcb32c2e4e146ba5",
+  "checks": {
+    "phase85_revalidation_summary": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-06",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-06.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_85.json",
+          "sha256": "195b5437e78fedfd1aac4b6f4210d7d8e76ccfc2f65c1d612d24e93597f6dc37"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_85.md",
+          "sha256": "13632bbb8cdbf8968ae294129b1e80dd455ba5bca714dc1f4f12b50a7a384509"
+        }
+      ],
+      "finding": {
+        "all_gpu_native_mtp_denominator": "positive but zero acceptance",
+        "automatic_multi_page_direct_target_use": "failed",
+        "selected_host_bound_maintenance_removal": "failed",
+        "speed_ratios": null,
+        "gpu_utilization": null
+      }
+    }
+  }
+}
