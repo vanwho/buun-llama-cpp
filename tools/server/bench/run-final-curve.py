@@ -107,6 +107,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--model", default="qwen38-fast-turbo4-mtp")
     parser.add_argument("--mode", choices=("off", "observe", "selective", "exact"), default="selective")
+    parser.add_argument("--mtp-mode", choices=("native", "off"),
+                        help="MTP observation state; defaults to native for pager routes and off for --mode off")
     parser.add_argument("--prefill-policy", default="runtime")
     parser.add_argument("--warmups", type=int, default=0,
                         help="one short separate warmup per configuration when positive")
@@ -165,10 +167,11 @@ def request_json(url: str, key: str, payload: dict[str, Any] | None = None,
 
 
 def body(model: str, messages: list[dict[str, Any]], max_tokens: int,
-         stream: bool) -> dict[str, Any]:
+         stream: bool, *, ignore_eos: bool = False) -> dict[str, Any]:
     return {
         "model": model, "messages": messages, "max_tokens": max_tokens,
         "temperature": 0, "seed": 42, "stream": stream,
+        "ignore_eos": ignore_eos,
         "stream_options": {"include_usage": True},
         "chat_template_kwargs": {"enable_thinking": False},
     }
@@ -480,13 +483,15 @@ def run_request(endpoint: str, key: str, model: str,
                 context: int, phase: str, question_index: int, trial: int,
                 prompt_tokens: int, timeout: float, raw_path: pathlib.Path,
                 *, cache_condition: str = "cold-prefill", mode: str = "selective",
+                mtp_requested: bool | None = None,
+                ignore_eos: bool = False,
                 reset_mode: str | None = None,
                 prefill_policy: str = "runtime", slot_clear: Mapping[str, Any] | None = None,
                 startup_timeout: float = 30.0, progress_idle_timeout: float = 120.0,
                 decode_idle_timeout: float = 120.0, total_timeout: float | None = 300.0,
                 progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
     messages = prompt if isinstance(prompt, list) else [{"role": "user", "content": prompt}]
-    request_body = body(model, messages, maximum, True)
+    request_body = body(model, messages, maximum, True, ignore_eos=ignore_eos)
     request_hash = hashlib.sha256(json.dumps(request_body, sort_keys=True,
                                               separators=(",", ":")).encode()).hexdigest()
     started = time.monotonic()
@@ -527,7 +532,8 @@ def run_request(endpoint: str, key: str, model: str,
         after = snapshot(endpoint, key)
         record.update({"after": after, "movement_delta": _delta(before, after),
                        "raw_path": str(raw_path)})
-        mtp_observation = _mtp_observation(before, after, feature_off=mode == "off")
+        mtp_observation = _mtp_observation(
+            before, after, feature_off=(mode == "off" if mtp_requested is None else not mtp_requested))
         record.update({"mtp_source": mtp_observation["source"],
                        "mtp": mtp_observation["mtp"],
                        "mtp_counters": mtp_observation["counters"]})
@@ -543,7 +549,8 @@ def run_request(endpoint: str, key: str, model: str,
     record["cached_rows"] = cached
     record["server_pp_tok_s"] = timings.get("prompt_per_second")
     record["server_tg_tok_s"] = timings.get("predicted_per_second")
-    mtp_observation = _mtp_observation(before, after, feature_off=mode == "off")
+    mtp_observation = _mtp_observation(
+        before, after, feature_off=(mode == "off" if mtp_requested is None else not mtp_requested))
     mtp = mtp_observation["mtp"]
     draft_tokens = mtp.get("draft_tokens")
     accepted_draft_tokens = mtp.get("accepted_tokens")
@@ -705,10 +712,18 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
     else:
         hot_capacity = resolve_hot_capacity(allocated, page_size, "auto")
     hot_rows = hot_capacity["hot_capacity_tokens"]
-    feature_off = args.mode == "off"
+    mtp_mode = getattr(args, "mtp_mode", None)
+    if mtp_mode is None:
+        mtp_mode = "off" if args.mode == "off" else "native"
+    feature_off = mtp_mode == "off"
+    pager_off = args.mode == "off"
+    if pager_off:
+        hot_rows = allocated
     mtp_observation = _mtp_observation(record.get("before"), record.get("after"),
                                        feature_off=feature_off)
     target_placement = after_telemetry.get("target_placement")
+    if target_placement is None:
+        target_placement = "CUDA" if identity.get("target_kv_placement") == "gpu" else "CPU"
     target_type_k = after_telemetry.get("target_type_k") or _command_value(identity, "-ctk")
     target_type_v = after_telemetry.get("target_type_v") or _command_value(identity, "-ctv")
     mtp_placement = after_telemetry.get("mtp_placement") or identity.get("mtp_placement")
@@ -738,7 +753,9 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
         "reset_mode": reset["reset_mode"], "restore_shape": reset["restore_shape"],
         "mtp_history": reset["mtp_history"],
         "mtp_history_ready": reset["mtp_history_ready"],
+        "mtp_mode": mtp_mode,
         "target_placement": target_placement or "not_configured",
+        "target_kv_placement": identity.get("target_kv_placement", "not_configured"),
         "mtp_placement": mtp_placement or "not_configured",
         "target_type_k": target_type_k or "not_configured",
         "target_type_v": target_type_v or "not_configured",
@@ -780,6 +797,16 @@ def _case_record(record: Mapping[str, Any], fit: Mapping[str, Any], args: argpar
                       "cuda_update_count": {"value": None, "reason": "CUDA event spans not enabled"},
                       "cuda_launch_count": {"value": None, "reason": "CUDA event spans not enabled"},
                   }})
+    if pager_off:
+        for field in ("target_gpu_bytes", "host_committed_rows", "host_committed_bytes", "pinned_ring_bytes"):
+            if speed.get(field) is None:
+                speed[field + "_reason"] = "off-pager route has no pager allocation telemetry"
+        if speed.get("host_committed_rows") is None:
+            speed["host_committed_rows"] = 0
+        if speed.get("host_committed_bytes") is None:
+            speed["host_committed_bytes"] = 0
+        if speed.get("pinned_ring_bytes") is None:
+            speed["pinned_ring_bytes"] = 0
     if feature_off:
         for field in ("target_gpu_bytes", "host_committed_rows", "host_committed_bytes", "pinned_ring_bytes"):
             if speed.get(field) is None:
@@ -881,6 +908,8 @@ def _write_receipt(output: pathlib.Path, args: argparse.Namespace, campaign: Map
 
 def main() -> int:
     args = parse_args()
+    if args.mtp_mode is None:
+        args.mtp_mode = "off" if args.mode == "off" else "native"
     try:
         reset = resolve_reset_mode(args.reset_mode, args.cache_condition)
     except ValueError as error:
@@ -936,6 +965,7 @@ def main() -> int:
     source_diff = _source_diff_hash()
     config = {"suite": args.suite, "context": args.context, "prompt_tokens": prompt_tokens,
               "questions": question_indexes, "model": args.model, "mode": args.mode,
+              "mtp_mode": args.mtp_mode,
               "prefill_policy": args.prefill_policy, "warmups": args.warmups,
               "warmup_tokens": args.warmup_tokens, "trials": args.trials, "max_tokens": args.max_tokens,
               "reserve_context": args.reserve_context, "cache_condition": args.cache_condition,
@@ -956,6 +986,7 @@ def main() -> int:
                              min(args.warmup_tokens, 256), args.context, "warmup", -1, 1, 1,
                              args.legacy_timeout or args.startup_timeout, output / "raw-warmup.sse",
                              mode=args.mode, reset_mode=args.reset_mode,
+                             mtp_requested=args.mtp_mode == "native",
                              prefill_policy=args.prefill_policy,
                              startup_timeout=args.startup_timeout, progress_idle_timeout=args.progress_idle_timeout,
                              decode_idle_timeout=args.decode_idle_timeout, total_timeout=total_timeout)
@@ -992,6 +1023,7 @@ def main() -> int:
                                  args.context, "measured", question_index, trial, fit.token_count,
                                  args.legacy_timeout or args.startup_timeout, raw_path,
                                  cache_condition=args.cache_condition, mode=args.mode,
+                                 mtp_requested=args.mtp_mode == "native",
                                  reset_mode=args.reset_mode,
                                  prefill_policy=args.prefill_policy, slot_clear=clear,
                                  startup_timeout=args.startup_timeout, progress_idle_timeout=args.progress_idle_timeout,

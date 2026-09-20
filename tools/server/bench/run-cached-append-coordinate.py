@@ -118,6 +118,8 @@ def main() -> int:
     parser.add_argument("--prefix", type=int, default=6144)
     parser.add_argument("--deltas", type=int, nargs="+", default=[64, 256])
     parser.add_argument("--max-tokens", type=int, default=1)
+    parser.add_argument("--mode", choices=("off", "observe", "selective", "exact"), default="selective")
+    parser.add_argument("--mtp-mode", choices=("native", "off"), default="native")
     parser.add_argument("--server-bin", type=pathlib.Path, required=True)
     parser.add_argument("--slot-id", type=int, default=0)
     parser.add_argument("--timeout", type=float, default=900.0)
@@ -150,7 +152,7 @@ def main() -> int:
     if not model_hash:
         raise RuntimeError("resolved model hash unavailable")
 
-    question = "Reply with exactly one short acknowledgement token."
+    question = "Reply with exactly 64 slash characters and no other text."
     base = fit_exact(renderer, [{"role": "user", "content": f"{MARKER}\n\n{question}"}],
                      args.prefix - args.max_tokens, args.max_tokens, (question,))
     prefix_prompt_tokens = len(base.token_ids)
@@ -163,7 +165,9 @@ def main() -> int:
         first = driver.run_request(
             endpoint, key, args.model, base.messages, args.max_tokens, args.context,
             "cached-coordinate-prefix", 0, 1, prefix_prompt_tokens, args.timeout,
-            args.output / "raw-prefix.sse", cache_condition="cold-prefill", mode="selective",
+            args.output / "raw-prefix.sse", cache_condition="cold-prefill", mode=args.mode,
+            mtp_requested=args.mtp_mode == "native",
+            ignore_eos=True,
             reset_mode="fresh", slot_clear=clear, startup_timeout=60,
             progress_idle_timeout=args.timeout, decode_idle_timeout=120, total_timeout=args.timeout)
     except Exception as error:  # retain a concrete failed/not-run row for bounded campaigns
@@ -181,8 +185,11 @@ def main() -> int:
     else:
         history = list(base.messages) + [{"role": "assistant", "content": base_assistant}]
         for index, delta in enumerate(args.deltas, start=1):
-            target_prompt = first_frontier + delta
-            append_question = f"Append segment {delta}: measure cached prompt reuse only."
+            # ``target_prompt`` is the complete prompt-plus-output occupancy
+            # passed to fit_exact.  Account for the committed output reserve
+            # here so the new prompt itself grows by exactly ``delta`` tokens.
+            target_prompt = first_frontier + delta + args.max_tokens
+            append_question = f"Append segment {delta}: emit exactly 64 slash characters and no other text."
             messages = history + [{"role": "user", "content": f"{MARKER}\n\n{append_question}"}]
             fit = fit_exact(renderer, messages, target_prompt - args.max_tokens,
                             args.max_tokens, (append_question,))
@@ -191,7 +198,9 @@ def main() -> int:
             record = driver.run_request(
                 endpoint, key, args.model, fit.messages, args.max_tokens, args.context,
                 f"cached-append-{delta}", index, 1, full_prompt_tokens, args.timeout, path,
-                cache_condition="live-continuation", mode="selective", reset_mode="paired-restore",
+                cache_condition="live-continuation", mode=args.mode,
+                mtp_requested=args.mtp_mode == "native", reset_mode="paired-restore",
+                ignore_eos=True,
                 startup_timeout=60, progress_idle_timeout=args.timeout,
                 decode_idle_timeout=120, total_timeout=args.timeout)
             records.append({"name": f"append-{delta}",
