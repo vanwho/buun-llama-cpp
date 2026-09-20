@@ -2760,6 +2760,7 @@ extern "C" {
         // device control header and are read at replay, not captured here.
         uint32_t page_capacity;
         uint32_t row_capacity;
+        uint32_t physical_page_count;
         const uint32_t * active_page_count_host;
         const uint32_t * active_row_count_host;
         const uint32_t * active_page_count_device;

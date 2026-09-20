@@ -2763,9 +2763,8 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
 
     // Live attention is intentionally limited to one Qwen sequence. Selective
     // prefill, decode, and MTP retain the selected-page snapshot and physical
-    // residency contract, while the canonical reference consumer remains the
-    // automatic answer-quality boundary. The packed Turbo4 bridge remains
-    // available through its explicit process-scoped diagnostic override.
+    // residency contract. The packed Turbo4 bridge remains available through
+    // its explicit process-scoped diagnostic override.
     if (gtype != LLM_GRAPH_TYPE_DEFAULT ||
         (model.arch != LLM_ARCH_QWEN35 && model.arch != LLM_ARCH_QWEN35MOE) ||
         !cparams.flash_attn || ubatch.n_seqs_unq != 1 || ubatch.n_tokens == 0 ||
@@ -3062,7 +3061,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     const bool dense_capable = fa_capable && dense_view.eligible;
     const auto route_override = kv_attention_execution.route_override();
     // Automatic dispatch prefers the direct Turbo4 consumer for the bounded
-    // decode/one-page shape. An explicit packed diagnostic request is different: the
+    // Turbo4 shape. An explicit packed diagnostic request is different: the
     // compact owner can represent a dense or non-contiguous selected view,
     // and refusing it here prevents the requested route from ever reaching
     // the planner.

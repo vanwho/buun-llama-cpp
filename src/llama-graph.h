@@ -536,6 +536,7 @@ public:
     uint32_t direct_split_kv_page_count = 0;
     uint32_t direct_page_capacity = 0;
     uint32_t direct_row_capacity = 0;
+    uint32_t direct_physical_page_count = 0;
     uint32_t direct_active_page_count = 0;
     uint32_t direct_active_row_count = 0;
     uint32_t direct_active_tail_length = 0;

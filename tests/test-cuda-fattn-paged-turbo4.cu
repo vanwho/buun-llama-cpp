@@ -638,6 +638,20 @@ int main(int argc, char ** argv) {
         { 2, 3, 529,   1, 512 },
     };
     assert(ggml_cuda_fattn_turbo4_page_table_valid(pages, n_pages, n_rows));
+    assert(ggml_cuda_fattn_turbo4_page_table_valid(
+        pages, n_pages, n_rows, 256, n_physical_pages));
+    // The selected table is deliberately non-contiguous in both logical page
+    // order and physical slot order. It is valid because compact rows remain
+    // contiguous; corrupting either the slot bound or compact range must fail
+    // before a CUDA launch.
+    auto invalid_slot = std::vector<ggml_cuda_fattn_turbo4_page>(pages, pages + n_pages);
+    invalid_slot[0].source_physical_slot = n_physical_pages;
+    assert(!ggml_cuda_fattn_turbo4_page_table_valid(
+        invalid_slot.data(), n_pages, n_rows, 256, n_physical_pages));
+    auto invalid_compact = std::vector<ggml_cuda_fattn_turbo4_page>(pages, pages + n_pages);
+    invalid_compact[1].compact_row_begin += 1;
+    assert(!ggml_cuda_fattn_turbo4_page_table_valid(
+        invalid_compact.data(), n_pages, n_rows, 256, n_physical_pages));
 
     std::vector<uint8_t> k_host(n_head_kv * n_physical_pages * page_stride, 0);
     std::vector<uint8_t> v_host(n_head_kv * n_physical_pages * page_stride, 0);

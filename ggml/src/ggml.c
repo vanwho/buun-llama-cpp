@@ -6094,6 +6094,7 @@ struct ggml_tensor * ggml_flash_attn_ext_paged_turbo4(
     op_params[11] = (int32_t) params->page_capacity;
     op_params[12] = (int32_t) params->row_capacity;
     op_params[13] = params->explicit_native_metadata ? 1 : 0;
+    op_params[14] = (int32_t) params->physical_page_count;
 
     int64_t ne[4] = {
         params->partial_state_output ? 2 + params->head_dim_v : params->head_dim_v,
