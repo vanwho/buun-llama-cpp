@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "task": "85-02",
+  "source_commit": "21919a68f372ea47af5957db98d24185b5813dd9",
+  "checks": {
+    "mtp_state_regression": {
+      "status": "pass",
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-speculative-mtp-state"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-4/raw/mtp-state-regression.log",
+          "sha256": "033835da04ef3acc9c8c1019d909ab32dc8875be91aa3dcfda28267bcc861855"
+        }
+      ]
+    },
+    "mtp_256_smoke": {
+      "status": "pass",
+      "command": [
+        "env",
+        "BENCH_ENDPOINT=http://127.0.0.1:8080/v1/chat/completions",
+        "BENCH_SERVER_BIN=/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "fast",
+        "/srv/ai/paged-kv/results/v10/85-02/run-3",
+        "--mode",
+        "selective",
+        "--batch",
+        "128",
+        "--ubatch",
+        "128",
+        "--context",
+        "8192",
+        "--mtp",
+        "native",
+        "--one-case",
+        "--one-trial",
+        "--generation-length",
+        "256",
+        "--progress-bound",
+        "1800"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/runner.stdout",
+          "sha256": "2551308f945c128ca4ca66e0d3292c612d6327eefeb681e440c450e3aa22cb98"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/run-config.json",
+          "sha256": "8e31f6f769835756fd0deb2d1800b3e8f68360649908f5db057c69d94c705557"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/records.jsonl",
+          "sha256": "df4e14bced39fa1dfb58a3fcb1df7b4df03d88be581e70482d3c7e486f9e6c4a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/raw/smoke-counters.json",
+          "sha256": "cbb8c102d9c03dad570f84fbaca36843fb35cccd09dab6c7f6951749ca690763"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/raw/gpu-utilization.csv",
+          "sha256": "2a43a16eba0d271fe25d669cc84ab63dcc65aa47f6687a11f8fb7f8baae915b1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/raw/startup-mtp.log",
+          "sha256": "9df81939340db1869cb0cd97a626e58a0b38df623e14bbcc399b46509f9cac83"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/raw/off-measured-1-p0.json",
+          "sha256": "fbaf58bf5758dd5a70d984b567bd2671c09e53e1ea8ab83a3c18452b80005c88"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/raw/off-measured-1-p0.mtp-before.prom",
+          "sha256": "3ce0ff0a3f26a49ed3f3ece53bb21496c976afa59ca6c6e9b2ef41b270884a54"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/raw/off-measured-1-p0.mtp-after.prom",
+          "sha256": "61290dee347538e1e2aa041ccd529eef7b171dc195d43d0ae43a9b8857c4c501"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-02/run-3/raw/off-measured-1-p0.journal.log",
+          "sha256": "b2faf039686946f2f196d58b04b35d4d15377ab4926939580640d2bc28649c69"
+        }
+      ]
+    }
+  }
+}
