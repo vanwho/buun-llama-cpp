@@ -1600,6 +1600,81 @@ static server_cache_control_status server_cache_family_resolve_for_launch(
         : server_cache_control_status::not_found;
 }
 
+static bool server_mtp_state_diagnostic_enabled() noexcept {
+    const char * value = std::getenv("LLAMA_MTP_STATE_DIAGNOSTIC");
+    return value != nullptr && (std::strcmp(value, "1") == 0 ||
+            std::strcmp(value, "true") == 0);
+}
+
+static json server_mtp_logit_identity(
+        llama_context * ctx,
+        const std::vector<int32_t> & rows) {
+    json result = {
+        {"target_argmax_ids", json::array()},
+        {"logits_checksum", json::array()},
+        {"top_k_identity", json::array()},
+    };
+    if (ctx == nullptr) {
+        return result;
+    }
+
+    const int32_t n_vocab = llama_vocab_n_tokens(
+            llama_model_get_vocab(llama_get_model(ctx)));
+    const int32_t * argmax = llama_get_logits_argmax(ctx);
+    const int32_t argmax_n = llama_get_logits_argmax_n(ctx);
+    const int32_t argmax_k = llama_get_logits_argmax_k(ctx);
+    constexpr int32_t trace_top_k = 4;
+
+    for (const int32_t row : rows) {
+        llama_token argmax_id = LLAMA_TOKEN_NULL;
+        if (argmax != nullptr && argmax_k > 0 && row >= 0 && row < argmax_n) {
+            argmax_id = llama_token(argmax[row * argmax_k]);
+        }
+        result["target_argmax_ids"].push_back(argmax_id);
+
+        const float * logits = row >= 0 ? llama_get_logits_ith(ctx, row) : nullptr;
+        uint64_t checksum = 1469598103934665603ull;
+        json top_ids = json::array();
+        std::array<float, trace_top_k> top_values;
+        std::array<int32_t, trace_top_k> top_tokens;
+        top_values.fill(-std::numeric_limits<float>::infinity());
+        top_tokens.fill(LLAMA_TOKEN_NULL);
+        if (logits != nullptr && n_vocab > 0) {
+            for (int32_t token = 0; token < n_vocab; ++token) {
+                uint32_t bits = 0;
+                std::memcpy(&bits, logits + token, sizeof(bits));
+                checksum ^= uint64_t(bits);
+                checksum *= 1099511628211ull;
+
+                const float value = logits[token];
+                for (int32_t rank = 0; rank < trace_top_k; ++rank) {
+                    if (value <= top_values[rank]) {
+                        continue;
+                    }
+                    for (int32_t shift = trace_top_k - 1; shift > rank; --shift) {
+                        top_values[shift] = top_values[shift - 1];
+                        top_tokens[shift] = top_tokens[shift - 1];
+                    }
+                    top_values[rank] = value;
+                    top_tokens[rank] = token;
+                    break;
+                }
+            }
+            for (const int32_t token : top_tokens) {
+                top_ids.push_back(token);
+            }
+        }
+        result["logits_checksum"].push_back(logits != nullptr ? checksum : 0);
+        result["top_k_identity"].push_back({
+            {"k", trace_top_k},
+            {"ids", top_ids},
+            {"source", logits != nullptr ? "raw_logits" :
+                (argmax != nullptr ? "argmax_only" : "unavailable")},
+        });
+    }
+    return result;
+}
+
 struct server_vbr_idle_refusal_witness {
     std::array<uint8_t, 32> attempt_identity = {};
     uint64_t accounting_serial = 0;
@@ -1724,6 +1799,11 @@ struct server_slot {
     common_prompt_checkpoint spec_ckpt;
     bool spec_is_replay = false;
     std::mt19937 spec_synth_rng;
+    bool mtp_state_diagnostic_enabled = server_mtp_state_diagnostic_enabled();
+    uint32_t mtp_state_diagnostic_steps = 0;
+    std::vector<json> mtp_state_diagnostic_trace;
+    bool mtp_target_restored_before_verify = false;
+    bool mtp_draft_restored_before_verify = false;
 
     // TODO: move members that belong to the task (such as `generated_text`, `has_new_line`) to task_results_state
     //       see https://github.com/ggml-org/llama.cpp/pull/18283#issuecomment-3710175837
@@ -2634,6 +2714,10 @@ struct server_slot {
             spec_i_batch.clear();
             spec_ckpt.clear();
         }
+        mtp_state_diagnostic_steps = 0;
+        mtp_state_diagnostic_trace.clear();
+        mtp_target_restored_before_verify = false;
+        mtp_draft_restored_before_verify = false;
         generated_tokens.clear();
         generated_token_probs.clear();
         json_schema = json();
@@ -2770,6 +2854,70 @@ struct server_slot {
 
     common_speculative * get_spec() const {
         return spec ? spec.get() : spec_shared;
+    }
+
+    void capture_mtp_state_diagnostic(const llama_batch & batch) {
+        if (!mtp_state_diagnostic_enabled || mtp_state_diagnostic_steps >= 8 ||
+                spec_draft.empty() || ctx_tgt == nullptr) {
+            return;
+        }
+
+        std::vector<int32_t> rows;
+        rows.reserve(spec_i_batch.size());
+        json target_ids = json::array();
+        json target_positions = json::array();
+        json draft_positions = json::array();
+        for (const int32_t row : spec_i_batch) {
+            if (row < 0 || row >= batch.n_tokens || batch.token == nullptr ||
+                    batch.pos == nullptr) {
+                continue;
+            }
+            rows.push_back(row);
+            target_ids.push_back(batch.token[row]);
+            target_positions.push_back(batch.pos[row]);
+            if (rows.size() > 1) {
+                draft_positions.push_back(batch.pos[row]);
+            }
+        }
+        if (rows.empty()) {
+            return;
+        }
+
+        const auto pager = ctx_tgt->get_kv_pager_metrics();
+        json event = {
+            {"step", mtp_state_diagnostic_steps},
+            {"target_input_token_ids", target_ids},
+            {"target_input_positions", target_positions},
+            {"draft_input_token_ids", spec_draft},
+            {"draft_input_positions", draft_positions},
+            {"n_past", n_tokens_before_draft},
+            {"cache_n", stats.n_prompt_cached},
+            {"checkpoint_generation", spec_ckpt.checkpoint_epoch},
+            {"checkpoint_generation_swa", spec_ckpt.checkpoint_epoch_swa},
+            {"route", llama_kv_attention_execution_route_name(pager.route)},
+            {"page_table_epoch", pager.table_epoch},
+            {"target_state_restored_before_verification",
+                mtp_target_restored_before_verify},
+            {"draft_state_restored_before_verification",
+                mtp_draft_restored_before_verify},
+            {"state_restored_before_verification", {
+                {"target", mtp_target_restored_before_verify},
+                {"draft", mtp_draft_restored_before_verify},
+            }},
+        };
+        const json logits = server_mtp_logit_identity(ctx_tgt, rows);
+        event["target_argmax_ids"] = logits["target_argmax_ids"];
+        event["logits_checksum"] = logits["logits_checksum"];
+        event["top_k_identity"] = logits["top_k_identity"];
+        // Native MTP proposals are sampled from the draft context. Preserve
+        // their exact ids as the bounded proposal identity; the draft context
+        // does not expose a second public full-logit row for this batch.
+        event["draft_argmax_ids"] = spec_draft;
+        event["draft_argmax_source"] = "proposal_ids";
+
+        mtp_state_diagnostic_trace.push_back(event);
+        ++mtp_state_diagnostic_steps;
+        SLT_INF(*this, "MTP_STATE_DIAGNOSTIC %s\n", event.dump().c_str());
     }
 
     void add_token(const completion_token_output & token) {
@@ -3196,6 +3344,13 @@ struct server_slot {
                 {"speculative_rollbacks", speculative_rollbacks},
                 {"speculative_frontier_mismatches",
                     speculative_frontier_mismatches},
+            };
+        }
+        if (!only_metrics && mtp_state_diagnostic_enabled) {
+            res["mtp_state_diagnostic"] = json {
+                {"enabled", true},
+                {"steps", mtp_state_diagnostic_steps},
+                {"events", mtp_state_diagnostic_trace},
             };
         }
 
@@ -20036,6 +20191,19 @@ private:
                 mtp_verification || speculative_verification);
             try {
                 ret = llama_decode(ctx_tgt, batch_view);
+                if (ret == 0 && mtp_verification) {
+                    for (auto & slot : slots) {
+                        if (slot.is_processing() && slot.can_speculate() &&
+                                !slot.spec_draft.empty()) {
+                            try {
+                                slot.capture_mtp_state_diagnostic(batch_view);
+                            } catch (...) {
+                                // Diagnostics are strictly best effort and
+                                // must never change target verification.
+                            }
+                        }
+                    }
+                }
             } catch (...) {
                 ctx_tgt->set_kv_attention_mtp_verification(false);
                 throw;
@@ -20990,6 +21158,12 @@ private:
                     server_cache_destruction_reason::restore_failure);
                 return;
             }
+
+            // The next verification may consume state restored after a
+            // rejected suffix. Keep this separate from acceptance: a fully
+            // accepted proposal advanced normally and was not restored.
+            slot.mtp_target_restored_before_verify = n_accepted_draft < n_draft;
+            slot.mtp_draft_restored_before_verify = n_accepted_draft < n_draft;
 
             // The rollback owner is now at the accepted target frontier. The
             // target verification itself was intentionally excluded from the

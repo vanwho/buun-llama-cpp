@@ -1,0 +1,1223 @@
+{
+  "task": "84-01",
+  "revision": "hotpath-v10-20260914",
+  "primary": {
+    "requested": {
+      "B": 128,
+      "U": 128
+    },
+    "observed": {
+      "B": 128,
+      "U": 128
+    },
+    "pid": 111565,
+    "cmdline": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "-m",
+      "/srv/ai/models/text/current.gguf",
+      "--alias",
+      "qwen38-fast-turbo4-mtp",
+      "-ngl",
+      "999",
+      "--fit",
+      "off",
+      "-fa",
+      "on",
+      "-c",
+      "8192",
+      "-np",
+      "1",
+      "-ctk",
+      "turbo4",
+      "-ctv",
+      "turbo4",
+      "-b",
+      "128",
+      "-ub",
+      "128",
+      "--context-shift",
+      "--poll",
+      "0",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8080",
+      "--api-key-file",
+      "/srv/ai/config/llama/api-keys",
+      "--metrics",
+      "--reasoning-preserve",
+      "--kv-pager",
+      "off",
+      "--kv-page-size",
+      "256",
+      "--ctx-checkpoints",
+      "0",
+      "--cache-ram",
+      "0",
+      "--no-cache-idle-slots",
+      "--spec-draft-kv-device",
+      "gpu",
+      "--spec-type",
+      "draft-mtp",
+      "--spec-draft-n-max",
+      "2",
+      "--spec-draft-type-k",
+      "turbo4",
+      "--spec-draft-type-v",
+      "turbo4"
+    ],
+    "argv_geometry": {
+      "-b": "128",
+      "-ub": "128"
+    },
+    "dso_manifest": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.22.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.22.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.22.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.22.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.3.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.3.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.3.0",
+      "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+      "/usr/lib/x86_64-linux-gnu/libc.so.6",
+      "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+      "/usr/lib/x86_64-linux-gnu/libcublas.so.12.4.5.8",
+      "/usr/lib/x86_64-linux-gnu/libcublasLt.so.12.4.5.8",
+      "/usr/lib/x86_64-linux-gnu/libcuda.so.595.91.07",
+      "/usr/lib/x86_64-linux-gnu/libcudart.so.12.4.127",
+      "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+      "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+      "/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0",
+      "/usr/lib/x86_64-linux-gnu/libm.so.6",
+      "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+      "/usr/lib/x86_64-linux-gnu/librt.so.1",
+      "/usr/lib/x86_64-linux-gnu/libssl.so.3",
+      "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.35",
+      "/usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
+      "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.7"
+    ],
+    "response": {
+      "choices": [
+        {
+          "finish_reason": "length",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "The///////"
+          }
+        }
+      ],
+      "created": 1789922097,
+      "model": "qwen38-fast-turbo4-mtp",
+      "system_fingerprint": "b12927-775a2b40b",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 62,
+        "total_tokens": 70,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "id": "chatcmpl-sPaSBNENwwmL8FLTc0yq5AEQfO59isT9",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 62,
+        "prompt_ms": 283.881,
+        "prompt_per_token_ms": 4.5787258064516125,
+        "prompt_per_second": 218.4013724060434,
+        "predicted_n": 8,
+        "predicted_ms": 232.061,
+        "predicted_per_token_ms": 33.15157142857143,
+        "predicted_per_second": 30.16448261448498,
+        "draft_n": 11,
+        "draft_n_accepted": 0,
+        "kv_bpv": 4.125
+      }
+    }
+  },
+  "control": {
+    "requested": {
+      "B": 128,
+      "U": 64
+    },
+    "observed": {
+      "B": 128,
+      "U": 64
+    },
+    "pid": 112757,
+    "cmdline": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "-m",
+      "/srv/ai/models/text/current.gguf",
+      "--alias",
+      "qwen38-fast-turbo4-mtp",
+      "-ngl",
+      "999",
+      "--fit",
+      "off",
+      "-fa",
+      "on",
+      "-c",
+      "8192",
+      "-np",
+      "1",
+      "-ctk",
+      "turbo4",
+      "-ctv",
+      "turbo4",
+      "-b",
+      "128",
+      "-ub",
+      "64",
+      "--context-shift",
+      "--poll",
+      "0",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8080",
+      "--api-key-file",
+      "/srv/ai/config/llama/api-keys",
+      "--metrics",
+      "--reasoning-preserve",
+      "--kv-pager",
+      "off",
+      "--kv-page-size",
+      "256",
+      "--ctx-checkpoints",
+      "0",
+      "--cache-ram",
+      "0",
+      "--no-cache-idle-slots",
+      "--spec-draft-kv-device",
+      "gpu",
+      "--spec-type",
+      "draft-mtp",
+      "--spec-draft-n-max",
+      "2",
+      "--spec-draft-type-k",
+      "turbo4",
+      "--spec-draft-type-v",
+      "turbo4"
+    ],
+    "argv_geometry": {
+      "-b": "128",
+      "-ub": "64"
+    },
+    "dso_manifest": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.22.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.22.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.22.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.22.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.3.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.3.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.3.0",
+      "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+      "/usr/lib/x86_64-linux-gnu/libc.so.6",
+      "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+      "/usr/lib/x86_64-linux-gnu/libcublas.so.12.4.5.8",
+      "/usr/lib/x86_64-linux-gnu/libcublasLt.so.12.4.5.8",
+      "/usr/lib/x86_64-linux-gnu/libcuda.so.595.91.07",
+      "/usr/lib/x86_64-linux-gnu/libcudart.so.12.4.127",
+      "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+      "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+      "/usr/lib/x86_64-linux-gnu/libgomp.so.1.0.0",
+      "/usr/lib/x86_64-linux-gnu/libm.so.6",
+      "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+      "/usr/lib/x86_64-linux-gnu/librt.so.1",
+      "/usr/lib/x86_64-linux-gnu/libssl.so.3",
+      "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.35",
+      "/usr/lib/x86_64-linux-gnu/libz.so.1.3.1",
+      "/usr/lib/x86_64-linux-gnu/libzstd.so.1.5.7"
+    ],
+    "response": {
+      "choices": [
+        {
+          "finish_reason": "length",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "",
+            "reasoning_content": "The///////"
+          }
+        }
+      ],
+      "created": 1789922164,
+      "model": "qwen38-fast-turbo4-mtp",
+      "system_fingerprint": "b12927-775a2b40b",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 64,
+        "total_tokens": 72,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "id": "chatcmpl-MYFGD2PAvR9D4W5hvlT07VUruRscSptv",
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 64,
+        "prompt_ms": 292.707,
+        "prompt_per_token_ms": 4.573546875,
+        "prompt_per_second": 218.64868281250534,
+        "predicted_n": 8,
+        "predicted_ms": 232.926,
+        "predicted_per_token_ms": 33.27514285714285,
+        "predicted_per_second": 30.052463014004445,
+        "draft_n": 11,
+        "draft_n_accepted": 0,
+        "kv_bpv": 4.125
+      }
+    }
+  },
+  "primary_events": [
+    {
+      "step": 0,
+      "target_input_token_ids": [
+        760,
+        1156,
+        6587
+      ],
+      "target_input_positions": [
+        62,
+        63,
+        64
+      ],
+      "draft_input_token_ids": [
+        1156,
+        6587
+      ],
+      "draft_input_positions": [
+        63,
+        64
+      ],
+      "n_past": 62,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": false,
+      "draft_state_restored_before_verification": false,
+      "state_restored_before_verification": {
+        "target": false,
+        "draft": false
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        1156,
+        6587
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 1,
+      "target_input_token_ids": [
+        14,
+        8,
+        8
+      ],
+      "target_input_positions": [
+        63,
+        64,
+        65
+      ],
+      "draft_input_token_ids": [
+        8,
+        8
+      ],
+      "draft_input_positions": [
+        64,
+        65
+      ],
+      "n_past": 63,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 2,
+      "target_input_token_ids": [
+        14,
+        8,
+        8
+      ],
+      "target_input_positions": [
+        64,
+        65,
+        66
+      ],
+      "draft_input_token_ids": [
+        8,
+        8
+      ],
+      "draft_input_positions": [
+        65,
+        66
+      ],
+      "n_past": 64,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 3,
+      "target_input_token_ids": [
+        14,
+        8,
+        8
+      ],
+      "target_input_positions": [
+        65,
+        66,
+        67
+      ],
+      "draft_input_token_ids": [
+        8,
+        8
+      ],
+      "draft_input_positions": [
+        66,
+        67
+      ],
+      "n_past": 65,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 4,
+      "target_input_token_ids": [
+        14,
+        8,
+        8
+      ],
+      "target_input_positions": [
+        66,
+        67,
+        68
+      ],
+      "draft_input_token_ids": [
+        8,
+        8
+      ],
+      "draft_input_positions": [
+        67,
+        68
+      ],
+      "n_past": 66,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 5,
+      "target_input_token_ids": [
+        14,
+        8
+      ],
+      "target_input_positions": [
+        67,
+        68
+      ],
+      "draft_input_token_ids": [
+        8
+      ],
+      "draft_input_positions": [
+        68
+      ],
+      "n_past": 67,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    }
+  ],
+  "control_events": [
+    {
+      "step": 0,
+      "target_input_token_ids": [
+        760,
+        1156,
+        8
+      ],
+      "target_input_positions": [
+        64,
+        65,
+        66
+      ],
+      "draft_input_token_ids": [
+        1156,
+        8
+      ],
+      "draft_input_positions": [
+        65,
+        66
+      ],
+      "n_past": 64,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": false,
+      "draft_state_restored_before_verification": false,
+      "state_restored_before_verification": {
+        "target": false,
+        "draft": false
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        1156,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 1,
+      "target_input_token_ids": [
+        14,
+        8,
+        8
+      ],
+      "target_input_positions": [
+        65,
+        66,
+        67
+      ],
+      "draft_input_token_ids": [
+        8,
+        8
+      ],
+      "draft_input_positions": [
+        66,
+        67
+      ],
+      "n_past": 65,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 2,
+      "target_input_token_ids": [
+        14,
+        8,
+        8
+      ],
+      "target_input_positions": [
+        66,
+        67,
+        68
+      ],
+      "draft_input_token_ids": [
+        8,
+        8
+      ],
+      "draft_input_positions": [
+        67,
+        68
+      ],
+      "n_past": 66,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 3,
+      "target_input_token_ids": [
+        14,
+        8,
+        8
+      ],
+      "target_input_positions": [
+        67,
+        68,
+        69
+      ],
+      "draft_input_token_ids": [
+        8,
+        8
+      ],
+      "draft_input_positions": [
+        68,
+        69
+      ],
+      "n_past": 67,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 4,
+      "target_input_token_ids": [
+        14,
+        8,
+        8
+      ],
+      "target_input_positions": [
+        68,
+        69,
+        70
+      ],
+      "draft_input_token_ids": [
+        8,
+        8
+      ],
+      "draft_input_positions": [
+        69,
+        70
+      ],
+      "n_past": 68,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8,
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    },
+    {
+      "step": 5,
+      "target_input_token_ids": [
+        14,
+        8
+      ],
+      "target_input_positions": [
+        69,
+        70
+      ],
+      "draft_input_token_ids": [
+        8
+      ],
+      "draft_input_positions": [
+        70
+      ],
+      "n_past": 69,
+      "cache_n": 0,
+      "checkpoint_generation": 0,
+      "checkpoint_generation_swa": 0,
+      "route": "dense",
+      "page_table_epoch": 0,
+      "target_state_restored_before_verification": true,
+      "draft_state_restored_before_verification": true,
+      "state_restored_before_verification": {
+        "target": true,
+        "draft": true
+      },
+      "target_argmax_ids": [
+        -1,
+        -1
+      ],
+      "logits_checksum": [
+        17358827282877673859,
+        17358827282877673859
+      ],
+      "top_k_identity": [
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        },
+        {
+          "k": 4,
+          "ids": [
+            248319,
+            248318,
+            248317,
+            248316
+          ],
+          "source": "raw_logits"
+        }
+      ],
+      "draft_argmax_ids": [
+        8
+      ],
+      "draft_argmax_source": "proposal_ids"
+    }
+  ],
+  "primary_acceptance": {
+    "accepted": 0,
+    "drafted": 11
+  },
+  "control_acceptance": {
+    "accepted": 0,
+    "drafted": 11
+  },
+  "classification": {
+    "setup": "cleared: observed argv matches requested B128/U128 and B128/U64",
+    "capacity": "cleared: both native-MTP services loaded and served a bounded request",
+    "route": "not implicated: both traces report dense route and page_table_epoch 0 with pager off",
+    "state": "restore boundary is visible and deterministic invariant passes; rejected suffix reports target/draft restored before verification",
+    "remaining": "native_mtp_proposal_identity_unresolved: both geometries produce 0/11 acceptance; draft proposal logits are not exposed by the public seam and target argmax is unavailable, so the next repair seam is common_speculative_impl_draft_mtp::draft versus server target verification logits"
+  }
+}
