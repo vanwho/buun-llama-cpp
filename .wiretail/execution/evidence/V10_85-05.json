@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "task": "85-05",
+  "source_commit": "d0472faa0e837c00a7e10983dcb32c2e4e146ba5",
+  "checks": {
+    "focused_revalidation": {
+      "status": "pass",
+      "command": [
+        "bash",
+        "-lc",
+        "python3 tools/server/bench/run-pager-profile-benchmark.py fast large /srv/ai/paged-kv/results/v10/85-05/feature-off-v2 --one-case --one-trial --context 8192 --batch 128 --ubatch 128 --generation-length 256; python3 tools/server/bench/run-final-curve.py --context 8192 --prompt-tokens 6143 --max-tokens 64 --cache-condition cold-prefill; python3 tools/server/bench/run-final-curve.py --context 8192 --prompt-tokens 6143 --max-tokens 64 --cache-condition live-continuation"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_85-05_focused_revalidation.md",
+          "sha256": "cf90696dbd1e8389e34a3a01110306fe3bcb30eeb78467b410f4bfecae4bc358"
+        }
+      ],
+      "finding": {
+        "fixed_coordinate": "L8192/C6143/H4096/A4096/B128/U128",
+        "feature_off": "measured",
+        "all_gpu_native": "measured with positive draft denominator",
+        "cpu_main_kv_native": "measured with positive draft denominator",
+        "selected_native": "failed after selected paging state diagnostics; restored cleanly",
+        "matched_cached_append_decode": "measured; 6139 cached rows",
+        "performance_claims": "not_run because positive-MTP acceptance and completed selected direct-use gates were absent"
+      }
+    }
+  }
+}
