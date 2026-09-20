@@ -174,6 +174,28 @@ void test_mtp_carry_lifecycle() {
     assert(!inactive_mtp.require_complete_draft_and_state);
 }
 
+void test_mtp_verification_restore_invariant() {
+    common_speculative_mtp_carry_lifecycle carry;
+
+    // A non-zero verification frontier must not consume a draft carry until
+    // the target has refreshed the corresponding row. This is the invariant
+    // that protects rollback/restore from reusing the rejected branch.
+    carry.target_process_refreshed();
+    assert(carry.target_process_mode(9) ==
+           common_speculative_mtp_carry_lifecycle::process_mode::retained_carry);
+
+    carry.sequence_transition(
+        common_speculative_sequence_event::target_restored_without_draft);
+    assert(!carry.draft_ready());
+    assert(carry.target_process_mode(9) ==
+           common_speculative_mtp_carry_lifecycle::process_mode::target_only);
+
+    carry.target_process_refreshed();
+    assert(carry.draft_ready());
+    assert(carry.target_process_mode(9) ==
+           common_speculative_mtp_carry_lifecycle::process_mode::retained_carry);
+}
+
 struct files_cleanup {
     std::vector<std::filesystem::path> paths;
 
@@ -189,6 +211,7 @@ struct files_cleanup {
 
 int main() {
     test_mtp_carry_lifecycle();
+    test_mtp_verification_restore_invariant();
 
     std::vector<std::string> digest_tokens = { "!", "hello", "▁world" };
     assert(common_mtp_vocab_trim_tokenizer_digest_for_test(digest_tokens) ==
