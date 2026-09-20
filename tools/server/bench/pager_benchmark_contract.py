@@ -670,11 +670,16 @@ def validate_speed_evidence(receipt: Mapping[str, Any]) -> list[str]:
         value = runtime.get(field)
         if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0):
             errors.append(f"runtime.{field}_invalid")
-    if runtime.get("target_placement") is not None and "cuda" not in str(runtime["target_placement"]).lower():
+    target_cpu_control = runtime.get("target_kv_placement") == "cpu"
+    if (runtime.get("target_placement") is not None and
+            "cuda" not in str(runtime["target_placement"]).lower() and
+            not target_cpu_control):
         errors.append("runtime.target_placement_not_gpu")
-    if runtime.get("mtp_placement") is not None and "gpu" not in str(runtime["mtp_placement"]).lower() and "cuda" not in str(runtime["mtp_placement"]).lower():
+    mtp_off = runtime.get("mtp_mode") == "off"
+    if not mtp_off and runtime.get("mtp_placement") is not None and "gpu" not in str(runtime["mtp_placement"]).lower() and "cuda" not in str(runtime["mtp_placement"]).lower():
         errors.append("runtime.mtp_placement_not_gpu")
-    for field in ("target_type_k", "target_type_v", "mtp_type_k", "mtp_type_v"):
+    type_fields = ("target_type_k", "target_type_v") if mtp_off else ("target_type_k", "target_type_v", "mtp_type_k", "mtp_type_v")
+    for field in type_fields:
         value = runtime.get(field)
         if value is not None and "turbo4" not in str(value).lower():
             errors.append(f"runtime.{field}_not_turbo4")

@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "task": "84-03",
+  "experiment": "V10 speed attribution at stable C",
+  "identity": {
+    "source_commit": "c36e277403d4f0b393e59efa7597be20c7453e2b",
+    "candidate_binary": "/srv/ai/paged-kv/results/v10/84-02/run-1/v10-candidate-20260920e/bin/llama-server",
+    "candidate_binary_sha256": "6818b1e581598b25087dcba34e9e122194767788edca0db3d95f55c2eb871bde",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.91.07",
+    "logical_context_tokens": 8192,
+    "stable_coordinate_tokens": 6143,
+    "allocated_context_tokens": 8192,
+    "hot_capacity_tokens": 4096,
+    "page_size_tokens": 256,
+    "batch_tokens": 128,
+    "ubatch_tokens": 128,
+    "secondary_batch_tokens": 64
+  },
+  "procedure": {
+    "question_index": 0,
+    "warmups": 1,
+    "trials": 3,
+    "generation_tokens": 64,
+    "committed_tokens": 64,
+    "smoke_prompt_tokens": 256,
+    "smoke_gpu_samples_minimum": 10,
+    "route_policy": "automatic/direct where exposed; selected_packed diagnostic only"
+  },
+  "rows": {
+    "all_gpu_feature_off": {
+      "route": "all-GPU",
+      "mtp": "off",
+      "target_kv": "gpu",
+      "prompt_tps_median": 1589.586,
+      "decode_tps_median": 49.731,
+      "prefill_ms_median": 3864.529,
+      "decode_ms_median": 1286.934,
+      "receipt": "/srv/ai/paged-kv/results/v10/84-03/run-1/all_gpu_feature_off_final/measure/SPEED25_02_ATTRIBUTION.json",
+      "smoke_gpu_samples": "/srv/ai/paged-kv/results/v10/84-03/run-1/all_gpu_feature_off/smoke/gpu-util-power.csv"
+    },
+    "all_gpu_native_mtp": {
+      "route": "all-GPU",
+      "mtp": "native",
+      "target_kv": "gpu",
+      "mtp_observed": "123 draft / 0 accepted per trial",
+      "prompt_tps_median": 1487.629,
+      "decode_tps_median": 36.684,
+      "prefill_ms_median": 4129.390,
+      "decode_ms_median": 1744.630,
+      "receipt": "/srv/ai/paged-kv/results/v10/84-03/run-1/all_gpu_native_mtp/measure3/SPEED25_02_ATTRIBUTION.json",
+      "smoke_gpu_samples": "/srv/ai/paged-kv/results/v10/84-03/run-1/all_gpu_native_mtp/smoke2/gpu-util-power.csv"
+    },
+    "cpu_main_kv_gpu_native_mtp": {
+      "route": "CPU-main-KV",
+      "mtp": "native GPU",
+      "target_kv": "cpu",
+      "mtp_observed": "123 draft / 0 accepted per trial",
+      "prompt_tps_median": 634.338,
+      "decode_tps_median": 10.167,
+      "prefill_ms_median": 9684.107,
+      "decode_ms_median": 6295.166,
+      "receipt": "/srv/ai/paged-kv/results/v10/84-03/run-1/cpu_main_kv_gpu_native_mtp/measure2/SPEED25_02_ATTRIBUTION.json",
+      "smoke_gpu_samples": "/srv/ai/paged-kv/results/v10/84-03/run-1/cpu_main_kv_gpu_native_mtp/smoke/gpu-util-power.csv"
+    },
+    "selected_feature_off": {
+      "route": "selected",
+      "mtp": "off",
+      "target_kv": "gpu",
+      "hot_rows": 4096,
+      "attended_rows": "2048 per trial",
+      "prompt_tps_median": 135.285,
+      "decode_tps_median": 24.849,
+      "prefill_ms_median": 45407.897,
+      "decode_ms_median": 2575.605,
+      "receipt": "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_feature_off/measure/SPEED25_02_ATTRIBUTION.json",
+      "smoke_gpu_samples": "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_feature_off/smoke/gpu-util-power.csv"
+    },
+    "selected_native_mtp": {
+      "route": "selected",
+      "mtp": "native GPU",
+      "target_kv": "gpu",
+      "hot_rows": 4096,
+      "attended_rows": "1536, 1024, 1024",
+      "mtp_observed": "44/40, 47/39, 47/39 draft/accepted",
+      "prompt_tps_median": 138.747,
+      "decode_tps_median": 36.289,
+      "prefill_ms_median": 44274.743,
+      "decode_ms_median": 1763.596,
+      "receipt": "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_native_mtp/measure/SPEED25_02_ATTRIBUTION.json",
+      "smoke_gpu_samples": "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_native_mtp/smoke/gpu-util-power.csv"
+    },
+    "selected_native_mtp_u64": {
+      "route": "selected secondary shape",
+      "mtp": "native GPU",
+      "batch_tokens": 64,
+      "ubatch_tokens": 64,
+      "prompt_tps_median": 125.269,
+      "decode_tps_median": 24.862,
+      "prefill_ms_median": 49038.275,
+      "decode_ms_median": 2574.225,
+      "receipt": "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_native_mtp_u64/measure/SPEED25_02_ATTRIBUTION.json"
+    }
+  },
+  "cached_append": {
+    "coordinate": "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_native_mtp/cached-append-fixed-ignoreeos/coordinate.json",
+    "observed_prefix_frontier": 6143,
+    "append_delta": 64,
+    "append_prompt_tokens": 65,
+    "append_cache_n": 6142,
+    "append_output_tokens": 64,
+    "append_prompt_ms": 932.553,
+    "append_decode_ms": 1391.687,
+    "append_mtp": "42 draft / 42 accepted",
+    "append_movement": {
+      "summary_build_calls": 64,
+      "summary_build_bytes": 8660000,
+      "host_seal_d2h_calls": 96,
+      "host_seal_d2h_bytes": 4325000,
+      "graph_rebuild_count": 24,
+      "graph_submission_count": 24,
+      "queue_time_us": 639200,
+      "wait_time_us": 38373,
+      "faults": 0,
+      "evictions": 0,
+      "h2d_useful_bytes": 0,
+      "selected_packed": 0
+    }
+  },
+  "attribution": {
+    "selected_packed": {
+      "candidate": false,
+      "status": "diagnostic only",
+      "observed_count": 0
+    },
+    "dominant_overheads": [
+      {
+        "cause": "reference-route and selector work",
+        "evidence": "selected native raw receipts report 402 prefill_reference_routes, 118 mtp_verify_reference_routes, and 131 faults/evictions in trial 3",
+        "scope": "selected cold prefill"
+      },
+      {
+        "cause": "host summary/seal movement",
+        "evidence": "the +64 cached append has 64 summary-build calls, 8.66 MB summary bytes, and 96 host-seal D2H calls for only 65 new prompt tokens",
+        "scope": "cached append"
+      },
+      {
+        "cause": "graph churn",
+        "evidence": "the +64 cached append rebuilds/submits 24 logical graphs; selected native trial 3 reports 573 rebuilds",
+        "scope": "selected route"
+      },
+      {
+        "cause": "MTP rejection",
+        "evidence": "both all-GPU native and CPU-main-KV native controls propose 123 drafts and accept 0; selected native accepts 39-40 of 44-47",
+        "scope": "native MTP controls"
+      },
+      {
+        "cause": "shape/batch throughput",
+        "evidence": "selected native U=64 is slower than U=128: 49,038 ms versus 44,275 ms median prefill and 2,574 ms versus 1,764 ms median decode",
+        "scope": "secondary shape"
+      }
+    ],
+    "expected_single_change": "give the selected cold/reference working set a stable graph-friendly direct or packed CUDA execution plan, eliminating repeated reference summary/seal and graph rebuild work",
+    "falsifiers": [
+      "CUDA event spans showing kernel execution, rather than reference/graph/host counters, dominates wall time",
+      "an equivalent direct/packed A/B route failing to reduce graph rebuilds or summary/seal work while preserving 64/64 output",
+      "a rerun at the same C and shape showing the selected-route gap is only measurement noise"
+    ],
+    "speed_ratio_policy": "ratios are reported only for rows with pass receipts, explicit route identity, and observed output/MTP counters"
+  },
+  "deferred_verification": [
+    "Fine-grained CUDA event spans were not enabled by the existing receipt exporter; wall spans and logical graph/transfer counters are used, with no kernel-time claim.",
+    "The 8090 gateway was unavailable during the run; the authorized direct 8080 endpoint was used and health-checked."
+  ]
+}
