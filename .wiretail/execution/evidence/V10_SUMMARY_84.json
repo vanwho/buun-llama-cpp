@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "task": "84-04",
+  "revision": "hotpath-v10-20260914",
+  "result": "diagnostic_summary",
+  "goal_met": false,
+  "stable_coordinate": {
+    "L": 8192,
+    "C": 6143,
+    "H": 4096,
+    "A": 4096,
+    "B": 128,
+    "U": 128,
+    "secondary_U": 64,
+    "page_tokens": 256,
+    "selection": "selected",
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "gpu",
+    "evidence": [
+      ".wiretail/execution/evidence/V10_84-02.json",
+      ".wiretail/execution/evidence/V10_84-03_speed_attribution.json",
+      "/srv/ai/paged-kv/results/v10/84-03/run-1/selected_native_mtp/cached-append-fixed-ignoreeos/coordinate.json"
+    ]
+  },
+  "identity": {
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "candidate_source_commit": "c36e277403d4f0b393e59efa7597be20c7453e2b",
+    "candidate_binary": "/srv/ai/paged-kv/results/v10/84-02/run-1/v10-candidate-20260920e/bin/llama-server",
+    "candidate_binary_sha256": "6818b1e581598b25087dcba34e9e122194767788edca0db3d95f55c2eb871bde",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.91.07",
+    "evidence": [
+      ".wiretail/execution/evidence/V10_84-01.json",
+      ".wiretail/execution/evidence/V10_84-02.json",
+      ".wiretail/execution/evidence/V10_84-03.json"
+    ]
+  },
+  "geometry": {
+    "primary": {"requested": {"B": 128, "U": 128}, "observed": {"B": 128, "U": 128}},
+    "secondary": {"requested": {"B": 128, "U": 64}, "observed": {"B": 128, "U": 64}},
+    "stable_further_work": "primary B128/U128 at L8192/C6143/H4096/A4096",
+    "evidence": [
+      "/srv/ai/paged-kv/results/v10/84-01/run-1/mtp_diagnostic.json",
+      ".wiretail/execution/evidence/V10_84-03_speed_attribution.json"
+    ]
+  },
+  "mtp": {
+    "placement": {
+      "target_kv": "gpu",
+      "target_types": ["turbo4", "turbo4"],
+      "draft_kv": "gpu",
+      "draft_types": ["turbo4", "turbo4"]
+    },
+    "all_gpu": {
+      "status": "measured_zero_acceptance",
+      "draft_tokens_per_trial": 123,
+      "accepted_tokens_per_trial": 0,
+      "acceptance_percent": 0.0,
+      "matching_target_tokens": true,
+      "first_divergent_token": null,
+      "classification": "common model/output failure, not MTP-only"
+    },
+    "cpu_main_kv_gpu_draft": {
+      "status": "measured_zero_acceptance",
+      "draft_tokens_per_trial": 123,
+      "accepted_tokens_per_trial": 0,
+      "acceptance_percent": 0.0,
+      "classification": "native-MTP control failure; target KV is CPU"
+    },
+    "selected": {
+      "status": "measured_nonzero_acceptance",
+      "observed_trials": [
+        {"draft": 44, "accepted": 40, "acceptance_percent": 90.9090909090909},
+        {"draft": 47, "accepted": 39, "acceptance_percent": 82.97872340425532},
+        {"draft": 47, "accepted": 39, "acceptance_percent": 82.97872340425532}
+      ]
+    },
+    "divergence": {
+      "native_vs_same_placement_feature_off": "none observed",
+      "first_divergent_token": null,
+      "quality_observation": "the shared slash-output failure is common model/output behavior; selected placement has a separate output classification in the phase-83 matrix",
+      "evidence": [
+        ".wiretail/execution/evidence/V10_SUMMARY_83.md",
+        ".wiretail/execution/evidence/V10_84-01.json",
+        ".wiretail/execution/evidence/V10_84-03_speed_attribution.json"
+      ]
+    }
+  },
+  "route_behavior": {
+    "automatic_selected_attention": {
+      "one_page": "selected_direct",
+      "multi_page_prefill": "selected_reference",
+      "packed_turbo4": "explicit_diagnostic_only",
+      "packed_copy_updates": 0,
+      "reason": "a live multi-page direct experiment hit a CUDA illegal-memory boundary, so automatic dispatch fail-closes to reference until independently proven",
+      "evidence": [".wiretail/execution/evidence/V10_84-02.json", ".wiretail/execution/evidence/V10_84-02.md"]
+    }
+  },
+  "physical_promotion": {
+    "cold_chain_completed": true,
+    "chain": ["cold eligibility", "selector submission", "host readiness", "H2D completion", "table publication", "completed target graph use"],
+    "a_again": {
+      "selected_page_ids": [0, 1, 2, 6, 14, 17, 23, 24],
+      "h2d_useful_bytes": 4325376,
+      "target_graph_used": true,
+      "graph_capture_count": 78,
+      "graph_replay_count": 1,
+      "graph_rebuild_count": 78,
+      "table_epoch_changes": 78,
+      "packed_copy_updates": 0
+    },
+    "evidence": [".wiretail/execution/evidence/V10_84-02.json", ".wiretail/execution/evidence/V10_84-02.md"]
+  },
+  "answer_quality": {
+    "organic_ab_a": {"correct_rows": 3, "total_rows": 3, "ratio": 1.0},
+    "expected_codes": ["EMBER-QUARTZ-914", "CIRRUS-VAULT-268", "EMBER-QUARTZ-914"],
+    "evidence": [".wiretail/execution/evidence/V10_84-02.json", "/srv/ai/paged-kv/results/v10/84-02/run-1/organic-ab-a-auto-final-g-20260920/summary.json"]
+  },
+  "speed_attribution": {
+    "measured_rows": {
+      "all_gpu_feature_off": {"prefill_ms_median": 3864.529, "decode_ms_median": 1286.934, "prompt_tps_median": 1589.586, "decode_tps_median": 49.731},
+      "all_gpu_native_mtp": {"prefill_ms_median": 4129.390, "decode_ms_median": 1744.630, "prompt_tps_median": 1487.629, "decode_tps_median": 36.684},
+      "cpu_main_kv_gpu_native_mtp": {"prefill_ms_median": 9684.107, "decode_ms_median": 6295.166, "prompt_tps_median": 634.338, "decode_tps_median": 10.167},
+      "selected_feature_off": {"prefill_ms_median": 45407.897, "decode_ms_median": 2575.605, "prompt_tps_median": 135.285, "decode_tps_median": 24.849},
+      "selected_native_mtp": {"prefill_ms_median": 44274.743, "decode_ms_median": 1763.596, "prompt_tps_median": 138.747, "decode_tps_median": 36.289}
+    },
+    "prefill_dominant_costs": ["reference-route and selector work", "host summary/seal movement", "graph churn"],
+    "decode_dominant_costs": ["graph churn", "native-MTP rejection in all-GPU and CPU-main-KV controls", "U64 shape throughput penalty"],
+    "evidence": ".wiretail/execution/evidence/V10_84-03_speed_attribution.json",
+    "single_most_likely_code_change": "give the selected cold/reference working set a stable graph-friendly direct or packed CUDA execution plan, eliminating repeated reference summary/seal and graph rebuild work",
+    "kernel_time_claim": null
+  },
+  "prohibited_until_repaired": [
+    "full occupied C262144 or occupancy-advancement claims",
+    "broad multi-prompt benchmark and speed-ratio claims",
+    "treating all-GPU or CPU-main-KV native MTP as production-ready until the repeated 123 draft / 0 accepted state and proposal-target verification seam are explained and rerun",
+    "automatic multi-page direct or packed promotion until the illegal-memory boundary has an independent proof"
+  ],
+  "missing_rows": [],
+  "sources": [
+    ".wiretail/execution/evidence/V10_84-01.json",
+    ".wiretail/execution/evidence/V10_84-02.json",
+    ".wiretail/execution/evidence/V10_84-02.md",
+    ".wiretail/execution/evidence/V10_84-03.json",
+    ".wiretail/execution/evidence/V10_84-03_speed_attribution.json",
+    ".wiretail/execution/evidence/V10_SUMMARY_83.json",
+    ".wiretail/execution/evidence/V10_SUMMARY_83.md"
+  ]
+}

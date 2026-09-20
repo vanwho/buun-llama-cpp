@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "task": "84-04",
+  "source_commit": "fa5531f2ad06452082d84b01d67ef00537a3b25b",
+  "checks": {
+    "phase84_diagnostic_summary": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-c",
+        "validate V10_SUMMARY_84.json required diagnostic fields"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_84.json",
+          "sha256": "7161bcce9f3c8e6bddf8bd95dd35399c4ef7d642950ab15e012e15d5ac9c6411"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_84.md",
+          "sha256": "b548977ed347fafd7cbeac40325b536a448a5223c499fa580df713bec6d0cd97"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_84-04_validation.txt",
+          "sha256": "9f149f5e60284248bbbdfd19487151852b4f766677b3f451466d81a5a5670b8e"
+        }
+      ]
+    }
+  }
+}
