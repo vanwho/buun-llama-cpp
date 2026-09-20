@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "task": "85-03",
+  "source_commit": "59ed6fee38cdfc4261fe4e6a297e60d778f0a253",
+  "checks": {
+    "cuda_direct_route_regression": {
+      "status": "pass",
+      "command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "--target",
+        "llama-server",
+        "test-kv-attention-execution",
+        "test-cuda-fattn-paged-turbo4",
+        "test-cuda-kv-promotion",
+        "-j2"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/raw/test-kv-attention-execution-v4.log",
+          "sha256": "43481ea05c626d3a081eeb30d8003484b04828b06308f3caca31b4e40e073644"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/raw/test-cuda-fattn-paged-turbo4-v4.log",
+          "sha256": "0e3def76f0ce15b1dbfe21232c0842fbd8375d6503d6a0225218325e4bf32773"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/raw/test-cuda-kv-promotion-v4.log",
+          "sha256": "bf08a88fdc4c6412005f7230cb022132bf7754b54c20791216cbac3e44b4ebfa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/candidate-bundle-v4-20260920/build-receipt.json",
+          "sha256": "bcf02edafc6848133b072a58572a51f35f21c1086c3b2f65a2bf4523afa80571"
+        }
+      ],
+      "findings": {
+        "automatic_multi_page_direct": true,
+        "selected_logical_ids_and_physical_slots": "validated by test-cuda-kv-promotion",
+        "reference_parity": true,
+        "prefill_query_cases": [1, 2, 3]
+      }
+    },
+    "direct_256_smoke": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-c",
+        "validate the exact C6143 native-MTP diagnostic progress and GPU samples"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/smoke-c6143-bounded-prefill-v2/raw/progress-off-measured-1.jsonl",
+          "sha256": "61a7d59993dca4b833012f74b52440985508ec43d83b661e2bc83a952d86c05c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/raw/gpu-utilization-direct-256-native-v4.log",
+          "sha256": "07339dbbabcac2bf57dcfc76c270486927d2a50039676fe753dfa63658822aa4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/raw/direct-256-smoke-c6143-native-v4-journal.log",
+          "sha256": "8a23f0b8e27030073e93e8026c4a21e42a58eca6ddd28ea4297ce288196517fc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/raw/direct-256-smoke-c6143-native-v4.log",
+          "sha256": "36a5d068b7485574093732136c2b46d9e02307b5e0feaced86f437c847c4be6c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/raw/direct-256-smoke-c6143-mtp-off-v4.log",
+          "sha256": "91c573b4f278f83134080c27e4c3a06e1f6d257ee70da83cb4f1c6b8d2317768"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-03/run-1/candidate-bundle-v4-20260920/bin/llama-server",
+          "sha256": "fc5daa80549f4c29ba09b2e4ffb9b5579091f35409fffe3c61310fd248dfbb3d"
+        }
+      ],
+      "findings": {
+        "target": "Turbo4 CUDA",
+        "shape": "L8192/C6143/H4096/A4096/B128/U128",
+        "prefill_completed": 6143,
+        "automatic_direct_routes": 2,
+        "automatic_packed_copy_updates": 0,
+        "graph_rebuilds": 51,
+        "graph_replays": 1,
+        "table_epoch_changes": 51,
+        "table_upload_bytes": 408,
+        "h2d_useful_bytes": 155713536,
+        "faults": 36,
+        "gpu_utilization_samples": 808,
+        "full_256_http_completion": "deferred: native-MTP wrapper stalled after the exact prefill/direct verification; mtp-off aborted at the existing CUDA graph-capture event failure"
+      }
+    }
+  }
+}
