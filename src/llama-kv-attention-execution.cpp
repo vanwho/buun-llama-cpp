@@ -32,6 +32,19 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
            metadata.n_head_q() % metadata.n_head_kv() == 0;
 }
 
+bool production_direct_shape(
+        const llama_kv_attention_operator_metadata & metadata,
+        llama_kv_attention_execution_phase phase) noexcept {
+    // The paged Turbo4 CUDA graph is production-safe for one-query decode and
+    // the one-page prefill shape. Multi-page prefill remains on the canonical
+    // selected consumer until its long-prefill graph boundary has an
+    // independent proof; forcing that path would turn an unsupported shape
+    // into a device fault.
+    return direct_shape(metadata) && metadata.page_table().size() <= 1 &&
+        (phase == llama_kv_attention_execution_phase::decode ||
+         phase == llama_kv_attention_execution_phase::prefill);
+}
+
 } // namespace
 
 uint32_t llama_kv_attention_packed_row_capacity(
@@ -514,6 +527,7 @@ const char * llama_kv_attention_execution_route_override_name(
         llama_kv_attention_execution_route_override route) noexcept {
     switch (route) {
         case llama_kv_attention_execution_route_override::automatic: return "auto";
+        case llama_kv_attention_execution_route_override::reference:return "reference";
         case llama_kv_attention_execution_route_override::dense:     return "dense";
         case llama_kv_attention_execution_route_override::packed:    return "packed";
         case llama_kv_attention_execution_route_override::direct:    return "direct";
@@ -671,6 +685,8 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
 
     if (route_override_ != llama_kv_attention_execution_route_override::automatic) {
         switch (route_override_) {
+            case llama_kv_attention_execution_route_override::reference:
+                return llama_kv_attention_execution_route::selected_reference;
             case llama_kv_attention_execution_route_override::dense:
                 return dense_capable ? llama_kv_attention_execution_route::selected_dense
                                       : llama_kv_attention_execution_route::refusal;
@@ -678,7 +694,7 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
                 return packed_capable ? llama_kv_attention_execution_route::selected_packed
                                        : llama_kv_attention_execution_route::refusal;
             case llama_kv_attention_execution_route_override::direct:
-                return direct_capable && direct_shape(metadata)
+                return direct_capable && production_direct_shape(metadata, phase)
                     ? llama_kv_attention_execution_route::selected_direct
                     : llama_kv_attention_execution_route::refusal;
             case llama_kv_attention_execution_route_override::automatic:
@@ -687,14 +703,22 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         }
     }
 
+    // The direct paged Turbo4 consumer preserves the selected logical page
+    // set without materializing a compact owner. Prefer it whenever the
+    // backend and metadata satisfy the same shape contract as the explicit
+    // direct diagnostic route.
+    if (direct_capable && production_direct_shape(metadata, phase)) {
+        return llama_kv_attention_execution_route::selected_direct;
+    }
+
     if (dense_capable) {
         return llama_kv_attention_execution_route::selected_dense;
     }
 
     // The compact packed bridge remains available only through the explicit
     // diagnostic override above. Automatic dispatch must retain the
-    // canonical reference consumer for non-contiguous selected views until
-    // the packed route has an answer-quality proof.
+    // canonical reference consumer for non-contiguous selected views when
+    // the direct and dense routes are unavailable.
     return llama_kv_attention_execution_route::selected_reference;
 }
 
@@ -801,7 +825,9 @@ void llama_kv_attention_execution::set_mode(llama_kv_attention_execution_mode mo
 void llama_kv_attention_execution::set_route_override(const char * name) noexcept {
     auto parsed = llama_kv_attention_execution_route_override::automatic;
     if (name != nullptr && *name != '\0' && std::strcmp(name, "auto") != 0) {
-        if (std::strcmp(name, "dense") == 0) {
+        if (std::strcmp(name, "reference") == 0) {
+            parsed = llama_kv_attention_execution_route_override::reference;
+        } else if (std::strcmp(name, "dense") == 0) {
             parsed = llama_kv_attention_execution_route_override::dense;
         } else if (std::strcmp(name, "packed") == 0) {
             parsed = llama_kv_attention_execution_route_override::packed;
@@ -912,7 +938,7 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
                 ? phase == llama_kv_attention_execution_phase::prefill
                     ? "qualified Turbo4 selective prefill query tile"
                     : "qualified Turbo4 decode"
-                : direct_capable && !direct_shape(metadata)
+                : direct_capable && !production_direct_shape(metadata, phase)
                     ? "bounded Turbo4 selected reference for unsupported direct query tile"
                     : direct_reason.empty() ? "compact selected reference" : direct_reason;
         }

@@ -3061,11 +3061,11 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     }
     const bool dense_capable = fa_capable && dense_view.eligible;
     const auto route_override = kv_attention_execution.route_override();
-    // Automatic dispatch keeps the dense route for contiguous selected views
-    // and the canonical reference route otherwise. An explicit packed
-    // diagnostic request is different: the compact owner can represent a
-    // dense or non-contiguous selected view, and refusing it here prevents
-    // the requested route from ever reaching the planner.
+    // Automatic dispatch prefers the direct Turbo4 consumer for the bounded
+    // decode/one-page shape. An explicit packed diagnostic request is different: the
+    // compact owner can represent a dense or non-contiguous selected view,
+    // and refusing it here prevents the requested route from ever reaching
+    // the planner.
     const bool packed_capable = fa_capable &&
         route_override == llama_kv_attention_execution_route_override::packed;
     if (packed_capable) {

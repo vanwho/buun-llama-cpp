@@ -1313,6 +1313,7 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
             ? direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
         const bool telemetry_enabled = params.kv_attention_telemetry != nullptr &&
             params.kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+            params.ubatch.n_seq_tokens == 1 &&
             telemetry_layer_valid &&
             params.kv_attention_telemetry->head_begin() < uint32_t(
                 hparams.n_head(telemetry_model_layer)) &&
@@ -4347,15 +4348,18 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             // count.  The page-state suffix is used only when telemetry is
             // enabled, but keeping it in the same input preserves the graph
             // key while cadence changes.
-            const uint32_t split_rows = inp->direct_row_capacity;
             const uint32_t split_queries = uint32_t(selected_metadata->n_query_tokens());
             const uint32_t split_pages = inp->direct_page_capacity;
             uint32_t split_heads = uint32_t(std::max<int64_t>(1, hparams.n_head()));
             for (const uint32_t layer_id : inp->direct_layer_ids) {
                 split_heads = std::max(split_heads, uint32_t(hparams.n_head(layer_id)));
             }
-            const uint32_t split_capacity = std::min<uint32_t>(16,
-                    std::max<uint32_t>(1, (split_rows + 255) / 256));
+            // Keep the direct production graph on its single-partition
+            // cooperative kernel until the split/merge path has an
+            // independent long-prefill proof. The direct page table remains
+            // the selected view; this bounds the fallback without creating a
+            // packed owner or changing route selection.
+            const uint32_t split_capacity = 1;
             const uint64_t state_values = uint64_t(split_capacity) * split_queries * split_heads *
                 (2 + selected_metadata->head_dim_v());
             const uint64_t page_values = uint64_t(split_capacity) * split_queries * split_heads *
@@ -4383,6 +4387,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 ? inp->direct_layer_ids[telemetry_ordinal] : UINT32_MAX;
             if (kv_attention_telemetry != nullptr &&
                 kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
+                ubatch.n_seq_tokens == 1 &&
                 telemetry_layer_valid &&
                 kv_attention_telemetry->head_begin() < uint32_t(
                     hparams.n_head(telemetry_model_layer))) {
