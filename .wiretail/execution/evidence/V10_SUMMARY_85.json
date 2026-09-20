@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "task": "85-06",
+  "phase": 85,
+  "revision": "hotpath-v10-20260914",
+  "result": "targeted_revalidation_summary",
+  "goal_met": false,
+  "source": {
+    "predecessor_task": "85-05",
+    "raw_result": ".wiretail/execution/evidence/V10_85-05_focused_revalidation.md",
+    "receipt": ".wiretail/execution/evidence/V10_85-05.json",
+    "raw_results_root": "/srv/ai/paged-kv/results/v10/85-05"
+  },
+  "stable_coordinate": {
+    "L": 8192,
+    "C": 6143,
+    "H": 4096,
+    "A": 4096,
+    "B": 128,
+    "U": 128,
+    "page_tokens": 256,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "draft_device": "gpu",
+    "target_backend": "CUDA",
+    "gpu": "NVIDIA GeForce RTX 4080"
+  },
+  "identity": {
+    "profile": "qwen38-fast-turbo4-mtp",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "source_commit": "d0472faa0e837c00a7e10983dcb32c2e4e146ba5",
+    "candidate_bundle": "/srv/ai/paged-kv/results/v10/85-05/candidate-bundle-wdJFg7",
+    "candidate_binary": "/srv/ai/paged-kv/results/v10/85-05/candidate-bundle-wdJFg7/bin/llama-server",
+    "candidate_binary_sha256": "83611b093c8031baaa3faefab89e75c93ae38765ab970cc5073e7af0b2063f89",
+    "build_receipt_sha256": "a9bb445c21e5c21de730f7f0b8dc899dc7391091abe5bd3bab6701df449e001c",
+    "native_draft": {
+      "kv": "turbo4/turbo4",
+      "rows": 8192,
+      "bytes": 8781824,
+      "device": "GPU/CUDA0"
+    }
+  },
+  "gates": {
+    "all_gpu_native_mtp_positive_acceptance_denominator": {
+      "status": "pass_for_denominator_only",
+      "draft_tokens": 507,
+      "accepted_tokens": 0,
+      "acceptance_percent": 0.0,
+      "interpretation": "The request-scoped denominator is positive, but native acceptance is zero; this is not a positive-acceptance capability claim."
+    },
+    "automatic_multi_page_direct_route_and_completed_target_use": {
+      "status": "failed",
+      "prefill_routes": {
+        "dense": 0,
+        "reference": 49,
+        "direct": 1,
+        "packed": 0
+      },
+      "decode_routes": {
+        "dense": 0,
+        "reference": 0,
+        "direct": 0,
+        "packed": 0
+      },
+      "mtp_verify_routes": {
+        "dense": 0,
+        "reference": 0,
+        "direct": 2,
+        "packed": 0
+      },
+      "target_graph_used": null,
+      "reason": "The selected request emitted four tokens and stalled; the observed multi-page path was reference, and no completed selected target graph use was established."
+    },
+    "selected_prefill_host_bound_maintenance_removed": {
+      "status": "failed",
+      "seal_calls": 46,
+      "pages_scanned": 47,
+      "pages_changed": 23,
+      "host_seal_d2h_calls": 2208,
+      "host_seal_d2h_bytes": 99483648,
+      "h2d_useful_bytes": 233570304,
+      "h2d_aligned_bytes": 233570304,
+      "d2h_useful_bytes": 0,
+      "d2h_aligned_bytes": 0,
+      "reason": "Host-seal D2H maintenance remained materially present; removal was not demonstrated."
+    }
+  },
+  "physical_promotion": {
+    "status": "not_established",
+    "observed_chain_fields": {
+      "cold_eligibility": null,
+      "selection_submission": null,
+      "host_readiness": null,
+      "h2d_completion": true,
+      "table_publication": true,
+      "completed_target_graph_use": null
+    },
+    "faults_delta": 54,
+    "evictions_delta": 54,
+    "table_epoch": 12482,
+    "table_epoch_changes": 51,
+    "catalogue_epoch": 8421,
+    "published_catalogue_epoch": 8551,
+    "summary_builds": 1472,
+    "summary_bytes": 198967296,
+    "rejection_histogram": {
+      "identity_mismatch": 232,
+      "missing_host_source": 15,
+      "admission_rejected": 44,
+      "transfer_rejected": 15
+    },
+    "interpretation": "Transfer and publication counters do not substitute for a completed target graph consuming the promoted mapping."
+  },
+  "mtp_first_divergence": {
+    "all_gpu": {
+      "first_divergent_token": null,
+      "draft_tokens": 507,
+      "accepted_tokens": 0,
+      "target_state_restored_before_verification": null,
+      "draft_state_restored_before_verification": null,
+      "classification": "zero acceptance; selected pager path not enabled"
+    },
+    "selected": {
+      "first_divergent_token": null,
+      "target_state_restored_before_verification": false,
+      "draft_state_restored_before_verification": false,
+      "emitted_tokens_before_stall": 4,
+      "graph_submissions": 52,
+      "graph_completions": 51,
+      "classification": "selected request stalled after the first verification diagnostic"
+    },
+    "cpu_main_kv_control": {
+      "first_divergent_token": null,
+      "draft_tokens": 507,
+      "accepted_tokens": 0,
+      "classification": "zero acceptance; target KV CPU and draft KV GPU"
+    }
+  },
+  "answer_quality": {
+    "status": "not_run",
+    "ratio": null,
+    "reason": "The focused cache pair was a feature-off control and did not establish an answer-quality oracle for selected paging."
+  },
+  "speed": {
+    "status": "not_run",
+    "ratios": null,
+    "gpu_utilization": null,
+    "gpu_utilization_sampling": "not_run",
+    "reason": "The canonical runner had no concurrent utilization sampler; unresolved native acceptance and selected target-use gates prohibit throughput claims."
+  },
+  "control_rows": {
+    "feature_off": {
+      "status": "measured",
+      "prompt_tokens": 6143,
+      "completion_tokens": 256,
+      "mtp_acceptance": null,
+      "pager_counters": null
+    },
+    "all_gpu_native_mtp": {
+      "status": "measured_zero_acceptance",
+      "prompt_tokens": 6143,
+      "completion_tokens": 256,
+      "draft_tokens": 507,
+      "accepted_tokens": 0,
+      "acceptance_percent": 0.0
+    },
+    "cpu_main_kv_native_mtp": {
+      "status": "measured_zero_acceptance",
+      "prompt_tokens": 6143,
+      "completion_tokens": 256,
+      "draft_tokens": 507,
+      "accepted_tokens": 0,
+      "acceptance_percent": 0.0
+    },
+    "selected_native_mtp": {
+      "status": "failed",
+      "processed_prompt_tokens": 6143,
+      "emitted_tokens": 4,
+      "completed": false,
+      "pager_counters": "partial snapshot retained in raw result"
+    },
+    "matched_cached_append_decode": {
+      "status": "measured_control_only",
+      "cold_prompt_tokens": 6143,
+      "live_cached_rows": 6139,
+      "live_prompt_rows": 6143,
+      "output_tokens": 64,
+      "quality_ratio": null,
+      "speed_ratio": null
+    }
+  },
+  "stop_gates": [
+    "Do not claim positive native-MTP acceptance until all required measured rows have positive denominators and accepted-token behavior is explained and rerun.",
+    "Do not enable or claim automatic multi-page direct or packed promotion until a completed target graph consumes the mapping without the selected stall/illegal-memory boundary.",
+    "Do not claim removal of selected prefill host-bound maintenance until host-seal D2H counters are reduced and independently measured.",
+    "Do not run broad speed ratios, occupancy scaling, or full-L occupancy claims while the selected target-use and native-MTP gates remain unresolved.",
+    "Keep answer quality, physical promotion, and speed as separate claims; a correct answer or healthy restored process is not capability evidence."
+  ],
+  "deferred_verification": [
+    "GPU utilization sampling was not run by the canonical runner.",
+    "Positive native-MTP acceptance was not established; the measured denominator had 0 accepted tokens.",
+    "Completed selected multi-page direct target use was not established because the request stalled."
+  ],
+  "sources": [
+    ".wiretail/execution/evidence/V10_85-05.json",
+    ".wiretail/execution/evidence/V10_85-05_focused_revalidation.md",
+    "/srv/ai/paged-kv/results/v10/85-05/selected-native/progress.json",
+    "/srv/ai/paged-kv/results/v10/85-05/selected-native/lifecycle-state.json",
+    "/srv/ai/paged-kv/results/v10/85-05/candidate-bundle-wdJFg7/build-receipt.json"
+  ]
+}
