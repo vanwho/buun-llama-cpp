@@ -51,6 +51,7 @@ PLACEMENTS = (
     {"id": "selected_pager_feature_off", "pager": "selective", "mtp": "off", "cpu_kv": False},
 )
 TARGETS = (256, 6143)
+REQUESTED_BATCH = 128
 
 
 def now() -> str:
@@ -171,6 +172,15 @@ def exact_prompt(target: int) -> tuple[str, int]:
 def write_json(path: pathlib.Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+
+
+def geometry_mismatch(identity: dict, requested_b: int, requested_u: int) -> str | None:
+    observed = identity.get("observed", {})
+    if observed.get("B") != requested_b:
+        return f"launcher_observed_B{observed.get('B')}_requested_B{requested_b}"
+    if observed.get("U") != requested_u:
+        return f"launcher_observed_U{observed.get('U')}_requested_U{requested_u}"
+    return None
 
 
 def configure_and_start(placement: dict, requested_u: int) -> dict:
@@ -346,6 +356,25 @@ def main() -> int:
                     row_root = run_root / placement["id"] / geometry_label / f"C{target}"
                     row_root.mkdir(parents=True)
                     write_json(row_root / "identity.json", identity)
+                    mismatch = geometry_mismatch(identity, REQUESTED_BATCH, requested_u)
+                    if mismatch is not None:
+                        result = {
+                            "row": row_id, "placement": placement,
+                            "requested_B": REQUESTED_BATCH,
+                            "requested_U": requested_u,
+                            "observed_L": identity["observed"]["L"],
+                            "observed_C": None,
+                            "observed_B": identity["observed"]["B"],
+                            "observed_U": observed_u,
+                            "H": identity["observed"]["L"], "A": None,
+                            "warmup": {"status": "not_run_geometry_mismatch"},
+                            "measured": {"status": "not_run_geometry_mismatch"},
+                            "failure_boundary": mismatch,
+                            "row_root": str(row_root),
+                        }
+                        write_json(row_root / "row.json", result)
+                        summary["rows"].append(result)
+                        continue
                     prompt, observed_c = exact_prompt(target)
                     body = prompt_body(prompt)
                     write_json(row_root / "prompt-preflight.json", {"requested_C": target,
@@ -354,13 +383,12 @@ def main() -> int:
                     warmup = run_request(row_root, "warmup", body, prompt)
                     measured = run_request(row_root, "measured", body, prompt)
                     result = {
-                        "row": row_id, "placement": placement, "requested_B": 128,
+                        "row": row_id, "placement": placement, "requested_B": REQUESTED_BATCH,
                         "requested_U": requested_u, "observed_L": identity["observed"]["L"],
                         "observed_C": observed_c, "observed_B": identity["observed"]["B"],
                         "observed_U": observed_u, "H": identity["observed"]["L"],
                         "A": None, "warmup": warmup, "measured": measured,
-                        "failure_boundary": ("launcher_ignored_requested_U128; effective U64"
-                                             if requested_u == 128 and observed_u != requested_u else None),
+                        "failure_boundary": None,
                         "row_root": str(row_root),
                     }
                     write_json(row_root / "row.json", result)
@@ -375,7 +403,7 @@ def main() -> int:
         baseline = baselines.get((result["observed_C"], result["observed_U"]))
         native = result["placement"]["mtp"] == "native"
         selected = result["placement"]["pager"] == "selective"
-        output = result["measured"]["output_tokens"]
+        output = result["measured"].get("output_tokens")
         first_divergent = None
         if baseline is not None and output is not None:
             for index, (left, right) in enumerate(zip(baseline[:32], output[:32])):
@@ -386,7 +414,7 @@ def main() -> int:
                 first_divergent = min(len(baseline[:32]), len(output[:32]))
         result["first_divergent_token_position"] = first_divergent
         if result["failure_boundary"]:
-            result["status"] = "setup_failure_secondary_measured"
+            result["status"] = "setup_failure_geometry_mismatch"
         elif result["measured"]["response"]["http_code"] != 200:
             result["status"] = "request_failed"
         elif native and result["measured"]["draft_tokens"] is None:

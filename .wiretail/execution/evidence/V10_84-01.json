@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "task": "84-01",
+  "source_commit": "775a2b40ba2ea460c03d8039b80f9edc3c70304a",
+  "checks": {
+    "phase84_mtp_state_diagnostic": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate_84_01_mtp_diagnostic.py",
+        ".wiretail/execution/evidence/raw/V10_84-01_mtp_diagnostic.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-01/run-1/phase84_mtp_state_diagnostic.log",
+          "sha256": "1ea58fc9e36b8dc62b62082898de37ad92e733fa9f43f9c3171dd716cd3299d3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-01/run-1/mtp_diagnostic.json",
+          "sha256": "0f3eeefe5a8bece6438d074cb581585c8c0864b84c54b2813bc9bc4772e41809"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-01/run-1/u128_identity.json",
+          "sha256": "3e60407362830dc68aec9d4364b3e8c55419e9fd1778b971655e0a6e716dc529"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-01/run-1/u64_identity.json",
+          "sha256": "c69d9323cf2783e11f5f882445b605782892e5b5147b8d6a46e50368dcb70ff1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-01/run-1/u128_journal.log",
+          "sha256": "fd2c74a7acf7ba6da039c5c5bffe08fce76beb48e1af4a5d713fe1540475d4b6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-01/run-1/u64_journal.log",
+          "sha256": "17e1a11264678ba14ae1075c3b963f2a564c89894e3ffa299cb48cacb00f08b7"
+        }
+      ],
+      "findings": {
+        "primary": "B128/U128 loaded and served; native MTP drafted 11 and accepted 0",
+        "control": "B128/U64 loaded and served; native MTP drafted 11 and accepted 0",
+        "classification": "geometry and capacity cleared; dense non-paged route and restore boundary are observed; proposal/target logit identity remains unresolved at the native-MTP draft-versus-verification seam"
+      }
+    },
+    "launcher_geometry_contract": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tools.server.bench.test_launcher_contract",
+        "-v"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-01/run-1/test_launcher_contract.log",
+          "sha256": "32ea4b964db722b6ab96034bd5168b1437cc2d5fb7b5ebfd70953bc28881e069"
+        }
+      ]
+    },
+    "mtp_restore_invariant": {
+      "status": "pass",
+      "command": ["./build-cuda/bin/test-mtp-vocab-trim"],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/84-01/run-1/test-mtp-vocab-trim.log",
+          "sha256": "9a991dec97958f49fe567e1f2f92f3f44704c0f2f263e68890fe252e58a4d933"
+        }
+      ]
+    }
+  }
+}
