@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "task": "83-02",
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "findings": {
+    "occupancy": {
+      "status": "measured_partial_frontier",
+      "L": 262144,
+      "H": 8192,
+      "A": 4096,
+      "B": 128,
+      "U": 64,
+      "durable_C": 29134,
+      "live_C": 29149,
+      "occupied_C262144": "not_established",
+      "successful_turns": 8,
+      "first_exact_stop_reason": "operator_bounded_wall_budget_stop_after_C29134",
+      "route": "selected packed",
+      "route_counters": {
+        "prefill_packed_routes": 473,
+        "decode_packed_routes": 8,
+        "mtp_verify_packed_routes": 112,
+        "route_override_accepted": 593,
+        "route_override_refused": 0
+      }
+    },
+    "allocation": {
+      "admission_accepted": true,
+      "target_allocated_bytes": 138412032,
+      "mtp_bytes": 276955136,
+      "packed_workspace_bytes": 138412032,
+      "packed_dequant_bytes": 16777216,
+      "charged_bytes": 15965452416,
+      "reserved_bytes": 2068443264,
+      "headroom_bytes": 201326592
+    },
+    "identity": {
+      "endpoint_pid": 17073,
+      "binary_sha256": "b2800fff4b40d255163518b3e4fc812f0b9f081ff4d04367fe897002f0468378",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "target_k": "turbo4",
+      "target_v": "turbo4",
+      "target_backend": "CUDA",
+      "draft_k": "turbo4",
+      "draft_v": "turbo4",
+      "draft_backend": "gpu"
+    },
+    "startup_alternative": {
+      "status": "failed",
+      "reason": "invalid argument: --kv-pager"
+    }
+  },
+  "checks": {
+    "phase83_occupancy_advancement": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/frontier",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--endpoint",
+        "http://127.0.0.1:8080/v1/chat/completions",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--target-tokens",
+        "262144",
+        "--turn-delta",
+        "3000",
+        "--initial-tokens",
+        "8192",
+        "--max-tokens",
+        "16",
+        "--wall-budget",
+        "720",
+        "--prefill-timeout",
+        "180",
+        "--total-timeout",
+        "300"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_83-02.md", "sha256": "3e07990fb826ecf5cf40a78c2bbf3adfb069d9760a6bcfb59ba48163f2a682d6"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/frontier/phase83_occupancy_validation.json", "sha256": "9a4b93020b03e4e2a97da7d5c9080b15d9259fe332af04884c6b25fd4424a530"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/frontier/allocation-ledger.json", "sha256": "2c16ccde5005df6e6615313c122ae0e75112274ed0bb42ddfac876030485bf68"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/frontier/INTERACTIVE29_01_SCALE.json", "sha256": "fc9d7af97f11611e74333f5fd8fa54d38635d4df9cd0af49c951689a2ae30eba"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/frontier/slots-final.json", "sha256": "f55b3e5a62177f5dce2fd87939a5d68f036e8835396305ef06c9292f002922c8"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/frontier/raw-00.sse", "sha256": "5f7fdaf83d2b3f3406a5a86ca583c961fb43af292ce8842d1493627f5efb0413"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/frontier/raw-07.sse", "sha256": "a4d92fbfa89c17316e8ebe853f9e74c757db9350a661f05cbd735f617e25b6a1"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/identity/polls.jsonl", "sha256": "fe7ece0aa4289fcf0527ddeafd52b776806808c32b5cf35a6ac178b331ad0d40"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/identity/build-receipt.json", "sha256": "45040dc5c16492b63cdfed13c754ca38b60d91942fbd522ddbb54b187a5273d8"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/identity/process-final.cmdline", "sha256": "881865049ba59caea8c670ffefa839cc603a021f28cd023d266b03411be601e8"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/identity/loaded-dsos-final.txt", "sha256": "443c818b168daf52fd7c7d47c0519bcaa3fffaa2235b95e301e58cafe0ba558c"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/identity/current-build-startup-failure.log", "sha256": "04e74fae63e9793a0736a5296f49fcf495a23f88a93c113b79d2ff689928f8f4"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/live-setup/metrics-before-probe.txt", "sha256": "9461cb3bbd003db248b15312f86c7c3420f385c0b80df6cf7cdd0d7b3a17b259"},
+        {"path": "/srv/ai/paged-kv/results/v10/83-02/20260920T152810Z-83-02-occupancy/v10-candidate/live-setup/metrics-final.txt", "sha256": "bf094cb4ea8cd8c0a68bfbdad9d51b1de57116a28e9df1398a19e51cb7335b43"}
+      ]
+    }
+  }
+}
