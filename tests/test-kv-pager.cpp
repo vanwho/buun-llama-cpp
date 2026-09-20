@@ -791,21 +791,30 @@ static void test_pager_host_mutation() {
                 llama_kv_pager_write_status::ok);
     }
     fixture.snapshot.pages[0] = tail_pager->residency().pages()[0].id;
-    assert(tail_pager->seal_ready_pages() == 1);
+    // The active mutable tail is not canonicalized at a scheduler fence. It
+    // must not trigger a host copy or routing-summary work per generated token.
+    assert(tail_pager->seal_ready_pages() == 0);
+    const uint64_t tail_seal_calls = tail_pager->seal_calls();
+    assert(tail_pager->seal_ready_pages() == 0);
+    assert(tail_pager->seal_calls() == tail_seal_calls);
+    assert(tail_pager->host_catalog()->snapshot().live_pages == 0);
+
+    // Once a later page takes over, the old tail is immutable and can be
+    // published exactly once before its slot is reused.
     const auto tail_pages = tail_pager->host_catalog()->pages();
-    assert(tail_pages.size() == 1);
-    assert(tail_pages[0].page.tail);
-    assert(tail_pages[0].page.positions.size() == 17);
-    assert(tail_pages[0].page.units.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS);
-    for (const auto & unit : tail_pages[0].page.units) {
-        assert(unit.valid_rows == 17);
-        assert(unit.bytes && unit.bytes->size() == 17 * host_page_fixture::row_bytes);
-    }
-    const auto cold_tail_id = tail_pages[0].page.identity;
+    assert(tail_pages.empty());
     assert(tail_pager->begin_write(0, 1, 256, ticket) ==
             llama_kv_pager_write_status::ok);
     const auto retained_tail_pages = tail_pager->host_catalog()->pages();
     assert(retained_tail_pages.size() == 1);
+    assert(retained_tail_pages[0].page.tail);
+    assert(retained_tail_pages[0].page.positions.size() == 17);
+    assert(retained_tail_pages[0].page.units.size() == VBR_SELECTED_PAGE_REQUIRED_UNITS);
+    for (const auto & unit : retained_tail_pages[0].page.units) {
+        assert(unit.valid_rows == 17);
+        assert(unit.bytes && unit.bytes->size() == 17 * host_page_fixture::row_bytes);
+    }
+    const auto cold_tail_id = retained_tail_pages[0].page.identity;
     assert(retained_tail_pages[0].page.identity == cold_tail_id);
     assert(retained_tail_pages[0].page.tail);
     const auto cold_records = tail_pager->exact_page_records(0);
@@ -1207,11 +1216,11 @@ int main() {
         assert(summary_pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
         assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
     }
-    assert(summary_pager->seal_ready_pages() == 2);
+    assert(summary_pager->seal_ready_pages() == 1);
     const uint64_t initial_seal_scan_count = summary_pager->seal_pages_scanned();
-    assert(initial_seal_scan_count == 2);
+    assert(initial_seal_scan_count == 1);
     const uint64_t initial_summary_calls = routing_provider_calls;
-    assert(initial_summary_calls == 128);
+    assert(initial_summary_calls == 64);
     assert(summary_pager->seal_ready_pages() == 0);
     assert(summary_pager->seal_pages_scanned() == initial_seal_scan_count);
     assert(routing_provider_calls == initial_summary_calls);
@@ -1219,7 +1228,7 @@ int main() {
     // Runtime retrieval keeps one independently tagged summary per layer/KV
     // head, even when a fixture provider supplies the same shape for each.
     assert(summary_pager->routing_summary_index().table_count() == 64);
-    assert(summary_pager->routing_summary_accounting().source_rows == 8);
+    assert(summary_pager->routing_summary_accounting().source_rows == 4);
     std::vector<float> summary_query(256, 0.0f);
     summary_query[0] = 1.0f;
     const auto summary_scores = summary_pager->routing_summaries().score(
@@ -1238,8 +1247,8 @@ int main() {
     const uint64_t after_tail_calls = routing_provider_calls;
     assert(summary_pager->begin_write(0, 1, 512, ticket) == llama_kv_pager_write_status::ok);
     assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
-    assert(summary_pager->seal_ready_pages() == 1);
-    assert(routing_provider_calls == after_tail_calls + 64);
+    assert(summary_pager->seal_ready_pages() == 0);
+    assert(routing_provider_calls == after_tail_calls);
 
     // A speculative overwrite is cancelled, but the next successful overwrite
     // must refresh the summary for that page rather than retaining stale rows.
@@ -1248,8 +1257,9 @@ int main() {
     const uint64_t after_rollback = routing_provider_calls;
     assert(summary_pager->begin_write(0, 1, 0, ticket) == llama_kv_pager_write_status::ok);
     assert(summary_pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
-    assert(summary_pager->seal_ready_pages() == 1);
-    assert(routing_provider_calls == after_rollback + 64);
+    const auto overwrite_sealed = summary_pager->seal_ready_pages();
+    assert(overwrite_sealed == 2);
+    assert(routing_provider_calls == after_rollback + 128);
 
     config.hot_pages.automatic = true;
     config.hot_pages.value = 0;

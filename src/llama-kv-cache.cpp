@@ -2470,14 +2470,10 @@ void llama_kv_cache::capture_kv_routing_query(
     if (tensor == nullptr && layer < 0) {
         pager_query_generation_ = pager_query_generation_ == UINT64_MAX
             ? UINT64_MAX : pager_query_generation_ + 1;
-        const bool cold_inventory = pager_last_sequence_id_ >= 0 &&
-            pager_->exact_page_records(pager_last_sequence_id_).size() >
-                pager_->snapshot().physical_page_count;
         const bool refresh = llama_kv_pager_refresh_due(
             pager_query_generation_, pager_query_accepted_tokens_,
             pager_query_refresh_watermark_, pager_policy_dirty_,
-            pager_->snapshot().router_refresh_tokens) || pager_policy_dirty_ ||
-            cold_inventory;
+            pager_->snapshot().router_refresh_tokens);
         pager_query_refresh_enabled_ = refresh;
         if (refresh) {
             pager_query_refresh_watermark_ = pager_query_accepted_tokens_;
@@ -2491,6 +2487,10 @@ void llama_kv_cache::capture_kv_routing_query(
             ubatch.n_pos == 0) {
         return;
     }
+    // The selector graph may still be reused for the target attention shape,
+    // but a cadence skip must not register a new Q/catalogue descriptor. The
+    // previous authenticated selection remains authoritative until refresh.
+    if (!pager_query_refresh_enabled_) return;
     const llama_seq_id sequence_id = ubatch.seq_id[0][0];
     if (sequence_id < 0) return;
     const auto snapshot = pager_->residency(sequence_id);
@@ -2579,7 +2579,17 @@ void llama_kv_cache::note_kv_pager_accepted_tokens(uint32_t count) {
 
 void llama_kv_cache::seal_kv_pager_pages() {
     if (pager_ != nullptr) {
-        pager_policy_dirty_ = pager_policy_dirty_ || pager_->seal_ready_pages() != 0;
+        // Polling completion is cheap and does not touch the device source.
+        // Host capture and summary construction run only when the pager has
+        // queued work; catalogue construction is additionally gated by the
+        // accepted-token refresh boundary.
+        pager_->poll_host_completions();
+        const bool publish_catalogue = pager_query_refresh_enabled_ || pager_policy_dirty_;
+        if (pager_->host_maintenance_pending() ||
+                (publish_catalogue && pager_->catalogue_maintenance_pending())) {
+            pager_policy_dirty_ = pager_policy_dirty_ ||
+                pager_->seal_ready_pages(publish_catalogue) != 0;
+        }
         if (pager_last_sequence_id_ >= 0) {
             const auto snapshot = pager_->residency(pager_last_sequence_id_);
             uint32_t current_page = UINT32_MAX;
@@ -2612,10 +2622,6 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         return;
     }
     try {
-        // Complete any host-capture notification that arrived at the prior
-        // scheduler fence and build its summary before the policy can evict
-        // the page. Cold selection is only sound when both authorities exist.
-        (void) pager_->seal_ready_pages();
         const auto snapshot = pager_->residency(pager_last_sequence_id_);
         if (snapshot.epoch() == 0) return;
 
@@ -2635,6 +2641,14 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         // so using mailbox readiness as the only wakeup would deadlock the
         // natural selector path.
         (void) mailbox.poll(0, 0);
+        // A pending selector event may complete independently of the current
+        // accepted-token cadence. Consume that already-submitted result, but
+        // do not start a new score/catalogue walk for an ordinary U-token
+        // fence whose refresh bit is clear.
+        if (!pager_query_refresh_enabled_ && !pager_policy_dirty_ &&
+                mailbox.ready_slots() == 0) {
+            return;
+        }
         // Completion is the only point at which compact IDs become candidate
         // records. Taking the ready slot first also makes the fixed two-slot
         // ring reusable on this boundary without waiting for a CPU copy.
@@ -16635,10 +16649,20 @@ bool llama_kv_cache_context::can_reuse_kv_page_select(
     const auto & geometry = pager_snapshot.geometry;
     if (std::find(geometry.model_layer_ids.begin(), geometry.model_layer_ids.end(),
             uint32_t(layer)) == geometry.model_layer_ids.end()) return false;
+    if (uint64_t(bounds->ne[3]) != pager_snapshot.logical_page_count ||
+            bounds->ne[0] != int64_t(geometry.key_length) ||
+            bounds->ne[2] != int64_t(geometry.kv_heads) || bounds->buffer == nullptr) {
+        return false;
+    }
+    if (kv->pager_->residency(ubatch.seq_id[0][0]).epoch() == 0) return false;
+    // A cadence skip deliberately reuses the previous selector inputs. Avoid
+    // walking the host-backed inventory just to discover that no score is
+    // allowed on this fence.
+    if (!kv->pager_query_refresh_enabled_) return true;
     const auto inventory = kv->pager_->exact_page_records(ubatch.seq_id[0][0]);
-    return !inventory.empty() && uint64_t(bounds->ne[3]) == pager_snapshot.logical_page_count &&
-        bounds->ne[0] == int64_t(geometry.key_length) &&
-        bounds->ne[2] == int64_t(geometry.kv_heads) && bounds->buffer != nullptr;
+    return !inventory.empty() &&
+            bounds->ne[0] == int64_t(geometry.key_length) &&
+            bounds->ne[2] == int64_t(geometry.kv_heads) && bounds->buffer != nullptr;
 }
 
 void llama_kv_cache_context::capture_kv_routing_query(
@@ -16658,6 +16682,12 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             ubatch.pos == nullptr || ubatch.n_pos == 0) return false;
     const auto & pager = *kv->get_kv_pager();
     const auto sequence = pager.residency(ubatch.seq_id[0][0]);
+    if (!kv->pager_query_refresh_enabled_) {
+        const int64_t disabled = 0;
+        ggml_backend_tensor_set(query, &disabled,
+                size_t(3) * query->nb[0], sizeof(disabled));
+        return true;
+    }
     const auto inventory = pager.exact_page_records(ubatch.seq_id[0][0]);
     const auto layer_it = std::find(pager.snapshot().geometry.model_layer_ids.begin(),
             pager.snapshot().geometry.model_layer_ids.end(), uint32_t(layer));
@@ -16803,9 +16833,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     }
     const int64_t snapshot_generation = int64_t(std::min<uint64_t>(
             latest_page_generation, INT64_MAX));
-    const bool cold_inventory = inventory.size() > sequence.slot_capacity();
-    const int64_t refresh_enabled = (kv->pager_query_refresh_enabled_ ||
-            cold_inventory) ? 1 : 0;
+    const int64_t refresh_enabled = kv->pager_query_refresh_enabled_ ? 1 : 0;
     const int64_t query_data[4] = {
         query_position, sequence_generation, snapshot_generation, refresh_enabled };
     ggml_backend_tensor_set(query, query_data, 0, sizeof(query_data));
@@ -16817,8 +16845,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             output.table_epoch = sequence.epoch();
             output.query_position = uint64_t(query_position);
             output.sequence_generation = uint64_t(sequence_generation);
-            output.refresh_enabled = kv->pager_query_refresh_enabled_ ||
-                cold_inventory;
+            output.refresh_enabled = kv->pager_query_refresh_enabled_;
         }
     }
     return true;
