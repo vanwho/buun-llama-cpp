@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "review": "V10_REVIEW_85",
+  "revision": "hotpath-v10-20260914",
+  "task": "85-07",
+  "goal_met": false,
+  "bounded_result": {
+    "coordinate": "L8192/C6143/H4096/A4096/B128/U128",
+    "native_mtp": {
+      "status": "failed_capability_gate",
+      "all_gpu": {"draft_tokens": 507, "accepted_tokens": 0, "acceptance_percent": 0.0},
+      "cpu_main_kv_control": {"draft_tokens": 507, "accepted_tokens": 0, "acceptance_percent": 0.0},
+      "interpretation": "Request-scoped positive denominators were observed, but no accepted-token behavior was established."
+    },
+    "selected_request": {
+      "status": "failed_capability_gate",
+      "processed_prompt_tokens": 6143,
+      "emitted_tokens_before_stall": 4,
+      "graph_submissions": 52,
+      "graph_completions": 51,
+      "routes": {
+        "prefill_dense_reference_direct_packed": [0, 49, 1, 0],
+        "decode_dense_reference_direct_packed": [0, 0, 0, 0],
+        "mtp_verify_dense_reference_direct_packed": [0, 0, 2, 0]
+      },
+      "interpretation": "The selected request did not complete a terminal direct/packed request path."
+    },
+    "bounded_natural_promotion": {
+      "status": "observed_but_not_end_to_end_acceptance",
+      "query_generation": 34,
+      "logical_page": 0,
+      "candidate_was_cold": true,
+      "host_ready": true,
+      "h2d_queued": true,
+      "h2d_completed": true,
+      "mapping_published": true,
+      "target_graph_used": true,
+      "target_use_epoch": 12475,
+      "interpretation": "This is a bounded completed target-use observation from the natural proof record, but it does not cure the later stalled selected request or prove the full fixed-coordinate route gate."
+    },
+    "selected_prefill_maintenance": {
+      "status": "failed_capability_gate",
+      "seal_calls": 46,
+      "pages_scanned": 47,
+      "pages_changed": 23,
+      "host_seal_d2h_calls": 2208,
+      "host_seal_d2h_bytes": 99483648,
+      "summary_build_calls": 1472,
+      "interpretation": "Host-seal D2H work remained materially present."
+    },
+    "unmeasured": [
+      "answer quality",
+      "speed ratios",
+      "GPU utilization sampling",
+      "full-context occupancy and scaling"
+    ]
+  },
+  "diagnosis": {
+    "native_mtp": {
+      "source_symbols": [
+        "server_context::mtp_target_restored_before_verify",
+        "server_context::mtp_draft_restored_before_verify",
+        "common_speculative_rollback_frontier_resolve",
+        "common_speculative_rollback_dft",
+        "server_task::metrics"
+      ],
+      "files": [
+        "tools/server/server-context.cpp",
+        "common/speculative.cpp",
+        "common/speculative.h",
+        "tools/server/server-task.cpp"
+      ],
+      "tests": [
+        "tests/test-speculative-mtp-state.cpp",
+        "tests/test-mtp-vocab-trim.cpp",
+        "tests/test-kv-pager-model.cpp"
+      ]
+    },
+    "direct_target_use": {
+      "source_symbols": [
+        "llama_context::prepare_kv_attention",
+        "llama_context::synchronize",
+        "llama_kv_pager::record_natural_proof_target_use",
+        "llama_kv_pager::apply_live_policy",
+        "llama_kv_attention_execution::complete_one_graph"
+      ],
+      "files": [
+        "src/llama-context.cpp",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-attention-execution.cpp"
+      ],
+      "tests": [
+        "tests/test-kv-attention-execution.cpp",
+        "tests/test-kv-pager-model.cpp",
+        "bin/test-cuda-kv-promotion"
+      ]
+    },
+    "host_maintenance": {
+      "source_symbols": [
+        "llama_kv_cache::seal_kv_pager_pages",
+        "llama_kv_cache::apply_pager_live_policy",
+        "llama_kv_pager::seal_ready_pages",
+        "llama_kv_pager::drain_host_completions",
+        "llama_kv_pager::host_seal_d2h_calls_",
+        "llama_kv_pager::host_seal_d2h_bytes_"
+      ],
+      "files": [
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-pager.cpp"
+      ],
+      "tests": [
+        "tests/test-kv-pager.cpp",
+        "tests/test-kv-pager-model.cpp",
+        "bin/test-kv-pager"
+      ]
+    }
+  },
+  "next_task_ids": [
+    "85-08",
+    "85-09",
+    "85-10",
+    "85-11",
+    "85-12",
+    "85-13"
+  ],
+  "successor_schedule": [
+    {"id": "85-08", "kind": "repair", "gate": "native-MTP acceptance and state parity"},
+    {"id": "85-09", "kind": "repair/proof", "gate": "selected direct completion and stable target use"},
+    {"id": "85-10", "kind": "repair", "gate": "selected-prefill host-seal maintenance"},
+    {"id": "85-11", "kind": "benchmark", "gate": "fixed-coordinate canonical revalidation"},
+    {"id": "85-12", "kind": "summary", "gate": "truthful follow-up capability summary"},
+    {"id": "85-13", "kind": "review", "gate": "bounded capability decision and proven successors only"}
+  ],
+  "stop_gates": [
+    "Do not claim positive native-MTP acceptance from a positive denominator with 0 accepted tokens.",
+    "Do not claim the fixed-coordinate selected route is complete from a natural proof record when the request later stalls.",
+    "Do not claim removal of selected prefill host-bound maintenance while host-seal D2H counters remain materially nonzero.",
+    "Do not run broad speed, quality, utilization, or occupancy claims before the targeted gates are revalidated."
+  ],
+  "source_evidence": [
+    ".wiretail/execution/evidence/V10_SUMMARY_85.json",
+    ".wiretail/execution/evidence/V10_SUMMARY_85.md",
+    ".wiretail/execution/evidence/V10_85-05.json",
+    ".wiretail/execution/evidence/V10_85-05_focused_revalidation.md",
+    "/srv/ai/paged-kv/results/v10/85-05/selected-native/progress.json",
+    "/srv/ai/paged-kv/results/v10/85-05/selected-native/lifecycle-state.json"
+  ]
+}

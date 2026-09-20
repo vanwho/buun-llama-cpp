@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "85",
-  "current_task": "85-07",
-  "last_updated_utc": "2026-09-20T22:34:39+00:00",
+  "current_task": "85-08",
+  "last_updated_utc": "2026-09-20T22:43:17+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -15602,7 +15602,7 @@
       "cluster": "85g-review-v10",
       "title": "Review targeted repair findings and schedule only proven successors",
       "packet": ".wiretail/execution/tasks/85-07.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -15628,6 +15628,301 @@
       ],
       "depends_on": [
         "85-06"
+      ],
+      "commit": "1a19430f4417784cd4af0853382dd7fd7dc7f468",
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-07-attempt-1-20260920T223458Z.jsonl:97",
+            "total_tokens": 5125757,
+            "total_tokens_derived": true,
+            "input_tokens": 5103050,
+            "cached_input_tokens": 4913408,
+            "output_tokens": 22707,
+            "thinking_tokens": 6538
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 5125757,
+          "input_tokens": 5103050,
+          "cached_input_tokens": 4913408,
+          "output_tokens": 22707,
+          "thinking_tokens": 6538
+        }
+      }
+    },
+    {
+      "id": "85-08",
+      "phase": "85",
+      "cluster": "85h-mtp-proof-v10",
+      "title": "Repair native-MTP acceptance and verification-state parity",
+      "packet": ".wiretail/execution/tasks/85-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
+        ".wiretail/execution/handoffs/85-07.md"
+      ],
+      "required_proofs": [
+        "mtp_state_regression",
+        "mtp_fixed_coordinate_smoke"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-08",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-08.json"
+      ],
+      "depends_on": [
+        "85-07"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "85-09",
+      "phase": "85",
+      "cluster": "85i-direct-proof-v10",
+      "title": "Repair selected direct completion and target-use proof",
+      "packet": ".wiretail/execution/tasks/85-09.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
+        ".wiretail/execution/handoffs/85-07.md"
+      ],
+      "required_proofs": [
+        "cuda_direct_completion_regression",
+        "direct_target_use_smoke"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-09",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-09.json"
+      ],
+      "depends_on": [
+        "85-08"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "85-10",
+      "phase": "85",
+      "cluster": "85j-maintenance-proof-v10",
+      "title": "Remove remaining selected-prefill host-seal work",
+      "packet": ".wiretail/execution/tasks/85-10.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
+        ".wiretail/execution/handoffs/85-07.md"
+      ],
+      "required_proofs": [
+        "pager_maintenance_regression",
+        "maintenance_fixed_coordinate_smoke"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-10",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-10.json"
+      ],
+      "depends_on": [
+        "85-09"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "85-11",
+      "phase": "85",
+      "cluster": "85k-revalidation-v10",
+      "title": "Revalidate the repaired fixed-coordinate hot path",
+      "packet": ".wiretail/execution/tasks/85-11.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
+        ".wiretail/execution/handoffs/85-07.md"
+      ],
+      "required_proofs": [
+        "focused_revalidation"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-11",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-11.json"
+      ],
+      "depends_on": [
+        "85-10"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "85-12",
+      "phase": "85",
+      "cluster": "85l-summary-v10",
+      "title": "Summarize the follow-up capability findings",
+      "packet": ".wiretail/execution/tasks/85-12.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
+        ".wiretail/execution/handoffs/85-07.md"
+      ],
+      "required_proofs": [
+        "phase85_followup_summary"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-12",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-12.json"
+      ],
+      "depends_on": [
+        "85-11"
+      ],
+      "commit": null,
+      "token_usage": {
+        "turns": [],
+        "totals": {
+          "turns": 0,
+          "total_tokens": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "thinking_tokens": 0
+        }
+      }
+    },
+    {
+      "id": "85-13",
+      "phase": "85",
+      "cluster": "85m-review-v10",
+      "title": "Review follow-up findings and gate any next work",
+      "packet": ".wiretail/execution/tasks/85-13.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "context_files": [
+        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/v10/TESTING.md",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
+        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
+        ".wiretail/execution/handoffs/85-07.md"
+      ],
+      "required_proofs": [
+        "phase85_followup_review"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-13",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-13.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REVIEW_85_FOLLOWUP.json"
+      ],
+      "depends_on": [
+        "85-12"
       ],
       "commit": null,
       "token_usage": {
@@ -20275,26 +20570,39 @@
           "cached_input_tokens": 1015552,
           "output_tokens": 10284,
           "thinking_tokens": 1849
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-07-attempt-1-20260920T223458Z.jsonl:97",
+          "total_tokens": 5125757,
+          "total_tokens_derived": true,
+          "input_tokens": 5103050,
+          "cached_input_tokens": 4913408,
+          "output_tokens": 22707,
+          "thinking_tokens": 6538
         }
       ],
       "totals": {
-        "turns": 6,
-        "total_tokens": 133201397,
-        "input_tokens": 132917831,
-        "cached_input_tokens": 129788928,
-        "output_tokens": 283566,
-        "thinking_tokens": 112925
+        "turns": 7,
+        "total_tokens": 138327154,
+        "input_tokens": 138020881,
+        "cached_input_tokens": 134702336,
+        "output_tokens": 306273,
+        "thinking_tokens": 119463
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 279,
-      "total_tokens": 4916990713,
-      "input_tokens": 4904975123,
-      "cached_input_tokens": 4800420864,
-      "output_tokens": 12015590,
-      "thinking_tokens": 4272720
+      "turns": 280,
+      "total_tokens": 4922116470,
+      "input_tokens": 4910078173,
+      "cached_input_tokens": 4805334272,
+      "output_tokens": 12038297,
+      "thinking_tokens": 4279258
     },
     "source": "Codex turn.completed usage events"
   }

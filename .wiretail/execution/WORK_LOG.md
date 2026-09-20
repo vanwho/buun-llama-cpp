@@ -1117,3 +1117,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-85-01`
 - Commit at update: `5812ae119`
 - Summary: Reviewed phase-84 diagnostics and scheduled ordered MTP, direct-route, maintenance, focused revalidation, summary, and review successors.
+
+## 2026-09-20T22:42:53+00:00 — 85-07 — done
+
+- Branch: `codex/task-85-07`
+- Commit at update: `1a19430f4`
+- Summary: Reviewed V10_SUMMARY_85 and named 85-05 roots; recorded bounded natural promotion observation, retained failed native-MTP and maintenance gates, and scheduled ordered 85-08 through 85-13 repair/revalidation/summary/review successors.
