@@ -1,0 +1,1590 @@
+{
+  "candidate_binary_sha256": "b2800fff4b40d255163518b3e4fc812f0b9f081ff4d04367fe897002f0468378",
+  "classifications": {
+    "C256": {
+      "classification": "feature_off_placement_output_differs;_native_mtp_does_not_change_each_placement_output",
+      "feature_off_controls": {
+        "all_gpu": "////////////////////////////////////////////////////////////////",
+        "cpu_main_kv_gpu": "////////////////////////////////////////////////////////////////",
+        "selected_pager": "DIAG-83-03"
+      },
+      "native_pair_divergence": false
+    },
+    "C6143": {
+      "classification": "feature_off_placement_output_differs;_native_mtp_does_not_change_each_placement_output",
+      "feature_off_controls": {
+        "all_gpu": "////////////////////////////////////////////////////////////////",
+        "cpu_main_kv_gpu": "////////////////////////////////////////////////////////////////",
+        "selected_pager": "DIAG-83-03"
+      },
+      "native_pair_divergence": false
+    }
+  },
+  "errors": [],
+  "matrix": {
+    "C": [
+      256,
+      6143
+    ],
+    "L": 8192,
+    "placements": [
+      "all_gpu_feature_off",
+      "all_gpu_native_mtp",
+      "cpu_main_kv_gpu_native_mtp",
+      "selected_pager_native_mtp",
+      "selected_pager_feature_off"
+    ],
+    "rows": 16
+  },
+  "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+  "pair_comparisons": {
+    "all_gpu/C256": {
+      "feature_off_content": "////////////////////////////////////////////////////////////////",
+      "feature_off_is_slash_corrupt": true,
+      "feature_off_token_ids_first32": [
+        9530
+      ],
+      "first_divergent_token_position": null,
+      "native_content": "////////////////////////////////////////////////////////////////",
+      "native_is_slash_corrupt": true,
+      "native_token_ids_first32": [
+        9530
+      ]
+    },
+    "all_gpu/C6143": {
+      "feature_off_content": "////////////////////////////////////////////////////////////////",
+      "feature_off_is_slash_corrupt": true,
+      "feature_off_token_ids_first32": [
+        9530
+      ],
+      "first_divergent_token_position": null,
+      "native_content": "////////////////////////////////////////////////////////////////",
+      "native_is_slash_corrupt": true,
+      "native_token_ids_first32": [
+        9530
+      ]
+    },
+    "cpu_main_kv_gpu/C256": {
+      "feature_off_content": "////////////////////////////////////////////////////////////////",
+      "feature_off_is_slash_corrupt": true,
+      "feature_off_token_ids_first32": [
+        9530
+      ],
+      "first_divergent_token_position": null,
+      "native_content": "////////////////////////////////////////////////////////////////",
+      "native_is_slash_corrupt": true,
+      "native_token_ids_first32": [
+        9530
+      ]
+    },
+    "cpu_main_kv_gpu/C6143": {
+      "feature_off_content": "////////////////////////////////////////////////////////////////",
+      "feature_off_is_slash_corrupt": true,
+      "feature_off_token_ids_first32": [
+        9530
+      ],
+      "first_divergent_token_position": null,
+      "native_content": "////////////////////////////////////////////////////////////////",
+      "native_is_slash_corrupt": true,
+      "native_token_ids_first32": [
+        9530
+      ]
+    },
+    "selected_pager/C256": {
+      "feature_off_content": "DIAG-83-03",
+      "feature_off_is_slash_corrupt": false,
+      "feature_off_token_ids_first32": [
+        17099,
+        1825,
+        12,
+        23,
+        18,
+        12,
+        15,
+        18
+      ],
+      "first_divergent_token_position": null,
+      "native_content": "DIAG-83-03",
+      "native_is_slash_corrupt": false,
+      "native_token_ids_first32": [
+        17099,
+        1825,
+        12,
+        23,
+        18,
+        12,
+        15,
+        18
+      ]
+    },
+    "selected_pager/C6143": {
+      "feature_off_content": "DIAG-83-03",
+      "feature_off_is_slash_corrupt": false,
+      "feature_off_token_ids_first32": [
+        17099,
+        1825,
+        12,
+        23,
+        18,
+        12,
+        15,
+        18
+      ],
+      "first_divergent_token_position": null,
+      "native_content": "DIAG-83-03",
+      "native_is_slash_corrupt": false,
+      "native_token_ids_first32": [
+        17099,
+        1825,
+        12,
+        23,
+        18,
+        12,
+        15,
+        18
+      ]
+    }
+  },
+  "rows": [
+    {
+      "A": null,
+      "B": 128,
+      "C": 256,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": null,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 0,
+      "evidence_role": "feature_off_control",
+      "failure_boundary": null,
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "all_gpu_feature_off",
+        "mtp": "off",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 320
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "all_gpu_feature_off/secondary-U64/C256",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_feature_off/secondary-U64/C256",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 6143,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": null,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 0,
+      "evidence_role": "feature_off_control",
+      "failure_boundary": null,
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "all_gpu_feature_off",
+        "mtp": "off",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 6143,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 6207
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "all_gpu_feature_off/secondary-U64/C6143",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_feature_off/secondary-U64/C6143",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 256,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 123,
+      "evidence_role": "native_mtp",
+      "failure_boundary": "launcher_ignored_requested_U128; effective U64",
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "all_gpu_native_mtp",
+        "mtp": "native",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 252
+        },
+        "total_tokens": 320
+      },
+      "requested_B": 128,
+      "requested_U": 128,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "all_gpu_native_mtp/primary-U128/C256",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_native_mtp/primary-U128/C256",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "setup_failure_secondary_measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 6143,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 123,
+      "evidence_role": "native_mtp",
+      "failure_boundary": "launcher_ignored_requested_U128; effective U64",
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "all_gpu_native_mtp",
+        "mtp": "native",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 6143,
+        "prompt_tokens_details": {
+          "cached_tokens": 6139
+        },
+        "total_tokens": 6207
+      },
+      "requested_B": 128,
+      "requested_U": 128,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "all_gpu_native_mtp/primary-U128/C6143",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_native_mtp/primary-U128/C6143",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "setup_failure_secondary_measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 256,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 123,
+      "evidence_role": "native_mtp",
+      "failure_boundary": null,
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "all_gpu_native_mtp",
+        "mtp": "native",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 252
+        },
+        "total_tokens": 320
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "all_gpu_native_mtp/secondary-U64/C256",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_native_mtp/secondary-U64/C256",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 6143,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 123,
+      "evidence_role": "native_mtp",
+      "failure_boundary": null,
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "all_gpu_native_mtp",
+        "mtp": "native",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 6143,
+        "prompt_tokens_details": {
+          "cached_tokens": 6139
+        },
+        "total_tokens": 6207
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "all_gpu_native_mtp/secondary-U64/C6143",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/all_gpu_native_mtp/secondary-U64/C6143",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 256,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 123,
+      "evidence_role": "native_mtp",
+      "failure_boundary": "launcher_ignored_requested_U128; effective U64",
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": true,
+        "id": "cpu_main_kv_gpu_native_mtp",
+        "mtp": "native",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 252
+        },
+        "total_tokens": 320
+      },
+      "requested_B": 128,
+      "requested_U": 128,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "cpu_main_kv_gpu_native_mtp/primary-U128/C256",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/cpu_main_kv_gpu_native_mtp/primary-U128/C256",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "setup_failure_secondary_measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 6143,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 123,
+      "evidence_role": "native_mtp",
+      "failure_boundary": "launcher_ignored_requested_U128; effective U64",
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": true,
+        "id": "cpu_main_kv_gpu_native_mtp",
+        "mtp": "native",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 6143,
+        "prompt_tokens_details": {
+          "cached_tokens": 6139
+        },
+        "total_tokens": 6207
+      },
+      "requested_B": 128,
+      "requested_U": 128,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "cpu_main_kv_gpu_native_mtp/primary-U128/C6143",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/cpu_main_kv_gpu_native_mtp/primary-U128/C6143",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "setup_failure_secondary_measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 256,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 123,
+      "evidence_role": "native_mtp",
+      "failure_boundary": null,
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": true,
+        "id": "cpu_main_kv_gpu_native_mtp",
+        "mtp": "native",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 252
+        },
+        "total_tokens": 320
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "cpu_main_kv_gpu_native_mtp/secondary-U64/C256",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/cpu_main_kv_gpu_native_mtp/secondary-U64/C256",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "measured"
+    },
+    {
+      "A": null,
+      "B": 128,
+      "C": 6143,
+      "H": null,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {},
+      "draft_tokens": 123,
+      "evidence_role": "native_mtp",
+      "failure_boundary": null,
+      "finish_reason": "length",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": null,
+        "graph_completion_count": null,
+        "graph_rebuild_count": null,
+        "graph_replay_count": null,
+        "graph_submission_count": null,
+        "table_epoch_changes": null,
+        "table_rebuilds": null
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": null,
+        "d2h_aligned_bytes": null,
+        "d2h_useful_bytes": null,
+        "evictions": null,
+        "faults": null,
+        "h2d_aligned_bytes": null,
+        "h2d_useful_bytes": null,
+        "host_seal_d2h_bytes": null,
+        "host_seal_d2h_calls": null,
+        "queue_time_us": null,
+        "transfer_queued": null,
+        "transfer_submitted": null,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "placement": {
+        "cpu_kv": true,
+        "id": "cpu_main_kv_gpu_native_mtp",
+        "mtp": "native",
+        "pager": "off"
+      },
+      "prompt_usage": {
+        "completion_tokens": 64,
+        "prompt_tokens": 6143,
+        "prompt_tokens_details": {
+          "cached_tokens": 6139
+        },
+        "total_tokens": 6207
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "not_applicable_pager_off",
+      "routes": {
+        "decode_route_counts": null,
+        "mtp_verify_route_counts": null,
+        "prefill_route_counts": null
+      },
+      "row": "cpu_main_kv_gpu_native_mtp/secondary-U64/C6143",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/cpu_main_kv_gpu_native_mtp/secondary-U64/C6143",
+      "selected_page_count": null,
+      "selected_page_ids": null,
+      "status": "measured"
+    },
+    {
+      "A": 4096,
+      "B": 128,
+      "C": 256,
+      "H": 8192,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {
+        "charged_bytes": 15372589952,
+        "headroom_bytes": 201326592,
+        "mtp_bytes": 8781824,
+        "packed_dequant_bytes": 16777216,
+        "packed_workspace_bytes": 138412032,
+        "page_bytes": 4325376,
+        "physical_pool_capacity_bytes": 138412032,
+        "reserved_bytes": 1475580800,
+        "staging_bytes": 128,
+        "target_allocated_bytes": 138412032,
+        "target_bytes": 138412032,
+        "target_resident_bytes": 0
+      },
+      "draft_tokens": 16,
+      "evidence_role": "native_mtp",
+      "failure_boundary": "launcher_ignored_requested_U128; effective U64",
+      "finish_reason": "stop",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": 9,
+        "graph_completion_count": 9,
+        "graph_rebuild_count": 9,
+        "graph_replay_count": 0,
+        "graph_submission_count": 9,
+        "table_epoch_changes": 9,
+        "table_rebuilds": 9
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": 0,
+        "d2h_aligned_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "evictions": 0,
+        "faults": 0,
+        "h2d_aligned_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "host_seal_d2h_bytes": 4325376,
+        "host_seal_d2h_calls": 96,
+        "queue_time_us": 214266,
+        "transfer_queued": 0,
+        "transfer_submitted": 0,
+        "transfer_time_us": 0,
+        "transfer_waits": 0,
+        "wait_time_us": 13986,
+        "waits": 9
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "selected_pager_native_mtp",
+        "mtp": "native",
+        "pager": "selective"
+      },
+      "prompt_usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 252
+        },
+        "total_tokens": 265
+      },
+      "requested_B": 128,
+      "requested_U": 128,
+      "route_observation": "measured_pager_metrics",
+      "routes": {
+        "decode_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "mtp_verify_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "prefill_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        }
+      },
+      "row": "selected_pager_native_mtp/primary-U128/C256",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_native_mtp/primary-U128/C256",
+      "selected_page_count": 2,
+      "selected_page_ids": [
+        0,
+        1
+      ],
+      "status": "setup_failure_secondary_measured"
+    },
+    {
+      "A": 4096,
+      "B": 128,
+      "C": 6143,
+      "H": 8192,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 50.0,
+      "accepted_tokens": 4,
+      "bytes": {
+        "charged_bytes": 15372589952,
+        "headroom_bytes": 201326592,
+        "mtp_bytes": 8781824,
+        "packed_dequant_bytes": 16777216,
+        "packed_workspace_bytes": 138412032,
+        "page_bytes": 4325376,
+        "physical_pool_capacity_bytes": 138412032,
+        "reserved_bytes": 1475580800,
+        "staging_bytes": 128,
+        "target_allocated_bytes": 138412032,
+        "target_bytes": 138412032,
+        "target_resident_bytes": 108134400
+      },
+      "draft_tokens": 8,
+      "evidence_role": "native_mtp",
+      "failure_boundary": "launcher_ignored_requested_U128; effective U64",
+      "finish_reason": "stop",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": 5,
+        "graph_completion_count": 5,
+        "graph_rebuild_count": 5,
+        "graph_replay_count": 0,
+        "graph_submission_count": 5,
+        "table_epoch_changes": 5,
+        "table_rebuilds": 5
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": 0,
+        "d2h_aligned_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "evictions": 0,
+        "faults": 0,
+        "h2d_aligned_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "host_seal_d2h_bytes": 4325376,
+        "host_seal_d2h_calls": 96,
+        "queue_time_us": 152549,
+        "transfer_queued": 0,
+        "transfer_submitted": 0,
+        "transfer_time_us": 0,
+        "transfer_waits": 0,
+        "wait_time_us": 9297,
+        "waits": 5
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "selected_pager_native_mtp",
+        "mtp": "native",
+        "pager": "selective"
+      },
+      "prompt_usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 6143,
+        "prompt_tokens_details": {
+          "cached_tokens": 6139
+        },
+        "total_tokens": 6152
+      },
+      "requested_B": 128,
+      "requested_U": 128,
+      "route_observation": "measured_pager_metrics",
+      "routes": {
+        "decode_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "mtp_verify_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 4
+        },
+        "prefill_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 1
+        }
+      },
+      "row": "selected_pager_native_mtp/primary-U128/C6143",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_native_mtp/primary-U128/C6143",
+      "selected_page_count": 16,
+      "selected_page_ids": [
+        0,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "status": "setup_failure_secondary_measured"
+    },
+    {
+      "A": 4096,
+      "B": 128,
+      "C": 256,
+      "H": 8192,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 0.0,
+      "accepted_tokens": 0,
+      "bytes": {
+        "charged_bytes": 15372589952,
+        "headroom_bytes": 201326592,
+        "mtp_bytes": 8781824,
+        "packed_dequant_bytes": 16777216,
+        "packed_workspace_bytes": 138412032,
+        "page_bytes": 4325376,
+        "physical_pool_capacity_bytes": 138412032,
+        "reserved_bytes": 1475580800,
+        "staging_bytes": 128,
+        "target_allocated_bytes": 138412032,
+        "target_bytes": 138412032,
+        "target_resident_bytes": 0
+      },
+      "draft_tokens": 16,
+      "evidence_role": "native_mtp",
+      "failure_boundary": null,
+      "finish_reason": "stop",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": 9,
+        "graph_completion_count": 9,
+        "graph_rebuild_count": 9,
+        "graph_replay_count": 0,
+        "graph_submission_count": 9,
+        "table_epoch_changes": 9,
+        "table_rebuilds": 9
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": 0,
+        "d2h_aligned_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "evictions": 0,
+        "faults": 0,
+        "h2d_aligned_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "host_seal_d2h_bytes": 4325376,
+        "host_seal_d2h_calls": 96,
+        "queue_time_us": 215598,
+        "transfer_queued": 0,
+        "transfer_submitted": 0,
+        "transfer_time_us": 0,
+        "transfer_waits": 0,
+        "wait_time_us": 13973,
+        "waits": 9
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "selected_pager_native_mtp",
+        "mtp": "native",
+        "pager": "selective"
+      },
+      "prompt_usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 252
+        },
+        "total_tokens": 265
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "measured_pager_metrics",
+      "routes": {
+        "decode_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "mtp_verify_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "prefill_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        }
+      },
+      "row": "selected_pager_native_mtp/secondary-U64/C256",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_native_mtp/secondary-U64/C256",
+      "selected_page_count": 2,
+      "selected_page_ids": [
+        0,
+        1
+      ],
+      "status": "measured"
+    },
+    {
+      "A": 4096,
+      "B": 128,
+      "C": 6143,
+      "H": 8192,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": 50.0,
+      "accepted_tokens": 4,
+      "bytes": {
+        "charged_bytes": 15372589952,
+        "headroom_bytes": 201326592,
+        "mtp_bytes": 8781824,
+        "packed_dequant_bytes": 16777216,
+        "packed_workspace_bytes": 138412032,
+        "page_bytes": 4325376,
+        "physical_pool_capacity_bytes": 138412032,
+        "reserved_bytes": 1475580800,
+        "staging_bytes": 128,
+        "target_allocated_bytes": 138412032,
+        "target_bytes": 138412032,
+        "target_resident_bytes": 108134400
+      },
+      "draft_tokens": 8,
+      "evidence_role": "native_mtp",
+      "failure_boundary": null,
+      "finish_reason": "stop",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": 5,
+        "graph_completion_count": 5,
+        "graph_rebuild_count": 5,
+        "graph_replay_count": 0,
+        "graph_submission_count": 5,
+        "table_epoch_changes": 5,
+        "table_rebuilds": 5
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": 0,
+        "d2h_aligned_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "evictions": 0,
+        "faults": 0,
+        "h2d_aligned_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "host_seal_d2h_bytes": 4325376,
+        "host_seal_d2h_calls": 96,
+        "queue_time_us": 159259,
+        "transfer_queued": 0,
+        "transfer_submitted": 0,
+        "transfer_time_us": 0,
+        "transfer_waits": 0,
+        "wait_time_us": 9411,
+        "waits": 5
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "selected_pager_native_mtp",
+        "mtp": "native",
+        "pager": "selective"
+      },
+      "prompt_usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 6143,
+        "prompt_tokens_details": {
+          "cached_tokens": 6139
+        },
+        "total_tokens": 6152
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "measured_pager_metrics",
+      "routes": {
+        "decode_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "mtp_verify_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 4
+        },
+        "prefill_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 1
+        }
+      },
+      "row": "selected_pager_native_mtp/secondary-U64/C6143",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_native_mtp/secondary-U64/C6143",
+      "selected_page_count": 16,
+      "selected_page_ids": [
+        0,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "status": "measured"
+    },
+    {
+      "A": 4096,
+      "B": 128,
+      "C": 256,
+      "H": 8192,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": null,
+      "accepted_tokens": 0,
+      "bytes": {
+        "charged_bytes": 14429082240,
+        "headroom_bytes": 201326592,
+        "mtp_bytes": 0,
+        "packed_dequant_bytes": 16777216,
+        "packed_workspace_bytes": 138412032,
+        "page_bytes": 4325376,
+        "physical_pool_capacity_bytes": 138412032,
+        "reserved_bytes": 883081856,
+        "staging_bytes": 128,
+        "target_allocated_bytes": 138412032,
+        "target_bytes": 138412032,
+        "target_resident_bytes": 0
+      },
+      "draft_tokens": 0,
+      "evidence_role": "feature_off_control",
+      "failure_boundary": null,
+      "finish_reason": "stop",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": 12,
+        "graph_completion_count": 12,
+        "graph_rebuild_count": 12,
+        "graph_replay_count": 0,
+        "graph_submission_count": 12,
+        "table_epoch_changes": 12,
+        "table_rebuilds": 12
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": 0,
+        "d2h_aligned_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "evictions": 0,
+        "faults": 0,
+        "h2d_aligned_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "host_seal_d2h_bytes": 4325376,
+        "host_seal_d2h_calls": 96,
+        "queue_time_us": 190378,
+        "transfer_queued": 0,
+        "transfer_submitted": 0,
+        "transfer_time_us": 0,
+        "transfer_waits": 0,
+        "wait_time_us": 171908,
+        "waits": 12
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "selected_pager_feature_off",
+        "mtp": "off",
+        "pager": "selective"
+      },
+      "prompt_usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 256,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 265
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "measured_pager_metrics",
+      "routes": {
+        "decode_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "mtp_verify_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "prefill_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 4
+        }
+      },
+      "row": "selected_pager_feature_off/secondary-U64/C256",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_feature_off/secondary-U64/C256",
+      "selected_page_count": 2,
+      "selected_page_ids": [
+        0,
+        1
+      ],
+      "status": "measured"
+    },
+    {
+      "A": 4096,
+      "B": 128,
+      "C": 6143,
+      "H": 8192,
+      "L": 8192,
+      "U": 64,
+      "acceptance_percent": null,
+      "accepted_tokens": 0,
+      "bytes": {
+        "charged_bytes": 14429082240,
+        "headroom_bytes": 201326592,
+        "mtp_bytes": 0,
+        "packed_dequant_bytes": 16777216,
+        "packed_workspace_bytes": 138412032,
+        "page_bytes": 4325376,
+        "physical_pool_capacity_bytes": 138412032,
+        "reserved_bytes": 883081856,
+        "staging_bytes": 128,
+        "target_allocated_bytes": 138412032,
+        "target_bytes": 138412032,
+        "target_resident_bytes": 103809024
+      },
+      "draft_tokens": 0,
+      "evidence_role": "feature_off_control",
+      "failure_boundary": null,
+      "finish_reason": "stop",
+      "first_divergent_token_position": null,
+      "graph": {
+        "graph_capture_count": 104,
+        "graph_completion_count": 104,
+        "graph_rebuild_count": 104,
+        "graph_replay_count": 0,
+        "graph_submission_count": 104,
+        "table_epoch_changes": 104,
+        "table_rebuilds": 104
+      },
+      "http_code": 200,
+      "movement": {
+        "copy_time_us": 0,
+        "d2h_aligned_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "evictions": 0,
+        "faults": 0,
+        "h2d_aligned_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "host_seal_d2h_bytes": 103809024,
+        "host_seal_d2h_calls": 2304,
+        "queue_time_us": 3405119,
+        "transfer_queued": 0,
+        "transfer_submitted": 0,
+        "transfer_time_us": 0,
+        "transfer_waits": 0,
+        "wait_time_us": 1980700,
+        "waits": 104
+      },
+      "placement": {
+        "cpu_kv": false,
+        "id": "selected_pager_feature_off",
+        "mtp": "off",
+        "pager": "selective"
+      },
+      "prompt_usage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 6143,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 6152
+      },
+      "requested_B": 128,
+      "requested_U": 64,
+      "route_observation": "measured_pager_metrics",
+      "routes": {
+        "decode_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 8
+        },
+        "mtp_verify_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 0
+        },
+        "prefill_route_counts": {
+          "dense": 0,
+          "exact_direct": 0,
+          "exact_reference": 0,
+          "observe": 0,
+          "refusal": 0,
+          "selected_direct": 0,
+          "selected_packed": 0,
+          "selected_reference": 96
+        }
+      },
+      "row": "selected_pager_feature_off/secondary-U64/C6143",
+      "row_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix/selected_pager_feature_off/secondary-U64/C6143",
+      "selected_page_count": 16,
+      "selected_page_ids": [
+        0,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "status": "measured"
+    }
+  ],
+  "run_root": "/srv/ai/paged-kv/results/v10/83-03/20260920T155646Z-stable-matrix",
+  "schema_version": 1,
+  "source_commit": "e1a694469eb9cb3e7fe1c1048174956d4818c9d3",
+  "task": "83-03"
+}
