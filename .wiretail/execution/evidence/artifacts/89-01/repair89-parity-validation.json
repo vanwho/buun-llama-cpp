@@ -1,0 +1,16 @@
+{
+  "case_outputs_equal": true,
+  "control_summary": "/srv/ai/paged-kv/results/v10/89-01/fixed-control-reference/summary.json",
+  "errors": [],
+  "native_counter_totals": {
+    "accepted": 2,
+    "committed": 10,
+    "draft_restores": 8,
+    "drafted": 16,
+    "rejected": 14,
+    "restore_failures": 0,
+    "target_restores": 8
+  },
+  "native_summary": "/srv/ai/paged-kv/results/v10/89-01/fixed-native-cooperative/summary.json",
+  "status": "pass"
+}
