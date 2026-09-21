@@ -1,0 +1,14 @@
+{
+  "schema": "pager-case-state-v1",
+  "schema_version": 1,
+  "campaign_hash": "d467d5dc91aef877df0dbe63aa2e6bb79af89ae524baa0eabbcbf99289d9fc3d",
+  "updated_utc": "2026-09-21T11:11:23Z",
+  "cases": {},
+  "completed_successes": 0,
+  "progress": {
+    "stage": "idle",
+    "eta_seconds": null,
+    "last_progress_utc": null,
+    "progress_source": "client checkpoint"
+  }
+}

@@ -1,0 +1,471 @@
+{
+  "schema": "pager-case-state-v1",
+  "schema_version": 1,
+  "campaign_hash": "f4c8f16345bea02058bfcfa4eeee71e5e8ba9c6921e58fca62049726cb6bd9eb",
+  "updated_utc": "2026-09-21T11:02:09Z",
+  "cases": {
+    "7381f34a5fce5679c237af56aec5788337f6d92cc2279efc42317d5d3908c873": {
+      "case_key": "7381f34a5fce5679c237af56aec5788337f6d92cc2279efc42317d5d3908c873",
+      "attempt_id": "20260921T130200-1459578-1",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "warmup",
+        "trial": 1,
+        "prompt_index": 0,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 1.479363,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 30,
+          "total_tokens": 94,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 30,
+        "occupied_prompt_tokens": 30,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 30,
+          "prompt_ms": 74.482,
+          "prompt_per_token_ms": 2.4827333333333335,
+          "prompt_per_second": 402.7818801858167,
+          "predicted_n": 64,
+          "predicted_ms": 1403.576,
+          "predicted_per_token_ms": 22.278984126984128,
+          "predicted_per_second": 44.885349991735396,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "off",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          }
+        },
+        "mtp_journal_excerpt_sha256": "36a9159f7888b18d6bcc605bf44c4862309ec22f580c86aa168c3473e0f37797",
+        "request_start": "2026-09-21T13:02:00+02:00",
+        "request_end": "2026-09-21T13:02:01+02:00",
+        "mtp": {
+          "mode": "off",
+          "source": "off",
+          "draft_tokens": null,
+          "accepted_tokens": null,
+          "acceptance_percent": null,
+          "acceptance_rate": null,
+          "journal_case_key": "7381f34a5fce5679c237af56aec5788337f6d92cc2279efc42317d5d3908c873",
+          "journal_excerpt_sha256": "36a9159f7888b18d6bcc605bf44c4862309ec22f580c86aa168c3473e0f37797"
+        },
+        "case_id": "fast/off/warmup/1/0",
+        "case_key": "7381f34a5fce5679c237af56aec5788337f6d92cc2279efc42317d5d3908c873",
+        "case_index": 0
+      },
+      "utc": "2026-09-21T11:02:01Z"
+    },
+    "d8a4f57c1d52c4f7f9210f937d4e5a2208dc775ca973024a0d1c0a3e62a14f98": {
+      "case_key": "d8a4f57c1d52c4f7f9210f937d4e5a2208dc775ca973024a0d1c0a3e62a14f98",
+      "attempt_id": "20260921T130202-1459578-2",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "measured",
+        "trial": 1,
+        "prompt_index": 0,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 1.440549,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 30,
+          "total_tokens": 94,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 30,
+        "occupied_prompt_tokens": 30,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 30,
+          "prompt_ms": 56.342,
+          "prompt_per_token_ms": 1.8780666666666666,
+          "prompt_per_second": 532.4624613964716,
+          "predicted_n": 64,
+          "predicted_ms": 1382.85,
+          "predicted_per_token_ms": 21.95,
+          "predicted_per_second": 45.558086560364465,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "off",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          }
+        },
+        "mtp_journal_excerpt_sha256": "706aa746eeb2739d98bf4dc9ffd2dbe6a86cec1876ad35718ef9f38207f0df7a",
+        "request_start": "2026-09-21T13:02:02+02:00",
+        "request_end": "2026-09-21T13:02:03+02:00",
+        "mtp": {
+          "mode": "off",
+          "source": "off",
+          "draft_tokens": null,
+          "accepted_tokens": null,
+          "acceptance_percent": null,
+          "acceptance_rate": null,
+          "journal_case_key": "d8a4f57c1d52c4f7f9210f937d4e5a2208dc775ca973024a0d1c0a3e62a14f98",
+          "journal_excerpt_sha256": "706aa746eeb2739d98bf4dc9ffd2dbe6a86cec1876ad35718ef9f38207f0df7a"
+        },
+        "case_id": "fast/off/measured/1/0",
+        "case_key": "d8a4f57c1d52c4f7f9210f937d4e5a2208dc775ca973024a0d1c0a3e62a14f98",
+        "case_index": 1
+      },
+      "utc": "2026-09-21T11:02:03Z"
+    },
+    "5aa4511c60ec2e512c098bddbf43eafa2358c255cb989d5289ab086d9cd777a0": {
+      "case_key": "5aa4511c60ec2e512c098bddbf43eafa2358c255cb989d5289ab086d9cd777a0",
+      "attempt_id": "20260921T130203-1459578-3",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "warmup",
+        "trial": 1,
+        "prompt_index": 1,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 1.428939,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 27,
+          "total_tokens": 91,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 27,
+        "occupied_prompt_tokens": 27,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 27,
+          "prompt_ms": 43.471,
+          "prompt_per_token_ms": 1.610037037037037,
+          "prompt_per_second": 621.1037243219619,
+          "predicted_n": 64,
+          "predicted_ms": 1384.17,
+          "predicted_per_token_ms": 21.970952380952383,
+          "predicted_per_second": 45.5146405427079,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "off",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          }
+        },
+        "mtp_journal_excerpt_sha256": "cc45df5173a01fbc7191e810d361f5f9cb83360837b486a3b6855777bcfccc99",
+        "request_start": "2026-09-21T13:02:03+02:00",
+        "request_end": "2026-09-21T13:02:05+02:00",
+        "mtp": {
+          "mode": "off",
+          "source": "off",
+          "draft_tokens": null,
+          "accepted_tokens": null,
+          "acceptance_percent": null,
+          "acceptance_rate": null,
+          "journal_case_key": "5aa4511c60ec2e512c098bddbf43eafa2358c255cb989d5289ab086d9cd777a0",
+          "journal_excerpt_sha256": "cc45df5173a01fbc7191e810d361f5f9cb83360837b486a3b6855777bcfccc99"
+        },
+        "case_id": "fast/off/warmup/1/1",
+        "case_key": "5aa4511c60ec2e512c098bddbf43eafa2358c255cb989d5289ab086d9cd777a0",
+        "case_index": 2
+      },
+      "utc": "2026-09-21T11:02:05Z"
+    },
+    "16c264a2a74d906ab192b8751007d3be3db6a551d9b6be732e1209b281aecbbb": {
+      "case_key": "16c264a2a74d906ab192b8751007d3be3db6a551d9b6be732e1209b281aecbbb",
+      "attempt_id": "20260921T130205-1459578-4",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "measured",
+        "trial": 1,
+        "prompt_index": 1,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 1.439759,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 27,
+          "total_tokens": 91,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 27,
+        "occupied_prompt_tokens": 27,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 27,
+          "prompt_ms": 55.906,
+          "prompt_per_token_ms": 2.0705925925925928,
+          "prompt_per_second": 482.95352913819625,
+          "predicted_n": 64,
+          "predicted_ms": 1382.556,
+          "predicted_per_token_ms": 21.945333333333334,
+          "predicted_per_second": 45.567774469894886,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "off",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          }
+        },
+        "mtp_journal_excerpt_sha256": "05fabdee0d75ead39ff13ea371dd62ea4c2f854c15270f4251489331612445d6",
+        "request_start": "2026-09-21T13:02:05+02:00",
+        "request_end": "2026-09-21T13:02:06+02:00",
+        "mtp": {
+          "mode": "off",
+          "source": "off",
+          "draft_tokens": null,
+          "accepted_tokens": null,
+          "acceptance_percent": null,
+          "acceptance_rate": null,
+          "journal_case_key": "16c264a2a74d906ab192b8751007d3be3db6a551d9b6be732e1209b281aecbbb",
+          "journal_excerpt_sha256": "05fabdee0d75ead39ff13ea371dd62ea4c2f854c15270f4251489331612445d6"
+        },
+        "case_id": "fast/off/measured/1/1",
+        "case_key": "16c264a2a74d906ab192b8751007d3be3db6a551d9b6be732e1209b281aecbbb",
+        "case_index": 3
+      },
+      "utc": "2026-09-21T11:02:06Z"
+    },
+    "14d82de750bba20fb85a98a9cb49d888a0c875bdb2272654fd9be6d42b3ff100": {
+      "case_key": "14d82de750bba20fb85a98a9cb49d888a0c875bdb2272654fd9be6d42b3ff100",
+      "attempt_id": "20260921T130206-1459578-5",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "warmup",
+        "trial": 1,
+        "prompt_index": 2,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 1.436089,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 28,
+          "total_tokens": 92,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 28,
+        "occupied_prompt_tokens": 28,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 28,
+          "prompt_ms": 43.457,
+          "prompt_per_token_ms": 1.5520357142857144,
+          "prompt_per_second": 644.3150700692638,
+          "predicted_n": 64,
+          "predicted_ms": 1391.356,
+          "predicted_per_token_ms": 22.085015873015873,
+          "predicted_per_second": 45.279568996001025,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "off",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          }
+        },
+        "mtp_journal_excerpt_sha256": "5dd983a3417bf1297e6c954f45a1e9a965d25163719281cb783af89c37fed38e",
+        "request_start": "2026-09-21T13:02:06+02:00",
+        "request_end": "2026-09-21T13:02:08+02:00",
+        "mtp": {
+          "mode": "off",
+          "source": "off",
+          "draft_tokens": null,
+          "accepted_tokens": null,
+          "acceptance_percent": null,
+          "acceptance_rate": null,
+          "journal_case_key": "14d82de750bba20fb85a98a9cb49d888a0c875bdb2272654fd9be6d42b3ff100",
+          "journal_excerpt_sha256": "5dd983a3417bf1297e6c954f45a1e9a965d25163719281cb783af89c37fed38e"
+        },
+        "case_id": "fast/off/warmup/1/2",
+        "case_key": "14d82de750bba20fb85a98a9cb49d888a0c875bdb2272654fd9be6d42b3ff100",
+        "case_index": 4
+      },
+      "utc": "2026-09-21T11:02:08Z"
+    },
+    "e1ed7aea1a15d9e68aa8adde330011fd5ae98a900e8082cde9d8af92b4e6ef5d": {
+      "case_key": "e1ed7aea1a15d9e68aa8adde330011fd5ae98a900e8082cde9d8af92b4e6ef5d",
+      "attempt_id": "20260921T130208-1459578-6",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "measured",
+        "trial": 1,
+        "prompt_index": 2,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 1.434289,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 28,
+          "total_tokens": 92,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 28,
+        "occupied_prompt_tokens": 28,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 28,
+          "prompt_ms": 55.787,
+          "prompt_per_token_ms": 1.992392857142857,
+          "prompt_per_second": 501.9090469105705,
+          "predicted_n": 64,
+          "predicted_ms": 1377.242,
+          "predicted_per_token_ms": 21.860984126984125,
+          "predicted_per_second": 45.74359480759373,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "off",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": null,
+            "llamacpp:spec_decode_num_accepted_tokens_total": null
+          }
+        },
+        "mtp_journal_excerpt_sha256": "45a8874533d3b996f6ea1fbb1762cef98cd60c08b100e2dbf18dfea3998ae7c3",
+        "request_start": "2026-09-21T13:02:08+02:00",
+        "request_end": "2026-09-21T13:02:09+02:00",
+        "mtp": {
+          "mode": "off",
+          "source": "off",
+          "draft_tokens": null,
+          "accepted_tokens": null,
+          "acceptance_percent": null,
+          "acceptance_rate": null,
+          "journal_case_key": "e1ed7aea1a15d9e68aa8adde330011fd5ae98a900e8082cde9d8af92b4e6ef5d",
+          "journal_excerpt_sha256": "45a8874533d3b996f6ea1fbb1762cef98cd60c08b100e2dbf18dfea3998ae7c3"
+        },
+        "case_id": "fast/off/measured/1/2",
+        "case_key": "e1ed7aea1a15d9e68aa8adde330011fd5ae98a900e8082cde9d8af92b4e6ef5d",
+        "case_index": 5
+      },
+      "utc": "2026-09-21T11:02:09Z"
+    }
+  },
+  "completed_successes": 6,
+  "progress": {
+    "stage": "completed",
+    "last_progress_utc": "2026-09-21T13:02:09+02:00",
+    "eta_seconds": 0,
+    "progress_source": "authenticated /slots polling"
+  }
+}

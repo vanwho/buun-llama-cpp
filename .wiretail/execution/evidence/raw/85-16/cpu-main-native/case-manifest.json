@@ -1,0 +1,42 @@
+{
+  "schema": "pager-case-state-v1",
+  "schema_version": 1,
+  "campaign": {
+    "binary": "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server",
+    "cache": "clean-isolated",
+    "clean": 1,
+    "context": "8192",
+    "deadlines": {
+      "connect": 10.0,
+      "decode_idle": 120.0,
+      "prefill_idle": 120.0,
+      "startup": 180.0,
+      "total": 900.0
+    },
+    "max_tokens": 64,
+    "measured": 1,
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "modes": [
+      "off"
+    ],
+    "mtp": "native",
+    "padding_hint_words": 0,
+    "page_size": "256",
+    "pager": "off",
+    "profile": "qwen38-fast",
+    "prompts": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ],
+    "size": "default",
+    "stream": true,
+    "target": "fast",
+    "target_kv": "cpu",
+    "warmup_max_tokens": 64,
+    "warmups": 1
+  },
+  "campaign_hash": "8a11a422a12455def81c5eb6a5bf545be5011b0f604405e03ae8ca89b9ac3edd",
+  "created_utc": "2026-09-21T11:03:29Z"
+}

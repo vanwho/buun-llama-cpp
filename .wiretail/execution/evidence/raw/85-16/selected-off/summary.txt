@@ -1,0 +1,3 @@
+fast off prompt=0: decode min=45.558086560364465 median=45.558086560364465 max=45.558086560364465 tok/s; prompt min=532.4624613964716 median=532.4624613964716 max=532.4624613964716 tok/s; MTP acceptance min=null median=null max=null%; errors=0
+fast off prompt=1: decode min=45.567774469894886 median=45.567774469894886 max=45.567774469894886 tok/s; prompt min=482.95352913819625 median=482.95352913819625 max=482.95352913819625 tok/s; MTP acceptance min=null median=null max=null%; errors=0
+fast off prompt=2: decode min=45.74359480759373 median=45.74359480759373 max=45.74359480759373 tok/s; prompt min=501.9090469105705 median=501.9090469105705 max=501.9090469105705 tok/s; MTP acceptance min=null median=null max=null%; errors=0

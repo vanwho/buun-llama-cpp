@@ -1,0 +1,25 @@
+85-16 benchmark build/runtime identity
+
+Candidate executable:
+/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server
+Candidate SHA256: e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1
+Immutable build receipt: /srv/ai/paged-kv/candidates/85-15-cuda/build-receipt.json
+Build receipt SHA256: 42d4b85e11dc0ba7588d4549700ba6a1d2988283dd808d0740209f9cb69380fa
+Build receipt source head: 17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3
+Model target: /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf
+Model SHA256: 40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199
+GPU: NVIDIA GeForce RTX 4080, driver 595.91.07, 16376 MiB
+
+Matched short geometry: L=8192, requested C=30/27/28 by original prompt,
+H=4096 (16 pages), page=256, B=128, U=128, output budget=64, one warmup
+and one measured trial per prompt. All rows used the same model, candidate,
+Turbo4 target K/V, seed=42, temperature=0, and thinking-off template.
+
+Final restored service PID: 1476575
+Final executable: /srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server
+Final command geometry: context=8192, batch=128, ubatch=128, selected pager,
+hot_pages=16, pin_recent=1024, CUDA0, native GPU MTP, Turbo4 K/V, nmax=2.
+Final health: {"status":"ok"}
+
+The copied raw bundle manifests all have SHA256
+0eff46186ba2ee0b9bb86c301286d1da546540ea39d9bc75ad5f6c5ba2eb18b9.

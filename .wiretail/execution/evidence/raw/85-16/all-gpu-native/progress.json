@@ -1,0 +1,483 @@
+{
+  "schema": "pager-case-state-v1",
+  "schema_version": 1,
+  "campaign_hash": "5fa76339b5b3e6fbfafc8a48468162d355b2be7c8e4963f7865e7ce2fd071619",
+  "updated_utc": "2026-09-21T11:01:26Z",
+  "cases": {
+    "d776d1780719615df2dc33913c8f52e864d6601a36990205a8d10b14aacac2f3": {
+      "case_key": "d776d1780719615df2dc33913c8f52e864d6601a36990205a8d10b14aacac2f3",
+      "attempt_id": "20260921T130107-1457896-1",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "warmup",
+        "trial": 1,
+        "prompt_index": 0,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 3.105141,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 30,
+          "total_tokens": 94,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 30,
+        "occupied_prompt_tokens": 30,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 30,
+          "prompt_ms": 454.467,
+          "prompt_per_token_ms": 15.1489,
+          "prompt_per_second": 66.01139356652959,
+          "predicted_n": 64,
+          "predicted_ms": 2649.27,
+          "predicted_per_token_ms": 42.05190476190476,
+          "predicted_per_second": 23.780135660012004,
+          "draft_n": 62,
+          "draft_n_accepted": 0,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "prometheus_counter_delta",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 0,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 0
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 62,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 0
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 62,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 0
+          }
+        },
+        "mtp_journal_excerpt_sha256": "98151491aad3d335a2037190078e81cfef03b84694247cc6c98001010bce5a6b",
+        "request_start": "2026-09-21T13:01:07+02:00",
+        "request_end": "2026-09-21T13:01:10+02:00",
+        "mtp": {
+          "mode": "native",
+          "source": "prometheus_counter_delta",
+          "draft_tokens": 62,
+          "accepted_tokens": 0,
+          "acceptance_percent": 0E-8,
+          "acceptance_rate": 0E-8,
+          "journal_case_key": "d776d1780719615df2dc33913c8f52e864d6601a36990205a8d10b14aacac2f3",
+          "journal_excerpt_sha256": "98151491aad3d335a2037190078e81cfef03b84694247cc6c98001010bce5a6b"
+        },
+        "case_id": "fast/off/warmup/1/0",
+        "case_key": "d776d1780719615df2dc33913c8f52e864d6601a36990205a8d10b14aacac2f3",
+        "case_index": 0
+      },
+      "utc": "2026-09-21T11:01:10Z"
+    },
+    "2ce76295596679c27931fb2dba6aaad09ec6523552c11c07ec36fde40c3a13d2": {
+      "case_key": "2ce76295596679c27931fb2dba6aaad09ec6523552c11c07ec36fde40c3a13d2",
+      "attempt_id": "20260921T130110-1457896-2",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "measured",
+        "trial": 1,
+        "prompt_index": 0,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 2.660432,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 30,
+          "total_tokens": 94,
+          "prompt_tokens_details": {
+            "cached_tokens": 26
+          }
+        },
+        "preflight_prompt_tokens": 30,
+        "occupied_prompt_tokens": 30,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 26,
+          "prompt_n": 4,
+          "prompt_ms": 79.841,
+          "prompt_per_token_ms": 19.96025,
+          "prompt_per_second": 50.09957290114102,
+          "predicted_n": 64,
+          "predicted_ms": 2579.39,
+          "predicted_per_token_ms": 40.94269841269841,
+          "predicted_per_second": 24.42437940753434,
+          "draft_n": 61,
+          "draft_n_accepted": 1,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "prometheus_counter_delta",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 62,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 0
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 123,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 1
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 61,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 1
+          }
+        },
+        "mtp_journal_excerpt_sha256": "3792d58ddde0f87a22f1c70557b93cdbf7391fcf8f2f290926eeffef59de644f",
+        "request_start": "2026-09-21T13:01:11+02:00",
+        "request_end": "2026-09-21T13:01:13+02:00",
+        "mtp": {
+          "mode": "native",
+          "source": "prometheus_counter_delta",
+          "draft_tokens": 61,
+          "accepted_tokens": 1,
+          "acceptance_percent": 1.63934426,
+          "acceptance_rate": 1.63934426,
+          "journal_case_key": "2ce76295596679c27931fb2dba6aaad09ec6523552c11c07ec36fde40c3a13d2",
+          "journal_excerpt_sha256": "3792d58ddde0f87a22f1c70557b93cdbf7391fcf8f2f290926eeffef59de644f"
+        },
+        "case_id": "fast/off/measured/1/0",
+        "case_key": "2ce76295596679c27931fb2dba6aaad09ec6523552c11c07ec36fde40c3a13d2",
+        "case_index": 1
+      },
+      "utc": "2026-09-21T11:01:13Z"
+    },
+    "6efea38d89a41e4e3a6dd43778528d51794809db1df02617c47130b9ff223358": {
+      "case_key": "6efea38d89a41e4e3a6dd43778528d51794809db1df02617c47130b9ff223358",
+      "attempt_id": "20260921T130113-1457896-3",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "warmup",
+        "trial": 1,
+        "prompt_index": 1,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 2.971660,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 27,
+          "total_tokens": 91,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 27,
+        "occupied_prompt_tokens": 27,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 27,
+          "prompt_ms": 374.312,
+          "prompt_per_token_ms": 13.863407407407408,
+          "prompt_per_second": 72.13233879758063,
+          "predicted_n": 64,
+          "predicted_ms": 2595.83,
+          "predicted_per_token_ms": 41.203650793650795,
+          "predicted_per_second": 24.26969408628454,
+          "draft_n": 61,
+          "draft_n_accepted": 1,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "prometheus_counter_delta",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 123,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 1
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 184,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 2
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 61,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 1
+          }
+        },
+        "mtp_journal_excerpt_sha256": "5875917a98897a5ef16f243d18a186605d79d13420485bee51355c21a9a6b4ba",
+        "request_start": "2026-09-21T13:01:13+02:00",
+        "request_end": "2026-09-21T13:01:17+02:00",
+        "mtp": {
+          "mode": "native",
+          "source": "prometheus_counter_delta",
+          "draft_tokens": 61,
+          "accepted_tokens": 1,
+          "acceptance_percent": 1.63934426,
+          "acceptance_rate": 1.63934426,
+          "journal_case_key": "6efea38d89a41e4e3a6dd43778528d51794809db1df02617c47130b9ff223358",
+          "journal_excerpt_sha256": "5875917a98897a5ef16f243d18a186605d79d13420485bee51355c21a9a6b4ba"
+        },
+        "case_id": "fast/off/warmup/1/1",
+        "case_key": "6efea38d89a41e4e3a6dd43778528d51794809db1df02617c47130b9ff223358",
+        "case_index": 2
+      },
+      "utc": "2026-09-21T11:01:17Z"
+    },
+    "710eb5900b9811e685a64df3e322b0dd552319a2d6445f588c5acee47d27a7fd": {
+      "case_key": "710eb5900b9811e685a64df3e322b0dd552319a2d6445f588c5acee47d27a7fd",
+      "attempt_id": "20260921T130117-1457896-4",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "measured",
+        "trial": 1,
+        "prompt_index": 1,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 2.656040,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 27,
+          "total_tokens": 91,
+          "prompt_tokens_details": {
+            "cached_tokens": 23
+          }
+        },
+        "preflight_prompt_tokens": 27,
+        "occupied_prompt_tokens": 27,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 23,
+          "prompt_n": 4,
+          "prompt_ms": 78.482,
+          "prompt_per_token_ms": 19.6205,
+          "prompt_per_second": 50.967100736474606,
+          "predicted_n": 64,
+          "predicted_ms": 2575.856,
+          "predicted_per_token_ms": 40.88660317460318,
+          "predicted_per_second": 24.457888950313993,
+          "draft_n": 61,
+          "draft_n_accepted": 1,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "prometheus_counter_delta",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 184,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 2
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 245,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 3
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 61,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 1
+          }
+        },
+        "mtp_journal_excerpt_sha256": "6c4b0f95331a46cb104aa4f90c7578c332b9070a897fbaa738d950a150df1bae",
+        "request_start": "2026-09-21T13:01:17+02:00",
+        "request_end": "2026-09-21T13:01:20+02:00",
+        "mtp": {
+          "mode": "native",
+          "source": "prometheus_counter_delta",
+          "draft_tokens": 61,
+          "accepted_tokens": 1,
+          "acceptance_percent": 1.63934426,
+          "acceptance_rate": 1.63934426,
+          "journal_case_key": "710eb5900b9811e685a64df3e322b0dd552319a2d6445f588c5acee47d27a7fd",
+          "journal_excerpt_sha256": "6c4b0f95331a46cb104aa4f90c7578c332b9070a897fbaa738d950a150df1bae"
+        },
+        "case_id": "fast/off/measured/1/1",
+        "case_key": "710eb5900b9811e685a64df3e322b0dd552319a2d6445f588c5acee47d27a7fd",
+        "case_index": 3
+      },
+      "utc": "2026-09-21T11:01:20Z"
+    },
+    "3f7ac58bfba1335dca15fb90f1b74bd23007546249fb886f8fcda17d89d95a22": {
+      "case_key": "3f7ac58bfba1335dca15fb90f1b74bd23007546249fb886f8fcda17d89d95a22",
+      "attempt_id": "20260921T130120-1457896-5",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "warmup",
+        "trial": 1,
+        "prompt_index": 2,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 2.996631,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 28,
+          "total_tokens": 92,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "preflight_prompt_tokens": 28,
+        "occupied_prompt_tokens": 28,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 28,
+          "prompt_ms": 381.081,
+          "prompt_per_token_ms": 13.610035714285715,
+          "prompt_per_second": 73.47519293798432,
+          "predicted_n": 64,
+          "predicted_ms": 2614.33,
+          "predicted_per_token_ms": 41.497301587301585,
+          "predicted_per_second": 24.097952439057046,
+          "draft_n": 62,
+          "draft_n_accepted": 0,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "prometheus_counter_delta",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 245,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 3
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 307,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 3
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 62,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 0
+          }
+        },
+        "mtp_journal_excerpt_sha256": "4c73e7e387390d23afd0def4c321e3ec4762b5af7bb079bb20f99b260eb73da4",
+        "request_start": "2026-09-21T13:01:20+02:00",
+        "request_end": "2026-09-21T13:01:23+02:00",
+        "mtp": {
+          "mode": "native",
+          "source": "prometheus_counter_delta",
+          "draft_tokens": 62,
+          "accepted_tokens": 0,
+          "acceptance_percent": 0E-8,
+          "acceptance_rate": 0E-8,
+          "journal_case_key": "3f7ac58bfba1335dca15fb90f1b74bd23007546249fb886f8fcda17d89d95a22",
+          "journal_excerpt_sha256": "4c73e7e387390d23afd0def4c321e3ec4762b5af7bb079bb20f99b260eb73da4"
+        },
+        "case_id": "fast/off/warmup/1/2",
+        "case_key": "3f7ac58bfba1335dca15fb90f1b74bd23007546249fb886f8fcda17d89d95a22",
+        "case_index": 4
+      },
+      "utc": "2026-09-21T11:01:23Z"
+    },
+    "6604e1d0d3d3b08cf9ad2cef54c87bc683c9efe45330b93688c57895d2b7efd4": {
+      "case_key": "6604e1d0d3d3b08cf9ad2cef54c87bc683c9efe45330b93688c57895d2b7efd4",
+      "attempt_id": "20260921T130123-1457896-6",
+      "state": "completed",
+      "success": true,
+      "reason": null,
+      "record": {
+        "target": "fast",
+        "mode": "off",
+        "thinking_mode": "off",
+        "phase": "measured",
+        "trial": 1,
+        "prompt_index": 2,
+        "max_tokens": 64,
+        "stream": true,
+        "http_code": 200,
+        "http_seconds": 2.695633,
+        "usage": {
+          "completion_tokens": 64,
+          "prompt_tokens": 28,
+          "total_tokens": 92,
+          "prompt_tokens_details": {
+            "cached_tokens": 24
+          }
+        },
+        "preflight_prompt_tokens": 28,
+        "occupied_prompt_tokens": 28,
+        "resolved_capacity_tokens": 8192,
+        "generation_reserve_tokens": 64,
+        "token_sizing": "exact-rendered-token-preflight",
+        "timings": {
+          "cache_n": 24,
+          "prompt_n": 4,
+          "prompt_ms": 77.794,
+          "prompt_per_token_ms": 19.4485,
+          "prompt_per_second": 51.41784713474047,
+          "predicted_n": 64,
+          "predicted_ms": 2616.372,
+          "predicted_per_token_ms": 41.529714285714284,
+          "predicted_per_second": 24.079144708779943,
+          "draft_n": 62,
+          "draft_n_accepted": 0,
+          "kv_bpv": 4.125
+        },
+        "mtp_source": "prometheus_counter_delta",
+        "mtp_counters": {
+          "before": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 307,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 3
+          },
+          "after": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 369,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 3
+          },
+          "delta": {
+            "llamacpp:spec_decode_num_draft_tokens_total": 62,
+            "llamacpp:spec_decode_num_accepted_tokens_total": 0
+          }
+        },
+        "mtp_journal_excerpt_sha256": "779a61520019f7732af3e274ad61111f5d3b14ae6c28dc4176c3d49d6187c39f",
+        "request_start": "2026-09-21T13:01:23+02:00",
+        "request_end": "2026-09-21T13:01:26+02:00",
+        "mtp": {
+          "mode": "native",
+          "source": "prometheus_counter_delta",
+          "draft_tokens": 62,
+          "accepted_tokens": 0,
+          "acceptance_percent": 0E-8,
+          "acceptance_rate": 0E-8,
+          "journal_case_key": "6604e1d0d3d3b08cf9ad2cef54c87bc683c9efe45330b93688c57895d2b7efd4",
+          "journal_excerpt_sha256": "779a61520019f7732af3e274ad61111f5d3b14ae6c28dc4176c3d49d6187c39f"
+        },
+        "case_id": "fast/off/measured/1/2",
+        "case_key": "6604e1d0d3d3b08cf9ad2cef54c87bc683c9efe45330b93688c57895d2b7efd4",
+        "case_index": 5
+      },
+      "utc": "2026-09-21T11:01:26Z"
+    }
+  },
+  "completed_successes": 6,
+  "progress": {
+    "stage": "completed",
+    "last_progress_utc": "2026-09-21T13:01:26+02:00",
+    "eta_seconds": 0,
+    "progress_source": "authenticated /slots polling"
+  }
+}

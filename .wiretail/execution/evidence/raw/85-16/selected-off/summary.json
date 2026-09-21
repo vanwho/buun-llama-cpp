@@ -1,0 +1,88 @@
+{
+  "schema_version": 2,
+  "records": 6,
+  "incomplete": 0,
+  "unsupported": 0,
+  "groups": [
+    {
+      "target": "fast",
+      "mode": "off",
+      "prompt_index": 0,
+      "errors": 0,
+      "decode_tok_s": {
+        "min": 45.558086560364465,
+        "median": 45.558086560364465,
+        "max": 45.558086560364465,
+        "samples": 1
+      },
+      "prompt_tok_s": {
+        "min": 532.4624613964716,
+        "median": 532.4624613964716,
+        "max": 532.4624613964716,
+        "samples": 1
+      },
+      "mtp_acceptance": {
+        "min": null,
+        "median": null,
+        "max": null,
+        "samples": 0
+      },
+      "pager_status": "ok",
+      "benchmark_variant": "short"
+    },
+    {
+      "target": "fast",
+      "mode": "off",
+      "prompt_index": 1,
+      "errors": 0,
+      "decode_tok_s": {
+        "min": 45.567774469894886,
+        "median": 45.567774469894886,
+        "max": 45.567774469894886,
+        "samples": 1
+      },
+      "prompt_tok_s": {
+        "min": 482.95352913819625,
+        "median": 482.95352913819625,
+        "max": 482.95352913819625,
+        "samples": 1
+      },
+      "mtp_acceptance": {
+        "min": null,
+        "median": null,
+        "max": null,
+        "samples": 0
+      },
+      "pager_status": "ok",
+      "benchmark_variant": "short"
+    },
+    {
+      "target": "fast",
+      "mode": "off",
+      "prompt_index": 2,
+      "errors": 0,
+      "decode_tok_s": {
+        "min": 45.74359480759373,
+        "median": 45.74359480759373,
+        "max": 45.74359480759373,
+        "samples": 1
+      },
+      "prompt_tok_s": {
+        "min": 501.9090469105705,
+        "median": 501.9090469105705,
+        "max": 501.9090469105705,
+        "samples": 1
+      },
+      "mtp_acceptance": {
+        "min": null,
+        "median": null,
+        "max": null,
+        "samples": 0
+      },
+      "pager_status": "ok",
+      "benchmark_variant": "short"
+    }
+  ],
+  "pager_status": "ok",
+  "benchmark_variant": "short"
+}
