@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "task": "85-16",
+  "result": "pass",
+  "procedure": "Canonical run-profile-benchmark short campaign plus one validated context-bearing selected-native row",
+  "provenance": {
+    "source_commit": "17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3",
+    "source_diff_sha256": "29a2fa95895ecc95662d771837ae1444559b6a368c84045b5f203ed5390b5806",
+    "bundle_identity": "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server",
+    "bundle_manifest_sha256": "0eff46186ba2ee0b9bb86c301286d1da546540ea39d9bc75ad5f6c5ba2eb18b9",
+    "binary_sha256": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "gpu": "NVIDIA GeForce RTX 4080",
+    "driver": "595.91.07"
+  },
+  "configuration": {
+    "context_tokens": 8192,
+    "hot_tokens": 4096,
+    "page_tokens": 256,
+    "hot_pages": 16,
+    "pin_recent_tokens": 1024,
+    "batch_tokens": 128,
+    "ubatch_tokens": 128,
+    "output_tokens": 64,
+    "warmups": 1,
+    "measured_trials": 1,
+    "sampling": {"temperature": 0, "seed": 42, "thinking": "off"},
+    "prompt_set": "canonical original three short prompts"
+  },
+  "short_matrix": {
+    "all-gpu-off": {"target": "gpu", "pager": "off", "mtp": "off", "prompt_tokens": [30, 27, 28], "mean_prompt_tok_s": 95.734, "mean_decode_tok_s": 28.256, "accepted": null, "drafted": null, "errors": 0},
+    "all-gpu-native": {"target": "gpu", "pager": "off", "mtp": "native-gpu-turbo4", "prompt_tokens": [30, 27, 28], "mean_prompt_tok_s": 50.828, "mean_decode_tok_s": 24.320, "accepted": [1, 1, 0], "drafted": [61, 61, 62], "errors": 0},
+    "selected-off": {"target": "gpu", "pager": "selective", "mtp": "off", "prompt_tokens": [30, 27, 28], "mean_prompt_tok_s": 505.775, "mean_decode_tok_s": 45.623, "accepted": null, "drafted": null, "errors": 0},
+    "selected-native": {"target": "gpu", "pager": "selective", "mtp": "native-gpu-turbo4", "prompt_tokens": [30, 27, 28], "mean_prompt_tok_s": 88.744, "mean_decode_tok_s": 41.211, "accepted": [10, 6, 18], "drafted": [52, 57, 46], "errors": 0},
+    "cpu-main-native": {"target": "cpu", "pager": "off", "mtp": "native-gpu-turbo4", "prompt_tokens": [30, 27, 28], "mean_prompt_tok_s": 25.827, "mean_decode_tok_s": 10.519, "accepted": [3, 8, 3], "drafted": [59, 55, 54], "committed_tokens": [64, 64, 57], "errors": 0}
+  },
+  "context_selected_native": {
+    "status": "pass",
+    "prompt_tokens": 6144,
+    "cold_prefill": true,
+    "target_placement": "CUDA",
+    "target_type_k_v": "turbo4/turbo4",
+    "mtp_placement": "gpu",
+    "mtp_type_k_v": "turbo4/turbo4",
+    "generated_tokens": 64,
+    "committed_tokens": 64,
+    "mtp_proposed_tokens": 53,
+    "mtp_accepted_tokens": 12,
+    "target_gpu_bytes": 69206000,
+    "host_committed_rows": 3840,
+    "host_committed_bytes": 64880600,
+    "wall_prefill_us": 31470488.0,
+    "wall_decode_us": 2996800.0,
+    "raw": ".wiretail/execution/evidence/raw/85-16/context-selected-native/SPEED25_02_ATTRIBUTION.json"
+  },
+  "context_controls": {
+    "selected_off": "incomplete_timeout_then_cuda_abort; excluded",
+    "all_gpu_native": "not_run_after_bounded_selected_off_failure",
+    "cpu_main_native": "not_run_after_bounded_selected_off_failure",
+    "failure_artifact": ".wiretail/execution/evidence/85-16-context-control-failure.txt"
+  },
+  "raw_roots": ".wiretail/execution/evidence/raw/85-16",
+  "raw_root_file_count": 90
+}

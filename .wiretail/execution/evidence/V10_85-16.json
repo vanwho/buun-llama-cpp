@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "task": "85-16",
+  "source_commit": "17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3",
+  "source_diff_sha256": "29a2fa95895ecc95662d771837ae1444559b6a368c84045b5f203ed5390b5806",
+  "checks": {
+    "matched_small_speed_measurements": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-profile-benchmark.py",
+        "fast",
+        "short",
+        "--context",
+        "8192",
+        "--diagnostic",
+        "--batch",
+        "128",
+        "--ubatch",
+        "128",
+        "--generation-length",
+        "64"
+      ],
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_REPAIR85_SPEED.json", "sha256": "14fc2e23ebe0ec03a7b239514f396ff350d842099cc182814b2ea66110c28e6d"},
+        {"path": ".wiretail/execution/evidence/V10_REPAIR85_SPEED.md", "sha256": "869395261fa53b560c67ebdd6c65f0244e925aa0d642c94c180de45a7bb14b62"},
+        {"path": ".wiretail/execution/evidence/85-16-build-identity.txt", "sha256": "275ccb4b593d63a8fddd3860634c30984b710b4aca7838696c6107e7114d5177"},
+        {"path": ".wiretail/execution/evidence/85-16-context-control-failure.txt", "sha256": "59d2e684d289499e0b5a9e399d7a003cc7c1a430bf7e044368d3c74876c6f454"},
+        {"path": ".wiretail/execution/evidence/raw/85-16/all-gpu-off/records.jsonl", "sha256": "1d7601a7474a840c6b4a3b0c85a966b3393d4341755915a3c5ac84a199a9afb5"},
+        {"path": ".wiretail/execution/evidence/raw/85-16/all-gpu-native/records.jsonl", "sha256": "61cc2d951b8c5d11bee91f417369d5518816de026ef06d17b66f125845362ef5"},
+        {"path": ".wiretail/execution/evidence/raw/85-16/selected-off/records.jsonl", "sha256": "c4a9ce29d96097d79ceb075363f07508737e04f14c5f579541b4b0714b9ae652"},
+        {"path": ".wiretail/execution/evidence/raw/85-16/selected-native/records.jsonl", "sha256": "707d831fbc8c8b50fbe33d1fff33acc7094c54254ee9610f3ebe4756a6ca78a1"},
+        {"path": ".wiretail/execution/evidence/raw/85-16/cpu-main-native/records.jsonl", "sha256": "86df80507dcc6aebd93354a447d09f8855f9af1c2b14b0027a0298d7d3deab46"},
+        {"path": ".wiretail/execution/evidence/raw/85-16/context-selected-native/SPEED25_02_ATTRIBUTION.json", "sha256": "03f4cb13b07d63c61e001355af880e2e9cdd79c4f073e88e5a8488995135dede"},
+        {"path": ".wiretail/execution/evidence/raw/85-16/context-selected-off/SPEED25_02_ATTRIBUTION.json", "sha256": "9950dbddd7bae2b6378ac4c290c045a1ffc411db9990ccc0a3afea731fd31032"}
+      ],
+      "result": "Five complete original-prompt profiles passed finite, identity-matched speed/acceptance checks; the selected-native C=6144 row passed physical offload and MTP checks."
+    }
+  }
+}

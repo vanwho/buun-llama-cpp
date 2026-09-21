@@ -1,0 +1,21 @@
+85-16 bounded context-control negative finding
+
+Workload: exact C=6144, L=8192, H=4096, page=256, B/U=128, selected pager,
+MTP off, same candidate/model as the passing selected-native context row.
+
+First attempt:
+run-final-curve.py --context 8192 --prompt-tokens 6144 --mode selective \
+  --mtp-mode off --max-tokens 64 --batch-tokens 128 --ubatch-tokens 128
+Result: incomplete_timeout after 151.351 seconds; no valid response, so the
+row is excluded from all speed claims. Runtime telemetry nevertheless showed
+target allocation 69206000 bytes and 3840 host rows / 64880600 host bytes.
+
+Distinct recovery attempt increased the prefill idle watchdog from 120 to 300
+seconds. The service subsequently aborted with a CUDA illegal-access backtrace
+at ggml_backend_cuda_synchronize -> llama_get_logits_argmax during
+server_slot::capture_mtp_state_diagnostic. The retry produced no valid row and
+was excluded. The service was restarted on the known-good selected-native
+profile and passed /health afterward.
+
+This is retained as a diagnostic limitation, not a speed result. No context
+control is labeled pass, and no ratio depends on it.

@@ -1,0 +1,88 @@
+{
+  "schema_version": 2,
+  "records": 6,
+  "incomplete": 0,
+  "unsupported": 0,
+  "groups": [
+    {
+      "target": "fast",
+      "mode": "off",
+      "prompt_index": 0,
+      "errors": 0,
+      "decode_tok_s": {
+        "min": 10.18332737150702,
+        "median": 10.18332737150702,
+        "max": 10.18332737150702,
+        "samples": 1
+      },
+      "prompt_tok_s": {
+        "min": 25.740688306005303,
+        "median": 25.740688306005303,
+        "max": 25.740688306005303,
+        "samples": 1
+      },
+      "mtp_acceptance": {
+        "min": 5.08474576,
+        "median": 5.08474576,
+        "max": 5.08474576,
+        "samples": 1
+      },
+      "pager_status": "ok",
+      "benchmark_variant": "short"
+    },
+    {
+      "target": "fast",
+      "mode": "off",
+      "prompt_index": 1,
+      "errors": 0,
+      "decode_tok_s": {
+        "min": 11.077735281865941,
+        "median": 11.077735281865941,
+        "max": 11.077735281865941,
+        "samples": 1
+      },
+      "prompt_tok_s": {
+        "min": 25.899522801292385,
+        "median": 25.899522801292385,
+        "max": 25.899522801292385,
+        "samples": 1
+      },
+      "mtp_acceptance": {
+        "min": 14.54545455,
+        "median": 14.54545455,
+        "max": 14.54545455,
+        "samples": 1
+      },
+      "pager_status": "ok",
+      "benchmark_variant": "short"
+    },
+    {
+      "target": "fast",
+      "mode": "off",
+      "prompt_index": 2,
+      "errors": 0,
+      "decode_tok_s": {
+        "min": 10.295440535465861,
+        "median": 10.295440535465861,
+        "max": 10.295440535465861,
+        "samples": 1
+      },
+      "prompt_tok_s": {
+        "min": 25.841295682565523,
+        "median": 25.841295682565523,
+        "max": 25.841295682565523,
+        "samples": 1
+      },
+      "mtp_acceptance": {
+        "min": 5.55555556,
+        "median": 5.55555556,
+        "max": 5.55555556,
+        "samples": 1
+      },
+      "pager_status": "ok",
+      "benchmark_variant": "short"
+    }
+  ],
+  "pager_status": "ok",
+  "benchmark_variant": "short"
+}
