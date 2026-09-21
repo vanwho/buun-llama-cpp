@@ -484,6 +484,7 @@ public:
 
     void set_mode(llama_kv_attention_execution_mode mode) noexcept;
     llama_kv_attention_execution_mode mode() const noexcept { return mode_; }
+    void set_native_mtp_enabled(bool enabled) noexcept { native_mtp_enabled_ = enabled; }
 
     // The value is normally supplied by LLAMA_KV_ATTENTION_ROUTE for a live
     // diagnostic process. It is intentionally internal and does not change
@@ -569,6 +570,7 @@ private:
     llama_kv_attention_execution_mode mode_;
     llama_kv_attention_execution_route_override route_override_ =
         llama_kv_attention_execution_route_override::automatic;
+    bool native_mtp_enabled_ = false;
     llama_kv_attention_execution_route route_ = llama_kv_attention_execution_route::dense;
     llama_kv_attention_operator_metadata metadata_;
     llama_kv_attention_execution_phase phase_ = llama_kv_attention_execution_phase::prefill;

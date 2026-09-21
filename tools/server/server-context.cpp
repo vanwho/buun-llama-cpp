@@ -1612,6 +1612,10 @@ static json server_mtp_logit_identity(
     json result = {
         {"target_argmax_ids", json::array()},
         {"logits_checksum", json::array()},
+        {"logits_finite_count", json::array()},
+        {"logits_nan_count", json::array()},
+        {"logits_pos_inf_count", json::array()},
+        {"logits_neg_inf_count", json::array()},
         {"top_k_identity", json::array()},
     };
     if (ctx == nullptr) {
@@ -1634,6 +1638,10 @@ static json server_mtp_logit_identity(
 
         const float * logits = row >= 0 ? llama_get_logits_ith(ctx, row) : nullptr;
         uint64_t checksum = 1469598103934665603ull;
+        int32_t finite_count = 0;
+        int32_t nan_count = 0;
+        int32_t pos_inf_count = 0;
+        int32_t neg_inf_count = 0;
         json top_ids = json::array();
         std::array<float, trace_top_k> top_values;
         std::array<int32_t, trace_top_k> top_tokens;
@@ -1647,6 +1655,24 @@ static json server_mtp_logit_identity(
                 checksum *= 1099511628211ull;
 
                 const float value = logits[token];
+                if (std::isnan(value)) {
+                    ++nan_count;
+                } else if (std::isinf(value)) {
+                    if (value > 0.0f) {
+                        ++pos_inf_count;
+                    } else {
+                        ++neg_inf_count;
+                    }
+                } else {
+                    ++finite_count;
+                }
+                // A non-finite value is useful diagnostic evidence but cannot
+                // be an identity-bearing top-k candidate. In particular, NaN
+                // compares false in the ordered scan below and would otherwise
+                // make a fully-NaN row look like the final vocabulary IDs.
+                if (!std::isfinite(value)) {
+                    continue;
+                }
                 for (int32_t rank = 0; rank < trace_top_k; ++rank) {
                     if (value <= top_values[rank]) {
                         continue;
@@ -1665,6 +1691,10 @@ static json server_mtp_logit_identity(
             }
         }
         result["logits_checksum"].push_back(logits != nullptr ? checksum : 0);
+        result["logits_finite_count"].push_back(finite_count);
+        result["logits_nan_count"].push_back(nan_count);
+        result["logits_pos_inf_count"].push_back(pos_inf_count);
+        result["logits_neg_inf_count"].push_back(neg_inf_count);
         result["top_k_identity"].push_back({
             {"k", trace_top_k},
             {"ids", top_ids},
@@ -2915,6 +2945,10 @@ struct server_slot {
         const json logits = server_mtp_logit_identity(ctx_tgt, rows);
         event["target_argmax_ids"] = logits["target_argmax_ids"];
         event["logits_checksum"] = logits["logits_checksum"];
+        event["logits_finite_count"] = logits["logits_finite_count"];
+        event["logits_nan_count"] = logits["logits_nan_count"];
+        event["logits_pos_inf_count"] = logits["logits_pos_inf_count"];
+        event["logits_neg_inf_count"] = logits["logits_neg_inf_count"];
         event["top_k_identity"] = logits["top_k_identity"];
         // Native MTP proposals are sampled from the draft context. Preserve
         // their exact ids as the bounded proposal identity; the draft context
@@ -7719,6 +7753,8 @@ private:
             SRV_ERR("failed to create context, '%s'\n", params_base.model.path.c_str());
             return false;
         }
+        ctx_tgt->set_kv_attention_native_mtp(
+                spec_mtp && !params_base.speculative.has_external_mtp_sidecar());
 
         if (params_base.speculative.uses_mtp_as_primary_drafter() &&
                 !server_mtp_target_architecture_supported(model_tgt)) {
@@ -20968,7 +21004,8 @@ private:
             slot.stats.update_gen_last();
 
             // update how many tokens out of those tested were accepted
-            const size_t n_accepted = ids.size() - 1;
+            const size_t n_accepted = size_t(rollback_frontier.accepted_draft_tokens);
+            GGML_ASSERT(ids.size() == n_accepted + 1);
             slot.stats.n_draft_accepted += n_accepted;
             slot.stats.n_draft_verif_steps += 1;
 
@@ -21034,7 +21071,7 @@ private:
 
             if (slot.has_draft_backup) {
                 const llama_seq_id seq_backup = slot.seq_id_backup;
-                const bool all_accepted = (ids.size() == n_draft + 1);
+                const bool all_accepted = rollback_frontier.rejected_draft_tokens == 0;
 
                 const bool is_dflash = params_base.speculative.type() == COMMON_SPECULATIVE_TYPE_DFLASH;
                 if (is_dflash) {
@@ -21181,8 +21218,9 @@ private:
             // The next verification may consume state restored after a
             // rejected suffix. Keep this separate from acceptance: a fully
             // accepted proposal advanced normally and was not restored.
-            slot.mtp_target_restored_before_verify = n_accepted_draft < n_draft;
-            slot.mtp_draft_restored_before_verify = n_accepted_draft < n_draft;
+            const bool rejected_suffix = rollback_frontier.rejected_draft_tokens != 0;
+            slot.mtp_target_restored_before_verify = rejected_suffix;
+            slot.mtp_draft_restored_before_verify = rejected_suffix;
 
             // The rollback owner is now at the accepted target frontier. The
             // target verification itself was intentionally excluded from the
