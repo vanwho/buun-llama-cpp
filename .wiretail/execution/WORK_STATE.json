@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "88",
-  "current_task": "88-01",
-  "last_updated_utc": "2026-09-21T15:24:28+00:00",
+  "current_task": "88-02",
+  "last_updated_utc": "2026-09-21T15:53:05+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -17106,7 +17106,7 @@
       "cluster": "repair88-mtp-v10",
       "title": "Repair native MTP state parity",
       "packet": ".wiretail/execution/tasks/88-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -17118,7 +17118,7 @@
       "depends_on": [
         "87-06"
       ],
-      "commit": null,
+      "commit": "64dbb9ecfe9cefa6de2b310b84c95ab009cb68d3",
       "context_files": [
         ".wiretail/execution/v10/REPAIR85_PLAN.md",
         ".wiretail/execution/v10/REPAIR85_TESTING.md",
@@ -17132,7 +17132,32 @@
         "88-01",
         "--receipt",
         ".wiretail/execution/evidence/V10_88-01.json"
-      ]
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/88-01-attempt-1-20260921T152449Z.jsonl:231",
+            "total_tokens": 17104373,
+            "total_tokens_derived": true,
+            "input_tokens": 17050382,
+            "cached_input_tokens": 16615680,
+            "output_tokens": 53991,
+            "thinking_tokens": 25449
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 17104373,
+          "input_tokens": 17050382,
+          "cached_input_tokens": 16615680,
+          "output_tokens": 53991,
+          "thinking_tokens": 25449
+        }
+      }
     },
     {
       "id": "88-02",
@@ -22352,25 +22377,39 @@
       }
     },
     "88": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/88-01-attempt-1-20260921T152449Z.jsonl:231",
+          "total_tokens": 17104373,
+          "total_tokens_derived": true,
+          "input_tokens": 17050382,
+          "cached_input_tokens": 16615680,
+          "output_tokens": 53991,
+          "thinking_tokens": 25449
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 17104373,
+        "input_tokens": 17050382,
+        "cached_input_tokens": 16615680,
+        "output_tokens": 53991,
+        "thinking_tokens": 25449
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 308,
-      "total_tokens": 5684239741,
-      "input_tokens": 5670434782,
-      "cached_input_tokens": 5547991808,
-      "output_tokens": 13804959,
-      "thinking_tokens": 4928323
+      "turns": 309,
+      "total_tokens": 5701344114,
+      "input_tokens": 5687485164,
+      "cached_input_tokens": 5564607488,
+      "output_tokens": 13858950,
+      "thinking_tokens": 4953772
     },
     "source": "Codex turn.completed usage events"
   }
