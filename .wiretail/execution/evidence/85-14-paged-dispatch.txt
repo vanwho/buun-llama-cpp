@@ -1,0 +1,28 @@
+85-14 paged dispatch / row lookup proof
+=========================================
+
+Build:
+  cmake --build build-cuda --target test-cuda-fattn-paged-turbo4 -j2
+
+Focused correctness:
+  ./build-cuda/bin/test-cuda-fattn-paged-turbo4
+
+Result: exit 0
+  cuda_multigroup_turbo4_numerics: passed (Q=1,2,3,4,16,17,64,128; GQA=24/4; interleaved rows)
+  cuda_paged_graph_capture_replay: passed (active rows 257 -> 513; stable capacities)
+  paged Turbo4 reference control: 9.201 ms (128 Q tokens, 530 selected rows)
+  paged Turbo4 split control: 0.183 ms (128 Q tokens, 530 selected rows, capacity 2)
+
+The fixture uploads the compact-row map and changes it during the captured
+partial-tail/full-table graph replays. Padded rows are poisoned/canary checked;
+all valid Q1/2/3/4/16/17/64/128 outputs match the CPU oracle.
+
+CUDA-event timing fixture:
+  ./build-cuda/bin/test-cuda-fattn-paged-turbo4 --timing
+
+Result: exit 0 on NVIDIA GeForce RTX 4080 (CC 8.9)
+  paged Turbo4 query tile: 0.066 ms (Q=1, 4 Q heads, 1 KV heads, 530 selected rows)
+  timing table U=16: fused paged MMA 0.152 ms; contiguous FA 0.087 ms; pack+FA 0.022 ms
+  timing table U=64: fused paged MMA 0.153 ms; contiguous FA 0.301 ms; pack+FA 0.025 ms
+  timing table U=128: fused paged MMA 0.157 ms; contiguous FA 0.613 ms; pack+FA 0.030 ms
+  timing uses the existing small CUDA fixture; no 27B context matrix.

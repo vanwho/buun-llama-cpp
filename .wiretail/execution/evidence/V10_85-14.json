@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "task": "85-14",
+  "source_commit": "5f7a3c77041d9072c71e2fc0fbcdd6647161aa76",
+  "source_diff_sha256": "50bee023054adcf3a6abd36d3c0db32d684a5a1ed4e17c9a41551fa80e3d4f4a",
+  "predecessor_receipt": ".wiretail/execution/evidence/V10_85-13.json",
+  "checks": {
+    "paged_dispatch_lookup_and_replay": {
+      "status": "pass",
+      "command": [
+        "./build-cuda/bin/test-cuda-fattn-paged-turbo4",
+        "./build-cuda/bin/test-cuda-fattn-paged-turbo4",
+        "--timing"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/85-14-paged-dispatch.txt",
+          "sha256": "e2a1b73a8c779a513307cdaafa4f7500bb650a302429a6e5729d549385e65df4"
+        }
+      ],
+      "observed": {
+        "cuda_device": "NVIDIA GeForce RTX 4080",
+        "compute_capability": "8.9",
+        "row_lookup": "device compact-row map with page index and in-page row",
+        "graph_replays": "partial tail mapping then full mapping",
+        "mma_shapes": [1, 2, 3, 4, 16, 17, 64, 128],
+        "numerical_parity": "pass",
+        "padded_row_canary": "pass",
+        "q1_cuda_event_ms": 0.066
+      }
+    },
+    "small_prefill_cost_attribution": {
+      "status": "pass",
+      "command": [
+        "sudo", "-n", "python3",
+        "tools/server/bench/run-cached-append-coordinate.py",
+        "--output", "/srv/ai/paged-kv/results/85-14-cached-native",
+        "--endpoint", "http://127.0.0.1:8080",
+        "--context", "4096", "--prefix", "3072", "--deltas", "64",
+        "--max-tokens", "32", "--mode", "selective", "--mtp-mode", "native",
+        "--server-bin", "/srv/ai/paged-kv/candidates/85-14-cuda/bin/llama-server"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/85-14-small-prefill-attribution.txt",
+          "sha256": "46490885adbfdead3f3106db81311011e2004e31a483e8c75b7dee8b735eedb4"
+        }
+      ],
+      "observed": {
+        "candidate_identity": "/srv/ai/paged-kv/candidates/85-14-cuda/bin/llama-server",
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "geometry": "L4096/B128/U128/page256",
+        "native_prefix_prompt_tokens": 3040,
+        "native_append_cache_n": 3071,
+        "native_append_new_prompt_tokens": 65,
+        "native_mtp": "25/6 on short probe; 27/3 on append",
+        "control": "canonical short no-MTP control passed; long no-MTP coordinate timed out at its bound",
+        "dominant_measured_cost": "host wait/queue and repeated table/summary work; server CUDA kernel_us was explicitly not measured"
+      }
+    }
+  }
+}

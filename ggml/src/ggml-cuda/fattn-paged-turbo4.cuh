@@ -40,6 +40,14 @@ static_assert(sizeof(ggml_cuda_fattn_turbo4_page) ==
 static_assert(offsetof(ggml_cuda_fattn_turbo4_page, native_position_begin) ==
               offsetof(ggml_flash_attn_ext_paged_turbo4_page, native_position_begin));
 
+struct ggml_cuda_fattn_turbo4_row_lookup {
+    uint32_t page_index;
+    uint32_t page_row;
+};
+
+static_assert(sizeof(ggml_cuda_fattn_turbo4_row_lookup) ==
+              sizeof(ggml_flash_attn_ext_paged_turbo4_row_lookup));
+
 bool ggml_cuda_flash_attn_ext_paged_turbo4_supported(
         int device, const ggml_tensor * dst) noexcept;
 void ggml_cuda_flash_attn_ext_paged_turbo4(
@@ -98,6 +106,8 @@ struct ggml_cuda_fattn_turbo4_paged_params {
     // device pointers are graph inputs populated by the caller before capture.
     const ggml_cuda_fattn_turbo4_page * pages_host = nullptr;
     const ggml_cuda_fattn_turbo4_page * pages_device = nullptr;
+    const ggml_cuda_fattn_turbo4_row_lookup * compact_row_lookup_device = nullptr;
+    uint32_t compact_row_lookup_capacity = 0;
     const int64_t * native_positions_device = nullptr;
     const uint8_t * native_mask_device = nullptr;
     const int64_t * query_positions_device = nullptr;

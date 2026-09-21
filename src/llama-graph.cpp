@@ -44,6 +44,43 @@ llm_graph_input_attn_kv::~llm_graph_input_attn_kv() {
 #include <unordered_set>
 #include <vector>
 
+static bool build_paged_row_lookup(
+        const std::vector<ggml_flash_attn_ext_paged_turbo4_page> & pages,
+        uint32_t active_page_count, uint32_t row_capacity,
+        std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> & output) {
+    const ggml_flash_attn_ext_paged_turbo4_row_lookup invalid = {
+        UINT32_MAX, UINT32_MAX };
+    try {
+        output.assign(row_capacity, invalid);
+        if (active_page_count == 0 || active_page_count > pages.size()) {
+            return false;
+        }
+        for (uint32_t page_index = 0; page_index < active_page_count; ++page_index) {
+            const auto & page = pages[page_index];
+            if (page.row_count == 0 || page.compact_row_begin > row_capacity ||
+                    page.row_count > row_capacity - page.compact_row_begin) {
+                return false;
+            }
+            for (uint32_t page_row = 0; page_row < page.row_count; ++page_row) {
+                output[page.compact_row_begin + page_row] = { page_index, page_row };
+            }
+        }
+        return true;
+    } catch (...) {
+        output.clear();
+        return false;
+    }
+}
+
+static bool paged_row_lookup_equal(
+        const std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> & lhs,
+        const std::vector<ggml_flash_attn_ext_paged_turbo4_row_lookup> & rhs) {
+    return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin(),
+        [](const auto & a, const auto & b) {
+            return a.page_index == b.page_index && a.page_row == b.page_row;
+        });
+}
+
 static bool is_dynamic_fp8_bf16_channel_scale(
         const ggml_tensor * weight, const ggml_tensor * scale, const ggml_tensor * input_scale) {
     return weight && scale && input_scale && weight->type == GGML_TYPE_F8_E4M3 &&
@@ -806,6 +843,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 set_direct_tensor(wave.pages, wave.pages_host.data(),
                         sizeof(wave.device_control),
                         wave.pages_host.size() * sizeof(wave.pages_host[0]));
+                set_direct_tensor(wave.pages, wave.row_lookup_host.data(),
+                        sizeof(wave.device_control) +
+                            wave.pages_host.size() * sizeof(wave.pages_host[0]),
+                        wave.row_lookup_host.size() * sizeof(wave.row_lookup_host[0]));
             }
         } else if (direct_attention) {
             direct_telemetry_published = false;
@@ -871,6 +912,14 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                     }
                 }
                 direct_pages_uploaded = direct_pages_host;
+            }
+            if (update_selected && !paged_row_lookup_equal(
+                    direct_row_lookup_uploaded, direct_row_lookup_host)) {
+                set_direct_tensor(direct_pages, direct_row_lookup_host.data(),
+                        sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                            direct_page_capacity * sizeof(direct_pages_host[0]),
+                        direct_row_lookup_host.size() * sizeof(direct_row_lookup_host[0]));
+                direct_row_lookup_uploaded = direct_row_lookup_host;
             }
             // Query positions are mutable input values even when the selected
             // pages and their content generation did not change.  Upload only
@@ -1301,7 +1350,9 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         res &= direct_row_capacity >= params.kv_attention_metadata.get_n_kv();
         res &= direct_pages->ne[0] == int64_t(
                 sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
-                direct_page_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_page));
+                direct_page_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_page) +
+                direct_row_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_row_lookup));
+        res &= direct_row_lookup_host.size() == direct_row_capacity;
         res &= direct_native_positions->ne[0] == direct_row_capacity;
         res &= direct_native_mask->ne[0] == direct_row_capacity;
         res &= direct_query_positions->ne[0] == int64_t(
@@ -1353,9 +1404,15 @@ bool llm_graph_input_attn_kv::refresh_selected_data(
                 page.compact_row_begin, page.row_count,
                 page.native_position_begin };
         }
-        return direct_page_capacity == uint32_t(direct_pages->ne[0] -
-                    sizeof(ggml_flash_attn_ext_paged_turbo4_device_control)) /
-                sizeof(ggml_flash_attn_ext_paged_turbo4_page) &&
+        if (!build_paged_row_lookup(direct_pages_host,
+                direct_active_page_count, direct_row_capacity,
+                direct_row_lookup_host)) {
+            return false;
+        }
+        return direct_pages->ne[0] == int64_t(
+                    sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+                    direct_page_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_page) +
+                    direct_row_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_row_lookup)) &&
             direct_row_capacity == uint32_t(direct_native_positions->ne[0]) &&
             direct_row_capacity == uint32_t(direct_native_mask->ne[0]) &&
             metadata.query_positions().size() == size_t(direct_query_positions->ne[0]);
@@ -2051,7 +2108,9 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
             inp_attn->direct_native_mask != nullptr && inp_attn->direct_query_positions != nullptr;
         res &= inp_attn->direct_pages->ne[0] == int64_t(
                 sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
-                inp_attn->direct_page_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_page));
+                inp_attn->direct_page_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_page) +
+                inp_attn->direct_row_capacity * sizeof(ggml_flash_attn_ext_paged_turbo4_row_lookup));
+        res &= inp_attn->direct_row_lookup_host.size() == inp_attn->direct_row_capacity;
         res &= inp_attn->direct_page_capacity >= params.kv_attention_metadata.page_table().size();
         res &= inp_attn->direct_row_capacity >= params.kv_attention_metadata.get_n_kv();
         res &= inp_attn->direct_native_positions->ne[0] == inp_attn->direct_row_capacity;
@@ -4300,13 +4359,19 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             size_t page_index = 0;
             for (const auto & page : selected_metadata->page_table()) {
                 inp->direct_pages_host[page_index++] = {
-                    page.logical_page, page.source_physical_slot,
-                    page.compact_row_begin, page.row_count,
-                    page.native_position_begin };
+                        page.logical_page, page.source_physical_slot,
+                        page.compact_row_begin, page.row_count,
+                        page.native_position_begin };
+            }
+            if (!build_paged_row_lookup(inp->direct_pages_host,
+                    inp->direct_active_page_count, inp->direct_row_capacity,
+                    inp->direct_row_lookup_host)) {
+                throw std::runtime_error("direct paged attention row lookup geometry is invalid");
             }
             inp->direct_pages = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
                     int64_t(sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
-                        inp->direct_page_capacity * sizeof(inp->direct_pages_host[0])));
+                        inp->direct_page_capacity * sizeof(inp->direct_pages_host[0]) +
+                        inp->direct_row_capacity * sizeof(inp->direct_row_lookup_host[0])));
             inp->direct_native_positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I64,
                     inp->direct_row_capacity);
             inp->direct_native_mask = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
@@ -4606,6 +4671,11 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 compact_row_begin += page.valid_tokens;
             }
             wave_input.active_row_count = compact_row_begin;
+            if (!build_paged_row_lookup(wave_input.pages_host,
+                    wave_input.active_page_count, inp->exact_n_rows,
+                    wave_input.row_lookup_host)) {
+                throw std::runtime_error("exact page-wave row lookup geometry is invalid");
+            }
             total_compact_row_begin += compact_row_begin;
             if (cold) {
                 wave_input.host_upload.assign(size_t(staging_bytes), 0);
@@ -4651,7 +4721,8 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
             }
             wave_input.pages = ggml_new_tensor_1d(ctx0, GGML_TYPE_I8,
                     int64_t(sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
-                        wave_input.pages_host.size() * sizeof(wave_input.pages_host[0])));
+                        wave_input.pages_host.size() * sizeof(wave_input.pages_host[0]) +
+                        wave_input.row_lookup_host.size() * sizeof(wave_input.row_lookup_host[0])));
             ggml_set_input(wave_input.pages);
             ggml_backend_sched_set_tensor_backend(sched, wave_input.pages, direct_backend);
             inp->exact_waves.push_back(std::move(wave_input));

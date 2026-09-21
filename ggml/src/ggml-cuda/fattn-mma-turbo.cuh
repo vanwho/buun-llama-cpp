@@ -28,6 +28,8 @@ struct ggml_cuda_fattn_mma_paged_turbo4_policy {
     size_t v_head_stride;
     size_t v_page_stride;
     const ggml_cuda_fattn_turbo4_page * pages;
+    const ggml_cuda_fattn_turbo4_row_lookup * compact_row_lookup;
+    uint32_t compact_row_lookup_capacity;
     uint32_t n_pages;
     uint32_t n_rows;
     const uint32_t * active_page_count;
@@ -67,6 +69,24 @@ struct ggml_cuda_fattn_mma_paged_turbo4_policy {
             const uint32_t compact_row, uint32_t & page_index, uint32_t & row) const {
         const uint32_t page_count = active_page_count != nullptr
             ? min(*active_page_count, n_pages) : n_pages;
+        if (compact_row_lookup != nullptr) {
+            if (compact_row >= compact_row_lookup_capacity) {
+                return false;
+            }
+            const ggml_cuda_fattn_turbo4_row_lookup entry = compact_row_lookup[compact_row];
+            if (entry.page_index >= page_count) {
+                return false;
+            }
+            const ggml_cuda_fattn_turbo4_page page = pages[entry.page_index];
+            if (entry.page_row >= page.row_count ||
+                    page.compact_row_begin > compact_row ||
+                    page.compact_row_begin + entry.page_row != compact_row) {
+                return false;
+            }
+            page_index = entry.page_index;
+            row = entry.page_row;
+            return true;
+        }
         for (uint32_t i = 0; i < page_count; ++i) {
             const ggml_cuda_fattn_turbo4_page page = pages[i];
             if (compact_row >= page.compact_row_begin &&
@@ -299,6 +319,8 @@ static bool ggml_cuda_flash_attn_ext_mma_turbo4_paged_case(
     policy.v_head_stride = params.v_head_stride_bytes;
     policy.v_page_stride = params.v_page_stride_bytes;
     policy.pages = params.pages_device;
+    policy.compact_row_lookup = params.compact_row_lookup_device;
+    policy.compact_row_lookup_capacity = params.compact_row_lookup_capacity;
     policy.n_pages = page_capacity;
     policy.n_rows = row_capacity;
     policy.active_page_count = params.active_page_count_device;
