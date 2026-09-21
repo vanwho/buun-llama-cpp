@@ -1,23 +1,23 @@
 {
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
-  "canonical_plan": ".wiretail/execution/v10/OVERVIEW.md",
-  "active_plan_amendment": ".wiretail/execution/v10/OVERVIEW.md",
-  "technical_change_spec": ".wiretail/execution/v10/OVERVIEW.md",
-  "execution_cookbook": ".wiretail/execution/v10/TESTING.md",
-  "implementation_contracts": ".wiretail/execution/v10/OVERVIEW.md",
-  "benchmark_protocol": ".wiretail/execution/v10/TESTING.md",
+  "canonical_plan": ".wiretail/execution/v10/REPAIR85_PLAN.md",
+  "active_plan_amendment": ".wiretail/execution/v10/REPAIR85_PLAN.md",
+  "technical_change_spec": ".wiretail/execution/v10/REPAIR85_PLAN.md",
+  "execution_cookbook": ".wiretail/execution/v10/REPAIR85_TESTING.md",
+  "implementation_contracts": ".wiretail/execution/v10/REPAIR85_PLAN.md",
+  "benchmark_protocol": ".wiretail/execution/v10/REPAIR85_TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Current V10 packet/cluster, explicit context_files and named source only. No V9/older plans, whole state/log or recursive historical handoffs. Cohesive context-area clusters have no fixed task-count cap; fresh V10 IDs exclude stale sessions.",
+  "context_policy": "For85-09 onward load repair85 packet/cluster and explicit context_files only; historical V10 overview, old testing and summaries are superseded, not loaded. New subsystem/context-based clusters reset stale sessions; no task-count cap.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
+  "status": "in_progress",
   "current_phase": "85",
   "current_task": "85-09",
-  "last_updated_utc": "2026-09-21T01:15:20+00:00",
+  "last_updated_utc": "2026-09-21T02:01:37Z",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -42,16 +42,16 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "V10 tasks49-54; historical done tasks are records, not current capability proof",
+    "active_scope": "repair85 tasks85-09 through85-19; prior done records do not certify current capabilities",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
     "target_hot_capacity": "dynamic H after full-L draft, weights, recurrent state, A workspace, scratch, GPU catalogue and reserve; no fixed70K/77K production constant",
-    "attention_path": "mature Turbo4 packed/contiguous FA; no telemetry-only extra attention, CPU attention or F16 gather in selective production",
+    "attention_path": "Corrected paged Turbo4 fused GPU attention or eligible mature contiguous view; reference is oracle, no mandatory native-MTP fallback, CPU attention or full-L F16 staging",
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
-    "speed_policy": "small L8192/H4096 physical paging first; prefill, cached append and committed decode separate; ratios findings, not inherited3x/5x gates",
-    "scale_policy": "conditional32K/128K pilot then honest262144 allocation and occupied-context feasibility; no mandatory long matrix or unbounded slow progress loop",
+    "speed_policy": "Small invariant-specific CUDA tests first; original3prompts plus actual C>H small matched speed at phase end; timings are findings, setup failures repaired/retested within task",
+    "scale_policy": "Conditional32K/128K pilots then262144 capacity and honest occupancy, measured scratch before H; no per-edit context curve or indefinite slow loop",
     "task_completion": "named required implementation tests and hashed raw receipt; no deferred CUDA/live substitution; benchmark failed findings stay explicitly failed",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
     "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication"
@@ -15785,25 +15785,23 @@
     {
       "id": "85-09",
       "phase": "85",
-      "cluster": "85i-direct-proof-v10",
-      "title": "Repair selected direct completion and target-use proof",
+      "cluster": "repair85-cuda-correctness-v10",
+      "title": "Repair paged Turbo4 strides, GQA heads and MMA query transform",
       "packet": ".wiretail/execution/tasks/85-09.md",
-      "status": "todo",
+      "status": "in_progress",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "context_files": [
-        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/v10/RECEIPTS.md",
-        ".wiretail/execution/v10/TESTING.md",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
-        ".wiretail/execution/handoffs/85-07.md"
+        ".wiretail/execution/v10/REPAIR85_ASSESSMENT.md"
       ],
       "required_proofs": [
-        "cuda_direct_completion_regression",
-        "direct_target_use_smoke"
+        "cuda_multigroup_turbo4_numerics",
+        "cuda_paged_graph_capture_replay"
       ],
       "completion_check": [
         "python3",
@@ -15827,13 +15825,14 @@
           "output_tokens": 0,
           "thinking_tokens": 0
         }
-      }
+      },
+      "plan_amendment": "repair85-20260921"
     },
     {
       "id": "85-10",
       "phase": "85",
-      "cluster": "85j-maintenance-proof-v10",
-      "title": "Remove remaining selected-prefill host-seal work",
+      "cluster": "repair85-cuda-correctness-v10",
+      "title": "Establish finite dense control and repair short-run setup",
       "packet": ".wiretail/execution/tasks/85-10.md",
       "status": "todo",
       "blocker": null,
@@ -15841,16 +15840,15 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "context_files": [
-        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/v10/RECEIPTS.md",
-        ".wiretail/execution/v10/TESTING.md",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
-        ".wiretail/execution/handoffs/85-07.md"
+        ".wiretail/execution/v10/REPAIR85_ASSESSMENT.md",
+        ".wiretail/execution/handoffs/85-09.md"
       ],
       "required_proofs": [
-        "pager_maintenance_regression",
-        "maintenance_fixed_coordinate_smoke"
+        "short_run_setup_recovery",
+        "finite_dense_turbo4_control"
       ],
       "completion_check": [
         "python3",
@@ -15874,29 +15872,29 @@
           "output_tokens": 0,
           "thinking_tokens": 0
         }
-      }
+      },
+      "plan_amendment": "repair85-20260921"
     },
     {
       "id": "85-11",
       "phase": "85",
-      "cluster": "85k-revalidation-v10",
-      "title": "Revalidate the repaired fixed-coordinate hot path",
+      "cluster": "repair85-lifetime-mtp-v10",
+      "title": "Repair canonical publication, CUDA events and page ownership",
       "packet": ".wiretail/execution/tasks/85-11.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Medium",
+      "recommended_model": "Luna High",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "context_files": [
-        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/v10/RECEIPTS.md",
-        ".wiretail/execution/v10/TESTING.md",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
-        ".wiretail/execution/handoffs/85-07.md"
+        ".wiretail/execution/handoffs/85-10.md"
       ],
       "required_proofs": [
-        "focused_revalidation"
+        "cuda_capture_publication_lifetime",
+        "dirty_seal_and_stale_completion_regression"
       ],
       "completion_check": [
         "python3",
@@ -15920,29 +15918,30 @@
           "output_tokens": 0,
           "thinking_tokens": 0
         }
-      }
+      },
+      "plan_amendment": "repair85-20260921"
     },
     {
       "id": "85-12",
       "phase": "85",
-      "cluster": "85l-summary-v10",
-      "title": "Summarize the follow-up capability findings",
+      "cluster": "repair85-lifetime-mtp-v10",
+      "title": "Restore native MTP on the fast selected consumer",
       "packet": ".wiretail/execution/tasks/85-12.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Medium",
+      "recommended_model": "Luna High",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "context_files": [
-        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/v10/RECEIPTS.md",
-        ".wiretail/execution/v10/TESTING.md",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
-        ".wiretail/execution/handoffs/85-07.md"
+        ".wiretail/execution/handoffs/85-11.md",
+        ".wiretail/execution/handoffs/85-10.md"
       ],
       "required_proofs": [
-        "phase85_followup_summary"
+        "mtp_selected_transaction_equivalence",
+        "native_turbo4_fast_route_live"
       ],
       "completion_check": [
         "python3",
@@ -15966,29 +15965,29 @@
           "output_tokens": 0,
           "thinking_tokens": 0
         }
-      }
+      },
+      "plan_amendment": "repair85-20260921"
     },
     {
       "id": "85-13",
       "phase": "85",
-      "cluster": "85m-review-v10",
-      "title": "Review follow-up findings and gate any next work",
+      "cluster": "repair85-maintenance-speed-v10",
+      "title": "Persist GPU summaries and remove repeated host maintenance",
       "packet": ".wiretail/execution/tasks/85-13.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "Luna Medium",
+      "recommended_model": "Luna High",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "context_files": [
-        ".wiretail/execution/v10/OVERVIEW.md",
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/v10/RECEIPTS.md",
-        ".wiretail/execution/v10/TESTING.md",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.json",
-        ".wiretail/execution/evidence/V10_SUMMARY_85.md",
-        ".wiretail/execution/handoffs/85-07.md"
+        ".wiretail/execution/handoffs/85-12.md"
       ],
       "required_proofs": [
-        "phase85_followup_review"
+        "gpu_summary_version_cadence",
+        "canonical_capture_once_per_version"
       ],
       "completion_check": [
         "python3",
@@ -15996,9 +15995,7 @@
         "--task",
         "85-13",
         "--receipt",
-        ".wiretail/execution/evidence/V10_85-13.json",
-        "--review",
-        ".wiretail/execution/evidence/V10_REVIEW_85_FOLLOWUP.json"
+        ".wiretail/execution/evidence/V10_85-13.json"
       ],
       "depends_on": [
         "85-12"
@@ -16014,7 +16011,221 @@
           "output_tokens": 0,
           "thinking_tokens": 0
         }
-      }
+      },
+      "plan_amendment": "repair85-20260921"
+    },
+    {
+      "id": "85-14",
+      "phase": "85",
+      "cluster": "repair85-maintenance-speed-v10",
+      "title": "Optimize GPU page traversal, short queries and ingest batching",
+      "packet": ".wiretail/execution/tasks/85-14.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair85-20260921",
+      "required_proofs": [
+        "paged_dispatch_lookup_and_replay",
+        "small_prefill_cost_attribution"
+      ],
+      "depends_on": [
+        "85-13"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/85-13.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-14",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-14.json"
+      ]
+    },
+    {
+      "id": "85-15",
+      "phase": "85",
+      "cluster": "repair85-live-results-v10",
+      "title": "Prove completed cold promotion with native GPU Turbo4 MTP",
+      "packet": ".wiretail/execution/tasks/85-15.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair85-20260921",
+      "required_proofs": [
+        "cuda_cold_page_target_consumption",
+        "live_mtp_cold_chain_completed"
+      ],
+      "depends_on": [
+        "85-14"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/85-14.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-15",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-15.json"
+      ]
+    },
+    {
+      "id": "85-16",
+      "phase": "85",
+      "cluster": "repair85-live-results-v10",
+      "title": "Measure original prompts and small hot-cold speed",
+      "packet": ".wiretail/execution/tasks/85-16.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair85-20260921",
+      "required_proofs": [
+        "matched_small_speed_measurements"
+      ],
+      "depends_on": [
+        "85-15"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/85-15.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-16",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-16.json"
+      ]
+    },
+    {
+      "id": "85-17",
+      "phase": "85",
+      "cluster": "repair85-live-results-v10",
+      "title": "Measure scratch-hot capacity and conditional context scaling",
+      "packet": ".wiretail/execution/tasks/85-17.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair85-20260921",
+      "required_proofs": [
+        "context_scaling_findings"
+      ],
+      "depends_on": [
+        "85-16"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/85-16.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-17",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-17.json"
+      ]
+    },
+    {
+      "id": "85-18",
+      "phase": "85",
+      "cluster": "repair85-summary-review-v10",
+      "title": "Generate compact repair85 capability and performance summary",
+      "packet": ".wiretail/execution/tasks/85-18.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair85-20260921",
+      "required_proofs": [
+        "repair85_summary_consistency"
+      ],
+      "depends_on": [
+        "85-17"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/85-17.md",
+        ".wiretail/execution/evidence/V10_85-15.json",
+        ".wiretail/execution/evidence/V10_REPAIR85_SPEED.json",
+        ".wiretail/execution/evidence/V10_REPAIR85_SCALE.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-18",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-18.json"
+      ]
+    },
+    {
+      "id": "85-19",
+      "phase": "85",
+      "cluster": "repair85-summary-review-v10",
+      "title": "Review current goal results and schedule precise remaining work",
+      "packet": ".wiretail/execution/tasks/85-19.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair85-20260921",
+      "required_proofs": [
+        "repair85_review_and_successors"
+      ],
+      "depends_on": [
+        "85-18"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/85-18.md",
+        ".wiretail/execution/evidence/V10_REPAIR85_SUMMARY.json",
+        ".wiretail/execution/evidence/V10_REPAIR85_SUMMARY.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-19",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-19.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR85_REVIEW.json"
+      ]
     }
   ],
   "last_checkpoint_commit": "e154151d62e583563343a15128392b69030dcf48",

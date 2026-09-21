@@ -1123,3 +1123,11 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-85-07`
 - Commit at update: `1a19430f4`
 - Summary: Reviewed V10_SUMMARY_85 and named 85-05 roots; recorded bounded natural promotion observation, retained failed native-MTP and maintenance gates, and scheduled ordered 85-08 through 85-13 repair/revalidation/summary/review successors.
+
+## 2026-09-21 — repair85 source audit and plan amendment (not implementation completion)
+
+- Audited source: `374349bce47f0b5723da9017ef575e02c1b409bb`.
+- Confirmed direct graph row/head stride reversal, MMA group-local/global query-head addressing error, missing MMA Q transform, and short-circuited sealing. Corrected prior redundant-D2H and MTP-success interpretations; separate dense-control failure still requires bounded localization.
+- Replaced unfinished85-09–13 and added85-14–19: numerical repair, trustworthy control/setup, ownership, fast native MTP, GPU maintenance/dispatch, deliberate promotion, small original-prompt speed results, conditional scale, compact summary/review. Full directions in `v10/REPAIR85_PLAN.md`, audit and testing companion.
+- Fresh subsystem cluster IDs and explicit context exclude old fallback/packed-only instructions. Existing85-09 in-progress status and historical usage retained; global Wiretail settings unchanged.
+- Planning validation: active-plan validator, task-state validator (360 tasks), eight metadata unit tests and diff whitespace check passed. No inference code changed and no new live speed result claimed.

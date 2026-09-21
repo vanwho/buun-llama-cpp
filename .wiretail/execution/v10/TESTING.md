@@ -1,5 +1,10 @@
 # V10 test ladder: identify work, prove promotion, then measure speed
 
+> Historical protocol. Tasks85-09 onward use
+> [REPAIR85_TESTING](REPAIR85_TESTING.md): small invariant-specific GPU tests,
+> same-run configuration repair, and phase-end campaigns. Do not load these
+> older fixed-coordinate/packed-route instructions into new repair sessions.
+
 Revision: `hotpath-v10-20260914`.
 
 ## Universal run contract

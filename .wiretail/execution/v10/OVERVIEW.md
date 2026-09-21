@@ -1,5 +1,10 @@
 # V10 — repair cold selection, remove hot-path overhead, measure real work
 
+> Historical design for earlier tasks. For85-09 onward use
+> [REPAIR85_PLAN](REPAIR85_PLAN.md), [REPAIR85_TESTING](REPAIR85_TESTING.md)
+> and each task's explicit context list. In particular, the packed-only
+> consumer rule below is superseded by the corrected paged GPU fast path.
+
 Revision: `hotpath-v10-20260914`. Active tasks: 49–52. Supersedes V9 and
 all its successor-review amendments as execution instructions. Historical raw
 results are preserved; they are not acceptance prerequisites or loaded context.
