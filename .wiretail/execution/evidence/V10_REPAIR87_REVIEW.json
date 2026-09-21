@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "review": "V10_REPAIR87_REVIEW",
+  "revision": "hotpath-v10-20260914",
+  "amendment": "repair86-20260921",
+  "task": "87-06",
+  "goal_met": false,
+  "bounded_result": {
+    "production_cold_use": {
+      "status": "observed_bounded",
+      "controlled_fixture": "pass: rank, H2D, publication, stable generation, and completed target consumption",
+      "organic_runtime": "observed: cold candidate use, H2D, selector rank 1, and target graph use",
+      "quality_gate": "not passed: A-again returned A-ARCHIVE-META instead of A-ARCHIVE-MARKER-914"
+    },
+    "native_mtp_reliability": {
+      "status": "not_proven",
+      "request_scoped_attempted": 12,
+      "request_scoped_accepted": 2,
+      "request_scoped_acceptance_rate": 0.16666666666666666,
+      "rollback": "target trimmed; draft rebuild required",
+      "interpretation": "positive acceptance exists, but stable target-equivalent semantic continuation and draft/target state parity are not established"
+    },
+    "speed": {
+      "status": "measured_finding",
+      "native_fresh_prompt_tok_s": 311.8681980470598,
+      "native_cold_prompt_tok_s": 204.26741484291674,
+      "control_fresh_prompt_tok_s": 822.1819006577456,
+      "control_cold_prompt_tok_s": 1324.3923330058476,
+      "cached_append_prompt_tok_s": null,
+      "interpretation": "native GPU Turbo4 is slower than the matched MTP-off control in this run; no cached-append rate was measured"
+    },
+    "allocation": {
+      "status": "proven",
+      "L_tokens": 262144,
+      "target_allocated_bytes": 69206016,
+      "physical_pool_capacity_bytes": 69206016
+    },
+    "occupied_context": {
+      "status": "measured_partial",
+      "capacity_tokens": 262144,
+      "committed_C": 21660,
+      "resident_pages": 16,
+      "target_valid_rows": 3996,
+      "full_capacity_occupied": false
+    }
+  },
+  "diagnosis": {
+    "native_mtp_and_semantics": {
+      "first_failing_invariants": [
+        "A-again target-equivalent semantic retrieval after organic cold target use",
+        "draft state restoration remains rebuild_required after rollback",
+        "request-scoped native MTP acceptance is sparse at 2/12"
+      ],
+      "evidence": [".wiretail/execution/evidence/V10_PHASE87_SUMMARY.json", ".wiretail/execution/evidence/V10_87-03.json"]
+    },
+    "speed_attribution": {
+      "first_failing_invariants": [
+        "cached-append prompt throughput is null",
+        "native cold and fresh prompt rates trail the matched MTP-off control"
+      ],
+      "evidence": [".wiretail/execution/evidence/V10_87-04.json"]
+    },
+    "context_occupancy": {
+      "first_failing_invariants": [
+        "committed frontier stops at C=21660",
+        "allocation is not occupancy and does not prove full-L completion"
+      ],
+      "evidence": [".wiretail/execution/evidence/V10_PHASE87_SUMMARY.json"]
+    }
+  },
+  "next_task_ids": ["88-01", "88-02", "88-03", "88-04", "88-05", "88-06"],
+  "successor_schedule": [
+    {"id": "88-01", "kind": "repair/proof", "gate": "native MTP draft/target state parity and target-equivalent rollback continuation"},
+    {"id": "88-02", "kind": "repair/proof", "gate": "organic cold promotion followed by exact target consumption and semantic retrieval"},
+    {"id": "88-03", "kind": "benchmark", "gate": "matched fresh, cached-append, cold, TTFT, decode, and attribution fields after repairs"},
+    {"id": "88-04", "kind": "benchmark", "gate": "cache-preserving occupied frontier beyond C=21660 with allocation/resident/high-water separation"},
+    {"id": "88-05", "kind": "summary", "gate": "null-preserving aggregation of phase88 raw records only"},
+    {"id": "88-06", "kind": "review", "gate": "results-driven capability decision and proven successors only"}
+  ],
+  "stop_gates": [
+    "Do not claim reliable native MTP from 2/12 acceptance without target-equivalent semantic and rollback state parity.",
+    "Do not claim organic cold success as an answer-quality capability while A-again remains semantically mismatched.",
+    "Do not advertise native speed improvement or fill cached-append fields from unmatched rows.",
+    "Do not claim full-L occupied context from the 262144-token allocation; require committed frontier evidence."
+  ],
+  "source_evidence": [
+    ".wiretail/execution/evidence/V10_PHASE87_SUMMARY.json",
+    ".wiretail/execution/evidence/V10_PHASE87_SUMMARY.md",
+    ".wiretail/execution/evidence/V10_87-01.json",
+    ".wiretail/execution/evidence/V10_87-02.json",
+    ".wiretail/execution/evidence/V10_87-03.json",
+    ".wiretail/execution/evidence/V10_87-04.json"
+  ]
+}

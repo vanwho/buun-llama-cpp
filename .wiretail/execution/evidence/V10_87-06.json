@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "task": "87-06",
+  "source_commit": "45b8136279080a3b2966509d78248a610047b1e8",
+  "checks": {
+    "repair87_review_and_successors": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "87-06",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_87-06.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR87_REVIEW.json"
+      ],
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_REPAIR87_REVIEW.json", "sha256": "06e36537016de46475b0e0b4f4a157804e391a4db3fbaba1e251c16d17b37e9d"},
+        {"path": ".wiretail/execution/evidence/V10_PHASE87_SUMMARY.json", "sha256": "2fe1ace08338f1f7525c94989b2b8cc3f1fae97201f532addd6c4a7af66d527a"},
+        {"path": ".wiretail/execution/evidence/V10_PHASE87_SUMMARY.md", "sha256": "d5848ad4c428805e396479cca51ebcaebc4c28ca20b1232c5f6708bae8804282"},
+        {"path": ".wiretail/execution/evidence/V10_87-01.json", "sha256": "937959cb7df48bd4a8fb3e2c4fa5c1a989af8e9ee0b0ccecadd9a9d8727b0188"},
+        {"path": ".wiretail/execution/evidence/V10_87-02.json", "sha256": "ac2ab559a96c649392deb6aeb961c5356746e1420b3f3bae8b53f1658dcae083"},
+        {"path": ".wiretail/execution/evidence/V10_87-03.json", "sha256": "75006a4d96aabff91f3d6ad4558e538b4b2ac970205a0f59b4928d7831f7babe"},
+        {"path": ".wiretail/execution/evidence/V10_87-04.json", "sha256": "b76583908eb8de1a53469556831ec7298646ac040cd794970827d4e30a6e42d9"},
+        {"path": ".wiretail/execution/evidence/V10_87-05.json", "sha256": "2e6775df86a46bd4e9be51143c92b1d080b6ccd46fc22d9c4d24f831af90a0bb"},
+        {"path": ".wiretail/execution/tasks/88-01.md", "sha256": "20453cef12008bae9bdb58ca9ab744d1af4ba93ce8f38cc3baa62bcef2614189"},
+        {"path": ".wiretail/execution/tasks/88-02.md", "sha256": "4700aa4b0e1aa7afabac5caefc237676b9466164ef52aef08832218965122ae9"},
+        {"path": ".wiretail/execution/tasks/88-03.md", "sha256": "243934dd0356148cf963434540b86cddce57a660cb7a11e9cec162cf56adad70"},
+        {"path": ".wiretail/execution/tasks/88-04.md", "sha256": "c6084bdc41537d0ebb2483bddf1d0ae05bed5761dff6d7ff1d0518555e2e9d13"},
+        {"path": ".wiretail/execution/tasks/88-05.md", "sha256": "a2013d9b752f2578ecd3a6af52ac4767f3b4bae59b489b5fa9535292d5447fce"},
+        {"path": ".wiretail/execution/tasks/88-06.md", "sha256": "951df4e69525a27e79457e8a0b97da54de6ec30a865c95e65842786f5b8d8d42"}
+      ],
+      "result": {
+        "goal_met": false,
+        "review": ".wiretail/execution/evidence/V10_REPAIR87_REVIEW.json",
+        "successors": ["88-01", "88-02", "88-03", "88-04", "88-05", "88-06"],
+        "reason": "full-L allocation is proven but occupied context, stable native MTP/semantic quality, and matched cached-append speed remain unproven"
+      }
+    }
+  },
+  "verification": {
+    "review": "pass: phase87 summary was reviewed with production cold use, native MTP, speed, allocation, and occupied context kept distinct",
+    "successor_schedule": "pass: six ordered, evidence-backed phase88 tasks were added without starting them",
+    "deferred": "none"
+  }
+}
