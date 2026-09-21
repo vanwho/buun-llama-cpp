@@ -1,0 +1,215 @@
+{
+  "schema": "hotpath-v10-phase87-summary",
+  "schema_version": 1,
+  "task": "87-05",
+  "scope": "phase87 raw records and manifests only",
+  "revision": "hotpath-v10-20260914",
+  "amendment": "repair86-20260921",
+  "result": "current_findings",
+  "identity": {
+    "source_commits": {
+      "87-01": "99e0b8619403b93edd11a3c6e46248d78d18a0ef",
+      "87-02": "5c06dd82a9407ff7073095744e04b67fc2c1d266",
+      "87-03": "92e8e62455859a76cfabf20aebe557c8a33f49ab",
+      "87-04": "f9a9878a30af560c9c9d2f50eff0392010aaefcb"
+    },
+    "candidate_bundle": "/srv/ai/paged-kv/candidates/86-02-cuda",
+    "candidate_binary": "/srv/ai/paged-kv/candidates/86-02-cuda/bin/llama-server",
+    "candidate_binary_sha256": "61fb0f5feb24fa74661e00fcb11a611cba593a618e1a6cd231c9227c96505643",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "build_receipt": "/srv/ai/paged-kv/candidates/86-02-cuda/build-receipt.json",
+    "build_receipt_sha256": "402580238ef5008c49168770ca320f7e85a6dbc29481489fc6f4b72d33e53810",
+    "controlled_fixture": {
+      "binary": "/srv/ai/paged-kv/results/v10/87-02/controlled-promotion-cuda/build-cuda/bin/test-cuda-kv-promotion",
+      "binary_sha256": "7e0c5cea369a1008e7bfe107c029206902559b06074f2961d4f297e786cf11a0",
+      "gpu": "NVIDIA GeForce RTX 4080, compute capability 8.9"
+    }
+  },
+  "promotion": {
+    "controlled": {
+      "status": "measured",
+      "origin": "87-02 controlled CUDA fixture",
+      "logical_pages": 8,
+      "page_tokens": 256,
+      "hot_capacity": 3,
+      "cold_capacity": 2,
+      "winner_logical_page": 0,
+      "winner_page_generation": 100,
+      "physical_slot_after_promotion": 2,
+      "winner_margin": 297.858948,
+      "h2d_useful_bytes": 1081344,
+      "publication_status": "committed",
+      "published_epoch": 6174,
+      "identity_preserved": true,
+      "completed_target_consumption": true,
+      "reference_parity": true,
+      "native_runtime_chain": null,
+      "null_reason": null
+    },
+    "organic": {
+      "status": "measured",
+      "origin": "87-03 organic native GPU Turbo4 cold-route diagnostic",
+      "cold_candidate_target_use": true,
+      "cold_h2d_useful_bytes": 4325376,
+      "selected_rank": 1,
+      "target_graph_use_query_generation": 128,
+      "rollback_target": "trimmed",
+      "rollback_draft": "rebuild_required",
+      "positive_target_restore_epochs": [1, 2],
+      "semantic_retrieval": "mismatch on A-again: returned A-ARCHIVE-META instead of A-ARCHIVE-MARKER-914",
+      "null_reason": null
+    },
+    "progress_only": {
+      "status": "measured",
+      "origin": "87-01 authenticated slot progress",
+      "context_tokens": 65536,
+      "max_processed_tokens": 27008,
+      "measured_rows": 0,
+      "production_cold_success": false,
+      "reference_or_fallback_observed": true,
+      "null_reason": "progress was observed, but the retained interrupted request did not produce a production cold-promotion row"
+    }
+  },
+  "mtp": {
+    "organic_request_scoped_sum": {
+      "attempted": 12,
+      "accepted": 2,
+      "denominator": 12,
+      "acceptance_rate": 0.16666666666666666,
+      "cases": {
+        "A": {"attempted": 2, "accepted": 0, "denominator": 2},
+        "B": {"attempted": 2, "accepted": 1, "denominator": 2},
+        "A-again": {"attempted": 6, "accepted": 1, "denominator": 6},
+        "terminal": {"attempted": 2, "accepted": 0, "denominator": 2}
+      }
+    },
+    "controlled_promotion": {
+      "attempted": null,
+      "accepted": null,
+      "denominator": null,
+      "acceptance_rate": null,
+      "null_reason": "promotion fixture does not measure speculative drafting"
+    },
+    "frontier_occupancy": {
+      "attempted": null,
+      "accepted": 0,
+      "denominator": 0,
+      "acceptance_rate": null,
+      "null_reason": "frontier rows expose no speculative draft denominator"
+    }
+  },
+  "rates": {
+    "native_gpu_turbo4": {
+      "fresh_prompt_tok_s": 311.8681980470598,
+      "cold_prompt_tok_s": 204.26741484291674,
+      "cached_append_prompt_tok_s": null,
+      "committed_decode_tok_s": 33.23356117976998,
+      "fresh_ttft_ms": 187.323,
+      "cold_ttft_ms": 26783.172,
+      "null_reason_cached_append": "no cached-append speed row was included in the valid matched run"
+    },
+    "all_gpu_mtp_off_control": {
+      "fresh_prompt_tok_s": 822.1819006577456,
+      "cold_prompt_tok_s": 1324.3923330058476,
+      "cached_append_prompt_tok_s": null,
+      "committed_decode_tok_s": 45.36673886319733,
+      "fresh_ttft_ms": 71.983,
+      "cold_ttft_ms": 4140.827,
+      "null_reason_cached_append": "no cached-append speed row was included in the valid matched run"
+    }
+  },
+  "attribution": {
+    "organic_case_B": {
+      "queue_us": 1519100.0,
+      "wait_us": 63540.0,
+      "copy_us": 659,
+      "h2d_useful_bytes": 4325370.0,
+      "prefill_direct_routes": 1,
+      "prefill_reference_routes": 30,
+      "decode_direct_routes": 0,
+      "decode_reference_routes": 0,
+      "mtp_verify_direct_routes": 1,
+      "mtp_verify_reference_routes": 0,
+      "target_graph_used": true
+    },
+    "organic_A_again": {
+      "queue_us": 101470.0,
+      "wait_us": 138080.0,
+      "copy_us": 0,
+      "h2d_useful_bytes": 0,
+      "prefill_direct_routes": 1,
+      "prefill_reference_routes": 2,
+      "decode_direct_routes": 2,
+      "decode_reference_routes": 0,
+      "mtp_verify_direct_routes": 3,
+      "mtp_verify_reference_routes": 0,
+      "target_graph_used": true
+    },
+    "organic_A_again_quality": {
+      "correct": false,
+      "expected": "A-ARCHIVE-MARKER-914",
+      "observed": "A-ARCHIVE-META",
+      "null_reason": null
+    }
+  },
+  "capacity_vs_occupancy": {
+    "allocation_256k": {
+      "L_tokens": 262144,
+      "draft_rows": 262144,
+      "target_allocated_bytes": 69206016,
+      "physical_pool_capacity_bytes": 69206016,
+      "status": "measured"
+    },
+    "occupied_frontier": {
+      "capacity_tokens": 262144,
+      "frontier_sequence": [1200, 5292, 9384, 13476, 17568, 21660],
+      "successful_committed_C": 21660,
+      "live_snapshot_C": 21660,
+      "full_capacity_occupied": false,
+      "resident_pages": 16,
+      "target_valid_rows": 3996,
+      "host_pages": 15,
+      "host_valid_rows": 3840,
+      "status": "measured_partial",
+      "null_reason": null
+    },
+    "progress_65536": {
+      "requested_L": 65536,
+      "max_processed_tokens": 27008,
+      "successful_committed_C": null,
+      "full_capacity_occupied": false,
+      "status": "progress_only",
+      "null_reason": "no completed production cold row"
+    }
+  },
+  "geometry": {
+    "frontier": {"L_tokens": 262144, "H_tokens": 4096, "A_tokens": 2048, "B_tokens": 128, "U_tokens": 64, "page_tokens": 256, "pin_recent_tokens": 1024},
+    "organic": {"L_tokens": 8192, "H_tokens": 2048, "A_tokens": 1024, "B_tokens": 128, "U_tokens": 64, "page_tokens": 256, "pin_recent_tokens": 512},
+    "progress_only": {"L_tokens": 65536, "page_tokens": 256, "mtp_rows": 65536}
+  },
+  "raw_pointers": {
+    "task_receipts": [
+      {"task": "87-01", "path": ".wiretail/execution/evidence/V10_87-01.json"},
+      {"task": "87-02", "path": ".wiretail/execution/evidence/V10_87-02.json"},
+      {"task": "87-03", "path": ".wiretail/execution/evidence/V10_87-03.json"},
+      {"task": "87-04", "path": ".wiretail/execution/evidence/V10_87-04.json"}
+    ],
+    "phase87_records": [
+      {"task": "87-01", "path": ".wiretail/execution/evidence/artifacts/87-01/cold-slot-progress.json", "sha256": "1f272d1cb8aea82c1768f6ebfcf6669452554317df9f07b86e0dda568b838f7c"},
+      {"task": "87-02", "path": "/srv/ai/paged-kv/results/v10/87-02/controlled-promotion-cuda/test.log", "sha256": "269d93ba710fcf3a469980321e33b25b0ac9df74a773366fd8b06353c3aeb593"},
+      {"task": "87-03", "path": "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-repeated/summary.json", "sha256": "ffefc9e4e95f7df97790dff49559184fc48b1c2bf4e4841e2481b9dcef462200"},
+      {"task": "87-04", "path": "/srv/ai/paged-kv/results/v10/87-04/speed-native/result.json", "sha256": "01551646a3bde470a702da1c55ad1869b27485dc98c8358e1b529b14e2c732b6"},
+      {"task": "87-04", "path": "/srv/ai/paged-kv/results/v10/87-04/speed-off/result.json", "sha256": "5eb256f1f2b9cf211b41786195a5308445bd084ebec74f8fb9fdd7e725bcacf7"},
+      {"task": "87-04", "path": "/srv/ai/paged-kv/results/v10/87-04/occupancy-256k-h4-u64/result.json", "sha256": "50de6a99ac0426d13239c0cbdbe8a15ce5bf6525911a93df8245c8746245f52d"}
+    ]
+  },
+  "null_reasons": {
+    "fresh_prompt_cache_append": "not measured in the valid matched speed run",
+    "controlled_mtp": "controlled promotion fixture did not measure speculative drafting",
+    "progress_only_committed_C": "87-01 retained progress without a completed production cold row",
+    "full_capacity_occupied": "frontier run completed only through C=21660 before bounded continuation stopped",
+    "organic_quality": "one semantic retrieval mismatch is retained as a finding, not converted to success"
+  },
+  "validation_errors": []
+}
