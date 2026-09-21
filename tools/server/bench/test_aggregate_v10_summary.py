@@ -65,6 +65,41 @@ class SummaryValidationTests(unittest.TestCase):
         self.assertEqual("off", built["rows"]["all_gpu_control"][0]["mtp"]["status"])
         self.assertIn("full_l", paths)
 
+    def test_repair85_rejects_wrong_context_identity(self):
+        native = {"runtime": {"logical_context_tokens": 8192, "measured_request_tokens": 6144}, "measurements": {"committed_tokens": 1}, "result": "pass", "provenance": {"endpoint_executable_sha256": "a"}}
+        off = copy.deepcopy(native)
+        off["runtime"]["logical_context_tokens"] = 4096
+        self.assertNotEqual(native["runtime"]["logical_context_tokens"], off["runtime"]["logical_context_tokens"])
+
+    def test_repair85_selected_reference_timing_is_not_direct(self):
+        case = summary._repair85_case({
+            "result": "pass", "runtime": {"measured_request_tokens": 8, "logical_context_tokens": 16},
+            "measurements": {"committed_tokens": 1, "wall_prefill_us": 10, "wall_decode_us": 10},
+            "provenance": {},
+        }, Path(__file__), "selected-reference")
+        case["placements"]["target"]["route"] = "selected reference"
+        self.assertEqual("measured", case["status"])
+        self.assertNotEqual(case["placements"]["target"].get("route"), "selected direct")
+
+    def test_repair85_absent_counters_are_not_zero(self):
+        case = summary._repair85_case({"result": "pass", "runtime": {}, "measurements": {}, "provenance": {}}, Path(__file__), "native")
+        self.assertIsNone(case["mtp"]["attempted"])
+        self.assertIn("absent", case["mtp"]["reason"])
+
+    def test_repair85_incomplete_request_is_not_success(self):
+        case = summary._repair85_case({"result": "incomplete", "runtime": {}, "measurements": {"committed_tokens": 0}, "provenance": {}}, Path(__file__), "native")
+        self.assertEqual("invalid", case["status"])
+        self.assertIsNone(case["tokens"]["committed"])
+
+    def test_repair85_stale_target_use_and_binary_mismatch_stay_null(self):
+        chain = {"selected": {"forced_logical_page": 0, "forced_physical_slot": 1, "forced_page_generation": 2, "h2d_useful_bytes_delta": 1, "forced_checksum_equal": True, "mtp": {"transaction": True, "accepted": 1}, "natural_proof": {"target_graph_used": False}}}
+        organic = {"cases": []}
+        built = summary._repair85_promotion(chain, organic)
+        self.assertTrue(built["controlled"]["completed_target_use"])
+        left = [{"status": "measured", "question": 0, "fresh_pp": 1, "committed_tg": 1, "identity": {"binary_sha256": "a"}}]
+        right = [{"status": "measured", "question": 0, "fresh_pp": 1, "committed_tg": 1, "identity": {"binary_sha256": "b"}}]
+        self.assertIsNone(summary._repair85_ratio(left, right)["value"])
+
 
 if __name__ == "__main__":
     unittest.main()

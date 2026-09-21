@@ -1,0 +1,1217 @@
+{
+  "attribution": {
+    "context_selected_native": {
+      "graph_construction_us": 172,
+      "host_seal_d2h_bytes": 103809000,
+      "logical_graph_capture_count": 99,
+      "logical_graph_launch_count": 100,
+      "logical_graph_update_count": 99,
+      "summary_build_bytes": 51904500,
+      "summary_read_bytes": 0,
+      "transfer_time_us": null,
+      "transfer_waits": null,
+      "wait_time_us": null,
+      "waits": null
+    },
+    "context_selected_off": {
+      "graph_construction_us": 115,
+      "host_seal_d2h_bytes": 103809000,
+      "logical_graph_capture_count": 49,
+      "logical_graph_launch_count": 50,
+      "logical_graph_update_count": 49,
+      "summary_build_bytes": 51904500,
+      "summary_read_bytes": 0,
+      "transfer_time_us": null,
+      "transfer_waits": null,
+      "wait_time_us": null,
+      "waits": null
+    }
+  },
+  "capability_findings": {
+    "allocation_256k": {
+      "basis": "full-L target and draft allocations fit",
+      "status": "measured",
+      "value": true
+    },
+    "native_mtp_reliability": {
+      "basis": "context and native short rows have counters; off controls and universal reliability remain unproven",
+      "status": "finding",
+      "value": null
+    },
+    "occupied_frontier_256k": {
+      "basis": "maximum occupied C is 0",
+      "status": "failed",
+      "value": false
+    },
+    "pilot_128k": {
+      "basis": "startup allocation measured; request withheld",
+      "status": "allocation_only",
+      "value": null
+    },
+    "pilot_32k": {
+      "basis": "invalid argument before committed token",
+      "status": "failed",
+      "value": false
+    },
+    "practical_speed": {
+      "basis": "matched ratios are descriptive; no threshold pass is inferred",
+      "status": "finding",
+      "value": null
+    },
+    "small_capability": {
+      "basis": "85-15 controlled model chain and 85-16 completed native context row",
+      "status": "measured",
+      "value": true
+    }
+  },
+  "cold_promotion": {
+    "controlled": {
+      "completed_target_use": true,
+      "copy": true,
+      "evidence": {
+        "forced_content_version": 2,
+        "forced_logical_page": 0,
+        "forced_page_generation": 2,
+        "forced_physical_slot": 7,
+        "h2d_aligned_bytes_delta": 4325376,
+        "h2d_useful_bytes_delta": 4325376,
+        "promotion_pages_delta": 1
+      },
+      "origin": "controlled",
+      "publication": true,
+      "rank": true,
+      "reason": "forced checksum/transfer/MTP transaction chain",
+      "request_completed": true,
+      "status": "measured"
+    },
+    "organic": {
+      "answer": {
+        "correct": false,
+        "relevance": null
+      },
+      "cold_chain": null,
+      "origin": "organic",
+      "raw_path": "85-15-organic-negative.json",
+      "reason": "organic traffic did not establish the required exact archive marker/cold proof",
+      "request_completed": false,
+      "status": "negative_finding"
+    }
+  },
+  "comparisons": {
+    "all-gpu-native": {
+      "aggregate_mtp": {
+        "acceptance": 0.010869565217391304,
+        "accepted": 2,
+        "attempted": 184,
+        "denominator": 184,
+        "reason": null
+      },
+      "rows": [
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 24.42437940753434,
+          "fresh_pp": 50.09957290114102,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 1,
+            "attempted": 61,
+            "denominator": 61,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 1.63934426,
+          "mtp_reason": null,
+          "question": 0,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/all-gpu-native/summary.json",
+          "raw_sha256": "48ad7e65987494b72f591e6ebaa306d47aa475331714174fcd6079ee4d35f208",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 24.457888950313993,
+          "fresh_pp": 50.967100736474606,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 1,
+            "attempted": 61,
+            "denominator": 61,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 1.63934426,
+          "mtp_reason": null,
+          "question": 1,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/all-gpu-native/summary.json",
+          "raw_sha256": "48ad7e65987494b72f591e6ebaa306d47aa475331714174fcd6079ee4d35f208",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 24.079144708779943,
+          "fresh_pp": 51.41784713474047,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 0,
+            "attempted": 62,
+            "denominator": 62,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 0.0,
+          "mtp_reason": null,
+          "question": 2,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/all-gpu-native/summary.json",
+          "raw_sha256": "48ad7e65987494b72f591e6ebaa306d47aa475331714174fcd6079ee4d35f208",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        }
+      ]
+    },
+    "all-gpu-off": {
+      "aggregate_mtp": {
+        "acceptance": null,
+        "accepted": null,
+        "attempted": null,
+        "denominator": null,
+        "reason": "request-scoped counters absent in raw records"
+      },
+      "rows": [
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 28.267637996551347,
+          "fresh_pp": 100.34418053924962,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": null
+          },
+          "mtp": {
+            "accepted": null,
+            "attempted": null,
+            "denominator": null,
+            "reason": "request-scoped counters absent in raw record"
+          },
+          "mtp_acceptance_percent": null,
+          "mtp_reason": "summary percentage retained for display; raw numerator/denominator unavailable",
+          "question": 0,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/all-gpu-off/summary.json",
+          "raw_sha256": "efccb8f8464bfd688461f14c1362f05fb2a27298b0ce585c2c58d9ab72447629",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 28.242116526972794,
+          "fresh_pp": 92.81348614329028,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": null
+          },
+          "mtp": {
+            "accepted": null,
+            "attempted": null,
+            "denominator": null,
+            "reason": "request-scoped counters absent in raw record"
+          },
+          "mtp_acceptance_percent": null,
+          "mtp_reason": "summary percentage retained for display; raw numerator/denominator unavailable",
+          "question": 1,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/all-gpu-off/summary.json",
+          "raw_sha256": "efccb8f8464bfd688461f14c1362f05fb2a27298b0ce585c2c58d9ab72447629",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 28.25797648667233,
+          "fresh_pp": 94.04336070666868,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": null
+          },
+          "mtp": {
+            "accepted": null,
+            "attempted": null,
+            "denominator": null,
+            "reason": "request-scoped counters absent in raw record"
+          },
+          "mtp_acceptance_percent": null,
+          "mtp_reason": "summary percentage retained for display; raw numerator/denominator unavailable",
+          "question": 2,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/all-gpu-off/summary.json",
+          "raw_sha256": "efccb8f8464bfd688461f14c1362f05fb2a27298b0ce585c2c58d9ab72447629",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        }
+      ]
+    },
+    "cpu-main-native": {
+      "aggregate_mtp": {
+        "acceptance": 0.08333333333333333,
+        "accepted": 14,
+        "attempted": 168,
+        "denominator": 168,
+        "reason": null
+      },
+      "rows": [
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 10.18332737150702,
+          "fresh_pp": 25.740688306005303,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 3,
+            "attempted": 59,
+            "denominator": 59,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 5.08474576,
+          "mtp_reason": null,
+          "question": 0,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/cpu-main-native/summary.json",
+          "raw_sha256": "a3a58a6f0a46346bf1b76d97faff8176c126ff58ccf8c7a8806faee66cdfbbf5",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 11.077735281865941,
+          "fresh_pp": 25.899522801292385,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 8,
+            "attempted": 55,
+            "denominator": 55,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 14.54545455,
+          "mtp_reason": null,
+          "question": 1,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/cpu-main-native/summary.json",
+          "raw_sha256": "a3a58a6f0a46346bf1b76d97faff8176c126ff58ccf8c7a8806faee66cdfbbf5",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 10.295440535465861,
+          "fresh_pp": 25.841295682565523,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": null,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 3,
+            "attempted": 54,
+            "denominator": 54,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 5.55555556,
+          "mtp_reason": null,
+          "question": 2,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/cpu-main-native/summary.json",
+          "raw_sha256": "a3a58a6f0a46346bf1b76d97faff8176c126ff58ccf8c7a8806faee66cdfbbf5",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        }
+      ]
+    },
+    "selected-native": {
+      "aggregate_mtp": {
+        "acceptance": 0.21935483870967742,
+        "accepted": 34,
+        "attempted": 155,
+        "denominator": 155,
+        "reason": null
+      },
+      "rows": [
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 39.990275380653465,
+          "fresh_pp": 98.43973027513904,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": 4096,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 10,
+            "attempted": 52,
+            "denominator": 52,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 19.23076923,
+          "mtp_reason": null,
+          "question": 0,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/selected-native/summary.json",
+          "raw_sha256": "ef87e3b1dd84637252eaf955811037afe6b2d245b5fe7bd42b7ec525a19416e4",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 37.028960761644576,
+          "fresh_pp": 79.28170772798445,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": 4096,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 6,
+            "attempted": 57,
+            "denominator": 57,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 10.52631579,
+          "mtp_reason": null,
+          "question": 1,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/selected-native/summary.json",
+          "raw_sha256": "ef87e3b1dd84637252eaf955811037afe6b2d245b5fe7bd42b7ec525a19416e4",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 46.614630926809845,
+          "fresh_pp": 88.51124092759781,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": 4096,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": 8192
+          },
+          "mtp": {
+            "accepted": 18,
+            "attempted": 46,
+            "denominator": 46,
+            "reason": null
+          },
+          "mtp_acceptance_percent": 39.13043478,
+          "mtp_reason": null,
+          "question": 2,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/selected-native/summary.json",
+          "raw_sha256": "ef87e3b1dd84637252eaf955811037afe6b2d245b5fe7bd42b7ec525a19416e4",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        }
+      ]
+    },
+    "selected-off": {
+      "aggregate_mtp": {
+        "acceptance": null,
+        "accepted": null,
+        "attempted": null,
+        "denominator": null,
+        "reason": "request-scoped counters absent in raw records"
+      },
+      "rows": [
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 45.558086560364465,
+          "fresh_pp": 532.4624613964716,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": 4096,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": null
+          },
+          "mtp": {
+            "accepted": null,
+            "attempted": null,
+            "denominator": null,
+            "reason": "request-scoped counters absent in raw record"
+          },
+          "mtp_acceptance_percent": null,
+          "mtp_reason": "summary percentage retained for display; raw numerator/denominator unavailable",
+          "question": 0,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/selected-off/summary.json",
+          "raw_sha256": "6adfc30ad06e42c14a74fa922c9ed18c27eee3808dcd9079605848fb741e1549",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 45.567774469894886,
+          "fresh_pp": 482.95352913819625,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": 4096,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": null
+          },
+          "mtp": {
+            "accepted": null,
+            "attempted": null,
+            "denominator": null,
+            "reason": "request-scoped counters absent in raw record"
+          },
+          "mtp_acceptance_percent": null,
+          "mtp_reason": "summary percentage retained for display; raw numerator/denominator unavailable",
+          "question": 1,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/selected-off/summary.json",
+          "raw_sha256": "6adfc30ad06e42c14a74fa922c9ed18c27eee3808dcd9079605848fb741e1549",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        },
+        {
+          "cached_new_token_pp": {
+            "reason": "no cached-append row in the original three-prompt campaign",
+            "value": null
+          },
+          "committed_tg": 45.74359480759373,
+          "fresh_pp": 501.9090469105705,
+          "geometry": {
+            "A_tokens": null,
+            "B_tokens": 128,
+            "C_tokens": 28,
+            "H_tokens": 4096,
+            "L_tokens": 8192,
+            "U_tokens": 128,
+            "draft_capacity_tokens": null
+          },
+          "mtp": {
+            "accepted": null,
+            "attempted": null,
+            "denominator": null,
+            "reason": "request-scoped counters absent in raw record"
+          },
+          "mtp_acceptance_percent": null,
+          "mtp_reason": "summary percentage retained for display; raw numerator/denominator unavailable",
+          "question": 2,
+          "raw_path": ".wiretail/execution/evidence/raw/85-16/selected-off/summary.json",
+          "raw_sha256": "6adfc30ad06e42c14a74fa922c9ed18c27eee3808dcd9079605848fb741e1549",
+          "status": "measured",
+          "ttft_us": {
+            "reason": "TTFT was not exported by the short summary",
+            "value": null
+          }
+        }
+      ]
+    }
+  },
+  "context_bearing": {
+    "context-selected-native": {
+      "aggregate_mtp": {
+        "acceptance": 0.22641509433962265,
+        "accepted": 12,
+        "attempted": 53,
+        "denominator": 53,
+        "reason": null
+      },
+      "attribution": {
+        "graph_construction_us": 172,
+        "host_seal_d2h_bytes": 103809000,
+        "logical_graph_capture_count": 99,
+        "logical_graph_launch_count": 100,
+        "logical_graph_update_count": 99,
+        "summary_build_bytes": 51904500,
+        "summary_read_bytes": 0,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "case_id": null,
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": 128,
+        "C_tokens": 6144,
+        "H_tokens": 4096,
+        "L_tokens": 8192,
+        "U_tokens": 128,
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "identity": {
+        "binary_sha256": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1",
+        "bundle": "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server",
+        "bundle_manifest_sha256": "0eff46186ba2ee0b9bb86c301286d1da546540ea39d9bc75ad5f6c5ba2eb18b9",
+        "driver": "595.91.07",
+        "gpu": "NVIDIA GeForce RTX 4080",
+        "loaded_dso_sha256": {
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-base.so.0.22.0": "e8dd081298b4e7a4e27500d7d4ae29315cd62882f3d29648c72227b73f06e944",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-cpu.so.0.22.0": "f98ee0733e7cbd103a3a8500ad3ed18527e0abab2fb75523d0fcb8b75034c135",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-cuda.so.0.22.0": "39c500fee4237bd7c7cf266a99d5307224febe4bf2a99ae818274bfa90e4deb9",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama-common.so.0.3.0": "bfae96d6936f80ee1c37b32a3d1c8dafdb4b83f791f2197676bc55efa8178b65",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama-server-impl.so": "930e8a471b16cfadc015fd7b688fe9ca35548514dab435e1689c2d70142bf401",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama.so.0.3.0": "efefd73b522ba5a6fde7361d01c6ffa17e09e6205997b92c9c0fbdf106cf49e2",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libmtmd.so.0.3.0": "d8580a78355d1a3f261e99f8179050e38792f5953f87484e79710515f12b308f",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1"
+        },
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "source_commit": "17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3",
+        "source_diff_sha256": "ed02046829cab863f21f2a4e31d3d3dfde2c4189b3e22f3e4d65e7f9e905db17"
+      },
+      "mode": "context-selected-native",
+      "mtp": {
+        "accepted": 12,
+        "attempted": 53,
+        "denominator": 53,
+        "reason": null
+      },
+      "output_validity": null,
+      "placements": {
+        "draft": {
+          "device": "gpu",
+          "k": "turbo4",
+          "v": "turbo4"
+        },
+        "target": {
+          "device": "CUDA",
+          "k": "turbo4",
+          "v": "turbo4"
+        }
+      },
+      "question_index": null,
+      "rates": {
+        "cached_new_token_pp": {
+          "reason": "no request-scoped cached append record in this raw case",
+          "value": null
+        },
+        "committed_tg": {
+          "reason": null,
+          "value": 21.35611318739989
+        },
+        "fresh_pp": {
+          "reason": null,
+          "value": 195.23052836041182
+        },
+        "ttft_us": {
+          "reason": null,
+          "value": 31479247.833005503
+        }
+      },
+      "raw_path": ".wiretail/execution/evidence/raw/85-16/context-selected-native/SPEED25_02_ATTRIBUTION.json",
+      "raw_sha256": "03f4cb13b07d63c61e001355af880e2e9cdd79c4f073e88e5a8488995135dede",
+      "reasons": [],
+      "status": "measured",
+      "tokens": {
+        "committed": 64,
+        "generated": 64,
+        "prompt": 6144
+      }
+    },
+    "context-selected-off": {
+      "aggregate_mtp": {
+        "acceptance": null,
+        "accepted": null,
+        "attempted": null,
+        "denominator": null,
+        "reason": "no complete request-scoped counters"
+      },
+      "attribution": {
+        "graph_construction_us": 115,
+        "host_seal_d2h_bytes": 103809000,
+        "logical_graph_capture_count": 49,
+        "logical_graph_launch_count": 50,
+        "logical_graph_update_count": 49,
+        "summary_build_bytes": 51904500,
+        "summary_read_bytes": 0,
+        "transfer_time_us": null,
+        "transfer_waits": null,
+        "wait_time_us": null,
+        "waits": null
+      },
+      "case_id": null,
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": 128,
+        "C_tokens": null,
+        "H_tokens": 4096,
+        "L_tokens": 8192,
+        "U_tokens": 128,
+        "draft_capacity_tokens": null,
+        "page_tokens": 256
+      },
+      "identity": {
+        "binary_sha256": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1",
+        "bundle": "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server",
+        "bundle_manifest_sha256": "0eff46186ba2ee0b9bb86c301286d1da546540ea39d9bc75ad5f6c5ba2eb18b9",
+        "driver": "595.91.07",
+        "gpu": "NVIDIA GeForce RTX 4080",
+        "loaded_dso_sha256": {
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-base.so.0.22.0": "e8dd081298b4e7a4e27500d7d4ae29315cd62882f3d29648c72227b73f06e944",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-cpu.so.0.22.0": "f98ee0733e7cbd103a3a8500ad3ed18527e0abab2fb75523d0fcb8b75034c135",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-cuda.so.0.22.0": "39c500fee4237bd7c7cf266a99d5307224febe4bf2a99ae818274bfa90e4deb9",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama-common.so.0.3.0": "bfae96d6936f80ee1c37b32a3d1c8dafdb4b83f791f2197676bc55efa8178b65",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama-server-impl.so": "930e8a471b16cfadc015fd7b688fe9ca35548514dab435e1689c2d70142bf401",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama.so.0.3.0": "efefd73b522ba5a6fde7361d01c6ffa17e09e6205997b92c9c0fbdf106cf49e2",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libmtmd.so.0.3.0": "d8580a78355d1a3f261e99f8179050e38792f5953f87484e79710515f12b308f",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1"
+        },
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "source_commit": "17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3",
+        "source_diff_sha256": "ed02046829cab863f21f2a4e31d3d3dfde2c4189b3e22f3e4d65e7f9e905db17"
+      },
+      "mode": "context-selected-off",
+      "mtp": {
+        "accepted": 0,
+        "attempted": 0,
+        "denominator": 0,
+        "reason": null
+      },
+      "output_validity": {
+        "reason": "request incomplete",
+        "value": null
+      },
+      "placements": {
+        "draft": {
+          "device": "not_present",
+          "k": "not_present",
+          "v": "not_present"
+        },
+        "target": {
+          "device": "CUDA",
+          "k": "turbo4",
+          "v": "turbo4"
+        }
+      },
+      "question_index": null,
+      "rates": {
+        "cached_new_token_pp": {
+          "reason": "no request-scoped cached append record in this raw case",
+          "value": null
+        },
+        "committed_tg": {
+          "reason": "committed decode timing absent or request incomplete",
+          "value": null
+        },
+        "fresh_pp": {
+          "reason": "fresh prefill timing absent or request invalid",
+          "value": null
+        },
+        "ttft_us": {
+          "reason": "TTFT absent or request incomplete",
+          "value": null
+        }
+      },
+      "raw_path": ".wiretail/execution/evidence/raw/85-16/context-selected-off/SPEED25_02_ATTRIBUTION.json",
+      "raw_sha256": "9950dbddd7bae2b6378ac4c290c045a1ffc411db9990ccc0a3afea731fd31032",
+      "reasons": [
+        "request did not complete"
+      ],
+      "status": "invalid",
+      "tokens": {
+        "committed": null,
+        "generated": null,
+        "prompt": null
+      }
+    }
+  },
+  "identity": {
+    "binary_hashes": [
+      "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1"
+    ],
+    "comparisons": [
+      {
+        "binary_sha256": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1",
+        "bundle": "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server",
+        "bundle_manifest_sha256": "0eff46186ba2ee0b9bb86c301286d1da546540ea39d9bc75ad5f6c5ba2eb18b9",
+        "driver": "595.91.07",
+        "gpu": "NVIDIA GeForce RTX 4080",
+        "loaded_dso_sha256": {
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-base.so.0.22.0": "e8dd081298b4e7a4e27500d7d4ae29315cd62882f3d29648c72227b73f06e944",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-cpu.so.0.22.0": "f98ee0733e7cbd103a3a8500ad3ed18527e0abab2fb75523d0fcb8b75034c135",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-cuda.so.0.22.0": "39c500fee4237bd7c7cf266a99d5307224febe4bf2a99ae818274bfa90e4deb9",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama-common.so.0.3.0": "bfae96d6936f80ee1c37b32a3d1c8dafdb4b83f791f2197676bc55efa8178b65",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama-server-impl.so": "930e8a471b16cfadc015fd7b688fe9ca35548514dab435e1689c2d70142bf401",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama.so.0.3.0": "efefd73b522ba5a6fde7361d01c6ffa17e09e6205997b92c9c0fbdf106cf49e2",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libmtmd.so.0.3.0": "d8580a78355d1a3f261e99f8179050e38792f5953f87484e79710515f12b308f",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1"
+        },
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "source_commit": "17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3",
+        "source_diff_sha256": "ed02046829cab863f21f2a4e31d3d3dfde2c4189b3e22f3e4d65e7f9e905db17"
+      },
+      {
+        "binary_sha256": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1",
+        "bundle": "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server",
+        "bundle_manifest_sha256": "0eff46186ba2ee0b9bb86c301286d1da546540ea39d9bc75ad5f6c5ba2eb18b9",
+        "driver": "595.91.07",
+        "gpu": "NVIDIA GeForce RTX 4080",
+        "loaded_dso_sha256": {
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-base.so.0.22.0": "e8dd081298b4e7a4e27500d7d4ae29315cd62882f3d29648c72227b73f06e944",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-cpu.so.0.22.0": "f98ee0733e7cbd103a3a8500ad3ed18527e0abab2fb75523d0fcb8b75034c135",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml-cuda.so.0.22.0": "39c500fee4237bd7c7cf266a99d5307224febe4bf2a99ae818274bfa90e4deb9",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama-common.so.0.3.0": "bfae96d6936f80ee1c37b32a3d1c8dafdb4b83f791f2197676bc55efa8178b65",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama-server-impl.so": "930e8a471b16cfadc015fd7b688fe9ca35548514dab435e1689c2d70142bf401",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libllama.so.0.3.0": "efefd73b522ba5a6fde7361d01c6ffa17e09e6205997b92c9c0fbdf106cf49e2",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/libmtmd.so.0.3.0": "d8580a78355d1a3f261e99f8179050e38792f5953f87484e79710515f12b308f",
+          "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1"
+        },
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "source_commit": "17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3",
+        "source_diff_sha256": "ed02046829cab863f21f2a4e31d3d3dfde2c4189b3e22f3e4d65e7f9e905db17"
+      }
+    ],
+    "model_hashes": [
+      "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    ]
+  },
+  "limitations": [
+    {
+      "finding": "CUDA invalid argument before first committed token",
+      "reproducer": "L32768/H16384/B128/U64, 1200-token request",
+      "severity": "high",
+      "symbol": "ggml_cuda_turbo_prefill_attend"
+    },
+    {
+      "finding": "invalid response; occupied C remains 0",
+      "reproducer": "L262144/H4096/B128/U64, first cache-preserving request",
+      "severity": "high",
+      "symbol": "occupancy frontier"
+    },
+    {
+      "finding": "summary percentages alone have no denominator; native raw counter deltas are used where present",
+      "reproducer": "85-16 original three-prompt summary.json",
+      "severity": "medium",
+      "symbol": "short summary exporter"
+    }
+  ],
+  "matched_speed_ratios": {
+    "context_hot_cold": {
+      "reason": "no matched valid hot control; selected-off did not export stage timings",
+      "value": null
+    },
+    "original_three_prompt": {
+      "selected_native_over_all_gpu_native": {
+        "committed_tg": 1.637309784350853,
+        "fresh_pp": 1.721410869180386
+      },
+      "selected_native_over_cpu_main_native": {
+        "committed_tg": 3.9270342513534797,
+        "fresh_pp": 3.4251858736059484
+      }
+    }
+  },
+  "observed_settings": {
+    "context_selected_native": {
+      "A_tokens": 2048,
+      "B_tokens": 128,
+      "C_tokens": 6144,
+      "H_tokens": 4096,
+      "L_tokens": 8192,
+      "U_tokens": 128,
+      "draft_capacity_tokens": 8192,
+      "page_tokens": 256
+    },
+    "context_selected_off": {
+      "A_tokens": 2048,
+      "B_tokens": 128,
+      "C_tokens": null,
+      "H_tokens": 4096,
+      "L_tokens": 8192,
+      "U_tokens": 128,
+      "draft_capacity_tokens": null,
+      "page_tokens": 256
+    },
+    "draft_capacity_equals_L": true
+  },
+  "raw_pointers": {
+    "chain": {
+      "path": ".wiretail/execution/evidence/85-15-controlled-model.json",
+      "sha256": "8935a0c05eb19b9a4fbad5efd1d7c4d3fd998666fbe9fdf64fc05f6e42ab60aa"
+    },
+    "organic": {
+      "path": ".wiretail/execution/evidence/85-15-organic-negative.json",
+      "sha256": "22c422a2d76327f324223f2c3fa70da337cfccff14689850266bd53695bf41ae"
+    },
+    "scale": {
+      "path": ".wiretail/execution/evidence/V10_REPAIR85_SCALE.json",
+      "sha256": "304cd6cf5bd4d26ada822a5c7866bd44b7ce113fa7f06c991729437913efcc31"
+    },
+    "speed": {
+      "path": ".wiretail/execution/evidence/V10_REPAIR85_SPEED.json",
+      "sha256": "14fc2e23ebe0ec03a7b239514f396ff350d842099cc182814b2ea66110c28e6d"
+    }
+  },
+  "result": "current_findings",
+  "revision": "hotpath-v10-20260914",
+  "scaling": {
+    "allocation_256k": {
+      "H_tokens": 4096,
+      "L_tokens": 262144,
+      "U_tokens": 64,
+      "allocation_status": "measured",
+      "label": "L262144-H4096-U64-startup-and-frontier",
+      "observed": {
+        "C_tokens": 0,
+        "allocation": {
+          "attention_pages": 8,
+          "attention_tokens": 2048,
+          "catalogue_bytes": 67321900,
+          "charged_bytes": 15887900000,
+          "effective_ubatch": 64,
+          "external_bytes": 293122000,
+          "fixed_context_bytes": 131072,
+          "graph_bytes": 268435000,
+          "headroom_bytes": 201327000,
+          "live_allocation_peak_bytes": 69206000,
+          "mtp_bytes": 276955136,
+          "mtp_compute_bytes": 268435000,
+          "mtp_rows": 262144,
+          "packed_dequant_bytes": 8388610,
+          "packed_workspace_bytes": 69206000,
+          "physical_pool_capacity_bytes": 69206000,
+          "query_tile_tokens": 64,
+          "recurrent_state_bytes": 470680000,
+          "requested_ubatch": 64,
+          "reserved_bytes": 1990850000,
+          "routing_table_bytes": 268435000,
+          "staging_bytes": 128,
+          "target_allocated_bytes": 69206000,
+          "turbo4_scratch_bytes": 128,
+          "weights_bytes": 13695600000
+        },
+        "request": {
+          "attempted_prompt_tokens": 1200,
+          "frontier_tokens": 0,
+          "stop_reason": "cache-preserving frontier first request returned invalid response after the same CUDA invalid argument and service restart",
+          "successful_committed_tokens": 0,
+          "warm_decode_tokens_per_second": null
+        }
+      },
+      "request_status": "runtime_fault"
+    },
+    "findings": {
+      "allocation_vs_occupancy": "L262144 full-L target and native-MTP draft allocations fit at H4096, but successful occupied C was not established.",
+      "batching_tradeoff": "not_measurable after both U128 and U64 failed before a committed request",
+      "bounded_stop": "The frontier stopped after the first failed request; no repeated full-context prompt generation was performed.",
+      "cold_promotion": "not_established",
+      "conditional_scaling": "allocation_only",
+      "full_256k_occupancy": false,
+      "maximum_occupied_C_tokens": 0,
+      "warm_speed": null
+    },
+    "ledgers": [
+      {
+        "H_tokens": 16384,
+        "L_tokens": 32768,
+        "U_tokens": 128,
+        "allocation_status": "measured",
+        "label": "L32768-H16384-U128-startup",
+        "observed": {
+          "C_tokens": null,
+          "allocation": {
+            "headroom_bytes": 201327000,
+            "mtp_bytes": 34734080,
+            "mtp_rows": 32768,
+            "physical_pool_capacity_bytes": 276824000,
+            "reserved_bytes": 1687100000,
+            "target_allocated_bytes": 276824000,
+            "weights_bytes": 13695600000
+          },
+          "request": {
+            "attempted_prompt_tokens": 1200,
+            "stop_reason": "CUDA invalid argument in ggml_cuda_turbo_prefill_attend at ggml/src/ggml-cuda/fattn.cu:3753",
+            "successful_committed_tokens": 0,
+            "warm_decode_tokens_per_second": null
+          }
+        },
+        "request_status": "runtime_fault"
+      },
+      {
+        "H_tokens": 16384,
+        "L_tokens": 32768,
+        "U_tokens": 64,
+        "allocation_status": "measured",
+        "label": "L32768-H16384-U64-startup",
+        "observed": {
+          "C_tokens": null,
+          "allocation": {
+            "attention_pages": 32,
+            "attention_tokens": 8192,
+            "catalogue_bytes": 8415230,
+            "charged_bytes": 15585200000,
+            "effective_ubatch": 64,
+            "external_bytes": 293698000,
+            "fixed_context_bytes": 131072,
+            "graph_bytes": 268435000,
+            "headroom_bytes": 201327000,
+            "live_allocation_peak_bytes": 276824000,
+            "mtp_bytes": 34734100,
+            "mtp_compute_bytes": 268435000,
+            "mtp_rows": 32768,
+            "packed_dequant_bytes": 33554400,
+            "packed_workspace_bytes": 276824000,
+            "physical_pool_capacity_bytes": 276824000,
+            "prefill_subbatch_count": 1,
+            "query_tile_tokens": 64,
+            "recurrent_state_bytes": 470680000,
+            "requested_ubatch": 64,
+            "reserved_bytes": 1688200000,
+            "routing_table_bytes": 33554400,
+            "staging_bytes": 128,
+            "target_allocated_bytes": 276824000,
+            "turbo4_scratch_bytes": 128,
+            "weights_bytes": 13695600000
+          },
+          "request": {
+            "attempted_prompt_tokens": 1200,
+            "stop_reason": "U64 recovery reproduced CUDA invalid argument in ggml_cuda_turbo_prefill_attend at ggml/src/ggml-cuda/fattn.cu:3753",
+            "successful_committed_tokens": 0,
+            "warm_decode_tokens_per_second": null
+          }
+        },
+        "request_status": "runtime_fault"
+      },
+      {
+        "H_tokens": 8192,
+        "L_tokens": 131072,
+        "U_tokens": 64,
+        "allocation_status": "measured",
+        "label": "L131072-H8192-U64-startup",
+        "observed": {
+          "C_tokens": null,
+          "allocation": {
+            "attention_pages": 16,
+            "attention_tokens": 4096,
+            "catalogue_bytes": 33660900,
+            "charged_bytes": 15659200000,
+            "effective_ubatch": 64,
+            "external_bytes": 293122000,
+            "fixed_context_bytes": 131072,
+            "graph_bytes": 268435000,
+            "headroom_bytes": 201327000,
+            "live_allocation_peak_bytes": 138412000,
+            "mtp_bytes": 138543104,
+            "mtp_compute_bytes": 268435000,
+            "mtp_rows": 131072,
+            "packed_dequant_bytes": 16777200,
+            "packed_workspace_bytes": 138412000,
+            "physical_pool_capacity_bytes": 138412000,
+            "query_tile_tokens": 64,
+            "recurrent_state_bytes": 470680000,
+            "requested_ubatch": 64,
+            "reserved_bytes": 1762150000,
+            "routing_table_bytes": 134218000,
+            "staging_bytes": 128,
+            "target_allocated_bytes": 138412000,
+            "turbo4_scratch_bytes": 128,
+            "weights_bytes": 13695600000
+          },
+          "request": {}
+        },
+        "request_status": "not_attempted"
+      },
+      {
+        "H_tokens": 4096,
+        "L_tokens": 262144,
+        "U_tokens": 64,
+        "allocation_status": "measured",
+        "label": "L262144-H4096-U64-startup-and-frontier",
+        "observed": {
+          "C_tokens": 0,
+          "allocation": {
+            "attention_pages": 8,
+            "attention_tokens": 2048,
+            "catalogue_bytes": 67321900,
+            "charged_bytes": 15887900000,
+            "effective_ubatch": 64,
+            "external_bytes": 293122000,
+            "fixed_context_bytes": 131072,
+            "graph_bytes": 268435000,
+            "headroom_bytes": 201327000,
+            "live_allocation_peak_bytes": 69206000,
+            "mtp_bytes": 276955136,
+            "mtp_compute_bytes": 268435000,
+            "mtp_rows": 262144,
+            "packed_dequant_bytes": 8388610,
+            "packed_workspace_bytes": 69206000,
+            "physical_pool_capacity_bytes": 69206000,
+            "query_tile_tokens": 64,
+            "recurrent_state_bytes": 470680000,
+            "requested_ubatch": 64,
+            "reserved_bytes": 1990850000,
+            "routing_table_bytes": 268435000,
+            "staging_bytes": 128,
+            "target_allocated_bytes": 69206000,
+            "turbo4_scratch_bytes": 128,
+            "weights_bytes": 13695600000
+          },
+          "request": {
+            "attempted_prompt_tokens": 1200,
+            "frontier_tokens": 0,
+            "stop_reason": "cache-preserving frontier first request returned invalid response after the same CUDA invalid argument and service restart",
+            "successful_committed_tokens": 0,
+            "warm_decode_tokens_per_second": null
+          }
+        },
+        "request_status": "runtime_fault"
+      }
+    ],
+    "occupied_frontier_tokens": 0
+  },
+  "schema": "repair85-summary-v1",
+  "schema_version": 1,
+  "task": "85-18",
+  "validation_errors": []
+}
