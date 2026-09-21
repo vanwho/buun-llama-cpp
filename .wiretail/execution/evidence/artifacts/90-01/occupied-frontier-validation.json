@@ -1,0 +1,79 @@
+{
+  "allocation_vs_occupancy": {
+    "allocation_status": "measured",
+    "host_pages": 15,
+    "last_durable_C_tokens": 58488,
+    "last_live_C_tokens": 58503,
+    "occupied_status": "measured",
+    "physical_pool_capacity_bytes": 69206016,
+    "resident_pages": 16,
+    "target_allocated_bytes": 69206016,
+    "target_valid_rows": 3975
+  },
+  "errors": [],
+  "frontier": {
+    "cache_preserving": true,
+    "continued_beyond_previous": true,
+    "previous_occupied_C_tokens": 38028,
+    "previous_phase": "phase89",
+    "sequence_tokens": [
+      1200,
+      5292,
+      9384,
+      13476,
+      17568,
+      21660,
+      25752,
+      29844,
+      33936,
+      38028,
+      42120,
+      46212,
+      50304,
+      54396,
+      58488
+    ]
+  },
+  "geometry": {
+    "A_tokens": 2048,
+    "B_tokens": 128,
+    "H_tokens": 4096,
+    "L_tokens": 262144,
+    "U_tokens": 64,
+    "hot_pages": 16,
+    "page_tokens": 256,
+    "pin_recent_tokens": 1024
+  },
+  "high_water": {
+    "draft": {
+      "draft_tokens": 129,
+      "scratch_bytes": 8380416,
+      "status": "measured"
+    },
+    "prefill": {
+      "scratch_bytes": 8380416,
+      "status": "measured"
+    },
+    "rollback": {
+      "movement_rows_with_trim": 10,
+      "paired_restore_rows": 15,
+      "protocol": "paired-restore target_and_draft",
+      "scratch_bytes": 8380416,
+      "status": "measured"
+    },
+    "verify": {
+      "accepted_tokens": 36,
+      "scratch_bytes": 8380416,
+      "status": "measured",
+      "verification_steps": 65
+    }
+  },
+  "required_proof": "repair90_occupied_frontier_continuation",
+  "schema_version": 1,
+  "status": "pass",
+  "stop": {
+    "independent_from_allocation": true,
+    "reason": "operator_bounded_wall_budget_stop_after_C58488",
+    "status": "bounded_complete"
+  }
+}
