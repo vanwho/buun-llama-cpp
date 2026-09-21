@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "task": "89-02",
+  "source_commit": "d6ee6eeeb4d1f41436477005982250a3b3da0c44",
+  "checks": {
+    "repair89_organic_cold_retention": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-repair89-organic-cold.py",
+        "--summary",
+        "/srv/ai/paged-kv/results/v10/89-02/organic-2-fresh/summary.json",
+        "--summary",
+        "/srv/ai/paged-kv/results/v10/89-02/organic-3-fresh/summary.json",
+        "--summary",
+        "/srv/ai/paged-kv/results/v10/89-02/organic-4-fresh/summary.json",
+        "--fresh-restarts",
+        "2",
+        "--build-receipt",
+        "/srv/ai/paged-kv/results/v10/89-02/build-receipt.json",
+        "--runtime-identity",
+        "/srv/ai/paged-kv/results/v10/89-02/runtime-identity.json",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/89-02/organic-cold-retention-validation.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/89-02/organic-cold-retention-validation.json",
+          "sha256": "68feb8025e4a08d7909698273008d233ed675535869cdc0d788bfaa42be54614"
+        }
+      ]
+    },
+    "v10_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", ".wiretail/execution/v10", "-p", "test_*.py"]
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_*.py"]
+    }
+  },
+  "build": {
+    "status": "pass",
+    "binary": "build-cuda/bin/llama-server",
+    "sha256": "525d9d5c82291ded8dc77fbf1e5530e1f41de5fa5f1af41c747cea76b26fd93e",
+    "immutable_receipt": "/srv/ai/paged-kv/results/v10/89-02/build-receipt.json",
+    "immutable_receipt_sha256": "2fee3f5ffb9da56805ee496ddae55c04538801b6b606f5f53ca47d3cb0d54df7"
+  },
+  "live": {
+    "status": "pass",
+    "service": "llama-server.service",
+    "pid": 1992596,
+    "mode": "native",
+    "model": "/srv/ai/models/text/current.gguf",
+    "context": 8192,
+    "batch": 128,
+    "ubatch": 64,
+    "page_tokens": 256,
+    "hot_pages": 8,
+    "pin_recent_tokens": 512,
+    "route": "selected direct",
+    "runtime_identity": "/srv/ai/paged-kv/results/v10/89-02/runtime-identity.json",
+    "runtime_identity_sha256": "221e9275e62dabb8bf15d93f7fc0b3fd7f2da8f73eaab6ed1069e4918a02cdd1"
+  },
+  "deferred_verification": []
+}
