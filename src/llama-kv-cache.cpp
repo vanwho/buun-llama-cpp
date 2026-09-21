@@ -3441,6 +3441,67 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 }
                 break;
             }
+
+            // The selector mailbox can legitimately be retired before the
+            // policy commit while its authenticated H2D plan remains in the
+            // boundary transaction. Preserve the physical proof from that
+            // committed plan as a fallback: the transfer page is the
+            // immutable identity that was actually admitted, and the
+            // residency result is the publication boundary. Do not infer this
+            // receipt from aggregate H2D counters, which can also include
+            // unrelated transfers.
+            if (pager_->natural_proof().logical_page == UINT32_MAX &&
+                    result.published &&
+                    result.transaction.h2d_counters.event_completions != 0) {
+                for (const auto & plan : boundary.transaction.transfers) {
+                    if (plan.direction != llama_kv_residency_transfer_direction::h2d_promotion) {
+                        continue;
+                    }
+                    for (const auto & transfer_page : plan.pages) {
+                        const auto before = std::find_if(inventory.begin(), inventory.end(),
+                                [&](const auto & page) {
+                            return (page.id == transfer_page.page ||
+                                    same_bundle(page.id, transfer_page.page)) &&
+                                page.physical_slot == UINT32_MAX && has_host(page.id);
+                        });
+                        const auto after = std::find_if(result.target_pages.begin(),
+                                result.target_pages.end(), [&](const auto & page) {
+                            return before != inventory.end() &&
+                                (page.id == before->id || same_bundle(page.id, before->id)) &&
+                                page.physical_slot != UINT32_MAX;
+                        });
+                        if (before == inventory.end() || after == result.target_pages.end()) {
+                            continue;
+                        }
+
+                        llama_kv_pager_natural_proof proof;
+                        proof.query_generation = pager_query_generation_;
+                        proof.query_position = transfer_page.page.position_begin;
+                        proof.catalogue_epoch = transfer_page.table_epoch;
+                        proof.published_epoch = result.published_epoch;
+                        proof.page_generation = after->id.page_generation;
+                        proof.content_version = after->content_version;
+                        proof.logical_page = after->id.logical_page;
+                        proof.attention_layer = transfer_page.page.attention_layer != UINT32_MAX
+                            ? transfer_page.page.attention_layer : transfer_page.layer;
+                        proof.physical_slot = after->physical_slot;
+                        proof.candidate_was_cold = true;
+                        proof.host_ready = true;
+                        proof.promotion_published = true;
+                        proof.selector_published = true;
+                        proof.h2d_queued = true;
+                        proof.h2d_useful_bytes = result.transaction.h2d_counters.copied_useful_bytes;
+                        proof.h2d_aligned_bytes = result.transaction.h2d_counters.copied_aligned_bytes;
+                        proof.h2d_completed = true;
+                        proof.mapping_published = true;
+                        pager_->record_natural_proof(proof);
+                        break;
+                    }
+                    if (pager_->natural_proof().logical_page != UINT32_MAX) {
+                        break;
+                    }
+                }
+            }
         }
         if (result.status == llama_kv_live_policy_status::committed ||
             result.status == llama_kv_live_policy_status::no_change ||
