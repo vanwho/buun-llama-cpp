@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "task": "88-03",
+  "result": "measured_with_invalid_controls_preserved",
+  "identity": {
+    "source_commit": "56dba9d34022b9880a5c87c0922a0237a35f9498",
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "binary_sha256": "99eb826d39ca997dc475091d0f46bc5faf9e9a81c699effb4b24f2f9c816e1f8",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "geometry": {"L": 8192, "H": null, "A": 1024, "B": 128, "U": 64, "page_tokens": 256, "hot_pages": 8, "pin_recent": 512},
+    "mtp": {"placement": "gpu", "type_k": "turbo4", "type_v": "turbo4", "n_max": 2}
+  },
+  "rows": [
+    {
+      "case": "fresh",
+      "status": "valid",
+      "prompt_tokens": 56,
+      "evaluated_prompt_tok_s": 276.86861595356515,
+      "cached_append_tok_s": null,
+      "committed_decode_tok_s": 29.235980303302412,
+      "elapsed_ms": 444.1967010498047,
+      "ttft_ms": 202.262,
+      "mtp": {"attempted": 6, "accepted": 0, "acceptance_rate": 0.0},
+      "attribution": {"route": "selected direct", "queue_us": 185170, "wait_us": 179797, "copy_us": 0, "h2d_useful_bytes": 0, "h2d_aligned_bytes": 0, "transfer_time_us": 0, "prefill_direct_routes": 1, "prefill_reference_routes": 1, "decode_direct_routes": 4, "mtp_verify_direct_routes": 3},
+      "raw": "/srv/ai/paged-kv/results/v10/88-03/direct/raw/fresh.response.json"
+    },
+    {
+      "case": "cached_append",
+      "status": "invalid_unmatched_cache",
+      "prompt_tokens": 65,
+      "evaluated_prompt_tok_s": 455.7789261848499,
+      "cached_append_tok_s": null,
+      "committed_decode_tok_s": 32.205230129373014,
+      "elapsed_ms": 362.6241683959961,
+      "ttft_ms": 142.613,
+      "mtp": {"attempted": 12, "accepted": 0, "acceptance_rate": 0.0},
+      "attribution": {"route": "selected direct", "queue_us": 296189, "wait_us": 334445, "copy_us": 14, "h2d_useful_bytes": 0, "h2d_aligned_bytes": 0, "transfer_time_us": 0, "prefill_direct_routes": 1, "prefill_reference_routes": 2, "decode_direct_routes": 8, "mtp_verify_direct_routes": 6},
+      "null_reason": "server reported cache_n=0 and cached_tokens=0; no matched cached append was measured",
+      "raw": "/srv/ai/paged-kv/results/v10/88-03/direct/raw/cached_append.response.json"
+    },
+    {
+      "case": "context_cold",
+      "status": "valid_context_control_no_promotion",
+      "prompt_tokens": 7225,
+      "evaluated_prompt_tok_s": 160.28688623877292,
+      "cached_append_tok_s": null,
+      "committed_decode_tok_s": 40.56411157834959,
+      "elapsed_ms": 45162.9798412323,
+      "ttft_ms": 45075.428,
+      "mtp": {"attempted": 14, "accepted": 2, "acceptance_rate": 0.14285714285714285},
+      "attribution": {"route": "selected direct", "queue_us": 6116383, "wait_us": 431508, "copy_us": 14, "h2d_useful_bytes": 0, "h2d_aligned_bytes": 0, "transfer_time_us": 0, "prefill_direct_routes": 1, "prefill_reference_routes": 116, "decode_direct_routes": 8, "mtp_verify_direct_routes": 7},
+      "null_reason": "context exceeded hot target budget but no cold candidate promotion or H2D completion was observed",
+      "raw": "/srv/ai/paged-kv/results/v10/88-03/direct/raw/context_cold.response.json"
+    }
+  ],
+  "raw_artifacts": [
+    {"path": "/srv/ai/paged-kv/results/v10/88-03/direct/raw-results.json", "sha256": "ebbf42502241b7012e39dd92f4ea423c988fa4bf995f02993a40817d1c6daed0"},
+    {"path": "/srv/ai/paged-kv/results/v10/88-03/direct/server.log", "sha256": "b2711883815f8be8d6227d0b86b973f806264852b7c8135e39c895308ad2be72"}
+  ]
+}
