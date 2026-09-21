@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "task": "90-03",
+  "source_commit": "3004f699ff37cddc27875ecff246dcbca2603530",
+  "source_diff_sha256": "e9ecec8564c7f015a13e7bef550d0a4e305b06125507bd795cc2cec8949c9399",
+  "checks": {
+    "repair90_controlled_promotion_origin": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/repair90_controlled_promotion_origin.py",
+        "--endpoint",
+        "http://127.0.0.1:8091",
+        "--key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/90-03/server-controlled-final2/proof",
+        "--context",
+        "8192",
+        "--page-tokens",
+        "256",
+        "--hot-pages",
+        "8",
+        "--pin-recent",
+        "512",
+        "--repetitions",
+        "60"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-03/server-controlled-final2/proof/controlled-request.json",
+          "sha256": "ef5c5da9d193257cfe304bba27b017a693a10f7ccb96ab32d6e79a7d48e7c808"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-03/server-controlled-final2/validator.stdout",
+          "sha256": "365f518d077fbc0f27f4e9cde48c5e2089914e2a6ead520c513cc3619f86ef99"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-03/server-controlled-final2/llama-server.stderr",
+          "sha256": "f2e7bd46f0e96c8ea0751a8db650066a9b1a7af5e72dce2646b7cc9e2cdc86ee"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-03/server-controlled-final2/health-before.json",
+          "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288"
+        },
+        {
+          "path": "tools/server/bench/repair90_controlled_promotion_origin.py",
+          "sha256": "f75906c41ecf9c35590596b39545d622b90eea667f9b345403a4b62c063e3d7e"
+        }
+      ],
+      "result": {
+        "origin": "controlled forced-page seam; separate from organic B-to-A-again evidence",
+        "geometry": {
+          "L_tokens": 8192,
+          "H_tokens": 2048,
+          "page_tokens": 256,
+          "hot_pages": 8,
+          "pin_recent_tokens": 512,
+          "batch": 128,
+          "ubatch": 64,
+          "input_tokens": 2425
+        },
+        "candidate_identity": {
+          "logical_page": 0,
+          "physical_slot": 7,
+          "page_generation": 4,
+          "content_version": 4,
+          "host_checksum": 18377896359451344841,
+          "device_checksum": 18377896359451344841,
+          "checksum_equal": true
+        },
+        "publication_and_target_use": {
+          "promotion_pages_delta": 1,
+          "eviction_pages_delta": 1,
+          "h2d_useful_bytes_delta": 4325376,
+          "h2d_aligned_bytes_delta": 4325376,
+          "h2d_completed": true,
+          "target_graph_used": true
+        },
+        "native_mtp": {
+          "backend": "gpu",
+          "type_k": "turbo4",
+          "type_v": "turbo4",
+          "drafted": 4,
+          "accepted": 1,
+          "committed": 3,
+          "rejected": 3,
+          "target_restores": 2,
+          "draft_restores": 2,
+          "restore_failures": 0
+        }
+      }
+    },
+    "build": {
+      "status": "pass",
+      "command": ["cmake", "--build", "build-cuda", "--target", "llama-server", "-j2"],
+      "binary": "build-cuda/bin/llama-server",
+      "sha256": "204c14018d646795c8edc2258957cc79c03167b08ce0e6defc4fdebcc5742f19",
+      "linked_library_sha256": {
+        "build-cuda/bin/libllama.so": "e2cd943639fba48ed0c2cc94cf48da4f6fcff9915bc9fb8ce840830e2b3c1ca6",
+        "build-cuda/bin/libllama-server-impl.so": "125f3b7814e161283b7183c966b56cc255a96eac242f9a9f39d590e093610446",
+        "build-cuda/bin/libggml-cuda.so": "d87a57b970b8a4fb4c1a08deb5a362d01d35d881017dcc4d56f1c790b00d9990"
+      }
+    },
+    "python_source_check": {
+      "status": "pass",
+      "command": ["python3", "-c", "compile(open('tools/server/bench/repair90_controlled_promotion_origin.py').read(), 'repair90_controlled_promotion_origin.py', 'exec')"]
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_*.py"],
+      "tests_passed": 98
+    }
+  },
+  "live": {
+    "status": "pass",
+    "service": "llama-server.service",
+    "health": {"status": "ok"},
+    "restored_profile": {
+      "context": 262144,
+      "batch": 128,
+      "ubatch": 64,
+      "page_tokens": 256,
+      "hot_pages": 16,
+      "pin_recent_tokens": 1024,
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V"
+    }
+  },
+  "failed_attempts": [
+    {
+      "status": "recovered",
+      "reason": "The first controlled invocation used a stale 20260915 token-fixture path and exited during argument parsing.",
+      "recovery": "Located the established 20260914 6144-token fixture and reran the controlled path."
+    },
+    {
+      "status": "recovered",
+      "reason": "The standalone model diagnostic could not complete the long native-MTP verification path and reported CUDA illegal-memory access after target verification; it did not produce proof JSON.",
+      "recovery": "Switched to the production server native-MTP lifecycle with the deterministic force-page seam, which completed the required controlled proof and retained request-scoped restore counters."
+    },
+    {
+      "status": "recovered",
+      "reason": "The first direct-server attempt collided with an existing listener on port 8081 before model load.",
+      "recovery": "Reran the identical isolated server profile on port 8091; the validator passed."
+    }
+  ],
+  "deferred_verification": []
+}
