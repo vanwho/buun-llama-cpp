@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "task": "88-06",
+  "source_commit": "37f0ababc5e34a9cd6ca68d8c8c1e8fe63db8e48",
+  "checks": {
+    "repair88_review_and_successors": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", ".wiretail/execution/evidence/validate_phase88_review.py"],
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_REPAIR88_REVIEW.json", "sha256": "2d8fb71f9abafd273a9bfb0a48a5976efd710901303490584776bfd48bebf342"},
+        {"path": ".wiretail/execution/evidence/validate_phase88_review.py", "sha256": "75771bfd09ae14f88a44e350d94727423e5b0303012459d9dab9632b26a5a388"},
+        {"path": ".wiretail/execution/evidence/artifacts/88-06/review-validation.json", "sha256": "c024337748ad4a1cc7214f8576c047b1ba6afc8867820b46de345eaaf98b2560"},
+        {"path": ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json", "sha256": "8ad72afdc2379f9637ebf58016b6d5435855f18126038dd8864ef358e596759d"}
+      ],
+      "result": {
+        "review": ".wiretail/execution/evidence/V10_REPAIR88_REVIEW.json",
+        "goal_met": false,
+        "decision": "continue_narrowly_evidenced_chain",
+        "next_task_ids": ["89-01", "89-02", "89-03", "89-04", "89-05", "89-06"],
+        "long_run_semantic_gap_preserved": true,
+        "invalid_speed_rows_remain_null": true,
+        "allocation_separate_from_occupancy": true
+      }
+    }
+  },
+  "verification": {
+    "review": "pass: phase88 summary-only review retained all capability gaps and scheduled six ordered phase89 successors",
+    "deferred": "none"
+  }
+}

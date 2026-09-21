@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "88",
-  "current_task": "88-06",
-  "last_updated_utc": "2026-09-21T17:09:50+00:00",
+  "current_phase": "89",
+  "current_task": "89-01",
+  "last_updated_utc": "2026-09-21T17:17:03+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -17401,7 +17401,7 @@
       "cluster": "repair88-summary-review-v10",
       "title": "Review phase88 and schedule only proven successors",
       "packet": ".wiretail/execution/tasks/88-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -17413,7 +17413,7 @@
       "depends_on": [
         "88-05"
       ],
-      "commit": null,
+      "commit": "d5005004b9f2c719aaaf86410f38b9e5bd5ee0bf",
       "context_files": [
         ".wiretail/execution/v10/REPAIR85_PLAN.md",
         ".wiretail/execution/v10/REPAIR85_TESTING.md",
@@ -17429,6 +17429,237 @@
         ".wiretail/execution/evidence/V10_88-06.json",
         "--review",
         ".wiretail/execution/evidence/V10_REPAIR88_REVIEW.json"
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/88-06-attempt-1-20260921T171011Z.jsonl:48",
+            "total_tokens": 4346149,
+            "total_tokens_derived": true,
+            "input_tokens": 4320260,
+            "cached_input_tokens": 4052736,
+            "output_tokens": 25889,
+            "thinking_tokens": 3803
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 4346149,
+          "input_tokens": 4320260,
+          "cached_input_tokens": 4052736,
+          "output_tokens": 25889,
+          "thinking_tokens": 3803
+        }
+      }
+    },
+    {
+      "id": "89-01",
+      "phase": "89",
+      "cluster": "repair89-followup-v10",
+      "title": "Extend native MTP state parity through long-run continuation",
+      "packet": ".wiretail/execution/tasks/89-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair87-20260921",
+      "required_proofs": [
+        "repair89_long_run_mtp_parity"
+      ],
+      "depends_on": [
+        "88-06"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "89-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_89-01.json"
+      ]
+    },
+    {
+      "id": "89-02",
+      "phase": "89",
+      "cluster": "repair89-followup-v10",
+      "title": "Repeat organic cold semantic retention",
+      "packet": ".wiretail/execution/tasks/89-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair87-20260921",
+      "required_proofs": [
+        "repair89_organic_cold_retention"
+      ],
+      "depends_on": [
+        "89-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "89-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_89-02.json"
+      ]
+    },
+    {
+      "id": "89-03",
+      "phase": "89",
+      "cluster": "repair89-followup-v10",
+      "title": "Measure valid cached-append and cold speed rows",
+      "packet": ".wiretail/execution/tasks/89-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair87-20260921",
+      "required_proofs": [
+        "repair89_valid_speed_controls"
+      ],
+      "depends_on": [
+        "89-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "89-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_89-03.json"
+      ]
+    },
+    {
+      "id": "89-04",
+      "phase": "89",
+      "cluster": "repair89-followup-v10",
+      "title": "Continue occupied frontier beyond phase88 C",
+      "packet": ".wiretail/execution/tasks/89-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair87-20260921",
+      "required_proofs": [
+        "repair89_occupied_frontier_continuation"
+      ],
+      "depends_on": [
+        "89-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "89-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_89-04.json"
+      ]
+    },
+    {
+      "id": "89-05",
+      "phase": "89",
+      "cluster": "repair89-followup-v10",
+      "title": "Generate the phase89 compact summary",
+      "packet": ".wiretail/execution/tasks/89-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair87-20260921",
+      "required_proofs": [
+        "repair89_summary_consistency"
+      ],
+      "depends_on": [
+        "89-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "89-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_89-05.json"
+      ]
+    },
+    {
+      "id": "89-06",
+      "phase": "89",
+      "cluster": "repair89-followup-v10",
+      "title": "Review phase89 and schedule only proven successors",
+      "packet": ".wiretail/execution/tasks/89-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair87-20260921",
+      "required_proofs": [
+        "repair89_review_and_successors"
+      ],
+      "depends_on": [
+        "89-05"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "89-06",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_89-06.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR89_REVIEW.json"
       ]
     }
   ],
@@ -22542,26 +22773,50 @@
           "cached_input_tokens": 1816064,
           "output_tokens": 14946,
           "thinking_tokens": 1843
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/88-06-attempt-1-20260921T171011Z.jsonl:48",
+          "total_tokens": 4346149,
+          "total_tokens_derived": true,
+          "input_tokens": 4320260,
+          "cached_input_tokens": 4052736,
+          "output_tokens": 25889,
+          "thinking_tokens": 3803
         }
       ],
       "totals": {
-        "turns": 5,
-        "total_tokens": 45650354,
-        "input_tokens": 45478446,
-        "cached_input_tokens": 44200960,
-        "output_tokens": 171908,
-        "thinking_tokens": 62445
+        "turns": 6,
+        "total_tokens": 49996503,
+        "input_tokens": 49798706,
+        "cached_input_tokens": 48253696,
+        "output_tokens": 197797,
+        "thinking_tokens": 66248
+      }
+    },
+    "89": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 313,
-      "total_tokens": 5729890095,
-      "input_tokens": 5715913228,
-      "cached_input_tokens": 5592192768,
-      "output_tokens": 13976867,
-      "thinking_tokens": 4990768
+      "turns": 314,
+      "total_tokens": 5734236244,
+      "input_tokens": 5720233488,
+      "cached_input_tokens": 5596245504,
+      "output_tokens": 14002756,
+      "thinking_tokens": 4994571
     },
     "source": "Codex turn.completed usage events"
   }
