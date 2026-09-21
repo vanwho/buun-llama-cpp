@@ -8821,6 +8821,7 @@ void ggml_compute_forward_kv_page_summary(
 
         std::vector<float> minimum(size_t(dim * n_heads), INFINITY);
         std::vector<float> maximum(size_t(dim * n_heads), -INFINITY);
+        std::vector<uint8_t> invalid(size_t(dim * n_heads), 0);
         for (int64_t row = 0; row < valid_rows; ++row) {
             const char * source = (const char *) k->data + stream * k->nb[2] +
                 (physical_slot * page_size + row) * k->nb[1];
@@ -8830,8 +8831,12 @@ void ggml_compute_forward_kv_page_summary(
                 for (int64_t coord = 0; coord < dim; ++coord) {
                     const size_t index = size_t(head * dim + coord);
                     const float value = decoded[index];
-                    minimum[index] = std::min(minimum[index], value);
-                    maximum[index] = std::max(maximum[index], value);
+                    if (!std::isfinite(value)) {
+                        invalid[index] = 1;
+                    } else {
+                        minimum[index] = std::min(minimum[index], value);
+                        maximum[index] = std::max(maximum[index], value);
+                    }
                 }
             }
         }
@@ -8839,9 +8844,16 @@ void ggml_compute_forward_kv_page_summary(
             for (int64_t coord = 0; coord < dim; ++coord) {
                 const size_t index = size_t(head * dim + coord);
                 char * out = (char *) dst->data + coord * dst->nb[0] +
-                    head * dst->nb[2] + page * dst->nb[3];
-                *(ggml_fp16_t *)(out) = ggml_kv_page_summary_lower(minimum[index]);
-                *(ggml_fp16_t *)(out + dst->nb[1]) = ggml_kv_page_summary_upper(maximum[index]);
+                        head * dst->nb[2] + page * dst->nb[3];
+                if (invalid[index] || !std::isfinite(minimum[index]) ||
+                        !std::isfinite(maximum[index])) {
+                    const ggml_fp16_t poison = ggml_fp32_to_fp16(NAN);
+                    *(ggml_fp16_t *)(out) = poison;
+                    *(ggml_fp16_t *)(out + dst->nb[1]) = poison;
+                } else {
+                    *(ggml_fp16_t *)(out) = ggml_kv_page_summary_lower(minimum[index]);
+                    *(ggml_fp16_t *)(out + dst->nb[1]) = ggml_kv_page_summary_upper(maximum[index]);
+                }
             }
         }
     }

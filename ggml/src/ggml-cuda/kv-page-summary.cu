@@ -9,11 +9,11 @@
 namespace {
 
 __device__ __forceinline__ half summary_lower(float value) {
-    return __float2half(nextafterf(value, -FLT_MAX));
+    return __float2half_rd(value);
 }
 
 __device__ __forceinline__ half summary_upper(float value) {
-    return __float2half(nextafterf(value, FLT_MAX));
+    return __float2half_ru(value);
 }
 
 __global__ void kv_page_summary_kernel(
@@ -72,8 +72,10 @@ __global__ void kv_page_summary_kernel(
             }
         }
         if (invalid || !isfinite(minimum) || !isfinite(maximum)) {
-            *(half *) destination = __float2half(0.0f);
-            *(half *)(destination + output_nb1) = __float2half(0.0f);
+            // Poison invalid metadata instead of manufacturing an apparently
+            // eligible zero interval. The selector is finite/ordering gated.
+            *(half *) destination = __float2half(NAN);
+            *(half *)(destination + output_nb1) = __float2half(NAN);
         } else {
             *(half *) destination = summary_lower(minimum);
             *(half *)(destination + output_nb1) = summary_upper(maximum);

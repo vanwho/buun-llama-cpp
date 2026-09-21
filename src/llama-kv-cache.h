@@ -1608,10 +1608,25 @@ private:
         uint32_t layer = UINT32_MAX;
         uint32_t capacity = 0;
         std::vector<pager_selector_page_state> pages;
+        std::vector<uint32_t> active_page_indices;
     };
     // Graph inputs own the stable logical catalogue.  This cache is only the
     // host-side dirty map; the tensors remain owned by the graph allocator.
     mutable std::vector<pager_selector_input_state> pager_selector_inputs_;
+    struct pager_summary_cache_item {
+        uint32_t layer = UINT32_MAX;
+        uint32_t head = UINT32_MAX;
+        llama_kv_routing_page_input input;
+    };
+    struct pager_summary_cache {
+        llama_kv_page_id identity;
+        uint64_t content_version = 0;
+        bool valid = false;
+        std::vector<pager_summary_cache_item> items;
+    };
+    // One immutable canonical page is decoded once for all layer/head summary
+    // entries. Subsequent head publications copy only their compact ranges.
+    pager_summary_cache pager_summary_cache_;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;
     uint64_t pager_host_controller_generation_ = 1;

@@ -127,6 +127,9 @@ public:
 
     const vbr_selected_page_host_view * find(
             const vbr_selected_page_host_key & key) const noexcept;
+    bool find_copy(
+            const vbr_selected_page_host_key & key,
+            vbr_selected_page_host_view & output) const noexcept;
     // Return immutable copies of every live page.  Exact attention uses this
     // inventory to reconcile resident rows with canonical cold backing without
     // exposing the catalog's mutex-protected storage.

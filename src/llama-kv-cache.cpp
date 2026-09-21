@@ -2881,27 +2881,21 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             }
         }
 
-        const auto host_pages = pager_->host_catalog()
-            ? pager_->host_catalog()->pages()
-            : std::vector<vbr_selected_page_host_view>{};
+        const auto find_host_page = [&](const llama_kv_page_id & id,
+                                        vbr_selected_page_host_view & output) {
+            if (pager_->host_catalog() == nullptr) return false;
+            if (pager_->host_catalog()->find_page(id, output)) return true;
+            // The canonical host object is one full-L bundle. A layer mapping
+            // may address it with a concrete layer ordinal, but must not
+            // manufacture a second host object or cross a generation.
+            if (id.attention_layer == UINT32_MAX) return false;
+            auto bundle_id = id;
+            bundle_id.attention_layer = UINT32_MAX;
+            return pager_->host_catalog()->find_page(bundle_id, output);
+        };
         const auto has_host = [&](const llama_kv_page_id & id) {
-            return std::find_if(host_pages.begin(), host_pages.end(),
-                    [&](const auto & page) {
-                if (page.page.identity == id) return true;
-                // The canonical host object is one full-L bundle. A layer
-                // mapping may address it with a concrete layer ordinal, but
-                // must not manufacture a second host object or accept a
-                // bundle from a different representation/generation.
-                if (id.attention_layer == UINT32_MAX &&
-                    page.page.identity.attention_layer != UINT32_MAX) {
-                    return false;
-                }
-                auto bundle_id = id;
-                bundle_id.attention_layer = UINT32_MAX;
-                auto host_id = page.page.identity;
-                host_id.attention_layer = UINT32_MAX;
-                return bundle_id == host_id;
-            });
+            vbr_selected_page_host_view output;
+            return find_host_page(id, output);
         };
         llama_kv_live_policy_boundary boundary;
         boundary.snapshot = snapshot;
@@ -3121,7 +3115,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             const auto forced = std::find_if(inventory.begin(), inventory.end(),
                     [&](const auto & page) {
                 return (forced_page == UINT32_MAX || page.id.logical_page == forced_page) &&
-                    page.physical_slot == UINT32_MAX && has_host(page.id) != host_pages.end();
+                    page.physical_slot == UINT32_MAX && has_host(page.id);
             });
             if (forced != inventory.end()) {
                 boundary.retrieval = {};
@@ -3151,7 +3145,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             llama_kv_live_policy_page page;
             page.record = record;
             const auto host = has_host(record.id);
-            page.record.host_valid = host != host_pages.end();
+            page.record.host_valid = host;
             if (page.record.physical_slot == UINT32_MAX) {
                 page.record.state = llama_kv_page_state::host_clean;
                 page.record.dirty = false;
@@ -3253,8 +3247,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 if (source == boundary.pages.end() || source->record.physical_slot != UINT32_MAX) {
                     continue;
                 }
-                const auto selected_host = has_host(target_id);
-                if (selected_host == host_pages.end()) {
+                vbr_selected_page_host_view selected_host;
+                if (!find_host_page(target_id, selected_host)) {
                     pager_->record_rejection_missing_host_source();
                     promotion_valid = false;
                     break;
@@ -3288,7 +3282,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 std::vector<bool> has_key(geometry.layer_k_page_bytes.size(), false);
                 std::vector<bool> has_value(geometry.layer_v_page_bytes.size(), false);
                 uint64_t host_offset = 0;
-                for (const auto & unit : selected_host->page.units) {
+                for (const auto & unit : selected_host.page.units) {
                     const auto unit_geometry = std::find_if(
                             geometry.unit_descriptors.begin(),
                             geometry.unit_descriptors.end(),
@@ -3416,7 +3410,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 proof.selector_rank = candidate.selector_rank;
                 proof.physical_slot = after->physical_slot;
                 proof.candidate_was_cold = true;
-                proof.host_ready = has_host(before->id) != host_pages.end();
+                proof.host_ready = has_host(before->id);
                 proof.promotion_published = true;
                 proof.selector_published = true;
                 for (const auto & plan : boundary.transaction.transfers) {
@@ -3705,144 +3699,99 @@ bool llama_kv_cache::pager_routing_summary_build(
         page.id.position_begin < 0 || page.id.position_end <= page.id.position_begin ||
         page.physical_slot == UINT32_MAX || config.representative_count < 4 ||
         config.representative_count > 8 || config.vector_dim == 0 ||
+        config.form != llama_kv_routing_summary_form::minmax_ranges ||
         config.layer_index >= cache->layers.size()) {
         return false;
     }
-    const auto & layer = cache->layers[config.layer_index];
-    const auto * tensor = layer.k;
-    const uint32_t heads = cache->hparams.n_head_kv(layer.il);
-    if (tensor == nullptr || tensor->type != GGML_TYPE_TURBO4_0 || tensor->ne[0] <= 0 ||
-        tensor->ne[1] <= 0 || heads == 0 || tensor->ne[0] % heads != 0 ||
-        config.vector_dim != uint32_t(tensor->ne[0] / heads) || config.head_index >= heads) {
-        return false;
-    }
-    const uint32_t stream = cache->get_stream_for_seq(page.id.sequence_id);
-    if (tensor->ne[2] <= int64_t(stream)) return false;
-    const uint64_t row_bytes = ggml_row_size(tensor->type, tensor->ne[0]);
-    const uint64_t row_count = uint64_t(tensor->ne[1]);
-    if (row_bytes == 0 || row_count > std::numeric_limits<uint64_t>::max() / row_bytes ||
-        uint64_t(stream) > std::numeric_limits<uint64_t>::max() / (row_count * row_bytes) ||
-        uint64_t(page.physical_slot) * VBR_GENERATION_PAGE_CELLS + VBR_GENERATION_PAGE_CELLS > row_count) {
-        return false;
-    }
-    const uint64_t stream_bytes = row_count * row_bytes;
     const uint64_t valid_rows = uint64_t(page.id.position_end - page.id.position_begin);
     if (valid_rows == 0 || valid_rows > VBR_GENERATION_PAGE_CELLS ||
-        uint64_t(page.physical_slot) * VBR_GENERATION_PAGE_CELLS + valid_rows > row_count) {
+            page.content_version == 0 || config.subblock_tokens == 0 ||
+            VBR_GENERATION_PAGE_CELLS % config.subblock_tokens != 0) {
         return false;
     }
     try {
-        output = {};
-        output.id = page.id;
-        const bool ranges = config.form == llama_kv_routing_summary_form::minmax_ranges;
-        const uint32_t subblocks = ranges
-            ? VBR_GENERATION_PAGE_CELLS / config.subblock_tokens : 0;
-        if (ranges && (config.subblock_tokens == 0 ||
-                VBR_GENERATION_PAGE_CELLS % config.subblock_tokens != 0)) return false;
-        if (ranges) {
-            output.range_min.assign(size_t(subblocks) * config.vector_dim,
-                    std::numeric_limits<float>::infinity());
-            output.range_max.assign(size_t(subblocks) * config.vector_dim,
-                    -std::numeric_limits<float>::infinity());
-        } else {
-            output.row_indices.resize(config.representative_count);
-            output.rotated_k_rows.resize(size_t(config.representative_count) * config.vector_dim);
-        }
-        // Once the page has been sealed, the canonical captured Turbo4 image
-        // is the source for all summary layers. This keeps summary sampling
-        // from rereading the immutable device tensor for the same content
-        // version and binds representatives to the exact host publication.
-        vbr_selected_page_host_view host_page_storage;
-        const vbr_selected_page_host_view * host_page = nullptr;
-        if (const auto * host = cache->pager_->host_catalog()) {
-            const auto host_pages = host->pages();
-            const auto it = std::find_if(host_pages.begin(), host_pages.end(),
-                    [&](const auto & view) {
-                return view.page.identity == page.id;
-            });
-            if (it != host_pages.end()) {
-                host_page_storage = *it;
-                host_page = &host_page_storage;
-            }
-        }
-        const vbr_selected_page_unit_descriptor * host_unit = nullptr;
-        if (host_page != nullptr) {
-            const uint32_t logical_unit = config.layer_index * 2;
-            const auto it = std::find_if(host_page->page.units.begin(), host_page->page.units.end(),
-                    [&](const auto & unit) {
-                return unit.logical_unit_id == logical_unit &&
-                    unit.side == vbr_artifact_side::key;
-            });
-            if (it != host_page->page.units.end() && it->bytes &&
-                    it->row_bytes == row_bytes && it->valid_rows >= valid_rows) {
-                host_unit = &*it;
-            }
-        }
-        std::vector<uint8_t> encoded(host_unit != nullptr ? host_unit->row_bytes : row_bytes);
-        std::vector<float> decoded(size_t(tensor->ne[0]));
-        const uint64_t stream_offset = uint64_t(stream) * stream_bytes;
-        const auto read_row = [&](uint32_t row) {
-            const uint64_t physical = uint64_t(page.physical_slot) * VBR_GENERATION_PAGE_CELLS + row;
-            if (physical > std::numeric_limits<uint64_t>::max() / row_bytes ||
-                stream_offset > std::numeric_limits<uint64_t>::max() - physical * row_bytes) return false;
-            const uint64_t offset = stream_offset + physical * row_bytes;
-            if (offset > std::numeric_limits<size_t>::max() - row_bytes) return false;
-            if (host_unit != nullptr) {
-                if (!host_unit->bytes->read(uint64_t(row) * host_unit->row_bytes,
-                                            encoded.data(), encoded.size())) return false;
-            } else {
-                ggml_backend_tensor_get(tensor, encoded.data(), size_t(offset), size_t(row_bytes));
-            }
-            // Turbo4 stores K in its transformed coefficient domain. The
-            // routing query is produced in that same domain; inverse FWHT
-            // here would move only K back to the pre-transform space and
-            // invalidate the conservative score bound.
-            dequantize_row_turbo4_0(encoded.data(), decoded.data(), tensor->ne[0]);
-            const size_t source = size_t(config.head_index) * config.vector_dim;
-            if (ranges) {
-                const uint32_t subblock = std::min<uint32_t>(subblocks - 1,
-                    row / config.subblock_tokens);
-                for (uint32_t d = 0; d < config.vector_dim; ++d) {
-                    const float value = decoded[source + d];
-                    const size_t index = size_t(subblock) * config.vector_dim + d;
-                    output.range_min[index] = std::min(output.range_min[index], value);
-                    output.range_max[index] = std::max(output.range_max[index], value);
+        auto & cached = cache->pager_summary_cache_;
+        const bool cache_hit = cached.valid && cached.identity == page.id &&
+            cached.content_version == page.content_version;
+        if (!cache_hit) {
+            cached = {};
+            cached.identity = page.id;
+            cached.content_version = page.content_version;
+            const auto * host = cache->pager_->host_catalog();
+            vbr_selected_page_host_view host_page;
+            if (host == nullptr || !host->find_page(page.id, host_page)) return false;
+            const uint32_t subblocks = VBR_GENERATION_PAGE_CELLS / config.subblock_tokens;
+            uint64_t captured_bytes = 0;
+            for (uint32_t layer_index = 0; layer_index < cache->layers.size(); ++layer_index) {
+                const auto & layer = cache->layers[layer_index];
+                const auto * tensor = layer.k;
+                const uint32_t heads = cache->hparams.n_head_kv(layer.il);
+                if (tensor == nullptr || tensor->type != GGML_TYPE_TURBO4_0 ||
+                        tensor->ne[0] <= 0 || heads == 0 || tensor->ne[0] % heads != 0 ||
+                        uint32_t(tensor->ne[0] / heads) != config.vector_dim) return false;
+                const uint64_t row_bytes = ggml_row_size(tensor->type, tensor->ne[0]);
+                const uint32_t logical_unit = layer_index * 2;
+                const auto unit_it = std::find_if(host_page.page.units.begin(),
+                        host_page.page.units.end(), [&](const auto & unit) {
+                    return unit.logical_unit_id == logical_unit &&
+                        unit.side == vbr_artifact_side::key && unit.bytes &&
+                        unit.row_bytes == row_bytes && unit.valid_rows >= valid_rows;
+                });
+                if (unit_it == host_page.page.units.end()) return false;
+                if (valid_rows > std::numeric_limits<uint64_t>::max() / row_bytes ||
+                        captured_bytes > std::numeric_limits<uint64_t>::max() - valid_rows * row_bytes) {
+                    return false;
                 }
-            }
-            return true;
-        };
-        if (ranges) {
-            for (uint32_t row = 0; row < valid_rows; ++row) {
-                if (!read_row(row)) return false;
-            }
-            for (uint32_t subblock = 0; subblock < subblocks; ++subblock) {
-                for (uint32_t d = 0; d < config.vector_dim; ++d) {
-                    const size_t index = size_t(subblock) * config.vector_dim + d;
-                    if (!std::isfinite(output.range_min[index]) ||
-                            !std::isfinite(output.range_max[index])) {
-                        output.range_min[index] = 0.0f;
-                        output.range_max[index] = 0.0f;
+                captured_bytes += valid_rows * row_bytes;
+                std::vector<pager_summary_cache_item> layer_items(heads);
+                for (uint32_t head = 0; head < heads; ++head) {
+                    auto & item = layer_items[head];
+                    item.layer = layer_index;
+                    item.head = head;
+                    item.input.id = page.id;
+                    item.input.range_min.assign(size_t(subblocks) * config.vector_dim,
+                            std::numeric_limits<float>::infinity());
+                    item.input.range_max.assign(size_t(subblocks) * config.vector_dim,
+                            -std::numeric_limits<float>::infinity());
+                }
+                std::vector<uint8_t> encoded(static_cast<size_t>(row_bytes), uint8_t(0));
+                std::vector<float> decoded(size_t(tensor->ne[0]));
+                for (uint32_t row = 0; row < valid_rows; ++row) {
+                    if (!unit_it->bytes->read(uint64_t(row) * row_bytes,
+                            encoded.data(), encoded.size())) return false;
+                    dequantize_row_turbo4_0(encoded.data(), decoded.data(), tensor->ne[0]);
+                    const uint32_t subblock = std::min<uint32_t>(subblocks - 1,
+                            row / config.subblock_tokens);
+                    for (uint32_t head = 0; head < heads; ++head) {
+                        auto & item = layer_items[head];
+                        for (uint32_t d = 0; d < config.vector_dim; ++d) {
+                            const float value = decoded[size_t(head) * config.vector_dim + d];
+                            if (!std::isfinite(value)) return false;
+                            const size_t index = size_t(subblock) * config.vector_dim + d;
+                            item.input.range_min[index] = std::min(item.input.range_min[index], value);
+                            item.input.range_max[index] = std::max(item.input.range_max[index], value);
+                        }
                     }
                 }
+                for (auto & item : layer_items) {
+                    item.input.source_bytes = 0;
+                    item.input.row_indices.clear();
+                    cached.items.push_back(std::move(item));
+                }
             }
-            if (valid_rows > std::numeric_limits<uint64_t>::max() / row_bytes) return false;
-            output.source_bytes = valid_rows * row_bytes;
-        } else {
-            for (uint32_t representative = 0; representative < config.representative_count; ++representative) {
-                const uint32_t row = valid_rows == 1 ? 0 : uint32_t((uint64_t(representative) *
-                        (valid_rows - 1)) / (config.representative_count - 1));
-                if (!read_row(row)) return false;
-                output.row_indices[representative] = row;
-                const size_t source = size_t(config.head_index) * config.vector_dim;
-                std::copy_n(decoded.data() + source, config.vector_dim,
-                            output.rotated_k_rows.begin() + size_t(representative) * config.vector_dim);
-            }
-            if (uint64_t(config.representative_count) > std::numeric_limits<uint64_t>::max() / row_bytes) return false;
-            output.source_bytes = uint64_t(config.representative_count) * row_bytes;
+            if (!cached.items.empty()) cached.items.front().input.source_bytes = captured_bytes;
+            cached.valid = true;
         }
+        const auto item = std::find_if(cached.items.begin(), cached.items.end(),
+                [&](const auto & value) {
+            return value.layer == config.layer_index && value.head == config.head_index;
+        });
+        if (item == cached.items.end()) return false;
+        output = item->input;
         return true;
     } catch (...) {
         output = {};
+        cache->pager_summary_cache_ = {};
         return false;
     }
 }
@@ -16603,7 +16552,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
 
     ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16,
             q->ne[0], 2, snapshot.geometry.kv_heads, page_count);
-    ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 8, page_count);
+    ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 9, page_count);
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, page_count);
     ggml_tensor * query = ggml_new_tensor_4d(ctx, GGML_TYPE_I64, 4, 1, 1, 1);
     if (bounds == nullptr || metadata == nullptr || membership == nullptr || query == nullptr) {
@@ -16729,6 +16678,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             state->layer = uint32_t(layer);
             state->capacity = capacity;
             state->pages.assign(capacity, {});
+            state->active_page_indices.clear();
         }
     } catch (...) {
         return false;
@@ -16756,12 +16706,13 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         const bool summary_ready = summary_version != 0 &&
             summary_version == record.content_version;
         const bool summary_update = resident && summary_changed;
-        int64_t page_data[8] = {
+        int64_t page_data[9] = {
             record.id.position_begin, int64_t(record.valid_length),
             int64_t(record.id.sequence_generation), int64_t(record.id.page_generation),
             int64_t(record.physical_slot),
             int64_t(kv->get_stream_for_seq(ubatch.seq_id[0][0])),
-            int64_t(summary_ready), int64_t(summary_update) };
+            int64_t(summary_ready), int64_t(summary_update),
+            int64_t(record.content_version) };
         std::vector<ggml_fp16_t> bound_data;
         if (summary_changed) {
             bound_data.assign(size_t(bounds_values), ggml_fp32_to_fp16(0.0f));
@@ -16804,16 +16755,30 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         previous.resident = resident;
         previous.valid = true;
     }
-    // Clear logical IDs that disappeared from the exact inventory. This is a
-    // bounded metadata walk and prevents a reused graph from retaining a
-    // candidate from an erased sequence generation.
-    for (uint32_t page_index = 0; page_index < capacity; ++page_index) {
+    // Retire only IDs that were active in the previous descriptor. The old
+    // capacity-wide sweep made an unchanged decode proportional to logical L.
+    std::vector<uint32_t> current_page_indices;
+    current_page_indices.reserve(inventory.size());
+    for (const auto & record : inventory) current_page_indices.push_back(record.id.logical_page);
+    std::sort(current_page_indices.begin(), current_page_indices.end());
+    std::sort(state->active_page_indices.begin(), state->active_page_indices.end());
+    size_t old_index = 0;
+    size_t new_index = 0;
+    while (old_index < state->active_page_indices.size()) {
+        const uint32_t page_index = state->active_page_indices[old_index];
+        while (new_index < current_page_indices.size() &&
+                current_page_indices[new_index] < page_index) ++new_index;
+        if (new_index < current_page_indices.size() &&
+                current_page_indices[new_index] == page_index) {
+            ++old_index;
+            continue;
+        }
+        if (page_index >= capacity) {
+            ++old_index;
+            continue;
+        }
         auto & previous = state->pages[page_index];
-        if (!previous.valid) continue;
-        const bool present = std::find_if(inventory.begin(), inventory.end(),
-                [&](const auto & record) { return record.id.logical_page == page_index; }) != inventory.end();
-        if (present) continue;
-        const int64_t page_data[8] = { 0, 0, 0, 0, -1, -1, 0, 0 };
+        const int64_t page_data[9] = { 0, 0, 0, 0, -1, -1, 0, 0, 0 };
         const int32_t membership_value = 0;
         std::vector<ggml_fp16_t> zeros(size_t(bounds_values), ggml_fp32_to_fp16(0.0f));
         ggml_backend_tensor_set(bounds, zeros.data(), size_t(page_index) * bounds_page_bytes,
@@ -16822,7 +16787,9 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         ggml_backend_tensor_set(membership, &membership_value,
                 size_t(page_index) * membership->nb[0], sizeof(membership_value));
         previous = {};
+        ++old_index;
     }
+    state->active_page_indices = std::move(current_page_indices);
     const llama_pos position = ubatch.pos[0];
     const int64_t query_position = position < std::numeric_limits<llama_pos>::max()
         ? int64_t(position) + 1 : int64_t(position);

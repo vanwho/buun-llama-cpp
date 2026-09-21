@@ -403,6 +403,24 @@ const vbr_selected_page_host_view * llama_vbr_selected_page_host_catalog::find(
     return nullptr;
 }
 
+bool llama_vbr_selected_page_host_catalog::find_copy(
+        const vbr_selected_page_host_key & key,
+        vbr_selected_page_host_view & output) const noexcept {
+    try {
+        std::lock_guard<std::mutex> lock(impl_->mutex);
+        const auto it = std::find_if(impl_->pages.begin(), impl_->pages.end(),
+                [&](const impl::owned_page & page) {
+            return !page.view.obsolete && page.view.key == key;
+        });
+        if (it == impl_->pages.end()) return false;
+        output = it->view;
+        return true;
+    } catch (...) {
+        output = {};
+        return false;
+    }
+}
+
 std::vector<vbr_selected_page_host_view>
 llama_vbr_selected_page_host_catalog::pages() const noexcept {
     std::vector<vbr_selected_page_host_view> output;
