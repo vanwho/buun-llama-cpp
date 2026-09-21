@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "task": "90-02",
+  "source_commit": "d709cde4b7140a0edceb61835c32916094c3f9e3",
+  "source_diff_sha256": "3205076d64bdb5f5cc82e0bc50c7145d5fafecbfa8d9917c2d042cac02b58db7",
+  "checks": {
+    "repair90_valid_speed_control_completion": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-repair89-speed-controls.py",
+        "--native-coordinate",
+        "/srv/ai/paged-kv/results/v10/90-02/cached-append-native/coordinate.json",
+        "--off-coordinate",
+        "/srv/ai/paged-kv/results/v10/90-02/cached-append-off/coordinate.json",
+        "--organic-summary",
+        "/srv/ai/paged-kv/results/v10/89-02/organic-4-fresh/summary.json",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/90-02/valid-speed-controls.json",
+        "--required-proof",
+        "repair90_valid_speed_control_completion",
+        "--require-off-append-256-cache"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/90-02/valid-speed-controls.json",
+          "sha256": "2616eb2475d877e709869c9eabaf0acd4617b62821f8d107258c5c5eee7301ef"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-02/cached-append-native/coordinate.json",
+          "sha256": "48328a4e01d759f9fe3ce5c1ab9d3c169747648d65679883e070d2dcad17edb9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-02/cached-append-off/coordinate.json",
+          "sha256": "a072e2df8b481016ca30186876bd95b3b97485b4bb8f3e23b54afe7cbd6b0f88"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/89-02/organic-4-fresh/summary.json",
+          "sha256": "bd56527b4d68e58af82c9bad9a1842f0b6f77dc11e439508f2306ad306b0cfb7"
+        }
+      ],
+      "result": {
+        "geometry": {
+          "L": 8192,
+          "H": 2048,
+          "page_tokens": 256,
+          "hot_pages": 8,
+          "pin_recent_tokens": 512,
+          "batch": 128,
+          "ubatch": 64
+        },
+        "native": {
+          "identity": "GPU turbo4 K/V with draft-mtp",
+          "append_64": {"cache_n": 6143, "new_prompt_tokens": 65, "prompt_tokens_per_second": 70.81311981906703},
+          "append_256": {"cache_n": 6146, "new_prompt_tokens": 254, "prompt_tokens_per_second": 90.14873120984566}
+        },
+        "mtp_off": {
+          "identity": "target-only GPU turbo4 K/V with no MTP",
+          "append_64": {"cache_n": 6143, "new_prompt_tokens": 65, "prompt_tokens_per_second": 72.16232749040519},
+          "append_256": {"cache_n": 6146, "new_prompt_tokens": 254, "prompt_tokens_per_second": 89.95538354638121}
+        },
+        "timing_nulls": "decode timing and native MTP counters remain null because max_tokens=1 did not provide measurable resolution",
+        "organic_cold_attribution": "retained from phase-89 A-again cold-consumption summary"
+      }
+    },
+    "build": {
+      "status": "pass",
+      "command": ["cmake", "--build", "build-cuda", "--target", "llama-server", "-j2"],
+      "binary": "build-cuda/bin/llama-server",
+      "sha256": "56841e3d307825aa4f585b2ae52d5fa7ecc8b35510c1c7947e7a8c48e8fa68ae",
+      "linked_library_sha256": {
+        "build-cuda/bin/libllama.so": "bc1e318baff111727f4d0cb5de50d945c6e28932fdeeaaadd013d8da6cde167c",
+        "build-cuda/bin/libggml-cuda.so": "d87a57b970b8a4fb4c1a08deb5a362d01d35d881017dcc4d56f1c790b00d9990",
+        "build-cuda/bin/libllama-server-impl.so": "69ea3833554f446733be483594ea72b3537e7f5eb0835218bace634c8d0ddc5c"
+      }
+    },
+    "python_tests": {
+      "status": "pass",
+      "command": ["python3", "-m", "unittest", "tools/server/bench/test_resume_contract.py"],
+      "tests_passed": 16
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_*.py"],
+      "tests_passed": 98
+    }
+  },
+  "live": {
+    "status": "pass",
+    "service": "llama-server.service",
+    "health": {"status": "ok"},
+    "restored_profile": {
+      "context": 262144,
+      "batch": 128,
+      "ubatch": 64,
+      "page_tokens": 256,
+      "hot_pages": 16,
+      "pin_recent_tokens": 1024,
+      "target": "CUDA turbo4 K/V",
+      "native_mtp": "GPU turbo4 K/V"
+    }
+  },
+  "failed_attempts": [
+    {
+      "status": "recovered",
+      "reason": "Initial MTP-off append-256 control rejected memory_seq_rm and cold-fell back with cache_n=0.",
+      "recovery": "Extended the existing two-point live rewind checkpoint facility to hybrid targets without native MTP, rebuilt, and reran the matched controls; append-256 then preserved cache_n=6146."
+    }
+  ],
+  "deferred_verification": []
+}
