@@ -975,9 +975,70 @@ static void time_large_prefill_cases(
     }
 }
 
+static void run_cuda_prefill_long_context_regression(ggml_backend_t backend) {
+    constexpr uint32_t head_dim = 256;
+    constexpr uint32_t query_tokens = 64;
+    constexpr uint32_t query_heads = 6;
+    constexpr uint32_t kv_heads = 1;
+    constexpr uint32_t kv_rows = 32768;
+    constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
+
+    const size_t kv_bytes = size_t(kv_rows) * row_bytes;
+    std::vector<uint8_t> k_host(kv_bytes, 0);
+    std::vector<uint8_t> v_host(kv_bytes, 0);
+    for (uint32_t page = 0; page < kv_rows / 256; ++page) {
+        fill_turbo4_page(k_host, size_t(page) * 256 * row_bytes, 8);
+        fill_turbo4_page(v_host, size_t(page) * 256 * row_bytes, 9);
+    }
+
+    ggml_init_params init_params = { 32u * 1024u * 1024u, nullptr, true };
+    ggml_context * ctx = ggml_init(init_params);
+    assert(ctx != nullptr);
+    ggml_tensor * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, head_dim, query_tokens, query_heads);
+    ggml_tensor * k = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, head_dim, kv_rows, kv_heads);
+    ggml_tensor * v = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, head_dim, kv_rows, kv_heads);
+    ggml_tensor * output = ggml_flash_attn_ext(ctx, q, k, v, nullptr,
+        1.0f / std::sqrt(float(head_dim)), 0.0f, 0.0f);
+    ggml_cgraph * graph = ggml_new_graph_custom(ctx, 8, false);
+    ggml_build_forward_expand(graph, output);
+    assert(ggml_cuda_flash_attn_ext_supported(0, output));
+
+    ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
+    assert(buffer != nullptr);
+    std::vector<float> q_host(size_t(query_heads) * query_tokens * head_dim, 0.0f);
+    std::vector<float> output_host(ggml_nelements(output), NAN);
+    ggml_backend_tensor_set(q, q_host.data(), 0, q_host.size() * sizeof(float));
+    ggml_backend_tensor_set(k, k_host.data(), 0, k_host.size());
+    ggml_backend_tensor_set(v, v_host.data(), 0, v_host.size());
+
+    const size_t f16_scratch_bytes = size_t(head_dim) * kv_rows * kv_heads * sizeof(uint16_t);
+    std::fprintf(stderr,
+        "cuda_prefill_long_context_regression: Q=[D=%u,U=%u,H=%u], K/V=[D=%u,L=%u,H=%u], "
+        "q_nb=[%zu,%zu,%zu], kv_nb=[%zu,%zu,%zu], f16_scratch=[K=%zu,V=%zu], "
+        "native_dynamic_shared_bytes=0\n",
+        head_dim, query_tokens, query_heads, head_dim, kv_rows, kv_heads,
+        q->nb[0], q->nb[1], q->nb[2], k->nb[0], k->nb[1], k->nb[2],
+        f16_scratch_bytes, f16_scratch_bytes);
+
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    cuda_check(cudaDeviceSynchronize(), "long-context Turbo4 prefill synchronize");
+    ggml_backend_tensor_get(output, output_host.data(), 0, output_host.size() * sizeof(float));
+    for (const float value : output_host) {
+        assert(std::isfinite(value));
+    }
+
+    ggml_backend_buffer_free(buffer);
+    ggml_free(ctx);
+    std::fprintf(stderr,
+        "cuda_prefill_long_context_regression: passed (L=%u,U=%u,GQA=%u:%u)\n",
+        kv_rows, query_tokens, query_heads, kv_heads);
+}
+
 int main(int argc, char ** argv) {
     const bool run_timing = argc == 2 && std::string(argv[1]) == "--timing";
-    assert(argc == 1 || run_timing);
+    const bool run_long_context = argc == 2 &&
+        std::string(argv[1]) == "--prefill-long-context-regression";
+    assert(argc == 1 || run_timing || run_long_context);
     assert(ggml_cuda_fattn_turbo4_page_table_valid(nullptr, 0, 0) == false);
     assert(ggml_cuda_fattn_turbo4_query_tile_for_count(1) == 1);
     assert(ggml_cuda_fattn_turbo4_query_tile_for_count(2) == 2);
@@ -989,6 +1050,12 @@ int main(int argc, char ** argv) {
 
     ggml_backend_t backend = ggml_backend_cuda_init(0);
     assert(backend != nullptr);
+
+    if (run_long_context) {
+        run_cuda_prefill_long_context_regression(backend);
+        ggml_backend_free(backend);
+        return 0;
+    }
 
     run_multigroup_turbo4_numerics(backend);
     run_split_tail_growth_regression(backend);

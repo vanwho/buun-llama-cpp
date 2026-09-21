@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "task": "86-01",
+  "source_commit": "c062c14a64471512fbd8a81e147214c3b46c298f",
+  "source_diff_sha256": "fdc8f9b8a7e57300f8186e4a86c854d5f3e744913f4ab78c14929715137383c0",
+  "checks": {
+    "cuda_prefill_long_context_regression": {
+      "status": "pass",
+      "command": [
+        "./build-cuda/bin/test-cuda-fattn-paged-turbo4",
+        "--prefill-long-context-regression"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-01/cuda-fixture/test.log",
+          "sha256": "3450be8f8df68fd2ebd48011b55239a406ca10d72e386c3d60e2ee830b678a72"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-01/paged-fixture/test.log",
+          "sha256": "6b5e150c9d9008db7f2db9f2da3103f7cb12d0845adfbe6436912826324dd2af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-01/provenance.txt",
+          "sha256": "9d526c7c85920b445009ea3e3140fe52e1549c8686e6f1e76977577583081ce2"
+        }
+      ]
+    },
+    "live_32k_request": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/86-01/live-32k-u64-c1200",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--target-tokens",
+        "1200",
+        "--initial-tokens",
+        "1200",
+        "--turn-delta",
+        "1200",
+        "--max-tokens",
+        "1",
+        "--wall-budget",
+        "240",
+        "--prefill-timeout",
+        "120",
+        "--total-timeout",
+        "300"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-01/live-32k-u64-c1200/INTERACTIVE29_01_SCALE.json",
+          "sha256": "9290d93e7c47897f1c21402ddbcb6721e0a3dd60a0055838be00cce602b4a1e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-01/live-32k-u64-c1200/raw-00.sse",
+          "sha256": "6c001082077c451e24858d811eadc77357ae7d77abde3420149f1fc30172e216"
+        }
+      ]
+    }
+  }
+}

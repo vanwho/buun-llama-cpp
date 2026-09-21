@@ -1131,3 +1131,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Replaced unfinished85-09–13 and added85-14–19: numerical repair, trustworthy control/setup, ownership, fast native MTP, GPU maintenance/dispatch, deliberate promotion, small original-prompt speed results, conditional scale, compact summary/review. Full directions in `v10/REPAIR85_PLAN.md`, audit and testing companion.
 - Fresh subsystem cluster IDs and explicit context exclude old fallback/packed-only instructions. Existing85-09 in-progress status and historical usage retained; global Wiretail settings unchanged.
 - Planning validation: active-plan validator, task-state validator (360 tasks), eight metadata unit tests and diff whitespace check passed. No inference code changed and no new live speed result claimed.
+
+## 2026-09-21T12:10:39+00:00 — 86-01 — done
+
+- Branch: `codex/task-86-01`
+- Commit at update: `c062c14a6`
+- Summary: Removed the oversized long-context Turbo4 reference launch, restored native F16 prefill dispatch, added the named CUDA regression, and passed the bounded L32768/H16384/B128/U64 request.

@@ -3406,97 +3406,6 @@ enum best_fattn_kernel {
 static void ggml_cuda_flash_attn_ext_vec(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(int device, const ggml_tensor * dst);
 
-// Correctness fallback for the Turbo prefill control.  The established tile/MMA
-// consumers currently leave a non-tile-aligned masked query tail unwritten for
-// the Qwen 6:1 GQA geometry.  This kernel keeps the work on CUDA, consumes the
-// same materialized F16 cache, and applies the actual mask directly.
-static __global__ void ggml_cuda_turbo_prefill_f16_reference(
-        const float * __restrict__ q,
-        const half  * __restrict__ k,
-        const half  * __restrict__ v,
-        const half  * __restrict__ mask,
-        float        * __restrict__ dst,
-        const int64_t D,
-        const int64_t n_q,
-        const int64_t n_head_q,
-        const int64_t n_head_kv,
-        const int64_t n_kv,
-        const int64_t q_nb1,
-        const int64_t q_nb2,
-        const int64_t q_nb3,
-        const int64_t k_nb1,
-        const int64_t k_nb2,
-        const int64_t k_nb3,
-        const int64_t v_nb1,
-        const int64_t v_nb2,
-        const int64_t v_nb3,
-        const int64_t mask_nb1,
-        const int64_t mask_nb3,
-        const int64_t dst_nb1,
-        const int64_t dst_nb2,
-        const int64_t dst_nb3,
-        const float scale) {
-    extern __shared__ float scores[];
-    const int64_t head = blockIdx.x;
-    const int64_t query = blockIdx.y;
-    const int64_t sequence = blockIdx.z;
-    const int tid = threadIdx.x;
-    if (head >= n_head_q || query >= n_q) {
-        return;
-    }
-
-    const int64_t gqa = n_head_q / n_head_kv;
-    const int64_t kv_head = head / gqa;
-    const float * q_row = (const float *) ((const char *) q + sequence*q_nb3 + head*q_nb2 + query*q_nb1);
-    const half * k_head = (const half *) ((const char *) k + sequence*k_nb3 + kv_head*k_nb2);
-    const half * v_head = (const half *) ((const char *) v + sequence*v_nb3 + kv_head*v_nb2);
-    const half * mask_row = mask != nullptr
-        ? (const half *) ((const char *) mask + sequence*mask_nb3 + query*mask_nb1) : nullptr;
-
-    for (int64_t key = tid; key < n_kv; key += blockDim.x) {
-        float dot = 0.0f;
-        const half * k_row = (const half *) ((const char *) k_head + key*k_nb1);
-        for (int64_t d = 0; d < D; ++d) {
-            dot += q_row[d] * __half2float(k_row[d]);
-        }
-        const float bias = mask_row != nullptr ? __half2float(mask_row[key]) : 0.0f;
-        scores[key] = dot * scale + bias;
-    }
-    __syncthreads();
-
-    if (tid == 0) {
-        float max_score = -INFINITY;
-        for (int64_t key = 0; key < n_kv; ++key) {
-            max_score = fmaxf(max_score, scores[key]);
-        }
-        scores[n_kv] = max_score;
-        float sum = 0.0f;
-        if (isfinite(max_score)) {
-            for (int64_t key = 0; key < n_kv; ++key) {
-                sum += expf(scores[key] - max_score);
-            }
-        }
-        scores[n_kv + 1] = sum;
-    }
-    __syncthreads();
-
-    if (tid < D) {
-        const float max_score = scores[n_kv];
-        const float sum = scores[n_kv + 1];
-        float value = 0.0f;
-        if (sum > 0.0f && isfinite(sum)) {
-            for (int64_t key = 0; key < n_kv; ++key) {
-                const float weight = expf(scores[key] - max_score);
-                const half * v_row = (const half *) ((const char *) v_head + key*v_nb1);
-                value += weight * __half2float(v_row[tid]);
-            }
-            value /= sum;
-        }
-        float * dst_row = (float *) ((char *) dst + sequence*dst_nb3 + head*dst_nb2 + query*dst_nb1);
-        dst_row[tid] = value;
-    }
-}
-
 static void ggml_cuda_turbo_prefill_attend(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     load_tcq_decode_alpha(ctx.device);
     cudaStream_t stream = ctx.stream();
@@ -3704,7 +3613,6 @@ static void ggml_cuda_turbo_prefill_attend(ggml_backend_cuda_context & ctx, ggml
     ggml_tensor * orig_q = dst->src[0];
     ggml_tensor * orig_k = dst->src[1];
     ggml_tensor * orig_v = dst->src[2];
-    ggml_tensor * orig_mask = dst->src[3];
 
     ggml_tensor Q_rot;
     if (q_rotated) {
@@ -3716,47 +3624,30 @@ static void ggml_cuda_turbo_prefill_attend(ggml_backend_cuda_context & ctx, ggml
     dst->src[2] = v_fp16 ? &V_f16 : orig_v;
     std::atomic_signal_fence(std::memory_order_seq_cst);
 
-    // Consume the materialized F16 cache through a CUDA-only reference kernel.  The
-    // optimized tile/MMA consumers currently mishandle the masked tail for this
-    // model's 6:1 GQA geometry; keep the control path deterministic until that
-    // consumer defect is repaired independently.
-    const ggml_tensor * Q_f16 = dst->src[0];
-    const ggml_tensor * K_f16_view = dst->src[1];
-    const ggml_tensor * V_f16_view = dst->src[2];
-    const ggml_tensor * mask = dst->src[3];
-    GGML_ASSERT(Q_f16->type == GGML_TYPE_F32);
-    GGML_ASSERT(K_f16_view->type == GGML_TYPE_F16);
-    GGML_ASSERT(V_f16_view->type == GGML_TYPE_F16);
-    GGML_ASSERT(Q_f16->nb[0] == sizeof(float));
-    GGML_ASSERT(K_f16_view->nb[0] == sizeof(half));
-    GGML_ASSERT(V_f16_view->nb[0] == sizeof(half));
-    GGML_ASSERT(dst->nb[0] == sizeof(float));
-    GGML_ASSERT(Q_f16->ne[0] <= 256);
-    GGML_ASSERT(Q_f16->ne[2] % K_f16_view->ne[2] == 0);
-
-    float scale = 1.0f;
-    memcpy(&scale, dst->op_params, sizeof(scale));
-    dim3 grid((unsigned) Q_f16->ne[2], (unsigned) Q_f16->ne[1], (unsigned) Q_f16->ne[3]);
-    const size_t shared_bytes = ((size_t) K_f16_view->ne[1] + 2) * sizeof(float);
-    ggml_cuda_turbo_prefill_f16_reference<<<grid, 256, shared_bytes, stream>>>(
-        (const float *) Q_f16->data,
-        (const half *) K_f16_view->data,
-        (const half *) V_f16_view->data,
-        mask != nullptr ? (const half *) mask->data : nullptr,
-        (float *) dst->data,
-        Q_f16->ne[0], Q_f16->ne[1], Q_f16->ne[2], K_f16_view->ne[2], K_f16_view->ne[1],
-        Q_f16->nb[1], Q_f16->nb[2], Q_f16->nb[3],
-        K_f16_view->nb[1], K_f16_view->nb[2], K_f16_view->nb[3],
-        V_f16_view->nb[1], V_f16_view->nb[2], V_f16_view->nb[3],
-        mask != nullptr ? mask->nb[1] : 0, mask != nullptr ? mask->nb[3] : 0,
-        dst->nb[1], dst->nb[2], dst->nb[3], scale);
-    CUDA_CHECK(cudaGetLastError());
+    // Re-select the native attention kernel after materialization. The original Turbo tensors
+    // select this wrapper, but the temporary tensors are ordinary F16 and must follow the same
+    // backend-specific dispatch as a native F16 cache (rocWMMA/tile on AMD, MMA on NVIDIA).
+    switch (ggml_cuda_get_best_fattn_kernel(ctx.device, dst)) {
+        case BEST_FATTN_KERNEL_VEC:
+            ggml_cuda_flash_attn_ext_vec(ctx, dst);
+            break;
+        case BEST_FATTN_KERNEL_TILE:
+            ggml_cuda_flash_attn_ext_tile(ctx, dst);
+            break;
+        case BEST_FATTN_KERNEL_WMMA_F16:
+            ggml_cuda_flash_attn_ext_wmma_f16(ctx, dst);
+            break;
+        case BEST_FATTN_KERNEL_MMA_F16:
+            ggml_cuda_flash_attn_ext_mma_f16(ctx, dst);
+            break;
+        case BEST_FATTN_KERNEL_NONE:
+            GGML_ABORT("fatal error");
+    }
 
     // Restore original tensor pointers
     dst->src[0] = orig_q;
     dst->src[1] = orig_k;
     dst->src[2] = orig_v;
-    dst->src[3] = orig_mask;
 
     // K/V fp16 buffers are persistent (grow-only), no free needed
 }
