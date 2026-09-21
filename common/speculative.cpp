@@ -2953,6 +2953,15 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                         verify_tokens[seq_id].resize(n_rows);
                         verify_positions[seq_id].resize(n_rows);
                         verify_h[seq_id].resize((size_t) n_rows * n_embd);
+                        // This is a new target-only recovery transaction.  Its
+                        // predecessor row is the carry selected by the previous
+                        // acceptance, not the predecessor saved by the prior
+                        // verification.  Keep it with the transaction so a
+                        // later partial rejection can replay from the current
+                        // committed frontier rather than a stale hidden row.
+                        std::memcpy(
+                            verify_input_h[seq_id].data(),
+                            pending_h[seq_id].data(), row_bytes);
                         for (int32_t i = 0; i < n_rows; ++i) {
                             verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
                             verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];

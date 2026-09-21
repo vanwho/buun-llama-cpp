@@ -418,6 +418,9 @@ json server_task_result_cmpl_final::to_json_non_oaicompat() {
     if (!cache_receipt.is_null()) {
         res["cache_receipt"] = cache_receipt;
     }
+    if (!mtp_request_counters.is_null()) {
+        res["mtp_request_counters"] = mtp_request_counters;
+    }
     return response_fields.empty() ? res : json_get_nested_values(response_fields, res);
 }
 
@@ -466,6 +469,9 @@ json server_task_result_cmpl_final::to_json_oaicompat() {
     if (stats.is_set()) {
         res["timings"] = stats.to_json();
     }
+    if (!mtp_request_counters.is_null()) {
+        res["mtp_request_counters"] = mtp_request_counters;
+    }
 
     return res;
 }
@@ -513,6 +519,9 @@ json server_task_result_cmpl_final::to_json_oaicompat_chat() {
     }
     if (stats.is_set()) {
         res["timings"] = stats.to_json();
+    }
+    if (!mtp_request_counters.is_null()) {
+        res["mtp_request_counters"] = mtp_request_counters;
     }
 
     return res;

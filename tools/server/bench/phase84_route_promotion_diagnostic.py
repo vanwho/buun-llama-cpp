@@ -154,6 +154,17 @@ def run(args: argparse.Namespace) -> dict:
         output_text = answer(response)
         after_metrics = metrics(metrics_url, key, args.status_timeout)
         after_slots = slots(slots_url, key, args.status_timeout)
+        request_counters = response.get("mtp_request_counters")
+        if request_counters is not None and not isinstance(request_counters, dict):
+            raise RuntimeError(f"response mtp_request_counters is not an object: {request_counters!r}")
+        if args.mtp == "native" and request_counters is None:
+            raise RuntimeError("native response did not retain request-scoped MTP counters")
+        if isinstance(request_counters, dict):
+            # /slots is sampled after finalization, when release() has already
+            # reset the live counters. Preserve the completion-boundary copy in
+            # the record that represents this request.
+            after_slots = dict(after_slots)
+            after_slots["mtp_request_counters"] = request_counters
         record = {
             "request": name,
             "expected": expected,
@@ -162,6 +173,7 @@ def run(args: argparse.Namespace) -> dict:
             "elapsed_s": round(elapsed, 3),
             "usage": response.get("usage"),
             "response": response,
+            "mtp_request_counters": request_counters,
             "input_tokens": token_count.get("input_tokens"),
             "messages": payload["messages"],
             "metrics_before": before_metrics,

@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "task": "89-01",
+  "source_commit": "d6ee6eeeb4d1f41436477005982250a3b3da0c44",
+  "checks": {
+    "repair89_long_run_mtp_parity": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-repair89-long-run.py",
+        "--native-summary",
+        "/srv/ai/paged-kv/results/v10/89-01/fixed-native-cooperative/summary.json",
+        "--control-summary",
+        "/srv/ai/paged-kv/results/v10/89-01/fixed-control-reference/summary.json",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/89-01/repair89-parity-validation.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/89-01/repair89-parity-validation.json",
+          "sha256": "08cb84c97519e9a2593929bba9289c4f007498ca8f6341c5ac323c58656966da"
+        }
+      ]
+    },
+    "focused_native_state_test": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["build-cuda/bin/test-speculative-mtp-state"]
+    },
+    "v10_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", ".wiretail/execution/v10", "-p", "test_*.py"]
+    }
+  },
+  "build": {
+    "status": "pass",
+    "command": ["cmake", "--build", "build-cuda", "--target", "llama-server", "test-speculative-mtp-state", "-j2"],
+    "binary": "build-cuda/bin/llama-server",
+    "sha256": "525d9d5c82291ded8dc77fbf1e5530e1f41de5fa5f1af41c747cea76b26fd93e"
+  },
+  "live": {
+    "status": "pass",
+    "service": "llama-server.service",
+    "pid": 1976560,
+    "mode": "native",
+    "model": "/srv/ai/models/text/current.gguf",
+    "context": 8192,
+    "batch": 128,
+    "ubatch": 64,
+    "page_tokens": 256,
+    "hot_pages": 8,
+    "pin_recent_tokens": 512,
+    "route": "selected direct",
+    "health": "{\"status\":\"ok\"}"
+  },
+  "deferred_verification": []
+}
