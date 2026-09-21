@@ -219,6 +219,8 @@ def runtime_identity(profile: str | None, pid: int | None = None) -> dict[str, o
         "command": shlex.join(command) if command else None,
         "model": model,
         "context": _command_value(command, "-c"),
+        "batch": _command_value(command, "-b"),
+        "ubatch": _command_value(command, "-ub"),
         "pager_mode": pager,
         "page_size_tokens": _command_value(command, "--kv-page-size"),
         "target_kv_placement": "cpu" if no_kv_offload else "gpu",
@@ -280,6 +282,10 @@ def service_snapshot(endpoint: str | None) -> dict[str, object]:
 def identity_mismatches(observed: dict[str, object], expected: dict[str, object]) -> list[str]:
     fields = ("profile", "binary", "model", "context", "pager_mode",
               "target_kv_placement", "mtp_placement")
+    if "batch" in expected:
+        fields += ("batch",)
+    if "ubatch" in expected:
+        fields += ("ubatch",)
     errors = [field for field in fields if observed.get(field) != expected.get(field)]
     if expected.get("pager_mode") != "off" and observed.get("page_size_tokens") != expected.get("page_size_tokens"):
         errors.append("page_size_tokens")

@@ -14,7 +14,7 @@ LAUNCHER = pathlib.Path("/srv/ai/scripts/start-primary-llama-profile.sh")
 
 
 class LauncherContractTest(unittest.TestCase):
-    def run_probe(self, batch: str, ubatch: str) -> tuple[subprocess.CompletedProcess[str], list[str]]:
+    def run_probe(self, batch: str, ubatch: str, *, mtp: str = "off") -> tuple[subprocess.CompletedProcess[str], list[str]]:
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             argv_path = root / "argv.json"
@@ -31,7 +31,7 @@ class LauncherContractTest(unittest.TestCase):
                 "AI_BENCHMARK_CLEAN": "1",
                 "AI_BENCHMARK_CONTEXT": "8192",
                 "AI_BENCHMARK_DEVICE": "none",
-                "AI_BENCHMARK_MTP": "off",
+                "AI_BENCHMARK_MTP": mtp,
                 "AI_BENCHMARK_SERVER_BIN": str(probe),
                 "AI_BENCHMARK_BATCH": batch,
                 "AI_BENCHMARK_UBATCH": ubatch,
@@ -64,6 +64,20 @@ class LauncherContractTest(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertEqual([], argv)
         self.assertIn("less than or equal", result.stderr)
+
+    def test_mtp_off_clears_profile_draft_options(self) -> None:
+        result, argv = self.run_probe("128", "128", mtp="off")
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("none", argv[argv.index("--spec-type") + 1])
+        self.assertNotIn("--spec-draft-n-max", argv)
+        self.assertNotIn("--spec-draft-type-k", argv)
+        self.assertNotIn("--spec-draft-type-v", argv)
+
+    def test_invalid_mtp_policy_fails_closed(self) -> None:
+        result, argv = self.run_probe("128", "128", mtp="unexpected")
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual([], argv)
+        self.assertIn("native or off", result.stderr)
 
 
 if __name__ == "__main__":

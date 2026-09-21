@@ -2888,28 +2888,42 @@ struct server_slot {
 
     void capture_mtp_state_diagnostic(const llama_batch & batch, int32_t off) {
         if (!mtp_state_diagnostic_enabled || mtp_state_diagnostic_steps >= 8 ||
-                spec_draft.empty() || ctx_tgt == nullptr) {
+                ctx_tgt == nullptr) {
             return;
         }
 
         std::vector<int32_t> rows;
-        rows.reserve(spec_i_batch.size());
+        rows.reserve(spec_i_batch.empty() ? size_t(batch.n_tokens) : spec_i_batch.size());
         json target_ids = json::array();
         json target_positions = json::array();
         json draft_positions = json::array();
         json proposal_rows = json::array();
-        for (const int32_t global_row : spec_i_batch) {
-            const int32_t row = global_row - off;
-            if (row < 0 || row >= batch.n_tokens || batch.token == nullptr ||
-                    batch.pos == nullptr) {
-                continue;
+        if (!spec_i_batch.empty()) {
+            for (const int32_t global_row : spec_i_batch) {
+                const int32_t row = global_row - off;
+                if (row < 0 || row >= batch.n_tokens || batch.token == nullptr ||
+                        batch.pos == nullptr) {
+                    continue;
+                }
+                rows.push_back(row);
+                target_ids.push_back(batch.token[row]);
+                target_positions.push_back(batch.pos[row]);
+                if (rows.size() > 1) {
+                    proposal_rows.push_back(row);
+                    draft_positions.push_back(batch.pos[row]);
+                }
             }
-            rows.push_back(row);
-            target_ids.push_back(batch.token[row]);
-            target_positions.push_back(batch.pos[row]);
-            if (rows.size() > 1) {
-                proposal_rows.push_back(row);
-                draft_positions.push_back(batch.pos[row]);
+        } else if (batch.logits != nullptr && batch.token != nullptr && batch.pos != nullptr) {
+            // MTP-off requests have no proposal map.  Scan only the first two
+            // rows explicitly marked for logits: this is the bounded dense
+            // control diagnostic, not a production full-vocabulary trace.
+            for (int32_t row = 0; row < batch.n_tokens && rows.size() < 2; ++row) {
+                if (batch.logits[row] == 0) {
+                    continue;
+                }
+                rows.push_back(row);
+                target_ids.push_back(batch.token[row]);
+                target_positions.push_back(batch.pos[row]);
             }
         }
         if (rows.empty()) {
@@ -2954,7 +2968,7 @@ struct server_slot {
         // their exact ids as the bounded proposal identity; the draft context
         // does not expose a second public full-logit row for this batch.
         event["draft_argmax_ids"] = spec_draft;
-        event["draft_argmax_source"] = "proposal_ids";
+        event["draft_argmax_source"] = spec_draft.empty() ? "unavailable" : "proposal_ids";
 
         mtp_state_diagnostic_trace.push_back(event);
         ++mtp_state_diagnostic_steps;
@@ -20234,10 +20248,11 @@ private:
                 mtp_verification || speculative_verification);
             try {
                 ret = llama_decode(ctx_tgt, batch_view);
-                if (ret == 0 && mtp_verification) {
+                if (ret == 0 && (mtp_verification ||
+                        (server_mtp_state_diagnostic_enabled() && has_output))) {
                     for (auto & slot : slots) {
-                        if (slot.is_processing() && slot.can_speculate() &&
-                                !slot.spec_draft.empty()) {
+                        if (slot.is_processing() && (slot.can_speculate() ||
+                                server_mtp_state_diagnostic_enabled())) {
                             try {
                                 slot.capture_mtp_state_diagnostic(batch_view, off);
                             } catch (...) {

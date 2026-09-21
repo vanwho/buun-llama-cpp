@@ -423,6 +423,15 @@ llama_context::llama_context(
     cparams.cb_eval           = params.cb_eval;
     cparams.cb_eval_user_data = params.cb_eval_user_data;
 
+    // Keep dense-control localization opt-in and bounded.  It observes only
+    // the named first-layer tensors needed to identify the first non-finite
+    // activation; normal contexts retain the caller's callback unchanged.
+    if (std::getenv("LLAMA_DENSE_TENSOR_DIAGNOSTIC")) {
+        cparams.cb_eval = llama_context::dense_tensor_diagnostic_callback;
+        cparams.cb_eval_user_data = this;
+        LLAMA_LOG_INFO("dense tensor diagnostic callback enabled\n");
+    }
+
     cparams.ctx_other = nullptr;
 
     // Every MTP context may use ctx_other to identify its target, regardless of
@@ -3618,6 +3627,93 @@ static void dflash_read_tensor(struct ggml_tensor * t, std::vector<float> & dst,
     dflash_read_tensor_to(t, dst.data(), n_floats);
 }
 
+bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, bool ask, void * user_data) {
+    GGML_UNUSED(user_data);
+
+    if (!t) {
+        return false;
+    }
+
+    // The model graph names these tensors after the graph builder has assigned
+    // their layer suffix.  Restricting to layer zero keeps this diagnostic
+    // finite even when the server is asked for a short generation.
+    static const char * const names[] = {
+        "attn_norm-0", "Qcur-0", "Kcur-0", "Vcur-0", "kqv_out-0",
+        "attn_inp_kq_mask",
+        "attn_pregate-0", "attn_output-0", "ffn_up-0", "ffn_gate-0",
+        "ffn_swiglu-0", "ffn_down-0", "ffn_out-0", "l_out-0",
+        "Qcur-3", "Kcur-3", "Vcur-3", "kqv_out-3", "attn_pregate-3",
+        "attn_norm-3", "attn_output-3", "attn_residual-3", "attn_post_norm-3",
+        "ffn_up-3", "ffn_gate-3", "ffn_swiglu-3", "ffn_down-3", "ffn_out-3",
+    };
+    bool selected = false;
+    for (const char * name : names) {
+        if (std::strcmp(t->name, name) == 0) {
+            selected = true;
+            break;
+        }
+    }
+    if (!selected) {
+        return false;
+    }
+
+    if (ask) {
+        // Asking for the node makes the scheduler expose its completed value
+        // to the callback.  This is intentionally enabled only for the
+        // diagnostic environment variable above.
+        return true;
+    }
+
+    const int64_t n = ggml_nelements(t);
+    if (n <= 0 || !t->buffer) {
+        std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64 " unavailable\n",
+                t->name, ggml_type_name(t->type), n);
+        return true;
+    }
+    if ((t->type != GGML_TYPE_F32 && t->type != GGML_TYPE_F16) ||
+            !ggml_is_contiguous(t) || n > 4 * 1024 * 1024) {
+        std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64 " finite=-1 nan=-1 inf=-1\n",
+                t->name, ggml_type_name(t->type), n);
+        return true;
+    }
+
+    std::vector<float> values((size_t) n);
+    if (t->type == GGML_TYPE_F32) {
+        ggml_backend_tensor_get(t, values.data(), 0, values.size() * sizeof(float));
+    } else {
+        std::vector<ggml_fp16_t> values_f16((size_t) n);
+        ggml_backend_tensor_get(t, values_f16.data(), 0, values_f16.size() * sizeof(ggml_fp16_t));
+        for (size_t i = 0; i < values.size(); ++i) {
+            values[i] = ggml_fp16_to_fp32(values_f16[i]);
+        }
+    }
+
+    uint64_t finite = 0;
+    uint64_t nan = 0;
+    uint64_t pos_inf = 0;
+    uint64_t neg_inf = 0;
+    float min_value = std::numeric_limits<float>::infinity();
+    float max_value = -std::numeric_limits<float>::infinity();
+    for (float value : values) {
+        if (std::isnan(value)) {
+            ++nan;
+        } else if (std::isinf(value)) {
+            value > 0 ? ++pos_inf : ++neg_inf;
+        } else {
+            ++finite;
+            min_value = std::min(min_value, value);
+            max_value = std::max(max_value, value);
+        }
+    }
+
+    std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64
+            " finite=%" PRIu64 " nan=%" PRIu64 " pos_inf=%" PRIu64
+            " neg_inf=%" PRIu64 " min=%g max=%g\n",
+            t->name, ggml_type_name(t->type), n, finite, nan, pos_inf, neg_inf,
+            finite ? min_value : 0.0f, finite ? max_value : 0.0f);
+    return true;
+}
+
 // DFlash eval callback: captures hidden state tensors + tape data during graph execution
 // without modifying the compute graph (zero FP impact on model computation)
 static bool dflash_eval_callback(struct ggml_tensor * t, bool ask, void * user_data) {
@@ -6177,7 +6273,13 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     // per chunk (ggml-backend.cpp compute_splits), so install a null callback for
     // fully-covered decodes and restore it otherwise. Set on both reuse and rebuild
     // paths — the sched retains the previous value across calls.
-    if (cparams.cb_eval == dflash_eval_callback && dflash_capture) {
+    if (std::getenv("LLAMA_DENSE_TENSOR_DIAGNOSTIC")) {
+        // A caller may install a later capture callback (for example while
+        // preparing a speculative context).  The explicit diagnostic mode
+        // must win for this bounded localization run.
+        ggml_backend_sched_set_eval_callback(sched.get(),
+                llama_context::dense_tensor_diagnostic_callback, this);
+    } else if (cparams.cb_eval == dflash_eval_callback && dflash_capture) {
         const bool cb_dormant = dflash_capture->eval_callback_dormant();
         ggml_backend_sched_set_eval_callback(sched.get(),
                 cb_dormant ? nullptr : cparams.cb_eval,
