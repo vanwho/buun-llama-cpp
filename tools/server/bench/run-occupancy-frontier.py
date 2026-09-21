@@ -67,6 +67,8 @@ def response_content(record: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=pathlib.Path, required=True)
+    parser.add_argument("--resume-state", type=pathlib.Path,
+                        help="resume a prior frontier checkpoint without clearing its slot")
     parser.add_argument("--api-key-file", type=pathlib.Path, required=True)
     parser.add_argument("--endpoint", default="http://127.0.0.1:8080/v1/chat/completions")
     parser.add_argument("--model", default="qwen38-fast-turbo4-mtp")
@@ -90,13 +92,56 @@ def main() -> int:
         timeout=180,
         request_options=request_options(chat_template_kwargs={"enable_thinking": False}),
     )
-    clear = driver.clear_slot(endpoint, key, 0, 180)
-    (args.output / "slot-clear.json").write_text(json.dumps(clear, indent=2) + "\n")
-
-    messages: list[dict[str, str]] = []
-    records: list[dict[str, Any]] = []
-    history: list[dict[str, Any]] = []
-    current_tokens = 0
+    prior_report: dict[str, Any] | None = None
+    if args.resume_state is not None:
+        state_path = args.resume_state / "incremental-state.json"
+        report_path = args.resume_state / "INTERACTIVE29_01_SCALE.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        prior_report = json.loads(report_path.read_text(encoding="utf-8"))
+        configuration = state.get("configuration", {})
+        expected = {
+            "logical_context_tokens": 262144,
+            "page_size_tokens": 256,
+            "hot_capacity_pages": 16,
+            "batch_tokens": 128,
+            "ubatch_tokens": 64,
+            "mode": "selective",
+            "prefill_policy": "runtime",
+            "cache_condition": "live-continuation",
+        }
+        for name, value in expected.items():
+            if configuration.get(name) != value:
+                raise SystemExit(f"resume checkpoint geometry differs in {name}: "
+                                 f"{configuration.get(name)!r} != {value!r}")
+        messages = state.get("messages")
+        records = prior_report.get("records")
+        prior_history = prior_report.get("history", {})
+        history = prior_history.get("records")
+        frontier = state.get("frontier", {})
+        if not isinstance(messages, list) or not isinstance(records, list) or not isinstance(history, list):
+            raise SystemExit("resume checkpoint is missing messages, records, or history")
+        current_tokens = frontier.get("occupied_tokens")
+        expected_live = frontier.get("live_occupied_tokens", current_tokens)
+        if not isinstance(current_tokens, int) or not isinstance(expected_live, int):
+            raise SystemExit("resume checkpoint has no numeric occupied frontier")
+        live = driver.snapshot(endpoint, key)
+        live_slots = live.get("slots") if isinstance(live, dict) else None
+        live_tokens = (live_slots[0].get("n_prompt_tokens")
+                       if isinstance(live_slots, list) and live_slots and
+                       isinstance(live_slots[0], dict) else None)
+        if live_tokens != expected_live:
+            raise SystemExit("live slot frontier differs from resume checkpoint: "
+                             f"expected {expected_live}, observed {live_tokens}")
+        messages = list(messages)
+        records = list(records)
+        history = list(history)
+    else:
+        clear = driver.clear_slot(endpoint, key, 0, 180)
+        (args.output / "slot-clear.json").write_text(json.dumps(clear, indent=2) + "\n")
+        messages = []
+        records = []
+        history = []
+        current_tokens = 0
     started_wall = time.time()
     started = time.monotonic()
     stop_reason: str | None = None
@@ -189,7 +234,9 @@ def main() -> int:
         "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "configuration": configuration,
         "history": {
-            "occupied_before_tokens": 0, "occupied_after_tokens": current_tokens,
+            "occupied_before_tokens": (prior_report.get("history", {}).get("occupied_before_tokens", 0)
+                                        if prior_report is not None else 0),
+            "occupied_after_tokens": current_tokens,
             "live_occupied_after_tokens": live_occupied_after_tokens,
             "turns": len(history), "target_tokens": args.target_tokens,
             "turn_delta": args.turn_delta, "cache_preserving": True,

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 
-PREFIX = [1200, 5292, 9384, 13476, 17568, 21660, 25752]
+DEFAULT_PREFIX = [1200, 5292, 9384, 13476, 17568, 21660, 25752]
 L = 262144
 PAGE = 256
 POOL_BYTES = 69206016
@@ -33,6 +33,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--frontier", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--required-proof", default="repair89_occupied_frontier_continuation")
+    parser.add_argument("--previous-c", type=int, default=DEFAULT_PREFIX[-1])
+    parser.add_argument("--previous-phase", default="phase88")
     args = parser.parse_args()
 
     report = load(args.frontier / "INTERACTIVE29_01_SCALE.json")
@@ -60,10 +63,12 @@ def main() -> int:
     records = report.get("records", [])
     observed = [row.get("prompt_tokens_preflight") for row in records]
     expected = [1200 + 4092 * n for n in range(len(records))]
-    require(errors, observed[: len(PREFIX)] == PREFIX,
+    prefix_length = (args.previous_c - DEFAULT_PREFIX[0]) // 4092 + 1
+    prefix = [1200 + 4092 * n for n in range(prefix_length)]
+    require(errors, observed[: len(prefix)] == prefix,
             f"continuation prefix mismatch: {observed}")
-    require(errors, len(observed) > len(PREFIX) and observed[-1] > PREFIX[-1],
-            f"frontier did not continue beyond C={PREFIX[-1]}: {observed}")
+    require(errors, len(observed) > len(prefix) and observed[-1] > args.previous_c,
+            f"frontier did not continue beyond C={args.previous_c}: {observed}")
     require(errors, observed == expected, f"turn increment mismatch: {observed}")
     require(errors, history.get("cache_preserving") is True,
             "cache-preserving history flag missing")
@@ -161,7 +166,7 @@ def main() -> int:
     proof = {
         "schema_version": 1,
         "status": "pass" if not errors else "fail",
-        "required_proof": "repair89_occupied_frontier_continuation",
+        "required_proof": args.required_proof,
         "geometry": {
             "L_tokens": L, "H_tokens": 4096, "A_tokens": 2048,
             "B_tokens": 128, "U_tokens": 64, "page_tokens": PAGE,
@@ -180,8 +185,9 @@ def main() -> int:
         },
         "frontier": {
             "sequence_tokens": observed,
-            "previous_phase88_C_tokens": PREFIX[-1],
-            "continued_beyond_previous": observed[-1] > PREFIX[-1],
+            "previous_occupied_C_tokens": args.previous_c,
+            "previous_phase": args.previous_phase,
+            "continued_beyond_previous": observed[-1] > args.previous_c,
             "cache_preserving": history.get("cache_preserving"),
         },
         "high_water": {
