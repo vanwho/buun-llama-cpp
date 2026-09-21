@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "task": "90-01",
+  "source_commit": "191e53c97d35057a3e71f002c76764211f06df02",
+  "source_diff_sha256": "bf737a473bc1d1cdf57e0321dc8a202fa405a020dec8e0c2b2f9289abc07a16a",
+  "checks": {
+    "repair90_occupied_frontier_continuation": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-repair89-occupied-frontier.py",
+        "--frontier",
+        "/srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation-recovery2",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/90-01/occupied-frontier-validation.json",
+        "--required-proof",
+        "repair90_occupied_frontier_continuation",
+        "--previous-c",
+        "38028",
+        "--previous-phase",
+        "phase89"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/90-01/occupied-frontier-validation.json",
+          "sha256": "165c87f888fc9896a0c96403a08c2c13bb21c76e4518a3712ba5c63e851d367c"
+        },
+        {
+          "path": ".wiretail/execution/evidence/artifacts/90-01/live-identity.json",
+          "sha256": "8f00a74da3189e5610f8bbd69f54955c60b34eac127b5121d950448a40fc3bf2"
+        }
+      ]
+    },
+    "frontier_campaign": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation-recovery2",
+        "--resume-state",
+        "/srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation-recovery2",
+        "--api-key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--endpoint",
+        "http://127.0.0.1:8080/v1/chat/completions",
+        "--model",
+        "qwen38-fast-turbo4-mtp",
+        "--target-tokens",
+        "262144",
+        "--turn-delta",
+        "4092",
+        "--initial-tokens",
+        "1200",
+        "--max-tokens",
+        "16",
+        "--wall-budget",
+        "900",
+        "--prefill-timeout",
+        "600",
+        "--total-timeout",
+        "900"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation-recovery2/INTERACTIVE29_01_SCALE.json",
+          "sha256": "8034f92de81d0bbb51899e3882692d459d3ad686bda2f3590aae3affed4a9efe"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation-recovery2/incremental-state.json",
+          "sha256": "67a0033086c833d4a8c86fa51fd02b9eb0c168d98b5bef71ebde3b982f752ef0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation-recovery2/metrics-final.txt",
+          "sha256": "0e00311e745b4ef25c0d3dc2cc2f9527ae46b260d80745a286f48217e9f2b735"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation-recovery2/slots-final.json",
+          "sha256": "d8086c7e0b53ef93aec777415265f157732290fac46aac4930b1ed38e8309424"
+        }
+      ]
+    },
+    "v10_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", ".wiretail/execution/v10", "-p", "test_*.py"],
+      "tests_passed": 8
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_*.py"],
+      "tests_passed": 98
+    }
+  },
+  "build": {
+    "status": "reused_prior_pass",
+    "source_task": "89-04",
+    "binary": "build-cuda/bin/llama-server",
+    "sha256": "e4698af85815df57bf06150d716b4a93e01c6fceccd50bf8f962826876d6d251",
+    "linked_library_sha256": {
+      "build-cuda/bin/libllama.so": "b89d5e65b93d5cdef3cd850ac042eef2deeb8c42022286c7114ee8e42593acfd",
+      "build-cuda/bin/libggml-cuda.so": "d87a57b970b8a4fb4c1a08deb5a362d01d35d881017dcc4d56f1c790b00d9990",
+      "build-cuda/bin/libllama-server-impl.so": "7d9ae4e77fa4d9450be13a4dcf207396d8f00f6b8fb8f661d6a7f4f3f0f1b781"
+    },
+    "receipt": ".wiretail/execution/evidence/V10_89-04.json",
+    "command": ["cmake", "--build", "build-cuda", "--target", "llama-server", "-j2"]
+  },
+  "live": {
+    "status": "pass",
+    "service": "llama-server.service",
+    "pid": 2040872,
+    "model": "/srv/ai/models/text/current.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "context": 262144,
+    "batch": 128,
+    "ubatch": 64,
+    "page_tokens": 256,
+    "hot_pages": 16,
+    "pin_recent_tokens": 1024,
+    "target": "CUDA turbo4 K/V",
+    "native_mtp": "GPU turbo4 K/V",
+    "frontier_result": "/srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation-recovery2/INTERACTIVE29_01_SCALE.json"
+  },
+  "failed_attempts": [
+    {
+      "status": "retained_failure",
+      "reason": "initial 300-second prefill deadline expired after live progress; retained at /srv/ai/paged-kv/results/v10/90-01/frontier-256k-h16-u64-continuation",
+      "recovery": "resumed the advanced live frontier with 600-second prefill and 900-second total request deadlines"
+    }
+  ],
+  "deferred_verification": []
+}

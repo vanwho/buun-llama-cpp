@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "service": "llama-server.service",
+  "pid": 2040872,
+  "endpoint": "http://127.0.0.1:8080",
+  "health": {"status": "ok"},
+  "model": "/srv/ai/models/text/current.gguf",
+  "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+  "executable": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "sha256": "e4698af85815df57bf06150d716b4a93e01c6fceccd50bf8f962826876d6d251"
+  },
+  "loaded_dsos": {
+    "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so": "b89d5e65b93d5cdef3cd850ac042eef2deeb8c42022286c7114ee8e42593acfd",
+    "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so": "d87a57b970b8a4fb4c1a08deb5a362d01d35d881017dcc4d56f1c790b00d9990",
+    "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "7d9ae4e77fa4d9450be13a4dcf207396d8f00f6b8fb8f661d6a7f4f3f0f1b781"
+  },
+  "argv_geometry": {
+    "alias": "qwen38-fast-turbo4-mtp",
+    "context": 262144,
+    "batch": 128,
+    "ubatch": 64,
+    "target_k": "turbo4",
+    "target_v": "turbo4",
+    "draft_kv_device": "gpu",
+    "draft_k": "turbo4",
+    "draft_v": "turbo4",
+    "pager": "selective",
+    "page_tokens": 256,
+    "hot_pages": 16,
+    "pin_recent_tokens": 1024
+  },
+  "final_frontier": {"durable_C_tokens": 58488, "live_C_tokens": 58503},
+  "build_receipt": {
+    "path": ".wiretail/execution/evidence/V10_89-04.json",
+    "sha256": "79ae784966f7114f756696686e01c498bf62b5d9ae565fd56e5d91228dcba6cd",
+    "note": "phase-89 build/live receipt records the same binary and linked DSO hashes"
+  }
+}
