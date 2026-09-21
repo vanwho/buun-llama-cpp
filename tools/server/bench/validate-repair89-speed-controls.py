@@ -23,7 +23,8 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def coordinate_rows(path: Path, label: str, errors: list[str]) -> tuple[dict, list[dict]]:
+def coordinate_rows(path: Path, label: str, errors: list[str],
+                    require_append_256_cache: bool = False) -> tuple[dict, list[dict]]:
     data = json.loads(path.read_text())
     fixture = data.get("fixture", {})
     require(errors, data.get("result") == "measured", f"{label}: coordinate was not measured")
@@ -73,7 +74,8 @@ def coordinate_rows(path: Path, label: str, errors: list[str]) -> tuple[dict, li
             require(errors, row.get("identity", {}).get("cache_condition") ==
                     "live-continuation", f"{label}: {name} is not live continuation")
             cache_valid = isinstance(row.get("cache_n"), int) and row["cache_n"] > 0
-            if not (label == "off" and name == "append-256" and not cache_valid):
+            if not (label == "off" and name == "append-256" and
+                    not cache_valid and not require_append_256_cache):
                 require(errors, cache_valid, f"{label}: {name} has no preserved cache")
             require(errors, isinstance(row.get("new_prompt_tokens"), int) and
                     row["new_prompt_tokens"] > 0,
@@ -162,10 +164,14 @@ def main() -> int:
     parser.add_argument("--off-coordinate", type=Path, required=True)
     parser.add_argument("--organic-summary", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--required-proof", default="repair89_valid_speed_controls")
+    parser.add_argument("--require-off-append-256-cache", action="store_true")
     args = parser.parse_args()
     errors: list[str] = []
-    native, native_rows = coordinate_rows(args.native_coordinate, "native", errors)
-    off, off_rows = coordinate_rows(args.off_coordinate, "off", errors)
+    native, native_rows = coordinate_rows(args.native_coordinate, "native", errors,
+                                          args.require_off_append_256_cache)
+    off, off_rows = coordinate_rows(args.off_coordinate, "off", errors,
+                                    args.require_off_append_256_cache)
     native_runtime = native.get("identity", {}).get("runtime", {})
     off_runtime = off.get("identity", {}).get("runtime", {})
     require(errors, native_runtime.get("mtp_placement") == "gpu" and
@@ -178,14 +184,14 @@ def main() -> int:
                         for row in off_rows),
             "off: no valid cached append control row")
     off_256 = next(row for row in off_rows if row["name"] == "append-256")
-    if not off_256["cache_n"]:
+    if not off_256["cache_n"] and not args.require_off_append_256_cache:
         off_256["status"] = "null"
         off_256["null_reason"] = "control request preserved no cache (cache_n=0)"
     cold = cold_row(args.organic_summary, errors)
     result = {
         "schema_version": 1,
         "status": "pass" if not errors else "fail",
-        "required_proof": "repair89_valid_speed_controls",
+        "required_proof": args.required_proof,
         "geometry": {"L": 8192, "H": 2048, "page_tokens": 256,
                      "hot_pages": 8, "pin_recent_tokens": 512,
                      "batch": 128, "ubatch": 64},
