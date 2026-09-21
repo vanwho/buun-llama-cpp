@@ -1838,6 +1838,13 @@ struct server_slot {
     std::string mtp_draft_restore_status = "not_needed";
     uint64_t mtp_target_restore_epoch = 0;
     uint64_t mtp_draft_restore_epoch = 0;
+    uint64_t mtp_request_drafted = 0;
+    uint64_t mtp_request_accepted = 0;
+    uint64_t mtp_request_committed = 0;
+    uint64_t mtp_request_rejected = 0;
+    uint64_t mtp_request_target_restores = 0;
+    uint64_t mtp_request_draft_restores = 0;
+    uint64_t mtp_request_restore_failures = 0;
 
     // TODO: move members that belong to the task (such as `generated_text`, `has_new_line`) to task_results_state
     //       see https://github.com/ggml-org/llama.cpp/pull/18283#issuecomment-3710175837
@@ -2756,6 +2763,13 @@ struct server_slot {
         mtp_draft_restore_status = "not_needed";
         mtp_target_restore_epoch = 0;
         mtp_draft_restore_epoch = 0;
+        mtp_request_drafted = 0;
+        mtp_request_accepted = 0;
+        mtp_request_committed = 0;
+        mtp_request_rejected = 0;
+        mtp_request_target_restores = 0;
+        mtp_request_draft_restores = 0;
+        mtp_request_restore_failures = 0;
         generated_tokens.clear();
         generated_token_probs.clear();
         json_schema = json();
@@ -2963,6 +2977,15 @@ struct server_slot {
             {"draft_restore_status", mtp_draft_restore_status},
             {"target_restore_epoch", mtp_target_restore_epoch},
             {"draft_restore_epoch", mtp_draft_restore_epoch},
+            {"request_counters", {
+                {"drafted", mtp_request_drafted},
+                {"accepted", mtp_request_accepted},
+                {"committed", mtp_request_committed},
+                {"rejected", mtp_request_rejected},
+                {"target_restores", mtp_request_target_restores},
+                {"draft_restores", mtp_request_draft_restores},
+                {"restore_failures", mtp_request_restore_failures},
+            }},
             {"state_restored_before_verification", {
                 {"target", mtp_target_restored_before_verify},
                 {"draft", mtp_draft_restored_before_verify},
@@ -3418,6 +3441,17 @@ struct server_slot {
                 {"enabled", true},
                 {"steps", mtp_state_diagnostic_steps},
                 {"events", mtp_state_diagnostic_trace},
+            };
+        }
+        if (can_speculate()) {
+            res["mtp_request_counters"] = json {
+                {"drafted", mtp_request_drafted},
+                {"accepted", mtp_request_accepted},
+                {"committed", mtp_request_committed},
+                {"rejected", mtp_request_rejected},
+                {"target_restores", mtp_request_target_restores},
+                {"draft_restores", mtp_request_draft_restores},
+                {"restore_failures", mtp_request_restore_failures},
             };
         }
 
@@ -17883,6 +17917,10 @@ private:
                         slot.spec_i_batch.clear();
                     } else {
                         slot.stats.n_draft_tokens += draft.size();
+                        if (params_base.speculative.type() ==
+                                COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
+                            slot.mtp_request_drafted += draft.size();
+                        }
                         for (size_t i = 0; i < draft.size(); i++) {
                             slot.spec_i_batch.push_back(batch.size());
                             batch.add(slot.id, draft[i], slot.prompt.tokens.pos_next(), true, false);
@@ -21035,6 +21073,11 @@ private:
             GGML_ASSERT(ids.size() == n_accepted + 1);
             slot.stats.n_draft_accepted += n_accepted;
             slot.stats.n_draft_verif_steps += 1;
+            if (params_base.speculative.type() == COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
+                slot.mtp_request_accepted += n_accepted;
+                slot.mtp_request_committed += ids.size();
+                slot.mtp_request_rejected += rollback_frontier.rejected_draft_tokens;
+            }
 
             // Verification evaluates [sampled, draft...]. The sampled row is
             // always retained; rollback depth is exactly the rejected draft
@@ -21232,6 +21275,7 @@ private:
 
                 if (native_mtp && rejected_suffix) {
                     slot.mtp_target_restore_status = "success";
+                    slot.mtp_request_target_restores++;
                 }
 
                 slot.has_draft_backup = false;
@@ -21255,6 +21299,7 @@ private:
                 // is a successful rollback, but it is not a target restore
                 // from a checkpoint and must not be reported as one.
                 slot.mtp_target_restore_status = "trimmed";
+                slot.mtp_request_target_restores++;
             }
 
             if (!common_speculative_rollback_dft(
@@ -21272,19 +21317,21 @@ private:
             }
 
             if (native_mtp && rejected_suffix) {
-                // Native MTP deliberately drops the speculative suffix and
-                // invalidates its carry. The next draft reconstructs it; no
-                // draft image was restored by this rollback.
-                slot.mtp_draft_restore_status = "rebuild_required";
+                // common_speculative_rollback_dft() replays the accepted target
+                // rows into the MTP image, making the paired restore explicit.
+                slot.mtp_draft_restore_status = "replayed";
+                slot.mtp_request_draft_restores++;
             }
 
             // The next verification may consume state restored after a
             // rejected suffix. Keep this separate from acceptance: a fully
             // accepted proposal advanced normally and was not restored.
             slot.mtp_target_restored_before_verify =
-                slot.mtp_target_restore_status == "success";
+                slot.mtp_target_restore_status == "success" ||
+                slot.mtp_target_restore_status == "trimmed";
             slot.mtp_draft_restored_before_verify =
-                slot.mtp_draft_restore_status == "success";
+                slot.mtp_draft_restore_status == "success" ||
+                slot.mtp_draft_restore_status == "replayed";
 
             // The rollback owner is now at the accepted target frontier. The
             // target verification itself was intentionally excluded from the

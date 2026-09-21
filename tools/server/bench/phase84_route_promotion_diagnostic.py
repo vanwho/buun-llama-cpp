@@ -69,6 +69,14 @@ def slots(url: str, key: str, timeout: float) -> dict:
     pager = value[0].get("pager_metrics")
     if not isinstance(pager, dict):
         raise RuntimeError("/slots did not return pager_metrics")
+    # Native MTP state parity is request-scoped, while pager metrics remain the
+    # established route/placement surface. Preserve the counters beside that
+    # surface so every A/B/A-again record carries drafted, accepted, committed,
+    # rejected, and restore accounting instead of requiring journal scraping.
+    counters = value[0].get("mtp_request_counters")
+    if isinstance(counters, dict):
+        pager = dict(pager)
+        pager["mtp_request_counters"] = counters
     return pager
 
 

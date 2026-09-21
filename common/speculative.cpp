@@ -2698,6 +2698,14 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
     // Row 0 corresponds to the sampled token, row N to the Nth accepted draft token.
     std::vector<std::vector<float>> verify_h;
     std::vector<int32_t> verify_h_rows;
+    // The target rows are also the source of truth for repairing the MTP KV
+    // image after a partial acceptance.  Keep the exact token/position span
+    // and the hidden row that preceded it; replaying that prefix makes the
+    // draft image depend only on the committed target frontier.
+    std::vector<std::vector<float>> verify_input_h;
+    std::vector<llama_tokens> verify_tokens;
+    std::vector<std::vector<llama_pos>> verify_positions;
+    std::vector<llama_pos> verify_starts;
     std::vector<common_speculative_mtp_rollback_guard> rollback_guards;
 
     std::vector<int>                i_last;
@@ -2840,6 +2848,10 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
 
         verify_h.assign(n_seq, {});
         verify_h_rows.assign(n_seq, 0);
+        verify_input_h.assign(n_seq, std::vector<float>(n_embd, 0.0f));
+        verify_tokens.resize(n_seq);
+        verify_positions.resize(n_seq);
+        verify_starts.assign(n_seq, -1);
         rollback_guards.resize(n_seq);
     }
 
@@ -2937,8 +2949,13 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                         const int32_t n_rows = i_batch_end[seq_id] -
                             i_batch_beg[seq_id] + 1;
                         verify_h_rows[seq_id] = n_rows;
+                        verify_starts[seq_id] = batch_in.pos[i_batch_beg[seq_id]];
+                        verify_tokens[seq_id].resize(n_rows);
+                        verify_positions[seq_id].resize(n_rows);
                         verify_h[seq_id].resize((size_t) n_rows * n_embd);
                         for (int32_t i = 0; i < n_rows; ++i) {
+                            verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
+                            verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];
                             const float * h = llama_get_embeddings_nextn_ith(
                                 ctx_tgt, i_batch_beg[seq_id] + i);
                             if (!h) {
@@ -3042,6 +3059,7 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
                     std::fill(pending_h[seq_id].begin(), pending_h[seq_id].end(), 0.0f);
                 }
                 GGML_ASSERT(mode != common_speculative_mtp_carry_lifecycle::process_mode::target_only);
+                std::memcpy(verify_input_h[seq_id].data(), pending_h[seq_id].data(), row_bytes);
                 set_h(i_batch_beg[seq_id], pending_h[seq_id].data());
             }
 
@@ -3085,9 +3103,14 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
 
             const int32_t n_rows = i_batch_end[seq_id] - i_batch_beg[seq_id] + 1;
             verify_h_rows[seq_id] = n_rows;
+            verify_starts[seq_id] = batch_in.pos[i_batch_beg[seq_id]];
+            verify_tokens[seq_id].resize(n_rows);
+            verify_positions[seq_id].resize(n_rows);
             verify_h[seq_id].resize((size_t) n_rows * n_embd);
 
             for (int32_t i = 0; i < n_rows; ++i) {
+                verify_tokens[seq_id][i] = batch_in.token[i_batch_beg[seq_id] + i];
+                verify_positions[seq_id][i] = batch_in.pos[i_batch_beg[seq_id] + i];
                 const float * h = llama_get_embeddings_nextn_ith(ctx_tgt, i_batch_beg[seq_id] + i);
                 std::memcpy(verify_h[seq_id].data() + (size_t) i * n_embd, h, row_bytes);
             }
@@ -3098,6 +3121,54 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         }
 
         return true;
+    }
+
+    bool replay_accepted_prefix(llama_seq_id seq_id, uint16_t n_accepted) {
+        if (seq_id < 0 || seq_id >= (llama_seq_id) n_seq ||
+                verify_h_rows[seq_id] <= 0 || verify_starts[seq_id] < 0 ||
+                n_accepted >= (uint16_t) verify_h_rows[seq_id] ||
+                verify_tokens[seq_id].size() != (size_t) verify_h_rows[seq_id] ||
+                verify_positions[seq_id].size() != (size_t) verify_h_rows[seq_id]) {
+            return false;
+        }
+
+        auto * ctx_dft = this->params.ctx_dft;
+        auto * mem_dft = llama_get_memory(ctx_dft);
+        const int32_t n_rows = int32_t(n_accepted) + 1;
+        if (!ctx_dft || !mem_dft || !llama_memory_seq_rm(
+                mem_dft, seq_id, verify_starts[seq_id], -1) ||
+                !ensure_batch_capacity(n_rows)) {
+            return false;
+        }
+
+        const size_t row_bytes = (size_t) n_embd * sizeof(float);
+        common_batch_clear(batch);
+        for (int32_t i = 0; i < n_rows; ++i) {
+            common_batch_add(batch, verify_tokens[seq_id][i],
+                    verify_positions[seq_id][i], { seq_id }, false);
+            const float * src = i == 0
+                ? verify_input_h[seq_id].data()
+                : verify_h[seq_id].data() + (size_t) (i - 1) * n_embd;
+            std::memcpy(batch.embd + (size_t) (batch.n_tokens - 1) * n_embd,
+                    src, row_bytes);
+        }
+
+        bool ok = true;
+        for (int head = 0; head < n_mtp_layers; ++head) {
+            if (chain_heads) {
+                llama_memory_seq_rm(mem_dft, seq_id, verify_starts[seq_id], -1);
+                llama_set_nextn_layer_offset(ctx_dft, head);
+            }
+            if (llama_decode(ctx_dft, batch) != 0) {
+                ok = false;
+                break;
+            }
+        }
+        if (chain_heads) {
+            llama_set_nextn_layer_offset(ctx_dft, 0);
+        }
+        common_batch_clear(batch);
+        return ok;
     }
 
     void draft(common_speculative_draft_params_vec & dparams) override {
@@ -3347,6 +3418,9 @@ struct common_speculative_impl_draft_mtp : public common_speculative_impl {
         pending_h_lifecycle[seq_id].sequence_transition(event);
         rollback_guards[seq_id].reset();
         verify_h_rows[seq_id] = 0;
+        verify_tokens[seq_id].clear();
+        verify_positions[seq_id].clear();
+        verify_starts[seq_id] = -1;
         i_last[seq_id] = -1;
         adaptive_last_draft_size[seq_id] = 0;
         if (chain_heads) {
@@ -7077,18 +7151,29 @@ bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq
             if (!mtp->rollback_guards[seq_id].should_apply(n_past)) {
                 continue;
             }
-            if (!llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
-                mtp->rollback_guards[seq_id].reset();
-                return false;
-            }
-
             const int32_t verify_rows = mtp->verify_h_rows[seq_id];
             const bool rejected_suffix = verify_rows > 0 &&
                 uint64_t(n_accepted) < uint64_t(verify_rows - 1);
             if (rejected_suffix) {
+                // Rebuild only the accepted target rows from the saved
+                // pre-verification boundary.  A suffix trim leaves the MTP
+                // KV structurally valid, but its accepted rows were produced
+                // before the target rollback/replay and are not a sufficient
+                // state-parity proof for the next draft.
+                if (!mtp->replay_accepted_prefix(seq_id, n_accepted)) {
+                    mtp->rollback_guards[seq_id].reset();
+                    return false;
+                }
+                // Force the next target process through the target-boundary
+                // refresh as well.  The replay above repairs the immediate
+                // committed image; this transition prevents a later process
+                // from treating the pre-rollback carry lifecycle as live.
                 mtp->sequence_transition(
                     seq_id,
                     common_speculative_sequence_event::target_restored_without_draft);
+            } else if (!llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
+                mtp->rollback_guards[seq_id].reset();
+                return false;
             }
             // The server has already delivered this acceptance to every
             // implementation before rolling back target/draft memory. Do not
