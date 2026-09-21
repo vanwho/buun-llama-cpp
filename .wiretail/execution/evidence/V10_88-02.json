@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "task": "88-02",
+  "source_commit": "f16e4f097b43fc8951d7b56762bd9eb8928f6858",
+  "checks": {
+    "repair88_organic_cold_quality": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-organic-cold-quality.py",
+        "--summary",
+        "/srv/ai/paged-kv/results/v10/88-02/organic-cold-quality-20260921-hot4-repaired/organic-route-diagnostic/summary.json",
+        "--journal",
+        "/srv/ai/paged-kv/results/v10/88-02/organic-cold-quality-20260921-hot4-repaired/service-journal.log",
+        "--binary",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "--model",
+        "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "--build-receipt",
+        ".wiretail/execution/evidence/artifacts/88-02/build-receipt.json",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/88-02/quality-proof.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/88-02/quality-proof.json",
+          "sha256": "8a4007aa70c7accb570efdd9cdc1b79f9e3f0b65243209797d9c857fa4fdcf0b"
+        },
+        {
+          "path": ".wiretail/execution/evidence/artifacts/88-02/organic-route-diagnostic-summary.json",
+          "sha256": "7a5b396e6b5a9d7f036798cd701b8b7ad801a995c14273c2219f170f2942f001"
+        },
+        {
+          "path": ".wiretail/execution/evidence/artifacts/88-02/service-journal.log",
+          "sha256": "3809eeb37aa03f23014d2ae2cfcf9949a792b7622a416caadbf1dd7109f67d5f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/artifacts/88-02/service-after.txt",
+          "sha256": "944f5e5c4bf263d646ccb7b44509351b040dc91ca4e02d1f02693ef174749a3f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/artifacts/88-02/build-receipt.json",
+          "sha256": "d9b4f3d59477e8634b189a91a24fde75f7dfb05f98e3531444156c45e7aff583"
+        }
+      ]
+    }
+  }
+}

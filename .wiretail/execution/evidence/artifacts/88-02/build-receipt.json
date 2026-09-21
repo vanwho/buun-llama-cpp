@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "task": "88-02",
+  "source": {
+    "commit": "f16e4f097b43fc8951d7b56762bd9eb8928f6858",
+    "tracked_source_diff_sha256": "f20a147433f87a5c2507fb2494fd5912343afd1ba64ccc2def19261985fa9185",
+    "build_command": "cmake --build build-cuda --target llama-server -j2"
+  },
+  "binary": {
+    "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "sha256": "99eb826d39ca997dc475091d0f46bc5faf9e9a81c699effb4b24f2f9c816e1f8"
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "launcher": {
+    "path": "/srv/ai/scripts/start-primary-llama-profile.sh",
+    "sha256": "6ddf5e46bd1bc721f4079ed23c60b01c957a04f7f5a9c63198fdd2c225e29cbe"
+  },
+  "argv": [
+    "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "-m", "/srv/ai/models/text/current.gguf",
+    "--alias", "qwen38-fast-turbo4-mtp",
+    "-ngl", "999", "--fit", "off", "-fa", "on", "-c", "8192", "-np", "1",
+    "-ctk", "turbo4", "-ctv", "turbo4", "-b", "128", "-ub", "64",
+    "--context-shift", "--poll", "0", "--host", "0.0.0.0", "--port", "8080",
+    "--api-key-file", "/srv/ai/config/llama/api-keys", "--metrics",
+    "--reasoning-preserve", "--kv-pager", "selective", "--kv-page-size", "256",
+    "--kv-hot-pages", "4", "--kv-attention-tokens", "1024", "--kv-pin-recent", "512",
+    "--device", "CUDA0", "--ctx-checkpoints", "0", "--cache-ram", "0",
+    "--no-cache-idle-slots", "--spec-draft-kv-device", "gpu", "--spec-type", "draft-mtp",
+    "--spec-draft-n-max", "2", "--spec-draft-type-k", "turbo4", "--spec-draft-type-v", "turbo4"
+  ],
+  "loaded_project_dso_sha256": {
+    "libggml-cuda.so.0.22.0": "d87a57b970b8a4fb4c1a08deb5a362d01d35d881017dcc4d56f1c790b00d9990",
+    "libllama.so.0.3.0": "d66e1e5c22442c0ef9b9a225bb9ae8ee86efb66a9da6726968770cb8fc1784f8",
+    "libllama-server-impl.so": "a481851b3c8a0e8b55439f3c6b063e78eead0d0897abfe72e4614f2b70693a3c",
+    "libggml.so.0.22.0": "06b1a11fac2674dd6fef5048a440fc9b5b30757426db437194846c1bab03439b"
+  }
+}
