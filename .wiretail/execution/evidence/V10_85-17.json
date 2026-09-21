@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "task": "85-17",
+  "source_commit": "17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3",
+  "source_diff_sha256": "29a2fa95895ecc95662d771837ae1444559b6a368c84045b5f203ed5390b5806",
+  "checks": {
+    "context_scaling_findings": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-17",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-17.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_REPAIR85_SCALE.json",
+          "sha256": "304cd6cf5bd4d26ada822a5c7866bd44b7ce113fa7f06c991729437913efcc31"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_REPAIR85_SCALE.md",
+          "sha256": "d09b48fec1062c03e9123781c53b29466de169ba8f25a42df93eed1d3b625588"
+        },
+        {
+          "path": ".wiretail/execution/evidence/85-17-build-identity.txt",
+          "sha256": "f478b59d546d9a95c245af6e7dc2b9208d0d7aaf56a97a05f2c2340af0a604f7"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/85-17/scale-journal.log",
+          "sha256": "f3b38458eea255410a6282849641a7553a1cd1d5c6397b666b5fdecb59c820a9"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/85-17/occupancy-262k-h16-u64/INTERACTIVE29_01_SCALE.json",
+          "sha256": "22d816a8642e22607a6ff68d4eea6cc2a7b30f19f1cacc13a3e9e4fe0da0ac24"
+        },
+        {
+          "path": ".wiretail/execution/evidence/raw/85-17/pilot-32k-u64-c1200/SPEED25_02_ATTRIBUTION.json",
+          "sha256": "bd503074c4ccacb07a86d5742d274f68c80d6c8dca5a43a00717f2d6737e54dc"
+        }
+      ],
+      "result": "Startup allocation was measured through 262144 logical tokens, while request-time occupancy stopped at C=0 on a reproducible CUDA prefill invalid-argument fault; the service was restored to the verified 6144-token native-MTP profile."
+    }
+  }
+}

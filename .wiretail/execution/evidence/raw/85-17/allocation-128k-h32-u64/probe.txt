@@ -1,0 +1,6 @@
+start=2026-09-21T13:26:19+02:00
+end=2026-09-21T13:26:24+02:00
+health=1
+MainPID=1489467
+Result=success
+ExecMainStartTimestamp=Mon 2026-09-21 13:26:19 CEST

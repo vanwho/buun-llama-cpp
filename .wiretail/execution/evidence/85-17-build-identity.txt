@@ -1,0 +1,13 @@
+candidate=/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server
+candidate_sha256=e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1
+build_receipt=/srv/ai/paged-kv/candidates/85-15-cuda/build-receipt.json
+build_receipt_sha256=42d4b85e11dc0ba7588d4549700ba6a1d2988283dd808d0740209f9cb69380fa
+source_commit=17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3
+source_diff_sha256=29a2fa95895ecc95662d771837ae1444559b6a368c84045b5f203ed5390b5806
+model=/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf
+model_sha256=40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199
+gpu=NVIDIA GeForce RTX 4080
+driver=595.91.07
+final_pid=1491372
+final_command=/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 6144 -np 1 -ctk turbo4 -ctv turbo4 -b 128 -ub 128 --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --kv-pin-recent 2048 --device CUDA0 --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4
+final_health={"status":"ok"}

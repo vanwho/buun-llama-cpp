@@ -1,0 +1,24 @@
+Stopping llama-server.service - llama.cpp OpenAI-compatible inference server...
+0.30.745.983 I srv    operator(): operator(): cleaning up before exit...
+llama-server.service: Deactivated successfully.
+Stopped llama-server.service - llama.cpp OpenAI-compatible inference server.
+llama-server.service: Consumed 2.801s CPU time over 31.204s wall clock time, 380.7M memory peak.
+Started llama-server.service - llama.cpp OpenAI-compatible inference server.
+0.00.057.588 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.059.120 I srv    load_model: loading model '/srv/ai/models/text/current.gguf'
+0.00.059.123 I srv    load_model: auto-enabled kv-unified: single-slot server doesn't need separate KV stream
+VMEAN tap: no live V layers — add disabled
+0.02.217.802 I cmn          init: llama threadpool init, n_threads = 16
+0.02.218.982 W cmn  common_init_: KV cache shifting is not supported for this context, disabling KV cache shifting
+0.02.351.880 I srv    load_model: creating MTP draft context against the target model '/srv/ai/models/text/current.gguf'
+0.02.353.767 I srv  create_mtp_c: native MTP draft K/V device=gpu, offload_kqv=true
+VMEAN tap: no live V layers — add disabled
+0.02.393.394 I common_speculative_mtp_log_residency: MTP KV type_k=turbo4 type_v=turbo4 rows=262144 bytes=276955136 bytes_per_token=0 backend=CUDA0 budget_category=mtp_gpu_reserved
+0.02.393.398 I common_speculative_mtp_log_residency: MTP KV reservation committed: rows=262144 bytes=276955136 backend=gpu budget_category=mtp_gpu_reserved
+0.02.393.437 I srv    load_model: computation-frontier ratchet: legacy reads authoritative, flip after 1024 qualifying agreements
+0.02.393.441 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 262144, kv_unified = 'true'
+0.02.393.549 I slot   load_model: id  0 | task -1 | speculative decoding context initialized
+0.02.397.816 I srv  llama_server: model loaded
+0.02.397.822 I srv  llama_server: listening on http://0.0.0.0:8080
+0.02.397.822 W srv  llama_server: NOTICE: server default port will be changed to :9931 in a future release
+0.02.397.822 W srv  llama_server:         ref: https://github.com/ggml-org/llama.cpp/pull/26508
