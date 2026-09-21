@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "task": "87-02",
+  "source_commit": "5c06dd82a9407ff7073095744e04b67fc2c1d266",
+  "checks": {
+    "repair87_controlled_cold_chain": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "--target",
+        "test-cuda-kv-promotion",
+        "-j2"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-02/controlled-promotion-cuda/test.log",
+          "sha256": "269d93ba710fcf3a469980321e33b25b0ac9df74a773366fd8b06353c3aeb593"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-02/controlled-promotion-cuda/identity.txt",
+          "sha256": "36417de49ff400a43c2c120676ef0a9de863fd2ebb5c8319c9c5e03932b1a387"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-02/controlled-promotion-cuda/build-final.log",
+          "sha256": "71f28359d6895667f750f69c4a4285dcbeab5992e8c958ca40e6c161b9ca3fc7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-02/controlled-promotion-cuda/binary.sha256",
+          "sha256": "d6d341b3084da4014467d86769721df9d8e4959af1550103ca3ad684a88f2d05"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-02/controlled-promotion-cuda/exit-code.txt",
+          "sha256": "bde294368bfed77c2cddf8cec271d398aee9cdbab3b26e1059281bd33adb0120"
+        },
+        {
+          "path": "tests/test-cuda-kv-promotion.cpp",
+          "sha256": "842860d3de480ac5ad5261f402235a1d71c80aee2966cae2385d68ddccae6ec0"
+        }
+      ],
+      "result": {
+        "origin": "controlled synthetic CUDA fixture; no natural-promotion claim",
+        "geometry": {
+          "logical_pages": 8,
+          "page_tokens": 256,
+          "hot_capacity": 3,
+          "cold_capacity": 2,
+          "layers": 16,
+          "kv_heads": 2,
+          "q_heads": 4,
+          "head_dim": 128
+        },
+        "immutable_page_identity": {
+          "seed": "0x49060001",
+          "winner_logical": 0,
+          "page_generation": 100,
+          "physical_slot_after_promotion": 2,
+          "checksum": "0x3e1c5cadefa47a9a",
+          "host_device_checksum_match": true
+        },
+        "rank_edge": {
+          "cold_before_copy": true,
+          "winner_margin": 297.858948,
+          "positive_margin_required": 0.05
+        },
+        "h2d_edge": {
+          "copied_useful_bytes": 1081344,
+          "positive_copy_required": true
+        },
+        "publication_edge": {
+          "status": "committed",
+          "published": true,
+          "published_epoch": 6174
+        },
+        "stable_generation_edge": {
+          "owner_generation": 100,
+          "identity_preserved": true
+        },
+        "completed_target_consumption_edge": {
+          "target_contains_winner": true,
+          "mature_fa_reference_tolerance": 0.002,
+          "mature_fa_perturbation_delta": 0.000680,
+          "prefill_q_values": [1, 2, 3],
+          "reference_parity": true
+        }
+      }
+    }
+  },
+  "verification": {
+    "cuda_build": "pass: test-cuda-kv-promotion",
+    "cuda_controlled_proof": "pass: rank, H2D, publication, stable generation, and completed target consumption are separately asserted",
+    "natural_promotion": "not claimed; controlled origin is required by this packet"
+  }
+}
