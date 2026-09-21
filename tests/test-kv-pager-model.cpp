@@ -364,14 +364,54 @@ static bool run_contract_probes(std::ostream & out, bool native_mtp) {
 
 struct model_run {
     std::vector<float> logits;
+    std::vector<llama_token> mtp_proposals;
+    std::vector<llama_token> mtp_target_argmax;
+    std::vector<llama_token> mtp_committed;
     std::string route = "not_configured";
+    std::string mtp_route = "not_run";
     uint32_t n_vocab = 0;
+    uint32_t mtp_accepted = 0;
+    bool mtp_transaction = false;
+    bool mtp_logits_finite = false;
     double prefill_ms = 0.0;
     double decode_ms = 0.0;
     llama_kv_pager_metrics_snapshot initial_metrics;
     llama_kv_pager_metrics_snapshot prefill_metrics;
     llama_kv_pager_metrics_snapshot final_metrics;
 };
+
+static bool argmax_finite(const float * logits, uint32_t n_vocab,
+        llama_token & result) {
+    if (logits == nullptr || n_vocab == 0) {
+        return false;
+    }
+    float best = -std::numeric_limits<float>::infinity();
+    llama_token best_id = LLAMA_TOKEN_NULL;
+    for (uint32_t i = 0; i < n_vocab; ++i) {
+        const float value = logits[i];
+        if (!std::isfinite(value)) {
+            return false;
+        }
+        if (value > best) {
+            best = value;
+            best_id = llama_token(i);
+        }
+    }
+    result = best_id;
+    return result != LLAMA_TOKEN_NULL;
+}
+
+static void write_token_array(std::ostream & out,
+        const std::vector<llama_token> & tokens) {
+    out << "[";
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        if (i != 0) {
+            out << ",";
+        }
+        out << tokens[i];
+    }
+    out << "]";
+}
 
 static bool decode_fixed_tokens(llama_context * ctx, uint32_t count,
         uint32_t first_position, double & elapsed_ms, std::string & error) {
@@ -498,7 +538,18 @@ static void write_model_metrics(std::ostream & out, const model_run & run) {
         << ", \"target_use_epoch\": " << after.natural_proof.target_use_epoch
         << ", \"target_use_query_generation\": "
         << after.natural_proof.target_use_query_generation
-        << "}, \"rejection_histogram\": {\"no_candidate\": "
+        << "}, \"mtp\": {\"route\": \"" << run.mtp_route
+        << "\", \"transaction\": " << (run.mtp_transaction ? "true" : "false")
+        << ", \"logits_finite\": " << (run.mtp_logits_finite ? "true" : "false")
+        << ", \"drafted\": " << run.mtp_proposals.size()
+        << ", \"accepted\": " << run.mtp_accepted
+        << ", \"proposals\": ";
+    write_token_array(out, run.mtp_proposals);
+    out << ", \"target_argmax\": ";
+    write_token_array(out, run.mtp_target_argmax);
+    out << ", \"committed\": ";
+    write_token_array(out, run.mtp_committed);
+    out << "}, \"rejection_histogram\": {\"no_candidate\": "
         << after.rejection_histogram.no_candidate
         << ", \"invalid_candidate\": " << after.rejection_histogram.invalid_candidate
         << ", \"not_cold\": " << after.rejection_histogram.not_cold
@@ -558,7 +609,8 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         params.speculative.draft.kv_device = common_speculative_draft_kv_device::GPU;
     }
 
-    if (opts.tokens.size() + uint64_t(opts.generate) > opts.context) {
+    const uint64_t mtp_rows = opts.native_mtp ? 3u : 0u;
+    if (opts.tokens.size() + mtp_rows + uint64_t(opts.generate) > opts.context) {
         error = "prompt plus fixed-token decode exceeds logical context";
         return false;
     }
@@ -578,9 +630,12 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
             : "model or context initialization failed";
         return false;
     }
+    ctx->set_kv_attention_native_mtp(opts.native_mtp);
 
-    common_speculative_ptr spec;
     common_speculative_init_result_ptr spec_init;
+    // The speculative implementation borrows the draft contexts owned by
+    // spec_init, so destroy it before releasing those contexts.
+    common_speculative_ptr spec;
     if (opts.native_mtp) {
         common_params params_dft = common_base_params_to_speculative(params);
         spec_init = common_speculative_init_from_params(params_dft, model, ctx);
@@ -596,6 +651,7 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
             error = "native MTP not configured: speculative lifecycle initialization failed";
             return false;
         }
+        common_speculative_begin(spec.get(), 0, opts.tokens);
     }
 
     result.initial_metrics = ctx->get_kv_pager_metrics();
@@ -625,8 +681,7 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
             return false;
         }
         llama_synchronize(ctx);
-        if (offset + count == opts.tokens.size() && spec &&
-                !common_speculative_process(spec.get(), batch)) {
+        if (spec && !common_speculative_process(spec.get(), batch)) {
             llama_batch_free(batch);
             error = "native MTP speculative processing failed";
             return false;
@@ -638,7 +693,126 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
     result.prefill_ms = std::chrono::duration<double, std::milli>(
             prefill_finished - prefill_started).count();
     result.prefill_metrics = ctx->get_kv_pager_metrics();
-    if (!decode_fixed_tokens(ctx, opts.generate, uint32_t(opts.tokens.size()),
+
+    size_t next_decode_position = opts.tokens.size();
+    if (spec) {
+        const uint32_t n_vocab = uint32_t(llama_vocab_n_tokens(
+                llama_model_get_vocab(model)));
+        llama_token sampled = LLAMA_TOKEN_NULL;
+        if (!argmax_finite(llama_get_logits_ith(ctx, -1), n_vocab, sampled)) {
+            error = "native MTP prompt logits are unavailable or non-finite";
+            return false;
+        }
+
+        auto & dp = common_speculative_get_draft_params(spec.get(), 0);
+        dp.drafting = true;
+        dp.n_max = 2;
+        dp.n_past = llama_pos(opts.tokens.size());
+        dp.id_last = sampled;
+        dp.prompt = &opts.tokens;
+        dp.result = &result.mtp_proposals;
+        common_speculative_draft(spec.get());
+        if (result.mtp_proposals.empty()) {
+            error = "native MTP produced no draft tokens";
+            return false;
+        }
+
+        const size_t verify_count = result.mtp_proposals.size() + 1;
+        llama_batch verify = llama_batch_init(int32_t(verify_count), 0, 1);
+        if (verify.token == nullptr || verify.pos == nullptr ||
+                verify.n_seq_id == nullptr || verify.seq_id == nullptr ||
+                verify.logits == nullptr) {
+            llama_batch_free(verify);
+            error = "failed to allocate native MTP verification batch";
+            return false;
+        }
+        verify.n_tokens = int32_t(verify_count);
+        verify.token[0] = sampled;
+        verify.pos[0] = llama_pos(opts.tokens.size());
+        verify.n_seq_id[0] = 1;
+        verify.seq_id[0][0] = 0;
+        verify.logits[0] = true;
+        for (size_t i = 0; i < result.mtp_proposals.size(); ++i) {
+            verify.token[i + 1] = result.mtp_proposals[i];
+            verify.pos[i + 1] = llama_pos(opts.tokens.size() + i + 1);
+            verify.n_seq_id[i + 1] = 1;
+            verify.seq_id[i + 1][0] = 0;
+            verify.logits[i + 1] = true;
+        }
+
+        ctx->set_kv_attention_mtp_verification(true);
+        const int verify_status = llama_decode(ctx, verify);
+        ctx->set_kv_attention_mtp_verification(false);
+        if (verify_status != 0) {
+            llama_batch_free(verify);
+            error = "native MTP verification decode failed with status " +
+                std::to_string(verify_status);
+            return false;
+        }
+        llama_synchronize(ctx);
+        if (!common_speculative_process(spec.get(), verify)) {
+            llama_batch_free(verify);
+            error = "native MTP verification processing failed";
+            return false;
+        }
+
+        result.mtp_target_argmax.reserve(verify_count);
+        result.mtp_logits_finite = true;
+        for (size_t row = 0; row < verify_count; ++row) {
+            llama_token id = LLAMA_TOKEN_NULL;
+            if (!argmax_finite(llama_get_logits_ith(ctx, int32_t(row)),
+                    n_vocab, id)) {
+                result.mtp_logits_finite = false;
+                break;
+            }
+            result.mtp_target_argmax.push_back(id);
+        }
+        if (!result.mtp_logits_finite || result.mtp_target_argmax.size() != verify_count) {
+            llama_batch_free(verify);
+            error = "native MTP verification logits are non-finite or unavailable";
+            return false;
+        }
+
+        while (result.mtp_accepted < result.mtp_proposals.size() &&
+                result.mtp_target_argmax[result.mtp_accepted] ==
+                    result.mtp_proposals[result.mtp_accepted]) {
+            ++result.mtp_accepted;
+        }
+        result.mtp_committed.push_back(sampled);
+        result.mtp_committed.insert(result.mtp_committed.end(),
+                result.mtp_proposals.begin(),
+                result.mtp_proposals.begin() + result.mtp_accepted);
+        result.mtp_committed.push_back(
+                result.mtp_target_argmax[result.mtp_accepted]);
+
+        const auto frontier = common_speculative_rollback_frontier_resolve(
+                int64_t(opts.tokens.size()), result.mtp_proposals.size(),
+                result.mtp_accepted);
+        if (!frontier.valid()) {
+            llama_batch_free(verify);
+            error = "native MTP rollback frontier is invalid";
+            return false;
+        }
+        const bool target_rollback = llama_memory_seq_rm_transient(
+                llama_get_memory(ctx), 0, llama_pos(frontier.accepted_token_count), -1);
+        const bool draft_rollback = target_rollback && common_speculative_rollback_dft(
+                spec.get(), 0, llama_pos(frontier.accepted_token_count),
+                uint16_t(result.mtp_accepted));
+        if (!target_rollback || !draft_rollback) {
+            llama_batch_free(verify);
+            error = "native MTP rollback failed (target=" +
+                std::string(target_rollback ? "ok" : "failed") +
+                ", draft=" + std::string(draft_rollback ? "ok" : "failed") + ")";
+            return false;
+        }
+        next_decode_position = size_t(frontier.accepted_token_count);
+        result.mtp_transaction = true;
+        result.mtp_route = llama_kv_attention_execution_route_name(
+                ctx->get_kv_pager_metrics().route);
+        llama_batch_free(verify);
+    }
+
+    if (!decode_fixed_tokens(ctx, opts.generate, uint32_t(next_decode_position),
                              result.decode_ms, error)) {
         return false;
     }
@@ -671,14 +845,18 @@ static bool run_model_compare(const options & opts, std::ostream & out) {
         write_model_metrics(out, selected);
         out << "\n}\n";
         const auto & proof = selected.final_metrics.natural_proof;
-        return proof.selector_published && proof.h2d_queued && proof.h2d_completed &&
-            proof.mapping_published && proof.target_graph_used;
+        const bool native_transaction = !opts.native_mtp ||
+            (selected.mtp_transaction && selected.mtp_route == "selected direct" &&
+             selected.mtp_logits_finite && !selected.mtp_proposals.empty());
+        return native_transaction &&
+            (opts.native_mtp || (proof.selector_published && proof.h2d_queued &&
+                proof.h2d_completed && proof.mapping_published && proof.target_graph_used));
     }
     model_run dense;
     model_run selected;
     std::string error;
     options dense_opts = opts;
-    dense_opts.native_mtp = false;
+    dense_opts.native_mtp = opts.native_mtp;
     if (!run_model_once(dense_opts, llama_kv_pager_mode::off, dense, error)) {
         out << "{\"driver\":\"test-kv-pager-model\",\"mode\":\"model\","
                "\"status\":\"error\",\"error\":\"" << error << "\"}\n";
@@ -690,12 +868,20 @@ static bool run_model_compare(const options & opts, std::ostream & out) {
         return false;
     }
     const stats result = compare(dense.logits, selected.logits, 1e-4);
+    const bool mtp_transaction_equivalent = !opts.native_mtp ||
+        (dense.mtp_transaction && selected.mtp_transaction &&
+         dense.mtp_logits_finite && selected.mtp_logits_finite &&
+         dense.mtp_target_argmax == selected.mtp_target_argmax &&
+         dense.mtp_committed == selected.mtp_committed);
     out << "{\n  \"driver\": \"test-kv-pager-model\",\n"
         << "  \"mode\": \"model\",\n  \"mtp\": "
         << (opts.native_mtp ? "true" : "false") << ",\n"
         << "  \"tokens\": " << opts.tokens.size() << ",\n"
         << "  \"dense_route\": \"" << dense.route << "\",\n"
         << "  \"selected_route\": \"" << selected.route << "\",\n"
+        << "  \"mtp_verify_route\": \"" << selected.mtp_route << "\",\n"
+        << "  \"mtp_transaction_equivalent\": "
+        << (mtp_transaction_equivalent ? "true" : "false") << ",\n"
         << "  \"domains\": {\"stored_k\": \"turbo_rotated\","
            "\"selected_reference_k\": \"original\","
            "\"stored_v\": \"turbo_rotated\",\"v_inverse_count\": 1},\n"
@@ -722,7 +908,9 @@ static bool run_model_compare(const options & opts, std::ostream & out) {
             integrity.test_forced_host_checksum != 0 &&
             integrity.test_forced_host_checksum == integrity.test_forced_device_checksum;
     }
-    return result.max_abs < 1e-3;
+    return result.max_abs < 1e-3 && mtp_transaction_equivalent &&
+        (!opts.native_mtp || (selected.mtp_accepted > 0 &&
+            selected.mtp_route == "selected direct"));
 }
 
 } // namespace

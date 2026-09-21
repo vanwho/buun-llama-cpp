@@ -706,14 +706,13 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         }
     }
 
-    // Native MTP verification shares the target/draft rollback boundary. Keep
-    // its automatic consumer on the canonical reference path until the
-    // direct target-use proof is complete; an explicit direct override remains
-    // available for that diagnostic. Other phases may use the persistent
-    // paged consumer without materializing a compact owner.
-    if ((!native_mtp_enabled_ || phase != llama_kv_attention_execution_phase::prefill) &&
-        phase != llama_kv_attention_execution_phase::mtp_verify &&
-        direct_capable && production_direct_shape(metadata, phase)) {
+    // Native MTP verification is a normal selected target transaction. Its
+    // graph carries the same page table, native positions, and causal mask as
+    // an ordinary decode; the rollback owner trims the target and draft state
+    // only after the graph has completed. Keep route selection based on the
+    // actual shape/capability contract rather than the speculative flag so a
+    // native verify batch can consume the fast selected target directly.
+    if (direct_capable && production_direct_shape(metadata, phase)) {
         return llama_kv_attention_execution_route::selected_direct;
     }
 

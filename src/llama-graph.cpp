@@ -4687,6 +4687,19 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 inp->self_v_idxs_by_layer.push_back(
                         mctx_cur->build_input_v_idxs(ctx0, ubatch, layer_id));
             }
+            // The per-layer maps are consumed by CUDA SET_ROWS during the
+            // direct cache transaction.  Bind every graph input explicitly to
+            // the same device as the pager slab before graph allocation; the
+            // scheduler otherwise may place a later layer's input in a
+            // transient/aliased buffer, leaving its device index map stale.
+            if (inp->direct_backend != nullptr) {
+                for (ggml_tensor * tensor : inp->self_k_idxs_by_layer) {
+                    ggml_backend_sched_set_tensor_backend(sched, tensor, inp->direct_backend);
+                }
+                for (ggml_tensor * tensor : inp->self_v_idxs_by_layer) {
+                    ggml_backend_sched_set_tensor_backend(sched, tensor, inp->direct_backend);
+                }
+            }
         }
 
         if (!inp->direct_attention) {

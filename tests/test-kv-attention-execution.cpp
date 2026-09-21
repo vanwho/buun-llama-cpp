@@ -485,15 +485,18 @@ static void test_view_sized_scratch_contract() {
            llama_kv_attention_execution_route::selected_direct);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::mtp_verify, true, false, false) ==
-           llama_kv_attention_execution_route::selected_reference);
+           llama_kv_attention_execution_route::selected_direct);
     llama_kv_attention_execution native_mtp_execution(
             llama_kv_attention_execution_mode::selective);
     native_mtp_execution.set_native_mtp_enabled(true);
     assert(native_mtp_execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, true, false, true) ==
-           llama_kv_attention_execution_route::selected_reference);
+           llama_kv_attention_execution_route::selected_direct);
     assert(native_mtp_execution.planned_route(selected,
             llama_kv_attention_execution_phase::decode, true, false, true) ==
+           llama_kv_attention_execution_route::selected_direct);
+    assert(native_mtp_execution.planned_route(selected,
+            llama_kv_attention_execution_phase::mtp_verify, true, false, true) ==
            llama_kv_attention_execution_route::selected_direct);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, true, false, true) ==
