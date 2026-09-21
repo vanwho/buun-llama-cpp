@@ -1,0 +1,299 @@
+{
+  "allocation": {
+    "L": 262144,
+    "host_pages": 15,
+    "independent_from_occupancy": true,
+    "physical_pool_capacity_bytes": 69206016,
+    "resident_pages": 16,
+    "status": "measured",
+    "target_allocated_bytes": 69206016,
+    "target_valid_rows": 3975
+  },
+  "amendment": "repair87-20260921",
+  "attribution": {
+    "controlled_promotion": {
+      "eviction_pages_delta": 1,
+      "h2d_aligned_bytes_delta": 4325376,
+      "h2d_completed": true,
+      "h2d_useful_bytes_delta": 4325376,
+      "promotion_pages_delta": 1,
+      "target_graph_used": true
+    },
+    "organic_cold_control": {
+      "completed_transfer_events": 0,
+      "copy_us": 0,
+      "published_h2d_useful_bytes": 4325376,
+      "queue_us": 112320.0,
+      "request_h2d_useful_bytes": 0.0,
+      "target_graph_used": true,
+      "wait_us": 300188
+    },
+    "queue_and_wait_separate": true,
+    "status": "measured"
+  },
+  "controlled_promotion": {
+    "candidate_identity": {
+      "checksum_equal": true,
+      "content_version": 4,
+      "device_checksum": 18377896359451344841,
+      "host_checksum": 18377896359451344841,
+      "logical_page": 0,
+      "page_generation": 4,
+      "physical_slot": 7
+    },
+    "geometry": {
+      "batch_tokens": 128,
+      "context_tokens": 8192,
+      "hot_pages": 8,
+      "input_tokens": 2425,
+      "page_tokens": 256,
+      "pin_recent_tokens": 512,
+      "ubatch_tokens": 64
+    },
+    "native_mtp": {
+      "accepted": 1,
+      "committed": 3,
+      "draft_restores": 2,
+      "drafted": 4,
+      "rejected": 3,
+      "restore_failures": 0,
+      "target_restores": 2
+    },
+    "origin": "controlled",
+    "publication": {
+      "eviction_pages_delta": 1,
+      "h2d_aligned_bytes_delta": 4325376,
+      "h2d_completed": true,
+      "h2d_useful_bytes_delta": 4325376,
+      "promotion_pages_delta": 1,
+      "target_graph_used": true
+    },
+    "status": "measured"
+  },
+  "frontier_occupancy": {
+    "L": 262144,
+    "cache_preserving": true,
+    "durable_C": 58488,
+    "full_L_occupied": null,
+    "live_C": 58503,
+    "null_reason": "bounded wall stop before full-L occupancy",
+    "previous_C": 38028,
+    "sequence_tokens": [
+      1200,
+      5292,
+      9384,
+      13476,
+      17568,
+      21660,
+      25752,
+      29844,
+      33936,
+      38028,
+      42120,
+      46212,
+      50304,
+      54396,
+      58488
+    ],
+    "status": "measured_partial",
+    "stop_reason": "operator_bounded_wall_budget_stop_after_C58488"
+  },
+  "identity": {
+    "binary": "build-cuda/bin/llama-server",
+    "model": "/srv/ai/models/text/current.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "native_mtp": "GPU turbo4 K/V",
+    "target": "CUDA turbo4 K/V"
+  },
+  "native_mtp_parity": {
+    "case_outputs_equal": null,
+    "control_note": "Established native-MTP parity remains a prior control; phase90 speed rows are reported separately.",
+    "phase90_claim": false,
+    "restore_failures": 0,
+    "status": "retained_control"
+  },
+  "null_reasons": {
+    "frontier_occupancy.full_L_occupied": "bounded wall stop before full-L occupancy",
+    "native_mtp_parity.case_outputs_equal": "native-MTP parity was retained as a prior control, not rerun in phase90",
+    "organic_quality.all_runs_exact": "organic semantic sequence was not rerun in phase90",
+    "speed_controls.decode_tokens_per_second": "max_tokens=1 timing resolution"
+  },
+  "organic_quality": {
+    "all_runs_exact": null,
+    "control_note": "Established organic semantic quality remains a prior control; phase90 does not promote it to a new claim.",
+    "null_reason": "organic semantic sequence was not rerun in phase90",
+    "phase90_claim": false,
+    "status": "retained_control"
+  },
+  "phase": 90,
+  "raw_pointers": {
+    "phase90_proof_manifests": {
+      "controlled": {
+        "path": "/srv/ai/paged-kv/results/v10/90-03/server-controlled-final2/proof/controlled-request.json",
+        "sha256": "ef5c5da9d193257cfe304bba27b017a693a10f7ccb96ab32d6e79a7d48e7c808"
+      },
+      "frontier": {
+        "path": ".wiretail/execution/evidence/artifacts/90-01/occupied-frontier-validation.json",
+        "sha256": "165c87f888fc9896a0c96403a08c2c13bb21c76e4518a3712ba5c63e851d367c"
+      },
+      "speed": {
+        "path": ".wiretail/execution/evidence/artifacts/90-02/valid-speed-controls.json",
+        "sha256": "2616eb2475d877e709869c9eabaf0acd4617b62821f8d107258c5c5eee7301ef"
+      }
+    },
+    "phase90_receipts": {
+      "90-01": {
+        "path": ".wiretail/execution/evidence/V10_90-01.json",
+        "sha256": "9476e0fa52e89314a1769f7af7560875a050b80ac6a621bdaf0c2db0882a4cba"
+      },
+      "90-02": {
+        "path": ".wiretail/execution/evidence/V10_90-02.json",
+        "sha256": "70a3416558935bef417c7a92d3f90172a6428e3d2ad066c5214b74de65c34435"
+      },
+      "90-03": {
+        "path": ".wiretail/execution/evidence/V10_90-03.json",
+        "sha256": "8b324aeca0a1a524ecf65be4a74e0786487d9d79a12bdd871d2146ee562672a3"
+      }
+    }
+  },
+  "result": "capability_findings",
+  "revision": "hotpath-v10-20260914",
+  "schema": "hotpath-v10-phase90-compact-summary",
+  "schema_version": 1,
+  "scope": {
+    "frontier_geometry": {
+      "A_tokens": 2048,
+      "B_tokens": 128,
+      "H_tokens": 4096,
+      "L_tokens": 262144,
+      "U_tokens": 64,
+      "hot_pages": 16,
+      "page_tokens": 256,
+      "pin_recent_tokens": 1024
+    },
+    "phase90_claims_only": true,
+    "source_phase": 90,
+    "source_policy": "phase90 receipts and proof manifests only",
+    "speed_geometry": {
+      "H": 2048,
+      "L": 8192,
+      "batch": 128,
+      "hot_pages": 8,
+      "page_tokens": 256,
+      "pin_recent_tokens": 512,
+      "ubatch": 64
+    }
+  },
+  "speed_controls": {
+    "decode_tokens_per_second": null,
+    "geometry": {
+      "H": 2048,
+      "L": 8192,
+      "batch": 128,
+      "hot_pages": 8,
+      "page_tokens": 256,
+      "pin_recent_tokens": 512,
+      "ubatch": 64
+    },
+    "mtp_off_control": {
+      "rows": [
+        {
+          "append_delta": 64,
+          "cache_condition": "live-continuation",
+          "cache_n": 6143,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": 0.0,
+            "accepted_tokens": 0,
+            "draft_tokens": 0,
+            "mode": "off",
+            "status": "off"
+          },
+          "name": "append-64",
+          "new_prompt_tokens": 65,
+          "predicted_ms": 0.001,
+          "prompt_ms": 900.747,
+          "prompt_tokens": 6208,
+          "prompt_tokens_per_second": 72.16232749040519,
+          "status": "pass"
+        },
+        {
+          "append_delta": 256,
+          "cache_condition": "live-continuation",
+          "cache_n": 6146,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": 0.0,
+            "accepted_tokens": 0,
+            "draft_tokens": 0,
+            "mode": "off",
+            "status": "off"
+          },
+          "name": "append-256",
+          "new_prompt_tokens": 254,
+          "predicted_ms": 0.001,
+          "prompt_ms": 2823.622,
+          "prompt_tokens": 6400,
+          "prompt_tokens_per_second": 89.95538354638121,
+          "status": "pass"
+        }
+      ],
+      "status": "measured"
+    },
+    "native_mtp": {
+      "rows": [
+        {
+          "append_delta": 64,
+          "cache_condition": "live-continuation",
+          "cache_n": 6143,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": null,
+            "accepted_tokens": null,
+            "draft_tokens": null,
+            "mode": "native",
+            "reason": "mtp_observation_missing",
+            "status": "not_run"
+          },
+          "name": "append-64",
+          "new_prompt_tokens": 65,
+          "predicted_ms": 0.001,
+          "prompt_ms": 917.909,
+          "prompt_tokens": 6208,
+          "prompt_tokens_per_second": 70.81311981906703,
+          "status": "pass"
+        },
+        {
+          "append_delta": 256,
+          "cache_condition": "live-continuation",
+          "cache_n": 6146,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": null,
+            "accepted_tokens": null,
+            "draft_tokens": null,
+            "mode": "native",
+            "reason": "mtp_observation_missing",
+            "status": "not_run"
+          },
+          "name": "append-256",
+          "new_prompt_tokens": 254,
+          "predicted_ms": 0.001,
+          "prompt_ms": 2817.566,
+          "prompt_tokens": 6400,
+          "prompt_tokens_per_second": 90.14873120984566,
+          "status": "pass"
+        }
+      ],
+      "status": "measured"
+    },
+    "null_reason": "max_tokens=1 timing resolution",
+    "status": "measured"
+  },
+  "task": "90-04",
+  "validation_errors": []
+}
