@@ -225,10 +225,19 @@ private:
     struct prepared_capture {
         vbr_selected_page_capture_request request;
         std::vector<vbr_selected_page_unit_source> sources;
-        vbr_selected_page_capture_snapshot_provider snapshots;
+        // The owner thread acquires this snapshot before handing the bundle to
+        // the worker.  The worker only sees this immutable copy; callbacks
+        // into the cache owner are reserved for the completion boundary.
+        vbr_selected_page_capture_snapshot snapshot;
+        vbr_selected_page_capture_snapshot_provider owner_snapshots;
+        bool snapshot_acquired = false;
     };
 
     struct pending_capture;
+    struct completed_capture {
+        llama_kv_pager_host_completion completion;
+        prepared_capture prepared;
+    };
 
     explicit llama_kv_pager_host(
             const llama_kv_pager_resources & resources);
@@ -236,6 +245,17 @@ private:
     bool prepare(
             const llama_kv_page_record & page,
             prepared_capture & output) noexcept;
+    static bool prepared_snapshot_acquire(
+            void * context,
+            const vbr_selected_page_capture_request & request,
+            vbr_selected_page_capture_snapshot & output) noexcept;
+    static bool prepared_snapshot_recheck(
+            void * context,
+            const vbr_selected_page_capture_snapshot & expected) noexcept;
+    static void prepared_snapshot_release(
+            void * context,
+            const vbr_selected_page_capture_snapshot & snapshot) noexcept;
+    void release_prepared(prepared_capture & prepared) noexcept;
     llama_kv_pager_host_result execute(
             const llama_kv_page_record & page,
             prepared_capture & prepared) noexcept;
@@ -249,11 +269,13 @@ private:
     std::shared_ptr<vbr_h2d_chunk_ring> upload_ring_;
     bool async_enabled_ = false;
     bool worker_stop_ = false;
+    size_t max_pending_ = 1;
     mutable std::mutex worker_mutex_;
+    mutable std::mutex catalog_mutex_;
     std::condition_variable worker_cv_;
     std::deque<std::shared_ptr<pending_capture>> pending_;
     std::vector<std::shared_ptr<pending_capture>> active_;
-    std::deque<llama_kv_pager_host_completion> completed_;
+    std::deque<completed_capture> completed_;
     std::thread worker_;
 };
 

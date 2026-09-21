@@ -850,6 +850,10 @@ private:
 
     ggml_backend_t backend_cpu = nullptr;
     std::vector<ggml_backend_ptr> backends;
+    // One per-context owner for pager D2H/H2D and selector readback. It is
+    // deliberately outside the scheduler backend list so the pager worker
+    // cannot share a compute stream/allocator owner with graph execution.
+    ggml_backend_ptr pager_transfer_backend;
     // Packed selected-attention destinations outlive graph rebuilds. This is
     // declared after the backends so its buffers are released before them.
     mutable llama_kv_attention_packed_cache kv_attention_packed_cache;

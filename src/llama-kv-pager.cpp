@@ -301,6 +301,7 @@ llama_kv_pager_host::llama_kv_pager_host(
 struct llama_kv_pager_host::pending_capture {
     llama_kv_page_record page;
     uint64_t content_version = 0;
+    prepared_capture prepared;
     bool cancelled = false;
 };
 
@@ -312,6 +313,14 @@ llama_kv_pager_host::~llama_kv_pager_host() {
         }
         worker_cv_.notify_all();
         worker_.join();
+    }
+    std::deque<completed_capture> completed;
+    {
+        std::lock_guard<std::mutex> lock(worker_mutex_);
+        completed.swap(completed_);
+    }
+    for (auto & item : completed) {
+        release_prepared(item.prepared);
     }
     // The ring is a process-bounded physical allocation.  It is deliberately
     // charged once here, rather than once per catalog page.
@@ -435,6 +444,13 @@ std::unique_ptr<llama_kv_pager_host> llama_kv_pager_host::create(
                 output->async_enabled_ = props.caps.async && props.caps.events;
             }
         }
+        // One worker owns the transfer backend and the direction-neutral ring.
+        // Keep the descriptor queue no larger than the ring's physical
+        // two-chunk minimum; a failed admission remains queued in the pager
+        // and is retried at the next owner boundary.
+        output->max_pending_ = std::max<size_t>(
+                1, std::min<size_t>(2,
+                    resources.host_ring_bytes / resources.host_chunk_bytes));
         if (output->async_enabled_) {
             output->worker_ = std::thread(
                     &llama_kv_pager_host::worker_main, output.get());
@@ -466,7 +482,25 @@ llama_kv_pager_host_result llama_kv_pager_host::seal(
         result.status = llama_kv_pager_host_status::prepare_failed;
         return result;
     }
-    return execute(page, prepared);
+    result = execute(page, prepared);
+    if (result.status == llama_kv_pager_host_status::ok &&
+            prepared.owner_snapshots.recheck &&
+            !prepared.owner_snapshots.recheck(
+                prepared.owner_snapshots.context, prepared.snapshot)) {
+        vbr_selected_page_host_key key;
+        key.source_namespace = resources_.host_source_namespace;
+        key.child_id = resources_.host_child_id;
+        key.stream_index = resources_.host_stream_index;
+        key.page = page.id;
+        {
+            std::lock_guard<std::mutex> lock(catalog_mutex_);
+            (void) catalog_.invalidate(key);
+        }
+        result.status = llama_kv_pager_host_status::capture_failed;
+        result.capture_status = vbr_selected_page_capture_status::snapshot_changed;
+    }
+    release_prepared(prepared);
+    return result;
 }
 
 bool llama_kv_pager_host::prepare(
@@ -483,16 +517,147 @@ bool llama_kv_pager_host::prepare(
     try {
         output = {};
         if (!provider_.prepare(provider_.context, page, output.request,
-                               output.sources, output.snapshots)) {
+                               output.sources, output.owner_snapshots)) {
             return false;
         }
-        return output.request.source_namespace == resources_.host_source_namespace &&
-            output.request.child_id == resources_.host_child_id &&
-            output.request.stream_index == resources_.host_stream_index;
+        if (output.request.source_namespace != resources_.host_source_namespace ||
+            output.request.child_id != resources_.host_child_id ||
+            output.request.stream_index != resources_.host_stream_index) {
+            return false;
+        }
+        if (!output.owner_snapshots.acquire ||
+                !output.owner_snapshots.recheck ||
+                !output.owner_snapshots.release ||
+                !output.owner_snapshots.acquire(
+                    output.owner_snapshots.context, output.request,
+                    output.snapshot)) {
+            return false;
+        }
+        output.snapshot_acquired = true;
+        if (output.snapshot.source_namespace != output.request.source_namespace ||
+                output.snapshot.child_id != output.request.child_id ||
+                output.snapshot.stream_index != output.request.stream_index ||
+                output.snapshot.pages.size() != output.request.pages.size() ||
+                output.snapshot.units.size() != output.request.unit_count ||
+                output.snapshot.unit_descriptors.size() != output.request.unit_count) {
+            release_prepared(output);
+            return false;
+        }
+        if (output.request.expected_unit_generations.size() !=
+                output.request.unit_count) {
+            output.request.expected_unit_generations.resize(
+                    output.request.unit_count);
+        }
+        for (const auto & unit : output.snapshot.units) {
+            if (unit.logical_unit_id >= output.request.unit_count) {
+                release_prepared(output);
+                return false;
+            }
+            output.request.expected_unit_generations[unit.logical_unit_id] =
+                    unit.generation;
+        }
+        return true;
     } catch (...) {
+        release_prepared(output);
         output = {};
         return false;
     }
+}
+
+bool llama_kv_pager_host::prepared_snapshot_acquire(
+        void * context,
+        const vbr_selected_page_capture_request & request,
+        vbr_selected_page_capture_snapshot & output) noexcept {
+    const auto * prepared =
+            static_cast<const prepared_capture *>(context);
+    if (prepared == nullptr ||
+            request.source_namespace != prepared->snapshot.source_namespace ||
+            request.child_id != prepared->snapshot.child_id ||
+            request.stream_index != prepared->snapshot.stream_index ||
+            request.pages.size() != prepared->snapshot.pages.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < request.pages.size(); ++i) {
+        if (request.pages[i].identity != prepared->snapshot.pages[i]) {
+            return false;
+        }
+    }
+    output = prepared->snapshot;
+    return true;
+}
+
+bool llama_kv_pager_host::prepared_snapshot_recheck(
+        void * context,
+        const vbr_selected_page_capture_snapshot & expected) noexcept {
+    const auto * prepared =
+            static_cast<const prepared_capture *>(context);
+    if (prepared == nullptr ||
+            expected.source_namespace != prepared->snapshot.source_namespace ||
+            expected.child_id != prepared->snapshot.child_id ||
+            expected.stream_index != prepared->snapshot.stream_index ||
+            expected.pages != prepared->snapshot.pages ||
+            expected.units.size() != prepared->snapshot.units.size() ||
+            expected.unit_descriptors.size() !=
+                prepared->snapshot.unit_descriptors.size()) {
+        return false;
+    }
+    // The worker owns no live cache handle here. Compare the immutable
+    // generation/schema tuple it acquired at the owner boundary instead of
+    // calling back into mutable cache metadata.
+    for (size_t i = 0; i < expected.units.size(); ++i) {
+        const auto & lhs = expected.units[i];
+        const auto & rhs = prepared->snapshot.units[i];
+        if (lhs.source_namespace != rhs.source_namespace ||
+                lhs.child_id != rhs.child_id ||
+                lhs.logical_unit_id != rhs.logical_unit_id ||
+                lhs.lineage_uuid != rhs.lineage_uuid ||
+                lhs.controller_generation != rhs.controller_generation ||
+                lhs.mutation_serial != rhs.mutation_serial ||
+                lhs.generation.repr_gen != rhs.generation.repr_gen ||
+                lhs.generation.publish_seq != rhs.generation.publish_seq ||
+                lhs.generation.current_type != rhs.generation.current_type ||
+                lhs.generation.last_source_type != rhs.generation.last_source_type ||
+                lhs.generation.domain != rhs.generation.domain ||
+                lhs.generation.promote_hops != rhs.generation.promote_hops ||
+                lhs.generation.last_transition != rhs.generation.last_transition ||
+                lhs.generation.flags != rhs.generation.flags ||
+                lhs.shard_count != rhs.shard_count ||
+                lhs.shard_topology_digest != rhs.shard_topology_digest) {
+            return false;
+        }
+    }
+    for (size_t i = 0; i < expected.unit_descriptors.size(); ++i) {
+        const auto & lhs = expected.unit_descriptors[i];
+        const auto & rhs = prepared->snapshot.unit_descriptors[i];
+        if (lhs.child_id != rhs.child_id ||
+                lhs.logical_unit_id != rhs.logical_unit_id ||
+                lhs.lineage_uuid != rhs.lineage_uuid ||
+                lhs.repr_gen != rhs.repr_gen ||
+                lhs.current_type != rhs.current_type ||
+                lhs.last_source_type != rhs.last_source_type ||
+                lhs.side != rhs.side || lhs.layout != rhs.layout ||
+                lhs.n_stream != rhs.n_stream || lhs.wm_cells != rhs.wm_cells ||
+                lhs.codebook_digest != rhs.codebook_digest ||
+                lhs.rotation_digest != rhs.rotation_digest ||
+                lhs.meansub_digest != rhs.meansub_digest ||
+                lhs.shards.size() != rhs.shards.size()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void llama_kv_pager_host::prepared_snapshot_release(
+        void *, const vbr_selected_page_capture_snapshot &) noexcept {}
+
+void llama_kv_pager_host::release_prepared(
+        prepared_capture & prepared) noexcept {
+    if (prepared.snapshot_acquired && prepared.owner_snapshots.release) {
+        prepared.owner_snapshots.release(
+                prepared.owner_snapshots.context, prepared.snapshot);
+    }
+    prepared.snapshot_acquired = false;
+    prepared.owner_snapshots = {};
 }
 
 llama_kv_pager_host_result llama_kv_pager_host::execute(
@@ -504,16 +669,24 @@ llama_kv_pager_host_result llama_kv_pager_host::execute(
     try {
         vbr_selected_page_capture capture;
         vbr_capture_stream_stats attempted;
+        vbr_selected_page_capture_snapshot_provider snapshots {
+            &prepared, prepared_snapshot_acquire,
+            prepared_snapshot_recheck, prepared_snapshot_release,
+        };
         result.capture_status = vbr_selected_page_capture_transfer(
                 prepared.request, prepared.sources, resources_.host_capture_limits,
-                prepared.snapshots, *ring_, capture, &attempted);
+                snapshots, *ring_, capture, &attempted);
         result.transfer = attempted;
         if (result.capture_status != vbr_selected_page_capture_status::ok) {
             result.status = llama_kv_pager_host_status::capture_failed;
             return result;
         }
-        const auto published = catalog_.publish(
-                capture, resources_.host_budget, false, 0);
+        vbr_selected_page_host_result published;
+        {
+            std::lock_guard<std::mutex> lock(catalog_mutex_);
+            published = catalog_.publish(
+                    capture, resources_.host_budget, false, 0);
+        }
         result.catalog_status = published.status;
         result.pageable_bytes = published.pageable_bytes;
         result.metadata_bytes = published.metadata_bytes;
@@ -548,13 +721,21 @@ llama_kv_pager_host_result llama_kv_pager_host::enqueue(
         std::shared_ptr<pending_capture> job(new pending_capture);
         job->page = page;
         job->content_version = content_version;
+        if (!prepare(page, job->prepared)) {
+            result.status = llama_kv_pager_host_status::prepare_failed;
+            return result;
+        }
         {
             std::lock_guard<std::mutex> lock(worker_mutex_);
-            // Preparation acquires the immutable source snapshot and is host
-            // work too. Keep it, the D2H operation, and catalogue publication
-            // on the existing worker; enqueue is only the ownership handoff
-            // from the graph-fence owner. The worker's capture ring provides
-            // the actual bounded transfer backpressure.
+            if (pending_.size() + active_.size() + completed_.size() >=
+                    max_pending_) {
+                release_prepared(job->prepared);
+                result.status = llama_kv_pager_host_status::ring_unavailable;
+                return result;
+            }
+            // Preparation is deliberately complete before this lock handoff:
+            // the worker receives immutable page/source/snapshot metadata, not
+            // an instruction to traverse mutable cache vectors later.
             pending_.push_back(std::move(job));
         }
         worker_cv_.notify_one();
@@ -571,14 +752,40 @@ size_t llama_kv_pager_host::drain(
         std::vector<llama_kv_pager_host_completion> & output) noexcept {
     output.clear();
     try {
-        std::lock_guard<std::mutex> lock(worker_mutex_);
-        output.reserve(completed_.size());
-        while (!completed_.empty()) {
-            output.push_back(std::move(completed_.front()));
-            completed_.pop_front();
+        std::deque<completed_capture> completed;
+        {
+            std::lock_guard<std::mutex> lock(worker_mutex_);
+            completed.swap(completed_);
+            worker_cv_.notify_all();
         }
-        worker_cv_.notify_all();
+        output.reserve(completed.size());
+        for (auto & item : completed) {
+            if (item.completion.result.status == llama_kv_pager_host_status::ok &&
+                    item.prepared.owner_snapshots.recheck &&
+                    !item.prepared.owner_snapshots.recheck(
+                        item.prepared.owner_snapshots.context,
+                        item.prepared.snapshot)) {
+                vbr_selected_page_host_key key;
+                key.source_namespace = resources_.host_source_namespace;
+                key.child_id = resources_.host_child_id;
+                key.stream_index = resources_.host_stream_index;
+                key.page = item.completion.page;
+                {
+                    std::lock_guard<std::mutex> lock(catalog_mutex_);
+                    (void) catalog_.invalidate(key);
+                }
+                item.completion.result.status =
+                        llama_kv_pager_host_status::capture_failed;
+                item.completion.result.capture_status =
+                        vbr_selected_page_capture_status::snapshot_changed;
+            }
+            output.push_back(std::move(item.completion));
+            release_prepared(item.prepared);
+        }
     } catch (...) {
+        // `completed` is intentionally local to keep the queue drained even
+        // when a caller's output allocation fails. Any item already moved to
+        // output has released its owner snapshot above.
         output.clear();
     }
     return output.size();
@@ -627,18 +834,17 @@ void llama_kv_pager_host::worker_main() noexcept {
             std::lock_guard<std::mutex> lock(worker_mutex_);
             cancelled = job->cancelled;
         }
-        prepared_capture prepared;
         llama_kv_pager_host_result result;
         if (cancelled) {
             result.status = llama_kv_pager_host_status::capture_failed;
-        } else if (!prepare(job->page, prepared)) {
-            result.status = llama_kv_pager_host_status::prepare_failed;
         } else {
-            result = execute(job->page, prepared);
+            result = execute(job->page, job->prepared);
         }
         {
-            std::unique_lock<std::mutex> lock(worker_mutex_);
-            cancelled = job->cancelled;
+            {
+                std::lock_guard<std::mutex> lock(worker_mutex_);
+                cancelled = job->cancelled;
+            }
             if (cancelled) {
                 vbr_selected_page_host_key key;
                 key.source_namespace = resources_.host_source_namespace;
@@ -648,21 +854,21 @@ void llama_kv_pager_host::worker_main() noexcept {
                 // Invalidate again after execute(): invalidate() may have
                 // raced the final catalog publication while the copy was in
                 // flight.
+                std::lock_guard<std::mutex> catalog_lock(catalog_mutex_);
                 (void) catalog_.invalidate(key);
             }
-            if (worker_stop_) {
-                // Teardown owns no consumer that could drain this completion;
-                // the catalog bytes are already accounted and the pager is
-                // being destroyed, so drop only the small notification.
-            } else if (!cancelled && result.status == llama_kv_pager_host_status::ok) {
-                completed_.push_back({ job->page.id, job->content_version,
-                                       std::move(result) });
+            std::unique_lock<std::mutex> lock(worker_mutex_);
+            if (!cancelled && result.status == llama_kv_pager_host_status::ok) {
+                completed_.push_back({ { job->page.id, job->content_version,
+                                         std::move(result) },
+                                       std::move(job->prepared) });
             } else {
                 if (cancelled) {
                     result.status = llama_kv_pager_host_status::capture_failed;
                 }
-                completed_.push_back({ job->page.id, job->content_version,
-                                       std::move(result) });
+                completed_.push_back({ { job->page.id, job->content_version,
+                                         std::move(result) },
+                                       std::move(job->prepared) });
             }
             active_.erase(std::remove(active_.begin(), active_.end(), job),
                           active_.end());
@@ -692,16 +898,30 @@ bool llama_kv_pager_host::invalidate(const llama_kv_page_id & page) noexcept {
                 invalidated = true;
             }
         }
+        for (auto & item : completed_) {
+            if (item.completion.page == page) {
+                item.completion.result.status =
+                        llama_kv_pager_host_status::capture_failed;
+                item.completion.result.capture_status =
+                        vbr_selected_page_capture_status::snapshot_changed;
+                invalidated = true;
+            }
+        }
+    }
+    {
+        std::lock_guard<std::mutex> lock(catalog_mutex_);
         invalidated = catalog_.invalidate(key) || invalidated;
     }
     return invalidated;
 }
 
 vbr_selected_page_host_catalog_snapshot llama_kv_pager_host::snapshot() const noexcept {
+    std::lock_guard<std::mutex> lock(catalog_mutex_);
     return catalog_.snapshot();
 }
 
 std::vector<vbr_selected_page_host_view> llama_kv_pager_host::pages() const noexcept {
+    std::lock_guard<std::mutex> lock(catalog_mutex_);
     return catalog_.pages();
 }
 
