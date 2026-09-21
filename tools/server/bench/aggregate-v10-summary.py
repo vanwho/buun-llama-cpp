@@ -630,6 +630,313 @@ def phase59_markdown(summary: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# The repair85 inputs are intentionally separate from the older phase
+# aggregators above.  They are small, immutable evidence objects with a
+# different contract, and must not inherit a value from an older phase.
+REPAIR85_MODES = ("all-gpu-off", "all-gpu-native", "selected-off", "selected-native", "cpu-main-native")
+
+
+def _repair85_null(reason: str) -> dict[str, Any]:
+    return {"value": None, "reason": reason}
+
+
+def _repair85_delta(value: Any, before: Any, after: Any, label: str) -> dict[str, Any]:
+    if not isinstance(before, (int, float)) or not isinstance(after, (int, float)):
+        return _repair85_null(f"{label}: counter absent or non-numeric")
+    if after < before:
+        return _repair85_null(f"{label}: counter decreased")
+    return {"value": after - before, "reason": None}
+
+
+def _repair85_rate(tokens: Any, duration_us: Any, reason: str) -> dict[str, Any]:
+    if not isinstance(tokens, (int, float)) or not isinstance(duration_us, (int, float)) or duration_us <= 0:
+        return _repair85_null(reason)
+    return {"value": tokens * 1_000_000.0 / duration_us, "reason": None}
+
+
+def _repair85_identity(provenance: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source_commit": provenance.get("source_commit"),
+        "source_diff_sha256": provenance.get("source_diff_sha256"),
+        "bundle": provenance.get("bundle_identity"),
+        "bundle_manifest_sha256": provenance.get("bundle_manifest_sha256"),
+        "binary_sha256": provenance.get("endpoint_executable_sha256"),
+        "loaded_dso_sha256": provenance.get("endpoint_loaded_project_dso_hashes"),
+        "model": provenance.get("resolved_model"),
+        "model_sha256": provenance.get("resolved_model_sha256", provenance.get("model_sha256")),
+        "gpu": provenance.get("gpu"),
+        "driver": provenance.get("driver"),
+    }
+
+
+def _repair85_geometry(runtime: dict[str, Any], draft_capacity: Any = None) -> dict[str, Any]:
+    return {
+        "L_tokens": runtime.get("logical_context_tokens"),
+        "C_tokens": runtime.get("measured_request_tokens"),
+        "H_tokens": runtime.get("hot_capacity_tokens", runtime.get("hot_rows")),
+        "A_tokens": runtime.get("attended_rows"),
+        "B_tokens": runtime.get("batch_tokens"),
+        "U_tokens": runtime.get("ubatch_tokens"),
+        "draft_capacity_tokens": draft_capacity if draft_capacity is not None else runtime.get("mtp_rows"),
+        "page_tokens": runtime.get("page_size_tokens"),
+    }
+
+
+def _repair85_case(raw: dict[str, Any], raw_path: Path, mode: str) -> dict[str, Any]:
+    runtime = raw.get("runtime", {})
+    measurements = raw.get("measurements", {})
+    provenance = raw.get("provenance", {})
+    complete = raw.get("result") == "pass" and isinstance(measurements.get("committed_tokens"), (int, float))
+    committed = measurements.get("committed_tokens") if complete else None
+    proposed = measurements.get("mtp_proposed_tokens")
+    accepted = measurements.get("mtp_accepted_tokens")
+    mtp_valid = all(isinstance(x, (int, float)) and x >= 0 for x in (proposed, accepted)) and accepted <= proposed
+    optional = measurements.get("optional", {})
+    phases = {key: optional.get(key) for key in (
+        "host_seal_d2h_bytes", "summary_build_bytes", "summary_read_bytes",
+        "graph_construction_us", "logical_graph_capture_count",
+        "logical_graph_update_count", "logical_graph_launch_count",
+        "transfer_time_us", "transfer_waits", "wait_time_us", "waits",
+    )}
+    reasons = []
+    if not complete:
+        reasons.append("request did not complete")
+    if not mtp_valid:
+        reasons.append("request-scoped MTP counters absent or invalid")
+    ttft = measurements.get("ttft_us") if complete and isinstance(measurements.get("ttft_us"), (int, float)) else None
+    ttft_field = {"value": ttft, "reason": None if ttft is not None else "TTFT absent or request incomplete"}
+    return {
+        "status": "measured" if complete else "invalid",
+        "mode": mode,
+        "case_id": raw.get("case_id"),
+        "question_index": raw.get("question_index"),
+        "geometry": _repair85_geometry(runtime),
+        "identity": _repair85_identity(provenance),
+        "placements": {
+            "target": {"device": runtime.get("target_placement"), "k": runtime.get("target_type_k"), "v": runtime.get("target_type_v")},
+            "draft": {"device": runtime.get("mtp_placement"), "k": runtime.get("mtp_type_k"), "v": runtime.get("mtp_type_v")},
+        },
+        "rates": {
+            "fresh_pp": _repair85_rate(runtime.get("measured_request_tokens"), measurements.get("wall_prefill_us"), "fresh prefill timing absent or request invalid"),
+            "cached_new_token_pp": _repair85_null("no request-scoped cached append record in this raw case"),
+            "committed_tg": _repair85_rate(committed, measurements.get("wall_decode_us"), "committed decode timing absent or request incomplete"),
+            "ttft_us": ttft_field,
+        },
+        "tokens": {"prompt": runtime.get("measured_request_tokens"), "generated": measurements.get("generated_tokens") if complete else None, "committed": committed},
+        "mtp": {
+            "attempted": proposed if mtp_valid else None,
+            "accepted": accepted if mtp_valid else None,
+            "denominator": proposed if mtp_valid else None,
+            "reason": None if mtp_valid else "request-scoped counters are absent or not usable",
+        },
+        "output_validity": raw.get("output_validity") if complete else _repair85_null("request incomplete"),
+        "attribution": phases,
+        "raw_path": str(raw_path),
+        "raw_sha256": digest(raw_path),
+        "reasons": reasons,
+    }
+
+
+def _repair85_short_rows(raw_root: Path) -> dict[str, list[dict[str, Any]]]:
+    rows: dict[str, list[dict[str, Any]]] = {}
+    for mode in REPAIR85_MODES:
+        path = raw_root / mode / "summary.json"
+        data = read(path)
+        run_config_path = raw_root / mode / "run-config.json"
+        run_config = read(run_config_path) if run_config_path.is_file() else {}
+        active = run_config.get("runtime_identity", {}).get("active", {})
+        geometry = {
+            "L_tokens": int(active["context"]) if str(active.get("context", "")).isdigit() else None,
+            "C_tokens": None,
+            "H_tokens": int(active["hot_pages"]) * int(active["page_size_tokens"]) if str(active.get("hot_pages", "")).isdigit() and str(active.get("page_size_tokens", "")).isdigit() else None,
+            "A_tokens": None, "B_tokens": int(active["batch"]) if str(active.get("batch", "")).isdigit() else None,
+            "U_tokens": int(active["ubatch"]) if str(active.get("ubatch", "")).isdigit() else None,
+            "draft_capacity_tokens": int(active["context"]) if active.get("mtp_placement") == "gpu" and str(active.get("context", "")).isdigit() else None,
+        }
+        mode_rows = []
+        for group in data.get("groups", []):
+            if group.get("errors", 0) or group.get("pager_status") != "ok":
+                mode_rows.append({"status": "invalid", "reason": "summary group has errors", "question": group.get("prompt_index")})
+                continue
+            mtp = group.get("mtp_acceptance", {})
+            question = group.get("prompt_index")
+            before_path = raw_root / mode / "raw" / f"off-measured-1-p{question}.mtp-before.json"
+            after_path = raw_root / mode / "raw" / f"off-measured-1-p{question}.mtp-after.json"
+            mtp_delta = None
+            if before_path.is_file() and after_path.is_file():
+                before = read(before_path)
+                after = read(after_path)
+                draft = _repair85_delta(after.get("draft_tokens_total"), before.get("draft_tokens_total"), after.get("draft_tokens_total"), "draft")
+                accepted = _repair85_delta(after.get("accepted_tokens_total"), before.get("accepted_tokens_total"), after.get("accepted_tokens_total"), "accepted")
+                if draft["value"] is not None and accepted["value"] is not None and accepted["value"] <= draft["value"]:
+                    mtp_delta = {"attempted": draft["value"], "accepted": accepted["value"], "denominator": draft["value"], "reason": None}
+            mode_rows.append({
+                "status": "measured",
+                "question": question,
+                "fresh_pp": group.get("prompt_tok_s", {}).get("median"),
+                "committed_tg": group.get("decode_tok_s", {}).get("median"),
+                "cached_new_token_pp": _repair85_null("no cached-append row in the original three-prompt campaign"),
+                "ttft_us": _repair85_null("TTFT was not exported by the short summary"),
+                "geometry": geometry,
+                "mtp": mtp_delta or {"attempted": None, "accepted": None, "denominator": None, "reason": "request-scoped counters absent in raw record"},
+                "mtp_acceptance_percent": mtp.get("median"),
+                "mtp_reason": None if mtp_delta else "summary percentage retained for display; raw numerator/denominator unavailable",
+                "raw_path": str(path),
+                "raw_sha256": digest(path),
+            })
+        rows[mode] = mode_rows
+    return rows
+
+
+def _repair85_sum_mtp(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    usable = [x for x in cases if x.get("mtp", {}).get("attempted") is not None and x.get("status") == "measured"]
+    if not usable:
+        return {"attempted": None, "accepted": None, "denominator": None, "acceptance": None, "reason": "no complete request-scoped counters"}
+    attempted = sum(x["mtp"]["attempted"] for x in usable)
+    accepted = sum(x["mtp"]["accepted"] for x in usable)
+    return {"attempted": attempted, "accepted": accepted, "denominator": attempted, "acceptance": accepted / attempted if attempted else None, "reason": None if attempted else "zero attempted tokens"}
+
+
+def _repair85_sum_short(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    usable = [row["mtp"] for row in rows if row.get("status") == "measured" and row.get("mtp", {}).get("attempted") is not None]
+    if not usable:
+        return {"attempted": None, "accepted": None, "denominator": None, "acceptance": None, "reason": "request-scoped counters absent in raw records"}
+    attempted = sum(row["attempted"] for row in usable)
+    accepted = sum(row["accepted"] for row in usable)
+    return {"attempted": attempted, "accepted": accepted, "denominator": attempted, "acceptance": accepted / attempted if attempted else None, "reason": None if attempted else "zero attempted tokens"}
+
+
+def _repair85_promotion(chain: dict[str, Any], organic: dict[str, Any]) -> dict[str, Any]:
+    selected = chain.get("selected", {})
+    proof = selected.get("natural_proof", {})
+    physical = {key: selected.get(key) for key in ("forced_logical_page", "forced_page_generation", "forced_content_version", "forced_physical_slot", "h2d_useful_bytes_delta", "h2d_aligned_bytes_delta", "promotion_pages_delta")}
+    rank = physical.get("forced_logical_page", -1) >= 0
+    copy = (physical.get("h2d_useful_bytes_delta") or 0) > 0
+    publication = physical.get("forced_physical_slot", -1) >= 0 and (physical.get("forced_page_generation") or 0) > 0
+    generation_ok = proof.get("target_use_query_generation") in (None, 0, proof.get("query_generation"))
+    target_use = generation_ok and bool(selected.get("mtp", {}).get("transaction")) and selected.get("mtp", {}).get("accepted", 0) > 0
+    controlled_complete = rank and copy and publication and target_use and selected.get("forced_checksum_equal") is True
+    return {
+        "controlled": {
+            "status": "measured" if controlled_complete else "invalid",
+            "origin": "controlled",
+            "rank": rank,
+            "copy": copy,
+            "publication": publication,
+            "completed_target_use": target_use,
+            "request_completed": controlled_complete,
+            "evidence": physical,
+            "reason": "forced checksum/transfer/MTP transaction chain" if controlled_complete else "controlled chain incomplete; natural selector publication/use is not claimed",
+        },
+        "organic": {
+            "status": "negative_finding",
+            "origin": "organic",
+            "request_completed": all(case.get("correct") is True for case in organic.get("cases", [])),
+            "answer": {"relevance": None, "correct": all(case.get("correct") is True for case in organic.get("cases", []))},
+            "cold_chain": organic.get("natural_proof", organic.get("natural_proof_status")),
+            "reason": "organic traffic did not establish the required exact archive marker/cold proof",
+            "raw_path": "85-15-organic-negative.json",
+        },
+    }
+
+
+def build_repair85(chain: dict[str, Any], speed: dict[str, Any], scale: dict[str, Any], raw_root: Path, source_paths: dict[str, Path]) -> tuple[dict[str, Any], list[str]]:
+    errors: list[str] = []
+    short = _repair85_short_rows(raw_root)
+    for mode, rows in short.items():
+        prompt_tokens = speed.get("short_matrix", {}).get(mode, {}).get("prompt_tokens", [])
+        for row, prompt in zip(rows, prompt_tokens):
+            row.setdefault("geometry", {})["C_tokens"] = prompt
+    context_cases = []
+    context_paths = []
+    for mode_dir in ("context-selected-native", "context-selected-off"):
+        path = raw_root / mode_dir / "SPEED25_02_ATTRIBUTION.json"
+        raw = read(path)
+        context_paths.append(path)
+        draft_capacity = raw.get("runtime", {}).get("logical_context_tokens") if raw.get("runtime", {}).get("mtp_mode") == "native" else None
+        case = _repair85_case(raw, path, mode_dir)
+        case["geometry"]["draft_capacity_tokens"] = draft_capacity
+        context_cases.append(case)
+    identities = [case["identity"] for case in context_cases]
+    binary_hashes = {item.get("binary_sha256") for item in identities}
+    model_hashes = {item.get("model_sha256") for item in identities}
+    if len(binary_hashes) != 1 or None in binary_hashes:
+        errors.append("comparison identity mismatch: binary hash")
+    if len(model_hashes) != 1 or None in model_hashes:
+        errors.append("comparison identity mismatch: model hash")
+    config = context_cases[0]["geometry"]
+    ledgers = []
+    for ledger in scale.get("ledgers", []):
+        allocation = ledger.get("allocation", {})
+        request = ledger.get("request", {})
+        ledgers.append({
+            "label": ledger.get("label"), "L_tokens": ledger.get("logical_context_tokens"),
+            "H_tokens": ledger.get("hot_capacity_tokens"), "U_tokens": ledger.get("ubatch_tokens"),
+            "allocation_status": ledger.get("allocation_status"), "request_status": ledger.get("request_status"),
+            "observed": {"allocation": allocation, "request": request, "C_tokens": request.get("successful_committed_tokens") if request.get("request_completed") else ledger.get("request", {}).get("frontier_tokens")},
+        })
+    promotion = _repair85_promotion(chain, read(source_paths["organic"]))
+    all_counters = []
+    for path in context_paths:
+        all_counters.append(_repair85_case(read(path), path, path.parent.name))
+    summary = {
+        "schema": "repair85-summary-v1", "schema_version": 1, "task": "85-18", "revision": REVISION,
+        "result": "current_findings" if not errors else "invalid_source_bundle",
+        "identity": {"comparisons": identities, "binary_hashes": sorted(binary_hashes), "model_hashes": sorted(model_hashes)},
+        "observed_settings": {"context_selected_native": context_cases[0]["geometry"], "context_selected_off": context_cases[1]["geometry"], "draft_capacity_equals_L": context_cases[0]["geometry"].get("draft_capacity_tokens") in (None, config.get("L_tokens"))},
+        "comparisons": {mode: {"rows": rows, "aggregate_mtp": _repair85_sum_short(rows)} for mode, rows in short.items()},
+        "context_bearing": {case["mode"]: {**case, "aggregate_mtp": _repair85_sum_mtp([case])} for case in context_cases},
+        "matched_speed_ratios": {
+            "original_three_prompt": {"selected_native_over_all_gpu_native": _repair85_ratio(short.get("selected-native", []), short.get("all-gpu-native", [])), "selected_native_over_cpu_main_native": _repair85_ratio(short.get("selected-native", []), short.get("cpu-main-native", []))},
+            "context_hot_cold": _repair85_null("no matched valid hot control; selected-off did not export stage timings"),
+        },
+        "cold_promotion": promotion,
+        "attribution": {"context_selected_native": context_cases[0]["attribution"], "context_selected_off": context_cases[1]["attribution"]},
+        "scaling": {"ledgers": ledgers, "findings": scale.get("findings", {}), "allocation_256k": next((x for x in ledgers if str(x.get("L_tokens")) == "262144"), None), "occupied_frontier_tokens": scale.get("findings", {}).get("maximum_occupied_C_tokens")},
+        "capability_findings": {
+            "small_capability": {"status": "measured", "value": True, "basis": "85-15 controlled model chain and 85-16 completed native context row"},
+            "practical_speed": {"status": "finding", "value": None, "basis": "matched ratios are descriptive; no threshold pass is inferred"},
+            "native_mtp_reliability": {"status": "finding", "value": None, "basis": "context and native short rows have counters; off controls and universal reliability remain unproven"},
+            "pilot_32k": {"status": "failed", "value": False, "basis": "invalid argument before committed token"},
+            "pilot_128k": {"status": "allocation_only", "value": None, "basis": "startup allocation measured; request withheld"},
+            "allocation_256k": {"status": "measured", "value": True, "basis": "full-L target and draft allocations fit"},
+            "occupied_frontier_256k": {"status": "failed", "value": False, "basis": "maximum occupied C is 0"},
+        },
+        "limitations": [
+            {"severity": "high", "symbol": "ggml_cuda_turbo_prefill_attend", "reproducer": "L32768/H16384/B128/U64, 1200-token request", "finding": "CUDA invalid argument before first committed token"},
+            {"severity": "high", "symbol": "occupancy frontier", "reproducer": "L262144/H4096/B128/U64, first cache-preserving request", "finding": "invalid response; occupied C remains 0"},
+            {"severity": "medium", "symbol": "short summary exporter", "reproducer": "85-16 original three-prompt summary.json", "finding": "summary percentages alone have no denominator; native raw counter deltas are used where present"},
+        ],
+        "raw_pointers": {name: {"path": str(path), "sha256": digest(path)} for name, path in source_paths.items()},
+        "validation_errors": errors,
+    }
+    return summary, errors
+
+
+def _repair85_ratio(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> dict[str, Any]:
+    left_identity = {row.get("identity", {}).get("binary_sha256") for row in left if row.get("identity")}
+    right_identity = {row.get("identity", {}).get("binary_sha256") for row in right if row.get("identity")}
+    if left_identity and right_identity and left_identity != right_identity:
+        return _repair85_null("mismatched-binary comparison")
+    by_q_left = {row.get("question"): row for row in left if row.get("status") == "measured"}
+    by_q_right = {row.get("question"): row for row in right if row.get("status") == "measured"}
+    if set(by_q_left) != set(by_q_right) or not by_q_left:
+        return _repair85_null("unmatched or invalid question rows")
+    result = {}
+    for metric in ("fresh_pp", "committed_tg"):
+        values = [(by_q_left[q].get(metric), by_q_right[q].get(metric)) for q in by_q_left]
+        if any(not isinstance(a, (int, float)) or not isinstance(b, (int, float)) or b <= 0 for a, b in values):
+            result[metric] = None
+        else:
+            result[metric] = statistics.median(a / b for a, b in values)
+    return result
+
+
+def repair85_markdown(summary: dict[str, Any]) -> str:
+    lines = ["# Repair85 current capability and speed summary", "", f"- Result: **{summary['result']}**", f"- Schema: `{summary['schema']}`", "", "## Findings", "", "- Small CUDA/native-MTP mechanics are measured; practical speed is a finding, not a threshold pass.", "- 256K allocation succeeded, but the actual occupied frontier is 0 and is not inferred from allocation.", "- 32K failed at `ggml_cuda_turbo_prefill_attend`; 128K was allocation-only.", "", "## Matched speed ratios", "", "```json", json.dumps(summary["matched_speed_ratios"], indent=2), "```", "", "## Cold promotion and limitations", "", "- Controlled rank/copy evidence and organic outcome are separate records.", "- See `limitations` and `raw_pointers` in the JSON for severity, minimal reproducers, and immutable source hashes.", ""]
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence-root", type=Path, default=Path(".wiretail/execution/evidence"))
@@ -637,6 +944,11 @@ def main() -> int:
     parser.add_argument("--phase55", action="store_true", help="aggregate only the phase-55 receipts and raw runs")
     parser.add_argument("--phase57", action="store_true", help="aggregate only the phase-57 receipts and raw runs")
     parser.add_argument("--phase59", action="store_true", help="aggregate only the phase-59 receipts and raw manifests")
+    parser.add_argument("--repair85", action="store_true", help="aggregate the current repair85 evidence chain")
+    parser.add_argument("--speed-root", type=Path, default=Path(".wiretail/execution/evidence/raw/85-16"))
+    parser.add_argument("--chain", type=Path, default=Path(".wiretail/execution/evidence/85-15-controlled-model.json"))
+    parser.add_argument("--organic", type=Path, default=Path(".wiretail/execution/evidence/85-15-organic-negative.json"))
+    parser.add_argument("--scale", type=Path, default=Path(".wiretail/execution/evidence/V10_REPAIR85_SCALE.json"))
     args = parser.parse_args()
     if args.phase55:
         summary, _ = build_phase55(args.evidence_root)
@@ -656,6 +968,17 @@ def main() -> int:
         args.output.with_suffix(".md").write_text(phase59_markdown(summary))
         print(json.dumps({"output": str(args.output), "errors": [], "status": "pass"}, sort_keys=True))
         return 0
+    if args.repair85:
+        chain = read(args.chain)
+        speed_path = Path(".wiretail/execution/evidence/V10_REPAIR85_SPEED.json")
+        speed = read(speed_path)
+        scale = read(args.scale)
+        source_paths = {"chain": args.chain, "organic": args.organic, "speed": speed_path, "scale": args.scale}
+        summary, errors = build_repair85(chain, speed, scale, args.speed_root, source_paths)
+        args.output.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+        args.output.with_suffix(".md").write_text(repair85_markdown(summary))
+        print(json.dumps({"output": str(args.output), "errors": errors, "status": "pass" if not errors else "fail"}, sort_keys=True))
+        return 0 if not errors else 1
     root = args.evidence_root
     paths = {"cold": root / "V10_COLD_PROOF.json", "small": root / "v10-51-02/V10_SMALL.json", "scale": root / "V10_SCALE.json", "capacity": root / "V10_256K.json", "tuning": root / "V10_TUNING.json", "revalidation": root / "V10_53-03_FINDINGS.json"}
     inputs = {name: read(path) for name, path in paths.items()}
