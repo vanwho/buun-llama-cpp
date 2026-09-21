@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "task": "86-03",
+  "source_commit": "b717ed8f1f57ad3b6ab0661d530ca45ff91d0e89",
+  "checks": {
+    "repair86_matched_speed_and_promotion": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/V10_86-03_validation.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_86-03_validation.py", "sha256": "71e3678ee4dbbc733f98ca7bacb3a24c95a3eeacf08500d698e053a9336ed235"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/short-native-bounded/run-config.json", "sha256": "7f50769b008a5d9ddcdf33ffdb5d92d78c98652b3cc0863a106dc0182a02fbad"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/short-native-bounded/records.jsonl", "sha256": "b27868ac3e4cf30509fd47cd6c16308dd1badf0bff5025e7817064375c57bc81"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/short-native-bounded/summary.json", "sha256": "34a5e7286bb45767af69de347ab8e1a0fa48dd85fff95906050c4120f073ca67"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/short-native-bounded/lifecycle-state.json", "sha256": "9d2c7d484036c3ea4515e5b7003c26c52fa10f85314d70c057974d7992fe72cf"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native/run-config.json", "sha256": "ef8996df8dcb49a9b6766daf4966b1394e631b59f4abbb17633c1011b0018aa1"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native/summary.json", "sha256": "73ef571ca3649e7db9a1f1ae88e28ae9ed0dbf47c212aebfd67f13e06c571f53"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/run-config.json", "sha256": "87741635ff8a67d8664621eb87a3cc53cf4f2fbfc2c52f974316c59a42781e23"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/summary.json", "sha256": "df34fc1386fd5f5f05607145ed7bdaf240fc8347ad59260051af32dda0591106"},
+        {"path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/lifecycle-state.json", "sha256": "d897756ca1beb0f41d56cf621457084ade65eb585f6e014f6cbcc14a246412d7"}
+      ],
+      "finding": {
+        "identity": {
+          "candidate_bundle": "/srv/ai/paged-kv/candidates/86-02-cuda",
+          "candidate_binary_sha256": "61fb0f5feb24fa74661e00fcb11a611cba593a618e1a6cd231c9227c96505643",
+          "model": "/srv/ai/models/text/current.gguf",
+          "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+          "L": 8192,
+          "H_pages": 8,
+          "page_size": 256,
+          "B": 128,
+          "U": 64,
+          "target_kv": "gpu/turbo4",
+          "draft_kv": "gpu/turbo4"
+        },
+        "short_measured": {
+          "rows": 9,
+          "output_valid": true,
+          "fresh_pp_tok_s": {"prompt_0": null, "prompt_1": null, "prompt_2": null},
+          "cached_new_token_pp_tok_s_median": {"prompt_0": 98.42035332906845, "prompt_1": 105.2133200063128, "prompt_2": 103.15127133941927},
+          "committed_tg_tok_s_median": {"prompt_0": 34.842646735935325, "prompt_1": 34.91117046625808, "prompt_2": 35.339792101051614},
+          "ttft_ms_median": {"prompt_0": 1851.847, "prompt_1": 1844.582, "prompt_2": 1822.044},
+          "phase_timings_ms": {"cached_prompt_median": {"prompt_0": 40.642, "prompt_1": 38.018, "prompt_2": 38.778}},
+          "mtp_attempted": 555,
+          "mtp_accepted": 3,
+          "target_route": "CUDA target; direct decode/verify telemetry present",
+          "draft_route": "native GPU Turbo4",
+          "natural_promotion_chain": null
+        },
+        "cold_workload": {
+          "context_overflow_control": "failed: generated 44222-token prompts against C=8192; no speed or promotion ratio claimed",
+          "c65536_recovery": "failed: first prefill made no authenticated slot progress during the bounded attempt; 0 measured rows",
+          "natural_promotion_chain": null,
+          "ratios": null
+        },
+        "controls": [
+          "short-native-bounded is the matched candidate/model measurement",
+          "short-native is retained as an unmatched 16-page/1024-pin configuration control",
+          "cold-needles-native is an explicit context-overflow failure",
+          "cold-needles-native-c65536 is an explicit no-progress failure"
+        ]
+      }
+    }
+  }
+}
