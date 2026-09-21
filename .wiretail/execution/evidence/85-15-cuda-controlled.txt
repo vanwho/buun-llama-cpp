@@ -1,0 +1,23 @@
+85-15 controlled CUDA cold-page promotion proof
+
+Command:
+./build-cuda/bin/test-cuda-kv-promotion
+
+Observed result: exit 0
+Device: NVIDIA GeForce RTX 4080, compute capability 8.9
+cuda_production_promotion_chain=pass
+mature_fa_consumption_parity=pass
+seed=0x49060001
+winner_logical=0
+margin=297.858948
+copy_bytes=1081344
+published_epoch=6174
+owner_generation=100
+checksum=0x3e1c5cadefa47a9a
+reference_tolerance=0.002
+perturb_delta=0.000638
+n_q=1,2,3
+prefill=pass
+
+This controlled fixture exercises production ranking, cold-page copy, publication,
+target consumption, device checksum parity, and a perturbed-value differential.
