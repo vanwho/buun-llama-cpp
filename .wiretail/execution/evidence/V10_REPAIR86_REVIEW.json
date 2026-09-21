@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "task": "86-05",
+  "revision": "hotpath-v10-20260914",
+  "amendment": "repair86-20260921",
+  "source_summary": {
+    "path": ".wiretail/execution/evidence/V10_PHASE86_SUMMARY.json",
+    "sha256": "3f48663afb1bf7debdcb8ea9ecc837859703d2a99dd355b89df12c8ec3b03add"
+  },
+  "goal_met": false,
+  "decision": "continue_ordered_followup",
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "dynamic_gpu_attention": false,
+    "full_L_native_draft_allocation": true,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "native_mtp_reliability": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false
+  },
+  "findings": [
+    {
+      "area": "dynamic_gpu_attention",
+      "status": "unproven",
+      "finding": "The summary retains short-path route telemetry and valid output, but no completed cold promotion/consumption chain."
+    },
+    {
+      "area": "full_L_native_draft",
+      "status": "allocation_only",
+      "finding": "Full-L Turbo4 GPU draft allocation is measured; the one-token allocation request did not enter speculative drafting."
+    },
+    {
+      "area": "natural_cold_use",
+      "status": "unproven",
+      "finding": "Promotion origin and cold ratios are null because the cold workload produced no measured rows."
+    },
+    {
+      "area": "mtp_reliability",
+      "status": "unproven",
+      "finding": "The short sum is 3 accepted of 555 attempted; target-equivalent reliability is not established."
+    },
+    {
+      "area": "speed",
+      "status": "partial_finding",
+      "finding": "Cached-new-token and committed-decode rates are descriptive; fresh pp, TTFT, and cold speed remain null."
+    },
+    {
+      "area": "occupied_frontier",
+      "status": "partial",
+      "finding": "256K allocation is separate from the partial frontier: committed C=17568, live snapshot C=21282, full occupancy false."
+    }
+  ],
+  "first_failing_invariants": [
+    {
+      "successor": "87-01",
+      "invariant": "The C=65536 cold recovery must make authenticated slot progress and produce a measured row; phase86 recorded bounded no-progress with zero rows."
+    },
+    {
+      "successor": "87-02",
+      "invariant": "A controlled cold transaction must establish rank, copy, publication, stable generation, and completed target use as separate edges; phase86 has no such chain."
+    },
+    {
+      "successor": "87-03",
+      "invariant": "Native MTP must have target-equivalent continuation with usable request-scoped acceptance and rollback/restore evidence; phase86 only has 3/555 short acceptance and no full-L observation."
+    },
+    {
+      "successor": "87-04",
+      "invariant": "Fresh/TTFT/cold timing must be exported from valid matched rows and occupied context must advance beyond C=17568; phase86 retains null timing and a deadline-bounded frontier."
+    }
+  ],
+  "next_task_ids": ["87-01", "87-02", "87-03", "87-04", "87-05", "87-06"],
+  "successor_rationale": "The ordered chain repairs the first cold progress failure, proves controlled then organic use and MTP, fills missing timing and occupancy evidence, and re-summarizes before another review."
+}
