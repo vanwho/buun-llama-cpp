@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "proof": "repair87_cold_slot_progress",
+  "status": "pass",
+  "errors": [],
+  "geometry": {
+    "context_tokens": 65536,
+    "page_size_tokens": 256,
+    "mtp_rows": 65536
+  },
+  "authentication": {
+    "capability_status": "200",
+    "slot_response_shape": "authenticated JSON slot array"
+  },
+  "progress": {
+    "sample_count": 308,
+    "processing_samples": 307,
+    "progress_samples": 174,
+    "first_processed": 1024,
+    "last_processed": 27008,
+    "max_processed": 27008,
+    "routes_observed": [
+      "selected reference"
+    ],
+    "production_cold_success": false,
+    "reference_or_fallback_observed": true
+  },
+  "retained_artifacts": {
+    "progress_log": {
+      "path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/raw/progress-off-warmup-1.jsonl",
+      "sha256": "76e743a6fc8c853bf2257276629a01e0d4f151bedccb8dc77ca526afe22eac1a"
+    },
+    "request_http": {
+      "path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/raw/off-warmup-1.http",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "interpretation": {
+    "measured_rows": 0,
+    "cold_promotion_claim": false,
+    "reference_route_is_success": false,
+    "note": "slot progress is proven; the interrupted request remains a failed raw request"
+  }
+}

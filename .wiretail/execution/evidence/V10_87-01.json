@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "task": "87-01",
+  "source_commit": "99e0b8619403b93edd11a3c6e46248d78d18a0ef",
+  "checks": {
+    "repair87_cold_slot_progress": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-cold-slot-progress.py",
+        "--progress-log",
+        "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/raw/progress-off-warmup-1.jsonl",
+        "--request-http",
+        "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/raw/off-warmup-1.http",
+        "--auth-http",
+        "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/raw/off.capability.http",
+        "--context",
+        "65536",
+        "--page-size",
+        "256",
+        "--mtp-rows",
+        "65536",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/87-01/cold-slot-progress.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/87-01/cold-slot-progress.json",
+          "sha256": "1f272d1cb8aea82c1768f6ebfcf6669452554317df9f07b86e0dda568b838f7c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/raw/progress-off-warmup-1.jsonl",
+          "sha256": "76e743a6fc8c853bf2257276629a01e0d4f151bedccb8dc77ca526afe22eac1a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/raw/off-warmup-1.http",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "result": {
+        "context_tokens": 65536,
+        "page_size_tokens": 256,
+        "mtp_rows": 65536,
+        "processing_samples": 307,
+        "first_processed": 1024,
+        "last_processed": 27008,
+        "routes_observed": ["selected reference"],
+        "measured_rows": 0,
+        "cold_promotion_claim": false
+      }
+    },
+    "focused_contract_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tools.server.bench.test_pager_benchmark_adapter"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/87-01/contract-tests.log",
+          "sha256": "0b9221ec00bbe22557d86c7a470300020d45ee8687a142daeaf519556af4c7e6"
+        }
+      ],
+      "result": "34 focused adapter/slot-progress tests passed"
+    }
+  },
+  "verification": {
+    "py_compile": "pass",
+    "bench_unit_discovery": "pass: 98 tests",
+    "git_diff_check": "pass",
+    "interpretation": "Authenticated slot progress is repaired/proven; the retained interrupted request has zero measured rows and selected-reference routing is not a production cold success."
+  }
+}
