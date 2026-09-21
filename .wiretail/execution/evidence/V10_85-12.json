@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "task": "85-12",
+  "source_commit": "ae4d3bed96af490ec93f3fa55ef204d795b62f70",
+  "source_diff_sha256": "95ff2b8f532755ed3bfbdaf3dd7c11f1a437bae2d406f33b9f8dea06ca712536",
+  "predecessor_receipt": ".wiretail/execution/evidence/V10_49-01.json",
+  "checks": {
+    "mtp_selected_transaction_equivalence": {
+      "status": "pass",
+      "command": [
+        "build-cuda-test/bin/test-kv-pager-model",
+        "--model", "/srv/ai/models/text/current.gguf",
+        "--tokens-file", ".wiretail/execution/evidence/85-12-chat-prompt.tokens",
+        "--context", "4096", "--n-batch", "128", "--n-ubatch", "128",
+        "--hot-pages", "8", "--mtp", "native", "--selected-only"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-12/20260921-0950/model-selected-cuda.txt",
+          "sha256": "73a6c627623669f667b90310bfb630805ff5e3541e5f35638fc87755d32992a0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-12/20260921-0950/local-verification-final.txt",
+          "sha256": "3c14f6c45c80f98674b90520f8da367ec7b1edf8b6d976ee4745a4b1b21f80be"
+        }
+      ],
+      "observed": {
+        "route": "selected direct",
+        "transaction": true,
+        "logits_finite": true,
+        "drafted": 2,
+        "accepted": 0,
+        "target_rows": 3,
+        "frontier_contract": "F5 accepted boundaries 0/1/2/3 pass"
+      }
+    },
+    "native_turbo4_fast_route_live": {
+      "status": "pass",
+      "command": [
+        "bash", "-lc",
+        "key=$(awk '!/^#/ && NF {print; exit}' /srv/ai/config/llama/api-keys); curl -sS --max-time 120 -o /srv/ai/paged-kv/results/v10/85-12/20260921-0950/response.json -w 'HTTP %{http_code}' http://127.0.0.1:8080/v1/chat/completions -H \"Authorization: Bearer ${key}\" -H 'Content-Type: application/json' --data-binary @request.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-12/20260921-0950/response.json",
+          "sha256": "f6fa871811af1bc6c3b75c2e1990cdf6245a0a406c5cf59afdc2c12830801815"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-12/20260921-0950/metrics.txt",
+          "sha256": "8a56fc149b88b6a8b582749339889bc02fc945b34259f12f42d439fb4424f5aa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-12/20260921-0950/journal.txt",
+          "sha256": "90f0cf15f7d28b0db3806431c273719cf36bb98acdcc860738ba1df282f923e5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-12/20260921-0950/identity.txt",
+          "sha256": "c710904b366ac7223c3cf6ba250efabd137b281e8bce565d9ec0ad44e8eafb1e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-12/20260921-0950/build-provenance.txt",
+          "sha256": "7b753f0f5d4c35f74aabf51936b1e6a795d9d76cbc0226337dbb4b918e602de3"
+        },
+        {
+          "path": ".wiretail/execution/evidence/85-12-chat-prompt.tokens",
+          "sha256": "1588dc91f86b72a7f0f075b0ecfecef947512ac77ab317f2b1e3e46081367167"
+        }
+      ],
+      "observed": {
+        "http": 200,
+        "text_finite_and_coherent": true,
+        "route": "selected direct",
+        "mtp_backend": "gpu",
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
+        "drafted": 24,
+        "accepted": 6,
+        "verification_direct_routes": 12,
+        "cuda_errors": false
+      }
+    }
+  }
+}
