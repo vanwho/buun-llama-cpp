@@ -1,0 +1,184 @@
+{
+  "errors": [],
+  "geometry": {
+    "H": 2048,
+    "L": 8192,
+    "batch": 128,
+    "hot_pages": 8,
+    "page_tokens": 256,
+    "pin_recent_tokens": 512,
+    "ubatch": 64
+  },
+  "matrix": {
+    "mtp_off_control": {
+      "rows": [
+        {
+          "append_delta": null,
+          "cache_condition": "cold-prefill",
+          "cache_n": 0,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": 0.0,
+            "accepted_tokens": 0,
+            "draft_tokens": 0,
+            "mode": "off",
+            "status": "off"
+          },
+          "name": "prefix",
+          "new_prompt_tokens": 6143,
+          "predicted_ms": 0.001,
+          "prompt_ms": 32850.867,
+          "prompt_tokens": 6143,
+          "prompt_tokens_per_second": 186.99658672631077,
+          "status": "pass"
+        },
+        {
+          "append_delta": 64,
+          "cache_condition": "live-continuation",
+          "cache_n": 6143,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": 0.0,
+            "accepted_tokens": 0,
+            "draft_tokens": 0,
+            "mode": "off",
+            "status": "off"
+          },
+          "name": "append-64",
+          "new_prompt_tokens": 65,
+          "predicted_ms": 0.001,
+          "prompt_ms": 705.512,
+          "prompt_tokens": 6208,
+          "prompt_tokens_per_second": 92.13167175044508,
+          "status": "pass"
+        },
+        {
+          "append_delta": 256,
+          "cache_condition": "live-continuation",
+          "cache_n": 0,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": 0.0,
+            "accepted_tokens": 0,
+            "draft_tokens": 0,
+            "mode": "off",
+            "status": "off"
+          },
+          "name": "append-256",
+          "new_prompt_tokens": 6400,
+          "null_reason": "control request preserved no cache (cache_n=0)",
+          "predicted_ms": 0.001,
+          "prompt_ms": 60543.521,
+          "prompt_tokens": 6400,
+          "prompt_tokens_per_second": 105.70908157125515,
+          "status": "null"
+        }
+      ],
+      "source": "/srv/ai/paged-kv/results/v10/89-03/cached-append-off/coordinate.json"
+    },
+    "native": {
+      "rows": [
+        {
+          "append_delta": null,
+          "cache_condition": "cold-prefill",
+          "cache_n": 0,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": null,
+            "accepted_tokens": null,
+            "draft_tokens": null,
+            "mode": "native",
+            "reason": "mtp_observation_missing",
+            "status": "not_run"
+          },
+          "name": "prefix",
+          "new_prompt_tokens": 6143,
+          "predicted_ms": 0.001,
+          "prompt_ms": 39161.558,
+          "prompt_tokens": 6143,
+          "prompt_tokens_per_second": 156.86301346846312,
+          "status": "pass"
+        },
+        {
+          "append_delta": 64,
+          "cache_condition": "live-continuation",
+          "cache_n": 6143,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": null,
+            "accepted_tokens": null,
+            "draft_tokens": null,
+            "mode": "native",
+            "reason": "mtp_observation_missing",
+            "status": "not_run"
+          },
+          "name": "append-64",
+          "new_prompt_tokens": 65,
+          "predicted_ms": 0.001,
+          "prompt_ms": 912.096,
+          "prompt_tokens": 6208,
+          "prompt_tokens_per_second": 71.26442830579236,
+          "status": "pass"
+        },
+        {
+          "append_delta": 256,
+          "cache_condition": "live-continuation",
+          "cache_n": 6146,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": null,
+            "accepted_tokens": null,
+            "draft_tokens": null,
+            "mode": "native",
+            "reason": "mtp_observation_missing",
+            "status": "not_run"
+          },
+          "name": "append-256",
+          "new_prompt_tokens": 254,
+          "predicted_ms": 0.002,
+          "prompt_ms": 2807.232,
+          "prompt_tokens": 6400,
+          "prompt_tokens_per_second": 90.48058728313157,
+          "status": "pass"
+        }
+      ],
+      "source": "/srv/ai/paged-kv/results/v10/89-03/cached-append-native/coordinate.json"
+    },
+    "organic_cold": {
+      "attribution": {
+        "completed_transfer_events": 0,
+        "copy_us": 0,
+        "published_h2d_useful_bytes": 4325376,
+        "queue_us": 112320.0,
+        "request_h2d_useful_bytes": 0.0,
+        "target_graph_used": true,
+        "wait_us": 300188
+      },
+      "decode_tokens_per_second": 22.994608809443676,
+      "elapsed_seconds": 0.998,
+      "input_tokens": 3543,
+      "mtp": {
+        "acceptance_rate": 0.1,
+        "accepted": 1,
+        "committed": 6,
+        "drafted": 10
+      },
+      "name": "A-again-cold-consumption",
+      "output_tokens": 12,
+      "prompt_tokens_per_second": 83.70530282826591,
+      "source_summary": "/srv/ai/paged-kv/results/v10/89-02/organic-4-fresh/summary.json",
+      "ttft_ms": 513.707
+    }
+  },
+  "required_proof": "repair89_valid_speed_controls",
+  "same_binary": true,
+  "same_model": true,
+  "schema_version": 1,
+  "status": "pass"
+}
