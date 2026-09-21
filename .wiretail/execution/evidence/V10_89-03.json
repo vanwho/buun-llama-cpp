@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "task": "89-03",
+  "source_commit": "d6ee6eeeb4d1f41436477005982250a3b3da0c44",
+  "checks": {
+    "repair89_valid_speed_controls": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-repair89-speed-controls.py",
+        "--native-coordinate",
+        "/srv/ai/paged-kv/results/v10/89-03/cached-append-native/coordinate.json",
+        "--off-coordinate",
+        "/srv/ai/paged-kv/results/v10/89-03/cached-append-off/coordinate.json",
+        "--organic-summary",
+        "/srv/ai/paged-kv/results/v10/89-02/organic-4-fresh/summary.json",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/89-03/valid-speed-controls.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/89-03/valid-speed-controls.json",
+          "sha256": "2cb73dfb9786647ced9926a21bc8f8e6d3e4c5a5530585084051907945f9d282"
+        }
+      ]
+    },
+    "v10_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", ".wiretail/execution/v10", "-p", "test_*.py"]
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_*.py"]
+    }
+  },
+  "build": {
+    "status": "pass",
+    "binary": "build-cuda/bin/llama-server",
+    "sha256": "525d9d5c82291ded8dc77fbf1e5530e1f41de5fa5f1af41c747cea76b26fd93e",
+    "build_receipt": "/srv/ai/paged-kv/results/v10/89-03/build-receipt.json",
+    "build_receipt_sha256": "2fee3f5ffb9da56805ee496ddae55c04538801b6b606f5f53ca47d3cb0d54df7"
+  },
+  "live": {
+    "status": "pass",
+    "service": "llama-server.service",
+    "pid": 2009797,
+    "mode": "native",
+    "model": "/srv/ai/models/text/current.gguf",
+    "context": 8192,
+    "batch": 128,
+    "ubatch": 64,
+    "page_tokens": 256,
+    "hot_pages": 8,
+    "pin_recent_tokens": 512,
+    "route": "selected direct",
+    "runtime_identity": "/srv/ai/paged-kv/results/v10/89-03/runtime-identity.json",
+    "runtime_identity_sha256": "f8ad06c15dca2412565ff7347161342870a634181a90d7de8a9ce1769797ee71"
+  },
+  "deferred_verification": []
+}
