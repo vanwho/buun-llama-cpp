@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "85",
-  "current_task": "85-10",
-  "last_updated_utc": "2026-09-21T03:27:16+00:00",
+  "current_task": "85-11",
+  "last_updated_utc": "2026-09-21T06:22:42+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -15848,7 +15848,7 @@
       "cluster": "repair85-cuda-correctness-v10",
       "title": "Establish finite dense control and repair short-run setup",
       "packet": ".wiretail/execution/tasks/85-10.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -15875,16 +15875,30 @@
       "depends_on": [
         "85-09"
       ],
-      "commit": null,
+      "commit": "ae02b1bb7004f18cd725335e98b836ca04bbd908",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-10-attempt-1-20260921T032737Z.jsonl:1051",
+            "total_tokens": 155788260,
+            "total_tokens_derived": true,
+            "input_tokens": 155526969,
+            "cached_input_tokens": 152325632,
+            "output_tokens": 261291,
+            "thinking_tokens": 96764
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 155788260,
+          "input_tokens": 155526969,
+          "cached_input_tokens": 152325632,
+          "output_tokens": 261291,
+          "thinking_tokens": 96764
         }
       },
       "plan_amendment": "repair85-20260921"
@@ -20978,26 +20992,39 @@
           "cached_input_tokens": 36350720,
           "output_tokens": 56306,
           "thinking_tokens": 23184
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-10-attempt-1-20260921T032737Z.jsonl:1051",
+          "total_tokens": 155788260,
+          "total_tokens_derived": true,
+          "input_tokens": 155526969,
+          "cached_input_tokens": 152325632,
+          "output_tokens": 261291,
+          "thinking_tokens": 96764
         }
       ],
       "totals": {
-        "turns": 14,
-        "total_tokens": 283205994,
-        "input_tokens": 282600248,
-        "cached_input_tokens": 275612416,
-        "output_tokens": 605746,
-        "thinking_tokens": 264680
+        "turns": 15,
+        "total_tokens": 438994254,
+        "input_tokens": 438127217,
+        "cached_input_tokens": 427938048,
+        "output_tokens": 867037,
+        "thinking_tokens": 361444
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 287,
-      "total_tokens": 5066995310,
-      "input_tokens": 5054657540,
-      "cached_input_tokens": 4946244352,
-      "output_tokens": 12337770,
-      "thinking_tokens": 4424475
+      "turns": 288,
+      "total_tokens": 5222783570,
+      "input_tokens": 5210184509,
+      "cached_input_tokens": 5098569984,
+      "output_tokens": 12599061,
+      "thinking_tokens": 4521239
     },
     "source": "Codex turn.completed usage events"
   }
