@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "task": "85-13",
+  "source_commit": "86d97f8838910b8c65f31ecff03a5dc9584339f2",
+  "source_diff_sha256": "ad2c0f89a7ebbd5bd629b6c1bb7b236154fd595f3107588836c58accd3f5cdea",
+  "predecessor_receipt": ".wiretail/execution/evidence/V10_85-12.json",
+  "checks": {
+    "gpu_summary_version_cadence": {
+      "status": "pass",
+      "command": [
+        "./build-cuda/bin/test-cuda-kv-page-summary"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/85-13-gpu-summary.txt",
+          "sha256": "16ab7e9c111623b0460b98b8023590ed5a4184f21699c04744232bb58253568d"
+        }
+      ],
+      "observed": {
+        "cuda_device": "NVIDIA GeForce RTX 4080",
+        "fixture": "parity, replay, cold-copy, and page-local update",
+        "routing_summary_fixture": "pass",
+        "routing_retrieval_fixture": "pass"
+      }
+    },
+    "canonical_capture_once_per_version": {
+      "status": "pass",
+      "command": [
+        "./build-cuda/bin/test-kv-pager"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/85-13-canonical-capture.txt",
+          "sha256": "b3ef1c6264d3a89e825074d07b204aa84b024a233200b17213c599d1fbf2e362"
+        }
+      ],
+      "observed": {
+        "fixture": "maintenance, generation, eviction, promotion, rollback, cold validity, cadence",
+        "async_host_capture": true,
+        "submitted_chunks": 32,
+        "capture_payload_bytes": 16384
+      }
+    }
+  }
+}

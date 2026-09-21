@@ -216,6 +216,9 @@ public:
     // used only when a writer has no immediately evictable slot.
     size_t wait() noexcept;
     bool async_enabled() const noexcept { return async_enabled_; }
+    bool find_page(
+            const llama_kv_page_id & page,
+            vbr_selected_page_host_view & output) const noexcept;
     std::vector<vbr_selected_page_host_view> pages() const noexcept;
     bool invalidate(const llama_kv_page_id & page) noexcept;
     vbr_selected_page_host_catalog_snapshot snapshot() const noexcept;
@@ -691,6 +694,8 @@ private:
     void invalidate_routing_summaries(
             const std::vector<llama_kv_page_id> & page_ids) noexcept;
     void queue_maintenance(page_state & page) noexcept;
+    void remember_logical_page(const llama_kv_page_record & page) noexcept;
+    void forget_logical_page(const llama_kv_page_id & page) noexcept;
     void rebuild_maintenance_queue() noexcept;
     void drain_host_completions() noexcept;
     void wait_host_completions() noexcept;
@@ -729,6 +734,10 @@ private:
     llama_kv_pager_allocation allocation_;
     bool owns_allocation_ = true;
     std::vector<page_state> pages_;
+    // Indexed logical records for canonical cold pages. The host catalog owns
+    // the bytes; this compact metadata index is the pager's hot-path authority
+    // for lookup and avoids rebuilding a full host-page vector at each fence.
+    std::vector<llama_kv_page_record> logical_catalogue_;
     std::vector<int32_t> slot_pages_;
     std::vector<size_t> maintenance_page_indices_;
     std::vector<size_t> maintenance_processing_indices_;
