@@ -937,6 +937,222 @@ def repair85_markdown(summary: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# Phase86 is deliberately a separate catalogue.  In particular, it must not
+# inherit a rate, promotion edge, or capability conclusion from repair85 (or
+# any of the older phase aggregators above).
+PHASE86_ROOT = Path("/srv/ai/paged-kv/results/v10/86-03")
+
+
+def _phase86_null(reason: str) -> dict[str, Any]:
+    return {"value": None, "reason": reason}
+
+
+def _phase86_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _phase86_sum_mtp(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    usable = [row.get("mtp", {}) for row in rows if row.get("status") == "measured"
+              and _phase86_number(row.get("mtp", {}).get("attempted"))
+              and _phase86_number(row.get("mtp", {}).get("accepted"))]
+    if not usable:
+        return {"attempted": None, "accepted": None, "denominator": None,
+                "acceptance": None, "reason": "no complete request-scoped counters"}
+    attempted = sum(item["attempted"] for item in usable)
+    accepted = sum(item["accepted"] for item in usable)
+    return {"attempted": attempted, "accepted": accepted, "denominator": attempted,
+            "acceptance": accepted / attempted if attempted else None,
+            "reason": None if attempted else "zero attempted tokens"}
+
+
+def _phase86_identity(scale: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    model = scale.get("model", {})
+    candidate = scale.get("candidate", {})
+    active = config.get("runtime_identity", {}).get("active", {})
+    return {
+        "candidate_bundle": candidate.get("bundle_root"),
+        "binary_sha256": candidate.get("server_binary_sha256"),
+        "cuda_dso_sha256": candidate.get("cuda_dso_sha256"),
+        "build_receipt": candidate.get("build_receipt"),
+        "build_receipt_sha256": candidate.get("build_receipt_sha256"),
+        "model": model.get("path", config.get("model", {}).get("path")),
+        "model_sha256": model.get("sha256", config.get("model", {}).get("sha256")),
+        "settings": {
+            "L_tokens": int(active["context"]) if str(active.get("context", "")).isdigit() else None,
+            "H_pages": active.get("hot_pages"),
+            "page_size_tokens": active.get("page_size_tokens"),
+            "B_tokens": active.get("batch"),
+            "U_tokens": active.get("ubatch"),
+            "pin_recent_tokens": active.get("pin_recent"),
+            "target_kv": active.get("target_kv_placement"),
+            "draft_kv": {"device": active.get("mtp_placement"), "k": active.get("mtp_type_k"), "v": active.get("mtp_type_v")},
+        },
+    }
+
+
+def _phase86_short_rows(raw_root: Path, config: dict[str, Any], summary: dict[str, Any]) -> list[dict[str, Any]]:
+    records_path = raw_root / "records.jsonl"
+    records = [json.loads(line) for line in records_path.read_text().splitlines() if line.strip()]
+    measured = [row for row in records if row.get("phase") == "measured"]
+    groups = {group.get("prompt_index"): group for group in summary.get("groups", [])
+              if group.get("prompt_index") is not None and not group.get("errors")}
+    rows = []
+    for row in measured:
+        prompt = row.get("prompt_index")
+        mtp = row.get("mtp", {})
+        pager = row.get("pager", {})
+        group = groups.get(prompt, {})
+        mtp_ok = (_phase86_number(mtp.get("draft_tokens")) and
+                  _phase86_number(mtp.get("accepted_tokens")) and
+                  0 <= mtp["accepted_tokens"] <= mtp["draft_tokens"])
+        output_ok = row.get("http_code") == 200 and row.get("usage", {}).get("completion_tokens", 0) > 0
+        rows.append({
+            "status": "measured" if output_ok else "invalid",
+            "prompt_index": prompt,
+            "trial": row.get("trial"),
+            "rates": {
+                "fresh_pp": _phase86_null("measured rows used the canonical prompt cache"),
+                "cached_new_token_pp": group.get("prompt_tok_s", {}).get("median") if output_ok else None,
+                "committed_tg": group.get("decode_tok_s", {}).get("median") if output_ok else None,
+                "ttft_ms": _phase86_null("TTFT is not exported by the raw short record"),
+            },
+            "geometry": {
+                "L_tokens": row.get("resolved_capacity_tokens"),
+                "C_tokens": row.get("occupied_prompt_tokens"),
+                "H_tokens": pager.get("hot_tokens"),
+                "A_tokens": pager.get("admitted_tokens"),
+                "B_tokens": config.get("runtime_identity", {}).get("active", {}).get("batch"),
+                "U_tokens": config.get("runtime_identity", {}).get("active", {}).get("ubatch"),
+                "page_tokens": pager.get("page_size_tokens"),
+                "draft_capacity_tokens": pager.get("mtp_rows"),
+            },
+            "mtp": {"attempted": mtp.get("draft_tokens") if mtp_ok else None,
+                    "accepted": mtp.get("accepted_tokens") if mtp_ok else None,
+                    "denominator": mtp.get("draft_tokens") if mtp_ok else None,
+                    "reason": None if mtp_ok else "request-scoped counters are absent or invalid"},
+            "output_valid": output_ok,
+            "attribution": {key: pager.get(key) for key in (
+                "prefill_dense_routes", "prefill_reference_routes", "prefill_direct_routes",
+                "decode_dense_routes", "decode_reference_routes", "decode_direct_routes",
+                "mtp_verify_dense_routes", "mtp_verify_reference_routes", "mtp_verify_direct_routes",
+                "d2h_useful_bytes", "d2h_actual_bytes", "h2d_useful_bytes", "h2d_actual_bytes",
+                "wait_us", "copy_us", "queue_us")},
+            "raw_case_id": row.get("case_id"),
+        })
+    return rows
+
+
+def _phase86_rate(rows: list[dict[str, Any]], field: str) -> dict[str, Any]:
+    values = [row["rates"][field] for row in rows if row.get("status") == "measured"
+              and _phase86_number(row.get("rates", {}).get(field))]
+    return {"value": statistics.median(values) if values else None,
+            "samples": len(values),
+            "reason": None if values else "no valid measured rows"}
+
+
+def build_phase86(scale: dict[str, Any], manifest: dict[str, Any], raw_root: Path) -> tuple[dict[str, Any], list[str]]:
+    errors: list[str] = []
+    config_path = raw_root / "run-config.json"
+    summary_path = raw_root / "summary.json"
+    config = read(config_path)
+    short_summary = read(summary_path)
+    identity = _phase86_identity(scale, config)
+    rows = _phase86_short_rows(raw_root, config, short_summary)
+    if len(rows) != 9:
+        errors.append(f"short measured row count is {len(rows)}, expected 9")
+    if identity["binary_sha256"] is None or identity["model_sha256"] is None:
+        errors.append("candidate/model identity is incomplete")
+    settings = identity["settings"]
+    geometry = scale.get("geometry", {})
+    frontier = scale.get("cache_preserving_frontier", {})
+    allocation = scale.get("allocation_256k", {})
+    pilots = scale.get("pilots", {})
+    paths = {
+        "scale_manifest": Path(".wiretail/execution/evidence/V10_86-02_SCALE.json"),
+        "phase86_manifest": Path(".wiretail/execution/evidence/V10_86-03.json"),
+        "short_run_config": config_path,
+        "short_summary": summary_path,
+        "short_records": raw_root / "records.jsonl",
+        "short_lifecycle": raw_root / "lifecycle-state.json",
+        "cold_overflow_summary": PHASE86_ROOT / "cold-needles-native/summary.json",
+        "cold_recovery_summary": PHASE86_ROOT / "cold-needles-native-c65536/summary.json",
+    }
+    summary = {
+        "schema": "hotpath-v10-phase86-summary",
+        "schema_version": 1,
+        "task": "86-04",
+        "revision": REVISION,
+        "amendment": "repair86-20260921",
+        "result": "current_findings" if not errors else "invalid_source_bundle",
+        "scope": "phase86 raw records and manifests only",
+        "identity": identity,
+        "settings": {**settings, "target_k": geometry.get("target_k"), "target_v": geometry.get("target_v"),
+                     "draft_k": geometry.get("draft_k"), "draft_v": geometry.get("draft_v"),
+                     "target_device": geometry.get("target_device"), "draft_device": geometry.get("draft_device"),
+                     "draft_n_max": geometry.get("draft_n_max")},
+        "rows": rows,
+        "mtp": {"short_measured": _phase86_sum_mtp(rows),
+                "scale_allocation_request": {"attempted": allocation.get("mtp_observation", {}).get("draft_tokens"),
+                    "accepted": allocation.get("mtp_observation", {}).get("accepted_tokens"),
+                    "denominator": None, "acceptance": None,
+                    "reason": allocation.get("mtp_observation", {}).get("reason")}},
+        "rates": {"cached_new_token_pp": _phase86_rate(rows, "cached_new_token_pp"),
+                  "committed_tg": _phase86_rate(rows, "committed_tg"),
+                  "fresh_pp": _phase86_null("canonical short rows used prompt cache")},
+        "attribution": {"short_rows": {key: sum(row.get("attribution", {}).get(key) or 0 for row in rows)
+                                         for key in rows[0]["attribution"]} if rows else {},
+                        "phase_timings": manifest.get("finding", {}).get("short_measured", {}).get("phase_timings_ms", {})},
+        "promotion": {"origin": _phase86_null("no natural rank-to-copy-to-publication-to-target-use chain was measured"),
+                       "controlled": _phase86_null("no controlled promotion record is part of phase86"),
+                       "organic": {"status": "not_measured", "value": None,
+                                   "reason": "cold workload produced no measured rows"}},
+        "capacity_vs_occupancy": {
+            "allocation_256k": {"status": allocation.get("status"), "L_tokens": allocation.get("requested_L"),
+                                "draft_rows": allocation.get("startup", {}).get("draft_rows"),
+                                "hot_tokens": allocation.get("hot_tokens")},
+            "occupied_frontier": {"status": frontier.get("status"), "capacity_tokens": frontier.get("logical_capacity_tokens"),
+                                  "successful_committed_C": frontier.get("successful_committed_C"),
+                                  "live_snapshot_C": frontier.get("live_snapshot_C"),
+                                  "full_capacity_occupied": frontier.get("full_occupied_C262144"),
+                                  "reason": frontier.get("stop_reason")},
+            "pilots": {name: {"status": item.get("status"), "requested_L": item.get("requested_L"),
+                              "startup": item.get("startup"), "request": item.get("request"),
+                              "reason": item.get("request", {}).get("raw_error_class")}
+                       for name, item in pilots.items()},
+        },
+        "null_reasons": {"fresh_pp": "canonical prompt cache; no fresh prefill timing",
+                         "ttft": "not exported by raw short records",
+                         "promotion": "no natural cold chain and no measured cold rows",
+                         "cold_speed_ratios": "context overflow and C=65536 bounded no-progress recovery",
+                         "native_mtp_allocation": allocation.get("mtp_observation", {}).get("reason")},
+        "raw_pointers": {name: {"path": str(path), "sha256": digest(path)} for name, path in paths.items() if path.is_file()},
+        "validation_errors": errors,
+    }
+    return summary, errors
+
+
+def phase86_markdown(summary: dict[str, Any]) -> str:
+    s = summary["settings"]
+    rates = summary["rates"]
+    mtp = summary["mtp"]["short_measured"]
+    frontier = summary["capacity_vs_occupancy"]["occupied_frontier"]
+    lines = ["# Phase86 compact summary", "", f"- Result: **{summary['result']}**", f"- Scope: `{summary['scope']}`",
+             f"- Geometry: L={s.get('L_tokens')}, H={s.get('H_pages')} pages, page={s.get('page_size_tokens')}, B={s.get('B_tokens')}, U={s.get('U_tokens')}",
+             f"- Candidate: `{summary['identity'].get('candidate_bundle')}`; binary `{summary['identity'].get('binary_sha256')}`",
+             f"- Model: `{summary['identity'].get('model')}`; SHA256 `{summary['identity'].get('model_sha256')}`", "",
+             "## Measured short rows", "", "| rate | value | samples | reason |", "|---|---:|---:|---|"]
+    for name in ("fresh_pp", "cached_new_token_pp", "committed_tg"):
+        item = rates[name]
+        lines.append(f"| {name} | {item.get('value')} | {item.get('samples', 0)} | {item.get('reason')} |")
+    lines += ["", f"- Native MTP sum: attempted `{mtp.get('attempted')}`, accepted `{mtp.get('accepted')}`, acceptance `{mtp.get('acceptance')}`.",
+              "- Fresh prompt rate and TTFT remain null because these rows used the canonical prompt cache and TTFT was not exported.", "",
+              "## Promotion and capacity", "", "- Natural promotion: null; no rank→copy→publication→target-use chain was measured.",
+              f"- Occupancy frontier: committed C `{frontier.get('successful_committed_C')}`, live snapshot C `{frontier.get('live_snapshot_C')}`; full 256K occupancy is `{frontier.get('full_capacity_occupied')}`.",
+              "- 256K allocation/startup and occupied context are reported separately; 32K/128K requests did not complete within their bounds.", "",
+              "Raw paths and checksums are in the JSON `raw_pointers` object.", ""]
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--evidence-root", type=Path, default=Path(".wiretail/execution/evidence"))
@@ -945,6 +1161,10 @@ def main() -> int:
     parser.add_argument("--phase57", action="store_true", help="aggregate only the phase-57 receipts and raw runs")
     parser.add_argument("--phase59", action="store_true", help="aggregate only the phase-59 receipts and raw manifests")
     parser.add_argument("--repair85", action="store_true", help="aggregate the current repair85 evidence chain")
+    parser.add_argument("--phase86", "--repair86", dest="phase86", action="store_true", help="aggregate only phase86 raw records and manifests")
+    parser.add_argument("--phase86-scale", type=Path, default=Path(".wiretail/execution/evidence/V10_86-02_SCALE.json"))
+    parser.add_argument("--phase86-manifest", type=Path, default=Path(".wiretail/execution/evidence/V10_86-03.json"))
+    parser.add_argument("--phase86-raw-root", type=Path, default=PHASE86_ROOT / "short-native-bounded")
     parser.add_argument("--speed-root", type=Path, default=Path(".wiretail/execution/evidence/raw/85-16"))
     parser.add_argument("--chain", type=Path, default=Path(".wiretail/execution/evidence/85-15-controlled-model.json"))
     parser.add_argument("--organic", type=Path, default=Path(".wiretail/execution/evidence/85-15-organic-negative.json"))
@@ -977,6 +1197,14 @@ def main() -> int:
         summary, errors = build_repair85(chain, speed, scale, args.speed_root, source_paths)
         args.output.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
         args.output.with_suffix(".md").write_text(repair85_markdown(summary))
+        print(json.dumps({"output": str(args.output), "errors": errors, "status": "pass" if not errors else "fail"}, sort_keys=True))
+        return 0 if not errors else 1
+    if args.phase86:
+        scale = read(args.phase86_scale)
+        manifest = read(args.phase86_manifest)
+        summary, errors = build_phase86(scale, manifest, args.phase86_raw_root)
+        args.output.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+        args.output.with_suffix(".md").write_text(phase86_markdown(summary))
         print(json.dumps({"output": str(args.output), "errors": errors, "status": "pass" if not errors else "fail"}, sort_keys=True))
         return 0 if not errors else 1
     root = args.evidence_root
