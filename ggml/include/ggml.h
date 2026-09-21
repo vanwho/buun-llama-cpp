@@ -2688,6 +2688,14 @@ extern "C" {
         int64_t  native_position_begin;
     };
 
+    // O(1) compact-row ownership for the selected page layout. The map is
+    // graph-owned and has stable row capacity; an invalid page index marks a
+    // padded row that must never address K/V.
+    struct ggml_flash_attn_ext_paged_turbo4_row_lookup {
+        uint32_t page_index;
+        uint32_t page_row;
+    };
+
     // Mutable state for a reusable paged-attention input.  This header is
     // stored at the beginning of the graph-owned `pages` device input; the
     // fixed-capacity page descriptors follow it.  Counts and generations are

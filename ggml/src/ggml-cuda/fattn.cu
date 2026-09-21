@@ -2158,6 +2158,10 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4_route(
         ? *params.active_page_count_host : params.n_pages;
     const uint32_t active_row_count = params.active_row_count_host != nullptr
         ? *params.active_row_count_host : params.n_rows;
+    if (params.compact_row_lookup_device != nullptr &&
+            params.compact_row_lookup_capacity < row_capacity) {
+        return ggml_cuda_fattn_turbo4_paged_status::invalid_argument;
+    }
     if (params.pages_host == nullptr || params.n_physical_pages == 0 ||
         page_capacity != params.n_pages || row_capacity != params.n_rows ||
         active_page_count == 0 || active_page_count > page_capacity ||
@@ -2408,6 +2412,10 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         active_row_count > row_capacity) {
         return ggml_cuda_fattn_turbo4_paged_status::invalid_argument;
     }
+    if (params.compact_row_lookup_device != nullptr &&
+            params.compact_row_lookup_capacity < row_capacity) {
+        return ggml_cuda_fattn_turbo4_paged_status::invalid_argument;
+    }
     if (params.n_physical_pages == 0 ||
         !ggml_cuda_fattn_turbo4_page_table_valid(params.pages_host, active_page_count, active_row_count,
                                                  256, params.n_physical_pages)) {
@@ -2450,7 +2458,7 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     // The MMA path is used for direct multi-query prefill. Telemetry and
     // split-state calls retain the descriptor-aware online-softmax path until
     // their page-state reduction is fused into the MMA policy.
-    if (!params.reference_kernel && params.n_query_tokens >= 16 &&
+    if (!params.reference_kernel && params.n_query_tokens >= 1 &&
             params.output != nullptr && params.page_mass == nullptr &&
             params.split_kv_scratch == nullptr && !params.write_partial_state &&
             !params.merge_partial_state) {
@@ -2496,19 +2504,25 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
                 ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 8>(ctx, mma_params)
                 : query_tile >= 4
                 ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 8>(ctx, mma_params)
-                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<2, 8>(ctx, mma_params);
+                : query_tile >= 2
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<2, 8>(ctx, mma_params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<1, 8>(ctx, mma_params);
         } else if (ncols2 == 4) {
             launched = query_tile >= 16
                 ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 4>(ctx, mma_params)
                 : query_tile >= 8
                 ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 4>(ctx, mma_params)
-                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 4>(ctx, mma_params);
+                : query_tile >= 4
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 4>(ctx, mma_params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<2, 4>(ctx, mma_params);
         } else if (ncols2 == 2) {
             launched = query_tile >= 32
                 ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 2>(ctx, mma_params)
                 : query_tile >= 16
                 ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 2>(ctx, mma_params)
-                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 2>(ctx, mma_params);
+                : query_tile >= 8
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 2>(ctx, mma_params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 2>(ctx, mma_params);
         } else {
             launched = query_tile >= 64
                 ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<64, 1>(ctx, mma_params)
@@ -2753,7 +2767,8 @@ static bool ggml_cuda_flash_attn_ext_paged_turbo4_shape(
         pages_bytes < sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) ||
         pages_bytes - sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) == 0 ||
         pages_bytes - sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) !=
-            size_t(page_capacity) * sizeof(ggml_cuda_fattn_turbo4_page) ||
+            size_t(page_capacity) * sizeof(ggml_cuda_fattn_turbo4_page) +
+            size_t(row_capacity) * sizeof(ggml_cuda_fattn_turbo4_row_lookup) ||
         k->nb[1] == 0 || k->nb[2] == 0 || k->nb[3] == 0 ||
         v->nb[1] == 0 || v->nb[2] == 0 || v->nb[3] == 0 ||
         storage_bytes == 0 || storage_bytes % k->nb[3] != 0 ||
@@ -2861,6 +2876,12 @@ void ggml_cuda_flash_attn_ext_paged_turbo4(
     params.pages_device = reinterpret_cast<const ggml_cuda_fattn_turbo4_page *>(
             static_cast<const char *>(pages->data) +
             sizeof(ggml_flash_attn_ext_paged_turbo4_device_control));
+    params.compact_row_lookup_device =
+        reinterpret_cast<const ggml_cuda_fattn_turbo4_row_lookup *>(
+            static_cast<const char *>(pages->data) +
+            sizeof(ggml_flash_attn_ext_paged_turbo4_device_control) +
+            size_t(page_capacity) * sizeof(ggml_cuda_fattn_turbo4_page));
+    params.compact_row_lookup_capacity = row_capacity;
     params.native_positions_device = static_cast<const int64_t *>(positions->data);
     params.native_mask_device = static_cast<const uint8_t *>(mask->data);
     params.query_positions_device = static_cast<const int64_t *>(queries->data);

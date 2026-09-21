@@ -200,6 +200,22 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
         { 2, 4, 257, 256, 512 },
     };
     assert(ggml_cuda_fattn_turbo4_page_table_valid(pages_257, 2, 257, 256, n_physical_pages));
+    const auto make_row_lookup = [](const ggml_cuda_fattn_turbo4_page * page_table,
+            uint32_t page_count, uint32_t row_count) {
+        std::vector<ggml_cuda_fattn_turbo4_row_lookup> result(row_count,
+            { UINT32_MAX, UINT32_MAX });
+        for (uint32_t page_index = 0; page_index < page_count; ++page_index) {
+            for (uint32_t page_row = 0; page_row < page_table[page_index].row_count; ++page_row) {
+                result[page_table[page_index].compact_row_begin + page_row] = {
+                    page_index, page_row };
+            }
+        }
+        return result;
+    };
+    const std::vector<ggml_cuda_fattn_turbo4_row_lookup> row_lookup =
+        make_row_lookup(pages, 3, n_rows);
+    const std::vector<ggml_cuda_fattn_turbo4_row_lookup> row_lookup_257 =
+        make_row_lookup(pages_257, 2, n_rows);
 
     std::vector<uint8_t> k_host(size_t(n_physical_pages) * page_stride, 0xff);
     std::vector<uint8_t> v_host(k_host.size(), 0xff);
@@ -234,6 +250,7 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     char * v_device = nullptr;
     float * output_device = nullptr;
     ggml_cuda_fattn_turbo4_page * pages_device = nullptr;
+    ggml_cuda_fattn_turbo4_row_lookup * row_lookup_device = nullptr;
     int64_t * native_positions_device = nullptr;
     uint8_t * native_mask_device = nullptr;
     int64_t * query_positions_device = nullptr;
@@ -244,6 +261,7 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     cuda_check(cudaMalloc(&v_device, v_host.size()), "multigroup v allocation");
     cuda_check(cudaMalloc(&output_device, size_t(max_query_tokens) * output_query_stride), "multigroup output allocation");
     cuda_check(cudaMalloc(&pages_device, sizeof(pages)), "multigroup pages allocation");
+    cuda_check(cudaMalloc(&row_lookup_device, row_lookup.size() * sizeof(row_lookup[0])), "multigroup row lookup allocation");
     cuda_check(cudaMalloc(&native_positions_device, native_positions.size() * sizeof(int64_t)), "multigroup positions allocation");
     cuda_check(cudaMalloc(&native_mask_device, native_mask.size()), "multigroup mask allocation");
     cuda_check(cudaMalloc(&query_positions_device, query_positions.size() * sizeof(int64_t)), "multigroup query positions allocation");
@@ -253,6 +271,7 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     cuda_check(cudaMemcpy(k_device, k_host.data(), k_host.size(), cudaMemcpyHostToDevice), "multigroup k copy");
     cuda_check(cudaMemcpy(v_device, v_host.data(), v_host.size(), cudaMemcpyHostToDevice), "multigroup v copy");
     cuda_check(cudaMemcpy(pages_device, pages, sizeof(pages), cudaMemcpyHostToDevice), "multigroup pages copy");
+    cuda_check(cudaMemcpy(row_lookup_device, row_lookup.data(), row_lookup.size() * sizeof(row_lookup[0]), cudaMemcpyHostToDevice), "multigroup row lookup copy");
     cuda_check(cudaMemcpy(native_positions_device, native_positions.data(), native_positions.size() * sizeof(int64_t), cudaMemcpyHostToDevice), "multigroup native positions copy");
     cuda_check(cudaMemcpy(native_mask_device, native_mask.data(), native_mask.size(), cudaMemcpyHostToDevice), "multigroup native mask copy");
     cuda_check(cudaMemcpy(query_positions_device, query_positions.data(), query_positions.size() * sizeof(int64_t), cudaMemcpyHostToDevice), "multigroup query positions copy");
@@ -280,6 +299,8 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     params.v_page_stride_bytes = page_stride;
     params.pages_host = pages;
     params.pages_device = pages_device;
+    params.compact_row_lookup_device = row_lookup_device;
+    params.compact_row_lookup_capacity = n_rows;
     params.native_positions_device = native_positions_device;
     params.native_mask_device = native_mask_device;
     params.query_positions_device = query_positions_device;
@@ -300,7 +321,7 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     cuda_check(cudaMemcpy(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice), "multigroup active pages copy");
     cuda_check(cudaMemcpy(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice), "multigroup active rows copy");
 
-    const uint32_t query_counts[] = { 1, 2, 3, 16, 17, 64, 128 };
+    const uint32_t query_counts[] = { 1, 2, 3, 4, 16, 17, 64, 128 };
     for (const uint32_t query_count : query_counts) {
         params.n_query_tokens = query_count;
         const std::vector<float> oracle = cpu_interleaved_turbo4_oracle(q_host,
@@ -311,7 +332,7 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
             std::numeric_limits<float>::quiet_NaN());
         cuda_check(cudaMemcpy(output_device, canary.data(), canary.size() * sizeof(float), cudaMemcpyHostToDevice), "multigroup output poison");
         assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
-        assert(ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma() == (query_count >= 16));
+        assert(ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma());
         cuda_check(cudaDeviceSynchronize(), "multigroup attention synchronize");
         std::vector<float> output(canary.size());
         cuda_check(cudaMemcpy(output.data(), output_device, output.size() * sizeof(float), cudaMemcpyDeviceToHost), "multigroup output readback");
@@ -360,6 +381,7 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     active_pages = 2;
     active_rows = 257;
     cuda_check(cudaMemcpy(pages_device, pages_257, sizeof(pages_257), cudaMemcpyHostToDevice), "multigroup graph initial pages");
+    cuda_check(cudaMemcpy(row_lookup_device, row_lookup_257.data(), row_lookup_257.size() * sizeof(row_lookup_257[0]), cudaMemcpyHostToDevice), "multigroup graph initial row lookup");
     cuda_check(cudaMemcpy(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice), "multigroup graph initial page count");
     cuda_check(cudaMemcpy(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice), "multigroup graph initial row count");
     params.pages_host = pages_257;
@@ -386,6 +408,8 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
         cuda_check(cudaMemcpyAsync(output_device, replay_canary.data(),
             replay_canary.size() * sizeof(float), cudaMemcpyHostToDevice, stream), label);
         cuda_check(cudaMemcpyAsync(pages_device, replay_pages, sizeof(pages), cudaMemcpyHostToDevice, stream), label);
+        const auto & replay_lookup = page_count == 2 ? row_lookup_257 : row_lookup;
+        cuda_check(cudaMemcpyAsync(row_lookup_device, replay_lookup.data(), replay_lookup.size() * sizeof(replay_lookup[0]), cudaMemcpyHostToDevice, stream), label);
         cuda_check(cudaMemcpyAsync(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice, stream), label);
         cuda_check(cudaMemcpyAsync(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice, stream), label);
         cuda_check(cudaGraphLaunch(graph_exec, stream), label);
@@ -421,11 +445,12 @@ static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
     cudaFree(native_mask_device);
     cudaFree(native_positions_device);
     cudaFree(pages_device);
+    cudaFree(row_lookup_device);
     cudaFree(output_device);
     cudaFree(v_device);
     cudaFree(k_device);
     cudaFree(q_device);
-    std::fprintf(stderr, "cuda_multigroup_turbo4_numerics: passed (Q=1,2,3,16,17,64,128; GQA=24/4; interleaved rows)\n");
+    std::fprintf(stderr, "cuda_multigroup_turbo4_numerics: passed (Q=1,2,3,4,16,17,64,128; GQA=24/4; interleaved rows)\n");
     std::fprintf(stderr, "cuda_paged_graph_capture_replay: passed (active rows 257 -> 513; stable capacities)\n");
 }
 
@@ -1404,7 +1429,11 @@ int main(int argc, char ** argv) {
 
     for (size_t i = 0; i < n_head_q * 256; ++i) {
         assert(std::isfinite(output_without_mass[i]));
-        assert(output_without_mass[i] == output_with_mass[i]);
+        // The ordinary route now uses the fused MMA shape dispatch while the
+        // page-mass route intentionally stays on the descriptor-aware
+        // reduction path; compare their equivalent outputs within FP32
+        // accumulation tolerance.
+        assert(std::fabs(output_without_mass[i] - output_with_mass[i]) < 1.0e-4f);
     }
     for (uint32_t query = 0; query < max_query_tokens; ++query) {
         const float expected = query >= 2 ? expected_529 : expected_528;
