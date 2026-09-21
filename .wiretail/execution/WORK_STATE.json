@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "85",
-  "current_task": "85-19",
-  "last_updated_utc": "2026-09-21T11:43:02+00:00",
+  "current_phase": "86",
+  "current_task": "86-01",
+  "last_updated_utc": "2026-09-21T11:48:23+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -16390,7 +16390,7 @@
       "cluster": "repair85-summary-review-v10",
       "title": "Review current goal results and schedule precise remaining work",
       "packet": ".wiretail/execution/tasks/85-19.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -16402,7 +16402,7 @@
       "depends_on": [
         "85-18"
       ],
-      "commit": null,
+      "commit": "17aaf1b16652338fe3151c08d3d481e8df239b6a",
       "context_files": [
         ".wiretail/execution/v10/REPAIR85_PLAN.md",
         ".wiretail/execution/v10/REPAIR85_TESTING.md",
@@ -16420,6 +16420,203 @@
         ".wiretail/execution/evidence/V10_85-19.json",
         "--review",
         ".wiretail/execution/evidence/V10_REPAIR85_REVIEW.json"
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-19-attempt-1-20260921T114322Z.jsonl:41",
+            "total_tokens": 7770559,
+            "total_tokens_derived": true,
+            "input_tokens": 7734585,
+            "cached_input_tokens": 7413504,
+            "output_tokens": 35974,
+            "thinking_tokens": 8559
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 7770559,
+          "input_tokens": 7734585,
+          "cached_input_tokens": 7413504,
+          "output_tokens": 35974,
+          "thinking_tokens": 8559
+        }
+      }
+    },
+    {
+      "id": "86-01",
+      "phase": "86",
+      "cluster": "repair86-cuda-prefill-v10",
+      "title": "Repair the long-context Turbo4 prefill launch fault",
+      "packet": ".wiretail/execution/tasks/86-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair86-20260921",
+      "required_proofs": [
+        "cuda_prefill_long_context_regression"
+      ],
+      "depends_on": [
+        "85-19"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/85-19.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "86-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_86-01.json"
+      ]
+    },
+    {
+      "id": "86-02",
+      "phase": "86",
+      "cluster": "repair86-scale-v10",
+      "title": "Measure post-repair context capability",
+      "packet": ".wiretail/execution/tasks/86-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair86-20260921",
+      "required_proofs": [
+        "context_scaling_recovery"
+      ],
+      "depends_on": [
+        "86-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/86-01.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "86-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_86-02.json"
+      ]
+    },
+    {
+      "id": "86-03",
+      "phase": "86",
+      "cluster": "repair86-results-v10",
+      "title": "Re-measure matched speed and natural cold promotion",
+      "packet": ".wiretail/execution/tasks/86-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair86-20260921",
+      "required_proofs": [
+        "repair86_matched_speed_and_promotion"
+      ],
+      "depends_on": [
+        "86-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/86-02.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "86-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_86-03.json"
+      ]
+    },
+    {
+      "id": "86-04",
+      "phase": "86",
+      "cluster": "repair86-summary-review-v10",
+      "title": "Generate the phase86 compact summary",
+      "packet": ".wiretail/execution/tasks/86-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair86-20260921",
+      "required_proofs": [
+        "repair86_summary_consistency"
+      ],
+      "depends_on": [
+        "86-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/86-03.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "86-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_86-04.json"
+      ]
+    },
+    {
+      "id": "86-05",
+      "phase": "86",
+      "cluster": "repair86-summary-review-v10",
+      "title": "Review phase86 results and schedule only proven successors",
+      "packet": ".wiretail/execution/tasks/86-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair86-20260921",
+      "required_proofs": [
+        "repair86_review_and_successors"
+      ],
+      "depends_on": [
+        "86-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/handoffs/86-04.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "86-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_86-05.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR86_REVIEW.json"
       ]
     }
   ],
@@ -21276,26 +21473,50 @@
           "cached_input_tokens": 4637184,
           "output_tokens": 21211,
           "thinking_tokens": 4003
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-19-attempt-1-20260921T114322Z.jsonl:41",
+          "total_tokens": 7770559,
+          "total_tokens_derived": true,
+          "input_tokens": 7734585,
+          "cached_input_tokens": 7413504,
+          "output_tokens": 35974,
+          "thinking_tokens": 8559
         }
       ],
       "totals": {
-        "turns": 23,
-        "total_tokens": 687901277,
-        "input_tokens": 686518652,
-        "cached_input_tokens": 671380992,
-        "output_tokens": 1382625,
-        "thinking_tokens": 551739
+        "turns": 24,
+        "total_tokens": 695671836,
+        "input_tokens": 694253237,
+        "cached_input_tokens": 678794496,
+        "output_tokens": 1418599,
+        "thinking_tokens": 560298
+      }
+    },
+    "86": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 296,
-      "total_tokens": 5471690593,
-      "input_tokens": 5458575944,
-      "cached_input_tokens": 5342012928,
-      "output_tokens": 13114649,
-      "thinking_tokens": 4711534
+      "turns": 297,
+      "total_tokens": 5479461152,
+      "input_tokens": 5466310529,
+      "cached_input_tokens": 5349426432,
+      "output_tokens": 13150623,
+      "thinking_tokens": 4720093
     },
     "source": "Codex turn.completed usage events"
   }

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "task": "85-19",
+  "source_commit": "17aaf1b16652338fe3151c08d3d481e8df239b6a",
+  "checks": {
+    "repair85_review_and_successors": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "85-19",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_85-19.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR85_REVIEW.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_REPAIR85_REVIEW.json",
+          "sha256": "ce67a872eb90509cd603e6761fb09fad8908cb869137f4aa5472e3465c3f803f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_REPAIR85_REVIEW.md",
+          "sha256": "6890bc9b151477a186cb4975013eabf36e1de0aeea91031573115fbf5788c0ee"
+        }
+      ]
+    }
+  }
+}
