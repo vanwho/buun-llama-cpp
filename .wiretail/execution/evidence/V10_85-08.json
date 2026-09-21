@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "task": "85-08",
+  "source_commit": "d5a9f908018ff86c1785cf2e7355d2bd9f2b002e",
+  "checks": {
+    "mtp_state_regression": {
+      "status": "pass",
+      "command": [
+        "bash",
+        "-c",
+        "./build-cuda/bin/test-kv-attention-execution; ./build-cuda/bin/test-speculative-mtp-state; ./build-cuda/bin/test-mtp-vocab-trim; ./build-cuda/bin/test-kv-pager-model --mtp native"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-08/attempt-4-final/mtp_state_regression.txt",
+          "sha256": "cf93ef075e7e4bfbd07f07ea2b1b8aa701602646ddaad3bcdf0edfe0b4cd21de"
+        }
+      ],
+      "finding": {
+        "attention_route_contract": "native-MTP prefill and verification use automatic reference; ordinary decode and explicit direct remain available",
+        "frontier_boundaries": "accepted 0, 1, 2, and 3 all passed with valid paired restoration"
+      }
+    },
+    "mtp_fixed_coordinate_smoke": {
+      "status": "pass",
+      "command": [
+        "timeout",
+        "180s",
+        "bash",
+        "-c",
+        "python3 -c 'import json; print(json.dumps({\"model\":\"task-85-08-auto\",\"messages\":[{\"role\":\"user\",\"content\":\"Write a short answer. \" + \" word\"*6085}],\"max_tokens\":8,\"temperature\":0,\"stream\":False}))' | curl --max-time 170 -sS --fail-with-body http://127.0.0.1:18091/v1/chat/completions -H 'Content-Type: application/json' --data-binary @-"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-08/attempt-4-final/fixed_coordinate_response.json",
+          "sha256": "82c0817569ac58c652b89c7c23ca4937fb40d445b02f0671fec42bb98ec4572e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-08/attempt-4-final/process_identity.txt",
+          "sha256": "f63091da081ecf20c1c5c9642e6f42fc3ce264d235c5b47ac6cbf673fc53650f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-08/attempt-4-final/build_identity.txt",
+          "sha256": "3bc0fc7bd29963b4546e92fe305c84484f35f5151747a1973aeab0f10b55d290"
+        }
+      ],
+      "finding": {
+        "prompt_n": 6143,
+        "draft_n": 5,
+        "draft_n_accepted": 1,
+        "route": "selected reference",
+        "logits_finite_count": [248320, 248320, 248320],
+        "logits_nan_count": [0, 0, 0],
+        "logits_pos_inf_count": [0, 0, 0],
+        "restored_rows_observed": true,
+        "content_null_reason": "reasoning-preserve response; not used as a logit-health oracle"
+      }
+    }
+  }
+}
