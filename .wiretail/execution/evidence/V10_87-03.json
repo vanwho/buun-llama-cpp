@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "task": "87-03",
+  "source_commit": "92e8e62455859a76cfabf20aebe557c8a33f49ab",
+  "checks": {
+    "repair87_organic_cold_mtp": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-organic-cold-mtp.py",
+        "--summary",
+        "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-repeated/summary.json",
+        "--journal",
+        "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-final/service-journal.log",
+        "--binary",
+        "/srv/ai/paged-kv/candidates/86-02-cuda/bin/llama-server",
+        "--model",
+        "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "--build-receipt",
+        "/srv/ai/paged-kv/candidates/86-02-cuda/build-receipt.json",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/87-03/organic-cold-mtp-validation.json"
+      ],
+      "artifacts": [
+        {
+          "path": "tools/server/bench/validate-organic-cold-mtp.py",
+          "sha256": "d2d7f232c98c44bedadc15daacfac85e80e8e5a40f2a04de4150470b046089f0"
+        },
+        {
+          "path": "tools/server/bench/phase84_route_promotion_diagnostic.py",
+          "sha256": "f281e591e42bda28dd02aac53f2c9c1d26ca32b10b4d8226e293a6a267f5e486"
+        },
+        {
+          "path": ".wiretail/execution/evidence/artifacts/87-03/organic-cold-mtp-validation.json",
+          "sha256": "ea61eaf507b50dcd53b754bc2c359818306607c74f6aa521cc796c2584acfc23"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-repeated/summary.json",
+          "sha256": "ffefc9e4e95f7df97790dff49559184fc48b1c2bf4e4841e2481b9dcef462200"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-repeated/request-a.json",
+          "sha256": "e766edb76afba2304bd033281d0c81aa6e3e4a51a6c59c068ea369345c2412ca"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-repeated/request-b.json",
+          "sha256": "92aa29168f3212cea34d3e08b46e6cf21bada90bba54d1506e3f2e021b97d047"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-repeated/request-a-again.json",
+          "sha256": "24185dd949664300530036162f812d32ae8b6911871b3c5887fc0d8f253f1bef"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-repeated/request-terminal.json",
+          "sha256": "aaf555b5091c966bbb0c5e0f92198e674033def5e7e349e20963caf17a88bd5f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-final/service-journal.log",
+          "sha256": "98323bb9151fdec49629fcdbaf3a6336ae22c88e83aff2feda25b66d277e18a9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/87-03/organic-route-diagnostic-final/run-meta.txt",
+          "sha256": "1f62d3522fc58ff5c94ed9b04240af2df9e900dc37bd41ca4de7e70398b0ec3b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/candidates/86-02-cuda/bin/llama-server",
+          "sha256": "61fb0f5feb24fa74661e00fcb11a611cba593a618e1a6cd231c9227c96505643"
+        },
+        {
+          "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+          "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+        },
+        {
+          "path": "/srv/ai/paged-kv/candidates/86-02-cuda/build-receipt.json",
+          "sha256": "402580238ef5008c49168770ca320f7e85a6dbc29481489fc6f4b72d33e53810"
+        }
+      ],
+      "result": {
+        "origin": "organic cold route diagnostic with controlled promotion origin kept separate",
+        "candidate": "/srv/ai/paged-kv/candidates/86-02-cuda/bin/llama-server",
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "geometry": {
+          "context_tokens": 8192,
+          "target_threshold": 2048,
+          "page_tokens": 256,
+          "hot_pages": 8,
+          "pin_recent_tokens": 512,
+          "batch": 128,
+          "ubatch": 64,
+          "mtp": "native GPU Turbo4"
+        },
+        "request_scoped_mtp": {
+          "A": {"drafted": 2, "accepted": 0, "denominator": 2},
+          "B": {"drafted": 2, "accepted": 1, "denominator": 2},
+          "A-again": {"drafted": 6, "accepted": 1, "denominator": 6},
+          "terminal": {"drafted": 2, "accepted": 0, "denominator": 2}
+        },
+        "causal_target_use": {
+          "B": {
+            "input_tokens": 3498,
+            "candidate_was_cold": true,
+            "h2d_useful_bytes": 4325376,
+            "logical_page": 0,
+            "selector_rank": 1,
+            "target_graph_used": true,
+            "target_use_query_generation": 128,
+            "query_generation": 128
+          },
+          "A-again": {
+            "input_tokens": 3543,
+            "candidate_was_cold": true,
+            "h2d_useful_bytes": 4325376,
+            "logical_page": 0,
+            "selector_rank": 1,
+            "target_graph_used": true,
+            "target_use_query_generation": 128,
+            "query_generation": 128
+          }
+        },
+        "rollback_restore": {
+          "target": "trimmed",
+          "draft": "rebuild_required",
+          "positive_target_restore_epochs": [1, 2],
+          "rollback_histograms": 5
+        },
+        "output_validity": "all four HTTP chat completions had non-empty assistant content and matching prompt token accounting",
+        "answer_quality": "A, B, and terminal acknowledgements matched; A-again returned A-ARCHIVE-META instead of A-ARCHIVE-MARKER-914 and is recorded as a semantic mismatch"
+      }
+    }
+  },
+  "verification": {
+    "organic_cold_mtp": "pass: structural output, request-scoped denominators, native Turbo4 MTP, cold H2D publication, causal target use, and real rollback/restore are asserted",
+    "semantic_retrieval": "A-again mismatch remains an explicit quality finding; it is not claimed as an exact retrieval success",
+    "controlled_origin": "kept separate in V10_87-02; this receipt claims only organic runtime evidence"
+  }
+}
