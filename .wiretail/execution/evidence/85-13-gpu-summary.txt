@@ -1,0 +1,18 @@
+Task 85-13 GPU summary cadence proof
+
+Command: ./build-cuda/bin/test-cuda-kv-page-summary
+Exit code: 0
+Output:
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 15945 MiB):
+  Device 0: NVIDIA GeForce RTX 4080, compute capability 8.9, VMM: yes, VRAM: 15945 MiB
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete
+CUDA KV page summary parity, replay, cold-copy, and page-local update passed
+
+Command: ./build-cuda/bin/test-kv-routing-summary
+Exit code: 0
+Output: no output; process exited successfully.
+
+Command: ./build-cuda/bin/test-kv-routing-retrieval
+Exit code: 0
+Output:
+kv routing retrieval checks passed
