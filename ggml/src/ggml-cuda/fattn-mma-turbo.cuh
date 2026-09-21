@@ -33,6 +33,8 @@ struct ggml_cuda_fattn_mma_paged_turbo4_policy {
     const uint32_t * active_page_count;
     const uint32_t * active_row_count;
     uint32_t kv_head;
+    uint32_t gqa_ratio;
+    uint32_t global_head_base;
     uint32_t n_head_kv;
     uint32_t n_query_tokens;
     const int64_t * native_positions;
@@ -47,7 +49,9 @@ struct ggml_cuda_fattn_mma_paged_turbo4_policy {
     uint32_t routing_top_k;
 
     __device__ __forceinline__ float2 q_value(const int query, const int head, const int k0) const {
-        const char * base = (const char *) q + size_t(query) * q_query_stride + size_t(head) * q_head_stride;
+        const uint32_t global_head = global_head_base + uint32_t(head);
+        const char * base = (const char *) q + size_t(query) * q_query_stride +
+            size_t(global_head) * q_head_stride;
         return ((const float2 *) base)[k0];
     }
 
@@ -197,8 +201,9 @@ struct ggml_cuda_fattn_mma_paged_turbo4_policy {
 
     __device__ __forceinline__ void store_output(
             float2 *, const int query, const int head, const int k0, const float2 value) const {
+        const uint32_t global_head = global_head_base + uint32_t(head);
         float2 * dst = (float2 *) ((char *) output + size_t(query) * output_query_stride +
-            size_t(head) * output_head_stride);
+            size_t(global_head) * output_head_stride);
         dst[k0] = value;
     }
 };
@@ -231,6 +236,8 @@ static __global__ void ggml_cuda_fattn_mma_turbo4_paged_kernel(
     policy.kv_head = kv_head;
     const uint3 ne01 = make_uint3(n_query_tokens, n_query_tokens, n_query_tokens);
     const int gqa_ratio = int(n_head_q / n_head_kv);
+    policy.gqa_ratio = uint32_t(gqa_ratio);
+    policy.global_head_base = kv_head * policy.gqa_ratio;
     const int kb0_stop = (int(n_rows) + nbatch_fa - 1) / nbatch_fa;
 
     flash_attn_ext_f16_process_tile
@@ -297,6 +304,7 @@ static bool ggml_cuda_flash_attn_ext_mma_turbo4_paged_case(
     policy.active_page_count = params.active_page_count_device;
     policy.active_row_count = params.active_row_count_device;
     policy.n_head_kv = params.n_head_kv;
+    policy.gqa_ratio = params.n_head_q / params.n_head_kv;
     policy.n_query_tokens = params.n_query_tokens;
     policy.native_positions = params.native_positions_device;
     policy.native_mask = params.native_mask_device;
