@@ -19182,21 +19182,22 @@ private:
                         alora_disabled_id = enabled_loras[0];
                     }
 
-                    // A native MTP drafter shares the prompt's target frontier, but a
-                    // hybrid target cannot roll its recurrent state back across a
-                    // prompt edit without a complete point-in-time image.  The clean
-                    // benchmark profile intentionally disables user-visible context
-                    // checkpoints; retain two in-memory rewind points nevertheless so
-                    // MTP prompt edits can reuse the stable prefix even after the
-                    // immediately newer prompt frontier has been sealed.  This is a live
-                    // cache-state aid only: configured checkpoint capacity and durable
-                    // retention policy are unchanged.
-                    const bool mtp_rewind_checkpoint =
+                    // A hybrid target cannot roll its recurrent state back across a
+                    // prompt edit without a complete point-in-time image.  Native MTP
+                    // needs the same aid even on a non-hybrid target because its draft
+                    // frontier is coupled to the target frontier.  The clean benchmark
+                    // profile intentionally disables user-visible context checkpoints;
+                    // retain two in-memory rewind points nevertheless so prompt edits
+                    // can reuse the stable prefix after the immediately newer frontier
+                    // has been sealed.  This is a live cache-state aid only: configured
+                    // checkpoint capacity and durable retention policy are unchanged.
+                    const bool live_rewind_checkpoint =
                         params_base.n_ctx_checkpoints == 0 &&
-                        params_base.speculative.uses_native_mtp_as_primary_drafter() &&
-                        ctx_dft != nullptr;
+                        (llama_model_is_hybrid(model_tgt) ||
+                         (params_base.speculative.uses_native_mtp_as_primary_drafter() &&
+                          ctx_dft != nullptr));
                     const size_t checkpoint_capacity =
-                        mtp_rewind_checkpoint
+                        live_rewind_checkpoint
                             ? size_t(2)
                             : size_t(std::max(0, params_base.n_ctx_checkpoints));
                     bool do_checkpoint = checkpoint_capacity > 0;
@@ -20075,7 +20076,7 @@ private:
                                     ", size = %.3f MiB%s)\n",
                                     (int) slot.prompt.checkpoints.size(), (int) checkpoint_capacity, cur.pos_min,
                                     cur.pos_max, cur.n_tokens, (float) cur.size() / 1024.0 / 1024.0,
-                                    mtp_rewind_checkpoint ? ", MTP rewind" : "");
+                                    live_rewind_checkpoint ? ", live rewind" : "");
                         }
                     }
                 }
