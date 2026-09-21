@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "task": "86-02",
+  "source_commit": "9fe3ab362457ade62fc90cd46b454b8c047fbc54",
+  "checks": {
+    "context_scaling_recovery": {
+      "status": "pass",
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/validate_86_02_scale.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_86-02_SCALE.json",
+          "sha256": "bf47132c9fd5a42213b5ba26b81e515c90d68a8968814e79cd4b5307859de277"
+        },
+        {
+          "path": ".wiretail/execution/evidence/validate_86_02_scale.py",
+          "sha256": "d3e2164729b1ff8b799639bad0b91cc8e4c9edf78579440903cb4b52f23c7c53"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-02/pilot-32k-h16-u64-r2/run-config.json",
+          "sha256": "ffcad1ef4f051e99649e9ea44e3b1837af84732c98a978f6a2776fbc4b8b9bd2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-02/pilot-128k-h8-u64/run-config.json",
+          "sha256": "3f16e19ef33e697e7640ef62376b5085ff65cb644e62341deaf80bf7ef989c02"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-02/allocation-256k-h4-u64/raw/off-measured-1.json",
+          "sha256": "27757a0eec89a59de98b2e3f76ef76b976b73a949ef37667f4aa26eb1bda5cf2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-02/frontier-256k-h4-u64/INTERACTIVE29_01_SCALE.json",
+          "sha256": "7a58525c7ff536bb84e75ab9c58fb3848f806cebe2efa5c889d93d44ec4c1788"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/86-02/frontier-256k-h4-u64/metrics-final.txt",
+          "sha256": "e1d9f1dbeb29c7dd2e2f8fc5b59b935c8cda26b6e6547b698cf7de2b2f02e24a"
+        }
+      ]
+    }
+  }
+}
