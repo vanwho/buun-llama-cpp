@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "task": "85-10",
+  "source_commit": "4988fa50dc3cc119284fa7e5070400cd0916a2b9",
+  "source_diff_sha256": "f062eabddbf687f157f2cd1c6b7b07da213767d1277708c60589d282c7753ad2",
+  "build": {
+    "tree": "build-cuda-test",
+    "target": "llama-server",
+    "bundle": "/srv/ai/paged-kv/build/buun-v10-85-10-final-control",
+    "bundle_manifest": "/srv/ai/paged-kv/results/v10-85-10-control-final2/bundle-manifest.json",
+    "build_receipt": "/srv/ai/paged-kv/build/buun-v10-85-10-final-control/build-receipt.json",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "device": "NVIDIA GeForce RTX 4080, compute capability 8.9",
+    "identity": {
+      "executable_sha256": "d0474ec6f4fb1c36388a4c05da96a0eb9053f971aa996e4a36d75f17c5076ea6",
+      "libggml_cuda_sha256": "9ac55c2d118bc21a99ca5159e3a2d339e4492e13866ee08c92dcc91ad2503859",
+      "libllama_sha256": "02a488f73c2148361281b9148179002890bdc83c5909a6c87c6eb6f1cc074a56"
+    }
+  },
+  "checks": {
+    "short_run_setup_recovery": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tools.server.bench.test_launcher_contract",
+        "tools.server.bench.test_pager_benchmark_adapter",
+        "tools.server.bench.test_bundle_identity_contract",
+        "tools.server.bench.test_quality_corpus_runner"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/85-10/contract-tests.log",
+          "sha256": "b13bcfe50128a86c7ce7dcaa5cd6d78f903dda890bf6d5c5d480ade572205dbf"
+        }
+      ],
+      "result": "59 tests passed; writable candidate recovery was corrected and the canonical immutable bundle then loaded successfully."
+    },
+    "finite_dense_turbo4_control": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "BENCH_ENDPOINT=http://127.0.0.1:8080/v1",
+        "CANONICAL_BENCHMARK_RUNNER=/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "BENCH_SERVER_BIN=/srv/ai/paged-kv/build/buun-v10-85-10-final-control/bin/llama-server",
+        "PAGER_BUNDLE_ROOT=/srv/ai/paged-kv/build/buun-v10-85-10-final-control",
+        "PAGER_BUILD_RECEIPT=/srv/ai/paged-kv/build/buun-v10-85-10-final-control/build-receipt.json",
+        "LLAMA_ACTIVE_PROFILE=/srv/ai/config/llama/active-profile",
+        "LLAMA_PROFILE_ACTIVATOR=/srv/ai/scripts/activate-ai-profile.sh",
+        "LLAMA_API_KEY_FILE=/srv/ai/config/llama/api-keys",
+        "LLAMA_SERVICE_NAME=llama-server.service",
+        "BENCH_MODES=off",
+        "BENCH_CLEAN=1",
+        "python3",
+        "tools/server/bench/run-pager-profile-benchmark.py",
+        "fast",
+        "short",
+        "/srv/ai/paged-kv/results/v10-85-10-control-final2",
+        "--mode",
+        "off",
+        "--device",
+        "CUDA0",
+        "--page-size",
+        "256",
+        "--context",
+        "4096",
+        "--mtp",
+        "off",
+        "--batch",
+        "128",
+        "--ubatch",
+        "128",
+        "--one-case",
+        "--one-trial",
+        "--generation-length",
+        "32",
+        "--connect-timeout",
+        "10",
+        "--startup-timeout",
+        "180",
+        "--prefill-timeout",
+        "120",
+        "--decode-timeout",
+        "120",
+        "--total-timeout",
+        "600",
+        "--diagnostic"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10-85-10-control-final2/summary.json",
+          "sha256": "fea617c719e47f9555575e085fe1f54a0dd53e8ffd77ef92e9048471d92f6615"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10-85-10-control-final2/records.jsonl",
+          "sha256": "898eed0fe3e0e2b527c45f2fa5f9c19b9bce0ac46fb9933fb0a16fe7ca77a4c0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10-85-10-control-final2/raw/off-measured-1-p0.journal.log",
+          "sha256": "2e9691ba53887c8c8ad6431ca1e43f0983b5a4b3f150610d0a0b088d5d5e0fea"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10-85-10-control-final2/raw/off-measured-1-p0.http",
+          "sha256": "330e12fd1090c7076463dded8a63cbb7f39025afabd62829453779b7fcaec511"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10-85-10-control-final2/bundle-manifest.json",
+          "sha256": "f72ab5434c4cfa4da2b1b971ce0be9b88fefc77a27faddf94aae47f9d714ec2f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/build/buun-v10-85-10-final-control/build-receipt.json",
+          "sha256": "b81c052be5e090e416c23244fed29d81b24f06e277eaa0379e659b2b05dcde6f"
+        }
+      ],
+      "geometry": {
+        "L": 4096,
+        "C": 30,
+        "B": 128,
+        "U": 128,
+        "target_kv": "GPU CUDA0 Turbo4",
+        "mtp": "off",
+        "prompt_index": 0,
+        "output_tokens": 32,
+        "errors": 0
+      },
+      "diagnostics": {
+        "prefill_kqv_out_3": "184320/184320 finite, NaN=0, +Inf=0, -Inf=0",
+        "decode_kqv_out_3": "6144/6144 finite on observed continuation rows, NaN=0, +Inf=0, -Inf=0",
+        "logits_rows": 8,
+        "valid_vocab_logits": 248320,
+        "logits_nan": 0,
+        "logits_pos_inf": 0,
+        "logits_neg_inf": 0,
+        "argmax_source": "unavailable; raw-logit top-k identity present",
+        "top_k_source": "raw_logits"
+      },
+      "result": "HTTP 200, 32 completion tokens, finite prefill and one-token continuation logits/attention rows, immutable identity matched."
+    }
+  },
+  "verification": {
+    "cuda_build": "pass: cmake --build build-cuda-test --target llama-server -j2",
+    "focused_unittests": "pass: 59 tests",
+    "git_diff_check": "pass",
+    "deferred": "No required CUDA or live-service verification deferred. Native MTP acceptance remains out of scope for 85-10 and is assigned to 85-12."
+  }
+}

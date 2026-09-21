@@ -720,6 +720,10 @@ private:
 
     llm_graph_cb graph_get_cb() const;
 
+    // Test-only finite-value localization for a single dense control graph.
+    // The callback is installed only when LLAMA_DENSE_TENSOR_DIAGNOSTIC is set.
+    static bool dense_tensor_diagnostic_callback(ggml_tensor * t, bool ask, void * user_data);
+
     // disable auto fused ops (Flash Attention, Gated Delta Net) whose op lands on a device
     // that differs from the layer it belongs to (usually due to missing backend support)
     void resolve_fused_ops(const llama_memory_context_i * mctx, uint32_t n_seqs);

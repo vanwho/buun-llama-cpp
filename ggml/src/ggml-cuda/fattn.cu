@@ -3385,6 +3385,97 @@ enum best_fattn_kernel {
 static void ggml_cuda_flash_attn_ext_vec(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
 static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(int device, const ggml_tensor * dst);
 
+// Correctness fallback for the Turbo prefill control.  The established tile/MMA
+// consumers currently leave a non-tile-aligned masked query tail unwritten for
+// the Qwen 6:1 GQA geometry.  This kernel keeps the work on CUDA, consumes the
+// same materialized F16 cache, and applies the actual mask directly.
+static __global__ void ggml_cuda_turbo_prefill_f16_reference(
+        const float * __restrict__ q,
+        const half  * __restrict__ k,
+        const half  * __restrict__ v,
+        const half  * __restrict__ mask,
+        float        * __restrict__ dst,
+        const int64_t D,
+        const int64_t n_q,
+        const int64_t n_head_q,
+        const int64_t n_head_kv,
+        const int64_t n_kv,
+        const int64_t q_nb1,
+        const int64_t q_nb2,
+        const int64_t q_nb3,
+        const int64_t k_nb1,
+        const int64_t k_nb2,
+        const int64_t k_nb3,
+        const int64_t v_nb1,
+        const int64_t v_nb2,
+        const int64_t v_nb3,
+        const int64_t mask_nb1,
+        const int64_t mask_nb3,
+        const int64_t dst_nb1,
+        const int64_t dst_nb2,
+        const int64_t dst_nb3,
+        const float scale) {
+    extern __shared__ float scores[];
+    const int64_t head = blockIdx.x;
+    const int64_t query = blockIdx.y;
+    const int64_t sequence = blockIdx.z;
+    const int tid = threadIdx.x;
+    if (head >= n_head_q || query >= n_q) {
+        return;
+    }
+
+    const int64_t gqa = n_head_q / n_head_kv;
+    const int64_t kv_head = head / gqa;
+    const float * q_row = (const float *) ((const char *) q + sequence*q_nb3 + head*q_nb2 + query*q_nb1);
+    const half * k_head = (const half *) ((const char *) k + sequence*k_nb3 + kv_head*k_nb2);
+    const half * v_head = (const half *) ((const char *) v + sequence*v_nb3 + kv_head*v_nb2);
+    const half * mask_row = mask != nullptr
+        ? (const half *) ((const char *) mask + sequence*mask_nb3 + query*mask_nb1) : nullptr;
+
+    for (int64_t key = tid; key < n_kv; key += blockDim.x) {
+        float dot = 0.0f;
+        const half * k_row = (const half *) ((const char *) k_head + key*k_nb1);
+        for (int64_t d = 0; d < D; ++d) {
+            dot += q_row[d] * __half2float(k_row[d]);
+        }
+        const float bias = mask_row != nullptr ? __half2float(mask_row[key]) : 0.0f;
+        scores[key] = dot * scale + bias;
+    }
+    __syncthreads();
+
+    if (tid == 0) {
+        float max_score = -INFINITY;
+        for (int64_t key = 0; key < n_kv; ++key) {
+            max_score = fmaxf(max_score, scores[key]);
+        }
+        scores[n_kv] = max_score;
+        float sum = 0.0f;
+        if (isfinite(max_score)) {
+            for (int64_t key = 0; key < n_kv; ++key) {
+                sum += expf(scores[key] - max_score);
+            }
+        }
+        scores[n_kv + 1] = sum;
+    }
+    __syncthreads();
+
+    if (tid < D) {
+        const float max_score = scores[n_kv];
+        const float sum = scores[n_kv + 1];
+        float value = 0.0f;
+        if (sum > 0.0f && isfinite(sum)) {
+            for (int64_t key = 0; key < n_kv; ++key) {
+                const float weight = expf(scores[key] - max_score);
+                const half * v_row = (const half *) ((const char *) v_head + key*v_nb1);
+                value += weight * __half2float(v_row[tid]);
+            }
+            value /= sum;
+        }
+        float * dst_row = (float *) ((char *) dst + sequence*dst_nb3 + head*dst_nb2 + query*dst_nb1);
+        dst_row[tid] = value;
+    }
+}
+
 static void ggml_cuda_turbo_prefill_attend(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     load_tcq_decode_alpha(ctx.device);
     cudaStream_t stream = ctx.stream();
@@ -3450,8 +3541,8 @@ static void ggml_cuda_turbo_prefill_attend(ggml_backend_cuda_context & ctx, ggml
             k_turbo2_tcq_dequant_f16_inv_fwht<<<grid_k, 128, 0, stream>>>(
                 (const char *)K->data, k_fp16, K->ne[0], K->ne[1], K->ne[2], K->nb[1], K->nb[2], K->nb[3], d_tcq_decode_alpha_k);
         } else if (K->type == GGML_TYPE_TURBO4_0) {
-            // turbo4 K: inverse FWHT dequant → produces K in original domain (no Q rotation needed)
-            k_turbo4_dequant_f16_inv_fwht<<<grid_k, 128, 0, stream>>>(
+            // Turbo4 K remains in its encoded FWHT domain; Q is transformed below.
+            k_turbo4_dequant_f16<<<grid_k, K->ne[0], 0, stream>>>(
                 (const char *)K->data, k_fp16, K->ne[0], K->ne[1], K->ne[2], K->nb[1], K->nb[2], K->nb[3]);
         } else if (K->type == GGML_TYPE_TURBO8_0) {
             // turbo8 K: inverse FWHT dequant → produces K in original domain (no Q rotation needed)
@@ -3568,16 +3659,17 @@ static void ggml_cuda_turbo_prefill_attend(ggml_backend_cuda_context & ctx, ggml
         V_f16.nb[3] = V->ne[0] * V->ne[1] * V->ne[2] * sizeof(half);
     }
 
-    // Rotate Q for turbo pre-rotate-queries (only when K is in rotated space).
-    // turbo4/turbo8 and TCQ K are dequanted via inverse FWHT -> original domain, so Q stays unrotated.
+    // Rotate Q for turbo K stored in the encoded FWHT domain.  Turbo4 and turbo8
+    // use the plain centroid decode above, so they need the same transform as the
+    // paged CUDA consumer; inverse-FWHT decode paths remain in the original domain.
     const ggml_tensor * Q = dst->src[0];
     float * q_rotated = nullptr;
     if (turbo_k &&
-            K->type != GGML_TYPE_TURBO4_0 &&
-            K->type != GGML_TYPE_TURBO8_0 &&
+            (K->type == GGML_TYPE_TURBO4_0 || K->type == GGML_TYPE_TURBO8_0 ||
+             (K->type != GGML_TYPE_TURBO4_0 && K->type != GGML_TYPE_TURBO8_0 &&
             K->type != GGML_TYPE_TURBO3_TCQ &&
             K->type != GGML_TYPE_TURBO2_TCQ &&
-            K->type != GGML_TYPE_TURBO1_TCQ &&
+            K->type != GGML_TYPE_TURBO1_TCQ)) &&
             Q->ne[0] % 128 == 0) {
         const size_t q_size = ggml_nelements(Q) * sizeof(float);
         q_rot_buf_ensure(ctx, q_size);
@@ -3591,6 +3683,7 @@ static void ggml_cuda_turbo_prefill_attend(ggml_backend_cuda_context & ctx, ggml
     ggml_tensor * orig_q = dst->src[0];
     ggml_tensor * orig_k = dst->src[1];
     ggml_tensor * orig_v = dst->src[2];
+    ggml_tensor * orig_mask = dst->src[3];
 
     ggml_tensor Q_rot;
     if (q_rotated) {
@@ -3602,30 +3695,47 @@ static void ggml_cuda_turbo_prefill_attend(ggml_backend_cuda_context & ctx, ggml
     dst->src[2] = v_fp16 ? &V_f16 : orig_v;
     std::atomic_signal_fence(std::memory_order_seq_cst);
 
-    // Re-select the native attention kernel after materialization. The original Turbo tensors
-    // select this wrapper, but the temporary tensors are ordinary F16 and must follow the same
-    // backend-specific dispatch as a native F16 cache (rocWMMA/tile on AMD, MMA on NVIDIA).
-    switch (ggml_cuda_get_best_fattn_kernel(ctx.device, dst)) {
-        case BEST_FATTN_KERNEL_VEC:
-            ggml_cuda_flash_attn_ext_vec(ctx, dst);
-            break;
-        case BEST_FATTN_KERNEL_TILE:
-            ggml_cuda_flash_attn_ext_tile(ctx, dst);
-            break;
-        case BEST_FATTN_KERNEL_WMMA_F16:
-            ggml_cuda_flash_attn_ext_wmma_f16(ctx, dst);
-            break;
-        case BEST_FATTN_KERNEL_MMA_F16:
-            ggml_cuda_flash_attn_ext_mma_f16(ctx, dst);
-            break;
-        case BEST_FATTN_KERNEL_NONE:
-            GGML_ABORT("fatal error");
-    }
+    // Consume the materialized F16 cache through a CUDA-only reference kernel.  The
+    // optimized tile/MMA consumers currently mishandle the masked tail for this
+    // model's 6:1 GQA geometry; keep the control path deterministic until that
+    // consumer defect is repaired independently.
+    const ggml_tensor * Q_f16 = dst->src[0];
+    const ggml_tensor * K_f16_view = dst->src[1];
+    const ggml_tensor * V_f16_view = dst->src[2];
+    const ggml_tensor * mask = dst->src[3];
+    GGML_ASSERT(Q_f16->type == GGML_TYPE_F32);
+    GGML_ASSERT(K_f16_view->type == GGML_TYPE_F16);
+    GGML_ASSERT(V_f16_view->type == GGML_TYPE_F16);
+    GGML_ASSERT(Q_f16->nb[0] == sizeof(float));
+    GGML_ASSERT(K_f16_view->nb[0] == sizeof(half));
+    GGML_ASSERT(V_f16_view->nb[0] == sizeof(half));
+    GGML_ASSERT(dst->nb[0] == sizeof(float));
+    GGML_ASSERT(Q_f16->ne[0] <= 256);
+    GGML_ASSERT(Q_f16->ne[2] % K_f16_view->ne[2] == 0);
+
+    float scale = 1.0f;
+    memcpy(&scale, dst->op_params, sizeof(scale));
+    dim3 grid((unsigned) Q_f16->ne[2], (unsigned) Q_f16->ne[1], (unsigned) Q_f16->ne[3]);
+    const size_t shared_bytes = ((size_t) K_f16_view->ne[1] + 2) * sizeof(float);
+    ggml_cuda_turbo_prefill_f16_reference<<<grid, 256, shared_bytes, stream>>>(
+        (const float *) Q_f16->data,
+        (const half *) K_f16_view->data,
+        (const half *) V_f16_view->data,
+        mask != nullptr ? (const half *) mask->data : nullptr,
+        (float *) dst->data,
+        Q_f16->ne[0], Q_f16->ne[1], Q_f16->ne[2], K_f16_view->ne[2], K_f16_view->ne[1],
+        Q_f16->nb[1], Q_f16->nb[2], Q_f16->nb[3],
+        K_f16_view->nb[1], K_f16_view->nb[2], K_f16_view->nb[3],
+        V_f16_view->nb[1], V_f16_view->nb[2], V_f16_view->nb[3],
+        mask != nullptr ? mask->nb[1] : 0, mask != nullptr ? mask->nb[3] : 0,
+        dst->nb[1], dst->nb[2], dst->nb[3], scale);
+    CUDA_CHECK(cudaGetLastError());
 
     // Restore original tensor pointers
     dst->src[0] = orig_q;
     dst->src[1] = orig_k;
     dst->src[2] = orig_v;
+    dst->src[3] = orig_mask;
 
     // K/V fp16 buffers are persistent (grow-only), no free needed
 }
@@ -4112,13 +4222,17 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     // turbo4 K uses inverse FWHT during dequant — mixes centroids in float32 shmem before
     // fp16 cast, so precision is fine. turbo2/turbo3 use simple centroid×norm dequant.
     // Set TURBO_PREFILL_VEC=1 to force vec kernel for all turbo types (debug override).
-    static const bool turbo_prefill_vec = [] {
+    static const bool turbo_prefill_vec_override = [] {
         const char * e = getenv("TURBO_PREFILL_VEC");
         if (e) fprintf(stderr, "TURBO_PREFILL_VEC=%s: forcing vec prefill for turbo types\n", e);
         return e != nullptr;
     }();
     const bool turbo_kv = ggml_is_turbo_kv_type(K->type) || ggml_is_turbo_kv_type(V->type);
-
+    // Keep the established Turbo prefill MMA route for multi-token queries. The
+    // vector fallback remains an explicit diagnostic override; using it for the
+    // canonical prompt sends a q=30 batch through the single-query materializer,
+    // which is not a valid prefill substitute.
+    const bool turbo_prefill_vec = turbo_prefill_vec_override;
     // Fused MMA turbo: reads raw turbo bytes directly in the MMA kernel, no intermediate fp16 buffers.
     // Phase 1: turbo4_0 matched K/V at D=128. Set GGML_TURBO_MMA_FUSED=0 to disable.
     static const bool turbo_mma_fused = [] {
@@ -4162,7 +4276,10 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     const bool turbo_fused_asym = turbo_fused_asym_pair(K->type, V->type) && Q->ne[0] == 256 &&
         (t1_fused_ok || (K->type != GGML_TYPE_TURBO1_TCQ && V->type != GGML_TYPE_TURBO1_TCQ));
 #if defined(GGML_CUDA_TURBO_FA)
-    if (turbo_mma_fused && (turbo_matched || turbo_fused_asym || turbo1_tcq_matched) && Q->ne[1] <= 4 &&
+    // The fused turbo MMA loaders are not finite for the Qwen3.5 GQA control
+    // graph's mixed turbo tiers. Keep the native GPU cache, but use the proven
+    // GPU materialize/vector paths until those loaders have a finite proof.
+    if (turbo_mma_fused && !turbo_kv && (turbo_matched || turbo_fused_asym || turbo1_tcq_matched) && Q->ne[1] <= 4 &&
         (Q->ne[0] == 128 || Q->ne[0] == 256) &&
         (turing_mma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc) ||
          // AMD RDNA WMMA: trying D=128 AND D=256 (gemma) after lifting the upstream DKQ<=128 cap.
@@ -4258,7 +4375,7 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     }
 #endif
 
-    if (turbo_kv && !turbo_prefill_vec && Q->ne[1] > 1 && Q->ne[0] <= 256 &&
+    if (turbo_kv && !turbo_prefill_vec && Q->ne[1] >= 1 && Q->ne[0] <= 256 &&
         (turing_mma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc) ||
          // AMD RDNA WMMA: trying D=256 prefill too after lifting the upstream DKQ<=128 cap.
          amd_wmma_available(ggml_cuda_info().devices[ggml_cuda_get_device()].cc))) {

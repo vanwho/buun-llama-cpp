@@ -30,6 +30,8 @@ def identity(profile: str, pid: int, *, binary: str = "/opt/llama-server") -> di
         "binary": binary,
         "model": "/models/qwen.gguf",
         "context": "22016",
+        "batch": "128",
+        "ubatch": "128",
         "pager_mode": "selective",
         "page_size_tokens": "256",
         "target_kv_placement": "gpu",
@@ -424,6 +426,30 @@ class AdapterContractTests(unittest.TestCase):
         mismatches = adapter.identity_mismatches(
             identity("candidate", 202, binary="/opt/other-server"), identity("candidate", 202))
         self.assertIn("binary", mismatches)
+
+    def test_requested_and_observed_microbatch_mismatch_is_reported(self) -> None:
+        observed = identity("candidate", 202)
+        observed["ubatch"] = "64"
+        mismatches = adapter.identity_mismatches(observed, identity("candidate", 202))
+        self.assertIn("ubatch", mismatches)
+
+    def test_model_and_loaded_dso_mismatches_are_reported(self) -> None:
+        observed = identity("candidate", 202)
+        expected = identity("candidate", 202)
+        observed["model"] = "/models/other.gguf"
+        observed["loaded_dsos"] = ["/bundle/libllama.so"]
+        expected["loaded_dsos"] = ["/bundle/libllama.so", "/bundle/libggml.so"]
+        mismatches = adapter.identity_mismatches(observed, expected)
+        self.assertIn("model", mismatches)
+        self.assertIn("loaded_dsos", mismatches)
+
+    def test_restoration_rejects_identity_pid_disagreement(self) -> None:
+        before = snapshot("prior", 101)
+        after = snapshot("prior", 303)
+        after["identity"]["pid"] = 404
+        errors = adapter.verify_restoration(
+            before, after, {"attempted": True, "state": "restored", "profile": "prior", "exit_code": 0})
+        self.assertIn("restore_verification_failed:pid", errors)
 
     def test_runtime_identity_names_main_pid_exe_and_loaded_dsos(self) -> None:
         pid = os.getpid()
