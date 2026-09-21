@@ -162,7 +162,12 @@ def main() -> int:
         "stop_reason": None if current_tokens >= args.target_tokens else stop_reason,
         "last_successful_occupied_tokens": current_tokens,
     }
-    snapshot_metrics = final.get("metrics") if isinstance(final, dict) else {}
+    raw_snapshot_metrics = final.get("metrics") if isinstance(final, dict) else None
+    snapshot_metrics = raw_snapshot_metrics if isinstance(raw_snapshot_metrics, dict) else {}
+    final_slots = final.get("slots") if isinstance(final, dict) else None
+    live_occupied_after_tokens = None
+    if isinstance(final_slots, list) and final_slots and isinstance(final_slots[0], dict):
+        live_occupied_after_tokens = final_slots[0].get("n_prompt_tokens")
     configuration = {
         "logical_capacity_tokens": 262144, "page_size_tokens": 256,
         "hot_capacity_pages": snapshot_metrics.get("page_capacity"),
@@ -185,7 +190,7 @@ def main() -> int:
         "configuration": configuration,
         "history": {
             "occupied_before_tokens": 0, "occupied_after_tokens": current_tokens,
-            "live_occupied_after_tokens": (final.get("slots") or [{}])[0].get("n_prompt_tokens") if final.get("slots") else None,
+            "live_occupied_after_tokens": live_occupied_after_tokens,
             "turns": len(history), "target_tokens": args.target_tokens,
             "turn_delta": args.turn_delta, "cache_preserving": True,
             "stop_reason": outcome["stop_reason"], "records": history,
@@ -222,7 +227,7 @@ def main() -> int:
                                                "live_occupied_tokens": report["history"]["live_occupied_after_tokens"]},
     }, indent=2, ensure_ascii=False) + "\n")
     (args.output / "INTERACTIVE29_01_SCALE.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
-    (args.output / "slots-final.json").write_text(json.dumps(final.get("slots"), indent=2) + "\n")
+    (args.output / "slots-final.json").write_text(json.dumps(final_slots, indent=2) + "\n")
     root = endpoint.split("/v1/", 1)[0].rstrip("/")
     metrics_status, metrics_raw = driver.request_json(root + "/metrics", key, timeout=30.0)
     if metrics_status == 200:
