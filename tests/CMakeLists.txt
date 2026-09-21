@@ -643,6 +643,9 @@ if (TARGET ggml-cuda)
     add_test(NAME test-cuda-fattn-paged-turbo4
         COMMAND $<TARGET_FILE:test-cuda-fattn-paged-turbo4>)
     set_property(TEST test-cuda-fattn-paged-turbo4 PROPERTY LABELS "cuda")
+    add_test(NAME test-cuda-prefill-long-context-regression
+        COMMAND $<TARGET_FILE:test-cuda-fattn-paged-turbo4> --prefill-long-context-regression)
+    set_property(TEST test-cuda-prefill-long-context-regression PROPERTY LABELS "cuda")
 endif()
 
 if (TARGET ggml-cuda AND GGML_CUDA_Q8_MMV_TEST_INSTRUMENTATION)
