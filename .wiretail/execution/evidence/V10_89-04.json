@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "task": "89-04",
+  "source_commit": "292cddb68707416a5fbd2d919e76edec165ffccc",
+  "checks": {
+    "repair89_occupied_frontier_continuation": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-repair89-occupied-frontier.py",
+        "--frontier",
+        "/srv/ai/paged-kv/results/v10/89-04/frontier-256k-h16-u64-repair2",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/89-04/occupied-frontier-validation.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/89-04/occupied-frontier-validation.json",
+          "sha256": "8a75dda152acada7cb6a930be253c22bcf11384d93f9dae3858c8539a8b58b54"
+        }
+      ]
+    },
+    "v10_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", ".wiretail/execution/v10", "-p", "test_*.py"]
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_*.py"]
+    }
+  },
+  "build": {
+    "status": "pass",
+    "binary": "build-cuda/bin/llama-server",
+    "sha256": "e4698af85815df57bf06150d716b4a93e01c6fceccd50bf8f962826876d6d251",
+    "linked_library_sha256": {
+      "build-cuda/bin/libllama.so": "b89d5e65b93d5cdef3cd850ac042eef2deeb8c42022286c7114ee8e42593acfd",
+      "build-cuda/bin/libggml-cuda.so": "d87a57b970b8a4fb4c1a08deb5a362d01d35d881017dcc4d56f1c790b00d9990",
+      "build-cuda/bin/libllama-server-impl.so": "7d9ae4e77fa4d9450be13a4dcf207396d8f00f6b8fb8f661d6a7f4f3f0f1b781"
+    },
+    "command": ["cmake", "--build", "build-cuda", "--target", "llama-server", "-j2"]
+  },
+  "live": {
+    "status": "pass",
+    "service": "llama-server.service",
+    "pid": 2040872,
+    "mode": "native",
+    "model": "/srv/ai/models/text/current.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "context": 262144,
+    "batch": 128,
+    "ubatch": 64,
+    "page_tokens": 256,
+    "hot_pages": 16,
+    "pin_recent_tokens": 1024,
+    "route": "selected direct",
+    "health": "{\"status\":\"ok\"}",
+    "frontier_result": "/srv/ai/paged-kv/results/v10/89-04/frontier-256k-h16-u64-repair2/INTERACTIVE29_01_SCALE.json"
+  },
+  "deferred_verification": []
+}
