@@ -1,0 +1,196 @@
+{
+  "answer_quality": {
+    "all_cases_exact": false,
+    "diagnostic_note": "A-again semantic marker mismatch is recorded separately; structural and physical proof does not claim retrieval correctness."
+  },
+  "cases": [
+    {
+      "answer_quality": true,
+      "input_tokens": 1679,
+      "native_mtp": {
+        "backend": "gpu",
+        "route": "selected direct",
+        "type_k": "turbo4",
+        "type_v": "turbo4"
+      },
+      "natural_proof": {
+        "attention_layer": 4294967295,
+        "candidate_was_cold": false,
+        "catalogue_epoch": 0,
+        "content_version": 0,
+        "h2d_aligned_bytes": 0,
+        "h2d_completed": false,
+        "h2d_queued": false,
+        "h2d_useful_bytes": 0,
+        "host_ready": false,
+        "logical_page": 4294967295,
+        "mapping_published": false,
+        "page_generation": 0,
+        "physical_slot": 4294967295,
+        "promotion_published": false,
+        "published_epoch": 0,
+        "query_generation": 0,
+        "query_position": 0,
+        "selected_in_last_graph": false,
+        "selector_published": false,
+        "selector_rank": 4294967295,
+        "target_graph_used": false,
+        "target_use_epoch": 0,
+        "target_use_query_generation": 0
+      },
+      "output": "ACK-A",
+      "request": "A",
+      "request_scoped_acceptance_denominator": 2,
+      "request_scoped_accepted": 0,
+      "request_scoped_drafts": 2
+    },
+    {
+      "answer_quality": true,
+      "input_tokens": 3498,
+      "native_mtp": {
+        "backend": "gpu",
+        "route": "selected direct",
+        "type_k": "turbo4",
+        "type_v": "turbo4"
+      },
+      "natural_proof": {
+        "attention_layer": 3,
+        "candidate_was_cold": true,
+        "catalogue_epoch": 8829,
+        "content_version": 89,
+        "h2d_aligned_bytes": 4325376,
+        "h2d_completed": true,
+        "h2d_queued": true,
+        "h2d_useful_bytes": 4325376,
+        "host_ready": true,
+        "logical_page": 0,
+        "mapping_published": true,
+        "page_generation": 89,
+        "physical_slot": 7,
+        "promotion_published": true,
+        "published_epoch": 9028,
+        "query_generation": 128,
+        "query_position": 1940,
+        "selected_in_last_graph": true,
+        "selector_published": true,
+        "selector_rank": 1,
+        "target_graph_used": true,
+        "target_use_epoch": 11936,
+        "target_use_query_generation": 128
+      },
+      "output": "ACK-B",
+      "request": "B",
+      "request_scoped_acceptance_denominator": 2,
+      "request_scoped_accepted": 1,
+      "request_scoped_drafts": 2
+    },
+    {
+      "answer_quality": false,
+      "input_tokens": 3543,
+      "native_mtp": {
+        "backend": "gpu",
+        "route": "selected direct",
+        "type_k": "turbo4",
+        "type_v": "turbo4"
+      },
+      "natural_proof": {
+        "attention_layer": 3,
+        "candidate_was_cold": true,
+        "catalogue_epoch": 8829,
+        "content_version": 89,
+        "h2d_aligned_bytes": 4325376,
+        "h2d_completed": true,
+        "h2d_queued": true,
+        "h2d_useful_bytes": 4325376,
+        "host_ready": true,
+        "logical_page": 0,
+        "mapping_published": true,
+        "page_generation": 89,
+        "physical_slot": 7,
+        "promotion_published": true,
+        "published_epoch": 9028,
+        "query_generation": 128,
+        "query_position": 1940,
+        "selected_in_last_graph": true,
+        "selector_published": true,
+        "selector_rank": 1,
+        "target_graph_used": true,
+        "target_use_epoch": 12050,
+        "target_use_query_generation": 128
+      },
+      "output": "A-ARCHIVE-META",
+      "request": "A-again",
+      "request_scoped_acceptance_denominator": 6,
+      "request_scoped_accepted": 1,
+      "request_scoped_drafts": 6
+    },
+    {
+      "answer_quality": true,
+      "input_tokens": 3582,
+      "native_mtp": {
+        "backend": "gpu",
+        "route": "selected direct",
+        "type_k": "turbo4",
+        "type_v": "turbo4"
+      },
+      "natural_proof": {
+        "attention_layer": 3,
+        "candidate_was_cold": true,
+        "catalogue_epoch": 8829,
+        "content_version": 89,
+        "h2d_aligned_bytes": 4325376,
+        "h2d_completed": true,
+        "h2d_queued": true,
+        "h2d_useful_bytes": 4325376,
+        "host_ready": true,
+        "logical_page": 0,
+        "mapping_published": true,
+        "page_generation": 89,
+        "physical_slot": 7,
+        "promotion_published": true,
+        "published_epoch": 9028,
+        "query_generation": 128,
+        "query_position": 1940,
+        "selected_in_last_graph": true,
+        "selector_published": true,
+        "selector_rank": 1,
+        "target_graph_used": true,
+        "target_use_epoch": 12137,
+        "target_use_query_generation": 128
+      },
+      "output": "ACK-C",
+      "request": "terminal",
+      "request_scoped_acceptance_denominator": 2,
+      "request_scoped_accepted": 0,
+      "request_scoped_drafts": 2
+    }
+  ],
+  "errors": [],
+  "geometry": {
+    "context_tokens": 8192,
+    "hot_pages": 8,
+    "page_tokens": 256,
+    "pin_recent_tokens": 512
+  },
+  "identity": {
+    "binary": "/srv/ai/paged-kv/candidates/86-02-cuda/bin/llama-server",
+    "binary_sha256": "61fb0f5feb24fa74661e00fcb11a611cba593a618e1a6cd231c9227c96505643",
+    "build_receipt": "/srv/ai/paged-kv/candidates/86-02-cuda/build-receipt.json",
+    "build_receipt_sha256": "402580238ef5008c49168770ca320f7e85a6dbc29481489fc6f4b72d33e53810",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "required_proof": "repair87_organic_cold_mtp",
+  "rollback_restore": {
+    "draft_restore": "rebuild_required",
+    "mtp_state_diagnostics": 14,
+    "positive_target_restore_epochs": [
+      1,
+      2
+    ],
+    "rollback_histograms": 5,
+    "target_restore": "trimmed"
+  },
+  "schema_version": 1,
+  "status": "pass"
+}
