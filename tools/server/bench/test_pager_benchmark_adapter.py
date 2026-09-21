@@ -16,6 +16,8 @@ from urllib.error import HTTPError
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+from pager_benchmark_contract import validate_authenticated_slot_progress
+
 MODULE_SPEC = importlib.util.spec_from_file_location(
     "run_pager_profile_benchmark", HERE / "run-pager-profile-benchmark.py")
 assert MODULE_SPEC and MODULE_SPEC.loader
@@ -174,6 +176,48 @@ def mtp_record(draft: int | None = 12, accepted: int | None = 8,
 
 
 class AdapterContractTests(unittest.TestCase):
+    def test_authenticated_slot_progress_requires_monotonic_request_progress(self) -> None:
+        def sample(processed: int, route: str = "selected reference") -> dict[str, object]:
+            return {"slots": [{
+                "id": 0,
+                "is_processing": True,
+                "n_prompt_tokens": processed + 128,
+                "n_prompt_tokens_processed": processed,
+                "pager_metrics": {
+                    "status": "ok", "context_tokens": 65536,
+                    "page_tokens": 256, "mtp_rows": 65536,
+                    "mtp_backend": "gpu", "mtp_type_k": "turbo4",
+                    "mtp_type_v": "turbo4", "route": route,
+                },
+            }]}
+
+        errors, summary = validate_authenticated_slot_progress(
+            [sample(1024), sample(2048)], expected_context_tokens=65536,
+            expected_page_tokens=256, expected_mtp_rows=65536)
+        self.assertEqual([], errors)
+        self.assertEqual(1024, summary["first_processed"])
+        self.assertEqual(2048, summary["last_processed"])
+        self.assertTrue(summary["reference_or_fallback_observed"])
+        self.assertFalse(summary["production_cold_success"])
+
+    def test_authenticated_slot_progress_rejects_stalled_or_reduced_geometry(self) -> None:
+        sample = {"slots": [{
+            "id": 0, "is_processing": True,
+            "n_prompt_tokens": 65536, "n_prompt_tokens_processed": 0,
+            "pager_metrics": {
+                "status": "ok", "context_tokens": 8192,
+                "page_tokens": 256, "mtp_rows": 8192,
+                "mtp_backend": "gpu", "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4", "route": "selected reference",
+            },
+        }]}
+        errors, _ = validate_authenticated_slot_progress(
+            [sample, sample], expected_context_tokens=65536,
+            expected_page_tokens=256, expected_mtp_rows=65536)
+        self.assertIn("slot_progress_context_geometry_mismatch", errors)
+        self.assertIn("slot_progress_mtp_rows_mismatch", errors)
+        self.assertIn("slot_progress_no_authenticated_token_progress", errors)
+
     def write_canonical_artifacts(self, output: pathlib.Path, expected: dict[str, object]) -> None:
         output.mkdir(parents=True, exist_ok=True)
         (output / "run-config.json").write_text(json.dumps({

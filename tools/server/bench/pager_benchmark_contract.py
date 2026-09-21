@@ -70,6 +70,116 @@ LIVE_TELEMETRY_NUMERIC_FIELDS = (
 )
 
 
+def validate_authenticated_slot_progress(
+        samples: Iterable[Mapping[str, Any]], *, slot_id: int = 0,
+        expected_context_tokens: int | None = None,
+        expected_page_tokens: int | None = None,
+        expected_mtp_rows: int | None = None) -> tuple[list[str], dict[str, Any]]:
+    """Validate monotonic progress from authenticated ``GET /slots`` samples.
+
+    A valid response proves only that the request was alive and advancing.  It
+    does not prove cold promotion, a fast attention route, or a completed
+    benchmark row.  Those are deliberately reported separately so a reference
+    route or an interrupted request cannot be promoted to a production result.
+    """
+    errors: list[str] = []
+    observed_routes: set[str] = set()
+    sample_count = 0
+    processing_samples = 0
+    progress_samples = 0
+    max_processed = 0
+    previous_processed: int | None = None
+    first_processed: int | None = None
+    last_processed: int | None = None
+
+    for sample in samples:
+        sample_count += 1
+        if not isinstance(sample, Mapping):
+            errors.append("slot_progress_sample_not_object")
+            continue
+        slots = sample.get("slots")
+        if not isinstance(slots, Sequence) or isinstance(slots, (str, bytes)):
+            errors.append("slot_progress_slots_not_array")
+            continue
+        slot = next((item for item in slots
+                     if isinstance(item, Mapping) and item.get("id") == slot_id), None)
+        if slot is None:
+            errors.append("slot_progress_target_slot_missing")
+            continue
+        if slot.get("is_processing") is not True:
+            continue
+        processing_samples += 1
+
+        processed = slot.get("n_prompt_tokens_processed")
+        prompt = slot.get("n_prompt_tokens")
+        if not _integer(processed) or processed < 0:
+            errors.append("slot_progress_processed_invalid")
+            continue
+        if not _integer(prompt) or prompt < 0:
+            errors.append("slot_progress_prompt_invalid")
+        elif processed > prompt:
+            errors.append("slot_progress_processed_exceeds_prompt")
+        if first_processed is None:
+            first_processed = processed
+        if previous_processed is not None:
+            if processed < previous_processed:
+                errors.append("slot_progress_processed_decreased")
+            elif processed > previous_processed:
+                progress_samples += 1
+        previous_processed = processed
+        last_processed = processed
+        max_processed = max(max_processed, processed)
+
+        pager = slot.get("pager_metrics")
+        if not isinstance(pager, Mapping):
+            errors.append("slot_progress_pager_metrics_missing")
+            continue
+        if pager.get("status") != "ok":
+            errors.append("slot_progress_pager_status_not_ok")
+        if expected_context_tokens is not None and \
+                pager.get("context_tokens") != expected_context_tokens:
+            errors.append("slot_progress_context_geometry_mismatch")
+        if expected_page_tokens is not None and \
+                pager.get("page_tokens") != expected_page_tokens:
+            errors.append("slot_progress_page_geometry_mismatch")
+        if expected_mtp_rows is not None and pager.get("mtp_rows") != expected_mtp_rows:
+            errors.append("slot_progress_mtp_rows_mismatch")
+        if pager.get("mtp_backend") != "gpu":
+            errors.append("slot_progress_mtp_gpu_missing")
+        if str(pager.get("mtp_type_k", "")).lower() != "turbo4":
+            errors.append("slot_progress_mtp_turbo4_k_missing")
+        if str(pager.get("mtp_type_v", "")).lower() != "turbo4":
+            errors.append("slot_progress_mtp_turbo4_v_missing")
+        route = pager.get("route")
+        if isinstance(route, str):
+            observed_routes.add(route)
+
+    if sample_count == 0:
+        errors.append("slot_progress_samples_empty")
+    if processing_samples == 0:
+        errors.append("slot_progress_request_never_processing")
+    if max_processed == 0:
+        errors.append("slot_progress_no_authenticated_token_progress")
+    if processing_samples > 1 and progress_samples == 0:
+        errors.append("slot_progress_no_monotonic_advance")
+
+    summary = {
+        "sample_count": sample_count,
+        "processing_samples": processing_samples,
+        "progress_samples": progress_samples,
+        "first_processed": first_processed,
+        "last_processed": last_processed,
+        "max_processed": max_processed,
+        "routes_observed": sorted(observed_routes),
+        # This proof is intentionally not a cold-path success claim.
+        "production_cold_success": False,
+        "reference_or_fallback_observed": any(
+            route not in {"selected direct", "selected_direct"}
+            for route in observed_routes),
+    }
+    return list(dict.fromkeys(errors)), summary
+
+
 def validate_live_telemetry(value: Mapping[str, Any] | None) -> list[str]:
     """Validate invariants of one atomic server pager snapshot.
 
