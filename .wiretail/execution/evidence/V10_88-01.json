@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "88-01",
+  "source_commit": "62a60ab88e9c1e135f9902400d6d9d550256667a",
+  "checks": {
+    "repair88_mtp_state_parity": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-mtp-state-parity.py",
+        "--summary",
+        ".wiretail/execution/evidence/artifacts/88-01/native-summary.json",
+        "--diagnostic-log",
+        ".wiretail/execution/evidence/artifacts/88-01/mtp-state-diagnostic.log",
+        "--binary",
+        "/srv/ai/paged-kv/candidates/88-01-cuda/bin/llama-server",
+        "--binary-sha256",
+        "7488056da5218e3a463772418142829b94249732671ddd288594e43e95c9ae1c"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/88-01/native-summary.json",
+          "sha256": "11d3976e3083f1a5b73e6fc4c1782f32bdfcec7fd3ad3401b908cbb7c6945505"
+        },
+        {
+          "path": ".wiretail/execution/evidence/artifacts/88-01/mtp-state-diagnostic.log",
+          "sha256": "888bd26fe9c982e20a363d73706eee8174b4c26d3e0e06daddd9b2aba3a64fb7"
+        },
+        {
+          "path": ".wiretail/execution/evidence/artifacts/88-01/long-run-failure-summary.json",
+          "sha256": "c3ea0e217304f4feabf7c88bbe8c85634949aa16b68405e4fe7d53f036abc2d3"
+        }
+      ]
+    }
+  }
+}
