@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "task": "86-04",
+  "source_commit": "da0757ac9b603db6cda54de27c6c47d5cb69fee4",
+  "checks": {
+    "repair86_summary_consistency": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "tools/server/bench/aggregate-v10-summary.py",
+        "--phase86",
+        "--output",
+        ".wiretail/execution/evidence/V10_PHASE86_SUMMARY.json"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_PHASE86_SUMMARY.json",
+          "sha256": "3f48663afb1bf7debdcb8ea9ecc837859703d2a99dd355b89df12c8ec3b03add"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_PHASE86_SUMMARY.md",
+          "sha256": "1b3d15e31294830253dfb11f9c78d540fefab8384d34a9fe6d016bc317de3d4f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/validate_phase86_summary.py",
+          "sha256": "6ed067d5f78a4122f66413e92dd8cda4ba6a61b0607e9cb364bbc165b6801900"
+        }
+      ]
+    }
+  }
+}

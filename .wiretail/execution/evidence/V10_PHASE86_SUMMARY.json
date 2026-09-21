@@ -1,0 +1,696 @@
+{
+  "amendment": "repair86-20260921",
+  "attribution": {
+    "phase_timings": {},
+    "short_rows": {
+      "copy_us": 8532,
+      "d2h_actual_bytes": 0,
+      "d2h_useful_bytes": 0,
+      "decode_dense_routes": 0,
+      "decode_direct_routes": 3411,
+      "decode_reference_routes": 0,
+      "h2d_actual_bytes": 0,
+      "h2d_useful_bytes": 0,
+      "mtp_verify_dense_routes": 0,
+      "mtp_verify_direct_routes": 3339,
+      "mtp_verify_reference_routes": 0,
+      "prefill_dense_routes": 0,
+      "prefill_direct_routes": 9,
+      "prefill_reference_routes": 27,
+      "queue_us": 4497741,
+      "wait_us": 170487000.0
+    }
+  },
+  "capacity_vs_occupancy": {
+    "allocation_256k": {
+      "L_tokens": 262144,
+      "draft_rows": 262144,
+      "hot_tokens": 4096,
+      "status": "measured"
+    },
+    "occupied_frontier": {
+      "capacity_tokens": 262144,
+      "full_capacity_occupied": false,
+      "live_snapshot_C": 21282,
+      "reason": "prefill deadline expired",
+      "status": "measured_partial",
+      "successful_committed_C": 17568
+    },
+    "pilots": {
+      "pilot_128k": {
+        "reason": "mtp_observation_missing",
+        "request": {
+          "bound_seconds": 300,
+          "canonical_exit_code": 1,
+          "output_validity": "not_established",
+          "prefill_prompt_tokens_reached": 8178,
+          "raw_error_class": "mtp_observation_missing",
+          "status": "not_completed_within_bound"
+        },
+        "requested_L": 131072,
+        "startup": {
+          "draft_bytes": 138543104,
+          "draft_rows": 131072,
+          "status": "pass"
+        },
+        "status": "measured_bounded_timeout"
+      },
+      "pilot_32k": {
+        "reason": "mtp_observation_missing",
+        "request": {
+          "bound_seconds": 300,
+          "canonical_exit_code": 1,
+          "forward_progress_seen": true,
+          "output_validity": "not_established",
+          "raw_error_class": "mtp_observation_missing",
+          "status": "not_completed_within_bound"
+        },
+        "requested_L": 32768,
+        "startup": {
+          "draft_bytes": 34734080,
+          "draft_rows": 32768,
+          "status": "pass"
+        },
+        "status": "measured_bounded_timeout"
+      }
+    }
+  },
+  "identity": {
+    "binary_sha256": "61fb0f5feb24fa74661e00fcb11a611cba593a618e1a6cd231c9227c96505643",
+    "build_receipt": "/srv/ai/paged-kv/candidates/86-02-cuda/build-receipt.json",
+    "build_receipt_sha256": "402580238ef5008c49168770ca320f7e85a6dbc29481489fc6f4b72d33e53810",
+    "candidate_bundle": "/srv/ai/paged-kv/candidates/86-02-cuda",
+    "cuda_dso_sha256": "a765095b6623cb91548ba0bfc89d42100b1a13e8a102825566858726a22f123f",
+    "model": "/srv/ai/models/text/current.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "settings": {
+      "B_tokens": "128",
+      "H_pages": "8",
+      "L_tokens": 8192,
+      "U_tokens": "64",
+      "draft_kv": {
+        "device": "gpu",
+        "k": "turbo4",
+        "v": "turbo4"
+      },
+      "page_size_tokens": "256",
+      "pin_recent_tokens": "512",
+      "target_kv": "gpu"
+    }
+  },
+  "mtp": {
+    "scale_allocation_request": {
+      "acceptance": null,
+      "accepted": 0,
+      "attempted": 0,
+      "denominator": null,
+      "reason": "one-token legal request did not enter speculative drafting"
+    },
+    "short_measured": {
+      "acceptance": 0.005405405405405406,
+      "accepted": 3,
+      "attempted": 555,
+      "denominator": 555,
+      "reason": null
+    }
+  },
+  "null_reasons": {
+    "cold_speed_ratios": "context overflow and C=65536 bounded no-progress recovery",
+    "fresh_pp": "canonical prompt cache; no fresh prefill timing",
+    "native_mtp_allocation": "one-token legal request did not enter speculative drafting",
+    "promotion": "no natural cold chain and no measured cold rows",
+    "ttft": "not exported by raw short records"
+  },
+  "promotion": {
+    "controlled": {
+      "reason": "no controlled promotion record is part of phase86",
+      "value": null
+    },
+    "organic": {
+      "reason": "cold workload produced no measured rows",
+      "status": "not_measured",
+      "value": null
+    },
+    "origin": {
+      "reason": "no natural rank-to-copy-to-publication-to-target-use chain was measured",
+      "value": null
+    }
+  },
+  "rates": {
+    "cached_new_token_pp": {
+      "reason": null,
+      "samples": 9,
+      "value": 103.15127133941927
+    },
+    "committed_tg": {
+      "reason": null,
+      "samples": 9,
+      "value": 34.91117046625808
+    },
+    "fresh_pp": {
+      "reason": "canonical short rows used prompt cache",
+      "value": null
+    }
+  },
+  "raw_pointers": {
+    "cold_overflow_summary": {
+      "path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native/summary.json",
+      "sha256": "73ef571ca3649e7db9a1f1ae88e28ae9ed0dbf47c212aebfd67f13e06c571f53"
+    },
+    "cold_recovery_summary": {
+      "path": "/srv/ai/paged-kv/results/v10/86-03/cold-needles-native-c65536/summary.json",
+      "sha256": "df34fc1386fd5f5f05607145ed7bdaf240fc8347ad59260051af32dda0591106"
+    },
+    "phase86_manifest": {
+      "path": ".wiretail/execution/evidence/V10_86-03.json",
+      "sha256": "e11bd5bc6af9c9cd87a62acc338d700c09e5e580179001726c1bb0d7dab8feef"
+    },
+    "scale_manifest": {
+      "path": ".wiretail/execution/evidence/V10_86-02_SCALE.json",
+      "sha256": "bf47132c9fd5a42213b5ba26b81e515c90d68a8968814e79cd4b5307859de277"
+    },
+    "short_lifecycle": {
+      "path": "/srv/ai/paged-kv/results/v10/86-03/short-native-bounded/lifecycle-state.json",
+      "sha256": "9d2c7d484036c3ea4515e5b7003c26c52fa10f85314d70c057974d7992fe72cf"
+    },
+    "short_records": {
+      "path": "/srv/ai/paged-kv/results/v10/86-03/short-native-bounded/records.jsonl",
+      "sha256": "b27868ac3e4cf30509fd47cd6c16308dd1badf0bff5025e7817064375c57bc81"
+    },
+    "short_run_config": {
+      "path": "/srv/ai/paged-kv/results/v10/86-03/short-native-bounded/run-config.json",
+      "sha256": "7f50769b008a5d9ddcdf33ffdb5d92d78c98652b3cc0863a106dc0182a02fbad"
+    },
+    "short_summary": {
+      "path": "/srv/ai/paged-kv/results/v10/86-03/short-native-bounded/summary.json",
+      "sha256": "34a5e7286bb45767af69de347ab8e1a0fa48dd85fff95906050c4120f073ca67"
+    }
+  },
+  "result": "current_findings",
+  "revision": "hotpath-v10-20260914",
+  "rows": [
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 30,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 0,
+        "attempted": 62,
+        "denominator": 62,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 0,
+      "rates": {
+        "cached_new_token_pp": 98.42035332906845,
+        "committed_tg": 34.842646735935325,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/1/0",
+      "status": "measured",
+      "trial": 1
+    },
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 30,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 0,
+        "attempted": 62,
+        "denominator": 62,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 0,
+      "rates": {
+        "cached_new_token_pp": 98.42035332906845,
+        "committed_tg": 34.842646735935325,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/2/0",
+      "status": "measured",
+      "trial": 2
+    },
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 30,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 0,
+        "attempted": 62,
+        "denominator": 62,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 0,
+      "rates": {
+        "cached_new_token_pp": 98.42035332906845,
+        "committed_tg": 34.842646735935325,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/3/0",
+      "status": "measured",
+      "trial": 3
+    },
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 27,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 0,
+        "attempted": 62,
+        "denominator": 62,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 1,
+      "rates": {
+        "cached_new_token_pp": 105.2133200063128,
+        "committed_tg": 34.91117046625808,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/1/1",
+      "status": "measured",
+      "trial": 1
+    },
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 27,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 0,
+        "attempted": 62,
+        "denominator": 62,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 1,
+      "rates": {
+        "cached_new_token_pp": 105.2133200063128,
+        "committed_tg": 34.91117046625808,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/2/1",
+      "status": "measured",
+      "trial": 2
+    },
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 27,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 0,
+        "attempted": 62,
+        "denominator": 62,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 1,
+      "rates": {
+        "cached_new_token_pp": 105.2133200063128,
+        "committed_tg": 34.91117046625808,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/3/1",
+      "status": "measured",
+      "trial": 3
+    },
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 28,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 1,
+        "attempted": 61,
+        "denominator": 61,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 2,
+      "rates": {
+        "cached_new_token_pp": 103.15127133941927,
+        "committed_tg": 35.339792101051614,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/1/2",
+      "status": "measured",
+      "trial": 1
+    },
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 28,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 1,
+        "attempted": 61,
+        "denominator": 61,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 2,
+      "rates": {
+        "cached_new_token_pp": 103.15127133941927,
+        "committed_tg": 35.339792101051614,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/2/2",
+      "status": "measured",
+      "trial": 2
+    },
+    {
+      "attribution": {
+        "copy_us": 948,
+        "d2h_actual_bytes": 0,
+        "d2h_useful_bytes": 0,
+        "decode_dense_routes": 0,
+        "decode_direct_routes": 379,
+        "decode_reference_routes": 0,
+        "h2d_actual_bytes": 0,
+        "h2d_useful_bytes": 0,
+        "mtp_verify_dense_routes": 0,
+        "mtp_verify_direct_routes": 371,
+        "mtp_verify_reference_routes": 0,
+        "prefill_dense_routes": 0,
+        "prefill_direct_routes": 1,
+        "prefill_reference_routes": 3,
+        "queue_us": 499749,
+        "wait_us": 18943000.0
+      },
+      "geometry": {
+        "A_tokens": 2048,
+        "B_tokens": "128",
+        "C_tokens": 28,
+        "H_tokens": 91,
+        "L_tokens": 8192,
+        "U_tokens": "64",
+        "draft_capacity_tokens": 8192,
+        "page_tokens": 256
+      },
+      "mtp": {
+        "accepted": 1,
+        "attempted": 61,
+        "denominator": 61,
+        "reason": null
+      },
+      "output_valid": true,
+      "prompt_index": 2,
+      "rates": {
+        "cached_new_token_pp": 103.15127133941927,
+        "committed_tg": 35.339792101051614,
+        "fresh_pp": {
+          "reason": "measured rows used the canonical prompt cache",
+          "value": null
+        },
+        "ttft_ms": {
+          "reason": "TTFT is not exported by the raw short record",
+          "value": null
+        }
+      },
+      "raw_case_id": "fast/off/measured/3/2",
+      "status": "measured",
+      "trial": 3
+    }
+  ],
+  "schema": "hotpath-v10-phase86-summary",
+  "schema_version": 1,
+  "scope": "phase86 raw records and manifests only",
+  "settings": {
+    "B_tokens": "128",
+    "H_pages": "8",
+    "L_tokens": 8192,
+    "U_tokens": "64",
+    "draft_device": "GPU",
+    "draft_k": "turbo4",
+    "draft_kv": {
+      "device": "gpu",
+      "k": "turbo4",
+      "v": "turbo4"
+    },
+    "draft_n_max": 2,
+    "draft_v": "turbo4",
+    "page_size_tokens": "256",
+    "pin_recent_tokens": "512",
+    "target_device": "CUDA0",
+    "target_k": "turbo4",
+    "target_kv": "gpu",
+    "target_v": "turbo4"
+  },
+  "task": "86-04",
+  "validation_errors": []
+}
