@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "task": "88-03",
+  "source_commit": "56dba9d34022b9880a5c87c0922a0237a35f9498",
+  "checks": {
+    "repair88_matched_speed_attribution": {
+      "status": "pass",
+      "command": ["owned direct CUDA server", "fresh", "cached_append", "context_cold"],
+      "exit_code": 0,
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/artifacts/88-03/matched-speed-attribution.json", "sha256": "506472f52476d74ea0184243f0cee751307fcfa3a2faee79a3ecf1887ebd2f50"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-03/direct/raw-results.json", "sha256": "ebbf42502241b7012e39dd92f4ea423c988fa4bf995f02993a40817d1c6daed0"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-03/direct/server.log", "sha256": "b2711883815f8be8d6227d0b86b973f806264852b7c8135e39c895308ad2be72"}
+      ]
+    }
+  }
+}
