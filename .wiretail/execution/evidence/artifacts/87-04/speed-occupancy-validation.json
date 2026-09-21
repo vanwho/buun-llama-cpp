@@ -1,0 +1,97 @@
+{
+  "errors": [],
+  "identities": {
+    "binary": {
+      "path": "/srv/ai/paged-kv/candidates/86-02-cuda/bin/llama-server",
+      "sha256": "61fb0f5feb24fa74661e00fcb11a611cba593a618e1a6cd231c9227c96505643"
+    },
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/candidates/86-02-cuda/build-receipt.json",
+      "sha256": "402580238ef5008c49168770ca320f7e85a6dbc29481489fc6f4b72d33e53810"
+    },
+    "model": {
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "native_cmdline": {
+      "path": "/srv/ai/paged-kv/results/v10/87-04/speed-native/server-cmdline.txt",
+      "sha256": "7246171850488906750e2158fe26b74d8438dc9b0d956e129fd6aed34845c05e"
+    },
+    "occupancy_cmdline": {
+      "path": "/srv/ai/paged-kv/results/v10/87-04/occupancy-256k-h4-u64/server-cmdline.txt",
+      "sha256": "ed26d58686c7558eb4d32a2a5d5794f81f5ece14badbeffede6989b198f6c67c"
+    },
+    "off_cmdline": {
+      "path": "/srv/ai/paged-kv/results/v10/87-04/speed-off/server-cmdline.txt",
+      "sha256": "c6be0152d37e9a43e5ac5732bc2657ab377fe960715d0ee1480da6723085af41"
+    }
+  },
+  "occupancy": {
+    "allocation": {
+      "L_tokens": 262144,
+      "physical_pool_capacity_bytes": 69206016,
+      "target_allocated_bytes": 69206016
+    },
+    "frontier_sequence": [
+      1200,
+      5292,
+      9384,
+      13476,
+      17568,
+      21660
+    ],
+    "ledger": {
+      "A_tokens": 2048,
+      "B_tokens": 128,
+      "H_tokens": 4096,
+      "U_tokens": 64,
+      "page_tokens": 256,
+      "pin_recent_tokens": 1024
+    },
+    "resident": {
+      "committed_frontier_tokens": 21660,
+      "host_pages": 15,
+      "host_valid_rows": 3840,
+      "resident_pages": 16,
+      "target_valid_rows": 3996
+    }
+  },
+  "required_proof": "repair87_speed_and_occupancy",
+  "schema_version": 1,
+  "speed": {
+    "all_gpu_mtp_off": {
+      "cold": {
+        "cached_tokens": 0,
+        "prompt_tokens": 5469,
+        "server_decode_tok_s": 45.808723458647286,
+        "server_prompt_tok_s": 1324.3923330058476,
+        "ttft_ms": 4140.827
+      },
+      "fresh": {
+        "cached_tokens": 0,
+        "prompt_tokens": 58,
+        "server_decode_tok_s": 45.36673886319733,
+        "server_prompt_tok_s": 822.1819006577456,
+        "ttft_ms": 71.983
+      }
+    },
+    "matched_payloads": true,
+    "native": {
+      "cold": {
+        "cached_tokens": 0,
+        "prompt_tokens": 5469,
+        "server_decode_tok_s": 14.686013041179582,
+        "server_prompt_tok_s": 204.26741484291674,
+        "ttft_ms": 26783.172
+      },
+      "fresh": {
+        "cached_tokens": 0,
+        "prompt_tokens": 58,
+        "server_decode_tok_s": 33.23356117976998,
+        "server_prompt_tok_s": 311.8681980470598,
+        "ttft_ms": 187.323
+      }
+    }
+  },
+  "status": "pass"
+}
