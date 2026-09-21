@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "task": "88-06",
+  "summary": ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json",
+  "summary_sha256": "8ad72afdc2379f9637ebf58016b6d5435855f18126038dd8864ef358e596759d",
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false
+  },
+  "findings": {
+    "native_mtp_reliability": {
+      "status": "partial",
+      "evidence": "short repaired sequence exact with restore epochs 1,2,3; long-run A-again returned A-ARCHIVE-META",
+      "acceptance": "1/16"
+    },
+    "organic_cold_semantic_quality": {
+      "status": "short_sequence_exact_long_run_open",
+      "cold_target_consumption": true,
+      "long_run_exact": false
+    },
+    "matched_speed": {
+      "status": "incomplete",
+      "fresh_prompt_tok_s": 276.86861595356515,
+      "committed_decode_tok_s": 29.235980303302412,
+      "cached_append": null,
+      "production_cold": null
+    },
+    "allocation": {
+      "status": "measured",
+      "L_tokens": 262144,
+      "target_allocated_bytes": 69206016
+    },
+    "occupied_context": {
+      "status": "partial",
+      "committed_C_tokens": 25752,
+      "full_capacity_occupied": false
+    }
+  },
+  "decision": "continue_narrowly_evidenced_chain",
+  "next_task_ids": ["89-01", "89-02", "89-03", "89-04", "89-05", "89-06"],
+  "successor_schedule": [
+    {"id": "89-01", "kind": "repair", "gate": "long-run native MTP state parity and target-equivalent continuation"},
+    {"id": "89-02", "kind": "repair", "gate": "repeated organic cold promotion and exact semantic retention"},
+    {"id": "89-03", "kind": "benchmark", "gate": "valid cache-preserving append and completed production cold speed rows"},
+    {"id": "89-04", "kind": "benchmark", "gate": "committed occupied frontier beyond C=25752 with high-water accounting"},
+    {"id": "89-05", "kind": "summary", "gate": "null-preserving phase89 aggregation"},
+    {"id": "89-06", "kind": "review", "gate": "phase89 capability decision and proven successor scheduling"}
+  ],
+  "deferred": "none"
+}
