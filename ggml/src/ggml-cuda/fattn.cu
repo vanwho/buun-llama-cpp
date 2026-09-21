@@ -16,6 +16,15 @@
 #include <sys/stat.h>
 #include <vector>
 
+static void q_rot_buf_ensure(ggml_backend_cuda_context & ctx, size_t q_size);
+static bool q_rot_buf_reserve(ggml_backend_cuda_context & ctx, size_t q_size);
+static __global__ void k_turbo_fwht_forward_strided(
+        const float * src, float * dst, uint32_t n_query_tokens, uint32_t n_heads,
+        size_t src_query_stride, size_t src_head_stride,
+        size_t dst_query_stride, size_t dst_head_stride);
+
+static bool paged_turbo4_last_dispatch_was_mma = false;
+
 
 // InnerQ: update the fattn-side inverse scale array from host (all devices)
 void turbo_innerq_update_fattn_scales(const float * scale_inv) {
@@ -2322,6 +2331,7 @@ static __global__ void ggml_cuda_fattn_turbo4_paged_split_merge_kernel(
 ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         ggml_backend_cuda_context & ctx,
         const ggml_cuda_fattn_turbo4_paged_params & params) noexcept {
+    paged_turbo4_last_dispatch_was_mma = false;
     if (params.q == nullptr || params.k == nullptr || params.v == nullptr ||
         params.pages_host == nullptr || params.pages_device == nullptr || params.query_positions_device == nullptr ||
         (!params.write_partial_state && params.output == nullptr && params.split_kv_scratch == nullptr) ||
@@ -2444,6 +2454,28 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
             params.output != nullptr && params.page_mass == nullptr &&
             params.split_kv_scratch == nullptr && !params.write_partial_state &&
             !params.merge_partial_state) {
+        if (params.n_query_tokens > SIZE_MAX / params.n_head_q / 256u ||
+                size_t(params.n_query_tokens) * params.n_head_q * 256u > SIZE_MAX / sizeof(float)) {
+            return ggml_cuda_fattn_turbo4_paged_status::unsupported_shape;
+        }
+        const size_t q_bytes = size_t(params.n_query_tokens) * params.n_head_q * 256u * sizeof(float);
+        if (!q_rot_buf_reserve(ctx, q_bytes)) {
+            return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
+        }
+        const size_t q_rot_head_stride = 256u * sizeof(float);
+        const size_t q_rot_query_stride = size_t(params.n_head_q) * q_rot_head_stride;
+        k_turbo_fwht_forward_strided<<<
+                dim3(params.n_query_tokens * params.n_head_q * 2u), dim3(128, 1, 1), 0, ctx.stream()>>>(
+            params.q, ctx.fattn_scratch.q_rot_buf, params.n_query_tokens, params.n_head_q,
+            params.q_query_stride_bytes, params.q_head_stride_bytes,
+            q_rot_query_stride, q_rot_head_stride);
+        if (cudaGetLastError() != cudaSuccess) {
+            return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
+        }
+        ggml_cuda_fattn_turbo4_paged_params mma_params = params;
+        mma_params.q = ctx.fattn_scratch.q_rot_buf;
+        mma_params.q_head_stride_bytes = q_rot_head_stride;
+        mma_params.q_query_stride_bytes = q_rot_query_stride;
         const uint32_t gqa_ratio = params.n_head_q / params.n_head_kv;
         const uint32_t ncols2 = gqa_ratio >= 8 ? 8 : gqa_ratio >= 4 ? 4 : gqa_ratio >= 2 ? 2 : 1;
         const uint32_t query_tile = std::min<uint32_t>(query_tile_tokens, 64 / ncols2);
@@ -2451,42 +2483,43 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         bool launched = false;
         if (legacy_mma_columns) {
             if (ncols2 == 8) {
-                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 8>(ctx, params);
+                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 8>(ctx, mma_params);
             } else if (ncols2 == 4) {
-                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 4>(ctx, params);
+                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 4>(ctx, mma_params);
             } else if (ncols2 == 2) {
-                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 2>(ctx, params);
+                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 2>(ctx, mma_params);
             } else {
-                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 1>(ctx, params);
+                launched = ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 1>(ctx, mma_params);
             }
         } else if (ncols2 == 8) {
             launched = query_tile >= 8
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 8>(ctx, params)
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 8>(ctx, mma_params)
                 : query_tile >= 4
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 8>(ctx, params)
-                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<2, 8>(ctx, params);
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 8>(ctx, mma_params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<2, 8>(ctx, mma_params);
         } else if (ncols2 == 4) {
             launched = query_tile >= 16
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 4>(ctx, params)
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 4>(ctx, mma_params)
                 : query_tile >= 8
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 4>(ctx, params)
-                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 4>(ctx, params);
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 4>(ctx, mma_params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<4, 4>(ctx, mma_params);
         } else if (ncols2 == 2) {
             launched = query_tile >= 32
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 2>(ctx, params)
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 2>(ctx, mma_params)
                 : query_tile >= 16
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 2>(ctx, params)
-                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 2>(ctx, params);
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 2>(ctx, mma_params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 2>(ctx, mma_params);
         } else {
             launched = query_tile >= 64
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<64, 1>(ctx, params)
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<64, 1>(ctx, mma_params)
                 : query_tile >= 32
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 1>(ctx, params)
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<32, 1>(ctx, mma_params)
                 : query_tile >= 16
-                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 1>(ctx, params)
-                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 1>(ctx, params);
+                ? ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<16, 1>(ctx, mma_params)
+                : ggml_cuda_flash_attn_ext_mma_turbo4_paged_case<8, 1>(ctx, mma_params);
         }
         if (launched) {
+            paged_turbo4_last_dispatch_was_mma = true;
             return ggml_cuda_fattn_turbo4_paged_status::ok;
         }
         return ggml_cuda_fattn_turbo4_paged_status::cuda_error;
@@ -2640,6 +2673,11 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
     return cudaGetLastError() == cudaSuccess
         ? ggml_cuda_fattn_turbo4_paged_status::ok
         : ggml_cuda_fattn_turbo4_paged_status::cuda_error;
+}
+
+bool ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma() noexcept {
+    // The test fixture samples this after each raw dispatch.
+    return paged_turbo4_last_dispatch_was_mma;
 }
 
 ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
@@ -2909,6 +2947,19 @@ static void q_rot_buf_ensure(ggml_backend_cuda_context & ctx, size_t q_size) {
     }
 }
 
+static bool q_rot_buf_reserve(ggml_backend_cuda_context & ctx, size_t q_size) {
+    if (q_size <= ctx.fattn_scratch.q_rot_buf_size) {
+        return true;
+    }
+    cudaStreamCaptureStatus capture_status = cudaStreamCaptureStatusNone;
+    if (cudaStreamIsCapturing(ctx.stream(), &capture_status) != cudaSuccess ||
+            capture_status != cudaStreamCaptureStatusNone) {
+        return false;
+    }
+    q_rot_buf_ensure(ctx, q_size);
+    return true;
+}
+
 // === FWHT rotation kernels for pre-rotate-queries approach ===
 // Forward rotation on Q before attention (both prefill and decode paths).
 // One block per 128-element group, 128 threads per block.
@@ -2937,6 +2988,33 @@ static __global__ void k_turbo_fwht_forward(
         atomicAdd_double(&d_q_channel_sq_fattn[threadIdx.x], (double)(val * val));
         if (threadIdx.x == 0) atomicAdd(&d_q_channel_count_fattn, 1);
     }
+}
+
+static __global__ void k_turbo_fwht_forward_strided(
+        const float * __restrict__ src, float * __restrict__ dst,
+        const uint32_t n_query_tokens, const uint32_t n_heads,
+        const size_t src_query_stride, const size_t src_head_stride,
+        const size_t dst_query_stride, const size_t dst_head_stride) {
+    const uint32_t vector = uint32_t(blockIdx.x) / 2u;
+    const uint32_t group = uint32_t(blockIdx.x) & 1u;
+    if (vector >= n_query_tokens * n_heads) {
+        return;
+    }
+
+    const uint32_t query = vector / n_heads;
+    const uint32_t head = vector % n_heads;
+    const char * src_head = (const char *) src + size_t(query) * src_query_stride +
+        size_t(head) * src_head_stride;
+    char * dst_head = (char *) dst + size_t(query) * dst_query_stride +
+        size_t(head) * dst_head_stride;
+    const int offset = int(group) * 128;
+    const int local = int(threadIdx.x);
+    __shared__ float buf[128];
+    float value = ((const float *) src_head)[offset + local] *
+        d_innerq_channel_scale_inv_fattn[local] * d_turbo_wht_signs1_fattn[local];
+    value = fwht128_butterfly_inplace(value, buf);
+    constexpr float inv_sqrt_128 = 0.08838834764831845f;
+    ((float *) dst_head)[offset + local] = value * inv_sqrt_128 * d_turbo_wht_signs2_fattn[local];
 }
 
 // ---- Dynamic VBR transcode, Stage 1 (read side) ----------------------------------------------

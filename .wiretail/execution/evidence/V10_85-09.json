@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "task": "85-09",
+  "source_commit": "44dec568c08ecb44b72b09f7aa859dc161ad8a54",
+  "source_diff_sha256": "d8ed19e0c8d0ed0d0bcc477afe34816ee08f40d52b45776c5a06c21e8561ab6c",
+  "build": {
+    "tree": "build-cuda-test",
+    "targets": [
+      "test-cuda-fattn-paged-turbo4",
+      "llama"
+    ],
+    "status": "pass",
+    "device": "NVIDIA GeForce RTX 4080, compute capability 8.9"
+  },
+  "checks": {
+    "cuda_multigroup_turbo4_numerics": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda-test/bin/test-cuda-fattn-paged-turbo4"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/85-09/default-r3.log",
+          "sha256": "43b4ec529113c0fb9d01efc11d2495a481f3c4942554d89bd585acc22b56a4f5"
+        }
+      ]
+    },
+    "cuda_paged_graph_capture_replay": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "compute-sanitizer",
+        "--tool",
+        "memcheck",
+        "--error-exitcode",
+        "99",
+        "--print-limit",
+        "20",
+        "build-cuda-test/bin/test-cuda-fattn-paged-turbo4"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/85-09/memcheck.log",
+          "sha256": "a452896f0521b584be63345eb316df3134d52ab9e2c5bb03e059f49fa8457fff"
+        }
+      ]
+    }
+  },
+  "verification": {
+    "git_diff_check": "pass",
+    "required_proof_lines": [
+      "cuda_multigroup_turbo4_numerics: passed (Q=1,2,3,16,17,64,128; GQA=24/4; interleaved rows)",
+      "cuda_paged_graph_capture_replay: passed (active rows 257 -> 513; stable capacities)"
+    ],
+    "compute_sanitizer": "pass: ERROR SUMMARY: 0 errors"
+  }
+}

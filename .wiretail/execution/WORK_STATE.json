@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "85",
-  "current_task": "85-09",
-  "last_updated_utc": "2026-09-21T02:01:37Z",
+  "current_task": "85-10",
+  "last_updated_utc": "2026-09-21T03:27:16+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -15788,7 +15788,7 @@
       "cluster": "repair85-cuda-correctness-v10",
       "title": "Repair paged Turbo4 strides, GQA heads and MMA query transform",
       "packet": ".wiretail/execution/tasks/85-09.md",
-      "status": "in_progress",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -15814,16 +15814,30 @@
       "depends_on": [
         "85-08"
       ],
-      "commit": null,
+      "commit": "ceda71b30d78093cb259aa2a8136b4d2d5b0ffc0",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-09-attempt-1-20260921T021629Z.jsonl:228",
+            "total_tokens": 37330223,
+            "total_tokens_derived": true,
+            "input_tokens": 37273917,
+            "cached_input_tokens": 36350720,
+            "output_tokens": 56306,
+            "thinking_tokens": 23184
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 1,
+          "total_tokens": 37330223,
+          "input_tokens": 37273917,
+          "cached_input_tokens": 36350720,
+          "output_tokens": 56306,
+          "thinking_tokens": 23184
         }
       },
       "plan_amendment": "repair85-20260921"
@@ -20951,26 +20965,39 @@
           "cached_input_tokens": 19611392,
           "output_tokens": 43704,
           "thinking_tokens": 17945
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-09-attempt-1-20260921T021629Z.jsonl:228",
+          "total_tokens": 37330223,
+          "total_tokens_derived": true,
+          "input_tokens": 37273917,
+          "cached_input_tokens": 36350720,
+          "output_tokens": 56306,
+          "thinking_tokens": 23184
         }
       ],
       "totals": {
-        "turns": 13,
-        "total_tokens": 245875771,
-        "input_tokens": 245326331,
-        "cached_input_tokens": 239261696,
-        "output_tokens": 549440,
-        "thinking_tokens": 241496
+        "turns": 14,
+        "total_tokens": 283205994,
+        "input_tokens": 282600248,
+        "cached_input_tokens": 275612416,
+        "output_tokens": 605746,
+        "thinking_tokens": 264680
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 286,
-      "total_tokens": 5029665087,
-      "input_tokens": 5017383623,
-      "cached_input_tokens": 4909893632,
-      "output_tokens": 12281464,
-      "thinking_tokens": 4401291
+      "turns": 287,
+      "total_tokens": 5066995310,
+      "input_tokens": 5054657540,
+      "cached_input_tokens": 4946244352,
+      "output_tokens": 12337770,
+      "thinking_tokens": 4424475
     },
     "source": "Codex turn.completed usage events"
   }

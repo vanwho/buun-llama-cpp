@@ -1,9 +1,11 @@
 #include "ggml-cuda/fattn-paged-turbo4.cuh"
 #include "ggml-cuda/fattn.cuh"
 #include "ggml-backend-impl.h"
+#include "ggml-turbo-wht.h"
 
 #include "ggml-cuda.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -11,6 +13,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -73,6 +76,357 @@ static float turbo4_host_value(const std::vector<uint8_t> & storage, size_t row_
     const uint32_t j = d % QK_TURBO4;
     const uint8_t index = (j & 1) ? block->qs[j / 2] >> 4 : block->qs[j / 2] & 0x0F;
     return centroids[index] * 1.0f;
+}
+
+static void fill_interleaved_turbo4_page(
+        std::vector<uint8_t> & storage, size_t page_offset, size_t row_bytes,
+        size_t head_bytes, uint32_t kv_heads, uint32_t seed) {
+    for (uint32_t row = 0; row < 256; ++row) {
+        for (uint32_t head = 0; head < kv_heads; ++head) {
+            const size_t row_offset = page_offset + size_t(row) * row_bytes + size_t(head) * head_bytes;
+            for (uint32_t block = 0; block < 2; ++block) {
+                auto * turbo = reinterpret_cast<block_turbo4_0 *>(storage.data() + row_offset +
+                    size_t(block) * sizeof(block_turbo4_0));
+                *reinterpret_cast<uint16_t *>(&turbo->norm) = 0x3c00;
+                for (uint32_t i = 0; i < sizeof(turbo->qs); ++i) {
+                    const uint32_t d = block * QK_TURBO4 + i * 2;
+                    const uint8_t lo = uint8_t((seed + row * 3 + head * 5 + d) & 0xf);
+                    const uint8_t hi = uint8_t((seed + row * 7 + head * 3 + d + 1) & 0xf);
+                    turbo->qs[i] = uint8_t(lo | (hi << 4));
+                }
+            }
+        }
+    }
+}
+
+static std::vector<float> cpu_interleaved_turbo4_oracle(
+        const std::vector<float> & q_storage, size_t q_head_stride, size_t q_query_stride,
+        const std::vector<uint8_t> & k_storage, const std::vector<uint8_t> & v_storage,
+        const ggml_cuda_fattn_turbo4_page * pages, uint32_t n_pages, uint32_t n_rows,
+        const std::vector<int64_t> & native_positions, const std::vector<uint8_t> & native_mask,
+        const std::vector<int64_t> & query_positions, uint32_t query_count,
+        uint32_t n_head_q, uint32_t n_head_kv, size_t head_bytes, size_t row_bytes,
+        size_t page_stride, float scale) {
+    std::vector<float> result(size_t(query_count) * n_head_q * 256, 0.0f);
+    const uint32_t gqa_ratio = n_head_q / n_head_kv;
+    for (uint32_t query = 0; query < query_count; ++query) {
+        for (uint32_t head = 0; head < n_head_q; ++head) {
+            float q_rot[256];
+            const char * q_head = reinterpret_cast<const char *>(q_storage.data()) +
+                size_t(query) * q_query_stride + size_t(head) * q_head_stride;
+            std::memcpy(q_rot, q_head, sizeof(q_rot));
+            for (uint32_t group = 0; group < 2; ++group) {
+                ggml_turbo_wht_transform_128(q_rot + group * 128, 0);
+            }
+
+            const uint32_t kv_head = head / gqa_ratio;
+            float max_score = -std::numeric_limits<float>::infinity();
+            uint32_t valid_count = 0;
+            for (uint32_t page_index = 0; page_index < n_pages; ++page_index) {
+                const auto & page = pages[page_index];
+                for (uint32_t row = 0; row < page.row_count; ++row) {
+                    const uint32_t compact_row = page.compact_row_begin + row;
+                    if (compact_row >= n_rows || native_mask[compact_row] == 0 ||
+                            native_positions[compact_row] > query_positions[query]) {
+                        continue;
+                    }
+                    const size_t row_offset = size_t(page.source_physical_slot) * page_stride +
+                        size_t(row) * row_bytes + size_t(kv_head) * head_bytes;
+                    float score = 0.0f;
+                    for (uint32_t d = 0; d < 256; ++d) {
+                        score += q_rot[d] * turbo4_host_value(k_storage, row_offset, d);
+                    }
+                    max_score = std::max(max_score, score * scale);
+                    ++valid_count;
+                }
+            }
+            if (valid_count == 0) {
+                continue;
+            }
+            float sum = 0.0f;
+            float * output = result.data() + (size_t(query) * n_head_q + head) * 256;
+            for (uint32_t page_index = 0; page_index < n_pages; ++page_index) {
+                const auto & page = pages[page_index];
+                for (uint32_t row = 0; row < page.row_count; ++row) {
+                    const uint32_t compact_row = page.compact_row_begin + row;
+                    if (compact_row >= n_rows || native_mask[compact_row] == 0 ||
+                            native_positions[compact_row] > query_positions[query]) {
+                        continue;
+                    }
+                    const size_t row_offset = size_t(page.source_physical_slot) * page_stride +
+                        size_t(row) * row_bytes + size_t(kv_head) * head_bytes;
+                    float score = 0.0f;
+                    for (uint32_t d = 0; d < 256; ++d) {
+                        score += q_rot[d] * turbo4_host_value(k_storage, row_offset, d);
+                    }
+                    const float weight = std::exp(score * scale - max_score);
+                    sum += weight;
+                    for (uint32_t d = 0; d < 256; ++d) {
+                        output[d] += weight * turbo4_host_value(v_storage, row_offset, d);
+                    }
+                }
+            }
+            if (sum > 0.0f) {
+                for (uint32_t d = 0; d < 256; ++d) output[d] /= sum;
+            }
+        }
+    }
+    return result;
+}
+
+static void run_multigroup_turbo4_numerics(ggml_backend_t backend) {
+    constexpr uint32_t n_head_q = 24;
+    constexpr uint32_t n_head_kv = 4;
+    constexpr uint32_t n_physical_pages = 5;
+    constexpr uint32_t max_query_tokens = 128;
+    constexpr uint32_t n_rows = 513;
+    constexpr size_t head_bytes = 2 * sizeof(block_turbo4_0);
+    constexpr size_t row_bytes = n_head_kv * head_bytes;
+    constexpr size_t page_stride = 256 * row_bytes;
+    constexpr size_t q_head_stride = (256 + 8) * sizeof(float);
+    constexpr size_t q_query_stride = (n_head_q * q_head_stride) + 16 * sizeof(float);
+    constexpr size_t output_head_stride = (256 + 4) * sizeof(float);
+    constexpr size_t output_query_stride = n_head_q * output_head_stride;
+
+    const ggml_cuda_fattn_turbo4_page pages[3] = {
+        { 0, 3,   0, 256,   0 },
+        { 1, 0, 256, 256, 256 },
+        { 2, 4, 512,   1, 512 },
+    };
+    assert(ggml_cuda_fattn_turbo4_page_table_valid(pages, 3, n_rows, 256, n_physical_pages));
+    const ggml_cuda_fattn_turbo4_page pages_257[3] = {
+        { 0, 3,   0, 256,   0 },
+        { 1, 0, 256,   1, 256 },
+        { 2, 4, 257, 256, 512 },
+    };
+    assert(ggml_cuda_fattn_turbo4_page_table_valid(pages_257, 2, 257, 256, n_physical_pages));
+
+    std::vector<uint8_t> k_host(size_t(n_physical_pages) * page_stride, 0xff);
+    std::vector<uint8_t> v_host(k_host.size(), 0xff);
+    for (uint32_t slot = 0; slot < n_physical_pages; ++slot) {
+        fill_interleaved_turbo4_page(k_host, size_t(slot) * page_stride, row_bytes,
+            head_bytes, n_head_kv, 1 + slot * 11);
+        fill_interleaved_turbo4_page(v_host, size_t(slot) * page_stride, row_bytes,
+            head_bytes, n_head_kv, 7 + slot * 13);
+    }
+
+    std::vector<float> q_host(size_t(max_query_tokens) * q_query_stride / sizeof(float), 0.0f);
+    for (uint32_t query = 0; query < max_query_tokens; ++query) {
+        for (uint32_t head = 0; head < n_head_q; ++head) {
+            float * q = reinterpret_cast<float *>(reinterpret_cast<char *>(q_host.data()) +
+                size_t(query) * q_query_stride + size_t(head) * q_head_stride);
+            for (uint32_t d = 0; d < 256; ++d) {
+                q[d] = 0.03f * std::sin(float((query + 1) * (head + 3) * (d + 5)) * 0.017f);
+            }
+        }
+    }
+    std::vector<int64_t> native_positions(n_rows);
+    std::vector<uint8_t> native_mask(n_rows, 1);
+    for (uint32_t row = 0; row < n_rows; ++row) native_positions[row] = int64_t(row);
+    native_positions[17] = 401;
+    native_positions[300] = 901;
+    native_mask[33] = 0;
+    native_mask[470] = 0;
+    std::vector<int64_t> query_positions(max_query_tokens, 1000);
+
+    float * q_device = nullptr;
+    char * k_device = nullptr;
+    char * v_device = nullptr;
+    float * output_device = nullptr;
+    ggml_cuda_fattn_turbo4_page * pages_device = nullptr;
+    int64_t * native_positions_device = nullptr;
+    uint8_t * native_mask_device = nullptr;
+    int64_t * query_positions_device = nullptr;
+    uint32_t * active_pages_device = nullptr;
+    uint32_t * active_rows_device = nullptr;
+    cuda_check(cudaMalloc(&q_device, q_host.size() * sizeof(float)), "multigroup q allocation");
+    cuda_check(cudaMalloc(&k_device, k_host.size()), "multigroup k allocation");
+    cuda_check(cudaMalloc(&v_device, v_host.size()), "multigroup v allocation");
+    cuda_check(cudaMalloc(&output_device, size_t(max_query_tokens) * output_query_stride), "multigroup output allocation");
+    cuda_check(cudaMalloc(&pages_device, sizeof(pages)), "multigroup pages allocation");
+    cuda_check(cudaMalloc(&native_positions_device, native_positions.size() * sizeof(int64_t)), "multigroup positions allocation");
+    cuda_check(cudaMalloc(&native_mask_device, native_mask.size()), "multigroup mask allocation");
+    cuda_check(cudaMalloc(&query_positions_device, query_positions.size() * sizeof(int64_t)), "multigroup query positions allocation");
+    cuda_check(cudaMalloc(&active_pages_device, sizeof(uint32_t)), "multigroup active pages allocation");
+    cuda_check(cudaMalloc(&active_rows_device, sizeof(uint32_t)), "multigroup active rows allocation");
+    cuda_check(cudaMemcpy(q_device, q_host.data(), q_host.size() * sizeof(float), cudaMemcpyHostToDevice), "multigroup q copy");
+    cuda_check(cudaMemcpy(k_device, k_host.data(), k_host.size(), cudaMemcpyHostToDevice), "multigroup k copy");
+    cuda_check(cudaMemcpy(v_device, v_host.data(), v_host.size(), cudaMemcpyHostToDevice), "multigroup v copy");
+    cuda_check(cudaMemcpy(pages_device, pages, sizeof(pages), cudaMemcpyHostToDevice), "multigroup pages copy");
+    cuda_check(cudaMemcpy(native_positions_device, native_positions.data(), native_positions.size() * sizeof(int64_t), cudaMemcpyHostToDevice), "multigroup native positions copy");
+    cuda_check(cudaMemcpy(native_mask_device, native_mask.data(), native_mask.size(), cudaMemcpyHostToDevice), "multigroup native mask copy");
+    cuda_check(cudaMemcpy(query_positions_device, query_positions.data(), query_positions.size() * sizeof(int64_t), cudaMemcpyHostToDevice), "multigroup query positions copy");
+
+    uint32_t active_pages = 3;
+    uint32_t active_rows = n_rows;
+    ggml_cuda_fattn_turbo4_paged_params params;
+    params.q = q_device;
+    params.output = output_device;
+    params.q_head_stride_bytes = q_head_stride;
+    params.q_query_stride_bytes = q_query_stride;
+    params.output_head_stride_bytes = output_head_stride;
+    params.output_query_stride_bytes = output_query_stride;
+    params.type_k = GGML_TYPE_TURBO4_0;
+    params.type_v = GGML_TYPE_TURBO4_0;
+    params.head_dim_k = 256;
+    params.head_dim_v = 256;
+    params.k = k_device;
+    params.v = v_device;
+    params.k_row_stride_bytes = row_bytes;
+    params.k_head_stride_bytes = head_bytes;
+    params.k_page_stride_bytes = page_stride;
+    params.v_row_stride_bytes = row_bytes;
+    params.v_head_stride_bytes = head_bytes;
+    params.v_page_stride_bytes = page_stride;
+    params.pages_host = pages;
+    params.pages_device = pages_device;
+    params.native_positions_device = native_positions_device;
+    params.native_mask_device = native_mask_device;
+    params.query_positions_device = query_positions_device;
+    params.active_page_count_host = &active_pages;
+    params.active_row_count_host = &active_rows;
+    params.active_page_count_device = active_pages_device;
+    params.active_row_count_device = active_rows_device;
+    params.page_capacity = 3;
+    params.row_capacity = n_rows;
+    params.n_pages = 3;
+    params.n_physical_pages = n_physical_pages;
+    params.n_rows = n_rows;
+    params.n_head_q = n_head_q;
+    params.n_head_kv = n_head_kv;
+    params.n_batch = 1;
+    params.scale = 1.0f / std::sqrt(256.0f);
+    params.explicit_native_metadata = true;
+    cuda_check(cudaMemcpy(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice), "multigroup active pages copy");
+    cuda_check(cudaMemcpy(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice), "multigroup active rows copy");
+
+    const uint32_t query_counts[] = { 1, 2, 3, 16, 17, 64, 128 };
+    for (const uint32_t query_count : query_counts) {
+        params.n_query_tokens = query_count;
+        const std::vector<float> oracle = cpu_interleaved_turbo4_oracle(q_host,
+            q_head_stride, q_query_stride, k_host, v_host, pages, 3, n_rows,
+            native_positions, native_mask, query_positions, query_count, n_head_q,
+            n_head_kv, head_bytes, row_bytes, page_stride, params.scale);
+        std::vector<float> canary(size_t(max_query_tokens) * output_query_stride / sizeof(float),
+            std::numeric_limits<float>::quiet_NaN());
+        cuda_check(cudaMemcpy(output_device, canary.data(), canary.size() * sizeof(float), cudaMemcpyHostToDevice), "multigroup output poison");
+        assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+        assert(ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma() == (query_count >= 16));
+        cuda_check(cudaDeviceSynchronize(), "multigroup attention synchronize");
+        std::vector<float> output(canary.size());
+        cuda_check(cudaMemcpy(output.data(), output_device, output.size() * sizeof(float), cudaMemcpyDeviceToHost), "multigroup output readback");
+        for (uint32_t query = 0; query < max_query_tokens; ++query) {
+            for (uint32_t head = 0; head < n_head_q; ++head) {
+                const float * actual = reinterpret_cast<const float *>(reinterpret_cast<const char *>(output.data()) +
+                    size_t(query) * output_query_stride + size_t(head) * output_head_stride);
+                for (uint32_t d = 0; d < 256; ++d) {
+                    if (query < query_count) {
+                        const float expected = oracle[(size_t(query) * n_head_q + head) * 256 + d];
+                        assert(std::isfinite(actual[d]));
+                        assert(std::fabs(actual[d] - expected) < 3.0e-3f);
+                    } else {
+                        assert(std::isnan(actual[d]));
+                    }
+                }
+            }
+        }
+    }
+
+    std::vector<int64_t> no_rows(query_positions.size(), -1);
+    cuda_check(cudaMemcpy(query_positions_device, no_rows.data(), no_rows.size() * sizeof(int64_t), cudaMemcpyHostToDevice), "multigroup no-row positions copy");
+    params.n_query_tokens = 16;
+    std::vector<float> zero_canary(size_t(max_query_tokens) * output_query_stride / sizeof(float), 17.0f);
+    cuda_check(cudaMemcpy(output_device, zero_canary.data(), zero_canary.size() * sizeof(float), cudaMemcpyHostToDevice), "multigroup zero output poison");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaDeviceSynchronize(), "multigroup no-row synchronize");
+    cuda_check(cudaMemcpy(zero_canary.data(), output_device, zero_canary.size() * sizeof(float), cudaMemcpyDeviceToHost), "multigroup no-row output readback");
+    for (uint32_t query = 0; query < params.n_query_tokens; ++query) {
+        for (uint32_t head = 0; head < n_head_q; ++head) {
+            const float * actual = reinterpret_cast<const float *>(reinterpret_cast<const char *>(zero_canary.data()) +
+                size_t(query) * output_query_stride + size_t(head) * output_head_stride);
+            for (uint32_t d = 0; d < 256; ++d) {
+                if (actual[d] != 0.0f) {
+                    std::fprintf(stderr, "multigroup no-row mismatch: query=%u head=%u d=%u value=%.9g\n",
+                        query, head, d, actual[d]);
+                    std::abort();
+                }
+            }
+        }
+    }
+    cuda_check(cudaMemcpy(query_positions_device, query_positions.data(), query_positions.size() * sizeof(int64_t), cudaMemcpyHostToDevice), "multigroup query positions restore");
+
+    cudaGraph_t graph = nullptr;
+    cudaGraphExec_t graph_exec = nullptr;
+    active_pages = 2;
+    active_rows = 257;
+    cuda_check(cudaMemcpy(pages_device, pages_257, sizeof(pages_257), cudaMemcpyHostToDevice), "multigroup graph initial pages");
+    cuda_check(cudaMemcpy(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice), "multigroup graph initial page count");
+    cuda_check(cudaMemcpy(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice), "multigroup graph initial row count");
+    params.pages_host = pages_257;
+    params.n_query_tokens = 16;
+    const cudaStream_t stream = static_cast<ggml_backend_cuda_context *>(backend->context)->stream();
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+    cuda_check(cudaStreamSynchronize(stream), "multigroup graph warmup");
+    cuda_check(cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal), "multigroup graph begin capture");
+    assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) == ggml_cuda_fattn_turbo4_paged_status::ok);
+    assert(ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma());
+    cuda_check(cudaStreamEndCapture(stream, &graph), "multigroup graph end capture");
+    cuda_check(cudaGraphInstantiate(&graph_exec, graph, nullptr, nullptr, 0), "multigroup graph instantiate");
+    const std::vector<float> replay_canary(
+        size_t(max_query_tokens) * output_query_stride / sizeof(float),
+        std::numeric_limits<float>::quiet_NaN());
+    const auto replay = [&](const ggml_cuda_fattn_turbo4_page * replay_pages, uint32_t page_count,
+            uint32_t row_count, const char * label) {
+        active_pages = page_count;
+        active_rows = row_count;
+        const std::vector<float> expected = cpu_interleaved_turbo4_oracle(q_host,
+            q_head_stride, q_query_stride, k_host, v_host, replay_pages, page_count,
+            row_count, native_positions, native_mask, query_positions, 16, n_head_q,
+            n_head_kv, head_bytes, row_bytes, page_stride, params.scale);
+        cuda_check(cudaMemcpyAsync(output_device, replay_canary.data(),
+            replay_canary.size() * sizeof(float), cudaMemcpyHostToDevice, stream), label);
+        cuda_check(cudaMemcpyAsync(pages_device, replay_pages, sizeof(pages), cudaMemcpyHostToDevice, stream), label);
+        cuda_check(cudaMemcpyAsync(active_pages_device, &active_pages, sizeof(active_pages), cudaMemcpyHostToDevice, stream), label);
+        cuda_check(cudaMemcpyAsync(active_rows_device, &active_rows, sizeof(active_rows), cudaMemcpyHostToDevice, stream), label);
+        cuda_check(cudaGraphLaunch(graph_exec, stream), label);
+        cuda_check(cudaStreamSynchronize(stream), label);
+        std::vector<float> actual(replay_canary.size());
+        cuda_check(cudaMemcpy(actual.data(), output_device,
+            actual.size() * sizeof(float), cudaMemcpyDeviceToHost), label);
+        for (uint32_t query = 0; query < max_query_tokens; ++query) {
+            for (uint32_t head = 0; head < n_head_q; ++head) {
+                const float * values = reinterpret_cast<const float *>(
+                    reinterpret_cast<const char *>(actual.data()) +
+                    size_t(query) * output_query_stride + size_t(head) * output_head_stride);
+                for (uint32_t d = 0; d < 256; ++d) {
+                    if (query < 16) {
+                        const float expected_value = expected[(size_t(query) * n_head_q + head) * 256 + d];
+                        assert(std::isfinite(values[d]));
+                        assert(std::fabs(values[d] - expected_value) < 3.0e-3f);
+                    } else {
+                        assert(std::isnan(values[d]));
+                    }
+                }
+            }
+        }
+    };
+    replay(pages_257, 2, 257, "multigroup graph replay partial");
+    replay(pages, 3, n_rows, "multigroup graph replay full");
+    cudaGraphExecDestroy(graph_exec);
+    cudaGraphDestroy(graph);
+
+    cudaFree(active_rows_device);
+    cudaFree(active_pages_device);
+    cudaFree(query_positions_device);
+    cudaFree(native_mask_device);
+    cudaFree(native_positions_device);
+    cudaFree(pages_device);
+    cudaFree(output_device);
+    cudaFree(v_device);
+    cudaFree(k_device);
+    cudaFree(q_device);
+    std::fprintf(stderr, "cuda_multigroup_turbo4_numerics: passed (Q=1,2,3,16,17,64,128; GQA=24/4; interleaved rows)\n");
+    std::fprintf(stderr, "cuda_paged_graph_capture_replay: passed (active rows 257 -> 513; stable capacities)\n");
 }
 
 // This is deliberately independent of the CUDA implementation.  The fixture
@@ -611,6 +965,7 @@ int main(int argc, char ** argv) {
     ggml_backend_t backend = ggml_backend_cuda_init(0);
     assert(backend != nullptr);
 
+    run_multigroup_turbo4_numerics(backend);
     run_split_tail_growth_regression(backend);
 
     // Keep the fixture small enough to coexist with a loaded full-model

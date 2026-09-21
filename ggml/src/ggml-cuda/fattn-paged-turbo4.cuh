@@ -211,3 +211,7 @@ ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
 ggml_cuda_fattn_turbo4_paged_status ggml_cuda_flash_attn_ext_paged_turbo4(
         ggml_backend_t backend,
         const ggml_cuda_fattn_turbo4_paged_params & params) noexcept;
+
+// Test-only dispatch observation for numerical fixtures. It reports whether the most recent
+// raw paged launch selected the direct Turbo4 MMA path rather than a cooperative/reference path.
+bool ggml_cuda_fattn_turbo4_paged_last_dispatch_was_mma() noexcept;
