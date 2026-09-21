@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "schema": "repair85-review-v1",
+  "task": "85-19",
+  "revision": "hotpath-v10-20260914",
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false
+  },
+  "measured": {
+    "identity": {
+      "binary_sha256": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "bundle_manifest_sha256": "0eff46186ba2ee0b9bb86c301286d1da546540ea39d9bc75ad5f6c5ba2eb18b9"
+    },
+    "matched_original_three_prompt_ratios": {
+      "selected_native_over_all_gpu_native": {"fresh_pp": 1.721410869180386, "committed_tg": 1.637309784350853},
+      "selected_native_over_cpu_main_native": {"fresh_pp": 3.4251858736059484, "committed_tg": 3.9270342513534797}
+    },
+    "selected_native_short_mtp": {"attempted": 155, "accepted": 34, "acceptance": 0.21935483870967742},
+    "all_gpu_native_short_mtp": {"attempted": 184, "accepted": 2, "acceptance": 0.010869565217391304},
+    "context_selected_native": {
+      "L": 8192, "C": 6144, "H": 4096, "A": 2048, "B": 128, "U": 128,
+      "draft_capacity": 8192, "fresh_pp": 195.23052836041182,
+      "committed_tg": 21.35611318739989, "ttft_us": 31479247.833005503,
+      "mtp_attempted": 53, "mtp_accepted": 12,
+      "host_seal_d2h_bytes": 103809000, "summary_build_bytes": 51904500,
+      "graph_construction_us": 172, "graph_capture_count": 99,
+      "graph_update_count": 99, "graph_launch_count": 100
+    },
+    "scale": {"allocation_256k": true, "occupied_frontier_C": 0, "pilot_32k": "runtime_fault", "pilot_128k": "allocation_only"}
+  },
+  "defects_and_remaining_costs": [
+    {
+      "severity": "high",
+      "source_symbol": "ggml_cuda_turbo_prefill_attend",
+      "first_reproducer": "L32768/H16384/B128/U64, 1200-token request",
+      "finding": "CUDA invalid argument before the first committed token",
+      "impact": "blocks long-context request, scaling, and practical speed proof"
+    },
+    {
+      "severity": "high",
+      "source_symbol": "natural promotion/target-use chain",
+      "first_reproducer": "85-15 organic A/B/A-again traffic with selected native MTP",
+      "finding": "controlled forced transfer passed, but organic cold selector/use and exact useful answer did not",
+      "impact": "stable target consumption and organic cold capability remain unproven"
+    },
+    {
+      "severity": "high",
+      "source_symbol": "occupancy frontier",
+      "first_reproducer": "L262144/H4096/B128/U64, first cache-preserving request",
+      "finding": "allocation succeeded but request returned invalid response and C stayed 0",
+      "impact": "no 256K occupancy claim"
+    },
+    {
+      "severity": "medium",
+      "source_symbol": "phase attribution exporter",
+      "first_reproducer": "85-16 context-selected-native attribution record",
+      "finding": "host seal D2H and summary bytes are measured, but transfer/wait phase times and cached append are null",
+      "impact": "context hot/cold speed ratio and exact dominant phase cannot be established"
+    }
+  ],
+  "decision": "Goal remains unmet. The selected short path shows a descriptive speed benefit over the matched all-GPU and CPU-main controls, and native MTP counters are positive, but no practical speed signoff is made because context hot/cold matching and long-context requests are invalid or absent.",
+  "next_task_ids": ["86-01", "86-02", "86-03", "86-04", "86-05"],
+  "successor_rationale": {
+    "86-01": "repair the first long-context CUDA invalid-argument invariant",
+    "86-02": "measure 32K/128K/256K allocation versus legal occupied C after repair",
+    "86-03": "rebuild matched speed and natural cold-promotion evidence on the repaired candidate",
+    "86-04": "aggregate only phase86 raw evidence with null-preserving provenance",
+    "86-05": "review the phase86 summary and stop or schedule only proven work"
+  },
+  "source_summary": ".wiretail/execution/evidence/V10_REPAIR85_SUMMARY.json"
+}
