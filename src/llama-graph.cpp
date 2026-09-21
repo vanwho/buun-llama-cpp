@@ -5088,7 +5088,9 @@ ggml_tensor * llm_graph_context::build_attn(
 
         ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
             ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
+        const bool cooperative_scratch_safe = inp->direct_page_capacity <= 64;
         ggml_tensor * telemetry_page_mass =
+            cooperative_scratch_safe &&
             inp->kv_attention_telemetry != nullptr &&
             inp->kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
             inp->kv_attention_telemetry->layer_index() < inp->direct_layer_ids.size() &&
@@ -5101,17 +5103,21 @@ ggml_tensor * llm_graph_context::build_attn(
         direct_params.scale = kq_scale;
         direct_params.causal = true;
         direct_params.page_mass = telemetry_page_mass;
-        // Keep the bounded scratch arena attached to ordinary direct nodes.
-        // This intentionally selects the cooperative direct consumer instead
-        // of the fused MMA multi-query path for target verification.  The
-        // latter is numerically correct for ordinary prefill, but its fused
-        // query tile does not preserve long-run MTP continuation parity after
-        // repeated append/trim transactions.  Capacity one keeps this a
-        // single-partition direct decode with no split/merge overhead while
-        // retaining the selected-direct placement and page-table contract.
-        direct_params.split_kv_scratch = inp->direct_split_kv_scratch;
-        direct_params.split_kv_partition_capacity = inp->direct_split_kv_partition_capacity;
-        direct_params.split_kv_page_count = inp->direct_split_kv_page_count;
+        // Keep the bounded scratch arena attached to the ordinary direct
+        // nodes at the small geometry used by the long-run continuation
+        // proof.  At full L, however, the cooperative consumer's page-state
+        // shared-memory footprint scales with query_tokens * page_capacity;
+        // attaching it to a long prefill can exceed CUDA's dynamic shared
+        // memory limit before the request is submitted.  The full-L graph
+        // therefore retains the fused MMA path used by the occupied-frontier
+        // measurement, while small page tables keep the 89-01 continuation
+        // parity path.
+        direct_params.split_kv_scratch = cooperative_scratch_safe
+            ? inp->direct_split_kv_scratch : nullptr;
+        direct_params.split_kv_partition_capacity = cooperative_scratch_safe
+            ? inp->direct_split_kv_partition_capacity : 0;
+        direct_params.split_kv_page_count = cooperative_scratch_safe
+            ? inp->direct_split_kv_page_count : 0;
         direct_params.page_capacity = inp->direct_page_capacity;
         direct_params.row_capacity = inp->direct_row_capacity;
         direct_params.physical_page_count = inp->direct_physical_page_count;
