@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "task": "90-05",
+  "source_commit": "67b940d86a5ff70be3285a29941256d4ff9fdac6",
+  "source_diff_sha256": "df5e7f5ec96a55ad38d3303772707e672a3d901ff9105eca00159b35c9e0d41e",
+  "checks": {
+    "repair90_review_and_successors": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/evidence/validate_repair90_review.py",
+        "--summary",
+        ".wiretail/execution/evidence/V10_PHASE90_SUMMARY.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR90_REVIEW.json",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/90-05/review-validation.json"
+      ],
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_REPAIR90_REVIEW.json", "sha256": "d2b8aa54b07b121f2ac701a7bc8772b8c5efc552fae38962b455e31a97da695f"},
+        {"path": ".wiretail/execution/evidence/V10_PHASE90_SUMMARY.json", "sha256": "ab92f84c86b3c117efab3c4f00ceea6627eee9f1ec19707ecc352ca852b73e48"},
+        {"path": ".wiretail/execution/evidence/artifacts/90-05/review-validation.json", "sha256": "a429571269abb02a3c2a7b6b191ec1e9e1cd8ec378907c570edd2a02d9d36cc8"},
+        {"path": ".wiretail/execution/evidence/validate_repair90_review.py", "sha256": "df5e7f5ec96a55ad38d3303772707e672a3d901ff9105eca00159b35c9e0d41e"},
+        {"path": ".wiretail/execution/clusters/repair91-frontier-completion-v10.md", "sha256": "61f3a014797acca1babdf2e0da0b229538b308ef802759a298e26e9f1fbcc391"},
+        {"path": ".wiretail/execution/tasks/91-01.md", "sha256": "1b5299728964a8eca4b09d97a9b5d6d64622885047b558846fa9321a07978bcf"},
+        {"path": ".wiretail/execution/tasks/91-02.md", "sha256": "0b8b5f8deb2b0f36a69917ce47cc711d5f34bad625169efcaec33f5be0c1e695"},
+        {"path": ".wiretail/execution/tasks/91-03.md", "sha256": "0e013fd79190304b3ef29389c3869a76f5775943a353a4e3d28458dd84f6abbe"},
+        {"path": ".wiretail/execution/tasks/91-04.md", "sha256": "6cd05bf4a511cfdc8562587fcc607e7a18d04ed1808f2d425f3d49d370569aa5"},
+        {"path": ".wiretail/execution/tasks/91-05.md", "sha256": "4eaf7bd18e8db98944bc17e1df94e211da9dacfea0fdad4406d029e6b39bae2b"}
+      ],
+      "result": {
+        "summary": ".wiretail/execution/evidence/V10_PHASE90_SUMMARY.json",
+        "review": ".wiretail/execution/evidence/V10_REPAIR90_REVIEW.json",
+        "goal_met": false,
+        "decision": "continue_narrowly_evidenced_chain",
+        "actionable_gap": "full-L occupancy remains partial at durable C=58488/live C=58503",
+        "next_task_ids": ["91-01", "91-02", "91-03", "91-04", "91-05"]
+      }
+    },
+    "v10_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", ".wiretail/execution/v10", "-p", "test_*.py"],
+      "tests_passed": 8
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_*.py"],
+      "tests_passed": 98
+    }
+  },
+  "deferred_verification": []
+}

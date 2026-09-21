@@ -1,0 +1,17 @@
+{
+  "errors": [],
+  "next_task_ids": [
+    "91-01",
+    "91-02",
+    "91-03",
+    "91-04",
+    "91-05"
+  ],
+  "required_proof": "repair90_review_and_successors",
+  "review": ".wiretail/execution/evidence/V10_REPAIR90_REVIEW.json",
+  "review_sha256": "d2b8aa54b07b121f2ac701a7bc8772b8c5efc552fae38962b455e31a97da695f",
+  "schema_version": 1,
+  "status": "pass",
+  "summary": ".wiretail/execution/evidence/V10_PHASE90_SUMMARY.json",
+  "summary_sha256": "ab92f84c86b3c117efab3c4f00ceea6627eee9f1ec19707ecc352ca852b73e48"
+}
