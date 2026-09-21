@@ -1,0 +1,44 @@
+85-14 small prefill / cached append attribution
+===============================================
+
+Candidate bundle:
+  /srv/ai/paged-kv/candidates/85-14-cuda/bin/llama-server
+  model: /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf
+  L=4096, B=128, U=128, page=256, selective pager, target KV GPU,
+  native draft KV GPU, draft K/V Turbo4, draft n-max=2.
+
+Canonical runner native short probe (adapter validation passed):
+  runner output: /srv/ai/paged-kv/results/85-14-live-native-final
+  measured prompt: 30 tokens, 181.579 ms, 165.217 tok/s
+  measured decode: 32 tokens, 746.001 ms, 41.555 tok/s
+  native MTP: 25 drafted, 6 accepted (24.0%)
+  runtime identity after run: immutable candidate bundle; no validation errors.
+
+Matched cached coordinate (native MTP):
+  runner output: /srv/ai/paged-kv/results/85-14-cached-native
+  prefix: 3040 prompt tokens, cache_n=0, 8371.581 ms, 363.133 tok/s prompt;
+          1224.587 ms decode, 29 drafted, 1 accepted.
+  append-64: 3136 prompt tokens, cache_n=3071, 587.387 ms, 110.660 tok/s
+              on the 65-token new prompt, 1144.596 ms decode,
+              27 drafted, 3 accepted.
+
+Matched short all-GPU/no-MTP control (canonical runner, same candidate,
+L/B/U/pager geometry):
+  runner output: /srv/ai/paged-kv/results/85-14-live-control
+  measured prompt: 30 tokens, 83.149 ms, 360.798 tok/s
+  measured decode: 8 tokens, 166.324 ms, 42.087 tok/s
+  native MTP counters: not applicable (MTP off).
+
+Attribution from the native coordinate telemetry after the append:
+  selected-direct prefill routes=2, selected-direct decode routes=41,
+  selected-direct MTP verify routes=42, queue_time_us=2203832,
+  wait_time_us=1953999, copy_time_us=210, table_epoch_changes=113,
+  table_upload_bytes=6288, target_valid_rows=1887, selected_pages=4.
+  CUDA-event fields in the server receipt are explicitly not measured;
+  the focused CUDA-event fixture is recorded in 85-14-paged-dispatch.txt.
+
+Control diagnostic:
+  A separate 3072-token no-MTP cached-coordinate attempt reached the
+  prefill but exceeded its 120 s response bound; the service remained healthy.
+  The bounded canonical short control above completed and is the matched
+  control used for the reported small-cost comparison.
