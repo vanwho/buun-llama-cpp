@@ -4086,6 +4086,7 @@ public:
                     {"graph_submission_count", pager.execution.graph_submission_count},
                     {"graph_completion_count", pager.execution.graph_completion_count},
                     {"graph_construction_us", pager.execution.graph_construction_us},
+                    {"requested_batch", params_base.n_batch},
                     {"requested_ubatch", pager.execution.requested_ubatch},
                     {"physical_write_capacity", pager.execution.physical_write_capacity},
                     {"effective_ubatch", pager.execution.effective_ubatch},
@@ -4191,6 +4192,15 @@ public:
                     {"summary_build_bytes", pager.summary_build_bytes},
                     {"summary_read_calls", pager.summary_read_calls},
                     {"summary_read_bytes", pager.summary_read_bytes},
+                    {"test_forced_logical_page", pager.test_forced_logical_page},
+                    {"test_forced_physical_slot", pager.test_forced_physical_slot},
+                    {"test_forced_page_generation", pager.test_forced_page_generation},
+                    {"test_forced_content_version", pager.test_forced_content_version},
+                    {"test_forced_host_checksum", pager.test_forced_host_checksum},
+                    {"test_forced_device_checksum", pager.test_forced_device_checksum},
+                    {"test_forced_checksum_equal",
+                        pager.test_forced_host_checksum != 0 &&
+                        pager.test_forced_host_checksum == pager.test_forced_device_checksum},
                     {"natural_proof", {
                         {"query_generation", pager.natural_proof.query_generation},
                         {"query_position", pager.natural_proof.query_position},
