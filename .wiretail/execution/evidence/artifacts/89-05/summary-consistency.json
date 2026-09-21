@@ -1,0 +1,9 @@
+{
+  "errors": [],
+  "input_count": 4,
+  "markdown": ".wiretail/execution/evidence/V10_SUMMARY_89.md",
+  "required_proof": "repair89_summary_consistency",
+  "schema_version": 1,
+  "status": "pass",
+  "summary": ".wiretail/execution/evidence/V10_SUMMARY_89.json"
+}

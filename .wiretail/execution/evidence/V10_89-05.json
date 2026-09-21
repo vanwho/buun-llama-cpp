@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "task": "89-05",
+  "source_commit": "292cddb68707416a5fbd2d919e76edec165ffccc",
+  "checks": {
+    "repair89_summary_consistency": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-repair89-summary.py",
+        "--summary",
+        ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+        "--markdown",
+        ".wiretail/execution/evidence/V10_SUMMARY_89.md",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/89-05/summary-consistency.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/89-05/summary-consistency.json",
+          "sha256": "6c03e0e2f8a46e0b54567fee90d4004413acc56603b1c1edb77ce10c69975b2d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+          "sha256": "7e1f6c516d36b7a2411e0c709deb316dffd9fcba324cf34b4ef63557edb380cb"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_89.md",
+          "sha256": "94c143ee27d2dd55374c5e3ff308d5c2cb06ba25d3a0f7c514a36d0f6fff2400"
+        }
+      ]
+    },
+    "aggregate_phase89_summary": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/aggregate-repair89-summary.py",
+        "--parity",
+        ".wiretail/execution/evidence/artifacts/89-01/repair89-parity-validation.json",
+        "--organic",
+        ".wiretail/execution/evidence/artifacts/89-02/organic-cold-retention-validation.json",
+        "--speed",
+        ".wiretail/execution/evidence/artifacts/89-03/valid-speed-controls.json",
+        "--frontier",
+        ".wiretail/execution/evidence/artifacts/89-04/occupied-frontier-validation.json",
+        "--json-output",
+        ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+        "--markdown-output",
+        ".wiretail/execution/evidence/V10_SUMMARY_89.md"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+          "sha256": "7e1f6c516d36b7a2411e0c709deb316dffd9fcba324cf34b4ef63557edb380cb"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_89.md",
+          "sha256": "94c143ee27d2dd55374c5e3ff308d5c2cb06ba25d3a0f7c514a36d0f6fff2400"
+        }
+      ]
+    },
+    "v10_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", ".wiretail/execution/v10", "-p", "test_*.py"]
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_*.py"]
+    }
+  },
+  "inputs": {
+    "native_mtp_parity": ".wiretail/execution/evidence/artifacts/89-01/repair89-parity-validation.json",
+    "organic_semantic": ".wiretail/execution/evidence/artifacts/89-02/organic-cold-retention-validation.json",
+    "speed_controls": ".wiretail/execution/evidence/artifacts/89-03/valid-speed-controls.json",
+    "occupied_frontier": ".wiretail/execution/evidence/artifacts/89-04/occupied-frontier-validation.json"
+  },
+  "deferred_verification": []
+}
