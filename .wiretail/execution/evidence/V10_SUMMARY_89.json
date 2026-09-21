@@ -1,0 +1,282 @@
+{
+  "allocation_vs_occupancy": {
+    "allocation": {
+      "L": 262144,
+      "physical_pool_capacity_bytes": 69206016,
+      "status": "measured",
+      "target_allocated_bytes": 69206016
+    },
+    "occupied_frontier": {
+      "durable_C": 38028,
+      "host_pages": 15,
+      "live_C": 38043,
+      "resident_pages": 16,
+      "status": "measured_partial",
+      "stop_reason": "operator_bounded_wall_budget_stop_after_C38028",
+      "target_valid_rows": 3995
+    }
+  },
+  "amendment": "repair87-20260921",
+  "attribution": {
+    "frontier": {
+      "host_pages": 15,
+      "note": "queue and wait counters remain distinct; no summed cost is claimed",
+      "resident_pages": 16,
+      "scratch_high_water_bytes": 8331264
+    },
+    "organic_cold": {
+      "completed_transfer_events": 0,
+      "copy_us": 0,
+      "published_h2d_useful_bytes": 4325376,
+      "queue_us": 112320.0,
+      "request_h2d_useful_bytes": 0.0,
+      "target_graph_used": true,
+      "wait_us": 300188
+    },
+    "status": "measured"
+  },
+  "identity": {
+    "alias": "qwen38-fast-turbo4-mtp",
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "native_mtp": "GPU turbo4 K/V",
+    "target": "CUDA turbo4 K/V"
+  },
+  "native_mtp_parity": {
+    "case_outputs_equal": true,
+    "control": "MTP-off target-only reference route",
+    "native_counter_totals": {
+      "accepted": 2,
+      "committed": 10,
+      "draft_restores": 8,
+      "drafted": 16,
+      "rejected": 14,
+      "restore_failures": 0,
+      "target_restores": 8
+    },
+    "restore_failures": 0,
+    "status": "measured"
+  },
+  "null_reasons": {
+    "allocation_vs_occupancy.full_L_occupied": "bounded wall stop before L was fully occupied",
+    "promotion_origin.controlled": "phase89 did not run a separate controlled promotion campaign",
+    "speed.decode_tokens_per_second": "max_tokens=1 timing resolution",
+    "speed.mtp_off_control.append_256": "control request preserved no cache (cache_n=0)"
+  },
+  "phase": 89,
+  "promotion_origin": {
+    "controlled": {
+      "null_reason": "phase89 did not run a separate controlled promotion campaign",
+      "status": "null",
+      "value": null
+    },
+    "organic": {
+      "cold_request": "B",
+      "published_h2d_useful_bytes": 4325376,
+      "recovery_request": "A-again",
+      "status": "measured",
+      "target_graph_used": true
+    },
+    "status": "measured"
+  },
+  "raw_pointers": {
+    "native_mtp_parity": {
+      "path": ".wiretail/execution/evidence/artifacts/89-01/repair89-parity-validation.json",
+      "sha256": "08cb84c97519e9a2593929bba9289c4f007498ca8f6341c5ac323c58656966da"
+    },
+    "occupied_frontier": {
+      "path": ".wiretail/execution/evidence/artifacts/89-04/occupied-frontier-validation.json",
+      "sha256": "8a75dda152acada7cb6a930be253c22bcf11384d93f9dae3858c8539a8b58b54"
+    },
+    "organic_semantic": {
+      "path": ".wiretail/execution/evidence/artifacts/89-02/organic-cold-retention-validation.json",
+      "sha256": "68feb8025e4a08d7909698273008d233ed675535869cdc0d788bfaa42be54614"
+    },
+    "speed_controls": {
+      "path": ".wiretail/execution/evidence/artifacts/89-03/valid-speed-controls.json",
+      "sha256": "2cb73dfb9786647ced9926a21bc8f8e6d3e4c5a5530585084051907945f9d282"
+    }
+  },
+  "revision": "hotpath-v10-20260914",
+  "schema": "hotpath-v10-phase89-compact-summary",
+  "schema_version": 1,
+  "scope": {
+    "frontier_geometry": {
+      "A_tokens": 2048,
+      "B_tokens": 128,
+      "H_tokens": 4096,
+      "L_tokens": 262144,
+      "U_tokens": 64,
+      "hot_pages": 16,
+      "page_tokens": 256,
+      "pin_recent_tokens": 1024
+    },
+    "geometry": {
+      "A": 1024,
+      "B": 128,
+      "H": 2048,
+      "L": 8192,
+      "U": 64,
+      "hot_pages": 8,
+      "page_tokens": 256,
+      "pin_recent_tokens": 512
+    },
+    "source_phase": 89,
+    "source_policy": "phase89 manifests and raw-record summaries only"
+  },
+  "semantic_quality": {
+    "all_runs_exact": true,
+    "fresh_repetitions": 3,
+    "organic_origin": {
+      "A_again": {
+        "candidate_was_cold": true,
+        "h2d_useful_bytes": 4325376,
+        "promotion_published": true,
+        "target_graph_used": true
+      },
+      "status": "measured"
+    },
+    "sequence": [
+      {
+        "actual": "ACK-A",
+        "expected": "ACK-A",
+        "request": "A"
+      },
+      {
+        "actual": "ACK-B",
+        "expected": "ACK-B",
+        "request": "B"
+      },
+      {
+        "actual": "A-ARCHIVE-MARKER-914",
+        "expected": "A-ARCHIVE-MARKER-914",
+        "request": "A-again"
+      },
+      {
+        "actual": "ACK-C",
+        "expected": "ACK-C",
+        "request": "terminal"
+      }
+    ],
+    "status": "measured"
+  },
+  "speed": {
+    "geometry": {
+      "H": 2048,
+      "L": 8192,
+      "batch": 128,
+      "hot_pages": 8,
+      "page_tokens": 256,
+      "pin_recent_tokens": 512,
+      "ubatch": 64
+    },
+    "mtp_off_control": {
+      "append_256_null_reason": "control request preserved no cache (cache_n=0)",
+      "rows": [
+        {
+          "append_delta": 64,
+          "cache_condition": "live-continuation",
+          "cache_n": 6143,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": 0.0,
+            "accepted_tokens": 0,
+            "draft_tokens": 0,
+            "mode": "off",
+            "status": "off"
+          },
+          "name": "append-64",
+          "new_prompt_tokens": 65,
+          "predicted_ms": 0.001,
+          "prompt_ms": 705.512,
+          "prompt_tokens": 6208,
+          "prompt_tokens_per_second": 92.13167175044508,
+          "status": "pass"
+        },
+        {
+          "append_delta": 256,
+          "cache_condition": "live-continuation",
+          "cache_n": 0,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": 0.0,
+            "accepted_tokens": 0,
+            "draft_tokens": 0,
+            "mode": "off",
+            "status": "off"
+          },
+          "name": "append-256",
+          "new_prompt_tokens": 6400,
+          "null_reason": "control request preserved no cache (cache_n=0)",
+          "predicted_ms": 0.001,
+          "prompt_ms": 60543.521,
+          "prompt_tokens": 6400,
+          "prompt_tokens_per_second": 105.70908157125515,
+          "status": "null"
+        }
+      ],
+      "status": "measured_with_null_row"
+    },
+    "native_mtp": {
+      "rows": [
+        {
+          "append_delta": 64,
+          "cache_condition": "live-continuation",
+          "cache_n": 6143,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": null,
+            "accepted_tokens": null,
+            "draft_tokens": null,
+            "mode": "native",
+            "reason": "mtp_observation_missing",
+            "status": "not_run"
+          },
+          "name": "append-64",
+          "new_prompt_tokens": 65,
+          "predicted_ms": 0.001,
+          "prompt_ms": 912.096,
+          "prompt_tokens": 6208,
+          "prompt_tokens_per_second": 71.26442830579236,
+          "status": "pass"
+        },
+        {
+          "append_delta": 256,
+          "cache_condition": "live-continuation",
+          "cache_n": 6146,
+          "decode_null_reason": "max_tokens=1 timing resolution",
+          "decode_tokens_per_second": null,
+          "mtp": {
+            "acceptance_percent": null,
+            "accepted_tokens": null,
+            "draft_tokens": null,
+            "mode": "native",
+            "reason": "mtp_observation_missing",
+            "status": "not_run"
+          },
+          "name": "append-256",
+          "new_prompt_tokens": 254,
+          "predicted_ms": 0.002,
+          "prompt_ms": 2807.232,
+          "prompt_tokens": 6400,
+          "prompt_tokens_per_second": 90.48058728313157,
+          "status": "pass"
+        }
+      ],
+      "status": "measured"
+    },
+    "organic_cold": {
+      "decode_tokens_per_second": 22.994608809443676,
+      "input_tokens": 3543,
+      "prompt_tokens_per_second": 83.70530282826591,
+      "status": "measured"
+    },
+    "status": "measured"
+  },
+  "task": "89-05",
+  "validation_errors": []
+}
