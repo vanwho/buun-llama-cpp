@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "task": "89-06",
+  "summary": ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+  "summary_sha256": "7e1f6c516d36b7a2411e0c709deb316dffd9fcba324cf34b4ef63557edb380cb",
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "native_mtp_parity": true,
+    "organic_cold_semantic_retention": true,
+    "valid_speed_controls": true,
+    "full_256k_occupancy": false,
+    "controlled_promotion_origin": false,
+    "practical_speed_goal_met": false
+  },
+  "findings": {
+    "native_mtp": "measured",
+    "organic_semantic_quality": "measured",
+    "speed_controls": "measured_with_explicit_nulls",
+    "allocation": "measured",
+    "occupied_frontier": "measured_partial",
+    "controlled_promotion": "null"
+  },
+  "actionable_gaps": [
+    "full-L occupied frontier stopped at durable C=38028/live C=38043 under bounded wall budget",
+    "MTP-off append-256 control had cache_n=0",
+    "controlled promotion origin was not run"
+  ],
+  "next_task_ids": [
+    "90-01",
+    "90-02",
+    "90-03",
+    "90-04",
+    "90-05"
+  ],
+  "deferred_verification": []
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "required_proof": "repair89_review_and_successors",
+  "summary": ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+  "summary_sha256": "7e1f6c516d36b7a2411e0c709deb316dffd9fcba324cf34b4ef63557edb380cb",
+  "review": ".wiretail/execution/evidence/V10_REPAIR89_REVIEW.json",
+  "review_sha256": "886eccd725c75f0e49da5b5ac9e81da6f6a909102e290088254ca7e6f1b88a24",
+  "next_task_ids": [
+    "90-01",
+    "90-02",
+    "90-03",
+    "90-04",
+    "90-05"
+  ],
+  "errors": []
+}

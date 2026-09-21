@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "task": "89-06",
+  "source_commit": "292cddb68707416a5fbd2d919e76edec165ffccc",
+  "checks": {
+    "repair89_review_and_successors": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-repair89-review.py",
+        "--summary",
+        ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR89_REVIEW.json",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/89-06/review-validation.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/artifacts/89-06/review-validation.json",
+          "sha256": "87ae4745c649ce47b8ea69d9542869de69c69e4a1002635a4f7db262e27008a8"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_REPAIR89_REVIEW.json",
+          "sha256": "886eccd725c75f0e49da5b5ac9e81da6f6a909102e290088254ca7e6f1b88a24"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+          "sha256": "7e1f6c516d36b7a2411e0c709deb316dffd9fcba324cf34b4ef63557edb380cb"
+        }
+      ]
+    },
+    "v10_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".wiretail/execution/v10",
+        "-p",
+        "test_*.py"
+      ],
+      "tests_passed": 8
+    },
+    "server_bench_python_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools/server/bench",
+        "-p",
+        "test_*.py"
+      ],
+      "tests_passed": 98
+    }
+  },
+  "summary": {
+    "path": ".wiretail/execution/evidence/V10_SUMMARY_89.json",
+    "sha256": "7e1f6c516d36b7a2411e0c709deb316dffd9fcba324cf34b4ef63557edb380cb"
+  },
+  "deferred_verification": []
+}
