@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "task": "85-15",
+  "source_commit": "17af1e06dcea21dd0a3f3dedbfbcd9dd4ffd8ac3",
+  "source_diff_sha256": "57a41a4ed4318815f5920ad521a840663ff4be419dca3d7e2f6e6d0ceaefbef4",
+  "candidate": {
+    "path": "/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server",
+    "sha256": "e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1",
+    "build_receipt": ".wiretail/execution/evidence/85-15-build-receipt.json",
+    "build_receipt_sha256": "42d4b85e11dc0ba7588d4549700ba6a1d2988283dd808d0740209f9cb69380fa"
+  },
+  "geometry": {
+    "context_tokens": 4096,
+    "hot_tokens": 2048,
+    "page_tokens": 256,
+    "hot_pages": 8,
+    "pin_recent_tokens": 512,
+    "probe_tokens": 3072,
+    "batch": 128,
+    "ubatch": 128,
+    "mtp": "native GPU Turbo4 K/V nmax=2"
+  },
+  "checks": {
+    "cuda_cold_page_target_consumption": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/85-15-cuda-controlled.txt",
+          "sha256": "2e065382d92b6cff549f14f10f827e4db37d9b1dd765b6dedd39ad4661efae3d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/85-15-build-identity.txt",
+          "sha256": "15538623017fd28bceafb1b4bfaa607c949014f2b50afd40a2cf585cc8f68e45"
+        },
+        {
+          "path": ".wiretail/execution/evidence/85-15-build-receipt.json",
+          "sha256": "42d4b85e11dc0ba7588d4549700ba6a1d2988283dd808d0740209f9cb69380fa"
+        }
+      ],
+      "result": "Production CUDA ranking selected a cold logical page, copied 1081344 bytes, published it, consumed it on target, and passed checksum/parity plus perturbation checks on RTX 4080."
+    },
+    "live_mtp_cold_chain_completed": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "./build-cuda/bin/test-kv-pager-model",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--tokens-file",
+        "/tmp/85-15-model-tokens.txt",
+        "--context",
+        "4096",
+        "--n-batch",
+        "128",
+        "--n-ubatch",
+        "128",
+        "--hot-pages",
+        "8",
+        "--generate",
+        "8",
+        "--force-page",
+        "0",
+        "--mtp",
+        "native",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/85-15/controlled-model.json"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/85-15-controlled-model.json",
+          "sha256": "8935a0c05eb19b9a4fbad5efd1d7c4d3fd998666fbe9fdf64fc05f6e42ab60aa"
+        },
+        {
+          "path": ".wiretail/execution/evidence/85-15-controlled-model.txt",
+          "sha256": "a0bca490d18a5f2e560f79a33a6d84eeeeedd7d14e966e0bfca73e5b8dae6f09"
+        },
+        {
+          "path": ".wiretail/execution/evidence/85-15-build-identity.txt",
+          "sha256": "15538623017fd28bceafb1b4bfaa607c949014f2b50afd40a2cf585cc8f68e45"
+        },
+        {
+          "path": ".wiretail/execution/evidence/85-15-build-receipt.json",
+          "sha256": "42d4b85e11dc0ba7588d4549700ba6a1d2988283dd808d0740209f9cb69380fa"
+        },
+        {
+          "path": ".wiretail/execution/evidence/85-15-organic-negative.json",
+          "sha256": "22c422a2d76327f324223f2c3fa70da337cfccff14689850266bd53695bf41ae"
+        }
+      ],
+      "result": "Actual Qwen3.8-27B model completed the controlled cold promotion mechanics path with positive H2D transfer and equal forced host/device checksums. Native GPU Turbo4 MTP completed a direct transaction with drafted=2 and accepted=2."
+    }
+  },
+  "organic_diagnostic": {
+    "status": "negative_finding",
+    "artifact": ".wiretail/execution/evidence/85-15-organic-negative.json",
+    "result": "Organic A/B/A-again/terminal traffic exercised native GPU Turbo4 MTP and target H2D activity, but natural_proof remained false and the A-again archive marker was not reproduced exactly; no organic cold selector proof is claimed."
+  }
+}

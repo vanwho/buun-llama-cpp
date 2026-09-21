@@ -1,0 +1,20 @@
+85-15 actual-model controlled cold-chain proof
+
+Command:
+./build-cuda/bin/test-kv-pager-model --model /srv/ai/models/text/current.gguf --tokens-file /tmp/85-15-model-tokens.txt --context 4096 --n-batch 128 --n-ubatch 128 --hot-pages 8 --generate 8 --force-page 0 --mtp native --output /srv/ai/paged-kv/results/v10/85-15/controlled-model.json
+
+Observed result: exit 0
+Origin: actual-model controlled promotion-mechanics seam (force_page=0), not organic selector evidence.
+Geometry: L=4096, H=2048, page=256, C=3072, physical capacity=8, hot pages=8.
+Selected route: selected direct
+Logical pages: 16
+Promotion pages delta: 1
+Eviction pages delta: 1
+H2D useful/aligned bytes delta: 4325376 / 4325376
+H2D submitted/event completions delta: 96 / 96
+Forced host/device checksums: 7304058722919280422 / 7304058722919280422 (equal)
+Native MTP: GPU Turbo4 K/V, transaction=true, drafted=2, accepted=2, logits_finite=true.
+
+The complete machine-readable report is 85-15-controlled-model.json. Its forced
+mechanics route deliberately reports natural_proof=false; the organic diagnostic
+is recorded separately as 85-15-organic-negative.json.

@@ -1,0 +1,22 @@
+85-15 runtime/build identity
+
+Candidate binary:
+/srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server
+Binary SHA256: e020c2d46945c07748f152763bdf19f16ef0a1c956c4769b43a309d121baedf1
+Immutable build receipt:
+/srv/ai/paged-kv/candidates/85-15-cuda/build-receipt.json
+Build receipt SHA256: 42d4b85e11dc0ba7588d4549700ba6a1d2988283dd808d0740209f9cb69380fa
+
+Observed service PID: 1439937
+Observed executable: /srv/ai/paged-kv/candidates/85-15-cuda/bin/llama-server
+Observed model: /srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf
+Model alias: qwen38-fast-turbo4-mtp
+Service health: {"status":"ok"}
+CUDA device: CUDA0
+Server geometry: context=4096, page=256, hot_pages=8, pin_recent=512, batch=128, ubatch=128
+KV types: turbo4 / turbo4
+MTP: native, GPU, draft nmax=2
+
+The service command line and loaded candidate library hashes were captured during
+the final healthy-service check; the copied build receipt is the immutable
+predecessor identity used for this run.
