@@ -5101,13 +5101,15 @@ ggml_tensor * llm_graph_context::build_attn(
         direct_params.scale = kq_scale;
         direct_params.causal = true;
         direct_params.page_mass = telemetry_page_mass;
-        // Ordinary direct prefill uses the fused multi-query MMA primitive.
-        // Keeping the optional split scratch attached here forces the CUDA
-        // dispatcher onto the cooperative fallback, whose long multi-page
-        // graph path is not safe for the production 128-token tile.  The
-        // scratch arena remains graph-owned for exact-wave/telemetry plans;
-        // it is deliberately not part of this ordinary direct node.
-        direct_params.split_kv_scratch = nullptr;
+        // Keep the bounded scratch arena attached to ordinary direct nodes.
+        // This intentionally selects the cooperative direct consumer instead
+        // of the fused MMA multi-query path for target verification.  The
+        // latter is numerically correct for ordinary prefill, but its fused
+        // query tile does not preserve long-run MTP continuation parity after
+        // repeated append/trim transactions.  Capacity one keeps this a
+        // single-partition direct decode with no split/merge overhead while
+        // retaining the selected-direct placement and page-table contract.
+        direct_params.split_kv_scratch = inp->direct_split_kv_scratch;
         direct_params.split_kv_partition_capacity = inp->direct_split_kv_partition_capacity;
         direct_params.split_kv_page_count = inp->direct_split_kv_page_count;
         direct_params.page_capacity = inp->direct_page_capacity;

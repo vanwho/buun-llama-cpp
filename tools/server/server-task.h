@@ -434,6 +434,9 @@ struct server_task_result_cmpl_final : server_task_result {
     bool post_sampling_probs;
     std::vector<completion_token_output> probs_output;
     std::vector<std::string>  response_fields;
+    // Request-scoped native MTP accounting.  A non-null value is copied from
+    // the slot at finalization so it remains observable after slot reset.
+    json mtp_request_counters;
 
     task_params generation_params;
 

@@ -12599,6 +12599,18 @@ private:
         res->oaicompat_model   = slot.task->params.oaicompat_model;
         res->oaicompat_cmpl_id = slot.task->params.oaicompat_cmpl_id;
 
+        if (params_base.speculative.type() == COMMON_SPECULATIVE_TYPE_DRAFT_MTP) {
+            res->mtp_request_counters = json {
+                {"drafted", slot.mtp_request_drafted},
+                {"accepted", slot.mtp_request_accepted},
+                {"committed", slot.mtp_request_committed},
+                {"rejected", slot.mtp_request_rejected},
+                {"target_restores", slot.mtp_request_target_restores},
+                {"draft_restores", slot.mtp_request_draft_restores},
+                {"restore_failures", slot.mtp_request_restore_failures},
+            };
+        }
+
         // populate res.probs_output
         if (slot.task->params.sampling.n_probs > 0) {
             if (!slot.task->params.stream && slot.stop == STOP_TYPE_WORD) {
