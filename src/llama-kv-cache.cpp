@@ -14708,8 +14708,7 @@ void llama_kv_cache::set_input_k_idxs(
     const uint32_t n_tokens = ubatch->n_tokens;
     GGML_ASSERT(n_tokens == (int64_t) sinfo.size()*sinfo.n_stream());
 
-    GGML_ASSERT(ggml_backend_buffer_is_host(dst->buffer));
-    int64_t * data = (int64_t *) dst->data;
+    std::vector<int64_t> data(n_tokens);
     const size_t pager_ticket_base = pager_pending_writes_.size() >= n_tokens
         ? pager_pending_writes_.size() - n_tokens : pager_pending_writes_.size();
 
@@ -14731,6 +14730,7 @@ void llama_kv_cache::set_input_k_idxs(
             }
         }
     }
+    ggml_backend_tensor_set(dst, data.data(), 0, data.size() * sizeof(data[0]));
 }
 
 
@@ -14744,8 +14744,9 @@ void llama_kv_cache::set_input_v_idxs(
     const uint32_t n_tokens = ubatch->n_tokens;
     GGML_ASSERT(n_tokens == (int64_t) sinfo.size()*sinfo.n_stream());
 
-    GGML_ASSERT(ggml_backend_buffer_is_host(dst->buffer));
-    int64_t * data = (int64_t *) dst->data;
+    const size_t data_count = v_trans
+        ? size_t(n_tokens) * hparams.n_embd_v_gqa_max() : size_t(n_tokens);
+    std::vector<int64_t> data(data_count);
     const size_t pager_ticket_base = pager_pending_writes_.size() >= n_tokens
         ? pager_pending_writes_.size() - n_tokens : pager_pending_writes_.size();
 
@@ -14794,6 +14795,7 @@ void llama_kv_cache::set_input_v_idxs(
             }
         }
     }
+    ggml_backend_tensor_set(dst, data.data(), 0, data.size() * sizeof(data[0]));
 }
 
 void llama_kv_cache::set_input_k_shift(ggml_tensor * dst) const {
