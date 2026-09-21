@@ -1604,8 +1604,19 @@ void llama_context::init_kv_pager() {
                 resources.admission.mtp_compute_bytes,
                 kv_pager_plan_.admission.mtp_compute_bytes);
     }
-    resources.host_capture_enabled = true;
-    resources.host_backend = backend;
+    // The pager has one transfer owner per device. Do not put D2H/H2D work
+    // onto the scheduler's compute backend: graph capture/replay must not
+    // inherit a worker event or allocator stream from the target graph.
+    if (!pager_transfer_backend ||
+            ggml_backend_get_device(pager_transfer_backend.get()) != dev) {
+        pager_transfer_backend.reset(ggml_backend_dev_init(dev, nullptr));
+    }
+    const bool dedicated_transfer_backend = pager_transfer_backend != nullptr &&
+        pager_transfer_backend.get() != backend &&
+        ggml_backend_get_device(pager_transfer_backend.get()) == dev;
+    resources.host_capture_enabled = dedicated_transfer_backend;
+    resources.host_backend = dedicated_transfer_backend
+        ? pager_transfer_backend.get() : backend;
     resources.host_source_namespace = uint64_t(
             reinterpret_cast<uintptr_t>(&model));
     resources.host_topology_identity = uint64_t(
@@ -1614,7 +1625,11 @@ void llama_context::init_kv_pager() {
     if (resources.host_topology_identity == 0) resources.host_topology_identity = 1;
     resources.host_child_id = 0;
     resources.host_stream_index = 0;
-    resources.host_lanes.push_back({ dev, backend, false });
+    resources.host_lanes.push_back({ dev, resources.host_backend, false });
+    if (!dedicated_transfer_backend) {
+        LLAMA_LOG_WARN("%s: KV pager transfer backend unavailable; canonical host capture disabled\n",
+                __func__);
+    }
     const uint64_t host_cap = resources.host_budget_bytes;
     resources.host_budget.host.pageable_cap = host_cap;
     resources.host_budget.host.pageable_state =

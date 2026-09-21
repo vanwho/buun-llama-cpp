@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "task": "85-11",
+  "source_commit": "54a4074b3461b2bf45be2f31d752e339396461a7",
+  "source_diff_sha256": "9aac5c486495028c7cc2ab5e8a8021b4c424e2434d34264c5327abd520faf2bd",
+  "build": {
+    "tree": "build-cuda-test",
+    "targets": [
+      "test-kv-pager",
+      "test-cuda-kv-promotion",
+      "test-kv-attention-execution"
+    ],
+    "cuda_device": "NVIDIA GeForce RTX 4080, compute capability 8.9",
+    "identity": {
+      "libllama_sha256": "8f8a1d24def37a952cc69b09ef3e83b12feebe851a116e7b98cadca11bd55b27",
+      "libggml_sha256": "24f85870e6daade27e9f4047d631aa6d4df027012963fd3e128ae8fa06c7aca6"
+    },
+    "prior_immutable_build_receipt": ".wiretail/execution/evidence/V10_49-01.json"
+  },
+  "checks": {
+    "cuda_capture_publication_lifetime": {
+      "status": "pass",
+      "command": [
+        "build-cuda-test/bin/test-kv-pager"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-11/repair85-lifetime-mtp-v10-final/test-kv-pager.log",
+          "sha256": "ade5c313f451630d1a8951a379dc4703e8e72767db40a3ed009e3c5895f87637"
+        }
+      ],
+      "result": "CUDA host publication fixture passed owner-thread preparation, immutable capture, stale generation rejection, cancellation, and subsequent slot reuse."
+    },
+    "dirty_seal_and_stale_completion_regression": {
+      "status": "pass",
+      "command": [
+        "build-cuda-test/bin/test-kv-pager"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-11/repair85-lifetime-mtp-v10-final/test-kv-pager.log",
+          "sha256": "ade5c313f451630d1a8951a379dc4703e8e72767db40a3ed009e3c5895f87637"
+        }
+      ],
+      "result": "The pager/cache dirty seal path was repaired to evaluate sealing work independently of the existing dirty bit; the focused stale-completion regression passed."
+    },
+    "cuda_promotion_chain_regression": {
+      "status": "pass",
+      "command": [
+        "build-cuda-test/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-11/repair85-lifetime-mtp-v10-final/test-cuda-kv-promotion.log",
+          "sha256": "3cffc4f362966c7bc689762023fc066d8a39dcb7192b7361c5599ddf13224c89"
+        }
+      ]
+    },
+    "kv_attention_execution_regression": {
+      "status": "pass",
+      "command": [
+        "build-cuda-test/bin/test-kv-attention-execution"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/85-11/repair85-lifetime-mtp-v10-final/test-kv-attention-execution.log",
+          "sha256": "43481ea05c626d3a081eeb30d8003484b04828b06308f3caca31b4e40e073644"
+        }
+      ]
+    }
+  },
+  "verification": {
+    "build": "pass: cmake --build build-cuda-test --target test-kv-pager test-cuda-kv-promotion test-kv-attention-execution -j2",
+    "git_diff_check": "pass",
+    "deferred": "No required CUDA verification deferred; no hosted model request was needed for this ownership/lifetime repair."
+  }
+}

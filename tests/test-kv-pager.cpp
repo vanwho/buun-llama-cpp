@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -224,6 +225,8 @@ struct host_page_fixture {
     std::vector<vbr_selected_page_unit_source> sources;
     vbr_selected_page_capture_snapshot snapshot;
     std::vector<ggml_tensor *> device_tensors;
+    std::thread::id prepare_thread;
+    std::thread::id owner_thread;
 
     static bool read(
             const void * context, uint64_t offset,
@@ -244,7 +247,24 @@ struct host_page_fixture {
     }
 
     static bool recheck(
-            void *, const vbr_selected_page_capture_snapshot &) noexcept {
+            void * context,
+            const vbr_selected_page_capture_snapshot & expected) noexcept {
+        const auto & current = static_cast<host_page_fixture *>(context)->snapshot;
+        if (current.pages != expected.pages ||
+                current.units.size() != expected.units.size() ||
+                current.unit_descriptors.size() != expected.unit_descriptors.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < current.units.size(); ++i) {
+            if (current.units[i].generation.repr_gen !=
+                    expected.units[i].generation.repr_gen ||
+                    current.units[i].generation.publish_seq !=
+                    expected.units[i].generation.publish_seq ||
+                    current.unit_descriptors[i].repr_gen !=
+                    expected.unit_descriptors[i].repr_gen) {
+                return false;
+            }
+        }
         return true;
     }
 
@@ -257,6 +277,7 @@ struct host_page_fixture {
             std::vector<vbr_selected_page_unit_source> & output_sources,
             vbr_selected_page_capture_snapshot_provider & snapshots) noexcept {
         auto & self = *static_cast<host_page_fixture *>(context);
+        self.prepare_thread = std::this_thread::get_id();
         request = {};
         request.source_namespace = source_namespace;
         request.child_id = 0;
@@ -434,6 +455,7 @@ struct host_page_fixture {
 static void test_host_seal_boundary() {
     host_page_fixture fixture;
     fixture.initialize();
+    fixture.owner_thread = std::this_thread::get_id();
     auto host_resources = resources(1u << 20, 128);
     host_resources.host_capture_enabled = true;
     host_resources.host_source_namespace = host_page_fixture::source_namespace;
@@ -489,6 +511,7 @@ static void test_cuda_async_host_publication() {
 
     host_page_fixture fixture;
     fixture.initialize();
+    fixture.owner_thread = std::this_thread::get_id();
     if (!fixture.bind_cuda(backend, device)) {
         ggml_backend_free(backend);
         return;
@@ -525,6 +548,13 @@ static void test_cuda_async_host_publication() {
         assert(queued.status == llama_kv_pager_host_status::ok);
         assert(queued.queued);
         assert(host->snapshot().live_pages == 0);
+        assert(fixture.prepare_thread == fixture.owner_thread);
+
+        // The worker owns only the immutable snapshot acquired by enqueue.
+        // Mutating the live generation before the owner drains completion must
+        // invalidate the old bytes instead of making them canonical.
+        ++fixture.snapshot.units[0].generation.repr_gen;
+        ++fixture.snapshot.unit_descriptors[0].repr_gen;
 
         std::vector<llama_kv_pager_host_completion> completed;
         assert(host->wait() >= 1);
@@ -532,6 +562,17 @@ static void test_cuda_async_host_publication() {
         assert(completed.size() == 1);
         if (completed.size() == 1) {
             assert(completed[0].content_version == 7);
+            assert(completed[0].result.status != llama_kv_pager_host_status::ok);
+            assert(host->snapshot().live_pages == 0);
+
+            // A later owner-prepared generation remains publishable, proving
+            // that stale completion did not poison or pin the slot.
+            const auto retry = host->enqueue(page, 8);
+            assert(retry.status == llama_kv_pager_host_status::ok);
+            completed.clear();
+            assert(host->wait() >= 1);
+            host->drain(completed);
+            assert(completed.size() == 1);
             assert(completed[0].result.status == llama_kv_pager_host_status::ok);
             assert(completed[0].result.queued == false);
             assert(completed[0].result.transfer.event_completions > 0);
@@ -553,6 +594,16 @@ static void test_cuda_async_host_publication() {
             uint8_t byte = 0;
             assert(pages[0].page.units[0].bytes->read(0, &byte, 1));
             assert(byte == fixture.storage[0][0]);
+
+            const auto cancelled_enqueue = host->enqueue(page, 9);
+            assert(cancelled_enqueue.status == llama_kv_pager_host_status::ok);
+            assert(host->invalidate(page.id));
+            completed.clear();
+            assert(host->wait() >= 1);
+            host->drain(completed);
+            assert(completed.size() == 1);
+            assert(completed[0].result.status != llama_kv_pager_host_status::ok);
+            assert(host->snapshot().live_pages == 0);
         }
     }
     host.reset();

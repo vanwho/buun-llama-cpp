@@ -2587,8 +2587,12 @@ void llama_kv_cache::seal_kv_pager_pages() {
         const bool publish_catalogue = pager_query_refresh_enabled_ || pager_policy_dirty_;
         if (pager_->host_maintenance_pending() ||
                 (publish_catalogue && pager_->catalogue_maintenance_pending())) {
-            pager_policy_dirty_ = pager_policy_dirty_ ||
-                pager_->seal_ready_pages(publish_catalogue) != 0;
+            // Dirty policy state must not short-circuit page work. A host
+            // completion can become ready on the same boundary that already
+            // requested a policy refresh; evaluate the seal first so the
+            // newly canonical bytes are not stranded until another token.
+            const bool changed = pager_->seal_ready_pages(publish_catalogue) != 0;
+            pager_policy_dirty_ = pager_policy_dirty_ || changed;
         }
         if (pager_last_sequence_id_ >= 0) {
             const auto snapshot = pager_->residency(pager_last_sequence_id_);
@@ -3688,11 +3692,6 @@ bool llama_kv_cache::pager_host_prepare(
     snapshots.acquire = &llama_kv_cache::pager_host_snapshot_acquire;
     snapshots.recheck = &llama_kv_cache::pager_host_snapshot_recheck;
     snapshots.release = &llama_kv_cache::pager_host_snapshot_release;
-    vbr_selected_page_capture_snapshot snapshot;
-    if (!pager_host_snapshot_acquire(cache, request, snapshot)) return false;
-    for (const auto & unit : snapshot.units) {
-        request.expected_unit_generations[unit.logical_unit_id] = unit.generation;
-    }
     return true;
 }
 
