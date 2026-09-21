@@ -15,12 +15,18 @@ void test_proposal_positions() {
 }
 
 void test_frontier_and_rollback_once() {
+    for (size_t accepted = 0; accepted <= 5; ++accepted) {
+        const auto frontier = common_speculative_rollback_frontier_resolve(
+            12, 5, accepted);
+        assert(frontier.valid());
+        assert(frontier.accepted_draft_tokens == accepted);
+        assert(frontier.accepted_token_count == 13 + (int64_t) accepted);
+        assert(frontier.rejected_suffix_begin == frontier.accepted_token_count);
+        assert(frontier.rejected_suffix_end == 18);
+        assert(frontier.rejected_draft_tokens == 5 - accepted);
+    }
+
     const auto frontier = common_speculative_rollback_frontier_resolve(12, 5, 2);
-    assert(frontier.valid());
-    assert(frontier.accepted_token_count == 15);
-    assert(frontier.rejected_suffix_begin == 15);
-    assert(frontier.rejected_suffix_end == 18);
-    assert(frontier.rejected_draft_tokens == 3);
 
     common_speculative_mtp_rollback_guard guard;
     assert(guard.should_apply((llama_pos) frontier.accepted_token_count));

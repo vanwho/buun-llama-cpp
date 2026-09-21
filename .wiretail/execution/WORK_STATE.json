@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "85",
-  "current_task": "85-08",
-  "last_updated_utc": "2026-09-20T22:43:17+00:00",
+  "current_task": "85-09",
+  "last_updated_utc": "2026-09-21T01:15:20+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -15662,7 +15662,7 @@
       "cluster": "85h-mtp-proof-v10",
       "title": "Repair native-MTP acceptance and verification-state parity",
       "packet": ".wiretail/execution/tasks/85-08.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -15690,16 +15690,95 @@
       "depends_on": [
         "85-07"
       ],
-      "commit": null,
+      "commit": "fed8590445c4c04b864532f5ce3c2655e2893881",
       "token_usage": {
-        "turns": [],
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-08-attempt-1-20260920T224337Z.jsonl:427",
+            "total_tokens": 37777821,
+            "total_tokens_derived": true,
+            "input_tokens": 37710030,
+            "cached_input_tokens": 37100800,
+            "output_tokens": 67791,
+            "thinking_tokens": 37060
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-08-attempt-2-20260920T232305Z.jsonl:293",
+            "total_tokens": 23964024,
+            "total_tokens_derived": true,
+            "input_tokens": 23909033,
+            "cached_input_tokens": 23298304,
+            "output_tokens": 54991,
+            "thinking_tokens": 29772
+          },
+          {
+            "attempt": 3,
+            "kind": "assessment",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-08-assessment-before-attempt-3-20260920T234951Z.jsonl:107",
+            "total_tokens": 4680255,
+            "total_tokens_derived": true,
+            "input_tokens": 4661630,
+            "cached_input_tokens": 4345856,
+            "output_tokens": 18625,
+            "thinking_tokens": 9034
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-08-attempt-3-20260920T235947Z.jsonl:217",
+            "total_tokens": 17612755,
+            "total_tokens_derived": true,
+            "input_tokens": 17569124,
+            "cached_input_tokens": 17026816,
+            "output_tokens": 43631,
+            "thinking_tokens": 21131
+          },
+          {
+            "attempt": 4,
+            "kind": "assessment",
+            "model": "gpt-5.6-terra",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-08-assessment-before-attempt-4-20260921T002748Z.jsonl:64",
+            "total_tokens": 3387987,
+            "total_tokens_derived": true,
+            "input_tokens": 3373562,
+            "cached_input_tokens": 3176192,
+            "output_tokens": 14425,
+            "thinking_tokens": 7091
+          },
+          {
+            "attempt": 4,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/85-08-attempt-4-20260921T003920Z.jsonl:349",
+            "total_tokens": 20125775,
+            "total_tokens_derived": true,
+            "input_tokens": 20082071,
+            "cached_input_tokens": 19611392,
+            "output_tokens": 43704,
+            "thinking_tokens": 17945
+          }
+        ],
         "totals": {
-          "turns": 0,
-          "total_tokens": 0,
-          "input_tokens": 0,
-          "cached_input_tokens": 0,
-          "output_tokens": 0,
-          "thinking_tokens": 0
+          "turns": 6,
+          "total_tokens": 107548617,
+          "input_tokens": 107305450,
+          "cached_input_tokens": 104559360,
+          "output_tokens": 243167,
+          "thinking_tokens": 122033
         }
       }
     },
@@ -20583,26 +20662,104 @@
           "cached_input_tokens": 4913408,
           "output_tokens": 22707,
           "thinking_tokens": 6538
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-08-attempt-1-20260920T224337Z.jsonl:427",
+          "total_tokens": 37777821,
+          "total_tokens_derived": true,
+          "input_tokens": 37710030,
+          "cached_input_tokens": 37100800,
+          "output_tokens": 67791,
+          "thinking_tokens": 37060
+        },
+        {
+          "attempt": 2,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-08-attempt-2-20260920T232305Z.jsonl:293",
+          "total_tokens": 23964024,
+          "total_tokens_derived": true,
+          "input_tokens": 23909033,
+          "cached_input_tokens": 23298304,
+          "output_tokens": 54991,
+          "thinking_tokens": 29772
+        },
+        {
+          "attempt": 3,
+          "kind": "assessment",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-08-assessment-before-attempt-3-20260920T234951Z.jsonl:107",
+          "total_tokens": 4680255,
+          "total_tokens_derived": true,
+          "input_tokens": 4661630,
+          "cached_input_tokens": 4345856,
+          "output_tokens": 18625,
+          "thinking_tokens": 9034
+        },
+        {
+          "attempt": 3,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-08-attempt-3-20260920T235947Z.jsonl:217",
+          "total_tokens": 17612755,
+          "total_tokens_derived": true,
+          "input_tokens": 17569124,
+          "cached_input_tokens": 17026816,
+          "output_tokens": 43631,
+          "thinking_tokens": 21131
+        },
+        {
+          "attempt": 4,
+          "kind": "assessment",
+          "model": "gpt-5.6-terra",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-08-assessment-before-attempt-4-20260921T002748Z.jsonl:64",
+          "total_tokens": 3387987,
+          "total_tokens_derived": true,
+          "input_tokens": 3373562,
+          "cached_input_tokens": 3176192,
+          "output_tokens": 14425,
+          "thinking_tokens": 7091
+        },
+        {
+          "attempt": 4,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/85-08-attempt-4-20260921T003920Z.jsonl:349",
+          "total_tokens": 20125775,
+          "total_tokens_derived": true,
+          "input_tokens": 20082071,
+          "cached_input_tokens": 19611392,
+          "output_tokens": 43704,
+          "thinking_tokens": 17945
         }
       ],
       "totals": {
-        "turns": 7,
-        "total_tokens": 138327154,
-        "input_tokens": 138020881,
-        "cached_input_tokens": 134702336,
-        "output_tokens": 306273,
-        "thinking_tokens": 119463
+        "turns": 13,
+        "total_tokens": 245875771,
+        "input_tokens": 245326331,
+        "cached_input_tokens": 239261696,
+        "output_tokens": 549440,
+        "thinking_tokens": 241496
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 280,
-      "total_tokens": 4922116470,
-      "input_tokens": 4910078173,
-      "cached_input_tokens": 4805334272,
-      "output_tokens": 12038297,
-      "thinking_tokens": 4279258
+      "turns": 286,
+      "total_tokens": 5029665087,
+      "input_tokens": 5017383623,
+      "cached_input_tokens": 4909893632,
+      "output_tokens": 12281464,
+      "thinking_tokens": 4401291
     },
     "source": "Codex turn.completed usage events"
   }

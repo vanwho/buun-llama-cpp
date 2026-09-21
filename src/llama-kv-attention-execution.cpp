@@ -706,11 +706,14 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         }
     }
 
-    // The direct paged Turbo4 consumer preserves the selected logical page
-    // set without materializing a compact owner. Prefer it whenever the
-    // backend and metadata satisfy the same shape contract as the explicit
-    // direct diagnostic route.
-    if (direct_capable && production_direct_shape(metadata, phase)) {
+    // Native MTP verification shares the target/draft rollback boundary. Keep
+    // its automatic consumer on the canonical reference path until the
+    // direct target-use proof is complete; an explicit direct override remains
+    // available for that diagnostic. Other phases may use the persistent
+    // paged consumer without materializing a compact owner.
+    if ((!native_mtp_enabled_ || phase != llama_kv_attention_execution_phase::prefill) &&
+        phase != llama_kv_attention_execution_phase::mtp_verify &&
+        direct_capable && production_direct_shape(metadata, phase)) {
         return llama_kv_attention_execution_route::selected_direct;
     }
 

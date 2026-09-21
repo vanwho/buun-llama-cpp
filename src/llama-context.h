@@ -433,6 +433,9 @@ struct llama_context {
     // Internal selected-attention boundary.  Policy supplies immutable
     // metadata; graph construction then carries its epochs and page fence.
     void set_kv_attention_mode(llama_kv_attention_execution_mode mode) noexcept;
+    void set_kv_attention_native_mtp(bool enabled) noexcept {
+        kv_attention_execution.set_native_mtp_enabled(enabled);
+    }
     // The server marks the target batch while native MTP is verifying a
     // proposal. This keeps MTP verification route counts separate from
     // ordinary multi-token prefill without changing the public C API.

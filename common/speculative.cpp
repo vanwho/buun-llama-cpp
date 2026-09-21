@@ -7060,7 +7060,7 @@ void common_speculative_update_logits(
     common_speculative_update_logits(spec, 0, ctx, batch_tokens, n_accepted);
 }
 
-bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t /*n_accepted*/) {
+bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq_id, llama_pos n_past, uint16_t n_accepted) {
     if (spec == nullptr || seq_id < 0) {
         return true;
     }
@@ -7080,6 +7080,15 @@ bool common_speculative_rollback_dft(common_speculative * spec, llama_seq_id seq
             if (!llama_memory_seq_rm(llama_get_memory(ctx_dft), seq_id, n_past, -1)) {
                 mtp->rollback_guards[seq_id].reset();
                 return false;
+            }
+
+            const int32_t verify_rows = mtp->verify_h_rows[seq_id];
+            const bool rejected_suffix = verify_rows > 0 &&
+                uint64_t(n_accepted) < uint64_t(verify_rows - 1);
+            if (rejected_suffix) {
+                mtp->sequence_transition(
+                    seq_id,
+                    common_speculative_sequence_event::target_restored_without_draft);
             }
             // The server has already delivered this acceptance to every
             // implementation before rolling back target/draft memory. Do not
