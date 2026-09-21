@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "task": "88-04",
+  "source_commit": "e4590cc1810f33f241048126dc804b1c90e74835",
+  "checks": {
+    "repair88_occupied_frontier": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-occupied-frontier.py",
+        "--frontier",
+        "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/result.json",
+        "--phase-probe",
+        "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/phase-probe/result.json",
+        "--cmdline",
+        "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/observed-cmdline.txt",
+        "--output",
+        ".wiretail/execution/evidence/artifacts/88-04/occupied-frontier-proof.json"
+      ],
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/artifacts/88-04/occupied-frontier-proof.json", "sha256": "e2ec77fab0e803a2c45efdbf0d2c10a8d10e7db58e669bdc997089d412e33c02"},
+        {"path": "tools/server/bench/validate-occupied-frontier.py", "sha256": "5e684d72e0b6270b178a5a6acc298d47b8b250af8a1d93f9385517cd8ea22b29"},
+        {"path": ".wiretail/execution/evidence/artifacts/88-02/build-receipt.json", "sha256": "d9b4f3d59477e8634b189a91a24fde75f7dfb05f98e3531444156c45e7aff583"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/result.json", "sha256": "74a78b1b867c015837bc7249a47e1de2359a24b8de3dd21f5fa658f0b9ae3834"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/phase-probe/result.json", "sha256": "394c5c90c47221597c8371113eb5be2515a2892361c7910808b434536e2c8e65"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/raw/request-00.sse", "sha256": "01b3925b5a702d7ae8d1eccf167646fdbc2e9951763ecf3fa0b95ff874235058"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/raw/request-01.sse", "sha256": "366729f5749d544520bbd1cbec6af91dfbad1d5bc03a2a9960bd3a4a33855116"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/raw/request-02.sse", "sha256": "9d180d4e2d1b1a0466a5279ad21f8e16e5204bf84f6c1c35b61ea767a018ea18"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/raw/request-03.sse", "sha256": "fd88be1b1b990da705a67acdefb20db35f0aef905e5a3647c364a657405870f7"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/raw/request-04.sse", "sha256": "c3fd2e6e036df54a25f015706dd3a0be945e75341c699863141f0bdfa80cc735"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/raw/request-05.sse", "sha256": "83792590af6eecd2f8f629edb1aa26a5df76cb70fd6a57890f0043e6b771581e"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/collector/raw/request-06.sse", "sha256": "8d25e3217093d4218c881c73b83ccece293b033bae3347f35c1bddb3dc5a97b5"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/phase-probe/raw/request-07.sse", "sha256": "cb0f01a363a7210a963457bde06ce35554967b44680da9ff572cf38185801cbe"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/observed-cmdline.txt", "sha256": "1d667cddb414dab5d34c422c78a4b42ea63cf1f4c48acce02e8955f60c568ca9"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/observed-exe.txt", "sha256": "7c6c29a5471e16e0dcbc9cb2acfcc742e877e7e97bdc5eb669ccb9b7792038d5"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/process-final.txt", "sha256": "5167867d167c294ad85916c51cb71ad998a4feea8ed60a09f4e770392c6c7eed"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/metrics-final.txt", "sha256": "01d1aeff16ed2d1c0d7e36d6476fe47aa5f316a425c68d317a077acc87f4ddfe"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/slots-final.json", "sha256": "a1ea5501777b14d7632df558da5bb7b60f572e523792480e59422aec5e523787"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/server.log", "sha256": "0291deb21ac57b5c3a8df6b678cbe208c6cc5169144bf10b017f16b3f3a3672f"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/service-before.txt", "sha256": "0b601821af6a26499905f41f935a848f498b373bb333491341c8bdb2436dafaf"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/service-after.txt", "sha256": "7ea5909416b445ab2a21618658a7c810fb3435164aa1b74a23728ef0848c4b77"},
+        {"path": "/srv/ai/paged-kv/results/v10/88-04/frontier-256k-h4-u64-repair/service-health.json", "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288"},
+        {"path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server", "sha256": "99eb826d39ca997dc475091d0f46bc5faf9e9a81c699effb4b24f2f9c816e1f8"},
+        {"path": "/srv/ai/models/text/current.gguf", "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"}
+      ],
+      "result": {
+        "frontier_sequence": [1200, 5292, 9384, 13476, 17568, 21660, 25752],
+        "committed_C_tokens": 25752,
+        "target_valid_rows": 3992,
+        "host_valid_rows": 3840,
+        "resident_pages": 16,
+        "host_pages": 15,
+        "target_allocated_bytes": 69206016,
+        "physical_pool_capacity_bytes": 69206016,
+        "scratch_high_water_bytes": 8331264,
+        "draft_n": 4,
+        "draft_n_accepted": 2,
+        "verify_steps": 2,
+        "rollback": "not exercised"
+      }
+    }
+  }
+}
