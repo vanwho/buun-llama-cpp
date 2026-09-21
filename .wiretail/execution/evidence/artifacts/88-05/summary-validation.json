@@ -1,0 +1,12 @@
+{
+  "checked_tasks": [
+    "88-01",
+    "88-02",
+    "88-03",
+    "88-04"
+  ],
+  "errors": [],
+  "required_proof": "repair88_summary_consistency",
+  "schema_version": 1,
+  "status": "pass"
+}

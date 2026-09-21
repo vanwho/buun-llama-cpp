@@ -1,0 +1,195 @@
+{
+  "schema": "hotpath-v10-phase88-summary",
+  "schema_version": 1,
+  "task": "88-05",
+  "scope": "phase88 raw records and manifests only",
+  "revision": "hotpath-v10-20260914",
+  "amendment": "repair87-20260921",
+  "result": "current_findings",
+  "identity": {
+    "source_commits": {
+      "88-01": "62a60ab88e9c1e135f9902400d6d9d550256667a",
+      "88-02": "f16e4f097b43fc8951d7b56762bd9eb8928f6858",
+      "88-03": "56dba9d34022b9880a5c87c0922a0237a35f9498",
+      "88-04": "e4590cc1810f33f241048126dc804b1c90e74835"
+    },
+    "candidate_bundles": {
+      "88-01": {
+        "binary": "/srv/ai/paged-kv/candidates/88-01-cuda/bin/llama-server",
+        "binary_sha256": "7488056da5218e3a463772418142829b94249732671ddd288594e43e95c9ae1c"
+      },
+      "88-02_88-04": {
+        "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "binary_sha256": "99eb826d39ca997dc475091d0f46bc5faf9e9a81c699effb4b24f2f9c816e1f8"
+      }
+    },
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "build_receipt": ".wiretail/execution/evidence/artifacts/88-02/build-receipt.json",
+    "build_receipt_sha256": "d9b4f3d59477e8634b189a91a24fde75f7dfb05f98e3531444156c45e7aff583"
+  },
+  "promotion": {
+    "controlled": {
+      "status": null,
+      "null_reason": "no controlled promotion fixture was run in phase88"
+    },
+    "organic": {
+      "status": "measured",
+      "origin": "88-02 repaired organic native GPU Turbo4 workload",
+      "cold_candidate_target_use": true,
+      "cold_cases": ["B", "A-again", "terminal"],
+      "h2d_useful_bytes": 8650752,
+      "h2d_completed": true,
+      "publication": true,
+      "target_graph_used": true,
+      "logical_page": 0,
+      "physical_slot": 2,
+      "page_generation": 4,
+      "published_epoch": 2992,
+      "target_use_epochs": [4439, 4573, 4651],
+      "null_reason": null
+    }
+  },
+  "semantic_quality": {
+    "organic": {
+      "all_cases_exact": true,
+      "sequence": ["ACK-A", "ACK-B", "A-ARCHIVE-MARKER-914", "ACK-C"],
+      "rollback_restore": {
+        "draft_restore": "replayed",
+        "target_restore": "trimmed",
+        "positive_draft_restore_epochs": [1, 2, 3],
+        "positive_target_restore_epochs": [1, 2, 3],
+        "diagnostic_events": 14
+      }
+    },
+    "long_run_probe": {
+      "status": "finding",
+      "a_again_exact": false,
+      "observed": "A-ARCHIVE-META",
+      "expected": "A-ARCHIVE-MARKER-914",
+      "null_reason": null
+    }
+  },
+  "mtp": {
+    "organic_request_scoped_sum": {
+      "attempted": 16,
+      "accepted": 1,
+      "denominator": 16,
+      "acceptance_rate": 0.0625,
+      "cases": {
+        "A": {"attempted": 2, "accepted": 0, "denominator": 2},
+        "B": {"attempted": 2, "accepted": 0, "denominator": 2},
+        "A-again": {"attempted": 10, "accepted": 1, "denominator": 10},
+        "terminal": {"attempted": 2, "accepted": 0, "denominator": 2}
+      }
+    },
+    "controlled": {
+      "attempted": null,
+      "accepted": null,
+      "denominator": null,
+      "acceptance_rate": null,
+      "null_reason": "no controlled promotion fixture was run in phase88"
+    }
+  },
+  "rates": {
+    "matched_direct_gpu_native": {
+      "fresh_prompt_tok_s": 276.86861595356515,
+      "cached_append_prompt_tok_s": null,
+      "context_cold_prompt_tok_s": null,
+      "committed_decode_tok_s": 29.235980303302412,
+      "fresh_ttft_ms": 202.262,
+      "context_cold_ttft_ms": null,
+      "null_reason_cached_append": "server reported cache_n=0 and cached_tokens=0",
+      "null_reason_context_cold": "no cold candidate promotion or H2D completion was observed"
+    }
+  },
+  "attribution": {
+    "fresh": {
+      "queue_us": 185170,
+      "wait_us": 179797,
+      "copy_us": 0,
+      "h2d_useful_bytes": 0,
+      "prefill_direct_routes": 1,
+      "prefill_reference_routes": 1,
+      "decode_direct_routes": 4,
+      "mtp_verify_direct_routes": 3
+    },
+    "cached_append": {
+      "queue_us": 296189,
+      "wait_us": 334445,
+      "copy_us": 14,
+      "h2d_useful_bytes": 0,
+      "null_reason": "invalid_unmatched_cache"
+    },
+    "context_cold": {
+      "queue_us": 6116383,
+      "wait_us": 431508,
+      "copy_us": 14,
+      "h2d_useful_bytes": 0,
+      "prefill_direct_routes": 1,
+      "prefill_reference_routes": 116,
+      "decode_direct_routes": 8,
+      "mtp_verify_direct_routes": 7,
+      "null_reason": "valid context control without promotion"
+    }
+  },
+  "capacity_vs_occupancy": {
+    "allocation_256k": {
+      "L_tokens": 262144,
+      "draft_rows": 262144,
+      "target_allocated_bytes": 69206016,
+      "physical_pool_capacity_bytes": 69206016,
+      "status": "measured"
+    },
+    "occupied_frontier": {
+      "capacity_tokens": 262144,
+      "frontier_sequence": [1200, 5292, 9384, 13476, 17568, 21660, 25752],
+      "successful_committed_C": 25752,
+      "live_snapshot_C": 25752,
+      "full_capacity_occupied": false,
+      "resident_pages": 16,
+      "target_valid_rows": 3992,
+      "host_pages": 15,
+      "host_valid_rows": 3840,
+      "status": "measured_partial",
+      "null_reason": null
+    },
+    "high_water": {
+      "prefill_bytes": 8331264,
+      "draft_bytes": 8331264,
+      "verify_bytes": 8331264,
+      "rollback_bytes": null,
+      "rollback_null_reason": "phase probe had no restore event"
+    }
+  },
+  "geometry": {
+    "organic": {"L_tokens": 8192, "H_tokens": 2048, "A_tokens": 1024, "B_tokens": 128, "U_tokens": 64, "page_tokens": 256, "hot_pages": 4, "pin_recent_tokens": 512},
+    "frontier": {"L_tokens": 262144, "H_tokens": 4096, "A_tokens": 2048, "B_tokens": 128, "U_tokens": 64, "page_tokens": 256, "hot_pages": 16, "pin_recent_tokens": 1024}
+  },
+  "raw_pointers": {
+    "phase88_receipts": [
+      {"task": "88-01", "path": ".wiretail/execution/evidence/V10_88-01.json", "sha256": "e5c92d373264238e3b7325596e2fe3ac6d0e047bb26c065935d24a49467fb10d"},
+      {"task": "88-02", "path": ".wiretail/execution/evidence/V10_88-02.json", "sha256": "5225f19005e4850cb1304a51d8fe01f9bfc6c236dbe33542d503f4bd7801b313"},
+      {"task": "88-03", "path": ".wiretail/execution/evidence/V10_88-03.json", "sha256": "db0b08c2ae0f2f3be9a6c5285fe6abdf06a66237f6b76a8a371fdf82ccaf2308"},
+      {"task": "88-04", "path": ".wiretail/execution/evidence/V10_88-04.json", "sha256": "bdf4062c30fde11fe3187d09a9384ca9697c45953b1b34b681b758d875b4f6b1"}
+    ],
+    "phase88_records": [
+      {"task": "88-01", "path": ".wiretail/execution/evidence/artifacts/88-01/native-summary.json", "sha256": "11d3976e3083f1a5b73e6fc4c1782f32bdfcec7fd3ad3401b908cbb7c6945505"},
+      {"task": "88-01", "path": ".wiretail/execution/evidence/artifacts/88-01/native-transition-summary.json", "sha256": "9dd55623400259a6dc193a1500c62cedac04bea364db2bb48493b775b809f4b7"},
+      {"task": "88-01", "path": ".wiretail/execution/evidence/artifacts/88-01/long-run-failure-summary.json", "sha256": "c3ea0e217304f4feabf7c88bbe8c85634949aa16b68405e4fe7d53f036abc2d3"},
+      {"task": "88-01", "path": ".wiretail/execution/evidence/artifacts/88-01/mtp-state-diagnostic.log", "sha256": "888bd26fe9c982e20a363d73706eee8174b4c26d3e0e06daddd9b2aba3a64fb7"},
+      {"task": "88-02", "path": ".wiretail/execution/evidence/artifacts/88-02/organic-route-diagnostic-summary.json", "sha256": "7a5b396e6b5a9d7f036798cd701b8b7ad801a995c14273c2219f170f2942f001"},
+      {"task": "88-02", "path": ".wiretail/execution/evidence/artifacts/88-02/quality-proof.json", "sha256": "8a4007aa70c7accb570efdd9cdc1b79f9e3f0b65243209797d9c857fa4fdcf0b"},
+      {"task": "88-03", "path": ".wiretail/execution/evidence/artifacts/88-03/matched-speed-attribution.json", "sha256": "506472f52476d74ea0184243f0cee751307fcfa3a2faee79a3ecf1887ebd2f50"},
+      {"task": "88-04", "path": ".wiretail/execution/evidence/artifacts/88-04/occupied-frontier-proof.json", "sha256": "e2ec77fab0e803a2c45efdbf0d2c10a8d10e7db58e669bdc997089d412e33c02"}
+    ]
+  },
+  "null_reasons": {
+    "controlled_promotion": "no controlled promotion fixture was run in phase88",
+    "cached_append_speed": "server reported cache_n=0 and cached_tokens=0",
+    "context_cold_speed": "no cold candidate promotion or H2D completion was observed",
+    "rollback_high_water": "phase probe had no restore event",
+    "full_capacity_occupied": "bounded continuation ended at C=25752"
+  },
+  "validation_errors": []
+}

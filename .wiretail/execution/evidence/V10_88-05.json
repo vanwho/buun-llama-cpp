@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "task": "88-05",
+  "source_commit": "37f0ababc5e34a9cd6ca68d8c8c1e8fe63db8e48",
+  "checks": {
+    "repair88_summary_consistency": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", ".wiretail/execution/evidence/validate_phase88_summary.py"],
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json", "sha256": "8ad72afdc2379f9637ebf58016b6d5435855f18126038dd8864ef358e596759d"},
+        {"path": ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.md", "sha256": "689051c20d5b32f6e5cae38bcd7f17ba10d91c2b28421f9bafb23d9a6cee0b41"},
+        {"path": ".wiretail/execution/evidence/validate_phase88_summary.py", "sha256": "3f75f2dce9438a3390580b8ca039ec427c0819490613090c3bf00323b6cdef46"},
+        {"path": ".wiretail/execution/evidence/artifacts/88-05/summary-validation.json", "sha256": "e993fe6bbbfbf01b18924d1d5d073b93cd66bef23e39f39b3b3e018670d6b54d"},
+        {"path": ".wiretail/execution/evidence/V10_88-01.json", "sha256": "e5c92d373264238e3b7325596e2fe3ac6d0e047bb26c065935d24a49467fb10d"},
+        {"path": ".wiretail/execution/evidence/V10_88-02.json", "sha256": "5225f19005e4850cb1304a51d8fe01f9bfc6c236dbe33542d503f4bd7801b313"},
+        {"path": ".wiretail/execution/evidence/V10_88-03.json", "sha256": "db0b08c2ae0f2f3be9a6c5285fe6abdf06a66237f6b76a8a371fdf82ccaf2308"},
+        {"path": ".wiretail/execution/evidence/V10_88-04.json", "sha256": "bdf4062c30fde11fe3187d09a9384ca9697c45953b1b34b681b758d875b4f6b1"},
+        {"path": ".wiretail/execution/evidence/artifacts/88-02/quality-proof.json", "sha256": "8a4007aa70c7accb570efdd9cdc1b79f9e3f0b65243209797d9c857fa4fdcf0b"},
+        {"path": ".wiretail/execution/evidence/artifacts/88-03/matched-speed-attribution.json", "sha256": "506472f52476d74ea0184243f0cee751307fcfa3a2faee79a3ecf1887ebd2f50"},
+        {"path": ".wiretail/execution/evidence/artifacts/88-04/occupied-frontier-proof.json", "sha256": "e2ec77fab0e803a2c45efdbf0d2c10a8d10e7db58e669bdc997089d412e33c02"}
+      ],
+      "result": {
+        "summary": ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json",
+        "markdown": ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.md",
+        "scope": "phase88 raw records and manifests only",
+        "null_preserving": true,
+        "promotion_origin_separate": true,
+        "semantic_quality_exact": true,
+        "mtp_sum": {"attempted": 16, "accepted": 1, "denominator": 16},
+        "occupied_frontier_C": 25752,
+        "allocation_L": 262144,
+        "full_capacity_occupied": false,
+        "validation_errors": []
+      }
+    }
+  },
+  "verification": {
+    "summary_consistency": "pass: phase88 receipts, raw pointer hashes, null fields, promotion provenance, quality, MTP, speed, attribution, allocation, and frontier were checked",
+    "deferred": "none"
+  }
+}
