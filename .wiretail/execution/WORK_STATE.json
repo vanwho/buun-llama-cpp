@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "90",
-  "current_task": "90-05",
-  "last_updated_utc": "2026-09-21T21:09:29+00:00",
+  "current_phase": "91",
+  "current_task": "91-01",
+  "last_updated_utc": "2026-09-21T21:15:13+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18054,7 +18054,7 @@
       "cluster": "repair90-capability-gaps-v10",
       "title": "Review phase90 and schedule only proven successors",
       "packet": ".wiretail/execution/tasks/90-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -18066,7 +18066,7 @@
       "depends_on": [
         "90-04"
       ],
-      "commit": null,
+      "commit": "67b940d86a5ff70be3285a29941256d4ff9fdac6",
       "context_files": [
         ".wiretail/execution/v10/REPAIR85_PLAN.md",
         ".wiretail/execution/v10/REPAIR85_TESTING.md",
@@ -18082,6 +18082,203 @@
         ".wiretail/execution/evidence/V10_90-05.json",
         "--review",
         ".wiretail/execution/evidence/V10_REPAIR90_REVIEW.json"
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/90-05-attempt-1-20260921T210950Z.jsonl:46",
+            "total_tokens": 60476018,
+            "total_tokens_derived": true,
+            "input_tokens": 60323517,
+            "cached_input_tokens": 58987776,
+            "output_tokens": 152501,
+            "thinking_tokens": 48738
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 60476018,
+          "input_tokens": 60323517,
+          "cached_input_tokens": 58987776,
+          "output_tokens": 152501,
+          "thinking_tokens": 48738
+        }
+      }
+    },
+    {
+      "id": "91-01",
+      "phase": "91",
+      "cluster": "repair91-frontier-completion-v10",
+      "title": "Continue the phase90 full-L occupied frontier",
+      "packet": ".wiretail/execution/tasks/91-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair90-20260921",
+      "required_proofs": [
+        "repair91_full_L_occupancy_continuation"
+      ],
+      "depends_on": [
+        "90-05"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "91-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_91-01.json"
+      ]
+    },
+    {
+      "id": "91-02",
+      "phase": "91",
+      "cluster": "repair91-frontier-completion-v10",
+      "title": "Recover a bounded frontier continuation when required",
+      "packet": ".wiretail/execution/tasks/91-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair90-20260921",
+      "required_proofs": [
+        "repair91_frontier_resume_recovery"
+      ],
+      "depends_on": [
+        "91-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "91-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_91-02.json"
+      ]
+    },
+    {
+      "id": "91-03",
+      "phase": "91",
+      "cluster": "repair91-frontier-completion-v10",
+      "title": "Validate full-L occupancy and attribution",
+      "packet": ".wiretail/execution/tasks/91-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair90-20260921",
+      "required_proofs": [
+        "repair91_frontier_completion_validation"
+      ],
+      "depends_on": [
+        "91-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "91-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_91-03.json"
+      ]
+    },
+    {
+      "id": "91-04",
+      "phase": "91",
+      "cluster": "repair91-frontier-completion-v10",
+      "title": "Generate the phase91 frontier summary",
+      "packet": ".wiretail/execution/tasks/91-04.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna Medium",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair90-20260921",
+      "required_proofs": [
+        "repair91_summary_consistency"
+      ],
+      "depends_on": [
+        "91-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "91-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_91-04.json"
+      ]
+    },
+    {
+      "id": "91-05",
+      "phase": "91",
+      "cluster": "repair91-frontier-completion-v10",
+      "title": "Review phase91 frontier evidence",
+      "packet": ".wiretail/execution/tasks/91-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair90-20260921",
+      "required_proofs": [
+        "repair91_review_and_successors"
+      ],
+      "depends_on": [
+        "91-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/v10/RECEIPTS.md",
+        ".wiretail/execution/evidence/V10_PHASE88_SUMMARY.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "91-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_91-05.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR91_REVIEW.json"
       ]
     }
   ],
@@ -23362,26 +23559,50 @@
           "cached_input_tokens": 56933120,
           "output_tokens": 137276,
           "thinking_tokens": 45259
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/90-05-attempt-1-20260921T210950Z.jsonl:46",
+          "total_tokens": 60476018,
+          "total_tokens_derived": true,
+          "input_tokens": 60323517,
+          "cached_input_tokens": 58987776,
+          "output_tokens": 152501,
+          "thinking_tokens": 48738
         }
       ],
       "totals": {
-        "turns": 4,
-        "total_tokens": 151009076,
-        "input_tokens": 150652878,
-        "cached_input_tokens": 147773440,
-        "output_tokens": 356198,
-        "thinking_tokens": 124948
+        "turns": 5,
+        "total_tokens": 211485094,
+        "input_tokens": 210976395,
+        "cached_input_tokens": 206761216,
+        "output_tokens": 508699,
+        "thinking_tokens": 173686
+      }
+    },
+    "91": {
+      "turns": [],
+      "totals": {
+        "turns": 0,
+        "total_tokens": 0,
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "thinking_tokens": 0
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 324,
-      "total_tokens": 6073294496,
-      "input_tokens": 6058370165,
-      "cached_input_tokens": 5925187584,
-      "output_tokens": 14924331,
-      "thinking_tokens": 5326996
+      "turns": 325,
+      "total_tokens": 6133770514,
+      "input_tokens": 6118693682,
+      "cached_input_tokens": 5984175360,
+      "output_tokens": 15076832,
+      "thinking_tokens": 5375734
     },
     "source": "Codex turn.completed usage events"
   }

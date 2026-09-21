@@ -1,0 +1,38 @@
+{
+  "schema": "hotpath-v10-phase90-review",
+  "schema_version": 1,
+  "task": "90-05",
+  "summary": ".wiretail/execution/evidence/V10_PHASE90_SUMMARY.json",
+  "summary_sha256": "ab92f84c86b3c117efab3c4f00ceea6627eee9f1ec19707ecc352ca852b73e48",
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "organic_cold_promotion": true,
+    "stable_target_consumption": true,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": true
+  },
+  "findings": {
+    "frontier_occupancy": "measured_partial",
+    "allocation": "measured_separate",
+    "speed_controls": "measured",
+    "controlled_promotion": "measured",
+    "organic_quality": "retained_control",
+    "native_mtp_parity": "retained_control"
+  },
+  "actionable_gaps": [
+    "full-L occupancy remains partial at durable C=58488/live C=58503 after the bounded wall stop; allocation does not prove occupancy"
+  ],
+  "decision": "continue_narrowly_evidenced_chain",
+  "next_task_ids": ["91-01", "91-02", "91-03", "91-04", "91-05"],
+  "successor_schedule": [
+    {"id": "91-01", "kind": "benchmark", "gate": "continue the cache-preserving full-L occupied frontier from durable C=58488/live C=58503"},
+    {"id": "91-02", "kind": "recovery", "gate": "recover or resume the frontier after a bounded stop without clearing progress"},
+    {"id": "91-03", "kind": "validation", "gate": "prove full-L occupancy, allocation separation, and high-water attribution if reached"},
+    {"id": "91-04", "kind": "summary", "gate": "aggregate only phase91 frontier manifests with explicit nulls if completion remains open"},
+    {"id": "91-05", "kind": "review", "gate": "review phase91 frontier evidence and schedule only remaining measured gaps"}
+  ],
+  "deferred_verification": []
+}
