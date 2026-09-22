@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-03",
-  "last_updated_utc": "2026-09-22T17:07:14+00:00",
+  "current_task": "93-04",
+  "last_updated_utc": "2026-09-22T17:24:16+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18360,7 +18360,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Repair the diagnosed MTP invariant with a minimal code change",
       "packet": ".wiretail/execution/tasks/93-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -18372,7 +18372,7 @@
       "depends_on": [
         "93-02"
       ],
-      "commit": null,
+      "commit": "a89987acc291a6f00913bf6ca437a8237b9a44cd",
       "context_files": [
         ".wiretail/execution/v10/REPAIR85_PLAN.md",
         ".wiretail/execution/v10/REPAIR85_TESTING.md",
@@ -18387,7 +18387,32 @@
         "93-03",
         "--receipt",
         ".wiretail/execution/evidence/V10_93-03.json"
-      ]
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-03-attempt-1-20260922T170735Z.jsonl:171",
+            "total_tokens": 82672397,
+            "total_tokens_derived": true,
+            "input_tokens": 82497315,
+            "cached_input_tokens": 80991488,
+            "output_tokens": 175082,
+            "thinking_tokens": 65836
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 82672397,
+          "input_tokens": 82497315,
+          "cached_input_tokens": 80991488,
+          "output_tokens": 175082,
+          "thinking_tokens": 65836
+        }
+      }
     },
     {
       "id": "93-04",
@@ -23880,26 +23905,39 @@
           "cached_input_tokens": 68902912,
           "output_tokens": 149383,
           "thinking_tokens": 57712
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-03-attempt-1-20260922T170735Z.jsonl:171",
+          "total_tokens": 82672397,
+          "total_tokens_derived": true,
+          "input_tokens": 82497315,
+          "cached_input_tokens": 80991488,
+          "output_tokens": 175082,
+          "thinking_tokens": 65836
         }
       ],
       "totals": {
-        "turns": 2,
-        "total_tokens": 111574805,
-        "input_tokens": 111342695,
-        "cached_input_tokens": 109547008,
-        "output_tokens": 232110,
-        "thinking_tokens": 89353
+        "turns": 3,
+        "total_tokens": 194247202,
+        "input_tokens": 193840010,
+        "cached_input_tokens": 190538496,
+        "output_tokens": 407192,
+        "thinking_tokens": 155189
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 333,
-      "total_tokens": 6274179278,
-      "input_tokens": 6258780886,
-      "cached_input_tokens": 6121514752,
-      "output_tokens": 15398392,
-      "thinking_tokens": 5498305
+      "turns": 334,
+      "total_tokens": 6356851675,
+      "input_tokens": 6341278201,
+      "cached_input_tokens": 6202506240,
+      "output_tokens": 15573474,
+      "thinking_tokens": 5564141
     },
     "source": "Codex turn.completed usage events"
   }

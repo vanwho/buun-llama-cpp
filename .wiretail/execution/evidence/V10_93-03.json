@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "task": "93-03",
+  "source_commit": "e51954d60528e735a7d3911247d0f6d33953380e",
+  "source_diff_sha256": "8108a8c00b2270a2d05c331b8f20b327d77ae95f9a9e9e2700b1f33daed60766",
+  "implementation_commit": null,
+  "checks": {
+    "repair93_mtp_minimal_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-cuda",
+        "-R",
+        "test-mtp-minimal-repair|test-kv-attention-view",
+        "--output-on-failure"
+      ],
+      "result": "The focused source-row regression and adjacent dense/selected attention-view contract both passed. The bounded CUDA diagnostic also passed MTP-off dense and MTP-on dense (8/10 accepted); selected resident and cold probe reached the managed candidate but the pager-only first-prompt trim path crashed with SIGSEGV after memory_seq_rm [0, end) rejection, including with native MTP off.",
+      "artifacts": [
+        {
+          "path": "tests/test-mtp-minimal-repair.cpp",
+          "sha256": "07da75012dfc7d584ea3026e8644ac933a82284d1b4147817bc0892a23a9e540"
+        },
+        {
+          "path": "build-cuda/bin/test-mtp-minimal-repair",
+          "sha256": "8381576b8e26e2e6bf1c0b542a13cfd332bf52eca3ebf57ff2c6b228005de499"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-03/20260922-minimal-repair/summary.json",
+          "sha256": "446f5c5628ff3a1665d82dbaba7d1a54a5efe11622a4f7454022f2efc5dbbd07"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-03/20260922-selected-resident-mtp-off/lifecycle-state.json",
+          "sha256": "ec72c359c915281adc21e61e6685d8e6b4daea7857adc32a09ec19d8da5765f2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-03/20260922-selected-resident-mtp-off/raw/off-measured-1-p0.journal.log",
+          "sha256": "8dd2a1997028fe6072ce32331af7e9faf5d7288a13d24c1337851147e7601419"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-03/candidate-bundle-minimal-repair/build-receipt.json",
+          "sha256": "9847320bb2ad540968c73863fa773c75c4add39591a96a0a1b96830d50ad266d"
+        }
+      ]
+    }
+  }
+}
