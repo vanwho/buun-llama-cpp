@@ -56,15 +56,21 @@ static llama_kv_attention_operator_metadata metadata(
         const llama_kv_residency_snapshot & snap, uint32_t n_query, uint32_t n_batch,
         const std::vector<uint32_t> & selected_pages = { 2, 0 },
         llama_pos query_position = 600, uint32_t n_head_q = 16,
-        uint32_t n_head_kv = 4) {
+        uint32_t n_head_kv = 4, ggml_type type_k = GGML_TYPE_TURBO4_0,
+        ggml_type type_v = GGML_TYPE_TURBO4_0) {
     llama_kv_attention_view_status view_status;
     const auto view = llama_kv_attention_view::build(snap, selected_pages, view_status);
     assert(view_status == llama_kv_attention_view_status::ok);
 
     llama_kv_attention_operator_params params;
     params.mode = llama_kv_attention_operator_mode::selective;
-    params.type_k = GGML_TYPE_TURBO4_0;
-    params.type_v = GGML_TYPE_TURBO4_0;
+    params.type_k = type_k;
+    params.type_v = type_v;
+    const bool turbo_kv = ggml_is_turbo_kv_type(type_k) || ggml_is_turbo_kv_type(type_v);
+    params.domain_k = turbo_kv
+        ? llama_kv_attention_representation_domain::turbo_rotated
+        : llama_kv_attention_representation_domain::original;
+    params.domain_v = params.domain_k;
     params.head_dim_k = 256;
     params.head_dim_v = 256;
     params.n_head_q = n_head_q;
@@ -241,9 +247,8 @@ static void test_routes_epochs_and_fences() {
     assert(direct_over_packed.metrics().pack_epochs == 0);
     direct_over_packed.complete_one_graph();
 
-    // Production prefill direct dispatch is intentionally bounded to the
-    // tiny query tile accepted by the CUDA primitive; it still exercises a
-    // multi-page table and must not manufacture packed storage.
+    // Production prefill direct dispatch uses the CUDA launch planner's
+    // query tile; this multi-page shape must not manufacture packed storage.
     const auto packed_prefill = metadata(snapshot(), 2, 1);
     const auto direct_policy = direct_over_packed.prepare(packed_prefill,
             llama_kv_attention_execution_phase::prefill, 8, 12, true, scratch,
@@ -506,10 +511,27 @@ static void test_view_sized_scratch_contract() {
            llama_kv_attention_execution_route::selected_dense);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, false, true) ==
-           llama_kv_attention_execution_route::selected_reference);
+           llama_kv_attention_execution_route::selected_packed);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, false, false) ==
-           llama_kv_attention_execution_route::selected_reference);
+           llama_kv_attention_execution_route::refusal);
+    // The CUDA paged primitive selects a larger launch tile for multi-query
+    // prefill; route admission must not cap it at decode-sized batches.
+    assert(execution.planned_route(metadata(snapshot(), 3, 1),
+            llama_kv_attention_execution_phase::prefill, true, false, false) ==
+           llama_kv_attention_execution_route::selected_direct);
+    // A genuinely contiguous selected view uses mature dense FA before the
+    // paged consumer, even when both capability contracts are available.
+    assert(execution.planned_route(metadata(snapshot(), 1, 1, { 0 }, 255),
+            llama_kv_attention_execution_phase::decode, true, true, true) ==
+           llama_kv_attention_execution_route::selected_dense);
+    const auto standard_dense = metadata(snapshot(), 1, 1, { 0 }, 255, 16, 4,
+            GGML_TYPE_Q4_0, GGML_TYPE_Q4_0);
+    const auto standard_dense_view = llama_kv_attention_dense_view_check(standard_dense, 8);
+    assert(standard_dense_view.eligible);
+    assert(execution.planned_route(standard_dense,
+            llama_kv_attention_execution_phase::decode, false, true, false) ==
+           llama_kv_attention_execution_route::selected_dense);
     llama_kv_attention_execution packed_execution(llama_kv_attention_execution_mode::selective);
     packed_execution.set_route_override("packed");
     assert(packed_execution.planned_route(selected,
@@ -569,8 +591,14 @@ static void test_fallbacks_and_graph_key() {
 
     auto reference = execution.prepare(selected, llama_kv_attention_execution_phase::decode,
             1, 1, false, scratch);
-    assert(reference.route == llama_kv_attention_execution_route::selected_reference);
-    execution.complete_one_graph();
+    assert(reference.status == llama_kv_attention_execution_status::not_configured);
+    assert(reference.route == llama_kv_attention_execution_route::refusal);
+    assert(reference.reason.find("automatic selective route refused") != std::string::npos);
+    assert(reference.reason.find("phase=decode") != std::string::npos);
+    assert(reference.reason.find("query_tile=1") != std::string::npos);
+    assert(reference.reason.find("selected_reference_requires_explicit_override") !=
+           std::string::npos);
+    assert(execution.metrics().automatic_reference_prevented == 1);
 
     execution.set_route_override("packed");
     auto prompt_shape = metadata(snapshot(), 65, 1);
@@ -589,6 +617,17 @@ static void test_fallbacks_and_graph_key() {
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch, {}, false, true);
     assert(tile3.route == llama_kv_attention_execution_route::selected_packed);
     execution.complete_one_graph();
+
+    llama_kv_attention_execution multi_query_direct(
+            llama_kv_attention_execution_mode::selective);
+    const auto multi_query = multi_query_direct.prepare(metadata(snapshot(), 3, 1),
+            llama_kv_attention_execution_phase::prefill, 1, 2, true, scratch,
+            {}, false, false);
+    assert(multi_query.status == llama_kv_attention_execution_status::ok);
+    assert(multi_query.route == llama_kv_attention_execution_route::selected_direct);
+    assert(multi_query.reason.find("qualified Turbo4 selective prefill query tile") !=
+           std::string::npos);
+    multi_query_direct.complete_one_graph();
 
     auto tile65 = execution.prepare(metadata(snapshot(), 65, 1),
             llama_kv_attention_execution_phase::prefill, 1, 1, true, scratch,
@@ -722,7 +761,7 @@ static void test_epoch_matrix_and_lifetime_metrics() {
             11, 22, true, irrelevant_scratch, {}, false, true);
     assert(!reused.graph_rebuild);
 
-    execution.set_route_override("auto");
+    execution.set_route_override("reference");
     const auto reference = execution.prepare(base, llama_kv_attention_execution_phase::decode,
             11, 22, false, scratch);
     assert(reference.route == llama_kv_attention_execution_route::selected_reference);

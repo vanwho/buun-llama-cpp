@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "task": "93-01",
+  "source_commit": "739bd9566392ca1a5dc8351570439ab560456401",
+  "source_diff_sha256": "ac0c2e4f8ce4ffc850171e218fd9c4b1fc7b16c214359cf7ec6b787d6cf3ac0c",
+  "checks": {
+    "repair93_mtp_bounded_controls": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "env",
+        "CANONICAL_BENCHMARK_RUNNER=/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "BENCH_SERVER_BIN=/srv/ai/paged-kv/results/v10/93-01/candidate-bundle-current/bin/llama-server",
+        "PYTHONPATH=tools/server/bench",
+        "python3",
+        "tools/server/bench/run-mtp-diagnostic.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/93-01/20260922-bounded-mtp-final8",
+        "--model",
+        "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "--server-binary",
+        "/srv/ai/paged-kv/results/v10/93-01/candidate-bundle-current/bin/llama-server",
+        "--repeats",
+        "1",
+        "--request-timeout",
+        "30"
+      ],
+      "result": "Completed four ordered bounded rungs; first three passed, cold promotion reported as setup_failure with raw evidence.",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-01/20260922-bounded-mtp-final8/summary.json",
+          "sha256": "9caa1d7c99784e7ffb815f8cf107c2f9099ecf69c5e1061b18ac096a69dce0ca"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-01/20260922-bounded-mtp-final8/summary.md",
+          "sha256": "a82cdfcea58962d42cf1748686f3265a4dd5eb454ba6edb1f7b85743aab47c39"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-01/20260922-bounded-mtp-final8/validation.json",
+          "sha256": "23df9faa6e036f8a4813bdf3dcc4ef67d9848413e0314cab03f3cdd1debf95cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-01/candidate-bundle-current/build-receipt.json",
+          "sha256": "34d28b21e853e5e9d92e79e795201400b9c3389327aa0757692314e542b1c260"
+        }
+      ]
+    }
+  }
+}

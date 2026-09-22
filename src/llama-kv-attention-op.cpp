@@ -4,6 +4,19 @@
 #include <new>
 #include <utility>
 
+static bool selected_gpu_dense_type_supported(ggml_type type) noexcept {
+    switch (type) {
+        case GGML_TYPE_F32:
+        case GGML_TYPE_F16:
+        case GGML_TYPE_BF16:
+        case GGML_TYPE_Q4_0:
+        case GGML_TYPE_Q8_0:
+            return true;
+        default:
+            return ggml_is_turbo_kv_type(type);
+    }
+}
+
 struct llama_kv_attention_operator_metadata::state {
     llama_kv_attention_operator_params params;
     llama_kv_attention_view view;
@@ -137,7 +150,8 @@ llama_kv_attention_operator_metadata llama_kv_attention_operator_metadata::build
         status = llama_kv_attention_operator_status::invalid_page_table;
         return {};
     }
-    if (params.type_k != GGML_TYPE_TURBO4_0 || params.type_v != GGML_TYPE_TURBO4_0) {
+    if (!selected_gpu_dense_type_supported(params.type_k) ||
+            !selected_gpu_dense_type_supported(params.type_v)) {
         status = llama_kv_attention_operator_status::invalid_type;
         return {};
     }
@@ -277,11 +291,15 @@ llama_kv_attention_dense_view_eligibility llama_kv_attention_dense_view_check(
         result.reason = "metadata is disabled";
         return result;
     }
-    if (!metadata.causal() || metadata.type_k() != GGML_TYPE_TURBO4_0 ||
-            metadata.type_v() != GGML_TYPE_TURBO4_0 ||
-            metadata.domain_k() != llama_kv_attention_representation_domain::turbo_rotated ||
-            metadata.domain_v() != llama_kv_attention_representation_domain::turbo_rotated) {
-        result.reason = "Turbo4 causal representation contract is not satisfied";
+    const bool turbo_kv = ggml_is_turbo_kv_type(metadata.type_k()) ||
+        ggml_is_turbo_kv_type(metadata.type_v());
+    const auto expected_domain = turbo_kv
+        ? llama_kv_attention_representation_domain::turbo_rotated
+        : llama_kv_attention_representation_domain::original;
+    if (!metadata.causal() || !selected_gpu_dense_type_supported(metadata.type_k()) ||
+            !selected_gpu_dense_type_supported(metadata.type_v()) ||
+            metadata.domain_k() != expected_domain || metadata.domain_v() != expected_domain) {
+        result.reason = "causal K/V representation is not supported by mature GPU FA";
         return result;
     }
     if (physical_page_count == 0 || metadata.page_table().empty()) {

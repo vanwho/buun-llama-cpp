@@ -1161,6 +1161,16 @@ def _main() -> int:
                         help="target device list passed to the live server (default: auto)")
     parser.add_argument("--page-size", type=int, default=256,
                         help="logical pager page size in tokens (default: 256)")
+    parser.add_argument("--kv-hot-pages", default=None,
+                        help="bounded hot-page budget forwarded to the canonical runner")
+    parser.add_argument("--kv-vram-budget", default=None,
+                        help="optional VRAM budget forwarded to the canonical runner")
+    parser.add_argument("--kv-host-budget", default=None,
+                        help="optional host budget forwarded to the canonical runner")
+    parser.add_argument("--kv-safety-headroom", default=None,
+                        help="optional pager safety headroom forwarded to the canonical runner")
+    parser.add_argument("--kv-pin-recent", default=None,
+                        help="recent-token pin budget forwarded to the canonical runner")
     parser.add_argument("--batch", type=int, default=None,
                         help="per-run logical decode batch B")
     parser.add_argument("--ubatch", type=int, default=None,
@@ -1248,6 +1258,14 @@ def _main() -> int:
             os.environ["BENCH_GENERATION_LENGTH"] = str(args.generation_length)
         if args.progress_bound is not None:
             os.environ["BENCH_PROGRESS_BOUND"] = str(args.progress_bound)
+        for argument, environment in (
+                (args.kv_hot_pages, "BENCH_KV_HOT_PAGES"),
+                (args.kv_vram_budget, "BENCH_KV_VRAM_BUDGET"),
+                (args.kv_host_budget, "BENCH_KV_HOST_BUDGET"),
+                (args.kv_safety_headroom, "BENCH_KV_SAFETY_HEADROOM"),
+                (args.kv_pin_recent, "BENCH_KV_PIN_RECENT")):
+            if argument is not None:
+                os.environ[environment] = str(argument)
         write_dry_run(output, args.target, args.variant, endpoint, context,
                       corpus(variant=args.variant, frozen=frozen_corpus, path=corpus_path),
                       corpus_path)
@@ -1313,6 +1331,14 @@ def _main() -> int:
         env["BENCH_GENERATION_LENGTH"] = str(args.generation_length)
     if args.progress_bound is not None:
         env["BENCH_PROGRESS_BOUND"] = str(args.progress_bound)
+    for argument, environment in (
+            (args.kv_hot_pages, "BENCH_KV_HOT_PAGES"),
+            (args.kv_vram_budget, "BENCH_KV_VRAM_BUDGET"),
+            (args.kv_host_budget, "BENCH_KV_HOST_BUDGET"),
+            (args.kv_safety_headroom, "BENCH_KV_SAFETY_HEADROOM"),
+            (args.kv_pin_recent, "BENCH_KV_PIN_RECENT")):
+        if argument is not None:
+            env[environment] = str(argument)
     env["BENCH_CONNECT_TIMEOUT"] = str(args.connect_timeout)
     env["BENCH_STARTUP_TIMEOUT"] = str(args.startup_timeout)
     env["BENCH_PREFILL_TIMEOUT"] = str(args.prefill_timeout)

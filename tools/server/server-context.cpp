@@ -4111,6 +4111,7 @@ public:
                     {"packed_inflight_consumers_high_water", pager.execution.packed_inflight_consumers_high_water},
                     {"route_override_accepted", pager.execution.route_override_accepted},
                     {"route_override_refused", pager.execution.route_override_refused},
+                    {"automatic_reference_prevented", pager.execution.automatic_reference_prevented},
                     {"descriptor_prepare_us", pager.execution.descriptor_prepare_us},
                     {"kernel_us", pager.execution.kernel_us},
                     {"total_token_us", pager.execution.total_token_us},

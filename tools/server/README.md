@@ -77,6 +77,8 @@ than silently materializing the slow reference view. Standard quantized K/V
 types may use the mature contiguous dense GPU route; they must not be sent to
 CPU attention. Explicit `LLAMA_KV_ATTENTION_ROUTE=reference` and exact/reference
 tests may retain the oracle until the fast-path acceptance task removes it.
+Reference-route timings are correctness diagnostics and invalid performance
+evidence.
 Unsupported backends, non-causal attention, incompatible K/V types, malformed
 page identity/positions, stale generations, missing host backing, dirty
 eviction, and insufficient budget are refused or remain on the prior valid

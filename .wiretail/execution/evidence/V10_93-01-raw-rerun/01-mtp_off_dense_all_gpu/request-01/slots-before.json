@@ -1,0 +1,1 @@
+[{"id":0,"n_ctx":4096,"speculative":false,"is_processing":false,"computation_frontier_ratchet":{"read_path":"legacy","threshold":1024,"agreement_streak":0,"agreements_total":0,"disagreements_total":0,"flips_total":0,"fallbacks_total":0},"kv_bpv":4.125}]

@@ -1,0 +1,678 @@
+# HELP llamacpp:prompt_tokens_total Number of prompt tokens processed, excluding cached tokens
+# TYPE llamacpp:prompt_tokens_total counter
+llamacpp:prompt_tokens_total 0
+# HELP llamacpp:prompt_tokens_cached_total Number of prompt tokens reused from the cache
+# TYPE llamacpp:prompt_tokens_cached_total counter
+llamacpp:prompt_tokens_cached_total 0
+# HELP llamacpp:prompt_seconds_total Total time spent processing prompts
+# TYPE llamacpp:prompt_seconds_total counter
+llamacpp:prompt_seconds_total 0
+# HELP llamacpp:tokens_predicted_total Number of generation tokens processed
+# TYPE llamacpp:tokens_predicted_total counter
+llamacpp:tokens_predicted_total 0
+# HELP llamacpp:tokens_predicted_seconds_total Total time spent generating tokens
+# TYPE llamacpp:tokens_predicted_seconds_total counter
+llamacpp:tokens_predicted_seconds_total 0
+# HELP llamacpp:n_decode_total Total number of llama_decode() calls, excluding speculative decoding and multimodal decoding
+# TYPE llamacpp:n_decode_total counter
+llamacpp:n_decode_total 0
+# HELP llamacpp:n_tokens_max Largest observed sequence length (prompt + generation)
+# TYPE llamacpp:n_tokens_max counter
+llamacpp:n_tokens_max 0
+# HELP llamacpp:spec_decode_num_draft_tokens_total Speculative: Total draft tokens generated
+# TYPE llamacpp:spec_decode_num_draft_tokens_total counter
+llamacpp:spec_decode_num_draft_tokens_total 0
+# HELP llamacpp:spec_decode_num_accepted_tokens_total Speculative: Total draft tokens accepted by the target model
+# TYPE llamacpp:spec_decode_num_accepted_tokens_total counter
+llamacpp:spec_decode_num_accepted_tokens_total 0
+# HELP llamacpp:spec_decode_num_drafts_total Speculative: Total speculative decoding verification steps
+# TYPE llamacpp:spec_decode_num_drafts_total counter
+llamacpp:spec_decode_num_drafts_total 0
+# HELP llamacpp:prompt_tokens_seconds Average prompt throughput in tokens/s
+# TYPE llamacpp:prompt_tokens_seconds gauge
+llamacpp:prompt_tokens_seconds 0
+# HELP llamacpp:predicted_tokens_seconds Average generation throughput in tokens/s
+# TYPE llamacpp:predicted_tokens_seconds gauge
+llamacpp:predicted_tokens_seconds 0
+# HELP llamacpp:requests_processing Number of requests processing
+# TYPE llamacpp:requests_processing gauge
+llamacpp:requests_processing 0
+# HELP llamacpp:requests_deferred Number of requests deferred
+# TYPE llamacpp:requests_deferred gauge
+llamacpp:requests_deferred 0
+# HELP llamacpp:n_busy_slots_per_decode Average number of busy slots per llama_decode() call
+# TYPE llamacpp:n_busy_slots_per_decode gauge
+llamacpp:n_busy_slots_per_decode 0
+# HELP llamacpp:kv_pager_mode Experimental KV pager mode
+# TYPE llamacpp:kv_pager_mode gauge
+llamacpp:kv_pager_mode{mode="selective"} 1
+# HELP llamacpp:kv_pager_route Experimental KV pager route
+# TYPE llamacpp:kv_pager_route gauge
+llamacpp:kv_pager_route{route="selected dense"} 1
+# HELP llamacpp:kv_pager_mtp_backend Experimental KV pager mtp_backend
+# TYPE llamacpp:kv_pager_mtp_backend gauge
+llamacpp:kv_pager_mtp_backend{backend="gpu"} 1
+# HELP llamacpp:kv_pager_target_backend Experimental KV pager target_backend
+# TYPE llamacpp:kv_pager_target_backend gauge
+llamacpp:kv_pager_target_backend{target_backend="CUDA"} 1
+# HELP llamacpp:kv_pager_target_type_k Experimental KV pager target_type_k
+# TYPE llamacpp:kv_pager_target_type_k gauge
+llamacpp:kv_pager_target_type_k{type="turbo4"} 1
+# HELP llamacpp:kv_pager_target_type_v Experimental KV pager target_type_v
+# TYPE llamacpp:kv_pager_target_type_v gauge
+llamacpp:kv_pager_target_type_v{type="turbo4"} 1
+# HELP llamacpp:kv_pager_mtp_type_k Experimental KV pager mtp_type_k
+# TYPE llamacpp:kv_pager_mtp_type_k gauge
+llamacpp:kv_pager_mtp_type_k{type="turbo4"} 1
+# HELP llamacpp:kv_pager_mtp_type_v Experimental KV pager mtp_type_v
+# TYPE llamacpp:kv_pager_mtp_type_v gauge
+llamacpp:kv_pager_mtp_type_v{type="turbo4"} 1
+# HELP llamacpp:kv_pager_snapshot_monotonic_us Experimental KV pager snapshot_monotonic_us
+# TYPE llamacpp:kv_pager_snapshot_monotonic_us gauge
+llamacpp:kv_pager_snapshot_monotonic_us 1.67285e+11
+# HELP llamacpp:kv_pager_request_generation Experimental KV pager request_generation
+# TYPE llamacpp:kv_pager_request_generation gauge
+llamacpp:kv_pager_request_generation 0
+# HELP llamacpp:kv_pager_slot_generation Experimental KV pager slot_generation
+# TYPE llamacpp:kv_pager_slot_generation gauge
+llamacpp:kv_pager_slot_generation 0
+# HELP llamacpp:kv_pager_config_generation Experimental KV pager config_generation
+# TYPE llamacpp:kv_pager_config_generation gauge
+llamacpp:kv_pager_config_generation 1
+# HELP llamacpp:kv_pager_reset_epoch Experimental KV pager reset_epoch
+# TYPE llamacpp:kv_pager_reset_epoch gauge
+llamacpp:kv_pager_reset_epoch 0
+# HELP llamacpp:kv_pager_page_capacity Experimental KV pager page_capacity
+# TYPE llamacpp:kv_pager_page_capacity gauge
+llamacpp:kv_pager_page_capacity 16
+# HELP llamacpp:kv_pager_physical_pool_capacity_bytes Experimental KV pager physical_pool_capacity_bytes
+# TYPE llamacpp:kv_pager_physical_pool_capacity_bytes gauge
+llamacpp:kv_pager_physical_pool_capacity_bytes 6.9206e+07
+# HELP llamacpp:kv_pager_table_epoch Experimental KV pager table_epoch
+# TYPE llamacpp:kv_pager_table_epoch gauge
+llamacpp:kv_pager_table_epoch 2
+# HELP llamacpp:kv_pager_representation_epoch Experimental KV pager representation_epoch
+# TYPE llamacpp:kv_pager_representation_epoch gauge
+llamacpp:kv_pager_representation_epoch 0
+# HELP llamacpp:kv_pager_shape_epoch Experimental KV pager shape_epoch
+# TYPE llamacpp:kv_pager_shape_epoch gauge
+llamacpp:kv_pager_shape_epoch 1.61433e+19
+# HELP llamacpp:kv_pager_context_tokens Experimental KV pager context_tokens
+# TYPE llamacpp:kv_pager_context_tokens gauge
+llamacpp:kv_pager_context_tokens 4096
+# HELP llamacpp:kv_pager_page_tokens Experimental KV pager page_tokens
+# TYPE llamacpp:kv_pager_page_tokens gauge
+llamacpp:kv_pager_page_tokens 256
+# HELP llamacpp:kv_pager_logical_pages Experimental KV pager logical_pages
+# TYPE llamacpp:kv_pager_logical_pages gauge
+llamacpp:kv_pager_logical_pages 16
+# HELP llamacpp:kv_pager_resident_pages Experimental KV pager resident_pages
+# TYPE llamacpp:kv_pager_resident_pages gauge
+llamacpp:kv_pager_resident_pages 1
+# HELP llamacpp:kv_pager_target_resident_bytes Experimental KV pager target_resident_bytes
+# TYPE llamacpp:kv_pager_target_resident_bytes gauge
+llamacpp:kv_pager_target_resident_bytes 0
+# HELP llamacpp:kv_pager_target_valid_rows Experimental KV pager target_valid_rows
+# TYPE llamacpp:kv_pager_target_valid_rows gauge
+llamacpp:kv_pager_target_valid_rows 2
+# HELP llamacpp:kv_pager_target_valid_bytes Experimental KV pager target_valid_bytes
+# TYPE llamacpp:kv_pager_target_valid_bytes gauge
+llamacpp:kv_pager_target_valid_bytes 33792
+# HELP llamacpp:kv_pager_host_pages Experimental KV pager host_pages
+# TYPE llamacpp:kv_pager_host_pages gauge
+llamacpp:kv_pager_host_pages 0
+# HELP llamacpp:kv_pager_host_valid_rows Experimental KV pager host_valid_rows
+# TYPE llamacpp:kv_pager_host_valid_rows gauge
+llamacpp:kv_pager_host_valid_rows 0
+# HELP llamacpp:kv_pager_host_valid_bytes Experimental KV pager host_valid_bytes
+# TYPE llamacpp:kv_pager_host_valid_bytes gauge
+llamacpp:kv_pager_host_valid_bytes 0
+# HELP llamacpp:kv_pager_page_bytes Experimental KV pager page_bytes
+# TYPE llamacpp:kv_pager_page_bytes gauge
+llamacpp:kv_pager_page_bytes 4.32538e+06
+# HELP llamacpp:kv_pager_page_charge_bytes Experimental KV pager page_charge_bytes
+# TYPE llamacpp:kv_pager_page_charge_bytes gauge
+llamacpp:kv_pager_page_charge_bytes 4.32538e+06
+# HELP llamacpp:kv_pager_target_bytes Experimental KV pager target_bytes
+# TYPE llamacpp:kv_pager_target_bytes gauge
+llamacpp:kv_pager_target_bytes 6.9206e+07
+# HELP llamacpp:kv_pager_target_allocated_bytes Experimental KV pager target_allocated_bytes
+# TYPE llamacpp:kv_pager_target_allocated_bytes gauge
+llamacpp:kv_pager_target_allocated_bytes 6.9206e+07
+# HELP llamacpp:kv_pager_live_allocation_peak_bytes Experimental KV pager live_allocation_peak_bytes
+# TYPE llamacpp:kv_pager_live_allocation_peak_bytes gauge
+llamacpp:kv_pager_live_allocation_peak_bytes 6.9206e+07
+# HELP llamacpp:kv_pager_host_pageable_bytes Experimental KV pager host_pageable_bytes
+# TYPE llamacpp:kv_pager_host_pageable_bytes gauge
+llamacpp:kv_pager_host_pageable_bytes 0
+# HELP llamacpp:kv_pager_host_metadata_bytes Experimental KV pager host_metadata_bytes
+# TYPE llamacpp:kv_pager_host_metadata_bytes gauge
+llamacpp:kv_pager_host_metadata_bytes 0
+# HELP llamacpp:kv_pager_host_pinned_bytes Experimental KV pager host_pinned_bytes
+# TYPE llamacpp:kv_pager_host_pinned_bytes gauge
+llamacpp:kv_pager_host_pinned_bytes 0
+# HELP llamacpp:kv_pager_usable_device_bytes Experimental KV pager usable_device_bytes
+# TYPE llamacpp:kv_pager_usable_device_bytes gauge
+llamacpp:kv_pager_usable_device_bytes 1.67202e+10
+# HELP llamacpp:kv_pager_charged_bytes Experimental KV pager charged_bytes
+# TYPE llamacpp:kv_pager_charged_bytes gauge
+llamacpp:kv_pager_charged_bytes 1.5363e+10
+# HELP llamacpp:kv_pager_reserved_bytes Experimental KV pager reserved_bytes
+# TYPE llamacpp:kv_pager_reserved_bytes gauge
+llamacpp:kv_pager_reserved_bytes 1.46596e+09
+# HELP llamacpp:kv_pager_headroom_bytes Experimental KV pager headroom_bytes
+# TYPE llamacpp:kv_pager_headroom_bytes gauge
+llamacpp:kv_pager_headroom_bytes 2.01327e+08
+# HELP llamacpp:kv_pager_weights_bytes Experimental KV pager weights_bytes
+# TYPE llamacpp:kv_pager_weights_bytes gauge
+llamacpp:kv_pager_weights_bytes 1.36956e+10
+# HELP llamacpp:kv_pager_fixed_context_bytes Experimental KV pager fixed_context_bytes
+# TYPE llamacpp:kv_pager_fixed_context_bytes gauge
+llamacpp:kv_pager_fixed_context_bytes 131072
+# HELP llamacpp:kv_pager_recurrent_state_bytes Experimental KV pager recurrent_state_bytes
+# TYPE llamacpp:kv_pager_recurrent_state_bytes gauge
+llamacpp:kv_pager_recurrent_state_bytes 4.7068e+08
+# HELP llamacpp:kv_pager_mtp_compute_bytes Experimental KV pager mtp_compute_bytes
+# TYPE llamacpp:kv_pager_mtp_compute_bytes gauge
+llamacpp:kv_pager_mtp_compute_bytes 2.68435e+08
+# HELP llamacpp:kv_pager_graph_bytes Experimental KV pager graph_bytes
+# TYPE llamacpp:kv_pager_graph_bytes gauge
+llamacpp:kv_pager_graph_bytes 2.68435e+08
+# HELP llamacpp:kv_pager_turbo4_scratch_bytes Experimental KV pager turbo4_scratch_bytes
+# TYPE llamacpp:kv_pager_turbo4_scratch_bytes gauge
+llamacpp:kv_pager_turbo4_scratch_bytes 128
+# HELP llamacpp:kv_pager_routing_table_bytes Experimental KV pager routing_table_bytes
+# TYPE llamacpp:kv_pager_routing_table_bytes gauge
+llamacpp:kv_pager_routing_table_bytes 4.1943e+06
+# HELP llamacpp:kv_pager_staging_bytes Experimental KV pager staging_bytes
+# TYPE llamacpp:kv_pager_staging_bytes gauge
+llamacpp:kv_pager_staging_bytes 128
+# HELP llamacpp:kv_pager_external_bytes Experimental KV pager external_bytes
+# TYPE llamacpp:kv_pager_external_bytes gauge
+llamacpp:kv_pager_external_bytes 2.93644e+08
+# HELP llamacpp:kv_pager_mtp_rows Experimental KV pager mtp_rows
+# TYPE llamacpp:kv_pager_mtp_rows gauge
+llamacpp:kv_pager_mtp_rows 4096
+# HELP llamacpp:kv_pager_mtp_bytes Experimental KV pager mtp_bytes
+# TYPE llamacpp:kv_pager_mtp_bytes gauge
+llamacpp:kv_pager_mtp_bytes 4.45645e+06
+# HELP llamacpp:kv_pager_packed_workspace_bytes Experimental KV pager packed_workspace_bytes
+# TYPE llamacpp:kv_pager_packed_workspace_bytes gauge
+llamacpp:kv_pager_packed_workspace_bytes 1.38412e+08
+# HELP llamacpp:kv_pager_packed_dequant_bytes Experimental KV pager packed_dequant_bytes
+# TYPE llamacpp:kv_pager_packed_dequant_bytes gauge
+llamacpp:kv_pager_packed_dequant_bytes 1.67772e+07
+# HELP llamacpp:kv_pager_catalogue_bytes Experimental KV pager catalogue_bytes
+# TYPE llamacpp:kv_pager_catalogue_bytes gauge
+llamacpp:kv_pager_catalogue_bytes 1.0519e+06
+# HELP llamacpp:kv_pager_attention_pages Experimental KV pager attention_pages
+# TYPE llamacpp:kv_pager_attention_pages gauge
+llamacpp:kv_pager_attention_pages 16
+# HELP llamacpp:kv_pager_attention_tokens Experimental KV pager attention_tokens
+# TYPE llamacpp:kv_pager_attention_tokens gauge
+llamacpp:kv_pager_attention_tokens 4096
+# HELP llamacpp:kv_pager_transfer_destination_pages Experimental KV pager transfer_destination_pages
+# TYPE llamacpp:kv_pager_transfer_destination_pages gauge
+llamacpp:kv_pager_transfer_destination_pages 1
+# HELP llamacpp:kv_pager_requested_context_tokens Experimental KV pager requested_context_tokens
+# TYPE llamacpp:kv_pager_requested_context_tokens gauge
+llamacpp:kv_pager_requested_context_tokens 4096
+# HELP llamacpp:kv_pager_resolved_context_tokens Experimental KV pager resolved_context_tokens
+# TYPE llamacpp:kv_pager_resolved_context_tokens gauge
+llamacpp:kv_pager_resolved_context_tokens 4096
+# HELP llamacpp:kv_pager_accepted_target_tokens Experimental KV pager accepted_target_tokens
+# TYPE llamacpp:kv_pager_accepted_target_tokens gauge
+llamacpp:kv_pager_accepted_target_tokens 4096
+# HELP llamacpp:kv_pager_requested_tokens Experimental KV pager requested_tokens
+# TYPE llamacpp:kv_pager_requested_tokens gauge
+llamacpp:kv_pager_requested_tokens 4096
+# HELP llamacpp:kv_pager_admitted_tokens Experimental KV pager admitted_tokens
+# TYPE llamacpp:kv_pager_admitted_tokens gauge
+llamacpp:kv_pager_admitted_tokens 4096
+# HELP llamacpp:kv_pager_allocated_bytes Experimental KV pager allocated_bytes
+# TYPE llamacpp:kv_pager_allocated_bytes gauge
+llamacpp:kv_pager_allocated_bytes 6.9206e+07
+# HELP llamacpp:kv_pager_valid_rows Experimental KV pager valid_rows
+# TYPE llamacpp:kv_pager_valid_rows gauge
+llamacpp:kv_pager_valid_rows 2
+# HELP llamacpp:kv_pager_valid_bytes Experimental KV pager valid_bytes
+# TYPE llamacpp:kv_pager_valid_bytes gauge
+llamacpp:kv_pager_valid_bytes 33792
+# HELP llamacpp:kv_pager_emitted_tokens Experimental KV pager emitted_tokens
+# TYPE llamacpp:kv_pager_emitted_tokens gauge
+llamacpp:kv_pager_emitted_tokens 0
+# HELP llamacpp:kv_pager_predicted_tokens Experimental KV pager predicted_tokens
+# TYPE llamacpp:kv_pager_predicted_tokens gauge
+llamacpp:kv_pager_predicted_tokens 0
+# HELP llamacpp:kv_pager_accepted_tokens Experimental KV pager accepted_tokens
+# TYPE llamacpp:kv_pager_accepted_tokens gauge
+llamacpp:kv_pager_accepted_tokens 0
+# HELP llamacpp:kv_pager_acceptance_denominator Experimental KV pager acceptance_denominator
+# TYPE llamacpp:kv_pager_acceptance_denominator gauge
+llamacpp:kv_pager_acceptance_denominator 0
+# HELP llamacpp:kv_pager_acceptance_verification_steps Experimental KV pager acceptance_verification_steps
+# TYPE llamacpp:kv_pager_acceptance_verification_steps gauge
+llamacpp:kv_pager_acceptance_verification_steps 0
+# HELP llamacpp:kv_pager_host_budget_bytes Experimental KV pager host_budget_bytes
+# TYPE llamacpp:kv_pager_host_budget_bytes gauge
+llamacpp:kv_pager_host_budget_bytes 6.51501e+10
+# HELP llamacpp:kv_pager_vram_budget_bytes Experimental KV pager vram_budget_bytes
+# TYPE llamacpp:kv_pager_vram_budget_bytes gauge
+llamacpp:kv_pager_vram_budget_bytes 1.67202e+10
+# HELP llamacpp:kv_pager_router_top_k Experimental KV pager router_top_k
+# TYPE llamacpp:kv_pager_router_top_k gauge
+llamacpp:kv_pager_router_top_k 8
+# HELP llamacpp:kv_pager_router_refresh_tokens Experimental KV pager router_refresh_tokens
+# TYPE llamacpp:kv_pager_router_refresh_tokens gauge
+llamacpp:kv_pager_router_refresh_tokens 8
+# HELP llamacpp:kv_pager_router_explore Experimental KV pager router_explore
+# TYPE llamacpp:kv_pager_router_explore gauge
+llamacpp:kv_pager_router_explore 1
+# HELP llamacpp:kv_pager_pin_recent_tokens Experimental KV pager pin_recent_tokens
+# TYPE llamacpp:kv_pager_pin_recent_tokens gauge
+llamacpp:kv_pager_pin_recent_tokens 256
+# HELP llamacpp:kv_pager_prefetch_depth Experimental KV pager prefetch_depth
+# TYPE llamacpp:kv_pager_prefetch_depth gauge
+llamacpp:kv_pager_prefetch_depth 2
+# HELP llamacpp:kv_pager_selected_pages Experimental KV pager selected_pages
+# TYPE llamacpp:kv_pager_selected_pages gauge
+llamacpp:kv_pager_selected_pages 1
+# HELP llamacpp:kv_pager_attention_samples Experimental KV pager attention_samples
+# TYPE llamacpp:kv_pager_attention_samples gauge
+llamacpp:kv_pager_attention_samples 0
+# HELP llamacpp:kv_pager_attention_sampled_tokens Experimental KV pager attention_sampled_tokens
+# TYPE llamacpp:kv_pager_attention_sampled_tokens gauge
+llamacpp:kv_pager_attention_sampled_tokens 0
+# HELP llamacpp:kv_pager_attention_sampled_pages Experimental KV pager attention_sampled_pages
+# TYPE llamacpp:kv_pager_attention_sampled_pages gauge
+llamacpp:kv_pager_attention_sampled_pages 0
+# HELP llamacpp:kv_pager_attention_sampled_layers Experimental KV pager attention_sampled_layers
+# TYPE llamacpp:kv_pager_attention_sampled_layers gauge
+llamacpp:kv_pager_attention_sampled_layers 0
+# HELP llamacpp:kv_pager_attention_sampled_heads Experimental KV pager attention_sampled_heads
+# TYPE llamacpp:kv_pager_attention_sampled_heads gauge
+llamacpp:kv_pager_attention_sampled_heads 0
+# HELP llamacpp:kv_pager_attention_skipped Experimental KV pager attention_skipped
+# TYPE llamacpp:kv_pager_attention_skipped gauge
+llamacpp:kv_pager_attention_skipped 0
+# HELP llamacpp:kv_pager_attention_stale_dropped Experimental KV pager attention_stale_dropped
+# TYPE llamacpp:kv_pager_attention_stale_dropped gauge
+llamacpp:kv_pager_attention_stale_dropped 0
+# HELP llamacpp:kv_pager_attention_invalid_dropped Experimental KV pager attention_invalid_dropped
+# TYPE llamacpp:kv_pager_attention_invalid_dropped gauge
+llamacpp:kv_pager_attention_invalid_dropped 0
+# HELP llamacpp:kv_pager_attention_gpu_reduction_us Experimental KV pager attention_gpu_reduction_us
+# TYPE llamacpp:kv_pager_attention_gpu_reduction_us gauge
+llamacpp:kv_pager_attention_gpu_reduction_us 0
+# HELP llamacpp:kv_pager_attention_d2h_bytes Experimental KV pager attention_d2h_bytes
+# TYPE llamacpp:kv_pager_attention_d2h_bytes gauge
+llamacpp:kv_pager_attention_d2h_bytes 0
+# HELP llamacpp:kv_pager_attention_d2h_time_us Experimental KV pager attention_d2h_time_us
+# TYPE llamacpp:kv_pager_attention_d2h_time_us gauge
+llamacpp:kv_pager_attention_d2h_time_us 0
+# HELP llamacpp:kv_pager_attention_publish_time_us Experimental KV pager attention_publish_time_us
+# TYPE llamacpp:kv_pager_attention_publish_time_us gauge
+llamacpp:kv_pager_attention_publish_time_us 0
+# HELP llamacpp:kv_pager_attention_observe_overhead_us Experimental KV pager attention_observe_overhead_us
+# TYPE llamacpp:kv_pager_attention_observe_overhead_us gauge
+llamacpp:kv_pager_attention_observe_overhead_us 0
+# HELP llamacpp:kv_pager_attention_dropped_no_output Experimental KV pager attention_dropped_no_output
+# TYPE llamacpp:kv_pager_attention_dropped_no_output gauge
+llamacpp:kv_pager_attention_dropped_no_output 0
+# HELP llamacpp:kv_pager_attention_dropped_no_metadata Experimental KV pager attention_dropped_no_metadata
+# TYPE llamacpp:kv_pager_attention_dropped_no_metadata gauge
+llamacpp:kv_pager_attention_dropped_no_metadata 0
+# HELP llamacpp:kv_pager_attention_dropped_invalid_shape Experimental KV pager attention_dropped_invalid_shape
+# TYPE llamacpp:kv_pager_attention_dropped_invalid_shape gauge
+llamacpp:kv_pager_attention_dropped_invalid_shape 0
+# HELP llamacpp:kv_pager_attention_dropped_stale_snapshot Experimental KV pager attention_dropped_stale_snapshot
+# TYPE llamacpp:kv_pager_attention_dropped_stale_snapshot gauge
+llamacpp:kv_pager_attention_dropped_stale_snapshot 0
+# HELP llamacpp:kv_pager_attention_dropped_stale_identity Experimental KV pager attention_dropped_stale_identity
+# TYPE llamacpp:kv_pager_attention_dropped_stale_identity gauge
+llamacpp:kv_pager_attention_dropped_stale_identity 0
+# HELP llamacpp:kv_pager_attention_dropped_nonfinite Experimental KV pager attention_dropped_nonfinite
+# TYPE llamacpp:kv_pager_attention_dropped_nonfinite gauge
+llamacpp:kv_pager_attention_dropped_nonfinite 0
+# HELP llamacpp:kv_pager_attention_dropped_invalid_argument Experimental KV pager attention_dropped_invalid_argument
+# TYPE llamacpp:kv_pager_attention_dropped_invalid_argument gauge
+llamacpp:kv_pager_attention_dropped_invalid_argument 0
+# HELP llamacpp:kv_pager_attention_trace_id Experimental KV pager attention_trace_id
+# TYPE llamacpp:kv_pager_attention_trace_id gauge
+llamacpp:kv_pager_attention_trace_id 0
+# HELP llamacpp:kv_pager_attention_trace_epoch Experimental KV pager attention_trace_epoch
+# TYPE llamacpp:kv_pager_attention_trace_epoch gauge
+llamacpp:kv_pager_attention_trace_epoch 0
+# HELP llamacpp:kv_pager_attention_trace_token_index Experimental KV pager attention_trace_token_index
+# TYPE llamacpp:kv_pager_attention_trace_token_index gauge
+llamacpp:kv_pager_attention_trace_token_index 0
+# HELP llamacpp:kv_pager_attention_trace_page_count Experimental KV pager attention_trace_page_count
+# TYPE llamacpp:kv_pager_attention_trace_page_count gauge
+llamacpp:kv_pager_attention_trace_page_count 0
+# HELP llamacpp:kv_pager_attention_trace_token_count Experimental KV pager attention_trace_token_count
+# TYPE llamacpp:kv_pager_attention_trace_token_count gauge
+llamacpp:kv_pager_attention_trace_token_count 0
+# HELP llamacpp:kv_pager_graph_capture_count Experimental KV pager graph_capture_count
+# TYPE llamacpp:kv_pager_graph_capture_count gauge
+llamacpp:kv_pager_graph_capture_count 1
+# HELP llamacpp:kv_pager_graph_replay_count Experimental KV pager graph_replay_count
+# TYPE llamacpp:kv_pager_graph_replay_count gauge
+llamacpp:kv_pager_graph_replay_count 0
+# HELP llamacpp:kv_pager_graph_rebuild_count Experimental KV pager graph_rebuild_count
+# TYPE llamacpp:kv_pager_graph_rebuild_count gauge
+llamacpp:kv_pager_graph_rebuild_count 1
+# HELP llamacpp:kv_pager_graph_submission_count Experimental KV pager graph_submission_count
+# TYPE llamacpp:kv_pager_graph_submission_count gauge
+llamacpp:kv_pager_graph_submission_count 1
+# HELP llamacpp:kv_pager_graph_completion_count Experimental KV pager graph_completion_count
+# TYPE llamacpp:kv_pager_graph_completion_count gauge
+llamacpp:kv_pager_graph_completion_count 1
+# HELP llamacpp:kv_pager_graph_construction_us Experimental KV pager graph_construction_us
+# TYPE llamacpp:kv_pager_graph_construction_us gauge
+llamacpp:kv_pager_graph_construction_us 7
+# HELP llamacpp:kv_pager_requested_batch Experimental KV pager requested_batch
+# TYPE llamacpp:kv_pager_requested_batch gauge
+llamacpp:kv_pager_requested_batch 128
+# HELP llamacpp:kv_pager_requested_ubatch Experimental KV pager requested_ubatch
+# TYPE llamacpp:kv_pager_requested_ubatch gauge
+llamacpp:kv_pager_requested_ubatch 128
+# HELP llamacpp:kv_pager_physical_write_capacity Experimental KV pager physical_write_capacity
+# TYPE llamacpp:kv_pager_physical_write_capacity gauge
+llamacpp:kv_pager_physical_write_capacity 4096
+# HELP llamacpp:kv_pager_effective_ubatch Experimental KV pager effective_ubatch
+# TYPE llamacpp:kv_pager_effective_ubatch gauge
+llamacpp:kv_pager_effective_ubatch 128
+# HELP llamacpp:kv_pager_query_tile_tokens Experimental KV pager query_tile_tokens
+# TYPE llamacpp:kv_pager_query_tile_tokens gauge
+llamacpp:kv_pager_query_tile_tokens 64
+# HELP llamacpp:kv_pager_prefill_subbatch_count Experimental KV pager prefill_subbatch_count
+# TYPE llamacpp:kv_pager_prefill_subbatch_count gauge
+llamacpp:kv_pager_prefill_subbatch_count 1
+# HELP llamacpp:kv_pager_target_tokens_processed Experimental KV pager target_tokens_processed
+# TYPE llamacpp:kv_pager_target_tokens_processed gauge
+llamacpp:kv_pager_target_tokens_processed 2
+# HELP llamacpp:kv_pager_waits Experimental KV pager waits
+# TYPE llamacpp:kv_pager_waits gauge
+llamacpp:kv_pager_waits 1
+# HELP llamacpp:kv_pager_wait_time_us Experimental KV pager wait_time_us
+# TYPE llamacpp:kv_pager_wait_time_us gauge
+llamacpp:kv_pager_wait_time_us 11221
+# HELP llamacpp:kv_pager_copy_time_us Experimental KV pager copy_time_us
+# TYPE llamacpp:kv_pager_copy_time_us gauge
+llamacpp:kv_pager_copy_time_us 0
+# HELP llamacpp:kv_pager_queue_time_us Experimental KV pager queue_time_us
+# TYPE llamacpp:kv_pager_queue_time_us gauge
+llamacpp:kv_pager_queue_time_us 46288
+# HELP llamacpp:kv_pager_table_epoch_changes Experimental KV pager table_epoch_changes
+# TYPE llamacpp:kv_pager_table_epoch_changes gauge
+llamacpp:kv_pager_table_epoch_changes 0
+# HELP llamacpp:kv_pager_table_upload_bytes Experimental KV pager table_upload_bytes
+# TYPE llamacpp:kv_pager_table_upload_bytes gauge
+llamacpp:kv_pager_table_upload_bytes 0
+# HELP llamacpp:kv_pager_packed_storage_bytes Experimental KV pager packed_storage_bytes
+# TYPE llamacpp:kv_pager_packed_storage_bytes gauge
+llamacpp:kv_pager_packed_storage_bytes 0
+# HELP llamacpp:kv_pager_packed_copy_updates Experimental KV pager packed_copy_updates
+# TYPE llamacpp:kv_pager_packed_copy_updates gauge
+llamacpp:kv_pager_packed_copy_updates 0
+# HELP llamacpp:kv_pager_packed_copy_rows Experimental KV pager packed_copy_rows
+# TYPE llamacpp:kv_pager_packed_copy_rows gauge
+llamacpp:kv_pager_packed_copy_rows 0
+# HELP llamacpp:kv_pager_packed_copy_reuses Experimental KV pager packed_copy_reuses
+# TYPE llamacpp:kv_pager_packed_copy_reuses gauge
+llamacpp:kv_pager_packed_copy_reuses 0
+# HELP llamacpp:kv_pager_packed_inflight_consumers_high_water Experimental KV pager packed_inflight_consumers_high_water
+# TYPE llamacpp:kv_pager_packed_inflight_consumers_high_water gauge
+llamacpp:kv_pager_packed_inflight_consumers_high_water 0
+# HELP llamacpp:kv_pager_route_override_accepted Experimental KV pager route_override_accepted
+# TYPE llamacpp:kv_pager_route_override_accepted gauge
+llamacpp:kv_pager_route_override_accepted 0
+# HELP llamacpp:kv_pager_route_override_refused Experimental KV pager route_override_refused
+# TYPE llamacpp:kv_pager_route_override_refused gauge
+llamacpp:kv_pager_route_override_refused 0
+# HELP llamacpp:kv_pager_automatic_reference_prevented Experimental KV pager automatic_reference_prevented
+# TYPE llamacpp:kv_pager_automatic_reference_prevented gauge
+llamacpp:kv_pager_automatic_reference_prevented 0
+# HELP llamacpp:kv_pager_descriptor_prepare_us Experimental KV pager descriptor_prepare_us
+# TYPE llamacpp:kv_pager_descriptor_prepare_us gauge
+llamacpp:kv_pager_descriptor_prepare_us 0
+# HELP llamacpp:kv_pager_kernel_us Experimental KV pager kernel_us
+# TYPE llamacpp:kv_pager_kernel_us gauge
+llamacpp:kv_pager_kernel_us 0
+# HELP llamacpp:kv_pager_total_token_us Experimental KV pager total_token_us
+# TYPE llamacpp:kv_pager_total_token_us gauge
+llamacpp:kv_pager_total_token_us 59128
+# HELP llamacpp:kv_pager_scratch_high_water_rows Experimental KV pager scratch_high_water_rows
+# TYPE llamacpp:kv_pager_scratch_high_water_rows gauge
+llamacpp:kv_pager_scratch_high_water_rows 0
+# HELP llamacpp:kv_pager_scratch_high_water_bytes Experimental KV pager scratch_high_water_bytes
+# TYPE llamacpp:kv_pager_scratch_high_water_bytes gauge
+llamacpp:kv_pager_scratch_high_water_bytes 4.32538e+06
+# HELP llamacpp:kv_pager_selected_page_count Experimental KV pager selected_page_count
+# TYPE llamacpp:kv_pager_selected_page_count gauge
+llamacpp:kv_pager_selected_page_count 1
+# HELP llamacpp:kv_pager_prefill_dense_routes Experimental KV pager prefill_dense_routes
+# TYPE llamacpp:kv_pager_prefill_dense_routes gauge
+llamacpp:kv_pager_prefill_dense_routes 0
+# HELP llamacpp:kv_pager_prefill_reference_routes Experimental KV pager prefill_reference_routes
+# TYPE llamacpp:kv_pager_prefill_reference_routes gauge
+llamacpp:kv_pager_prefill_reference_routes 0
+# HELP llamacpp:kv_pager_prefill_direct_routes Experimental KV pager prefill_direct_routes
+# TYPE llamacpp:kv_pager_prefill_direct_routes gauge
+llamacpp:kv_pager_prefill_direct_routes 0
+# HELP llamacpp:kv_pager_prefill_packed_routes Experimental KV pager prefill_packed_routes
+# TYPE llamacpp:kv_pager_prefill_packed_routes gauge
+llamacpp:kv_pager_prefill_packed_routes 0
+# HELP llamacpp:kv_pager_prefill_exact_routes Experimental KV pager prefill_exact_routes
+# TYPE llamacpp:kv_pager_prefill_exact_routes gauge
+llamacpp:kv_pager_prefill_exact_routes 0
+# HELP llamacpp:kv_pager_decode_dense_routes Experimental KV pager decode_dense_routes
+# TYPE llamacpp:kv_pager_decode_dense_routes gauge
+llamacpp:kv_pager_decode_dense_routes 0
+# HELP llamacpp:kv_pager_decode_reference_routes Experimental KV pager decode_reference_routes
+# TYPE llamacpp:kv_pager_decode_reference_routes gauge
+llamacpp:kv_pager_decode_reference_routes 0
+# HELP llamacpp:kv_pager_decode_direct_routes Experimental KV pager decode_direct_routes
+# TYPE llamacpp:kv_pager_decode_direct_routes gauge
+llamacpp:kv_pager_decode_direct_routes 0
+# HELP llamacpp:kv_pager_decode_packed_routes Experimental KV pager decode_packed_routes
+# TYPE llamacpp:kv_pager_decode_packed_routes gauge
+llamacpp:kv_pager_decode_packed_routes 0
+# HELP llamacpp:kv_pager_decode_exact_routes Experimental KV pager decode_exact_routes
+# TYPE llamacpp:kv_pager_decode_exact_routes gauge
+llamacpp:kv_pager_decode_exact_routes 0
+# HELP llamacpp:kv_pager_mtp_verify_dense_routes Experimental KV pager mtp_verify_dense_routes
+# TYPE llamacpp:kv_pager_mtp_verify_dense_routes gauge
+llamacpp:kv_pager_mtp_verify_dense_routes 0
+# HELP llamacpp:kv_pager_mtp_verify_reference_routes Experimental KV pager mtp_verify_reference_routes
+# TYPE llamacpp:kv_pager_mtp_verify_reference_routes gauge
+llamacpp:kv_pager_mtp_verify_reference_routes 0
+# HELP llamacpp:kv_pager_mtp_verify_direct_routes Experimental KV pager mtp_verify_direct_routes
+# TYPE llamacpp:kv_pager_mtp_verify_direct_routes gauge
+llamacpp:kv_pager_mtp_verify_direct_routes 0
+# HELP llamacpp:kv_pager_mtp_verify_packed_routes Experimental KV pager mtp_verify_packed_routes
+# TYPE llamacpp:kv_pager_mtp_verify_packed_routes gauge
+llamacpp:kv_pager_mtp_verify_packed_routes 0
+# HELP llamacpp:kv_pager_mtp_verify_exact_routes Experimental KV pager mtp_verify_exact_routes
+# TYPE llamacpp:kv_pager_mtp_verify_exact_routes gauge
+llamacpp:kv_pager_mtp_verify_exact_routes 0
+# HELP llamacpp:kv_pager_exact_plan_waves Experimental KV pager exact_plan_waves
+# TYPE llamacpp:kv_pager_exact_plan_waves gauge
+llamacpp:kv_pager_exact_plan_waves 0
+# HELP llamacpp:kv_pager_exact_plan_pages Experimental KV pager exact_plan_pages
+# TYPE llamacpp:kv_pager_exact_plan_pages gauge
+llamacpp:kv_pager_exact_plan_pages 0
+# HELP llamacpp:kv_pager_exact_resident_pages Experimental KV pager exact_resident_pages
+# TYPE llamacpp:kv_pager_exact_resident_pages gauge
+llamacpp:kv_pager_exact_resident_pages 0
+# HELP llamacpp:kv_pager_exact_cold_pages Experimental KV pager exact_cold_pages
+# TYPE llamacpp:kv_pager_exact_cold_pages gauge
+llamacpp:kv_pager_exact_cold_pages 0
+# HELP llamacpp:kv_pager_exact_pages_visited Experimental KV pager exact_pages_visited
+# TYPE llamacpp:kv_pager_exact_pages_visited gauge
+llamacpp:kv_pager_exact_pages_visited 0
+# HELP llamacpp:kv_pager_exact_h2d_useful_bytes Experimental KV pager exact_h2d_useful_bytes
+# TYPE llamacpp:kv_pager_exact_h2d_useful_bytes gauge
+llamacpp:kv_pager_exact_h2d_useful_bytes 0
+# HELP llamacpp:kv_pager_exact_h2d_aligned_bytes Experimental KV pager exact_h2d_aligned_bytes
+# TYPE llamacpp:kv_pager_exact_h2d_aligned_bytes gauge
+llamacpp:kv_pager_exact_h2d_aligned_bytes 0
+# HELP llamacpp:kv_pager_exact_h2d_transfer_time_us Experimental KV pager exact_h2d_transfer_time_us
+# TYPE llamacpp:kv_pager_exact_h2d_transfer_time_us gauge
+llamacpp:kv_pager_exact_h2d_transfer_time_us 0
+# HELP llamacpp:kv_pager_exact_waits Experimental KV pager exact_waits
+# TYPE llamacpp:kv_pager_exact_waits gauge
+llamacpp:kv_pager_exact_waits 0
+# HELP llamacpp:kv_pager_exact_peak_staging_pages Experimental KV pager exact_peak_staging_pages
+# TYPE llamacpp:kv_pager_exact_peak_staging_pages gauge
+llamacpp:kv_pager_exact_peak_staging_pages 0
+# HELP llamacpp:kv_pager_exact_duplicate_pages Experimental KV pager exact_duplicate_pages
+# TYPE llamacpp:kv_pager_exact_duplicate_pages gauge
+llamacpp:kv_pager_exact_duplicate_pages 0
+# HELP llamacpp:kv_pager_exact_missing_pages Experimental KV pager exact_missing_pages
+# TYPE llamacpp:kv_pager_exact_missing_pages gauge
+llamacpp:kv_pager_exact_missing_pages 0
+# HELP llamacpp:kv_pager_exact_stale_pages Experimental KV pager exact_stale_pages
+# TYPE llamacpp:kv_pager_exact_stale_pages gauge
+llamacpp:kv_pager_exact_stale_pages 0
+# HELP llamacpp:kv_pager_exact_faults Experimental KV pager exact_faults
+# TYPE llamacpp:kv_pager_exact_faults gauge
+llamacpp:kv_pager_exact_faults 0
+# HELP llamacpp:kv_pager_faults Experimental KV pager faults
+# TYPE llamacpp:kv_pager_faults gauge
+llamacpp:kv_pager_faults 0
+# HELP llamacpp:kv_pager_prefetch_hits Experimental KV pager prefetch_hits
+# TYPE llamacpp:kv_pager_prefetch_hits gauge
+llamacpp:kv_pager_prefetch_hits 0
+# HELP llamacpp:kv_pager_evictions Experimental KV pager evictions
+# TYPE llamacpp:kv_pager_evictions gauge
+llamacpp:kv_pager_evictions 0
+# HELP llamacpp:kv_pager_late_waits Experimental KV pager late_waits
+# TYPE llamacpp:kv_pager_late_waits gauge
+llamacpp:kv_pager_late_waits 0
+# HELP llamacpp:kv_pager_seal_calls Experimental KV pager seal_calls
+# TYPE llamacpp:kv_pager_seal_calls gauge
+llamacpp:kv_pager_seal_calls 0
+# HELP llamacpp:kv_pager_seal_pages_scanned Experimental KV pager seal_pages_scanned
+# TYPE llamacpp:kv_pager_seal_pages_scanned gauge
+llamacpp:kv_pager_seal_pages_scanned 0
+# HELP llamacpp:kv_pager_seal_pages_changed Experimental KV pager seal_pages_changed
+# TYPE llamacpp:kv_pager_seal_pages_changed gauge
+llamacpp:kv_pager_seal_pages_changed 0
+# HELP llamacpp:kv_pager_summary_build_calls Experimental KV pager summary_build_calls
+# TYPE llamacpp:kv_pager_summary_build_calls gauge
+llamacpp:kv_pager_summary_build_calls 0
+# HELP llamacpp:kv_pager_summary_build_bytes Experimental KV pager summary_build_bytes
+# TYPE llamacpp:kv_pager_summary_build_bytes gauge
+llamacpp:kv_pager_summary_build_bytes 0
+# HELP llamacpp:kv_pager_summary_read_calls Experimental KV pager summary_read_calls
+# TYPE llamacpp:kv_pager_summary_read_calls gauge
+llamacpp:kv_pager_summary_read_calls 0
+# HELP llamacpp:kv_pager_summary_read_bytes Experimental KV pager summary_read_bytes
+# TYPE llamacpp:kv_pager_summary_read_bytes gauge
+llamacpp:kv_pager_summary_read_bytes 0
+# HELP llamacpp:kv_pager_test_forced_logical_page Experimental KV pager test_forced_logical_page
+# TYPE llamacpp:kv_pager_test_forced_logical_page gauge
+llamacpp:kv_pager_test_forced_logical_page 4.29497e+09
+# HELP llamacpp:kv_pager_test_forced_physical_slot Experimental KV pager test_forced_physical_slot
+# TYPE llamacpp:kv_pager_test_forced_physical_slot gauge
+llamacpp:kv_pager_test_forced_physical_slot 4.29497e+09
+# HELP llamacpp:kv_pager_test_forced_page_generation Experimental KV pager test_forced_page_generation
+# TYPE llamacpp:kv_pager_test_forced_page_generation gauge
+llamacpp:kv_pager_test_forced_page_generation 0
+# HELP llamacpp:kv_pager_test_forced_content_version Experimental KV pager test_forced_content_version
+# TYPE llamacpp:kv_pager_test_forced_content_version gauge
+llamacpp:kv_pager_test_forced_content_version 0
+# HELP llamacpp:kv_pager_test_forced_host_checksum Experimental KV pager test_forced_host_checksum
+# TYPE llamacpp:kv_pager_test_forced_host_checksum gauge
+llamacpp:kv_pager_test_forced_host_checksum 0
+# HELP llamacpp:kv_pager_test_forced_device_checksum Experimental KV pager test_forced_device_checksum
+# TYPE llamacpp:kv_pager_test_forced_device_checksum gauge
+llamacpp:kv_pager_test_forced_device_checksum 0
+# HELP llamacpp:kv_pager_host_seal_d2h_calls Experimental KV pager host_seal_d2h_calls
+# TYPE llamacpp:kv_pager_host_seal_d2h_calls gauge
+llamacpp:kv_pager_host_seal_d2h_calls 0
+# HELP llamacpp:kv_pager_host_seal_d2h_bytes Experimental KV pager host_seal_d2h_bytes
+# TYPE llamacpp:kv_pager_host_seal_d2h_bytes gauge
+llamacpp:kv_pager_host_seal_d2h_bytes 0
+# HELP llamacpp:kv_pager_host_seal_d2h_async_completions Experimental KV pager host_seal_d2h_async_completions
+# TYPE llamacpp:kv_pager_host_seal_d2h_async_completions gauge
+llamacpp:kv_pager_host_seal_d2h_async_completions 0
+# HELP llamacpp:kv_pager_host_seal_queued Experimental KV pager host_seal_queued
+# TYPE llamacpp:kv_pager_host_seal_queued gauge
+llamacpp:kv_pager_host_seal_queued 0
+# HELP llamacpp:kv_pager_host_inflight_pages Experimental KV pager host_inflight_pages
+# TYPE llamacpp:kv_pager_host_inflight_pages gauge
+llamacpp:kv_pager_host_inflight_pages 0
+# HELP llamacpp:kv_pager_inventory_copy_count Experimental KV pager inventory_copy_count
+# TYPE llamacpp:kv_pager_inventory_copy_count gauge
+llamacpp:kv_pager_inventory_copy_count 0
+# HELP llamacpp:kv_pager_store_copy_count Experimental KV pager store_copy_count
+# TYPE llamacpp:kv_pager_store_copy_count gauge
+llamacpp:kv_pager_store_copy_count 0
+# HELP llamacpp:kv_pager_d2h_useful_bytes Experimental KV pager d2h_useful_bytes
+# TYPE llamacpp:kv_pager_d2h_useful_bytes gauge
+llamacpp:kv_pager_d2h_useful_bytes 0
+# HELP llamacpp:kv_pager_d2h_aligned_bytes Experimental KV pager d2h_aligned_bytes
+# TYPE llamacpp:kv_pager_d2h_aligned_bytes gauge
+llamacpp:kv_pager_d2h_aligned_bytes 0
+# HELP llamacpp:kv_pager_h2d_useful_bytes Experimental KV pager h2d_useful_bytes
+# TYPE llamacpp:kv_pager_h2d_useful_bytes gauge
+llamacpp:kv_pager_h2d_useful_bytes 0
+# HELP llamacpp:kv_pager_h2d_aligned_bytes Experimental KV pager h2d_aligned_bytes
+# TYPE llamacpp:kv_pager_h2d_aligned_bytes gauge
+llamacpp:kv_pager_h2d_aligned_bytes 0
+# HELP llamacpp:kv_pager_transfer_queued Experimental KV pager transfer_queued
+# TYPE llamacpp:kv_pager_transfer_queued gauge
+llamacpp:kv_pager_transfer_queued 0
+# HELP llamacpp:kv_pager_transfer_submitted Experimental KV pager transfer_submitted
+# TYPE llamacpp:kv_pager_transfer_submitted gauge
+llamacpp:kv_pager_transfer_submitted 0
+# HELP llamacpp:kv_pager_transfer_waits Experimental KV pager transfer_waits
+# TYPE llamacpp:kv_pager_transfer_waits gauge
+llamacpp:kv_pager_transfer_waits 0
+# HELP llamacpp:kv_pager_transfer_cancellations Experimental KV pager transfer_cancellations
+# TYPE llamacpp:kv_pager_transfer_cancellations gauge
+llamacpp:kv_pager_transfer_cancellations 0
+# HELP llamacpp:kv_pager_transfer_stale_completions Experimental KV pager transfer_stale_completions
+# TYPE llamacpp:kv_pager_transfer_stale_completions gauge
+llamacpp:kv_pager_transfer_stale_completions 0
+# HELP llamacpp:kv_pager_transfer_event_completions Experimental KV pager transfer_event_completions
+# TYPE llamacpp:kv_pager_transfer_event_completions gauge
+llamacpp:kv_pager_transfer_event_completions 0
+# HELP llamacpp:kv_pager_transfer_evictions Experimental KV pager transfer_evictions
+# TYPE llamacpp:kv_pager_transfer_evictions gauge
+llamacpp:kv_pager_transfer_evictions 0
+# HELP llamacpp:kv_pager_transfer_backpressure_waits Experimental KV pager transfer_backpressure_waits
+# TYPE llamacpp:kv_pager_transfer_backpressure_waits gauge
+llamacpp:kv_pager_transfer_backpressure_waits 0
+# HELP llamacpp:kv_pager_transfer_time_us Experimental KV pager transfer_time_us
+# TYPE llamacpp:kv_pager_transfer_time_us gauge
+llamacpp:kv_pager_transfer_time_us 0
+# HELP llamacpp:kv_pager_transfer_map_failures Experimental KV pager transfer_map_failures
+# TYPE llamacpp:kv_pager_transfer_map_failures gauge
+llamacpp:kv_pager_transfer_map_failures 0
+# HELP llamacpp:kv_pager_overlap_us Experimental KV pager overlap_us
+# TYPE llamacpp:kv_pager_overlap_us gauge
+llamacpp:kv_pager_overlap_us 0
+# HELP llamacpp:kv_pager_table_rebuilds Experimental KV pager table_rebuilds
+# TYPE llamacpp:kv_pager_table_rebuilds gauge
+llamacpp:kv_pager_table_rebuilds 1
+# HELP llamacpp:kv_pager_attention_mass_samples Experimental KV pager attention_mass_samples
+# TYPE llamacpp:kv_pager_attention_mass_samples gauge
+llamacpp:kv_pager_attention_mass_samples 0
+# HELP llamacpp:kv_pager_attention_mass_pages Experimental KV pager attention_mass_pages
+# TYPE llamacpp:kv_pager_attention_mass_pages gauge
+llamacpp:kv_pager_attention_mass_pages 0
+# HELP llamacpp:kv_pager_routing_recall_available Experimental KV pager routing_recall_available
+# TYPE llamacpp:kv_pager_routing_recall_available gauge
+llamacpp:kv_pager_routing_recall_available 0
+# HELP llamacpp:kv_pager_attention_ema_bytes Experimental KV pager attention_ema_bytes
+# TYPE llamacpp:kv_pager_attention_ema_bytes gauge
+llamacpp:kv_pager_attention_ema_bytes 64
+# HELP llamacpp:kv_pager_attention_peak_bytes Experimental KV pager attention_peak_bytes
+# TYPE llamacpp:kv_pager_attention_peak_bytes gauge
+llamacpp:kv_pager_attention_peak_bytes 64
+# HELP llamacpp:kv_pager_attention_metadata_bytes Experimental KV pager attention_metadata_bytes
+# TYPE llamacpp:kv_pager_attention_metadata_bytes gauge
+llamacpp:kv_pager_attention_metadata_bytes 1664

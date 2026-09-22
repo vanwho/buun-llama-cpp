@@ -18,8 +18,9 @@ shape by falling back to CPU work or the generic `selected_reference` view.
 
 `selected_reference` exists as a temporary diagnostic/correctness oracle and
 may be requested explicitly for parity tests; its timings are not production
-performance evidence. Unsupported automatic shapes must be reported as an
-explicit refusal until a GPU-native route is implemented. See
+performance evidence and must never be used as a speed result. Unsupported
+automatic shapes must be reported as an explicit refusal until a GPU-native
+route is implemented. See
 [`tools/server/README.md`](tools/server/README.md#attention-aware-kv-paging-experimental-operator-boundary)
 and the active Wiretail route-policy task for the implementation contract.
 

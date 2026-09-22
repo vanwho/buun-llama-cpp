@@ -7,9 +7,9 @@
 #include <cstdint>
 #include <vector>
 
-// The initial selected-page operator is deliberately causal and Turbo4-only.
-// A future backend may consume the same metadata directly; it must not infer
-// a logical row from compact slot order.
+// The selected-page operator is causal and consumes either the Turbo4
+// representation or a standard K/V type supported by mature GPU FA. A
+// backend must not infer a logical row from compact slot order.
 enum class llama_kv_attention_operator_mode : uint8_t {
     off = 0,
     selective,
@@ -63,8 +63,8 @@ struct llama_kv_attention_operator_params {
 
 class llama_kv_attention_operator_metadata;
 
-// A dense Turbo4 view is safe only when compact row order is also a contiguous
-// physical source interval.  The predicate is intentionally backend-neutral:
+// A dense view is safe only when compact row order is also a contiguous
+// physical source interval. The predicate is intentionally backend-neutral:
 // graph code still validates the actual tensor strides before making a view.
 struct llama_kv_attention_dense_view_eligibility {
     bool eligible = false;

@@ -4933,11 +4933,12 @@ ggml_tensor * llm_graph_context::build_attn(
                 pager->snapshot().physical_page_count)
             : llama_kv_attention_dense_view_eligibility{};
         if (!eligibility.eligible || eligibility.source_row_begin != inp->dense_source_row_begin ||
-                k->type != GGML_TYPE_TURBO4_0 || v->type != GGML_TYPE_TURBO4_0 ||
+                k->type != inp->selected_metadata.type_k() ||
+                v->type != inp->selected_metadata.type_v() ||
                 k->ne[3] != 1 || v->ne[3] != 1 ||
                 k->nb[2] != ggml_row_size(k->type, k->ne[0]) * size_t(k->ne[1]) ||
                 v->nb[2] != ggml_row_size(v->type, v->ne[0]) * size_t(v->ne[1])) {
-            throw std::runtime_error("selected dense Turbo4 view lost contiguous row eligibility");
+            throw std::runtime_error("selected dense view lost contiguous row eligibility");
         }
         k = ggml_view_4d(ctx0, k, k->ne[0], k->ne[1], eligibility.row_count, 1,
                 k->nb[1], k->nb[2], k->nb[3],
