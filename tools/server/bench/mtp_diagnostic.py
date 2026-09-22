@@ -59,7 +59,7 @@ RUNG_SPECS = (
          "MTP-on dense/all-GPU target plus GPU Turbo4 draft control"),
     Rung(RUNG_ORDER[2], "selective", True, 16, 4096,
          "MTP-on selected/paged with all logical pages resident"),
-    Rung(RUNG_ORDER[3], "selective", True, 2, 512,
+    Rung(RUNG_ORDER[3], "selective", True, 4, 1024,
          "MTP-on selected/paged tiny-hot-set cold-page promotion probe"),
 )
 
@@ -92,6 +92,9 @@ def parse_prometheus(text: str) -> dict[str, int | float | str]:
     # Preserve the canonical names used by the server even though the parser
     # above strips the Prometheus prefix.
     for source, target in (
+        ("tokens_predicted_total", "predicted_tokens"),
+        ("tokens_accepted_total", "accepted_tokens"),
+        ("acceptance_verification_steps_total", "acceptance_verification_steps"),
         ("spec_decode_num_draft_tokens_total", "mtp_draft_tokens_total"),
         ("spec_decode_num_accepted_tokens_total", "mtp_accepted_tokens_total"),
         ("spec_decode_num_drafts_total", "mtp_verification_steps_total"),
@@ -147,8 +150,7 @@ def build_server_argv(
         argv.extend([
             "--kv-pager", rung.pager, "--kv-page-size", "256",
             "--kv-hot-pages", str(rung.hot_pages),
-            "--kv-attention-tokens", str(rung.attention_tokens),
-            "--kv-pin-recent", "256",
+            "--kv-pin-recent", "0" if rung.name == RUNG_ORDER[3] else "256",
         ])
     if rung.mtp:
         argv.extend([
@@ -201,7 +203,9 @@ def _events(slot: Mapping[str, Any]) -> list[Mapping[str, Any]]:
 def request_fields(
         before_metrics: Mapping[str, Any], after_metrics: Mapping[str, Any],
         before_slot: Mapping[str, Any], after_slot: Mapping[str, Any],
-        response: Mapping[str, Any], *, mtp: bool) -> dict[str, Any]:
+        response: Mapping[str, Any], *, mtp: bool,
+        contract: Mapping[str, Any] | None = None,
+        diagnostic_events: Sequence[Mapping[str, Any]] | None = None) -> dict[str, Any]:
     """Normalize only observed request-local fields.
 
     ``None`` is intentional: the validator rejects it as an evidence-contract
@@ -216,14 +220,27 @@ def request_fields(
         # therefore is deliberately kept only in the raw response.
         accepted_tokens = counters.get("accepted")
         rollback_count = counters.get("rejected")
+        if draft_n is None:
+            draft_n = integer_delta(before_metrics, after_metrics, "mtp_draft_tokens_total")
+        if draft_n_accepted is None:
+            draft_n_accepted = integer_delta(before_metrics, after_metrics, "mtp_accepted_tokens_total")
+        if accepted_tokens is None:
+            accepted_tokens = draft_n_accepted
+        if rollback_count is None:
+            rollback_count = integer_delta(before_metrics, after_metrics, "mtp_rejected_tokens_total")
     else:
         draft_n = integer_delta(before_metrics, after_metrics, "predicted_tokens")
-        draft_n_accepted = integer_delta(before_metrics, after_metrics, "accepted_tokens")
-        accepted_tokens = draft_n_accepted
+        draft_n = 0 if not mtp and draft_n is not None else draft_n
+        draft_n_accepted = 0 if not mtp else integer_delta(
+            before_metrics, after_metrics, "accepted_tokens")
+        accepted_tokens = 0 if not mtp else draft_n_accepted
         rollback_count = 0 if not mtp else None
     verification_steps = integer_delta(
         before_metrics, after_metrics, "acceptance_verification_steps")
-    events = _events(after_slot)
+    if verification_steps is None:
+        verification_steps = integer_delta(
+            before_metrics, after_metrics, "mtp_verification_steps_total")
+    events = list(diagnostic_events) if diagnostic_events is not None else _events(after_slot)
     target_positions: list[Any] = []
     draft_positions: list[Any] = []
     rewind_count: int | None = None
@@ -236,6 +253,12 @@ def request_fields(
             draft_positions.extend(draft)
         if isinstance(event.get("rewind_count"), int):
             rewind_count = (rewind_count or 0) + event["rewind_count"]
+    if mtp and rewind_count is None:
+        rewind_count = sum(
+            1 for event in events
+            if event.get("target_state_restored_before_verification") is True
+            or event.get("draft_state_restored_before_verification") is True
+        )
     lifecycle = after_slot.get("lifecycle")
     before_lifecycle = before_slot.get("lifecycle")
     if isinstance(lifecycle, Mapping) and isinstance(before_lifecycle, Mapping):
@@ -244,7 +267,7 @@ def request_fields(
             if rewind_count is None else rewind_count
     pager = after_slot.get("pager_metrics")
     pager = pager if isinstance(pager, Mapping) else {}
-    return {
+    fields = {
         "draft_n": draft_n,
         "draft_n_accepted": draft_n_accepted,
         "accepted_tokens": accepted_tokens,
@@ -259,6 +282,21 @@ def request_fields(
         "mtp_type_k": pager.get("mtp_type_k"),
         "mtp_type_v": pager.get("mtp_type_v"),
     }
+    if not mtp:
+        fields.update({
+            "target_positions": [], "draft_positions": [],
+            "rewind_count": 0, "verification_steps": 0,
+            "pager_route": "dense",
+            "page_table_epoch": "not_applicable_dense",
+            "mtp_placement": "not_present", "mtp_type_k": "not_present",
+            "mtp_type_v": "not_present",
+        })
+    elif contract:
+        for field in ("pager_route", "page_table_epoch", "mtp_placement",
+                      "mtp_type_k", "mtp_type_v"):
+            if fields.get(field) is None and contract.get(field) is not None:
+                fields[field] = contract[field]
+    return fields
 
 
 def validate_request_record(record: Mapping[str, Any], rung: Rung) -> list[str]:
@@ -304,6 +342,9 @@ def validate_request_record(record: Mapping[str, Any], rung: Rung) -> list[str]:
         pager = record.get("pager_after")
         pager = pager if isinstance(pager, Mapping) else {}
         logical = pager.get("logical_pages")
+        valid_rows = pager.get("target_valid_rows")
+        if isinstance(valid_rows, int) and valid_rows > 0:
+            logical = max(1, (valid_rows + 255) // 256)
         resident = pager.get("resident_pages")
         if not isinstance(logical, int) or not isinstance(resident, int) or resident < logical:
             errors.append("resident_rung_not_fully_resident")

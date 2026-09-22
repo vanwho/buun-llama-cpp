@@ -105,6 +105,17 @@ class MTPDiagnosticTest(unittest.TestCase):
         self.assertIsNone(fields["draft_n"])
         self.assertIsNone(fields["pager_route"])
 
+    def test_dense_control_records_explicit_non_mtp_fields(self) -> None:
+        fields = request_fields(
+            {"predicted_tokens": 10},
+            {"predicted_tokens": 12}, {}, {}, {}, mtp=False)
+        self.assertEqual(0, fields["draft_n"])
+        self.assertEqual(0, fields["draft_n_accepted"])
+        self.assertEqual(0, fields["verification_steps"])
+        self.assertEqual("dense", fields["pager_route"])
+        self.assertEqual("not_applicable_dense", fields["page_table_epoch"])
+        self.assertEqual("not_present", fields["mtp_placement"])
+
 
 if __name__ == "__main__":
     unittest.main()

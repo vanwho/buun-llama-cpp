@@ -14,6 +14,8 @@ import argparse
 import json
 import os
 import pathlib
+import shlex
+import signal
 import subprocess
 import sys
 import time
@@ -40,6 +42,11 @@ from mtp_diagnostic import (
 )
 
 
+REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[3]
+PAGER_ADAPTER = REPOSITORY_ROOT / "tools/server/bench/run-pager-profile-benchmark.py"
+MAX_REQUESTS_PER_RUNG = 3
+
+
 def sha256_bytes(value: bytes) -> str:
     import hashlib
     return hashlib.sha256(value).hexdigest()
@@ -60,6 +67,10 @@ def request_raw(url: str, key: str, *, body: bytes | None = None,
     if body is not None:
         headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=body, headers=headers)
+    def deadline(_signum: int, _frame: Any) -> None:
+        raise TimeoutError(f"request deadline exceeded after {timeout}s")
+    previous_handler = signal.signal(signal.SIGALRM, deadline)
+    signal.setitimer(signal.ITIMER_REAL, timeout)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.status, response.read(), response.headers.get_content_type()
@@ -67,6 +78,9 @@ def request_raw(url: str, key: str, *, body: bytes | None = None,
         return error.code, error.read(), "application/json"
     except (urllib.error.URLError, TimeoutError, OSError) as error:
         return 0, str(error).encode(), "text/plain"
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def get_json(base: str, path: str, key: str, timeout: float) -> tuple[int, Any, bytes]:
@@ -137,78 +151,53 @@ def wait_ready(base: str, key: str, timeout: float) -> None:
     raise RuntimeError("candidate readiness timeout")
 
 
-SERVICE_ENVIRONMENT_NAMES = (
-    "AI_BENCHMARK_CLEAN", "AI_BENCHMARK_CONTEXT", "AI_BENCHMARK_KV_PAGER",
-    "AI_BENCHMARK_PAGE_SIZE", "AI_BENCHMARK_DEVICE", "AI_BENCHMARK_MTP",
-    "AI_BENCHMARK_SERVER_BIN", "AI_BENCHMARK_KV_HOT_PAGES",
-    "AI_BENCHMARK_KV_ATTENTION_TOKENS", "AI_BENCHMARK_KV_PIN_RECENT",
-    "AI_BENCHMARK_BATCH", "AI_BENCHMARK_UBATCH",
-)
-
-
-def service_environment() -> dict[str, str]:
-    result = subprocess.run(["systemctl", "show-environment"], capture_output=True,
-                            text=True, check=False)
-    values: dict[str, str] = {}
-    for token in result.stdout.split():
-        name, separator, value = token.partition("=")
-        if separator and name in SERVICE_ENVIRONMENT_NAMES:
-            values[name] = value
-    return values
-
-
-def service_systemctl(service: str, action: str, values: Mapping[str, str] | None = None) -> None:
-    command = ["sudo", "-n", "systemctl", action]
-    if values:
-        command.extend(f"{name}={value}" for name, value in values.items())
-    command.append(service) if action in {"restart", "start", "stop"} else None
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        raise RuntimeError(f"{action} {service} failed: {detail}")
-
-
-def configure_service(service: str, values: Mapping[str, str]) -> None:
-    # Use the name-only form: systemd's unset-environment does not consume
-    # NAME=VALUE assignments.
-    result = subprocess.run(["sudo", "-n", "systemctl", "unset-environment", *SERVICE_ENVIRONMENT_NAMES],
-                            capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "could not clear benchmark environment")
-    if values:
-        service_systemctl(service, "set-environment", values)
-    service_systemctl(service, "restart")
-
-
-def restore_service(service: str, values: Mapping[str, str]) -> None:
-    result = subprocess.run(["sudo", "-n", "systemctl", "unset-environment", *SERVICE_ENVIRONMENT_NAMES],
-                            capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "could not clear benchmark environment during restore")
-    if values:
-        service_systemctl(service, "set-environment", values)
-    service_systemctl(service, "restart")
-
-
 def service_log(service: str, since: float, output: pathlib.Path) -> None:
-    result = subprocess.run(["journalctl", "-u", service, "--since", f"@{since}", "--no-pager", "-o", "short-iso"],
-                            capture_output=True, text=True, check=False)
-    output.write_text(result.stdout if result.returncode == 0 else
-                      f"journalctl unavailable: {result.stderr.strip()}\n")
+    output.write_text(journal_text(service, since))
+
+
+def journal_text(service: str, since: float) -> str:
+    result = subprocess.run(
+        ["journalctl", "-u", service, "--since", f"@{since}", "--no-pager", "-o", "short-iso"],
+        capture_output=True, text=True, check=False)
+    return result.stdout if result.returncode == 0 else \
+        f"journalctl unavailable: {result.stderr.strip()}\n"
+
+
+def diagnostic_events_from_log(text: str) -> list[dict[str, Any]]:
+    marker = "MTP_STATE_DIAGNOSTIC "
+    events: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        if marker not in line:
+            continue
+        try:
+            value = json.loads(line.split(marker, 1)[1].strip())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            events.append(value)
+    return events
 
 
 def process_identity(pid: int | None) -> dict[str, Any]:
     if pid is None or pid <= 0:
-        return {"pid": pid, "exe": None, "command": None, "binary_sha256": None}
+        return {"pid": pid, "start_time": None, "exe": None, "command": None,
+                "binary_sha256": None, "model": None, "model_sha256": None}
     try:
         exe = pathlib.Path(os.readlink(f"/proc/{pid}/exe")).resolve()
         command = [part for part in pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0") if part]
+        stat = pathlib.Path(f"/proc/{pid}/stat").read_text()
+        start_time = int(stat[stat.rfind(")") + 2:].split()[19])
+        model = command_value(command, "-m")
+        model_path = pathlib.Path(model).resolve() if model else None
         return {
-            "pid": pid, "exe": str(exe), "command": command,
+            "pid": pid, "start_time": start_time, "exe": str(exe), "command": command,
             "binary_sha256": sha256_file(exe) if exe.is_file() else None,
+            "model": str(model_path) if model_path else None,
+            "model_sha256": sha256_file(model_path) if model_path and model_path.is_file() else None,
         }
-    except (OSError, UnicodeDecodeError):
-        return {"pid": pid, "exe": None, "command": None, "binary_sha256": None}
+    except (OSError, UnicodeDecodeError, ValueError):
+        return {"pid": pid, "start_time": None, "exe": None, "command": None,
+                "binary_sha256": None, "model": None, "model_sha256": None}
 
 
 def command_value(command: list[str] | None, option: str) -> str | None:
@@ -223,7 +212,7 @@ def command_value(command: list[str] | None, option: str) -> str | None:
 
 def identity_errors(observed: Mapping[str, Any], expected: list[str],
                     model: pathlib.Path, binary: pathlib.Path,
-                    binary_hash: str) -> list[str]:
+                    binary_hash: str, model_hash: str | None = None) -> list[str]:
     errors: list[str] = []
     if observed.get("exe") != str(binary):
         errors.append("binary_path")
@@ -232,6 +221,8 @@ def identity_errors(observed: Mapping[str, Any], expected: list[str],
     observed_model = command_value(observed.get("command"), "-m")
     if not observed_model or pathlib.Path(observed_model).resolve() != model:
         errors.append("model_path")
+    if model_hash is not None and observed.get("model_sha256") != model_hash:
+        errors.append("model_sha256")
     # Compare only the rung-defining options; profile-specific host/alias and
     # logging flags may legitimately be present in the managed command.
     for option in (
@@ -242,7 +233,12 @@ def identity_errors(observed: Mapping[str, Any], expected: list[str],
         expected_value = command_value(expected, option)
         if expected_value is None:
             continue
-        if command_value(observed.get("command"), option) != expected_value:
+        observed_value = command_value(observed.get("command"), option)
+        # The managed launcher omits the explicit off switch; its runtime
+        # identity contract normalizes absence to the dense/off policy.
+        if option == "--kv-pager" and observed_value is None:
+            observed_value = "off"
+        if observed_value != expected_value:
             errors.append(option.lstrip("-"))
     return errors
 
@@ -266,22 +262,140 @@ def expected_rung_identity(rung: Rung, argv: list[str]) -> dict[str, Any]:
     }
 
 
-def prompt_for(rung: Rung) -> str:
+def prompt_for(rung: Rung, request_number: int = 1) -> str:
     if rung.name == "mtp_on_selected_paged_cold_probe":
         # Enough repeated material for multiple 256-token logical pages while
         # keeping the request far below the 4096-token context ceiling.
-        return " ".join(f"cold-page-{index:04d} preserves the diagnostic token boundary." for index in range(420))
+        count = 40 if request_number <= 1 else 80
+        return " ".join(f"cold-page-{index:04d} preserves the diagnostic token boundary." for index in range(count))
     return "State one concise fact about a bounded MTP diagnostic control."
 
 
+def managed_pid(service: str) -> int | None:
+    """Read the configured service PID without selecting arbitrary llama processes."""
+    try:
+        value = subprocess.check_output(
+            ["systemctl", "show", "--value", "--property=MainPID", service],
+            text=True, stderr=subprocess.DEVNULL).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return int(value) if value.isdigit() and int(value) > 0 else None
+
+
+def service_base(endpoint: str) -> str:
+    base = endpoint.rstrip("/")
+    for suffix in ("/v1/chat/completions", "/v1/completions", "/v1"):
+        if base.endswith(suffix):
+            return base[:-len(suffix)]
+    return base
+
+
+def adapter_command(args: argparse.Namespace, rung: Rung, output: pathlib.Path) -> list[str]:
+    """Build the only permitted lifecycle/request command for one rung."""
+    command = [
+        sys.executable, str(PAGER_ADAPTER), "fast", "short", str(output),
+        "--mode", rung.pager, "--device", "CUDA0", "--page-size", "256",
+        "--context", str(args.context), "--batch", str(args.batch),
+        "--ubatch", str(args.ubatch), "--mtp", "native" if rung.mtp else "off",
+        "--one-case", "--one-trial", "--generation-length", str(args.n_predict),
+        "--connect-timeout", "10", "--startup-timeout", str(args.startup_timeout),
+        "--prefill-timeout", str(args.request_timeout),
+        "--decode-timeout", str(args.request_timeout), "--total-timeout",
+        str(args.startup_timeout + args.request_timeout * 2), "--diagnostic",
+        "--kv-pin-recent", "0" if rung.name == "mtp_on_selected_paged_cold_probe" else "256",
+    ]
+    if rung.hot_pages is not None:
+        command.extend(["--kv-hot-pages", str(rung.hot_pages)])
+    return command
+
+
+def canonical_measured_count(output: pathlib.Path) -> int:
+    records = output / "records.jsonl"
+    if not records.is_file():
+        return 0
+    count = 0
+    for line in records.read_text(errors="replace").splitlines():
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(record, Mapping) and record.get("phase") == "measured":
+            count += 1
+    return count
+
+
+def loaded_identity_matches(manifest_path: pathlib.Path, rung: Rung, argv: list[str],
+                            service: str, model: pathlib.Path, binary: pathlib.Path,
+                            model_hash: str, binary_hash: str, endpoint: str,
+                            key: str, timeout: float) -> tuple[bool, dict[str, Any], list[str]]:
+    """Allow reuse only with a complete prior lifecycle identity and health check."""
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return False, {}, ["prior_lifecycle_manifest_missing"]
+    if manifest.get("continue_loaded") is not True:
+        return False, {}, ["prior_lifecycle_manifest_not_continuable"]
+    pid = managed_pid(service)
+    observed = process_identity(pid)
+    errors = identity_errors(observed, argv, model, binary, binary_hash, model_hash)
+    if observed.get("start_time") != manifest.get("process_identity", {}).get("start_time"):
+        errors.append("process_start_time")
+    status, health, _ = get_json(service_base(endpoint), "/health", key, timeout=2.0)
+    if status != 200 or not isinstance(health, Mapping) or health.get("status") != "ok":
+        errors.append("health")
+    return not errors, observed, list(dict.fromkeys(errors))
+
+
+def run_canonical_adapter(args: argparse.Namespace, rung: Rung,
+                          output: pathlib.Path, binary: pathlib.Path) -> dict[str, Any]:
+    """Invoke the canonical benchmark runner through the pager adapter."""
+    runner = os.environ.get("CANONICAL_BENCHMARK_RUNNER")
+    if not runner:
+        raise RuntimeError("CANONICAL_BENCHMARK_RUNNER is required")
+    if not binary:
+        raise RuntimeError("BENCH_SERVER_BIN is required")
+    command = adapter_command(args, rung, output)
+    env = os.environ.copy()
+    env["BENCH_ENDPOINT"] = args.endpoint
+    env["BENCH_SERVER_BIN"] = str(binary)
+    env["BENCH_CLEAN"] = "1"
+    env["BENCH_RESTORE_PROFILE"] = "0"
+    env["BENCH_KV_PIN_RECENT"] = "0" if rung.name == "mtp_on_selected_paged_cold_probe" else "256"
+    if rung.hot_pages is not None:
+        env["BENCH_KV_HOT_PAGES"] = str(rung.hot_pages)
+    else:
+        # The canonical shell runner cannot clear an old hot-page override
+        # when its value is empty.  ``auto`` neutralizes that stale control
+        # while --mode off still selects the dense/all-GPU route.
+        env["BENCH_KV_HOT_PAGES"] = "auto"
+    if args.key_file:
+        env["LLAMA_API_KEY_FILE"] = str(args.key_file)
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "canonical-command.txt").write_text(shlex.join(command) + "\n")
+    result = subprocess.run(command, env=env, text=True, capture_output=True, check=False)
+    (output / "canonical-runner.stdout").write_text(result.stdout)
+    (output / "canonical-runner.stderr").write_text(result.stderr)
+    return {
+        "command": command,
+        "runner": runner,
+        "returncode": result.returncode,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "output": str(output),
+    }
+
+
 def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
-                request_number: int, *, n_predict: int, timeout: float) -> dict[str, Any]:
+                request_number: int, *, n_predict: int, timeout: float,
+                contract: Mapping[str, Any] | None = None,
+                service_name: str | None = None,
+                service_started: float | None = None) -> dict[str, Any]:
     request_dir = output / f"request-{request_number:02d}"
     request_dir.mkdir(parents=True, exist_ok=True)
     payload = {
-        "prompt": prompt_for(rung), "n_predict": n_predict, "temperature": 0.0,
+        "prompt": prompt_for(rung, request_number), "n_predict": n_predict, "temperature": 0.0,
         "top_k": 1, "seed": 93_01 + request_number, "stream": True,
-        "cache_prompt": False,
+        "cache_prompt": rung.name == "mtp_on_selected_paged_cold_probe" and request_number > 1,
     }
     request_bytes = json.dumps(payload, sort_keys=True).encode()
     before_metrics, metrics_before_raw, metrics_before_status = get_metrics(base, key, timeout)
@@ -290,6 +404,9 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
         raise RuntimeError(f"/slots before request returned HTTP {status}")
     before_slot = slot_value(slots_before_value)
     free_before = free_vram()
+    baseline_events = diagnostic_events_from_log(
+        journal_text(service_name, service_started)
+    ) if service_name and service_started is not None else []
     (request_dir / "request.json").write_bytes(request_bytes + b"\n")
     (request_dir / "metrics-before.txt").write_bytes(metrics_before_raw)
     (request_dir / "slots-before.json").write_bytes(slots_before_raw + b"\n")
@@ -303,13 +420,20 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
     (request_dir / "metrics-after.txt").write_bytes(metrics_after_raw)
     (request_dir / "slots-after.json").write_bytes(slots_after_raw + b"\n")
     after_slot = slot_value(slots_after_value)
+    free_after = free_vram()
+    observed_events = diagnostic_events_from_log(
+        journal_text(service_name, service_started)
+    ) if service_name and service_started is not None else []
+    diagnostic_events = observed_events[len(baseline_events):] \
+        if observed_events[:len(baseline_events)] == baseline_events else observed_events
     try:
         response = parse_response(response_raw, content_type)
     except (ValueError, json.JSONDecodeError) as error:
         response = {"parse_error": str(error)}
     (request_dir / "response.json").write_text(json.dumps(response, indent=2, sort_keys=True) + "\n")
     fields = request_fields(before_metrics, after_metrics, before_slot, after_slot, response,
-                            mtp=rung.mtp)
+                            mtp=rung.mtp, contract=contract,
+                            diagnostic_events=diagnostic_events)
     record = {
         "request": payload,
         "request_number": request_number,
@@ -326,6 +450,15 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
         "metrics_before": before_metrics,
         "metrics_after": after_metrics,
         "free_vram_before": free_before,
+        "free_vram_after": free_after,
+        "request_contract": {
+            "context_tokens": MAX_CONTEXT,
+            "n_predict": n_predict,
+            "draft_n_max": MAX_DRAFT_N_MAX,
+            "route_policy": "dense/all-gpu" if rung.pager == "off" else
+                             ("selected/paged/resident" if rung.hot_pages == 16 else
+                              "selected/paged/cold-probe"),
+        },
         "raw": {"root": str(request_dir),
                 "response_sse_sha256": sha256_bytes(response_raw),
                 "metrics_before_sha256": sha256_bytes(metrics_before_raw),
@@ -358,7 +491,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     binary_hash = sha256_file(binary)
     rungs: list[dict[str, Any]] = []
     setup_failure: dict[str, Any] | None = None
-    original_service_env = service_environment()
+    if not os.environ.get("CANONICAL_BENCHMARK_RUNNER"):
+        raise RuntimeError("CANONICAL_BENCHMARK_RUNNER is required")
+    base = service_base(args.endpoint)
 
     for index, rung in enumerate(RUNG_SPECS, start=1):
         rung_dir = output / f"{index:02d}-{rung.name}"
@@ -387,37 +522,64 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 setup_failure = setup_failure or {"rung": rung.name, "errors": contract_errors}
                 rungs.append(rung_result)
                 continue
-            configure_service(args.service_name, {
-                    "AI_BENCHMARK_CLEAN": "1",
-                    "AI_BENCHMARK_CONTEXT": str(args.context),
-                    "AI_BENCHMARK_KV_PAGER": rung.pager,
-                    "AI_BENCHMARK_PAGE_SIZE": "256",
-                    "AI_BENCHMARK_DEVICE": "CUDA0",
-                    "AI_BENCHMARK_MTP": "native" if rung.mtp else "off",
-                    "AI_BENCHMARK_SERVER_BIN": str(binary),
-                    "AI_BENCHMARK_KV_HOT_PAGES": str(rung.hot_pages or 16),
-                    "AI_BENCHMARK_KV_ATTENTION_TOKENS": str(rung.attention_tokens or 4096),
-                    "AI_BENCHMARK_KV_PIN_RECENT": "256",
-                    "AI_BENCHMARK_BATCH": str(args.batch),
-                    "AI_BENCHMARK_UBATCH": str(args.ubatch),
-            })
-            base = args.endpoint.rstrip("/")
-            wait_ready(base, key, args.startup_timeout)
-            observed_pid = None
-            try:
-                observed_pid = int(subprocess.check_output(
-                    ["systemctl", "show", "--value", "--property=MainPID", args.service_name], text=True).strip())
-            except (OSError, ValueError, subprocess.CalledProcessError):
-                pass
-            observed = process_identity(observed_pid)
+            adapter_dir = rung_dir / "canonical"
+            adapter_result: dict[str, Any] | None = None
+            observed: dict[str, Any]
+            reuse, observed, reuse_errors = loaded_identity_matches(
+                rung_dir / "lifecycle-manifest.json", rung, argv, args.service_name,
+                model, binary, model_hash, binary_hash, args.endpoint, key,
+                args.startup_timeout)
+            rung_result["reuse_check"] = {"reused": reuse, "errors": reuse_errors}
+            if reuse:
+                rung_result["lifecycle"] = {"policy": "continue_loaded", "adapter_invoked": False}
+            else:
+                adapter_result = run_canonical_adapter(args, rung, adapter_dir, binary)
+                rung_result["canonical_adapter"] = {
+                    "command": adapter_result["command"],
+                    "runner": adapter_result["runner"],
+                    "returncode": adapter_result["returncode"],
+                    "output": adapter_result["output"],
+                }
+                if adapter_result["returncode"] != 0:
+                    raise RuntimeError(
+                        "canonical pager adapter failed with exit " +
+                        str(adapter_result["returncode"]))
+                wait_ready(base, key, args.startup_timeout)
+                observed = process_identity(managed_pid(args.service_name))
+                mismatches = identity_errors(
+                    observed, argv, model, binary, binary_hash, model_hash)
+                if mismatches:
+                    raise RuntimeError("service process identity mismatch: " + ",".join(mismatches))
+                rung_result["lifecycle"] = {
+                    "policy": "canonical_runner_keep_loaded_on_success",
+                    "adapter_invoked": True,
+                    "adapter_output": str(adapter_dir),
+                }
             rung_result["process_identity"] = observed
-            mismatches = identity_errors(observed, argv, model, binary, binary_hash)
-            if mismatches:
-                raise RuntimeError("service process identity mismatch: " + ",".join(mismatches))
             rung_result["status"] = "running"
-            for request_number in range(1, args.repeats + 1):
+            measured_by_adapter = canonical_measured_count(adapter_dir)
+            rung_result["canonical_measured_requests"] = measured_by_adapter
+            remaining = max(0, MAX_REQUESTS_PER_RUNG - measured_by_adapter)
+            request_count = min(args.repeats, remaining)
+            if request_count == 0:
+                raise RuntimeError("request budget exhausted by canonical runner")
+            existing_requests = sorted(rung_dir.glob("request-*/record.json"))
+            first_request = len(existing_requests) + 1
+            for request_number in range(first_request, first_request + request_count):
                 record = run_request(base, key, rung_dir, rung, request_number,
-                                     n_predict=args.n_predict, timeout=args.request_timeout)
+                                     n_predict=args.n_predict, timeout=args.request_timeout,
+                                     service_name=args.service_name,
+                                     service_started=service_started,
+                                     contract={
+                                         "pager_route": "dense" if rung.pager == "off" else None,
+                                         "page_table_epoch": "not_applicable_dense" if rung.pager == "off" else None,
+                                         "mtp_placement": "gpu" if rung.mtp else "not_present",
+                                         "mtp_type_k": "turbo4" if rung.mtp else "not_present",
+                                         "mtp_type_v": "turbo4" if rung.mtp else "not_present",
+                                     })
+                record["process_identity"] = observed
+                record_path = rung_dir / f"request-{request_number:02d}" / "record.json"
+                record_path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
                 rung_result["requests"].append(record)
                 errors = validate_request_record(record, rung)
                 if errors:
@@ -431,6 +593,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 setup_failure = setup_failure or {"rung": rung.name, "errors": sorted(set(all_errors))}
             else:
                 rung_result["status"] = "pass"
+            lifecycle_manifest = {
+                "schema_version": 1,
+                "continue_loaded": True,
+                "rung": rung.name,
+                "candidate_binary": {"path": str(binary), "sha256": binary_hash},
+                "model": {"path": str(model), "sha256": model_hash},
+                "command": argv,
+                "process_identity": observed,
+                "adapter_output": str(adapter_dir),
+            }
+            (rung_dir / "lifecycle-manifest.json").write_text(
+                json.dumps(lifecycle_manifest, indent=2, sort_keys=True) + "\n")
         except Exception as error:  # live boundary; retain artifacts and continue order
             rung_result["status"] = "setup_failure"
             rung_result["setup_errors"] = [str(error)]
@@ -441,9 +615,6 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 rung_result["server_log_sha256"] = sha256_file(log_path)
             (rung_dir / "command.json").write_text(json.dumps(rung_result, indent=2, sort_keys=True) + "\n")
         rungs.append(rung_result)
-
-    if original_service_env is not None:
-        restore_service(args.service_name, original_service_env)
 
     first_bad: str | None = None
     for rung in rungs:
@@ -457,6 +628,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     accepted / draft < args.min_acceptance:
                 first_bad = rung["name"]
                 break
+        if first_bad is None and rung.get("status") != "pass":
+            first_bad = rung["name"]
         if first_bad:
             break
     summary = {
@@ -521,7 +694,9 @@ def main() -> int:
         return 2
     print(json.dumps({"status": summary["status"], "output": args.output,
                       "first_bad_rung": summary["first_bad_rung"]}, sort_keys=True))
-    return 0 if summary["status"] == "pass" and not summary["validation_errors"] else 1
+    # A completed diagnostic may truthfully report a rung setup failure; the
+    # raw bundle and first_bad_rung are the result, not a crashed harness.
+    return 0 if not summary["validation_errors"] else 1
 
 
 if __name__ == "__main__":
