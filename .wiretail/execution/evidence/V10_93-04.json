@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "task": "93-04",
+  "source_commit": "33c361ca4de15fc3a20c3e46ff1fba6a854cce5a",
+  "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "implementation_commit": null,
+  "checks": {
+    "repair93_mtp_post_repair_verification": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-mtp-post-repair.py",
+        "--run",
+        "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/post-repair-verification.json"
+      ],
+      "result": "Evidence validation passed. Dense MTP measured 8 accepted draft tokens from 10 drafted tokens (80.0%) on the dense route with GPU Turbo4 K/V. Selected resident and cold routes both reached the repaired candidate but crashed on the pager sequence-removal fallback; the separate two-document promotion probe recorded the immutable page identity and then the same selected-route crash. The behavioral verdict is paging incomplete and promotion incomplete; no throughput or large-context claim is made.",
+      "artifacts": [
+        {"path": "tools/server/bench/validate-mtp-post-repair.py", "sha256": "f86453602d8e7339c86a60c86426d57a140ca02236ebd24642ab31efd52fd464"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/summary.json", "sha256": "24cac6da0e00081bc239e396208759641a6acbb911c3c205fd10abdb73c74815"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/post-repair-verification.json", "sha256": "ae22a1133d9c10b71f04a4ee3ac6beca354bcf79f12c85a50281e6987c28080b"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/01-mtp_off_dense_all_gpu/request-01/request.json", "sha256": "0c6134815f5a20905ffd27c259fc7bad5d08d70f9a3e15b49d65f7d9f36b85ca"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/01-mtp_off_dense_all_gpu/request-01/metrics-after.txt", "sha256": "f65f6b46a1f64f1d5a48f33dbb83f3908fc27fd4b87a05644061be9f60990247"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/01-mtp_off_dense_all_gpu/request-01/record.json", "sha256": "839c9499f0131a8b22ac689a0ce832079f5227ead08bc2f7f5a7025781c1a125"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/02-mtp_on_dense_all_gpu/request-01/request.json", "sha256": "0c6134815f5a20905ffd27c259fc7bad5d08d70f9a3e15b49d65f7d9f36b85ca"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/02-mtp_on_dense_all_gpu/request-01/metrics-after.txt", "sha256": "4d8ec9f21de1589abe4f1cb7dd97c3f44fedf5bd7c4e30163231b4cc48754d18"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/02-mtp_on_dense_all_gpu/request-01/record.json", "sha256": "853f456b35932690d6e6e033c432f39345271b90dce7adbfd2c65433c4ebd325"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/03-mtp_on_selected_paged_resident/server.log", "sha256": "8b473e4cbd0bc1bad630008e1aa0a22651a7015b86e0edadb581824092c552f9"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/04-mtp_on_selected_paged_cold_probe/server.log", "sha256": "58e765f23cc485facb20e59a45e7cae7646a38407ad55a0b05554f27a41dc3b8"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/case-config.json", "sha256": "2f49a79c72a4fe1666d57544cbbd9a56fcfd29525cab4c4fd2038d062074ba23"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/case-summary.json", "sha256": "a041949eb6b9b18fb0a8fbe9e0b849a911f55a170794300d5dc72478c54b1c8e"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/request-01-query-document-b/request.json", "sha256": "10bde9461522bf06b367b86adc67ad5e4433c3f945d29884a185539365e44965"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/request-01-query-document-b/metrics-before.prom", "sha256": "8c1b2e1eaff5d7fa7a48c10519fdba3f9b54a14309c46cf9ab24b88d4d045624"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/request-01-query-document-b/record.json", "sha256": "150f10341e7b7c47b228262c2b8deddcbd3c281d6b1b4400a558981779f7d94f"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/request-02-query-document-a/request.json", "sha256": "9b9b7e8e313bd7dd9ce44d535dbe1d2c9af9e205a62fc1f41d8a94d4d3829253"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/request-02-query-document-a/record.json", "sha256": "f6d94e94e02fe12f2b549b5636c4d34edfbaf21f53b948448718b0fa29e70dcb"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/journal-final.log", "sha256": "a4c751d547dfbdc35c4beeecbc56491911355e0815aef97a9ecf237ab71449bc"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/candidate-bundle-postverify/build-receipt.json", "sha256": "d69457c831d8250a11fa2b49cf19b9002e6d772d1d128d3f5f4cca1981846bb6"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/preflight/bundle-manifest.json", "sha256": "a9ba3fa6588485871416aa67b5b1196b29b24aef153009f7dbdb569919479742"}
+      ]
+    }
+  }
+}
