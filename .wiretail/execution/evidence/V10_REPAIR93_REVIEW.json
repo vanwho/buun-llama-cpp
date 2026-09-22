@@ -1,0 +1,48 @@
+{
+  "schema": "repair93-mtp-review-v1",
+  "schema_version": 1,
+  "task": "93-05",
+  "goal_met": false,
+  "capabilities": {
+    "build_identity_valid": true,
+    "required_turbo4_placements": true,
+    "controlled_model_promotion": true,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false
+  },
+  "measured": {
+    "dense_mtp": {
+      "pager_route": "dense",
+      "mtp_placement": "gpu",
+      "mtp_type_k": "turbo4",
+      "mtp_type_v": "turbo4",
+      "draft_n": 10,
+      "draft_n_accepted": 8,
+      "acceptance_percent": 80.0
+    },
+    "selected_resident": {
+      "status": "trim_rejection_then_sigsegv",
+      "request_level_acceptance": null,
+      "target_consumption": null,
+      "draft_consumption": null
+    },
+    "selected_cold_promotion": {
+      "status": "promotion_incomplete",
+      "initial_selected_page_ids": [0],
+      "h2d_completion": null,
+      "publication": null,
+      "second_request": "connection_refused_after_restart"
+    }
+  },
+  "actionable_gap": "selected/paged prompt trim rejection must recover atomically without SIGSEGV before resident parity or cold promotion can be measured",
+  "next_task_ids": ["93-06", "93-07", "93-08", "93-09"],
+  "successor_rationale": {
+    "93-06": "repair tools/server/server-context.cpp trim/recovery and paired memory contracts",
+    "93-07": "add deterministic rejected-trim survival and target/draft coherence regression",
+    "93-08": "repeat only the bounded resident, cold, and four-page promotion controls",
+    "93-09": "review short-control evidence and authorize or continue without scaling"
+  },
+  "decision": "Dense native MTP passes; selected/paged trim recovery and cold promotion fail; no 256K or speed campaign."
+}

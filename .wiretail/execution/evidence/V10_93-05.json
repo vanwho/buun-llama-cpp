@@ -1,0 +1,44 @@
+{
+  "schema": "hotpath-v10-task-receipt",
+  "schema_version": 1,
+  "task": "93-05",
+  "source_commit": "2d381af3f9338038cf085a72a966591a90338aa9",
+  "checks": {
+    "repair93_mtp_review_and_successors": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-05.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR93_REVIEW.json"
+      ],
+      "artifacts": [
+        {"path": ".wiretail/execution/handoffs/93-05.md", "sha256": "c51b28e4926b3387a6562c9843277b8ca4820813cce80556468920b216de4fc8"},
+        {"path": ".wiretail/execution/evidence/V10_93-05.md", "sha256": "89369ee1b70e76e69ba79c6921a1a0323922e538d8ce14d19f85b92cf6fed18a"},
+        {"path": ".wiretail/execution/evidence/V10_REPAIR93_REVIEW.json", "sha256": "bd8fb53fd7aeef0060c454168d202518eb603138be0185e72bd2ce916c816c96"},
+        {"path": ".wiretail/execution/tasks/93-06.md", "sha256": "0dbc010d66e917d3a6250f2093b3dd56191c1a9cb5cd55850286ec80c37f0e37"},
+        {"path": ".wiretail/execution/tasks/93-07.md", "sha256": "5040a9ac9063e9b3e6d1b6f26108cef62e2429a47a092369f26a1d537d38af94"},
+        {"path": ".wiretail/execution/tasks/93-08.md", "sha256": "ea2160e7bd211bd1ef36b69ed4bc5df2168f414662e9be075e234f4f2748e199"},
+        {"path": ".wiretail/execution/tasks/93-09.md", "sha256": "1659474386b88ef63ce94cdaab1a4f0bdc5f0a493631a5d97a64d73280078526"},
+        {"path": ".wiretail/execution/evidence/V10_93-01.json", "sha256": "25cdf3d4c89ad07bf80a4636c15eb6f87b51a83e38ee5a858198c9e78c7f8437"},
+        {"path": ".wiretail/execution/evidence/V10_93-02.json", "sha256": "f81ff7943d50028141257ef065e1e62bd88c9fa177d0a21004bc68424a2598c0"},
+        {"path": ".wiretail/execution/evidence/V10_93-03.json", "sha256": "f4389e4906f27317651dcb4bc0b475b5797aa2d7208aba0c989ffd86fea8852e"},
+        {"path": ".wiretail/execution/evidence/V10_93-04.json", "sha256": "c748b8a8b3e4e0fc6399b0ca44b57b2d8798db3f6a48c74d2d5db56c66355493"},
+        {"path": ".wiretail/execution/evidence/V10_93-04.md", "sha256": "95b69f2826993568cc88d3bbe1400a4f10babe437d9e34ecce0e1b078ead75e6"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/summary.json", "sha256": "24cac6da0e00081bc239e396208759641a6acbb911c3c205fd10abdb73c74815"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/post-repair-verification.json", "sha256": "ae22a1133d9c10b71f04a4ee3ac6beca354bcf79f12c85a50281e6987c28080b"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/03-mtp_on_selected_paged_resident/server.log", "sha256": "8b473e4cbd0bc1bad630008e1aa0a22651a7015b86e0edadb581824092c552f9"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/04-mtp_on_selected_paged_cold_probe/server.log", "sha256": "58e765f23cc485facb20e59a45e7cae7646a38407ad55a0b05554f27a41dc3b8"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/case-summary.json", "sha256": "a041949eb6b9b18fb0a8fbe9e0b849a911f55a170794300d5dc72478c54b1c8e"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/20260922-post-repair/promotion-case/journal-final.log", "sha256": "a4c751d547dfbdc35c4beeecbc56491911355e0815aef97a9ecf237ab71449bc"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/candidate-bundle-postverify/build-receipt.json", "sha256": "d69457c831d8250a11fa2b49cf19b9002e6d772d1d128d3f5f4cca1981846bb6"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-04/preflight/bundle-manifest.json", "sha256": "a9ba3fa6588485871416aa67b5b1196b29b24aef153009f7dbdb569919479742"}
+      ]
+    }
+  }
+}
