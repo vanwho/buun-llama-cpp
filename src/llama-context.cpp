@@ -2460,9 +2460,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
         const bool materializes_f16 =
             route == llama_kv_attention_execution_route::dense ||
             route == llama_kv_attention_execution_route::observe ||
-            route == llama_kv_attention_execution_route::selected_reference ||
-            route == llama_kv_attention_execution_route::selected_dense ||
-            route == llama_kv_attention_execution_route::selected_packed;
+            route == llama_kv_attention_execution_route::selected_reference;
         if (materializes_f16) {
             scratch.materialized_k_rows = rows;
             scratch.materialized_v_rows = rows;
@@ -2647,8 +2645,12 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 op_params.mode = llama_kv_attention_operator_mode::selective;
                 op_params.type_k = attention->type_k();
                 op_params.type_v = attention->type_v();
-                op_params.domain_k = llama_kv_attention_representation_domain::turbo_rotated;
-                op_params.domain_v = llama_kv_attention_representation_domain::turbo_rotated;
+                const bool turbo_kv = ggml_is_turbo_kv_type(attention->type_k()) ||
+                    ggml_is_turbo_kv_type(attention->type_v());
+                op_params.domain_k = turbo_kv
+                    ? llama_kv_attention_representation_domain::turbo_rotated
+                    : llama_kv_attention_representation_domain::original;
+                op_params.domain_v = op_params.domain_k;
                 op_params.page_tokens = kv_pager.page_size;
                 op_params.head_dim_k = model.hparams.n_embd_head_k();
                 op_params.head_dim_v = model.hparams.n_embd_head_v();
@@ -2981,8 +2983,12 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     op_params.mode = llama_kv_attention_operator_mode::selective;
     op_params.type_k = attention->type_k();
     op_params.type_v = attention->type_v();
-    op_params.domain_k = llama_kv_attention_representation_domain::turbo_rotated;
-    op_params.domain_v = llama_kv_attention_representation_domain::turbo_rotated;
+    const bool turbo_kv = ggml_is_turbo_kv_type(attention->type_k()) ||
+        ggml_is_turbo_kv_type(attention->type_v());
+    op_params.domain_k = turbo_kv
+        ? llama_kv_attention_representation_domain::turbo_rotated
+        : llama_kv_attention_representation_domain::original;
+    op_params.domain_v = op_params.domain_k;
     op_params.page_tokens = kv_pager.page_size;
     op_params.head_dim_k = model.hparams.n_embd_head_k();
     op_params.head_dim_v = model.hparams.n_embd_head_v();
@@ -3055,7 +3061,13 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                    pager.snapshot().geometry.attention_layers) {
         direct_reason = "selected direct has incomplete layer slab geometry";
     }
-    const bool fa_capable = cuda_backend && scheduler_cuda && turbo_fa_shape &&
+    const bool fa_backend_capable = cuda_backend && scheduler_cuda &&
+        metadata.causal() && metadata.n_query_tokens() >= 1 &&
+        metadata.n_batch() == 1 && metadata.n_head_q() != 0 &&
+        metadata.n_head_kv() != 0 &&
+        metadata.n_head_q() % metadata.n_head_kv() == 0 &&
+        metadata.head_dim_k() != 0 && metadata.head_dim_v() != 0;
+    const bool turbo_fa_capable = fa_backend_capable && turbo_fa_shape &&
         pager.residency_storage_tensor() != nullptr &&
         pager.residency_bytes_per_slot() != 0 &&
         model.hparams.f_max_alibi_bias == 0.0f && !model.hparams.attn_soft_cap &&
@@ -3063,7 +3075,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             pager.snapshot().geometry.attention_layers &&
         pager.snapshot().geometry.layer_v_offsets.size() ==
             pager.snapshot().geometry.attention_layers;
-    const bool direct_capable = fa_capable && direct_shape;
+    const bool direct_capable = turbo_fa_capable && direct_shape;
     const auto dense_view = llama_kv_attention_dense_view_check(metadata, hot_capacity);
     if (kv_attention_dense_debug_layout_key_ != metadata.graph_layout_key()) {
         kv_attention_dense_debug_layout_key_ = metadata.graph_layout_key();
@@ -3077,20 +3089,20 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             sample += std::to_string(page.logical_page) + "/" +
                 std::to_string(page.source_physical_slot);
         }
-        LLAMA_LOG_DEBUG("%s: dense Turbo4 eligibility first shape=%llu eligible=%d "
+        LLAMA_LOG_DEBUG("%s: dense FA eligibility first shape=%llu eligible=%d "
                 "reason=%s pages=%zu sample(logical/slot)=[%s]\n", __func__,
                 (unsigned long long) metadata.graph_layout_key(), dense_view.eligible ? 1 : 0,
                 dense_view.reason, metadata.page_table().size(), sample.c_str());
     }
-    const bool dense_capable = fa_capable && dense_view.eligible;
-    const auto route_override = kv_attention_execution.route_override();
-    // Automatic dispatch prefers the direct Turbo4 consumer for the bounded
-    // Turbo4 shape. An explicit packed diagnostic request is different: the
-    // compact owner can represent a dense or non-contiguous selected view,
-    // and refusing it here prevents the requested route from ever reaching
-    // the planner.
-    const bool packed_capable = fa_capable &&
-        route_override == llama_kv_attention_execution_route_override::packed;
+    const bool dense_capable = fa_backend_capable && dense_view.eligible;
+    // The packed owner is a bounded device-resident Turbo4 representation. It
+    // is eligible for automatic selection only when the same CUDA/FA storage
+    // contract used by its graph is available; explicit overrides still fail
+    // closed through the planner when this contract is absent.
+    const bool packed_capable = fa_backend_capable && turbo_fa_shape &&
+        pager.snapshot().geometry.attention_layers != 0 &&
+        pager.residency_storage_tensor() != nullptr &&
+        pager.residency_bytes_per_slot() != 0;
     if (packed_capable) {
         const uint64_t k_row = uint64_t(ggml_row_size(GGML_TYPE_TURBO4_0,
                 int64_t(metadata.head_dim_k()) * metadata.n_head_kv()));
@@ -3135,19 +3147,16 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             pager_geometry.logical_page_count,
             llama_kv_attention_execution_route_name(planned),
             (unsigned long long) scratch.materialized_rows(), scratch.required_bytes());
-    // Dense and packed routes both consume raw Turbo4 cache rows directly and
-    // therefore do not need the ordinary-cache row-ID gather. Keep that
-    // bounded lookup only for the deterministic reference fallback.
-    if (!direct_capable && !dense_capable && !packed_capable) {
+    // Only the explicit reference oracle needs the ordinary-cache row-ID
+    // gather. Automatic refusal must happen before any reference graph data is
+    // materialized.
+    const bool reference_requested = kv_attention_execution.route_override() ==
+        llama_kv_attention_execution_route_override::reference;
+    if (reference_requested) {
         auto & rows = kv_attention_rows_scratch_;
         if (!attention->selected_attention_rows(metadata.native_positions(), rows)) {
             return refuse("selected page positions are not present in the cache view");
         }
-    }
-    if (!direct_capable && !dense_capable && !packed_capable) {
-        LLAMA_LOG_DEBUG("%s: selected attention reference fallback reason=%s q=%u kv=%u query=%u\n",
-                __func__, direct_reason.c_str(), metadata.n_head_q(),
-                metadata.n_head_kv(), metadata.n_query_tokens());
     }
     return prepare_kv_attention(metadata, phase, representation_epoch, shape_epoch,
             direct_capable, scratch, direct_reason, dense_capable, packed_capable);

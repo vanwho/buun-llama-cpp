@@ -35,14 +35,9 @@ bool direct_shape(const llama_kv_attention_operator_metadata & metadata) noexcep
 bool production_direct_shape(
         const llama_kv_attention_operator_metadata & metadata,
         llama_kv_attention_execution_phase phase) noexcept {
-    // The CUDA direct prefill primitive is graph-sized in tiny query tiles.
-    // The server may submit a larger ubatch, which must remain on the mature
-    // selected consumer and be split by the normal scheduler. Decode and MTP
-    // verification are already single/tiny-query shapes and keep the direct
-    // multi-page promotion.
-    const bool bounded_prefill = phase != llama_kv_attention_execution_phase::prefill ||
-        metadata.n_query_tokens() <= 2;
-    return direct_shape(metadata) && bounded_prefill &&
+    // The CUDA primitive chooses a shape-sized query tile and splits larger
+    // submissions in its launch grid. Do not impose a smaller policy cap here.
+    return direct_shape(metadata) &&
         (phase == llama_kv_attention_execution_phase::decode ||
          phase == llama_kv_attention_execution_phase::prefill ||
          phase == llama_kv_attention_execution_phase::mtp_verify);
@@ -712,25 +707,21 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
     // only after the graph has completed. Keep route selection based on the
     // actual shape/capability contract rather than the speculative flag so a
     // native verify batch can consume the fast selected target directly.
-    if (direct_capable && production_direct_shape(metadata, phase)) {
-        return llama_kv_attention_execution_route::selected_direct;
-    }
-
     if (dense_capable) {
         return llama_kv_attention_execution_route::selected_dense;
     }
 
-    // This final branch is retained only as a temporary compatibility seam
-    // while the route-policy repair is completed.  It must not be treated as
-    // a production fallback: selected_reference materializes the generic
-    // reference consumer and is intentionally slower than GPU-native direct,
-    // contiguous-dense, or bounded device-resident packed attention.  The
-    // automatic policy must be changed to return refusal for an unsupported
-    // shape (with an explicit reason/counter) rather than silently selecting
-    // this route.  Tests and explicit LLAMA_KV_ATTENTION_ROUTE=reference may
-    // continue to use it as a correctness oracle until the fast-path goal is
-    // accepted.
-    return llama_kv_attention_execution_route::selected_reference;
+    if (direct_capable && production_direct_shape(metadata, phase)) {
+        return llama_kv_attention_execution_route::selected_direct;
+    }
+
+    if (packed_capable) {
+        return llama_kv_attention_execution_route::selected_packed;
+    }
+
+    // selected_reference is a correctness oracle for explicit diagnostics,
+    // never the automatic production fallback.
+    return llama_kv_attention_execution_route::refusal;
 }
 
 uint32_t llama_kv_attention_prefill_chunk_size(
@@ -929,17 +920,38 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
         result.route = planned_route(metadata, phase, direct_capable,
                 dense_capable, packed_capable);
         if (result.route == llama_kv_attention_execution_route::refusal) {
+            // Automatic selective admission is terminal here. The generic
+            // selected_reference graph remains an explicit oracle only.
             result.status = llama_kv_attention_execution_status::not_configured;
-            result.reason = std::string("route override '") + route_override_name() +
-                "' is unsupported for this selected view/phase";
-            saturating_add_u64(metrics_.route_override_refused, 1);
+            if (route_override_ == llama_kv_attention_execution_route_override::automatic) {
+                const uint32_t query_tile = metadata.n_query_tokens() <= 1 ? 1 :
+                    metadata.n_query_tokens() <= 2 ? 2 :
+                    metadata.n_query_tokens() <= 4 ? 4 :
+                    metadata.n_query_tokens() <= 8 ? 8 :
+                    metadata.n_query_tokens() <= 16 ? 16 :
+                    metadata.n_query_tokens() <= 32 ? 32 : 64;
+                result.reason = std::string("automatic selective route refused: phase=") +
+                    llama_kv_attention_execution_phase_name(phase) +
+                    " query_tile=" + std::to_string(query_tile) +
+                    " backend=CUDA kv_types=" + ggml_type_name(metadata.type_k()) + "/" +
+                    ggml_type_name(metadata.type_v()) +
+                    " missing_capability=gpu_native_dense_direct_or_packed" +
+                    (direct_reason.empty() ? std::string() :
+                        std::string(" direct_reason=") + direct_reason) +
+                    " selected_reference_requires_explicit_override";
+                saturating_add_u64(metrics_.automatic_reference_prevented, 1);
+            } else {
+                result.reason = std::string("route override '") + route_override_name() +
+                    "' is unsupported for this selected view/phase";
+                saturating_add_u64(metrics_.route_override_refused, 1);
+            }
         } else {
             result.status = llama_kv_attention_execution_status::ok;
             if (route_override_ != llama_kv_attention_execution_route_override::automatic) {
                 saturating_add_u64(metrics_.route_override_accepted, 1);
             }
             result.reason = result.route == llama_kv_attention_execution_route::selected_dense
-                ? "contiguous Turbo4 rows use dense Flash Attention"
+                ? "contiguous device-resident K/V rows use dense Flash Attention"
                 : result.route == llama_kv_attention_execution_route::selected_packed
                 ? phase == llama_kv_attention_execution_phase::prefill &&
                   metadata.n_query_tokens() > 2 * LLAMA_KV_ATTENTION_PREFILL_QUERY_TILE
@@ -949,9 +961,7 @@ llama_kv_attention_execution_decision llama_kv_attention_execution::prepare(
                 ? phase == llama_kv_attention_execution_phase::prefill
                     ? "qualified Turbo4 selective prefill query tile"
                     : "qualified Turbo4 decode"
-                : direct_capable && !production_direct_shape(metadata, phase)
-                    ? "bounded Turbo4 selected reference for unsupported direct query tile"
-                    : direct_reason.empty() ? "compact selected reference" : direct_reason;
+                : direct_reason.empty() ? "selected GPU-native route" : direct_reason;
         }
         result.table_epoch = metadata.table_epoch();
     }

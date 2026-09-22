@@ -28,11 +28,9 @@ enum class llama_kv_attention_execution_phase : uint8_t {
 enum class llama_kv_attention_execution_route : uint8_t {
     dense = 0,
     observe,
-    // Correctness/diagnostic selected-view consumer.  This route is not a
-    // production performance fallback: automatic selective dispatch must
-    // choose a GPU-native direct, contiguous-dense, or bounded packed route,
-    // or refuse the shape.  Keep this enum so tests can compare the fast
-    // routes against a stable oracle until the pager goal is accepted.
+    // Correctness/diagnostic selected-view consumer. This route is not a
+    // production fallback. Automatic selective dispatch must choose a
+    // GPU-native dense, direct, or bounded packed route, or refuse the shape.
     selected_reference,
     selected_dense,
     selected_packed,
@@ -380,6 +378,7 @@ struct llama_kv_attention_execution_metrics {
     uint64_t packed_inflight_consumers_high_water = 0;
     uint64_t route_override_accepted = 0;
     uint64_t route_override_refused = 0;
+    uint64_t automatic_reference_prevented = 0;
     uint64_t descriptor_prepare_us = 0;
     uint64_t kernel_us = 0;
     uint64_t total_token_us = 0;
