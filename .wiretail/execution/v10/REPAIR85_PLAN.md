@@ -62,6 +62,15 @@ the packet/cluster; load the audit only where explicitly listed.
 | 85-16 | Original three prompts and small hot/cold speed tests | Valid matched speed/acceptance results |
 | 85-17 | Conditional context scaling | Measured safe H/scratch and explicit 256K feasibility/occupancy |
 | 85-18–19 | Compact summary and review | Results-driven decision; actionable successors if still needed |
+| 92-01 | Close automatic route policy | Fast GPU-native route or typed refusal; reference remains explicit-only oracle |
+
+The early selected-reference consumer is a correctness bridge, not a speed
+strategy. Phase 92-01 is the explicit route-policy closure: automatic
+selective dispatch must choose a GPU-native dense, direct Turbo4, or bounded
+device-resident packed route, and must refuse unsupported shapes instead of
+silently entering `selected_reference`. The reference implementation remains
+available only for explicit parity/diagnostic controls until the fast-path
+goal is accepted; its timings can never be used as production performance.
 
 Clusters follow source/context overlap, not a task-count cap. New `repair85-*`
 cluster names start fresh sessions so the old workaround is not inherited as
