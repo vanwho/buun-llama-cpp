@@ -68,7 +68,15 @@ owns recurrent state or native MTP pages.
 
 The selected attention boundary is currently narrow and fail-closed: causal
 Turbo4 K/V, head width 256, GQA 4, batch-one one-token CUDA decode for the
-direct kernel. Prompt shapes use the selected reference route where available.
+direct kernel. `selected_reference` is a diagnostic correctness oracle only;
+it is not a production performance fallback. Automatic selective dispatch must
+use the fastest eligible GPU-native route (mature contiguous dense attention,
+the fused paged Turbo4 direct kernel, or bounded device-resident packed
+attention), and must refuse an unsupported shape with an explicit reason rather
+than silently materializing the slow reference view. Standard quantized K/V
+types may use the mature contiguous dense GPU route; they must not be sent to
+CPU attention. Explicit `LLAMA_KV_ATTENTION_ROUTE=reference` and exact/reference
+tests may retain the oracle until the fast-path acceptance task removes it.
 Unsupported backends, non-causal attention, incompatible K/V types, malformed
 page identity/positions, stale generations, missing host backing, dirty
 eviction, and insufficient budget are refused or remain on the prior valid

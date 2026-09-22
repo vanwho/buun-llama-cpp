@@ -28,6 +28,11 @@ enum class llama_kv_attention_execution_phase : uint8_t {
 enum class llama_kv_attention_execution_route : uint8_t {
     dense = 0,
     observe,
+    // Correctness/diagnostic selected-view consumer.  This route is not a
+    // production performance fallback: automatic selective dispatch must
+    // choose a GPU-native direct, contiguous-dense, or bounded packed route,
+    // or refuse the shape.  Keep this enum so tests can compare the fast
+    // routes against a stable oracle until the pager goal is accepted.
     selected_reference,
     selected_dense,
     selected_packed,
@@ -508,8 +513,10 @@ public:
             bool packed_capable = false) const noexcept;
 
     // direct_capable is supplied by the backend loader after it has checked
-    // the actual device.  The reference route remains available for any valid
-    // selected metadata and for all prompt shapes.
+    // the actual device.  The reference route is diagnostic-only and must be
+    // selected only by an explicit route override or exact/reference mode;
+    // automatic selective dispatch must never hide an unsupported shape by
+    // silently entering the slow reference consumer.
     llama_kv_attention_execution_decision prepare(
             const llama_kv_attention_operator_metadata & metadata,
             llama_kv_attention_execution_phase phase,

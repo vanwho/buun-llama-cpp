@@ -5134,6 +5134,11 @@ ggml_tensor * llm_graph_context::build_attn(
                 direct->ne[0] * direct->ne[1], direct->ne[2] * direct->ne[3]);
         cb(cur, "kqv_out_direct", il);
     } else if (inp->selected_attention && !inp->dense_attention && !inp->packed_attention) {
+        // This generic gather/dequant/MHA graph is the selected_reference
+        // correctness oracle. It is deliberately retained for explicit
+        // parity diagnostics, but automatic production paging must not reach
+        // it: route admission must choose a GPU-native dense, direct Turbo4,
+        // or bounded packed consumer, or refuse the unsupported shape.
         GGML_ASSERT(inp->self_selected_idxs != nullptr);
         GGML_ASSERT(v->nb[1] <= v->nb[2] &&
                 "selected reference requires non-transposed Turbo4 V");

@@ -720,10 +720,16 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         return llama_kv_attention_execution_route::selected_dense;
     }
 
-    // The compact packed bridge remains available only through the explicit
-    // diagnostic override above. Automatic dispatch must retain the
-    // canonical reference consumer for non-contiguous selected views when
-    // the direct and dense routes are unavailable.
+    // This final branch is retained only as a temporary compatibility seam
+    // while the route-policy repair is completed.  It must not be treated as
+    // a production fallback: selected_reference materializes the generic
+    // reference consumer and is intentionally slower than GPU-native direct,
+    // contiguous-dense, or bounded device-resident packed attention.  The
+    // automatic policy must be changed to return refusal for an unsupported
+    // shape (with an explicit reason/counter) rather than silently selecting
+    // this route.  Tests and explicit LLAMA_KV_ATTENTION_ROUTE=reference may
+    // continue to use it as a correctness oracle until the fast-path goal is
+    // accepted.
     return llama_kv_attention_execution_route::selected_reference;
 }
 

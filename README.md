@@ -6,6 +6,23 @@
 
 A research and development fork of [llama.cpp](https://github.com/ggml-org/llama.cpp), providing unique KV cache codecs, inference techniques, and bleeding edge features.
 
+### Attention-aware KV paging route policy (experimental)
+
+The attention-aware pager is intended to keep canonical Turbo4 (or another
+supported quantized) target K/V in host RAM while consuming the hot selection
+on the GPU, with native MTP K/V remaining fully GPU-resident. Automatic
+selective execution must always choose the fastest eligible GPU-native consumer:
+the mature contiguous dense Flash-Attention path, the fused paged Turbo4 path,
+or a bounded device-resident packed path. It must never hide an unsupported
+shape by falling back to CPU work or the generic `selected_reference` view.
+
+`selected_reference` exists as a temporary diagnostic/correctness oracle and
+may be requested explicitly for parity tests; its timings are not production
+performance evidence. Unsupported automatic shapes must be reported as an
+explicit refusal until a GPU-native route is implemented. See
+[`tools/server/README.md`](tools/server/README.md#attention-aware-kv-paging-experimental-operator-boundary)
+and the active Wiretail route-policy task for the implementation contract.
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## VBR — Variable Bit-Rate KV Cache
