@@ -1,0 +1,76 @@
+{
+  "task": "92-01",
+  "scope_revision": "hotpath-v10-20260914",
+  "status": "pass",
+  "source_commit": "9837e0d8751975fd02bfaa9f496643ff6d2119cf",
+  "automatic_route_truth_table": [
+    {
+      "admission": "contiguous device-resident dense view with supported K/V types",
+      "route": "selected_dense"
+    },
+    {
+      "admission": "non-contiguous Turbo4 CUDA geometry with persistent residency",
+      "route": "selected_direct"
+    },
+    {
+      "admission": "direct-ineligible bounded device-resident pager geometry",
+      "route": "selected_packed"
+    },
+    {
+      "admission": "no GPU-native dense/direct/packed capability",
+      "route": "refusal",
+      "status": "not_configured"
+    }
+  ],
+  "explicit_reference": {
+    "automatic_fallback": false,
+    "override": "reference",
+    "route": "selected_reference"
+  },
+  "refusal": {
+    "reason_fields": ["phase", "query_tile", "backend", "kv_types", "missing_capability", "direct_reason"],
+    "reference_requires_explicit_override": true,
+    "counter": "automatic_reference_prevented"
+  },
+  "checks": {
+    "cpu_test_kv_attention_execution": "pass",
+    "cuda_test_kv_attention_execution": "pass",
+    "cuda_test_fattn_paged_turbo4": "pass",
+    "focused_cuda_ctest": "5/5 pass",
+    "live_automatic_cuda": {
+      "http": 200,
+      "route": "selected dense",
+      "automatic_reference_prevented": 0,
+      "prefill_direct_routes": 1
+    },
+    "live_explicit_reference": {
+      "http": 200,
+      "route": "selected reference",
+      "route_override_accepted": 3,
+      "prefill_reference_routes": 3
+    },
+    "retry4_recheck": {
+      "focused_cuda_ctest": "5/5 pass",
+      "automatic_control": {
+        "http": 200,
+        "health": "ok",
+        "route": "selected dense",
+        "automatic_reference_prevented": 0,
+        "reference_routes": 0
+      },
+      "explicit_reference_control": {
+        "http": 200,
+        "health": "ok",
+        "route": "selected reference",
+        "route_override_accepted": 3,
+        "prefill_reference_routes": 3
+      },
+      "restored_mode": "automatic",
+      "service_executable": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "port_8092_touched": false
+    }
+  },
+  "raw_artifact": "/srv/ai/paged-kv/results/v10/92-01/20260922-route-policy/results.txt",
+  "raw_artifact_sha256": "f1e01e2246a39acf01b105195ec6ad2dd43fa907198f3ba2e086f31ad7a4df2c",
+  "performance_claim": "none"
+}

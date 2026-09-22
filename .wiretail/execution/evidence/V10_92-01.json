@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "task": "92-01",
+  "source_commit": "9837e0d8751975fd02bfaa9f496643ff6d2119cf",
+  "checks": {
+    "repair92_route_policy": {
+      "status": "pass",
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-cuda",
+        "--output-on-failure",
+        "-R",
+        "^(test-kv-pager|test-kv-attention-execution|test-cuda-kv-promotion|test-cuda-kv-page-summary|test-cuda-fattn-paged-turbo4)$"
+      ],
+      "exit_code": 0,
+      "result": "5/5 passed",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/92-01/20260922-route-policy/results.txt",
+          "sha256": "f1e01e2246a39acf01b105195ec6ad2dd43fa907198f3ba2e086f31ad7a4df2c"
+        }
+      ]
+    }
+  }
+}

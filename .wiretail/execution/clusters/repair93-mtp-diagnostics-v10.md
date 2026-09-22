@@ -1,6 +1,6 @@
 # repair93 — fast MTP diagnosis under attention-aware paging
 
-Revision: `mtp-diagnostic-v10-20260922`. Amendment: `repair93-mtp-fast-20260922`.
+Revision: `hotpath-v10-20260914`. Amendment: `repair93-mtp-fast-20260922`.
 
 Phase 93 is a short diagnostic phase, not a 256K occupancy or throughput
 campaign. Its purpose is to determine whether the low native-MTP acceptance is
