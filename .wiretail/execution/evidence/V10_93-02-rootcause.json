@@ -1,0 +1,83 @@
+{
+  "classification": "dense_mtp_defect",
+  "dense_acceptance": {
+    "accepted": 8,
+    "drafted": 10,
+    "rewind_count": 3,
+    "rollback_count": 2
+  },
+  "evidence": {
+    "after_log": {
+      "path": "/srv/ai/paged-kv/results/v10/93-02/20260922-rootcause-logical-prefix/02-mtp_on_dense_all_gpu/server.log",
+      "sha256": "3d5f6e13f4534dee02378580cba1f945d9ef7f1e5e0f411c4508b0383710c827"
+    },
+    "after_summary": {
+      "path": "/srv/ai/paged-kv/results/v10/93-02/20260922-rootcause-logical-prefix/summary.json",
+      "sha256": "1f7accbf698eb5b237e65c9d71187315a081e7633d293b64d06cdeecbd99d60a"
+    },
+    "before_log": {
+      "path": "/srv/ai/paged-kv/results/v10/93-02/20260922-rootcause-boundary-diag/02-mtp_on_dense_all_gpu/server.log",
+      "sha256": "d8224bda973e30b9877c2d8f896f778971551e391ac91aef27872cfff45b89e5"
+    }
+  },
+  "first_bad_rung_after_repair": "mtp_on_selected_paged_resident",
+  "first_bad_rung_before_repair": "mtp_on_dense_all_gpu",
+  "first_divergence": {
+    "finite_logits_after": [
+      248320,
+      248320,
+      248320
+    ],
+    "finite_logits_before": [
+      0,
+      0,
+      0
+    ],
+    "nan_logits_after": [
+      0,
+      0,
+      0
+    ],
+    "nan_logits_before": [
+      248320,
+      248320,
+      248320
+    ],
+    "proposal_positions_before": [
+      31,
+      32
+    ],
+    "target_input_positions_before": [
+      30,
+      31,
+      32
+    ]
+  },
+  "invariant": "non-paged dense attention must expose only the logical KV prefix; paged attention retains the physical window and crops it through llama_kv_attention_dense_view_check before FlashAttention",
+  "schema_version": 1,
+  "source_extent_transition": {
+    "after_kqv_nonfinite": null,
+    "after_shape": [
+      256,
+      4,
+      256,
+      1
+    ],
+    "before_kqv_nonfinite": {
+      "elements": 18432,
+      "finite": 0,
+      "line": 189,
+      "name": "kqv_out-3",
+      "nan": 18432,
+      "neg_inf": 0,
+      "pos_inf": 0
+    },
+    "before_shape": [
+      256,
+      4,
+      4096,
+      1
+    ]
+  },
+  "status": "pass"
+}

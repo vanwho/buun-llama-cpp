@@ -16926,14 +16926,24 @@ uint32_t llama_kv_cache_context::get_layer_physical_rows(int32_t il) const noexc
 }
 
 ggml_tensor * llama_kv_cache_context::get_k(ggml_context * ctx, int32_t il) const {
-    const uint32_t source_rows = std::max<uint32_t>(uint32_t(std::max<int32_t>(0, n_kv)),
-            get_layer_physical_rows(il));
+    // A non-paged dense graph only needs the logical prefix. Exposing the
+    // entire Turbo4 allocation makes FlashAttention consume unwritten cache
+    // rows before the mask can discard them; native MTP verification then
+    // turns an otherwise finite K/V prefix into an all-NaN kqv result. Paged
+    // graphs still require their physical window because selected dense
+    // attention crops a validated contiguous view from it below.
+    const uint32_t source_rows = kv->get_kv_pager() != nullptr
+        ? std::max<uint32_t>(uint32_t(std::max<int32_t>(0, n_kv)),
+                get_layer_physical_rows(il))
+        : uint32_t(std::max<int32_t>(0, n_kv));
     return kv->get_k(ctx, il, source_rows, sinfos[i_cur]);
 }
 
 ggml_tensor * llama_kv_cache_context::get_v(ggml_context * ctx, int32_t il) const {
-    const uint32_t source_rows = std::max<uint32_t>(uint32_t(std::max<int32_t>(0, n_kv)),
-            get_layer_physical_rows(il));
+    const uint32_t source_rows = kv->get_kv_pager() != nullptr
+        ? std::max<uint32_t>(uint32_t(std::max<int32_t>(0, n_kv)),
+                get_layer_physical_rows(il))
+        : uint32_t(std::max<int32_t>(0, n_kv));
     return kv->get_v(ctx, il, source_rows, sinfos[i_cur]);
 }
 

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "task": "93-02",
+  "source_commit": "3323b22cbde066c54051d8b0f20eb1c8854fa581",
+  "source_diff_sha256": "94f09c69f7f1abcfe8b0df6410a7c0fdf0e6b2f0c6cda28f2bf4bd2a03876f03",
+  "checks": {
+    "repair93_mtp_root_cause": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/validate-mtp-root-cause.py",
+        "--before-log",
+        "/srv/ai/paged-kv/results/v10/93-02/20260922-rootcause-boundary-diag/02-mtp_on_dense_all_gpu/server.log",
+        "--after-log",
+        "/srv/ai/paged-kv/results/v10/93-02/20260922-rootcause-logical-prefix/02-mtp_on_dense_all_gpu/server.log",
+        "--after-summary",
+        "/srv/ai/paged-kv/results/v10/93-02/20260922-rootcause-logical-prefix/summary.json",
+        "--source",
+        "src/llama-kv-cache.cpp",
+        "--source",
+        "src/llama-graph.cpp",
+        "--output",
+        ".wiretail/execution/evidence/V10_93-02-rootcause.json"
+      ],
+      "result": "Before/after boundary proof passed: non-paged dense K/V extent shrank from 4096 to 256 rows; first MTP verification became finite and dense acceptance was 8/10.",
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/V10_93-02-rootcause.json",
+          "sha256": "75d07dd0e004cdffb6d0b146bc087740428fd4703d1a12716864426377d5d37a"
+        }
+      ]
+    }
+  }
+}
