@@ -1981,6 +1981,12 @@ public:
 
     uint32_t get_n_kv() const;
 
+    // Return the number of rows that the attention graph may read from the
+    // cache source. Dense graphs consume only the logical prefix; paged graphs
+    // retain the physical window so selected attention can crop it.
+    static uint32_t attention_source_rows(
+            bool paged, uint32_t logical_rows, uint32_t physical_rows) noexcept;
+
     ggml_type type_k() const;
     ggml_type type_v() const;
     std::vector<uint32_t> get_layer_ids() const;

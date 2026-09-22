@@ -16909,6 +16909,11 @@ uint32_t llama_kv_cache_context::get_n_kv() const {
     return n_kv;
 }
 
+uint32_t llama_kv_cache_context::attention_source_rows(
+        bool paged, uint32_t logical_rows, uint32_t physical_rows) noexcept {
+    return paged ? std::max(logical_rows, physical_rows) : logical_rows;
+}
+
 ggml_type llama_kv_cache_context::type_k() const {
     return kv->type_k();
 }
@@ -16932,18 +16937,18 @@ ggml_tensor * llama_kv_cache_context::get_k(ggml_context * ctx, int32_t il) cons
     // turns an otherwise finite K/V prefix into an all-NaN kqv result. Paged
     // graphs still require their physical window because selected dense
     // attention crops a validated contiguous view from it below.
-    const uint32_t source_rows = kv->get_kv_pager() != nullptr
-        ? std::max<uint32_t>(uint32_t(std::max<int32_t>(0, n_kv)),
-                get_layer_physical_rows(il))
-        : uint32_t(std::max<int32_t>(0, n_kv));
+    const uint32_t source_rows = attention_source_rows(
+            kv->get_kv_pager() != nullptr,
+            uint32_t(std::max<int32_t>(0, n_kv)),
+            get_layer_physical_rows(il));
     return kv->get_k(ctx, il, source_rows, sinfos[i_cur]);
 }
 
 ggml_tensor * llama_kv_cache_context::get_v(ggml_context * ctx, int32_t il) const {
-    const uint32_t source_rows = kv->get_kv_pager() != nullptr
-        ? std::max<uint32_t>(uint32_t(std::max<int32_t>(0, n_kv)),
-                get_layer_physical_rows(il))
-        : uint32_t(std::max<int32_t>(0, n_kv));
+    const uint32_t source_rows = attention_source_rows(
+            kv->get_kv_pager() != nullptr,
+            uint32_t(std::max<int32_t>(0, n_kv)),
+            get_layer_physical_rows(il));
     return kv->get_v(ctx, il, source_rows, sinfos[i_cur]);
 }
 
