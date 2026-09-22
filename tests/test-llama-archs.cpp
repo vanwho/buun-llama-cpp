@@ -3007,15 +3007,14 @@ static file_ptr make_qwen4_mtp_sidecar(
         throw std::runtime_error("failed to create synthetic Qwen4 target context");
     }
     GGML_ASSERT(llama_n_rs_seq(target.get()) == 3);
-    llama_set_embeddings_nextn(target.get(), true, false);
 
-    ggml_cgraph * target_gf = llama_graph_reserve(target.get(), 3, 1, 1);
-    GGML_ASSERT(target_gf != nullptr);
-    ggml_tensor * target_h_graph = ggml_graph_get_tensor(target_gf, "h_nextn");
-    GGML_ASSERT(target_h_graph != nullptr);
-    GGML_ASSERT(target_h_graph->ne[0] == source->hparams.n_embd);
-    GGML_ASSERT(target_h_graph->ne[1] == source->hparams.dsv4_hc_mult);
-    GGML_ASSERT(target_h_graph->ne[2] == 3);
+    // Reserve once with NextN disabled, then enable it after the scheduler has
+    // been initialized. Native MTP follows this lifecycle; the setter must
+    // invalidate the old graph so the first decode publishes h_nextn.
+    ggml_cgraph * target_initial = llama_graph_reserve(target.get(), 3, 1, 1);
+    GGML_ASSERT(target_initial != nullptr);
+    GGML_ASSERT(ggml_graph_get_tensor(target_initial, "h_nextn") == nullptr);
+    llama_set_embeddings_nextn(target.get(), true, false);
 
     llama_token tokens[3] = { 5, 6, 7 };
     llama_batch target_batch = llama_batch_get_one(tokens, 3);

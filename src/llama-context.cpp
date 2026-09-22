@@ -3663,10 +3663,11 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
     // finite even when the server is asked for a short generation.
     static const char * const names[] = {
         "attn_norm-0", "Qcur-0", "Kcur-0", "Vcur-0", "kqv_out-0",
-        "attn_inp_kq_mask",
+        "Ksource-0", "Vsource-0", "attn_inp_kq_mask-0", "attn_inp_kq_mask-3",
         "attn_pregate-0", "attn_output-0", "ffn_up-0", "ffn_gate-0",
         "ffn_swiglu-0", "ffn_down-0", "ffn_out-0", "l_out-0",
         "Qcur-3", "Kcur-3", "Vcur-3", "kqv_out-3", "attn_pregate-3",
+        "Ksource-3", "Vsource-3",
         "attn_norm-3", "attn_output-3", "attn_residual-3", "attn_post_norm-3",
         "ffn_up-3", "ffn_gate-3", "ffn_swiglu-3", "ffn_down-3", "ffn_out-3",
     };
@@ -3689,15 +3690,25 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
     }
 
     const int64_t n = ggml_nelements(t);
+    const auto print_shape = [t]() {
+        std::fprintf(stderr, " shape=[%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 "]"
+                " nb=[%zu,%zu,%zu,%zu]",
+                t->ne[0], t->ne[1], t->ne[2], t->ne[3],
+                t->nb[0], t->nb[1], t->nb[2], t->nb[3]);
+    };
     if (n <= 0 || !t->buffer) {
-        std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64 " unavailable\n",
+        std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64 " unavailable",
                 t->name, ggml_type_name(t->type), n);
+        print_shape();
+        std::fputc('\n', stderr);
         return true;
     }
     if ((t->type != GGML_TYPE_F32 && t->type != GGML_TYPE_F16) ||
             !ggml_is_contiguous(t) || n > 4 * 1024 * 1024) {
-        std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64 " finite=-1 nan=-1 inf=-1\n",
-                t->name, ggml_type_name(t->type), n);
+        std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64
+                " finite=-1 nan=-1 inf=-1", t->name, ggml_type_name(t->type), n);
+        print_shape();
+        std::fputc('\n', stderr);
         return true;
     }
 
@@ -3732,9 +3743,11 @@ bool llama_context::dense_tensor_diagnostic_callback(struct ggml_tensor * t, boo
 
     std::fprintf(stderr, "DENSE_DIAG name=%s type=%s elements=%" PRId64
             " finite=%" PRIu64 " nan=%" PRIu64 " pos_inf=%" PRIu64
-            " neg_inf=%" PRIu64 " min=%g max=%g\n",
+            " neg_inf=%" PRIu64 " min=%g max=%g",
             t->name, ggml_type_name(t->type), n, finite, nan, pos_inf, neg_inf,
             finite ? min_value : 0.0f, finite ? max_value : 0.0f);
+    print_shape();
+    std::fputc('\n', stderr);
     return true;
 }
 
@@ -6007,8 +6020,18 @@ void llama_context::set_embeddings(bool value) {
 void llama_context::set_embeddings_nextn(bool value, bool masked) {
     LLAMA_LOG_DEBUG("%s: value = %d, masked = %d\n", __func__, value, masked);
 
+    if (cparams.embeddings_nextn == value &&
+            cparams.embeddings_nextn_masked == masked) {
+        return;
+    }
+
     cparams.embeddings_nextn        = value;
     cparams.embeddings_nextn_masked = masked;
+
+    // NextN changes the graph outputs and their row layout. Native MTP enables
+    // this after the context's initial reserve, so leave an explicit retry
+    // owner for the next decode instead of reusing a graph without h_nextn.
+    sched_need_reserve = true;
 }
 
 void llama_context::set_embeddings_layer_inp(uint32_t lid, bool enable) {
