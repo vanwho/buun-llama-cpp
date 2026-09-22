@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-05",
-  "last_updated_utc": "2026-09-22T17:43:36+00:00",
+  "current_task": "93-06",
+  "last_updated_utc": "2026-09-22T17:52:14+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18480,7 +18480,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Produce the MTP diagnosis and schedule only necessary follow-up",
       "packet": ".wiretail/execution/tasks/93-05.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -18492,7 +18492,7 @@
       "depends_on": [
         "93-04"
       ],
-      "commit": null,
+      "commit": "2d381af3f9338038cf085a72a966591a90338aa9",
       "context_files": [
         ".wiretail/execution/v10/REPAIR85_PLAN.md",
         ".wiretail/execution/v10/REPAIR85_TESTING.md",
@@ -18509,6 +18509,169 @@
         ".wiretail/execution/evidence/V10_93-05.json",
         "--review",
         ".wiretail/execution/evidence/V10_REPAIR93_REVIEW.json"
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-05-attempt-1-20260922T174400Z.jsonl:61",
+            "total_tokens": 97793208,
+            "total_tokens_derived": true,
+            "input_tokens": 97562898,
+            "cached_input_tokens": 95698944,
+            "output_tokens": 230310,
+            "thinking_tokens": 81054
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 97793208,
+          "input_tokens": 97562898,
+          "cached_input_tokens": 95698944,
+          "output_tokens": 230310,
+          "thinking_tokens": 81054
+        }
+      }
+    },
+    {
+      "id": "93-06",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Repair selected prompt-trim recovery after rejection",
+      "packet": ".wiretail/execution/tasks/93-06.md",
+      "status": "pending",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_mtp_trim_recovery"
+      ],
+      "depends_on": [
+        "93-05"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-05.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-06",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-06.json"
+      ]
+    },
+    {
+      "id": "93-07",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Lock the trim-rejection regression and candidate identity",
+      "packet": ".wiretail/execution/tasks/93-07.md",
+      "status": "pending",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_mtp_trim_regression"
+      ],
+      "depends_on": [
+        "93-06"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-06.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-07",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-07.json"
+      ]
+    },
+    {
+      "id": "93-08",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Re-run the bounded resident, cold, and promotion controls",
+      "packet": ".wiretail/execution/tasks/93-08.md",
+      "status": "pending",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_mtp_short_reverification"
+      ],
+      "depends_on": [
+        "93-07"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-07.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-08",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-08.json"
+      ]
+    },
+    {
+      "id": "93-09",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Review the repaired short controls before any scale campaign",
+      "packet": ".wiretail/execution/tasks/93-09.md",
+      "status": "pending",
+      "blocker": null,
+      "recommended_model": "Luna High",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_mtp_gate_review"
+      ],
+      "depends_on": [
+        "93-08"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/v10/REPAIR85_PLAN.md",
+        ".wiretail/execution/v10/REPAIR85_TESTING.md",
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-08.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-09",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-09.json",
+        "--review",
+        ".wiretail/execution/evidence/V10_REPAIR93_FINAL_REVIEW.json"
       ]
     }
   ],
@@ -23956,26 +24119,39 @@
           "cached_input_tokens": 93686016,
           "output_tokens": 211310,
           "thinking_tokens": 77813
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-05-attempt-1-20260922T174400Z.jsonl:61",
+          "total_tokens": 97793208,
+          "total_tokens_derived": true,
+          "input_tokens": 97562898,
+          "cached_input_tokens": 95698944,
+          "output_tokens": 230310,
+          "thinking_tokens": 81054
         }
       ],
       "totals": {
-        "turns": 4,
-        "total_tokens": 289920475,
-        "input_tokens": 289301973,
-        "cached_input_tokens": 284224512,
-        "output_tokens": 618502,
-        "thinking_tokens": 233002
+        "turns": 5,
+        "total_tokens": 387713683,
+        "input_tokens": 386864871,
+        "cached_input_tokens": 379923456,
+        "output_tokens": 848812,
+        "thinking_tokens": 314056
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 335,
-      "total_tokens": 6452524948,
-      "input_tokens": 6436740164,
-      "cached_input_tokens": 6296192256,
-      "output_tokens": 15784784,
-      "thinking_tokens": 5641954
+      "turns": 336,
+      "total_tokens": 6550318156,
+      "input_tokens": 6534303062,
+      "cached_input_tokens": 6391891200,
+      "output_tokens": 16015094,
+      "thinking_tokens": 5723008
     },
     "source": "Codex turn.completed usage events"
   }
