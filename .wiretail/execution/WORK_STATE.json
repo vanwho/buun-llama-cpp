@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "in_progress",
+  "status": "ready",
   "current_phase": "93",
-  "current_task": "93-01",
-  "last_updated_utc": "2026-09-22T13:40:34+00:00",
+  "current_task": "93-02",
+  "last_updated_utc": "2026-09-22T16:23:29+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18239,7 +18239,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Build the bounded MTP diagnostic harness and controls",
       "packet": ".wiretail/execution/tasks/93-01.md",
-      "status": "in_progress",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -18251,7 +18251,7 @@
       "depends_on": [
         "92-01"
       ],
-      "commit": null,
+      "commit": "62f04dc3c222a117160651be4438106c8da5f9e4",
       "context_files": [
         ".wiretail/execution/v10/REPAIR85_PLAN.md",
         ".wiretail/execution/v10/REPAIR85_TESTING.md",
@@ -18266,7 +18266,32 @@
         "93-01",
         "--receipt",
         ".wiretail/execution/evidence/V10_93-01.json"
-      ]
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-5.6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-01-attempt-1-20260922T150917Z.jsonl:391",
+            "total_tokens": 41306971,
+            "total_tokens_derived": true,
+            "input_tokens": 41224244,
+            "cached_input_tokens": 40644096,
+            "output_tokens": 82727,
+            "thinking_tokens": 31641
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 41306971,
+          "input_tokens": 41224244,
+          "cached_input_tokens": 40644096,
+          "output_tokens": 82727,
+          "thinking_tokens": 31641
+        }
+      }
     },
     {
       "id": "93-02",
@@ -23804,25 +23829,39 @@
       }
     },
     "93": {
-      "turns": [],
+      "turns": [
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-5.6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-01-attempt-1-20260922T150917Z.jsonl:391",
+          "total_tokens": 41306971,
+          "total_tokens_derived": true,
+          "input_tokens": 41224244,
+          "cached_input_tokens": 40644096,
+          "output_tokens": 82727,
+          "thinking_tokens": 31641
+        }
+      ],
       "totals": {
-        "turns": 0,
-        "total_tokens": 0,
-        "input_tokens": 0,
-        "cached_input_tokens": 0,
-        "output_tokens": 0,
-        "thinking_tokens": 0
+        "turns": 1,
+        "total_tokens": 41306971,
+        "input_tokens": 41224244,
+        "cached_input_tokens": 40644096,
+        "output_tokens": 82727,
+        "thinking_tokens": 31641
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 331,
-      "total_tokens": 6162604473,
-      "input_tokens": 6147438191,
-      "cached_input_tokens": 6011967744,
-      "output_tokens": 15166282,
-      "thinking_tokens": 5408952
+      "turns": 332,
+      "total_tokens": 6203911444,
+      "input_tokens": 6188662435,
+      "cached_input_tokens": 6052611840,
+      "output_tokens": 15249009,
+      "thinking_tokens": 5440593
     },
     "source": "Codex turn.completed usage events"
   }
