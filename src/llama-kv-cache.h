@@ -50,6 +50,12 @@ enum class vbr_explicit_size_failure : uint8_t;
 struct vbr_artifact_stream_placement;
 struct vbr_artifact_unit_descriptor;
 
+inline bool llama_kv_pager_routing_output_matches(
+        const void * stored_tensor, uint32_t stored_layer,
+        const void * tensor, uint32_t layer) noexcept {
+    return stored_tensor == tensor && stored_layer == layer;
+}
+
 //
 // llama_kv_cache
 //

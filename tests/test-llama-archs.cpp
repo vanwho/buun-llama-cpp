@@ -17,6 +17,7 @@
 #include "../src/llama-memory-hybrid-idx.h"
 #include "../src/llama-memory-recurrent.h"
 #include "../src/llama-memory-tree.h"
+#include "../src/llama-kv-cache.h"
 #include "../src/llama-model.h"
 #include "../src/llama-model-loader.h"
 #include "../src/llama-model-saver.h"
@@ -713,6 +714,17 @@ static void test_graph_callback_optional_tensor_name() {
     ggml_tensor tensor = {};
     llm_graph_name_tensor(&tensor, "attn_inp_kq_mask", 3);
     GGML_ASSERT(strcmp(tensor.name, "attn_inp_kq_mask-3") == 0);
+}
+
+static void test_kv_pager_routing_output_graph_identity() {
+    int old_graph_tensor = 0;
+    int current_graph_tensor = 0;
+    GGML_ASSERT(!llama_kv_pager_routing_output_matches(
+            &old_graph_tensor, 7, &current_graph_tensor, 7));
+    GGML_ASSERT(!llama_kv_pager_routing_output_matches(
+            &current_graph_tensor, 6, &current_graph_tensor, 7));
+    GGML_ASSERT(llama_kv_pager_routing_output_matches(
+            &current_graph_tensor, 7, &current_graph_tensor, 7));
 }
 
 static void test_dflash_selector_family_contract() {
@@ -4137,6 +4149,7 @@ int main(int argc, char ** argv) {
 
     try {
         test_graph_callback_optional_tensor_name();
+        test_kv_pager_routing_output_graph_identity();
         test_dflash_selector_family_contract();
         test_dflash_loader_exact_identity();
         if (!out.empty()) {
