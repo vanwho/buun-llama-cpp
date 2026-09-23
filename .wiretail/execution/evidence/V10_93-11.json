@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "task": "93-11",
+  "source_commit": "98dcdaaa5be735e0113481bb0bd56c7446a58bc4",
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/candidate-bundle/llama-server",
+    "sha256": "08efafc82a7a2ea3d6428e032ade1a6302297cf98c22518048dfc0d4fc2ad60f",
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/candidate-bundle/build-receipt.json",
+      "sha256": "35c2fa24c0dd96b3b8705b6a210c839d400a607ba87b39147b11bf405b12bb1a"
+    },
+    "bundle_manifest": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/bundle-preflight/bundle-manifest.json",
+      "sha256": "40bfd4a1eecac08787657bc5a2db606c499d37587d1b462e018b76a068832ee3"
+    }
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "repair": {
+    "justified_by": {
+      "request": "93-10 canonical selected-resident native-MTP short completion; incoming prompt had 30 tokens and no reusable resident prefix",
+      "raw_event": "edit/divergence cached/incoming/lcp/reusable/rewind/append/cache_prompt = 0/30/0/0/0/30/1; target trim rejected with draft not attempted; paired full reset was entered before SIGSEGV",
+      "expected": "A suffix starting after the last resident target/draft position is a successful no-op; do not reset either cache or discard the prompt ledger.",
+      "observed": "93-10 target trim returned false for an empty suffix range, draft trim was skipped, and paired recovery began.",
+      "owner": "tools/server/server-context.cpp selected prompt-trim lambdas passed to server_prompt_trim_recover in tools/server/server-prompt-trim.h"
+    },
+    "implementation": "Query llama_memory_seq_pos_max for each memory and call sequence removal only when first_removed <= last_present; empty ranges return success. Target and draft checks remain independent.",
+    "deterministic_regression": "Fake first_removed=30 with empty target and draft (last position -1); assert no sequence removal or recovery/reset, preserved prompt ledger, and a resident position 30 is still trim eligible.",
+    "changed_files": [
+      "tools/server/server-prompt-trim.h",
+      "tools/server/server-context.cpp",
+      "tests/test-server-prompt-cache.cpp"
+    ]
+  },
+  "checks": {
+    "repair93_runtime_defect_resolution": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "cmake --build build-cuda --target llama-server test-server-prompt-cache -j2",
+        "build-cuda/bin/test-server-prompt-cache",
+        "git diff --check",
+        "python3 tools/server/bench/run-mtp-diagnostic.py --output /srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic --server-binary /srv/ai/paged-kv/results/v10/93-11/attempt-01/candidate-bundle/llama-server --model /srv/ai/models/text/current.gguf --service-name llama-server.service --endpoint http://127.0.0.1:8080 --context 4096 --batch 128 --ubatch 64 --n-predict 16 --draft-n-max 2 --repeats 1 --startup-timeout 180 --request-timeout 120"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/local-verification.log",
+          "sha256": "94d2acf792997b91279b3d9e3938fc46efe45a1126c87b0aab79f38691f1ef8b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/summary.json",
+          "sha256": "20ae638a7f91dfd520cbc86df2763b8e5e4cb963dc81c5d8c3b1b19aee361de8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/01-mtp_off_dense_all_gpu/canonical/records.jsonl",
+          "sha256": "592002f78948e941fb5410c39596067d736a3c8558e624b382a463ee51c8a7c5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/02-mtp_on_dense_all_gpu/canonical/records.jsonl",
+          "sha256": "1ee46fa87d5398fa19be827c9df79e0276c91025cfd815c12f4066f1b4517d37"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/03-mtp_on_selected_paged_resident/server.log",
+          "sha256": "be488ee7853bc41c8ca9cd61f1c3d2bd2072b04434d20ca3270518f240a89df0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/03-mtp_on_selected_paged_resident/canonical/records.jsonl",
+          "sha256": "294ec7b17ede8f92f045a1407bfcfc8fd74adf6d2f26dc39ed22cbc724eccecd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/03-mtp_on_selected_paged_resident/canonical/run-config.json",
+          "sha256": "486e1aca5985641fae032e6f31806be306a9ef84ca78c67a433bdeb13bb325be"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/candidate-bundle/build-receipt.json",
+          "sha256": "35c2fa24c0dd96b3b8705b6a210c839d400a607ba87b39147b11bf405b12bb1a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/bundle-preflight/bundle-manifest.json",
+          "sha256": "40bfd4a1eecac08787657bc5a2db606c499d37587d1b462e018b76a068832ee3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/server.log",
+          "sha256": "6cd2038e9f5afac69de0666d922ea89b88ad1e4bc818032620182752353cfb1b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/canonical/records.jsonl",
+          "sha256": "d09d56187048d9a7407c09220b16408894841722e44211cbf51d8597932a6860"
+        }
+      ]
+    }
+  },
+  "live_controls": {
+    "canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "candidate_identity_verified": true,
+    "context_tokens": 4096,
+    "hot_pages": 16,
+    "rendered_prompt_tokens": 30,
+    "rungs": {
+      "dense_mtp_off": {
+        "status": "pass",
+        "request_attempted": true,
+        "candidate_binary_sha256": "08efafc82a7a2ea3d6428e032ade1a6302297cf98c22518048dfc0d4fc2ad60f",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/01-mtp_off_dense_all_gpu/canonical/records.jsonl",
+          "sha256": "592002f78948e941fb5410c39596067d736a3c8558e624b382a463ee51c8a7c5"
+        }
+      },
+      "dense_mtp_on": {
+        "status": "pass",
+        "request_attempted": true,
+        "draft_tokens": 10,
+        "draft_tokens_accepted": 10,
+        "candidate_binary_sha256": "08efafc82a7a2ea3d6428e032ade1a6302297cf98c22518048dfc0d4fc2ad60f",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/02-mtp_on_dense_all_gpu/canonical/records.jsonl",
+          "sha256": "1ee46fa87d5398fa19be827c9df79e0276c91025cfd815c12f4066f1b4517d37"
+        }
+      },
+      "selected_resident_mtp": {
+        "status": "fail",
+        "request_attempted": true,
+        "canonical_wrapper_status": "setup_failure after adapter exit 1 and restoration identity mismatches",
+        "observed_runtime_failure": "The active selected candidate process (PID 4098560) handled task 2, then exited code=dumped, status=11/SEGV immediately after the invalid frontier warning; the canonical request record is incomplete_timeout. No rejected suffix trim was logged.",
+        "candidate_binary_sha256": "08efafc82a7a2ea3d6428e032ade1a6302297cf98c22518048dfc0d4fc2ad60f",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/03-mtp_on_selected_paged_resident/canonical/records.jsonl",
+          "sha256": "294ec7b17ede8f92f045a1407bfcfc8fd74adf6d2f26dc39ed22cbc724eccecd"
+        },
+        "additional_artifacts": [
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/03-mtp_on_selected_paged_resident/server.log",
+            "sha256": "be488ee7853bc41c8ca9cd61f1c3d2bd2072b04434d20ca3270518f240a89df0"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11/attempt-01/diagnostic/03-mtp_on_selected_paged_resident/canonical/run-config.json",
+            "sha256": "486e1aca5985641fae032e6f31806be306a9ef84ca78c67a433bdeb13bb325be"
+          }
+        ]
+      }
+    },
+    "cold_promotion": {
+      "status": "not_measured",
+      "reason": "Gated by selected-resident native-MTP candidate crash before a valid response.",
+      "request_attempted": false
+    }
+  },
+  "follow_up": {
+    "task_id": "93-11a",
+    "reason": "The original rejected empty-suffix trim is avoided, but the selected-resident candidate still crashes with status 11/SEGV before responding; cold promotion is gated.",
+    "scheduled_before": "93-12",
+    "performance_task_status": "todo"
+  }
+}

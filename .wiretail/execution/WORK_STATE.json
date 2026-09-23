@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-11",
-  "last_updated_utc": "2026-09-23T04:01:36+00:00",
+  "current_task": "93-11a",
+  "last_updated_utc": "2026-09-23T04:21:01+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18886,7 +18886,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Repair only a reproduced selected-route runtime defect",
       "packet": ".wiretail/execution/tasks/93-11.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -18901,7 +18901,7 @@
       "depends_on": [
         "93-10"
       ],
-      "commit": null,
+      "commit": "7e69d54fd7a8e2e3dca82c9ea287765a11052fd6",
       "context_files": [
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
         ".wiretail/execution/tasks/93-10.md",
@@ -18918,6 +18918,68 @@
         "93-11",
         "--receipt",
         ".wiretail/execution/evidence/V10_93-11.json"
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11-attempt-1-20260923T040158Z.jsonl:143",
+            "total_tokens": 18538840,
+            "total_tokens_derived": true,
+            "input_tokens": 18452359,
+            "cached_input_tokens": 17824000,
+            "output_tokens": 86481,
+            "thinking_tokens": 43076
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 18538840,
+          "input_tokens": 18452359,
+          "cached_input_tokens": 17824000,
+          "output_tokens": 86481,
+          "thinking_tokens": 43076
+        }
+      }
+    },
+    {
+      "id": "93-11a",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Diagnose the remaining selected-resident native-MTP crash",
+      "packet": ".wiretail/execution/tasks/93-11a.md",
+      "status": "todo",
+      "blocker": "93-11 repaired the reproduced empty-suffix trim; the rebuilt candidate still exits status=11/SEGV in the selected-resident native-MTP rung, gating cold promotion.",
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_selected_route_crash_resolution"
+      ],
+      "depends_on": [
+        "93-11"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-11.md",
+        ".wiretail/execution/evidence/V10_93-11.json",
+        ".wiretail/execution/handoffs/93-11.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11a.json"
       ]
     },
     {
@@ -18940,7 +19002,8 @@
       ],
       "depends_on": [
         "93-10",
-        "93-11"
+        "93-11",
+        "93-11a"
       ],
       "commit": null,
       "context_files": [
@@ -24545,26 +24608,39 @@
           "cached_input_tokens": 9705216,
           "output_tokens": 43375,
           "thinking_tokens": 18771
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11-attempt-1-20260923T040158Z.jsonl:143",
+          "total_tokens": 18538840,
+          "total_tokens_derived": true,
+          "input_tokens": 18452359,
+          "cached_input_tokens": 17824000,
+          "output_tokens": 86481,
+          "thinking_tokens": 43076
         }
       ],
       "totals": {
-        "turns": 12,
-        "total_tokens": 1183120971,
-        "input_tokens": 1180138480,
-        "cached_input_tokens": 1158253568,
-        "output_tokens": 2982491,
-        "thinking_tokens": 1181503
+        "turns": 13,
+        "total_tokens": 1201659811,
+        "input_tokens": 1198590839,
+        "cached_input_tokens": 1176077568,
+        "output_tokens": 3068972,
+        "thinking_tokens": 1224579
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 343,
-      "total_tokens": 7345725444,
-      "input_tokens": 7327576671,
-      "cached_input_tokens": 7170221312,
-      "output_tokens": 18148773,
-      "thinking_tokens": 6590455
+      "turns": 344,
+      "total_tokens": 7364264284,
+      "input_tokens": 7346029030,
+      "cached_input_tokens": 7188045312,
+      "output_tokens": 18235254,
+      "thinking_tokens": 6633531
     },
     "source": "Codex turn.completed usage events"
   }
