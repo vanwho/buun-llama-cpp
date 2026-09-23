@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "review": "repair93_mtp_final_gate_review",
+  "goal_met": false,
+  "source_commit": "74a122940eca37c54a189133054f33261621632b",
+  "capabilities": {
+    "build_identity_valid": false,
+    "required_turbo4_placements": false,
+    "controlled_model_promotion": false,
+    "organic_cold_promotion": false,
+    "stable_target_consumption": false,
+    "full_256k_occupancy": false,
+    "practical_speed_goal_met": false
+  },
+  "findings": [
+    {
+      "capability": "automatic_route_dense_direct_packed_without_reference",
+      "result": "not_measured",
+      "expected": "A completed candidate-bound selected request reports dense/direct/packed route and target/draft consumption; selected_reference is refused.",
+      "observed": "93-05 says selection occurred but no completed selected request or target/draft consumption telemetry exists.",
+      "evidence": [".wiretail/execution/evidence/V10_93-05.md:16", ".wiretail/execution/evidence/V10_93-08.json:66-83,102-108"],
+      "raw_event": null,
+      "owner": "tools/server/bench/run-mtp-diagnostic.py:run and request_fields; candidate service was never reached."
+    },
+    {
+      "capability": "dense_native_mtp_gpu_turbo4_request_local_acceptance",
+      "result": "pass",
+      "revalidated_in_93_08": false,
+      "expected": "GPU target/draft Turbo4 and request-local accepted/drafted counters.",
+      "observed": "93-05 records GPU Turbo4 placement, draft_n=10, draft_n_accepted=8, 80%; 93-08 sent no requests.",
+      "evidence": [".wiretail/execution/evidence/V10_93-05.md:12-13", ".wiretail/execution/evidence/V10_93-08.json:66-83,102-108"],
+      "raw_event": "The compact 93-05 receipt reports the measured control but does not identify its raw request pathname.",
+      "owner": "Dense native MTP request path; no new 93-08 event."
+    },
+    {
+      "capability": "selected_resident_mtp_and_trim_survival",
+      "result": "not_measured",
+      "prior_result": "fail_before_93_06_repair",
+      "expected": "A valid selected-resident response after prompt reuse with target/draft frontiers coherent and request-local MTP telemetry.",
+      "observed": "93-05 reports `memory_seq_rm [0, end) rejected`, then status=11/SEGV, with no request-level acceptance. 93-06/93-07 deterministic recovery tests pass, but 93-08 did not reach the server.",
+      "evidence": [".wiretail/execution/evidence/V10_93-05.md:14", ".wiretail/execution/evidence/V10_93-06.json:5-31", ".wiretail/execution/evidence/V10_93-07.json:20-40", ".wiretail/execution/evidence/V10_93-08.json:66-83,102-108"],
+      "raw_event": "The compact 93-05 file does not include the raw server-log pathname or the rejecting side; those values remain unknown, not inferred.",
+      "owner": "tools/server/server-context.cpp prompt-trim caller around lines 19109-19139 and failed-recovery handling around 19161-19205; helper server_prompt_trim_recover."
+    },
+    {
+      "capability": "cold_a_b_a_page_promotion_and_consumption",
+      "result": "not_measured",
+      "prior_result": "fail_before_93_06_repair",
+      "expected": "The same A logical page/generation/content version is cold before request 3, H2D completes, table publication precedes graph consumption, and target and draft both consume it.",
+      "observed": "93-05 reports selected page [0] followed by crash before publication/consumption and second-connection refusal. In 93-08 all four rungs are `not_run`; zero requests were sent.",
+      "evidence": [".wiretail/execution/evidence/V10_93-05.md:15", ".wiretail/execution/evidence/V10_93-08.json:66-83,102-108"],
+      "raw_event": "No 93-08 A/B/A request or movement event exists. The 93-05 compact receipt lacks the raw log pathname and event IDs.",
+      "owner": "tools/server/bench/run-mtp-diagnostic.py:run_request and tools/server/bench/mtp_diagnostic.py:validate_rung_summary; live caller not entered."
+    },
+    {
+      "capability": "exact_prompt_timing_and_token_bounds",
+      "result": "not_measured",
+      "expected": "Each timed input has the exact candidate tokenizer count and fits context minus generation reserve, within 16384 tokens.",
+      "observed": "93-08 token_counts are null and no request or timing was emitted.",
+      "evidence": [".wiretail/execution/evidence/V10_93-08.json:66-83,102-108", "/srv/ai/paged-kv/results/v10/93-08/attempt-01/live-smoke.log:1"],
+      "raw_event": "No /tokenize event; the driver exited before endpoint contact.",
+      "owner": "tools/server/bench/run-mtp-diagnostic.py:run at line 560 (required canonical runner check), then run_request tokenization."
+    },
+    {
+      "capability": "hot_page_bound_and_allocator_telemetry",
+      "result": "not_measured",
+      "configured_bound_result": "pass",
+      "expected": "Requested hot pages stay <=49152 tokens and actual usable/free/headroom/scratch values are recorded.",
+      "observed": "The harness configures 16 resident pages (4096 tokens) and four cold pages (1024 tokens), both under the cap. 93-08 allocator telemetry is null because no candidate rung loaded.",
+      "evidence": [".wiretail/execution/evidence/V10_93-07.json:20-40", ".wiretail/execution/evidence/V10_93-08.json:102-108"],
+      "raw_event": "No allocator snapshot in 93-08.",
+      "owner": "tools/server/bench/mtp_diagnostic.py:RUNG_SPECS/command_contract and run-mtp-diagnostic.py:run_request allocator snapshot."
+    },
+    {
+      "capability": "candidate_lifecycle_identity",
+      "result": "fail",
+      "expected": "Managed PID/start time, executable/model hashes, and exact rung settings match the immutable candidate before requests.",
+      "observed": "Candidate SHA is 2ef11a68cd640026e0b6b658ce07fb4682d2dd5e015d2ee879a008d2474a7e19; active service runs a different executable SHA bb75f2bca1701cc144fc04f29157ea1729c2f1636205f1e9a41f9a9a5fd18bc8 at context 77824 with no pager/headroom options. It was not used.",
+      "evidence": [".wiretail/execution/evidence/V10_93-08.json:4-12,31-45", "/srv/ai/paged-kv/results/v10/93-08/attempt-01/attempt-manifest.json:31-45"],
+      "raw_event": "Read-only process identity snapshot PID 3555662, start ticks 18095414.",
+      "owner": "tools/server/bench/run-mtp-diagnostic.py:identity_errors and loaded_identity_matches."
+    },
+    {
+      "capability": "receipt_integrity",
+      "result": "fail",
+      "expected": "93-06 through 93-08 compact task receipts validate their listed artifact hashes.",
+      "observed": "93-07 and 93-08 validate. 93-06 reports checksum mismatches for the later-rebuilt build-cuda/bin/llama-server and later-edited tests/test-server-prompt-cache.cpp; its other listed artifacts passed the validator.",
+      "evidence": [".wiretail/execution/evidence/raw/93-09/receipt-validation.log:1-4"],
+      "raw_event": "The historical receipt references mutable workspace artifacts; they no longer match the hashes captured at 93-06 completion.",
+      "owner": ".wiretail/execution/v10/validate.py:check_receipt."
+    }
+  ],
+  "harness_readiness": {
+    "three_canonical_prompts_available": true,
+    "cpu_target_kv_offload_mode_available": true,
+    "selected_pager_mode_available": true,
+    "measurement_ready": false,
+    "evidence": ["/srv/ai/benchmarks/run-profile-benchmark.sh:717-722", "tools/server/bench/run-pager-profile-benchmark.py:1184-1194"],
+    "decision": "No separate harness task is needed; the existing profile harness exposes the required modes and three prompts. Performance remains gated behind functional live proof."
+  },
+  "next_task_ids": ["93-10", "93-11", "93-12", "93-13"],
+  "decision": "Keep performance gated. Re-establish managed candidate identity, obtain the short functionality proof, repair only a reproduced defect, then run the bounded paired screen and final summary.",
+  "claims": {
+    "overall_goal_met": false,
+    "practical_speed": false,
+    "256k_capacity": false,
+    "production_promotion": false
+  }
+}

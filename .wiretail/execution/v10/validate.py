@@ -25,8 +25,8 @@ def check_plan(root: Path, state: dict) -> list[str]:
         return ["no current-revision tasks"]
     for task in current:
         tid = task["id"]
-        if task.get("recommended_model") not in {"Luna Medium", "Luna High"}:
-            errors.append(f"{tid}: explicit risk-based Luna recommendation required")
+        if task.get("recommended_model") not in {"Luna Medium", "Luna High", "gpt-6-luna"}:
+            errors.append(f"{tid}: explicit risk-based or hard-pinned model recommendation required")
         if task.get("retry1_reasoning") != "high":
             errors.append(f"{tid}: first retry must be High")
         packet = root / task["packet"]
