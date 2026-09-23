@@ -1,0 +1,194 @@
+{
+  "candidate": {
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/candidate-bundle/build-receipt.json",
+      "sha256": "2753bce8aca59feace3262e0e1d023b214b0b21f6fc14aab6ee7bc1230c8a9c7"
+    },
+    "immutable": true,
+    "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/candidate-bundle/llama-server",
+    "sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86"
+  },
+  "checks": {
+    "repair93_cold_promotion_route_resolution": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/local-verification.log",
+          "sha256": "2cc817736a0f9d043efb35b88545a30eb28eae92777966a4fa1ae12c70db7b5c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/stale-graph-descriptor-stack.log",
+          "sha256": "cb8a430962d7b7bde65b97e45cdd2172208aada2aeb5f0ca9be6a0c080634eeb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/cold-request-02-launch-blocking-journal.log",
+          "sha256": "1cf7d11ceeb2915688d8d9eae6f74a7e983eee7413c5b657b6bf214cc406006e"
+        }
+      ],
+      "command": [
+        "build-cuda/bin/test-llama-archs",
+        "-a",
+        "qwen35"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "deferred_verification": {
+    "hardware_or_human_dependency_missing": false,
+    "item": "Complete same-slot cold A\u2192B\u2192A page promotion with same-page cold observation, H2D completion, table publication, and target plus draft consumption.",
+    "reason": "Candidate-bound B append aborts with a CUDA illegal memory access before the third request can prove promotion.",
+    "successor": "93-11c"
+  },
+  "follow_up": {
+    "93_12_depends_on": "93-11c",
+    "93_12_status": "todo",
+    "reason": "The stale descriptor crash is fixed and covered locally, but the candidate-bound B append still fails inside CUDA graph launch; promotion evidence is incomplete.",
+    "scheduled_before": "93-12",
+    "task_id": "93-11c"
+  },
+  "live_controls": {
+    "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+    "candidate_identity_verified": true,
+    "canonical_runner_path": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "cold_promotion": {
+      "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+      "launch_blocking_stack": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/cold-request-02-launch-blocking-journal.log",
+        "sha256": "1cf7d11ceeb2915688d8d9eae6f74a7e983eee7413c5b657b6bf214cc406006e"
+      },
+      "launch_blocking_summary": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/canonical_mtp_diagnostic_launch_blocking_fixed/summary.json",
+        "sha256": "72ca761f8d18dee6f64184b14903811787b1e79dac0259321774342669de108f"
+      },
+      "live_stack": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/cold-request-02-live-stack.txt",
+        "sha256": "bce050231fb46d751132d709ddf061725f1a3f6c9d41a27116b7ce6706327967"
+      },
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "raw_artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/canonical_mtp_diagnostic_final_retry/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+        "sha256": "dd68381ebd033ae045fc7cd5717f84924135ecd1cb42356601964c20392fdfa4"
+      },
+      "reason": "Request 2 (B append/query) timed out at 300 seconds; CUDA reported illegal memory access in ggml_backend_cuda_synchronize. With CUDA_LAUNCH_BLOCKING=1, the same request aborted at ggml_cuda_graph_evaluate_and_capture during cudaGraphLaunch. Request 3 could not complete, and same-page cold observation/H2D/table-publication/target-and-draft consumption were not proven.",
+      "request_attempted": true,
+      "request_statuses": [
+        200,
+        0,
+        0
+      ],
+      "request_tokens": [
+        31,
+        1760,
+        1771
+      ],
+      "requests_attempted": 3,
+      "status": "fail",
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/canonical_mtp_diagnostic_final_retry/summary.json",
+        "sha256": "200a1095bf18e52f9ed4f2f9c71e5588aaf54b6b74338c37e9a88af31dbbec1f"
+      }
+    },
+    "execution_status": "complete",
+    "geometry": {
+      "batch": 128,
+      "cold_hot_pages": 4,
+      "cold_hot_tokens": 1024,
+      "context_tokens": 8192,
+      "draft_n_max": 2,
+      "max_rendered_input_tokens": 16384,
+      "mtp": "native GPU Turbo4",
+      "n_predict": 16,
+      "page_size_tokens": 256,
+      "pin_recent": 0,
+      "target_kv": "turbo4",
+      "ubatch": 64
+    },
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "rungs": {
+      "dense_mtp_off": {
+        "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/canonical_mtp_diagnostic_final_retry/01-mtp_off_dense_all_gpu/request-01/record.json",
+          "sha256": "629001c35f30d1fb1526a9db75aff9e44df3ebf71cb11ba78f4a81f082dffd26"
+        },
+        "request_attempted": true,
+        "status": "pass"
+      },
+      "dense_mtp_on": {
+        "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/canonical_mtp_diagnostic_final_retry/02-mtp_on_dense_all_gpu/request-01/record.json",
+          "sha256": "bd56a6d0cb747627bc0023f00c6689becb9e6b2fe8e59acadee87be6381d1d85"
+        },
+        "request_attempted": true,
+        "status": "pass"
+      },
+      "selected_cold_promotion": {
+        "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/canonical_mtp_diagnostic_final_retry/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+          "sha256": "dd68381ebd033ae045fc7cd5717f84924135ecd1cb42356601964c20392fdfa4"
+        },
+        "reason": [
+          {
+            "errors": [
+              "cold_probe_no_h2d_promotion"
+            ],
+            "request_number": 1
+          },
+          {
+            "errors": [
+              "missing_target_positions",
+              "missing_draft_positions",
+              "missing_rollback_count",
+              "native_mtp_no_draft_attempt",
+              "cold_probe_no_h2d_promotion"
+            ],
+            "request_number": 2
+          },
+          {
+            "errors": [
+              "missing_draft_n",
+              "missing_draft_n_accepted",
+              "missing_accepted_tokens",
+              "missing_verification_steps",
+              "missing_target_positions",
+              "missing_draft_positions",
+              "missing_rollback_count",
+              "missing_pager_route",
+              "missing_page_table_epoch",
+              "route_refused_or_unknown",
+              "cold_probe_pager_snapshots_missing"
+            ],
+            "request_number": 3
+          }
+        ],
+        "request_attempted": true,
+        "status": "fail"
+      },
+      "selected_resident_mtp": {
+        "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/canonical_mtp_diagnostic_final_retry/03-mtp_on_selected_paged_resident/request-01/record.json",
+          "sha256": "e24d4ac6b66c13df85748fe3c733724e374f1bcf8f98049a45a1b46c46e3afde"
+        },
+        "request_attempted": true,
+        "status": "pass"
+      }
+    },
+    "runner_configured": true,
+    "runner_invoked": true
+  },
+  "model": {
+    "name": "Qwen3.8-27B-UD-IQ4_XS",
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "schema_version": 1,
+  "source_commit": "dd9073a03f4920fb46319f850f78548ebaf1e176",
+  "task": "93-11b"
+}

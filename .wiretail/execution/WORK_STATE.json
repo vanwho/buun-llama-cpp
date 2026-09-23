@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-11b",
-  "last_updated_utc": "2026-09-23T05:00:42+00:00",
+  "current_task": "93-11c",
+  "last_updated_utc": "2026-09-23T05:50:32+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -19013,7 +19013,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Resolve the remaining four-page cold-promotion failure",
       "packet": ".wiretail/execution/tasks/93-11b.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -19028,7 +19028,7 @@
       "depends_on": [
         "93-11a"
       ],
-      "commit": null,
+      "commit": "5031a63ac94d52ab244992994bcb0dd3fb804fbc",
       "context_files": [
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
         ".wiretail/execution/tasks/93-11a.md",
@@ -19049,6 +19049,75 @@
         "93-11b",
         "--receipt",
         ".wiretail/execution/evidence/V10_93-11b.json"
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11b-attempt-1-20260923T050103Z.jsonl:252",
+            "total_tokens": 61637512,
+            "total_tokens_derived": true,
+            "input_tokens": 61422526,
+            "cached_input_tokens": 60122368,
+            "output_tokens": 214986,
+            "thinking_tokens": 107941
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 61637512,
+          "input_tokens": 61422526,
+          "cached_input_tokens": 60122368,
+          "output_tokens": 214986,
+          "thinking_tokens": 107941
+        }
+      }
+    },
+    {
+      "id": "93-11c",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Resolve CUDA graph illegal access on the cold B append",
+      "packet": ".wiretail/execution/tasks/93-11c.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_cold_append_cuda_graph_replay"
+      ],
+      "depends_on": [
+        "93-11b"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-11b.md",
+        ".wiretail/execution/evidence/V10_93-11b.json",
+        ".wiretail/execution/handoffs/93-11b.md",
+        ".wiretail/execution/v10/validate.py",
+        ".wiretail/execution/v10/test_validate.py",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-cache.h",
+        "ggml/src/ggml-cuda/ggml-cuda.cu",
+        "tools/server/bench/run-mtp-diagnostic.py",
+        "tools/server/bench/mtp_diagnostic.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11c",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11c.json"
       ]
     },
     {
@@ -19073,7 +19142,8 @@
         "93-10",
         "93-11",
         "93-11a",
-        "93-11b"
+        "93-11b",
+        "93-11c"
       ],
       "commit": null,
       "context_files": [
@@ -24704,26 +24774,39 @@
           "cached_input_tokens": 39560192,
           "output_tokens": 154191,
           "thinking_tokens": 77669
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11b-attempt-1-20260923T050103Z.jsonl:252",
+          "total_tokens": 61637512,
+          "total_tokens_derived": true,
+          "input_tokens": 61422526,
+          "cached_input_tokens": 60122368,
+          "output_tokens": 214986,
+          "thinking_tokens": 107941
         }
       ],
       "totals": {
-        "turns": 14,
-        "total_tokens": 1242351712,
-        "input_tokens": 1239128549,
-        "cached_input_tokens": 1215637760,
-        "output_tokens": 3223163,
-        "thinking_tokens": 1302248
+        "turns": 15,
+        "total_tokens": 1303989224,
+        "input_tokens": 1300551075,
+        "cached_input_tokens": 1275760128,
+        "output_tokens": 3438149,
+        "thinking_tokens": 1410189
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 345,
-      "total_tokens": 7404956185,
-      "input_tokens": 7386566740,
-      "cached_input_tokens": 7227605504,
-      "output_tokens": 18389445,
-      "thinking_tokens": 6711200
+      "turns": 346,
+      "total_tokens": 7466593697,
+      "input_tokens": 7447989266,
+      "cached_input_tokens": 7287727872,
+      "output_tokens": 18604431,
+      "thinking_tokens": 6819141
     },
     "source": "Codex turn.completed usage events"
   }
