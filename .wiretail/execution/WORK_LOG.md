@@ -1165,3 +1165,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Made 93-11e and 93-12 depend on and consume the new fixture campaign; 93-12 remains gated. The active current task stays 93-11f, so the next Wiretail task after it completes is 93-11g.
 - Kept 93-11g's automatically loaded context to the fixture manifest/generator, diagnostic driver/tests, V10 validator, and the prior 93-11f receipt/handoff. Large C++ source files remain precise on-demand pointers if telemetry repair is needed.
 - Validation: all 24 fixtures verified at exactly 1,024 Qwen3.8-27B tokens and matching SHA-256; Python compile/merge behavior and Bash syntax checks passed; task state is valid at 409 tasks; active-plan validator and JSON parsing pass; `git diff --check` passes. No server was restarted and no runtime promotion result is claimed.
+
+## 2026-09-23T18:17:23Z — plan clarification — natural 93-11g paging
+
+- Clarified that 93-11g launches llama-server itself at `-c 8192` with the normal automatic 4,096-token GPU hot budget, and keeps the full A→B→A prompt below the server context limit.
+- Explicitly prohibited manual/test-only eviction, page-selection, route, score, or promotion controls. Cold residency must arise from ordinary appended fixture contents exceeding the hot budget while A remains in logical context; context shifting cannot count as eviction.
+- Validation: task/cluster wording and whitespace checked. Runtime geometry remains for task 93-11g; this plan amendment makes no live test claim.

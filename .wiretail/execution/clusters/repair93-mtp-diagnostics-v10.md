@@ -64,11 +64,15 @@ promotion gates.
   and `--kv-safety-headroom auto` remain authoritative and may admit less.
 - Keep diagnostic context small: use 4096 for trim/MTP iteration and at most
   8192 for the cold-promotion sequences. Task 93-11f starts at 8192 total
-  context with 4096 target hot tokens. Task 93-11g uses that same 8K/4K
-  geometry with exact 1K-token file fixtures to force real-file eviction and
-  retrieval. Any later phase-93 speed row
-  may use a matched context only when safe, never above 49,152 tokens (48 Ki
-  tokens); no phase-93 task may exceed that ceiling.
+  context with 4096 target hot tokens. Task 93-11g configures the actual
+  llama-server at `-c 8192` and its ordinary automatic target-KV hot budget at
+  4096 tokens, then appends exact 1K-token file fixtures as normal same-slot
+  user context. Keep the A→B→A sequence below the full 8K context so server
+  context shifting cannot discard A; natural pager pressure above the 4K hot
+  budget must evict A, and the later ordinary A query must cause promotion.
+  Do not manually force eviction, page selection, or promotion. Any later
+  phase-93 speed row may use a matched context only when safe, never above
+  49,152 tokens (48 Ki tokens); no phase-93 task may exceed that ceiling.
 - No request used to measure prefill/input speed may contain more than 16384
   rendered input tokens, including the retained prompt prefix. Preflight the
   exact rendered prompt with the canonical tokenizer before sending it; reject
