@@ -1,0 +1,212 @@
+{
+  "candidate": {
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/candidate-bundle/build-receipt.json",
+      "sha256": "6ff5e7f514b1716754e0edef509cdb1fdd7987a5f2bbd53d84b4c60e0e0b0984"
+    },
+    "immutable": true,
+    "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/candidate-bundle/llama-server",
+    "sha256": "da680b4d99562175fe5695493b47fc02d3f7d90d15e0978d128ebdf91f63f2a6"
+  },
+  "checks": {
+    "repair93_selected_route_crash_resolution": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/local-verification.log",
+          "sha256": "df1d641f9d85d228dd2236144057e4380b03a4a9a9ce003a5ce409db816b2e5a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/candidate-bundle/build-receipt.json",
+          "sha256": "6ff5e7f514b1716754e0edef509cdb1fdd7987a5f2bbd53d84b4c60e0e0b0984"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final/summary.json",
+          "sha256": "fe7f3f911ed457b2ede8020f99e6a7b4164cb84ef4333a6d73f39069fbcb1355"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final/01-mtp_off_dense_all_gpu/canonical/records.jsonl",
+          "sha256": "44a33cfa6e33d22bb21f0bb3a124e846f019c7dc27c226f1c48c35802a3253ee"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final/02-mtp_on_dense_all_gpu/canonical/records.jsonl",
+          "sha256": "6aa8031d189f17b3758837fcc870bff82f725b830e3e33327895ee80ee63695f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final/03-mtp_on_selected_paged_resident/request-01/record.json",
+          "sha256": "01a057d3b90306420b556db9761135c79562f108f7de5162ce6a250237429bf3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/diagnostic_selected_mtp_native_after_fix/summary.json",
+          "sha256": "95ccdb25980ef4e1eefc5b2dbf3e89f0251aedd6023d3c2344911c9fca43da06"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_trace/summary.json",
+          "sha256": "939fba096abfb8dc2671ba3f30f969d213ef01d06d0e3207b3a7f8327cd8fbdb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/original-null-name-stack.txt",
+          "sha256": "535e7ff8d0f41da3cdd67c56f31d72dc1a6ef87603c778d939645d8ee629f7be"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/remaining-cold-crash.txt",
+          "sha256": "818df4d77fbb927459d4dcb0c4630c24aaffbb7767f51f83179b796404ddaa43"
+        }
+      ],
+      "command": [
+        "cmake --build build-cuda --target test-llama-archs llama-server -j8",
+        "build-cuda/bin/test-llama-archs -a qwen35",
+        "git diff --check"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "deferred_verification": {
+    "hardware_or_human_dependency_missing": false,
+    "item": "Complete bounded same-slot A\u2192B\u2192A cold-page promotion with same-page identity, H2D completion, table publication, and target plus draft consumption.",
+    "reason": "Candidate-bound four-page failure remains intermittent and the canonical cold evidence is incomplete.",
+    "successor": "93-11b"
+  },
+  "follow_up": {
+    "93_12_depends_on": "93-11b",
+    "performance_task_status": "todo",
+    "reason": "The cold four-page request remains intermittent: the plain canonical request crashed, while traced A\u2192B\u2192A requests timed out before cold-page H2D/publication/target-and-draft consumption could be proven.",
+    "scheduled_before": "93-12",
+    "task_id": "93-11b"
+  },
+  "live_controls": {
+    "bounds": {
+      "batch": 128,
+      "cold_hot_pages": 4,
+      "cold_hot_tokens": 1024,
+      "context_tokens": 8192,
+      "draft_n_max": 2,
+      "max_rendered_input_tokens": 16384,
+      "n_predict": 16,
+      "resident_hot_pages": 16,
+      "resident_hot_tokens": 4096,
+      "selected_page_size_tokens": 256,
+      "ubatch": 64
+    },
+    "candidate_binary_sha256": "da680b4d99562175fe5695493b47fc02d3f7d90d15e0978d128ebdf91f63f2a6",
+    "candidate_identity_verified": true,
+    "canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "cold_promotion": {
+      "candidate_binary_sha256": "da680b4d99562175fe5695493b47fc02d3f7d90d15e0978d128ebdf91f63f2a6",
+      "crash_artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/remaining-cold-crash.txt",
+        "sha256": "818df4d77fbb927459d4dcb0c4630c24aaffbb7767f51f83179b796404ddaa43"
+      },
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "raw_artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final/04-mtp_on_selected_paged_cold_probe/canonical/records.jsonl",
+        "sha256": "cb21281a839b332d90fdaa5511f2b513f2d6788e7e5f573e7c1a067bff3951ce"
+      },
+      "reason": "The plain canonical four-page rung sent its first 31-token rendered request; candidate PID 4147328 exited SIGSEGV after the recurrent/hybrid frontier warning. In a traced run, B and A requests timed out at 120 seconds and emitted no required promotion/consumption chain. A separate signal-handler reproduction passed but does not certify A\u2192B\u2192A.",
+      "request_attempted": true,
+      "requests_attempted": 1,
+      "separate_short_reproduction": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/diagnostic_cold_4pages_stack/summary.json",
+        "sha256": "b503e1dc1f76a1595507d135e4dec54b555e50358fe7ced76828341ad2b85c85"
+      },
+      "status": "fail",
+      "traced_a_b_a_artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_trace/04-mtp_on_selected_paged_cold_probe/canonical/records.jsonl",
+        "sha256": "58441ece43166be12e8aa77217583f9fc0212503021d2b63a775b49cc38ed362"
+      }
+    },
+    "command": [
+      "python3",
+      "tools/server/bench/run-mtp-diagnostic.py",
+      "--output",
+      "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final",
+      "--model",
+      "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "--server-binary",
+      "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/candidate-bundle/llama-server",
+      "--endpoint",
+      "http://127.0.0.1:8080",
+      "--key-file",
+      "/srv/ai/config/llama/api-keys",
+      "--context",
+      "8192",
+      "--batch",
+      "128",
+      "--ubatch",
+      "64",
+      "--n-predict",
+      "16",
+      "--draft-n-max",
+      "2",
+      "--repeats",
+      "1",
+      "--startup-timeout",
+      "180",
+      "--request-timeout",
+      "120"
+    ],
+    "diagnostic_driver": "tools/server/bench/run-mtp-diagnostic.py",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "rungs": {
+      "dense_mtp_off": {
+        "candidate_binary_sha256": "da680b4d99562175fe5695493b47fc02d3f7d90d15e0978d128ebdf91f63f2a6",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final/01-mtp_off_dense_all_gpu/canonical/records.jsonl",
+          "sha256": "44a33cfa6e33d22bb21f0bb3a124e846f019c7dc27c226f1c48c35802a3253ee"
+        },
+        "request_attempted": true,
+        "status": "pass"
+      },
+      "dense_mtp_on": {
+        "candidate_binary_sha256": "da680b4d99562175fe5695493b47fc02d3f7d90d15e0978d128ebdf91f63f2a6",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final/02-mtp_on_dense_all_gpu/canonical/records.jsonl",
+          "sha256": "6aa8031d189f17b3758837fcc870bff82f725b830e3e33327895ee80ee63695f"
+        },
+        "request_attempted": true,
+        "status": "pass"
+      },
+      "selected_resident_mtp": {
+        "candidate_binary_sha256": "da680b4d99562175fe5695493b47fc02d3f7d90d15e0978d128ebdf91f63f2a6",
+        "corroborating_direct_native_request": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/diagnostic_selected_mtp_native_after_fix/records.jsonl",
+          "sha256": "8e4213fe221baf3c71e22d18a8fc27f914d6cc7c754a8627d2fddbfb707a3c27"
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "observed_route": "selected dense",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11a/attempt-01/canonical_mtp_diagnostic_final/03-mtp_on_selected_paged_resident/request-01/record.json",
+          "sha256": "01a057d3b90306420b556db9761135c79562f108f7de5162ce6a250237429bf3"
+        },
+        "rendered_prompt_tokens": 12,
+        "request_attempted": true,
+        "status": "pass"
+      }
+    }
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "repair": {
+    "changed_files": [
+      "src/llama-context.cpp",
+      "src/llama-graph.h",
+      "tests/test-llama-archs.cpp"
+    ],
+    "deterministic_regression": "test-llama-archs directly invokes the helper with a null optional mask and verifies normal indexed naming for a present tensor.",
+    "implementation": "Added llm_graph_name_tensor: null is a no-op; present tensors use ggml_format_name for indexed layers and ggml_set_name otherwise. graph_get_cb delegates to it.",
+    "justified_by": {
+      "expected": "Optional absent graph tensors are ignored by the naming callback; present tensors retain indexed/non-indexed names.",
+      "observed": "The null naming call completed when guarded in a managed reproduction; subsequent canonical resident-native MTP requests returned valid responses.",
+      "owner": "llama_context::graph_get_cb in src/llama-context.cpp; extracted null-safe naming seam llm_graph_name_tensor.",
+      "raw_event": "Bounded preloaded name trace recorded ggml_format_name(tensor=null) for absent attn_inp_kq_mask at hybrid layers 3,7,...,63; stack passed through llm_graph_context::cb and llama_context::graph_get_cb while constructing llama_model_qwen35::graph.",
+      "request": "93-11 selected-resident selected MTP-off candidate reproduction, same 30-token incoming prompt after the empty-suffix trim repair."
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "db9a5335f75c4ed5c0e6bcaa64356e30d8d11d8c",
+  "task": "93-11a"
+}

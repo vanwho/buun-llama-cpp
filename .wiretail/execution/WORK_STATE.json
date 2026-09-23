@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-11a",
-  "last_updated_utc": "2026-09-23T04:21:01+00:00",
+  "current_task": "93-11b",
+  "last_updated_utc": "2026-09-23T05:00:42+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18951,8 +18951,8 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Diagnose the remaining selected-resident native-MTP crash",
       "packet": ".wiretail/execution/tasks/93-11a.md",
-      "status": "todo",
-      "blocker": "93-11 repaired the reproduced empty-suffix trim; the rebuilt candidate still exits status=11/SEGV in the selected-resident native-MTP rung, gating cold promotion.",
+      "status": "done",
+      "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
@@ -18966,7 +18966,7 @@
       "depends_on": [
         "93-11"
       ],
-      "commit": null,
+      "commit": "edbd5220e9ce91ad6054322a8043c4cdd5c4b3d2",
       "context_files": [
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
         ".wiretail/execution/tasks/93-11.md",
@@ -18980,6 +18980,75 @@
         "93-11a",
         "--receipt",
         ".wiretail/execution/evidence/V10_93-11a.json"
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11a-attempt-1-20260923T042123Z.jsonl:256",
+            "total_tokens": 40691901,
+            "total_tokens_derived": true,
+            "input_tokens": 40537710,
+            "cached_input_tokens": 39560192,
+            "output_tokens": 154191,
+            "thinking_tokens": 77669
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 40691901,
+          "input_tokens": 40537710,
+          "cached_input_tokens": 39560192,
+          "output_tokens": 154191,
+          "thinking_tokens": 77669
+        }
+      }
+    },
+    {
+      "id": "93-11b",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Resolve the remaining four-page cold-promotion failure",
+      "packet": ".wiretail/execution/tasks/93-11b.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_cold_promotion_route_resolution"
+      ],
+      "depends_on": [
+        "93-11a"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-11a.md",
+        ".wiretail/execution/evidence/V10_93-11a.json",
+        ".wiretail/execution/handoffs/93-11a.md",
+        ".wiretail/execution/v10/validate.py",
+        ".wiretail/execution/v10/test_validate.py",
+        "tools/server/bench/run-mtp-diagnostic.py",
+        "tools/server/bench/mtp_diagnostic.py",
+        "src/llama-context.cpp",
+        "src/llama-graph.h",
+        "tests/test-llama-archs.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11b",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11b.json"
       ]
     },
     {
@@ -19003,7 +19072,8 @@
       "depends_on": [
         "93-10",
         "93-11",
-        "93-11a"
+        "93-11a",
+        "93-11b"
       ],
       "commit": null,
       "context_files": [
@@ -24621,26 +24691,39 @@
           "cached_input_tokens": 17824000,
           "output_tokens": 86481,
           "thinking_tokens": 43076
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11a-attempt-1-20260923T042123Z.jsonl:256",
+          "total_tokens": 40691901,
+          "total_tokens_derived": true,
+          "input_tokens": 40537710,
+          "cached_input_tokens": 39560192,
+          "output_tokens": 154191,
+          "thinking_tokens": 77669
         }
       ],
       "totals": {
-        "turns": 13,
-        "total_tokens": 1201659811,
-        "input_tokens": 1198590839,
-        "cached_input_tokens": 1176077568,
-        "output_tokens": 3068972,
-        "thinking_tokens": 1224579
+        "turns": 14,
+        "total_tokens": 1242351712,
+        "input_tokens": 1239128549,
+        "cached_input_tokens": 1215637760,
+        "output_tokens": 3223163,
+        "thinking_tokens": 1302248
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 344,
-      "total_tokens": 7364264284,
-      "input_tokens": 7346029030,
-      "cached_input_tokens": 7188045312,
-      "output_tokens": 18235254,
-      "thinking_tokens": 6633531
+      "turns": 345,
+      "total_tokens": 7404956185,
+      "input_tokens": 7386566740,
+      "cached_input_tokens": 7227605504,
+      "output_tokens": 18389445,
+      "thinking_tokens": 6711200
     },
     "source": "Codex turn.completed usage events"
   }
