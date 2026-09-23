@@ -1,65 +1,84 @@
-# repair93 — fast MTP diagnosis under attention-aware paging
+# repair93 — short Turbo4 MTP and pager correctness
 
-Revision: `hotpath-v10-20260914`. Amendment: `repair93-mtp-fast-20260922`.
+Phase 93 resumes from the measured 93-04 failure. Dense GPU Turbo4 MTP now
+works at 8/10 accepted draft tokens on its bounded control. Selected/paged
+requests still crash after `memory_seq_rm [p0, end)` is rejected, and the
+existing cold rung has not proved document-driven page promotion. The phase
+must resolve those specific gaps before a speed or context-capacity campaign.
 
-Phase 93 is a short diagnostic phase, not a 256K occupancy or throughput
-campaign. Its purpose is to determine whether the low native-MTP acceptance is
-caused by draft/target state divergence, page-table/route divergence, rollback
-errors, Turbo4 dequantization/logit mismatch, or merely a bad benchmark setup.
+## Goals and bounds
 
-Every live run must use a small bounded prompt and generation budget so that a
-diagnostic completes in seconds or a few minutes. Do not run the old full-L
-frontier, long context ramp, 20K+ prefill, or repeated 30-second polling loop
-in this phase. Use the same Qwen3.8-27B UD-IQ4_XS model and one immutable CUDA
-binary for each comparison, with target and draft K/V explicitly Turbo4 and
-draft K/V explicitly GPU-resident.
+- Keep the target and MTP draft on CUDA with Turbo4 K and V for every MTP-on
+  control. A route that silently moves draft state to CPU, changes KV type, or
+  uses `selected_reference` is a setup failure.
+- Do not reserve more than 48 Ki tokens of target hot KV in VRAM in any phase
+  93 test (`48 * 1024 = 49152` tokens, or 192 pages at 256 tokens/page). This
+  is a test ceiling, not a production hot-set constant. Request only the
+  smaller hot-page count needed for each test; the allocator's byte budget
+  and `--kv-safety-headroom auto` remain authoritative and may admit less.
+- Keep test context small: use 4096 for trim/MTP iteration and at most 8192 for
+  the two-document cold-promotion sequence. Never configure more than 16384
+  context tokens in this phase.
+- No request used to measure prefill/input speed may contain more than 16384
+  rendered input tokens, including the retained prompt prefix. Preflight the
+  exact rendered prompt with the canonical tokenizer before sending it; reject
+  over-limit input instead of truncating or reporting it as a valid speed row.
+  Prefer 4096/8192-token measurements while iterating; use 16384 only for a
+  final bounded point after the smaller setup is stable.
+- Keep generation at 16 tokens or less and `draft_n_max=2` during diagnostics.
+  Use one slot, the existing managed lifecycle, and a small `ubatch` (start at
+  64, lower it if the measured scratch/headroom preflight requires it; record
+  actual `-b` and `-ub`). Never launch a second Qwen3.8-27B CUDA process.
+- Read only this cluster, the active packet, the compact 93-04/93-05 evidence,
+  and the exact source functions named below. Do not load old V9/phase-85
+  planning documents as task context; consult historical material only when
+  one named code contract cannot be understood from current source.
 
-The canonical benchmark lifecycle owns the service. For every rung, invoke the
-configured `CANONICAL_BENCHMARK_RUNNER` through the existing pager benchmark
-adapter and pass `BENCH_SERVER_BIN` for the candidate executable. A process
-already listening on port 8080 is not evidence that the requested rung is
-loaded: reuse it only after verifying its PID/start time, `/proc/<pid>/exe`
-realpath and SHA-256, model realpath/SHA-256, and all relevant command-line
-flags. Otherwise reload/activate the requested profile before sending a
-request. Do not create an ad-hoc endpoint or silently test the old selective
-service. A separate diagnostic process is allowed only when the canonical
-lifecycle cannot express the rung and it emits the same complete identity and
-restoration manifest; it is never a reason to score an unverified endpoint.
-The scored harness must receive a non-empty `BENCH_SERVER_BIN` (or equivalent
-explicit binary argument); a healthy endpoint without candidate identity is a
-negative setup check, not a usable fallback.
+## Candidate identity and service lifecycle
 
-The RTX 4080 has room for only one Qwen3.8-27B process. Before each rung,
-construct the expected identity from the requested binary, model, and command
-line. If the currently loaded process matches that identity and the prior
-handoff/lifecycle manifest has `continue_loaded=true`, reuse it as-is. In every
-other case, load the expected binary through the managed lifecycle, wait for
-the old PID and CUDA allocation to disappear, and verify the new PID/executable
-/model before sending requests. Never leave one 27B process running while
-launching another on a second port.
+Use the canonical Qwen3.8-27B UD-IQ4_XS model, one immutable candidate binary,
+and the existing `CANONICAL_BENCHMARK_RUNNER` via
+`tools/server/bench/run-mtp-diagnostic.py`. Before any request, require the
+expected managed process identity: PID/start time, `/proc/<pid>/exe` realpath
+and SHA-256, model realpath and SHA-256, and exact context/batch/ubatch/pager/
+Turbo4/MTP command-line options. If it matches and the previous lifecycle
+manifest says `continue_loaded=true`, continue with that process. Otherwise
+reload the expected binary through the managed lifecycle and verify it before
+requesting. A healthy endpoint by itself is never candidate evidence.
 
-The required comparison ladder is:
+Every raw rung gets its own directory and request-local counters. Preserve the
+candidate identity, command, prompt hash and exact token count, server log,
+request/response, `/slots`, metrics before/after, page identities, VRAM and
+scratch/headroom values, and lifecycle manifest. Missing telemetry remains
+null and fails the relevant proof; do not infer zeros from missing fields.
 
-1. MTP-off dense/all-GPU target control.
-2. MTP-on dense/all-GPU target plus GPU Turbo4 draft control.
-3. MTP-on selected/paged with every test page resident (no cold promotion).
-4. Only after 1–3 are recorded, one bounded cold-page promotion/rollback
-   probe with a deliberately tiny hot set.
+## Required diagnostic order
 
-The harness must capture request/response SSE, per-step draft and accepted
-counts, target/draft positions, rollback and rewind events, page-table epoch,
-route identity, and MTP placement/types. A run is invalid if it reports only
-aggregate counters without the request-level evidence. The first failing rung
-localizes the defect and determines the code inspection scope.
+1. MTP-off dense/all-GPU control.
+2. MTP-on dense/all-GPU control with GPU Turbo4 draft KV.
+3. MTP-on selected/paged with all pages resident for the short control.
+4. Only after the first three complete, run the bounded two-document cold
+   promotion sequence with a four-page hot set: ingest A; append B and query
+   B; query a unique fact from A again. These must be prefix-preserving
+   requests in the same slot so A can actually become cold. The 93-01 filler
+   prompt is not a promotion proof.
 
-`selected_reference` is diagnostic-only and cannot be used as a production
-success or performance result. If an automatic run selects it, stop, record
-the route-policy failure, and repair the dispatch/configuration before doing
-the comparison again.
+For the live controls, pair prompt, seed, sampler, generation limit, model,
+binary and geometry across dense and selected routes. Report `draft_n_accepted /
+draft_n` from each request; `accepted_target_tokens` is not the denominator.
+Compare selected-resident acceptance against the same dense MTP prompt. For
+promotion, require the same logical page identity to be observed cold, selected
+by the query, H2D-completed and published before attention, then consumed by
+the target and draft. A page allocation, route name, or successful response
+alone does not prove promotion.
 
-Phase output must state whether the defect is in MTP itself, paged attention,
-or the harness/configuration, identify exact source functions and state fields,
-and either implement the smallest justified repair or create a directly
-actionable successor task with file/function/test pointers. Do not proceed to
-large-context or speed acceptance until the short MTP control reaches the
-expected high acceptance behavior and the paged resident case matches it.
+## Scope boundary
+
+Repair the selected trim/recovery defect and cold-sequence harness before any
+large-context run. A prefill timing captured by a functional diagnostic is
+only a diagnostic unless it uses paired canonical prompts and exact input
+token counts no greater than 16384. Do not claim practical speed, 256K
+occupancy, production capacity, or quality from this phase. Phase 93-09 must
+schedule the next small, paired performance measurement only after these
+functional proofs pass; otherwise it schedules the concrete repair supported
+by the failing evidence.

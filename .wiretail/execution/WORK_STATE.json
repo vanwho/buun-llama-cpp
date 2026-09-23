@@ -18542,7 +18542,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Repair selected prompt-trim recovery after rejection",
       "packet": ".wiretail/execution/tasks/93-06.md",
-      "status": "pending",
+      "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -18556,10 +18556,9 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/v10/REPAIR85_PLAN.md",
-        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
-        ".wiretail/execution/tasks/93-05.md"
+        ".wiretail/execution/evidence/V10_93-04.md",
+        ".wiretail/execution/evidence/V10_93-05.md"
       ],
       "completion_check": [
         "python3",
@@ -18574,9 +18573,9 @@
       "id": "93-07",
       "phase": "93",
       "cluster": "repair93-mtp-diagnostics-v10",
-      "title": "Lock the trim-rejection regression and candidate identity",
+      "title": "Lock trim recovery and make the promotion diagnostic real",
       "packet": ".wiretail/execution/tasks/93-07.md",
-      "status": "pending",
+      "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -18590,10 +18589,9 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/v10/REPAIR85_PLAN.md",
-        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
-        ".wiretail/execution/tasks/93-06.md"
+        ".wiretail/execution/tasks/93-06.md",
+        ".wiretail/execution/evidence/V10_93-04.md"
       ],
       "completion_check": [
         "python3",
@@ -18610,7 +18608,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Re-run the bounded resident, cold, and promotion controls",
       "packet": ".wiretail/execution/tasks/93-08.md",
-      "status": "pending",
+      "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -18624,10 +18622,9 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/v10/REPAIR85_PLAN.md",
-        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
-        ".wiretail/execution/tasks/93-07.md"
+        ".wiretail/execution/tasks/93-07.md",
+        ".wiretail/execution/evidence/V10_93-05.md"
       ],
       "completion_check": [
         "python3",
@@ -18642,9 +18639,9 @@
       "id": "93-09",
       "phase": "93",
       "cluster": "repair93-mtp-diagnostics-v10",
-      "title": "Review the repaired short controls before any scale campaign",
+      "title": "Review short controls and schedule the next speed step",
       "packet": ".wiretail/execution/tasks/93-09.md",
-      "status": "pending",
+      "status": "todo",
       "blocker": null,
       "recommended_model": "Luna High",
       "retry1_reasoning": "high",
@@ -18658,10 +18655,9 @@
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/v10/REPAIR85_PLAN.md",
-        ".wiretail/execution/v10/REPAIR85_TESTING.md",
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
-        ".wiretail/execution/tasks/93-08.md"
+        ".wiretail/execution/tasks/93-08.md",
+        ".wiretail/execution/evidence/V10_93-05.md"
       ],
       "completion_check": [
         "python3",
