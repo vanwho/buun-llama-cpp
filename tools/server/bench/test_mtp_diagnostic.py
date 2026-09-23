@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pathlib
 import runpy
+import json
+import tempfile
 import unittest
+from argparse import Namespace
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from mtp_diagnostic import (
     RUNG_SPECS,
@@ -17,10 +22,121 @@ from mtp_diagnostic import (
     validate_prompt_tokens,
     request_fields,
     validate_request_record,
+    validate_rung_summary,
 )
 
 
 class MTPDiagnosticTest(unittest.TestCase):
+    def test_missing_runner_error_prints_exact_environment_assignment(self) -> None:
+        driver = runpy.run_path(str(pathlib.Path(__file__).with_name(
+            "run-mtp-diagnostic.py")))
+        with patch.dict("os.environ", {}, clear=True):
+            with self.assertRaisesRegex(
+                    RuntimeError,
+                    "export CANONICAL_BENCHMARK_RUNNER=/srv/ai/benchmarks/run-profile-benchmark\\.sh"):
+                driver["canonical_runner_from_environment"]()
+
+    def test_canonical_runner_brackets_managed_mtp_diagnostics(self) -> None:
+        driver = runpy.run_path(str(pathlib.Path(__file__).with_name(
+            "run-mtp-diagnostic.py")))
+        args = Namespace(endpoint="http://127.0.0.1:18080", key_file=None,
+                         context=4096, batch=128, ubatch=64, n_predict=16,
+                         startup_timeout=1.0, request_timeout=1.0)
+        replies = [SimpleNamespace(returncode=0, stdout="", stderr=""),
+                   SimpleNamespace(returncode=0, stdout="ok", stderr=""),
+                   SimpleNamespace(returncode=0, stdout="", stderr="")]
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+                "os.environ", {"CANONICAL_BENCHMARK_RUNNER": "/fake/runner"}), \
+                patch("subprocess.run", side_effect=replies) as run_process:
+            result = driver["run_canonical_adapter"](
+                args, RUNG_SPECS[1], pathlib.Path(temporary), pathlib.Path("/fake/server"))
+
+        self.assertEqual(0, result["returncode"])
+        self.assertEqual("ok", result["stdout"])
+        self.assertEqual("set-environment", run_process.call_args_list[0].args[0][3])
+        self.assertEqual("LLAMA_MTP_STATE_DIAGNOSTIC=1",
+                         run_process.call_args_list[0].args[0][4])
+        self.assertEqual("unset-environment", run_process.call_args_list[2].args[0][3])
+
+    def test_canonical_trim_crash_with_candidate_request_is_runtime_failure(self) -> None:
+        driver = runpy.run_path(str(pathlib.Path(__file__).with_name(
+            "run-mtp-diagnostic.py")))
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            output = root / "canonical"
+            output.mkdir()
+            binary = root / "llama-server"
+            binary.write_bytes(b"candidate")
+            binary_hash = driver["sha256_file"](binary)
+            (output / "run-config.json").write_text(json.dumps({
+                "runtime_identity": {"active": {"pid": 123, "binary": str(binary)}},
+                "runtime_bundle": {
+                    "root": str(root), "executable": binary.name,
+                    "files": [{"path": binary.name, "sha256": binary_hash}],
+                },
+            }))
+            (output / "records.jsonl").write_text(json.dumps({
+                "phase": "measured", "error": True,
+            }) + "\n")
+            server_log = root / "server.log"
+            server_log.write_text(
+                "prompt suffix trim rejected\nMain process exited, status=11/SEGV\n")
+
+            reason = driver["canonical_runtime_failure"](
+                output, server_log, binary, binary_hash)
+            mismatch = driver["canonical_runtime_failure"](
+                output, server_log, binary, "0" * 64)
+
+        self.assertIn("candidate request", reason)
+        self.assertIsNone(mismatch)
+
+    def test_live_driver_stops_and_marks_later_rungs_not_run_on_setup_failure(self) -> None:
+        driver = runpy.run_path(str(pathlib.Path(__file__).with_name(
+            "run-mtp-diagnostic.py")))
+        run = driver["run"]
+        adapter_calls: list[str] = []
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            binary = root / "llama-server"
+            model = root / "model.gguf"
+            binary.write_bytes(b"candidate")
+            model.write_bytes(b"model")
+            args = Namespace(
+                output=str(root / "diagnostic"), model=str(model),
+                server_binary=str(binary), key_file=None, context=4096,
+                n_predict=16, draft_n_max=2, batch=128, ubatch=64,
+                endpoint="http://127.0.0.1:18080", service_name="test.service",
+                port=18080, repeats=1, startup_timeout=1.0,
+                request_timeout=1.0, min_acceptance=0.5,
+            )
+
+            def failed_adapter(_args, rung, _output, _binary):
+                adapter_calls.append(rung.name)
+                return {"command": [], "runner": "/fake/runner",
+                        "returncode": 2, "output": "setup-failure"}
+
+            replacements = {
+                "sha256_file": lambda _path: "0" * 64,
+                "free_vram": lambda: {"status": "ok", "mib": ["1024"]},
+                "command_contract": lambda *_args, **_kwargs: [],
+                "loaded_identity_matches": lambda *_args, **_kwargs: (False, {}, []),
+                "run_canonical_adapter": failed_adapter,
+                "service_log": lambda *_args, **_kwargs: None,
+            }
+            with patch.dict(run.__globals__, replacements), patch.dict(
+                    "os.environ", {"CANONICAL_BENCHMARK_RUNNER": "/fake/runner"}):
+                summary = run(args)
+
+        self.assertEqual(["mtp_off_dense_all_gpu"], adapter_calls)
+        self.assertEqual("setup_failure", summary["status"])
+        self.assertEqual("mtp_off_dense_all_gpu", summary["setup_failure"]["rung"])
+        self.assertEqual(["setup_failure", "not_run", "not_run", "not_run"],
+                         [rung["status"] for rung in summary["rungs"]])
+        self.assertTrue(all(rung.get("skipped_after") == "mtp_off_dense_all_gpu"
+                            for rung in summary["rungs"][1:]))
+        self.assertEqual([], summary["validation_errors"])
+        self.assertEqual([], validate_rung_summary(summary))
+
     def test_exact_rung_commands_are_bounded_and_turbo4(self) -> None:
         binary = pathlib.Path("/opt/llama.cpp/build-cuda/bin/llama-server")
         model = pathlib.Path("/srv/ai/models/text/current.gguf")
