@@ -1,0 +1,273 @@
+{
+  "schema": "attention-promotion-fixtures-v1",
+  "target_model_family": "Qwen3.8-27B",
+  "target_tokens_per_file": 1024,
+  "token_count_mode": "llama-tokenize --no-bos",
+  "tokenizer_binary_version": "version: 0.3.0-dev (build 13116, commit be36951c5)",
+  "files": [
+    {
+      "id": "PY_MERGE_01",
+      "category": "python_sorted_merge",
+      "path": "python/merge_sorted_lists_01.py",
+      "retrieval_key": "A two-index stable merge chooses the left value on ties.",
+      "question": "For PY_MERGE_01, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "A two-index stable merge chooses the left value on ties.",
+      "token_count_no_bos": 1024,
+      "sha256": "7912d349276e8186a40238a111ce0d1af2ae72e80b36d055dfe4702c8de1269e",
+      "syntax_check": "py_compile"
+    },
+    {
+      "id": "PY_MERGE_02",
+      "category": "python_sorted_merge",
+      "path": "python/merge_sorted_lists_02.py",
+      "retrieval_key": "The tail-extension merge copies the untouched suffix once.",
+      "question": "For PY_MERGE_02, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The tail-extension merge copies the untouched suffix once.",
+      "token_count_no_bos": 1024,
+      "sha256": "c1f2cb4583e4d5ea9517bc93498d807a4065c0b24c41a82dac2a89204cce7038",
+      "syntax_check": "py_compile"
+    },
+    {
+      "id": "PY_MERGE_03",
+      "category": "python_sorted_merge",
+      "path": "python/merge_sorted_lists_03.py",
+      "retrieval_key": "The preallocated merge writes each output position exactly once.",
+      "question": "For PY_MERGE_03, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The preallocated merge writes each output position exactly once.",
+      "token_count_no_bos": 1024,
+      "sha256": "4da8cdc3e47c9bd6eec1eadcd23a3c8472e05e3852dee6ebdd0613cce9ded095",
+      "syntax_check": "py_compile"
+    },
+    {
+      "id": "PY_MERGE_04",
+      "category": "python_sorted_merge",
+      "path": "python/merge_sorted_lists_04.py",
+      "retrieval_key": "The iterator-cursor merge advances only the side it emits.",
+      "question": "For PY_MERGE_04, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The iterator-cursor merge advances only the side it emits.",
+      "token_count_no_bos": 1024,
+      "sha256": "3d7d91d072145d73f9de23bb1771643449db95e425c7a63255fb20641172f091",
+      "syntax_check": "py_compile"
+    },
+    {
+      "id": "PY_MERGE_05",
+      "category": "python_sorted_merge",
+      "path": "python/merge_sorted_lists_05.py",
+      "retrieval_key": "heapq.merge is the concise lazy reference for two sorted inputs.",
+      "question": "For PY_MERGE_05, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "heapq.merge is the concise lazy reference for two sorted inputs.",
+      "token_count_no_bos": 1024,
+      "sha256": "091551e8ce4b48e925681620c6c8d7f6d24818c7adb283b2cf648c1485ca5783",
+      "syntax_check": "py_compile"
+    },
+    {
+      "id": "PY_MERGE_06",
+      "category": "python_sorted_merge",
+      "path": "python/merge_sorted_lists_06.py",
+      "retrieval_key": "The iterable wrapper keeps the merge loop separate from list materialization.",
+      "question": "For PY_MERGE_06, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The iterable wrapper keeps the merge loop separate from list materialization.",
+      "token_count_no_bos": 1024,
+      "sha256": "9dd72c4d9f0ef10d40d13819946291c555397ad41b0e3c688d19ff8862c88e4c",
+      "syntax_check": "py_compile"
+    },
+    {
+      "id": "PY_MERGE_07",
+      "category": "python_sorted_merge",
+      "path": "python/merge_sorted_lists_07.py",
+      "retrieval_key": "The branch-explicit merge makes empty-input behavior visible in its tail loops.",
+      "question": "For PY_MERGE_07, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The branch-explicit merge makes empty-input behavior visible in its tail loops.",
+      "token_count_no_bos": 1024,
+      "sha256": "ac70901617ecc7568ef6c50e18903bf0d54fe7a8e45524c50548bb9c677901bc",
+      "syntax_check": "py_compile"
+    },
+    {
+      "id": "PY_MERGE_08",
+      "category": "python_sorted_merge",
+      "path": "python/merge_sorted_lists_08.py",
+      "retrieval_key": "The slice-tail merge favors clear cursor logic and one final suffix extension.",
+      "question": "For PY_MERGE_08, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The slice-tail merge favors clear cursor logic and one final suffix extension.",
+      "token_count_no_bos": 1024,
+      "sha256": "e1b4e1677f93b35c1854ec33aa64e72e0c932c0c85eda635e90a0922424672c8",
+      "syntax_check": "py_compile"
+    },
+    {
+      "id": "MMAP_READ_01",
+      "category": "mmap_vs_read",
+      "path": "mmap/mmap_vs_read_01.md",
+      "retrieval_key": "mmap exposes a file through virtual pages; read copies bytes into a caller-owned buffer.",
+      "question": "For MMAP_READ_01, report its specific retrieval fact exactly.",
+      "expected_answer": "mmap exposes a file through virtual pages; read copies bytes into a caller-owned buffer.",
+      "token_count_no_bos": 1024,
+      "sha256": "d2ef30332380f03c69f2755d73cd1c28507ca4e6ef49f8141a042e9776588496",
+      "syntax_check": "markdown"
+    },
+    {
+      "id": "MMAP_READ_02",
+      "category": "mmap_vs_read",
+      "path": "mmap/mmap_vs_read_02.md",
+      "retrieval_key": "For a sequential scan, read offers explicit chunk sizing while mmap relies on the operating system page cache.",
+      "question": "For MMAP_READ_02, report its specific retrieval fact exactly.",
+      "expected_answer": "For a sequential scan, read offers explicit chunk sizing while mmap relies on the operating system page cache.",
+      "token_count_no_bos": 1024,
+      "sha256": "6053095124470c8182dc87b214c3dfbacdc78cbb324b36caf31f34a60ccff4c2",
+      "syntax_check": "markdown"
+    },
+    {
+      "id": "MMAP_READ_03",
+      "category": "mmap_vs_read",
+      "path": "mmap/mmap_vs_read_03.md",
+      "retrieval_key": "Random access may favor mmap because offsets can be dereferenced without repeated read calls.",
+      "question": "For MMAP_READ_03, report its specific retrieval fact exactly.",
+      "expected_answer": "Random access may favor mmap because offsets can be dereferenced without repeated read calls.",
+      "token_count_no_bos": 1024,
+      "sha256": "c09398a80d5684e95a5c5f35b8b67cf0acda5cb06f43a421f20772e12d19ffef",
+      "syntax_check": "markdown"
+    },
+    {
+      "id": "MMAP_READ_04",
+      "category": "mmap_vs_read",
+      "path": "mmap/mmap_vs_read_04.md",
+      "retrieval_key": "read returns copied bytes whose lifetime is controlled by the caller.",
+      "question": "For MMAP_READ_04, report its specific retrieval fact exactly.",
+      "expected_answer": "read returns copied bytes whose lifetime is controlled by the caller.",
+      "token_count_no_bos": 1024,
+      "sha256": "8b8bf52cc1a8d8bb6ecb3928c22d258854372c43038216cbc9cd74ef97ab561f",
+      "syntax_check": "markdown"
+    },
+    {
+      "id": "MMAP_READ_05",
+      "category": "mmap_vs_read",
+      "path": "mmap/mmap_vs_read_05.md",
+      "retrieval_key": "mmap reserves a virtual address range, which is not the same as committing equal physical RAM.",
+      "question": "For MMAP_READ_05, report its specific retrieval fact exactly.",
+      "expected_answer": "mmap reserves a virtual address range, which is not the same as committing equal physical RAM.",
+      "token_count_no_bos": 1024,
+      "sha256": "7e36a8489f3ed46ebcafaa1fd28319c241ca24381c5f9daa5c4969d9ceb2f28d",
+      "syntax_check": "markdown"
+    },
+    {
+      "id": "MMAP_READ_06",
+      "category": "mmap_vs_read",
+      "path": "mmap/mmap_vs_read_06.md",
+      "retrieval_key": "read reports progress and errors per call, so callers must handle short reads.",
+      "question": "For MMAP_READ_06, report its specific retrieval fact exactly.",
+      "expected_answer": "read reports progress and errors per call, so callers must handle short reads.",
+      "token_count_no_bos": 1024,
+      "sha256": "cc2408f455d05d41d84c0195ea6555a48b911885192c2121bc76780aab3d4db7",
+      "syntax_check": "markdown"
+    },
+    {
+      "id": "MMAP_READ_07",
+      "category": "mmap_vs_read",
+      "path": "mmap/mmap_vs_read_07.md",
+      "retrieval_key": "Both approaches interact with the page cache, but mmap presents file offsets as memory addresses.",
+      "question": "For MMAP_READ_07, report its specific retrieval fact exactly.",
+      "expected_answer": "Both approaches interact with the page cache, but mmap presents file offsets as memory addresses.",
+      "token_count_no_bos": 1024,
+      "sha256": "8dc612315488698c924bc060814b773ada7ea66eeeaafc8d1cbc8a20f3808c00",
+      "syntax_check": "markdown"
+    },
+    {
+      "id": "MMAP_READ_08",
+      "category": "mmap_vs_read",
+      "path": "mmap/mmap_vs_read_08.md",
+      "retrieval_key": "read is broadly portable and explicit; mmap can simplify random lookup but has platform-specific details.",
+      "question": "For MMAP_READ_08, report its specific retrieval fact exactly.",
+      "expected_answer": "read is broadly portable and explicit; mmap can simplify random lookup but has platform-specific details.",
+      "token_count_no_bos": 1024,
+      "sha256": "49e7ec77fdef9bfe2772985bafbe03286ef7364bdd86bc2d07f05095465b87c5",
+      "syntax_check": "markdown"
+    },
+    {
+      "id": "BASH_WATCH_01",
+      "category": "bash_directory_watch",
+      "path": "bash/watch_directory_new_files_01.sh",
+      "retrieval_key": "CREATE and MOVED_TO events catch newly visible files.",
+      "question": "For BASH_WATCH_01, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "CREATE and MOVED_TO events catch newly visible files.",
+      "token_count_no_bos": 1024,
+      "sha256": "2e645809f6597613ff1417fabde85c552f36292839561d0d8cbe1ad72c824387",
+      "syntax_check": "bash -n"
+    },
+    {
+      "id": "BASH_WATCH_02",
+      "category": "bash_directory_watch",
+      "path": "bash/watch_directory_new_files_02.sh",
+      "retrieval_key": "CLOSE_WRITE distinguishes completed writes from files that were only created.",
+      "question": "For BASH_WATCH_02, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "CLOSE_WRITE distinguishes completed writes from files that were only created.",
+      "token_count_no_bos": 1024,
+      "sha256": "b375de0466bd7bf26a7e7aebf822287828a2bdaf5c8125ed51886c4b507dd4ee",
+      "syntax_check": "bash -n"
+    },
+    {
+      "id": "BASH_WATCH_03",
+      "category": "bash_directory_watch",
+      "path": "bash/watch_directory_new_files_03.sh",
+      "retrieval_key": "NUL-delimited output preserves filenames containing whitespace.",
+      "question": "For BASH_WATCH_03, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "NUL-delimited output preserves filenames containing whitespace.",
+      "token_count_no_bos": 1024,
+      "sha256": "93045213b348fcc17bb0b82650d415b6071a7d21d34771714a2e404c0b89ec09",
+      "syntax_check": "bash -n"
+    },
+    {
+      "id": "BASH_WATCH_04",
+      "category": "bash_directory_watch",
+      "path": "bash/watch_directory_new_files_04.sh",
+      "retrieval_key": "The recursive option observes events in watched subdirectories.",
+      "question": "For BASH_WATCH_04, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The recursive option observes events in watched subdirectories.",
+      "token_count_no_bos": 1024,
+      "sha256": "5c93e6874a191b1d87b395b11a7575852fe469e8c5426f37a72f0b99eeba4ae9",
+      "syntax_check": "bash -n"
+    },
+    {
+      "id": "BASH_WATCH_05",
+      "category": "bash_directory_watch",
+      "path": "bash/watch_directory_new_files_05.sh",
+      "retrieval_key": "The -f test filters out directory events before printing a path.",
+      "question": "For BASH_WATCH_05, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The -f test filters out directory events before printing a path.",
+      "token_count_no_bos": 1024,
+      "sha256": "34351bb6d5a6f0e181fc816f84cdd60e3a95ef64c8ac6fd8a0dbcc753580ceb7",
+      "syntax_check": "bash -n"
+    },
+    {
+      "id": "BASH_WATCH_06",
+      "category": "bash_directory_watch",
+      "path": "bash/watch_directory_new_files_06.sh",
+      "retrieval_key": "The event format emits event names and full paths for audit output.",
+      "question": "For BASH_WATCH_06, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The event format emits event names and full paths for audit output.",
+      "token_count_no_bos": 1024,
+      "sha256": "36ec68f20212b9272e03e024609007bd21973b1a2fad08496ab1289bf5c45c23",
+      "syntax_check": "bash -n"
+    },
+    {
+      "id": "BASH_WATCH_07",
+      "category": "bash_directory_watch",
+      "path": "bash/watch_directory_new_files_07.sh",
+      "retrieval_key": "A signal trap provides a clear shutdown message while the watcher stays foregrounded.",
+      "question": "For BASH_WATCH_07, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "A signal trap provides a clear shutdown message while the watcher stays foregrounded.",
+      "token_count_no_bos": 1024,
+      "sha256": "f5365920c6274554f75c9e6b971ad397e8116e2e774690c47f94ae01ab78f4aa",
+      "syntax_check": "bash -n"
+    },
+    {
+      "id": "BASH_WATCH_08",
+      "category": "bash_directory_watch",
+      "path": "bash/watch_directory_new_files_08.sh",
+      "retrieval_key": "The polling fallback compares sorted snapshots and reports newly observed paths.",
+      "question": "For BASH_WATCH_08, report its RETRIEVAL_KEY exactly.",
+      "expected_answer": "The polling fallback compares sorted snapshots and reports newly observed paths.",
+      "token_count_no_bos": 1024,
+      "sha256": "ef726e7469bc9432c7b6e7e8b157d5581165df86f5586020a2abbddd65c2c662",
+      "syntax_check": "bash -n"
+    }
+  ]
+}
