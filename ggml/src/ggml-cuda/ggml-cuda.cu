@@ -7701,6 +7701,7 @@ static int ggml_cuda_try_fuse(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph 
 
 static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cuda_ctx, ggml_cgraph * cgraph, const bool use_cuda_graph, const bool cuda_graph_update_required, uint64_t graph_key) {
     bool graph_evaluated_or_captured = false;
+    static const bool trace_node_sync = getenv("GGML_CUDA_TRACE_NODE_SYNC") != nullptr;
 
     // flag used to determine whether it is an integrated_gpu
     const bool integrated            = ggml_cuda_info().devices[cuda_ctx->device].integrated;
@@ -7873,6 +7874,22 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                     GGML_LOG_ERROR("%s: op not supported %s (%s)\n", __func__, node->name, ggml_op_name(node->op));
                 }
                 GGML_ASSERT(ok);
+                if (trace_node_sync) {
+                    const cudaError_t sync_err = cudaStreamSynchronize(
+                        cuda_ctx->stream(cuda_ctx->device, cuda_ctx->curr_stream_no));
+                    if (sync_err != cudaSuccess) {
+                        GGML_LOG_ERROR("cuda-node-diagnostic: op=%s name=%s type=%s tensor=%p data=%p "
+                                       "ne=[%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 "] "
+                                       "src0=%p/%p src1=%p/%p stream=%d error=%s\n",
+                            ggml_op_name(node->op), node->name, ggml_type_name(node->type),
+                            (void *) node, node->data,
+                            node->ne[0], node->ne[1], node->ne[2], node->ne[3],
+                            (void *) node->src[0], node->src[0] != nullptr ? node->src[0]->data : nullptr,
+                            (void *) node->src[1], node->src[1] != nullptr ? node->src[1]->data : nullptr,
+                            cuda_ctx->curr_stream_no, cudaGetErrorString(sync_err));
+                        CUDA_CHECK(sync_err);
+                    }
+                }
 
                 if (!is_concurrent_event_active) {
                     try_launch_concurrent_event(node);
