@@ -2497,7 +2497,8 @@ void llama_kv_cache::capture_kv_routing_query(
     if (snapshot.epoch() == 0) return;
     auto it = std::find_if(pager_routing_outputs_.begin(),
             pager_routing_outputs_.end(), [&](const auto & output) {
-        return output.tensor == tensor && output.layer == uint32_t(layer);
+        return llama_kv_pager_routing_output_matches(
+                output.tensor, output.layer, tensor, uint32_t(layer));
     });
     // A graph may be reused while its previous compact result is still being
     // copied. Keep that descriptor immutable until the mailbox event retires;
@@ -16867,16 +16868,10 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         query_position, sequence_generation, snapshot_generation, refresh_enabled };
     ggml_backend_tensor_set(query, query_data, 0, sizeof(query_data));
 
-    for (auto & output : kv->pager_routing_outputs_) {
-        if (output.tensor != nullptr && output.layer == uint32_t(layer)) {
-            output.sequence_id = ubatch.seq_id[0][0];
-            output.query_generation = kv->pager_query_generation_;
-            output.table_epoch = sequence.epoch();
-            output.query_position = uint64_t(query_position);
-            output.sequence_generation = uint64_t(sequence_generation);
-            output.refresh_enabled = kv->pager_query_refresh_enabled_;
-        }
-    }
+    // The graph input's caller re-registers the exact selected tensor after
+    // refreshing these sidebands. Do not bless every descriptor for this
+    // layer: older graphs can leave descriptors with the same layer but a
+    // dead tensor pointer, which the post-fence policy would dereference.
     return true;
 }
 
