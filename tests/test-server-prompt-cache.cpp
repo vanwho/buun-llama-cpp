@@ -62,14 +62,26 @@ void test_slot_pager_lifecycle_generation() {
 void test_prompt_trim_recovery_runs_paired_resets() {
     {
         std::vector<int> calls;
+        int target_frontier = 12;
+        int draft_frontier = 12;
+        int ledger_tokens = 12;
+        bool speculative_backup = true;
+        bool checkpoint_delivery = true;
+        bool cache_plan_delivery = true;
         const auto result = server_prompt_trim_recover(
             true,
             false,
-            [&]() { calls.push_back(0); },
-            [&]() { calls.push_back(1); return true; },
+            [&]() {
+                calls.push_back(0);
+                ledger_tokens = 0;
+                speculative_backup = false;
+                checkpoint_delivery = false;
+                cache_plan_delivery = false;
+            },
+            [&]() { calls.push_back(1); target_frontier = 7; return true; },
             [&]() { calls.push_back(2); return false; },
-            [&]() { calls.push_back(3); return true; },
-            [&]() { calls.push_back(4); return true; },
+            [&]() { calls.push_back(3); target_frontier = 0; return true; },
+            [&]() { calls.push_back(4); draft_frontier = 0; return true; },
             [&]() { calls.push_back(5); return true; });
         CHECK(result.target_trim_attempted);
         CHECK(result.target_trim_succeeded);
@@ -80,6 +92,9 @@ void test_prompt_trim_recovery_runs_paired_resets() {
         CHECK(result.draft_reset_succeeded);
         CHECK(!result.backup_reset_attempted);
         CHECK(result.recovery_succeeded());
+        CHECK(target_frontier == 0 && draft_frontier == 0);
+        CHECK(ledger_tokens == 0);
+        CHECK(!speculative_backup && !checkpoint_delivery && !cache_plan_delivery);
         CHECK((calls == std::vector<int>{1, 2, 0, 3, 4}));
     }
     {
@@ -118,6 +133,63 @@ void test_prompt_trim_recovery_runs_paired_resets() {
         CHECK(result.backup_reset_succeeded);
         CHECK(!result.recovery_succeeded());
         CHECK((calls == std::vector<int>{1, 0, 3, 4, 5}));
+    }
+    {
+        // Model a backend that mutates part of target state before reporting
+        // rejection. Recovery must discard both frontiers and all derived
+        // slot state before another request can be accepted.
+        struct fake_slot {
+            int target_frontier = 12;
+            int draft_frontier = 12;
+            int ledger_tokens = 12;
+            bool speculative_backup = true;
+            bool checkpoint_delivery = true;
+            bool cache_plan_delivery = true;
+            bool request_succeeded = false;
+        } slot;
+        const auto result = server_prompt_trim_recover(
+            true,
+            true,
+            [&]() {
+                slot.ledger_tokens = 0;
+                slot.speculative_backup = false;
+                slot.checkpoint_delivery = false;
+                slot.cache_plan_delivery = false;
+            },
+            [&]() { slot.target_frontier = 7; return false; },
+            [&]() { return false; },
+            [&]() { slot.target_frontier = 0; return true; },
+            [&]() { slot.draft_frontier = 0; return true; },
+            [&]() { return true; });
+        const bool coherent = result.recovery_succeeded() &&
+            slot.target_frontier == slot.draft_frontier &&
+            (slot.target_frontier == 0 || slot.target_frontier == 12) &&
+            slot.ledger_tokens == 0 && !slot.speculative_backup &&
+            !slot.checkpoint_delivery && !slot.cache_plan_delivery;
+        if (coherent) {
+            slot.request_succeeded = true;
+        }
+        CHECK(!result.target_trim_succeeded);
+        CHECK(result.recovery_succeeded());
+        CHECK(coherent);
+        CHECK(slot.request_succeeded);
+    }
+    {
+        bool success_response_emitted = false;
+        const auto result = server_prompt_trim_recover(
+            true,
+            false,
+            []() {},
+            []() { return false; },
+            []() { return true; },
+            []() { return false; },
+            []() { return true; },
+            []() { return true; });
+        if (result.recovery_succeeded()) {
+            success_response_emitted = true;
+        }
+        CHECK(!result.recovery_succeeded());
+        CHECK(!success_response_emitted);
     }
 }
 

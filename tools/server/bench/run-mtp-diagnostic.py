@@ -26,6 +26,7 @@ from typing import Any, Mapping
 from mtp_diagnostic import (
     ALLOWED_ROUTES,
     MAX_CONTEXT,
+    DEFAULT_CONTEXT,
     MAX_DRAFT_N_MAX,
     MAX_N_PREDICT,
     RUNG_ORDER,
@@ -33,11 +34,14 @@ from mtp_diagnostic import (
     Rung,
     build_server_argv,
     command_contract,
+    cold_sequence_prompt,
     free_vram,
     integer_delta,
+    effective_context,
     request_fields,
     sha256_file,
     validate_request_record,
+    validate_prompt_tokens,
     validate_rung_summary,
 )
 
@@ -102,6 +106,13 @@ def slot_value(value: Any) -> dict[str, Any]:
     if isinstance(value, list) and value and isinstance(value[0], dict):
         return value[0]
     return {}
+
+
+def observed_metric(metrics: Mapping[str, Any], *names: str) -> Any:
+    for name in names:
+        if name in metrics:
+            return metrics[name]
+    return None
 
 
 def parse_response(raw: bytes, content_type: str) -> dict[str, Any]:
@@ -227,6 +238,7 @@ def identity_errors(observed: Mapping[str, Any], expected: list[str],
     # logging flags may legitimately be present in the managed command.
     for option in (
             "-c", "-b", "-ub", "-ctk", "-ctv", "--kv-pager",
+            "--kv-safety-headroom",
             "--kv-page-size", "--kv-hot-pages", "--kv-attention-tokens",
             "--kv-pin-recent", "--spec-type", "--spec-draft-kv-device",
             "--spec-draft-n-max", "--spec-draft-type-k", "--spec-draft-type-v"):
@@ -250,6 +262,7 @@ def expected_rung_identity(rung: Rung, argv: list[str]) -> dict[str, Any]:
                         ("selected/paged/resident" if rung.hot_pages == 16 else "selected/paged/cold-probe"),
         "target_context_tokens": int(argv[argv.index("-c") + 1]),
         "draft_context_tokens": int(argv[argv.index("-c") + 1]),
+        "configured_context_tokens": int(argv[argv.index("-c") + 1]),
         "batch": int(argv[argv.index("-b") + 1]),
         "ubatch": int(argv[argv.index("-ub") + 1]),
         "target_placement": "gpu",
@@ -259,15 +272,13 @@ def expected_rung_identity(rung: Rung, argv: list[str]) -> dict[str, Any]:
         "mtp_type_k_requested": "turbo4" if rung.mtp else "not_present",
         "mtp_type_v_requested": "turbo4" if rung.mtp else "not_present",
         "hot_page_budget": rung.hot_pages,
+        "kv_safety_headroom": command_value(argv, "--kv-safety-headroom"),
     }
 
 
 def prompt_for(rung: Rung, request_number: int = 1) -> str:
     if rung.name == "mtp_on_selected_paged_cold_probe":
-        # Enough repeated material for multiple 256-token logical pages while
-        # keeping the request far below the 4096-token context ceiling.
-        count = 40 if request_number <= 1 else 80
-        return " ".join(f"cold-page-{index:04d} preserves the diagnostic token boundary." for index in range(count))
+        return cold_sequence_prompt(request_number)
     return "State one concise fact about a bounded MTP diagnostic control."
 
 
@@ -292,16 +303,18 @@ def service_base(endpoint: str) -> str:
 
 def adapter_command(args: argparse.Namespace, rung: Rung, output: pathlib.Path) -> list[str]:
     """Build the only permitted lifecycle/request command for one rung."""
+    context = effective_context(args.context, rung)
     command = [
         sys.executable, str(PAGER_ADAPTER), "fast", "short", str(output),
         "--mode", rung.pager, "--device", "CUDA0", "--page-size", "256",
-        "--context", str(args.context), "--batch", str(args.batch),
+        "--context", str(context), "--batch", str(args.batch),
         "--ubatch", str(args.ubatch), "--mtp", "native" if rung.mtp else "off",
         "--one-case", "--one-trial", "--generation-length", str(args.n_predict),
         "--connect-timeout", "10", "--startup-timeout", str(args.startup_timeout),
         "--prefill-timeout", str(args.request_timeout),
         "--decode-timeout", str(args.request_timeout), "--total-timeout",
         str(args.startup_timeout + args.request_timeout * 2), "--diagnostic",
+        "--kv-safety-headroom", "auto",
         "--kv-pin-recent", "0" if rung.name == "mtp_on_selected_paged_cold_probe" else "256",
     ]
     if rung.hot_pages is not None:
@@ -361,6 +374,7 @@ def run_canonical_adapter(args: argparse.Namespace, rung: Rung,
     env["BENCH_CLEAN"] = "1"
     env["BENCH_RESTORE_PROFILE"] = "0"
     env["BENCH_KV_PIN_RECENT"] = "0" if rung.name == "mtp_on_selected_paged_cold_probe" else "256"
+    env["BENCH_KV_SAFETY_HEADROOM"] = "auto"
     if rung.hot_pages is not None:
         env["BENCH_KV_HOT_PAGES"] = str(rung.hot_pages)
     else:
@@ -387,6 +401,7 @@ def run_canonical_adapter(args: argparse.Namespace, rung: Rung,
 
 def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
                 request_number: int, *, n_predict: int, timeout: float,
+                context: int,
                 contract: Mapping[str, Any] | None = None,
                 service_name: str | None = None,
                 service_started: float | None = None) -> dict[str, Any]:
@@ -397,6 +412,18 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
         "top_k": 1, "seed": 93_01 + request_number, "stream": True,
         "cache_prompt": rung.name == "mtp_on_selected_paged_cold_probe" and request_number > 1,
     }
+    prompt = payload["prompt"]
+    tokenize_status, tokenize_value, tokenize_raw = post_json(
+        base, "/tokenize", key,
+        {"content": prompt, "add_special": True, "parse_special": True}, timeout)
+    (request_dir / "tokenize-response.json").write_bytes(tokenize_raw + b"\n")
+    token_values = tokenize_value.get("tokens") if isinstance(tokenize_value, Mapping) else None
+    prompt_tokens = len(token_values) if isinstance(token_values, list) else None
+    token_errors = validate_prompt_tokens(prompt_tokens if prompt_tokens is not None else -1,
+                                          context, n_predict)
+    if tokenize_status != 200 or prompt_tokens is None or token_errors:
+        raise RuntimeError(f"exact prompt tokenization rejected: HTTP {tokenize_status}, "
+                           f"tokens={prompt_tokens}, errors={token_errors}")
     request_bytes = json.dumps(payload, sort_keys=True).encode()
     before_metrics, metrics_before_raw, metrics_before_status = get_metrics(base, key, timeout)
     status, slots_before_value, slots_before_raw = get_json(base, "/slots", key, timeout)
@@ -434,9 +461,14 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
     fields = request_fields(before_metrics, after_metrics, before_slot, after_slot, response,
                             mtp=rung.mtp, contract=contract,
                             diagnostic_events=diagnostic_events)
+    pager_observed = after_slot.get("pager_metrics")
+    pager_observed = pager_observed if isinstance(pager_observed, Mapping) else {}
     record = {
         "request": payload,
         "request_number": request_number,
+        "cold_sequence": ("ingest_document_a" if request_number == 1 else
+                          "append_document_b_query_b" if request_number == 2 else
+                          "query_document_a_again") if rung.name == RUNG_ORDER[3] else None,
         "http": {"response_status": response_status, "metrics_before": metrics_before_status,
                   "metrics_after": metrics_after_status, "slots_before": status,
                   "slots_after": after_status},
@@ -451,10 +483,32 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
         "metrics_after": after_metrics,
         "free_vram_before": free_before,
         "free_vram_after": free_after,
+        "allocator_observed": {
+            "usable_bytes": observed_metric(pager_observed,
+                                             "usable_vram_bytes", "vram_usable_bytes"),
+            "free_vram_before": free_before,
+            "headroom_bytes": observed_metric(pager_observed,
+                                               "safety_headroom_bytes", "headroom_bytes"),
+            "scratch_bytes": observed_metric(pager_observed,
+                                              "scratch_high_water_bytes", "scratch_bytes"),
+            "requested_hot_tokens": rung.hot_pages * 256 if rung.hot_pages is not None else None,
+        },
         "request_contract": {
-            "context_tokens": MAX_CONTEXT,
+            "context_tokens": context,
+            "configured_context_tokens": context,
+            "rendered_prompt_tokens": prompt_tokens,
+            "tokenize_http_status": tokenize_status,
             "n_predict": n_predict,
             "draft_n_max": MAX_DRAFT_N_MAX,
+            "batch": int(contract.get("batch", 128)) if contract else 128,
+            "ubatch": int(contract.get("ubatch", 64)) if contract else 64,
+            "kv_hot_pages": rung.hot_pages,
+            "kv_safety_headroom": "auto",
+            "target_type_k": "turbo4",
+            "target_type_v": "turbo4",
+            "draft_type_k": "turbo4" if rung.mtp else None,
+            "draft_type_v": "turbo4" if rung.mtp else None,
+            "draft_placement": "gpu" if rung.mtp else None,
             "route_policy": "dense/all-gpu" if rung.pager == "off" else
                              ("selected/paged/resident" if rung.hot_pages == 16 else
                               "selected/paged/cold-probe"),
@@ -468,6 +522,17 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
     }
     (request_dir / "record.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
     return record
+
+
+def post_json(base: str, path: str, key: str, value: Mapping[str, Any],
+              timeout: float) -> tuple[int, Any, bytes]:
+    body = json.dumps(value, sort_keys=True).encode()
+    status, raw, _ = request_raw(base.rstrip("/") + path, key, body=body, timeout=timeout)
+    try:
+        decoded = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        decoded = None
+    return status, decoded, raw
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
@@ -496,14 +561,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     base = service_base(args.endpoint)
 
     for index, rung in enumerate(RUNG_SPECS, start=1):
+        rung_context = effective_context(args.context, rung)
         rung_dir = output / f"{index:02d}-{rung.name}"
         rung_dir.mkdir(parents=True, exist_ok=True)
         port = args.port
         argv = build_server_argv(
             binary, model, port, rung,
-            context=args.context, batch=args.batch, ubatch=args.ubatch,
+            context=rung_context, batch=args.batch, ubatch=args.ubatch,
             api_key_file=key_path)
-        contract_errors = command_contract(argv, rung, context=args.context,
+        contract_errors = command_contract(argv, rung, context=rung_context,
                                            batch=args.batch, ubatch=args.ubatch)
         log_path = rung_dir / "server.log"
         service_started = time.time()
@@ -514,6 +580,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "model": {"path": str(model), "sha256": model_hash},
             "candidate_binary": {"path": str(binary), "sha256": binary_hash},
             "identity": expected_rung_identity(rung, argv), "requests": [],
+            "allocator_preflight": free_vram(),
             "raw_root": str(rung_dir), "setup_errors": contract_errors,
         }
         (rung_dir / "command.json").write_text(json.dumps(rung_result, indent=2, sort_keys=True) + "\n")
@@ -559,18 +626,24 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             rung_result["status"] = "running"
             measured_by_adapter = canonical_measured_count(adapter_dir)
             rung_result["canonical_measured_requests"] = measured_by_adapter
-            remaining = max(0, MAX_REQUESTS_PER_RUNG - measured_by_adapter)
-            request_count = min(args.repeats, remaining)
+            cold_sequence = rung.name == RUNG_ORDER[3]
+            remaining = MAX_REQUESTS_PER_RUNG if cold_sequence else max(
+                0, MAX_REQUESTS_PER_RUNG - measured_by_adapter)
+            requested_count = 3 if cold_sequence else args.repeats
+            request_count = min(requested_count, remaining)
             if request_count == 0:
                 raise RuntimeError("request budget exhausted by canonical runner")
             existing_requests = sorted(rung_dir.glob("request-*/record.json"))
-            first_request = len(existing_requests) + 1
+            first_request = 1 if cold_sequence else len(existing_requests) + 1
             for request_number in range(first_request, first_request + request_count):
                 record = run_request(base, key, rung_dir, rung, request_number,
                                      n_predict=args.n_predict, timeout=args.request_timeout,
+                                     context=rung_context,
                                      service_name=args.service_name,
                                      service_started=service_started,
-                                     contract={
+                contract={
+                                         "batch": args.batch,
+                                         "ubatch": args.ubatch,
                                          "pager_route": "dense" if rung.pager == "off" else None,
                                          "page_table_epoch": "not_applicable_dense" if rung.pager == "off" else None,
                                          "mtp_placement": "gpu" if rung.mtp else "not_present",
@@ -667,7 +740,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--endpoint", default="http://127.0.0.1:8080")
     result.add_argument("--key-file", default="/srv/ai/config/llama/api-keys")
     result.add_argument("--port", type=int, default=18080)
-    result.add_argument("--context", type=int, default=4096)
+    result.add_argument("--context", type=int, default=DEFAULT_CONTEXT)
     result.add_argument("--batch", type=int, default=128)
     result.add_argument("--ubatch", type=int, default=128)
     result.add_argument("--n-predict", type=int, default=16)

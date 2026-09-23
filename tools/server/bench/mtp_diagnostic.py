@@ -20,7 +20,8 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
 
-MAX_CONTEXT = 4096
+DEFAULT_CONTEXT = 4096
+MAX_CONTEXT = 16384
 MAX_N_PREDICT = 16
 MAX_DRAFT_N_MAX = 2
 RUNG_ORDER = (
@@ -50,6 +51,7 @@ class Rung:
     hot_pages: int | None
     attention_tokens: int | None
     description: str
+    context: int | None = None
 
 
 RUNG_SPECS = (
@@ -60,8 +62,43 @@ RUNG_SPECS = (
     Rung(RUNG_ORDER[2], "selective", True, 16, 4096,
          "MTP-on selected/paged with all logical pages resident"),
     Rung(RUNG_ORDER[3], "selective", True, 4, 1024,
-         "MTP-on selected/paged tiny-hot-set cold-page promotion probe"),
+         "MTP-on selected/paged tiny-hot-set cold-page promotion probe", 8192),
 )
+
+
+def effective_context(configured: int, rung: Rung) -> int:
+    context = rung.context if rung.context is not None else configured
+    if not 1 <= context <= MAX_CONTEXT:
+        raise ValueError(f"context must be in 1..{MAX_CONTEXT}")
+    return context
+
+
+def validate_prompt_tokens(token_count: int, context: int, n_predict: int) -> list[str]:
+    errors: list[str] = []
+    if token_count < 0:
+        errors.append("prompt_token_count_invalid")
+    if token_count > MAX_CONTEXT:
+        errors.append("prompt_tokens_exceed_global_max")
+    if token_count + n_predict > context:
+        errors.append("prompt_tokens_exceed_context_reserve")
+    return errors
+
+
+def cold_sequence_prompt(request_number: int) -> str:
+    """Three deterministic, prefix-preserving labeled-document requests."""
+    document_a = "DOCUMENT_A: The observatory's unique blue-comet catalog code is AZURE-731."
+    first = document_a + " Question: what is DOCUMENT_A's catalog code?"
+    if request_number <= 1:
+        return first
+    document_b = " DOCUMENT_B: The archive's unique brass-key catalog code is BRASS-284."
+    filler = " The archive records ordinary weather observations for this season."
+    second = first + document_b + filler * 170 + \
+        " Question: what is DOCUMENT_B's catalog code?"
+    if request_number == 2:
+        return second
+    if request_number == 3:
+        return second + " Recall DOCUMENT_A. What is its unique catalog code?"
+    raise ValueError("cold sequence supports requests 1 through 3")
 
 
 def sha256_file(path: pathlib.Path) -> str:
@@ -126,7 +163,7 @@ def _option(argv: Sequence[str], option: str) -> str | None:
 
 def build_server_argv(
         binary: pathlib.Path, model: pathlib.Path, port: int, rung: Rung,
-        *, context: int = MAX_CONTEXT, batch: int = 128, ubatch: int = 128,
+        *, context: int = DEFAULT_CONTEXT, batch: int = 128, ubatch: int = 128,
         api_key_file: pathlib.Path | None = None) -> list[str]:
     """Construct one exact, bounded CUDA candidate command line."""
     if context <= 0 or context > MAX_CONTEXT:
@@ -139,7 +176,7 @@ def build_server_argv(
         "-np", "1", "-ctk", "turbo4", "-ctv", "turbo4", "-b", str(batch),
         "-ub", str(ubatch), "--host", "127.0.0.1", "--port", str(port),
         "--metrics", "--slots", "--cache-debug", "--ctx-checkpoints", "0",
-        "--cache-ram", "0", "--no-cache-idle-slots", "--spec-type",
+        "--cache-ram", "0", "--no-cache-idle-slots", "--kv-safety-headroom", "auto", "--spec-type",
         "draft-mtp" if rung.mtp else "none",
     ]
     if api_key_file is not None:
@@ -167,6 +204,7 @@ def command_contract(argv: Sequence[str], rung: Rung, *, context: int,
     expected = {
         "-c": str(context), "-b": str(batch), "-ub": str(ubatch),
         "-ctk": "turbo4", "-ctv": "turbo4",
+        "--kv-safety-headroom": "auto",
     }
     for option, value in expected.items():
         if _option(argv, option) != value:
@@ -188,6 +226,8 @@ def command_contract(argv: Sequence[str], rung: Rung, *, context: int,
             errors.append("selected_page_size_must_be_256")
         if rung.hot_pages is not None and _option(argv, "--kv-hot-pages") != str(rung.hot_pages):
             errors.append("hot_page_budget_mismatch")
+        if rung.hot_pages is not None and rung.hot_pages * 256 > 49152:
+            errors.append("hot_page_budget_exceeds_49152")
     return errors
 
 
@@ -307,6 +347,17 @@ def validate_request_record(record: Mapping[str, Any], rung: Rung) -> list[str]:
     n_predict = request.get("n_predict")
     if not isinstance(n_predict, int) or isinstance(n_predict, bool) or not 1 <= n_predict <= MAX_N_PREDICT:
         errors.append("n_predict_out_of_bounds")
+    contract = record.get("request_contract")
+    contract = contract if isinstance(contract, Mapping) else {}
+    context = contract.get("configured_context_tokens")
+    prompt_tokens = contract.get("rendered_prompt_tokens")
+    if not isinstance(context, int) or isinstance(context, bool) or not 1 <= context <= MAX_CONTEXT:
+        errors.append("configured_context_out_of_bounds")
+    if not isinstance(prompt_tokens, int) or isinstance(prompt_tokens, bool):
+        errors.append("rendered_prompt_token_count_missing")
+    elif isinstance(context, int) and isinstance(n_predict, int) and \
+            validate_prompt_tokens(prompt_tokens, context, n_predict):
+        errors.extend(validate_prompt_tokens(prompt_tokens, context, n_predict))
     fields = record.get("request_fields")
     if not isinstance(fields, Mapping):
         errors.append("request_fields_missing")
@@ -374,6 +425,40 @@ def validate_rung_summary(summary: Mapping[str, Any]) -> list[str]:
                     errors.extend(f"{rung.get('name')}:{error}"
                                   for error in validate_request_record(
                                       record, next(item for item in RUNG_SPECS if item.name == rung["name"])))
+        if rung.get("name") == RUNG_ORDER[3]:
+            records = rung.get("requests")
+            records = records if isinstance(records, list) else []
+            if len(records) != 3:
+                errors.append("cold_sequence_request_count_invalid")
+            else:
+                expected_stages = ("ingest_document_a", "append_document_b_query_b",
+                                   "query_document_a_again")
+                if tuple(item.get("cold_sequence") for item in records
+                         if isinstance(item, Mapping)) != expected_stages:
+                    errors.append("cold_sequence_order_invalid")
+                prompts = [item.get("request", {}).get("prompt")
+                           if isinstance(item, Mapping) else None for item in records]
+                if not all(isinstance(prompt, str) for prompt in prompts) or not (
+                        prompts[1].startswith(prompts[0]) and prompts[2].startswith(prompts[1])):
+                    errors.append("cold_sequence_not_prefix_preserving")
+                proof = records[2].get("promotion_proof") if isinstance(records[2], Mapping) else None
+                proof = proof if isinstance(proof, Mapping) else {}
+                for field in ("page_cold_before_request", "h2d_completed", "mapping_published",
+                              "target_consumed", "draft_consumed"):
+                    if proof.get(field) is not True:
+                        errors.append("cold_promotion_missing_" + field)
+                for field in ("logical_page_id", "generation", "content_version"):
+                    if proof.get("cold_" + field) is None or \
+                            proof.get("cold_" + field) != proof.get("selected_" + field):
+                        errors.append("cold_promotion_identity_mismatch_" + field)
+                order = proof.get("event_order")
+                if not isinstance(order, Mapping) or not all(
+                        isinstance(order.get(name), (int, float))
+                        for name in ("h2d_completed", "mapping_published", "graph_consumed")):
+                    errors.append("cold_promotion_event_order_missing")
+                elif not (order["h2d_completed"] < order["mapping_published"] <
+                          order["graph_consumed"]):
+                    errors.append("cold_promotion_event_order_invalid")
     return list(dict.fromkeys(errors))
 
 

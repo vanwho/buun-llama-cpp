@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "task": "93-07",
+  "source_commit": "39028fd21f262e1615287eab8f94412e185c2fca",
+  "status": "complete_with_deferred_live_verification",
+  "binary": {
+    "path": "build-cuda/bin/llama-server",
+    "sha256": "2ef11a68cd640026e0b6b658ce07fb4682d2dd5e015d2ee879a008d2474a7e19"
+  },
+  "source_sha256": {
+    "tools/server/bench/mtp_diagnostic.py": "0c239e45ead261c205e4ebff429e57dd5a7ef045c2c71a05be0fec798a984b6f",
+    "tools/server/bench/run-mtp-diagnostic.py": "b0891fdf7a0a49d4954e0119034737bc6e09cc069c4df2eb02c9d80248e90440",
+    "tests/test-server-prompt-cache.cpp": "08910c5d830413d5b5019b7a38e14f2ecfd9288de8af559234453cd8f9fff5b7"
+  },
+  "checks": {
+    "repair93_mtp_trim_regression": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["build-cuda/bin/test-server-prompt-cache"],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/93-07/direct-tests.log",
+          "sha256": "16c29f66440d655fbc61092f66654fb468b07319130cabe937c1c74fa138cefb"
+        }
+      ],
+      "cases": [
+        "target trim reject before mutation",
+        "target partial mutation then reject",
+        "target trim succeeds and draft rejects",
+        "target/draft reset failures",
+        "active backup cleanup",
+        "frontier/ledger/speculative/checkpoint/cache-plan coherence",
+        "safe subsequent request after coherent recovery",
+        "no success response after failed recovery"
+      ]
+    },
+    "mtp_diagnostic_contract": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_mtp_diagnostic.py"],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/93-07/diagnostic-tests.log",
+          "sha256": "19ce4c3fe936ba5a289b545d890b7ffce48ced29d4b7b20a8c6b10a871321dd4"
+        }
+      ],
+      "tests_passed": 13
+    },
+    "pager_adapter_contract": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_pager_benchmark_adapter.py"],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/93-07/pager-adapter-tests.log",
+          "sha256": "981b0ddbadb33dafad57c39a4e0da1fa6d53fbe88f4d51ab773744ec45e724fc"
+        }
+      ],
+      "tests_passed": 32
+    },
+    "focused_build": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["cmake", "--build", "build-cuda", "--target", "test-kv-pager-model", "test-mtp-minimal-repair", "llama-server", "test-server-prompt-cache", "-j2"],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/93-07/build.log",
+          "sha256": "cb2be1549fef469f09a046912fe9fb9ef9e1f93d5b974f616bd136d1c0f864c3"
+        }
+      ]
+    },
+    "ctest": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["ctest", "--test-dir", "build-cuda", "--output-on-failure", "-R", "kv-pager-model|mtp-minimal-repair|server-paged-trim"],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/93-07/ctest.log",
+          "sha256": "e916e05e5a4b6d9c767b4bcabe680bdc561d86a788a7969496664c1baab3ea7a"
+        }
+      ],
+      "registered_tests_passed": 1,
+      "unregistered_regex_targets_run_directly": ["test-kv-pager-model", "test-server-prompt-cache"]
+    },
+    "live_smoke": {
+      "status": "deferred_setup_failure",
+      "exit_code": 2,
+      "command": ["python3", "tools/server/bench/run-mtp-diagnostic.py", "--output", ".wiretail/execution/evidence/raw/93-07-first-smoke", "--server-binary", "build-cuda/bin/llama-server", "--model", "/srv/ai/models/text/current.gguf", "--context", "4096", "--batch", "128", "--ubatch", "64", "--repeats", "1"],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/raw/93-07/first-live-smoke.log",
+          "sha256": "543431ee4e7476df986275bad5b9df9a3ff16b3be215a3bd8d012f2e262da6d2"
+        }
+      ],
+      "error": "CANONICAL_BENCHMARK_RUNNER is required",
+      "completion_requests_sent": 0,
+      "token_counts": null,
+      "trim_rejection_survival": null,
+      "promotion": null
+    }
+  },
+  "deferred_verification": [
+    "Configure CANONICAL_BENCHMARK_RUNNER and the managed candidate service, then rerun the bounded live smoke.",
+    "Observe exact /tokenize counts and allocator usable/free/headroom/scratch telemetry during the live run.",
+    "Verify selected trim-rejection survival and collect page cold/H2D/publication/target-and-draft-consumption events."
+  ],
+  "promotion_claim": false
+}
