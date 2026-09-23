@@ -1143,3 +1143,10 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-93-11e`
 - Commit at update: `be36951c5`
 - Summary: Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/93-11e-attempt-4-20260923T113909Z-final.md.
+
+## 2026-09-23T16:52:06+00:00 — plan amendment — 93-11f scheduled next
+
+- Added 93-11f ahead of the incomplete 93-11e cold-promotion proof: reasoning-off, native GPU Turbo4 MTP, canonical three-prompt 40/400-token B/U speed screen at 1024/256 and 512/128, starting at 8K total / 4K hot and never exceeding 56K.
+- Enforced independent three-run median MTP floors of 75% / 40% / 70% for prompts 1/2/3 in the 93-11f and 93-12 receipt validator; low acceptance requires diagnosis and repair rather than successful completion.
+- Kept 93-11e blocked and made it depend on 93-11f; 93-12 remains gated on both. Removed future receipt/handoff paths from 93-12's current context file list.
+- Validation: task state and active-plan validators pass; V10 receipt-validator tests pass (28); JSON, Python compile, and `git diff --check` pass.

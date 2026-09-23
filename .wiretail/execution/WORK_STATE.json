@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "blocked",
+  "status": "ready",
   "current_phase": "93",
-  "current_task": "93-11e",
-  "last_updated_utc": "2026-09-23T12:01:25+00:00",
+  "current_task": "93-11f",
+  "last_updated_utc": "2026-09-23T16:52:06+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -19219,13 +19219,53 @@
       }
     },
     {
+      "id": "93-11f",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Run the canonical native-MTP batch geometry speed check",
+      "packet": ".wiretail/execution/tasks/93-11f.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_standard_geometry_speed_screen"
+      ],
+      "depends_on": [
+        "93-11d"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-11f.md",
+        ".wiretail/execution/tasks/93-11d.md",
+        ".wiretail/execution/evidence/V10_93-11d.json",
+        ".wiretail/execution/handoffs/93-11d.md",
+        ".wiretail/execution/v10/validate.py",
+        ".wiretail/execution/v10/test_validate.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11f",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11f.json"
+      ]
+    },
+    {
       "id": "93-11e",
       "phase": "93",
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Resolve cold-append Turbo4 attention illegal access",
       "packet": ".wiretail/execution/tasks/93-11e.md",
       "status": "blocked",
-      "blocker": "Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/93-11e-attempt-4-20260923T113909Z-final.md.",
+      "blocker": "Retry budget exhausted with cold promotion only partially proven: H2D, publication, and target use were observed, but request-correlated transfer event identity/order and page-specific draft consumption are missing. See evidence/V10_93-11e.json and handoffs/93-11e.md.",
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
@@ -19237,7 +19277,8 @@
         "repair93_cold_append_turbo4_attention_fault"
       ],
       "depends_on": [
-        "93-11d"
+        "93-11d",
+        "93-11f"
       ],
       "commit": null,
       "context_files": [
@@ -19385,7 +19426,8 @@
         "93-11b",
         "93-11c",
         "93-11d",
-        "93-11e"
+        "93-11e",
+        "93-11f"
       ],
       "commit": null,
       "context_files": [
@@ -19394,6 +19436,7 @@
         ".wiretail/execution/evidence/V10_REPAIR93_FINAL_REVIEW.json",
         ".wiretail/execution/evidence/V10_93-10.json",
         ".wiretail/execution/evidence/V10_93-11.json",
+        ".wiretail/execution/tasks/93-11f.md",
         ".wiretail/execution/v10/validate.py",
         ".wiretail/execution/v10/test_validate.py"
       ],

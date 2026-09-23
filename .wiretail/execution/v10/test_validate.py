@@ -120,25 +120,58 @@ class ReceiptTests(unittest.TestCase):
         candidate_sha = "b" * 64
         model_sha = "c" * 64
         modes = {}
+        prompt_texts = {
+            "prompt_1": "write a python function that merges two sorted lists into one sorted list, with docstring.",
+            "prompt_2": "explain the difference between mmap and read for loading large files, one paragraph.",
+            "prompt_3": "write a bash script that watches a directory and prints new files as they appear.",
+        }
         placements = {"cpu_ram_mtp": "cpu_ram",
                       "selected_paged_mtp": "selected_turbo4",
                       "dense_gpu_mtp": "gpu_turbo4"}
         for mode, placement in placements.items():
-            prompts = {}
-            for index in range(1, 4):
-                prompts[f"prompt_{index}"] = {
-                    "status": "measured", "request_attempted": True,
-                    "warmup_completed": True,
-                    "candidate_binary_sha256": candidate_sha,
-                    "model_sha256": model_sha,
-                    "actual_target_kv_placement": placement,
-                    "mtp_placement": "gpu", "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
-                    "prompt_tokens": 4096, "context_tokens": 4096,
-                    "prompt_sha256": hashlib.sha256(f"prompt-{index}".encode()).hexdigest(),
-                    "prompt_tps": 100.0, "decode_tps": 50.0, "mtp_acceptance_pct": 95.0,
-                    "hot_tokens": 4096, "vram_peak_bytes": 1000, "scratch_peak_bytes": 100,
-                    "route_placement_verified": True, "raw_artifact": artifact}
-            modes[mode] = {"prompts": prompts}
+            geometries = {}
+            for geometry_name, batch, ubatch in (
+                    ("primary_1024_256", 1024, 256), ("secondary_512_128", 512, 128)):
+                hot_limit = {"cpu_ram": 0, "selected_turbo4": 4096, "gpu_turbo4": 8192}[placement]
+                prompt_rows = {}
+                for prompt_id, prompt_text in prompt_texts.items():
+                    prompt_sha = hashlib.sha256(prompt_text.encode()).hexdigest()
+                    warmup = {"status": "completed", "request_attempted": True,
+                              "max_tokens": 40, "thinking_mode": "off",
+                              "candidate_binary_sha256": candidate_sha,
+                              "model_sha256": model_sha, "mtp_device": "gpu",
+                              "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+                              "raw_artifact": artifact}
+                    measured = [{
+                        "status": "measured", "request_attempted": True,
+                        "max_tokens": 400, "thinking_mode": "off",
+                        "batch": batch, "ubatch": ubatch,
+                        "candidate_binary_sha256": candidate_sha, "model_sha256": model_sha,
+                        "actual_target_kv_placement": placement,
+                        "target_type_k": "turbo4", "target_type_v": "turbo4",
+                        "mtp_device": "gpu", "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+                        "prompt_tokens": 24, "context_tokens": 8192,
+                        "prompt_sha256": prompt_sha,
+                        "prompt_tps": 100.0, "decode_tps": 50.0,
+                        "mtp_draft_tokens": 20, "mtp_accepted_tokens": 19,
+                        "mtp_acceptance_pct": 95.0, "hot_tokens": hot_limit,
+                        "vram_peak_bytes": 1000, "scratch_peak_bytes": 100,
+                        "vram_headroom_bytes": 600 * 1024 * 1024,
+                        "route": {"cpu_ram": "cpu ram", "selected_turbo4": "selected packed",
+                                  "gpu_turbo4": "dense turbo4"}[placement],
+                        "route_placement_verified": True, "raw_artifact": artifact}
+                        for _ in range(3)]
+                    prompt_rows[prompt_id] = {
+                        "prompt_text": prompt_text, "prompt_sha256": prompt_sha,
+                        "prompt_tokens": 24, "warmup": warmup,
+                        "measured_runs": measured}
+                geometries[geometry_name] = {
+                    "batch": batch, "ubatch": ubatch, "context_tokens": 8192,
+                    "target_hot_tokens_limit": hot_limit,
+                    "target_type_k": "turbo4", "target_type_v": "turbo4",
+                    "mtp_device": "gpu", "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+                    "thinking_mode": "off", "prompts": prompt_rows}
+            modes[mode] = {"geometries": geometries}
         return {
             "schema_version": 1, "task": "93-12", "source_commit": "a" * 40,
             "candidate": {"sha256": candidate_sha}, "model": {"sha256": model_sha},
@@ -154,7 +187,7 @@ class ReceiptTests(unittest.TestCase):
 
     def test_93_12_rejects_gated_not_measured_run(self):
         receipt = self.paired_speed_receipt()
-        receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["prompts"]["prompt_2"]["status"] = "not_measured"
+        receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_2"]["measured_runs"][0]["status"] = "not_measured"
         self.assertTrue(self.check_paired_speed(receipt))
 
     def test_93_12_accepts_complete_paired_screen(self):
@@ -162,8 +195,160 @@ class ReceiptTests(unittest.TestCase):
 
     def test_93_12_rejects_prompt_mismatch(self):
         receipt = self.paired_speed_receipt()
-        receipt["paired_benchmark"]["modes"]["dense_gpu_mtp"]["prompts"]["prompt_1"]["prompt_sha256"] = "d" * 64
+        receipt["paired_benchmark"]["modes"]["dense_gpu_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["prompt_sha256"] = "d" * 64
         self.assertTrue(self.check_paired_speed(receipt))
+
+    def test_93_12_rejects_reasoning_on(self):
+        receipt = self.paired_speed_receipt()
+        receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]["thinking_mode"] = "low"
+        self.assertTrue(self.check_paired_speed(receipt))
+
+    def test_93_12_rejects_below_prompt_acceptance_floor(self):
+        receipt = self.paired_speed_receipt()
+        rows = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_2"]["measured_runs"]
+        for row in rows:
+            row.update(mtp_draft_tokens=20, mtp_accepted_tokens=7, mtp_acceptance_pct=35.0)
+        self.assertTrue(self.check_paired_speed(receipt))
+
+    def test_93_12_accepts_exact_per_prompt_acceptance_floors(self):
+        receipt = self.paired_speed_receipt()
+        floors = {"prompt_1": 75, "prompt_2": 40, "prompt_3": 70}
+        for mode in receipt["paired_benchmark"]["modes"].values():
+            for geometry in mode["geometries"].values():
+                for prompt_id, floor in floors.items():
+                    for row in geometry["prompts"][prompt_id]["measured_runs"]:
+                        row.update(mtp_draft_tokens=20,
+                                   mtp_accepted_tokens=floor // 5,
+                                   mtp_acceptance_pct=float(floor))
+        self.assertFalse(self.check_paired_speed(receipt))
+
+    def test_93_12_rejects_insufficient_vram_headroom(self):
+        receipt = self.paired_speed_receipt()
+        row = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]
+        row["vram_headroom_bytes"] = 256 * 1024 * 1024
+        self.assertTrue(self.check_paired_speed(receipt))
+
+    def geometry_speed_receipt(self):
+        path = Path(__file__).resolve()
+        artifact = {"path": str(path),
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        candidate_sha = "b" * 64
+        model_sha = "c" * 64
+        prompt_texts = {
+            "prompt_1": "write a python function that merges two sorted lists into one sorted list, with docstring.",
+            "prompt_2": "explain the difference between mmap and read for loading large files, one paragraph.",
+            "prompt_3": "write a bash script that watches a directory and prints new files as they appear.",
+        }
+        geometries = {}
+        for geometry_name, batch, ubatch in (
+                ("primary_1024_256", 1024, 256), ("secondary_512_128", 512, 128)):
+            prompt_rows = {}
+            for prompt_id, prompt_text in prompt_texts.items():
+                prompt_sha = hashlib.sha256(prompt_text.encode()).hexdigest()
+                warmup = {"status": "completed", "request_attempted": True,
+                          "max_tokens": 40, "thinking_mode": "off",
+                          "candidate_binary_sha256": candidate_sha,
+                          "model_sha256": model_sha, "mtp_device": "gpu",
+                          "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+                          "raw_artifact": artifact}
+                measured = []
+                for _ in range(3):
+                    measured.append({
+                        "status": "measured", "request_attempted": True,
+                        "max_tokens": 400, "thinking_mode": "off",
+                        "batch": batch, "ubatch": ubatch,
+                        "candidate_binary_sha256": candidate_sha,
+                        "model_sha256": model_sha, "prompt_sha256": prompt_sha,
+                        "prompt_tokens": 24, "context_tokens": 8192,
+                        "actual_target_kv_placement": "selected_turbo4",
+                        "mtp_device": "gpu", "mtp_type_k": "turbo4",
+                        "mtp_type_v": "turbo4", "route": "selected packed",
+                        "route_placement_verified": True,
+                        "prompt_tps": 1000.0, "decode_tps": 80.0,
+                        "mtp_draft_tokens": 20, "mtp_accepted_tokens": 19,
+                        "mtp_acceptance_pct": 95.0, "hot_tokens": 4096,
+                        "vram_peak_bytes": 14_000_000_000,
+                        "scratch_peak_bytes": 1_000_000_000,
+                        "vram_headroom_bytes": 1_000_000_000,
+                        "raw_artifact": artifact})
+                prompt_rows[prompt_id] = {
+                    "prompt_text": prompt_text, "prompt_sha256": prompt_sha,
+                    "prompt_tokens": 24, "warmup": warmup,
+                    "measured_runs": measured}
+            geometries[geometry_name] = {
+                "batch": batch, "ubatch": ubatch, "context_tokens": 8192,
+                "target_hot_tokens_limit": 4096, "page_size_tokens": 256,
+                "mtp_n_max": 2, "pager_mode": "selective",
+                "target_type_k": "turbo4", "target_type_v": "turbo4",
+                "mtp_device": "gpu", "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4", "thinking_mode": "off",
+                "prompts": prompt_rows}
+        return {
+            "schema_version": 1, "task": "93-11f", "source_commit": "a" * 40,
+            "candidate": {"sha256": candidate_sha}, "model": {"sha256": model_sha},
+            "checks": {"repair93_standard_geometry_speed_screen": {
+                "status": "pass", "exit_code": 0,
+                "command": ["/srv/ai/benchmarks/run-profile-benchmark.sh", "fast"],
+                "artifacts": [artifact]}},
+            "geometry_benchmark": {"execution_status": "complete",
+                "candidate_identity_verified": True, "context_tokens": 8192,
+                "target_hot_tokens_limit": 4096, "geometries": geometries}}
+
+    def check_geometry_speed(self, receipt):
+        return validator.check_receipt(Path(__file__).parent,
+            {"id": "93-11f", "required_proofs": ["repair93_standard_geometry_speed_screen"]},
+            receipt)
+
+    def test_93_11f_accepts_complete_canonical_geometry_matrix(self):
+        self.assertFalse(self.check_geometry_speed(self.geometry_speed_receipt()))
+
+    def test_93_11f_rejects_missing_measured_trial(self):
+        receipt = self.geometry_speed_receipt()
+        receipt["geometry_benchmark"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["measured_runs"].pop()
+        self.assertTrue(self.check_geometry_speed(receipt))
+
+    def test_93_11f_rejects_wrong_actual_geometry(self):
+        receipt = self.geometry_speed_receipt()
+        receipt["geometry_benchmark"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]["batch"] = 512
+        self.assertTrue(self.check_geometry_speed(receipt))
+
+    def test_93_11f_rejects_missing_native_mtp(self):
+        receipt = self.geometry_speed_receipt()
+        receipt["geometry_benchmark"]["geometries"]["secondary_512_128"]["prompts"]["prompt_2"]["measured_runs"][1]["mtp_device"] = "cpu"
+        self.assertTrue(self.check_geometry_speed(receipt))
+
+    def test_93_11f_rejects_wrong_prompt_text(self):
+        receipt = self.geometry_speed_receipt()
+        receipt["geometry_benchmark"]["geometries"]["primary_1024_256"]["prompts"]["prompt_3"]["prompt_text"] += " changed"
+        self.assertTrue(self.check_geometry_speed(receipt))
+
+    def test_93_11f_rejects_context_over_56k(self):
+        receipt = self.geometry_speed_receipt()
+        receipt["geometry_benchmark"]["context_tokens"] = 57345
+        self.assertTrue(self.check_geometry_speed(receipt))
+
+    def test_93_11f_rejects_reasoning_on(self):
+        receipt = self.geometry_speed_receipt()
+        receipt["geometry_benchmark"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]["thinking_mode"] = "low"
+        self.assertTrue(self.check_geometry_speed(receipt))
+
+    def test_93_11f_rejects_below_prompt_acceptance_floor(self):
+        receipt = self.geometry_speed_receipt()
+        rows = receipt["geometry_benchmark"]["geometries"]["secondary_512_128"]["prompts"]["prompt_3"]["measured_runs"]
+        for row in rows:
+            row.update(mtp_draft_tokens=20, mtp_accepted_tokens=13, mtp_acceptance_pct=65.0)
+        self.assertTrue(self.check_geometry_speed(receipt))
+
+    def test_93_11f_accepts_exact_per_prompt_acceptance_floors(self):
+        receipt = self.geometry_speed_receipt()
+        floors = {"prompt_1": 75, "prompt_2": 40, "prompt_3": 70}
+        for geometry in receipt["geometry_benchmark"]["geometries"].values():
+            for prompt_id, floor in floors.items():
+                for row in geometry["prompts"][prompt_id]["measured_runs"]:
+                    row.update(mtp_draft_tokens=20,
+                               mtp_accepted_tokens=floor // 5,
+                               mtp_acceptance_pct=float(floor))
+        self.assertFalse(self.check_geometry_speed(receipt))
 
 
 if __name__ == "__main__":

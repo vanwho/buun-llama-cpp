@@ -2,11 +2,14 @@
 
 Revision: `hotpath-v10-20260914`. Amendment: `repair93-mtp-fast-20260922`.
 
-Phase 93 resumes from the measured 93-04 failure. Dense GPU Turbo4 MTP now
-works at 8/10 accepted draft tokens on its bounded control. Selected/paged
-requests still crash after `memory_seq_rm [p0, end)` is rejected, and the
-existing cold rung has not proved document-driven page promotion. The phase
-must resolve those specific gaps before a speed or context-capacity campaign.
+Phase 93 resumes from the measured 93-04 failure. Dense GPU Turbo4 MTP works
+on its bounded control. The Q=1 selected direct-attention stall and layer-page
+stride issue have deterministic CUDA coverage, and the latest cold A→B→A run
+observed the cold page's H2D completion, table publication, and target use.
+Cold promotion is **not yet accepted**: the run lacks request-correlated
+transfer event ordering and page-specific draft consumption proof. The next
+steps are one bounded hot-resident speed geometry check, then resume that
+exact proof gap before the paired placement screen.
 
 ## Execution model lock
 
@@ -44,24 +47,37 @@ promotion gates.
 - Keep the target and MTP draft on CUDA with Turbo4 K and V for every MTP-on
   control. A route that silently moves draft state to CPU, changes KV type, or
   uses `selected_reference` is a setup failure.
-- Do not reserve more than 48 Ki tokens of target hot KV in VRAM in any phase
-  93 test (`48 * 1024 = 49152` tokens, or 192 pages at 256 tokens/page). This
+- Every speed benchmark keeps native MTP enabled with GPU Turbo4 draft K/V.
+  Use the exact original three prompts, one 40-token warmup and three measured
+  400-token generations. Batch geometry 1024/256 is primary; 512/128 is the
+  paired lower-scratch comparison. MTP-off is allowed only for explicitly
+  named functional controls, never for a speed row. Set reasoning mode off
+  for both warmups and measured requests. Per-prompt MTP acceptance is a hard
+  gate, evaluated as the median of that prompt's three measured requests for
+  each B/U geometry and placement: prompt 1 >=75%, prompt 2 >=40%, prompt 3
+  >=70%. Do not average prompts or configurations together. These floors are
+  below the supplied reasoning-off reference values (94.12%, 57.04%, 82.69%).
+- Do not reserve more than 56 Ki tokens of target hot KV in VRAM in any phase
+  93 test (`56 * 1024 = 57344` tokens, or 224 pages at 256 tokens/page). This
   is a test ceiling, not a production hot-set constant. Request only the
   smaller hot-page count needed for each test; the allocator's byte budget
   and `--kv-safety-headroom auto` remain authoritative and may admit less.
-- Keep test context small: use 4096 for trim/MTP iteration and at most 8192 for
-  the two-document cold-promotion sequence. Never configure more than 16384
-  context tokens in this phase.
+- Keep diagnostic context small: use 4096 for trim/MTP iteration and at most
+  8192 for the two-document cold-promotion sequence. Task 93-11f starts at
+  8192 total context with 4096 target hot tokens. Any later phase-93 speed row
+  may use a matched context only when safe, never above 57,344 tokens (56 Ki
+  tokens); no phase-93 task may exceed that ceiling.
 - No request used to measure prefill/input speed may contain more than 16384
   rendered input tokens, including the retained prompt prefix. Preflight the
   exact rendered prompt with the canonical tokenizer before sending it; reject
   over-limit input instead of truncating or reporting it as a valid speed row.
   Prefer 4096/8192-token measurements while iterating; use 16384 only for a
   final bounded point after the smaller setup is stable.
-- Keep generation at 16 tokens or less and `draft_n_max=2` during diagnostics.
-  Use one slot, the existing managed lifecycle, and a small `ubatch` (start at
-  64, lower it if the measured scratch/headroom preflight requires it; record
-  actual `-b` and `-ub`). Never launch a second Qwen3.8-27B CUDA process.
+- Keep generation at 16 tokens or less and `draft_n_max=2` during functional
+  diagnostics. The canonical 93-11f/93-12 speed probes are the only exception:
+  use 400 output tokens and the explicitly paired B/U geometry. Use one slot,
+  the existing managed lifecycle, and never launch a second Qwen3.8-27B CUDA
+  process.
 - Read only this cluster, the active packet, the compact 93-04/93-05 evidence,
   and the exact source functions named below. Do not load old V9/phase-85
   planning documents as task context; consult historical material only when
@@ -120,11 +136,14 @@ by the failing evidence.
 
 93-08 sent no live request: the canonical runner was unset, and the active
 service executable/configuration did not match the bounded candidate. Dense
-MTP remains supported by the earlier 93-05 8/10 control, but selected-resident
-survival and cold-page promotion remain unverified after the trim repair. Keep
-performance work gated behind 93-10 live functional re-verification and 93-11
-evidence-driven repair disposition. Scheduled successors are 93-10 through
-93-13; none authorizes a 256K or speed run before its explicit preconditions.
+MTP remains supported by the earlier 93-05 8/10 control. The only speed work
+allowed before cold-promotion closure is the bounded 93-11f 8K/4K hot-resident
+batch-geometry comparison; do not treat it as offload or promotion evidence.
+The paired placement screen and all large-context work remain gated on the
+candidate-bound cold proof and its explicit prerequisites. If a canonical
+MTP acceptance floor is missed, keep the owning benchmark incomplete, use its
+dense MTP control to localize general versus selected/offload behavior, and
+repair or schedule the exact fix before proceeding.
 
 ## 93-11c decision
 
@@ -146,21 +165,17 @@ failing operation during cold B as `FLASH_ATTN_EXT` (`node_232`, output shape
 `[256,24,64,1]`) after checkpoint restore and attention-only trim. Earlier
 nodes synchronized successfully. The current trace does not identify which
 K/V/page backing identity is invalid, so it does not justify a safe source
-repair or deterministic kernel regression. Task 93-11e is scheduled before
-93-12 to identify that mapping, repair the owner, add a regression, and rerun
-the canonical four gates. Task 93-12 remains todo and depends on 93-11e.
+repair or deterministic kernel regression. Task 93-11f runs first for the
+limited resident speed baseline; 93-11e then resumes to close the cold proof,
+and 93-12 remains todo and depends on 93-11e.
 
-## 93-11e retry-4 assessment
+## Current 93-11e evidence boundary
 
-Retry 3 repaired the Q=1 direct-attention stall and preserved a passing CUDA
-fixture, but its attempt-08 canonical cold rung still lacks promotion evidence.
-The A request is 31 rendered tokens. Across A/B/A-again, `no_candidate` grows
-194 → 270 → 318, `attention_dropped_no_output` grows 2 → 6 → 8, and B/A-again
-retain selected IDs `[5,6]` with zero H2D useful bytes. The `natural_proof`
-identity remains the sentinel, and the raw records do not contain the
-`promotion_proof` object the validator requires. Retry 4 must make the A page
-eligible and host-resident, trace the nomination path and its first missing
-boundary, and collect request-local H2D/publication/target-plus-draft use
-proof. Do not reapply the Q=1 dispatch or layer-stride changes without fresh
-address evidence. 93-11e remains `in_progress`, 93-12 remains `todo`, and no
-successor is scheduled until a distinct runtime owner is identified.
+The latest A fixture spans multiple pages. A-again selected logical page 0;
+the live snapshot recorded generation/content version 9, 4,325,376 useful H2D
+bytes, completed transfer, mapping publication, and target graph use. The
+receipt still fails closed because it does not record request-local H2D event
+identity/order or page-specific draft consumption. Preserve the Q=1 dispatch
+and layer-stride repairs. 93-11e remains blocked/incomplete until those exact
+proof boundaries are recorded and the canonical gates pass; 93-11f does not
+close or replace that work.
