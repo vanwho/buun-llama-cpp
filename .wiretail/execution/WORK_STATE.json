@@ -25,7 +25,13 @@
     "cluster_context_dir": ".wiretail/execution/clusters",
     "default_model": "gpt-5.6-luna",
     "default_reasoning": "low",
-    "task_model_policy": "Remaining phase-93 tasks 93-06 through 93-09 are pinned to exact gpt-6-luna at high reasoning for implementation and all retry assessments. Any successor tasks must carry the same task and assessment pins. Shared Wiretail defaults and generic escalation policy remain unchanged. Historical completed-task model records are immutable.",
+    "execution_model_lock": {
+      "model": "gpt-6-luna",
+      "reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high"
+    },
+    "task_model_policy": "All remaining and newly scheduled project tasks are locked to exact gpt-6-luna at high reasoning for implementation and all retry assessments. The project lock is applied by Wiretail even when future task metadata or generic environment assessment overrides disagree. Shared Wiretail defaults and generic escalation policy remain unchanged. Historical completed-task model records are immutable.",
     "token_accounting": "Persist every reported Codex turn.completed usage event per task and aggregate by phase and project; total is derived from input plus output when absent",
     "default_cluster_max_turns": 0,
     "default_cluster_max_input_tokens": 0,
