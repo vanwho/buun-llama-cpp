@@ -63,8 +63,10 @@ promotion gates.
   smaller hot-page count needed for each test; the allocator's byte budget
   and `--kv-safety-headroom auto` remain authoritative and may admit less.
 - Keep diagnostic context small: use 4096 for trim/MTP iteration and at most
-  8192 for the two-document cold-promotion sequence. Task 93-11f starts at
-  8192 total context with 4096 target hot tokens. Any later phase-93 speed row
+  8192 for the cold-promotion sequences. Task 93-11f starts at 8192 total
+  context with 4096 target hot tokens. Task 93-11g uses that same 8K/4K
+  geometry with exact 1K-token file fixtures to force real-file eviction and
+  retrieval. Any later phase-93 speed row
   may use a matched context only when safe, never above 49,152 tokens (48 Ki
   tokens); no phase-93 task may exceed that ceiling.
 - No request used to measure prefill/input speed may contain more than 16384
@@ -139,6 +141,7 @@ service executable/configuration did not match the bounded candidate. Dense
 MTP remains supported by the earlier 93-05 8/10 control. The only speed work
 allowed before cold-promotion closure is the bounded 93-11f 8K/4K hot-resident
 batch-geometry comparison; do not treat it as offload or promotion evidence.
+Next, 93-11g runs file-backed natural promotion at that same 8K/4K geometry.
 The paired placement screen and all large-context work remain gated on the
 candidate-bound cold proof and its explicit prerequisites. If a canonical
 MTP acceptance floor is missed, keep the owning benchmark incomplete, use its
@@ -165,9 +168,9 @@ failing operation during cold B as `FLASH_ATTN_EXT` (`node_232`, output shape
 `[256,24,64,1]`) after checkpoint restore and attention-only trim. Earlier
 nodes synchronized successfully. The current trace does not identify which
 K/V/page backing identity is invalid, so it does not justify a safe source
-repair or deterministic kernel regression. Task 93-11f runs first for the
-limited resident speed baseline; 93-11e then resumes to close the cold proof,
-and 93-12 remains todo and depends on 93-11e.
+repair or deterministic kernel regression. The execution order is now
+93-11f resident speed check, 93-11g file-backed A→B→A promotion campaign,
+93-11e repair/proof closure, then 93-12 paired placement performance.
 
 ## Current 93-11e evidence boundary
 
@@ -176,6 +179,8 @@ the live snapshot recorded generation/content version 9, 4,325,376 useful H2D
 bytes, completed transfer, mapping publication, and target graph use. The
 receipt still fails closed because it does not record request-local H2D event
 identity/order or page-specific draft consumption. Preserve the Q=1 dispatch
-and layer-stride repairs. 93-11e remains blocked/incomplete until those exact
-proof boundaries are recorded and the canonical gates pass; 93-11f does not
-close or replace that work.
+and layer-stride repairs. The 93-11g campaign uses actual fixture file bodies,
+not page IDs or the prior short inline fact. 93-11e remains blocked/incomplete
+until the fixture run has exposed and closed any remaining proof gaps and the
+canonical gates pass; neither 93-11f nor 93-11g replaces the source repair and
+request-correlated proof work.

@@ -1157,3 +1157,10 @@ receives `PROJECT_ROOT` from the shared runner.
 - Updated both 93-11f and 93-12 receipt validators to reject context/hot limits above 49,152, and added boundary tests. 93-13 already records the 49,152 limit.
 - The historical prior amendment entry records its then-current 56K wording; this correction supersedes it for all future phase-93 runs. Existing benchmark evidence and historical tasks are unchanged.
 - Validation: 30 V10 receipt-validator tests pass; task-state validation passes for 408 tasks; active-plan validation, Python compilation, JSON parsing, and `git diff --check` pass.
+
+## 2026-09-23T17:55:27+00:00 — plan amendment — 93-11g file-backed promotion test
+
+- Added 24 tokenizer-sized fixtures: eight 1,024-token Python sorted-list scripts, eight mmap-versus-read explanations, and eight Bash directory watchers. The manifest records IDs, retrieval facts, hashes, and per-file token counts; a portable generator can verify/regenerate them with the chosen model tokenizer.
+- Inserted 93-11g immediately after 93-11f in task order and before the blocked 93-11e / later 93 tests. It requires actual file bodies in same-slot A→B→A sequences at 8,192 context / 4,096 hot, native GPU Turbo4 MTP, cold-before observation, natural page selection, ordered H2D/publication, and target plus draft page consumption for all 24 files.
+- Made 93-11e and 93-12 depend on and consume the new fixture campaign; 93-12 remains gated. The active current task stays 93-11f, so the next Wiretail task after it completes is 93-11g.
+- Validation: all 24 fixtures verified at exactly 1,024 Qwen3.8-27B tokens and matching SHA-256; Python compile/merge behavior and Bash syntax checks passed; task state is valid at 409 tasks; active-plan validator and JSON parsing pass; `git diff --check` passes. No server was restarted and no runtime promotion result is claimed.
