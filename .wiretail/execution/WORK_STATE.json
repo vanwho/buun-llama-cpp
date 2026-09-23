@@ -19285,6 +19285,8 @@
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
         ".wiretail/execution/tasks/93-11g.md",
         ".wiretail/execution/tasks/93-11f.md",
+        ".wiretail/execution/handoffs/93-11f.md",
+        ".wiretail/execution/evidence/V10_93-11f.json",
         "tools/server/bench/fixtures/pager-promotion/README.md",
         "tools/server/bench/fixtures/pager-promotion/manifest.json",
         "tools/server/bench/generate-promotion-fixtures.py",
@@ -19293,13 +19295,7 @@
         "tools/server/bench/test_mtp_diagnostic.py",
         "tools/server/bench/validate-mtp-post-repair.py",
         ".wiretail/execution/v10/validate.py",
-        ".wiretail/execution/v10/test_validate.py",
-        "src/llama-context.cpp",
-        "src/llama-kv-cache.cpp",
-        "src/llama-kv-cache.h",
-        "src/llama-graph.cpp",
-        "ggml/src/ggml-cuda/fattn-paged-turbo4.cuh",
-        "tools/server/server-context.cpp"
+        ".wiretail/execution/v10/test_validate.py"
       ],
       "completion_check": [
         "python3",
