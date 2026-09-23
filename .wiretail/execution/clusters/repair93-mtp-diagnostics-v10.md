@@ -96,3 +96,13 @@ occupancy, production capacity, or quality from this phase. Phase 93-09 must
 schedule the next small, paired performance measurement only after these
 functional proofs pass; otherwise it schedules the concrete repair supported
 by the failing evidence.
+
+## 93-09 decision
+
+93-08 sent no live request: the canonical runner was unset, and the active
+service executable/configuration did not match the bounded candidate. Dense
+MTP remains supported by the earlier 93-05 8/10 control, but selected-resident
+survival and cold-page promotion remain unverified after the trim repair. Keep
+performance work gated behind 93-10 live functional re-verification and 93-11
+evidence-driven repair disposition. Scheduled successors are 93-10 through
+93-13; none authorizes a 256K or speed run before its explicit preconditions.

@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-09",
-  "last_updated_utc": "2026-09-23T02:53:05+00:00",
+  "current_task": "93-10",
+  "last_updated_utc": "2026-09-23T03:08:48+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18731,7 +18731,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Review short controls and schedule the next speed step",
       "packet": ".wiretail/execution/tasks/93-09.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "Luna High",
       "recommended_reasoning": "high",
@@ -18746,7 +18746,7 @@
       "depends_on": [
         "93-08"
       ],
-      "commit": null,
+      "commit": "7c0593d6ed2a2e368cd27b3812a8d7069bb39fc4",
       "context_files": [
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
         ".wiretail/execution/tasks/93-08.md",
@@ -18761,6 +18761,176 @@
         ".wiretail/execution/evidence/V10_93-09.json",
         "--review",
         ".wiretail/execution/evidence/V10_REPAIR93_FINAL_REVIEW.json"
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-09-attempt-1-20260923T025328Z.jsonl:84",
+            "total_tokens": 133829694,
+            "total_tokens_derived": true,
+            "input_tokens": 133471622,
+            "cached_input_tokens": 130968576,
+            "output_tokens": 358072,
+            "thinking_tokens": 143164
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 133829694,
+          "input_tokens": 133471622,
+          "cached_input_tokens": 130968576,
+          "output_tokens": 358072,
+          "thinking_tokens": 143164
+        }
+      }
+    },
+    {
+      "id": "93-10",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Re-establish the managed runtime and close the short functionality gate",
+      "packet": ".wiretail/execution/tasks/93-10.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_bounded_live_gate"
+      ],
+      "depends_on": [
+        "93-09"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-09.md",
+        ".wiretail/execution/evidence/V10_REPAIR93_FINAL_REVIEW.json",
+        ".wiretail/execution/evidence/V10_93-08.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-10",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-10.json"
+      ]
+    },
+    {
+      "id": "93-11",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Repair only a reproduced selected-route runtime defect",
+      "packet": ".wiretail/execution/tasks/93-11.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_runtime_defect_resolution"
+      ],
+      "depends_on": [
+        "93-10"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-10.md",
+        ".wiretail/execution/evidence/V10_REPAIR93_FINAL_REVIEW.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11.json"
+      ]
+    },
+    {
+      "id": "93-12",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Gated paired MTP and KV placement performance screen",
+      "packet": ".wiretail/execution/tasks/93-12.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_paired_speed_screen"
+      ],
+      "depends_on": [
+        "93-10",
+        "93-11"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/tasks/93-09.md",
+        ".wiretail/execution/evidence/V10_REPAIR93_FINAL_REVIEW.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-12",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-12.json"
+      ]
+    },
+    {
+      "id": "93-13",
+      "phase": "93",
+      "cluster": "repair93-mtp-diagnostics-v10",
+      "title": "Summarize phase-93 short proof and review the next gate",
+      "packet": ".wiretail/execution/tasks/93-13.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-mtp-fast-20260922",
+      "required_proofs": [
+        "repair93_phase_summary_gate"
+      ],
+      "depends_on": [
+        "93-12"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
+        ".wiretail/execution/evidence/V10_REPAIR93_FINAL_REVIEW.json"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-13",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-13.json"
       ]
     }
   ],
@@ -24260,26 +24430,39 @@
           "cached_input_tokens": 126158080,
           "output_tokens": 323034,
           "thinking_tokens": 124045
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-09-attempt-1-20260923T025328Z.jsonl:84",
+          "total_tokens": 133829694,
+          "total_tokens_derived": true,
+          "input_tokens": 133471622,
+          "cached_input_tokens": 130968576,
+          "output_tokens": 358072,
+          "thinking_tokens": 143164
         }
       ],
       "totals": {
-        "turns": 8,
-        "total_tokens": 758070079,
-        "input_tokens": 756317844,
-        "cached_input_tokens": 742527744,
-        "output_tokens": 1752235,
-        "thinking_tokens": 658925
+        "turns": 9,
+        "total_tokens": 891899773,
+        "input_tokens": 889789466,
+        "cached_input_tokens": 873496320,
+        "output_tokens": 2110307,
+        "thinking_tokens": 802089
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 339,
-      "total_tokens": 6920674552,
-      "input_tokens": 6903756035,
-      "cached_input_tokens": 6754495488,
-      "output_tokens": 16918517,
-      "thinking_tokens": 6067877
+      "turns": 340,
+      "total_tokens": 7054504246,
+      "input_tokens": 7037227657,
+      "cached_input_tokens": 6885464064,
+      "output_tokens": 17276589,
+      "thinking_tokens": 6211041
     },
     "source": "Codex turn.completed usage events"
   }
