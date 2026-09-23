@@ -125,3 +125,16 @@ survival and cold-page promotion remain unverified after the trim repair. Keep
 performance work gated behind 93-10 live functional re-verification and 93-11
 evidence-driven repair disposition. Scheduled successors are 93-10 through
 93-13; none authorizes a 256K or speed run before its explicit preconditions.
+
+## 93-11c decision
+
+The candidate-bound four-rung diagnostic passed the MTP-off dense, native MTP
+dense, and selected-resident controls. The same-slot cold A request passed, but
+the 1760-token B append timed out after checkpoint restore and
+`CHECKPOINT_ATTN_ONLY_TRIM p0=27 target=1 draft=1`. With CUDA graphs disabled,
+one run reported an asynchronous illegal access at the generic CUDA kernel
+launch check; with launch blocking enabled it still timed out without naming a
+kernel. The source owner is not identified and no safe fix or seam regression
+can be justified from these artifacts. Task 93-11d is scheduled immediately
+before 93-12 to isolate the CUDA operation, add the regression, repair it, and
+repeat all four gates. Task 93-12 remains todo and depends on 93-11d.
