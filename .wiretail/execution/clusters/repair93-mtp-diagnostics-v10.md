@@ -20,6 +20,25 @@ must copy these model fields into `WORK_STATE.json` and retain this policy in
 their packet/cluster context. The shared Wiretail default is also
 `gpt-6-luna`.
 
+## No-skip live-test policy
+
+The missing `CANONICAL_BENCHMARK_RUNNER` in 93-08 was a correctable invocation
+omission, not an unavailable-hardware result. The canonical script is
+`/srv/ai/benchmarks/run-profile-benchmark.sh`. For live tasks, explicitly set
+that environment variable together with the candidate binary, endpoint,
+active-profile file and API-key file listed in the task packet. A mismatched
+healthy service is expected to be replaced through that managed lifecycle;
+it is never valid test input and is not a reason to end the task.
+
+Configuration, permissions, service identity and safe test geometry must be
+repaired in the owning task and the bounded run repeated. Do not mark a task
+done or proceed to its dependent task when no candidate-bound request was sent
+or an expected benchmark remained `not_measured`. A runtime defect may be
+handed to its explicit repair task only after a request against the verified
+candidate reproduces it with hashed raw evidence. Completion checks enforce
+this for 93-10; local deterministic tests alone cannot close live MTP or
+promotion gates.
+
 ## Goals and bounds
 
 - Keep the target and MTP draft on CUDA with Turbo4 K and V for every MTP-on

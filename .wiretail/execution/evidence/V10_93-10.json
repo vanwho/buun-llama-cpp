@@ -1,0 +1,229 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "reason": "canonical runner was unset; harness continued after failure; subsequently corrected",
+      "requests_sent": 0,
+      "status": "setup_failure"
+    },
+    {
+      "attempt": 2,
+      "reason": "prescribed runner configured; stale bundle receipt did not match pinned candidate",
+      "requests_sent": 0,
+      "status": "setup_failure"
+    },
+    {
+      "attempt": 3,
+      "reason": "explicit environment plus PAGER_BUNDLE_ROOT still used stale in-place receipt",
+      "requests_sent": 0,
+      "status": "setup_failure"
+    },
+    {
+      "attempt": 4,
+      "reason": "isolated read-only bundle receipt and canonical manifest verified pinned executable",
+      "requests_sent": 0,
+      "status": "candidate_bundle_preflight_pass"
+    },
+    {
+      "attempt": 5,
+      "raw_records": {
+        "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/canonical/records.jsonl",
+        "sha256": "d09d56187048d9a7407c09220b16408894841722e44211cbf51d8597932a6860"
+      },
+      "request_accounting": {
+        "canonical_measured_attempts": 3,
+        "driver_request_attempts": 2,
+        "total_http_request_attempts": 5
+      },
+      "requests_sent": 5,
+      "runtime_failure": "Candidate request hit rejected prompt suffix trim followed by server status=11/SEGV.",
+      "server_log": {
+        "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/server.log",
+        "sha256": "6cd2038e9f5afac69de0666d922ea89b88ad1e4bc818032620182752353cfb1b"
+      },
+      "status": "runtime_failure_captured",
+      "summary": {
+        "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/summary.json",
+        "sha256": "fbad1360a274d8742f82e26f5ad37d79904bbf076f1ebd5a30dc377451dea897"
+      }
+    }
+  ],
+  "candidate": {
+    "bundle_manifest": {
+      "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-04/bundle-preflight/bundle-manifest.json",
+      "sha256": "c78d03e72babba0722eda384987efa6619c04522cf3e3f572f01a7a46d83ec6a"
+    },
+    "bundle_receipt": "/srv/ai/paged-kv/results/v10/93-10/attempt-04/candidate-bundle-verified/build-receipt.json",
+    "bundle_receipt_artifact": {
+      "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-04/candidate-bundle-verified/build-receipt.json",
+      "sha256": "26fd31d36ee4be2de9700da1cd1da411d5f13fb2eda47cc2e89f3221acfe6c1c"
+    },
+    "bundle_receipt_path": "/srv/ai/paged-kv/results/v10/93-10/attempt-04/candidate-bundle-verified/build-receipt.json",
+    "matches_review_pin": true,
+    "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-04/candidate-bundle-verified/llama-server",
+    "sha256": "2ef11a68cd640026e0b6b658ce07fb4682d2dd5e015d2ee879a008d2474a7e19"
+  },
+  "checks": {
+    "local_contract_checks": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/local-verification.log",
+          "sha256": "16d884836d13801228f74e22750e08b16de13a374c03d8252807a31777a3a6f8"
+        }
+      ],
+      "command": [
+        "python3 -m unittest discover -s tools/server/bench -p test_mtp_diagnostic.py",
+        "python3 -m unittest discover -s tools/server/bench -p test_pager_benchmark_adapter.py",
+        "python3 -m py_compile tools/server/bench/mtp_diagnostic.py tools/server/bench/run-mtp-diagnostic.py tools/server/bench/test_mtp_diagnostic.py",
+        "git diff --check"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "tests_passed": {
+        "mtp_diagnostic": 17,
+        "pager_benchmark_adapter": 32
+      }
+    },
+    "repair93_bounded_live_gate": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/summary.json",
+          "sha256": "fbad1360a274d8742f82e26f5ad37d79904bbf076f1ebd5a30dc377451dea897"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/canonical/records.jsonl",
+          "sha256": "d09d56187048d9a7407c09220b16408894841722e44211cbf51d8597932a6860"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/server.log",
+          "sha256": "6cd2038e9f5afac69de0666d922ea89b88ad1e4bc818032620182752353cfb1b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/canonical/run-config.json",
+          "sha256": "82a5330d78b86bc3878a420e12914377cb35a1f4a06ea21659a650f9e7d8d4f0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-04/candidate-bundle-verified/build-receipt.json",
+          "sha256": "26fd31d36ee4be2de9700da1cd1da411d5f13fb2eda47cc2e89f3221acfe6c1c"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-mtp-diagnostic.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic",
+        "--server-binary",
+        "/srv/ai/paged-kv/results/v10/93-10/attempt-04/candidate-bundle-verified/llama-server",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--service-name",
+        "llama-server.service",
+        "--endpoint",
+        "http://127.0.0.1:8080",
+        "--context",
+        "4096",
+        "--batch",
+        "128",
+        "--ubatch",
+        "64",
+        "--n-predict",
+        "16",
+        "--draft-n-max",
+        "2",
+        "--repeats",
+        "1",
+        "--startup-timeout",
+        "180",
+        "--request-timeout",
+        "120"
+      ],
+      "environment": {
+        "BENCH_ENDPOINT": "http://127.0.0.1:8080",
+        "BENCH_SERVER_BIN": "/srv/ai/paged-kv/results/v10/93-10/attempt-04/candidate-bundle-verified/llama-server",
+        "CANONICAL_BENCHMARK_RUNNER": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "LLAMA_ACTIVE_PROFILE": "/srv/ai/config/llama/active-profile",
+        "LLAMA_API_KEY_FILE": "/srv/ai/config/llama/api-keys",
+        "PAGER_BUNDLE_ROOT": "/srv/ai/paged-kv/results/v10/93-10/attempt-04/candidate-bundle-verified"
+      },
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "claims": {
+    "256k_capacity": false,
+    "candidate_identity": true,
+    "cold_page_promotion": false,
+    "dense_mtp_off_control": true,
+    "dense_native_mtp_control": true,
+    "performance": false,
+    "selected_resident_mtp": false
+  },
+  "live_controls": {
+    "candidate_identity_verified": true,
+    "canonical_runner_path": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "cold_promotion": {
+      "reason": "Gated by candidate-bound selected-resident prompt-trim runtime failure.",
+      "request_attempted": false,
+      "requests_attempted": 0,
+      "status": "not_measured"
+    },
+    "execution_status": "complete",
+    "rungs": {
+      "dense_mtp_off": {
+        "candidate_binary_sha256": "2ef11a68cd640026e0b6b658ce07fb4682d2dd5e015d2ee879a008d2474a7e19",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/01-mtp_off_dense_all_gpu/request-01/record.json",
+          "sha256": "1aaa65b8a5b19e84d68c36ffdcc5596ac7077fed4b1df5ea352397720c4bf685"
+        },
+        "request_attempted": true,
+        "status": "pass"
+      },
+      "dense_mtp_on": {
+        "candidate_binary_sha256": "2ef11a68cd640026e0b6b658ce07fb4682d2dd5e015d2ee879a008d2474a7e19",
+        "draft_n": 10,
+        "draft_n_accepted": 8,
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/02-mtp_on_dense_all_gpu/request-01/record.json",
+          "sha256": "036cfe8b37c0b8efb6593435217e1a4e5176553f50d1fd988ceba19aca02adac"
+        },
+        "request_attempted": true,
+        "status": "pass"
+      },
+      "selected_resident_mtp": {
+        "additional_artifacts": [
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/server.log",
+            "sha256": "6cd2038e9f5afac69de0666d922ea89b88ad1e4bc818032620182752353cfb1b"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/canonical/run-config.json",
+            "sha256": "82a5330d78b86bc3878a420e12914377cb35a1f4a06ea21659a650f9e7d8d4f0"
+          }
+        ],
+        "candidate_binary_sha256": "2ef11a68cd640026e0b6b658ce07fb4682d2dd5e015d2ee879a008d2474a7e19",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-10/attempt-05/diagnostic/03-mtp_on_selected_paged_resident/canonical/records.jsonl",
+          "sha256": "d09d56187048d9a7407c09220b16408894841722e44211cbf51d8597932a6860"
+        },
+        "reason": "Candidate request hit rejected prompt suffix trim followed by server status=11/SEGV.",
+        "request_attempted": true,
+        "status": "fail"
+      }
+    },
+    "runner_configured": true,
+    "runner_invoked": true,
+    "setup_failure": null
+  },
+  "model": {
+    "matches_review_pin": true,
+    "path": "/srv/ai/models/text/current.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "schema_version": 1,
+  "source_commit": "9a454fd4cdde2414604eb898f27e70dfaf871dd8",
+  "status": "candidate_bound_runtime_failure_local_checks_pass",
+  "task": "93-10"
+}
