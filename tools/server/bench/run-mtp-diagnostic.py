@@ -51,6 +51,15 @@ PAGER_ADAPTER = REPOSITORY_ROOT / "tools/server/bench/run-pager-profile-benchmar
 MAX_REQUESTS_PER_RUNG = 3
 
 
+def canonical_runner_from_environment() -> str:
+    runner = os.environ.get("CANONICAL_BENCHMARK_RUNNER")
+    if not runner:
+        raise RuntimeError(
+            "CANONICAL_BENCHMARK_RUNNER is required; export "
+            "CANONICAL_BENCHMARK_RUNNER=/srv/ai/benchmarks/run-profile-benchmark.sh")
+    return runner
+
+
 def sha256_bytes(value: bytes) -> str:
     import hashlib
     return hashlib.sha256(value).hexdigest()
@@ -337,6 +346,54 @@ def canonical_measured_count(output: pathlib.Path) -> int:
     return count
 
 
+def canonical_runtime_failure(output: pathlib.Path, server_log: pathlib.Path,
+                              binary: pathlib.Path, binary_hash: str) -> str | None:
+    """Recognize a candidate-bound request that failed inside the server."""
+    try:
+        config = json.loads((output / "run-config.json").read_text())
+        active = config.get("runtime_identity", {}).get("active", {})
+        bundle = config.get("runtime_bundle", {})
+        bundle_root = pathlib.Path(bundle.get("root", ""))
+        relative_executable = bundle.get("executable")
+        files = {item.get("path"): item for item in bundle.get("files", [])
+                 if isinstance(item, Mapping)}
+        executable_record = files.get(relative_executable, {})
+        if active.get("binary") != str(binary) or not isinstance(active.get("pid"), int) or \
+                bundle_root / str(relative_executable) != binary or \
+                executable_record.get("sha256") != binary_hash:
+            return None
+        measured_error = False
+        for line in (output / "records.jsonl").read_text().splitlines():
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if record.get("phase") == "measured" and record.get("error") is True:
+                measured_error = True
+                break
+        log = server_log.read_text(errors="replace").lower()
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+    if measured_error and "prompt suffix trim rejected" in log and \
+            ("status=11/segv" in log or "segmentation fault" in log):
+        return "candidate request hit rejected prompt suffix trim followed by server status=11/SEGV"
+    return None
+
+
+def append_skipped_rungs(rungs: list[dict[str, Any]], start_index: int,
+                         failed_rung: str) -> None:
+    """Represent gated work explicitly without invoking a later rung."""
+    for index, rung in enumerate(RUNG_SPECS[start_index:], start=start_index + 1):
+        rungs.append({
+            "name": rung.name,
+            "description": rung.description,
+            "index": index,
+            "status": "not_run",
+            "requests": [],
+            "skipped_after": failed_rung,
+        })
+
+
 def loaded_identity_matches(manifest_path: pathlib.Path, rung: Rung, argv: list[str],
                             service: str, model: pathlib.Path, binary: pathlib.Path,
                             model_hash: str, binary_hash: str, endpoint: str,
@@ -386,7 +443,21 @@ def run_canonical_adapter(args: argparse.Namespace, rung: Rung,
         env["LLAMA_API_KEY_FILE"] = str(args.key_file)
     output.mkdir(parents=True, exist_ok=True)
     (output / "canonical-command.txt").write_text(shlex.join(command) + "\n")
-    result = subprocess.run(command, env=env, text=True, capture_output=True, check=False)
+    diagnostic_env = ["sudo", "-n", "systemctl", "set-environment",
+                      "LLAMA_MTP_STATE_DIAGNOSTIC=1"]
+    enabled = subprocess.run(diagnostic_env, text=True, capture_output=True, check=False)
+    if enabled.returncode != 0:
+        raise RuntimeError("could not enable managed MTP state diagnostics: " +
+                           enabled.stderr.strip())
+    try:
+        result = subprocess.run(command, env=env, text=True, capture_output=True, check=False)
+    finally:
+        disabled = subprocess.run(
+            ["sudo", "-n", "systemctl", "unset-environment", "LLAMA_MTP_STATE_DIAGNOSTIC"],
+            text=True, capture_output=True, check=False)
+        if disabled.returncode != 0:
+            raise RuntimeError("could not clear managed MTP state diagnostics: " +
+                               disabled.stderr.strip())
     (output / "canonical-runner.stdout").write_text(result.stdout)
     (output / "canonical-runner.stderr").write_text(result.stderr)
     return {
@@ -556,8 +627,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     binary_hash = sha256_file(binary)
     rungs: list[dict[str, Any]] = []
     setup_failure: dict[str, Any] | None = None
-    if not os.environ.get("CANONICAL_BENCHMARK_RUNNER"):
-        raise RuntimeError("CANONICAL_BENCHMARK_RUNNER is required")
+    runtime_failure: dict[str, Any] | None = None
+    canonical_runner_from_environment()
     base = service_base(args.endpoint)
 
     for index, rung in enumerate(RUNG_SPECS, start=1):
@@ -588,7 +659,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             if contract_errors:
                 setup_failure = setup_failure or {"rung": rung.name, "errors": contract_errors}
                 rungs.append(rung_result)
-                continue
+                append_skipped_rungs(rungs, index, rung.name)
+                break
             adapter_dir = rung_dir / "canonical"
             adapter_result: dict[str, Any] | None = None
             observed: dict[str, Any]
@@ -679,15 +751,32 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             (rung_dir / "lifecycle-manifest.json").write_text(
                 json.dumps(lifecycle_manifest, indent=2, sort_keys=True) + "\n")
         except Exception as error:  # live boundary; retain artifacts and continue order
-            rung_result["status"] = "setup_failure"
-            rung_result["setup_errors"] = [str(error)]
-            setup_failure = setup_failure or {"rung": rung.name, "errors": [str(error)]}
-        finally:
             service_log(args.service_name, service_started, log_path)
+            runtime_reason = canonical_runtime_failure(
+                adapter_dir, log_path, binary, binary_hash)
+            if runtime_reason:
+                rung_result["status"] = "fail"
+                rung_result["runtime_failure"] = runtime_reason
+                rung_result["setup_errors"] = []
+                runtime_failure = runtime_failure or {
+                    "rung": rung.name, "reason": runtime_reason,
+                    "canonical_records": str(adapter_dir / "records.jsonl"),
+                    "server_log": str(log_path),
+                }
+            else:
+                rung_result["status"] = "setup_failure"
+                rung_result["setup_errors"] = [str(error)]
+                setup_failure = setup_failure or {"rung": rung.name, "errors": [str(error)]}
+        finally:
+            if not log_path.exists():
+                service_log(args.service_name, service_started, log_path)
             if log_path.exists():
                 rung_result["server_log_sha256"] = sha256_file(log_path)
             (rung_dir / "command.json").write_text(json.dumps(rung_result, indent=2, sort_keys=True) + "\n")
         rungs.append(rung_result)
+        if rung_result["status"] != "pass":
+            append_skipped_rungs(rungs, index, rung.name)
+            break
 
     first_bad: str | None = None
     for rung in rungs:
@@ -706,11 +795,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         if first_bad:
             break
     summary = {
-        "schema_version": 1, "task": "93-01", "status": "pass" if not setup_failure else "setup_failure",
+        "schema_version": 1, "task": "93-01",
+        "status": "fail" if runtime_failure else "pass" if not setup_failure else "setup_failure",
         "model": {"path": str(model), "sha256": model_hash, "canonical": "Qwen3.8-27B-UD-IQ4_XS"},
         "bounds": {"context_tokens": args.context, "n_predict": args.n_predict,
                    "draft_n_max": args.draft_n_max, "max_requests_per_rung": 3},
         "first_bad_rung": first_bad, "setup_failure": setup_failure,
+        "runtime_failure": runtime_failure,
         "rung_order": list(RUNG_ORDER), "rungs": rungs,
         "score_policy": {"min_acceptance": args.min_acceptance,
                          "reference_routes_refused": True,

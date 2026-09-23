@@ -415,10 +415,24 @@ def validate_rung_summary(summary: Mapping[str, Any]) -> list[str]:
     if not isinstance(rungs, list) or [r.get("name") for r in rungs if isinstance(r, Mapping)] != list(RUNG_ORDER):
         errors.append("rung_order_invalid")
         return errors
+    prerequisite_failed = False
     for rung in rungs:
         if not isinstance(rung, Mapping):
             errors.append("rung_not_object")
             continue
+        records = rung.get("requests")
+        records = records if isinstance(records, list) else []
+        if prerequisite_failed:
+            if rung.get("status") != "not_run" or records:
+                errors.append("rung_after_failed_prerequisite_was_run")
+            continue
+        if rung.get("status") == "not_run":
+            prerequisite_failed = True
+            if summary.get("status") == "pass":
+                errors.append("rung_not_run_without_failure")
+            continue
+        if rung.get("status") != "pass":
+            prerequisite_failed = True
         if rung.get("status") == "pass":
             for record in rung.get("requests", []):
                 if isinstance(record, Mapping):
@@ -426,8 +440,9 @@ def validate_rung_summary(summary: Mapping[str, Any]) -> list[str]:
                                   for error in validate_request_record(
                                       record, next(item for item in RUNG_SPECS if item.name == rung["name"])))
         if rung.get("name") == RUNG_ORDER[3]:
-            records = rung.get("requests")
-            records = records if isinstance(records, list) else []
+            if rung.get("status") == "not_run" or (
+                    rung.get("status") != "pass" and not records):
+                continue
             if len(records) != 3:
                 errors.append("cold_sequence_request_count_invalid")
             else:
