@@ -1,0 +1,31 @@
+{
+  "schema": "hotpath-v10-task-receipt",
+  "schema_version": 1,
+  "task": "93-06",
+  "source_commit": "2d381af3f9338038cf085a72a966591a90338aa9",
+  "checks": {
+    "repair93_mtp_trim_recovery": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "cmake --build build-cuda --target llama-server test-kv-pager-model test-mtp-minimal-repair test-server-prompt-cache -j2",
+        "build-cuda/bin/test-kv-pager-model",
+        "build-cuda/bin/test-mtp-minimal-repair",
+        "build-cuda/bin/test-server-prompt-cache",
+        "git diff --check"
+      ],
+      "artifacts": [
+        {"path": ".wiretail/execution/handoffs/93-06.md", "sha256": "84820b8932c9844e2b16408d0766ab49f48c6e303ec21362890033f2abcc07df"},
+        {"path": ".wiretail/execution/evidence/raw/93-06/build.log", "sha256": "623ecaa838d2988d074581488f7b36a9cc5df7a0c25a2ee562ac11f77c9a2047"},
+        {"path": ".wiretail/execution/evidence/raw/93-06/test-kv-pager-model.log", "sha256": "d9005c8b37e1f33e2af656fe51c6e79681d75287a746fe719c2c43d26f901cbb"},
+        {"path": ".wiretail/execution/evidence/raw/93-06/test-mtp-minimal-repair.log", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+        {"path": ".wiretail/execution/evidence/raw/93-06/test-server-prompt-cache.log", "sha256": "5d145c045e785f4bd50b313eaf079651c321f81f8d4978138ed4ffeb6d0a753d"},
+        {"path": "build-cuda/bin/llama-server", "sha256": "182967a1bcb17ccc9057f4af8fa0a6e3b3c96a821f28f4785819499cadc25c03"},
+        {"path": "build-cuda/bin/libllama-server-impl.so", "sha256": "b35985c16fbb371caaf267c4155d17e0c57348dcec770626c4c8ae3819b781ed"},
+        {"path": "tools/server/server-context.cpp", "sha256": "1e8d8f404db5ed99c09e8a4a929c313a5dfc0716b82e1906518fb3d58ba3db8b"},
+        {"path": "tools/server/server-prompt-trim.h", "sha256": "98f3dfa9f2547eb7240e12b601020f5a65f7c6d6eba06343f0877f95cc1c124d"},
+        {"path": "tests/test-server-prompt-cache.cpp", "sha256": "e0423009f306c81b38dc39de1b58db479a2e2006cf15a156820c18f1cd79d64d"}
+      ]
+    }
+  }
+}

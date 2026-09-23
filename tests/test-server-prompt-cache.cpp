@@ -2,6 +2,7 @@
 #include "server-cache-destruction-quote.h"
 #include "server-cache-plan-authority.h"
 #include "server-context.h"
+#include "server-prompt-trim.h"
 #include "server-queue.h"
 #include "server-task.h"
 
@@ -56,6 +57,68 @@ void test_slot_pager_lifecycle_generation() {
     CHECK(result.current_completion_accepted);
     CHECK(result.cancelled_completion_rejected);
     CHECK(result.generation_rollover_safe);
+}
+
+void test_prompt_trim_recovery_runs_paired_resets() {
+    {
+        std::vector<int> calls;
+        const auto result = server_prompt_trim_recover(
+            true,
+            false,
+            [&]() { calls.push_back(0); },
+            [&]() { calls.push_back(1); return true; },
+            [&]() { calls.push_back(2); return false; },
+            [&]() { calls.push_back(3); return true; },
+            [&]() { calls.push_back(4); return true; },
+            [&]() { calls.push_back(5); return true; });
+        CHECK(result.target_trim_attempted);
+        CHECK(result.target_trim_succeeded);
+        CHECK(result.draft_trim_attempted);
+        CHECK(!result.draft_trim_succeeded);
+        CHECK(result.recovery_attempted);
+        CHECK(result.target_reset_succeeded);
+        CHECK(result.draft_reset_succeeded);
+        CHECK(!result.backup_reset_attempted);
+        CHECK(result.recovery_succeeded());
+        CHECK((calls == std::vector<int>{1, 2, 0, 3, 4}));
+    }
+    {
+        std::vector<int> calls;
+        const auto result = server_prompt_trim_recover(
+            true,
+            false,
+            [&]() { calls.push_back(0); },
+            [&]() { calls.push_back(1); return false; },
+            [&]() { calls.push_back(2); return true; },
+            [&]() { calls.push_back(3); return false; },
+            [&]() { calls.push_back(4); return true; },
+            [&]() { calls.push_back(5); return true; });
+        CHECK(!result.target_trim_succeeded);
+        CHECK(!result.draft_trim_attempted);
+        CHECK(result.recovery_attempted);
+        CHECK(!result.target_reset_succeeded);
+        CHECK(result.draft_reset_succeeded);
+        CHECK(!result.recovery_succeeded());
+        CHECK((calls == std::vector<int>{1, 0, 3, 4}));
+    }
+    {
+        std::vector<int> calls;
+        const auto result = server_prompt_trim_recover(
+            true,
+            true,
+            [&]() { calls.push_back(0); },
+            [&]() { calls.push_back(1); return false; },
+            [&]() { calls.push_back(2); return true; },
+            [&]() { calls.push_back(3); return false; },
+            [&]() { calls.push_back(4); return false; },
+            [&]() { calls.push_back(5); return true; });
+        CHECK(!result.target_reset_succeeded);
+        CHECK(!result.draft_reset_succeeded);
+        CHECK(result.backup_reset_attempted);
+        CHECK(result.backup_reset_succeeded);
+        CHECK(!result.recovery_succeeded());
+        CHECK((calls == std::vector<int>{1, 0, 3, 4, 5}));
+    }
 }
 
 void test_idle_capture_session_cancellation() {
@@ -5475,6 +5538,7 @@ int main(int argc, char ** argv) {
     test_lifecycle_full_cache_rotates();
     test_exact_refusal_wire_response();
     test_slot_pager_lifecycle_generation();
+    test_prompt_trim_recovery_runs_paired_resets();
     test_idle_capture_session_cancellation();
     test_idle_capture_refuses_active_queue_yield();
     test_queue_yield_work_exception_precedes_callback_exception();
