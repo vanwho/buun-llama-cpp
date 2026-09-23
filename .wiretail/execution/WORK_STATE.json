@@ -19290,9 +19290,13 @@
         "tools/server/bench/fixtures/pager-promotion/README.md",
         "tools/server/bench/fixtures/pager-promotion/manifest.json",
         "tools/server/bench/generate-promotion-fixtures.py",
+        "tools/server/bench/pager_promotion.py",
+        "tools/server/bench/test_pager_promotion.py",
         "tools/server/bench/run-mtp-diagnostic.py",
         "tools/server/bench/mtp_diagnostic.py",
         "tools/server/bench/test_mtp_diagnostic.py",
+        "tools/server/bench/prompt_sizing.py",
+        "tools/server/bench/pager_benchmark_contract.py",
         "tools/server/bench/validate-mtp-post-repair.py",
         ".wiretail/execution/v10/validate.py",
         ".wiretail/execution/v10/test_validate.py"

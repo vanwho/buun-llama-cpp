@@ -1171,3 +1171,10 @@ receives `PROJECT_ROOT` from the shared runner.
 - Clarified that 93-11g launches llama-server itself at `-c 8192` with the normal automatic 4,096-token GPU hot budget, and keeps the full A→B→A prompt below the server context limit.
 - Explicitly prohibited manual/test-only eviction, page-selection, route, score, or promotion controls. Cold residency must arise from ordinary appended fixture contents exceeding the hot budget while A remains in logical context; context shifting cannot count as eviction.
 - Validation: task/cluster wording and whitespace checked. Runtime geometry remains for task 93-11g; this plan amendment makes no live test claim.
+
+## 2026-09-23T20:32:16Z — prepare deterministic 93-11g prompt cases
+
+- Added `pager_promotion.py`, a fixture-hash-validating A/B/A user-turn planner with deterministic same-family cyclic B selection, bounded four-to-six B pressure, and continuation construction from actual previously validated server replies.
+- Added ten offline contract tests for all 24 fixture targets, sequence order, exact questions, prefix retention, local-only expected answers, corruption rejection, and no-overwrite plan output. Added a CLI to write one or all target-case plans into a fresh raw attempt directory.
+- Updated 93-11g to use the prepared planner and candidate `ServerPromptRenderer` for chat-template rendering/tokenization; added helper/test/renderer files to its Wiretail context. Updated fixture README with repeatable commands.
+- Validation: prompt planner suite 10/10, existing MTP diagnostic suite 19/19, task state valid at 409 tasks, active-plan validator passes. Two independently written 24-case plans have identical SHA-256 (`d93c27db...b8658e`). No live service was loaded and no runtime promotion evidence is claimed.
