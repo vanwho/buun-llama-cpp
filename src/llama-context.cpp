@@ -8100,13 +8100,21 @@ ggml_status llama_context::graph_compute(
     return status;
 }
 
+void llm_graph_name_tensor(ggml_tensor * cur, const char * name, int il) {
+    if (cur == nullptr) {
+        return;
+    }
+
+    if (il >= 0) {
+        ggml_format_name(cur, "%s-%d", name, il);
+    } else {
+        ggml_set_name(cur, name);
+    }
+}
+
 llm_graph_cb llama_context::graph_get_cb() const {
     return [&](const llama_ubatch & ubatch, ggml_tensor * cur, const char * name, int il) {
-        if (il >= 0) {
-            ggml_format_name(cur, "%s-%d", name, il);
-        } else {
-            ggml_set_name(cur, name);
-        }
+        llm_graph_name_tensor(cur, name, il);
 
         // - norm may be automatically assigned to the backend of the previous layer, increasing data transfer between backends
         // - force the last op of the layer on the specified backend to avoid running it on the backend of the next layer due to scheduling

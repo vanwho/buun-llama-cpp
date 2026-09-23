@@ -20,6 +20,7 @@
 #include "../src/llama-model.h"
 #include "../src/llama-model-loader.h"
 #include "../src/llama-model-saver.h"
+#include "../src/llama-graph.h"
 #include "../src/llama-io.h"
 #include "../src/llama-vbr-artifact-adopt.h"
 #include "../src/llama-vbr-artifact-capture.h"
@@ -704,6 +705,15 @@ static void test_qwen4_ple_recurrent_resize(const size_t seed) {
 
 static std::vector<float> get_logits(
         llama_model * model, llama_context * lctx, const std::vector<llama_token> & tokens, bool encode = false);
+
+static void test_graph_callback_optional_tensor_name() {
+    // Some hybrid-attention shapes intentionally omit an unused KQ mask.
+    llm_graph_name_tensor(nullptr, "attn_inp_kq_mask", 3);
+
+    ggml_tensor tensor = {};
+    llm_graph_name_tensor(&tensor, "attn_inp_kq_mask", 3);
+    GGML_ASSERT(strcmp(tensor.name, "attn_inp_kq_mask-3") == 0);
+}
 
 static void test_dflash_selector_family_contract() {
     using family = llm_dflash_selector_family;
@@ -4126,6 +4136,7 @@ int main(int argc, char ** argv) {
     printf("%s: using seed %zu\n", __func__, seed);
 
     try {
+        test_graph_callback_optional_tensor_name();
         test_dflash_selector_family_contract();
         test_dflash_loader_exact_identity();
         if (!out.empty()) {
