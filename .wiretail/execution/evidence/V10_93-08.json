@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "task": "93-08",
+  "source_commit": "74a122940eca37c54a189133054f33261621632b",
+  "status": "live_setup_failure_local_checks_pass",
+  "candidate": {
+    "path": "build-cuda/bin/llama-server",
+    "sha256": "2ef11a68cd640026e0b6b658ce07fb4682d2dd5e015d2ee879a008d2474a7e19",
+    "reused_from": "93-07",
+    "rebuilt": false
+  },
+  "model": {
+    "path": "/srv/ai/models/text/current.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "checks": {
+    "repair93_mtp_short_reverification": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["build-cuda/bin/test-server-prompt-cache"],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-08/attempt-01/deterministic-cpp.log",
+          "sha256": "e560dad63eabe90dcdf12508018ea439cb7d75b98016cb837d032d31c6cc2ff6"
+        }
+      ],
+      "additional_passes": ["test-kv-pager-model", "test-mtp-minimal-repair"]
+    },
+    "mtp_diagnostic_contract": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_mtp_diagnostic.py"],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-08/attempt-01/test-mtp-diagnostic.log",
+          "sha256": "19ce4c3fe936ba5a289b545d890b7ffce48ced29d4b7b20a8c6b10a871321dd4"
+        }
+      ],
+      "tests_passed": 13
+    },
+    "pager_adapter_contract": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "tools/server/bench", "-p", "test_pager_benchmark_adapter.py"],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-08/attempt-01/test-pager-adapter.log",
+          "sha256": "76c8979aa3ff76089ef0967f4f1382d4f2cf165adb7517e8da99bae1618f8caa"
+        }
+      ],
+      "tests_passed": 32
+    },
+    "ctest": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["ctest", "--test-dir", "build-cuda", "--output-on-failure", "-R", "kv-pager-model|mtp-minimal-repair|server-paged-trim"],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-08/attempt-01/ctest.log",
+          "sha256": "e916e05e5a4b6d9c767b4bcabe680bdc561d86a788a7969496664c1baab3ea7a"
+        }
+      ],
+      "registered_tests_passed": 1,
+      "focused_unregistered_tests_run_directly": ["test-kv-pager-model", "test-server-prompt-cache"]
+    },
+    "live_controls": {
+      "status": "deferred_setup_failure",
+      "exit_code": 2,
+      "command": ["python3", "tools/server/bench/run-mtp-diagnostic.py", "--output", "/srv/ai/paged-kv/results/v10/93-08/attempt-01/diagnostic", "--server-binary", "build-cuda/bin/llama-server", "--model", "/srv/ai/models/text/current.gguf", "--context", "4096", "--batch", "128", "--ubatch", "64", "--repeats", "1"],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-08/attempt-01/live-smoke.log",
+          "sha256": "543431ee4e7476df986275bad5b9df9a3ff16b3be215a3bd8d012f2e262da6d2"
+        }
+      ],
+      "error": "CANONICAL_BENCHMARK_RUNNER is required",
+      "requests_sent": 0,
+      "rung_status": {
+        "dense_mtp_off": "not_run",
+        "dense_mtp_on": "not_run",
+        "selected_resident_mtp": "not_run",
+        "cold_promotion": "not_run"
+      }
+    }
+  },
+  "observed_service": {
+    "unit": "llama-server.service",
+    "pid": 3555662,
+    "start_time_ticks": 18095414,
+    "executable": "/srv/ai/paged-kv/build/buun/bin/llama-server",
+    "executable_sha256": "bb75f2bca1701cc144fc04f29157ea1729c2f1636205f1e9a41f9a9a5fd18bc8",
+    "model_path": "/srv/ai/models/text/current.gguf",
+    "context": 77824,
+    "batch": 128,
+    "ubatch": 64,
+    "pager": null,
+    "hot_pages": null,
+    "safety_headroom": null,
+    "candidate_identity_match": false,
+    "used_for_requests": false
+  },
+  "capability_verdicts": {
+    "dense_mtp": null,
+    "selected_resident_mtp": null,
+    "cold_page_promotion": null,
+    "prompt_token_counts": null,
+    "allocator_usable_free_headroom_scratch": null
+  },
+  "claims": {
+    "speedup": false,
+    "large_context": false,
+    "organic_promotion": false
+  },
+  "raw_artifacts": "/srv/ai/paged-kv/results/v10/93-08/attempt-01/"
+}
