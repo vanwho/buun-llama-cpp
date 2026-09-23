@@ -228,6 +228,16 @@ class ReceiptTests(unittest.TestCase):
         row["vram_headroom_bytes"] = 256 * 1024 * 1024
         self.assertTrue(self.check_paired_speed(receipt))
 
+    def test_93_12_rejects_context_or_hot_limit_over_48k(self):
+        receipt = self.paired_speed_receipt()
+        geometry = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]
+        geometry["context_tokens"] = 49153
+        self.assertTrue(self.check_paired_speed(receipt))
+        receipt = self.paired_speed_receipt()
+        geometry = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]
+        geometry["target_hot_tokens_limit"] = 49153
+        self.assertTrue(self.check_paired_speed(receipt))
+
     def geometry_speed_receipt(self):
         path = Path(__file__).resolve()
         artifact = {"path": str(path),
@@ -322,9 +332,14 @@ class ReceiptTests(unittest.TestCase):
         receipt["geometry_benchmark"]["geometries"]["primary_1024_256"]["prompts"]["prompt_3"]["prompt_text"] += " changed"
         self.assertTrue(self.check_geometry_speed(receipt))
 
-    def test_93_11f_rejects_context_over_56k(self):
+    def test_93_11f_rejects_context_over_48k(self):
         receipt = self.geometry_speed_receipt()
-        receipt["geometry_benchmark"]["context_tokens"] = 57345
+        receipt["geometry_benchmark"]["context_tokens"] = 49153
+        self.assertTrue(self.check_geometry_speed(receipt))
+
+    def test_93_11f_rejects_hot_limit_over_48k(self):
+        receipt = self.geometry_speed_receipt()
+        receipt["geometry_benchmark"]["target_hot_tokens_limit"] = 49153
         self.assertTrue(self.check_geometry_speed(receipt))
 
     def test_93_11f_rejects_reasoning_on(self):

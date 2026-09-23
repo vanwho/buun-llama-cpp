@@ -57,15 +57,15 @@ promotion gates.
   each B/U geometry and placement: prompt 1 >=75%, prompt 2 >=40%, prompt 3
   >=70%. Do not average prompts or configurations together. These floors are
   below the supplied reasoning-off reference values (94.12%, 57.04%, 82.69%).
-- Do not reserve more than 56 Ki tokens of target hot KV in VRAM in any phase
-  93 test (`56 * 1024 = 57344` tokens, or 224 pages at 256 tokens/page). This
+- Do not reserve more than 48 Ki tokens of target hot KV in VRAM in any phase
+  93 test (`48 * 1024 = 49152` tokens, or 192 pages at 256 tokens/page). This
   is a test ceiling, not a production hot-set constant. Request only the
   smaller hot-page count needed for each test; the allocator's byte budget
   and `--kv-safety-headroom auto` remain authoritative and may admit less.
 - Keep diagnostic context small: use 4096 for trim/MTP iteration and at most
   8192 for the two-document cold-promotion sequence. Task 93-11f starts at
   8192 total context with 4096 target hot tokens. Any later phase-93 speed row
-  may use a matched context only when safe, never above 57,344 tokens (56 Ki
+  may use a matched context only when safe, never above 49,152 tokens (48 Ki
   tokens); no phase-93 task may exceed that ceiling.
 - No request used to measure prefill/input speed may contain more than 16384
   rendered input tokens, including the retained prompt prefix. Preflight the

@@ -160,13 +160,13 @@ def check_93_11f_speed_geometry(root: Path, receipt: dict) -> list[str]:
         if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
             errors.append(f"93-11f requires {label}.sha256")
 
-    context_limit = 56 * 1024
+    context_limit = 48 * 1024
     context = run.get("context_tokens")
     hot_limit = run.get("target_hot_tokens_limit")
     if type(context) is not int or not 1 <= context <= context_limit:
-        errors.append("93-11f context_tokens must be in 1..57344")
+        errors.append("93-11f context_tokens must be in 1..49152")
     if type(hot_limit) is not int or not 1 <= hot_limit <= context_limit:
-        errors.append("93-11f target_hot_tokens_limit must be in 1..57344")
+        errors.append("93-11f target_hot_tokens_limit must be in 1..49152")
 
     prompts = {
         "prompt_1": "write a python function that merges two sorted lists into one sorted list, with docstring.",
@@ -478,10 +478,10 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
                 errors.append(f"{label_geometry}: actual batch/ubatch mismatch")
             context = geometry.get("context_tokens")
             hot_limit = geometry.get("target_hot_tokens_limit")
-            if type(context) is not int or not 1 <= context <= 57344:
-                errors.append(f"{label_geometry}: context must be in 1..57344")
-            if type(hot_limit) is not int or not 0 <= hot_limit <= 57344:
-                errors.append(f"{label_geometry}: target hot limit must be in 0..57344")
+            if type(context) is not int or not 1 <= context <= 49152:
+                errors.append(f"{label_geometry}: context must be in 1..49152")
+            if type(hot_limit) is not int or not 0 <= hot_limit <= 49152:
+                errors.append(f"{label_geometry}: target hot limit must be in 0..49152")
             if common_context is None:
                 common_context = context
             elif context != common_context:

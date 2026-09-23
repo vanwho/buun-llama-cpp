@@ -1146,7 +1146,14 @@ receives `PROJECT_ROOT` from the shared runner.
 
 ## 2026-09-23T16:52:06+00:00 — plan amendment — 93-11f scheduled next
 
-- Added 93-11f ahead of the incomplete 93-11e cold-promotion proof: reasoning-off, native GPU Turbo4 MTP, canonical three-prompt 40/400-token B/U speed screen at 1024/256 and 512/128, starting at 8K total / 4K hot and never exceeding 56K.
+- Added 93-11f ahead of the incomplete 93-11e cold-promotion proof: reasoning-off, native GPU Turbo4 MTP, canonical three-prompt 40/400-token B/U speed screen at 1024/256 and 512/128, starting at 8K total / 4K hot. Its initial 56K ceiling was superseded by the later 48K correction below.
 - Enforced independent three-run median MTP floors of 75% / 40% / 70% for prompts 1/2/3 in the 93-11f and 93-12 receipt validator; low acceptance requires diagnosis and repair rather than successful completion.
 - Kept 93-11e blocked and made it depend on 93-11f; 93-12 remains gated on both. Removed future receipt/handoff paths from 93-12's current context file list.
 - Validation: task state and active-plan validators pass; V10 receipt-validator tests pass (28); JSON, Python compile, and `git diff --check` pass.
+
+## 2026-09-23T17:08:29+00:00 — plan correction — phase-93 VRAM ceiling
+
+- Replaced the temporary 56 Ki-token ceiling with the requested 48 Ki-token / 49,152-token cap throughout active phase-93 speed tasks and cluster policy. At 256 tokens/page, the maximum hot-page ceiling is 192 pages.
+- Updated both 93-11f and 93-12 receipt validators to reject context/hot limits above 49,152, and added boundary tests. 93-13 already records the 49,152 limit.
+- The historical prior amendment entry records its then-current 56K wording; this correction supersedes it for all future phase-93 runs. Existing benchmark evidence and historical tasks are unchanged.
+- Validation: 30 V10 receipt-validator tests pass; task-state validation passes for 408 tasks; active-plan validation, Python compilation, JSON parsing, and `git diff --check` pass.
