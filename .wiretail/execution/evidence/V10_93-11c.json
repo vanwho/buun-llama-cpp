@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "task": "93-11c",
+  "source_commit": "e541809214ef2c23373f4ae53d9601bfb47cc892",
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/candidate-bundle/llama-server",
+    "sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+    "immutable": true,
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11b/attempt-01/candidate-bundle/build-receipt.json",
+      "sha256": "2753bce8aca59feace3262e0e1d023b214b0b21f6fc14aab6ee7bc1230c8a9c7"
+    }
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "checks": {
+    "repair93_cold_append_cuda_graph_replay": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/test_mtp_diagnostic.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/local-verification.log",
+          "sha256": "fc926eca3497aaf4df69e1aac4c8b46355dfbfc99ca26e6faed2c194b70f3135"
+        }
+      ],
+      "result": "Diagnostic ran candidate-bound in canonical order; the first three live controls passed. The cold B failure was reproduced and scheduled to 93-11d under the packet completion rule."
+    }
+  },
+  "live_controls": {
+    "execution_status": "complete_with_cold_failure_successor_scheduled",
+    "canonical_runner_path": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "runner_configured": true,
+    "runner_invoked": true,
+    "candidate_identity_verified": true,
+    "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+    "build_receipt_sha256": "2753bce8aca59feace3262e0e1d023b214b0b21f6fc14aab6ee7bc1230c8a9c7",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "geometry": {
+      "context_tokens": 8192,
+      "batch": 128,
+      "ubatch": 64,
+      "page_size_tokens": 256,
+      "cold_hot_pages": 4,
+      "cold_hot_tokens": 1024,
+      "pin_recent": 0,
+      "mtp": "native GPU Turbo4",
+      "target_kv": "Turbo4 K/V",
+      "draft_kv": "GPU Turbo4 K/V",
+      "draft_n_max": 2,
+      "n_predict": 16,
+      "max_rendered_input_tokens": 16384,
+      "slots": 1
+    },
+    "rungs": {
+      "dense_mtp_off": {
+        "status": "pass",
+        "request_attempted": true,
+        "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/01-mtp_off_dense_all_gpu/request-01/record.json",
+          "sha256": "c6d5bb02b2ddac6fd6557036819b17602b70f864278f430ffa2edff13c131bee"
+        }
+      },
+      "dense_mtp_on": {
+        "status": "pass",
+        "request_attempted": true,
+        "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "draft_n": 10,
+        "draft_n_accepted": 8,
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/02-mtp_on_dense_all_gpu/request-01/record.json",
+          "sha256": "a778f35c989b194d5a32a446a0cbf79f348b2fbf9305b1b9c45eee003fbc0ad8"
+        }
+      },
+      "selected_resident_mtp": {
+        "status": "pass",
+        "request_attempted": true,
+        "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "draft_n": 12,
+        "draft_n_accepted": 3,
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/03-mtp_on_selected_paged_resident/request-01/record.json",
+          "sha256": "69ce72debe02488fc54356791319068ae51014c05039aca71a1b428a5d286cac"
+        }
+      }
+    },
+    "cold_promotion": {
+      "status": "fail",
+      "candidate_binary_sha256": "d6f36529029d46c3e647a7f7ad0bb3cf8c44977004d53c22fbb7f488f5af3b86",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "request_attempted": true,
+      "requests_attempted": 3,
+      "request_tokens": [
+        31,
+        1760,
+        1771
+      ],
+      "request_statuses": [
+        200,
+        0,
+        0
+      ],
+      "request_01": {
+        "status": "pass",
+        "draft_n": 11,
+        "draft_n_accepted": 3,
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/04-mtp_on_selected_paged_cold_probe/request-01/record.json",
+          "sha256": "7dc0e76883e919be226df51711c7368f76cdf195401e5335a9e89da3838392cc"
+        }
+      },
+      "request_02": {
+        "status": "timeout",
+        "request_timeout_seconds": 300,
+        "cache_status": "restored context checkpoint",
+        "trim_marker": "CHECKPOINT_ATTN_ONLY_TRIM p0=27 target=1 draft=1",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+          "sha256": "18b527a83413d4a8a9f3a7a5a0a2f05990675cd17076978ada6272929c82cd91"
+        }
+      },
+      "request_03": {
+        "status": "not_completed",
+        "raw_artifact": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/04-mtp_on_selected_paged_cold_probe/request-03/record.json",
+          "sha256": "30c5b21c6d6ef67b5aa49c04b1a4d94e5cdda133617895c34bb7f0649c779547"
+        }
+      },
+      "promotion_chain_proven": false,
+      "reason": "B request timed out with no SSE JSON response. After graph disabling, the first run logged an asynchronous illegal access at ggml_cuda_kernel_launch()/cudaGetLastError(); a repeat with CUDA_LAUNCH_BLOCKING=1 also timed out but did not name a kernel. Same-page cold observation, completed H2D, table publication, and target plus draft consumption remain unproven.",
+      "raw_artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/04-mtp_on_selected_paged_cold_probe/server.log",
+        "sha256": "5d3e4fc31250350872fdda57a646d5b448e2906128057d28cf09bdabd7a3366b"
+      }
+    },
+    "diagnostic_runs": [
+      {
+        "output": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env",
+        "summary": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/summary.json",
+          "sha256": "79e1b4ccc3ec73e66042eede7000850a141b7e2da97071f2ab388a2fbdb24682"
+        },
+        "environment": [
+          "GGML_CUDA_DISABLE_GRAPHS=1"
+        ],
+        "rung_order": [
+          "mtp_off_dense_all_gpu",
+          "mtp_on_dense_all_gpu",
+          "mtp_on_selected_paged_resident",
+          "mtp_on_selected_paged_cold_probe"
+        ]
+      },
+      {
+        "output": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking",
+        "summary": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/summary.json",
+          "sha256": "2a90ab5f053b136d7a8150267b3a6f46651185b37a8286e32abf6defea498d82"
+        },
+        "environment": [
+          "GGML_CUDA_DISABLE_GRAPHS=1",
+          "CUDA_LAUNCH_BLOCKING=1"
+        ],
+        "cold_request_02": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+          "sha256": "7d1d5788cfef5b8520afa7860784bdce70b81aff7b9f2d15ae1d224da07717d6"
+        },
+        "server_log": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/04-mtp_on_selected_paged_cold_probe/server.log",
+          "sha256": "3631a7fdd1f0d4910ec415c3cbedcc19892a8d562ed0404c1e708d56940bec29"
+        }
+      }
+    ],
+    "follow_up": {
+      "task_id": "93-11d",
+      "scheduled_before": "93-12",
+      "93_12_status": "todo",
+      "93_12_depends_on": "93-11d",
+      "reason": "The CUDA fault remains unidentified and the cold promotion proof is incomplete."
+    }
+  },
+  "deferred_verification": {
+    "hardware_or_human_dependency_missing": false,
+    "item": "Identify the failing CUDA operation/kernel, add a deterministic regression and rerun cold A\u2192B\u2192A with same-page cold observation, completed H2D, table publication, and target plus draft consumption.",
+    "reason": "Two candidate-bound diagnostics reproduced the 1760-token B timeout after checkpoint restore; generic kernel launch diagnostics did not identify a safe repair owner.",
+    "successor": "93-11d"
+  },
+  "raw_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/local-verification.log",
+      "sha256": "fc926eca3497aaf4df69e1aac4c8b46355dfbfc99ca26e6faed2c194b70f3135"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/summary.json",
+      "sha256": "79e1b4ccc3ec73e66042eede7000850a141b7e2da97071f2ab388a2fbdb24682"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/04-mtp_on_selected_paged_cold_probe/server.log",
+      "sha256": "5d3e4fc31250350872fdda57a646d5b448e2906128057d28cf09bdabd7a3366b"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+      "sha256": "18b527a83413d4a8a9f3a7a5a0a2f05990675cd17076978ada6272929c82cd91"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/summary.json",
+      "sha256": "2a90ab5f053b136d7a8150267b3a6f46651185b37a8286e32abf6defea498d82"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/04-mtp_on_selected_paged_cold_probe/server.log",
+      "sha256": "3631a7fdd1f0d4910ec415c3cbedcc19892a8d562ed0404c1e708d56940bec29"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+      "sha256": "7d1d5788cfef5b8520afa7860784bdce70b81aff7b9f2d15ae1d224da07717d6"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/01-mtp_off_dense_all_gpu/request-01/record.json",
+      "sha256": "c6d5bb02b2ddac6fd6557036819b17602b70f864278f430ffa2edff13c131bee"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/02-mtp_on_dense_all_gpu/request-01/record.json",
+      "sha256": "a778f35c989b194d5a32a446a0cbf79f348b2fbf9305b1b9c45eee003fbc0ad8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/03-mtp_on_selected_paged_resident/request-01/record.json",
+      "sha256": "69ce72debe02488fc54356791319068ae51014c05039aca71a1b428a5d286cac"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/04-mtp_on_selected_paged_cold_probe/request-01/record.json",
+      "sha256": "7dc0e76883e919be226df51711c7368f76cdf195401e5335a9e89da3838392cc"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-graphs-disabled-managed-env/04-mtp_on_selected_paged_cold_probe/request-03/record.json",
+      "sha256": "30c5b21c6d6ef67b5aa49c04b1a4d94e5cdda133617895c34bb7f0649c779547"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/01-mtp_off_dense_all_gpu/request-01/record.json",
+      "sha256": "b4b36d16e13330a491cb05a01ca3c2ec44612f3906f5725ec7f370237e86d653"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/02-mtp_on_dense_all_gpu/request-01/record.json",
+      "sha256": "40f75b85a1ab4febc23798068574a04b5e13aa35358fce4aec814cc2aee057d9"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/03-mtp_on_selected_paged_resident/request-01/record.json",
+      "sha256": "8e9f598a0dab3e583625fef89ff865be690b5f269458798f6b34ae940ac409a3"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/04-mtp_on_selected_paged_cold_probe/request-01/record.json",
+      "sha256": "189fdf0638199e42c64b6cca2de0d589a77d9442bdb33c123a186ea44dca2ea8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11c/attempt-01/diagnostic-disabled-launch-blocking/04-mtp_on_selected_paged_cold_probe/request-03/record.json",
+      "sha256": "6caab704953852390dd4721df393d6b56314348aba3a09f55eed22a8971fca44"
+    }
+  ]
+}
