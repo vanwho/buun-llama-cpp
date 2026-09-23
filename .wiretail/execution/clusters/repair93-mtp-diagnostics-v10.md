@@ -1,5 +1,7 @@
 # repair93 — short Turbo4 MTP and pager correctness
 
+Revision: `hotpath-v10-20260914`. Amendment: `repair93-mtp-fast-20260922`.
+
 Phase 93 resumes from the measured 93-04 failure. Dense GPU Turbo4 MTP now
 works at 8/10 accepted draft tokens on its bounded control. Selected/paged
 requests still crash after `memory_seq_rm [p0, end)` is rejected, and the

@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-06",
-  "last_updated_utc": "2026-09-22T17:52:14+00:00",
+  "current_task": "93-07",
+  "last_updated_utc": "2026-09-23T02:26:20+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -18548,9 +18548,9 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Repair selected prompt-trim recovery after rejection",
       "packet": ".wiretail/execution/tasks/93-06.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
-      "recommended_model": "gpt-6-luna",
+      "recommended_model": "Luna High",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
@@ -18563,7 +18563,7 @@
       "depends_on": [
         "93-05"
       ],
-      "commit": null,
+      "commit": "0d7e495750b1b3ee157395edb2e9be1e14a639df",
       "context_files": [
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
         ".wiretail/execution/evidence/V10_93-04.md",
@@ -18576,7 +18576,32 @@
         "93-06",
         "--receipt",
         ".wiretail/execution/evidence/V10_93-06.json"
-      ]
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-06-attempt-1-20260923T020648Z.jsonl:157",
+            "total_tokens": 116667674,
+            "total_tokens_derived": true,
+            "input_tokens": 116394452,
+            "cached_input_tokens": 114247936,
+            "output_tokens": 273222,
+            "thinking_tokens": 104154
+          }
+        ],
+        "totals": {
+          "turns": 1,
+          "total_tokens": 116667674,
+          "input_tokens": 116394452,
+          "cached_input_tokens": 114247936,
+          "output_tokens": 273222,
+          "thinking_tokens": 104154
+        }
+      }
     },
     {
       "id": "93-07",
@@ -18586,7 +18611,7 @@
       "packet": ".wiretail/execution/tasks/93-07.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "gpt-6-luna",
+      "recommended_model": "Luna High",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
@@ -18622,7 +18647,7 @@
       "packet": ".wiretail/execution/tasks/93-08.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "gpt-6-luna",
+      "recommended_model": "Luna High",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
@@ -18658,7 +18683,7 @@
       "packet": ".wiretail/execution/tasks/93-09.md",
       "status": "todo",
       "blocker": null,
-      "recommended_model": "gpt-6-luna",
+      "recommended_model": "Luna High",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
@@ -24146,26 +24171,39 @@
           "cached_input_tokens": 95698944,
           "output_tokens": 230310,
           "thinking_tokens": 81054
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-06-attempt-1-20260923T020648Z.jsonl:157",
+          "total_tokens": 116667674,
+          "total_tokens_derived": true,
+          "input_tokens": 116394452,
+          "cached_input_tokens": 114247936,
+          "output_tokens": 273222,
+          "thinking_tokens": 104154
         }
       ],
       "totals": {
-        "turns": 5,
-        "total_tokens": 387713683,
-        "input_tokens": 386864871,
-        "cached_input_tokens": 379923456,
-        "output_tokens": 848812,
-        "thinking_tokens": 314056
+        "turns": 6,
+        "total_tokens": 504381357,
+        "input_tokens": 503259323,
+        "cached_input_tokens": 494171392,
+        "output_tokens": 1122034,
+        "thinking_tokens": 418210
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 336,
-      "total_tokens": 6550318156,
-      "input_tokens": 6534303062,
-      "cached_input_tokens": 6391891200,
-      "output_tokens": 16015094,
-      "thinking_tokens": 5723008
+      "turns": 337,
+      "total_tokens": 6666985830,
+      "input_tokens": 6650697514,
+      "cached_input_tokens": 6506139136,
+      "output_tokens": 16288316,
+      "thinking_tokens": 5827162
     },
     "source": "Codex turn.completed usage events"
   }
