@@ -86,6 +86,37 @@ def _control_summary(record: Mapping[str, Any] | None, *, mtp: bool) -> dict[str
     }
 
 
+def _cold_sequence_errors(records: list[Mapping[str, Any]]) -> list[str]:
+    """Require request order and observed page movement; route labels are not proof."""
+    errors: list[str] = []
+    stages = [record.get("cold_sequence") for record in records]
+    if stages != ["ingest_document_a", "append_document_b_query_b", "query_document_a_again"]:
+        errors.append("cold request order/identity incomplete")
+        return errors
+    prompts = [record.get("request", {}).get("prompt") for record in records]
+    if not all(isinstance(prompt, str) for prompt in prompts) or not (
+            prompts[1].startswith(prompts[0]) and prompts[2].startswith(prompts[1])):
+        errors.append("cold requests are not prefix preserving")
+    proof = records[2].get("promotion_proof")
+    proof = proof if isinstance(proof, Mapping) else {}
+    required_true = ("page_cold_before_request", "h2d_completed", "mapping_published",
+                     "target_consumed", "draft_consumed")
+    if any(proof.get(field) is not True for field in required_true):
+        errors.append("cold promotion movement/consumption proof missing")
+    for field in ("logical_page_id", "generation", "content_version"):
+        if proof.get("selected_" + field) is None or \
+                proof.get("cold_" + field) != proof.get("selected_" + field):
+            errors.append("cold promotion page identity mismatch: " + field)
+    order = proof.get("event_order")
+    if not isinstance(order, Mapping) or not all(
+            isinstance(order.get(name), (int, float))
+            for name in ("h2d_completed", "mapping_published", "graph_consumed")):
+        errors.append("cold promotion event order missing")
+    elif not (order["h2d_completed"] < order["mapping_published"] < order["graph_consumed"]):
+        errors.append("cold promotion event order invalid")
+    return errors
+
+
 def validate(run: pathlib.Path) -> tuple[dict[str, Any], list[str]]:
     errors: list[str] = []
     summary_path = run / "summary.json"
@@ -132,17 +163,14 @@ def validate(run: pathlib.Path) -> tuple[dict[str, Any], list[str]]:
     records = promotion.get("records", [])
     if case.get("case") != "tiny-hot-set-promotion" or case.get("hot_page_budget") != 4:
         errors.append("promotion case contract is missing or not the accepted four-page budget")
-    if case.get("request_order") != ["query DOCUMENT_B", "query DOCUMENT_A"]:
-        errors.append("promotion request order is not B then A")
-    if not isinstance(records, list) or len(records) != 2:
-        errors.append("promotion case must contain exactly two request records")
+    expected_order = ["ingest DOCUMENT_A", "append DOCUMENT_B and query B", "query DOCUMENT_A again"]
+    if case.get("request_order") != expected_order:
+        errors.append("promotion request order is not A then B then A")
+    if not isinstance(records, list) or len(records) != 3:
+        errors.append("promotion case must contain exactly three request records")
         records = []
-    labels = [item.get("label") for item in records if isinstance(item, Mapping)]
-    if labels != ["query-document-b", "query-document-a"]:
-        errors.append("promotion labels are not query-document-b then query-document-a")
-    first_pager = _pager(records[0] if records else None, "pager_before")
-    if first_pager.get("selected_page_ids") != [0]:
-        errors.append("promotion case did not record the initial immutable page ID")
+    if records and all(isinstance(item, Mapping) for item in records):
+        errors.extend(_cold_sequence_errors(records))
     if not _failure_evidence(run / "promotion-case" / "journal-final.log"):
         errors.append("promotion case lacks the selected-route crash journal")
 
