@@ -56,6 +56,14 @@ inline bool llama_kv_pager_routing_output_matches(
     return stored_tensor == tensor && stored_layer == layer;
 }
 
+inline bool llama_kv_pager_routing_output_is_current(
+        const void * tensor, bool readback_submitted,
+        uint64_t stored_generation, uint64_t generation,
+        llama_seq_id stored_sequence, llama_seq_id sequence) noexcept {
+    return !readback_submitted && tensor != nullptr &&
+        stored_generation == generation && stored_sequence == sequence;
+}
+
 //
 // llama_kv_cache
 //

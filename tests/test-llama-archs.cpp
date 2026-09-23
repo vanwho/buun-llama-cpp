@@ -725,6 +725,17 @@ static void test_kv_pager_routing_output_graph_identity() {
             &current_graph_tensor, 6, &current_graph_tensor, 7));
     GGML_ASSERT(llama_kv_pager_routing_output_matches(
             &current_graph_tensor, 7, &current_graph_tensor, 7));
+
+    // A submitted readback may outlive its graph tensor. Its raw pointer is
+    // an identity only and must not be dereferenced while the event is pending.
+    const auto stale_tensor = reinterpret_cast<const void *>(uintptr_t(1));
+    GGML_ASSERT(!llama_kv_pager_routing_output_is_current(
+            stale_tensor, true, 4, 4, 0, 0));
+    // An old, unsubmitted graph result is stale even if its pointer is non-null.
+    GGML_ASSERT(!llama_kv_pager_routing_output_is_current(
+            stale_tensor, false, 3, 4, 0, 0));
+    GGML_ASSERT(llama_kv_pager_routing_output_is_current(
+            &current_graph_tensor, false, 4, 4, 0, 0));
 }
 
 static void test_dflash_selector_family_contract() {

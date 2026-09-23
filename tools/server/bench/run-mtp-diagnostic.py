@@ -38,6 +38,7 @@ from mtp_diagnostic import (
     free_vram,
     integer_delta,
     effective_context,
+    promotion_proof_from_record,
     request_fields,
     sha256_file,
     validate_request_record,
@@ -430,6 +431,8 @@ def run_canonical_adapter(args: argparse.Namespace, rung: Rung,
     env["BENCH_SERVER_BIN"] = str(binary)
     env["BENCH_CLEAN"] = "1"
     env["BENCH_RESTORE_PROFILE"] = "0"
+    env["PAGER_BUNDLE_ROOT"] = str(binary.parent.resolve())
+    env["PAGER_BUILD_RECEIPT"] = str(binary.parent / "build-receipt.json")
     env["BENCH_KV_PIN_RECENT"] = "0" if rung.name == "mtp_on_selected_paged_cold_probe" else "256"
     env["BENCH_KV_SAFETY_HEADROOM"] = "auto"
     if rung.hot_pages is not None:
@@ -443,8 +446,14 @@ def run_canonical_adapter(args: argparse.Namespace, rung: Rung,
         env["LLAMA_API_KEY_FILE"] = str(args.key_file)
     output.mkdir(parents=True, exist_ok=True)
     (output / "canonical-command.txt").write_text(shlex.join(command) + "\n")
+    diagnostic_variables = [
+        "LLAMA_MTP_STATE_DIAGNOSTIC=1",
+        "LLAMA_KV_PAGER_PROGRESS_TRACE=1",
+        "GGML_CUDA_DISABLE_GRAPHS=1",
+        "GGML_CUDA_TRACE_NODE_SYNC=1",
+    ]
     diagnostic_env = ["sudo", "-n", "systemctl", "set-environment",
-                      "LLAMA_MTP_STATE_DIAGNOSTIC=1"]
+                      *diagnostic_variables]
     enabled = subprocess.run(diagnostic_env, text=True, capture_output=True, check=False)
     if enabled.returncode != 0:
         raise RuntimeError("could not enable managed MTP state diagnostics: " +
@@ -453,7 +462,9 @@ def run_canonical_adapter(args: argparse.Namespace, rung: Rung,
         result = subprocess.run(command, env=env, text=True, capture_output=True, check=False)
     finally:
         disabled = subprocess.run(
-            ["sudo", "-n", "systemctl", "unset-environment", "LLAMA_MTP_STATE_DIAGNOSTIC"],
+            ["sudo", "-n", "systemctl", "unset-environment",
+             "LLAMA_MTP_STATE_DIAGNOSTIC", "LLAMA_KV_PAGER_PROGRESS_TRACE",
+             "GGML_CUDA_DISABLE_GRAPHS", "GGML_CUDA_TRACE_NODE_SYNC"],
             text=True, capture_output=True, check=False)
         if disabled.returncode != 0:
             raise RuntimeError("could not clear managed MTP state diagnostics: " +
@@ -546,6 +557,7 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
         "elapsed_s": round(elapsed, 3),
         "response": response,
         "request_fields": fields,
+        "diagnostic_events": diagnostic_events,
         "pager_before": before_slot.get("pager_metrics"),
         "pager_after": after_slot.get("pager_metrics"),
         "slots_before": before_slot,
@@ -591,6 +603,8 @@ def run_request(base: str, key: str, output: pathlib.Path, rung: Rung,
                 "slots_before_sha256": sha256_bytes(slots_before_raw),
                 "slots_after_sha256": sha256_bytes(slots_after_raw)},
     }
+    if rung.name == "mtp_on_selected_paged_cold_probe":
+        record["promotion_proof"] = promotion_proof_from_record(record)
     (request_dir / "record.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
     return record
 

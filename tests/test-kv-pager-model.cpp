@@ -8,6 +8,7 @@
 #include "common.h"
 #include "llama-context.h"
 #include "llama-kv-attention-op.h"
+#include "llama-kv-cache.h"
 #include "speculative.h"
 
 #include <algorithm>
@@ -208,6 +209,19 @@ static stats compare(const std::vector<float> & a, const std::vector<float> & b,
 }
 
 static bool run_contract_probes(std::ostream & out, bool native_mtp) {
+    // A pending selector readback retains only copied identity metadata. Its
+    // graph tensor may already have been recycled, so policy must not inspect
+    // the raw pointer until the event retires.
+    const auto stale_selector = reinterpret_cast<const void *>(uintptr_t(1));
+    if (llama_kv_pager_routing_output_is_current(
+                stale_selector, true, 7, 7, 0, 0) ||
+            llama_kv_pager_routing_output_is_current(
+                stale_selector, false, 6, 7, 0, 0)) {
+        out << "{\"driver\":\"test-kv-pager-model\",\"mode\":\"contracts\","
+               "\"status\":\"error\",\"error\":\"stale_selector_tensor_accepted\"}\n";
+        return false;
+    }
+
     // F1: a Turbo row is stored in the forward-WHT domain.  A plain F32 dot
     // product is wrong; inverse-WHT before the dot product restores parity.
     std::vector<float> original(128);

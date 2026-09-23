@@ -2253,7 +2253,19 @@ void llama_context::synchronize() {
     if (kv_attention_wait) {
         kv_attention_execution.record_wait();
     }
+    const bool pager_progress = std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr &&
+        kv_pager_owner != nullptr;
+    if (pager_progress) {
+        LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-begin graphs=%zu route=%u\n",
+                kv_attention_execution.in_flight_graphs(),
+                uint32_t(kv_attention_execution.route()));
+    }
     ggml_backend_sched_synchronize(sched.get());
+    if (pager_progress) {
+        LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-complete graphs=%zu elapsed_us=%" PRId64 "\n",
+                kv_attention_execution.in_flight_graphs(),
+                std::max<int64_t>(0, ggml_time_us() - wait_start_us));
+    }
     if (kv_attention_wait) {
         kv_attention_execution.record_wait_time_us(uint64_t(std::max<int64_t>(
                 0, ggml_time_us() - wait_start_us)));
@@ -2267,7 +2279,13 @@ void llama_context::synchronize() {
     // K/V graph writes are asynchronous on GPU backends. Host publication
     // therefore belongs after the scheduler fence and target commit.
     if (memory && target_frontier_committed) {
+        if (pager_progress) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=host-seal-begin\n");
+        }
         memory->seal_kv_pager_pages();
+        if (pager_progress) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=host-seal-complete\n");
+        }
     }
 
     // The scheduler fence is the completion boundary for all selected views,
@@ -2314,7 +2332,13 @@ void llama_context::synchronize() {
     // input: a page selected by the routing index is not thereby observed
     // attention mass.
     if (memory && target_frontier_committed) {
+        if (pager_progress) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=policy-begin\n");
+        }
         memory->apply_kv_pager_policy();
+        if (pager_progress) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=policy-complete\n");
+        }
     }
 
     if (kv_attention_wait && t_compute_start_us != 0) {

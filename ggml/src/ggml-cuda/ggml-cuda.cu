@@ -7852,6 +7852,17 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                     i += nodes_to_skip;
                     continue;
                 }
+                if (trace_node_sync) {
+                    GGML_LOG_INFO("cuda-node-start: op=%s name=%s type=%s tensor=%p data=%p "
+                                  "ne=[%" PRId64 ",%" PRId64 ",%" PRId64 ",%" PRId64 "] "
+                                  "src0=%p/%p src1=%p/%p stream=%d\n",
+                        ggml_op_name(node->op), node->name, ggml_type_name(node->type),
+                        (void *) node, node->data,
+                        node->ne[0], node->ne[1], node->ne[2], node->ne[3],
+                        (void *) node->src[0], node->src[0] != nullptr ? node->src[0]->data : nullptr,
+                        (void *) node->src[1], node->src[1] != nullptr ? node->src[1]->data : nullptr,
+                        cuda_ctx->curr_stream_no);
+                }
 #ifndef NDEBUG
                 // On integrated GPUs (APUs, e.g. RDNA3.5) the scheduler may place a
                 // node's output on the host-visible buffer, which the compute path
@@ -7887,6 +7898,49 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
                             (void *) node->src[0], node->src[0] != nullptr ? node->src[0]->data : nullptr,
                             (void *) node->src[1], node->src[1] != nullptr ? node->src[1]->data : nullptr,
                             cuda_ctx->curr_stream_no, cudaGetErrorString(sync_err));
+                        if (node->op == GGML_OP_FLASH_ATTN_EXT &&
+                                ggml_flash_attn_ext_is_paged_turbo4(node)) {
+                            const auto * extra = static_cast<const ggml_flash_attn_ext_paged_turbo4_extra *>(
+                                    node->extra);
+                            const ggml_tensor * k = node->src[1];
+                            const ggml_tensor * v = node->src[2];
+                            const ggml_tensor * storage = node->src[7];
+                            GGML_LOG_ERROR("cuda-node-paged-diagnostic: extra=%p page_host=%p "
+                                           "active_pages=%u active_rows=%u page_capacity=%u row_capacity=%u "
+                                           "k=%p strides=[%zu,%zu,%zu,%zu] v=%p strides=[%zu,%zu,%zu,%zu] "
+                                           "storage=%p bytes=%zu\n",
+                                (const void *) extra,
+                                extra != nullptr ? extra->pages_host : nullptr,
+                                extra != nullptr && extra->active_page_count_host != nullptr
+                                    ? *extra->active_page_count_host : 0,
+                                extra != nullptr && extra->active_row_count_host != nullptr
+                                    ? *extra->active_row_count_host : 0,
+                                extra != nullptr ? extra->page_capacity : 0,
+                                extra != nullptr ? extra->row_capacity : 0,
+                                k != nullptr ? k->data : nullptr,
+                                k != nullptr ? k->nb[0] : 0, k != nullptr ? k->nb[1] : 0,
+                                k != nullptr ? k->nb[2] : 0, k != nullptr ? k->nb[3] : 0,
+                                v != nullptr ? v->data : nullptr,
+                                v != nullptr ? v->nb[0] : 0, v != nullptr ? v->nb[1] : 0,
+                                v != nullptr ? v->nb[2] : 0, v != nullptr ? v->nb[3] : 0,
+                                storage != nullptr ? storage->data : nullptr,
+                                storage != nullptr ? ggml_nbytes(storage) : 0);
+                            if (extra != nullptr && extra->pages_host != nullptr &&
+                                    extra->active_page_count_host != nullptr) {
+                                const auto * pages = static_cast<const ggml_flash_attn_ext_paged_turbo4_page *>(
+                                        extra->pages_host);
+                                const uint32_t count = std::min(*extra->active_page_count_host,
+                                        extra->page_capacity);
+                                for (uint32_t page = 0; page < count; ++page) {
+                                    GGML_LOG_ERROR("cuda-node-paged-page: index=%u logical=%u slot=%u "
+                                                   "compact_begin=%u rows=%u native_begin=%" PRId64 "\n",
+                                        page, pages[page].logical_page,
+                                        pages[page].source_physical_slot,
+                                        pages[page].compact_row_begin, pages[page].row_count,
+                                        pages[page].native_position_begin);
+                                }
+                            }
+                        }
                         CUDA_CHECK(sync_err);
                     }
                 }

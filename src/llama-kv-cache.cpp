@@ -2238,13 +2238,20 @@ llama_kv_cache::~llama_kv_cache() {
 
 llama_kv_prefetch_mailbox_poll llama_kv_cache::pager_selector_event_poll(
         void * context, uint64_t event) noexcept {
-    GGML_UNUSED(context);
+    auto * cache = static_cast<llama_kv_cache *>(context);
     if (event == 0) return llama_kv_prefetch_mailbox_poll::failed;
     const auto value = reinterpret_cast<ggml_backend_event_t>(
             static_cast<uintptr_t>(event));
-    return ggml_backend_event_query(value)
+    const auto result = ggml_backend_event_query(value)
         ? llama_kv_prefetch_mailbox_poll::completed
         : llama_kv_prefetch_mailbox_poll::pending;
+    if (cache != nullptr && std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr) {
+        LLAMA_LOG_INFO("kv-pager-progress stage=selector-event-poll query=%" PRIu64
+                " sequence=%d event=0x%" PRIx64 " result=%s\n",
+                cache->pager_query_generation_, cache->pager_last_sequence_id_, event,
+                result == llama_kv_prefetch_mailbox_poll::completed ? "complete" : "pending");
+    }
+    return result;
 }
 
 void llama_kv_cache::pager_selector_event_cancel(
@@ -2470,6 +2477,18 @@ void llama_kv_cache::capture_kv_routing_query(
     if (tensor == nullptr && layer < 0) {
         pager_query_generation_ = pager_query_generation_ == UINT64_MAX
             ? UINT64_MAX : pager_query_generation_ + 1;
+        // Any unsubmitted selector tensor belonged to an earlier graph and
+        // may have been recycled by the scheduler before this query boundary.
+        // Pending readbacks keep their copied submission metadata until the
+        // event retires, but no graph tensor pointer survives into a new query.
+        for (auto output = pager_routing_outputs_.begin();
+                output != pager_routing_outputs_.end();) {
+            if (!output->readback_submitted) {
+                output = pager_routing_outputs_.erase(output);
+            } else {
+                ++output;
+            }
+        }
         const bool refresh = llama_kv_pager_refresh_due(
             pager_query_generation_, pager_query_accepted_tokens_,
             pager_query_refresh_watermark_, pager_policy_dirty_,
@@ -2629,6 +2648,13 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
     try {
         const auto snapshot = pager_->residency(pager_last_sequence_id_);
         if (snapshot.epoch() == 0) return;
+        const bool progress_trace = std::getenv("LLAMA_KV_PAGER_PROGRESS_TRACE") != nullptr;
+        if (progress_trace) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=policy-enter query=%" PRIu64
+                    " sequence=%d table_epoch=%" PRIu64 " outputs=%zu\n",
+                    pager_query_generation_, pager_last_sequence_id_, snapshot.epoch(),
+                    pager_routing_outputs_.size());
+        }
 
         // Poll the mailbox before deciding whether a policy boundary is
         // needed. A completed device candidate is an independent reason to
@@ -2646,6 +2672,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         // so using mailbox readiness as the only wakeup would deadlock the
         // natural selector path.
         (void) mailbox.poll(0, 0);
+        if (progress_trace) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=selector-poll-complete query=%" PRIu64
+                    " pending=%u ready=%u\n", pager_query_generation_,
+                    mailbox.pending_slots(), mailbox.ready_slots());
+        }
         // A pending selector event may complete independently of the current
         // accepted-token cadence. Consume that already-submitted result, but
         // do not start a new score/catalogue walk for an ordinary U-token
@@ -2659,6 +2690,16 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         // ring reusable on this boundary without waiting for a CPU copy.
         std::vector<llama_kv_prefetch_candidate> candidates;
         mailbox.take_ready(candidates, UINT32_MAX);
+        if (progress_trace) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=selector-readback-complete query=%" PRIu64
+                    " candidates=%zu\n", pager_query_generation_, candidates.size());
+            for (const auto & candidate : candidates) {
+                LLAMA_LOG_INFO("kv-pager-progress stage=selected-page query=%" PRIu64
+                        " logical=%u layer=%u cold=%d selector_rank=%u\n",
+                        candidate.generation, candidate.identity.logical_page,
+                        candidate.attention_layer, candidate.cold, candidate.selector_rank);
+            }
+        }
         for (uint32_t slot = 0; slot < pager_selector_submissions_.size(); ++slot) {
             auto & submission = pager_selector_submissions_[slot];
             if (!submission.active || !submission.complete) continue;
@@ -2676,12 +2717,21 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         bool have_current_refresh = false;
         for (auto output = pager_routing_outputs_.begin();
                 output != pager_routing_outputs_.end();) {
-            const bool current_output = output->tensor != nullptr &&
-                output->query_generation == pager_query_generation_ &&
-                output->sequence_id == pager_last_sequence_id_;
-            const bool usable = output->tensor != nullptr &&
+            // Once a selector readback is submitted, its graph tensor belongs
+            // to the completed submission. The graph may release or recycle
+            // that tensor before the device event retires, so only the copied
+            // descriptor in pager_selector_submissions_ may be inspected.
+            if (output->readback_submitted) {
+                ++output;
+                continue;
+            }
+            const bool current_output = llama_kv_pager_routing_output_is_current(
+                output->tensor, output->readback_submitted,
+                output->query_generation, pager_query_generation_,
+                output->sequence_id, pager_last_sequence_id_);
+            const bool usable = current_output &&
                 output->refresh_enabled && output->query_generation != 0 &&
-                current_output && output->tensor->buffer != nullptr &&
+                output->tensor->buffer != nullptr &&
                 !output->pages.empty() &&
                 output->resident_offset <= output->pages.size() &&
                 output->cold_offset <= output->pages.size() &&
@@ -2708,7 +2758,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         if (candidates.empty() && have_current_refresh) {
             const auto backend = pager_->host_backend();
             for (const auto & output : pager_routing_outputs_) {
-                const bool usable = output.tensor != nullptr &&
+                const bool usable = !output.readback_submitted &&
+                    output.tensor != nullptr &&
                     output.refresh_enabled &&
                     output.query_generation == pager_query_generation_ &&
                     output.sequence_id == pager_last_sequence_id_ &&
@@ -2718,6 +2769,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     output.resident_count + output.cold_count <= 128;
                 if (!usable || backend == nullptr) continue;
                 const uint32_t count = output.resident_count + output.cold_count;
+                if (progress_trace) {
+                    LLAMA_LOG_INFO("kv-pager-progress stage=selector-sync-readback query=%" PRIu64
+                            " layer=%u count=%u\n", output.query_generation, output.layer, count);
+                }
                 std::array<int32_t, 128> selected_ids{};
                 ggml_backend_tensor_get(output.tensor, selected_ids.data(), 0,
                         size_t(count) * sizeof(selected_ids[0]));
@@ -2825,6 +2880,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                                 mailbox.abandon(routing_slot);
                                 submission = {};
                             } else {
+                                if (progress_trace) {
+                                    LLAMA_LOG_INFO("kv-pager-progress stage=selector-readback-submitted"
+                                            " query=%" PRIu64 " event=0x%" PRIx64 " count=%u\n",
+                                            pager_query_generation_, event_id, raw_count);
+                                }
                                 for (const auto & segment : submission.segments) {
                                     for (auto & output : pager_routing_outputs_) {
                                         if (output.tensor == segment.output.tensor &&
@@ -3142,6 +3202,16 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             pager_policy_dirty_ = false;
             return;
         }
+        if (progress_trace) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=host-selection-complete query=%" PRIu64
+                    " inventory=%zu selected=%zu\n", pager_query_generation_, inventory.size(),
+                    boundary.retrieval.selected.size());
+            for (const auto & entry : boundary.retrieval.selected) {
+                LLAMA_LOG_INFO("kv-pager-progress stage=host-selection-page query=%" PRIu64
+                        " logical=%u layer=%u reason=%u\n", boundary.retrieval.query_generation,
+                        entry.id.logical_page, entry.id.attention_layer, uint32_t(entry.reason));
+            }
+        }
         for (const auto & record : inventory) {
             llama_kv_live_policy_page page;
             page.record = record;
@@ -3375,10 +3445,33 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     boundary.transaction.transfers.clear();
                 } else {
                     boundary.transaction.transfers.push_back(std::move(plan));
+                    if (progress_trace) {
+                        const auto & queued = boundary.transaction.transfers.back();
+                        for (const auto & page : queued.pages) {
+                            LLAMA_LOG_INFO("kv-pager-progress stage=h2d-plan query=%" PRIu64
+                                    " logical=%u layer=%u slot=%u event=not-created runs=%zu\n",
+                                    pager_query_generation_, page.page.logical_page,
+                                    page.page.attention_layer, page.physical_slot, page.runs.size());
+                        }
+                    }
                 }
             }
         }
+        if (progress_trace) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=policy-transaction-submit query=%" PRIu64
+                    " transfers=%zu selected=%zu\n", pager_query_generation_,
+                    boundary.transaction.transfers.size(), boundary.retrieval.selected.size());
+        }
         const auto result = pager_->apply_live_policy(boundary);
+        if (progress_trace) {
+            LLAMA_LOG_INFO("kv-pager-progress stage=policy-transaction-complete query=%" PRIu64
+                    " status=%s published=%d epoch=%" PRIu64 " h2d_events=%" PRIu64
+                    " useful=%" PRIu64 " aligned=%" PRIu64 "\n", pager_query_generation_,
+                    llama_kv_live_policy_status_name(result.status), result.published,
+                    result.published_epoch, result.transaction.h2d_counters.event_completions,
+                    result.transaction.h2d_counters.copied_useful_bytes,
+                    result.transaction.h2d_counters.copied_aligned_bytes);
+        }
         if (result.status == llama_kv_live_policy_status::committed) {
             // Retain only the first candidate that was genuinely cold before
             // this boundary and became resident in the committed target. The

@@ -84,9 +84,118 @@ def validate_prompt_tokens(token_count: int, context: int, n_predict: int) -> li
     return errors
 
 
+def promotion_proof_from_events(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Extract a page promotion chain from request-local diagnostic events.
+
+    Every boundary carries one authenticated page identity and a monotonic
+    event sequence. Missing telemetry stays unknown so a response cannot be
+    mistaken for proof.
+    """
+    stages = {
+        "cold": "page_cold_before_request",
+        "selected": "page_selected",
+        "h2d": "h2d_completed",
+        "published": "mapping_published",
+        "target": "target_consumed",
+        "draft": "draft_consumed",
+    }
+    observed: dict[str, Mapping[str, Any]] = {}
+    for event in events:
+        stage = event.get("promotion_stage")
+        if stage in stages:
+            observed[stage] = event
+
+    identities = {name: {key: observed[name].get(key) for key in
+        ("logical_page_id", "generation", "content_version")}
+        if name in observed else {key: None for key in
+        ("logical_page_id", "generation", "content_version")}
+        for name in ("cold", "selected")}
+    order = {stages[name]: observed[name].get("event_sequence")
+             if name in observed else None
+             for name in ("cold", "selected", "h2d", "published", "target", "draft")}
+    identity_matches = all(identities["cold"][key] is not None and
+                          identities["cold"][key] == identities["selected"][key]
+                          for key in identities["cold"])
+    sequences = [order[stages[name]] for name in
+                 ("cold", "selected", "h2d", "published", "target", "draft")]
+    ordered = all(type(value) is int for value in sequences) and sequences == sorted(sequences) and \
+        len(set(sequences)) == len(sequences)
+    return {
+        "page_cold_before_request": observed.get("cold", {}).get("is_cold") is True,
+        "h2d_completed": observed.get("h2d", {}).get("completed") is True,
+        "mapping_published": observed.get("published", {}).get("published") is True,
+        "target_consumed": observed.get("target", {}).get("consumed") is True,
+        "draft_consumed": observed.get("draft", {}).get("consumed") is True,
+        "cold_logical_page_id": identities["cold"]["logical_page_id"],
+        "selected_logical_page_id": identities["selected"]["logical_page_id"],
+        "cold_generation": identities["cold"]["generation"],
+        "selected_generation": identities["selected"]["generation"],
+        "cold_content_version": identities["cold"]["content_version"],
+        "selected_content_version": identities["selected"]["content_version"],
+        "event_order": order,
+        "identity_matches": identity_matches,
+        "event_order_valid": ordered,
+    }
+
+
+def promotion_proof_from_record(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Join request-local pager snapshots with any emitted boundary events."""
+    proof = promotion_proof_from_events(record.get("diagnostic_events", []))
+    before = record.get("pager_before")
+    after = record.get("pager_after")
+    before = before if isinstance(before, Mapping) else {}
+    after = after if isinstance(after, Mapping) else {}
+    natural = after.get("natural_proof")
+    natural = natural if isinstance(natural, Mapping) else {}
+    selected = after.get("selected_page_ids")
+    selected = selected if isinstance(selected, list) else []
+    logical_page = natural.get("logical_page")
+    transfer_delta = integer_delta(before, after, "transfer_event_completions")
+    if logical_page is not None and logical_page in selected:
+        proof.update({
+            "page_cold_before_request": natural.get("candidate_was_cold") is True,
+            "cold_logical_page_id": logical_page,
+            "selected_logical_page_id": logical_page,
+            "cold_generation": natural.get("page_generation"),
+            "selected_generation": natural.get("page_generation"),
+            "cold_content_version": natural.get("content_version"),
+            "selected_content_version": natural.get("content_version"),
+            "h2d_completed": natural.get("h2d_completed") is True and
+                isinstance(natural.get("h2d_useful_bytes"), (int, float)) and
+                natural["h2d_useful_bytes"] > 0 and transfer_delta is not None and
+                transfer_delta > 0,
+            "mapping_published": natural.get("mapping_published") is True and
+                natural.get("published_epoch", 0) > natural.get("catalogue_epoch", 0),
+            "target_consumed": natural.get("target_graph_used") is True and
+                natural.get("selected_in_last_graph") is True and
+                natural.get("target_use_epoch", 0) > natural.get("published_epoch", 0),
+            "event_order": {
+                "h2d_completed": None,
+                "mapping_published": natural.get("published_epoch"),
+                "target_consumed": natural.get("target_use_epoch"),
+                "draft_consumed": None,
+            },
+        })
+        proof["identity_matches"] = (
+            proof["cold_logical_page_id"] == proof["selected_logical_page_id"] and
+            proof["cold_generation"] is not None and
+            proof["cold_generation"] == proof["selected_generation"] and
+            proof["cold_content_version"] is not None and
+            proof["cold_content_version"] == proof["selected_content_version"])
+        proof["event_order_valid"] = False
+    draft = record.get("request_fields", {}).get("draft_n") \
+        if isinstance(record.get("request_fields"), Mapping) else None
+    proof["draft_tokens_observed"] = isinstance(draft, int) and draft > 0
+    return proof
+
+
 def cold_sequence_prompt(request_number: int) -> str:
     """Three deterministic, prefix-preserving labeled-document requests."""
-    document_a = "DOCUMENT_A: The observatory's unique blue-comet catalog code is AZURE-731."
+    # Keep A large enough to seal at least one page that can later leave the
+    # four-page hot set. A short fact in the sink page cannot prove promotion.
+    filler_a = " The observatory records a clear sky above the northern ridge."
+    document_a = "DOCUMENT_A: The observatory's unique blue-comet catalog code is AZURE-731." + \
+        filler_a * 300
     first = document_a + " Question: what is DOCUMENT_A's catalog code?"
     if request_number <= 1:
         return first
@@ -399,13 +508,6 @@ def validate_request_record(record: Mapping[str, Any], rung: Rung) -> list[str]:
         resident = pager.get("resident_pages")
         if not isinstance(logical, int) or not isinstance(resident, int) or resident < logical:
             errors.append("resident_rung_not_fully_resident")
-    if rung.name == "mtp_on_selected_paged_cold_probe":
-        before = record.get("pager_before")
-        after = record.get("pager_after")
-        if not isinstance(before, Mapping) or not isinstance(after, Mapping):
-            errors.append("cold_probe_pager_snapshots_missing")
-        elif integer_delta(before, after, "h2d_useful_bytes") in (None, 0):
-            errors.append("cold_probe_no_h2d_promotion")
     return list(dict.fromkeys(errors))
 
 
@@ -469,10 +571,14 @@ def validate_rung_summary(summary: Mapping[str, Any]) -> list[str]:
                 order = proof.get("event_order")
                 if not isinstance(order, Mapping) or not all(
                         isinstance(order.get(name), (int, float))
-                        for name in ("h2d_completed", "mapping_published", "graph_consumed")):
+                        for name in ("page_cold_before_request", "page_selected",
+                                     "h2d_completed", "mapping_published",
+                                     "target_consumed", "draft_consumed")):
                     errors.append("cold_promotion_event_order_missing")
-                elif not (order["h2d_completed"] < order["mapping_published"] <
-                          order["graph_consumed"]):
+                elif not (order["page_cold_before_request"] < order["page_selected"] <
+                          order["h2d_completed"] < order["mapping_published"] <
+                          order["target_consumed"] and
+                          order["mapping_published"] < order["draft_consumed"]):
                     errors.append("cold_promotion_event_order_invalid")
     return list(dict.fromkeys(errors))
 

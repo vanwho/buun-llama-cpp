@@ -18,6 +18,8 @@ from mtp_diagnostic import (
     cold_sequence_prompt,
     command_contract,
     parse_prometheus,
+    promotion_proof_from_events,
+    promotion_proof_from_record,
     effective_context,
     validate_prompt_tokens,
     request_fields,
@@ -56,6 +58,9 @@ class MTPDiagnosticTest(unittest.TestCase):
         self.assertEqual("set-environment", run_process.call_args_list[0].args[0][3])
         self.assertEqual("LLAMA_MTP_STATE_DIAGNOSTIC=1",
                          run_process.call_args_list[0].args[0][4])
+        self.assertEqual("/fake", run_process.call_args_list[1].kwargs["env"]["PAGER_BUNDLE_ROOT"])
+        self.assertEqual("/fake/build-receipt.json",
+                         run_process.call_args_list[1].kwargs["env"]["PAGER_BUILD_RECEIPT"])
         self.assertEqual("unset-environment", run_process.call_args_list[2].args[0][3])
 
     def test_canonical_trim_crash_with_candidate_request_is_runtime_failure(self) -> None:
@@ -198,8 +203,9 @@ class MTPDiagnosticTest(unittest.TestCase):
             "cold_logical_page_id": 4, "selected_logical_page_id": 4,
             "cold_generation": 9, "selected_generation": 9,
             "cold_content_version": 12, "selected_content_version": 12,
-            "event_order": {"h2d_completed": 1, "mapping_published": 2,
-                             "graph_consumed": 3},
+            "event_order": {"page_cold_before_request": 1, "page_selected": 2,
+                             "h2d_completed": 3, "mapping_published": 4,
+                             "target_consumed": 5, "draft_consumed": 6},
         }
         prompts = ["A", "AB", "ABC"]
         records = [{"cold_sequence": stage, "request": {"prompt": prompt}}
@@ -210,6 +216,49 @@ class MTPDiagnosticTest(unittest.TestCase):
         records[2]["promotion_proof"]["h2d_completed"] = None
         self.assertIn("cold promotion movement/consumption proof missing",
                       validate["_cold_sequence_errors"](records))
+
+    def test_promotion_proof_extraction_requires_identity_and_order(self) -> None:
+        identity = {"logical_page_id": 7, "generation": 4, "content_version": 19}
+        events = [
+            {"promotion_stage": "cold", **identity, "is_cold": True, "event_sequence": 1},
+            {"promotion_stage": "selected", **identity, "event_sequence": 2},
+            {"promotion_stage": "h2d", **identity, "completed": True, "event_sequence": 3},
+            {"promotion_stage": "published", **identity, "published": True, "event_sequence": 4},
+            {"promotion_stage": "target", **identity, "consumed": True, "event_sequence": 5},
+            {"promotion_stage": "draft", **identity, "consumed": True, "event_sequence": 6},
+        ]
+        proof = promotion_proof_from_events(events)
+        self.assertTrue(proof["identity_matches"])
+        self.assertTrue(proof["event_order_valid"])
+        self.assertTrue(proof["draft_consumed"])
+        self.assertFalse(promotion_proof_from_events([])["event_order_valid"])
+        events[3]["event_sequence"] = 2
+        self.assertFalse(promotion_proof_from_events(events)["event_order_valid"])
+
+    def test_promotion_record_keeps_live_partial_proof_without_inference(self) -> None:
+        record = {
+            "pager_before": {"transfer_event_completions": 2},
+            "pager_after": {
+                "transfer_event_completions": 3,
+                "selected_page_ids": [7, 9],
+                "natural_proof": {
+                    "logical_page": 7, "page_generation": 4, "content_version": 19,
+                    "candidate_was_cold": True, "h2d_completed": True,
+                    "h2d_useful_bytes": 1024, "mapping_published": True,
+                    "catalogue_epoch": 11, "published_epoch": 12,
+                    "target_graph_used": True, "selected_in_last_graph": True,
+                    "target_use_epoch": 14,
+                },
+            },
+            "request_fields": {"draft_n": 2},
+        }
+        proof = promotion_proof_from_record(record)
+        self.assertTrue(proof["h2d_completed"])
+        self.assertTrue(proof["mapping_published"])
+        self.assertTrue(proof["target_consumed"])
+        self.assertTrue(proof["draft_tokens_observed"])
+        self.assertFalse(proof["draft_consumed"])
+        self.assertFalse(proof["event_order_valid"])
 
     def test_prometheus_parser_keeps_request_counters_distinct(self) -> None:
         values = parse_prometheus(
@@ -283,8 +332,8 @@ class MTPDiagnosticTest(unittest.TestCase):
                   "pager_after": {"logical_pages": 2, "resident_pages": 2}}
         self.assertEqual([], validate_request_record(record, resident))
         cold = RUNG_SPECS[3]
-        record["pager_before"] = {"h2d_useful_bytes": 100}
-        record["pager_after"] = {"h2d_useful_bytes": 200}
+        record["pager_before"] = {"h2d_useful_bytes": 0}
+        record["pager_after"] = {"h2d_useful_bytes": 0}
         self.assertEqual([], validate_request_record(record, cold))
 
     def test_request_fields_preserve_absent_values(self) -> None:

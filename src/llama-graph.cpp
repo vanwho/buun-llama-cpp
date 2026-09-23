@@ -5016,6 +5016,8 @@ ggml_tensor * llm_graph_context::build_attn(
             }
             k_raw->nb[1] = k->nb[2];
             k_raw->nb[2] = k->nb[1];
+            // Both shared resident storage and cold-wave staging store this
+            // layer's physical pages contiguously.
             k_raw->nb[3] = geometry.layer_k_page_bytes[layer_ordinal];
             v_raw->nb[1] = v->nb[2];
             v_raw->nb[2] = v->nb[1];
@@ -5061,6 +5063,10 @@ ggml_tensor * llm_graph_context::build_attn(
         cb(cur, "kqv_out_exact_wave", il);
     } else if (inp->direct_attention) {
         GGML_ASSERT(inp->direct_storage != nullptr);
+        const auto * pager = inp->mctx->get_kv_pager();
+        if (pager == nullptr) {
+            throw std::runtime_error("direct paged attention has no pager geometry");
+        }
         if (il < 0) {
             throw std::runtime_error("direct paged attention received a negative model layer id");
         }
@@ -5074,28 +5080,33 @@ ggml_tensor * llm_graph_context::build_attn(
             layer_ordinal >= inp->direct_layer_v_offsets.size()) {
             throw std::runtime_error("direct paged attention layer mapping is out of range");
         }
+        const auto & geometry = pager->snapshot().geometry;
+        if (layer_ordinal >= geometry.layer_k_page_bytes.size() ||
+            layer_ordinal >= geometry.layer_v_page_bytes.size()) {
+            throw std::runtime_error("direct paged attention layer page stride is unavailable");
+        }
         GGML_ASSERT(v->type == GGML_TYPE_TURBO4_0 && k->type == GGML_TYPE_TURBO4_0);
 
-        // Each layer owns a contiguous K/V page run in the single slab. The
-        // direct kernel still addresses physical slots through nb[3], so no
-        // layer-specific repacking or second backing is required.
-        ggml_tensor * k_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
-                inp->direct_layer_k_offsets[layer_ordinal]);
+            // Each layer owns contiguous physical pages in its K/V slab runs.
+            // nb[3] indexes a physical slot within this layer, so it must use
+            // this layer's page size rather than the aggregate all-layer slot size.
+            ggml_tensor * k_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
+                    inp->direct_layer_k_offsets[layer_ordinal]);
         ggml_tensor * v_raw = ggml_view_1d(ctx0, inp->direct_storage, 1,
                 inp->direct_layer_v_offsets[layer_ordinal]);
-        GGML_ASSERT(k_raw && v_raw);
-        k_raw->nb[1] = k->nb[2];
-        k_raw->nb[2] = k->nb[1];
-        k_raw->nb[3] = inp->mctx->get_kv_pager()->snapshot().geometry.layer_k_page_bytes[layer_ordinal];
-        v_raw->nb[1] = v->nb[2];
-        v_raw->nb[2] = v->nb[1];
-        v_raw->nb[3] = inp->mctx->get_kv_pager()->snapshot().geometry.layer_v_page_bytes[layer_ordinal];
+            GGML_ASSERT(k_raw && v_raw);
+            k_raw->nb[1] = k->nb[2];
+            k_raw->nb[2] = k->nb[1];
+            k_raw->nb[3] = geometry.layer_k_page_bytes[layer_ordinal];
+            v_raw->nb[1] = v->nb[2];
+            v_raw->nb[2] = v->nb[1];
+            v_raw->nb[3] = geometry.layer_v_page_bytes[layer_ordinal];
 
         ggml_tensor * q_direct = q_cur->type == GGML_TYPE_F32
             ? q_cur : ggml_cast(ctx0, q_cur, GGML_TYPE_F32);
-        const bool cooperative_scratch_safe = inp->direct_page_capacity <= 64;
         ggml_tensor * telemetry_page_mass =
-            cooperative_scratch_safe &&
+            inp->direct_page_capacity <= 64 &&
+            inp->selected_metadata.n_query_tokens() == 1 &&
             inp->kv_attention_telemetry != nullptr &&
             inp->kv_attention_telemetry->mode() != llama_kv_attention_telemetry_mode::off &&
             inp->kv_attention_telemetry->layer_index() < inp->direct_layer_ids.size() &&
@@ -5117,11 +5128,14 @@ ggml_tensor * llm_graph_context::build_attn(
         // therefore retains the fused MMA path used by the occupied-frontier
         // measurement, while small page tables keep the 89-01 continuation
         // parity path.
-        direct_params.split_kv_scratch = cooperative_scratch_safe
+        // Ordinary single-query decode does not need a split reduction, and
+        // attaching scratch forces the cooperative consumer. Keep scratch
+        // only for the telemetry layer, which consumes page-mass output.
+        direct_params.split_kv_scratch = telemetry_page_mass != nullptr
             ? inp->direct_split_kv_scratch : nullptr;
-        direct_params.split_kv_partition_capacity = cooperative_scratch_safe
+        direct_params.split_kv_partition_capacity = telemetry_page_mass != nullptr
             ? inp->direct_split_kv_partition_capacity : 0;
-        direct_params.split_kv_page_count = cooperative_scratch_safe
+        direct_params.split_kv_page_count = telemetry_page_mass != nullptr
             ? inp->direct_split_kv_page_count : 0;
         direct_params.page_capacity = inp->direct_page_capacity;
         direct_params.row_capacity = inp->direct_row_capacity;

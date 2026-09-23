@@ -110,9 +110,14 @@ def _cold_sequence_errors(records: list[Mapping[str, Any]]) -> list[str]:
     order = proof.get("event_order")
     if not isinstance(order, Mapping) or not all(
             isinstance(order.get(name), (int, float))
-            for name in ("h2d_completed", "mapping_published", "graph_consumed")):
+            for name in ("page_cold_before_request", "page_selected",
+                         "h2d_completed", "mapping_published",
+                         "target_consumed", "draft_consumed")):
         errors.append("cold promotion event order missing")
-    elif not (order["h2d_completed"] < order["mapping_published"] < order["graph_consumed"]):
+    elif not (order["page_cold_before_request"] < order["page_selected"] <
+              order["h2d_completed"] < order["mapping_published"] <
+              order["target_consumed"] and
+              order["mapping_published"] < order["draft_consumed"]):
         errors.append("cold promotion event order invalid")
     return errors
 
