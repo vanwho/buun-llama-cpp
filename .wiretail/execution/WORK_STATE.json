@@ -14,10 +14,10 @@
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
-  "status": "ready",
+  "status": "blocked",
   "current_phase": "93",
   "current_task": "93-11e",
-  "last_updated_utc": "2026-09-23T06:56:46+00:00",
+  "last_updated_utc": "2026-09-23T12:01:25+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -19224,8 +19224,8 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Resolve cold-append Turbo4 attention illegal access",
       "packet": ".wiretail/execution/tasks/93-11e.md",
-      "status": "todo",
-      "blocker": null,
+      "status": "blocked",
+      "blocker": "Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/93-11e-attempt-4-20260923T113909Z-final.md.",
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
@@ -19254,7 +19254,12 @@
         "src/llama-kv-cache.cpp",
         "src/llama-kv-cache.h",
         "tools/server/bench/run-mtp-diagnostic.py",
-        "tools/server/bench/mtp_diagnostic.py"
+        "tools/server/bench/mtp_diagnostic.py",
+        ".wiretail/execution/evidence/V10_93-11e.json",
+        ".wiretail/execution/handoffs/93-11e.md",
+        "src/llama-context.cpp",
+        "src/llama-graph.cpp",
+        "tools/server/bench/test_mtp_diagnostic.py"
       ],
       "completion_check": [
         "python3",
@@ -19263,7 +19268,97 @@
         "93-11e",
         "--receipt",
         ".wiretail/execution/evidence/V10_93-11e.json"
-      ]
+      ],
+      "token_usage": {
+        "turns": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11e-attempt-1-20260923T065707Z.jsonl:568",
+            "total_tokens": 143463711,
+            "total_tokens_derived": true,
+            "input_tokens": 143005647,
+            "cached_input_tokens": 140020480,
+            "output_tokens": 458064,
+            "thinking_tokens": 240823
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11e-attempt-2-20260923T085413Z.jsonl:571",
+            "total_tokens": 42357451,
+            "total_tokens_derived": true,
+            "input_tokens": 42258226,
+            "cached_input_tokens": 41533184,
+            "output_tokens": 99225,
+            "thinking_tokens": 47133
+          },
+          {
+            "attempt": 3,
+            "kind": "assessment",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11e-assessment-before-attempt-3-20260923T103939Z.jsonl:44",
+            "total_tokens": 1253406,
+            "total_tokens_derived": true,
+            "input_tokens": 1243182,
+            "cached_input_tokens": 1155584,
+            "output_tokens": 10224,
+            "thinking_tokens": 4757
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11e-attempt-3-20260923T104443Z.jsonl:493",
+            "total_tokens": 38502662,
+            "total_tokens_derived": true,
+            "input_tokens": 38411773,
+            "cached_input_tokens": 37880320,
+            "output_tokens": 90889,
+            "thinking_tokens": 45143
+          },
+          {
+            "attempt": 4,
+            "kind": "assessment",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11e-assessment-before-attempt-4-20260923T113237Z.jsonl:45",
+            "total_tokens": 1083129,
+            "total_tokens_derived": true,
+            "input_tokens": 1068561,
+            "cached_input_tokens": 982016,
+            "output_tokens": 14568,
+            "thinking_tokens": 8163
+          },
+          {
+            "attempt": 4,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11e-attempt-4-20260923T113909Z.jsonl:205",
+            "total_tokens": 13224924,
+            "total_tokens_derived": true,
+            "input_tokens": 13182500,
+            "cached_input_tokens": 12951040,
+            "output_tokens": 42424,
+            "thinking_tokens": 19476
+          }
+        ],
+        "totals": {
+          "turns": 6,
+          "total_tokens": 239885283,
+          "input_tokens": 239169889,
+          "cached_input_tokens": 234522624,
+          "output_tokens": 715394,
+          "thinking_tokens": 365495
+        }
+      }
     },
     {
       "id": "93-12",
@@ -24960,26 +25055,104 @@
           "cached_input_tokens": 84874752,
           "output_tokens": 300016,
           "thinking_tokens": 145264
+        },
+        {
+          "attempt": 1,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11e-attempt-1-20260923T065707Z.jsonl:568",
+          "total_tokens": 143463711,
+          "total_tokens_derived": true,
+          "input_tokens": 143005647,
+          "cached_input_tokens": 140020480,
+          "output_tokens": 458064,
+          "thinking_tokens": 240823
+        },
+        {
+          "attempt": 2,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11e-attempt-2-20260923T085413Z.jsonl:571",
+          "total_tokens": 42357451,
+          "total_tokens_derived": true,
+          "input_tokens": 42258226,
+          "cached_input_tokens": 41533184,
+          "output_tokens": 99225,
+          "thinking_tokens": 47133
+        },
+        {
+          "attempt": 3,
+          "kind": "assessment",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11e-assessment-before-attempt-3-20260923T103939Z.jsonl:44",
+          "total_tokens": 1253406,
+          "total_tokens_derived": true,
+          "input_tokens": 1243182,
+          "cached_input_tokens": 1155584,
+          "output_tokens": 10224,
+          "thinking_tokens": 4757
+        },
+        {
+          "attempt": 3,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11e-attempt-3-20260923T104443Z.jsonl:493",
+          "total_tokens": 38502662,
+          "total_tokens_derived": true,
+          "input_tokens": 38411773,
+          "cached_input_tokens": 37880320,
+          "output_tokens": 90889,
+          "thinking_tokens": 45143
+        },
+        {
+          "attempt": 4,
+          "kind": "assessment",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11e-assessment-before-attempt-4-20260923T113237Z.jsonl:45",
+          "total_tokens": 1083129,
+          "total_tokens_derived": true,
+          "input_tokens": 1068561,
+          "cached_input_tokens": 982016,
+          "output_tokens": 14568,
+          "thinking_tokens": 8163
+        },
+        {
+          "attempt": 4,
+          "kind": "task",
+          "model": "gpt-6-luna",
+          "reasoning": "high",
+          "source": ".wiretail/build/93-11e-attempt-4-20260923T113909Z.jsonl:205",
+          "total_tokens": 13224924,
+          "total_tokens_derived": true,
+          "input_tokens": 13182500,
+          "cached_input_tokens": 12951040,
+          "output_tokens": 42424,
+          "thinking_tokens": 19476
         }
       ],
       "totals": {
-        "turns": 17,
-        "total_tokens": 1463426888,
-        "input_tokens": 1459433554,
-        "cached_input_tokens": 1431162368,
-        "output_tokens": 3993334,
-        "thinking_tokens": 1678475
+        "turns": 23,
+        "total_tokens": 1703312171,
+        "input_tokens": 1698603443,
+        "cached_input_tokens": 1665684992,
+        "output_tokens": 4708728,
+        "thinking_tokens": 2043970
       }
     }
   },
   "token_usage": {
     "totals": {
-      "turns": 348,
-      "total_tokens": 7626031361,
-      "input_tokens": 7606871745,
-      "cached_input_tokens": 7443130112,
-      "output_tokens": 19159616,
-      "thinking_tokens": 7087427
+      "turns": 354,
+      "total_tokens": 7865916644,
+      "input_tokens": 7846041634,
+      "cached_input_tokens": 7677652736,
+      "output_tokens": 19875010,
+      "thinking_tokens": 7452922
     },
     "source": "Codex turn.completed usage events"
   }

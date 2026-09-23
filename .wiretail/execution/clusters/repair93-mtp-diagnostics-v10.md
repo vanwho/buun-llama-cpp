@@ -149,3 +149,18 @@ K/V/page backing identity is invalid, so it does not justify a safe source
 repair or deterministic kernel regression. Task 93-11e is scheduled before
 93-12 to identify that mapping, repair the owner, add a regression, and rerun
 the canonical four gates. Task 93-12 remains todo and depends on 93-11e.
+
+## 93-11e retry-4 assessment
+
+Retry 3 repaired the Q=1 direct-attention stall and preserved a passing CUDA
+fixture, but its attempt-08 canonical cold rung still lacks promotion evidence.
+The A request is 31 rendered tokens. Across A/B/A-again, `no_candidate` grows
+194 → 270 → 318, `attention_dropped_no_output` grows 2 → 6 → 8, and B/A-again
+retain selected IDs `[5,6]` with zero H2D useful bytes. The `natural_proof`
+identity remains the sentinel, and the raw records do not contain the
+`promotion_proof` object the validator requires. Retry 4 must make the A page
+eligible and host-resident, trace the nomination path and its first missing
+boundary, and collect request-local H2D/publication/target-plus-draft use
+proof. Do not reapply the Q=1 dispatch or layer-stride changes without fresh
+address evidence. 93-11e remains `in_progress`, 93-12 remains `todo`, and no
+successor is scheduled until a distinct runtime owner is identified.

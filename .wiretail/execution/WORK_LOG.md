@@ -1137,3 +1137,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-86-01`
 - Commit at update: `c062c14a6`
 - Summary: Removed the oversized long-context Turbo4 reference launch, restored native F16 prefill dispatch, added the named CUDA regression, and passed the bounded L32768/H16384/B128/U64 request.
+
+## 2026-09-23T12:01:25+00:00 — 93-11e — blocked
+
+- Branch: `codex/task-93-11e`
+- Commit at update: `be36951c5`
+- Summary: Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/93-11e-attempt-4-20260923T113909Z-final.md.

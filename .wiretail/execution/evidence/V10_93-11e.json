@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "task": "93-11e",
+  "source_commit": "be36951c5ec44b88d739cec2145e27e0a6420fec",
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/candidate-bundle/llama-server",
+    "sha256": "f8498592b55d708e9df9abe522901d3a96b643fda7e244c8e9eac2d42b735731",
+    "immutable": true,
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/candidate-bundle/build-receipt.json",
+      "sha256": "cca5c0468b62c1e69c421daa5657a60c3da4723d957352a1e1dbaf57ff3c5aa4"
+    }
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "checks": {
+    "repair93_cold_append_turbo4_attention_fault": {
+      "status": "fail",
+      "exit_code": 1,
+      "command": [
+        "env",
+        "CANONICAL_BENCHMARK_RUNNER=/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "python3",
+        "tools/server/bench/run-mtp-diagnostic.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2",
+        "--model",
+        "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "--server-binary",
+        "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/candidate-bundle/llama-server",
+        "--endpoint",
+        "http://127.0.0.1:8080",
+        "--key-file",
+        "/srv/ai/config/llama/api-keys",
+        "--context",
+        "8192",
+        "--batch",
+        "128",
+        "--ubatch",
+        "64",
+        "--n-predict",
+        "16",
+        "--draft-n-max",
+        "2",
+        "--repeats",
+        "1",
+        "--startup-timeout",
+        "180",
+        "--request-timeout",
+        "180"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/local-verification.log",
+          "sha256": "562e98c6cead5019a56554fcd961b088a5f830cf28f9fbde66e92963ad8525c3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2/summary.json",
+          "sha256": "c418e118571dab4be463a3ced42a80de426372b3738e4ca6b0877e764a89215f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2/04-mtp_on_selected_paged_cold_probe/request-01/record.json",
+          "sha256": "2a65f9f617c6d3e0ce8ff10cc9c30ca6ea74f44e5060fdc5069f24b62a6de7b8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+          "sha256": "775b2812b651ab0927c08889b1d1c8563c049fc6fa4e0d342c60b408fb957cee"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2/04-mtp_on_selected_paged_cold_probe/request-03/record.json",
+          "sha256": "6dfc93f1c869829ee6c746b87fc69abb7910413c98e672110387aea3578d9062"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/candidate-bundle/build-receipt.json",
+          "sha256": "cca5c0468b62c1e69c421daa5657a60c3da4723d957352a1e1dbaf57ff3c5aa4"
+        }
+      ],
+      "result": "The first three rung records completed. The cold A fixture rendered 3631 tokens. A-again promoted logical page 0; request-local snapshots show H2D completion, mapping publication, matching page generation/content version, and target graph use. The proof validator still rejects the gate because no H2D event identity/order and no page-specific draft-consumption event are exposed. Draft tokens were observed, which is not enough to claim the promoted page was consumed by draft."
+    }
+  },
+  "live_diagnostic": {
+    "canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "runner_invoked": true,
+    "candidate_identity_verified": true,
+    "candidate_sha256": "f8498592b55d708e9df9abe522901d3a96b643fda7e244c8e9eac2d42b735731",
+    "build_receipt_sha256": "cca5c0468b62c1e69c421daa5657a60c3da4723d957352a1e1dbaf57ff3c5aa4",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "geometry": {
+      "context_tokens": 8192,
+      "batch": 128,
+      "ubatch": 64,
+      "page_size_tokens": 256,
+      "cold_hot_pages": 4,
+      "pin_recent": 0,
+      "mtp": "native GPU Turbo4",
+      "draft_n_max": 2,
+      "slots": 1,
+      "n_predict": 16,
+      "max_rendered_input_tokens": 16384
+    },
+    "rung_order": [
+      "mtp_off_dense_all_gpu",
+      "mtp_on_dense_all_gpu",
+      "mtp_on_selected_paged_resident",
+      "mtp_on_selected_paged_cold_probe"
+    ],
+    "rungs": [
+      {
+        "name": "mtp_off_dense_all_gpu",
+        "status": "pass"
+      },
+      {
+        "name": "mtp_on_dense_all_gpu",
+        "status": "pass"
+      },
+      {
+        "name": "mtp_on_selected_paged_resident",
+        "status": "pass",
+        "draft_n": 12,
+        "draft_n_accepted": 3
+      },
+      {
+        "name": "mtp_on_selected_paged_cold_probe",
+        "status": "proof_incomplete",
+        "cold_a_prompt_tokens": 3631,
+        "cold_b_prompt_tokens": 5360,
+        "a_requery_prompt_tokens": 5371,
+        "h2d_useful_bytes": 4325376,
+        "transfer_event_completions_delta": 96,
+        "logical_page_id": 0,
+        "page_generation": 9,
+        "content_version": 9,
+        "mapping_published": true,
+        "target_consumed": true,
+        "draft_consumed": false,
+        "event_order_valid": false
+      }
+    ],
+    "cold_promotion_proven": false,
+    "diagnostic_summary": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2/summary.json",
+      "sha256": "c418e118571dab4be463a3ced42a80de426372b3738e4ca6b0877e764a89215f"
+    },
+    "cold_a_request": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2/04-mtp_on_selected_paged_cold_probe/request-01/record.json",
+      "sha256": "2a65f9f617c6d3e0ce8ff10cc9c30ca6ea74f44e5060fdc5069f24b62a6de7b8"
+    },
+    "cold_b_request": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+      "sha256": "775b2812b651ab0927c08889b1d1c8563c049fc6fa4e0d342c60b408fb957cee"
+    },
+    "cold_a_requery_request": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11e/attempt-09/four-rung-v2/04-mtp_on_selected_paged_cold_probe/request-03/record.json",
+      "sha256": "6dfc93f1c869829ee6c746b87fc69abb7910413c98e672110387aea3578d9062"
+    },
+    "driver_validation_errors": [
+      "cold_promotion_missing_draft_consumed",
+      "cold_promotion_event_order_missing"
+    ]
+  },
+  "deferred_verification": {
+    "hardware_or_human_dependency_missing": false,
+    "item": "No external dependency is missing. The current pager snapshot exposes target-use metadata, but the server does not emit an H2D event identity/order or a page-specific draft-use boundary. Keep the task in_progress until those telemetry boundaries are implemented and the four gates rerun."
+  }
+}
