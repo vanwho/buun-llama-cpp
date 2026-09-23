@@ -46,6 +46,8 @@ def check_plan(root: Path, state: dict) -> list[str]:
             if any(x in text for x in ("/v9/", "/archive/", "WORK_LOG.md", "WORK_STATE.json")):
                 errors.append(f"{tid}: historical/unbounded context: {text}")
             if "/handoffs/" in text:
+                if path.stem == tid:
+                    continue
                 predecessor = next((t for t in tasks if t["id"] == path.stem), None)
                 if (not predecessor or predecessor.get("scope_revision") != state["scope_revision"]
                         or positions[predecessor["id"]] >= positions[tid]):
