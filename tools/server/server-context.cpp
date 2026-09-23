@@ -19112,21 +19112,31 @@ private:
                                 server_cache_destruction_reason::trim_rejection);
                         },
                         [&]() {
+                            const auto memory = llama_get_memory(ctx_tgt);
+                            if (!server_prompt_trim_has_suffix(
+                                    p0, llama_memory_seq_pos_max(memory, slot.id))) {
+                                return true;
+                            }
                             return checkpoint_suffix
                                 ? server_cache_transient_seq_rm_impl(
-                                      llama_get_memory(ctx_tgt), slot.id,
+                                      memory, slot.id,
                                       p0, -1, true)
                                 : ::server_cache_live_range_drop_impl(
-                                      llama_get_memory(ctx_tgt), slot.id,
+                                      memory, slot.id,
                                       p0, -1, trim_tgt_attn_only);
                         },
                         [&]() {
+                            const auto memory = llama_get_memory(ctx_dft.get());
+                            if (!server_prompt_trim_has_suffix(
+                                    p0, llama_memory_seq_pos_max(memory, slot.id))) {
+                                return true;
+                            }
                             return checkpoint_suffix
                                 ? server_cache_transient_seq_rm_impl(
-                                      llama_get_memory(ctx_dft.get()), slot.id,
+                                      memory, slot.id,
                                       p0, -1, true)
                                 : ::server_cache_live_range_drop_impl(
-                                      llama_get_memory(ctx_dft.get()), slot.id,
+                                      memory, slot.id,
                                       p0, -1, trim_dft_attn_only);
                         },
                         [&]() {

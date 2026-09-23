@@ -23,6 +23,14 @@ struct server_prompt_trim_recovery_result {
     }
 };
 
+// Sequence-removal APIs may reject an empty range. Treat a trim starting
+// beyond the last resident position as a successful no-op.
+template <typename Position>
+constexpr bool server_prompt_trim_has_suffix(Position first_removed,
+                                             Position last_present) noexcept {
+    return first_removed <= last_present;
+}
+
 // Keep the paired memory operation deterministic and directly testable. A
 // rejected partial trim may have changed one child before another refused it,
 // so recovery always tries a full reset of both contexts and any live backup

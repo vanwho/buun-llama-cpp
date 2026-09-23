@@ -61,6 +61,40 @@ void test_slot_pager_lifecycle_generation() {
 
 void test_prompt_trim_recovery_runs_paired_resets() {
     {
+        // The selected MTP reproduction had an incoming prompt at position 30
+        // and no resident target or draft rows. Empty suffixes are successful
+        // no-ops; they must not trigger destructive paired recovery.
+        const int first_removed = 30;
+        const int target_last = -1;
+        const int draft_last = -1;
+        int trim_calls = 0;
+        int reset_calls = 0;
+        int prompt_tokens = 30;
+        const auto trim_if_present = [&](int last_present) {
+            if (!server_prompt_trim_has_suffix(first_removed, last_present)) {
+                return true;
+            }
+            trim_calls++;
+            return false;
+        };
+        const auto result = server_prompt_trim_recover(
+            true, false,
+            [&]() { reset_calls++; },
+            [&]() { return trim_if_present(target_last); },
+            [&]() { return trim_if_present(draft_last); },
+            [&]() { reset_calls++; return true; },
+            [&]() { reset_calls++; return true; },
+            [&]() { reset_calls++; return true; });
+        CHECK(result.trim_succeeded());
+        CHECK(result.draft_trim_attempted);
+        CHECK(!result.recovery_attempted);
+        CHECK(trim_calls == 0);
+        CHECK(reset_calls == 0);
+        CHECK(prompt_tokens == 30);
+        CHECK(!server_prompt_trim_has_suffix(first_removed, 29));
+        CHECK(server_prompt_trim_has_suffix(first_removed, 30));
+    }
+    {
         std::vector<int> calls;
         int target_frontier = 12;
         int draft_frontier = 12;
