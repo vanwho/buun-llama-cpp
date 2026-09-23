@@ -1026,6 +1026,9 @@ public:
 // callback that allows us to apply custom logic to each tensor (e.g. ggml-alloc, offloading, etc.)
 using llm_graph_cb = std::function<void(const llama_ubatch & ubatch, ggml_tensor * cur, const char * name, int il)>;
 
+// Some graph shapes omit optional tensors but still pass them through naming callbacks.
+void llm_graph_name_tensor(ggml_tensor * cur, const char * name, int il);
+
 class llm_graph_result;
 
 struct llm_graph_params {
