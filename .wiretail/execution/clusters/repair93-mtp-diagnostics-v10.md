@@ -138,3 +138,14 @@ kernel. The source owner is not identified and no safe fix or seam regression
 can be justified from these artifacts. Task 93-11d is scheduled immediately
 before 93-12 to isolate the CUDA operation, add the regression, repair it, and
 repeat all four gates. Task 93-12 remains todo and depends on 93-11d.
+
+## 93-11d decision
+
+The candidate-bound per-node synchronization diagnostic identified the first
+failing operation during cold B as `FLASH_ATTN_EXT` (`node_232`, output shape
+`[256,24,64,1]`) after checkpoint restore and attention-only trim. Earlier
+nodes synchronized successfully. The current trace does not identify which
+K/V/page backing identity is invalid, so it does not justify a safe source
+repair or deterministic kernel regression. Task 93-11e is scheduled before
+93-12 to identify that mapping, repair the owner, add a regression, and rerun
+the canonical four gates. Task 93-12 remains todo and depends on 93-11e.

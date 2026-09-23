@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "task": "93-11d",
+  "source_commit": "27fbf4c990baf5e2bcd19c527fdc39d0bf1b63df",
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/diagnostic-candidate-bundle/llama-server",
+    "sha256": "e75a2635de8ead8a084ba235a9ece95f4f55f04a8b77526ba2b9284c38ec246a",
+    "immutable": true,
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/diagnostic-candidate-bundle/build-receipt.json",
+      "sha256": "5a7c07554370a4b962dfb81b9432e6a6577ad57a8c8c591296d782c2568ccb9d"
+    }
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "checks": {
+    "repair93_cold_append_cuda_graph_replay": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/test_mtp_diagnostic.py",
+        "&&",
+        "python3",
+        ".wiretail/execution/v10/test_validate.py",
+        "&&",
+        "git",
+        "diff",
+        "--check"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/local-verification.log",
+          "sha256": "9541fa7aed9adb55015c856653b69cca9dbb5b67ce63bb25ab88aad89b44fe52"
+        }
+      ],
+      "result": "CUDA nodes synchronized individually; cold B fault was localized to FLASH_ATTN_EXT node_232. Kernel/page ownership and deterministic kernel regression remain assigned to scheduled 93-11e; 93-12 is gated on 93-11e."
+    }
+  },
+  "live_diagnostic": {
+    "canonical_runner": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+    "runner_invoked": true,
+    "candidate_identity_verified": true,
+    "candidate_sha256": "e75a2635de8ead8a084ba235a9ece95f4f55f04a8b77526ba2b9284c38ec246a",
+    "build_receipt_sha256": "5a7c07554370a4b962dfb81b9432e6a6577ad57a8c8c591296d782c2568ccb9d",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "environment": [
+      "GGML_CUDA_DISABLE_GRAPHS=1",
+      "GGML_CUDA_TRACE_NODE_SYNC=1"
+    ],
+    "geometry": {
+      "context_tokens": 8192,
+      "batch": 128,
+      "ubatch": 64,
+      "page_size_tokens": 256,
+      "cold_hot_pages": 4,
+      "pin_recent": 0,
+      "mtp": "native GPU Turbo4",
+      "draft_n_max": 2,
+      "slots": 1,
+      "n_predict": 16,
+      "max_rendered_input_tokens": 16384
+    },
+    "rung_order": [
+      "mtp_off_dense_all_gpu",
+      "mtp_on_dense_all_gpu",
+      "mtp_on_selected_paged_resident",
+      "mtp_on_selected_paged_cold_probe"
+    ],
+    "rungs": [
+      {
+        "name": "mtp_off_dense_all_gpu",
+        "status": "pass"
+      },
+      {
+        "name": "mtp_on_dense_all_gpu",
+        "status": "pass"
+      },
+      {
+        "name": "mtp_on_selected_paged_resident",
+        "status": "pass"
+      },
+      {
+        "name": "mtp_on_selected_paged_cold_probe",
+        "status": "fail",
+        "cold_a_status": "pass",
+        "cold_b_status": "timeout",
+        "cold_b_prompt_tokens": 1760,
+        "cold_b_timeout_seconds": 300,
+        "checkpoint_trim": "CHECKPOINT_ATTN_ONLY_TRIM p0=27 target=1 draft=1",
+        "fault": {
+          "operation": "FLASH_ATTN_EXT",
+          "node": "node_232",
+          "output_type": "f32",
+          "output_shape": [
+            256,
+            24,
+            64,
+            1
+          ],
+          "cuda_error": "an illegal memory access was encountered"
+        }
+      }
+    ],
+    "cold_promotion_proven": false,
+    "diagnostic_summary": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/diagnostic-node-sync/summary.json",
+      "sha256": "9bbc24208e63759adf32604047dd6670adf559f776a2af6ef4715f6a21d119be"
+    },
+    "server_log": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/diagnostic-node-sync/04-mtp_on_selected_paged_cold_probe/server.log",
+      "sha256": "87e9a23acc58501645fb6dca38ada2d2cc2eee64e48dba58fbc5b1119fabed73"
+    },
+    "cold_b_request": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/diagnostic-node-sync/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+      "sha256": "bcb41de260971dd0b69ae77441d962df753f49d1c4a9f162488b4d7e5441d50f"
+    }
+  },
+  "deferred_verification": {
+    "hardware_or_human_dependency_missing": false,
+    "item": "Identify the failing K/V/page backing identity, repair it with a deterministic CUDA regression, and pass cold A\u2192B\u2192A with same-page cold observation, completed H2D, table publication, target plus draft consumption.",
+    "successor": "93-11e",
+    "gate": "93-12 remains todo and depends on 93-11e."
+  },
+  "raw_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/diagnostic-node-sync/summary.json",
+      "sha256": "9bbc24208e63759adf32604047dd6670adf559f776a2af6ef4715f6a21d119be"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/diagnostic-node-sync/04-mtp_on_selected_paged_cold_probe/server.log",
+      "sha256": "87e9a23acc58501645fb6dca38ada2d2cc2eee64e48dba58fbc5b1119fabed73"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/diagnostic-node-sync/04-mtp_on_selected_paged_cold_probe/request-02/record.json",
+      "sha256": "bcb41de260971dd0b69ae77441d962df753f49d1c4a9f162488b4d7e5441d50f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11d/attempt-01/local-verification.log",
+      "sha256": "9541fa7aed9adb55015c856653b69cca9dbb5b67ce63bb25ab88aad89b44fe52"
+    }
+  ]
+}
