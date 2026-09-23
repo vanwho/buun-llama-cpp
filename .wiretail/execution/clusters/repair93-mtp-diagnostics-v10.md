@@ -11,11 +11,12 @@ must resolve those specific gaps before a speed or context-capacity campaign.
 Every remaining phase-93 task uses the exact implementation model
 `gpt-6-luna` at High reasoning. Every separate recovery assessment for these
 tasks also uses `gpt-6-luna` at High reasoning; task metadata pins both the
-implementation and assessment model, so Wiretail's generic Terra/Sol retry
-escalation does not apply. Do not use Terra, Sol, Astra, or a `gpt-5.6-*`
-model for these tasks. Any successor tasks created by 93-09 or later reviews
+implementation and assessment model, so Wiretail's generic family retry
+escalation does not apply. Use only `gpt-6-luna` for this project; do not use
+another model family. Any successor tasks created by 93-09 or later reviews
 must copy these model fields into `WORK_STATE.json` and retain this policy in
-their packet/cluster context. Do not change the shared Wiretail default.
+their packet/cluster context. The shared Wiretail default is also
+`gpt-6-luna`.
 
 ## Goals and bounds
 
