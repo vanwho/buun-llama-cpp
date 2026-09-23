@@ -10,6 +10,7 @@
 #include "server-vbr-artifact-store.h"
 #include "server-vbr-capture-readiness.h"
 #include "server-vbr-prompt-cache-support.h"
+#include "server-prompt-trim.h"
 #include "server-task.h"
 #include "server-queue.h"
 #include "server-recurrent-expansion.h"
@@ -1565,7 +1566,7 @@ static bool server_cache_mandatory_recovery_reset_impl(
         llama_seq_id seq_id,
         llama_pos p0,
         llama_pos p1) {
-    return llama_memory_seq_rm(mem, seq_id, p0, p1);
+    return llama_memory_seq_rm_transient(mem, seq_id, p0, p1);
 }
 
 static void server_cache_mandatory_recovery_reset_impl(
@@ -3097,7 +3098,7 @@ struct server_slot {
         prompt.tokens.insert(spec_draft);
     }
 
-    void release() {
+    void release(bool memory_recovery_failed = false) {
         if (is_processing()) {
             GGML_ASSERT(task);
 
@@ -3119,7 +3120,7 @@ struct server_slot {
             }
 
             // do not keep context of the child slots - the parent's context is enough
-            if (task->is_child()) {
+            if (task->is_child() && !memory_recovery_failed) {
                 prompt_clear();
             }
 
@@ -19103,23 +19104,46 @@ private:
                             ? llama_memory_vbr_state(
                                 llama_get_memory(ctx_tgt), slot.id, 0)
                             : llama_memory_vbr_state_data{};
-                    bool trim_ok = checkpoint_suffix
-                        ? server_cache_transient_seq_rm_impl(
-                              llama_get_memory(ctx_tgt), slot.id, p0, -1, true)
-                        : ::server_cache_live_range_drop_impl(
-                              llama_get_memory(ctx_tgt), slot.id, p0, -1,
-                              trim_tgt_attn_only);
-                    if (trim_ok && ctx_dft) {
-                        trim_ok = checkpoint_suffix
-                            ? server_cache_transient_seq_rm_impl(
-                                  llama_get_memory(ctx_dft.get()), slot.id,
-                                  p0, -1, true)
-                            : ::server_cache_live_range_drop_impl(
-                                  llama_get_memory(ctx_dft.get()), slot.id,
-                                  p0, -1, trim_dft_attn_only);
-                    }
+                    const auto trim = server_prompt_trim_recover(
+                        ctx_dft != nullptr,
+                        slot.has_draft_backup && slot.seq_id_backup >= 0,
+                        [&]() {
+                            slot.observe_mandatory_recovery_reset(
+                                server_cache_destruction_reason::trim_rejection);
+                        },
+                        [&]() {
+                            return checkpoint_suffix
+                                ? server_cache_transient_seq_rm_impl(
+                                      llama_get_memory(ctx_tgt), slot.id,
+                                      p0, -1, true)
+                                : ::server_cache_live_range_drop_impl(
+                                      llama_get_memory(ctx_tgt), slot.id,
+                                      p0, -1, trim_tgt_attn_only);
+                        },
+                        [&]() {
+                            return checkpoint_suffix
+                                ? server_cache_transient_seq_rm_impl(
+                                      llama_get_memory(ctx_dft.get()), slot.id,
+                                      p0, -1, true)
+                                : ::server_cache_live_range_drop_impl(
+                                      llama_get_memory(ctx_dft.get()), slot.id,
+                                      p0, -1, trim_dft_attn_only);
+                        },
+                        [&]() {
+                            return ::server_cache_mandatory_recovery_reset_impl(
+                                llama_get_memory(ctx_tgt), slot.id, -1, -1);
+                        },
+                        [&]() {
+                            return ::server_cache_mandatory_recovery_reset_impl(
+                                llama_get_memory(ctx_dft.get()), slot.id, -1, -1);
+                        },
+                        [&]() {
+                            return server_cache_transient_seq_rm_impl(
+                                llama_get_memory(ctx_tgt),
+                                slot.seq_id_backup, -1, -1);
+                        });
 
-                    if (trim_ok && trim_tgt_attn_only) {
+                    if (trim.trim_succeeded() && trim_tgt_attn_only) {
                         const auto checkpoint_lineage_after_trim =
                             llama_memory_vbr_state(
                                 llama_get_memory(ctx_tgt), slot.id, 0);
@@ -19132,24 +19156,27 @@ private:
                         }
                     }
 
-                    if (!trim_ok) {
-                        SLT_WRN(slot, "memory_seq_rm [%d, end) rejected; falling back to full prompt re-processing\n", p0);
+                    if (!trim.trim_succeeded()) {
+                        SLT_WRN(slot,
+                                "prompt suffix trim rejected (target=%u draft_attempted=%u draft=%u); full reset target=%u draft=%u\n",
+                                trim.target_trim_succeeded ? 1u : 0u,
+                                trim.draft_trim_attempted ? 1u : 0u,
+                                trim.draft_trim_succeeded ? 1u : 0u,
+                                trim.target_reset_succeeded ? 1u : 0u,
+                                trim.draft_reset_succeeded ? 1u : 0u);
 
-                        // Full removal is infallible for memory implementations and retains
-                        // common_context_seq_rm's asserting contract. Clear both target and
-                        // draft so a failure on either side cannot leave them out of sync.
-                        slot.observe_mandatory_recovery_reset(
-                            server_cache_destruction_reason::trim_rejection);
-                        ::server_cache_mandatory_recovery_reset_impl(
-                            ctx_tgt, slot.id, -1, -1);
-                        if (ctx_dft) {
-                            ::server_cache_mandatory_recovery_reset_impl(
-                                ctx_dft.get(), slot.id, -1, -1);
+                        // Drop every logical reference to the attempted restore. The
+                        // helper already attempted both memory resets; invalidate the
+                        // slot image and speculative frontier before any retry.
+                        slot.server_cache_mandatory_recovery_reset_impl(false);
+                        slot.spec_draft.clear();
+                        slot.spec_i_batch.clear();
+                        slot.spec_ckpt.clear();
+                        slot.n_tokens_before_draft = 0;
+                        if (trim.backup_reset_succeeded) {
+                            slot.has_draft_backup = false;
+                            slot.seq_id_backup = -1;
                         }
-                        common_speculative_sequence_transition(
-                            slot.get_spec(), slot.id,
-                            common_speculative_sequence_event::full_clear);
-
                         slot.server_cache_token_ledger_truncate_impl(0);
                         slot.stats.n_prompt_cached = 0;
                         slot.stats.n_prompt_processed = 0;
@@ -19169,6 +19196,17 @@ private:
                             }
                             slot.cache_plan->revoke_deliveries();
                             slot.cache_plan->restore_attempt_failed = true;
+                        }
+
+                        if (!trim.recovery_succeeded()) {
+                            SLT_ERR(slot, "%s",
+                                    "paired prompt trim recovery failed; releasing request before decode\n");
+                            send_error(slot,
+                                "prompt cache recovery failed; request released",
+                                ERROR_TYPE_SERVER);
+                            slot.release(true);
+                            vbr_restore_freeze.reset();
+                            return;
                         }
                     }
 
