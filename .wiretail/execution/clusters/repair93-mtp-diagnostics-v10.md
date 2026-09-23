@@ -6,6 +6,17 @@ requests still crash after `memory_seq_rm [p0, end)` is rejected, and the
 existing cold rung has not proved document-driven page promotion. The phase
 must resolve those specific gaps before a speed or context-capacity campaign.
 
+## Execution model lock
+
+Every remaining phase-93 task uses the exact implementation model
+`gpt-6-luna` at High reasoning. Every separate recovery assessment for these
+tasks also uses `gpt-6-luna` at High reasoning; task metadata pins both the
+implementation and assessment model, so Wiretail's generic Terra/Sol retry
+escalation does not apply. Do not use Terra, Sol, Astra, or a `gpt-5.6-*`
+model for these tasks. Any successor tasks created by 93-09 or later reviews
+must copy these model fields into `WORK_STATE.json` and retain this policy in
+their packet/cluster context. Do not change the shared Wiretail default.
+
 ## Goals and bounds
 
 - Keep the target and MTP draft on CUDA with Turbo4 K and V for every MTP-on
