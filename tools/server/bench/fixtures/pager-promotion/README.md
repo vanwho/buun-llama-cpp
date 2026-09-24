@@ -13,8 +13,11 @@ Always tokenize the complete rendered request, including chat/history/template o
 `manifest.json` records fixture IDs, tokenizer counts, natural recall questions,
 reference facts, and SHA-256 hashes. The bounded live promotion proof uses one
 representative file as A, appends full B-file contents as ordinary context, and
-asks naturally about A again. Acknowledgements are free-form and are not
-compared with exact strings. Fixture facts are never shortened to satisfy a
-generation limit. Do not send fixture paths or page IDs as routing hints.
+asks naturally about A again. It tracks the page holding the answer-bearing
+fact, not every page overlapped by the full file. Exact file names and fixture
+IDs are normal user-level references and may appear in the question; internal
+logical page IDs and selector/routing details must not be exposed as steering
+hints. Acknowledgements are free-form and are not compared with exact strings.
+Fixture facts are never shortened to satisfy a generation limit.
 
 Python fixtures may be syntax-checked and their `merge_sorted` functions exercised. Bash fixtures must be syntax-checked only; do not launch their indefinite watcher loops.

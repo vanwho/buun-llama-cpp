@@ -25,8 +25,13 @@ EXPECTED_SCHEMA = "attention-promotion-fixtures-v1"
 EXPECTED_TOKENS_PER_FILE = 1024
 EXPECTED_FILES_PER_FAMILY = 8
 DEFAULT_B_COUNT = 4
+INITIAL_B_GROUP_COUNT = 4
 MAX_B_COUNT = 6
 DEFAULT_TARGET_FIXTURE_ID = "PY_MERGE_01"
+# This phrase closes the answer-bearing sentence in the first KV page of the
+# representative A document. The live driver proves/prefetches this page only;
+# the other pages occupied by the 1K file are diagnostic, not a coldness gate.
+RECALL_PROBE_ANCHORS = {"PY_MERGE_01": "input is emitted first."}
 SERVER_CONTEXT_TOKENS = 8192
 GPU_HOT_TOKENS = 4096
 PAGE_SIZE_TOKENS = 256
@@ -84,6 +89,7 @@ class PromotionStep:
     stage: str
     fixture_id: str
     appended_fixture_id: str | None
+    appended_fixture_ids: tuple[str, ...]
     question: str
     user_content: str
     expected_answer_local_only: str
@@ -270,22 +276,36 @@ def build_promotion_steps(catalog: Sequence[PromotionFixture], target_id: str,
         stage="ingest_A_ack",
         fixture_id=target.fixture_id,
         appended_fixture_id=target.fixture_id,
+        appended_fixture_ids=(target.fixture_id,),
         question=first_question,
         user_content=first_content,
         expected_answer_local_only="",
         cache_prompt=False,
     ))
 
-    for fixture in b_fixtures:
-        question = "Read this additional file as context for later; acknowledge briefly without summarizing it."
+    # Process the first four complete B fixtures in one ordinary user turn.
+    # Separate 1K turns let prefix caching preserve the same early pages and
+    # did not create enough transaction-local pressure to cold all of A.
+    # The combined turn stays within the 8K context and exercises replacement
+    # while those four complete documents enter the slot together.
+    groups = [b_fixtures[:INITIAL_B_GROUP_COUNT]]
+    groups.extend((fixture,) for fixture in b_fixtures[INITIAL_B_GROUP_COUNT:])
+    for group in groups:
+        question = (
+            "Read these additional files as context for later; acknowledge briefly "
+            "without summarizing them."
+            if len(group) > 1 else
+            "Read this additional file as context for later; acknowledge briefly without summarizing it."
+        )
         steps.append(PromotionStep(
             index=len(steps),
             stage="append_B_ack",
-            fixture_id=fixture.fixture_id,
-            appended_fixture_id=fixture.fixture_id,
+            fixture_id=group[0].fixture_id,
+            appended_fixture_id=group[0].fixture_id,
+            appended_fixture_ids=tuple(fixture.fixture_id for fixture in group),
             question=question,
             user_content=(
-                f"{_file_context(fixture)}\n\n"
+                "\n\n".join(_file_context(fixture) for fixture in group) + "\n\n"
                 f"{question}"
             ),
             expected_answer_local_only="",
@@ -297,6 +317,7 @@ def build_promotion_steps(catalog: Sequence[PromotionFixture], target_id: str,
         stage="query_A_again",
         fixture_id=target.fixture_id,
         appended_fixture_id=None,
+        appended_fixture_ids=(),
         question=RECALL_QUESTIONS[target.category].format(
             filename=target.filename, fixture_id=target.fixture_id),
         user_content=_natural_recall_question(target),
@@ -304,6 +325,41 @@ def build_promotion_steps(catalog: Sequence[PromotionFixture], target_id: str,
         cache_prompt=True,
     ))
     return tuple(steps)
+
+
+def pages_overlapping_token_range(pages: Sequence[Mapping[str, Any]],
+                                  start: int, end: int) -> list[dict[str, Any]]:
+    """Return page inventory entries overlapping the half-open token range."""
+    if start < 0 or end <= start:
+        raise ValueError("token range must be non-empty and non-negative")
+    matches = [dict(page) for page in pages
+               if isinstance(page.get("position_begin"), int) and
+               isinstance(page.get("position_end"), int) and
+               page["position_begin"] < end and page["position_end"] > start]
+    if not matches:
+        raise ValueError(f"no page inventory covers token range [{start}, {end})")
+    return matches
+
+
+def pages_are_cold(snapshot: Sequence[Mapping[str, Any]],
+                   targets: Sequence[Mapping[str, Any]], *,
+                   require_complete: bool = False) -> bool:
+    """Check target page identities, optionally requiring full logical pages."""
+    by_identity = {(page.get("logical_page_id"), page.get("generation"),
+                    page.get("content_version")): page for page in snapshot}
+    for target in targets:
+        page = by_identity.get((target.get("logical_page_id"), target.get("generation"),
+                                target.get("content_version")))
+        if page is None or page.get("resident") is not False or \
+                page.get("host_backed") is not True or \
+                not isinstance(page.get("valid_length"), int) or page["valid_length"] <= 0:
+            return False
+        if require_complete and (
+                not isinstance(page.get("position_begin"), int) or
+                not isinstance(page.get("position_end"), int) or
+                page["valid_length"] != page["position_end"] - page["position_begin"]):
+            return False
+    return True
 
 
 def messages_for_step(steps: Sequence[PromotionStep], step_index: int,
@@ -333,6 +389,7 @@ def _step_json(step: PromotionStep) -> dict[str, Any]:
         "stage": step.stage,
         "fixture_id_local_only": step.fixture_id,
         "appended_fixture_id_local_only": step.appended_fixture_id,
+        "appended_fixture_ids_local_only": list(step.appended_fixture_ids),
         "question": step.question,
         "user_content": step.user_content,
         "expected_answer_local_only": step.expected_answer_local_only,
@@ -353,6 +410,11 @@ def build_case_plan(catalog: Sequence[PromotionFixture], target_id: str,
             "hot_pages": GPU_HOT_TOKENS // PAGE_SIZE_TOKENS,
         },
         "target_fixture_id_local_only": target_id,
+        "promotion_scope": {
+            "kind": "single_answer_bearing_page",
+            "anchor": RECALL_PROBE_ANCHORS.get(target_id),
+            "all_file_pages_must_be_cold": False,
+        },
         "b_count": b_count,
         "request_count": len(steps),
         "sequence_policy": "same-slot cumulative messages; actual prior replies; free-form output",

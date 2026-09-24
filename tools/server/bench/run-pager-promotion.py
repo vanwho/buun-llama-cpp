@@ -16,8 +16,10 @@ from typing import Any, Mapping
 
 from mtp_diagnostic import promotion_event_chain_from_snapshots
 from pager_promotion import (
-    DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT, assess_natural_retrieval,
-    build_promotion_steps, load_fixture_catalog, messages_for_step, response_budget,
+    DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT, RECALL_PROBE_ANCHORS,
+    assess_natural_retrieval, build_promotion_steps, load_fixture_catalog,
+    messages_for_step, pages_are_cold, pages_overlapping_token_range,
+    response_budget, select_b_fixtures,
 )
 from prompt_sizing import ServerPromptRenderer, request_options
 
@@ -177,32 +179,6 @@ def get_pages(slot: Mapping[str, Any]) -> list[dict[str, Any]]:
     return [page for page in pages if isinstance(page, dict)]
 
 
-def target_page_ids(pages: list[dict[str, Any]], start: int, count: int) -> list[dict[str, Any]]:
-    end = start + count
-    matches = [page for page in pages
-               if isinstance(page.get("position_begin"), int) and
-               isinstance(page.get("position_end"), int) and
-               page["position_begin"] < end and page["position_end"] > start]
-    if not matches:
-        raise RuntimeError(f"no page inventory covers target A token range [{start}, {end})")
-    identities = {(page.get("logical_page_id"), page.get("generation"),
-                   page.get("content_version")) for page in matches}
-    return [page for page in matches if (
-        page.get("logical_page_id"), page.get("generation"), page.get("content_version")) in identities]
-
-
-def cold_target_pages(pages: list[dict[str, Any]], targets: list[dict[str, Any]]) -> bool:
-    by_identity = {(page.get("logical_page_id"), page.get("generation"),
-                    page.get("content_version")): page for page in pages}
-    for target in targets:
-        page = by_identity.get((target.get("logical_page_id"), target.get("generation"),
-                                target.get("content_version")))
-        if not page or page.get("resident") is not False or page.get("host_backed") is not True or \
-                not isinstance(page.get("valid_length"), int) or page["valid_length"] <= 0:
-            return False
-    return True
-
-
 def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
                        model: str, cache_prompt: bool, output: pathlib.Path,
                        step_index: int
@@ -225,9 +201,11 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
 
     # Record the exact token offset where A's body begins in the first rendered turn.
     prefix_count = None
+    probe_end_token_count = None
     body_offset = rendered.text.find("--- BEGIN FILE CONTENT ---\n")
     if body_offset >= 0:
-        prefix = rendered.text[:body_offset + len("--- BEGIN FILE CONTENT ---\n")]
+        body_start = body_offset + len("--- BEGIN FILE CONTENT ---\n")
+        prefix = rendered.text[:body_start]
         status, prefix_value, prefix_raw = json_request(base, "/tokenize", key, {
             "content": prefix, "add_special": True, "parse_special": True,
         })
@@ -235,6 +213,21 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
         prefix_count = len(prefix_value.get("tokens", [])) if status == 200 and \
             isinstance(prefix_value, dict) and isinstance(prefix_value.get("tokens"), list) else None
         (output / "body-prefix.txt").write_text(prefix, encoding="utf-8")
+        probe_anchor = RECALL_PROBE_ANCHORS.get(DEFAULT_TARGET_FIXTURE_ID) \
+            if step_index == 0 else None
+        if probe_anchor:
+            anchor_offset = rendered.text.find(probe_anchor, body_start)
+            if anchor_offset < 0:
+                raise RuntimeError(
+                    f"A fixture is missing its answer-bearing probe anchor: {probe_anchor!r}")
+            probe_prefix = rendered.text[:anchor_offset + len(probe_anchor)]
+            status, probe_value, probe_raw = json_request(base, "/tokenize", key, {
+                "content": probe_prefix, "add_special": True, "parse_special": True,
+            })
+            (output / "probe-anchor-tokenize-response.json").write_bytes(probe_raw + b"\n")
+            probe_end_token_count = len(probe_value.get("tokens", [])) if status == 200 and \
+                isinstance(probe_value, dict) and isinstance(probe_value.get("tokens"), list) else None
+            (output / "probe-anchor-prefix.txt").write_text(probe_prefix, encoding="utf-8")
 
     payload = {
         "model": model, "messages": messages, "temperature": 0,
@@ -268,6 +261,7 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
         raise RuntimeError(f"completion used {completion_tokens} tokens; "
                            f"context-derived maximum is {n_predict}")
     return answer, response, payload, {"prefix_token_count": prefix_count,
+                                      "probe_end_token_count": probe_end_token_count,
                                       "rendered_token_count": len(rendered.token_ids),
                                       "n_predict": n_predict,
                                       "generation_context_reserve_tokens": CONTEXT -
@@ -276,6 +270,28 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
                                       "finish_reason": choices[0].get("finish_reason"),
                                       "template_id": rendered.template_id,
                                       "tokenizer_id": rendered.tokenizer_id}
+
+
+def final_query_budget(base: str, key: str, steps: tuple[Any, ...],
+                       prior_answers: list[str], model: str,
+                       output: pathlib.Path) -> int | None:
+    """Check that the natural A query still fits before one extra B pressure turn."""
+    final_index = len(steps) - 1
+    messages = messages_for_step(steps, final_index, prior_answers)
+    renderer = ServerPromptRenderer(
+        base, model, key, timeout=60.0,
+        request_options=request_options(chat_template_kwargs={"enable_thinking": False}))
+    rendered = renderer(messages)
+    output.mkdir(parents=True, exist_ok=True)
+    (output / "messages.json").write_text(
+        json.dumps(messages, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    (output / "rendered-prompt.txt").write_text(rendered.text, encoding="utf-8")
+    write_json(output / "token-ids.json", list(rendered.token_ids))
+    write_json(output / "renderer-exchanges.json", renderer.last_exchanges)
+    token_count = len(rendered.token_ids)
+    if token_count + 128 >= CONTEXT:
+        return None
+    return CONTEXT - token_count - 128
 
 
 def artifact_refs(case_root: pathlib.Path) -> list[dict[str, str]]:
@@ -329,6 +345,7 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
     record = {
         "step_index": step_index, "stage": step.stage, "fixture_id": step.fixture_id,
         "appended_fixture_id": step.appended_fixture_id,
+        "appended_fixture_ids": list(step.appended_fixture_ids),
         "expected_answer_local_only": step.expected_answer_local_only or None,
         "assistant_answer": answer,
         "semantic_retrieval": assess_natural_retrieval(step.fixture_id, answer)
@@ -359,7 +376,9 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     answers: list[str] = []
     records: list[dict[str, Any]] = []
     target_pages: list[dict[str, Any]] = []
+    probe_pages: list[dict[str, Any]] = []
     a_start_token = None
+    probe_end_token = None
     for index, step in enumerate(steps[:-1]):
         record = request_record(base, key, case_root, steps, index, answers, model)
         records.append(record)
@@ -370,18 +389,55 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
             if not isinstance(prefix_count, int):
                 raise RuntimeError(f"{target.fixture_id}: cannot locate A token range in rendered prompt")
             a_start_token = prefix_count
-            target_pages = target_page_ids(get_pages({"pager_metrics": first_after}),
-                                           a_start_token, target.token_count_no_bos)
-    # Observe the actual inventory after B4 before deciding whether ordinary
-    # same-family workload needs B5/B6. Do not issue A-again while A is hot.
+            probe_end_token = record["render"].get("probe_end_token_count")
+            if not isinstance(probe_end_token, int) or probe_end_token <= a_start_token:
+                raise RuntimeError(f"{target.fixture_id}: cannot tokenize the answer-bearing probe span")
+            first_inventory = get_pages({"pager_metrics": first_after})
+            target_pages = pages_overlapping_token_range(
+                first_inventory, a_start_token, a_start_token + target.token_count_no_bos)
+            probe_pages = pages_overlapping_token_range(
+                first_inventory, a_start_token, probe_end_token)
+            if len(probe_pages) != 1:
+                raise RuntimeError(
+                    f"{target.fixture_id}: answer-bearing fact spans {len(probe_pages)} pages; "
+                    "the natural recall probe must fit in one page")
+            probe_page = probe_pages[0]
+            if not (probe_page["position_begin"] <= a_start_token and
+                    probe_page["position_end"] >= probe_end_token):
+                raise RuntimeError(f"{target.fixture_id}: answer-bearing page boundary is ambiguous")
+    # Four complete B files arrive in one ordinary turn. Only the complete
+    # page containing A's answer-bearing fact must be cold; other A pages are
+    # recorded but are not part of the promotion gate.
     _, before_final_slot, before_final_raw = get_slot(base, key)
     (case_root / "cold-before-A-again-slots.json").write_bytes(before_final_raw + b"\n")
     cold_inventory = get_pages(before_final_slot)
-    if not cold_target_pages(cold_inventory, target_pages):
+    if not pages_are_cold(cold_inventory, probe_pages, require_complete=True):
         for b_count in (5, 6):
+            preflight_root = case_root / f"append-B{b_count}-final-query-preflight"
+            remaining = final_query_budget(base, key, steps, answers, model,
+                                           preflight_root)
+            if remaining is None:
+                write_json(preflight_root / "result.json", {
+                    "status": "does_not_fit", "context_tokens": CONTEXT,
+                    "completion_reserve_tokens": 128,
+                    "next_action": f"append_B{b_count}",
+                })
+                break
+            write_json(preflight_root / "result.json", {
+                "status": "fits", "context_tokens": CONTEXT,
+                "completion_reserve_tokens": 128,
+                "remaining_completion_tokens": remaining,
+                "next_action": f"append_B{b_count}",
+            })
             extended = build_promotion_steps(catalog, target.fixture_id, b_count=b_count)
-            # Run only the next unrun B turn with the actual previous answers.
-            b_record = request_record(base, key, case_root, extended, b_count,
+            # Run only the newly added ordinary B turn with actual prior replies.
+            next_b_index = next(index for index, step in enumerate(extended)
+                                if step.stage == "append_B_ack" and
+                                len(step.appended_fixture_ids) == 1 and
+                                step.appended_fixture_ids[0] ==
+                                select_b_fixtures(catalog, target.fixture_id,
+                                                  b_count)[-1].fixture_id)
+            b_record = request_record(base, key, case_root, extended, next_b_index,
                                       answers, model)
             records.append(b_record)
             answers.append(b_record["assistant_answer"])
@@ -390,10 +446,12 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
             (case_root / f"cold-before-A-again-B{b_count}-slots.json").write_bytes(
                 before_final_raw + b"\n")
             cold_inventory = get_pages(before_final_slot)
-            if cold_target_pages(cold_inventory, target_pages):
+            if pages_are_cold(cold_inventory, probe_pages, require_complete=True):
                 break
-        if not cold_target_pages(cold_inventory, target_pages):
-            raise RuntimeError(f"{target.fixture_id}: ordinary B pressure left an A page resident")
+        if not pages_are_cold(cold_inventory, probe_pages, require_complete=True):
+            raise RuntimeError(
+                f"{target.fixture_id}: answer-bearing A page remained resident "
+                "after the available ordinary B-file pressure")
 
     final_index = len(steps) - 1
     final_record = request_record(base, key, case_root, steps, final_index, answers, model)
@@ -403,8 +461,8 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     cold_inventory = get_pages({"pager_metrics": final_before})
     natural = final_record["pager_after"].get("natural_proof", {})
     if natural.get("logical_page") not in {
-            page.get("logical_page_id") for page in target_pages}:
-        raise RuntimeError(f"{target.fixture_id}: natural selector did not nominate an A page")
+            page.get("logical_page_id") for page in probe_pages}:
+        raise RuntimeError(f"{target.fixture_id}: natural selector did not nominate the cold answer page")
     final_request_id = final_record.get("request_id")
     chain = promotion_event_chain_from_snapshots(
         cold_inventory, natural, request_id=final_request_id,
@@ -435,9 +493,14 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         "page_identity": {"logical_page_id": natural.get("logical_page"),
                           "generation": natural.get("page_generation"),
                           "content_version": natural.get("content_version")},
-        "cold_before": {"complete": cold_target_pages(cold_inventory, target_pages),
+        "cold_before": {"complete": pages_are_cold(
+                            cold_inventory, probe_pages, require_complete=True),
+                        "scope": "single answer-bearing A page; other A pages are diagnostic",
+                        "probe_token_range": [a_start_token, probe_end_token],
                         "host_backed": True, "resident": False,
+                        "probe_pages": probe_pages,
                         "target_pages": target_pages,
+                        "all_A_pages_cold": pages_are_cold(cold_inventory, target_pages),
                         "snapshot_pages": cold_inventory},
         "promotion_events": [
             {"stage": stage, "event_sequence": sequence,
@@ -453,7 +516,6 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     case["raw_artifacts"] = artifact_refs(case_root)
     write_json(case_root / "case-summary.json", case)
     return case
-    raise RuntimeError(f"{target.fixture_id}: no A-again step was executed")
 
 
 def validate_runtime_geometry(base: str, key: str, identity: Mapping[str, Any]) -> dict[str, Any]:

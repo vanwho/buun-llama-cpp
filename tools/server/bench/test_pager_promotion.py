@@ -12,12 +12,15 @@ from pager_promotion import (
     DEFAULT_B_COUNT,
     DEFAULT_TARGET_FIXTURE_ID,
     FIXTURE_ROOT,
+    RECALL_PROBE_ANCHORS,
     assess_natural_retrieval,
     build_case_plan,
     build_promotion_steps,
     load_fixture_catalog,
     messages_for_step,
     normalize_answer,
+    pages_are_cold,
+    pages_overlapping_token_range,
     response_budget,
     select_b_fixtures,
     write_plan,
@@ -64,9 +67,9 @@ class PagerPromotionPromptTest(unittest.TestCase):
             self.assertNotIn(target.fixture_id, {item.fixture_id for item in first})
             self.assertEqual(4, len({item.fixture_id for item in first}))
 
-    def test_primary_case_is_natural_six_turn_a_b_a_sequence(self) -> None:
+    def test_primary_case_groups_four_complete_b_files_for_natural_pressure(self) -> None:
         steps = build_promotion_steps(self.catalog, DEFAULT_TARGET_FIXTURE_ID)
-        self.assertEqual(6, len(steps))
+        self.assertEqual(3, len(steps))
         self.assertEqual("ingest_A_ack", steps[0].stage)
         self.assertEqual("append_B_ack", steps[1].stage)
         self.assertEqual("query_A_again", steps[-1].stage)
@@ -75,9 +78,14 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertTrue(steps[0].user_content.endswith(steps[0].question))
         self.assertTrue(steps[1].user_content.startswith(
             "Read the following file as context (merge_sorted_lists_02.py):"))
-        self.assertIn("acknowledge briefly without summarizing", steps[1].user_content)
+        self.assertIn("acknowledge briefly without summarizing them", steps[1].user_content)
         self.assertNotIn("Copy every character", steps[1].user_content)
         self.assertTrue(steps[1].user_content.endswith(steps[1].question))
+        self.assertEqual(tuple(item.fixture_id for item in
+                               select_b_fixtures(self.catalog, DEFAULT_TARGET_FIXTURE_ID)),
+                         steps[1].appended_fixture_ids)
+        self.assertTrue(all(item.body in steps[1].user_content for item in
+                            select_b_fixtures(self.catalog, DEFAULT_TARGET_FIXTURE_ID)))
         self.assertIn("which input's value", steps[-1].question)
         self.assertIn("current values are equal", steps[-1].question)
         self.assertIn("merge_sorted_lists_01.py", steps[-1].question)
@@ -128,15 +136,49 @@ class PagerPromotionPromptTest(unittest.TestCase):
             "PY_MERGE_01", "The right input is selected first.")["status"])
 
     def test_b_count_is_bounded_for_natural_pressure_escalation(self) -> None:
-        self.assertEqual(8, len(build_promotion_steps(
-            self.catalog, "PY_MERGE_02", b_count=6)))
+        extended = build_promotion_steps(self.catalog, "PY_MERGE_02", b_count=6)
+        self.assertEqual(5, len(extended))
+        self.assertEqual(4, len(extended[1].appended_fixture_ids))
+        self.assertEqual(1, len(extended[2].appended_fixture_ids))
+        self.assertEqual(1, len(extended[3].appended_fixture_ids))
+        self.assertEqual("query_A_again", extended[4].stage)
         with self.assertRaises(ValueError):
             select_b_fixtures(self.catalog, "PY_MERGE_02", b_count=7)
+
+    def test_promotion_gate_targets_fact_page_not_every_page_of_a_file(self) -> None:
+        self.assertIn(RECALL_PROBE_ANCHORS["PY_MERGE_01"],
+                      self.by_id["PY_MERGE_01"].body)
+        inventory = []
+        snapshot = []
+        for page in range(5):
+            inventory_item = {
+                "logical_page_id": page, "generation": 10 + page,
+                "content_version": 20 + page,
+                "position_begin": page * 256, "position_end": (page + 1) * 256,
+                "valid_length": 67 if page == 4 else 256,
+                "host_backed": True, "resident": True,
+            }
+            inventory.append(inventory_item)
+            snapshot.append({**inventory_item,
+                             "resident": page >= 2})
+        # In the observed rendered request A begins at token 25 and its
+        # answer-bearing sentence ends before token 256. The full 1K file
+        # overlaps five pages, but proving promotion needs only its fact page.
+        probe = pages_overlapping_token_range(inventory, 25, 208)
+        whole_file = pages_overlapping_token_range(inventory, 25, 1049)
+        self.assertEqual([0], [page["logical_page_id"] for page in probe])
+        self.assertEqual(5, len(whole_file))
+        self.assertTrue(pages_are_cold(snapshot, probe, require_complete=True))
+        self.assertFalse(pages_are_cold(snapshot, whole_file))
+        with self.assertRaises(ValueError):
+            pages_overlapping_token_range(inventory, 256, 256)
 
     def test_plan_contains_prompts_and_local_expectations_separately(self) -> None:
         plan = build_case_plan(self.catalog, "PY_MERGE_01")
         self.assertEqual({"server_context_tokens": 8192, "gpu_hot_tokens": 4096,
                           "page_size_tokens": 256, "hot_pages": 16}, plan["geometry"])
+        self.assertEqual("single_answer_bearing_page", plan["promotion_scope"]["kind"])
+        self.assertFalse(plan["promotion_scope"]["all_file_pages_must_be_cold"])
         final = plan["steps"][-1]
         self.assertIn("which input's value", final["user_content"])
         self.assertIn("current values are equal", final["user_content"])
