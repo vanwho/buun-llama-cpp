@@ -71,11 +71,22 @@ and context beyond256K remain optional future work.
 
 ## Context, autonomy and honest completion
 
-Read the current packet/cluster, explicitly listed V10 context, named source
-symbols, and the immediate handoff. Do not read earlier phase packets, the
-whole state/log, giant runner transcripts or old acceptance ledgers. Clusters
-follow subsystem/context overlap, with no hard task-count cap. New V10 cluster
-IDs prevent reuse of stale V9 sessions; preserve useful context within each.
+The repository's compact long-horizon rules are in
+[`../CONTEXT_POLICY.md`](../CONTEXT_POLICY.md) and are injected by Wiretail.
+For an active task, read its current packet/cluster, explicitly listed context,
+named source symbols, and current handoff if present. Do not read earlier phase
+packets, the whole state/log, giant runner transcripts, or old acceptance
+ledgers unless the current packet points to a specific needed fact. Clusters
+follow subsystem/context overlap, with no hard task-count cap. Reuse a useful
+cluster session while Codex compaction maintains the live working context;
+start fresh at a real context/risk boundary, not after every task.
+
+Keep each active handoff a replaceable current-state snapshot (target at most
+120 lines): result, decisions/invariants, changed symbols, exact validation
+and raw receipt pointers, next action, and loaded candidate/resume state when
+relevant. Do not append attempt diaries or duplicate raw logs in handoffs.
+Detailed attempt history belongs in immutable raw results; phase and project
+token usage are rollups, not additional event archives.
 
 Implementation tests named in a task are mandatory; `not_run`, an unrelated
 CPU fixture, or a generic CTest pass cannot complete that repair. Each task

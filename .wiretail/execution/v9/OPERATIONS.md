@@ -66,7 +66,7 @@ instructions are only `.wiretail/execution/v9/` and current packets/clusters.
 ## Per-task workflow and bounded context
 
 1. Read repository instructions; current task entry with
-   `jq --arg id '<id>' '.tasks[]|select(.id==$id)|del(.token_usage.turns)' .wiretail/execution/WORK_STATE.json`;
+   `jq --arg id '<id>' '.tasks[]|select(.id==$id)|del(.token_usage.events,.token_usage.turns)' .wiretail/execution/WORK_STATE.json`;
    current packet/cluster and its `context_files`. Do not read the full state
    merely to find a field. Completed dependencies are scheduling facts, not
    a recursive history-reading requirement.

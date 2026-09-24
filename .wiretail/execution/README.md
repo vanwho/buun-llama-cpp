@@ -1,31 +1,34 @@
 # Current hot-KV execution package
 
-For unfinished tasks85-09 onward start with the
-[corrective plan](v10/REPAIR85_PLAN.md),
-[source audit](v10/REPAIR85_ASSESSMENT.md) and
-[short-test protocol](v10/REPAIR85_TESTING.md), dated2026-09-21.
-They supersede older packed-only/reference-fallback directions. Tasks85-09–19
-repair CUDA numerics, lifetime, MTP and maintenance, then measured successors
-advance promotion, speed, scale, and route policy. Explicit Luna Medium/High and first retry High;
-Wiretail shared defaults unchanged. Scheduling/usage state is `WORK_STATE.json`.
+Read the [long-horizon context and usage policy](CONTEXT_POLICY.md) first. For
+execution, trust the current task in `WORK_STATE.json`, its packet/cluster, and
+its explicit `context_files`; those identify the active design slice. Do not
+assume an older V10/V9 plan or phase summary is current merely because it is
+linked from historical evidence. Wiretail injects `CONTEXT_POLICY.md` into
+each task and assessment prompt, while task-specific context remains bounded.
 
 ```bash
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 PROJECT_BRANCH=plan/attention-aware-kv-paging /srv/wiretail/wiretail.sh
 ```
 
-Each task explicitly lists `context_files`. Read that list, the current packet,
-its new `repair85-*` cluster and repository instructions; don't recursively read old plans,
-the full state/log, old acceptance gates or all dependency handoffs. V10 folds
-in the useful findings and corrects stale-bundle/wrong-workload claims. New
-cluster IDs prevent old-session reuse. Every task has a named-proof completion
-check; see [receipt contract](v10/RECEIPTS.md).
+Each bounded task explicitly lists `context_files`. Read that list, the current
+packet/cluster, repository instructions, and the current task handoff if
+present. Do not recursively read old plans, the full state/log, old acceptance
+gates, or every dependency handoff. Every task has its own named-proof
+completion contract; follow the contract linked by that task.
 
 V9 and older plans/packets/handoffs/results remain historical, not active.
 Do not PR any execution metadata/history upstream. The historical cleanup
 inventory remains in `v9/OPERATIONS.md` for a future publication-only task;
-do not load it in current implementation sessions. Current site/testing rules
-are in [current testing](v10/REPAIR85_TESTING.md). Portable code commits remain separate.
+do not load it in current implementation sessions. The V10 repair/testing
+documents are historical design references unless a current task names them.
+Portable code commits remain separate.
+
+Task and phase token totals are Codex-reported `turn.completed` usage
+aggregates, not the size of one prompt or active context window. See
+[`CONTEXT_POLICY.md`](CONTEXT_POLICY.md) for field semantics, compaction, and
+the handoff format.
 
 Automatic selective paging is fast-route-only. `selected_reference` is a
 temporary explicit correctness oracle, never a production fallback or valid
