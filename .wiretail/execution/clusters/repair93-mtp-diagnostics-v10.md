@@ -1,6 +1,8 @@
 # repair93 — short Turbo4 MTP and pager correctness
 
-Revision: `hotpath-v10-20260914`. Amendment: `repair93-mtp-fast-20260922`.
+Revision: `hotpath-v10-20260914`. Amendments: `repair93-mtp-fast-20260922`,
+`repair93-mtp-natural-pressure-20260924`,
+`repair93-mtp-single-answer-page-20260924`.
 
 Phase 93 resumes from the measured 93-04 failure. Dense GPU Turbo4 MTP works
 on its bounded control. The Q=1 selected direct-attention stall, layer-page
@@ -83,9 +85,19 @@ promotion gates.
   8192 for the cold-promotion sequences. Task 93-11f starts at 8192 total
   context with 4096 target hot tokens. Task 93-11g configures the actual
   llama-server at `-c 8192` and its ordinary automatic target-KV hot budget at
-  4096 tokens, then uses one representative 1K file as A plus four ordinary
-  appended file-context turns as B pressure. Acknowledgements and the final
-  answer are free-form; no exact YES/NO or retrieval-key output is required.
+  4096 tokens, then uses one representative 1K file as A plus one ordinary
+  user turn containing four complete B file contexts in manifest order. The
+  grouped prefill creates natural replacement pressure without changing file
+  contents or geometry. The proof target is only the single KV page containing
+  A's answer-bearing sentence, located by tokenizing through that sentence in
+  the rendered request. Attempt 07 already showed A pages 0–1 cold after B1–B4;
+  the former requirement that every page overlapped by the 1K file be cold was
+  unnecessarily strict. Ask A-again immediately when the fact page is cold;
+  do not wait for unrelated or partial A pages. Add B5/B6 only if that fact
+  page remains resident, and do not add B-file recall follow-ups. File names
+  and fixture IDs are allowed in the natural question; internal pager page IDs
+  and forced residency controls are not. Acknowledgements and the final
+  answer remain free-form; no exact YES/NO or retrieval-key output is required.
   Keep the A→B→A sequence below the full 8K context so server context shifting
   cannot discard A; natural pager pressure above the 4K hot budget must evict
   A, and the later ordinary A query must cause promotion.
@@ -138,9 +150,12 @@ null and fails the relevant proof; do not infer zeros from missing fields.
 4. The old inline two-document/four-page probe is diagnostic history only.
    Current cold-promotion acceptance belongs to 93-11g: one representative
    real 1K file, ordinary same-slot A→B→A context growth at 8K total / 4K hot,
-   and request-correlated same-page H2D/publication/target/draft proof. Do not
-   gate filler turns on exact language-model wording or use a route label as
-   promotion proof.
+   and request-correlated same-page H2D/publication/target/draft proof. The
+   proof gate is the page holding A's answer-bearing fact, not every page
+   overlapped by the full file. Attempt 07 already showed early A pages cold
+   after B1–B4; ask A-again immediately when the fact page is cold. Append B5/B6
+   only if that fact page remains resident. Do not add B-file follow-ups, gate
+   filler turns on exact model wording, or use a route label as promotion proof.
 
 For the live controls, pair prompt, seed, sampler, generation limit, model,
 binary and geometry across dense and selected routes. Report `draft_n_accepted /

@@ -231,14 +231,174 @@
       ],
       "exit_code": 0,
       "status": "pass"
+    },
+    "repair93_file_cold_promotion_smoke": {
+      "status": "incomplete",
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live",
+        "--server-binary",
+        "/srv/ai/paged-kv/results/v10/93-11g/attempt-01/candidate-bundle/llama-server",
+        "--model",
+        "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "--target-fixture-id",
+        "PY_MERGE_01"
+      ],
+      "exit_code": 2,
+      "result": "Candidate-bound grouped B1-B4 turn plus conditional B5/B6 completed, but A pages 2-4 remained resident. The driver correctly did not send A-again.",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/allocator-admission.json",
+          "sha256": "bcbbdf1891f1ebe76c4f4b59c3e54f9b04bde447464d31081f7d51d95abb85cd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/campaign-progress.json",
+          "sha256": "d6f8e25e54676ce69ddfeba92ca165685c535ed27f716dc035ca18eb42e4256a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/candidate-identity.json",
+          "sha256": "04b1e10e9275414bccf0c1f6d9584102364c1aed8bff26927861fdbe31ae8306"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/health-response.json",
+          "sha256": "6489d6d7a33c5d40e18fc61eeb6c34c341279ee61816394dde5189aa4ad8fae5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live-driver.log",
+          "sha256": "160ab0248c92dd6536a925891528debdfcc2d4b45dbcfb6e84ee647c8ab92880"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live-exit-code",
+          "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-01/record.json",
+          "sha256": "088036c249aa5d617612e8bb4e9253df0dbb07e8c19dee8b2ed6cb52b4770f93"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-02/record.json",
+          "sha256": "70ce537bebae92515f3bad8853ea8cccc726f02a94fba3b81ca9ec8e816218f4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-03/record.json",
+          "sha256": "ae1fed2d5c8d618aa2d7a983e7d4aef54c4bc83811ef82c2b0add6232f880036"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-04/record.json",
+          "sha256": "e516fe5b685345f1b4120f730a62f65cabdfe630b7bf8a1ffcbb5b2020b7d590"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-01/completion-response.raw",
+          "sha256": "e30ef3b671ce4c1f1b41d40c5e10702ba518efe0d0abd28ff0571f995dc2a2a9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-02/completion-response.raw",
+          "sha256": "13ed5107cbadec8c32201747d0479ba8104fb26cacea2ec79d33447796bf73e6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-03/completion-response.raw",
+          "sha256": "12370e3b131f69685a3149c585aa5c78d627490cd1b9015b286fa9af205082a2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-04/completion-response.raw",
+          "sha256": "6d0ab840fe92af17ae712abbf81ee6dfe11a14cd75bef3a509c819d26c4a7039"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/cold-before-A-again-B5-slots.json",
+          "sha256": "ecd8220928a0ba682f147bc7dae78c12d8e4a0d1da3dbee9fa4a37a9ac1d72af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/cold-before-A-again-B6-slots.json",
+          "sha256": "b35cb89a3a7e6d2dec49a079a20528170646531da410db96b77c7ad038475394"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/cold-before-A-again-slots.json",
+          "sha256": "994b67eac703640923a0d76e0ac3ff613e8acaede106cc5cf101d4973395e440"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/bench-tests.log",
+          "sha256": "750b39cbd5253a8996af8f629b3bca2ce06dd8a0a8c37d2972a15c58f2218a18"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/promotion-tests.log",
+          "sha256": "2f7b850c977121d8774a5cdcc47ed550746f0edb17a5b087b7ace1ccd82a6307"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/mtp-tests.log",
+          "sha256": "7493e59a43ad3217f24fc5aa48cb5d2eceae5dd0cdd706d28220ab6ba0e2d5dd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/validator-tests.log",
+          "sha256": "8e19567acfd0156d40ba7a587422a9d18580e449e11c881acc76cdccbdde2060"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/residency-diagnostic.json",
+          "sha256": "3011fab71dc4d6b5482694ced4ce3ee0e98582887de747d3a3ec67c957c55ce6"
+        }
+      ]
+    },
+    "repair93_residency_stability_probe": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/resident_snapshot_probe.py"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/resident_snapshot_probe.py",
+          "sha256": "4eaddb2b90d21b6359a7eaff87a1c946100ec1eb159dc01891e6e19630f74c11"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/resident-snapshot-probe.json",
+          "sha256": "ad453dac67d531ae2da5d38cb16731cb7cc57030c83d3fe5cd83497b9ff81206"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/resident-snapshot-probe.stdout.log",
+          "sha256": "f55f73b02f7f24524cbe65c6beed3142c416e48e264ce6a1a1f7ffe1edb98620"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/candidate-identity.json",
+          "sha256": "0f5ef34b53813235e1895ece2899412b5a9ee1f20d279e53265395a500773a1a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/allocator-admission.json",
+          "sha256": "d81ab535ebe259598fa0c804d19e8b1d22aa430599c38b6b8f5add85d9c0ba16"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/candidate-request-journal.log",
+          "sha256": "dea8df2b1634ea2582cf94b233b237cd03ce2592cc450628c6b00a1025df59ed"
+        }
+      ]
+    },
+    "repair93_attempt_07_focused_tests": {
+      "status": "pass",
+      "exit_code": 0,
+      "result": "Planner 13 tests, MTP diagnostics 24 tests, and V10 receipt validator 39 tests passed using isolated unittest invocations.",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/promotion-tests.log",
+          "sha256": "2f7b850c977121d8774a5cdcc47ed550746f0edb17a5b087b7ace1ccd82a6307"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/mtp-tests.log",
+          "sha256": "7493e59a43ad3217f24fc5aa48cb5d2eceae5dd0cdd706d28220ab6ba0e2d5dd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/validator-tests.log",
+          "sha256": "8e19567acfd0156d40ba7a587422a9d18580e449e11c881acc76cdccbdde2060"
+        }
+      ]
     }
   },
   "comparison": {
-    "deferred_verification": "Live 24-case cold-page promotion is incomplete despite available hardware/service; exact B1 answer gate failed. Task remains in_progress and 93-12 remains gated.",
-    "latest_response": "The file content provided for `merge_sorted_lists_02.py` contains the line:",
-    "latest_response_path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-04/live-reasoning-none/cases/PY_MERGE_01/request-02/completion-response.raw",
-    "latest_response_sha256": "308528a3db96b113d9264060e05e017872acdce242fed59c3ae74b3f640ce9de",
-    "summary": "Attempt 04 offline fixture, prompt planner, MTP, and V10 validator checks pass. Managed candidate geometry is admitted at 8192 context and 4096 hot tokens with selective pager and GPU Turbo4 target/native MTP. The live campaign stops at PY_MERGE_01 B1: no cold observation or natural promotion event chain exists."
+    "deferred_verification": "Natural A-again recall and request-correlated same-page selector/H2D/publication/target/MTP use remain unverified. Attempt 07 already showed an answer-bearing A page cold after B1-B4; the old all-pages gate prevented asking A-again. Task remains in_progress and 93-12 gated.",
+    "latest_response": "I'll provide the answer.\n\nI'll provide the answer.\n\nI am ready to help, but I need a bit more information.\n\nI'll provide the answer.\n\nI CANNOTATION.\n\nI'll provide the answer.\n\nI am ready to help, but I need a bit more information.\n\n",
+    "latest_response_path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/completion-response.raw",
+    "latest_response_sha256": "b5a2aba72be59c4ac7f95e9cb282a3002e147abbf73c6a24e14f499906965057",
+    "summary": "Attempt 07 proves ordinary eviction of A-overlapping pages 0-1 after grouped B1-B4. The run did not ask A-again because its gate incorrectly required all five pages overlapping the 1K A file to be cold, while later pages 2-4 remained resident. No promotion result exists yet. The corrected test targets only the complete page containing A's answer-bearing sentence and asks A-again as soon as that page is cold."
   },
   "file_promotion_campaign": {
     "candidate_identity_verified": true,
@@ -269,6 +429,16 @@
         "attempt": "attempt-04/live-reasoning-none",
         "error": "reasoning_effort none still returned explanatory prefix, not exact retrieval answer",
         "stage": "B1"
+      },
+      {
+        "attempt": "attempt-05/live",
+        "stage": "cold-before-A-again after B6",
+        "error": "A remained partially resident: logical page IDs 2-4 overlapping A were still resident; A-again correctly not sent. See attempt-05/residency-diagnostic.json."
+      },
+      {
+        "attempt": "attempt-07/live",
+        "stage": "cold-before-A-again after grouped B1-B4 and conditional B5/B6",
+        "error": "A logical pages 2-4 remained resident in all three snapshots; no A-again request or promotion chain was run."
       }
     ],
     "fixture_manifest_sha256": "eeb7fe38b517892f3bbe5d020d9a42470bebbd10c3f0eeb0eba89e71a4e9e451",
@@ -815,7 +985,11 @@
       "target_type_v": "turbo4",
       "thinking": "off",
       "ubatch": 64
-    }
+    },
+    "target_fixture_ids": [
+      "PY_MERGE_01"
+    ],
+    "acceptance_status": "diagnostic_only"
   },
   "model": {
     "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
@@ -4509,21 +4683,596 @@
     {
       "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-04/v10-tests.log",
       "sha256": "55f0679f8ab195999d310c536f1ab8e01ba88b6408d3359e7a36c827845c1e3e"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/allocator-admission.json",
+      "sha256": "4f533c1652c8c273d4c0124a83c91d9d1e23e744a7b73c45aefe5937537525b1"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/campaign-progress.json",
+      "sha256": "d6f8e25e54676ce69ddfeba92ca165685c535ed27f716dc035ca18eb42e4256a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/candidate-identity.json",
+      "sha256": "04b1e10e9275414bccf0c1f6d9584102364c1aed8bff26927861fdbe31ae8306"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/cold-before-A-again-B5-slots.json",
+      "sha256": "22660853bb5789a327c5f0bb3749b22658f354038dfbf90d01b771da70dece27"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/cold-before-A-again-B6-slots.json",
+      "sha256": "33681b225b0926152cd3f95394860574dc573791ad8edd19d03ed57e8a34aa89"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/cold-before-A-again-slots.json",
+      "sha256": "75249af51b76916ff3be899762f707f2e88bd8290c642123e6851ae817d01eae"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/body-prefix-tokenize-response.json",
+      "sha256": "c6a5ddc779bd33b949754a66f550407cbf2df4f0e4c790354f80dd3e0abf3af0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/body-prefix.txt",
+      "sha256": "29f6524aacd0070bd3775ad6afb7aa3a4e8ded20d9b92f448fb7ae2b91c1dda5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/completion-request.json",
+      "sha256": "035407fa1274521db3fd9c073bad379a7d377ad90b2f71b27e2226d43f50def8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/completion-response.json",
+      "sha256": "68bb1c8bda776816c6326e70b890f0e536fef9369e335a0636b901e294d542cf"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/completion-response.raw",
+      "sha256": "bfdb7bf8a366ac87e028bc9c596d9bd2f01b916a1da32c8f17ed328fb4d8dbea"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/messages.json",
+      "sha256": "e4659cf1e13dfb001cfc033c60474ffca86b03e35504758d6f83ea1d8fc84c8f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/record.json",
+      "sha256": "addb2c970040bf279cb5d8b3a67ad37a3bc0e245ac0aee1f85d1dfe172c1bdb2"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/rendered-prompt.txt",
+      "sha256": "c1fba237250f175f74bc9226962d9d09f68b7d5ca3dd534fc17b060d6382183c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/renderer-exchanges.json",
+      "sha256": "3c4303780fc9507108c065af70b3e9ad743abc9ac3dffa6a38a37b8ba04198a5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/slots-after.json",
+      "sha256": "81492b7c39fa999106631d823de7473a7a065b8762dd5f8335f0259aee044e2d"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/slots-before.json",
+      "sha256": "ebdd3ba88e199383f79ea5e695062b2d46cc72df296667d20c613112f282dc34"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-01/token-ids.json",
+      "sha256": "90d4b0ac4351950f46acb807f7be629a149515533898996176c03d1154e606ec"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/body-prefix-tokenize-response.json",
+      "sha256": "c6a5ddc779bd33b949754a66f550407cbf2df4f0e4c790354f80dd3e0abf3af0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/body-prefix.txt",
+      "sha256": "29f6524aacd0070bd3775ad6afb7aa3a4e8ded20d9b92f448fb7ae2b91c1dda5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/completion-request.json",
+      "sha256": "e216d071143d953d68b9d0d4cf76bb48902987240d749537d648304360128334"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/completion-response.json",
+      "sha256": "1acc25efff79c4082503fc56293d6a6b26bd054251a8c2cc53654058c5f65d49"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/completion-response.raw",
+      "sha256": "55731e03f7d8c9a75c2e65faee450373096f7ffab918e6fbe99b9279c65de6a9"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/messages.json",
+      "sha256": "4447cc24d90be23d9fe569e9e37d916150f4a75394952f3025bda5457b83e8da"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/record.json",
+      "sha256": "8cfbcb048fffa56e120265c6ea24b598a4a1b471ce958567149da48126742aa5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/rendered-prompt.txt",
+      "sha256": "015d6c0fc9307b9dbe6ebe4ab478740e5ebd99936453c4d1747964f31eba333f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/renderer-exchanges.json",
+      "sha256": "1254636030a5ecad91091bc71aeadf6ceca99bcec1359a5fc0dc9b9950222120"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/slots-after.json",
+      "sha256": "5c04240133bbfa4fe38854d1183b9f36d91cb02beb295916c6ca2918e5cf2b2f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/slots-before.json",
+      "sha256": "8d28d3babf4dc3e06e3c4933d1d807d7eee93465e1da85a2dc1b90319c9849b6"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-02/token-ids.json",
+      "sha256": "00531513d5f2ce5df0a6cd2ebd6080d1f228d10bd3e6f95744eb75174babb022"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/body-prefix-tokenize-response.json",
+      "sha256": "c6a5ddc779bd33b949754a66f550407cbf2df4f0e4c790354f80dd3e0abf3af0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/body-prefix.txt",
+      "sha256": "29f6524aacd0070bd3775ad6afb7aa3a4e8ded20d9b92f448fb7ae2b91c1dda5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/completion-request.json",
+      "sha256": "431092fcd84a422c2c22ce4fad0d390b80314ead6719ec2fb4cb1ac9a0b14564"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/completion-response.json",
+      "sha256": "91cceaa2736bd0db929aa24f0aed7cc4b4b4a19a9c9539360d4a4a8228fe8ab8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/completion-response.raw",
+      "sha256": "5c200b09ca8dafe503b19fe9e1520fa7f70f583927c798129a11aff211060fec"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/messages.json",
+      "sha256": "4ae7e80dc459bb9a3b4a0846574ca5774b9ab05d946b5aa6253ba745a22849f8"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/record.json",
+      "sha256": "40e1f2c8df48e795d81902929184694d630c58bd58f7b424125f9d0109061274"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/rendered-prompt.txt",
+      "sha256": "0b854367421f5a980f73e3f7db6594c0e271392a118d198739e96a8a5593425f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/renderer-exchanges.json",
+      "sha256": "54758b0c979f141d6077bc5c6237898e2e39082c30b470cd6bdd04a9d067fa86"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/slots-after.json",
+      "sha256": "667d43d02c26c0abea81db1c62ab2d64039da604f63311bd7367589e53fb20fb"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/slots-before.json",
+      "sha256": "b46d534f08cb0d7bf73418aee0c0578e9094244d9f8eff94a076944cfb6e201e"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-03/token-ids.json",
+      "sha256": "f2aaa05b7bdf23e6faf4dd20d7270ca939018b61b117b91d3d0f6acecd7b1094"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/body-prefix-tokenize-response.json",
+      "sha256": "c6a5ddc779bd33b949754a66f550407cbf2df4f0e4c790354f80dd3e0abf3af0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/body-prefix.txt",
+      "sha256": "29f6524aacd0070bd3775ad6afb7aa3a4e8ded20d9b92f448fb7ae2b91c1dda5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/completion-request.json",
+      "sha256": "55065907e0b351093c7f4d7a94be1aaa68db3f8aebf10779ad3015eb881aa39a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/completion-response.json",
+      "sha256": "ee46a8ead86d4274f0b8128dd1039b7f07af065633092825806230c6821787e9"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/completion-response.raw",
+      "sha256": "90bd893eb727c84d89ca430d07602794474808f261ad59a9e6addffe1397a423"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/messages.json",
+      "sha256": "cbf31e5369235931f3f214403ddea5583c33342be6be6b6d24e7f0f2ac8705b5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/record.json",
+      "sha256": "3417fd4736fe382bcebab6ffb609ac2293a669a78499e512294ae1c2502623d7"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/rendered-prompt.txt",
+      "sha256": "c06c4736b639596e1e1e20c56dbf1d82a7d49d56ed679886d8d53a554ce81696"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/renderer-exchanges.json",
+      "sha256": "4dadbdaceb5da2392e2fca21f1e0aa6b1b9dba7dd5e93b7e4c65f1d5f2b19d56"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/slots-after.json",
+      "sha256": "f974267c6087fc5904e749a4b7e04f8c6df6a0214e50a133b0479d5f64c4deb1"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/slots-before.json",
+      "sha256": "af4b7753dc03a4b0683f8ff2e7d979ad12cceddf165881a3351dbcc4db779871"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-04/token-ids.json",
+      "sha256": "7b69fe138fadb5332890d2fb408f988b9bd5113918353d5ad10c78ef143920cd"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/body-prefix-tokenize-response.json",
+      "sha256": "c6a5ddc779bd33b949754a66f550407cbf2df4f0e4c790354f80dd3e0abf3af0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/body-prefix.txt",
+      "sha256": "29f6524aacd0070bd3775ad6afb7aa3a4e8ded20d9b92f448fb7ae2b91c1dda5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/completion-request.json",
+      "sha256": "c7a8dc37dd8a6e51ef75a278de5d58d83aec1e23f90f754a454d7b8186e2d17c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/completion-response.json",
+      "sha256": "67c18eb80d2e0b87c4da7f05594b500b959c1585ab72769b2902a2618075666f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/completion-response.raw",
+      "sha256": "42f03ef292f1dc47325f16896d56f456f85c3d660df82835b5a6ef3b03356af2"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/messages.json",
+      "sha256": "0189027db3cdc92c10c0168dbd37d77d3747b15e5d3ed750af845c4049e0af1d"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/record.json",
+      "sha256": "da64af52464e85647ab20041d11ae2ddc7e3ce7528a284efa57835c226c905ed"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/rendered-prompt.txt",
+      "sha256": "c17cde13bd98825db094b240666b5ea43a8f51b41b910594c83d4b86c796bd0f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/renderer-exchanges.json",
+      "sha256": "030bf83018412e9b09e0694ad2ea7f86e71cb229f6d1fcd4bb61cccacf35acd6"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/slots-after.json",
+      "sha256": "ad09273b103be87d8dfc081d17052cbb2bb694d01cf03339a041f6dda6d86dfb"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/slots-before.json",
+      "sha256": "716a2ad4bc1a5e59045dcbf9a95ca797d886e5c98a605b0c27210c3ad403f1d4"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-05/token-ids.json",
+      "sha256": "047e61a8b294262f56ea772022f510328d1a42a91d3506dd8750832138ac86a2"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/body-prefix-tokenize-response.json",
+      "sha256": "c6a5ddc779bd33b949754a66f550407cbf2df4f0e4c790354f80dd3e0abf3af0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/body-prefix.txt",
+      "sha256": "29f6524aacd0070bd3775ad6afb7aa3a4e8ded20d9b92f448fb7ae2b91c1dda5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/completion-request.json",
+      "sha256": "68368fa14ed2320e8230b83c43c4b62b3d461e30c90b6f9d6c4e62881138c78c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/completion-response.json",
+      "sha256": "fe1c6341e49dad4929f1dee99eb511b2fc56f182744ecc9f57ecdc37120525ac"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/completion-response.raw",
+      "sha256": "4f0a0118b055bbfa7c03c108d7efa19b6386e9458fb64e111a5c5a1e8f78be5e"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/messages.json",
+      "sha256": "35300ee6d263c002a16907369ca01e1271ae3aa77c51dbceb72013e6d5fee0a9"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/record.json",
+      "sha256": "85ce3e192ed644a92468fa5a65cb4ec70e2adb7e9d2ec8474049598e48ef529d"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/rendered-prompt.txt",
+      "sha256": "5bc02219e4ed66df09ee9300f60255da919e96a59d0aca2ea4b7d4d66171165c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/renderer-exchanges.json",
+      "sha256": "4f149726e2667d2fbc5d36d6fdafd48aeaad07a77f6b093c8ccd9cda424989f4"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/slots-after.json",
+      "sha256": "bcec3c17d5a808ec11e1b31c12e2ab7cdb9c4c534cedd2c01b864c649f36bf69"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/slots-before.json",
+      "sha256": "9c4813cdbfa4336ea976ac03ddd4c0b1e3fffbe18eb2328355d6d6ae514e3f2b"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-06/token-ids.json",
+      "sha256": "a9d23c7093476d8815d066628db55e573bcf65a453332edb1848d74a0d2414f7"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/body-prefix-tokenize-response.json",
+      "sha256": "c6a5ddc779bd33b949754a66f550407cbf2df4f0e4c790354f80dd3e0abf3af0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/body-prefix.txt",
+      "sha256": "29f6524aacd0070bd3775ad6afb7aa3a4e8ded20d9b92f448fb7ae2b91c1dda5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/completion-request.json",
+      "sha256": "906df7ac4e5ecfc6664a192a51110ac40b23c4edc7ffc86715935a2133450dfe"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/completion-response.json",
+      "sha256": "51fed8d36c9bb0ad96b03795e69f4428c8d806009b2a0f36edc53050dc493bd9"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/completion-response.raw",
+      "sha256": "b5a2aba72be59c4ac7f95e9cb282a3002e147abbf73c6a24e14f499906965057"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/messages.json",
+      "sha256": "2dbe5a073753619cb4fe139d318257422c6b649356d5c06d7d76c0297bca0402"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/record.json",
+      "sha256": "877f400949b24199a89f1fd103b16d3085de05e0598b8d1da67843af0584c2d3"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/rendered-prompt.txt",
+      "sha256": "f6e0f51fe905864642401fbf8a9e8a9fcaef8060bc7cd27cc829a9bf213f1368"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/renderer-exchanges.json",
+      "sha256": "b430627195c8d26f16e2f872384f1bca9c92d9debaa5155d3669b3839f05af92"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/slots-after.json",
+      "sha256": "d03e72420682b2e9ff6da90029658710eaf3fd4775477655672207c6283be708"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/slots-before.json",
+      "sha256": "8a2c819b91806fa2f9535c1036fc12ec2101d4f73a653c46110313fc71af6b3a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/request-07/token-ids.json",
+      "sha256": "03b416e9c50c1e9beda7e38ac0a12a26baca09b397f8efe333993f81489f7a6c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/reset/erase-response.json",
+      "sha256": "71b047f87417745b3f0769325b5702d1f4c4d6c398f8f8630f2650db01ddcd63"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/cases/PY_MERGE_01/reset/erased-slot.json",
+      "sha256": "b90c7a6c84eacebc108595d5a243412b0819c6dc20541ce53a20bd46370a9335"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live/health-response.json",
+      "sha256": "6489d6d7a33c5d40e18fc61eeb6c34c341279ee61816394dde5189aa4ad8fae5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/live-driver.log",
+      "sha256": "681eae23869816a2a54289fcb9f183779666371ab4f2ee4ae1cafd76c6174475"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/preflight.json",
+      "sha256": "a9c204e2d16781b275dc32a9ce219b8a95d18c9445ccfca25de7a85dacde4bc0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/residency-diagnostic.json",
+      "sha256": "500bc469a34bfb442ecfb55bd600dcf5bf5445f84304e3bbc768eb59c6d516e9"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-05/receipt-validation.log",
+      "sha256": "e48a368f8eef80b83984bfe9a5427c722de0547e0705feb953be09540555908a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/allocator-admission.json",
+      "sha256": "d81ab535ebe259598fa0c804d19e8b1d22aa430599c38b6b8f5add85d9c0ba16"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/candidate-identity.json",
+      "sha256": "0f5ef34b53813235e1895ece2899412b5a9ee1f20d279e53265395a500773a1a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/candidate-pager-journal.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/candidate-request-journal.log",
+      "sha256": "dea8df2b1634ea2582cf94b233b237cd03ce2592cc450628c6b00a1025df59ed"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/resident-snapshot-probe.json",
+      "sha256": "ad453dac67d531ae2da5d38cb16731cb7cc57030c83d3fe5cd83497b9ff81206"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/resident-snapshot-probe.stdout.log",
+      "sha256": "f55f73b02f7f24524cbe65c6beed3142c416e48e264ce6a1a1f7ffe1edb98620"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/resident_snapshot_probe.py",
+      "sha256": "4eaddb2b90d21b6359a7eaff87a1c946100ec1eb159dc01891e6e19630f74c11"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/slots-1.json",
+      "sha256": "45a8919dacb8b653011f6dbd59b6450cd958355d8852b1e791e9327c097733ae"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/slots-2.json",
+      "sha256": "c796a80637789ee48b768c85f14da8b63f82ead5d3efa8827854ec5b7f46ef93"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/slots-3.json",
+      "sha256": "27e77a006464c865b41cbac92110e7284af8450d84c31c9e3bf0fe7c79acbce0"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/receipt-validation.log",
+      "sha256": "e48a368f8eef80b83984bfe9a5427c722de0547e0705feb953be09540555908a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/allocator-admission.json",
+      "sha256": "bcbbdf1891f1ebe76c4f4b59c3e54f9b04bde447464d31081f7d51d95abb85cd"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/campaign-progress.json",
+      "sha256": "d6f8e25e54676ce69ddfeba92ca165685c535ed27f716dc035ca18eb42e4256a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/candidate-identity.json",
+      "sha256": "04b1e10e9275414bccf0c1f6d9584102364c1aed8bff26927861fdbe31ae8306"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/health-response.json",
+      "sha256": "6489d6d7a33c5d40e18fc61eeb6c34c341279ee61816394dde5189aa4ad8fae5"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live-driver.log",
+      "sha256": "160ab0248c92dd6536a925891528debdfcc2d4b45dbcfb6e84ee647c8ab92880"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live-exit-code",
+      "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-01/record.json",
+      "sha256": "088036c249aa5d617612e8bb4e9253df0dbb07e8c19dee8b2ed6cb52b4770f93"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-02/record.json",
+      "sha256": "70ce537bebae92515f3bad8853ea8cccc726f02a94fba3b81ca9ec8e816218f4"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-03/record.json",
+      "sha256": "ae1fed2d5c8d618aa2d7a983e7d4aef54c4bc83811ef82c2b0add6232f880036"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-04/record.json",
+      "sha256": "e516fe5b685345f1b4120f730a62f65cabdfe630b7bf8a1ffcbb5b2020b7d590"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-01/completion-response.raw",
+      "sha256": "e30ef3b671ce4c1f1b41d40c5e10702ba518efe0d0abd28ff0571f995dc2a2a9"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-02/completion-response.raw",
+      "sha256": "13ed5107cbadec8c32201747d0479ba8104fb26cacea2ec79d33447796bf73e6"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-03/completion-response.raw",
+      "sha256": "12370e3b131f69685a3149c585aa5c78d627490cd1b9015b286fa9af205082a2"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/request-04/completion-response.raw",
+      "sha256": "6d0ab840fe92af17ae712abbf81ee6dfe11a14cd75bef3a509c819d26c4a7039"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/cold-before-A-again-B5-slots.json",
+      "sha256": "ecd8220928a0ba682f147bc7dae78c12d8e4a0d1da3dbee9fa4a37a9ac1d72af"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/cold-before-A-again-B6-slots.json",
+      "sha256": "b35cb89a3a7e6d2dec49a079a20528170646531da410db96b77c7ad038475394"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/live/cases/PY_MERGE_01/cold-before-A-again-slots.json",
+      "sha256": "994b67eac703640923a0d76e0ac3ff613e8acaede106cc5cf101d4973395e440"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/bench-tests.log",
+      "sha256": "750b39cbd5253a8996af8f629b3bca2ce06dd8a0a8c37d2972a15c58f2218a18"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/promotion-tests.log",
+      "sha256": "2f7b850c977121d8774a5cdcc47ed550746f0edb17a5b087b7ace1ccd82a6307"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/mtp-tests.log",
+      "sha256": "7493e59a43ad3217f24fc5aa48cb5d2eceae5dd0cdd706d28220ab6ba0e2d5dd"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/validator-tests.log",
+      "sha256": "8e19567acfd0156d40ba7a587422a9d18580e449e11c881acc76cdccbdde2060"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/residency-diagnostic.json",
+      "sha256": "3011fab71dc4d6b5482694ced4ce3ee0e98582887de747d3a3ec67c957c55ce6"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/receipt-validation.log",
+      "sha256": "e48a368f8eef80b83984bfe9a5427c722de0547e0705feb953be09540555908a"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/receipt-validation-final.log",
+      "sha256": "e48a368f8eef80b83984bfe9a5427c722de0547e0705feb953be09540555908a"
     }
   ],
   "schema_version": 1,
   "source_commit": "b2813042e2f4d936886343ee74ccfb1cbf19a122",
   "task": "93-11g",
-  "test_protocol_revision": "natural-file-recall-v2",
+  "test_protocol_revision": "natural-file-recall-v3-single-answer-page",
   "prior_attempt_disposition": {
     "status": "incomplete_before_A_again",
     "reason": "Attempts 01-04 stopped on exact B filler-answer formatting before cold-state observation; this is not evidence that page promotion failed.",
     "promotion_claim": false
   },
   "next_attempt_contract": {
-    "target_fixture_ids": ["PY_MERGE_01"],
-    "sequence": "one natural A acknowledgement, four appended full-file B acknowledgements, then one natural A-again question; append B5/B6 only if A remains resident",
+    "target_fixture_ids": [
+      "PY_MERGE_01"
+    ],
+    "sequence": "one natural A acknowledgement, one user turn with four full B files, then A-again as soon as its answer-bearing page is cold; append B5/B6 only if that specific page remains resident",
+    "promotion_gate": "single complete host-backed nonresident page containing the answer-bearing fact; other A-overlapping page states are diagnostic only",
     "answer_policy": "free-form; use all remaining context-derived output room; no exact YES/NO, exact retrieval-key string, newline stop, or fixture rewriting",
     "acceptance": "collect physical cold/selector/H2D/publication/target/draft proof even if the natural answer is imperfect; assess paraphrase relevance separately"
+  },
+  "residency_diagnostic_attempt_06": {
+    "result": "confirmed_stable_residency_after_B6",
+    "candidate_sha256": "36aea000698c168a3017317a789ae36eb56becb8b5fa5910f243b5dd28fa0bfb",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "request_generation": 13,
+    "slot_tokens": 7836,
+    "cold_target_page_ids": [
+      0,
+      1
+    ],
+    "resident_target_page_ids": [
+      2,
+      3,
+      4
+    ],
+    "selected_page_ids": [
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      29,
+      30
+    ],
+    "evictions": 0,
+    "transfer_evictions": 0,
+    "snapshot_samples": 3,
+    "state_signatures_identical": true,
+    "context_truncated": false,
+    "conclusion": "Post-B6 state is stable and below context limit. Current graph selection does not nominate A pages 2-4, but their physical slots remain resident; no per-page reason is exposed and no incorrect page transition is evidenced."
+  },
+  "residency_diagnostic_attempt_07": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-07/residency-diagnostic.json",
+    "sha256": "8e19567acfd0156d40ba7a587422a9d18580e449e11c881acc76cdccbdde2060",
+    "result": "The four-file grouped B request rendered 5,333 tokens and already left A-overlapping pages 0-1 host-backed/nonresident. The old driver nevertheless required all five A-overlapping pages to be cold, then issued unnecessary B5/B6; pages 2-4 remained resident. Per-page snapshots prove ordinary eviction of A pages 0-1 despite aggregate eviction counters staying zero. A-again was not sent because the all-pages gate was too strict."
+  },
+  "amendment_2026_09_24_single_answer_page": {
+    "cause": "The test required every page overlapping the 1K A file to be cold instead of the page containing the answer-bearing sentence.",
+    "observed": "Attempt 07 showed ordinary cold host-backed A pages 0-1 immediately after B1-B4 at 5,333 rendered prompt tokens; the tie-behavior fact is in the opening A page.",
+    "correction": "Tokenize the rendered A request through the answer-bearing sentence, require only its complete logical page to be cold and host-backed, then send A-again immediately and track that same page through selection, H2D, publication, target use, and MTP use.",
+    "extra_fixtures_required": false,
+    "live_promotion_proven": false
   }
 }
