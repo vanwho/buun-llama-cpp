@@ -1062,6 +1062,17 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.representation_epoch = kv_attention_execution.representation_epoch();
     result.shape_epoch = kv_attention_execution.shape_epoch();
     result.execution = kv_attention_execution.metrics();
+    if (kv_pager_owner != nullptr && kv_pager.enabled()) {
+        try {
+            // The diagnostic server uses one slot (sequence zero) for the
+            // promotion campaign. This bounded read-only inventory lets a
+            // caller distinguish a complete host-backed cold page from a
+            // resident page without exposing any residency control surface.
+            result.page_inventory = kv_pager_owner->exact_page_records(0);
+        } catch (...) {
+            result.page_inventory.clear();
+        }
+    }
 
     // Native MTP is not part of the target pager owner. Read its actual
     // context allocations at scrape time so a model flag or a projected
@@ -1216,6 +1227,12 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
                 result.test_forced_content_version);
     }
     return result;
+}
+
+void llama_context::begin_kv_pager_proof_request() noexcept {
+    if (kv_pager_owner != nullptr) {
+        kv_pager_owner->begin_natural_proof_request();
+    }
 }
 
 void llama_context::validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const {
@@ -2298,8 +2315,13 @@ void llama_context::synchronize() {
     // boundary can prove use of a page promoted by an earlier policy fence.
     if (kv_pager_owner != nullptr) {
         for (const auto & graph : kv_attention_proof_graphs_) {
-            kv_pager_owner->record_natural_proof_target_use(
-                    graph.selected_page_ids, graph.table_epoch, 0);
+            if (graph.mtp_verify) {
+                kv_pager_owner->record_natural_proof_draft_use(
+                        graph.selected_page_ids, graph.table_epoch, 0);
+            } else {
+                kv_pager_owner->record_natural_proof_target_use(
+                        graph.selected_page_ids, graph.table_epoch, 0);
+            }
         }
     }
     kv_attention_proof_graphs_.clear();
@@ -2312,9 +2334,15 @@ void llama_context::synchronize() {
         // The execution metrics carry the immutable logical IDs from the
         // graph metadata. Stamp target use only after the scheduler fence;
         // pre-fence selection is intentionally not proof of consumption.
-        kv_pager_owner->record_natural_proof_target_use(
-                kv_attention_execution.metrics().selected_page_ids,
-                kv_attention_execution.table_epoch(), 0);
+        if (kv_attention_mtp_verification_) {
+            kv_pager_owner->record_natural_proof_draft_use(
+                    kv_attention_execution.metrics().selected_page_ids,
+                    kv_attention_execution.table_epoch(), 0);
+        } else {
+            kv_pager_owner->record_natural_proof_target_use(
+                    kv_attention_execution.metrics().selected_page_ids,
+                    kv_attention_execution.table_epoch(), 0);
+        }
     }
     // The scheduler fence is also the completion boundary for packed owners.
     // Keep retired owners alive until this point; a graph rebuild may have
@@ -2407,6 +2435,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
     if (selected_route && kv_pager_owner != nullptr) {
         kv_attention_proof_graph graph;
         graph.table_epoch = metadata.table_epoch();
+        graph.mtp_verify = phase == llama_kv_attention_execution_phase::mtp_verify;
         graph.selected_page_ids.reserve(metadata.page_table().size());
         for (const auto & page : metadata.page_table()) {
             graph.selected_page_ids.push_back(page.logical_page);

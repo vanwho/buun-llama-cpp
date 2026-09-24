@@ -129,6 +129,26 @@ bool canonical_host_page_record(
 
 } // namespace
 
+void llama_kv_pager::record_natural_proof(
+        const llama_kv_pager_natural_proof & proof) noexcept {
+    natural_proof_ = proof;
+    auto next_event = [&]() noexcept {
+        if (natural_proof_event_sequence_ != UINT64_MAX) {
+            ++natural_proof_event_sequence_;
+        }
+        return natural_proof_event_sequence_;
+    };
+    if (natural_proof_.selector_published) {
+        natural_proof_.selector_event_sequence = next_event();
+    }
+    if (natural_proof_.h2d_completed) {
+        natural_proof_.h2d_event_sequence = next_event();
+    }
+    if (natural_proof_.mapping_published) {
+        natural_proof_.publication_event_sequence = next_event();
+    }
+}
+
 void llama_kv_pager::record_natural_proof_target_use(
         const std::vector<uint32_t> & selected_page_ids,
         uint64_t table_epoch, uint64_t query_generation) noexcept {
@@ -151,6 +171,34 @@ void llama_kv_pager::record_natural_proof_target_use(
     proof.target_use_epoch = table_epoch != 0 ? table_epoch : snapshot.epoch();
     proof.target_use_query_generation = query_generation != 0
         ? query_generation : proof.query_generation;
+    if (natural_proof_event_sequence_ != UINT64_MAX) ++natural_proof_event_sequence_;
+    proof.target_event_sequence = natural_proof_event_sequence_;
+}
+
+void llama_kv_pager::record_natural_proof_draft_use(
+        const std::vector<uint32_t> & selected_page_ids,
+        uint64_t table_epoch, uint64_t query_generation) noexcept {
+    auto & proof = natural_proof_;
+    if (!proof.mapping_published || proof.logical_page == UINT32_MAX ||
+            std::find(selected_page_ids.begin(), selected_page_ids.end(),
+                proof.logical_page) == selected_page_ids.end()) {
+        return;
+    }
+    const auto snapshot = residency_.snapshot();
+    const auto found = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+            [&](const auto & page) {
+        return page.id.logical_page == proof.logical_page &&
+            page.id.page_generation == proof.page_generation &&
+            page.content_version == proof.content_version &&
+            page.physical_slot != UINT32_MAX;
+    });
+    if (found == snapshot.pages().end()) return;
+    proof.draft_graph_used = true;
+    proof.draft_use_epoch = table_epoch != 0 ? table_epoch : snapshot.epoch();
+    proof.draft_use_query_generation = query_generation != 0
+        ? query_generation : proof.query_generation;
+    if (natural_proof_event_sequence_ != UINT64_MAX) ++natural_proof_event_sequence_;
+    proof.draft_event_sequence = natural_proof_event_sequence_;
 }
 
 void llama_kv_pager::record_rejection_no_candidate() noexcept {

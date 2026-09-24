@@ -31,17 +31,21 @@ class ServerPromptRenderer:
         self.timeout = timeout
         self.request_options = dict(request_options or {})
         self.tokenizer_id = tokenizer_id or f"server-model:{model}"
+        self.last_exchanges: list[dict[str, str]] = []
         self.template_id = self._template_identity()
+        self.template_exchanges = list(self.last_exchanges)
 
     def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        request = Request(self.endpoint + path, data=json.dumps(body).encode("utf-8"),
+        request_body = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        request = Request(self.endpoint + path, data=request_body,
                           headers=headers, method="POST")
         try:
             with urlopen(request, timeout=self.timeout) as response:
-                value = json.loads(response.read().decode("utf-8"))
+                response_body = response.read()
+                value = json.loads(response_body.decode("utf-8"))
         except HTTPError as error:
             raise PromptSizingError(
                 f"server prompt endpoint failed: HTTP {error.code}") from error
@@ -49,6 +53,8 @@ class ServerPromptRenderer:
             raise PromptSizingError(f"server prompt endpoint failed: {type(error).__name__}") from error
         if not isinstance(value, dict):
             raise PromptSizingError("server prompt endpoint returned a non-object")
+        self.last_exchanges.append({"path": path, "request": request_body.decode("utf-8"),
+                                    "response": response_body.decode("utf-8")})
         return value
 
     def _get(self, path: str) -> dict[str, Any]:
@@ -57,7 +63,8 @@ class ServerPromptRenderer:
             headers["Authorization"] = f"Bearer {self.api_key}"
         try:
             with urlopen(Request(self.endpoint + path, headers=headers), timeout=self.timeout) as response:
-                value = json.loads(response.read().decode("utf-8"))
+                response_body = response.read()
+                value = json.loads(response_body.decode("utf-8"))
         except HTTPError as error:
             raise PromptSizingError(
                 f"server prompt endpoint failed: HTTP {error.code}") from error
@@ -65,6 +72,8 @@ class ServerPromptRenderer:
             raise PromptSizingError(f"server prompt endpoint failed: {type(error).__name__}") from error
         if not isinstance(value, dict):
             raise PromptSizingError("server prompt endpoint returned a non-object")
+        self.last_exchanges.append({"path": path, "request": "",
+                                    "response": response_body.decode("utf-8")})
         return value
 
     def _template_identity(self) -> str:
@@ -101,6 +110,7 @@ class ServerPromptRenderer:
             }
 
     def __call__(self, messages: list[dict[str, Any]]) -> RenderedPrompt:
+        self.last_exchanges = list(self.template_exchanges)
         body = dict(self.request_options)
         body.update({"model": self.model, "messages": messages})
         rendered = self._post("/apply-template", body).get("prompt")

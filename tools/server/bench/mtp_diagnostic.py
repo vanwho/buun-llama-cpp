@@ -138,6 +138,79 @@ def promotion_proof_from_events(events: Sequence[Mapping[str, Any]]) -> dict[str
     }
 
 
+def promotion_event_chain_from_snapshots(
+        cold_pages: Sequence[Mapping[str, Any]], natural: Mapping[str, Any], *,
+        request_id: str, event_request_id: str, request_generation: int,
+        prior_request_generation: int) -> dict[str, Any]:
+    """Build a strict per-request page chain from cold and post-request snapshots.
+
+    The endpoint receipt is accepted only when its page identity is present in
+    the immediately preceding cold inventory and every backend boundary carries
+    a nonzero monotonic event sequence.  This is evidence extraction only; it
+    does not select or alter residency.
+    """
+    errors: list[str] = []
+    if not request_id or event_request_id != request_id:
+        errors.append("request_id_mismatch")
+    if type(request_generation) is not int or request_generation <= 0 or \
+            type(prior_request_generation) is not int or \
+            request_generation != prior_request_generation + 1:
+        errors.append("request_generation_mismatch")
+    page_id = natural.get("logical_page")
+    generation = natural.get("page_generation")
+    version = natural.get("content_version")
+    cold = next((page for page in cold_pages
+                 if page.get("logical_page_id") == page_id and
+                 page.get("generation") == generation and
+                 page.get("content_version") == version), None)
+    if cold is None:
+        errors.append("cold_page_identity_missing")
+    elif cold.get("resident") is not False or cold.get("host_backed") is not True or \
+            not isinstance(cold.get("valid_length"), int) or cold["valid_length"] <= 0:
+        errors.append("cold_page_not_complete_host_backed_nonresident")
+    if natural.get("candidate_was_cold") is not True:
+        errors.append("selector_candidate_not_cold")
+    if natural.get("h2d_completed") is not True or \
+            not isinstance(natural.get("h2d_useful_bytes"), int) or \
+            natural["h2d_useful_bytes"] <= 0:
+        errors.append("page_h2d_incomplete")
+    if natural.get("mapping_published") is not True or \
+            not isinstance(natural.get("published_epoch"), int) or \
+            not isinstance(natural.get("catalogue_epoch"), int) or \
+            natural["published_epoch"] <= natural["catalogue_epoch"]:
+        errors.append("page_mapping_not_published")
+    if natural.get("target_graph_used") is not True or \
+            natural.get("selected_in_last_graph") is not True or \
+            not isinstance(natural.get("target_use_epoch"), int) or \
+            not isinstance(natural.get("published_epoch"), int) or \
+            natural["target_use_epoch"] < natural["published_epoch"]:
+        errors.append("target_did_not_consume_promoted_page")
+    if natural.get("draft_graph_used") is not True or \
+            natural.get("draft_use_query_generation") != natural.get("query_generation"):
+        errors.append("draft_did_not_consume_promoted_page")
+
+    sequences = {
+        "page_cold_before_request": 0,
+        "page_selected": natural.get("selector_event_sequence"),
+        "h2d_completed": natural.get("h2d_event_sequence"),
+        "mapping_published": natural.get("publication_event_sequence"),
+        "target_consumed": natural.get("target_event_sequence"),
+        "draft_consumed": natural.get("draft_event_sequence"),
+    }
+    ordered = list(sequences.values())
+    if any(type(value) is not int or value <= 0 for value in ordered[1:]) or \
+            ordered != sorted(ordered) or len(set(ordered)) != len(ordered):
+        errors.append("promotion_event_order_invalid")
+
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "request_id": request_id,
+        "logical_page_id": page_id,
+        "generation": generation,
+        "content_version": version,
+        "event_order": sequences,
+    }
 def promotion_proof_from_record(record: Mapping[str, Any]) -> dict[str, Any]:
     """Join request-local pager snapshots with any emitted boundary events."""
     proof = promotion_proof_from_events(record.get("diagnostic_events", []))

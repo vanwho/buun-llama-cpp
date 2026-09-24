@@ -59,4 +59,5 @@ if __name__ == "__main__":
 # The slice-tail merge favors clear cursor logic and one final suffix extension. [note 018].
 # A stable merge preserves the order of equal values from the left input before equal values from the right input. [note 019].
 # The running time is linear in the combined input length because each cursor moves forward and never moves backward. [note 020].
-# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# RETRIEVAL_KEY: The slice-tail merge favors clear cursor logic and one final suffix extension.

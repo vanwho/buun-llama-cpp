@@ -3964,6 +3964,21 @@ public:
                     native_mtp, telemetry_request_generation,
                     slot_generation, telemetry_config_generation);
             if (pager.enabled) {
+                json page_inventory = json::array();
+                for (const auto & page : pager.page_inventory) {
+                    page_inventory.push_back({
+                        {"sequence_id", page.id.sequence_id},
+                        {"sequence_generation", page.id.sequence_generation},
+                        {"logical_page_id", page.id.logical_page},
+                        {"generation", page.id.page_generation},
+                        {"content_version", page.content_version},
+                        {"position_begin", page.id.position_begin},
+                        {"position_end", page.id.position_end},
+                        {"valid_length", page.valid_length},
+                        {"resident", page.physical_slot != UINT32_MAX},
+                        {"host_backed", page.host_valid},
+                    });
+                }
                 const uint64_t copy_time_us = pager.execution.copy_time_us >
                         UINT64_MAX - pager.transfers.transfer_time_us
                     ? UINT64_MAX
@@ -3994,6 +4009,7 @@ public:
                     {"context_tokens", pager.context_tokens},
                     {"page_tokens", pager.page_tokens},
                     {"logical_pages", pager.logical_pages},
+                    {"page_inventory", page_inventory},
                     {"resident_pages", pager.resident_pages},
                     {"target_resident_bytes", pager.target_resident_bytes},
                     {"target_valid_rows", pager.target_valid_rows},
@@ -4227,6 +4243,17 @@ public:
                         {"target_use_epoch", pager.natural_proof.target_use_epoch},
                         {"target_use_query_generation",
                             pager.natural_proof.target_use_query_generation},
+                        {"selector_event_sequence",
+                            pager.natural_proof.selector_event_sequence},
+                        {"h2d_event_sequence", pager.natural_proof.h2d_event_sequence},
+                        {"publication_event_sequence",
+                            pager.natural_proof.publication_event_sequence},
+                        {"target_event_sequence", pager.natural_proof.target_event_sequence},
+                        {"draft_graph_used", pager.natural_proof.draft_graph_used},
+                        {"draft_use_epoch", pager.natural_proof.draft_use_epoch},
+                        {"draft_use_query_generation",
+                            pager.natural_proof.draft_use_query_generation},
+                        {"draft_event_sequence", pager.natural_proof.draft_event_sequence},
                         {"selected_in_last_graph",
                             std::find(pager.execution.selected_page_ids.begin(),
                                       pager.execution.selected_page_ids.end(),
@@ -12118,6 +12145,15 @@ private:
         slot.cache_family = common_cache_family_follow_lineage(
             slot.cache_family, incoming_family, retained_prefix,
             slot.prompt.tokens.size());
+        // Bind the pager's bounded natural-promotion receipt to this task,
+        // rather than to a decode batch. Prompt prefill may use several
+        // batches and MTP may verify more than one draft batch in one request.
+        if (telemetry_request_generation != UINT64_MAX) {
+            ++telemetry_request_generation;
+        }
+        if (ctx_tgt != nullptr) {
+            ctx_tgt->begin_kv_pager_proof_request();
+        }
         slot.task = std::move(launched_task);
 
         if (prepared_host_restore) {
@@ -21911,9 +21947,6 @@ private:
     // call before submitting a decode, so that the queued prompt stats can be timed
     void metrics_pre_decode() {
         t_decode_start = ggml_time_us();
-        if (telemetry_request_generation != UINT64_MAX) {
-            ++telemetry_request_generation;
-        }
     }
 
     // the batch is submitted, but its compute may not be done yet

@@ -62,4 +62,5 @@ if __name__ == "__main__":
 # A docstring should state stability, input ordering, returned value, and the linear comparison bound. [note 017].
 # The preallocated merge writes each output position exactly once. [note 018].
 # A stable merge preserves the order of equal values from the left input before equal values from the right input. [note 019].
-# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# RETRIEVAL_KEY: The preallocated merge writes each output position exactly once.

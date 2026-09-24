@@ -51,6 +51,7 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t context_tokens = 0;
     uint64_t page_tokens = 0;
     uint64_t logical_pages = 0;
+    std::vector<llama_kv_page_record> page_inventory;
     uint64_t physical_page_capacity = 0;
     uint64_t physical_pool_capacity_bytes = 0;
     uint64_t resident_pages = 0;
@@ -426,6 +427,7 @@ struct llama_context {
             uint64_t request_generation = 0,
             uint64_t slot_generation = 0,
             uint64_t config_generation = 0) const noexcept;
+    void begin_kv_pager_proof_request() noexcept;
     llama_memory_failure_reason get_last_memory_failure_reason() const noexcept {
         return last_memory_failure_reason_;
     }
@@ -764,6 +766,7 @@ private:
     llama_kv_attention_execution kv_attention_execution;
     struct kv_attention_proof_graph {
         uint64_t table_epoch = 0;
+        bool mtp_verify = false;
         std::vector<uint32_t> selected_page_ids;
     };
     std::vector<kv_attention_proof_graph> kv_attention_proof_graphs_;

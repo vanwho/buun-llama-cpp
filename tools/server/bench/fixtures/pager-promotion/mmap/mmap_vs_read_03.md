@@ -73,4 +73,5 @@ A read loop can cap memory use by processing fixed-size chunks rather than retai
 
 Random lookup, sequential throughput, concurrency, and file lifetime should guide the interface choice. [note 025].
 
-Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+Retrieval key: Random access may favor mmap because offsets can be dereferenced without repeated read calls.

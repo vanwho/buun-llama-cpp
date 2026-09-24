@@ -57,4 +57,5 @@ if __name__ == "__main__":
 # A stable merge preserves the order of equal values from the left input before equal values from the right input. [note 019].
 # The running time is linear in the combined input length because each cursor moves forward and never moves backward. [note 020].
 # The output is a new list, so neither input is modified and callers may reuse both original sequences. [note 021].
-# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# RETRIEVAL_KEY: The iterable wrapper keeps the merge loop separate from list materialization.
