@@ -1178,3 +1178,15 @@ receives `PROJECT_ROOT` from the shared runner.
 - Added ten offline contract tests for all 24 fixture targets, sequence order, exact questions, prefix retention, local-only expected answers, corruption rejection, and no-overwrite plan output. Added a CLI to write one or all target-case plans into a fresh raw attempt directory.
 - Updated 93-11g to use the prepared planner and candidate `ServerPromptRenderer` for chat-template rendering/tokenization; added helper/test/renderer files to its Wiretail context. Updated fixture README with repeatable commands.
 - Validation: prompt planner suite 10/10, existing MTP diagnostic suite 19/19, task state valid at 409 tasks, active-plan validator passes. Two independently written 24-case plans have identical SHA-256 (`d93c27db...b8658e`). No live service was loaded and no runtime promotion evidence is claimed.
+
+## 2026-09-24T04:07:27+00:00 — 93-11e — deferred
+
+- Branch: `codex/task-93-11f`
+- Commit at update: `fba04c125`
+- Summary: Superseded/skipped: 93-11g now owns the complete real-file cold-promotion proof and any specific missing telemetry repair. Historical V10_93-11e.json remains failed and unchanged; deferred status is not an acceptance pass.
+
+## 2026-09-24T04:47:34Z — phase-93 MTP prompt-3 acceptance threshold
+
+- Lowered the prompt-3 median MTP acceptance floor from 70% to the user-requested 60%; prompt-1/2 floors remain 75%/40%. Applied the threshold to 93-11f, 93-12, the shared V10 receipt validator/tests, cluster guidance, and current 93-11f evidence assessment.
+- Existing prompt-3 measurements (62.94% selected; 63.75% dense) now meet the threshold. Preserved raw artifacts and the original benchmark command's nonzero status under the former 70% policy; no source repair or repeated live run is required solely because of that superseded floor.
+- 93-11f remains in progress until the current-policy receipt validation completes. Removed the superseded 93-11h diagnosis packet from 93-11f's loaded context to prevent stale instructions.

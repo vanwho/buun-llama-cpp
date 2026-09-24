@@ -1,6 +1,7 @@
 """Small negative tests for completion guardrails; run with unittest discovery."""
 import hashlib
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -34,6 +35,55 @@ class ReceiptTests(unittest.TestCase):
         receipt = self.receipt()
         receipt["checks"]["cuda_cold_eligibility"]["status"] = "deferred"
         self.assertTrue(self.check(receipt))
+
+    def test_superseded_deferred_task_needs_no_false_acceptance_receipt(self):
+        revision = "test-revision"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = root / ".wiretail/execution/tasks/93-11e.md"
+            cluster = root / ".wiretail/execution/clusters/test-cluster.md"
+            packet.parent.mkdir(parents=True)
+            cluster.parent.mkdir(parents=True)
+            packet.write_text(f"Revision: `{revision}`\nSuperseded by 93-11g.\n")
+            cluster.write_text(f"Revision: `{revision}`\n")
+            tasks = [
+                {"id": "93-11g", "scope_revision": "older"},
+                {
+                    "id": "93-11e", "scope_revision": revision,
+                    "status": "deferred", "superseded_by": "93-11g",
+                    "recommended_model": "gpt-6-luna", "retry1_reasoning": "high",
+                    "packet": ".wiretail/execution/tasks/93-11e.md",
+                    "cluster": "test-cluster", "context_files": [
+                        ".wiretail/execution/tasks/93-11e.md"],
+                    "required_proofs": [], "depends_on": [],
+                },
+            ]
+            self.assertFalse(validator.check_plan(root, {
+                "scope_revision": revision, "tasks": tasks}))
+
+    def test_superseded_task_cannot_be_marked_done_as_a_pass(self):
+        revision = "test-revision"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = root / ".wiretail/execution/tasks/93-11e.md"
+            cluster = root / ".wiretail/execution/clusters/test-cluster.md"
+            packet.parent.mkdir(parents=True)
+            cluster.parent.mkdir(parents=True)
+            packet.write_text(f"Revision: `{revision}`\n")
+            cluster.write_text(f"Revision: `{revision}`\n")
+            task = {
+                "id": "93-11e", "scope_revision": revision,
+                "status": "done", "superseded_by": "93-11g",
+                "recommended_model": "gpt-6-luna", "retry1_reasoning": "high",
+                "packet": ".wiretail/execution/tasks/93-11e.md",
+                "cluster": "test-cluster", "context_files": [
+                    ".wiretail/execution/tasks/93-11e.md"],
+                "required_proofs": [], "depends_on": [],
+            }
+            errors = validator.check_plan(root, {
+                "scope_revision": revision,
+                "tasks": [{"id": "93-11g", "scope_revision": "older"}, task]})
+            self.assertTrue(any("must be deferred, not passed" in error for error in errors))
 
     def test_failed_command(self):
         receipt = self.receipt()
@@ -212,7 +262,7 @@ class ReceiptTests(unittest.TestCase):
 
     def test_93_12_accepts_exact_per_prompt_acceptance_floors(self):
         receipt = self.paired_speed_receipt()
-        floors = {"prompt_1": 75, "prompt_2": 40, "prompt_3": 70}
+        floors = {"prompt_1": 75, "prompt_2": 40, "prompt_3": 60}
         for mode in receipt["paired_benchmark"]["modes"].values():
             for geometry in mode["geometries"].values():
                 for prompt_id, floor in floors.items():
@@ -351,12 +401,12 @@ class ReceiptTests(unittest.TestCase):
         receipt = self.geometry_speed_receipt()
         rows = receipt["geometry_benchmark"]["geometries"]["secondary_512_128"]["prompts"]["prompt_3"]["measured_runs"]
         for row in rows:
-            row.update(mtp_draft_tokens=20, mtp_accepted_tokens=13, mtp_acceptance_pct=65.0)
+            row.update(mtp_draft_tokens=20, mtp_accepted_tokens=11, mtp_acceptance_pct=55.0)
         self.assertTrue(self.check_geometry_speed(receipt))
 
     def test_93_11f_accepts_exact_per_prompt_acceptance_floors(self):
         receipt = self.geometry_speed_receipt()
-        floors = {"prompt_1": 75, "prompt_2": 40, "prompt_3": 70}
+        floors = {"prompt_1": 75, "prompt_2": 40, "prompt_3": 60}
         for geometry in receipt["geometry_benchmark"]["geometries"].values():
             for prompt_id, floor in floors.items():
                 for row in geometry["prompts"][prompt_id]["measured_runs"]:
@@ -364,7 +414,6 @@ class ReceiptTests(unittest.TestCase):
                                mtp_accepted_tokens=floor // 5,
                                mtp_acceptance_pct=float(floor))
         self.assertFalse(self.check_geometry_speed(receipt))
-
 
 if __name__ == "__main__":
     unittest.main()
