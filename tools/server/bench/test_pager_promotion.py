@@ -21,6 +21,7 @@ from pager_promotion import (
     normalize_answer,
     pages_are_cold,
     pages_overlapping_token_range,
+    refresh_page_versions,
     response_budget,
     select_b_fixtures,
     write_plan,
@@ -86,7 +87,8 @@ class PagerPromotionPromptTest(unittest.TestCase):
                          steps[1].appended_fixture_ids)
         self.assertTrue(all(item.body in steps[1].user_content for item in
                             select_b_fixtures(self.catalog, DEFAULT_TARGET_FIXTURE_ID)))
-        self.assertIn("which input's value", steps[-1].question)
+        self.assertIn("which input is emitted first when the current values are equal?",
+                      steps[-1].question)
         self.assertIn("current values are equal", steps[-1].question)
         self.assertIn("merge_sorted_lists_01.py", steps[-1].question)
         self.assertIn("PY_MERGE_01", steps[-1].question)
@@ -173,6 +175,28 @@ class PagerPromotionPromptTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             pages_overlapping_token_range(inventory, 256, 256)
 
+    def test_page_version_refresh_tracks_same_generation_across_context_append(self) -> None:
+        original = {
+            "logical_page_id": 0, "generation": 1054, "content_version": 256,
+            "sequence_id": 0, "sequence_generation": 1,
+            "position_begin": 0, "position_end": 256, "valid_length": 256,
+            "host_backed": True, "resident": True,
+        }
+        appended = {**original, "content_version": 1054, "resident": False}
+        refreshed = refresh_page_versions([appended], [original])
+        self.assertEqual(1054, refreshed[0]["content_version"])
+        self.assertTrue(pages_are_cold([appended], refreshed, require_complete=True))
+
+    def test_page_version_refresh_rejects_reused_generation_or_changed_bounds(self) -> None:
+        original = {
+            "logical_page_id": 0, "generation": 1054, "content_version": 256,
+            "sequence_id": 0, "sequence_generation": 1,
+            "position_begin": 0, "position_end": 256,
+        }
+        reused = {**original, "generation": 1055}
+        with self.assertRaisesRegex(ValueError, "missing or ambiguous"):
+            refresh_page_versions([reused], [original])
+
     def test_plan_contains_prompts_and_local_expectations_separately(self) -> None:
         plan = build_case_plan(self.catalog, "PY_MERGE_01")
         self.assertEqual({"server_context_tokens": 8192, "gpu_hot_tokens": 4096,
@@ -180,7 +204,8 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual("single_answer_bearing_page", plan["promotion_scope"]["kind"])
         self.assertFalse(plan["promotion_scope"]["all_file_pages_must_be_cold"])
         final = plan["steps"][-1]
-        self.assertIn("which input's value", final["user_content"])
+        self.assertIn("which input is emitted first when the current values are equal?",
+                      final["user_content"])
         self.assertIn("current values are equal", final["user_content"])
         self.assertIn("merge_sorted_lists_01.py", final["user_content"])
         self.assertEqual(self.by_id["PY_MERGE_01"].expected_answer,

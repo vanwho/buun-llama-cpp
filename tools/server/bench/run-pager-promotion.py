@@ -19,6 +19,7 @@ from pager_promotion import (
     DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT, RECALL_PROBE_ANCHORS,
     assess_natural_retrieval, build_promotion_steps, load_fixture_catalog,
     messages_for_step, pages_are_cold, pages_overlapping_token_range,
+    refresh_page_versions,
     response_budget, select_b_fixtures,
 )
 from prompt_sizing import ServerPromptRenderer, request_options
@@ -411,6 +412,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     _, before_final_slot, before_final_raw = get_slot(base, key)
     (case_root / "cold-before-A-again-slots.json").write_bytes(before_final_raw + b"\n")
     cold_inventory = get_pages(before_final_slot)
+    probe_pages = refresh_page_versions(cold_inventory, probe_pages)
     if not pages_are_cold(cold_inventory, probe_pages, require_complete=True):
         for b_count in (5, 6):
             preflight_root = case_root / f"append-B{b_count}-final-query-preflight"
@@ -446,6 +448,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
             (case_root / f"cold-before-A-again-B{b_count}-slots.json").write_bytes(
                 before_final_raw + b"\n")
             cold_inventory = get_pages(before_final_slot)
+            probe_pages = refresh_page_versions(cold_inventory, probe_pages)
             if pages_are_cold(cold_inventory, probe_pages, require_complete=True):
                 break
         if not pages_are_cold(cold_inventory, probe_pages, require_complete=True):

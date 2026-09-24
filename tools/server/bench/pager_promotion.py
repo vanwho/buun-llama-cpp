@@ -57,8 +57,8 @@ CATEGORY_QUESTIONS = {
 
 RECALL_QUESTIONS = {
     "python_sorted_merge": (
-        "For `{filename}` (fixture `{fixture_id}`), which input's value does `merge_sorted` "
-        "emit first when the current values are equal? Answer naturally in one sentence."
+        "For `{filename}` (fixture `{fixture_id}`), which input is emitted first when the "
+        "current values are equal? Answer naturally in one sentence."
     ),
     "mmap_vs_read": (
         "For `{filename}` (fixture `{fixture_id}`), what distinction does the explanation make "
@@ -339,6 +339,30 @@ def pages_overlapping_token_range(pages: Sequence[Mapping[str, Any]],
     if not matches:
         raise ValueError(f"no page inventory covers token range [{start}, {end})")
     return matches
+
+
+def refresh_page_versions(snapshot: Sequence[Mapping[str, Any]],
+                          targets: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Refresh mutable content versions for the same logical page generations.
+
+    Appending cached context can change the pager's content-version value for
+    an unchanged logical page. Page ID, generation, sequence generation, and
+    page bounds identify the tracked page across those snapshots; the current
+    content version is then used for the cold-before and promotion proof.
+    """
+    refreshed: list[dict[str, Any]] = []
+    for target in targets:
+        matches = [page for page in snapshot
+                   if page.get("logical_page_id") == target.get("logical_page_id") and
+                   page.get("generation") == target.get("generation") and
+                   page.get("sequence_id") == target.get("sequence_id") and
+                   page.get("sequence_generation") == target.get("sequence_generation") and
+                   page.get("position_begin") == target.get("position_begin") and
+                   page.get("position_end") == target.get("position_end")]
+        if len(matches) != 1:
+            raise ValueError("tracked logical page generation is missing or ambiguous")
+        refreshed.append(dict(matches[0]))
+    return refreshed
 
 
 def pages_are_cold(snapshot: Sequence[Mapping[str, Any]],
