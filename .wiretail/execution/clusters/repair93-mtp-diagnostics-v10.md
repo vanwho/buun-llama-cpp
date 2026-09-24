@@ -9,9 +9,12 @@ recorded repairs. Attempt 09 observed H2D completion, table publication, and
 target use, but did not prove request-correlated transfer ordering or
 page-specific draft consumption. The former 93-11e repair packet is now
 deferred/superseded; 93-11g owns the complete real-file cold-promotion proof
-and any narrowly scoped telemetry repair. The active sequence is 93-11f
-resident-only geometry calibration, 93-11g natural promotion, then 93-12
-paired cold-context placement performance.
+and any narrowly scoped telemetry repair. The forward sequence is 93-11f
+resident-only calibration (the completed dual-geometry run is historical),
+93-11g natural promotion, 93-11i local integration of the already-synced fork
+master, 93-11j assessment of only the incoming changes, 93-11k lock/validate
+the future benchmark contract, then 93-12 paired cold-context performance.
+No task performs the upstream sync before 93-11g completes.
 
 ## Execution model lock
 
@@ -23,7 +26,11 @@ escalation does not apply. Use only `gpt-6-luna` for this project; do not use
 another model family. Any successor tasks created by 93-09 or later reviews
 must copy these model fields into `WORK_STATE.json` and retain this policy in
 their packet/cluster context. The shared Wiretail default is also
-`gpt-6-luna`.
+`gpt-6-luna`. Narrow exception: upstream merge/conflict resolution 93-11i and
+incoming-change assessment 93-11j are explicitly pinned to `gpt-6-luna`
+XHigh; their `allow_reasoning_lock_xhigh` metadata permits only these declared
+XHigh levels to override the lock's High reasoning. The locked model remains
+Luna, and no other task inherits this exception.
 
 ## No-skip live-test policy
 
@@ -51,14 +58,22 @@ promotion gates.
   uses `selected_reference` is a setup failure.
 - Every speed benchmark keeps native MTP enabled with GPU Turbo4 draft K/V.
   Use the exact original three prompts, one 40-token warmup and three measured
-  400-token generations. Batch geometry 1024/256 is primary; 512/128 is the
-  paired lower-scratch comparison. MTP-off is allowed only for explicitly
+  400-token generations. Use exactly B=1024/U=256 for all future live
+  benchmarks. The completed 93-11f 512/128 rows are immutable historical
+  calibration only; do not repeat or use them as an alternate geometry.
+  MTP-off is allowed only for explicitly
   named functional controls, never for a speed row. Set reasoning mode off
   for both warmups and measured requests. Per-prompt MTP acceptance is a hard
   gate, evaluated as the median of that prompt's three measured requests for
-  each B/U geometry and placement: prompt 1 >=75%, prompt 2 >=40%, prompt 3
+  every placement: prompt 1 >=75%, prompt 2 >=40%, prompt 3
   >=60%. Do not average prompts or configurations together. These floors are
   below the supplied reasoning-off reference values (94.12%, 57.04%, 82.69%).
+- The selected-prefill minimum is 500 tok/s median for each canonical prompt,
+  measured only over freshly evaluated rendered-input tokens; 750 tok/s is the
+  preferred target. After every speed result, reassess the actual direct route,
+  candidate, B/U, cache reuse, timings, request-local transfer/wait, CPU time,
+  and coarse GPU utilization before making one testable optimization. Never
+  relax the floor by changing inputs, geometry, context, or MTP settings.
 - Do not reserve more than 48 Ki tokens of target hot KV in VRAM in any phase
   93 test (`48 * 1024 = 49152` tokens, or 192 pages at 256 tokens/page). This
   is a test ceiling, not a production hot-set constant. Request only the
@@ -68,10 +83,12 @@ promotion gates.
   8192 for the cold-promotion sequences. Task 93-11f starts at 8192 total
   context with 4096 target hot tokens. Task 93-11g configures the actual
   llama-server at `-c 8192` and its ordinary automatic target-KV hot budget at
-  4096 tokens, then appends exact 1K-token file fixtures as normal same-slot
-  user context. Keep the A→B→A sequence below the full 8K context so server
-  context shifting cannot discard A; natural pager pressure above the 4K hot
-  budget must evict A, and the later ordinary A query must cause promotion.
+  4096 tokens, then uses one representative 1K file as A plus four ordinary
+  appended file-context turns as B pressure. Acknowledgements and the final
+  answer are free-form; no exact YES/NO or retrieval-key output is required.
+  Keep the A→B→A sequence below the full 8K context so server context shifting
+  cannot discard A; natural pager pressure above the 4K hot budget must evict
+  A, and the later ordinary A query must cause promotion.
   Do not manually force eviction, page selection, or promotion. Any later
   phase-93 speed row may use a matched context only when safe, never above
   49,152 tokens (48 Ki tokens); no phase-93 task may exceed that ceiling.
@@ -81,11 +98,15 @@ promotion gates.
   over-limit input instead of truncating or reporting it as a valid speed row.
   Prefer 4096/8192-token measurements while iterating; use 16384 only for a
   final bounded point after the smaller setup is stable.
-- Keep generation at 16 tokens or less and `draft_n_max=2` during functional
-  diagnostics. The canonical 93-11f/93-12 speed probes are the only exception:
-  use 400 output tokens and the explicitly paired B/U geometry. Use one slot,
-  the existing managed lifecycle, and never launch a second Qwen3.8-27B CUDA
-  process.
+- For the file-backed promotion proof, set the completion budget from the
+  actual candidate-rendered prompt: admitted context minus rendered input minus
+  a small context-accounting reserve. Do not derive it from answer length, use
+  an exact-match output cap, stop on newline, or rewrite fixture facts. Natural
+  EOS should end acknowledgements and the recall answer. `draft_n_max=2`
+  remains in force.
+  The canonical 93-11f/93-12 speed probes use 400 output tokens and the
+  explicitly paired B/U geometry. Use one slot, the existing managed
+  lifecycle, and never launch a second Qwen3.8-27B CUDA process.
 - Read only this cluster, the active packet, the compact 93-04/93-05 evidence,
   and the exact source functions named below. Do not load old V9/phase-85
   planning documents as task context; consult historical material only when
@@ -115,10 +136,11 @@ null and fails the relevant proof; do not infer zeros from missing fields.
 2. MTP-on dense/all-GPU control with GPU Turbo4 draft KV.
 3. MTP-on selected/paged with all pages resident for the short control.
 4. The old inline two-document/four-page probe is diagnostic history only.
-   Current cold-promotion acceptance belongs to 93-11g: all 24 real 1K file
-   fixtures, ordinary same-slot A→B→A context growth at 8K total / 4K hot,
+   Current cold-promotion acceptance belongs to 93-11g: one representative
+   real 1K file, ordinary same-slot A→B→A context growth at 8K total / 4K hot,
    and request-correlated same-page H2D/publication/target/draft proof. Do not
-   use a passing short probe, route label, or correct answer as a substitute.
+   gate filler turns on exact language-model wording or use a route label as
+   promotion proof.
 
 For the live controls, pair prompt, seed, sampler, generation limit, model,
 binary and geometry across dense and selected routes. Report `draft_n_accepted /
@@ -175,9 +197,11 @@ failing operation during cold B as `FLASH_ATTN_EXT` (`node_232`, output shape
 `[256,24,64,1]`) after checkpoint restore and attention-only trim. Earlier
 nodes synchronized successfully. Later work recorded the relevant CUDA
 repairs and promoted a cold page, while the remaining proof gap was folded
-into 93-11g. The execution order is now 93-11f resident speed check,
-93-11g file-backed A→B→A proof, any repair successor scheduled by 93-11g,
-then 93-12 paired cold-context placement performance.
+into 93-11g. The execution order is 93-11f resident speed check, 93-11g
+file-backed A→B→A proof, 93-11i local integration of the already-synced fork
+master, 93-11j incoming-change assessment, 93-11k benchmark-contract
+enforcement, then 93-12 paired cold-context placement performance and the
+selected-prefill optimization loop.
 
 ## Current 93-11e evidence boundary
 
@@ -189,7 +213,8 @@ request-local H2D event identity/order or page-specific draft consumption.
 93-11e is now administratively deferred, not accepted. Preserve its failed
 receipt as diagnostic history. The 93-11g real-file campaign is the only live
 owner of the complete cold-page proof and any remaining repair; 93-12 is gated
-directly on that result, not on 93-11e.
+on that proof, the following upstream integration/assessment, and the locked
+benchmark contract, not on 93-11e.
 
 ## 93-11f acceptance disposition under the former threshold
 

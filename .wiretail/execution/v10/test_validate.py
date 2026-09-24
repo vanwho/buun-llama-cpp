@@ -1,6 +1,7 @@
 """Small negative tests for completion guardrails; run with unittest discovery."""
 import hashlib
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -162,6 +163,74 @@ class ReceiptTests(unittest.TestCase):
         receipt["live_controls"]["cold_promotion"].update(
             status="not_measured", reason="not attempted")
         self.assertTrue(self.check_live_gate(receipt))
+
+    def promotion_receipt(self, answer="When values are equal, the left input is emitted first."):
+        path = Path(__file__).resolve()
+        artifact = {"path": str(path),
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        manifest = json.loads((validator.ROOT /
+            "tools/server/bench/fixtures/pager-promotion/manifest.json").read_text())
+        fixture = next(item for item in manifest["files"] if item["id"] == "PY_MERGE_01")
+        request_id = "promotion-test-request"
+        generation = 19
+        identity = {"logical_page_id": 7, "generation": 4, "content_version": 11}
+        stages = ["page_cold_before_request", "page_selected", "h2d_completed",
+                  "mapping_published", "target_consumed", "draft_consumed"]
+        events = [{"stage": stage, "event_sequence": index + 1,
+                   "request_id": request_id, "request_generation": generation,
+                   "logical_page_id": identity["logical_page_id"],
+                   "generation": identity["generation"],
+                   "content_version": identity["content_version"]}
+                  for index, stage in enumerate(stages)]
+        case = {
+            "fixture_id": "PY_MERGE_01", "fixture_sha256": fixture["sha256"],
+            "final_answer": answer,
+            "semantic_retrieval": {"status": "pass", "matched": True,
+                                   "method": "paraphrase-tolerant concept check"},
+            "final_request_id": request_id,
+            "final_request_generation": generation,
+            "page_identity": identity,
+            "cold_before": {"complete": True, "host_backed": True, "resident": False},
+            "promotion_events": events,
+            "mtp": {"target_placement": "gpu", "draft_placement": "gpu",
+                    "target_type_k": "turbo4", "target_type_v": "turbo4",
+                    "draft_type_k": "turbo4", "draft_type_v": "turbo4",
+                    "draft_n_max": 2},
+            "raw_artifacts": [artifact] * 6,
+        }
+        return {
+            "candidate": {"sha256": "b" * 64}, "model": {"sha256": "c" * 64},
+            "file_promotion_campaign": {
+                "execution_status": "complete", "acceptance_status": "pass",
+                "candidate_identity_verified": True,
+                "target_fixture_ids": ["PY_MERGE_01"],
+                "geometry": {"context_tokens": 8192, "admitted_context_tokens": 8192,
+                    "hot_pages": 16, "hot_tokens": 4096, "admitted_hot_tokens": 4096,
+                    "page_size_tokens": 256, "batch": 128, "ubatch": 64,
+                    "pager_mode": "selective", "target_type_k": "turbo4",
+                    "target_type_v": "turbo4", "mtp_placement": "gpu",
+                    "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+                    "draft_n_max": 2, "thinking": "off"},
+                "cases": [case],
+            },
+        }
+
+    def test_93_11g_accepts_natural_paraphrase_with_single_physical_proof(self):
+        receipt = self.promotion_receipt(
+            "The stable tie handling favors the first list's item.")
+        self.assertFalse(validator.check_93_11g_file_promotion(
+            Path(__file__).parent, receipt))
+
+    def test_93_11g_rejects_irrelevant_natural_answer_without_requiring_exact_text(self):
+        receipt = self.promotion_receipt("The right input is selected on equal values.")
+        self.assertTrue(validator.check_93_11g_file_promotion(
+            Path(__file__).parent, receipt))
+
+    def test_93_11g_rejects_old_24_case_campaign_contract(self):
+        receipt = self.promotion_receipt()
+        receipt["file_promotion_campaign"]["target_fixture_ids"] = ["PY_MERGE_01"] * 24
+        self.assertTrue(validator.check_93_11g_file_promotion(
+            Path(__file__).parent, receipt))
 
     def paired_speed_receipt(self):
         path = Path(__file__).resolve()
@@ -414,6 +483,102 @@ class ReceiptTests(unittest.TestCase):
                                mtp_accepted_tokens=floor // 5,
                                mtp_acceptance_pct=float(floor))
         self.assertFalse(self.check_geometry_speed(receipt))
+
+    def file_promotion_campaign(self, root):
+        manifest = json.loads((validator.ROOT /
+            "tools/server/bench/fixtures/pager-promotion/manifest.json").read_text())
+        fixture = next(item for item in manifest["files"] if item["id"] == "PY_MERGE_01")
+        artifact = root / "raw.json"
+        artifact.write_text("request-local raw evidence\n")
+        reference = {"path": "raw.json",
+                     "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest()}
+        stages = ["page_cold_before_request", "page_selected", "h2d_completed",
+                  "mapping_published", "target_consumed", "draft_consumed"]
+        identity = {"logical_page_id": 7, "generation": 2, "content_version": 3}
+        request_id, request_generation = "request-py-merge-01", 100
+        case = {
+            "fixture_id": fixture["id"], "fixture_sha256": fixture["sha256"],
+            "expected_answer_local_only": fixture["expected_answer"],
+            "final_answer": "When values tie, the first list's item is chosen.",
+            "semantic_retrieval": {"status": "pass", "matched": True,
+                                   "method": "paraphrase-tolerant concept check"},
+            "final_request_id": request_id, "final_request_generation": request_generation,
+            "page_identity": identity,
+            "cold_before": {"complete": True, "host_backed": True,
+                            "resident": False, **identity},
+            "promotion_events": [
+                {"stage": stage, "event_sequence": sequence + 1,
+                 "request_id": request_id, "request_generation": request_generation,
+                 **identity}
+                for sequence, stage in enumerate(stages)],
+            "mtp": {"target_placement": "gpu", "draft_placement": "gpu",
+                    "target_type_k": "turbo4", "target_type_v": "turbo4",
+                    "draft_type_k": "turbo4", "draft_type_v": "turbo4",
+                    "draft_n_max": 2},
+            "raw_artifacts": [dict(reference) for _ in range(6)],
+        }
+        cases = [case]
+        return {"candidate": {"sha256": "a" * 64}, "model": {"sha256": "b" * 64},
+                "file_promotion_campaign": {
+                    "execution_status": "complete", "acceptance_status": "pass",
+                    "candidate_identity_verified": True,
+                    "target_fixture_ids": ["PY_MERGE_01"],
+                    "geometry": {
+                        "context_tokens": 8192, "admitted_context_tokens": 8192,
+                        "hot_pages": 16, "hot_tokens": 4096, "admitted_hot_tokens": 4096,
+                        "page_size_tokens": 256, "batch": 128, "ubatch": 64,
+                        "pager_mode": "selective", "target_type_k": "turbo4",
+                        "target_type_v": "turbo4", "mtp_placement": "gpu",
+                        "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+                        "draft_n_max": 2, "thinking": "off"},
+                    "cases": cases}}
+
+    def test_93_11g_accepts_one_hashed_natural_paraphrase_promotion_case(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            receipt = self.file_promotion_campaign(root)
+            self.assertFalse(validator.check_93_11g_file_promotion(root, receipt))
+
+    def test_93_11g_rejects_missing_fixture_and_wrong_hash(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            receipt = self.file_promotion_campaign(root)
+            receipt["file_promotion_campaign"]["cases"][0]["fixture_sha256"] = "0" * 64
+            errors = validator.check_93_11g_file_promotion(root, receipt)
+            self.assertTrue(any("fixture hash mismatch" in error for error in errors))
+
+            receipt["file_promotion_campaign"]["cases"].pop()
+            errors = validator.check_93_11g_file_promotion(root, receipt)
+            self.assertTrue(any("one representative" in error for error in errors))
+
+    def test_93_11g_rejects_wrong_answer_cold_page_and_event_order(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            receipt = self.file_promotion_campaign(root)
+            case = receipt["file_promotion_campaign"]["cases"][0]
+            case["final_answer"] = "wrong"
+            case["cold_before"]["resident"] = True
+            case["promotion_events"][4]["event_sequence"] = 2
+            case["promotion_events"][3]["request_generation"] = 1
+            errors = validator.check_93_11g_file_promotion(root, receipt)
+            self.assertTrue(any("natural answer" in error for error in errors))
+            self.assertTrue(any("cold-before" in error for error in errors))
+            self.assertTrue(any("out of order" in error for error in errors))
+            self.assertTrue(any("request generation mismatch" in error for error in errors))
+
+    def test_93_11g_rejects_wrong_geometry_mtp_identity_and_raw_digest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            receipt = self.file_promotion_campaign(root)
+            campaign = receipt["file_promotion_campaign"]
+            campaign["geometry"]["hot_tokens"] = 8192
+            case = campaign["cases"][0]
+            case["mtp"]["draft_placement"] = "cpu"
+            case["raw_artifacts"][0]["sha256"] = "0" * 64
+            errors = validator.check_93_11g_file_promotion(root, receipt)
+            self.assertTrue(any("geometry hot_tokens" in error for error in errors))
+            self.assertTrue(any("draft_placement" in error for error in errors))
+            self.assertTrue(any("checksum mismatch" in error for error in errors))
 
 if __name__ == "__main__":
     unittest.main()
