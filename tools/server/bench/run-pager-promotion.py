@@ -91,7 +91,8 @@ def read_key(path: pathlib.Path) -> str:
 def process_identity(service: str, expected_bundle: pathlib.Path,
                      model_path: pathlib.Path) -> dict[str, Any]:
     pid_text = subprocess.check_output(
-        ["systemctl", "show", "--value", "--property=MainPID", service], text=True).strip()
+        ["sudo", "-n", "systemctl", "show", "--value", "--property=MainPID", service],
+        text=True).strip()
     if not pid_text.isdigit() or int(pid_text) <= 0:
         raise RuntimeError(f"managed service {service} has no MainPID")
     pid = int(pid_text)
