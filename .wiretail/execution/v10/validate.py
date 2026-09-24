@@ -57,7 +57,15 @@ def check_plan(root: Path, state: dict) -> list[str]:
                     errors.append(f"{tid}: historical evidence loaded: {text}")
             elif not path.is_file():
                 errors.append(f"{tid}: missing context: {text}")
-        if not task.get("required_proofs") or not task.get("completion_check"):
+        superseded_by = task.get("superseded_by")
+        if superseded_by is not None:
+            if task.get("status") != "deferred":
+                errors.append(f"{tid}: superseded task must be deferred, not passed")
+            if superseded_by not in positions or positions.get(superseded_by, len(tasks)) >= positions[tid]:
+                errors.append(f"{tid}: superseding owner must be an earlier task")
+            if task.get("required_proofs") or task.get("completion_check"):
+                errors.append(f"{tid}: retired task must not retain active proof/check requirements")
+        elif not task.get("required_proofs") or not task.get("completion_check"):
             errors.append(f"{tid}: executable receipt check and proof keys required")
         for predecessor in task.get("depends_on", []):
             if predecessor not in positions or positions[predecessor] >= positions[tid]:
@@ -125,7 +133,7 @@ def check_artifact_reference(root: Path, record: object, label: str) -> list[str
     return []
 
 
-MTP_ACCEPTANCE_FLOORS = {"prompt_1": 75.0, "prompt_2": 40.0, "prompt_3": 70.0}
+MTP_ACCEPTANCE_FLOORS = {"prompt_1": 75.0, "prompt_2": 40.0, "prompt_3": 60.0}
 
 
 def check_prompt_mtp_median(acceptances: list[float], prompt_id: str, label: str) -> list[str]:

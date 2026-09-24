@@ -1,0 +1,1986 @@
+{
+  "candidate": {
+    "build_receipt": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/build-receipt.json",
+      "sha256": "72af58d4140dbca45c86df4bb98bea35d888ff762716d2e7bee09513d12222e2"
+    },
+    "immutable": true,
+    "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/llama-server",
+    "process_identity": {
+      "command": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 512 -ub 128 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --kv-vram-budget auto --kv-host-budget auto --kv-safety-headroom auto --kv-pin-recent 4096 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+      "loaded_dsos": [
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/libggml-base.so.0",
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/libggml-cpu.so.0",
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/libggml-cuda.so.0",
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/libggml.so.0",
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/libllama-common.so.0",
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/libllama-server-impl.so",
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/libllama.so.0",
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/libmtmd.so.0",
+        "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/llama-server"
+      ],
+      "pid": 1229108,
+      "realpath": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/llama-server",
+      "sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+      "start_time": "Thu Sep 24 06:11:50 2026"
+    },
+    "sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e"
+  },
+  "checks": {
+    "repair93_standard_geometry_speed_screen": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/raw-artifact-manifest.json",
+          "sha256": "d5690cb6bec80670a3741852d95ba6d05305b5c0195986f71134e59d75d2455d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/case-manifest.json",
+          "sha256": "3b4a68a231f755ce5ed7d05a72331cd9e2d7d69b0dd2ac5f40ed484683be7a80"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+          "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/summary.json",
+          "sha256": "7cadf68957af137f3ec45421cd1b70843e8567d3e50a0e40b78234d8326677e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/run-config.json",
+          "sha256": "72b6f9c23418629274afc30875f44171d08ced324de654465f10195872cc02a3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/lifecycle-state.json",
+          "sha256": "d0ed507d0a0734a8f4e48de0251f80dfbfe90a9c35601d68bb1245f5a482e3bc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/case-manifest.json",
+          "sha256": "48eefa110ecb572e73a0dc02ceaf91684736ecb1d1adf00af15cfe9e0c866d1f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+          "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/summary.json",
+          "sha256": "2b3989b89c93c743bd02f3e10fc0974a101d771cd0224e2d7427d0772fca0332"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/run-config.json",
+          "sha256": "f2afca12b2569fed65106cee9f290f0661068078beb9d9556b66f435d84a0cad"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/lifecycle-state.json",
+          "sha256": "6786f3b4771a1b311af9f656df6819732ddbebc47df83e6cff15a41bf5584b8a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/build.log",
+          "sha256": "018ed8b48a4095e97cb4c71c44afa3bbce55d1cebb8259706558ee1386063c00"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-retry-runner.log",
+          "sha256": "cfe665955e799d7a535fc1043860795730894e5407b2e560d9f5d4bd316923d5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-runner.log",
+          "sha256": "4d60b453fc371c6dc7fbb7e548d60e063505497cc3af0a1455d7c7ae37057c31"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-postrun-vram.csv",
+          "sha256": "146887e7841d1e9b8e7a2d8cf668fca6867f237c73b1c47b1e87579eff8be7e6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-vram-samples.csv",
+          "sha256": "df75cd9ffb6ea5edb5687a7035bf583a0c13f4dd85fc87cf41c54578cc38820a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/build-receipt.json",
+          "sha256": "72af58d4140dbca45c86df4bb98bea35d888ff762716d2e7bee09513d12222e2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p0.journal.log",
+          "sha256": "5bce1d9654b8b0af959206631f3ababa9d7c6bc87f67ad82f78b1b8198ff0647"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p1.journal.log",
+          "sha256": "015f37d5e121bd5b80d28d10d15e5d587b2fc70491d5311d0fb30d82ac1fab77"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p2.journal.log",
+          "sha256": "f60c8839a382ae7b587965d0b547ba8c3804e4a4c1757d88dd3121f1a8d01e62"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p0.journal.log",
+          "sha256": "8cac0cb24b9ec781227289569619ad936f7a0d11f8b463311b7b3d09abe546cb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p1.journal.log",
+          "sha256": "863435bf960ea133a30da23d2f8048c14818e8b7bfc5316a9669e67e17a693e9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p2.journal.log",
+          "sha256": "7395259e59bfab1afb48ec743fb325e595e3dc3b1e736239c8a5981da7582069"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p0.journal.log",
+          "sha256": "6e8790546ef9ce44d3210e5a6cdca4723e5637807a8d7284c9ab1bef25ea8722"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p1.journal.log",
+          "sha256": "0f74109c9ec5552c9612cc68347deb437e3b702e865ef21a2a293bf9fd69fe6a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p2.journal.log",
+          "sha256": "9094dbf2d6e75d36d1c48a91998666ee08531b2dd0f776b2db35e99cb8018624"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-warmup-1-p0.journal.log",
+          "sha256": "4c9f233a45482fb699c83786d603d292e19eb3019f09a72e023c1002e18b77f9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-warmup-1-p1.journal.log",
+          "sha256": "bed4baa1caa99b854f26734ad8fa0c7bc4039cf3a9b757d5dab2ae183bda4214"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-warmup-1-p2.journal.log",
+          "sha256": "ce32f1042042582e87986849c168bd1363a83ef60f8d860b439015a14147f60e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p0.journal.log",
+          "sha256": "9c15490a482552e71d219d30abcd96e58b6c03103b12e195550cf77535269671"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p1.journal.log",
+          "sha256": "71fb8d401e58f5513b4c45980cf434f67b3623c75ca5e7b1632ca8d2a7f29a14"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p2.journal.log",
+          "sha256": "8ea08e9905b63448b3ed805af4d30c3da7376f0f2c29e93012241c3b25d3ef0b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p0.journal.log",
+          "sha256": "b0e43ccae90b8b95f0c0f152d1ab2857f64e89866753f60f62b4881c21ee4f9d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p1.journal.log",
+          "sha256": "63182ca013148b0804b6160bcf33490d3a811b081ca6ed25ff89334839cf87d8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p2.journal.log",
+          "sha256": "62f70b464c7e1bc71f20a3dc4851658f11876237ece60414e4418a2b393c2393"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p0.journal.log",
+          "sha256": "9c885f3bfb1de2f17829b39c7f392c9531476e2f7c85143c9091cdc349b694fc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p1.journal.log",
+          "sha256": "6bc76316e1f0e669868d7d35e9d89f8f45f1a8f917dee15d978b338bc60cbf49"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p2.journal.log",
+          "sha256": "2216e18db8ffe612c8bb28227936ea365cb7f1d2b62843fb6bb41621a29dfb4f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-warmup-1-p0.journal.log",
+          "sha256": "2e02ee1230c01465060e84e38a6355691fa8c821bab825ad33c5ac77ad8990ea"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-warmup-1-p1.journal.log",
+          "sha256": "fbdcdc170dae30849fc24ee8e954a13b1a37098eb738781617b1276fc07bc235"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-warmup-1-p2.journal.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11f",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11f.json"
+      ],
+      "exit_code": 0,
+      "historical_attempt_01_run": {
+        "command": [
+          "sudo",
+          "-n",
+          "env",
+          "CANONICAL_BENCHMARK_RUNNER=/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "BENCH_SERVER_BIN=/srv/ai/paged-kv/results/v10/93-11f/attempt-01/candidate-bundle/llama-server",
+          "/srv/ai/benchmarks/run-profile-benchmark.sh",
+          "fast",
+          "--mode",
+          "selective",
+          "--context",
+          "8192",
+          "--mtp",
+          "native"
+        ],
+        "exit_code": 1,
+        "superseded_floor_pct": 70.0
+      },
+      "result": "The complete immutable attempt-01 matrix and dense controls pass the current acceptance floors, including prompt-3 medians 62.94% selected and 63.75% dense against 60%. The original benchmark exit 1 reflected the superseded 70% prompt-3 floor; no request data was changed.",
+      "status": "pass"
+    }
+  },
+  "comparison": {
+    "rows": [
+      {
+        "acceptance_pct": {
+          "max": 79.41176471,
+          "median": 79.41176471,
+          "min": 79.41176471
+        },
+        "decode_tps": {
+          "max": 76.49434754157546,
+          "median": 76.11983732359957,
+          "min": 75.84123364827208
+        },
+        "geometry": "primary_1024_256",
+        "prompt": "prompt_1",
+        "prompt_tps": {
+          "max": 102.67203983675145,
+          "median": 83.67150566874452,
+          "min": 66.9008195350393
+        },
+        "tokens": 30,
+        "ttft_proxy_seconds": {
+          "max": 0.05979,
+          "median": 0.047806,
+          "min": 0.038959
+        }
+      },
+      {
+        "acceptance_pct": {
+          "max": 54.03225806,
+          "median": 54.03225806,
+          "min": 54.03225806
+        },
+        "decode_tps": {
+          "max": 59.12340416078269,
+          "median": 59.11976051122468,
+          "min": 59.004624174516366
+        },
+        "geometry": "primary_1024_256",
+        "prompt": "prompt_2",
+        "prompt_tps": {
+          "max": 105.78372517388199,
+          "median": 104.97034587728966,
+          "min": 88.59946397324296
+        },
+        "tokens": 27,
+        "ttft_proxy_seconds": {
+          "max": 0.045147,
+          "median": 0.038106,
+          "min": 0.037813
+        }
+      },
+      {
+        "acceptance_pct": {
+          "max": 62.93706294,
+          "median": 62.93706294,
+          "min": 62.93706294
+        },
+        "decode_tps": {
+          "max": 63.683572766542085,
+          "median": 63.496256664918796,
+          "min": 63.303952260887165
+        },
+        "geometry": "primary_1024_256",
+        "prompt": "prompt_3",
+        "prompt_tps": {
+          "max": 104.61892556363446,
+          "median": 82.87578990987258,
+          "min": 72.94611106045409
+        },
+        "tokens": 28,
+        "ttft_proxy_seconds": {
+          "max": 0.054835,
+          "median": 0.048265,
+          "min": 0.038234
+        }
+      },
+      {
+        "acceptance_pct": {
+          "max": 79.41176471,
+          "median": 79.41176471,
+          "min": 79.41176471
+        },
+        "decode_tps": {
+          "max": 76.53600307769555,
+          "median": 76.32420812508344,
+          "min": 76.26706250546974
+        },
+        "geometry": "secondary_512_128",
+        "prompt": "prompt_1",
+        "prompt_tps": {
+          "max": 101.08412726491623,
+          "median": 83.12897460409826,
+          "min": 66.97362913352868
+        },
+        "tokens": 30,
+        "ttft_proxy_seconds": {
+          "max": 0.059725,
+          "median": 0.048118,
+          "min": 0.039571
+        }
+      },
+      {
+        "acceptance_pct": {
+          "max": 54.03225806,
+          "median": 54.03225806,
+          "min": 54.03225806
+        },
+        "decode_tps": {
+          "max": 59.31436903171629,
+          "median": 59.313175001905215,
+          "min": 59.09225698040715
+        },
+        "geometry": "secondary_512_128",
+        "prompt": "prompt_2",
+        "prompt_tps": {
+          "max": 104.93454707626118,
+          "median": 104.92078480747035,
+          "min": 88.30606883458066
+        },
+        "tokens": 27,
+        "ttft_proxy_seconds": {
+          "max": 0.045297,
+          "median": 0.038124,
+          "min": 0.038119
+        }
+      },
+      {
+        "acceptance_pct": {
+          "max": 62.93706294,
+          "median": 62.93706294,
+          "min": 62.93706294
+        },
+        "decode_tps": {
+          "max": 63.61539186363921,
+          "median": 63.47053042592703,
+          "min": 63.32194543425762
+        },
+        "geometry": "secondary_512_128",
+        "prompt": "prompt_3",
+        "prompt_tps": {
+          "max": 105.08893150828888,
+          "median": 82.35027690280609,
+          "min": 74.6477559018382
+        },
+        "tokens": 28,
+        "ttft_proxy_seconds": {
+          "max": 0.053585,
+          "median": 0.048573,
+          "min": 0.038063
+        }
+      }
+    ],
+    "speed_ratio_secondary_over_primary": {
+      "prompt_1": {
+        "decode_tps": 1.0019341237060753,
+        "prompt_tps": 0.9935159399808803
+      },
+      "prompt_2": {
+        "decode_tps": 1.0014851853921074,
+        "prompt_tps": 0.9919725071486661
+      },
+      "prompt_3": {
+        "decode_tps": 0.9972547794182411,
+        "prompt_tps": 0.9936590286784839
+      }
+    },
+    "ttft_method": "server prompt_ms used as a disclosed TTFT proxy; first streamed-token timestamp was not retained by the canonical runner",
+    "vram_method": "device-wide nvidia-smi used/free memory samples; primary has one post-run sample, secondary has continuous 1-second samples during the geometry run; pager allocator headroom and scratch high-water are separate per-request /slots fields"
+  },
+  "deferred_verification": {
+    "hardware_or_human_dependency_missing": false,
+    "item": null,
+    "successor": null
+  },
+  "geometry_benchmark": {
+    "acceptance_floors_pct": {
+      "prompt_1": 75.0,
+      "prompt_2": 40.0,
+      "prompt_3": 60.0
+    },
+    "actual_host_transfer_observed": false,
+    "actual_hot_page_tokens": 4096,
+    "candidate_identity_verified": true,
+    "context_tokens": 8192,
+    "current_policy_assessment": {
+      "dense_control_median_pct_by_geometry": {
+        "primary_1024_256": 63.75,
+        "secondary_512_128": 63.75
+      },
+      "note": "Reassessment of unchanged attempt-01 raw measurements after the prompt-3 target changed; original command exit status is retained in checks.",
+      "prompt_3_floor_pct": 60.0,
+      "selected_median_pct_by_geometry": {
+        "primary_1024_256": 62.93706294,
+        "secondary_512_128": 62.93706294
+      },
+      "status": "pass"
+    },
+    "dense_control_wrong_request_artifact": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-1024-256",
+    "dense_control_wrong_request_note": "Excluded: --case-index 2 selected request ordinal 2 (prompt_1), not prompt index 2; correct prompt_3 controls are the *-correct/512-128 roots.",
+    "dense_controls": [
+      {
+        "acceptance_pct": [
+          71.51898734,
+          59.79381443,
+          63.75
+        ],
+        "batch": 1024,
+        "case_manifest": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-1024-256-correct/case-manifest.json",
+          "sha256": "60baf0c0b1e2122a0672cd15844129b23e62826cb239ce7e8b524c88baa42a69"
+        },
+        "geometry": "primary",
+        "lifecycle": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-1024-256-correct/lifecycle-state.json",
+          "sha256": "d0945a4003c6ad60fd3df02f1f40049da24181ed0c1941d758864abeed6f220d"
+        },
+        "measured_count": 3,
+        "median_acceptance_pct": 63.75,
+        "prompt_id": "prompt_3",
+        "records": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-1024-256-correct/records.jsonl",
+          "sha256": "7e78e348f703c026c846d1e7e83c90874063058bd46430e75923de3f24c1d301"
+        },
+        "request_ids": [
+          "fast/off/warmup/1/2",
+          "fast/off/measured/1/2",
+          "fast/off/measured/2/2",
+          "fast/off/measured/3/2"
+        ],
+        "summary": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-1024-256-correct/summary.json",
+          "sha256": "d5c62f5c43d4e6793a764fb0ef0d7b7d3aad2587c0e674eabcd11f6b111b041a"
+        },
+        "ubatch": 256,
+        "warmup_count": 1
+      },
+      {
+        "acceptance_pct": [
+          71.51898734,
+          59.79381443,
+          63.75
+        ],
+        "batch": 512,
+        "case_manifest": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-512-128/case-manifest.json",
+          "sha256": "b685d4d23a37c6c8b374e029707af7580cee76cb7f5d7fe6b85f984d5a8c4b4a"
+        },
+        "geometry": "secondary",
+        "lifecycle": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-512-128/lifecycle-state.json",
+          "sha256": "c8982519a04a30310906f1bef10665448cfebce456556076cc7389f4cc7a14d0"
+        },
+        "measured_count": 3,
+        "median_acceptance_pct": 63.75,
+        "prompt_id": "prompt_3",
+        "records": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-512-128/records.jsonl",
+          "sha256": "01955d2bb03755122ce12a8c800bac0a4935ac2ef5b15fec22ab0c4535cb62d1"
+        },
+        "request_ids": [
+          "fast/off/warmup/1/2",
+          "fast/off/measured/1/2",
+          "fast/off/measured/2/2",
+          "fast/off/measured/3/2"
+        ],
+        "summary": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/dense-control-prompt3-512-128/summary.json",
+          "sha256": "4ec5be1fdfeb9a9dfbe56092be3b1eb3e6d57e76a4a819e448113882879eff88"
+        },
+        "ubatch": 128,
+        "warmup_count": 1
+      }
+    ],
+    "execution_status": "complete",
+    "geometries": {
+      "primary_1024_256": {
+        "batch": 1024,
+        "context_tokens": 8192,
+        "mtp_device": "gpu",
+        "mtp_n_max": 2,
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
+        "page_size_tokens": 256,
+        "pager_mode": "selective",
+        "prompts": {
+          "prompt_1": {
+            "measured_runs": [
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 76.49434754157546,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 345,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 79.41176471,
+                "mtp_accepted_tokens": 189,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 238,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58",
+                "prompt_tokens": 30,
+                "prompt_tps": 102.67203983675145,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-1-p0.jsonl",
+                  "sha256": "40604ed64d00805f042efb3661c47c4df7263f4af1dbe8d3882f8ebd3909262e"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p0.mtp-after.prom",
+                  "sha256": "4f26ebc08b1bdfd81c0b782441e7552a8ed195b47e7fe1ac8429eaf75843d30e"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p0.mtp-before.prom",
+                  "sha256": "3dcae4a0c65c02706de185447746566ff2b1202f1b72142e90a8a93e328a1b0f"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p0.json",
+                  "sha256": "fb5dad5e88b59698d19f3642c820a69920314faf55a81494de250e0533980feb"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p0.journal.log",
+                  "sha256": "5bce1d9654b8b0af959206631f3ababa9d7c6bc87f67ad82f78b1b8198ff0647"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:53:22+02:00",
+                "request_start": "2026-09-24T05:53:17+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 2,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.038959,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 76.11983732359957,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 342,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 79.41176471,
+                "mtp_accepted_tokens": 189,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 238,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58",
+                "prompt_tokens": 30,
+                "prompt_tps": 83.67150566874452,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-2-p0.jsonl",
+                  "sha256": "01f4e88e0449f2bc0fbc4e791aca7ed921bb02e7c3c74fdd0107d9b2c3b64f16"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p0.mtp-after.prom",
+                  "sha256": "bb39cddfbe46c7e734fabd86208d881ded48f27c1b0351ad1d75e3d09e8a59b3"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p0.mtp-before.prom",
+                  "sha256": "66052dfea1eaf3da91f0404827ca3779c2df47ceeb239039a21dcf5578afe96b"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p0.json",
+                  "sha256": "a98d397d95a82fa991d0d7e12ac4f47c5d2d4c59d1b94694b2d9414838a2174d"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p0.journal.log",
+                  "sha256": "8cac0cb24b9ec781227289569619ad936f7a0d11f8b463311b7b3d09abe546cb"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:53:26+02:00",
+                "request_start": "2026-09-24T05:53:22+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 2,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.047806,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 75.84123364827208,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 339,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 79.41176471,
+                "mtp_accepted_tokens": 189,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 238,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58",
+                "prompt_tokens": 30,
+                "prompt_tps": 66.9008195350393,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-3-p0.jsonl",
+                  "sha256": "1b156b91958ac925b314818a5b810b02ed891ff4b716970c7c4659031dd2ea72"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p0.mtp-after.prom",
+                  "sha256": "742008f873cd5c5bfee609be6d7c0a03d1e07550f5a09da44e78901abed55e96"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p0.mtp-before.prom",
+                  "sha256": "6b2287972890f9ab5ac100d2d8319f75322ff7365c36367a99b710f2f77e721e"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p0.json",
+                  "sha256": "fce0163d13f247299f7bb3f7ef3a4ea8e61215ac16fa28284aad6995d6abeb4e"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p0.journal.log",
+                  "sha256": "6e8790546ef9ce44d3210e5a6cdca4723e5637807a8d7284c9ab1bef25ea8722"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:53:31+02:00",
+                "request_start": "2026-09-24T05:53:26+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 2,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.05979,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              }
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58",
+            "prompt_text": "write a python function that merges two sorted lists into one sorted list, with docstring.",
+            "prompt_tokens": 30,
+            "warmup": {
+              "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+              "max_tokens": 40,
+              "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+              "mtp_accepted_tokens": 21,
+              "mtp_device": "gpu",
+              "mtp_draft_tokens": 27,
+              "mtp_type_k": "turbo4",
+              "mtp_type_v": "turbo4",
+              "raw_artifact": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-warmup-1-p0.jsonl",
+                "sha256": "a75d337534d3337bfcdf3958e39d3a063aeb0e279a8bbeab807355476732fba6"
+              },
+              "raw_record": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+              },
+              "raw_response": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-warmup-1-p0.json",
+                "sha256": "a2eb9567238f1b64318fb676dd3c8c2fecb62674351044a3d5dba1b4e04382cc"
+              },
+              "request_attempted": true,
+              "route": "selected dense",
+              "status": "completed",
+              "thinking_mode": "off"
+            }
+          },
+          "prompt_2": {
+            "measured_runs": [
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 59.12340416078269,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 0,
+                "hot_tokens": 152,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 54.03225806,
+                "mtp_accepted_tokens": 67,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 124,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855",
+                "prompt_tokens": 27,
+                "prompt_tps": 104.97034587728966,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-1-p1.jsonl",
+                  "sha256": "b69aed2a59ab701d9b56f5250239093b20a6c3c9a688f771e09ff279fe01a6d0"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p1.mtp-after.prom",
+                  "sha256": "f0cf63b411452aefbbcdd82f6d325c631a4d82b5361f15de4760104b127f44a7"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p1.mtp-before.prom",
+                  "sha256": "6ed0e3b22050cc63e265274a8d6008e8da84469b18790cc8ef197e7617069435"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p1.json",
+                  "sha256": "78cd7ff276b10967bf670bff48f5dd7b32c80d5589db5391c450de86ae73799b"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p1.journal.log",
+                  "sha256": "015f37d5e121bd5b80d28d10d15e5d587b2fc70491d5311d0fb30d82ac1fab77"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:53:35+02:00",
+                "request_start": "2026-09-24T05:53:32+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 1,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.038106,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 59.004624174516366,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 0,
+                "hot_tokens": 152,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 54.03225806,
+                "mtp_accepted_tokens": 67,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 124,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855",
+                "prompt_tokens": 27,
+                "prompt_tps": 105.78372517388199,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-2-p1.jsonl",
+                  "sha256": "1ceb9e085016bcbd01787b18afb031fd71ca6f4d68a005a52d487b4015b75238"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p1.mtp-after.prom",
+                  "sha256": "599b783ef78f3a7b0462569dbbf32bec57725c5deb54bb279052a118de10454a"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p1.mtp-before.prom",
+                  "sha256": "a5c1c4849634977804ca1838401413ca08b0d74c3933f685a443c9ea74600e40"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p1.json",
+                  "sha256": "60e9ed04e82ef47c33ee9973c4526c522165967e093153c0460370dc472c98dc"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p1.journal.log",
+                  "sha256": "863435bf960ea133a30da23d2f8048c14818e8b7bfc5316a9669e67e17a693e9"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:53:38+02:00",
+                "request_start": "2026-09-24T05:53:35+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 1,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.037813,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 59.11976051122468,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 0,
+                "hot_tokens": 152,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 54.03225806,
+                "mtp_accepted_tokens": 67,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 124,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855",
+                "prompt_tokens": 27,
+                "prompt_tps": 88.59946397324296,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-3-p1.jsonl",
+                  "sha256": "539980b671887617daad36d1ed66770ee80508c3421640c95bfd07d2a816c0bf"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p1.mtp-after.prom",
+                  "sha256": "bb8847446fc71d8949d45e32a530c72fb3b12cd9f9a72aabf342ad07c074df03"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p1.mtp-before.prom",
+                  "sha256": "67c8ef24b234ca224357d23eccca171c3bd7d88be2cea971f9bf64d58a06d1ca"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p1.json",
+                  "sha256": "0cda00c16e4dcf0279fc54b9b74b5b545b83ac6b9fcf2584bc1590879b5d6c21"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p1.journal.log",
+                  "sha256": "0f74109c9ec5552c9612cc68347deb437e3b702e865ef21a2a293bf9fd69fe6a"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:53:41+02:00",
+                "request_start": "2026-09-24T05:53:38+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 1,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.045147,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              }
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855",
+            "prompt_text": "explain the difference between mmap and read for loading large files, one paragraph.",
+            "prompt_tokens": 27,
+            "warmup": {
+              "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+              "max_tokens": 40,
+              "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+              "mtp_accepted_tokens": 18,
+              "mtp_device": "gpu",
+              "mtp_draft_tokens": 28,
+              "mtp_type_k": "turbo4",
+              "mtp_type_v": "turbo4",
+              "raw_artifact": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-warmup-1-p1.jsonl",
+                "sha256": "c52bc44a5744f754384a504124f33d3a66c4138057a1fcb0ce406078b87c9e76"
+              },
+              "raw_record": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+              },
+              "raw_response": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-warmup-1-p1.json",
+                "sha256": "ba7c5e5d6df06cc575b56a771f92e93b7d75d58ce2babcad693905ced3a903ad"
+              },
+              "request_attempted": true,
+              "route": "selected dense",
+              "status": "completed",
+              "thinking_mode": "off"
+            }
+          },
+          "prompt_3": {
+            "measured_runs": [
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 63.683572766542085,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 413,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 62.93706294,
+                "mtp_accepted_tokens": 180,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 286,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce",
+                "prompt_tokens": 28,
+                "prompt_tps": 104.61892556363446,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-1-p2.jsonl",
+                  "sha256": "0dced3da6db067025e3da620833f21321dd8a337f268f1720303b5217165aedd"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p2.mtp-after.prom",
+                  "sha256": "767a963520f4f832c687ff37406a399830bf3bd10d010a64bd5b069c1552913b"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p2.mtp-before.prom",
+                  "sha256": "b9ee3782454ea3c567712fb368da7eff5c2f2ff2bdb1b7eeb99170162911ae95"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p2.json",
+                  "sha256": "be3c53046663d77202ce5cc13cab4631bf0e12f5659b3fa68226514e53abe6bb"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-1-p2.journal.log",
+                  "sha256": "f60c8839a382ae7b587965d0b547ba8c3804e4a4c1757d88dd3121f1a8d01e62"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:53:48+02:00",
+                "request_start": "2026-09-24T05:53:42+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 3,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.038234,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 63.496256664918796,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 413,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 62.93706294,
+                "mtp_accepted_tokens": 180,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 286,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce",
+                "prompt_tokens": 28,
+                "prompt_tps": 82.87578990987258,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-2-p2.jsonl",
+                  "sha256": "dec122ebd404ea1373769918070e771ea77681b2d80e9a3395379265bb530bdd"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p2.mtp-after.prom",
+                  "sha256": "908b07b3fea02e12bbbfc7709c6d602dd5ff9d5d7ccb06c7a232a1539e9cfbf9"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p2.mtp-before.prom",
+                  "sha256": "ed8e6ac840a62a82e9f9b53d4a025e0cbebec31a58f79e5391111107ab38e575"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p2.json",
+                  "sha256": "f777d92512a2fd26b817ac2aa9536d7055ea03cbcb697f0ced8a8ce22e72b312"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-2-p2.journal.log",
+                  "sha256": "7395259e59bfab1afb48ec743fb325e595e3dc3b1e736239c8a5981da7582069"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:53:55+02:00",
+                "request_start": "2026-09-24T05:53:49+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 3,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.048265,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 1024,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 63.303952260887165,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 410,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 62.93706294,
+                "mtp_accepted_tokens": 180,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 286,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce",
+                "prompt_tokens": 28,
+                "prompt_tps": 72.94611106045409,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-measured-3-p2.jsonl",
+                  "sha256": "dc91f2283dbe7a86360a8f965cbe1568297c2302051bf734c32d840637a65e8a"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p2.mtp-after.prom",
+                  "sha256": "52fc0f9c47f217dec8c9394319c4cf329dfaa39d124166f34af032a9145d6bcb"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p2.mtp-before.prom",
+                  "sha256": "a8b88df7b1d3018ca5675cb7ed87e0e806022474f750382bee5387d0da2b1619"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                  "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p2.json",
+                  "sha256": "d86e2280fbba452fbbebe0464ac6f497309832f76cdc4a9f177d07c53773c41c"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-measured-3-p2.journal.log",
+                  "sha256": "9094dbf2d6e75d36d1c48a91998666ee08531b2dd0f776b2db35e99cb8018624"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:54:01+02:00",
+                "request_start": "2026-09-24T05:53:55+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 3,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.054835,
+                "ubatch": 256,
+                "vram_headroom_bytes": 1910505472,
+                "vram_peak_bytes": 14811136000,
+                "vram_sample_count": 1,
+                "vram_sampling_scope": "geometry_or_postrun_sample"
+              }
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce",
+            "prompt_text": "write a bash script that watches a directory and prints new files as they appear.",
+            "prompt_tokens": 28,
+            "warmup": {
+              "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+              "max_tokens": 40,
+              "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+              "mtp_accepted_tokens": 21,
+              "mtp_device": "gpu",
+              "mtp_draft_tokens": 27,
+              "mtp_type_k": "turbo4",
+              "mtp_type_v": "turbo4",
+              "raw_artifact": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/progress-off-warmup-1-p2.jsonl",
+                "sha256": "28f50a8e0883983854d02ced19a701b89a32182096c4455c0ff927fd2a90eefd"
+              },
+              "raw_record": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+                "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+              },
+              "raw_response": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/raw/off-warmup-1-p2.json",
+                "sha256": "261cec1bff790ab6fdc6e0d805f5232dcc529097860fa6c7dcad2f20f9865d01"
+              },
+              "request_attempted": true,
+              "route": "selected dense",
+              "status": "completed",
+              "thinking_mode": "off"
+            }
+          }
+        },
+        "runner_root": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01",
+        "runner_root_lifecycle": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/lifecycle-state.json",
+          "sha256": "d0ed507d0a0734a8f4e48de0251f80dfbfe90a9c35601d68bb1245f5a482e3bc"
+        },
+        "runner_root_manifest": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/case-manifest.json",
+          "sha256": "3b4a68a231f755ce5ed7d05a72331cd9e2d7d69b0dd2ac5f40ed484683be7a80"
+        },
+        "runner_root_records": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/records.jsonl",
+          "sha256": "524d59c8fccdd795a3156748539bf56f03839f4f0bb4f4f729e35dbe560d9ff2"
+        },
+        "runner_root_summary": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/primary-1024-256-retry-01/summary.json",
+          "sha256": "7cadf68957af137f3ec45421cd1b70843e8567d3e50a0e40b78234d8326677e1"
+        },
+        "target_hot_tokens_limit": 4096,
+        "target_type_k": "turbo4",
+        "target_type_v": "turbo4",
+        "thinking_mode": "off",
+        "ubatch": 256
+      },
+      "secondary_512_128": {
+        "batch": 512,
+        "context_tokens": 8192,
+        "mtp_device": "gpu",
+        "mtp_n_max": 2,
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
+        "page_size_tokens": 256,
+        "pager_mode": "selective",
+        "prompts": {
+          "prompt_1": {
+            "measured_runs": [
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 76.53600307769555,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 342,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 79.41176471,
+                "mtp_accepted_tokens": 189,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 238,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58",
+                "prompt_tokens": 30,
+                "prompt_tps": 101.08412726491623,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-1-p0.jsonl",
+                  "sha256": "158a1550863066aff35443a0faa325149a34194ba7e1ecb46b2c5dea58bc19bd"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p0.mtp-after.prom",
+                  "sha256": "aaea2f89f3c828653983a8573678c8768dd17962188cddb8ad433bbad1432c3d"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p0.mtp-before.prom",
+                  "sha256": "da98996850716aae26ac4f53a83e3514fa4ecc55540ef29fde6d6044b1b0d2df"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p0.json",
+                  "sha256": "bdb77db9bcacf63e1d25ad5643b6987ff0c4ebb1e01c1e52c8d17526b1c79b4f"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p0.journal.log",
+                  "sha256": "9c15490a482552e71d219d30abcd96e58b6c03103b12e195550cf77535269671"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:08+02:00",
+                "request_start": "2026-09-24T05:59:04+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 2,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.039571,
+                "ubatch": 128,
+                "vram_headroom_bytes": 2023751680,
+                "vram_peak_bytes": 14697889792,
+                "vram_sample_count": 4,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 76.26706250546974,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 342,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 79.41176471,
+                "mtp_accepted_tokens": 189,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 238,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58",
+                "prompt_tokens": 30,
+                "prompt_tps": 83.12897460409826,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-2-p0.jsonl",
+                  "sha256": "5835766e5dd3bcc5f6e6a8d0fb37ed9ebf86387c0974454cb7700cbf9ab21add"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p0.mtp-after.prom",
+                  "sha256": "e69d0736ec04df22c94c841032f1cb75859bcd68dd544ed6b314c2423d30f7f7"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p0.mtp-before.prom",
+                  "sha256": "cba28ceaab9d0ed5b2f693cefbe7e69e1177572bb6e7828450d1691016653362"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p0.json",
+                  "sha256": "54bd411b227aca85256df2d86425c5068a0da4375768ee76b7ed097d1130b9c6"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p0.journal.log",
+                  "sha256": "b0e43ccae90b8b95f0c0f152d1ab2857f64e89866753f60f62b4881c21ee4f9d"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:13+02:00",
+                "request_start": "2026-09-24T05:59:08+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 2,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.048118,
+                "ubatch": 128,
+                "vram_headroom_bytes": 2023751680,
+                "vram_peak_bytes": 14697889792,
+                "vram_sample_count": 5,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 76.32420812508344,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 339,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 79.41176471,
+                "mtp_accepted_tokens": 189,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 238,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58",
+                "prompt_tokens": 30,
+                "prompt_tps": 66.97362913352868,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-3-p0.jsonl",
+                  "sha256": "b99efd60b0127a07b6e5e0923f603a5f1b7fb41d94d0c7ba50cb34826b190bf0"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p0.mtp-after.prom",
+                  "sha256": "e7cc6a66e5f19a088d1fe1fc372e199b2313c5c91f052d9659fa022d6a5a87a6"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p0.mtp-before.prom",
+                  "sha256": "ab298b40e791e3e7ad0032f1184bee5f2f34d7a2e185b21b8f28f2669a8c0dc8"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p0.json",
+                  "sha256": "4ee32a31eb79c6defb1b01e36cbac730b1b396abc5335643f81d2a7c4b9f039b"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p0.journal.log",
+                  "sha256": "9c885f3bfb1de2f17829b39c7f392c9531476e2f7c85143c9091cdc349b694fc"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:18+02:00",
+                "request_start": "2026-09-24T05:59:13+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 2,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.059725,
+                "ubatch": 128,
+                "vram_headroom_bytes": 2006974464,
+                "vram_peak_bytes": 14714667008,
+                "vram_sample_count": 5,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              }
+            ],
+            "prompt_sha256": "8c9d72f05f153c987074c2627268ef72499f60218cdd26fdf659c17ec2805b58",
+            "prompt_text": "write a python function that merges two sorted lists into one sorted list, with docstring.",
+            "prompt_tokens": 30,
+            "warmup": {
+              "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+              "max_tokens": 40,
+              "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+              "mtp_accepted_tokens": 21,
+              "mtp_device": "gpu",
+              "mtp_draft_tokens": 27,
+              "mtp_type_k": "turbo4",
+              "mtp_type_v": "turbo4",
+              "raw_artifact": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-warmup-1-p0.jsonl",
+                "sha256": "20c223335484279cc03f7eade34d23fd6c27da3b4058c2f22fafadf1ce0849d8"
+              },
+              "raw_record": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+              },
+              "raw_response": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-warmup-1-p0.json",
+                "sha256": "eefd439de3c9a0bd8db1a0fa64eaa5c2340899ebc66bfb51cf870f4b4f2e45e8"
+              },
+              "request_attempted": true,
+              "route": "selected dense",
+              "status": "completed",
+              "thinking_mode": "off"
+            }
+          },
+          "prompt_2": {
+            "measured_runs": [
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 59.31436903171629,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 0,
+                "hot_tokens": 152,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 54.03225806,
+                "mtp_accepted_tokens": 67,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 124,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855",
+                "prompt_tokens": 27,
+                "prompt_tps": 104.92078480747035,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-1-p1.jsonl",
+                  "sha256": "11bfa68cbd873293ef5feb2df4f4a3d838255b9d6095beb5191270624e0c495e"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p1.mtp-after.prom",
+                  "sha256": "5342baeeedc32f57f6acc1e49f8fa52b2ab29b00cb125ad7946be6316b9158d5"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p1.mtp-before.prom",
+                  "sha256": "f4c734b3fb5549fa01c9e352f0d30bdc09b6d274eb9fa173507c040e0da3d5a6"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p1.json",
+                  "sha256": "aca3a1ed98995163a84e5851a4f3818321e24eebe780fbf6f75ffcb2b914244f"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p1.journal.log",
+                  "sha256": "71fb8d401e58f5513b4c45980cf434f67b3623c75ca5e7b1632ca8d2a7f29a14"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:22+02:00",
+                "request_start": "2026-09-24T05:59:19+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 1,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.038124,
+                "ubatch": 128,
+                "vram_headroom_bytes": 2006974464,
+                "vram_peak_bytes": 14714667008,
+                "vram_sample_count": 3,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 59.09225698040715,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 0,
+                "hot_tokens": 152,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 54.03225806,
+                "mtp_accepted_tokens": 67,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 124,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855",
+                "prompt_tokens": 27,
+                "prompt_tps": 104.93454707626118,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-2-p1.jsonl",
+                  "sha256": "da3e5afba78b5b49579dc90ab0a63c1159dd02e0b8a4b6c2d773e5aa067ec7a7"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p1.mtp-after.prom",
+                  "sha256": "1564bccbd1a295613b2eb3a28dfd75e76f4e001853f2908439ba4971ea6e190f"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p1.mtp-before.prom",
+                  "sha256": "3bd86fd02bb33edbbab914b401953f6099ce7adbdfc7f4e9a5e1d0cec6a1f732"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p1.json",
+                  "sha256": "db0e14f7e7c934819750881207a017f073186f565c4c4f0b515878a519d3aefa"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p1.journal.log",
+                  "sha256": "63182ca013148b0804b6160bcf33490d3a811b081ca6ed25ff89334839cf87d8"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:25+02:00",
+                "request_start": "2026-09-24T05:59:22+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 1,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.038119,
+                "ubatch": 128,
+                "vram_headroom_bytes": 1990197248,
+                "vram_peak_bytes": 14731444224,
+                "vram_sample_count": 3,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 59.313175001905215,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 0,
+                "hot_tokens": 152,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 54.03225806,
+                "mtp_accepted_tokens": 67,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 124,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855",
+                "prompt_tokens": 27,
+                "prompt_tps": 88.30606883458066,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-3-p1.jsonl",
+                  "sha256": "c41b21b33d272d0b01086c3f2bf636e9faae20e1358488476313d7b772b05667"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p1.mtp-after.prom",
+                  "sha256": "ed0aaed2bc6232b4c828bdc1cc978d3349870b392d03bfed34c8baaab5088b1b"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p1.mtp-before.prom",
+                  "sha256": "d9715920d65ef391747f532a407b11bb74fce32da9a72521aedf92ee0d494e5e"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p1.json",
+                  "sha256": "58a792ad5a33d92e62b0458586ed74ef3b3f2a0e7de9aa0a7225071d16771e4d"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p1.journal.log",
+                  "sha256": "6bc76316e1f0e669868d7d35e9d89f8f45f1a8f917dee15d978b338bc60cbf49"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:28+02:00",
+                "request_start": "2026-09-24T05:59:25+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 1,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.045297,
+                "ubatch": 128,
+                "vram_headroom_bytes": 1990197248,
+                "vram_peak_bytes": 14731444224,
+                "vram_sample_count": 3,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              }
+            ],
+            "prompt_sha256": "e2d80d9547b73b72312c9e3f17a25c4e72e94866141962b21c29a3e7b3ae0855",
+            "prompt_text": "explain the difference between mmap and read for loading large files, one paragraph.",
+            "prompt_tokens": 27,
+            "warmup": {
+              "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+              "max_tokens": 40,
+              "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+              "mtp_accepted_tokens": 18,
+              "mtp_device": "gpu",
+              "mtp_draft_tokens": 28,
+              "mtp_type_k": "turbo4",
+              "mtp_type_v": "turbo4",
+              "raw_artifact": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-warmup-1-p1.jsonl",
+                "sha256": "483b3efb27311b1df7f088052fb36691f82c2e319db2508af74980f636e827b1"
+              },
+              "raw_record": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+              },
+              "raw_response": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-warmup-1-p1.json",
+                "sha256": "861e8afa5283526407c4cc01a4954ec980b420e59246b3a78c822510d310c698"
+              },
+              "request_attempted": true,
+              "route": "selected dense",
+              "status": "completed",
+              "thinking_mode": "off"
+            }
+          },
+          "prompt_3": {
+            "measured_runs": [
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 63.61539186363921,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 413,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 62.93706294,
+                "mtp_accepted_tokens": 180,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 286,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce",
+                "prompt_tokens": 28,
+                "prompt_tps": 105.08893150828888,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-1-p2.jsonl",
+                  "sha256": "5ad685f89a950de0d42f38d8bcdf83e411e8aed2a00294b59fe089a80fcb2865"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p2.mtp-after.prom",
+                  "sha256": "47f59458fa56c5a15da0daa515df40010eaa0e40ee53933ef5aa464adde31fc3"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p2.mtp-before.prom",
+                  "sha256": "22db940a1a0d74d304d0385019763c8296136521e61e4d2dd61d141012fc2c98"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p2.json",
+                  "sha256": "409719f4785b92089debaccb7b40a8ee3aa3bcc845778887a9b691eea1a123dd"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-1-p2.journal.log",
+                  "sha256": "8ea08e9905b63448b3ed805af4d30c3da7376f0f2c29e93012241c3b25d3ef0b"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:35+02:00",
+                "request_start": "2026-09-24T05:59:29+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 3,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.038063,
+                "ubatch": 128,
+                "vram_headroom_bytes": 1975517184,
+                "vram_peak_bytes": 14746124288,
+                "vram_sample_count": 6,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 63.32194543425762,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 410,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 62.93706294,
+                "mtp_accepted_tokens": 180,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 286,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce",
+                "prompt_tokens": 28,
+                "prompt_tps": 82.35027690280609,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-2-p2.jsonl",
+                  "sha256": "4940a841d6929f5decb89fe4fed2a1bd20358515237163024c6bda65d4104530"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p2.mtp-after.prom",
+                  "sha256": "9356cfbe1e7ef49949259524579b4677bf5a1989bed4d8ee3bca4e51190077ab"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p2.mtp-before.prom",
+                  "sha256": "9319d700890c734928bbd47453a66f577690b808ab19ee0bac78b8569e992a99"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p2.json",
+                  "sha256": "fbf8c63e99a42b8fc2c0111d7bb96c69bd402e42605216d6bae9c0a409d38720"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-2-p2.journal.log",
+                  "sha256": "62f70b464c7e1bc71f20a3dc4851658f11876237ece60414e4418a2b393c2393"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:42+02:00",
+                "request_start": "2026-09-24T05:59:35+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 3,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.048573,
+                "ubatch": 128,
+                "vram_headroom_bytes": 1975517184,
+                "vram_peak_bytes": 14746124288,
+                "vram_sample_count": 7,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              },
+              {
+                "actual_target_kv_placement": "selected_turbo4",
+                "api_route": "/v1/chat/completions",
+                "batch": 512,
+                "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+                "context_tokens": 8192,
+                "d2h_useful_bytes_max": 0,
+                "decode_tps": 63.47053042592703,
+                "h2d_useful_bytes_max": 0,
+                "host_pages_max": 1,
+                "hot_tokens": 413,
+                "max_tokens": 400,
+                "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+                "mtp_acceptance_pct": 62.93706294,
+                "mtp_accepted_tokens": 180,
+                "mtp_device": "gpu",
+                "mtp_draft_tokens": 286,
+                "mtp_type_k": "turbo4",
+                "mtp_type_v": "turbo4",
+                "pager_allocator_headroom_bytes": 201326592,
+                "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce",
+                "prompt_tokens": 28,
+                "prompt_tps": 74.6477559018382,
+                "raw_artifact": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-measured-3-p2.jsonl",
+                  "sha256": "3619c12ad58f8116a86281a91e4e2c58fff674fbd3fd0954d4ed4d16974431ae"
+                },
+                "raw_metrics_after": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p2.mtp-after.prom",
+                  "sha256": "c165a7fddac00053b0a7f5c623210175fa1859ea09ad240ce4f640989ccf9f6a"
+                },
+                "raw_metrics_before": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p2.mtp-before.prom",
+                  "sha256": "5d78bd86971a1e7333e0ad741df09855acfb55a4a932f6207d18b5944afee40a"
+                },
+                "raw_record": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                  "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+                },
+                "raw_response": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p2.json",
+                  "sha256": "3b74475b7c5d6626c5d84f1b3223182bde327e8e85aaf0be096352800396778b"
+                },
+                "raw_server_journal": {
+                  "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-measured-3-p2.journal.log",
+                  "sha256": "2216e18db8ffe612c8bb28227936ea365cb7f1d2b62843fb6bb41621a29dfb4f"
+                },
+                "request_attempted": true,
+                "request_end": "2026-09-24T05:59:48+02:00",
+                "request_start": "2026-09-24T05:59:42+02:00",
+                "route": "selected dense",
+                "route_placement_verified": true,
+                "scratch_peak_bytes": 8650752,
+                "slots_snapshot_count": 3,
+                "status": "measured",
+                "target_type_k": "turbo4",
+                "target_type_v": "turbo4",
+                "thinking_mode": "off",
+                "ttft_method": "server prompt_ms proxy; first streamed chunk timestamp not captured",
+                "ttft_seconds": 0.053585,
+                "ubatch": 128,
+                "vram_headroom_bytes": 1975517184,
+                "vram_peak_bytes": 14746124288,
+                "vram_sample_count": 6,
+                "vram_sampling_scope": "request_interval_1s_samples"
+              }
+            ],
+            "prompt_sha256": "71f6b8b5d6fdd1cf6dafd7db364dba61273e52c212e080201d170165184748ce",
+            "prompt_text": "write a bash script that watches a directory and prints new files as they appear.",
+            "prompt_tokens": 28,
+            "warmup": {
+              "candidate_binary_sha256": "34380fb3a12c7fe3172eb9933179093ea3f03c0d9153a7bee33a30461f54763e",
+              "max_tokens": 40,
+              "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+              "mtp_accepted_tokens": 21,
+              "mtp_device": "gpu",
+              "mtp_draft_tokens": 27,
+              "mtp_type_k": "turbo4",
+              "mtp_type_v": "turbo4",
+              "raw_artifact": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/progress-off-warmup-1-p2.jsonl",
+                "sha256": "c86b0b6600ad3d2818b55f9a462b5cad535606b9016c1c43f9d1c39b7e2e885c"
+              },
+              "raw_record": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+                "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+              },
+              "raw_response": {
+                "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/raw/off-warmup-1-p2.json",
+                "sha256": "29a590aa40c5e93acd0f96a33a60dd57b878eaa06f399ddf7f9c854f580f36c5"
+              },
+              "request_attempted": true,
+              "route": "selected dense",
+              "status": "completed",
+              "thinking_mode": "off"
+            }
+          }
+        },
+        "runner_root": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128",
+        "runner_root_lifecycle": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/lifecycle-state.json",
+          "sha256": "6786f3b4771a1b311af9f656df6819732ddbebc47df83e6cff15a41bf5584b8a"
+        },
+        "runner_root_manifest": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/case-manifest.json",
+          "sha256": "48eefa110ecb572e73a0dc02ceaf91684736ecb1d1adf00af15cfe9e0c866d1f"
+        },
+        "runner_root_records": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/records.jsonl",
+          "sha256": "2799d6518af1a655aaf8d2aa711f0ed7c08a7167ee7f85bd590567f9274b05ce"
+        },
+        "runner_root_summary": {
+          "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/secondary-512-128/summary.json",
+          "sha256": "2b3989b89c93c743bd02f3e10fc0974a101d771cd0224e2d7427d0772fca0332"
+        },
+        "target_hot_tokens_limit": 4096,
+        "target_type_k": "turbo4",
+        "target_type_v": "turbo4",
+        "thinking_mode": "off",
+        "ubatch": 128
+      }
+    },
+    "historical_acceptance_failures_previous_floor_pct": {
+      "prompt_3": {
+        "floor": 70.0,
+        "median": 62.93706294
+      }
+    },
+    "localization": "general_native_mtp_acceptance",
+    "target_hot_tokens_limit": 4096
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "realpath": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "raw_artifact_manifest": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11f/attempt-01/raw-artifact-manifest.json",
+    "sha256": "d5690cb6bec80670a3741852d95ba6d05305b5c0195986f71134e59d75d2455d"
+  },
+  "schema_version": 1,
+  "source_commit": "fba04c125bd3d88cdb3eb7c786441d3aedd38ee5",
+  "supplementary_diagnostic_trace": {
+    "note": "Attempt-04 dense prompt-3 traces on both geometries are supplemental diagnosis only; the canonical matrix remains the immutable attempt-01 receipt.",
+    "path": ".wiretail/execution/evidence/V10_93-11f-attempt-04-trace.json",
+    "sha256": "2cde387ab075d8b9f5d740f6e7fd6dfa5ce0ef96ee4fd055a999ee053c1a5d33"
+  },
+  "task": "93-11f"
+}
