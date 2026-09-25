@@ -159,6 +159,9 @@ extern "C" {
         LLAMA_FTYPE_MOSTLY_F8_E4M3       = 42, // except 1d tensors
         LLAMA_FTYPE_MOSTLY_MXFP4         = 43, // except 1d tensors
 
+        LLAMA_FTYPE_MOSTLY_PQ2_0 = 141,
+        LLAMA_FTYPE_MOSTLY_PQ2_0_LEGACY = 142,
+        LLAMA_FTYPE_MOSTLY_PTQ1_0 = 143,
         LLAMA_FTYPE_GUESSED = 1024, // not specified in the model file
     };
 
@@ -889,6 +892,32 @@ extern "C" {
                  llama_pos p0,
                  llama_pos p1);
 
+    // Share full-attention rows at positions [0, n_tokens) into an attention-empty destination.
+    // Requires distinct valid sequence IDs, n_tokens > 0, complete unique source positions,
+    // and unified storage (fixed KV, or dynamic VBR without SWA). Unsupported layouts return false.
+    // Recurrent state and SWA rows are NOT copied: callers must separately restore a matching
+    // historical PARTIAL_ONLY checkpoint before decoding hybrid/SWA destinations. On false, neither
+    // sequence's content is changed. VBR callers must also validate the checkpoint's
+    // attention-content lineage against the source; position coverage alone is insufficient.
+    // Call llama_synchronize(ctx) before this operation; do not race decode.
+    // This shares rows, not copy-on-write storage: callers must not shift or replace the
+    // logical content while another sequence still uses it. Sequence removal is safe;
+    // VBR controller retiering applies to the shared rows for all owners together.
+    // [EXPERIMENTAL]
+    LLAMA_API bool llama_memory_try_share_attn_prefix(
+            llama_memory_t mem,
+              llama_seq_id seq_id_src,
+              llama_seq_id seq_id_dst,
+                 llama_pos n_tokens);
+
+    // Non-mutating preflight for the operation above. Success is not a reservation;
+    // try_share rechecks coverage before changing membership.
+    LLAMA_API bool llama_memory_can_share_attn_prefix(
+            llama_memory_t mem,
+              llama_seq_id seq_id_src,
+              llama_seq_id seq_id_dst,
+                 llama_pos n_tokens);
+
     // Removes all tokens that do not belong to the specified sequence
     LLAMA_API void llama_memory_seq_keep(
             llama_memory_t mem,
@@ -1315,6 +1344,10 @@ extern "C" {
 
     // DFlash: set top-K for drafter (1 = argmax, >1 = top-K candidates per position)
     LLAMA_API void llama_set_dflash_topk(struct llama_context * ctx, int k);
+    // Runtime DFlash2 proposal width: [3, configured model block size], or zero
+    // to restore the model default. Does not change the model or reserved
+    // maximum capacity. Call between decodes.
+    LLAMA_API void llama_set_dflash_block_size(struct llama_context * ctx, int n);
 
     // Upstream block-diffusion drafter (arch "dflash"): build the in-graph top-K/argmax
     // tail on the drafter's decode graph. When enabled, the full-vocab logits transfer
@@ -1796,7 +1829,7 @@ extern "C" {
     LLAMA_API struct llama_sampler * llama_sampler_chain_get(      struct llama_sampler * chain, int32_t i);
 
     // the total number of samplers in the chain
-    LLAMA_API int                    llama_sampler_chain_n  (const struct llama_sampler * chain);
+    LLAMA_API int32_t                llama_sampler_chain_n  (const struct llama_sampler * chain);
 
     // after removing a sampler, the chain will no longer own it, and it will not be freed when the chain is freed
     LLAMA_API struct llama_sampler * llama_sampler_chain_remove(   struct llama_sampler * chain, int32_t i);

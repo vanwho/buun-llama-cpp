@@ -20,6 +20,7 @@ struct vbr_downward_stage_reservation;
 struct vbr_validated_child_plan;
 class vbr_import_schedule_quote;
 struct vbr_import_schedule_unit;
+struct vbr_import_destination_projection;
 struct vbr_explicit_representation_identity;
 enum class vbr_import_schedule_status : uint8_t;
 
@@ -106,6 +107,9 @@ enum class vbr_explicit_capture_status : uint8_t {
     accounting_failed,
     publication_failed,
     internal_error,
+    // Projected rows cannot carry physical sink-stash ownership. The caller
+    // may retry through exact capture, which transfers and accounts for it.
+    projected_stash_requires_exact,
     _count,
 };
 
@@ -233,6 +237,17 @@ bool vbr_explicit_capture_runtime_pools(
 uint64_t vbr_explicit_import_policy_epoch(
     llama_memory_i & memory) noexcept;
 
+// Rejection-only, metadata-only preflight. This does not authenticate payloads
+// or mint an import capability. Passing it still requires the normal snapshot,
+// quote, validation and adoption path, including a fresh destination projection.
+bool vbr_explicit_import_destination_preflight(
+    llama_memory_i & memory,
+    llama_seq_id destination,
+    const vbr_artifact_package_view & package,
+    uint64_t selected_frontier,
+    uint64_t incoming_cells,
+    vbr_import_destination_projection & output) noexcept;
+
 enum class vbr_import_target_snapshot_status : uint8_t {
     actionable = 0,
     report_only,
@@ -268,7 +283,8 @@ vbr_explicit_import_target_schedule_snapshot(
     vbr_downward_policy_projection & downward_projection,
     bool & downward_required,
     vbr_import_schedule_quote & schedule_quote,
-    uint64_t selected_frontier = 0) noexcept;
+    uint64_t selected_frontier = 0,
+    uint64_t incoming_cells = 0) noexcept;
 
 // Final transform-currency barrier shared by downward and the supported
 // same- and cross-domain upward reconstruction paths. The authenticated
@@ -401,6 +417,22 @@ bool vbr_explicit_capture_pretransfer_quote_admissible(
     const vbr_explicit_capture_pretransfer_quote & quote,
     uint64_t max_packed_bytes) noexcept;
 
+// Scoped reuse between exact captures of an unchanged live attention tree.
+// Only a successfully published operation can mint this capability. It owns
+// a catalog lease (not just byte pointers), so eviction cannot unaccount the
+// backing while another capture borrows it. The catalog and memory tree must
+// outlive the capability. Companions are never shared through this door.
+class vbr_explicit_attention_reuse {
+public:
+    void reset() noexcept { impl_.reset(); }
+
+private:
+    struct impl;
+    std::shared_ptr<const impl> impl_;
+    friend class vbr_explicit_capture_operation;
+    friend struct vbr_explicit_attention_reuse_access;
+};
+
 struct vbr_explicit_capture_request {
     using representation_identity_fn =
         vbr_explicit_representation_identity_fn;
@@ -419,6 +451,7 @@ struct vbr_explicit_capture_request {
     std::array<uint8_t, 32> identity_policy_order_digest = {};
     bool idle_decode_thread = false;
     vbr_pinned_chunk_ring * ring = nullptr;
+    vbr_explicit_attention_reuse attention_reuse;
     std::vector<vbr_artifact_portable_topology> topologies;
     std::vector<vbr_explicit_capture_pool_binding> pool_bindings;
     std::vector<vbr_explicit_companion_provider> companions;
@@ -480,6 +513,8 @@ struct vbr_explicit_capture_result {
     uint64_t stash_bytes = 0;
     uint64_t companion_bytes = 0;
     uint64_t chunks = 0;
+    // Published bytes borrowed from a previous capture, not transferred again.
+    uint64_t reused_attention_bytes = 0;
     uint64_t backpressure_waits = 0;
     uint64_t event_completions = 0;
     uint64_t synchronous_fallbacks = 0;
@@ -506,6 +541,9 @@ public:
 
     bool ready_for_transfer() const noexcept;
     bool ready_for_publication() const noexcept;
+    bool retain_attention(
+        const vbr_artifact_package_view & package,
+        vbr_explicit_attention_reuse & output) const noexcept;
     void reset() noexcept;
 
 private:

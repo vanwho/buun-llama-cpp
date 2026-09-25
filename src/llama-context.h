@@ -894,6 +894,9 @@ private:
         int32_t n_rows = 0;
     } embeddings_nextn_device_request;
 
+    // one-time Hadamard transform-coverage check on the first built graph
+    bool hadamard_verified = false;
+
     // host buffer for the model output (logits and embeddings)
     ggml_backend_buffer_ptr buf_output;
 
@@ -939,6 +942,7 @@ public:
     int32_t dflash_capture_stage_get(int32_t layer_idx, const void ** data);
     void set_dflash_sample_temp(float temp);
     void set_dflash_topk(int k);
+    void set_dflash_block_size(int n);
     void set_dflash_argmax(bool enable);
     void set_dflash_target_argmax(bool enable);
     void set_dflash_target_mmq_batch(int32_t n_tokens);

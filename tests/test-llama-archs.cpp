@@ -12,6 +12,7 @@
 // Internal test helpers.
 #include "../src/llama-arch.h"
 #include "../src/llama-cparams.h"
+#include "../src/llama-context.h"
 #include "../src/llama-ext.h"
 #include "../src/llama-memory.h"
 #include "../src/llama-memory-hybrid-idx.h"
@@ -214,7 +215,8 @@ static gguf_context_ptr get_gguf_ctx(const llm_arch arch, const bool moe) {
             || arch == LLM_ARCH_KIMI_LINEAR
             || arch == LLM_ARCH_BAILINGMOE3
             || arch == LLM_ARCH_KIMI_K3
-            || arch == LLM_ARCH_MISTRAL4) {
+            || arch == LLM_ARCH_MISTRAL4
+            || arch == LLM_ARCH_HY_V4) {
         n_embd = 128;
         n_head = 1;
         n_ff   = 192;
@@ -223,7 +225,8 @@ static gguf_context_ptr get_gguf_ctx(const llm_arch arch, const bool moe) {
     } else if (arch == LLM_ARCH_CHAMELEON) {
         n_vocab = 10240;
     } else if (arch == LLM_ARCH_QWEN3TTS) {
-        n_vocab = 4096; // must be >= the hard-coded codec head size (3072)
+        //n_vocab = 4096; // must be >= the hard-coded codec head size (3072)
+        n_vocab = 3072; // TODO: should be 4096, but user code cannot get `n_vocab_out` yet [TAG_LLAMA_N_VOCAB_OUT]
     }
 
     uint32_t n_head_kv = n_head;
@@ -287,7 +290,8 @@ static gguf_context_ptr get_gguf_ctx(const llm_arch arch, const bool moe) {
             || arch == LLM_ARCH_KIMI_LINEAR
             || arch == LLM_ARCH_BAILINGMOE3
             || arch == LLM_ARCH_KIMI_K3
-            || arch == LLM_ARCH_MISTRAL4) {
+            || arch == LLM_ARCH_MISTRAL4
+            || arch == LLM_ARCH_HY_V4) {
         ms.add_kv(LLM_KV_ATTENTION_KEY_LENGTH,       uint32_t(576));
         ms.add_kv(LLM_KV_ATTENTION_VALUE_LENGTH,     uint32_t(512));
         ms.add_kv(LLM_KV_ROPE_DIMENSION_COUNT,       uint32_t(64));
@@ -335,8 +339,9 @@ static gguf_context_ptr get_gguf_ctx(const llm_arch arch, const bool moe) {
         ms.add_kv(LLM_KV_ROPE_FREQ_BASE_SWA,              10000.0f);
         // SWA pattern: every 5th layer is full attention (matches E2B layer_types)
         ms.add_kv(LLM_KV_ATTENTION_SLIDING_WINDOW_PATTERN, uint32_t(5));
-    } else if (arch == LLM_ARCH_COHERE2MOE || arch == LLM_ARCH_MIMO2 || arch == LLM_ARCH_STEP35 ||
-            arch == LLM_ARCH_MUSE_GLIMMER || arch == LLM_ARCH_GRANITE_SWA || arch == LLM_ARCH_DOTS3NOTE) {
+    } else if (arch == LLM_ARCH_COHERE2MOE || arch == LLM_ARCH_MIMO2 || arch == LLM_ARCH_STEP35 || arch == LLM_ARCH_SPARK2_5 ||
+            arch == LLM_ARCH_MUSE_GLIMMER || arch == LLM_ARCH_GRANITE_SWA || arch == LLM_ARCH_DOTS3NOTE ||
+            arch == LLM_ARCH_MAPLE) {
         std::vector<uint32_t> pattern;
         pattern.reserve(n_layer);
         for (uint32_t il = 0; il < n_layer; il++) {
@@ -394,6 +399,22 @@ static gguf_context_ptr get_gguf_ctx(const llm_arch arch, const bool moe) {
                 ? std::vector<uint32_t>({11, 11, 10, 0})
                 : std::vector<uint32_t>({n_embd_head/4, n_embd_head/4, n_embd_head/4, n_embd_head/4}));
 
+    if (arch == LLM_ARCH_HY_V4) {
+        ms.add_kv(LLM_KV_HYPER_CONNECTION_COUNT,     uint32_t(4));
+        ms.add_kv(LLM_KV_HYPER_CONNECTION_EPSILON,   1.0e-6f);
+        ms.add_kv(LLM_KV_HYPER_CONNECTION_MAGNITUDE, 2.0f);
+        ms.add_kv(LLM_KV_SWIGLU_CLAMP_EXP,           10.0f);
+        ms.add_kv(LLM_KV_EXPERT_WEIGHTS_SCALE,       1.0f);
+        ms.add_kv(LLM_KV_EXPERT_WEIGHTS_NORM,        true);
+        // layer 0 must own an indexer, the odd layers share it
+        std::vector<uint32_t> indexer_types;
+        indexer_types.reserve(n_layer);
+        for (uint32_t il = 0; il < n_layer; il++) {
+            indexer_types.push_back(il % 2 ? 0 : 1);
+        }
+        ms.add_kv(LLM_KV_ATTENTION_INDEXER_TYPES, indexer_types);
+    }
+
     if (arch == LLM_ARCH_DEEPSEEK4) {
         ms.add_kv(LLM_KV_ATTENTION_OUTPUT_GROUP_COUNT,         uint32_t(8));
         ms.add_kv(LLM_KV_ATTENTION_OUTPUT_LORA_RANK,           uint32_t(32));
@@ -407,6 +428,11 @@ static gguf_context_ptr get_gguf_ctx(const llm_arch arch, const bool moe) {
         ms.add_kv(LLM_KV_EXPERT_WEIGHTS_SCALE,                  1.0f);
         ms.add_kv(LLM_KV_EXPERT_WEIGHTS_NORM,                   true);
     }
+
+    if (arch == LLM_ARCH_MAPLE) {
+        ms.add_kv(LLM_KV_SWIGLU_CLAMP_EXP, 7.0f);
+    }
+
     ms.add_kv(LLM_KV_TOKENIZER_MODEL,         "no_vocab");
     // ms.add_kv(LLM_KV_DENSE_2_FEAT_OUT,     n_embd);
     // ms.add_kv(LLM_KV_DENSE_3_FEAT_IN,      n_embd);
@@ -536,6 +562,123 @@ static std::pair<llama_model_ptr, llama_context_ptr> get_model_and_ctx(
     return std::make_pair(std::move(model), std::move(lctx));
 }
 
+static void test_bonsai_mapped_load(llama_model * model, gguf_context * meta, llama_model_params params);
+
+static void test_bonsai_loader(const size_t seed) {
+    const auto metadata = [] {
+        auto meta = get_gguf_ctx(LLM_ARCH_LLAMA, false);
+        gguf_set_val_u32(meta.get(), "prism.hadamard.version", 1);
+        gguf_set_val_u32(meta.get(), "prism.hadamard.block_size", 128);
+        gguf_set_val_str(meta.get(), "prism.hadamard.transform", "normalized-sylvester-walsh-hadamard");
+        gguf_set_val_str(meta.get(), "prism.hadamard.axis", "input-last-dimension");
+        gguf_set_val_str(meta.get(), "prism.hadamard.sign_mode", "explicit");
+        const char * weights[] = { "blk.0.attn_q.weight", "blk.1.attn_k.weight" };
+        gguf_set_arr_str(meta.get(), "prism.hadamard.weight_names", weights, 2);
+        const int32_t width = 256;
+        std::vector<int32_t> signs(width, 1);
+        signs[1] = -1;
+        gguf_set_arr_data(meta.get(), "prism.hadamard.sign_widths", GGUF_TYPE_INT32, &width, 1);
+        gguf_set_arr_data(meta.get(), "prism.hadamard.sign_values", GGUF_TYPE_INT32, signs.data(), signs.size());
+        const char * inverse[] = { "token_embd.weight" };
+        gguf_set_arr_str(meta.get(), "prism.hadamard.inverse_weight_names", inverse, 1);
+        return meta;
+    };
+
+    std::vector<ggml_backend_dev_t> devices;
+    for (size_t i = 0; i < ggml_backend_dev_count(); ++i) {
+        auto * dev = ggml_backend_dev_get(i);
+        if (ggml_backend_dev_type(dev) == GGML_BACKEND_DEVICE_TYPE_GPU) {
+            devices.push_back(dev);
+        }
+    }
+    devices.push_back(nullptr);
+    // Two GPU layers offload blk.1 and output, leaving blk.0 (and its
+    // embedding inverse) on CPU: the mixed placement that exposed the bug.
+    for (int n_gpu : { 0, 2, 99 }) {
+        if (n_gpu && devices.size() == 1) {
+            continue;
+        }
+        auto meta = metadata();
+        auto mp = llama_model_default_params();
+        mp.devices = devices.data();
+        mp.n_gpu_layers = n_gpu;
+        mp.progress_callback = silent_model_load_progress;
+        size_t tmp = seed;
+        llama_model_ptr real(llama_model_init_from_user(meta.get(), set_tensor_data, &tmp, mp));
+        GGML_ASSERT(real);
+        test_bonsai_mapped_load(real.get(), meta.get(), mp);
+        mp.no_alloc = true;
+        // Different metadata insertion order must not affect inverse placement.
+        const char * reversed[] = { "blk.1.attn_k.weight", "blk.0.attn_q.weight" };
+        gguf_set_arr_str(meta.get(), "prism.hadamard.weight_names", reversed, 2);
+        llama_model_ptr dry(llama_model_init_from_user(meta.get(), set_tensor_data, &tmp, mp));
+        GGML_ASSERT(dry);
+        GGML_ASSERT(real->memory_breakdown() == dry->memory_breakdown());
+        for (auto * model : { real.get(), dry.get() }) {
+            if (n_gpu == 2) {
+                GGML_ASSERT(ggml_backend_dev_type(model->dev_layer(0)) == GGML_BACKEND_DEVICE_TYPE_CPU);
+                GGML_ASSERT(ggml_backend_dev_type(model->dev_layer(1)) == GGML_BACKEND_DEVICE_TYPE_GPU);
+            }
+            GGML_ASSERT(model->hadamard_rotations.size() == 2);
+            GGML_ASSERT(model->hadamard_inverses.size() == 1);
+            const auto & inverse = model->hadamard_inverses.begin()->second;
+            GGML_ASSERT(ggml_backend_buffer_get_type(inverse.rot->buffer) ==
+                    ggml_backend_dev_buffer_type(model->dev_layer(0)));
+            for (const auto * transforms : { &model->hadamard_rotations, &model->hadamard_inverses }) {
+                for (const auto & entry : *transforms) {
+                    for (const auto * tensor : { entry.second.rot, entry.second.signs }) {
+                        GGML_ASSERT(tensor && tensor->buffer);
+                        GGML_ASSERT((tensor->data == nullptr) == model->hparams.no_alloc);
+                    }
+                }
+            }
+        }
+        auto cp = llama_context_default_params();
+        cp.n_ctx = 256;
+        cp.n_batch = cp.n_ubatch = 32;
+        cp.type_k = cp.type_v = GGML_TYPE_F16;
+        llama_context_ptr real_ctx(llama_init_from_model(real.get(), cp));
+        llama_context_ptr dry_ctx(llama_init_from_model(dry.get(), cp));
+        GGML_ASSERT(real_ctx && dry_ctx);
+        auto * real_gf = real_ctx->get_gf_res_reserve()->get_gf();
+        auto * dry_gf = dry_ctx->get_gf_res_reserve()->get_gf();
+        GGML_ASSERT(ggml_graph_n_nodes(real_gf) == ggml_graph_n_nodes(dry_gf));
+        int rotations = 0;
+        for (int i = 0; i < ggml_graph_n_nodes(real_gf); ++i) {
+            const auto * a = ggml_graph_node(real_gf, i);
+            const auto * b = ggml_graph_node(dry_gf, i);
+            GGML_ASSERT(a->op == b->op && a->type == b->type && ggml_are_same_shape(a, b));
+            rotations += a->op == GGML_OP_MUL_MAT &&
+                reinterpret_cast<const int32_t *>(a->op_params)[1] == GGML_HINT_SRC0_IS_HADAMARD;
+        }
+        GGML_ASSERT(rotations == 3);
+    }
+
+    // Optional means absent is allowed, not that malformed metadata is ignored.
+    for (int variant = 0; variant < 5; ++variant) {
+        auto meta = metadata();
+        if (variant == 0) {
+            gguf_remove_key(meta.get(), "prism.hadamard.inverse_weight_names");
+        } else if (variant == 1) {
+            gguf_set_val_str(meta.get(), "prism.hadamard.inverse_weight_names", "token_embd.weight");
+        } else if (variant == 2) {
+            const int32_t value = 1;
+            gguf_set_arr_data(meta.get(), "prism.hadamard.inverse_weight_names", GGUF_TYPE_INT32, &value, 1);
+        } else if (variant == 3) {
+            const int32_t widths[] = { 256, 256 };
+            std::vector<int32_t> signs(512, 1);
+            gguf_set_arr_data(meta.get(), "prism.hadamard.sign_widths", GGUF_TYPE_INT32, widths, 2);
+            gguf_set_arr_data(meta.get(), "prism.hadamard.sign_values", GGUF_TYPE_INT32, signs.data(), signs.size());
+        }
+        auto mp = llama_model_default_params();
+        mp.n_gpu_layers = 0;
+        mp.no_alloc = true;
+        llama_model_ptr model(llama_model_init_from_user(meta.get(), set_tensor_data, nullptr, mp));
+        GGML_ASSERT(bool(model) == (variant == 0 || variant == 4));
+    }
+    printf("Bonsai loader: dry-fit graph/memory, placement and metadata contracts passed\n");
+}
+
 static void test_qwen4_ple_recurrent_resize(const size_t seed) {
     gguf_context_ptr gguf = get_gguf_ctx(LLM_ARCH_QWEN4EXP, true);
     // These owners precede the model so its borrowed synthetic PLE weights stay
@@ -575,11 +718,6 @@ static void test_qwen4_ple_recurrent_resize(const size_t seed) {
     };
     ple_ctx.reset(ggml_init(tensor_params));
     GGML_ASSERT(ple_ctx != nullptr);
-    auto make_1d = [&](int64_t ne0, const char * name) {
-        ggml_tensor * tensor = ggml_new_tensor_1d(ple_ctx.get(), GGML_TYPE_F32, ne0);
-        ggml_set_name(tensor, name);
-        return tensor;
-    };
     auto make_2d = [&](int64_t ne0, int64_t ne1, const char * name) {
         ggml_tensor * tensor = ggml_new_tensor_2d(ple_ctx.get(), GGML_TYPE_F32, ne0, ne1);
         ggml_set_name(tensor, name);
@@ -588,9 +726,9 @@ static void test_qwen4_ple_recurrent_resize(const size_t seed) {
     model->per_layer_tok_embd      = make_2d(256, 128, "per_layer_token_embd.weight");
     model->layers[0].ple_key        = make_2d(256, 1024, "blk.0.ple_key.weight");
     model->layers[0].ple_value      = make_2d(256, 256, "blk.0.ple_value.weight");
-    model->layers[0].ple_norm_key   = make_1d(1024, "blk.0.ple_norm_key.weight");
-    model->layers[0].ple_norm_query = make_1d(1024, "blk.0.ple_norm_query.weight");
-    model->layers[0].ple_norm_conv  = make_1d(1024, "blk.0.ple_norm_conv.weight");
+    model->layers[0].ple_norm_key   = make_2d(hp.n_embd, hp.dsv4_hc_mult, "blk.0.ple_norm_key.weight");
+    model->layers[0].ple_norm_query = make_2d(hp.n_embd, hp.dsv4_hc_mult, "blk.0.ple_norm_query.weight");
+    model->layers[0].ple_norm_conv  = make_2d(hp.n_embd, hp.dsv4_hc_mult, "blk.0.ple_norm_conv.weight");
     model->layers[0].ple_conv1d     = make_2d(2, 1024, "blk.0.ple_conv1d.weight");
     ple_buf.reset(ggml_backend_alloc_ctx_tensors_from_buft(ple_ctx.get(), ggml_backend_cpu_buffer_type()));
     GGML_ASSERT(ple_buf != nullptr);
@@ -740,6 +878,18 @@ static void test_kv_pager_routing_output_graph_identity() {
 
 static void test_dflash_selector_family_contract() {
     using family = llm_dflash_selector_family;
+
+    // Enum-to-enum checks alone miss collisions with unrelated architecture
+    // tensors. Verify the wire names that the loader will actually request.
+    const LLM_TN tn(LLM_ARCH_DFLASH);
+    GGML_ASSERT(tn(LLM_TENSOR_DFLASH2_SELECTOR_HIDDEN, "weight").str() == "selector.hidden_proj.weight");
+    GGML_ASSERT(tn(LLM_TENSOR_DFLASH2_SELECTOR_PRED).str() == "selector.pred_codebook");
+    GGML_ASSERT(tn(LLM_TENSOR_DFLASH2_SELECTOR_SUCC).str() == "selector.succ_codebook");
+    GGML_ASSERT(tn(LLM_TENSOR_DFLASH2_ATTN_CONV_BASE, 0).str() == "blk.0.attn_conv.base");
+    GGML_ASSERT(tn(LLM_TENSOR_DFLASH2_ATTN_CONV_PROJ, "weight", 0).str() == "blk.0.attn_conv.proj.weight");
+    GGML_ASSERT(tn(LLM_TENSOR_DFLASH2_FFN_CONV_BASE, 0).str() == "blk.0.ffn_conv.base");
+    GGML_ASSERT(tn(LLM_TENSOR_DFLASH2_FFN_CONV_PROJ, "weight", 0).str() == "blk.0.ffn_conv.proj.weight");
+    GGML_ASSERT(tn(LLM_TENSOR_SSM_G, 0).str() == "blk.0.ssm_g");
 
     GGML_ASSERT(llm_dflash_selector_family_from_identity(false, false, false) == family::none);
     GGML_ASSERT(llm_dflash_selector_family_from_identity(true,  false, false) == family::unidentified);
@@ -1222,9 +1372,9 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
         constexpr uint64_t n_index_values    = 128;
         constexpr uint64_t bytes_f16         = 2;
         constexpr uint64_t ref_attn_f16      = n_attn_layers * 2 * n_kv_values_side * bytes_f16 * n_ctx_train;
-        constexpr uint64_t ref_index_generic = n_attn_layers * 2 * n_index_values * bytes_f16 * n_ctx_train;
+        constexpr uint64_t ref_index_generic = n_attn_layers * n_index_values * bytes_f16 * n_ctx_train;
         GGML_ASSERT(ref_attn_f16 == 6ULL * 1024 * 1024 * 1024);
-        GGML_ASSERT(ref_index_generic == 1536ULL * 1024 * 1024);
+        GGML_ASSERT(ref_index_generic == 768ULL * 1024 * 1024);
 
         auto * memory = dynamic_cast<llama_memory_hybrid_idx *>(llama_get_memory(model_and_ctx.second.get()));
         GGML_ASSERT(memory != nullptr);
@@ -1232,7 +1382,7 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
         GGML_ASSERT(memory->get_mem_recr() != nullptr);
         GGML_ASSERT(memory->get_mem_idx()  != nullptr);
         GGML_ASSERT(memory->get_mem_idx()->type_k() == GGML_TYPE_F16);
-        GGML_ASSERT(memory->get_mem_idx()->type_v() == GGML_TYPE_F16);
+        GGML_ASSERT(memory->get_mem_idx()->type_v() == GGML_TYPE_COUNT);
 
         const auto merge = [](auto dst, const auto & src) {
             for (const auto & [buft, size] : src) {
@@ -1279,7 +1429,7 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
         GGML_ASSERT(indexed_memory != nullptr);
         GGML_ASSERT(indexed_memory->get_mem_idx() != nullptr);
         GGML_ASSERT(indexed_memory->get_mem_idx()->type_k() == GGML_TYPE_F16);
-        GGML_ASSERT(indexed_memory->get_mem_idx()->type_v() == GGML_TYPE_F16);
+        GGML_ASSERT(indexed_memory->get_mem_idx()->type_v() == GGML_TYPE_COUNT);
         return memory;
     };
 
@@ -1365,7 +1515,7 @@ static void test_qwen4_indexed_cache_admission(const size_t seed) {
         GGML_ASSERT(q8_indexed->get_mem_attn()->type_k() == GGML_TYPE_Q8_0);
         GGML_ASSERT(q8_indexed->get_mem_attn()->type_v() == GGML_TYPE_Q8_0);
         GGML_ASSERT(q8_indexed->get_mem_idx()->type_k() == GGML_TYPE_F16);
-        GGML_ASSERT(q8_indexed->get_mem_idx()->type_v() == GGML_TYPE_F16);
+        GGML_ASSERT(q8_indexed->get_mem_idx()->type_v() == GGML_TYPE_COUNT);
         GGML_ASSERT(q8_indexed->memory_breakdown_vbr_managed() ==
                     q8_indexed->get_mem_attn()->memory_breakdown_vbr_managed());
     }
@@ -1741,7 +1891,7 @@ static void test_qwen4_vbr_cuda(const size_t seed) {
         GGML_ASSERT(memory->get_mem_attn()->type_k() == tier);
         GGML_ASSERT(memory->get_mem_attn()->type_v() == tier);
         GGML_ASSERT(memory->get_mem_idx()->type_k() == GGML_TYPE_F16);
-        GGML_ASSERT(memory->get_mem_idx()->type_v() == GGML_TYPE_F16);
+        GGML_ASSERT(memory->get_mem_idx()->type_v() == GGML_TYPE_COUNT);
         decode_range(ctx.get(), 0, 4);
         const double tier_nmse = nmse(static_ref_logits, last_logits(ctx.get()));
         GGML_ASSERT(std::isfinite(tier_nmse));
@@ -2107,7 +2257,7 @@ static void test_qwen4_vbr_cuda(const size_t seed) {
     GGML_ASSERT(llama_kv_cache_vbr_epoch_test::n_stream(attn) == 1);
     GGML_ASSERT(llama_kv_cache_vbr_epoch_test::n_stream(idx) == 1);
     GGML_ASSERT(llama_kv_cache_vbr_epoch_test::map_seed_watermark(attn));
-    GGML_ASSERT(idx->type_k() == GGML_TYPE_F16 && idx->type_v() == GGML_TYPE_F16);
+    GGML_ASSERT(idx->type_k() == GGML_TYPE_F16 && idx->type_v() == GGML_TYPE_COUNT);
 
     // Entry and floor queries use the same bits-per-context-token unit. This pins the fit's
     // fractional-floor denominator against accidentally returning aggregate bits/value.
@@ -2178,7 +2328,7 @@ static void test_qwen4_vbr_cuda(const size_t seed) {
             }
         }
         decode_range(ctx.get(), next_pos++, 1);
-        GGML_ASSERT(idx->type_k() == GGML_TYPE_F16 && idx->type_v() == GGML_TYPE_F16);
+        GGML_ASSERT(idx->type_k() == GGML_TYPE_F16 && idx->type_v() == GGML_TYPE_COUNT);
     }
     GGML_ASSERT(std::all_of(
         seen_tier.begin(), seen_tier.end(), [](bool seen) { return seen; }));
@@ -2191,7 +2341,7 @@ static void test_qwen4_vbr_cuda(const size_t seed) {
     GGML_ASSERT(trace.score_nodes > 0 && trace.top_k_nodes > 0);
     GGML_ASSERT(attn->seq_pos_max(0) == 319);
     GGML_ASSERT(idx ->seq_pos_max(0) == 319);
-    GGML_ASSERT(idx->type_k() == GGML_TYPE_F16 && idx->type_v() == GGML_TYPE_F16);
+    GGML_ASSERT(idx->type_k() == GGML_TYPE_F16 && idx->type_v() == GGML_TYPE_COUNT);
 
     llama_batch two_seq = llama_batch_init(2, 0, 2);
     common_batch_add(two_seq, 3, 320, { 0 }, true);
@@ -2276,6 +2426,23 @@ static void test_qwen4_vbr_cuda(const size_t seed) {
         std::unique_ptr<vbr_parsed_companion_image> refused;
         GGML_ASSERT(!vbr_parse_qsa_index_companion(
             nullptr, wrong_version, qsa_chain, qsa_target, refused));
+        GGML_ASSERT(!refused);
+    }
+
+    // A legacy two-sided index image must not be read as key-only state. The
+    // native header's V-type field distinguishes these storage layouts even
+    // when model identity and all K dimensions match.
+    {
+        auto two_sided = qsa_bytes;
+        const size_t v_type_offset = 4*sizeof(uint32_t) + sizeof(ggml_type);
+        const ggml_type legacy_v_type = GGML_TYPE_F16;
+        GGML_ASSERT(v_type_offset + sizeof(legacy_v_type) <= two_sided.size());
+        std::memcpy(two_sided.data() + v_type_offset, &legacy_v_type, sizeof(legacy_v_type));
+        artifact_segment_chain legacy_chain(two_sided.size());
+        GGML_ASSERT(legacy_chain.append(two_sided.data(), two_sided.size()));
+        std::unique_ptr<vbr_parsed_companion_image> refused;
+        GGML_ASSERT(!vbr_parse_qsa_index_companion(
+            nullptr, qsa_descriptor, legacy_chain, qsa_target, refused));
         GGML_ASSERT(!refused);
     }
 
@@ -2616,6 +2783,24 @@ static file_ptr make_test_tmpfile() {
 #endif
 }
 
+static void test_bonsai_mapped_load(llama_model * model, gguf_context * meta, llama_model_params params) {
+    auto file = make_test_tmpfile();
+    if (!file) {
+        throw std::runtime_error("cannot create Bonsai mmap test fixture");
+    }
+    llama_model_saver saver(model);
+    saver.add_kv_from_model();
+    gguf_set_kv(saver.gguf_ctx, meta);
+    saver.add_tensors_from_model();
+    saver.save(file.get());
+    rewind(file.get());
+    params.load_mode = LLAMA_LOAD_MODE_MMAP;
+    llama_model_ptr mapped(llama_model_load_from_file_ptr(file.get(), params));
+    GGML_ASSERT(mapped);
+    GGML_ASSERT(mapped->hadamard_rotations.size() == model->hadamard_rotations.size());
+    GGML_ASSERT(mapped->hadamard_inverses.size() == model->hadamard_inverses.size());
+}
+
 static file_ptr make_dflash_selector_identity_file(std::initializer_list<const char *> tensor_names) {
     file_ptr file = make_test_tmpfile();
     if (!file) {
@@ -2789,15 +2974,16 @@ static void test_dflash_loader_exact_identity() {
     }
 }
 
-static file_ptr make_qwen35_mtp_sidecar(const ggml_type d2t_type, const size_t seed) {
+static file_ptr make_qwen35_mtp_sidecar(const ggml_type d2t_type, const size_t seed,
+        const bool fused_qkv = false, const llm_arch arch = LLM_ARCH_QWEN35) {
     GGML_ASSERT(d2t_type == GGML_TYPE_I32 || d2t_type == GGML_TYPE_I64);
     file_ptr file = make_test_tmpfile();
     if (!file) {
         return file;
     }
 
-    gguf_context_ptr source_gguf = get_gguf_ctx(LLM_ARCH_QWEN35, false);
-    llama_model_saver source_meta(LLM_ARCH_QWEN35, source_gguf.get());
+    gguf_context_ptr source_gguf = get_gguf_ctx(arch, arch == LLM_ARCH_QWEN35MOE);
+    llama_model_saver source_meta(arch, source_gguf.get());
     source_meta.add_kv(LLM_KV_NEXTN_PREDICT_LAYERS, uint32_t(1));
 
     llama_model_params source_params = llama_model_default_params();
@@ -2814,10 +3000,12 @@ static file_ptr make_qwen35_mtp_sidecar(const ggml_type d2t_type, const size_t s
     }
 
     // Write a genuine MTP-only sidecar: omit the trunk and the optional full-vocab
-    // NextN embedding/head so the normal loader must select tok_embd/output+d2t.
+    // NextN embedding/head so the normal loader must select tok_embd/output
+    // (with d2t for the compact-head fixture).
     gguf_context_ptr sidecar_gguf(gguf_init_empty());
     gguf_set_kv(sidecar_gguf.get(), source_gguf.get());
-    llama_model_saver saver(LLM_ARCH_QWEN35, sidecar_gguf.get());
+    llama_model_saver saver(arch, sidecar_gguf.get());
+    const auto & mtp_layer = source->layers[source->hparams.n_layer()];
     for (const auto & entry : llama_internal_get_tensor_map(source.get())) {
         const std::string & name = entry.first;
         if (name.rfind("blk.0.", 0) == 0 ||
@@ -2826,19 +3014,45 @@ static file_ptr make_qwen35_mtp_sidecar(const ggml_type d2t_type, const size_t s
                 name == "output.weight") {
             continue;
         }
+        if (fused_qkv && (entry.second == mtp_layer.wq ||
+                         entry.second == mtp_layer.wk || entry.second == mtp_layer.wv ||
+                         entry.second == mtp_layer.wq_s || entry.second == mtp_layer.wk_s ||
+                         entry.second == mtp_layer.wv_s)) {
+            continue;
+        }
         saver.add_tensor(entry.second);
     }
 
     ggml_init_params tensor_params = {
-        /*.mem_size   =*/ 64*1024,
+        /*.mem_size   =*/ 128*1024 + (fused_qkv ? ggml_nbytes(mtp_layer.wq) +
+                ggml_nbytes(mtp_layer.wk) + ggml_nbytes(mtp_layer.wv) : 0),
         /*.mem_buffer =*/ nullptr,
         /*.no_alloc   =*/ false,
     };
     ggml_context_ptr tensor_ctx(ggml_init(tensor_params));
-    ggml_tensor * output = ggml_new_tensor_2d(tensor_ctx.get(), GGML_TYPE_F16, 256, 32);
+    if (fused_qkv) {
+        auto * qkv = ggml_new_tensor_2d(tensor_ctx.get(), mtp_layer.wq->type,
+                mtp_layer.wq->ne[0], mtp_layer.wq->ne[1] + mtp_layer.wk->ne[1] + mtp_layer.wv->ne[1]);
+        const std::string name = "blk." + std::to_string(source->hparams.n_layer()) + ".attn_qkv.weight";
+        ggml_set_name(qkv, name.c_str());
+        size_t offset = 0;
+        for (auto * part : { mtp_layer.wq, mtp_layer.wk, mtp_layer.wv }) {
+            ggml_backend_tensor_get(part, static_cast<char *>(qkv->data) + offset, 0, ggml_nbytes(part));
+            offset += ggml_nbytes(part);
+        }
+        saver.add_tensor(qkv);
+    }
+    ggml_tensor * output = ggml_new_tensor_2d(tensor_ctx.get(), GGML_TYPE_F16, 256, fused_qkv ? 128 : 32);
     ggml_set_name(output, "output.weight");
     memset(output->data, 0, ggml_nbytes(output));
     saver.add_tensor(output);
+
+    if (fused_qkv) {
+        saver.save(file.get());
+        fflush(file.get());
+        rewind(file.get());
+        return file;
+    }
 
     ggml_tensor * d2t = ggml_new_tensor_1d(tensor_ctx.get(), d2t_type, 32);
     ggml_set_name(d2t, "d2t");
@@ -2889,6 +3103,33 @@ static std::pair<llama_model_ptr, llama_context_ptr> load_qwen35_mtp_sidecar(FIL
         throw std::runtime_error("failed to create Qwen3.5 MTP context");
     }
     return std::make_pair(std::move(model), std::move(ctx));
+}
+
+static void test_qwen35_mtp_fused_qkv(const size_t seed, const llm_arch arch) {
+    file_ptr file = make_qwen35_mtp_sidecar(GGML_TYPE_I32, seed, true, arch);
+    if (!file) {
+        printf("Qwen3.5 MTP fused QKV test SKIPPED (tmpfile unavailable)\n");
+        return;
+    }
+    auto model_and_ctx = load_qwen35_mtp_sidecar(file.get());
+    const auto & model = *model_and_ctx.first;
+    const int il = model.hparams.n_layer();
+    const auto & layer = model.layers[il];
+    GGML_ASSERT(layer.wqkv && !layer.wq && !layer.wk && !layer.wv);
+
+    for (const int n_tokens : { 1, 4 }) {
+        auto * gf = llama_graph_reserve(model_and_ctx.second.get(), n_tokens, 1, 1);
+        GGML_ASSERT(gf);
+        const std::string suffix = "-" + std::to_string(il);
+        auto * q = ggml_graph_get_tensor(gf, ("mtp_Qcur_full" + suffix).c_str());
+        auto * v = ggml_graph_get_tensor(gf, ("mtp_Vcur" + suffix).c_str());
+        GGML_ASSERT(q && v);
+        GGML_ASSERT(q->ne[2] == n_tokens && v->ne[2] == n_tokens);
+        const size_t token_stride = layer.wqkv->ne[1] * ggml_element_size(q);
+        GGML_ASSERT(q->nb[2] == token_stride && v->nb[2] == token_stride);
+        GGML_ASSERT(q->view_src == v->view_src);
+    }
+    printf("Qwen3.5 MTP fused QKV graph test OK (%s)\n", llm_arch_name(arch));
 }
 
 static void test_qwen35_mtp_d2t_contract(const size_t seed) {
@@ -3362,10 +3603,6 @@ static void test_qwen4_mtp_sidecar_contract(const size_t seed) {
     target_model->output = target_output;
     GGML_ASSERT(tied_shared_model != nullptr);
     GGML_ASSERT(tied_shared_model->output == target_model->tok_embd);
-    GGML_ASSERT(!llama_model_shared_output_needs_separate_copy(true, true, true));
-    GGML_ASSERT(llama_model_shared_output_needs_separate_copy(true, true, false));
-    GGML_ASSERT(llama_model_shared_output_needs_separate_copy(false, true, true));
-    GGML_ASSERT(!llama_model_shared_output_needs_separate_copy(true, false, true));
 
     llama_context_ptr shared_ctx(llama_init_from_model(shared_model.get(), ctx_params));
     GGML_ASSERT(shared_ctx != nullptr);
@@ -3613,6 +3850,7 @@ static bool moe_mandatory(const llm_arch arch) {
         case LLM_ARCH_ERNIE4_5_MOE:
         case LLM_ARCH_HUNYUAN_MOE:
         case LLM_ARCH_HY_V3:
+        case LLM_ARCH_HY_V4:
         case LLM_ARCH_OPENAI_MOE:
         case LLM_ARCH_LFM2MOE:
         case LLM_ARCH_SMALLTHINKER:
@@ -3630,6 +3868,7 @@ static bool moe_mandatory(const llm_arch arch) {
         case LLM_ARCH_MISTRAL4:
         case LLM_ARCH_MELLUM:
         case LLM_ARCH_LAGUNA:
+        case LLM_ARCH_MAPLE:
             return true;
         default:
             return false;
@@ -3688,7 +3927,8 @@ static bool arch_supported(const llm_arch arch) {
     }
     // FIXME: these hit scheduler/view-backed-output issues with WebGPU on CI.
 #ifdef GGML_USE_WEBGPU
-    if (arch == LLM_ARCH_DEEPSEEK32 || arch == LLM_ARCH_GLM_DSA || arch == LLM_ARCH_DOTS3NOTE || arch == LLM_ARCH_QWEN4EXP) {
+    if (arch == LLM_ARCH_DEEPSEEK32 || arch == LLM_ARCH_GLM_DSA || arch == LLM_ARCH_DOTS3NOTE || arch == LLM_ARCH_QWEN4EXP ||
+            arch == LLM_ARCH_HY_V4) {
         return false;
     }
 #endif // GGML_USE_WEBGPU
@@ -4166,8 +4406,15 @@ int main(int argc, char ** argv) {
         if (!out.empty()) {
             return save_models(arch, seed, verbosity, out);
         }
+        if (arch == LLM_ARCH_UNKNOWN || arch == LLM_ARCH_LLAMA) {
+            test_bonsai_loader(seed);
+        }
         if (arch == LLM_ARCH_UNKNOWN || arch == LLM_ARCH_QWEN35) {
+            test_qwen35_mtp_fused_qkv(seed, LLM_ARCH_QWEN35);
             test_qwen35_mtp_d2t_contract(seed);
+        }
+        if (arch == LLM_ARCH_UNKNOWN || arch == LLM_ARCH_QWEN35MOE) {
+            test_qwen35_mtp_fused_qkv(seed, LLM_ARCH_QWEN35MOE);
         }
         if (arch == LLM_ARCH_UNKNOWN || arch == LLM_ARCH_QWEN4EXP) {
             test_qwen4_ple_recurrent_resize(seed);

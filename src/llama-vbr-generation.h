@@ -16,6 +16,31 @@ struct vbr_tracker_install_child;
 struct vbr_generation_stream_state;
 class vbr_occupied_replacement_guard;
 
+struct vbr_cell_update_stamp {
+    uint32_t cell;
+    llama_seq_id sequence;
+    llama_pos position;
+};
+struct vbr_cell_update_event {
+    vbr_mutation_registrant registrant;
+    vbr_operation_class operation_class;
+    std::vector<vbr_cell_update_stamp> stamps;
+};
+
+// Boundary-scoped prepared cell provenance. Must not outlive its tracker.
+// Unlike a whole import, preserves unit history, lineage and untouched cells.
+class vbr_tracker_cell_update {
+public:
+    vbr_tracker_cell_update();
+    ~vbr_tracker_cell_update();
+    vbr_tracker_cell_update(const vbr_tracker_cell_update &) = delete;
+    vbr_tracker_cell_update & operator=(const vbr_tracker_cell_update &) = delete;
+private:
+    friend class vbr_generation_tracker;
+    struct impl;
+    std::unique_ptr<impl> impl_;
+};
+
 class vbr_tracker_import_image {
   public:
     vbr_tracker_import_image();
@@ -43,6 +68,8 @@ struct vbr_unit_generation {
     uint8_t             promote_hops     = 0;
     vbr_repr_transition last_transition  = vbr_repr_transition::initial;
     uint8_t             flags            = 0;
+    // Conservative precision of retained values, independent of container.
+    int32_t             effective_type   = -1;
 };
 
 enum class vbr_generation_stamp_kind : uint8_t {
@@ -249,6 +276,16 @@ class vbr_generation_tracker {
         vbr_operation_id operation_id) const noexcept;
     void install_import_image_swap(
         vbr_tracker_import_image & image) noexcept;
+
+    // Exclusive boundary only. Runs the ordinary authenticated cell-event
+    // machinery on an off-side copy, restoring live metadata before returning.
+    // Refusal does not invalidate the live shadow or reset any generation.
+    bool prepare_cell_update(const std::vector<vbr_cell_update_event> & events,
+                             vbr_operation_id operation, vbr_tracker_cell_update & output);
+    size_t cell_update_storage_bytes() const;
+    bool cell_update_installable(const vbr_tracker_cell_update & update,
+                                 vbr_operation_id operation) const;
+    void install_cell_update(vbr_tracker_cell_update & update, vbr_operation_id operation) noexcept;
 
     // Read-only accessors are intentionally value-returning. Callers may capture them, but
     // mutation still goes exclusively through authenticated tracker events and imports.

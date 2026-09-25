@@ -8,6 +8,7 @@
 
 #include "llama-impl.h"
 #include "llama-io.h"
+#include "llama-version.h"
 #include "llama-model.h"
 #include "llama-context.h"
 #include "llama-sha256.h"
@@ -4565,6 +4566,101 @@ bool llama_kv_cache::try_seq_cp_transient(
     return seq_cp_impl(seq_id_src, seq_id_dst, p0, p1, false);
 }
 
+bool llama_kv_cache::can_share_attn_prefix(
+        llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos n_tokens) const {
+    return n_swa == 0 && swa_type == LLAMA_SWA_TYPE_NONE &&
+        can_share_range(seq_id_src, seq_id_dst, 0, n_tokens);
+}
+
+bool llama_kv_cache::can_share_range(
+        llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) const {
+    return p0 >= 0 && p1 > p0 && can_share_destination(seq_id_src, seq_id_dst) &&
+        v_cells[0].seq_has_range(seq_id_src, p0, p1);
+}
+
+bool llama_kv_cache::can_share_destination(llama_seq_id seq_id_src, llama_seq_id seq_id_dst) const {
+    if (other || n_stream != 1 ||
+        seq_id_src == seq_id_dst || seq_id_src < 0 || seq_id_dst < 0 ||
+        uint32_t(seq_id_src) >= n_seq_max || uint32_t(seq_id_dst) >= n_seq_max ||
+        (size_t) seq_id_src >= seq_to_stream.size() ||
+        (size_t) seq_id_dst >= seq_to_stream.size()) {
+        return false;
+    }
+
+    const auto & cells = v_cells[0];
+    return !cells.get_has_shift() && cells.seq_pos_min(seq_id_dst) == -1;
+}
+
+bool llama_kv_cache::can_share_attn_prefix_rows(llama_seq_id src, llama_seq_id dst,
+        llama_pos next_pos, const std::vector<llama_pos> & rows) const {
+    return n_swa == 0 && swa_type == LLAMA_SWA_TYPE_NONE &&
+        can_share_destination(src, dst) && v_cells[0].seq_has_prefix_rows(src, next_pos, rows);
+}
+
+bool llama_kv_cache::try_share_attn_prefix_rows(llama_seq_id src, llama_seq_id dst,
+        llama_pos next_pos, const std::vector<llama_pos> & rows) {
+    return can_share_attn_prefix_rows(src, dst, next_pos, rows) && share_checked_range(src, dst, 0, next_pos);
+}
+
+bool llama_kv_cache::try_share_attn_prefix(
+        llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos n_tokens) {
+    if (!can_share_attn_prefix(seq_id_src, seq_id_dst, n_tokens)) {
+        return false;
+    }
+    return share_checked_range(seq_id_src, seq_id_dst, 0, n_tokens);
+}
+
+llama_pos llama_kv_cache::live_prefix_begin(llama_pos n_tokens) const {
+    if (n_tokens <= 0) { return -1; }
+    switch (swa_type) {
+        case LLAMA_SWA_TYPE_NONE: return 0;
+        // Preserve the window at the saved frontier n_tokens-1, including the
+        // oldest row even when the next decode no longer attends to it.
+        case LLAMA_SWA_TYPE_STANDARD:
+            return n_swa ? llama_pos(std::max<int64_t>(0, int64_t(n_tokens) - n_swa)) : -1;
+        case LLAMA_SWA_TYPE_CHUNKED:
+            return n_swa ? llama_pos(((n_tokens - 1) / n_swa) * n_swa) : -1;
+        default: return -1;
+    }
+}
+
+bool llama_kv_cache::can_share_live_prefix(llama_seq_id src, llama_seq_id dst, llama_pos n_tokens) const {
+    return can_share_range(src, dst, live_prefix_begin(n_tokens), n_tokens);
+}
+
+bool llama_kv_cache::can_share_live_prefix_rows(llama_seq_id src, llama_seq_id dst,
+        llama_pos next_pos, const std::vector<llama_pos> & rows) const {
+    return can_share_destination(src, dst) &&
+        v_cells[0].seq_has_prefix_rows(src, next_pos, rows, live_prefix_begin(next_pos));
+}
+
+bool llama_kv_cache::try_share_live_prefix_rows(llama_seq_id src, llama_seq_id dst,
+        llama_pos next_pos, const std::vector<llama_pos> & rows) {
+    return can_share_live_prefix_rows(src, dst, next_pos, rows) && share_checked_range(src, dst, 0, next_pos);
+}
+
+bool llama_kv_cache::try_share_live_prefix(llama_seq_id src, llama_seq_id dst, llama_pos n_tokens) {
+    const auto begin = live_prefix_begin(n_tokens);
+    // Validate the necessary window, but keep ordinary seq_cp's membership
+    // layout for all still-retained rows. Trimming masked history here changes
+    // subsequent cell placement and is not part of prefix sharing.
+    return can_share_range(src, dst, begin, n_tokens) && share_checked_range(src, dst, 0, n_tokens);
+}
+
+bool llama_kv_cache::share_checked_range(
+        llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
+    try {
+        // Use the ordinary membership/lineage path, without a recurrent seq_cp.
+        seq_cp(seq_id_src, seq_id_dst, p0, p1);
+    } catch (const std::bad_alloc &) {
+        // The destination was empty. Removing partial membership does not touch
+        // source bytes or its recurrent state. seq_add publishes its index first.
+        seq_rm(seq_id_dst, p0, p1);
+        return false;
+    }
+    return true;
+}
+
 bool llama_kv_cache::seq_cp_impl(
         llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
         llama_pos p0, llama_pos p1, bool publish_lineage) {
@@ -5463,9 +5559,9 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::plan_slots(const std::vector<lla
             const auto & cells = v_cells[stream];
             for (const uint32_t idx : sinfo_new.idxs[s]) {
                 if (!cells.is_empty(idx)) {
-                    GGML_ASSERT(cells.seq_count(idx) == 1);
-                    const llama_seq_id seq_id = cells.seq_get(idx);
-                    seq_pos_max_rm[seq_id] = std::max(seq_pos_max_rm[seq_id], cells.pos_get(idx));
+                    cells.seq_for_each(idx, [&](llama_seq_id seq_id) {
+                        seq_pos_max_rm[seq_id] = std::max(seq_pos_max_rm[seq_id], cells.pos_get(idx));
+                    });
                 }
             }
         }
@@ -5858,32 +5954,10 @@ llama_kv_cache::slot_info llama_kv_cache::find_slot(const llama_ubatch & ubatch,
 
                 // can we use this cell? either:
                 //  - the cell is empty
-                //  - the cell is occupied only by one sequence:
-                //    - (disabled) mask causally, if the sequence is the same as the one we are inserting
-                //    - mask SWA, using current max pos for that sequence in the cache
-                //                always insert in the cell with minimum pos
-                bool can_use = cells.is_empty(idx);
-
-                if (!can_use && cells.seq_count(idx) == 1) {
-                    const llama_pos pos_cell = cells.pos_get(idx);
-
-                    // (disabled) causal mask
-                    // note: it's better to purge any "future" tokens beforehand
-                    //if (cells.seq_has(idx, seq_id)) {
-                    //    can_use = pos_cell >= pos;
-                    //}
-
-                    if (!can_use) {
-                        const llama_seq_id seq_id_cell = cells.seq_get(idx);
-
-                        // SWA mask
-                        if (llama_hparams::is_masked_swa(n_swa, swa_type, pos_cell, cells.seq_pos_max(seq_id_cell) + 1)) {
-                            can_use = true;
-                        }
-                    }
-                }
-
-                if (can_use) {
+                //  - every owner masks it under SWA at its next position.
+                // A shared prefix is not permanently pinned: once ALL owners
+                // advance past a row, its backing can serve another token.
+                if (can_reuse_cell(res.strm[s], idx)) {
                     res.idxs[s].push_back(idx);
                 } else {
                     if (cont) {
@@ -5915,6 +5989,18 @@ llama_kv_cache::slot_info llama_kv_cache::find_slot(const llama_ubatch & ubatch,
     assert(res.s1 >= res.s0);
 
     return res;
+}
+
+bool llama_kv_cache::can_reuse_cell(uint32_t stream, uint32_t cell) const {
+    const auto & cells = v_cells[stream];
+    if (cells.is_empty(cell)) { return true; }
+    if (n_swa == 0) { return false; }
+    bool reusable = true;
+    cells.seq_for_each(cell, [&](llama_seq_id seq) {
+        reusable = reusable && llama_hparams::is_masked_swa(
+            n_swa, swa_type, cells.pos_get(cell), cells.seq_pos_max(seq) + 1);
+    });
+    return reusable;
 }
 
 void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & ubatch, bool commit) {
@@ -6067,18 +6153,17 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
                             decode_class, stream, vbr_generation_stamp_kind::dependency, true));
                 }
                 reused_occupied_cell = true;
-                assert(cells.seq_count(idx) == 1);
 
-                const llama_seq_id seq_id = cells.seq_get(idx);
-                const llama_pos    pos    = cells.pos_get(idx);
+                const llama_pos pos = cells.pos_get(idx);
                 prior_pos = pos;
 
-                seq_pos_max_rm[seq_id] = std::max(seq_pos_max_rm[seq_id], pos);
-                reused_sequences[size_t(seq_id)] = true;
-
-                if (decode_armed && vbr_ownership_) {
-                    vbr_ownership_->remove_cell(stream, seq_id, idx, pos);
-                }
+                cells.seq_for_each(idx, [&](llama_seq_id seq_id) {
+                    seq_pos_max_rm[seq_id] = std::max(seq_pos_max_rm[seq_id], pos);
+                    reused_sequences[size_t(seq_id)] = true;
+                    if (decode_armed && vbr_ownership_) {
+                        vbr_ownership_->remove_cell(stream, seq_id, idx, pos);
+                    }
+                });
                 if (idx < vbr_stash_rows_) {
                     vbr_stash_dirty_ = true; // the SWA slot is about to hold a different token
                 }
@@ -6268,9 +6353,44 @@ uint32_t llama_kv_cache::vbr_watermark_cells(uint32_t extra_tokens) const {
     uint32_t wm = 0;
     for (uint32_t s = 0; s < n_stream; ++s) {
         const auto & cells = v_cells[s];
-        wm = std::max(wm, std::min(cells.size(), GGML_PAD(cells.used_max_p1() + extra_tokens, n_pad_cur)));
+        const uint64_t projected = uint64_t(cells.used_max_p1()) + extra_tokens;
+        wm = std::max(wm, uint32_t(std::min(uint64_t(cells.size()), GGML_PAD(projected, n_pad_cur))));
     }
     return wm;
+}
+
+uint32_t llama_kv_cache::vbr_import_watermark_cells(
+        uint32_t incoming_cells, uint32_t prefix_cells, uint32_t source_high_water,
+        llama_seq_id destination, uint32_t source_backing) const {
+    if (other) { return other->vbr_import_watermark_cells(incoming_cells, prefix_cells, source_high_water, destination, source_backing); }
+    if (destination < 0 || size_t(destination) >= seq_to_stream.size()) { return 0; }
+    const auto & cells = v_cells[seq_to_stream[destination]];
+    if (cells.get_used() == 0) {
+        if (source_high_water == 0) { return vbr_watermark_cells(incoming_cells); }
+        // Whole imports preserve source physical placements, including holes
+        // left by earlier provisional replacements. Prefix projections pass
+        // their compacted high-water instead. The suffix resumes after the
+        // last installed row, not after the payload's allocation padding.
+        const uint64_t suffix = incoming_cells > prefix_cells ? incoming_cells-prefix_cells : 0;
+        return vbr_watermark_cells(uint32_t(std::min(uint64_t(UINT32_MAX),
+            std::max(uint64_t(source_backing), source_high_water+suffix))));
+    }
+    uint32_t incumbent = 0;
+    // Price growth beyond the rows being replaced, retaining foreign rows and
+    // physical holes. Unknown ownership gets no reclaim credit. Shared rows
+    // remain forbidden by the later occupied-replacement guard.
+    if (!vbr_ownership_ || !vbr_ownership_->rank_below(
+            seq_to_stream[destination], destination, std::numeric_limits<llama_pos>::max(), incumbent)) {
+        incumbent = 0;
+    }
+    // The guard prefers provisional free cells, leaving the incumbent's old
+    // physical range behind the resumed head. Credit reuse only when the
+    // guard must recycle the incumbent (and the prefix fits those rows).
+    if (source_high_water != 0 &&
+        (prefix_cells <= cells.size()-cells.get_used() || prefix_cells > incumbent)) {
+        incumbent = 0;
+    }
+    return vbr_watermark_cells(incoming_cells > incumbent ? uint32_t(incoming_cells-incumbent) : 0);
 }
 
 // multi-pool helpers: any pool VMM-backed / pool owning a tensor (by buffer) / any pool projected
@@ -7488,12 +7608,12 @@ static uint64_t vbr_policy_endpoint_bytes(
 }
 
 bool llama_kv_cache::vbr_policy_priced_steps(
-        std::vector<ggml_type> & sim, size_t start_cursor,
+        std::vector<ggml_type> & sim, size_t start_cursor, size_t end_cursor,
         int demanded_device, uint32_t watermark, bool fixed_watermark,
         bool fail_closed, llama_vbr_policy::child & out,
         vbr_hard_seal_consult_session * seal_session) const {
     int64_t terminal = out.initial_progress;
-    for (size_t i = start_cursor; i < vbr_demand_limit(); ++i) {
+    for (size_t i = start_cursor; i < std::min(end_cursor, vbr_degrade_order_.size()); ++i) {
         size_t slot = 0;
         const ggml_tensor * canonical = nullptr;
         ggml_type type_b = GGML_TYPE_COUNT;
@@ -7597,7 +7717,7 @@ llama_vbr_policy::child llama_kv_cache::vbr_policy_child_stream(
 
     vbr_hard_seal_consult_session seal_session;
     GGML_ASSERT(vbr_policy_priced_steps(
-        sim, vbr_degrade_cursor_, demanded_device, wm_next,
+        sim, vbr_degrade_cursor_, vbr_demand_limit(), demanded_device, wm_next,
         false, false, out,
         vbr_hard_seal_guard_ ? &seal_session : nullptr));
     return out;
@@ -8254,7 +8374,7 @@ bool llama_kv_cache::vbr_downward_policy_input(
         }
         auto sim = source_types;
         if (!vbr_policy_priced_steps(
-                sim, size_t(source_cursor), demanded_device,
+                sim, size_t(source_cursor), vbr_demand_limit(), demanded_device,
                 projected_wm_cells, true, true, output.policy)) {
             return false;
         }
@@ -8288,10 +8408,12 @@ bool llama_kv_cache::vbr_import_destination_input(
         // Destination negotiation is tree-wide and may span several devices.
         // Summing logical gain across every pool preserves the controller's
         // canonical per-child ladder while giving the tree interleaver one
-        // honest progress denominator.
+        // honest progress denominator. This is local allocation pressure, not
+        // peer-demand consent: use the configured aggregate floor, including
+        // when the user left that floor implicit.
         vbr_hard_seal_consult_session seal_session;
         if (!vbr_policy_priced_steps(
-            sim, vbr_degrade_cursor_, /* demanded_device = */ -1,
+            sim, vbr_degrade_cursor_, vbr_degrade_limit_, /* demanded_device = */ -1,
             projected_wm_cells, true, true, output.policy,
             vbr_hard_seal_guard_ ? &seal_session : nullptr)) {
             return false;
@@ -8344,15 +8466,12 @@ bool llama_kv_cache::vbr_import_bind_target_unit(
                 [output.logical_unit_id] != target_type) {
             return false;
         }
-        vbr_capture_stability_token policy;
-        if (!vbr_capture_policy_snapshot(policy)) {
-            return false;
-        }
         const bool movable = vbr_unit_movable(source_type, is_v);
         vbr_downward_recipe recipe;
+        // The authenticated canonical projection authorizes this unit's
+        // destination. An aggregate bpv floor is not a uniform per-unit tier.
         const auto relation = vbr_downward_resolve_recipe(
-            source_type, target_type,
-            static_cast<ggml_type>(policy.floor_type), movable, recipe);
+            source_type, target_type, target_type, movable, recipe);
         if (relation != vbr_downward_recipe_status::resolved &&
             relation != vbr_downward_recipe_status::equal_tier &&
             relation != vbr_downward_recipe_status::upward_forbidden) {
@@ -8442,7 +8561,6 @@ bool llama_kv_cache::vbr_import_bind_target_unit(
         if (downward) {
             output.downward_supported = true;
             output.downward_movable = movable;
-            output.controller_floor_type = policy.floor_type;
             output.downward_type = target_type;
             output.downward_domain = vbr_downward_tier_domain(target_type);
             output.downward_recipe_id = VBR_DOWNWARD_RECIPE_ID;
@@ -8692,18 +8810,9 @@ bool llama_kv_cache::vbr_upward_transform_import(
                       vbr_upward_mean_action::none))) {
             return false;
         }
-        if (source_domain == vbr_repr_domain::tapped) {
-            if (plan.descriptor.promote_hops >= 2 ||
-                plan.target_promote_hops !=
-                    uint8_t(plan.descriptor.promote_hops + 1) ||
-                plan.target_last_source_type !=
-                    plan.descriptor.current_type) {
-                return false;
-            }
-        } else if (source_domain != vbr_repr_domain::full ||
-                   plan.target_promote_hops != 0 ||
-                   plan.target_last_source_type !=
-                       plan.selected_target_type) {
+        if (plan.descriptor.promote_hops >= 2 ||
+            plan.target_promote_hops != uint8_t(plan.descriptor.promote_hops + 1) ||
+            plan.target_last_source_type != plan.descriptor.current_type) {
             return false;
         }
         const size_t ikv = plan.logical_unit_id/2;
@@ -9515,6 +9624,7 @@ bool vbr_capture_generation_equal(
            lhs.publish_seq == rhs.publish_seq &&
            lhs.current_type == rhs.current_type &&
            lhs.last_source_type == rhs.last_source_type &&
+           lhs.effective_type == rhs.effective_type &&
            lhs.domain == rhs.domain &&
            lhs.promote_hops == rhs.promote_hops &&
            lhs.last_transition == rhs.last_transition &&
@@ -9882,20 +9992,8 @@ bool llama_kv_cache::vbr_capture_stability_matches(
     }
     try {
         for (const auto & expected : token.units) {
-            if (tracker->unit_generation(expected.logical_unit).publish_seq !=
-                    expected.generation.publish_seq ||
-                !(tracker->unit_generation(expected.logical_unit).repr_gen ==
-                      expected.generation.repr_gen &&
-                  tracker->unit_generation(expected.logical_unit).current_type ==
-                      expected.generation.current_type &&
-                  tracker->unit_generation(expected.logical_unit).last_source_type ==
-                      expected.generation.last_source_type &&
-                  tracker->unit_generation(expected.logical_unit).domain ==
-                      expected.generation.domain &&
-                  tracker->unit_generation(expected.logical_unit).promote_hops ==
-                      expected.generation.promote_hops &&
-                  tracker->unit_generation(expected.logical_unit).last_transition ==
-                      expected.generation.last_transition)) {
+            const auto current = tracker->unit_generation(expected.logical_unit);
+            if (!vbr_capture_generation_equal(current, expected.generation)) {
                 return false;
             }
             const auto & extents = vbr_units_of(
@@ -10024,6 +10122,7 @@ bool llama_kv_cache::vbr_capture_generation_record(
                     generation.domain,
                     generation.promote_hops,
                     generation.last_transition,
+                    generation.effective_type,
                 });
             }
             output.streams.push_back(std::move(captured_stream));
@@ -10885,7 +10984,8 @@ void llama_kv_cache::vbr_full_reset() {
                         unit,
                         before.current_type,
                         target,
-                        vbr_repr_domain::full,
+                        tensor != nullptr && !llama_vbr_codec_full_domain(vbr_params_.codec, tensor->type)
+                            ? vbr_repr_domain::tapped : vbr_repr_domain::full,
                         0,
                         vbr_repr_transition::full_reset,
                         vbr_mutation_registrant::full_reset,
@@ -14482,7 +14582,7 @@ ggml_type llama_kv_cache::type_k() const {
 }
 
 ggml_type llama_kv_cache::type_v() const {
-    return layers[0].v->type;
+    return layers[0].v ? layers[0].v->type : GGML_TYPE_COUNT;
 }
 
 std::vector<uint32_t> llama_kv_cache::get_layer_ids() const {
@@ -15061,7 +15161,9 @@ static void set_input_kq_mask_impl(const args_set_input_kq_mask & args, T * data
 
                 // apply SWA if any
                 if (swa) {
-                    if (llama_hparams::is_masked_swa(n_swa, swa_type, p0, p1)) {
+                    // see llama_non_causal_type
+                    const bool in_span = !causal && args.hparams.non_causal_type == LLAMA_NON_CAUSAL_TYPE_SWA_FULL && p0 >= seq_pos_min[seq_id];
+                    if (!in_span && llama_hparams::is_masked_swa(n_swa, swa_type, p0, p1)) {
                         goto skip;
                     }
                 }
@@ -15131,6 +15233,12 @@ void llama_kv_cache::set_input_kq_mask(ggml_tensor * dst, const llama_ubatch * u
 
     // n_tps == n_tokens_per_stream
     const int64_t n_tps = n_tokens/n_stream;
+
+    // see llama_non_causal_type
+    // only the SWA cache (or the SWA layers of a single cache) become non-causal
+    if (!causal_attn && hparams.non_causal_type == LLAMA_NON_CAUSAL_TYPE_SWA_ONLY) {
+        causal_attn = swa_type == LLAMA_SWA_TYPE_NONE;
+    }
 
     //const int64_t t_start = ggml_time_us();
 

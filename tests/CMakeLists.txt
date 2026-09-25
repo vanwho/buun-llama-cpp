@@ -10,7 +10,7 @@ function(llama_build source)
     endif()
 
     add_executable(${TEST_TARGET} ${TEST_SOURCES})
-    target_link_libraries(${TEST_TARGET} PRIVATE llama llama-common)
+    target_link_libraries(${TEST_TARGET} PRIVATE llama llama-common) # TODO: [TAG_TESTS_LLAMA_LINK]
     if (LLAMA_TESTS_INSTALL)
         install(TARGETS ${TEST_TARGET} RUNTIME)
     endif()
@@ -151,6 +151,22 @@ endif ()
 llama_build_and_test(test-server-recurrent-expansion.cpp)
 target_include_directories(test-server-recurrent-expansion PRIVATE ${PROJECT_SOURCE_DIR}/tools/server)
 
+llama_build_and_test(test-kv-cells.cpp)
+target_include_directories(test-kv-cells PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
+llama_build_and_test(test-sha256.cpp ${PROJECT_SOURCE_DIR}/vendor/hash/sha256/sha256.c)
+target_include_directories(test-sha256 PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/vendor/hash)
+
+# Compile the same implementation without ISA dispatch for fallback coverage on
+# SHA-capable CI hosts. This override is test-only, not a production build option.
+add_executable(test-sha256-portable test-sha256.cpp
+    ${PROJECT_SOURCE_DIR}/src/llama-sha256.cpp
+    ${PROJECT_SOURCE_DIR}/vendor/hash/sha256/sha256.c)
+target_include_directories(test-sha256-portable PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/vendor/hash)
+target_compile_features(test-sha256-portable PRIVATE cxx_std_17)
+target_compile_definitions(test-sha256-portable PRIVATE LLAMA_SHA256_FORCE_PORTABLE=1)
+llama_test(test-sha256-portable)
+
 llama_build(test-safetensors-registry.cpp)
 target_include_directories(test-safetensors-registry PRIVATE ${PROJECT_SOURCE_DIR}/src)
 llama_test(test-safetensors-registry)
@@ -158,6 +174,14 @@ llama_build(test-save-load-state.cpp)
 
 if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     # these tests are disabled on Windows because they use internal functions not exported with LLAMA_API (when building with shared libraries)
+    if (TARGET ggml-cpu)
+        llama_build_and_test(test-safetensors-dflash.cpp)
+        target_include_directories(test-safetensors-dflash PRIVATE ${PROJECT_SOURCE_DIR}/src)
+        target_link_libraries(test-safetensors-dflash PRIVATE ggml-cpu)
+        llama_build_and_test(test-draft-shared-tensors.cpp)
+        target_include_directories(test-draft-shared-tensors PRIVATE ${PROJECT_SOURCE_DIR}/src)
+        target_link_libraries(test-draft-shared-tensors PRIVATE ggml-cpu)
+    endif ()
     llama_build_and_test(test-model-source-mmap.cpp)
     llama_build_and_test(test-repack-cache.cpp)
     target_include_directories(test-repack-cache PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/vendor)
@@ -175,9 +199,15 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
 
     llama_build(test-recurrent-state-rollback.cpp)
     target_include_directories(test-recurrent-state-rollback PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    llama_build(test-vbr-swa-window.cpp)
+    target_include_directories(test-vbr-swa-window PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
     llama_build(test-vbr-representation-epoch.cpp)
     target_include_directories(test-vbr-representation-epoch PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    llama_build_and_test(test-vbr-representation-identity.cpp)
+    target_include_directories(test-vbr-representation-identity PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    llama_build_and_test(test-vbr-cross-domain.cpp)
+    set_tests_properties(test-vbr-cross-domain PROPERTIES SKIP_RETURN_CODE 77)
     add_test(
         NAME test-vbr-controller-identity-cpu
         COMMAND $<TARGET_FILE:test-vbr-representation-epoch> --identity-cpu)
@@ -303,9 +333,6 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     target_compile_definitions(test-cache-control PRIVATE
         CACHE_CONTROL_GOLDEN_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/cache-control-v1.json")
 
-    llama_build_and_test(test-cache-plan-estimate.cpp)
-    target_include_directories(test-cache-plan-estimate PRIVATE ${PROJECT_SOURCE_DIR}/src)
-
     llama_build_and_test(
         test-cache-plan-authority.cpp
         ${PROJECT_SOURCE_DIR}/tools/server/server-cache-plan-authority.cpp)
@@ -321,7 +348,7 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
         ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/tools/server)
     target_compile_definitions(test-cache-plan-preflight PRIVATE
-        CACHE_PLAN_PREFLIGHT_GOLDEN_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/cache-plan-preflight-v1.json")
+        CACHE_PLAN_PREFLIGHT_GOLDEN_PATH="${PROJECT_SOURCE_DIR}/tests/fixtures/cache-plan-preflight-v2.json")
 
     llama_build_and_test(
         test-retention-sidecar.cpp
@@ -350,11 +377,7 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     llama_build_and_test(test-chat.cpp WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
     target_include_directories(test-chat PRIVATE ${PROJECT_SOURCE_DIR}/tools/server)
     target_link_libraries(test-chat PRIVATE server-context)
-    # TODO: disabled on loongarch64 because the ggml-ci node lacks Python 3.8
-    if (NOT ${CMAKE_SYSTEM_PROCESSOR} MATCHES "loongarch64")
-        llama_build_and_test(test-json-schema-to-grammar.cpp   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
-        target_include_directories(test-json-schema-to-grammar PRIVATE ${PROJECT_SOURCE_DIR}/tools/server)
-    endif()
+    llama_build_and_test(test-json-schema-to-grammar.cpp)
 
     if (NOT GGML_BACKEND_DL)
         llama_build(test-quantize-stats.cpp)
@@ -383,7 +406,7 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
 
     # llama_build_and_test(test-double-float.cpp) # SLOW
 
-    llama_build_and_test(test-llama-archs.cpp)
+    llama_build(test-llama-archs.cpp)
     llama_build(test-lora-determinism.cpp)
 
     set(MODEL_DIR "${CMAKE_CURRENT_BINARY_DIR}/test-models/")
@@ -454,6 +477,25 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     set_tests_properties(test-recurrent-state-rollback-dsv4 PROPERTIES
         FIXTURES_REQUIRED generate-models
     )
+    llama_test(
+        test-recurrent-state-rollback
+        NAME test-recurrent-state-rollback-kimi-k3
+        LABEL main
+        ARGS -m "${MODEL_DIR}/kimi-k3-moe.gguf"
+    )
+    set_tests_properties(test-recurrent-state-rollback-kimi-k3 PROPERTIES
+        FIXTURES_REQUIRED generate-models
+    )
+
+    foreach (MODEL qwen35-dense nemotron_h-dense deepseek4-moe kimi-k3-moe)
+        llama_test(
+            test-recurrent-state-rollback
+            NAME test-recurrent-state-pattern-${MODEL}
+            LABEL main
+            ARGS -m "${MODEL_DIR}/${MODEL}.gguf" --cache-pattern-fill)
+        set_tests_properties(test-recurrent-state-pattern-${MODEL} PROPERTIES
+            FIXTURES_REQUIRED generate-models)
+    endforeach()
 
     # Test state save/load functionality across all architectures, using the generated dummy models
     llama_test(
@@ -462,11 +504,13 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
         ARGS --models "${MODEL_DIR}" --fit off -ctk f16 -ctv f16
     )
     set_tests_properties(test-save-load-state PROPERTIES FIXTURES_REQUIRED generate-models)
+    llama_build(test-fusion.cpp)
 endif()
 
 llama_build_and_test(test-chat-peg-parser.cpp peg-parser/simple-tokenize.cpp)
 llama_build_and_test(test-jinja.cpp)
 llama_test(test-jinja NAME test-jinja-py ARGS -py LABEL python)
+llama_build_and_test(test-json-schema.cpp)
 llama_build_and_test(test-chat-auto-parser.cpp WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 llama_build_and_test(test-chat-template.cpp)
 # debug tool for chat template differential analysis (not registered as a test, run it manually)
@@ -508,14 +552,17 @@ llama_build_and_test(test-arg-parser.cpp)
 llama_build_and_test(test-llama-bench-vbr.cpp)
 llama_build_and_test(test-mtp-vocab-trim.cpp)
 llama_build_and_test(test-speculative-mtp-state.cpp)
+llama_build_and_test(test-dflash-adaptive.cpp)
 if (MSVC)
     target_compile_options(test-arg-parser PRIVATE /UNDEBUG)
     target_compile_options(test-mtp-vocab-trim PRIVATE /UNDEBUG)
     target_compile_options(test-speculative-mtp-state PRIVATE /UNDEBUG)
+    target_compile_options(test-dflash-adaptive PRIVATE /UNDEBUG)
 else()
     target_compile_options(test-arg-parser PRIVATE -UNDEBUG)
     target_compile_options(test-mtp-vocab-trim PRIVATE -UNDEBUG)
     target_compile_options(test-speculative-mtp-state PRIVATE -UNDEBUG)
+    target_compile_options(test-dflash-adaptive PRIVATE -UNDEBUG)
 endif()
 llama_build_and_test(test-vbr-policy.cpp)
 llama_build_and_test(test-vbr-downward.cpp)
@@ -597,6 +644,9 @@ else()
     target_compile_options(test-vbr-transaction PRIVATE -UNDEBUG)
 endif()
 llama_build_and_test(test-model-resolution.cpp)
+add_executable(test-moe-metadata test-moe-metadata.cpp)
+target_link_libraries(test-moe-metadata PRIVATE llama)
+llama_test(test-moe-metadata)
 # the test serves its repos from an httplib server, and the library links it privately
 target_link_libraries(test-model-resolution PRIVATE cpp-httplib)
 
@@ -604,8 +654,22 @@ if (NOT LLAMA_SANITIZE_ADDRESS AND NOT GGML_SCHED_NO_REALLOC)
   # TODO: repair known memory leaks
   llama_build_and_test(test-opt.cpp)
 endif()
-llama_build_and_test(test-backend-ops.cpp)
-
+# The full suite runs explicitly in ci/run.sh. Keep focused fork CTest cases below.
+# TODO: decouple the operator tool from libllama [TAG_TESTS_LLAMA_LINK].
+llama_build(test-backend-ops.cpp)
+target_include_directories(test-backend-ops PRIVATE ../ggml/src)
+# Metadata ABI gate needs no model or device backend.
+add_executable(test-mul-mat-params test-mul-mat-params.cpp)
+target_include_directories(test-mul-mat-params PRIVATE ../ggml/src)
+target_link_libraries(test-mul-mat-params PRIVATE ggml-base)
+llama_test(test-mul-mat-params)
+add_executable(test-fusion-check test-fusion-check.cpp)
+llama_test(test-fusion-check)
+if (TARGET ggml-cpu)
+    add_executable(test-expert-window-params test-expert-window-params.cpp)
+    target_link_libraries(test-expert-window-params PRIVATE ggml ggml-cpu)
+    llama_test(test-expert-window-params)
+endif()
 if (TARGET ggml-cuda)
     enable_language(CUDA)
     llama_build_and_test(test-cuda-kv-promotion.cpp)
@@ -650,7 +714,6 @@ if (TARGET ggml-cuda)
         COMMAND $<TARGET_FILE:test-cuda-fattn-paged-turbo4> --prefill-long-context-regression)
     set_property(TEST test-cuda-prefill-long-context-regression PROPERTY LABELS "cuda")
 endif()
-
 if (TARGET ggml-cuda AND GGML_CUDA_Q8_MMV_TEST_INSTRUMENTATION)
     llama_test(test-backend-ops NAME test-cuda-q8-mmv-dispatch
         LABEL "main;backend"
@@ -664,6 +727,28 @@ target_include_directories(test-backend-expert-transfer PRIVATE ../ggml/src)
 llama_build_and_test(test-exl3-cpu.cpp)
 llama_build_and_test(test-cuda-graph-key.cpp)
 llama_build_and_test(test-cuda-rdna2-vmm-policy.cpp)
+if (TARGET ggml-cuda)
+    enable_language(CUDA)
+    get_target_property(PARAM_TEST_CUDA_ARCHITECTURES ggml-cuda CUDA_ARCHITECTURES)
+    add_executable(test-cuda-kernel-params test-cuda-kernel-params.cu)
+    target_link_libraries(test-cuda-kernel-params PRIVATE CUDA::cudart)
+    set_target_properties(test-cuda-kernel-params PROPERTIES
+        CUDA_STANDARD 17 CUDA_ARCHITECTURES "${PARAM_TEST_CUDA_ARCHITECTURES}")
+    llama_test(test-cuda-kernel-params LABEL "main;backend")
+    set_tests_properties(test-cuda-kernel-params PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+endif()
+# Calls private Marlin symbols, which are not exported from Windows DLLs.
+if (TARGET ggml-cuda AND NOT GGML_BACKEND_DL AND (NOT WIN32 OR NOT BUILD_SHARED_LIBS))
+    enable_language(CUDA)
+    get_target_property(QUANT_TEST_CUDA_ARCHITECTURES ggml-cuda CUDA_ARCHITECTURES)
+    add_executable(test-cuda-quant-arch test-cuda-quant-arch.cu)
+    target_include_directories(test-cuda-quant-arch PRIVATE ../ggml/src)
+    target_link_libraries(test-cuda-quant-arch PRIVATE ggml-cuda ggml CUDA::cudart)
+    set_target_properties(test-cuda-quant-arch PROPERTIES
+        CUDA_STANDARD 17 CUDA_ARCHITECTURES "${QUANT_TEST_CUDA_ARCHITECTURES}")
+    llama_test(test-cuda-quant-arch LABEL "main;backend")
+    set_property(TEST test-cuda-quant-arch PROPERTY SKIP_RETURN_CODE 77)
+endif()
 if ((TARGET ggml-cuda OR TARGET ggml-hip) AND NOT GGML_BACKEND_DL)
     llama_test(test-exl3-cpu NAME test-exl3-cpu-cache ARGS --cache)
     set_property(TEST test-exl3-cpu-cache PROPERTY SKIP_RETURN_CODE 77)
@@ -704,6 +789,20 @@ if ((TARGET ggml-cuda OR TARGET ggml-hip) AND NOT GGML_BACKEND_DL)
     set_tests_properties(test-exl3-byte-dot PROPERTIES SKIP_RETURN_CODE 77)
     llama_build(test-exl3-dense-batch.cpp)
     target_link_libraries(test-exl3-dense-batch PRIVATE ${EXL3_TEST_BACKEND})
+    if (TARGET ggml-cuda)
+        get_target_property(EXL3_CUDA_ARCHITECTURES ggml-cuda CUDA_ARCHITECTURES)
+        foreach(exl3_test test-exl3-dense-batch test-exl3-cpu)
+            target_sources(${exl3_test} PRIVATE test-cuda-exl3-arch.cu)
+            target_include_directories(${exl3_test} PRIVATE ../ggml/src)
+            target_compile_definitions(${exl3_test} PRIVATE EXL3_TEST_CUDA)
+            target_link_libraries(${exl3_test} PRIVATE CUDA::cudart)
+            set_target_properties(${exl3_test} PROPERTIES
+                CUDA_STANDARD 17 CUDA_ARCHITECTURES "${EXL3_CUDA_ARCHITECTURES}")
+        endforeach()
+        llama_test(test-exl3-cpu NAME test-exl3-head-oracle ARGS --gpu-head)
+        set_tests_properties(test-exl3-head-oracle PROPERTIES
+            SKIP_RETURN_CODE 77 ENVIRONMENT "GGML_EXL3_INT8=-1")
+    endif()
     foreach(mode -1 1 2)
         llama_test(test-exl3-dense-batch NAME test-exl3-dense-batch-${mode})
         set_tests_properties(test-exl3-dense-batch-${mode} PROPERTIES
@@ -719,6 +818,18 @@ if ((TARGET ggml-cuda OR TARGET ggml-hip) AND NOT GGML_BACKEND_DL)
 endif()
 if (TARGET ggml-cuda AND NOT GGML_BACKEND_DL)
     enable_language(CUDA)
+    llama_build(test-cuda-copy-batch.cpp)
+    target_link_libraries(test-cuda-copy-batch PRIVATE ggml-cuda)
+    llama_test(test-cuda-copy-batch LABEL "backend")
+    set_tests_properties(test-cuda-copy-batch PROPERTIES SKIP_RETURN_CODE 77)
+    llama_build(test-cuda-recurrent-gates.cpp)
+    target_link_libraries(test-cuda-recurrent-gates PRIVATE ggml-cuda)
+    llama_test(test-cuda-recurrent-gates LABEL "backend")
+    set_tests_properties(test-cuda-recurrent-gates PROPERTIES SKIP_RETURN_CODE 77)
+    llama_build(test-cuda-recurrent-indexed.cpp)
+    target_link_libraries(test-cuda-recurrent-indexed PRIVATE ggml-cuda)
+    llama_test(test-cuda-recurrent-indexed LABEL "backend")
+    set_tests_properties(test-cuda-recurrent-indexed PROPERTIES SKIP_RETURN_CODE 77)
     # Small scale-aware cases exercise generic fallbacks without the expensive
     # CPU reference of production-sized dynamic FP8 GEMMs.
     llama_test(test-backend-ops NAME test-cuda-native-quant-fallbacks

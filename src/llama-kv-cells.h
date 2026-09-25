@@ -3,6 +3,7 @@
 #include "llama.h"
 #include "llama-cparams.h"
 
+#include <algorithm>
 #include <bitset>
 #include <cassert>
 #include <cstring>
@@ -131,6 +132,34 @@ private:
 class llama_kv_cells {
 public:
     using seq_set_t = std::bitset<LLAMA_MAX_SEQ>;
+
+    // Publish prepared metadata without move-constructing the position trees:
+    // MSVC's std::set move constructor allocates a new sentinel.
+    void swap(llama_kv_cells & other) noexcept {
+        std::swap(has_shift, other.has_shift);
+        std::swap(used, other.used);
+        pos.swap(other.pos);
+        ext.swap(other.ext);
+        shift.swap(other.shift);
+        seq.swap(other.seq);
+        for (uint32_t s = 0; s < LLAMA_MAX_SEQ; ++s) {
+            seq_pos[s].swap(other.seq_pos[s]);
+        }
+    }
+
+    friend void swap(llama_kv_cells & a, llama_kv_cells & b) noexcept {
+        a.swap(b);
+    }
+
+    // Logical allocation quote for a transaction copy; excludes allocator
+    // overhead/tree-node links, like the host cache's payload byte accounting.
+    size_t copy_storage_bytes() const {
+        size_t bytes = sizeof(*this) + pos.size()*sizeof(llama_pos) +
+            ext.size()*sizeof(llama_kv_cell_ext) + shift.size()*sizeof(llama_pos) +
+            seq.size()*sizeof(seq_set_t) + ((pos.size()+63)/64)*sizeof(uint64_t);
+        for (const auto & positions : seq_pos) { bytes += positions.size()*sizeof(*positions.begin()); }
+        return bytes;
+    }
 
     void reset() {
         for (uint32_t i = 0; i < pos.size(); ++i) {
@@ -407,7 +436,7 @@ public:
     }
 
     // check if the cell contains seq_id
-    // Iterate the sequences ACTUALLY occupying cell i — O(occupants), not O(LLAMA_MAX_SEQ).
+    // Iterate the sequences occupying cell i, in ascending order.
     // Ownership-index maintenance walks this per touched cell on whole-cache edits.
     template <typename F>
     void seq_for_each(uint32_t i, F && f) const {
@@ -418,9 +447,10 @@ public:
             f((llama_seq_id) s);
         }
 #else
-        for (size_t s = 0; s < set.size(); ++s) {
+        for (size_t s = 0, remaining = set.count(); remaining && s < set.size(); ++s) {
             if (set.test(s)) {
                 f((llama_seq_id) s);
+                --remaining;
             }
         }
 #endif
@@ -456,8 +486,9 @@ public:
         assert(pos[i] != -1);
         assert(!seq[i].test(seq_id));
 
-        seq[i].set(seq_id);
         seq_pos_inc(seq_id, i);
+        // Publish membership only after the allocating index insertion succeeds.
+        seq[i].set(seq_id);
     }
 
     // return the sequence id of this cell
@@ -498,6 +529,46 @@ public:
         }
 
         return seq_pos[seq_id].rbegin()->first;
+    }
+
+    // Require exactly one cell at each prefix position; min/max alone miss holes
+    // and counting cells alone can mistake duplicate positions for coverage.
+    bool seq_has_prefix(llama_seq_id seq_id, llama_pos n_tokens) const {
+        return seq_has_range(seq_id, 0, n_tokens);
+    }
+
+    bool seq_has_range(llama_seq_id seq_id, llama_pos p0, llama_pos p1) const {
+        assert(seq_id >= 0 && seq_id < LLAMA_MAX_SEQ);
+        llama_pos next = p0;
+        const auto & positions = seq_pos[seq_id];
+        for (auto it = positions.lower_bound({ p0, 0 }); it != positions.end(); ++it) {
+            if (it->first >= p1) {
+                break;
+            }
+            if (it->first != next) {
+                return false;
+            }
+            ++next;
+        }
+        return p0 >= 0 && p1 > p0 && next == p1;
+    }
+
+    bool seq_has_prefix_rows(llama_seq_id seq_id, llama_pos next_pos,
+                            const std::vector<llama_pos> & expected, llama_pos begin = 0) const {
+        assert(seq_id >= 0 && seq_id < LLAMA_MAX_SEQ);
+        if (begin < 0 || begin >= next_pos || expected.empty() || expected.front() != 0 ||
+            next_pos <= expected.back() || !std::is_sorted(expected.begin(), expected.end())) {
+            return false;
+        }
+        const auto & positions = seq_pos[seq_id];
+        auto it = positions.lower_bound({begin, 0});
+        for (auto row = std::lower_bound(expected.begin(), expected.end(), begin); row != expected.end(); ++row) {
+            if (it == positions.end() || it->first != *row) {
+                return false;
+            }
+            ++it;
+        }
+        return it == positions.end() || it->first >= next_pos;
     }
 
     // Exact cardinality from the canonical ownership index rather than trusting

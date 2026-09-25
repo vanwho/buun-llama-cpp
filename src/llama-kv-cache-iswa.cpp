@@ -121,6 +121,14 @@ llama_kv_cache_iswa::llama_kv_cache_iswa(
             v_trans, offload, unified, size_swa, n_seq_max, n_pad,
             hparams.n_swa, hparams.swa_type, mem_other_swa, filter_swa, reuse, share, vbr_swa);
 
+    if (kv_swa->vbr_ownership_ && size_swa < size_base) {
+        // Construction only: no rows or ownership views exist yet. The ring's
+        // physical capacity does not bound its logical positions. Keep rank
+        // coverage at the base context size; storage remains lazy per sequence.
+        kv_swa->vbr_ownership_ = std::make_unique<vbr_ownership_index>(
+                kv_swa->n_stream, uint32_t(kv_swa->seq_to_stream.size()), size_swa, size_base);
+    }
+
     const uint64_t scalar_budget = llama_memory_vbr_budget_bytes_resolve(vbr);
     if (scalar_budget > 0) {
         vbr_repartition_scalar_budget(scalar_budget);
@@ -691,6 +699,84 @@ bool llama_kv_cache_iswa::get_can_shift() const {
 
 bool llama_kv_cache_iswa::get_has_shared_cells() const {
     return kv_base->get_has_shared_cells() || kv_swa->get_has_shared_cells();
+}
+
+bool llama_kv_cache_iswa::can_share_attn_prefix(
+        llama_seq_id src, llama_seq_id dst, llama_pos n_tokens) const {
+    // The source's current SWA window may be ahead of the checkpoint. Share
+    // only full-attention rows; PARTIAL_ONLY restores the saved window into
+    // independent cells. Legacy window images cannot follow VBR tier changes.
+    return !kv_base->vbr_controller_active() && !kv_swa->vbr_controller_active() &&
+        kv_base->can_share_attn_prefix(src, dst, n_tokens) &&
+        kv_swa->seq_pos_min(dst) == -1;
+}
+
+bool llama_kv_cache_iswa::can_share_live_prefix(llama_seq_id src, llama_seq_id dst, llama_pos n_tokens) const {
+    return kv_base->can_share_live_prefix(src, dst, n_tokens) &&
+        kv_swa->can_share_live_prefix(src, dst, n_tokens);
+}
+
+bool llama_kv_cache_iswa::can_share_attn_prefix_rows(llama_seq_id src, llama_seq_id dst,
+        llama_pos next_pos, const std::vector<llama_pos> & rows) const {
+    return !kv_base->vbr_controller_active() && !kv_swa->vbr_controller_active() &&
+        kv_base->can_share_attn_prefix_rows(src, dst, next_pos, rows) && kv_swa->seq_pos_min(dst) == -1;
+}
+
+bool llama_kv_cache_iswa::try_share_attn_prefix_rows(llama_seq_id src, llama_seq_id dst,
+        llama_pos next_pos, const std::vector<llama_pos> & rows) {
+    return can_share_attn_prefix_rows(src, dst, next_pos, rows) &&
+        kv_base->try_share_attn_prefix_rows(src, dst, next_pos, rows);
+}
+
+bool llama_kv_cache_iswa::can_share_live_prefix_rows(llama_seq_id src, llama_seq_id dst,
+        llama_pos next_pos, const std::vector<llama_pos> & rows) const {
+    return kv_base->can_share_live_prefix_rows(src, dst, next_pos, rows) &&
+        kv_swa->can_share_live_prefix_rows(src, dst, next_pos, rows);
+}
+
+bool llama_kv_cache_iswa::try_share_live_prefix_rows(llama_seq_id src, llama_seq_id dst,
+        llama_pos next_pos, const std::vector<llama_pos> & rows) {
+    return share_live_prefix(src, dst, next_pos, &rows);
+}
+
+bool llama_kv_cache_iswa::try_share_live_prefix(llama_seq_id src, llama_seq_id dst, llama_pos n_tokens) {
+    return share_live_prefix(src, dst, n_tokens, nullptr);
+}
+
+bool llama_kv_cache_iswa::share_live_prefix(llama_seq_id src, llama_seq_id dst, llama_pos n_tokens,
+        const std::vector<llama_pos> * rows) {
+    if (!(rows ? can_share_live_prefix_rows(src, dst, n_tokens, *rows)
+               : can_share_live_prefix(src, dst, n_tokens))) { return false; }
+    iswa_forwarded_op forwarded(kv_base.get(), kv_swa.get(),
+        iswa_edit_binding(kv_base.get(), kv_swa.get(), vbr_operation_kind::sequence_edit,
+                          vbr_operation_class::state_api, dst, 0, n_tokens));
+    const auto rollback = [&]() {
+        // Both destinations were empty; rollback stays within the parent's
+        // declared range and cannot remove any source membership.
+        kv_base->seq_rm(dst, 0, n_tokens);
+        kv_swa->seq_rm(dst, 0, n_tokens);
+    };
+    bool ok = false;
+    try {
+        const auto share = [&](llama_kv_cache * child) {
+            return rows ? child->try_share_live_prefix_rows(src, dst, n_tokens, *rows)
+                        : child->try_share_live_prefix(src, dst, n_tokens);
+        };
+        ok = share(kv_base.get()) && share(kv_swa.get());
+    } catch (...) {
+        rollback();
+        forwarded.finalize(false);
+        throw;
+    }
+    if (!ok) { rollback(); }
+    forwarded.finalize(ok);
+    return ok;
+}
+
+bool llama_kv_cache_iswa::try_share_attn_prefix(
+        llama_seq_id src, llama_seq_id dst, llama_pos n_tokens) {
+    return can_share_attn_prefix(src, dst, n_tokens) &&
+        kv_base->try_share_attn_prefix(src, dst, n_tokens);
 }
 
 void llama_kv_cache_iswa::state_write(llama_io_write_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) const {

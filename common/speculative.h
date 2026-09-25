@@ -23,6 +23,10 @@ struct common_speculative_proposal {
     size_t q_covered_tokens = 0;
     llama_seq_id seq_id = -1;
     bool exact_q = false;
+
+    void clear();
+    // A server may shorten a draft or append CopySpec tokens after these rows.
+    size_t matching_prefix_size(llama_seq_id seq, const llama_tokens & draft) const;
 };
 
 // comma separated list the provided types
@@ -35,7 +39,7 @@ const char * common_speculative_all_types_str();
 std::vector<enum common_speculative_type> common_speculative_types_from_names(const std::vector<std::string> & names);
 
 // infer the spec types from the GGUF metadata of a draft model; empty if unknown
-std::vector<enum common_speculative_type> common_speculative_types_from_gguf(const std::string & path);
+std::vector<enum common_speculative_type> common_speculative_types_from_model(const std::string & path);
 
 // convert string to type
 enum common_speculative_type common_speculative_type_from_name(const std::string & name);
@@ -83,7 +87,7 @@ const char * common_speculative_mtp_context_status_name(
 // Native callers set native_mtp=true; there an explicit -cd is accepted only
 // when it equals the resolved target width.
 common_speculative_mtp_context_params common_speculative_mtp_context_params_resolve(
-        uint32_t target_n_ctx_seq,
+        uint32_t target_n_ctx,
         int32_t explicit_draft_n_ctx,
         uint32_t requested_n_seq_max,
         bool requested_kv_unified,
@@ -142,7 +146,7 @@ struct common_speculative_draft_params {
     // can be used to constraint the max draft based on the remaining context size
     int32_t n_max = -1;
 
-    llama_pos   n_past;
+    llama_pos   pos0; // position of id_last, not the prompt's token count
     llama_token id_last;
 
     // TODO: remove in the future by keeping track of the prompt from the _begin() call and the consecutive accept calls
@@ -357,10 +361,10 @@ void common_speculative_accept(common_speculative * spec, uint16_t n_accepted);
 
 // fork: DFlash slot routing
 void common_speculative_set_seq_id(common_speculative * spec, llama_seq_id seq_id);
-void common_speculative_set_rng_seed(
-        common_speculative * spec,
-        llama_seq_id         seq_id,
-        uint32_t             seed);
+// Configure request-local proposal sampling, using the target's resolved seed.
+void common_speculative_set_sampling(
+        common_speculative * spec, llama_seq_id seq_id,
+        const common_params_sampling & sampling);
 
 // fork: single-seq draft (returns tokens)
 llama_tokens common_speculative_draft(
@@ -383,7 +387,7 @@ void common_speculative_draft_batch(
 // at least one decode on a linked draft-model context.
 bool common_speculative_last_draft_model_decode_succeeded(const common_speculative * spec);
 
-// Proposal distribution owned by the DFlash state that produced the most
+// Proposal distribution owned by the implementation that produced the most
 // recent draft. Null means the current draft has no verified proposal payload.
 const common_speculative_proposal * common_speculative_get_proposal(
         const common_speculative * spec,

@@ -1357,12 +1357,12 @@ void common_models_handler_apply(common_models_handler & handler, common_params 
         }
     }
 
-    // infer the speculative type from the draft GGUF metadata when none is requested
+    // infer the speculative type from draft model metadata when none is requested
     // note: reads only the first split - sharded drafts need an explicit --spec-type
     if (spec_types_is_default(params) && !params.speculative.draft.mparams.path.empty()) {
-        const auto types_gguf = common_speculative_types_from_gguf(params.speculative.draft.mparams.path);
-        if (!types_gguf.empty()) {
-            params.speculative.types = types_gguf;
+        const auto types = common_speculative_types_from_model(params.speculative.draft.mparams.path);
+        if (!types.empty()) {
+            params.speculative.types = types;
         }
     }
 
@@ -1714,6 +1714,12 @@ static bool common_params_parse_ex(int argc, char ** argv, common_params_context
 
     postprocess_cpu_params(params.speculative.draft.cpuparams,       &params.cpuparams);
     postprocess_cpu_params(params.speculative.draft.cpuparams_batch, &params.cpuparams_batch);
+
+    // An explicit projector selection wins; otherwise follow the target devices.
+    if (params.mmproj_use_gpu && params.mmproj_device == nullptr && !params.devices.empty()) {
+        params.mmproj_device = params.devices.front();
+        params.mmproj_use_gpu = params.mmproj_device != nullptr;
+    }
 
     common_params_postprocess_vbr(params);
 
@@ -3288,14 +3294,14 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_sampling());
     add_opt(common_arg(
         {"-j", "--json-schema"}, "SCHEMA",
-        "JSON schema to constrain generations (https://json-schema.org/), e.g. `{}` for any JSON object\nFor schemas w/ external $refs, use --grammar + example/json_schema_to_grammar.py instead",
+        "JSON schema to constrain generations (https://json-schema.org/), e.g. `{\"type\": \"object\"}` for any JSON object",
         [](common_params & params, const std::string & value) {
             params.sampling.grammar = {COMMON_GRAMMAR_TYPE_OUTPUT_FORMAT, json_schema_to_grammar(json::parse(value))};
         }
     ).set_sampling());
     add_opt(common_arg(
         {"-jf", "--json-schema-file"}, "FILE",
-        "File containing a JSON schema to constrain generations (https://json-schema.org/), e.g. `{}` for any JSON object\nFor schemas w/ external $refs, use --grammar + example/json_schema_to_grammar.py instead",
+        "File containing a JSON schema to constrain generations (https://json-schema.org/), e.g. `{\"type\": \"object\"}` for any JSON object",
         [](common_params & params, const std::string & value) {
             std::ifstream file(value);
             if (!file) {
@@ -3721,7 +3727,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     add_opt(common_arg(
         // note: "-mmdev" must sort after "--rpc" in the preset map, else RPC devices are not registered yet
         {"-mmdev", "--mmproj-device"}, "DEVICE",
-        "device to use for multimodal projector (none = don't offload, default: auto)\n"
+        "device to use for multimodal projector (none = don't offload, default: follows --device)\n"
         "use --list-devices to see a list of available devices",
         [](common_params & params, const std::string & value) {
             if (value == "none") {
@@ -4845,7 +4851,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_ENDPOINT_SLOTS"));
     add_opt(common_arg(
         {"--cache-debug"},
-        string_format("emit one shadow cache-plan decision record per request as a JSON log line and expose the last record in /slots (default: %s)", params.cache_debug ? "enabled" : "disabled"),
+        string_format("log observed cache reuse decisions per request and expose the last record in /slots (default: %s)", params.cache_debug ? "enabled" : "disabled"),
         [](common_params & params) {
             params.cache_debug = true;
         }
@@ -4866,10 +4872,9 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_CACHE_CONTROL_API"));
     add_opt(common_arg(
         {"--cache-plan-authority"}, "LEVEL",
-        "set cache-plan authority at LEVEL: off, by_id, similarity, route_home, or lru (non-off levels remain observation-only; default: off)",
-        [](common_params & params, const std::string & value) {
-            params.cache_plan_authority =
-                common_cache_plan_authority_level_parse(value);
+        "removed: calibrated cache-plan authority is no longer supported",
+        [](common_params &, const std::string &) {
+            throw std::invalid_argument("--cache-plan-authority has been removed; normal cache reuse and retention remain enabled without it");
         }
     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_CACHE_PLAN_AUTHORITY"));
     add_opt(common_arg(
@@ -5033,6 +5038,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             } else {
                 params.default_template_kwargs["preserve_reasoning"] = "false";
             }
+            params.preserve_reasoning_specified = true;
         }
     ).set_examples({LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_COMPLETION, LLAMA_EXAMPLE_CLI}).set_env("LLAMA_ARG_REASONING_PRESERVE"));
     add_opt(common_arg(
@@ -5172,6 +5178,14 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             common_log_set_file(common_log_main(), value.c_str());
         }
     ).set_env("LLAMA_ARG_LOG_FILE"));
+    add_opt(common_arg(
+        {"--log-jsonl"},
+        {"--no-log-jsonl"},
+        "Log as JSONL (one JSON object per line) to stdout, this also disables colored logging (default: disabled)",
+        [](common_params &, bool value) {
+            common_log_set_jsonl(value);
+        }
+    ).set_env("LLAMA_ARG_LOG_JSONL"));
     add_opt(common_arg(
         {"--log-prompts-dir"}, "PATH",
         "Log prompts to directory (auto-created if not present; only used for debugging, default: disabled)",
@@ -5569,7 +5583,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
     ).set_spec().set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_SPEC_DSPARK_GPU_ASSIST"));
     add_opt(common_arg(
         {"--spec-draft-device", "-devd", "--device-draft"}, "<dev1,dev2,..>",
-        "comma-separated list of devices to use for offloading the draft model (none = don't offload)\n"
+        "comma-separated list of devices to use for offloading the draft model (none = don't offload, default: follows --device)\n"
         "use --list-devices to see a list of available devices",
         [](common_params & params, const std::string & value) {
             params.speculative.draft.devices = parse_device_list(value);

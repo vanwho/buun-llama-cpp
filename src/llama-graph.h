@@ -9,15 +9,33 @@
 #include "llama-kv-attention-telemetry.h"
 
 #include <cstdint>
+#include <cstdlib>
 #include <vector>
 #include <memory>
 #include <set>
 #include <functional>
 #include <map>
+#include <unordered_map>
+#include <tuple>
 
 struct ggml_cgraph;
 struct ggml_context;
 struct ggml_tensor;
+
+// Maps a folded model weight to the activation-side transform applied
+// immediately before the matmul: optional sign flip, then the normalized
+// blockwise Hadamard rotation.
+struct llama_hadamard_transform {
+    ggml_tensor * rot;
+    ggml_tensor * signs; // nullptr for identity sign mode
+    // when perm_rep > 1 the activation arrives with its feature axis in tiled
+    // head order [hd, nk, rep] and must be permuted to the grouped order
+    // [hd, rep, nk] the fold was computed in, before signs and rotation
+    int64_t perm_hd  = 0;
+    int64_t perm_nk  = 0;
+    int64_t perm_rep = 0;
+};
+using llama_hadamard_rotations = std::unordered_map<const ggml_tensor *, llama_hadamard_transform>;
 
 struct llama_cparams;
 struct llama_layer;
@@ -1048,6 +1066,8 @@ struct llm_graph_params {
     const llama_adapter_loras_ordered * loras;
     const llama_memory_context_i * mctx;
     const llama_cross            * cross;
+    const llama_hadamard_rotations * hadamard_rotations;
+    const llama_hadamard_rotations * hadamard_inverses;
     const llama_tree_mask        * tree_mask = nullptr;
 
     // DDTree: tree-mode SSM buffers (parent_ids + persistent intermediates)
@@ -1173,6 +1193,8 @@ struct llm_graph_params {
             kv_attention_route == other.kv_attention_route &&
             kv_attention_exact_plan.get() == other.kv_attention_exact_plan.get() &&
             kv_attention_telemetry == other.kv_attention_telemetry &&
+            hadamard_rotations == other.hadamard_rotations &&
+            hadamard_inverses == other.hadamard_inverses &&
             (tree_parent_ids != nullptr) == (other.tree_parent_ids != nullptr);
     }
 };
@@ -1343,7 +1365,13 @@ struct llm_graph_context {
     const llama_adapter_loras_ordered * loras;
     const llama_memory_context_i * mctx;
     const llama_cross            * cross;
+    const llama_hadamard_rotations * hadamard_rotations;
+    const llama_hadamard_rotations * hadamard_inverses;
     const llama_tree_mask        * tree_mask;
+
+    // Share only within this graph, with the complete transform in the key.
+    using hadamard_input_key = std::tuple<ggml_tensor *, ggml_tensor *, ggml_tensor *, int64_t, int64_t, int64_t>;
+    mutable std::map<hadamard_input_key, ggml_tensor *> hadamard_inputs;
 
     // DDTree: tree-mode SSM buffers
     ggml_tensor * tree_parent_ids = nullptr;
@@ -1379,6 +1407,8 @@ struct llm_graph_context {
              ggml_tensor * cur,
                      int   il) const;
 
+    ggml_tensor * build_hadamard_input(ggml_tensor * w, ggml_tensor * cur) const;
+
     // do mat_mul, while optionally apply lora and per-tensor scale
     ggml_tensor * build_lora_mm(
               ggml_tensor * w,
@@ -1411,6 +1441,19 @@ struct llm_graph_context {
                   int64_t   n_head,
                   int64_t   n_head_kv,
                       int   il) const;
+
+    // Set reshape to false to return contiguous projections before clamp/reshape.
+    llm_graph_qkv build_qkv(
+        const llama_layer & layer,
+              ggml_tensor * cur,
+                  int64_t   n_embd_head_q,
+                  int64_t   n_head_q,
+                  int64_t   n_embd_head_k,
+                  int64_t   n_head_k,
+                  int64_t   n_embd_head_v,
+                  int64_t   n_head_v,
+                      int   il,
+                     bool   reshape = true) const;
 
     ggml_tensor * build_ffn(
              ggml_tensor * cur,
@@ -1490,6 +1533,7 @@ struct llm_graph_context {
     //
 
     ggml_tensor * build_inp_embd(ggml_tensor * tok_embd) const;
+    ggml_tensor * build_get_rows_embd(ggml_tensor * tok_embd, ggml_tensor * tokens) const;
     ggml_tensor * build_inp_pos() const;
     ggml_tensor * build_inp_attn_scale() const;
     ggml_tensor * build_inp_out_ids() const;
@@ -1513,6 +1557,7 @@ struct llm_graph_context {
             ggml_tensor * kq_mask,
             ggml_tensor * sinks,   // [n_head_q]
             ggml_tensor * v_mla,   // [n_embd_head_v_mla, n_embd_head_v, n_head_v]
+                int64_t   n_kv_max,
             float   kq_scale,
             int   il,
             bool  sparse_mask = false) const;

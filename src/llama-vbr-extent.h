@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 // Committed-extent store and dual-view ownership index.
@@ -75,12 +76,15 @@ class vbr_extent_store {
     // the caller must then take the invalidate-before-mutate path (availability transition +
     // qualification reset) and MAY call reset_all() once every outstanding reference is
     // obsolete by that same global invalidation.
+    // Optional off-side transactions pass latch_exhaustion=false: refusal
+    // leaves the live availability latch alone and the staged edits are dropped.
     vbr_extent_handle reserve(vbr_mutation_family family,
                               vbr_operation_class operation_class,
                               uint16_t            stream,
                               llama_seq_id        seq_id,
                               llama_pos           p0,
-                              llama_pos           p1);
+                              llama_pos           p1,
+                              bool                latch_exhaustion = true);
 
     // Family-boundary transitions. submit() is only legal from prepared (async append/reuse);
     // commit() from prepared or submitted; fail() from any non-free state.
@@ -117,7 +121,7 @@ class vbr_extent_store {
 
 // Dual-view ownership index: physical per-(stream,seq) page masks for
 // canonical dependency-set enumeration + a lazily allocated per-active-seq logical-position
-// Fenwick tree for exact rank-below-frontier. Positions outside [0, n_cells) mark the
+// Fenwick tree for exact rank-below-frontier. Positions outside [0, n_positions) mark the
 // (stream,seq) view unavailable (fail-closed shadow-unavailable; legacy never consults this).
 class vbr_ownership_index {
   public:
@@ -125,7 +129,9 @@ class vbr_ownership_index {
     // index's pages match the tracker's, so the constants must be the same symbols.
     static constexpr uint32_t MASK_WORDS_PER_PAGE = VBR_GENERATION_MASK_WORDS;
 
-    vbr_ownership_index(uint32_t n_stream, uint32_t n_seq_max, uint32_t n_cells);
+    // Physical masks follow n_cells; logical rank may cover a larger context
+    // for an SWA ring. Zero n_positions preserves the ordinary cache domain.
+    vbr_ownership_index(uint32_t n_stream, uint32_t n_seq_max, uint32_t n_cells, uint32_t n_positions = 0);
     ~vbr_ownership_index();  // out-of-line: views_ holds an incomplete type here
 
     vbr_ownership_index(const vbr_ownership_index &)             = delete;
@@ -155,7 +161,15 @@ class vbr_ownership_index {
     // was populated and later failed the bounded logical-position contract.
     bool initialized(uint32_t stream, llama_seq_id seq_id) const;
 
-    // Memory note: the Fenwick domain is n_cells positions * 4 bytes,
+    // Off-side transaction copy: preserves unavailable views as unavailable.
+    // Allocation may throw; the original index is untouched.
+    std::unique_ptr<vbr_ownership_index> clone() const;
+    // Logical owned bytes of a clone, including a previously unused destination.
+    size_t clone_storage_bytes(uint32_t stream, llama_seq_id destination) const;
+
+    uint32_t position_capacity() const { return n_positions_; }
+
+    // Memory note: the Fenwick domain is n_positions * 4 bytes,
     // ~800 KB per ACTIVE seq at 200k cells, lazily allocated on first add; capacity is
     // RETAINED at clear_seq for seq-id reuse. Masks cost pages * 32 B per active seq.
 
@@ -168,6 +182,7 @@ class vbr_ownership_index {
     uint32_t n_stream_  = 0;
     uint32_t n_seq_max_ = 0;
     uint32_t n_cells_   = 0;
+    uint32_t n_positions_ = 0;
     uint32_t n_pages_   = 0;
 
     // Flat O(1) map: slot = stream * n_seq_max + seq_id. Views are lazily

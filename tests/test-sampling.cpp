@@ -1,6 +1,10 @@
 #include "ggml.h"
 #include "llama.h"
 #include "sampling.h"
+#include "speculative.h"
+#include "speculative-mtp-adaptive.h"
+
+#include <random>
 
 #ifdef NDEBUG
 #undef NDEBUG
@@ -8,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -347,6 +352,71 @@ static llama_token_data_array make_distribution(
     return { storage.data(), storage.size(), -1, false };
 }
 
+static void test_proposal_rows() {
+    std::vector<llama_token_data> data = {{7, std::log(0.6f), 0}, {9, std::log(0.3f), 0}, {3, std::log(0.1f), 0}};
+    llama_token_data_array row{data.data(), data.size(), -1, true};
+    float q[3];
+    GGML_ASSERT(common_sampler_proposal_row(row, 1, 1, 0, q) == 7);
+    GGML_ASSERT(std::abs(q[0] - 0.6f) < 1e-6 && std::abs(q[2] - 0.1f) < 1e-6);
+    GGML_ASSERT(common_sampler_proposal_row(row, 1, 0.8f, 0.99, q) == 9);
+    GGML_ASSERT(std::abs(q[0] - 2.0f/3) < 1e-6 && q[2] == 0);
+    GGML_ASSERT(common_sampler_proposal_row(row, 0.5f, 1, 0, q) == 7);
+    GGML_ASSERT(std::abs(q[0] - 36.0f/46) < 1e-6);
+    GGML_ASSERT(common_sampler_proposal_row(row, 1, 0.1f, 0.99, q) == 7 && q[0] == 1);
+    GGML_ASSERT(common_sampler_proposal_row(row, 0, 1, 0, q) == LLAMA_TOKEN_NULL);
+    GGML_ASSERT(common_sampler_proposal_row(row, 1, 1, 1, q) == LLAMA_TOKEN_NULL);
+    data[0].logit = NAN;
+    GGML_ASSERT(common_sampler_proposal_row(row, 1, 1, 0, q) == LLAMA_TOKEN_NULL);
+    data[0].logit = std::log(0.6f);
+
+    data[1].logit = data[2].logit = -INFINITY;
+    GGML_ASSERT(common_sampler_proposal_row(row, 1, 1, 0.999, q) == 7);
+    GGML_ASSERT(q[0] == 1 && q[1] == 0 && q[2] == 0);
+    data[0].logit = -INFINITY;
+    GGML_ASSERT(common_sampler_proposal_row(row, 1, 1, 0, q) == LLAMA_TOKEN_NULL);
+    data[0].logit = std::log(0.6f);
+    data[1].logit = std::log(0.3f);
+    data[2].logit = std::log(0.1f);
+
+    // Sample the production row builder, then verify with a different target p.
+    // The emitted distribution must be p, not q or the distribution of matches.
+    std::vector<llama_token_data> target = {{7, 0, 0.2f}, {9, 0, 0.5f}, {3, 0, 0.3f}};
+    llama_token_data_array p{target.data(), target.size(), -1, false};
+    const int32_t ids[] = {7, 9, 3};
+    std::mt19937 rng(1897);
+    auto uniform = [&]() { return std::generate_canonical<double, 53>(rng); };
+    int counts[3] = {};
+    constexpr int n = 100000;
+    for (int i = 0; i < n; ++i) {
+        llama_token token = common_sampler_proposal_row(row, 0.8f, 0.9f, uniform(), q);
+        if (uniform() >= common_sampler_speculative_acceptance_probability(&p, token, ids, q, 3)) {
+            token = common_sampler_speculative_sample_residual(&p, ids, q, 3, uniform());
+        }
+        for (int j = 0; j < 3; ++j) {
+            counts[j] += token == ids[j];
+        }
+    }
+    for (int j = 0; j < 3; ++j) {
+        GGML_ASSERT(std::abs(double(counts[j])/n - target[j].p) < 0.006);
+    }
+
+    common_speculative_proposal proposal;
+    proposal.selected = {7, 9, 3};
+    proposal.q_covered_tokens = 3;
+    proposal.seq_id = 2;
+    proposal.exact_q = true;
+    GGML_ASSERT(proposal.matching_prefix_size(2, {7, 9, 3}) == 3);
+    GGML_ASSERT(proposal.matching_prefix_size(2, {7}) == 1);
+    GGML_ASSERT(proposal.matching_prefix_size(2, {7, 9, 3, 4}) == 3);
+    GGML_ASSERT(proposal.matching_prefix_size(2, {7, 4}) == 0);
+    GGML_ASSERT(proposal.matching_prefix_size(1, {7}) == 0);
+    GGML_ASSERT(proposal.matching_prefix_size(2, {}) == 0);
+    const size_t capacity = proposal.selected.capacity();
+    proposal.clear();
+    GGML_ASSERT(proposal.matching_prefix_size(2, {7}) == 0);
+    GGML_ASSERT(proposal.selected.capacity() == capacity);
+}
+
 static void test_speculative_coupling() {
     std::vector<llama_token_data> storage;
 
@@ -402,12 +472,201 @@ static void test_speculative_coupling() {
         }
         GGML_ASSERT(threw);
     }
+
+    {
+        // A sampled, truncated draft distribution need not share the target's
+        // support. Verify the complete accept/residual mixture, not only each
+        // helper in isolation. Token 3 exists only in q and token 2 only in p.
+        auto p = make_distribution(storage, { 0.1f, 0.3f, 0.6f, 0.0f });
+        const int32_t q_ids[] = { 0, 1, 3 };
+        const float q[] = { 0.5f, 0.25f, 0.25f };
+        std::mt19937 rng(20260915);
+        std::discrete_distribution<int> propose(q, q + 3);
+        int counts[4] = {};
+        constexpr int n = 200000;
+        for (int i = 0; i < n; ++i) {
+            llama_token token = q_ids[propose(rng)];
+            const double accept = common_sampler_speculative_acceptance_probability(&p, token, q_ids, q, 3);
+            if (std::generate_canonical<double, 53>(rng) >= accept) {
+                token = common_sampler_speculative_sample_residual(
+                    &p, q_ids, q, 3, std::generate_canonical<double, 53>(rng));
+            }
+            GGML_ASSERT(token >= 0 && token < 4);
+            ++counts[token];
+        }
+        const double expected[] = { 0.1, 0.3, 0.6, 0.0 };
+        for (int i = 0; i < 4; ++i) {
+            GGML_ASSERT(std::abs(double(counts[i]) / n - expected[i]) < 0.005);
+        }
+        GGML_ASSERT(counts[3] == 0);
+    }
+}
+
+static void test_mtp_adaptive() {
+    common_speculative_mtp_adaptive state;
+    auto cycles = [&](int n, int accepted) {
+        for (int i = 0; i < n; ++i) {
+            state.accept(state.depth(), accepted, false);
+            GGML_ASSERT(state.depth() >= 2 && state.depth() <= 3);
+        }
+    };
+    cycles(64, 3); // high-match code retains the full depth
+    GGML_ASSERT(state.depth() == 3);
+    cycles(16, 0);
+    GGML_ASSERT(state.depth() == 2);
+    cycles(7, 2);
+    GGML_ASSERT(state.depth() == 2);
+    cycles(1, 2); // prose -> code, recover without waiting for another request
+    GGML_ASSERT(state.depth() == 3);
+    cycles(16, 3);
+    GGML_ASSERT(state.depth() == 3);
+
+    cycles(16, 2); // perfect first two rows but an unhelpful third
+    GGML_ASSERT(state.depth() == 2);
+    cycles(255, 2); // not a phase change: do not repeatedly probe every 8 cycles
+    GGML_ASSERT(state.depth() == 2);
+    cycles(1, 2); // bounded periodic recovery, even without a new streak
+    GGML_ASSERT(state.depth() == 3);
+    cycles(16, 0);
+    cycles(256, 0); // periodic recovery also works with no accepted proposals
+    GGML_ASSERT(state.depth() == 3);
+
+    for (int i = 0; i < 32; ++i) {
+        state.accept(2, 0, false); // clipped draft
+        state.accept(0, 0, false); // failed/duplicate carry refresh
+        state.accept(3, 0, true);  // another implementation
+        state.accept(3, 4, false); // invalid count
+    }
+    GGML_ASSERT(state.depth() == 3);
+    cycles(15, 0);
+    GGML_ASSERT(state.depth() == 3);
+    cycles(1, 0);
+    GGML_ASSERT(state.depth() == 2);
+    state.begin(); // learned depth survives, but a new request can recover
+    GGML_ASSERT(state.depth() == 2);
+    cycles(8, 2);
+    GGML_ASSERT(state.depth() == 3);
+
+    for (int matched = 7; matched <= 8; ++matched) {
+        state.reset();
+        cycles(matched, 3);
+        cycles(16 - matched, 0);
+        GGML_ASSERT(state.depth() == (matched == 7 ? 2 : 3));
+    }
+    for (int prefix = 11; prefix <= 12; ++prefix) {
+        state.reset();
+        cycles(prefix, 2);
+        cycles(16 - prefix, 0);
+        cycles(8, 2);
+        GGML_ASSERT(state.depth() == (prefix == 11 ? 3 : 2));
+    }
+    state.reset();
+    cycles(15, 0);
+    state.begin(); // partial probe cannot leak into the next request
+    cycles(1, 0);
+    GGML_ASSERT(state.depth() == 3);
+
+    state.reset();
+    cycles(16, 0);
+    for (int i = 0; i < 255; ++i) {
+        state.begin();
+        cycles(1, 0);
+        GGML_ASSERT(state.depth() == 2);
+    }
+    state.begin();
+    cycles(1, 0); // even one-token requests cannot postpone periodic recovery
+    GGML_ASSERT(state.depth() == 3);
+
+    common_speculative_mtp_adaptive slots[2];
+    for (int i = 0; i < 16; ++i) {
+        slots[0].accept(3, 0, false);
+        slots[1].accept(3, 3, false);
+    }
+    GGML_ASSERT(slots[0].depth() == 2 && slots[1].depth() == 3);
+    for (int i = 0; i < 8; ++i) {
+        // Same prefix clamp as MTP's CopySpec-composition integration.
+        const int drafted = slots[0].depth();
+        slots[0].accept(drafted, std::min(3, drafted), false);
+    }
+    GGML_ASSERT(slots[0].depth() == 3 && slots[1].depth() == 3);
+
+    for (int minimum = 0; minimum <= 3; ++minimum) {
+        state = common_speculative_mtp_adaptive(minimum);
+        for (int i = 0; i < 1024; ++i) {
+            if (i == 512) {
+                state.reset();
+            }
+            int drafted = state.depth();
+            if (drafted < minimum) {
+                drafted = 0; // production minimum-size boundary
+            }
+            GGML_ASSERT(drafted > 0);
+            state.accept(drafted, 0, false);
+            if (minimum == 3) {
+                GGML_ASSERT(state.depth() == 3);
+            }
+        }
+    }
+}
+
+static void test_copyspec_owner() {
+    // No model needed: unavailable model drafters are omitted, leaving CopySpec
+    // to exercise the same factory ownership and per-sequence lifecycle.
+    for (auto type : {COMMON_SPECULATIVE_TYPE_DRAFT_MTP, COMMON_SPECULATIVE_TYPE_DRAFT_DFLASH}) {
+        common_params_speculative params;
+        params.types = {COMMON_SPECULATIVE_TYPE_COPYSPEC, type};
+        params.copyspec_gamma = 2;
+        params.n_max = params.draft.n_max = 3;
+        common_speculative_ptr shared(common_speculative_init(params, uint32_t(2)));
+        common_speculative_ptr local(common_speculative_init(params, (llama_context *) nullptr));
+        GGML_ASSERT(shared && !local);
+
+        llama_tokens prompts[2] = {{10, 11, 12, 13, 14, 15, 16, 17},
+                                  {20, 21, 22, 23, 24, 25, 26, 27}};
+        llama_tokens prefixes[2] = {{10}, {20}};
+        llama_tokens drafts[2];
+        for (llama_seq_id seq = 0; seq < 2; ++seq) {
+            common_speculative_begin(shared.get(), seq, prompts[seq]);
+            auto & dp = common_speculative_get_draft_params(shared.get(), seq);
+            dp.drafting = true;
+            dp.n_max = 3;
+            dp.id_last = prompts[seq][1];
+            dp.prompt = &prefixes[seq];
+            dp.result = &drafts[seq];
+        }
+        // An inactive descriptor can outlive its result in the server. Even
+        // with valid storage here, it must not receive a CopySpec extension.
+        common_speculative_get_draft_params(shared.get(), 1).drafting = false;
+        drafts[1] = {22};
+        common_speculative_draft(shared.get());
+        GGML_ASSERT(drafts[1] == llama_tokens({22}));
+        for (llama_seq_id seq = 0; seq < 2; ++seq) {
+            drafts[seq].clear();
+            common_speculative_get_draft_params(shared.get(), seq).drafting = true;
+        }
+        common_speculative_draft(shared.get());
+        for (llama_seq_id seq = 0; seq < 2; ++seq) {
+            GGML_ASSERT(drafts[seq] == llama_tokens(prompts[seq].begin() + 2, prompts[seq].begin() + 5));
+            GGML_ASSERT(common_speculative_get_proposal(shared.get(), seq) == nullptr);
+            common_speculative_accept(shared.get(), seq, 3);
+        }
+    }
+
+    // Standalone CopySpec retains its legacy slot-local owner.
+    common_params_speculative params;
+    params.types = {COMMON_SPECULATIVE_TYPE_COPYSPEC};
+    common_speculative_ptr shared(common_speculative_init(params, uint32_t(2)));
+    common_speculative_ptr local(common_speculative_init(params, (llama_context *) nullptr));
+    GGML_ASSERT(!shared && local);
 }
 
 int main(void) {
+    test_mtp_adaptive();
     ggml_time_init();
 
+    test_copyspec_owner();
     test_speculative_coupling();
+    test_proposal_rows();
     test_dist_singleton_rng();
 
     test_temp({0.1f, 0.2f, 0.3f, 0.4f}, {0.1f, 0.2f, 0.3f, 0.4f}, 1.0f);

@@ -1589,11 +1589,9 @@ llama_safetensors_quant_config llama_safetensors_quant_config::from_json(const l
             if (!target.is_string()) {
                 throw std::runtime_error("non-string target in quantization group '" + name + "'");
             }
-            const std::string declared_target = target.get<std::string>();
-            // compressed-tensors uses module class names as selectors in
-            // older single-format checkpoints. Importers ask this registry
-            // only about projection modules, so Linear is their catch-all.
-            const std::string target_name = declared_target == "Linear" ? "re:.*" : declared_target;
+            // Keep class selectors distinct from named regexes: Linear is a
+            // projection fallback, not a wildcard that shadows explicit rules.
+            const std::string target_name = target.get<std::string>();
             const auto existing = std::find_if(result.rules_.begin(), result.rules_.end(), [&](const rule & item) {
                 return item.target == target_name;
             });
@@ -1632,12 +1630,17 @@ const llama_safetensors_quant_group * llama_safetensors_quant_config::match_unca
     if (ignored(module_name)) {
         return nullptr;
     }
+    const llama_safetensors_quant_group * linear = nullptr;
     for (const rule & candidate : rules_) {
+        if (candidate.target == "Linear") {
+            linear = &groups_.at(candidate.group);
+            continue;
+        }
         if (rule_matches(candidate, module_name)) {
             return &groups_.at(candidate.group);
         }
     }
-    return nullptr;
+    return linear;
 }
 
 const llama_safetensors_quant_group * llama_safetensors_quant_config::match(const std::string & module_name) const {
@@ -1716,6 +1719,8 @@ llama_safetensors_registry llama_safetensors_registry::load(
         side_shards.insert(name);
     }
 
+    size_t recovered_tensors = 0;
+    std::string first_recovered;
     for (const std::string & shard_name : shard_names) {
         const uint32_t shard_index = result.shards_.size();
         parsed_shard   parsed      = parse_shard(checked_shard_path(model_dir, shard_name), shard_index);
@@ -1733,14 +1738,17 @@ llama_safetensors_registry llama_safetensors_registry::load(
         for (auto & tensor : parsed.tensors) {
             if (!expected_shards.empty()) {
                 const auto expected = expected_shards.find(tensor.name);
-                // The index is authoritative. Sidecar shards can legally
-                // carry duplicated base-model tensors which are not assigned
-                // to that shard; only the indexed copy belongs to this model.
-                // The completeness pass below still rejects an assignment
-                // whose named shard does not actually contain the tensor.
-                const bool side = side_shards.count(shard_name) != 0 && expected == expected_shards.end();
-                if (!side && (expected == expected_shards.end() || expected->second != shard_name)) {
+                // Explicit assignments remain authoritative, including when
+                // another shard contains a duplicate. Unlisted tensors may be
+                // recovered from the shards already selected for this model;
+                // duplicate detection below rejects ambiguous unlisted copies.
+                if (expected != expected_shards.end() && expected->second != shard_name) {
                     continue;
+                }
+                if (expected == expected_shards.end() && side_shards.count(shard_name) == 0) {
+                    if (recovered_tensors++ == 0) {
+                        first_recovered = tensor.name;
+                    }
                 }
             }
             if (!result.tensor_index_.emplace(tensor.name, result.tensors_.size()).second) {
@@ -1750,13 +1758,18 @@ llama_safetensors_registry llama_safetensors_registry::load(
         }
     }
 
-    if (!expected_shards.empty() && result.tensor_index_.size() < expected_shards.size()) {
-        for (const auto & [name, shard] : expected_shards) {
-            (void) shard;
-            if (result.tensor_index_.find(name) == result.tensor_index_.end()) {
-                throw std::runtime_error("weight_map tensor '" + name + "' is missing from its shard");
-            }
+    // Recovered tensors must not conceal a missing indexed tensor by making
+    // the total registry size greater than the number of index entries.
+    for (const auto & [name, shard] : expected_shards) {
+        (void) shard;
+        if (result.tensor_index_.find(name) == result.tensor_index_.end()) {
+            throw std::runtime_error("weight_map tensor '" + name + "' is missing from its shard");
         }
+    }
+    if (recovered_tensors != 0) {
+        LLAMA_LOG_WARN("%s: recovered %zu tensors absent from weight_map in loaded shards (first: '%s'); "
+                       "explicit index assignments were preserved\n",
+                       __func__, recovered_tensors, first_recovered.c_str());
     }
 
     result.files_.reserve(result.shards_.size());

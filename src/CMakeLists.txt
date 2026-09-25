@@ -20,8 +20,7 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/llama-safetensors-templates.h"
     @ONLY)
 
-add_library(llama
-            ../include/llama.h
+set(LLAMA_CORE_SOURCES
             llama.cpp
             llama-adapter.cpp
             llama-arch.cpp
@@ -68,6 +67,7 @@ add_library(llama
             llama-model.cpp
             llama-quant.cpp
             llama-sampler.cpp
+            llama-sha256.cpp
             llama-safetensors.cpp
             llama-safetensors-loader.cpp
             llama-safetensors-metadata.cpp
@@ -76,8 +76,8 @@ add_library(llama
             llama-safetensors-tensor.cpp
             llama-safetensors-qwen3.cpp
             llama-safetensors-qwen35.cpp
-    llama-safetensors-qwen4exp.cpp
-    llama-safetensors-deepseek4.cpp
+            llama-safetensors-qwen4exp.cpp
+            llama-safetensors-deepseek4.cpp
             llama-vocab.cpp
             llama-cache-accounting.cpp
             llama-cache-budget.cpp
@@ -98,6 +98,7 @@ add_library(llama
             llama-vbr-downward.cpp
             llama-vbr-upward.cpp
             llama-vbr-explicit-capture.cpp
+            llama-vbr-swa-window.cpp
             llama-vbr-controller-id.cpp
             llama-vbr-generation.cpp
             llama-vbr-operation.cpp
@@ -105,6 +106,11 @@ add_library(llama
             llama-vram-ledger.cpp
             unicode-data.cpp
             unicode.cpp
+            )
+
+add_library(llama
+            ../include/llama.h
+            ${LLAMA_CORE_SOURCES}
             unicode.h
             ${LLAMA_MODELS_SOURCES}
             )
@@ -113,12 +119,16 @@ set_target_properties(llama PROPERTIES
     VERSION ${LLAMA_VERSION_BASE}
     SOVERSION ${LLAMA_VERSION_MAJOR}
     MACHO_CURRENT_VERSION 0 # keep macOS linker from seeing oversized version number
+    UNITY_BUILD ON
+    UNITY_BUILD_BATCH_SIZE 16
 )
 
-target_compile_definitions(llama PRIVATE
-    LLAMA_VERSION="${LLAMA_VERSION}"
-    LLAMA_COMMIT="${LLAMA_BUILD_COMMIT}"
-)
+# Keep core, native-source and cache implementation units independent. Only
+# model implementations participate in the upstream unity-build groups.
+set_source_files_properties(${LLAMA_CORE_SOURCES} ../include/llama.h unicode.h
+    PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+
+configure_file(llama-version.h.in ${CMAKE_CURRENT_BINARY_DIR}/llama-version.h @ONLY)
 
 target_include_directories(llama PRIVATE . ../vendor "${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(llama PUBLIC ../include)

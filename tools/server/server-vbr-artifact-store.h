@@ -4,6 +4,7 @@
 #include "../../src/llama-vbr-artifact-adopt.h"
 #include "../../src/llama-vbr-artifact-catalog.h"
 #include "../../src/llama-vbr-explicit-capture.h"
+#include "../../src/llama-vbr-precision.h"
 
 #include <array>
 #include <cstdint>
@@ -180,6 +181,7 @@ struct server_vbr_artifact_capture_output {
     uint64_t stash_bytes = 0;
     uint64_t companion_bytes = 0;
     uint64_t chunks = 0;
+    uint64_t reused_attention_bytes = 0;
     uint64_t backpressure_waits = 0;
     uint64_t event_completions = 0;
     uint64_t synchronous_fallbacks = 0;
@@ -242,6 +244,8 @@ struct server_vbr_projected_host_capture_diagnostics {
         vbr_explicit_capture_phase::validation;
     vbr_capture_stream_status inner_stream_status =
         vbr_capture_stream_status::_count;
+    vbr_explicit_generation_failure generation_failure = vbr_explicit_generation_failure::none;
+    vbr_explicit_size_failure size_failure = vbr_explicit_size_failure::none;
     uint64_t source_namespace = 0;
     uint64_t first_available_manifest_id = 0;
     uint64_t union_cells = 0;
@@ -354,6 +358,8 @@ struct server_vbr_artifact_import_target {
 
     llama_memory_i * memory = nullptr;
     llama_seq_id destination = -1;
+    // Full incoming prompt occupancy; zero retains explicit-import behavior.
+    uint64_t incoming_cells = 0;
     std::string execution_identity;
     std::string adapter_config_identity;
     bool previously_observed = false;
@@ -406,6 +412,8 @@ struct server_vbr_artifact_import_output {
     uint64_t destination_logical_bytes = 0;
     uint64_t destination_physical_growth_bytes = 0;
     int64_t destination_max_deficit = 0;
+    vbr_precision_admission precision;
+    bool precision_refused = false;
     vbr_import_decision decision = vbr_import_decision::reject;
     vbr_artifact_consistency_kind consistency =
         vbr_artifact_consistency_kind::live_rebased;
@@ -473,7 +481,8 @@ public:
         server_vbr_explicit_host_capture & operation) noexcept;
     server_vbr_artifact_capture_output publish_host_payload(
         server_vbr_explicit_host_capture & operation,
-        std::shared_ptr<const server_prompt_cache_vbr_payload> & payload)
+        std::shared_ptr<const server_prompt_cache_vbr_payload> & payload,
+        vbr_explicit_attention_reuse * attention_reuse = nullptr)
         noexcept;
 
     // Publish an already sealed projected assembly through this store's

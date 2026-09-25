@@ -28,6 +28,8 @@ llama_safetensors_json llama_safetensors_read_model_config(
 llama_model * llama_model_load_from_safetensors_dir(
     const std::filesystem::path & model_dir, llama_model_params params);
 
+gguf_context * llama_safetensors_load_metadata(const std::filesystem::path & model_dir);
+
 enum class llama_safetensors_dtype {
     BOOL,
     U8,
@@ -119,7 +121,8 @@ struct llama_safetensors_quant_group {
 };
 
 // Parsed compressed-tensors contracts from config.json. Matching preserves the
-// producer's declaration order and anchors regex matching at the module start.
+// producer's declaration order among named rules, before the Linear class
+// fallback, and anchors regex matching at the module start.
 class llama_safetensors_quant_config {
   public:
     static llama_safetensors_quant_config load(const std::filesystem::path & model_dir);
