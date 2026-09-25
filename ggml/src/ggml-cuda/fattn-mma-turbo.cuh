@@ -263,7 +263,7 @@ static __global__ void ggml_cuda_fattn_mma_turbo4_paged_kernel(
     flash_attn_ext_f16_process_tile
         <256, 256, ncols1, ncols2, nwarps, false, false, false, false, false,
          GGML_TYPE_TURBO4_0, GGML_TYPE_TURBO4_0, ggml_cuda_fattn_mma_paged_turbo4_policy>
-        (nullptr, nullptr, nullptr, nullptr, nullptr, (float2 *) policy.output, nullptr,
+        (nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, (float2 *) policy.output, nullptr,
          scale, 1.0f, 0.0f, ne01, int(n_head_q), gqa_ratio, int(n_rows),
          1, 1, 1, 1, 1,
          int(query_tile), int(head_tile), 0, kb0_stop, policy);
@@ -523,7 +523,7 @@ void ggml_cuda_flash_attn_ext_mma_turbo_case(ggml_backend_cuda_context & ctx, gg
 
     // need_f16_K=false, need_f16_V=false: raw turbo data passes through to kernel.
     launch_fattn<DV, ncols1, ncols2>
-        (ctx, dst, fattn_kernel, nwarps, nbytes_shared_total, nbatch_fa, false, false, true, warp_size_host);
+        (ctx, dst, fattn_kernel, nwarps, nbytes_shared_total, nbatch_fa, false, false, true, false, warp_size_host);
 }
 
 

@@ -1,6 +1,7 @@
 """Small negative tests for completion guardrails; run with unittest discovery."""
 import hashlib
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -414,6 +415,110 @@ class ReceiptTests(unittest.TestCase):
                                mtp_accepted_tokens=floor // 5,
                                mtp_acceptance_pct=float(floor))
         self.assertFalse(self.check_geometry_speed(receipt))
+
+    def two_topic_receipt(self, root):
+        manifest = json.loads((validator.ROOT /
+            "tools/server/bench/fixtures/pager-promotion/manifest.json").read_text())
+        expected = {item["id"]: item for item in manifest["files"]}
+        raw = root / "raw.json"
+        raw.write_text("candidate-bound raw responses and page trace\n")
+        ref = {"path": "raw.json", "sha256": hashlib.sha256(raw.read_bytes()).hexdigest()}
+        stages = ["page_cold_before_request", "page_selected", "h2d_completed",
+                  "mapping_published", "target_consumed", "draft_consumed"]
+        identity = {"logical_page_id": 7, "generation": 2, "content_version": 3}
+        answer_page = {"claimed_promoted": True, "cold_before": True,
+                       "page_identity": {"logical_page_id": 7, "generation": 2,
+                                         "content_version": 3},
+                       "chain_valid": True,
+                       "events": [{"stage": stage, "event_sequence": i,
+                                   "request_id": "request-3", "request_generation": 3,
+                                   "logical_page_id": 7, "generation": 2,
+                                   "content_version": 3}
+                                  for i, stage in enumerate(stages)]}
+        answers = ("merge_sorted_lists_03.py", "watch_directory_new_files_01.sh",
+                   "merge_sorted_lists_03.py")
+        fixtures = ["PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04", "PY_MERGE_05",
+                    "PY_MERGE_03",
+                    *(f"BASH_WATCH_{i:02d}" for i in range(1, 6))]
+        questions = (
+            "Among these five Python implementations, which one uses an exactly preallocated result list and writes each result position once, the most allocation-efficient choice for producing a merged list? Reply with only the exact filename.",
+            "Among these five Bash watchers, which one is the leanest for a single nonrecursive directory when it reports CREATE and MOVED_TO events without an extra per-event file test? Reply with only the exact filename.",
+            "Among these five Python implementations, which one uses an exactly preallocated result list and writes each result position once, the most allocation-efficient choice for producing a merged list? Reply with only the exact filename.")
+        appended = (fixtures[:5], fixtures[5:], [])
+        user_contents = []
+        for request_index in range(3):
+            ids = appended[request_index]
+            bodies = []
+            for fixture_id in ids:
+                entry = expected[fixture_id]
+                path = validator.ROOT / "tools/server/bench/fixtures/pager-promotion" / entry["path"]
+                bodies.append(f"Read the following file as context ({path.name}):\n--- BEGIN FILE CONTENT ---\n" +
+                              path.read_text() + "--- END FILE CONTENT ---")
+            user_contents.append(("\n\n".join(bodies) + "\n\n" if bodies else "") + questions[request_index])
+        requests = [{"stage": stage, "assistant_answer": answer,
+                     "question": questions[index], "appended_fixture_ids": appended[index],
+                     "user_content": user_contents[index], "cache_prompt": index > 0,
+                     "message_count": (1, 3, 5)[index], "http_status": 200,
+                     "finish_reason": "stop",
+                     "request_id": f"request-{index + 1}",
+                     "request_generation": index + 1,
+                     "filename_selection": {"expected_filename_local_only": expected_answer,
+                                             "matched": answer == expected_answer,
+                                             "answer": answer},
+                     "mtp_verified": True, "prompt_tokens": 1000}
+                    for index, (stage, answer, expected_answer) in enumerate(zip(
+                        ("compare_python", "compare_bash", "repeat_python"), answers,
+                        ("merge_sorted_lists_03.py", "watch_directory_new_files_01.sh",
+                         "merge_sorted_lists_03.py")))]
+        case = {"fixture_id": "PY_MERGE_03",
+                "fixture_sha256": expected["PY_MERGE_03"]["sha256"],
+                "fixture_hashes": {key: expected[key]["sha256"] for key in fixtures},
+                "fixture_span": {"fixture_id": "PY_MERGE_03",
+                                 "answer_bearing_source_fact":
+                                     "RETRIEVAL_KEY: The preallocated merge writes each output position exactly once.",
+                                 "answer_bearing_byte_span": [1, 10],
+                                 "answer_bearing_token_span": [200, 201],
+                                 "answer_page_resident_after_request_1": True},
+                "requests": requests, "all_fixture_pages_present_before_request_3": True,
+                "all_fixture_pages_cold_host_backed_before_request_3": False,
+                "answer_bearing_page_cold_host_backed_before_request_3": True,
+                "answer_bearing_page_naturally_promoted": True,
+                "answer_bearing_pages": [answer_page],
+                "mtp": {"target_placement": "gpu", "draft_placement": "gpu",
+                        "target_type_k": "turbo4", "target_type_v": "turbo4",
+                        "draft_type_k": "turbo4", "draft_type_v": "turbo4",
+                        "draft_n_max": 2}, "raw_artifacts": [ref] * 6}
+        geometry = {"context_tokens": 16384, "admitted_context_tokens": 16384,
+                    "hot_pages": 16, "hot_tokens": 4096, "admitted_hot_tokens": 4096,
+                    "page_size_tokens": 256, "batch": 128, "ubatch": 64,
+                    "pager_mode": "selective", "target_type_k": "turbo4",
+                    "target_type_v": "turbo4", "mtp_placement": "gpu",
+                    "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+                    "draft_n_max": 2, "thinking": "off"}
+        return {"candidate": {"sha256": "a" * 64}, "model": {"sha256": "b" * 64},
+                "file_promotion_campaign": {
+                    "execution_status": "complete", "acceptance_status": "pass",
+                    "candidate_identity_verified": True, "target_fixture_ids": fixtures,
+                    "geometry": geometry, "cases": [case]}}
+
+    def test_93_11g_accepts_three_turns_with_one_complete_answer_page_chain(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = self.two_topic_receipt(Path(temporary))
+            self.assertFalse(validator.check_93_11g_file_promotion(Path(temporary), receipt))
+
+    def test_93_11g_reports_incorrect_answers_but_rejects_missing_physical_chain(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            receipt = self.two_topic_receipt(root)
+            case = receipt["file_promotion_campaign"]["cases"][0]
+            case["requests"][0]["assistant_answer"] = "merge_sorted_lists_01.py"
+            case["requests"][0]["filename_selection"]["answer"] = "merge_sorted_lists_01.py"
+            case["requests"][0]["filename_selection"]["matched"] = False
+            case["answer_bearing_page_naturally_promoted"] = False
+            case["answer_bearing_pages"][0]["chain_valid"] = False
+            errors = validator.check_93_11g_file_promotion(root, receipt)
+            self.assertTrue(any("answer-bearing Python page" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()

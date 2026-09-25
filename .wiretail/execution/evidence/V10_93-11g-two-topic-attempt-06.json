@@ -1,0 +1,1175 @@
+{
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-01/candidate-bundle/llama-server",
+    "pid": 23942,
+    "settings": {
+      "--device": "CUDA0",
+      "--kv-hot-pages": "16",
+      "--kv-page-size": "256",
+      "--kv-pager": "selective",
+      "--kv-pin-recent": "0",
+      "--spec-draft-kv-device": "gpu",
+      "--spec-draft-n-max": "2",
+      "--spec-draft-type-k": "turbo4",
+      "--spec-draft-type-v": "turbo4",
+      "--spec-type": "draft-mtp",
+      "-b": "128",
+      "-c": "16384",
+      "-ctk": "turbo4",
+      "-ctv": "turbo4",
+      "-m": "/srv/ai/models/text/current.gguf",
+      "-np": "1",
+      "-ub": "64"
+    },
+    "sha256": "36aea000698c168a3017317a789ae36eb56becb8b5fa5910f243b5dd28fa0bfb",
+    "start_time_ticks": 47122
+  },
+  "checks": {
+    "repair93_two_topic_fixture_integrity": {
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/build/93-11g-attempt-1-20260925/fixture-verify.log",
+          "sha256": "c8d002f3edba301b85c1890b13bf934404333b3bb5668b2cd77eeeb01e83bb5e"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/pager_promotion.py",
+        "--verify-only"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    },
+    "repair93_two_topic_natural_page_promotion": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign-driver.log",
+          "sha256": "17497b2aa9490b6883de800bb2095fa6163fe87db860f4057f71c8ed22ab4802"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/campaign-progress.json",
+          "sha256": "721a22544dac0d84cfb7eeb68455c18d5847ae9c2e9f5bb32007d829f93a7832"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/case-summary.json",
+          "sha256": "64e93e71f1e19453ebcd3bfa84887003b431c38c1974df40c9fdb684d4788bc4"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign",
+        "--server-binary",
+        "/srv/ai/paged-kv/results/v10/93-11g/attempt-01/candidate-bundle/llama-server"
+      ],
+      "exit_code": 2,
+      "status": "incomplete"
+    }
+  },
+  "file_promotion_campaign": {
+    "acceptance_status": "diagnostic_only",
+    "candidate_identity_verified": true,
+    "cases": [
+      {
+        "acceptance_status": "diagnostic_incomplete",
+        "all_fixture_pages_cold_host_backed_before_request_3": false,
+        "all_fixture_pages_present_before_request_3": true,
+        "all_three_filename_answers_matched": false,
+        "answer_bearing_page_naturally_promoted": false,
+        "answer_bearing_pages": [
+          {
+            "claimed_promoted": false,
+            "cold_before": false,
+            "events": [],
+            "missing_transition": "cold-before-request-3; answer-bearing page remained resident and host-backed",
+            "page_identity": {
+              "content_version": 256,
+              "generation": 34,
+              "logical_page_id": 8
+            }
+          },
+          {
+            "claimed_promoted": false,
+            "cold_before": false,
+            "events": [],
+            "missing_transition": "cold-before-request-3; answer-bearing page remained resident and host-backed",
+            "page_identity": {
+              "content_version": 256,
+              "generation": 35,
+              "logical_page_id": 9
+            }
+          }
+        ],
+        "final_answer": null,
+        "final_request_generation": null,
+        "final_request_id": null,
+        "fixture_hashes": {
+          "BASH_WATCH_01": "0c5067557f6d0dbbb16e2681e4976699818797e237073a2eac252b46098cdf32",
+          "BASH_WATCH_02": "1fd3ecf0902ceb8a7dfbab29a5c3065825bcf2417192b5bda9e69117a565ef71",
+          "BASH_WATCH_03": "e264de31a73fa953a13fe504cf957ec36d3ab5a5a53cd319cade075d78425ae0",
+          "BASH_WATCH_04": "d1b142dfe4390bafdd9971ed42bc49d2c222c34145a6e5c68eeaee9470097e6a",
+          "BASH_WATCH_05": "7412f48c0ea4a33c465d08612b51feeaae7f868cc2e0778d81f4d18656b8daad",
+          "PY_MERGE_01": "7d58c741a46d0a3ceddaa63e82fc58563af7765be59094d3ea270c9ee34ca89e",
+          "PY_MERGE_02": "62dee351c4f1e290933c02a6a08bf52a2b04feb7135a15679792757a9fc0115a",
+          "PY_MERGE_03": "5b8395959f3483426a39a8c4aece6702269dca68b813cbafa8165c3ce6964b29",
+          "PY_MERGE_04": "b84fd6fbc7f5c41f9a7bba189bab4924484598d3aa69a5069e3d610ca46e2282",
+          "PY_MERGE_05": "3f6058abd85f822ea34ca8171a2cd441f2e69edef11cf8325812638a52780050"
+        },
+        "fixture_id": "PY_MERGE_03",
+        "fixture_sha256": "5b8395959f3483426a39a8c4aece6702269dca68b813cbafa8165c3ce6964b29",
+        "fixture_span": {
+          "answer_bearing_page_ids": [
+            8,
+            9
+          ],
+          "answer_bearing_source_line": "out = [0] * (len(left) + len(right))",
+          "answer_bearing_token_span": [
+            2131,
+            2352
+          ],
+          "body_byte_span": [
+            0,
+            3932
+          ],
+          "fixture_id": "PY_MERGE_03",
+          "fixture_sha256": "5b8395959f3483426a39a8c4aece6702269dca68b813cbafa8165c3ce6964b29",
+          "rendered_character_span": [
+            8333,
+            12265
+          ],
+          "token_span": [
+            2131,
+            3156
+          ]
+        },
+        "mtp": {
+          "draft_n_max": 2,
+          "draft_placement": "gpu",
+          "draft_type_k": "turbo4",
+          "draft_type_v": "turbo4",
+          "target_placement": "gpu",
+          "target_type_k": "turbo4",
+          "target_type_v": "turbo4"
+        },
+        "page_snapshots": {
+          "after_request_1": [
+            {
+              "content_version": 256,
+              "generation": 10,
+              "host_backed": true,
+              "logical_page_id": 8,
+              "position_begin": 2048,
+              "position_end": 2304,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            {
+              "content_version": 256,
+              "generation": 11,
+              "host_backed": true,
+              "logical_page_id": 9,
+              "position_begin": 2304,
+              "position_end": 2560,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            {
+              "content_version": 256,
+              "generation": 12,
+              "host_backed": true,
+              "logical_page_id": 10,
+              "position_begin": 2560,
+              "position_end": 2816,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            {
+              "content_version": 256,
+              "generation": 13,
+              "host_backed": true,
+              "logical_page_id": 11,
+              "position_begin": 2816,
+              "position_end": 3072,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            {
+              "content_version": 256,
+              "generation": 14,
+              "host_backed": true,
+              "logical_page_id": 12,
+              "position_begin": 3072,
+              "position_end": 3328,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            }
+          ],
+          "after_request_2": {
+            "current_logical_pages_over_fixture_span": [
+              {
+                "content_version": 256,
+                "generation": 34,
+                "host_backed": true,
+                "logical_page_id": 8,
+                "position_begin": 2048,
+                "position_end": 2304,
+                "resident": true,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              },
+              {
+                "content_version": 256,
+                "generation": 35,
+                "host_backed": true,
+                "logical_page_id": 9,
+                "position_begin": 2304,
+                "position_end": 2560,
+                "resident": true,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              },
+              {
+                "content_version": 256,
+                "generation": 36,
+                "host_backed": true,
+                "logical_page_id": 10,
+                "position_begin": 2560,
+                "position_end": 2816,
+                "resident": true,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              },
+              {
+                "content_version": 256,
+                "generation": 37,
+                "host_backed": true,
+                "logical_page_id": 11,
+                "position_begin": 2816,
+                "position_end": 3072,
+                "resident": true,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              },
+              {
+                "content_version": 256,
+                "generation": 38,
+                "host_backed": true,
+                "logical_page_id": 12,
+                "position_begin": 3072,
+                "position_end": 3328,
+                "resident": true,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              }
+            ],
+            "original_tracked_generations": [
+              {
+                "content_version": 256,
+                "generation": 10,
+                "host_backed": null,
+                "inventory_status": "missing",
+                "logical_page_id": 8,
+                "position_begin": 2048,
+                "position_end": 2304,
+                "resident": null,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              },
+              {
+                "content_version": 256,
+                "generation": 11,
+                "host_backed": null,
+                "inventory_status": "missing",
+                "logical_page_id": 9,
+                "position_begin": 2304,
+                "position_end": 2560,
+                "resident": null,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              },
+              {
+                "content_version": 256,
+                "generation": 12,
+                "host_backed": null,
+                "inventory_status": "missing",
+                "logical_page_id": 10,
+                "position_begin": 2560,
+                "position_end": 2816,
+                "resident": null,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              },
+              {
+                "content_version": 256,
+                "generation": 13,
+                "host_backed": null,
+                "inventory_status": "missing",
+                "logical_page_id": 11,
+                "position_begin": 2816,
+                "position_end": 3072,
+                "resident": null,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              },
+              {
+                "content_version": 256,
+                "generation": 14,
+                "host_backed": null,
+                "inventory_status": "missing",
+                "logical_page_id": 12,
+                "position_begin": 3072,
+                "position_end": 3328,
+                "resident": null,
+                "sequence_generation": 1,
+                "sequence_id": 0,
+                "valid_length": 256
+              }
+            ]
+          },
+          "after_request_3": null,
+          "after_request_3_missing_reason": "HTTP 500; no successful request completion or post-request snapshot",
+          "immediately_before_request_3": [
+            {
+              "content_version": 256,
+              "generation": 34,
+              "host_backed": true,
+              "logical_page_id": 8,
+              "position_begin": 2048,
+              "position_end": 2304,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            {
+              "content_version": 256,
+              "generation": 35,
+              "host_backed": true,
+              "logical_page_id": 9,
+              "position_begin": 2304,
+              "position_end": 2560,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            {
+              "content_version": 256,
+              "generation": 36,
+              "host_backed": true,
+              "logical_page_id": 10,
+              "position_begin": 2560,
+              "position_end": 2816,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            {
+              "content_version": 256,
+              "generation": 37,
+              "host_backed": true,
+              "logical_page_id": 11,
+              "position_begin": 2816,
+              "position_end": 3072,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            {
+              "content_version": 256,
+              "generation": 38,
+              "host_backed": true,
+              "logical_page_id": 12,
+              "position_begin": 3072,
+              "position_end": 3328,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            }
+          ]
+        },
+        "physical_promotion_status": "incomplete",
+        "preflight": [
+          {
+            "completion_reserve_tokens": 128,
+            "context_tokens": 16384,
+            "fits": true,
+            "name": "preflight-request-01",
+            "remaining_completion_tokens": 10939,
+            "rendered_prompt_sha256": "8e87adae871219bc32e2645b4407c74d7883e3702b908043b7591591c863d499",
+            "rendered_prompt_tokens": 5317
+          },
+          {
+            "completion_reserve_tokens": 128,
+            "context_tokens": 16384,
+            "fits": true,
+            "name": "preflight-request-02",
+            "remaining_completion_tokens": 5606,
+            "rendered_prompt_sha256": "5ee551b637f463f62a67abdb582d76e9262591ff5c69d6d8cedad0591c32c28e",
+            "rendered_prompt_tokens": 10650
+          },
+          {
+            "completion_reserve_tokens": 128,
+            "context_tokens": 16384,
+            "fits": true,
+            "name": "preflight-request-03",
+            "remaining_completion_tokens": 5544,
+            "rendered_prompt_sha256": "b24344d3eab18a0946bdbad1140078d501e90fca60b4001be438eee3500843c1",
+            "rendered_prompt_tokens": 10712
+          },
+          {
+            "completion_reserve_tokens": 128,
+            "context_tokens": 16384,
+            "fits": true,
+            "name": "preflight-request-03-actual",
+            "remaining_completion_tokens": 3639,
+            "rendered_prompt_sha256": "9c0b7849998571ea846780b5ff7787de6cbf6d26b22b96c08ae3ea5d3a60c913",
+            "rendered_prompt_tokens": 12617
+          }
+        ],
+        "raw_artifacts": [
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/after_request_1-tracked-pages.json",
+            "sha256": "397f95baed33f36f9af903ba03a7ce4f4c46771434f184ae1cec0a390750c6b4"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/after_request_2-tracked-pages.json",
+            "sha256": "1bb0b03051298d71c0478f273d0c33f7286ee6e1a5d07bd2fbfe16dc23bc253d"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-01/messages.json",
+            "sha256": "dc29a6bab1ee4e0df5c1b1a5dfe13de1cff8ad2bfbaf4c55cb0f6ee6c2864291"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-01/rendered-prompt.txt",
+            "sha256": "8e87adae871219bc32e2645b4407c74d7883e3702b908043b7591591c863d499"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-01/renderer-exchanges.json",
+            "sha256": "630f144f9c140588763bfb27854253ad4109810a6fb8e38d82d45809a7e03c45"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-01/result.json",
+            "sha256": "2f9036a8c657b5999385b6cb1615bcb2078de3be81d912dc97f1c1a07a9046c9"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-01/token-ids.json",
+            "sha256": "be04ed7e84abcd58cb8d727d9007f9925bf4dc9404367e12790208dcc5754cee"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-02/messages.json",
+            "sha256": "4219e7b39a3b886d153d89eb8700cc1a35591a63186a6959f40eb55ca7403bd9"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-02/rendered-prompt.txt",
+            "sha256": "5ee551b637f463f62a67abdb582d76e9262591ff5c69d6d8cedad0591c32c28e"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-02/renderer-exchanges.json",
+            "sha256": "be59015a1e11b935a512e76547f3c727192b4b5ec05082fd9b961a1c4a772c70"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-02/result.json",
+            "sha256": "0d62d9401b8951b269082acf657245faed842f0eec1ca182dd4dc7b6c695c844"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-02/token-ids.json",
+            "sha256": "e23c01dd31a26328884dd56279446f2ab656f22e8a34e4890b8c052f60efc2de"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03/messages.json",
+            "sha256": "b4c76f5680c529449c4382c23daa66de5e318878af03d8e538af3e914e7a4447"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03/rendered-prompt.txt",
+            "sha256": "b24344d3eab18a0946bdbad1140078d501e90fca60b4001be438eee3500843c1"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03/renderer-exchanges.json",
+            "sha256": "cd69676045185dce7f761c484cf20cf02ad22f1d54f10ef83d3d86d7f3c8cb83"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03/result.json",
+            "sha256": "dfdcddcf5b51bdb2ec9a2520ea77b0a733aa7c9690d82f4188d1be9c323cab0f"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03/token-ids.json",
+            "sha256": "15cef82b516e7086efbcf6df08675faf2a1ef66e8427272f1be5b91ccba9e732"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03-actual/messages.json",
+            "sha256": "3681b7174d9805cc05c188051127e1cf8469b401fdc842bdb42337c28b32724e"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03-actual/rendered-prompt.txt",
+            "sha256": "9c0b7849998571ea846780b5ff7787de6cbf6d26b22b96c08ae3ea5d3a60c913"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03-actual/renderer-exchanges.json",
+            "sha256": "090a5b2411051be4e6aae19a4dcc3feddd2198d0437a6fc1b1defa842381b668"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03-actual/result.json",
+            "sha256": "2c957d8ce3b3de45220f403aa4b64e22cb63500fda427a305f4120d263e2080e"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/preflight-request-03-actual/token-ids.json",
+            "sha256": "8f89ef71fe4d1e69fb868ad3aa2383392fd71c824fe14421fdbbca82dc20ff5c"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/answer-bearing-prefix-tokenize-response.json",
+            "sha256": "70c552602af3ffc54e5c243c8fbecc99b5b60d21e6bcf550734bcce7011c982f"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/answer-bearing-prefix.txt",
+            "sha256": "dab49fc77b94b3b7ba7056223948d226109099866162ff39f54e735a9312764b"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/body-end-tokenize-response.json",
+            "sha256": "1484802a24df7c522a2a458cd7b469f7620936a7ba95373cc7b44983cdb694f5"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/body-end.txt",
+            "sha256": "04db84c85706c3d91eb5f2578538353e676d1d38ded71a8c3c19179551365c2a"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/body-prefix-tokenize-response.json",
+            "sha256": "79744b272d1904632dfd5d36c78a2c052bf78e8a099a601d8998cd3e0329583b"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/body-prefix.txt",
+            "sha256": "9bc28fbfc2dbc7d45aa4f072aa783ea0133a013d5a21c917c2c1265e1154916d"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/completion-request.json",
+            "sha256": "518b643f93cb0fcec0b75dc57f7d2211a5a4de940159154ef7f0d5ca78dc6356"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/completion-response.json",
+            "sha256": "6974d5b02a613e16b7c84f919edeb6a4c6f73718ff4da889b95951c8cff92a96"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/completion-response.raw",
+            "sha256": "821e3a7bc9b952df553b19d35e9745223f6d386225287963e1b087dd75a0b7a0"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/messages.json",
+            "sha256": "9a3e305d539c892227671186c1cf234b89d301b9774f7267f17e936f3df0c98e"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/record.json",
+            "sha256": "461c13f787f0a43b646c4d50844a90623a9b20a3091f9e25713fda5d903aed27"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/rendered-prompt.txt",
+            "sha256": "8e87adae871219bc32e2645b4407c74d7883e3702b908043b7591591c863d499"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/renderer-exchanges.json",
+            "sha256": "46aa1962f60abdc740929f6060de23fc947c442ac11aa81125164906b8ccd33a"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/slots-after.json",
+            "sha256": "99c6e2567ca94a4b478e34646a995b28d81e6beea470baebd9f26adc6d1527dd"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/slots-before.json",
+            "sha256": "990be7248708e2277bb5102208b10bdea49cefb4040b49d057c4a6502971f619"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/token-ids.json",
+            "sha256": "be04ed7e84abcd58cb8d727d9007f9925bf4dc9404367e12790208dcc5754cee"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/completion-request.json",
+            "sha256": "dc17805899c8abf978fa1090abb7e12ae6d9c2e20786488f804be42ce3d04b34"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/completion-response.json",
+            "sha256": "9f5742e08d7390979cc4779c0b34e44749dc6a0cbad14b349fc773c4a779fd2e"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/completion-response.raw",
+            "sha256": "d2f8b8daac7f09faa0c2a73ab703ae8ac7eba3b68bad6d11539af8c4b299eeff"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/messages.json",
+            "sha256": "8dd7a2e209e874291839883dc028d80472445e5f9dca531a03e0343996511ade"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/record.json",
+            "sha256": "6cb20666ce05604ec052f51c086840e486b6f0c3a48fdf9507eb8e3f9fa4ff91"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/rendered-prompt.txt",
+            "sha256": "6cc756d8ea4fcc2ce428d2c0c3d8047f14f55923fdba3f38f107efdc6e3205ea"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/renderer-exchanges.json",
+            "sha256": "8f5339bbb272a643f37eca14a30f9d006346eed246d347edf5db49d7a3ea2904"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/slots-after.json",
+            "sha256": "bfab3c3dad9f5456fb3b5306094687d4551464cb13f8d8c244c74793620bc358"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/slots-before.json",
+            "sha256": "0c6de14c2b97655bcbf53a98115767d39e1d273a2577792505a4a8b125e4dc52"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/token-ids.json",
+            "sha256": "4ec596fb68a76fb2c3af896e72c996203e32e5014b70ea8da57d8a9c2073a9df"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/completion-request.json",
+            "sha256": "3bb05b4b298a00eb6a742413f8de78a88a34b4fee572fb828f9033149098da70"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/completion-response.json",
+            "sha256": "d5179be49674f882bc879181e377046758ae2722d2ba0ddd8c2120cc02e7a0de"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/completion-response.raw",
+            "sha256": "d5991bdabfd6388f446df22237c4c08b2d0bcaac133ddc63e21e98ae4a96d19b"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/messages.json",
+            "sha256": "49d5896b467bfeda82c7681b580b9c29b8027267ff372dd184a83de89d39198e"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/rendered-prompt.txt",
+            "sha256": "9c0b7849998571ea846780b5ff7787de6cbf6d26b22b96c08ae3ea5d3a60c913"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/renderer-exchanges.json",
+            "sha256": "c7be4f175ccab3fa7dc4396aa32f476f4e0925278b4472aacf6430b3503ff95c"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/slots-before.json",
+            "sha256": "e35522f0cdbf4bb2c1971b067f5b95910f7b66cbcc4ed6e9eb2a6179742156ab"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/token-ids.json",
+            "sha256": "8f89ef71fe4d1e69fb868ad3aa2383392fd71c824fe14421fdbbca82dc20ff5c"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/reset/erase-response.json",
+            "sha256": "2c850e7e6cef6edb8e2881e01217c6971658633577d21bb8a06db48405a1a2fe"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/reset/erased-slot.json",
+            "sha256": "4ad585e8eae136de27cbc5b4e6d9669dc10adc89936a6d388b212aecd61967a4"
+          }
+        ],
+        "request_1_filename_selection": {
+          "answer": "merge_sorted_lists.py",
+          "expected_filename_local_only": "merge_sorted_lists_03.py",
+          "matched": false,
+          "method": "trimmed exact filename comparison",
+          "status": "fail"
+        },
+        "request_2_filename_selection": {
+          "answer": "```\n# Check the final note: the user is asking for the final note: the final note: the final note: the final note: the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n#\n- \"New list sorted list\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n-\n",
+          "expected_filename_local_only": "watch_directory_new_files_01.sh",
+          "matched": false,
+          "method": "trimmed exact filename comparison",
+          "status": "fail"
+        },
+        "request_3_filename_selection": {
+          "answer": "",
+          "expected_filename_local_only": "merge_sorted_lists_03.py",
+          "matched": false,
+          "status": "unavailable_http_error"
+        },
+        "requests": [
+          {
+            "appended_fixture_ids": [
+              "PY_MERGE_01",
+              "PY_MERGE_02",
+              "PY_MERGE_03",
+              "PY_MERGE_04",
+              "PY_MERGE_05"
+            ],
+            "assistant_answer": "merge_sorted_lists.py",
+            "cache_prompt": false,
+            "completion_usage": {
+              "completion_tokens": 5,
+              "prompt_tokens": 5317,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "total_tokens": 5322
+            },
+            "expected_answer_local_only": "merge_sorted_lists_03.py",
+            "filename_selection": {
+              "answer": "merge_sorted_lists.py",
+              "expected_filename_local_only": "merge_sorted_lists_03.py",
+              "matched": false,
+              "method": "trimmed exact filename comparison",
+              "status": "fail"
+            },
+            "http_status": 200,
+            "mtp_observation": {
+              "mtp_backend": "gpu",
+              "mtp_bytes": 17432576,
+              "mtp_type_k": "turbo4",
+              "mtp_type_v": "turbo4",
+              "pager_mode": "selective",
+              "physical_pool_capacity_bytes": 69206016,
+              "resident_pages": 16,
+              "route_override": "auto",
+              "target_backend": "CUDA",
+              "target_resident_bytes": 0,
+              "target_type_k": "turbo4",
+              "target_type_v": "turbo4"
+            },
+            "mtp_verified": true,
+            "prompt_tokens": 5317,
+            "question": "Among these five Python implementations, which one uses an exactly preallocated result list and writes each result position once, the most allocation-efficient choice for producing a merged list? Reply with only the exact filename.",
+            "raw_request_artifact": {
+              "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/completion-request.json",
+              "sha256": "518b643f93cb0fcec0b75dc57f7d2211a5a4de940159154ef7f0d5ca78dc6356"
+            },
+            "raw_response_artifact": {
+              "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-01/completion-response.raw",
+              "sha256": "821e3a7bc9b952df553b19d35e9745223f6d386225287963e1b087dd75a0b7a0"
+            },
+            "render": {
+              "answer_bearing_end_char": 9279,
+              "completion_tokens": 5,
+              "finish_reason": "stop",
+              "fixture_end_char": 12265,
+              "fixture_end_token": 3156,
+              "fixture_start_char": 8333,
+              "fixture_start_token": 2131,
+              "generation_context_reserve_tokens": 128,
+              "n_predict": 10939,
+              "probe_end_token_count": 2352,
+              "rendered_token_count": 5317,
+              "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+              "tokenizer_id": "server-model:qwen38-fast-turbo4-mtp"
+            },
+            "request_generation": 1,
+            "request_generation_before": 0,
+            "request_id": "chatcmpl-EKQ7Nzv96hIBz3Ba1prIFzFJkAkYbZDV",
+            "stage": "compare_python",
+            "user_content_sha256": "9c787075b76c5baf56277659f38f2339b30d5b0ee11d418df9229fd64a830dc6"
+          },
+          {
+            "appended_fixture_ids": [
+              "BASH_WATCH_01",
+              "BASH_WATCH_02",
+              "BASH_WATCH_03",
+              "BASH_WATCH_04",
+              "BASH_WATCH_05"
+            ],
+            "assistant_answer": "```\n# Check the final note: the user is asking for the final note: the final note: the final note: the final note: the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n#\n- \"New list sorted list\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n-\n",
+            "cache_prompt": false,
+            "completion_usage": {
+              "completion_tokens": 1918,
+              "prompt_tokens": 10647,
+              "prompt_tokens_details": {
+                "cached_tokens": 0
+              },
+              "total_tokens": 12565
+            },
+            "expected_answer_local_only": "watch_directory_new_files_01.sh",
+            "filename_selection": {
+              "answer": "```\n# Check the final note: the user is asking for the final note: the final note: the final note: the final note: the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the final note:\n```\n# Check the\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check the final note\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n# Check\n#\n- \"New list sorted list\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n- \"\n-\n",
+              "expected_filename_local_only": "watch_directory_new_files_01.sh",
+              "matched": false,
+              "method": "trimmed exact filename comparison",
+              "status": "fail"
+            },
+            "http_status": 200,
+            "mtp_observation": {
+              "mtp_backend": "gpu",
+              "mtp_bytes": 17432576,
+              "mtp_type_k": "turbo4",
+              "mtp_type_v": "turbo4",
+              "pager_mode": "selective",
+              "physical_pool_capacity_bytes": 69206016,
+              "resident_pages": 16,
+              "route_override": "auto",
+              "target_backend": "CUDA",
+              "target_resident_bytes": 0,
+              "target_type_k": "turbo4",
+              "target_type_v": "turbo4"
+            },
+            "mtp_verified": true,
+            "prompt_tokens": 10647,
+            "question": "Among these five Bash watchers, which one is the leanest for a single nonrecursive directory when it reports CREATE and MOVED_TO events without an extra per-event file test? Reply with only the exact filename.",
+            "raw_request_artifact": {
+              "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/completion-request.json",
+              "sha256": "dc17805899c8abf978fa1090abb7e12ae6d9c2e20786488f804be42ce3d04b34"
+            },
+            "raw_response_artifact": {
+              "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-02/completion-response.raw",
+              "sha256": "d2f8b8daac7f09faa0c2a73ab703ae8ac7eba3b68bad6d11539af8c4b299eeff"
+            },
+            "render": {
+              "answer_bearing_end_char": null,
+              "completion_tokens": 1918,
+              "finish_reason": "stop",
+              "fixture_end_char": null,
+              "fixture_end_token": null,
+              "fixture_start_char": null,
+              "fixture_start_token": null,
+              "generation_context_reserve_tokens": 128,
+              "n_predict": 5609,
+              "probe_end_token_count": null,
+              "rendered_token_count": 10647,
+              "template_id": "server-chat-template-sha256:4d0ad5b943185bebc91a84b3fa5a531a88b19a408ce1af84e51df41ceb81a95a",
+              "tokenizer_id": "server-model:qwen38-fast-turbo4-mtp"
+            },
+            "request_generation": 2,
+            "request_generation_before": 1,
+            "request_id": "chatcmpl-XrOXkyuF7nfh25LemPK0XbcsQmCxV1ZH",
+            "stage": "compare_bash",
+            "user_content_sha256": "938d6f31e7ab71babcfbf3145d4bb50db70c2ba076ab2c6553367ebc582538d9"
+          },
+          {
+            "appended_fixture_ids": [],
+            "assistant_answer": "",
+            "cache_prompt": true,
+            "completion_usage": null,
+            "expected_answer_local_only": "merge_sorted_lists_03.py",
+            "filename_selection": {
+              "answer": "",
+              "expected_filename_local_only": "merge_sorted_lists_03.py",
+              "matched": false,
+              "status": "unavailable_http_error"
+            },
+            "http_status": 500,
+            "mtp_observation": {
+              "reason": "request returned HTTP 500 before a completion was produced",
+              "status": "unknown"
+            },
+            "mtp_verified": false,
+            "prompt_tokens": 12617,
+            "question": "Among these five Python implementations, which one uses an exactly preallocated result list and writes each result position once, the most allocation-efficient choice for producing a merged list? Reply with only the exact filename.",
+            "raw_request_artifact": {
+              "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/completion-request.json",
+              "sha256": "3bb05b4b298a00eb6a742413f8de78a88a34b4fee572fb828f9033149098da70"
+            },
+            "raw_response_artifact": {
+              "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/cases/PY_MERGE_03/request-03/completion-response.raw",
+              "sha256": "d5991bdabfd6388f446df22237c4c08b2d0bcaac133ddc63e21e98ae4a96d19b"
+            },
+            "request_generation": null,
+            "request_generation_before": 2,
+            "request_id": null,
+            "response_error": {
+              "code": 500,
+              "message": "got exception: speculative batch index 2 is not inside the current sub-batch [0, 2)",
+              "type": "server_error"
+            },
+            "stage": "repeat_python"
+          }
+        ],
+        "runtime_failure": {
+          "code": 500,
+          "message": "got exception: speculative batch index 2 is not inside the current sub-batch [0, 2)",
+          "type": "server_error"
+        },
+        "tracked_page_results": [
+          {
+            "current_before_request_3": {
+              "content_version": 256,
+              "generation": 34,
+              "host_backed": true,
+              "logical_page_id": 8,
+              "position_begin": 2048,
+              "position_end": 2304,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "initial_page": {
+              "content_version": 256,
+              "generation": 10,
+              "host_backed": true,
+              "logical_page_id": 8,
+              "position_begin": 2048,
+              "position_end": 2304,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "tracked_generation_after_request_2": {
+              "content_version": 256,
+              "generation": 10,
+              "host_backed": null,
+              "inventory_status": "missing",
+              "logical_page_id": 8,
+              "position_begin": 2048,
+              "position_end": 2304,
+              "resident": null,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            }
+          },
+          {
+            "current_before_request_3": {
+              "content_version": 256,
+              "generation": 35,
+              "host_backed": true,
+              "logical_page_id": 9,
+              "position_begin": 2304,
+              "position_end": 2560,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "initial_page": {
+              "content_version": 256,
+              "generation": 11,
+              "host_backed": true,
+              "logical_page_id": 9,
+              "position_begin": 2304,
+              "position_end": 2560,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "tracked_generation_after_request_2": {
+              "content_version": 256,
+              "generation": 11,
+              "host_backed": null,
+              "inventory_status": "missing",
+              "logical_page_id": 9,
+              "position_begin": 2304,
+              "position_end": 2560,
+              "resident": null,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            }
+          },
+          {
+            "current_before_request_3": {
+              "content_version": 256,
+              "generation": 36,
+              "host_backed": true,
+              "logical_page_id": 10,
+              "position_begin": 2560,
+              "position_end": 2816,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "initial_page": {
+              "content_version": 256,
+              "generation": 12,
+              "host_backed": true,
+              "logical_page_id": 10,
+              "position_begin": 2560,
+              "position_end": 2816,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "tracked_generation_after_request_2": {
+              "content_version": 256,
+              "generation": 12,
+              "host_backed": null,
+              "inventory_status": "missing",
+              "logical_page_id": 10,
+              "position_begin": 2560,
+              "position_end": 2816,
+              "resident": null,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            }
+          },
+          {
+            "current_before_request_3": {
+              "content_version": 256,
+              "generation": 37,
+              "host_backed": true,
+              "logical_page_id": 11,
+              "position_begin": 2816,
+              "position_end": 3072,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "initial_page": {
+              "content_version": 256,
+              "generation": 13,
+              "host_backed": true,
+              "logical_page_id": 11,
+              "position_begin": 2816,
+              "position_end": 3072,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "tracked_generation_after_request_2": {
+              "content_version": 256,
+              "generation": 13,
+              "host_backed": null,
+              "inventory_status": "missing",
+              "logical_page_id": 11,
+              "position_begin": 2816,
+              "position_end": 3072,
+              "resident": null,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            }
+          },
+          {
+            "current_before_request_3": {
+              "content_version": 256,
+              "generation": 38,
+              "host_backed": true,
+              "logical_page_id": 12,
+              "position_begin": 3072,
+              "position_end": 3328,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "initial_page": {
+              "content_version": 256,
+              "generation": 14,
+              "host_backed": true,
+              "logical_page_id": 12,
+              "position_begin": 3072,
+              "position_end": 3328,
+              "resident": true,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            },
+            "tracked_generation_after_request_2": {
+              "content_version": 256,
+              "generation": 14,
+              "host_backed": null,
+              "inventory_status": "missing",
+              "logical_page_id": 12,
+              "position_begin": 3072,
+              "position_end": 3328,
+              "resident": null,
+              "sequence_generation": 1,
+              "sequence_id": 0,
+              "valid_length": 256
+            }
+          }
+        ],
+        "whole_fixture_hot_after_request_3": null
+      }
+    ],
+    "execution_status": "incomplete",
+    "failures": [
+      {
+        "error": "HTTP 500: got exception: speculative batch index 2 is not inside the current sub-batch [0, 2)",
+        "fixture_id": "PY_MERGE_03"
+      }
+    ],
+    "fixture_manifest_sha256": "14f340f0453e48f7a0d53f747a2a8f65f36e185dc25d9d9ea5207b0ecf554552",
+    "geometry": {
+      "admitted_context_tokens": 16384,
+      "admitted_hot_tokens": 4096,
+      "batch": 128,
+      "context_tokens": 16384,
+      "draft_n_max": 2,
+      "hot_pages": 16,
+      "hot_tokens": 4096,
+      "mtp_placement": "gpu",
+      "mtp_type_k": "turbo4",
+      "mtp_type_v": "turbo4",
+      "page_size_tokens": 256,
+      "pager_mode": "selective",
+      "target_type_k": "turbo4",
+      "target_type_v": "turbo4",
+      "thinking": "off",
+      "ubatch": 64
+    },
+    "raw_artifacts": [
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/candidate-identity.json",
+        "sha256": "d4c2dd67e4f953c3fcf2cdaf393d0f930ba68dff20ae1864ec81088dd9b441fd"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/health-response.json",
+        "sha256": "6489d6d7a33c5d40e18fc61eeb6c34c341279ee61816394dde5189aa4ad8fae5"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/allocator-admission.json",
+        "sha256": "94d2cb4ee2707de612a9746e327f6e1e120a10d193f65ea5093e3eb9a24f0ee4"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/campaign-progress.json",
+        "sha256": "721a22544dac0d84cfb7eeb68455c18d5847ae9c2e9f5bb32007d829f93a7832"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign-driver.log",
+        "sha256": "17497b2aa9490b6883de800bb2095fa6163fe87db860f4057f71c8ed22ab4802"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/post-failure-identity.json",
+        "sha256": "d4c2dd67e4f953c3fcf2cdaf393d0f930ba68dff20ae1864ec81088dd9b441fd"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11g/attempt-06/campaign/post-failure-health.json",
+        "sha256": "6489d6d7a33c5d40e18fc61eeb6c34c341279ee61816394dde5189aa4ad8fae5"
+      }
+    ],
+    "schema": "file-backed-pager-promotion-campaign-v1",
+    "target_fixture_ids": [
+      "PY_MERGE_01",
+      "PY_MERGE_02",
+      "PY_MERGE_03",
+      "PY_MERGE_04",
+      "PY_MERGE_05",
+      "BASH_WATCH_01",
+      "BASH_WATCH_02",
+      "BASH_WATCH_03",
+      "BASH_WATCH_04",
+      "BASH_WATCH_05"
+    ]
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "schema_version": 1,
+  "source_commit": "66ac1c8a493c56318945a7abb3894928e44125a4",
+  "task": "93-11g"
+}

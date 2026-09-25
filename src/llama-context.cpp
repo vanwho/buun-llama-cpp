@@ -49,6 +49,68 @@ class llama_exception : public std::runtime_error {
     using std::runtime_error::runtime_error;
 };
 
+// Verify that every Hadamard-folded weight consumed by the graph receives its
+// activation-side transform, and every latent lookup table gets the inverse.
+// An architecture whose matmul path bypasses the transform helpers would
+// otherwise load cleanly and silently compute wrong results.
+static void llama_verify_hadamard_graph(
+        ggml_cgraph * gf,
+        const llama_hadamard_rotations & rotations,
+        const llama_hadamard_rotations & inverses) {
+    auto unwrap = [](const ggml_tensor * t) {
+        while (t && (t->op == GGML_OP_RESHAPE || t->op == GGML_OP_VIEW)) {
+            t = t->src[0];
+        }
+        return t;
+    };
+
+    std::map<const ggml_tensor *, bool> lookups; // get_rows results of latent tables
+
+    for (int i = 0; i < ggml_graph_n_nodes(gf); ++i) {
+        const ggml_tensor * node = ggml_graph_node(gf, i);
+
+        if (node->op == GGML_OP_GET_ROWS && inverses.count(node->src[0])) {
+            lookups.emplace(node, false);
+            continue;
+        }
+
+        if (node->op != GGML_OP_MUL_MAT && node->op != GGML_OP_MUL_MAT_ID) {
+            continue;
+        }
+
+        if (node->op == GGML_OP_MUL_MAT && ((const int32_t *) node->op_params)[1] == GGML_HINT_SRC0_IS_HADAMARD) {
+            const auto lk = lookups.find(unwrap(node->src[1]));
+            if (lk != lookups.end()) {
+                lk->second = true;
+            }
+            continue;
+        }
+
+        const auto it = rotations.find(node->src[0]);
+        if (it == rotations.end()) {
+            continue;
+        }
+        const ggml_tensor * src = unwrap(node->src[1]);
+        const bool transformed = src && src->op == GGML_OP_MUL_MAT &&
+            ((const int32_t *) src->op_params)[1] == GGML_HINT_SRC0_IS_HADAMARD &&
+            src->src[0] == it->second.rot;
+        if (!transformed) {
+            throw std::runtime_error(format(
+                "Hadamard-folded weight '%s' is consumed without its activation transform; "
+                "this graph's matmul path does not support prism.hadamard folding",
+                node->src[0]->name));
+        }
+    }
+
+    for (const auto & [node, ok] : lookups) {
+        if (!ok) {
+            throw std::runtime_error(format(
+                "Hadamard-latent table '%s' is read without the inverse transform",
+                node->src[0]->name));
+        }
+    }
+}
+
 static llm_graph_type ctx_type_to_graph_type(llama_context_type ctx_type) {
     switch (ctx_type) {
         case LLAMA_CONTEXT_TYPE_DEFAULT: return LLM_GRAPH_TYPE_DEFAULT;
@@ -988,7 +1050,8 @@ llama_context::~llama_context() {
 
     delete crosskv_proj;
 
-    if (!model.hparams.no_alloc) {
+    // Training allocates additional graphs through the scheduler.
+    if (!model.hparams.no_alloc && !opt_ctx) {
         for (size_t i = 0; i < backend_ptrs.size(); ++i) {
             ggml_backend_t             backend = backend_ptrs[i];
             ggml_backend_buffer_type_t buft    = backend_buft[i];
@@ -1062,6 +1125,17 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.representation_epoch = kv_attention_execution.representation_epoch();
     result.shape_epoch = kv_attention_execution.shape_epoch();
     result.execution = kv_attention_execution.metrics();
+    if (kv_pager_owner != nullptr && kv_pager.enabled()) {
+        try {
+            // The diagnostic server uses one slot (sequence zero) for the
+            // promotion campaign. This bounded read-only inventory lets a
+            // caller distinguish a complete host-backed cold page from a
+            // resident page without exposing any residency control surface.
+            result.page_inventory = kv_pager_owner->exact_page_records(0);
+        } catch (...) {
+            result.page_inventory.clear();
+        }
+    }
 
     // Native MTP is not part of the target pager owner. Read its actual
     // context allocations at scrape time so a model flag or a projected
@@ -1216,6 +1290,12 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
                 result.test_forced_content_version);
     }
     return result;
+}
+
+void llama_context::begin_kv_pager_proof_request() noexcept {
+    if (kv_pager_owner != nullptr) {
+        kv_pager_owner->begin_natural_proof_request();
+    }
 }
 
 void llama_context::validate_kv_pager_capability(ggml_type type_k, ggml_type type_v) const {
@@ -2194,7 +2274,9 @@ void llama_context::sched_reserve() {
         //       need to implement a more robust mechanism that tries a few different inputs and analyzes the results
         ggml_cgraph * gf = nullptr;
         switch (model.arch) {
+            case LLM_ARCH_KIMI_LINEAR:
             case LLM_ARCH_MINIMAX_01:
+                // [TAG_RESERVE_DIAG_DECAY]
                 // the `inp_diag_decay` tensor size scales with `n_seq_tokens^2` which
                 // makes `n_seqs == 1` use more memory for the compute graph compared to `n_seqs > 1`
                 gf = graph_reserve(n_tokens, 1,      n_outputs_pp, mctx.get(), model.hparams.no_alloc);
@@ -2298,8 +2380,13 @@ void llama_context::synchronize() {
     // boundary can prove use of a page promoted by an earlier policy fence.
     if (kv_pager_owner != nullptr) {
         for (const auto & graph : kv_attention_proof_graphs_) {
-            kv_pager_owner->record_natural_proof_target_use(
-                    graph.selected_page_ids, graph.table_epoch, 0);
+            if (graph.mtp_verify) {
+                kv_pager_owner->record_natural_proof_draft_use(
+                        graph.selected_page_ids, graph.table_epoch, 0);
+            } else {
+                kv_pager_owner->record_natural_proof_target_use(
+                        graph.selected_page_ids, graph.table_epoch, 0);
+            }
         }
     }
     kv_attention_proof_graphs_.clear();
@@ -2312,9 +2399,15 @@ void llama_context::synchronize() {
         // The execution metrics carry the immutable logical IDs from the
         // graph metadata. Stamp target use only after the scheduler fence;
         // pre-fence selection is intentionally not proof of consumption.
-        kv_pager_owner->record_natural_proof_target_use(
-                kv_attention_execution.metrics().selected_page_ids,
-                kv_attention_execution.table_epoch(), 0);
+        if (kv_attention_mtp_verification_) {
+            kv_pager_owner->record_natural_proof_draft_use(
+                    kv_attention_execution.metrics().selected_page_ids,
+                    kv_attention_execution.table_epoch(), 0);
+        } else {
+            kv_pager_owner->record_natural_proof_target_use(
+                    kv_attention_execution.metrics().selected_page_ids,
+                    kv_attention_execution.table_epoch(), 0);
+        }
     }
     // The scheduler fence is also the completion boundary for packed owners.
     // Keep retired owners alive until this point; a graph rebuild may have
@@ -2407,6 +2500,7 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention(
     if (selected_route && kv_pager_owner != nullptr) {
         kv_attention_proof_graph graph;
         graph.table_epoch = metadata.table_epoch();
+        graph.mtp_verify = phase == llama_kv_attention_execution_phase::mtp_verify;
         graph.selected_page_ids.reserve(metadata.page_table().size());
         for (const auto & page : metadata.page_table()) {
             graph.selected_page_ids.push_back(page.logical_page);
@@ -4128,6 +4222,14 @@ void llama_context::set_dflash_topk(int k) {
     cparams.dflash_topk = (k >= 1) ? k : 1;
     // invalidate graph cache since output tensor shape changes with K
     gf_res_prev->reset();
+}
+
+void llama_context::set_dflash_block_size(int n) {
+    GGML_ASSERT(n == 0 || (n >= 3 && n <= model.hparams.dflash_block_size));
+    if (cparams.dflash_block_size != n) {
+        cparams.dflash_block_size = n;
+        gf_res_prev->reset();
+    }
 }
 
 void llama_context::set_dflash_n_slots(int n) {
@@ -7670,7 +7772,8 @@ uint32_t llama_context::graph_max_nodes(uint32_t n_tokens) const {
         (model.arch == LLM_ARCH_DFLASH && model.hparams.dsv4_hc_mult > 0) ||
         model.arch == LLM_ARCH_NANBEIGE ||
         model.arch == LLM_ARCH_MINIMAX_01 ||
-        model.arch == LLM_ARCH_MINIMAX_M3) {
+        model.arch == LLM_ARCH_MINIMAX_M3 ||
+        model.arch == LLM_ARCH_HY_V4) {
         res = std::max<uint32_t>(n_tokens * 40, 32u * model.n_tensors());
     } else if (has_dflash_compat_selector) {
         // The upstream compatibility DFlash convolutions and selector are shape work rather
@@ -7835,6 +7938,13 @@ ggml_cgraph * llama_context::graph_reserve(
 
     auto * gf = model.build_graph(gparams);
 
+    // verify transform coverage on the pristine graph: after scheduling,
+    // cross-backend copies break the producer chain the check follows
+    if (!hadamard_verified && gf && (!model.hadamard_rotations.empty() || !model.hadamard_inverses.empty())) {
+        llama_verify_hadamard_graph(gf, model.hadamard_rotations, model.hadamard_inverses);
+        hadamard_verified = true;
+    }
+
     this->n_outputs = save_n_outputs;
 
     // initialize scheduler with the specified graph
@@ -7922,6 +8032,8 @@ llm_graph_params llama_context::graph_params(
         /*.loras       =*/ loras_ordered.get(),
         /*.mctx        =*/ mctx,
         /*.cross       =*/ &cross,
+        /*.hadamard_rotations =*/ &model.hadamard_rotations,
+        /*.hadamard_inverses  =*/ &model.hadamard_inverses,
         /*.tree_mask   =*/ tree_mask.active ? &tree_mask : nullptr,
         /*.tree_parent_ids         =*/ tree_bufs.active ? tree_bufs.parent_ids_gpu : nullptr,
         /*.tree_ssm_intermediates  =*/ tree_bufs.active ? &tree_bufs.ssm_intermediates : nullptr,
@@ -9406,6 +9518,14 @@ void llama_context::opt_init(struct llama_model * model, struct llama_opt_params
     GGML_ASSERT(model->hparams.n_ctx_train % n_batch  == 0);
     GGML_ASSERT(n_batch                    % n_ubatch == 0);
 
+    if (cparams.flash_attn) {
+        LLAMA_LOG_INFO("%s: disabling flash attention, FLASH_ATTN_EXT has no backward pass\n", __func__);
+        cparams.flash_attn = false;
+        // Rebuild the scheduler before ggml_opt retains its pointer.
+        sched_need_reserve = true;
+        sched_reserve();
+    }
+
     ggml_opt_params opt_params = ggml_opt_default_params(sched.get(), GGML_OPT_LOSS_TYPE_CROSS_ENTROPY);
     opt_params.opt_period      = n_batch / n_ubatch;
     opt_params.get_opt_pars    = lopt_params.get_opt_pars;
@@ -9713,6 +9833,9 @@ llama_context * llama_init_from_model(
         if (ggml_is_quantized(params.type_k) || ggml_is_quantized(params.type_v)) {
             LLAMA_LOG_INFO("%s: SPLIT_MODE_TENSOR with quantized KV cache (K=%s, V=%s)\n",
                 __func__, ggml_type_name(params.type_k), ggml_type_name(params.type_v));
+        }
+        if (model->get_split_state_ud.n_devices == 1) {
+            LLAMA_LOG_WARN("%s: SPLIT_MODE_TENSOR being used for a single device is not recommended\n", __func__);
         }
     }
 
@@ -10113,6 +10236,10 @@ void llama_set_dflash_oneg_inject(llama_context * ctx, void * carry, int32_t n_i
 
 void llama_set_dflash_n_slots(llama_context * ctx, int n) {
     ctx->set_dflash_n_slots(n);
+}
+
+void llama_set_dflash_block_size(llama_context * ctx, int n) {
+    ctx->set_dflash_block_size(n);
 }
 
 void llama_set_tape_recording(llama_context * ctx, bool enable) {
@@ -10792,6 +10919,22 @@ bool llama_memory_try_seq_cp_transient(
              llama_pos p0,
              llama_pos p1) {
     return mem != nullptr && mem->try_seq_cp_transient(seq_id_src, seq_id_dst, p0, p1);
+}
+
+bool llama_memory_try_share_attn_prefix(
+        llama_memory_t mem,
+          llama_seq_id seq_id_src,
+          llama_seq_id seq_id_dst,
+             llama_pos n_tokens) {
+    return mem != nullptr && mem->try_share_attn_prefix(seq_id_src, seq_id_dst, n_tokens);
+}
+
+bool llama_memory_can_share_attn_prefix(
+        llama_memory_t mem,
+          llama_seq_id seq_id_src,
+          llama_seq_id seq_id_dst,
+             llama_pos n_tokens) {
+    return mem != nullptr && mem->can_share_attn_prefix(seq_id_src, seq_id_dst, n_tokens);
 }
 
 void llama_memory_seq_keep(

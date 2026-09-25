@@ -3,17 +3,17 @@
   "target_model_family": "Qwen3.8-27B",
   "target_tokens_per_file": 1024,
   "token_count_mode": "llama-tokenize --no-bos",
-  "tokenizer_binary_version": "version: 0.3.0-dev (build 13116, commit be36951c5)",
+  "tokenizer_binary_version": "version: 1 (7d30a72)",
   "files": [
     {
       "id": "PY_MERGE_01",
       "category": "python_sorted_merge",
       "path": "python/merge_sorted_lists_01.py",
       "retrieval_key": "A two-index stable merge chooses the left value on ties.",
-      "question": "For PY_MERGE_01, report its RETRIEVAL_KEY exactly.",
+      "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
       "expected_answer": "A two-index stable merge chooses the left value on ties.",
       "token_count_no_bos": 1024,
-      "sha256": "7912d349276e8186a40238a111ce0d1af2ae72e80b36d055dfe4702c8de1269e",
+      "sha256": "7d58c741a46d0a3ceddaa63e82fc58563af7765be59094d3ea270c9ee34ca89e",
       "syntax_check": "py_compile"
     },
     {
@@ -21,10 +21,10 @@
       "category": "python_sorted_merge",
       "path": "python/merge_sorted_lists_02.py",
       "retrieval_key": "The tail-extension merge copies the untouched suffix once.",
-      "question": "For PY_MERGE_02, report its RETRIEVAL_KEY exactly.",
+      "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
       "expected_answer": "The tail-extension merge copies the untouched suffix once.",
       "token_count_no_bos": 1024,
-      "sha256": "c1f2cb4583e4d5ea9517bc93498d807a4065c0b24c41a82dac2a89204cce7038",
+      "sha256": "62dee351c4f1e290933c02a6a08bf52a2b04feb7135a15679792757a9fc0115a",
       "syntax_check": "py_compile"
     },
     {
@@ -32,10 +32,10 @@
       "category": "python_sorted_merge",
       "path": "python/merge_sorted_lists_03.py",
       "retrieval_key": "The preallocated merge writes each output position exactly once.",
-      "question": "For PY_MERGE_03, report its RETRIEVAL_KEY exactly.",
+      "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
       "expected_answer": "The preallocated merge writes each output position exactly once.",
       "token_count_no_bos": 1024,
-      "sha256": "4da8cdc3e47c9bd6eec1eadcd23a3c8472e05e3852dee6ebdd0613cce9ded095",
+      "sha256": "5b8395959f3483426a39a8c4aece6702269dca68b813cbafa8165c3ce6964b29",
       "syntax_check": "py_compile"
     },
     {
@@ -43,10 +43,10 @@
       "category": "python_sorted_merge",
       "path": "python/merge_sorted_lists_04.py",
       "retrieval_key": "The iterator-cursor merge advances only the side it emits.",
-      "question": "For PY_MERGE_04, report its RETRIEVAL_KEY exactly.",
+      "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
       "expected_answer": "The iterator-cursor merge advances only the side it emits.",
       "token_count_no_bos": 1024,
-      "sha256": "3d7d91d072145d73f9de23bb1771643449db95e425c7a63255fb20641172f091",
+      "sha256": "b84fd6fbc7f5c41f9a7bba189bab4924484598d3aa69a5069e3d610ca46e2282",
       "syntax_check": "py_compile"
     },
     {
@@ -54,10 +54,10 @@
       "category": "python_sorted_merge",
       "path": "python/merge_sorted_lists_05.py",
       "retrieval_key": "heapq.merge is the concise lazy reference for two sorted inputs.",
-      "question": "For PY_MERGE_05, report its RETRIEVAL_KEY exactly.",
+      "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
       "expected_answer": "heapq.merge is the concise lazy reference for two sorted inputs.",
       "token_count_no_bos": 1024,
-      "sha256": "091551e8ce4b48e925681620c6c8d7f6d24818c7adb283b2cf648c1485ca5783",
+      "sha256": "3f6058abd85f822ea34ca8171a2cd441f2e69edef11cf8325812638a52780050",
       "syntax_check": "py_compile"
     },
     {
@@ -65,10 +65,10 @@
       "category": "python_sorted_merge",
       "path": "python/merge_sorted_lists_06.py",
       "retrieval_key": "The iterable wrapper keeps the merge loop separate from list materialization.",
-      "question": "For PY_MERGE_06, report its RETRIEVAL_KEY exactly.",
+      "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
       "expected_answer": "The iterable wrapper keeps the merge loop separate from list materialization.",
       "token_count_no_bos": 1024,
-      "sha256": "9dd72c4d9f0ef10d40d13819946291c555397ad41b0e3c688d19ff8862c88e4c",
+      "sha256": "c629413ab6de0c1abbcda5675c49670cd88625f070e2f28a64f501a9cdf8f8be",
       "syntax_check": "py_compile"
     },
     {
@@ -76,10 +76,10 @@
       "category": "python_sorted_merge",
       "path": "python/merge_sorted_lists_07.py",
       "retrieval_key": "The branch-explicit merge makes empty-input behavior visible in its tail loops.",
-      "question": "For PY_MERGE_07, report its RETRIEVAL_KEY exactly.",
+      "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
       "expected_answer": "The branch-explicit merge makes empty-input behavior visible in its tail loops.",
       "token_count_no_bos": 1024,
-      "sha256": "ac70901617ecc7568ef6c50e18903bf0d54fe7a8e45524c50548bb9c677901bc",
+      "sha256": "a348ee8e528d5223a8275f32ebb3c0dcc9da8a3e23d092823fb190ea2270da33",
       "syntax_check": "py_compile"
     },
     {
@@ -87,10 +87,10 @@
       "category": "python_sorted_merge",
       "path": "python/merge_sorted_lists_08.py",
       "retrieval_key": "The slice-tail merge favors clear cursor logic and one final suffix extension.",
-      "question": "For PY_MERGE_08, report its RETRIEVAL_KEY exactly.",
+      "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
       "expected_answer": "The slice-tail merge favors clear cursor logic and one final suffix extension.",
       "token_count_no_bos": 1024,
-      "sha256": "e1b4e1677f93b35c1854ec33aa64e72e0c932c0c85eda635e90a0922424672c8",
+      "sha256": "982df9a98ca229723e8f74f23ff8ff615a9f7e94ce73ec976a9ed6ca1bf81e14",
       "syntax_check": "py_compile"
     },
     {
@@ -98,10 +98,10 @@
       "category": "mmap_vs_read",
       "path": "mmap/mmap_vs_read_01.md",
       "retrieval_key": "mmap exposes a file through virtual pages; read copies bytes into a caller-owned buffer.",
-      "question": "For MMAP_READ_01, report its specific retrieval fact exactly.",
+      "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
       "expected_answer": "mmap exposes a file through virtual pages; read copies bytes into a caller-owned buffer.",
       "token_count_no_bos": 1024,
-      "sha256": "d2ef30332380f03c69f2755d73cd1c28507ca4e6ef49f8141a042e9776588496",
+      "sha256": "268e92967d2f08c2db50e4f1606a4c307ef142fe84e67391105d00698344a459",
       "syntax_check": "markdown"
     },
     {
@@ -109,10 +109,10 @@
       "category": "mmap_vs_read",
       "path": "mmap/mmap_vs_read_02.md",
       "retrieval_key": "For a sequential scan, read offers explicit chunk sizing while mmap relies on the operating system page cache.",
-      "question": "For MMAP_READ_02, report its specific retrieval fact exactly.",
+      "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
       "expected_answer": "For a sequential scan, read offers explicit chunk sizing while mmap relies on the operating system page cache.",
       "token_count_no_bos": 1024,
-      "sha256": "6053095124470c8182dc87b214c3dfbacdc78cbb324b36caf31f34a60ccff4c2",
+      "sha256": "9a058e04432786c4352b360320c4667160c3b7606987f72faec907dc94ee816c",
       "syntax_check": "markdown"
     },
     {
@@ -120,10 +120,10 @@
       "category": "mmap_vs_read",
       "path": "mmap/mmap_vs_read_03.md",
       "retrieval_key": "Random access may favor mmap because offsets can be dereferenced without repeated read calls.",
-      "question": "For MMAP_READ_03, report its specific retrieval fact exactly.",
+      "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
       "expected_answer": "Random access may favor mmap because offsets can be dereferenced without repeated read calls.",
       "token_count_no_bos": 1024,
-      "sha256": "c09398a80d5684e95a5c5f35b8b67cf0acda5cb06f43a421f20772e12d19ffef",
+      "sha256": "f5883a224fd2a3749ca3234373f4bd0eb453e1aef2ffadc44552eb802346a6b2",
       "syntax_check": "markdown"
     },
     {
@@ -131,10 +131,10 @@
       "category": "mmap_vs_read",
       "path": "mmap/mmap_vs_read_04.md",
       "retrieval_key": "read returns copied bytes whose lifetime is controlled by the caller.",
-      "question": "For MMAP_READ_04, report its specific retrieval fact exactly.",
+      "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
       "expected_answer": "read returns copied bytes whose lifetime is controlled by the caller.",
       "token_count_no_bos": 1024,
-      "sha256": "8b8bf52cc1a8d8bb6ecb3928c22d258854372c43038216cbc9cd74ef97ab561f",
+      "sha256": "c89201052230dfd4a7b3f3de283def7f9d4628e010dd46c3bddae758aff440e9",
       "syntax_check": "markdown"
     },
     {
@@ -142,10 +142,10 @@
       "category": "mmap_vs_read",
       "path": "mmap/mmap_vs_read_05.md",
       "retrieval_key": "mmap reserves a virtual address range, which is not the same as committing equal physical RAM.",
-      "question": "For MMAP_READ_05, report its specific retrieval fact exactly.",
+      "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
       "expected_answer": "mmap reserves a virtual address range, which is not the same as committing equal physical RAM.",
       "token_count_no_bos": 1024,
-      "sha256": "7e36a8489f3ed46ebcafaa1fd28319c241ca24381c5f9daa5c4969d9ceb2f28d",
+      "sha256": "e57d51a9511c5bfe716d87b6ee37479ac7f509ca154d64ef093f1407214cb5c8",
       "syntax_check": "markdown"
     },
     {
@@ -153,10 +153,10 @@
       "category": "mmap_vs_read",
       "path": "mmap/mmap_vs_read_06.md",
       "retrieval_key": "read reports progress and errors per call, so callers must handle short reads.",
-      "question": "For MMAP_READ_06, report its specific retrieval fact exactly.",
+      "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
       "expected_answer": "read reports progress and errors per call, so callers must handle short reads.",
       "token_count_no_bos": 1024,
-      "sha256": "cc2408f455d05d41d84c0195ea6555a48b911885192c2121bc76780aab3d4db7",
+      "sha256": "5bdc95432702107a50307097864502689155d14dc6fcef376bb292dc8597b6e8",
       "syntax_check": "markdown"
     },
     {
@@ -164,10 +164,10 @@
       "category": "mmap_vs_read",
       "path": "mmap/mmap_vs_read_07.md",
       "retrieval_key": "Both approaches interact with the page cache, but mmap presents file offsets as memory addresses.",
-      "question": "For MMAP_READ_07, report its specific retrieval fact exactly.",
+      "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
       "expected_answer": "Both approaches interact with the page cache, but mmap presents file offsets as memory addresses.",
       "token_count_no_bos": 1024,
-      "sha256": "8dc612315488698c924bc060814b773ada7ea66eeeaafc8d1cbc8a20f3808c00",
+      "sha256": "cb670fe077d5e3260612f359195211ded1fc267f010e43ae683027256200be38",
       "syntax_check": "markdown"
     },
     {
@@ -175,10 +175,10 @@
       "category": "mmap_vs_read",
       "path": "mmap/mmap_vs_read_08.md",
       "retrieval_key": "read is broadly portable and explicit; mmap can simplify random lookup but has platform-specific details.",
-      "question": "For MMAP_READ_08, report its specific retrieval fact exactly.",
+      "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
       "expected_answer": "read is broadly portable and explicit; mmap can simplify random lookup but has platform-specific details.",
       "token_count_no_bos": 1024,
-      "sha256": "49e7ec77fdef9bfe2772985bafbe03286ef7364bdd86bc2d07f05095465b87c5",
+      "sha256": "a3e5a5716d9bb96ff05e56ccab4c9db27ce769b074782b8fb69c615f27f0eba3",
       "syntax_check": "markdown"
     },
     {
@@ -186,10 +186,10 @@
       "category": "bash_directory_watch",
       "path": "bash/watch_directory_new_files_01.sh",
       "retrieval_key": "CREATE and MOVED_TO events catch newly visible files.",
-      "question": "For BASH_WATCH_01, report its RETRIEVAL_KEY exactly.",
+      "question": "How does this watcher identify newly appearing files? Answer in your own words.",
       "expected_answer": "CREATE and MOVED_TO events catch newly visible files.",
       "token_count_no_bos": 1024,
-      "sha256": "2e645809f6597613ff1417fabde85c552f36292839561d0d8cbe1ad72c824387",
+      "sha256": "0c5067557f6d0dbbb16e2681e4976699818797e237073a2eac252b46098cdf32",
       "syntax_check": "bash -n"
     },
     {
@@ -197,10 +197,10 @@
       "category": "bash_directory_watch",
       "path": "bash/watch_directory_new_files_02.sh",
       "retrieval_key": "CLOSE_WRITE distinguishes completed writes from files that were only created.",
-      "question": "For BASH_WATCH_02, report its RETRIEVAL_KEY exactly.",
+      "question": "How does this watcher identify newly appearing files? Answer in your own words.",
       "expected_answer": "CLOSE_WRITE distinguishes completed writes from files that were only created.",
       "token_count_no_bos": 1024,
-      "sha256": "b375de0466bd7bf26a7e7aebf822287828a2bdaf5c8125ed51886c4b507dd4ee",
+      "sha256": "1fd3ecf0902ceb8a7dfbab29a5c3065825bcf2417192b5bda9e69117a565ef71",
       "syntax_check": "bash -n"
     },
     {
@@ -208,10 +208,10 @@
       "category": "bash_directory_watch",
       "path": "bash/watch_directory_new_files_03.sh",
       "retrieval_key": "NUL-delimited output preserves filenames containing whitespace.",
-      "question": "For BASH_WATCH_03, report its RETRIEVAL_KEY exactly.",
+      "question": "How does this watcher identify newly appearing files? Answer in your own words.",
       "expected_answer": "NUL-delimited output preserves filenames containing whitespace.",
       "token_count_no_bos": 1024,
-      "sha256": "93045213b348fcc17bb0b82650d415b6071a7d21d34771714a2e404c0b89ec09",
+      "sha256": "e264de31a73fa953a13fe504cf957ec36d3ab5a5a53cd319cade075d78425ae0",
       "syntax_check": "bash -n"
     },
     {
@@ -219,10 +219,10 @@
       "category": "bash_directory_watch",
       "path": "bash/watch_directory_new_files_04.sh",
       "retrieval_key": "The recursive option observes events in watched subdirectories.",
-      "question": "For BASH_WATCH_04, report its RETRIEVAL_KEY exactly.",
+      "question": "How does this watcher identify newly appearing files? Answer in your own words.",
       "expected_answer": "The recursive option observes events in watched subdirectories.",
       "token_count_no_bos": 1024,
-      "sha256": "5c93e6874a191b1d87b395b11a7575852fe469e8c5426f37a72f0b99eeba4ae9",
+      "sha256": "d1b142dfe4390bafdd9971ed42bc49d2c222c34145a6e5c68eeaee9470097e6a",
       "syntax_check": "bash -n"
     },
     {
@@ -230,10 +230,10 @@
       "category": "bash_directory_watch",
       "path": "bash/watch_directory_new_files_05.sh",
       "retrieval_key": "The -f test filters out directory events before printing a path.",
-      "question": "For BASH_WATCH_05, report its RETRIEVAL_KEY exactly.",
+      "question": "How does this watcher identify newly appearing files? Answer in your own words.",
       "expected_answer": "The -f test filters out directory events before printing a path.",
       "token_count_no_bos": 1024,
-      "sha256": "34351bb6d5a6f0e181fc816f84cdd60e3a95ef64c8ac6fd8a0dbcc753580ceb7",
+      "sha256": "7412f48c0ea4a33c465d08612b51feeaae7f868cc2e0778d81f4d18656b8daad",
       "syntax_check": "bash -n"
     },
     {
@@ -241,10 +241,10 @@
       "category": "bash_directory_watch",
       "path": "bash/watch_directory_new_files_06.sh",
       "retrieval_key": "The event format emits event names and full paths for audit output.",
-      "question": "For BASH_WATCH_06, report its RETRIEVAL_KEY exactly.",
+      "question": "How does this watcher identify newly appearing files? Answer in your own words.",
       "expected_answer": "The event format emits event names and full paths for audit output.",
       "token_count_no_bos": 1024,
-      "sha256": "36ec68f20212b9272e03e024609007bd21973b1a2fad08496ab1289bf5c45c23",
+      "sha256": "4437d522b7b6f002b207291a8cec957f82156c399fe6f712a61bbe2b461700b3",
       "syntax_check": "bash -n"
     },
     {
@@ -252,10 +252,10 @@
       "category": "bash_directory_watch",
       "path": "bash/watch_directory_new_files_07.sh",
       "retrieval_key": "A signal trap provides a clear shutdown message while the watcher stays foregrounded.",
-      "question": "For BASH_WATCH_07, report its RETRIEVAL_KEY exactly.",
+      "question": "How does this watcher identify newly appearing files? Answer in your own words.",
       "expected_answer": "A signal trap provides a clear shutdown message while the watcher stays foregrounded.",
       "token_count_no_bos": 1024,
-      "sha256": "f5365920c6274554f75c9e6b971ad397e8116e2e774690c47f94ae01ab78f4aa",
+      "sha256": "2586e57dd6f2a548a095beb7dcba1854ab6a03c417a4ec496a627b19b4eb6e48",
       "syntax_check": "bash -n"
     },
     {
@@ -263,10 +263,10 @@
       "category": "bash_directory_watch",
       "path": "bash/watch_directory_new_files_08.sh",
       "retrieval_key": "The polling fallback compares sorted snapshots and reports newly observed paths.",
-      "question": "For BASH_WATCH_08, report its RETRIEVAL_KEY exactly.",
+      "question": "How does this watcher identify newly appearing files? Answer in your own words.",
       "expected_answer": "The polling fallback compares sorted snapshots and reports newly observed paths.",
       "token_count_no_bos": 1024,
-      "sha256": "ef726e7469bc9432c7b6e7e8b157d5581165df86f5586020a2abbddd65c2c662",
+      "sha256": "cfe6eb180fa9e8652ae1ae81780cadeb82df91a5276a230149cfaabbd3730d79",
       "syntax_check": "bash -n"
     }
   ]

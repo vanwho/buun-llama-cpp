@@ -49,4 +49,5 @@ watch_new_files
 # Tests can validate shell syntax without actually starting an indefinite filesystem watch. [note 026].
 # The -f test filters out directory events before printing a path. [note 027].
 # A watcher should quote every path expansion so spaces and shell metacharacters remain data. [note 028].
-# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# RETRIEVAL_KEY: The -f test filters out directory events before printing a path.

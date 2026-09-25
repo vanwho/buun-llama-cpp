@@ -1,14 +1,17 @@
 #include "llama-vbr-artifact.h"
+#include "llama-vbr-precision.h"
 #include "llama-bit-ops.h"
 
 #include "llama-sha256.h"
 
 #include <algorithm>
 #include <cstring>
+#include <future>
 #include <limits>
 #include <map>
 #include <new>
 #include <set>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -237,13 +240,15 @@ bool emit_page_ref(emitter & out, const vbr_generation_page_ref & page) {
 
 bool emit_unit_generation(
         emitter & out,
-        const vbr_checkpoint_unit_generation & unit) {
+        const vbr_checkpoint_unit_generation & unit,
+        uint32_t version) {
     return out.u64(unit.repr_gen) &&
            out.i32(unit.current_type) &&
            out.i32(unit.last_source_type) &&
            out.u32(uint32_t(unit.domain)) &&
            out.u32(unit.promote_hops) &&
-           out.u32(uint32_t(unit.last_transition));
+           out.u32(uint32_t(unit.last_transition)) &&
+           (version < 2 || out.i32(unit.effective_type));
 }
 
 bool emit_generation_record(
@@ -264,7 +269,7 @@ bool emit_generation_record(
             return false;
         }
         for (const auto & unit : controller.units) {
-            if (!emit_unit_generation(out, unit)) {
+            if (!emit_unit_generation(out, unit, generation.version)) {
                 return false;
             }
         }
@@ -319,6 +324,8 @@ bool emit_unit_descriptor_body(
         !out.array_digest(descriptor.representation.reference_digest) ||
         !out.u32(descriptor.representation.source_loss_history) ||
         !out.u32(descriptor.representation.checkpoint_codec_hops) ||
+        (format_version >= VBR_UNIT_ARTIFACT_FORMAT_VERSION_PRECISION &&
+         !out.i32(descriptor.representation.effective_type)) ||
         !out.u32(uint32_t(descriptor.recoverability)) ||
         !out.u32(uint32_t(descriptor.side)) ||
         !out.u32(uint32_t(descriptor.layout)) ||
@@ -502,7 +509,7 @@ llama_cache_acct_category role_category(vbr_artifact_accounting_role role) {
 bool validate_generation_record(
         const vbr_checkpoint_generation_record & generation,
         const vbr_artifact_decode_limits * limits = nullptr) {
-    if (generation.version != 1 ||
+    if ((generation.version != 1 && generation.version != 2) ||
         generation.status != vbr_checkpoint_generation_status::complete ||
         !digest_nonzero(generation.identity_policy_order_digest) ||
         generation.controllers.empty() ||
@@ -526,6 +533,10 @@ bool validate_generation_record(
             if (unit.repr_gen == 0 ||
                 unit.current_type < 0 ||
                 unit.last_source_type < 0 ||
+                unit.effective_type < -1 || unit.effective_type >= GGML_TYPE_COUNT ||
+                (unit.effective_type != -1 &&
+                 vbr_precision_merge(unit.effective_type, unit.current_type) != unit.effective_type) ||
+                (generation.version == 1 && unit.effective_type != -1) ||
                 unit.domain > vbr_repr_domain::tapped ||
                 unit.last_transition > vbr_repr_transition::recovery_invalidate) {
                 return false;
@@ -596,6 +607,8 @@ bool descriptor_metadata_valid(
         bool allow_sparse_rows = false) {
     const bool current_type_supported =
         descriptor.current_type == GGML_TYPE_F16 ||
+        descriptor.current_type == GGML_TYPE_TURBO2_0 ||
+        descriptor.current_type == GGML_TYPE_TURBO3_0 ||
         descriptor.current_type == GGML_TYPE_TURBO8_0 ||
         descriptor.current_type == GGML_TYPE_TURBO4_0 ||
         descriptor.current_type == GGML_TYPE_TURBO3_TCQ ||
@@ -603,6 +616,8 @@ bool descriptor_metadata_valid(
         descriptor.current_type == GGML_TYPE_TURBO1_TCQ;
     const bool source_type_supported =
         descriptor.last_source_type == GGML_TYPE_F16 ||
+        descriptor.last_source_type == GGML_TYPE_TURBO2_0 ||
+        descriptor.last_source_type == GGML_TYPE_TURBO3_0 ||
         descriptor.last_source_type == GGML_TYPE_TURBO8_0 ||
         descriptor.last_source_type == GGML_TYPE_TURBO4_0 ||
         descriptor.last_source_type == GGML_TYPE_TURBO3_TCQ ||
@@ -630,6 +645,13 @@ bool descriptor_metadata_valid(
         descriptor.rank > descriptor.dimensions.size() ||
         descriptor.row_alignment == 0 ||
         descriptor.row_codec_version == 0 ||
+        descriptor.representation.effective_type < -1 ||
+        descriptor.representation.effective_type >= GGML_TYPE_COUNT ||
+        (descriptor.representation.effective_type != -1 &&
+         vbr_precision_merge(descriptor.representation.effective_type, descriptor.current_type) !=
+             descriptor.representation.effective_type) ||
+        (format_version < VBR_UNIT_ARTIFACT_FORMAT_VERSION_PRECISION &&
+         descriptor.representation.effective_type != -1) ||
         descriptor.shards.empty() ||
         descriptor.clean_stash_state >= vbr_artifact_clean_stash_state::_count ||
         (artifact_has_meansub_reference(format_version)
@@ -824,6 +846,31 @@ bool prepare_unit_id(vbr_artifact_unit_blob & blob, uint32_t format_version) {
     }
     blob.unit_version_id = typed_digest<vbr_unit_version_id>(hash);
     return blob.unit_version_id.valid();
+}
+
+// Compare the canonical schema, excluding only byte-derived evidence. Use
+// the latest wire schema so new representation fields automatically participate,
+// including fields that an older package version is not allowed to carry.
+std::array<uint8_t, 32> unit_schema_digest(
+        vbr_artifact_unit_descriptor descriptor) {
+    for (auto & shard : descriptor.shards) {
+        shard.section_checksum = {};
+    }
+    descriptor.clean_stash.payload_id = {};
+    for (auto & shard : descriptor.clean_stash.shards) {
+        shard.section_checksum = {};
+    }
+    llama_sha256_writer hash;
+    emitter out;
+    out.hash_a = &hash;
+    if (!emit_lineage(out, descriptor.lineage_uuid) ||
+        !out.u32(descriptor.logical_unit_id) || !out.u64(descriptor.repr_gen) ||
+        !emit_unit_descriptor_body(out, descriptor, VBR_UNIT_ARTIFACT_FORMAT_VERSION) ||
+        !out.u32(uint32_t(descriptor.clean_stash_state)) ||
+        !emit_clean_stash_descriptor(out, descriptor.clean_stash)) {
+        return {};
+    }
+    return hash.finish();
 }
 
 bool emit_identity(emitter & out, const vbr_artifact_identity_block & identity) {
@@ -1424,6 +1471,8 @@ bool manifest_valid(
                 blob->descriptor.current_type ||
             child.units[reference.logical_unit_id].last_source_type !=
                 blob->descriptor.last_source_type ||
+            child.units[reference.logical_unit_id].effective_type !=
+                blob->descriptor.representation.effective_type ||
             child.units[reference.logical_unit_id].domain !=
                 (blob->descriptor.current_type == GGML_TYPE_F16 ||
                  blob->descriptor.current_type == GGML_TYPE_TURBO8_0 ?
@@ -2257,7 +2306,8 @@ bool read_page_ref(bounded_reader & in, vbr_generation_page_ref & page) {
 
 bool read_unit_generation(
         bounded_reader & in,
-        vbr_checkpoint_unit_generation & unit) {
+        vbr_checkpoint_unit_generation & unit,
+        uint32_t version) {
     uint32_t domain;
     uint32_t promote_hops;
     uint32_t transition;
@@ -2267,6 +2317,7 @@ bool read_unit_generation(
         !in.u32(domain) ||
         !in.u32(promote_hops) ||
         !in.u32(transition) ||
+        (version >= 2 && !in.i32(unit.effective_type)) ||
         domain > uint32_t(vbr_repr_domain::tapped) ||
         promote_hops > UINT8_MAX ||
         transition > uint32_t(vbr_repr_transition::recovery_invalidate)) {
@@ -2285,6 +2336,7 @@ bool read_generation_record(
     uint32_t status;
     uint32_t n_controllers;
     if (!in.u32(generation.version) ||
+        (generation.version != 1 && generation.version != 2) ||
         !in.u32(status) ||
         !in.fixed_digest(generation.identity_policy_order_digest) ||
         !in.u32(n_controllers) ||
@@ -2316,7 +2368,7 @@ bool read_generation_record(
             checkpoint_child_dependency_mode(dependency_mode);
         controller.units.resize(n_units);
         for (auto & unit : controller.units) {
-            if (!read_unit_generation(in, unit)) {
+            if (!read_unit_generation(in, unit, generation.version)) {
                 return false;
             }
         }
@@ -2393,6 +2445,8 @@ bool read_unit_descriptor_body(
         !in.fixed_digest(descriptor.representation.reference_digest) ||
         !in.u32(descriptor.representation.source_loss_history) ||
         !in.u32(descriptor.representation.checkpoint_codec_hops) ||
+        (format_version >= VBR_UNIT_ARTIFACT_FORMAT_VERSION_PRECISION &&
+         !in.i32(descriptor.representation.effective_type)) ||
         !in.u32(recoverability) ||
         !in.u32(side) ||
         !in.u32(layout) ||
@@ -3199,7 +3253,8 @@ std::array<uint8_t, 32> vbr_artifact_logical_unit_digest(
 }
 
 vbr_artifact_status vbr_artifact_prepare(
-        vbr_artifact_package & package) noexcept {
+        vbr_artifact_package & package, uint32_t max_workers,
+        const vbr_artifact_preparation_reuse * reuse) noexcept {
     try {
         if (!artifact_version_supported(package.version) ||
             package.flags != ARTIFACT_FLAGS_V1 ||
@@ -3219,8 +3274,30 @@ vbr_artifact_status vbr_artifact_prepare(
                 return vbr_artifact_status::topology_mismatch;
             }
         }
-        for (uint32_t i = 0; i < package.unit_blobs.size(); ++i) {
+        const auto prepare_unit = [&](uint32_t i) {
             auto & blob = package.unit_blobs[i];
+            if (reuse && reuse->version == package.version && i < reuse->units.size() &&
+                reuse->units[i].unit_version_id.valid()) {
+                const auto schema = unit_schema_digest(blob.descriptor);
+                const auto & saved = reuse->units[i];
+                if (digest_nonzero(schema) &&
+                    schema == unit_schema_digest(saved.descriptor)) {
+                    auto prepared = saved;
+                    for (size_t s = 0; s < prepared.descriptor.shards.size(); ++s) {
+                        prepared.descriptor.shards[s].payload = blob.descriptor.shards[s].payload;
+                    }
+                    for (size_t s = 0; s < prepared.descriptor.clean_stash.shards.size(); ++s) {
+                        prepared.descriptor.clean_stash.shards[s].payload =
+                            blob.descriptor.clean_stash.shards[s].payload;
+                    }
+                    if (!descriptor_metadata_valid(
+                            prepared.descriptor, package.topologies, package.version, true)) {
+                        return vbr_artifact_status::content_id_mismatch;
+                    }
+                    blob = std::move(prepared);
+                    return vbr_artifact_status::ok;
+                }
+            }
             if (blob.descriptor.shards.empty() ||
                 !canonicalize_shards(blob.descriptor.shards) ||
                 !prepare_shard_checksums(i, blob.descriptor.shards)) {
@@ -3244,11 +3321,49 @@ vbr_artifact_status vbr_artifact_prepare(
                 !prepare_unit_id(blob, package.version)) {
                 return vbr_artifact_status::content_id_mismatch;
             }
-        }
-        for (uint32_t i = 0; i < package.companions.size(); ++i) {
-            if (!prepare_companion(
-                    i, package.topologies, package.companions[i])) {
-                return vbr_artifact_status::content_id_mismatch;
+            return vbr_artifact_status::ok;
+        };
+        const size_t count = package.unit_blobs.size() + package.companions.size();
+        const size_t workers = max_workers <= 1 ? 1 : std::max<size_t>(1, std::min<size_t>(
+            count, std::min<uint32_t>(max_workers, std::min<uint32_t>(
+                8, std::thread::hardware_concurrency()))));
+        const auto prepare_one = [&](size_t i) {
+            if (i < package.unit_blobs.size()) {
+                return prepare_unit(uint32_t(i));
+            }
+            const size_t companion = i - package.unit_blobs.size();
+            return prepare_companion(uint32_t(companion), package.topologies,
+                       package.companions[companion])
+                ? vbr_artifact_status::ok : vbr_artifact_status::content_id_mismatch;
+        };
+        if (workers == 1) {
+            for (size_t i = 0; i < count; ++i) {
+                const auto status = prepare_one(i);
+                if (status != vbr_artifact_status::ok) {
+                    return status;
+                }
+            }
+        } else {
+            // Independent units keep canonical ordering and every byte hash.
+            // Futures join even if thread creation or a reader throws; no
+            // worker may outlive this package or publish partial metadata.
+            std::vector<vbr_artifact_status> statuses(count);
+            std::vector<std::future<void>> pending;
+            pending.reserve(workers);
+            for (size_t w = 0; w < workers; ++w) {
+                pending.push_back(std::async(std::launch::async, [&, w] {
+                    for (size_t i = w; i < count; i += workers) {
+                        statuses[i] = prepare_one(i);
+                    }
+                }));
+            }
+            for (auto & worker : pending) {
+                worker.get();
+            }
+            for (const auto status : statuses) {
+                if (status != vbr_artifact_status::ok) {
+                    return status;
+                }
             }
         }
 
@@ -3406,10 +3521,10 @@ vbr_artifact_status vbr_artifact_prepare_projected_metadata(
 }
 
 vbr_artifact_status vbr_artifact_validate_prepared_package(
-        const vbr_artifact_package & package) noexcept {
+        const vbr_artifact_package & package, uint32_t max_workers) noexcept {
     try {
         auto canonical = package;
-        const auto status = vbr_artifact_prepare(canonical);
+        const auto status = vbr_artifact_prepare(canonical, max_workers);
         if (status != vbr_artifact_status::ok) {
             return status;
         }

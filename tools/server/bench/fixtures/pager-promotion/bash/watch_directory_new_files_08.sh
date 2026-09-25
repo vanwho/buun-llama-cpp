@@ -51,4 +51,5 @@ watch_new_files
 # Tests can validate shell syntax without actually starting an indefinite filesystem watch. [note 026].
 # The polling fallback compares sorted snapshots and reports newly observed paths. [note 027].
 # A watcher should quote every path expansion so spaces and shell metacharacters remain data. [note 028].
-# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# RETRIEVAL_KEY: The polling fallback compares sorted snapshots and reports newly observed paths.

@@ -108,6 +108,8 @@ def check_receipt(root: Path, task: dict, receipt: dict) -> list[str]:
         errors.extend(check_93_10_live_controls(root, receipt))
     if tid == "93-11f":
         errors.extend(check_93_11f_speed_geometry(root, receipt))
+    if tid == "93-11g":
+        errors.extend(check_93_11g_file_promotion(root, receipt))
     if tid == "93-12":
         errors.extend(check_93_12_paired_benchmark(root, receipt))
     return errors
@@ -329,6 +331,202 @@ def check_93_11f_speed_geometry(root: Path, receipt: dict) -> list[str]:
                 errors.extend(check_artifact_reference(root, result.get("raw_artifact"), run_label))
             errors.extend(check_prompt_mtp_median(
                 prompt_acceptances, prompt_id, f"{label}/three-run MTP acceptance"))
+    return errors
+
+
+def check_93_11g_file_promotion(root: Path, receipt: dict) -> list[str]:
+    """Validate fixture integrity, three independent answers, and page promotion."""
+    errors: list[str] = []
+    campaign = receipt.get("file_promotion_campaign")
+    if not isinstance(campaign, dict):
+        return ["93-11g requires file_promotion_campaign"]
+    if campaign.get("execution_status") != "complete":
+        errors.append("93-11g requires all three live requests to complete")
+    if campaign.get("acceptance_status") != "pass":
+        errors.append("93-11g required physical promotion acceptance is incomplete")
+    if campaign.get("candidate_identity_verified") is not True:
+        errors.append("93-11g requires verified managed candidate identity")
+    for label in ("candidate", "model"):
+        data = receipt.get(label)
+        if not isinstance(data, dict) or not re.fullmatch(
+                r"[0-9a-f]{64}", str(data.get("sha256", ""))):
+            errors.append(f"93-11g requires {label} SHA-256")
+    geometry = campaign.get("geometry") if isinstance(campaign.get("geometry"), dict) else {}
+    required_geometry = {
+        "context_tokens": 16384, "admitted_context_tokens": 16384,
+        "hot_pages": 16, "hot_tokens": 4096, "admitted_hot_tokens": 4096,
+        "page_size_tokens": 256, "batch": 128, "ubatch": 64,
+        "pager_mode": "selective", "target_type_k": "turbo4",
+        "target_type_v": "turbo4", "mtp_placement": "gpu",
+        "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
+        "draft_n_max": 2, "thinking": "off",
+    }
+    for key, expected_value in required_geometry.items():
+        if geometry.get(key) != expected_value:
+            errors.append(f"93-11g geometry {key} must be {expected_value!r}")
+    try:
+        manifest = json.loads((ROOT / "tools/server/bench/fixtures/pager-promotion/manifest.json").read_text())
+        expected = {item["id"]: item for item in manifest["files"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        return errors + ["93-11g canonical fixture manifest is unavailable"]
+    required_ids = ["PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04", "PY_MERGE_05",
+                    "PY_MERGE_03",
+                    *(f"BASH_WATCH_{index:02d}" for index in range(1, 6))]
+    if campaign.get("target_fixture_ids") != required_ids:
+        errors.append("93-11g requires the exact five Python and five Bash fixture sequence")
+    cases = campaign.get("cases")
+    if not isinstance(cases, list) or len(cases) != 1:
+        return errors + ["93-11g requires exactly one two-topic case"]
+    case = cases[0] if isinstance(cases[0], dict) else {}
+    if case.get("fixture_id") != "PY_MERGE_03" or \
+            case.get("fixture_sha256") != expected.get("PY_MERGE_03", {}).get("sha256"):
+        errors.append("93-11g winning Python fixture identity/hash mismatch")
+    span = case.get("fixture_span") if isinstance(case.get("fixture_span"), dict) else {}
+    answer_fact = "RETRIEVAL_KEY: The preallocated merge writes each output position exactly once."
+    if span.get("fixture_id") != "PY_MERGE_03" or \
+            span.get("answer_bearing_source_fact") != answer_fact or \
+            not isinstance(span.get("answer_bearing_byte_span"), list) or \
+            not isinstance(span.get("answer_bearing_token_span"), list) or \
+            not span.get("answer_page_resident_after_request_1"):
+        errors.append("93-11g requires rendered offsets and request-1 residency for the final answer-bearing fact")
+    fixture_hashes = case.get("fixture_hashes")
+    if not isinstance(fixture_hashes, dict):
+        fixture_hashes = {}
+    for fixture_id in required_ids:
+        if fixture_hashes.get(fixture_id) != expected.get(fixture_id, {}).get("sha256"):
+            errors.append(f"93-11g fixture hash mismatch for {fixture_id}")
+            continue
+        fixture_path = ROOT / "tools/server/bench/fixtures/pager-promotion" / expected[fixture_id]["path"]
+        try:
+            actual_hash = hashlib.sha256(fixture_path.read_bytes()).hexdigest()
+        except OSError:
+            actual_hash = None
+        if actual_hash != expected[fixture_id].get("sha256"):
+            errors.append(f"93-11g immutable fixture bytes changed for {fixture_id}")
+    requests = case.get("requests")
+    if not isinstance(requests, list) or len(requests) != 3:
+        errors.append("93-11g requires exactly three request records")
+        requests = []
+    expected_answers = ("merge_sorted_lists_03.py", "watch_directory_new_files_01.sh",
+                        "merge_sorted_lists_03.py")
+    expected_stages = ("compare_python", "compare_bash", "repeat_python")
+    expected_questions = (
+        "Among these five Python implementations, which one uses an exactly preallocated result list and writes each result position once, the most allocation-efficient choice for producing a merged list? Reply with only the exact filename.",
+        "Among these five Bash watchers, which one is the leanest for a single nonrecursive directory when it reports CREATE and MOVED_TO events without an extra per-event file test? Reply with only the exact filename.",
+        "Among these five Python implementations, which one uses an exactly preallocated result list and writes each result position once, the most allocation-efficient choice for producing a merged list? Reply with only the exact filename.",
+    )
+    expected_appended = (required_ids[:5], required_ids[5:], [])
+    expected_cache = (False, True, True)
+    expected_message_counts = (1, 3, 5)
+    for index in (0, 1):
+        bodies = []
+        for fixture_id in expected_appended[index]:
+            entry = expected[fixture_id]
+            fixture_path = ROOT / "tools/server/bench/fixtures/pager-promotion" / entry["path"]
+            try:
+                body = fixture_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError):
+                body = ""
+            bodies.append(f"Read the following file as context ({Path(entry['path']).name}):\n"
+                          "--- BEGIN FILE CONTENT ---\n" + body + "--- END FILE CONTENT ---")
+        expected_user_content = "\n\n".join(bodies) + "\n\n" + expected_questions[index]
+        if index < len(requests) and isinstance(requests[index], dict) and \
+                requests[index].get("user_content") != expected_user_content:
+            errors.append(f"93-11g request {index + 1}: user content does not preserve exact fixture bodies/order")
+    for index, request in enumerate(requests):
+        label = f"93-11g request {index + 1}"
+        if not isinstance(request, dict):
+            errors.append(f"{label}: malformed request record")
+            continue
+        if request.get("stage") != expected_stages[index]:
+            errors.append(f"{label}: stage order mismatch")
+        if request.get("question") != expected_questions[index]:
+            errors.append(f"{label}: exact task question mismatch")
+        if request.get("appended_fixture_ids") != expected_appended[index]:
+            errors.append(f"{label}: appended fixture sequence mismatch")
+        if request.get("cache_prompt") is not expected_cache[index]:
+            errors.append(f"{label}: cache_prompt setting mismatch")
+        if request.get("message_count") != expected_message_counts[index]:
+            errors.append(f"{label}: cumulative conversation message count mismatch")
+        content = request.get("user_content")
+        if not isinstance(content, str):
+            errors.append(f"{label}: complete user content is required")
+        elif index == 2 and content != expected_questions[0]:
+            errors.append(f"{label}: final user content must repeat request 1 verbatim")
+        elif index < 2 and request.get("question") != expected_questions[index]:
+            errors.append(f"{label}: natural question content mismatch")
+        if not isinstance(request.get("assistant_answer"), str):
+            errors.append(f"{label}: verbatim assistant answer is required")
+        scoring = request.get("filename_selection")
+        if not isinstance(scoring, dict) or scoring.get("expected_filename_local_only") != expected_answers[index] or \
+                scoring.get("answer") != request.get("assistant_answer") or \
+                scoring.get("matched") is not (request.get("assistant_answer", "").strip(" \t\r\n\"'`.,;:").casefold() ==
+                                                  expected_answers[index].casefold()):
+            errors.append(f"{label}: filename scoring must be reported separately")
+        if request.get("mtp_verified") is not True:
+            errors.append(f"{label}: per-request Turbo4/MTP placement was not verified")
+        if type(request.get("prompt_tokens")) is not int or request["prompt_tokens"] <= 0:
+            errors.append(f"{label}: rendered prompt token count is required")
+        if request.get("http_status") != 200 or not isinstance(request.get("finish_reason"), str):
+            errors.append(f"{label}: completed response and finish reason are required")
+        errors.extend(check_artifact_reference(root, request.get("raw_response_artifact"), label)) \
+            if request.get("raw_response_artifact") is not None else None
+    if not case.get("all_fixture_pages_present_before_request_3"):
+        errors.append("93-11g all winning-fixture pages must remain in the logical inventory")
+    if case.get("answer_bearing_page_cold_host_backed_before_request_3") is not True:
+        errors.append("93-11g answer-bearing Python page must be cold and host-backed before request 3")
+    if not case.get("answer_bearing_page_naturally_promoted"):
+        errors.append("93-11g answer-bearing Python page was not naturally promoted")
+    stage_names = ["page_cold_before_request", "page_selected", "h2d_completed",
+                   "mapping_published", "target_consumed", "draft_consumed"]
+    reports = case.get("answer_bearing_pages")
+    if not isinstance(reports, list) or not reports:
+        errors.append("93-11g answer-bearing page identity report is missing")
+        reports = []
+    promoted = False
+    for page in reports:
+        if not isinstance(page, dict) or not page.get("claimed_promoted"):
+            continue
+        promoted = True
+        if page.get("cold_before") is not True or page.get("chain_valid") is not True:
+            errors.append("93-11g promoted answer page lacks a valid cold-to-use chain")
+        events = page.get("events")
+        if not isinstance(events, list) or [event.get("stage") for event in events] != stage_names:
+            errors.append("93-11g promoted answer page event chain is incomplete")
+        else:
+            sequences = [event.get("event_sequence") for event in events]
+            if sequences[0] != 0 or any(type(value) is not int for value in sequences) or \
+                    sequences[1:] != sorted(sequences[1:]) or \
+                    len(set(sequences[1:])) != len(sequences[1:]) or \
+                    any(value <= 0 for value in sequences[1:]):
+                errors.append("93-11g promoted answer page event order is invalid")
+            identity = page.get("page_identity", {})
+            final_request = requests[2] if len(requests) == 3 and isinstance(requests[2], dict) else {}
+            if not isinstance(identity, dict) or not all(identity.get(key) is not None for key in
+                    ("logical_page_id", "generation", "content_version")):
+                errors.append("93-11g promoted page identity is incomplete")
+            for event in events:
+                if event.get("request_id") != final_request.get("request_id") or \
+                        event.get("request_generation") != final_request.get("request_generation"):
+                    errors.append("93-11g promotion event request identity mismatch")
+                for key in ("logical_page_id", "generation", "content_version"):
+                    if event.get(key) != identity.get(key):
+                        errors.append(f"93-11g promotion event {key} mismatch")
+    if not promoted:
+        errors.append("93-11g no answer-bearing page has a complete promotion chain")
+    mtp = case.get("mtp") if isinstance(case.get("mtp"), dict) else {}
+    for key, value in (("target_placement", "gpu"), ("draft_placement", "gpu"),
+                       ("target_type_k", "turbo4"), ("target_type_v", "turbo4"),
+                       ("draft_type_k", "turbo4"), ("draft_type_v", "turbo4"),
+                       ("draft_n_max", 2)):
+        if mtp.get(key) != value:
+            errors.append(f"93-11g {key} must be {value!r}")
+    artifacts = case.get("raw_artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) < 6:
+        errors.append("93-11g raw artifacts for the complete three-request campaign are required")
+    else:
+        for artifact in artifacts:
+            errors.extend(check_artifact_reference(root, artifact, "93-11g case"))
     return errors
 
 

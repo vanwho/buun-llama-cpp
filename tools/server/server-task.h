@@ -799,6 +799,9 @@ struct server_prompt_cache_state {
     server_prompt prompt;
     server_prompt_cache_payload payload;
 
+    // Physical rewind bound captured with a fixed-state image, not its token LCP.
+    llama_pos fixed_pos_min = -1;
+
     // Canonical identity of the adapter configuration this state was computed under; a load is
     // only served from an entry whose key matches the requesting slot's current adapter config
     std::string adapter_config_key;
@@ -1335,6 +1338,37 @@ server_prompt_cache_retention_capacity_live_transition_for(
     };
 }
 
+bool server_prompt_checkpoint_frontier_is_current(
+    const server_prompt & prompt,
+    const common_prompt_checkpoint & checkpoint,
+    const std::string & execution_identity,
+    const std::string & adapter_identity);
+
+llama_pos server_prompt_checkpoint_reuse_threshold(llama_pos pos_next, int32_t n_swa, bool has_new_tokens);
+
+struct server_prompt_checkpoint_reuse {
+    llama_pos pos_next;
+    size_t n_tokens;
+};
+
+server_prompt_checkpoint_reuse server_prompt_checkpoint_reuse_geometry(
+    const server_tokens & tokens, const common_prompt_checkpoint & checkpoint, llama_pos pos_next);
+
+// Read-only geometry for fixed-state recurrent/hybrid host selection. Dynamic
+// VBR artifacts have their own restore feasibility/representation negotiation.
+struct server_prompt_cache_reuse_context {
+    llama_pos live_pos_min = -1;
+    int32_t n_swa = 0;
+    bool frontier_required = false;
+    std::string execution_identity;
+};
+
+size_t server_prompt_cache_reusable_prefix(
+    const server_prompt & prompt, const server_tokens & incoming,
+    size_t lcp, llama_pos pos_min,
+    const server_prompt_cache_reuse_context & context,
+    const std::string & adapter_identity);
+
 bool server_prompt_retention_publish_exact_prefix(
     server_retention_sidecar_store & retention,
     const server_retention_instance_key & key,
@@ -1344,6 +1378,22 @@ bool server_prompt_retention_publish_exact_prefix(
 
 struct server_prompt_cache {
     server_prompt_cache(int32_t limit_size_mib, size_t limit_tokens);
+
+    // Scheduler-owned, non-evicting reservation for process-local active
+    // companions and restore staging. Readers share one charge; the last
+    // reader releases it, even after this cache has been destroyed. Ordinary
+    // host publications include these reservations in their capacity checks.
+    std::shared_ptr<void> reserve_active_storage(size_t bytes, size_t tokens = 0);
+    size_t active_storage_bytes() const noexcept;
+    size_t active_storage_tokens() const noexcept;
+    bool fits_bytes(size_t host_bytes) const noexcept;
+    size_t effective_host_token_limit(size_t host_bytes, size_t host_tokens) const noexcept;
+
+private:
+    struct active_storage_state;
+    std::shared_ptr<active_storage_state> active_storage_;
+    void detach_active_storage_accounting() noexcept;
+public:
 
     std::list<server_prompt_cache_state> states;
     using iterator = std::list<server_prompt_cache_state>::iterator;
@@ -1404,12 +1454,17 @@ struct server_prompt_cache {
     // lower-quality recapture preserves the prior best owner as an optional
     // anchor when its independent budget fits. No unrelated cache victim is
     // selected by this bounded refresh transaction.
+    // replace_live_recovery is for a fresh capture of the current live
+    // frontier, not a catalog-selected quality variant. It retires stale
+    // placement/companion evidence (and any anchor) under the same budget
+    // and recovery-pin checks.
     server_prompt_cache_vbr_refresh_status refresh_vbr_compact(
         const server_prompt & source_prompt,
         server_prompt_cache_vbr_owner incoming,
         const std::string & execution_identity,
         const std::string & adapter_config_key,
-        int32_t source_slot) noexcept;
+        int32_t source_slot,
+        bool replace_live_recovery = false) noexcept;
     // Conservative pre-D2H replacement check for refresh.  The final refresh
     // transaction remeasures exact shared accounting; this preview only
     // authorizes transfer when the quoted compact cannot exceed the hard cap.
@@ -1593,23 +1648,40 @@ struct server_prompt_cache {
     // `obs` is the cache-plan observer row for the host_cache_entry candidate (nullptr = observer
     // off). It only receives values this selection already computes and never triggers a rescan.
     // Dispatches ONCE to an unobserved or observed instantiation, so the disabled path's
-    // candidate loop is the original loop with zero observer branches.
+    // candidate loop has zero observer branches.
     bool load(server_prompt & prompt, const server_tokens & tokens_new,
               llama_context * ctx_tgt, llama_context * ctx_dft,
               int32_t id_slot, const std::string & adapter_config_key,
               server_prompt_cache_restore_shape & restore_shape,
               common_cache_plan_record * rec = nullptr,
-              int32_t required_source_id = -1,
-              common_cache_family_binding * restored_family = nullptr);
+              common_cache_family_binding * restored_family = nullptr,
+              const server_prompt_cache_reuse_context * reuse = nullptr);
+
+    // Read-only selection also lets the caller pin the incoming reuse source
+    // while saving the displaced live prompt (whose dedup may otherwise erase it).
+    iterator select(const server_prompt & prompt, const server_tokens & tokens_new,
+                    const std::string & adapter_config_key,
+                    const server_prompt_cache_reuse_context * reuse);
+
+    struct selection {
+        iterator source;
+        int lcp;
+    };
+
+    template <bool Observed>
+    selection select_impl(const server_prompt & prompt, const server_tokens & tokens_new,
+                         const std::string & adapter_config_key,
+                         common_cache_plan_record * rec,
+                         const server_prompt_cache_reuse_context * reuse);
 
     template <bool Observed>
     bool load_impl(server_prompt & prompt, const server_tokens & tokens_new,
                    llama_context * ctx_tgt, llama_context * ctx_dft,
                    int32_t id_slot, const std::string & adapter_config_key,
                    common_cache_plan_record * rec,
-                   int32_t required_source_id,
                    common_cache_family_binding * restored_family,
-                   server_prompt_cache_restore_shape & restore_shape);
+                   server_prompt_cache_restore_shape & restore_shape,
+                   const server_prompt_cache_reuse_context * reuse);
 
     // Two-phase immutable host restore. prepare() runs before either
     // target is touched; commit() is called only after main+draft restore.
@@ -1699,6 +1771,7 @@ public:
     bool host_trade_substrate_warned = false;
 
     ~server_prompt_cache() {
+        detach_active_storage_accounting();
         clear_accounting();
     }
 
@@ -1728,7 +1801,7 @@ private:
     const_iterator find_state_exact(
         const server_tokens & tokens,
         const std::string & adapter_config_key) const noexcept;
-    bool destroy_priced_host_entry(
+    bool destroy_retention_host_entry(
             server_cache_destruction_reason reason,
             iterator incoming,
             iterator & legacy_floor,

@@ -304,7 +304,10 @@ static void test_segment_chain_offsets() {
     artifact_segment_chain chain;
     const uint8_t a[] = { 0, 1, 2 };
     const uint8_t b[] = { 3, 4, 5, 6, 7 };
+    const auto initial_revision = chain.content_revision();
+    CHECK(initial_revision != 0);
     CHECK(chain.append(a, sizeof(a)));
+    CHECK(chain.content_revision() != initial_revision);
     CHECK(chain.append(b, sizeof(b)));
     CHECK(chain.size() == 8);
     CHECK(chain.segment_count() == 2);
@@ -329,7 +332,17 @@ static void test_segment_chain_offsets() {
     CHECK(known_size.append(b, sizeof(b)));
     CHECK(vbr_capture_stream_digest(known_size) ==
           vbr_capture_stream_digest(chain));
+    const auto full_revision = known_size.content_revision();
     CHECK(!known_size.append(&one, 1));
+    CHECK(known_size.content_revision() == full_revision);
+
+    artifact_segment_chain moved(std::move(known_size));
+    CHECK(known_size.content_revision() == 0);
+    CHECK(!known_size.append(&one, 1));
+    known_size = std::move(moved);
+    CHECK(known_size.content_revision() != 0);
+    CHECK(known_size.content_revision() != full_revision);
+    CHECK(moved.content_revision() == 0);
 
     auto incomplete = std::make_unique<artifact_segment_chain>(8);
     CHECK(incomplete->append(a, sizeof(a)));
@@ -718,6 +731,37 @@ static void test_cpu_ring_boundaries() {
     CHECK(read_chain(legacy) == read_chain(chain));
     CHECK(vbr_capture_stream_digest(legacy) == stats.streaming_digest);
     CHECK(legacy.segment_count() == stats.chunks);
+
+    // A retained ring digest must not survive later writes or replacement.
+    const uint8_t suffix = 0xa7;
+    CHECK(chain.append(&suffix, 1));
+    CHECK(legacy.append(&suffix, 1));
+    CHECK(vbr_capture_stream_digest(chain) != stats.streaming_digest);
+    CHECK(vbr_capture_stream_digest(chain) == vbr_capture_stream_digest(legacy));
+    artifact_segment_chain replacement;
+    CHECK(replacement.append(&suffix, 1));
+    chain = std::move(replacement);
+    CHECK(vbr_capture_stream_digest(chain) != stats.streaming_digest);
+
+    artifact_segment_chain incremental(source.size);
+    vbr_capture_stream_stats incremental_stats;
+    CHECK(ring->stream(source, incremental, incremental_stats) == vbr_capture_stream_status::ok);
+    CHECK(incremental_stats.streaming_digest == stats.streaming_digest);
+    CHECK(vbr_capture_stream_digest(incremental) == stats.streaming_digest);
+    artifact_segment_chain incomplete(source.size + 1);
+    CHECK(ring->stream(source, incomplete, incremental_stats) == vbr_capture_stream_status::ok);
+    CHECK(vbr_capture_stream_digest(incomplete) == (std::array<uint8_t, 32> {}));
+
+    artifact_segment_chain captured;
+    CHECK(ring->stream(source, captured, incremental_stats) == vbr_capture_stream_status::ok);
+    const uint64_t captured_revision = captured.content_revision();
+    artifact_segment_chain relocated(std::move(captured));
+    // Object-local revision numbers can coincide after a move. Mutating the
+    // new owner must never revive the old ring proof at that number.
+    while (relocated.content_revision() < captured_revision) {
+        CHECK(relocated.append(&suffix, 1));
+    }
+    CHECK(vbr_capture_stream_digest(relocated) != stats.streaming_digest);
 
     artifact_segment_chain projected;
     vbr_capture_stream_stats projected_stats;
@@ -3073,7 +3117,6 @@ static void test_dependency_scoped_projected_catalog_publication() {
     transformed_live_unit.shards.front().mapped_bytes = 8;
     transformed_live_unit.downward_supported = true;
     transformed_live_unit.downward_movable = true;
-    transformed_live_unit.controller_floor_type = GGML_TYPE_TURBO1_TCQ;
     transformed_live_unit.downward_type = GGML_TYPE_TURBO8_0;
     transformed_live_unit.downward_domain = vbr_repr_domain::full;
     transformed_live_unit.downward_recipe_id = VBR_DOWNWARD_RECIPE_ID;
@@ -4036,7 +4079,6 @@ static void test_dependency_scoped_projected_catalog_publication() {
         unit.current_domain = vbr_repr_domain::full;
         unit.downward_supported = true;
         unit.downward_movable = true;
-        unit.controller_floor_type = GGML_TYPE_TURBO1_TCQ;
         unit.downward_type = target_type;
         unit.downward_domain = vbr_repr_domain::full;
         unit.downward_recipe_id = VBR_DOWNWARD_RECIPE_ID;
@@ -6149,7 +6191,7 @@ static void test_library_representation_identity() {
     CHECK(vbr_explicit_capture_representation_identity(
         &policy_b, GGML_TYPE_F16, false, 0, b));
     CHECK(a.codec_id == uint32_t(GGML_TYPE_F16) + 1);
-    CHECK(a.codec_version == 1);
+    CHECK(a.codec_version == 2);
     CHECK(a.codebook_digest != b.codebook_digest);
     CHECK(a.rotation_digest == b.rotation_digest);
     CHECK(a.meansub_digest == b.meansub_digest);

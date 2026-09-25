@@ -1,4 +1,5 @@
 #include "norm.cuh"
+#include "gdn-norm.cuh"
 #include "unary.cuh"
 #include <cstdint>
 
@@ -7,11 +8,11 @@
 template <int block_size, typename dst_t>
 static __global__ void rms_norm_silu_f32(
         const float * x, const float * gamma, const float * gate, dst_t * dst,
-        int ncols, int64_t gate_stride, float eps) {
+        int ncols, int64_t gate_stride, int64_t gate_channel, int64_t gate_sample, float eps) {
     const int col = threadIdx.x;
-    const int row = blockIdx.x;
+    const int row = (blockIdx.z*gridDim.y + blockIdx.y)*gridDim.x + blockIdx.x;
     x += row*ncols;
-    gate += row*gate_stride;
+    gate += blockIdx.x*gate_stride + blockIdx.y*gate_channel + blockIdx.z*gate_sample;
     const float value = x[col];
     const float z = gate[col];
     float sum = 0.0f;
@@ -27,15 +28,15 @@ template <typename dst_t>
 static void rms_norm_silu_cuda(ggml_backend_cuda_context & ctx, const ggml_tensor * x,
         const ggml_tensor * gamma, const ggml_tensor * gate, ggml_tensor * dst, float eps) {
     if (x->ne[0] == 128) {
-        rms_norm_silu_f32<128, dst_t><<<x->ne[1], 128, 0, ctx.stream()>>>(
+        rms_norm_silu_f32<128, dst_t><<<dim3(x->ne[1], x->ne[2], x->ne[3]), 128, 0, ctx.stream()>>>(
             static_cast<const float *>(x->data), static_cast<const float *>(gamma->data),
             static_cast<const float *>(gate->data), static_cast<dst_t *>(dst->data),
-            x->ne[0], gate->nb[1]/sizeof(float), eps);
+            x->ne[0], gate->nb[1]/sizeof(float), gate->nb[2]/sizeof(float), gate->nb[3]/sizeof(float), eps);
     } else {
-        rms_norm_silu_f32<256, dst_t><<<x->ne[1], 256, 0, ctx.stream()>>>(
+        rms_norm_silu_f32<256, dst_t><<<dim3(x->ne[1], x->ne[2], x->ne[3]), 256, 0, ctx.stream()>>>(
             static_cast<const float *>(x->data), static_cast<const float *>(gamma->data),
             static_cast<const float *>(gate->data), static_cast<dst_t *>(dst->data),
-            x->ne[0], gate->nb[1]/sizeof(float), eps);
+            x->ne[0], gate->nb[1]/sizeof(float), gate->nb[2]/sizeof(float), gate->nb[3]/sizeof(float), eps);
     }
 }
 
@@ -46,7 +47,7 @@ void ggml_cuda_op_rms_norm_silu(
     const ggml_tensor * x = rms->src[0];
     float eps;
     memcpy(&eps, rms->op_params, sizeof(eps));
-    GGML_ASSERT((x->ne[0] == 128 || x->ne[0] == 256) && x->ne[2] == 1 && x->ne[3] == 1);
+    GGML_ASSERT((x->ne[0] == 128 || x->ne[0] == 256) && ggml_is_contiguous(x));
 #if !defined(GGML_USE_HIP)
     if (bf16_activation != nullptr) {
         rms_norm_silu_cuda<nv_bfloat16>(ctx, x, gamma, gate, dst, eps);
@@ -499,7 +500,7 @@ template <int block_size>
 static __global__ void l2_norm_pair_f32(
         const float * q, float * q_dst, const float * k, float * k_dst,
         const int ncols, const int nrows, const int64_t stride_row,
-        const int64_t stride_channel, const int64_t stride_sample, const float eps) {
+        const int64_t stride_channel, const int64_t stride_sample, const ggml_cuda_gdn_norm norm) {
     const bool is_k     = blockIdx.x >= nrows;
     const int row       = blockIdx.x - (is_k ? nrows : 0);
     const int channel   = blockIdx.y;
@@ -523,9 +524,9 @@ static __global__ void l2_norm_pair_f32(
     tmp = block_reduce<block_reduce_method::SUM, block_size>(tmp, s_sum);
     ggml_cuda_pdl_lc();
 
-    const float scale = rsqrtf(fmaxf(tmp, eps * eps));
+    const float scale = norm.inverse(tmp, ncols);
     for (int col = tid; col < ncols; col += block_size) {
-        dst[col] = scale * x[col];
+        dst[col] = norm.apply(x[col], scale);
     }
 }
 
@@ -628,9 +629,10 @@ static void rms_norm_mul_f32_cuda(const float *  x,
         const dim3 block_dims(block_size, 1, 1);
         const size_t nbytes_shared = block_size > WARP_SIZE ? 32 * sizeof(float) : 0;
         // Overlap gain loads with the unchanged sum-of-squares reduction.
-        // This fixed-width cache also pays off across measured prefill grids.
+        // This fixed-width cache pays off on SM86 and Blackwell, including prefill.
         if (ncols == 5120 && nchannels == 1 && nsamples == 1 &&
-                ggml_cuda_info().devices[ggml_cuda_get_device()].cc == GGML_CUDA_CC_BLACKWELL) {
+                (ggml_cuda_info().devices[ggml_cuda_get_device()].cc == GGML_CUDA_CC_BLACKWELL ||
+                 ggml_cuda_info().devices[ggml_cuda_get_device()].cc == 860)) {
             rms_norm_mul_bcast_f32<1024, float, 5><<<blocks_num, block_dims, nbytes_shared, stream>>>(
                 x, mul, dst, ncols, stride_row, stride_channel, stride_sample, eps);
             return;
@@ -1047,19 +1049,18 @@ void ggml_cuda_op_l2_norm(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
 
 void ggml_cuda_op_l2_norm_pair(
         ggml_backend_cuda_context & ctx, ggml_tensor * q_dst, ggml_tensor * k_dst) {
-    const ggml_tensor * q = q_dst->src[0];
-    const ggml_tensor * k = k_dst->src[0];
+    ggml_cuda_gdn_norm q_norm, k_norm;
+    const ggml_tensor * q = ggml_cuda_gdn_norm_input(q_dst, q_norm);
+    const ggml_tensor * k = ggml_cuda_gdn_norm_input(k_dst, k_norm);
+    GGML_ASSERT(q && k);
 
     GGML_ASSERT(q->type == GGML_TYPE_F32 && k->type == GGML_TYPE_F32);
     GGML_ASSERT(q_dst->type == GGML_TYPE_F32 && k_dst->type == GGML_TYPE_F32);
     GGML_ASSERT(ggml_are_same_shape(q, k) && ggml_are_same_shape(q_dst, k_dst));
     GGML_ASSERT(q->ne[0] < 1024);
 
-    float q_eps;
-    float k_eps;
-    memcpy(&q_eps, q_dst->op_params, sizeof(float));
-    memcpy(&k_eps, k_dst->op_params, sizeof(float));
-    GGML_ASSERT(q_eps == k_eps && q_eps >= 0.0f);
+    GGML_ASSERT(q_norm.eps == k_norm.eps && q_norm.rms == k_norm.rms && q_norm.sum_eps == k_norm.sum_eps &&
+                q_norm.post_scale == k_norm.post_scale);
 
     const size_t ts = sizeof(float);
     GGML_ASSERT(q->nb[0] == ts && k->nb[0] == ts);
@@ -1071,5 +1072,5 @@ void ggml_cuda_op_l2_norm_pair(
     ggml_cuda_kernel_launch(l2_norm_pair_f32<WARP_SIZE>, launch_params,
             (const float *) q->data, (float *) q_dst->data,
             (const float *) k->data, (float *) k_dst->data,
-            q->ne[0], q->ne[1], q->nb[1]/ts, q->nb[2]/ts, q->nb[3]/ts, q_eps);
+            q->ne[0], q->ne[1], q->nb[1]/ts, q->nb[2]/ts, q->nb[3]/ts, q_norm);
 }

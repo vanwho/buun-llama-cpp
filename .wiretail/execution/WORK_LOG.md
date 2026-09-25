@@ -1190,3 +1190,27 @@ receives `PROJECT_ROOT` from the shared runner.
 - Lowered the prompt-3 median MTP acceptance floor from 70% to the user-requested 60%; prompt-1/2 floors remain 75%/40%. Applied the threshold to 93-11f, 93-12, the shared V10 receipt validator/tests, cluster guidance, and current 93-11f evidence assessment.
 - Existing prompt-3 measurements (62.94% selected; 63.75% dense) now meet the threshold. Preserved raw artifacts and the original benchmark command's nonzero status under the former 70% policy; no source repair or repeated live run is required solely because of that superseded floor.
 - 93-11f remains in progress until the current-policy receipt validation completes. Removed the superseded 93-11h diagnosis packet from 93-11f's loaded context to prevent stale instructions.
+
+## 2026-09-24T08:38:43+00:00 — 93-11g — blocked
+
+- Branch: `codex/task-93-11g`
+- Commit at update: `b2813042e`
+- Summary: Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/93-11g-attempt-4-20260924T082028Z-final.md.
+
+## 2026-09-24T14:08:34+00:00 — 93-11g — in_progress
+
+- Branch: `codex/task-93-11g`
+- Commit at update: `b2813042e`
+- Summary: Reopened from exhausted retries and replaced the brittle exact-key 24-case campaign with one natural 8K/4K A→B→A proof. Free-form A/B acknowledgements continue without exact string checks; completion allowance derives from rendered prompt and server context; natural A-again answer gets paraphrase-tolerant assessment while request-correlated cold/selector/H2D/publication/target/draft proof remains mandatory. Focused planner/V10 tests pass; no new live run has occurred.
+
+## 2026-09-24T14:13:03+00:00 — 93-11g — in_progress
+
+- Branch: `codex/task-93-11g`
+- Commit at update: `b2813042e`
+- Summary: Natural-file-recall-v2 is ready for retry: A/B acknowledgements and A-again answer are free-form; one PY_MERGE_01 live sequence replaces the 24-case exact-string gate; output allowance follows actual rendered prompt/context; the V10 gate checks one paraphrase-tolerant answer and the physical page event chain. Planner 13/13, V10 tests 39/39, fixture tokenizer/hash check 24/24, py_compile, JSON, task-state validation, and diff check pass. No live request was sent; 93-11g remains in_progress.
+
+## 2026-09-25T13:22:30+00:00 — 93-11g — deferred
+
+- Branch: `codex/task-93-11g`
+- Commit at update: `689653162`
+- Summary: Attempt 08 established the cold/host-backed precondition but no completed promotion and captured no direct selector candidate or rejection reason. Empty natural_proof does not prove no nomination. Defer this unchanged live sequence; replacement selector-row, bounded diagnostics, and candidate-bound promotion tasks 93-11l/11m/11n are inserted before 93-12.

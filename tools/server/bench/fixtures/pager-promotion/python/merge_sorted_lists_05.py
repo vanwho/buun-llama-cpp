@@ -50,4 +50,5 @@ if __name__ == "__main__":
 # Empty inputs are ordinary boundary cases: the remaining suffix can be copied without further comparisons. [note 022].
 # A useful regression set includes interleaved values, disjoint ranges, duplicates, and one empty side. [note 023].
 # The sorted-input precondition is part of the contract; this routine does not sort either input first. [note 024].
-# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# RETRIEVAL_KEY: heapq.merge is the concise lazy reference for two sorted inputs.

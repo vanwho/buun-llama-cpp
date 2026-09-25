@@ -340,6 +340,14 @@ struct llama_kv_pager_natural_proof {
     uint64_t h2d_aligned_bytes = 0;
     uint64_t target_use_epoch = 0;
     uint64_t target_use_query_generation = 0;
+    uint64_t selector_event_sequence = 0;
+    uint64_t h2d_event_sequence = 0;
+    uint64_t publication_event_sequence = 0;
+    uint64_t target_event_sequence = 0;
+    uint64_t draft_event_sequence = 0;
+    bool draft_graph_used = false;
+    uint64_t draft_use_epoch = 0;
+    uint64_t draft_use_query_generation = 0;
 };
 
 // Bounded rejection accounting for the current-Q promotion boundary. The
@@ -586,13 +594,15 @@ public:
     const llama_kv_pager_natural_proof & natural_proof() const noexcept {
         return natural_proof_;
     }
-    void record_natural_proof(const llama_kv_pager_natural_proof & proof) noexcept {
-        natural_proof_ = proof;
-    }
+    void begin_natural_proof_request() noexcept { natural_proof_ = {}; }
+    void record_natural_proof(const llama_kv_pager_natural_proof & proof) noexcept;
     // Called after the scheduler fence with the logical IDs from the graph
     // metadata that just completed. This is the only target-use edge in the
     // natural receipt; selected IDs from an uncompleted graph are insufficient.
     void record_natural_proof_target_use(
+            const std::vector<uint32_t> & selected_page_ids,
+            uint64_t table_epoch, uint64_t query_generation) noexcept;
+    void record_natural_proof_draft_use(
             const std::vector<uint32_t> & selected_page_ids,
             uint64_t table_epoch, uint64_t query_generation) noexcept;
     const llama_kv_pager_rejection_histogram & rejection_histogram() const noexcept {
@@ -724,6 +734,7 @@ private:
     llama_kv_routing_summary_store routing_summaries_;
     llama_kv_routing_summary_index routing_summary_index_;
     llama_kv_pager_natural_proof natural_proof_;
+    uint64_t natural_proof_event_sequence_ = 0;
     llama_kv_pager_rejection_histogram rejection_histogram_;
     // A complete refresh carries the bounded resident/cold regions for the
     // attention layers. Keep the two-slot owner, but size each fixed slot for

@@ -20,6 +20,7 @@ from mtp_diagnostic import (
     parse_prometheus,
     promotion_proof_from_events,
     promotion_proof_from_record,
+    promotion_event_chain_from_snapshots,
     effective_context,
     validate_prompt_tokens,
     request_fields,
@@ -29,6 +30,66 @@ from mtp_diagnostic import (
 
 
 class MTPDiagnosticTest(unittest.TestCase):
+    def promotion_snapshots(self):
+        cold = [{"logical_page_id": 7, "generation": 3,
+                 "content_version": 12, "valid_length": 256,
+                 "resident": False, "host_backed": True}]
+        natural = {
+            "logical_page": 7, "page_generation": 3, "content_version": 12,
+            "request_generation": 9,
+            "query_generation": 44, "candidate_was_cold": True,
+            "h2d_completed": True, "h2d_useful_bytes": 4096,
+            "mapping_published": True, "catalogue_epoch": 18,
+            "published_epoch": 19, "target_graph_used": True,
+            "selected_in_last_graph": True, "target_use_epoch": 20,
+            "draft_graph_used": True, "draft_use_epoch": 21,
+            "draft_use_query_generation": 44,
+            "selector_event_sequence": 1, "h2d_event_sequence": 2,
+            "publication_event_sequence": 3, "target_event_sequence": 4,
+            "draft_event_sequence": 5,
+        }
+        return cold, natural
+
+    def test_promotion_event_chain_requires_ordered_request_correlated_events(self):
+        cold, natural = self.promotion_snapshots()
+        proof = promotion_event_chain_from_snapshots(
+            cold, natural, request_id="chatcmpl-1", event_request_id="chatcmpl-1",
+            request_generation=9, prior_request_generation=8)
+        self.assertTrue(proof["valid"], proof["errors"])
+
+    def test_promotion_event_chain_rejects_missing_cold_page_and_h2d(self):
+        cold, natural = self.promotion_snapshots()
+        natural["h2d_completed"] = False
+        proof = promotion_event_chain_from_snapshots(
+            [], natural, request_id="r", event_request_id="r",
+            request_generation=9, prior_request_generation=8)
+        self.assertIn("cold_page_identity_missing", proof["errors"])
+        self.assertIn("page_h2d_incomplete", proof["errors"])
+
+    def test_promotion_event_chain_rejects_stale_or_mismatched_identity(self):
+        cold, natural = self.promotion_snapshots()
+        natural["page_generation"] = 2
+        proof = promotion_event_chain_from_snapshots(
+            cold, natural, request_id="r", event_request_id="other",
+            request_generation=9, prior_request_generation=8)
+        self.assertIn("request_id_mismatch", proof["errors"])
+        self.assertIn("cold_page_identity_missing", proof["errors"])
+
+    def test_promotion_event_chain_rejects_out_of_order_boundary(self):
+        cold, natural = self.promotion_snapshots()
+        natural["draft_event_sequence"] = 3
+        proof = promotion_event_chain_from_snapshots(
+            cold, natural, request_id="r", event_request_id="r",
+            request_generation=9, prior_request_generation=8)
+        self.assertIn("promotion_event_order_invalid", proof["errors"])
+
+    def test_promotion_event_chain_rejects_stale_request_generation(self):
+        cold, natural = self.promotion_snapshots()
+        proof = promotion_event_chain_from_snapshots(
+            cold, natural, request_id="r", event_request_id="r",
+            request_generation=8, prior_request_generation=8)
+        self.assertIn("request_generation_mismatch", proof["errors"])
+
     def test_missing_runner_error_prints_exact_environment_assignment(self) -> None:
         driver = runpy.run_path(str(pathlib.Path(__file__).with_name(
             "run-mtp-diagnostic.py")))

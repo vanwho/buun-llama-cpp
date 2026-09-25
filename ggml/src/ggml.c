@@ -1,6 +1,7 @@
 #define _CRT_SECURE_NO_DEPRECATE // Disables "unsafe" warnings on Windows
 #define _USE_MATH_DEFINES // For M_PI on MSVC
 
+#include "ggml-version.h"
 #include "ggml-backend.h"
 #include "ggml-impl.h"
 #include "ggml-threading.h"
@@ -696,6 +697,14 @@ static const struct ggml_type_traits type_traits[GGML_TYPE_COUNT] = {
         .is_quantized             = true,
         .to_float                 = (ggml_to_float_t) dequantize_row_q2_0_g128,
         .from_float_ref           = (ggml_from_float_t) quantize_row_q2_0_g128_ref,
+    },
+    [GGML_TYPE_PTQ1_0] = {
+        .type_name                = "ptq1_0",
+        .blck_size                = QK_PTQ1_0,
+        .type_size                = sizeof(block_ptq1_0),
+        .is_quantized             = true,
+        .to_float                 = (ggml_to_float_t) dequantize_row_ptq1_0,
+        .from_float_ref           = (ggml_from_float_t) quantize_row_ptq1_0_ref,
     },
     [GGML_TYPE_Q4_0] = {
         .type_name                = "q4_0",
@@ -1804,6 +1813,7 @@ enum ggml_type ggml_ftype_to_ggml_type(enum ggml_ftype ftype) {
         case GGML_FTYPE_MOSTLY_Q4_1:          wtype = GGML_TYPE_Q4_1;  break;
         case GGML_FTYPE_MOSTLY_Q1_0:          wtype = GGML_TYPE_Q1_0;  break;
         case GGML_FTYPE_MOSTLY_Q2_0:          wtype = GGML_TYPE_Q2_0;  break;
+        case GGML_FTYPE_MOSTLY_PTQ1_0:        wtype = GGML_TYPE_PTQ1_0; break;
         case GGML_FTYPE_MOSTLY_Q5_0:          wtype = GGML_TYPE_Q5_0;  break;
         case GGML_FTYPE_MOSTLY_Q5_1:          wtype = GGML_TYPE_Q5_1;  break;
         case GGML_FTYPE_MOSTLY_Q8_0:          wtype = GGML_TYPE_Q8_0;  break;
@@ -3696,6 +3706,37 @@ struct ggml_tensor * ggml_l2_norm_inplace(
     return ggml_l2_norm_impl(ctx, a, eps, true);
 }
 
+// ggml_prec
+
+bool ggml_prec_set_acc(struct ggml_tensor * a, enum ggml_prec prec) {
+    switch (a->op) {
+        case GGML_OP_MUL_MAT:
+        case GGML_OP_MUL_MAT_ID:
+            ggml_set_op_params_i32(a, 0, (int32_t) prec);
+            return true;
+        case GGML_OP_FLASH_ATTN_EXT:
+            ggml_set_op_params_i32(a, 3, (int32_t) prec);
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool ggml_prec_set_src(struct ggml_tensor * a, enum ggml_prec prec, int idx) {
+    GGML_ASSERT(idx >= 0 && idx < GGML_MAX_SRC);
+    switch (a->op) {
+        case GGML_OP_MUL_MAT:
+        case GGML_OP_MUL_MAT_ID:
+            if (idx != 1) {
+                return false;
+            }
+            ggml_set_op_params_i32(a, 2 + idx, (int32_t) prec);
+            return true;
+        default:
+            return false;
+    }
+}
+
 // ggml_mul_mat
 
 static inline bool ggml_can_mul_mat(const struct ggml_tensor * t0, const struct ggml_tensor * t1) {
@@ -3787,8 +3828,8 @@ void ggml_mul_mat_id_set_expert_window(struct ggml_tensor * mmid, int32_t lo, in
     GGML_ASSERT(mmid->op == GGML_OP_MUL_MAT_ID);
     GGML_ASSERT(n_local >= 0 && lo >= 0);
     GGML_ASSERT(n_local == 0 || mmid->src[0]->ne[2] == n_local);
-    ggml_set_op_params_i32(mmid, 2, lo);
-    ggml_set_op_params_i32(mmid, 3, n_local);
+    ggml_set_op_params_i32(mmid, GGML_MMID_WINDOW_LO, lo);
+    ggml_set_op_params_i32(mmid, GGML_MMID_WINDOW_N_LOCAL, n_local);
 }
 
 // ggml_out_prod
@@ -6021,19 +6062,29 @@ enum ggml_prec ggml_flash_attn_ext_get_prec(
     return (enum ggml_prec) prec_i32;
 }
 
+void ggml_flash_attn_ext_set_n_kv_max(
+        struct ggml_tensor * a,
+        int32_t              n_kv_max) {
+    GGML_ASSERT(a->op == GGML_OP_FLASH_ATTN_EXT);
+    GGML_ASSERT(n_kv_max >= 0);
+
+    ggml_set_op_params_i32(a, 4, n_kv_max);
+}
+
 void ggml_flash_attn_ext_set_sparse_mask(
         struct ggml_tensor * a,
         bool                 sparse) {
     GGML_ASSERT(a->op == GGML_OP_FLASH_ATTN_EXT);
 
-    ggml_set_op_params_i32(a, 4, sparse);
+    // Slot 4 is the finite-row bound, not a boolean optimization hint.
+    ggml_set_op_params_i32(a, 5, sparse);
 }
 
 bool ggml_flash_attn_ext_get_sparse_mask(
         const struct ggml_tensor * a) {
     GGML_ASSERT(a->op == GGML_OP_FLASH_ATTN_EXT);
 
-    return ggml_get_op_params_i32(a, 4) != 0;
+    return ggml_get_op_params_i32(a, 5) != 0;
 }
 
 void ggml_flash_attn_ext_add_sinks(
@@ -8136,7 +8187,7 @@ void ggml_build_backward_expand(
         }
 
         // inplace operations are currently not supported
-        GGML_ASSERT(!node->view_src || node->op == GGML_OP_CPY || node->op == GGML_OP_VIEW ||
+        GGML_ASSERT(!node->view_src || node->op == GGML_OP_CPY || node->op == GGML_OP_SET_ROWS || node->op == GGML_OP_VIEW ||
             node->op == GGML_OP_RESHAPE || node->op == GGML_OP_PERMUTE || node->op == GGML_OP_TRANSPOSE);
 
         const size_t ihash = ggml_hash_find(&cgraph->visited_hash_set, node);
@@ -8803,6 +8854,7 @@ size_t ggml_quantize_chunk(
         case GGML_TYPE_Q1_0:    result = quantize_q1_0   (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_Q2_0:    result = quantize_q2_0   (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_Q2_0_G128: result = quantize_q2_0_g128(src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
+        case GGML_TYPE_PTQ1_0: result = quantize_ptq1_0(src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_Q4_0:    result = quantize_q4_0   (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_Q4_1:    result = quantize_q4_1   (src + start, (char *) dst + start_row * row_size, nrows, n_per_row, imatrix); break;
         case GGML_TYPE_Q4_A32:

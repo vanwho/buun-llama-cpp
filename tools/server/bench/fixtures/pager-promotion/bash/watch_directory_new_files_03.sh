@@ -48,4 +48,5 @@ watch_new_files
 # NUL-delimited output preserves filenames containing whitespace. [note 027].
 # A watcher should quote every path expansion so spaces and shell metacharacters remain data. [note 028].
 # An event-driven loop avoids the repeated full-directory scans used by a naive polling loop. [note 029].
-# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# RETRIEVAL_KEY: NUL-delimited output preserves filenames containing whitespace.

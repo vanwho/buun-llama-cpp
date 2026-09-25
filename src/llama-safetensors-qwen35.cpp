@@ -139,7 +139,9 @@ source_spec quantized_or_plain(
                     std::vector<transform_kind> transforms,
                     const std::string & plain_name) {
     if (auto binding = quant.bind(module, role)) {
-        return { binding->primary, std::move(transforms), std::move(binding) };
+        // MSVC can move the binding before copying its primary into the constructor argument.
+        std::string name = binding->primary;
+        return { std::move(name), std::move(transforms), std::move(binding) };
     }
     if (quant.applies(module)) {
         return { {}, std::move(transforms), std::nullopt };
@@ -155,6 +157,8 @@ bool quant_can_fuse_rows(const llama_safetensors_quant_adapters & quant, const s
     return !binding || (binding->materialization != llama_safetensors_quant_materialization::EXL3_REPACK &&
                        binding->target_type != GGML_TYPE_F8_E4M3 &&
                        binding->target_type != GGML_TYPE_I8 &&
+                       // NVFP4 projections carry separate post-matmul global scales.
+                       binding->target_type != GGML_TYPE_NVFP4 &&
                        binding->target_type != GGML_TYPE_GPTQ_AO);
 }
 
@@ -1576,6 +1580,7 @@ bool llama_safetensors_qwen35_importer::describe(
                 // Channel-scaled FP8 requires a plan that also joins scales;
                 // other sidecar formats keep their separate projections.
                 if ((part_type == GGML_TYPE_F8_E4M3 && !spec.fp8_channel_parts) || part_type == GGML_TYPE_I8 ||
+                        part_type == GGML_TYPE_NVFP4 ||
                         part_type == GGML_TYPE_GPTQ_AO) {
                     return false;
                 }

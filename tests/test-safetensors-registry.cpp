@@ -332,9 +332,73 @@ std::unique_ptr<llama_safetensors_importer> make_importer(const std::filesystem:
     throw std::runtime_error("unsupported test importer architecture");
 }
 
+void test_qwen35_exl3_source_names(const std::filesystem::path & root) {
+    // Bound EXL3 sources have no literal .weight/.weight_scale. In particular,
+    // MSVC must copy the resolved source name before moving its binding into
+    // Qwen3.5's source_spec constructor (issue #136).
+    const auto path = root / "qwen35-exl3-source-names";
+    const std::string prefix = "model.layers.0.linear_attn.";
+    std::vector<tensor_fixture> tensors;
+    for (const auto & [module, rows] : std::vector<std::pair<std::string, uint64_t>>{
+            {prefix + "in_proj_qkv", 256}, {prefix + "in_proj_z", 128}, {"lm_head", 128}}) {
+        std::vector<uint8_t> signs(256), scales(rows * 2);
+        for (size_t i = 1; i < signs.size(); i += 2) signs[i] = 0x3c; // F16 1.0
+        for (size_t i = 1; i < scales.size(); i += 2) scales[i] = 0x3c;
+        tensors.push_back({module + ".trellis", "I16", {8, rows / 16, 32},
+                           std::vector<uint8_t>(8 * (rows / 16) * 32 * 2)});
+        tensors.push_back({module + ".mul1", "I32", {}, std::vector<uint8_t>(4)});
+        tensors.push_back({module + ".suh", "F16", {128}, signs});
+        tensors.push_back({module + ".svh", "F16", {rows}, scales});
+    }
+    write_single_shard_model(path, tensors);
+    write_text(path / "tokenizer.json", "{}");
+    const json config = {
+        {"model_type", "qwen3_5_text"}, {"num_hidden_layers", 64},
+        {"linear_num_key_heads", 1}, {"linear_num_value_heads", 2},
+        {"linear_key_head_dim", 64}, {"linear_value_head_dim", 64},
+        {"quantization_config", {{"quant_method", "exl3"}}},
+    };
+    for (auto mode : {llama_safetensors_io_mode::BUFFERED, llama_safetensors_io_mode::MMAP}) {
+        llama_safetensors_qwen35_importer importer(path, config, mode);
+        for (const auto & [target, rows] : std::vector<std::pair<std::string, int64_t>>{
+                {"blk.0.attn_qkv", 256}, {"blk.0.attn_gate", 128}, {"output", 128}}) {
+            for (const char * suffix : {".weight", ".scale", ".input_scale"}) {
+                const std::string name = target + suffix;
+                ggml_type type;
+                std::array<int64_t, GGML_MAX_DIMS> ne;
+                require(importer.describe(name, type, ne), "EXL3 physical source name was lost");
+                const bool weight = std::string(suffix) == ".weight";
+                require(type == (weight ? GGML_TYPE_EXL3_2 : GGML_TYPE_F16), "EXL3 binding type changed");
+                require(ne[0] == (weight || std::string(suffix) == ".input_scale" ? 128 : rows) &&
+                        ne[1] == (weight ? rows : 1), "EXL3 binding shape changed");
+                const size_t bytes = ggml_row_size(type, ne[0]) * ne[1];
+                const auto data = importer.materialize(name, type, bytes);
+                require(data.size() == bytes, "EXL3 bound source failed to materialize");
+                if (!weight) {
+                    for (size_t i = 0; i < data.size(); ++i) {
+                        require(data[i] == (i % 2 ? 0x3c : 0), "EXL3 sign vector changed");
+                    }
+                }
+                importer.bind(name);
+            }
+        }
+        ggml_type type;
+        std::array<int64_t, GGML_MAX_DIMS> ne;
+        require(!importer.describe("blk.1.attn_qkv.weight", type, ne),
+                "EXL3 source-name fix accepted an unbound missing tensor");
+        importer.validate_complete();
+    }
+}
+
 }  // namespace
 
-int main(int argc, char ** argv) {
+int main(int argc, char ** argv) try {
+    if (argc == 2 && std::string(argv[1]) == "exl3-source-names") {
+        temp_dir dir;
+        test_qwen35_exl3_source_names(dir.path);
+        std::cout << "EXL3 source-name regression passed\n";
+        return 0;
+    }
     if (argc == 4 && std::string(argv[1]) == "load-only") {
         const bool native = std::string(argv[3]) == "native";
         require(native || std::string(argv[3]) == "gguf", "load-only source must be native or gguf");
@@ -835,6 +899,178 @@ int main(int argc, char ** argv) {
     }
 
     {
+        // Tokenizer-free DFlash2 exports use either bare or model.-prefixed
+        // names. Keep EXL3 auxiliaries and learned convolution/selector bytes.
+        for (const std::string prefix : {std::string(), std::string("model.")}) {
+            const auto path = dir.path / (prefix.empty() ? "dflash2-bare" : "dflash2-prefixed");
+            std::vector<uint8_t> signs(512), scales(256);
+            for (size_t i = 1; i < signs.size(); i += 2) signs[i] = 0xbc; // F16 -1
+            for (size_t i = 1; i < scales.size(); i += 2) scales[i] = 0x38; // F16 0.5
+            write_single_shard_model(path, {
+                {prefix + "hidden_norm.weight", "BF16", {128}, std::vector<uint8_t>(256)},
+                {prefix + "layers.0.post_attention_layernorm.weight", "BF16", {128}, std::vector<uint8_t>(256)},
+                {prefix + "fc.trellis", "I16", {16, 8, 64}, std::vector<uint8_t>(16384)},
+                {prefix + "fc.suh", "F16", {256}, signs},
+                {prefix + "fc.svh", "F16", {128}, scales},
+                {prefix + "fc.mul1", "I32", {}, std::vector<uint8_t>(4)},
+                {prefix + "layers.0.attention_conv.base_kernel", "F16", {2, 2, 128}, std::vector<uint8_t>(1024, 0x10)},
+                {prefix + "layers.0.mlp_conv.kernel_projection.weight", "F16", {32, 128}, std::vector<uint8_t>(8192)},
+                {prefix + "candidate_selector.hidden_projection.weight", "F16", {16, 128}, std::vector<uint8_t>(4096)},
+                {prefix + "candidate_selector.predecessor_codebook" + (prefix.empty() ? ".weight" : ""),
+                    "F16", {256, 16}, std::vector<uint8_t>(8192, 0x22)},
+            });
+            llama_safetensors_json config = {
+                {"architectures", {"DFlash2DraftModel"}}, {"model_type", "qwen3"},
+                {"hidden_size", 128}, {"intermediate_size", 256}, {"num_hidden_layers", 1},
+                {"num_attention_heads", 1}, {"num_key_value_heads", 1}, {"head_dim", 128},
+                {"num_target_layers", 4}, {"vocab_size", 256}, {"max_position_embeddings", 8192},
+                {"rope_parameters", {{"rope_theta", 10000000}}}, {"rms_norm_eps", 1e-6},
+                {"use_sliding_window", true}, {"sliding_window", 2048},
+                {"layer_types", {"sliding_attention"}},
+                {"quantization_config", {{"quant_method", "exl3"}}},
+                {"dflash_config", {{"block_size", 8}, {"mask_token_id", 255},
+                    {"target_layer_ids", {1, 2}}, {"conv_kernel_size", 2}, {"conv_group_size", 16},
+                    {"selector_rank", 16}, {"selector_top_k", 16}}},
+            };
+            require(llama_safetensors_qwen3_importer::probe(config), "DFlash2 architecture was not recognized");
+            llama_safetensors_qwen3_importer importer(path, config);
+            std::unique_ptr<gguf_context, decltype(&gguf_free)> metadata(importer.build_metadata(), gguf_free);
+            require(std::string(gguf_get_val_str(metadata.get(), gguf_find_key(metadata.get(), "general.architecture"))) == "dflash",
+                    "DFlash2 selected the generic Qwen3 graph");
+            require(std::string(gguf_get_val_str(metadata.get(), gguf_find_key(metadata.get(), "tokenizer.ggml.model"))) == "none",
+                    "DFlash2 fabricated a tokenizer");
+            const auto * targets = static_cast<const uint32_t *>(gguf_get_arr_data(metadata.get(), gguf_find_key(metadata.get(), "dflash.target_layers")));
+            require(targets[0] == 2 && targets[1] == 3, "DFlash2 feature layer offset is wrong");
+            require(gguf_get_arr_type(metadata.get(), gguf_find_key(metadata.get(), "dflash.attention.sliding_window_pattern")) == GGUF_TYPE_BOOL,
+                    "DFlash2 SWA pattern has wrong wire type");
+            ggml_type type;
+            std::array<int64_t, GGML_MAX_DIMS> ne;
+            require(importer.describe("fc.weight", type, ne) && type == GGML_TYPE_EXL3_4 && ne[0] == 256 && ne[1] == 128,
+                    "DFlash2 EXL3 feature projection mapping failed");
+            for (const char * name : {"fc.scale", "fc.input_scale"}) {
+                const auto & bytes = std::string(name) == "fc.input_scale" ? signs : scales;
+                require(importer.describe(name, type, ne) && type == GGML_TYPE_F16 && ne[0] == int64_t(bytes.size() / 2),
+                        "DFlash2 lost an EXL3 auxiliary");
+                require(importer.materialize(name, type, bytes.size()) == bytes,
+                        "DFlash2 auxiliary bytes changed");
+                importer.bind(name);
+            }
+            importer.bind("fc.weight");
+            importer.validate_complete();
+            require(importer.describe("blk.0.attn_conv.base", type, ne) && type == GGML_TYPE_F16 && ne[0] == 128 && ne[1] == 2 && ne[2] == 2,
+                    "DFlash2 convolution dimensions changed");
+            require(importer.describe("blk.0.ffn_conv.proj.weight", type, ne) && ne[0] == 128 && ne[1] == 32,
+                    "DFlash2 convolution projection mapping failed");
+            require(importer.describe("selector.pred_codebook", type, ne) && ne[0] == 16 && ne[1] == 256,
+                    "DFlash2 selector codebook naming failed");
+            require(importer.materialize("selector.pred_codebook", GGML_TYPE_F16, 8192) == std::vector<uint8_t>(8192, 0x22),
+                    "DFlash2 selector bytes changed");
+            require(importer.materialize("blk.0.attn_conv.base", GGML_TYPE_F16, 1024) == std::vector<uint8_t>(1024, 0x10),
+                    "DFlash2 convolution bytes changed");
+            require(importer.describe("enc.output_norm.weight", type, ne) && type == GGML_TYPE_F32,
+                    "DFlash2 feature norm mapping failed");
+            require(importer.describe("blk.0.ffn_norm.weight", type, ne), "DFlash2 decoder norm missing");
+            require(!importer.describe("token_embd.weight", type, ne) && !importer.describe("output.weight", type, ne),
+                    "DFlash2 fabricated shared target weights");
+            config["use_sliding_window"] = false;
+            config["sliding_window"] = 1024;
+            config["dflash_config"]["use_swa"] = true;
+            config["dflash_config"]["swa_window_size"] = 512;
+            config["dflash_config"]["causal"] = true;
+            config["dflash_config"]["output_multiplier"] = 0.5;
+            config["output_multiplier"] = 0.25;
+            config["dflash_config"]["input_embedding_scale"] = 2.0;
+            const auto check_nested = [&](bool causal) {
+                llama_safetensors_qwen3_importer nested(path, config);
+                std::unique_ptr<gguf_context, decltype(&gguf_free)> md(nested.build_metadata(), gguf_free);
+                require(gguf_get_val_u32(md.get(), gguf_find_key(md.get(), "dflash.attention.sliding_window")) == 512,
+                        "DFlash2 nested SWA configuration was ignored");
+                require(gguf_get_val_bool(md.get(), gguf_find_key(md.get(), "dflash.attention.causal")) == causal,
+                        "DFlash2 causal precedence differs from converter");
+                require(gguf_get_val_f32(md.get(), gguf_find_key(md.get(), "dflash.logit_scale")) == 0.5f &&
+                        gguf_get_val_f32(md.get(), gguf_find_key(md.get(), "dflash.embedding_scale")) == 2.0f,
+                        "DFlash2 output/embedding scale was lost");
+            };
+            check_nested(true);
+            config["is_causal"] = false;
+            check_nested(false);
+            config["dflash_config"]["final_logit_softcapping"] = 30.0;
+            require_rejected([&] { llama_safetensors_qwen3_importer invalid(path, config); },
+                    "DFlash2 silently accepted unsupported softcapping metadata");
+            config["dflash_config"].erase("final_logit_softcapping");
+            config["dflash_config"]["target_layer_ids"] = {4};
+            require_rejected([&] {
+                llama_safetensors_qwen3_importer invalid(path, config);
+                std::unique_ptr<gguf_context, decltype(&gguf_free)> ignored(invalid.build_metadata(), gguf_free);
+            }, "DFlash2 accepted out-of-range target layers");
+        }
+    }
+
+    {
+        // EXL3 quantizes projections, but can store a plain FP8 embedding next
+        // to ordinary dense norms. Neither needs EXL3 sign vectors or FP8 scales.
+        const auto path = dir.path / "exl3-dense-fp8";
+        const std::string embedding = "model.language_model.embed_tokens";
+        const std::string projection = "model.language_model.layers.0.mlp.gate_proj";
+        std::vector<uint8_t> embedding_bytes(256);
+        for (size_t i = 0; i < embedding_bytes.size(); ++i) {
+            embedding_bytes[i] = uint8_t(i);  // Preserve every source bit pattern.
+        }
+        std::vector<tensor_fixture> tensors = {
+            { embedding + ".weight", "F8_E4M3", {2, 128}, embedding_bytes },
+            { "model.language_model.norm.weight", "BF16", {2}, {0, 0, 0x80, 0x3f} },
+            { "dense_f16.weight", "F16", {2}, {0, 0, 0, 0x3c} },
+            { "dense_f32.weight", "F32", {1}, f32_bytes(1.0f) },
+            { projection + ".trellis", "I16", {8, 8, 32}, std::vector<uint8_t>(4096) },
+            { projection + ".suh", "F16", {128}, std::vector<uint8_t>(256) },
+            { projection + ".svh", "F16", {128}, std::vector<uint8_t>(256) },
+        };
+        write_single_shard_model(path, tensors);
+        write_text(path / "tokenizer.json", "{}");
+        const json config = {
+            {"model_type", "qwen3_5_text"}, {"num_hidden_layers", 64},
+            {"linear_num_key_heads", 1}, {"linear_num_value_heads", 1},
+            {"linear_key_head_dim", 128}, {"linear_value_head_dim", 128},
+            {"quantization_config", {{"quant_method", "exl3"}}},
+        };
+        for (auto mode : {llama_safetensors_io_mode::BUFFERED, llama_safetensors_io_mode::MMAP}) {
+            const auto registry = llama_safetensors_registry::load(path, mode);
+            llama_safetensors_quant_adapters adapters(config, registry);
+            require(!adapters.applies(embedding) &&
+                        !adapters.bind(embedding, llama_safetensors_quant_role::WEIGHT),
+                    "EXL3 claimed a plain FP8 embedding");
+            require(adapters.applies(projection) && adapters.summary().exl3 == 1,
+                    "plain FP8 exception disabled EXL3 projection validation");
+            llama_safetensors_qwen35_importer importer(path, config, mode);
+            ggml_type type;
+            std::array<int64_t, GGML_MAX_DIMS> ne;
+            require(importer.describe("token_embd.weight", type, ne) &&
+                        type == GGML_TYPE_F8_E4M3 && ne[0] == 128 && ne[1] == 2,
+                    "EXL3 plain FP8 embedding descriptor changed");
+            require(importer.materialize("token_embd.weight", type, 256) == embedding_bytes,
+                    "EXL3 plain FP8 embedding bytes changed");
+            require(importer.describe("output_norm.weight", type, ne) && type == GGML_TYPE_F32,
+                    "EXL3 dense BF16 norm did not use ordinary F32 conversion");
+            const auto norm = importer.materialize("output_norm.weight", type, 8);
+            float values[2];
+            std::memcpy(values, norm.data(), sizeof(values));
+            require(values[0] == 1.0f && values[1] == 2.0f, "EXL3 offset norm values changed");
+            require_rejected([&] { (void) llama_safetensors_quant_adapters(json::object(), registry); },
+                             "raw FP8 without a supported contract was accepted");
+            require_rejected([&] { (void) llama_safetensors_quant_adapters(json::parse(fp8_block_config), registry); },
+                             "scaled FP8 without required scales was accepted");
+        }
+        tensors.pop_back();  // The dense exception must not hide a missing EXL3 svh.
+        const auto malformed = dir.path / "exl3-dense-fp8-missing-svh";
+        write_single_shard_model(malformed, tensors);
+        const auto registry = llama_safetensors_registry::load(malformed);
+        require_rejected([&] { (void) llama_safetensors_quant_adapters(config, registry); },
+                         "EXL3 with a missing sign vector was accepted");
+    }
+
+    test_qwen35_exl3_source_names(dir.path);
+
+    {
         // Streamed stacked experts must retain exact expert order. The PLE
         // table has a different (already canonical) on-disk layout.
         const auto path = dir.path / "qwen-streamed-exl3";
@@ -1161,6 +1397,35 @@ int main(int argc, char ** argv) {
         require(naive_adapters.summary().fp8_channel == 1 &&
                     naive_adapters.bind(module, llama_safetensors_quant_role::WEIGHT).has_value(),
                 "naive-quantized channel-FP8 group was not recognized");
+    }
+
+    // A module-class fallback must not shadow a named mixed-precision exception,
+    // even when the producer declares Linear first (Syv's INT8 embeddings).
+    {
+        auto config = llama_safetensors_json::parse(packed_int4_symmetric_config);
+        // ordered_json insertion can invalidate references to sibling members.
+        config["quantization_config"]["ignore"] = { "ignored" };
+        auto & groups = config["quantization_config"]["config_groups"];
+        groups["int4"]["targets"] = { "Linear" };
+        groups["embedding"] = groups["int4"];
+        groups["embedding"]["targets"] = { "re:.*embed_tokens$" };
+        groups["embedding"]["weights"]["num_bits"] = 8;
+        auto parsed = llama_safetensors_quant_config::from_json(config);
+        require(parsed.match("model.language_model.embed_tokens")->num_bits == 8,
+                "Linear class fallback shadows the INT8 embedding exception");
+        require(parsed.match("model.layers.0.self_attn.q_proj")->num_bits == 4,
+                "Linear class fallback no longer binds ordinary projections");
+        require(parsed.match("ignored") == nullptr, "class fallback bypasses ignore rules");
+        // An explicit wildcard is a named regex, not the Linear class fallback.
+        groups["int4"]["targets"] = { "re:.*" };
+        parsed = llama_safetensors_quant_config::from_json(config);
+        require(parsed.match("model.language_model.embed_tokens")->num_bits == 4,
+                "named regex declaration precedence changed");
+        groups["int4"]["targets"] = { "Linear" };
+        groups["embedding"]["targets"] = { "model.language_model.embed_tokens" };
+        parsed = llama_safetensors_quant_config::from_json(config);
+        require(parsed.match("model.language_model.embed_tokens")->num_bits == 8,
+                "Linear class fallback shadows an exact module name");
     }
 
     // AutoRound/INC publishes the same group-32 MXFP tensors as
@@ -2753,6 +3018,39 @@ int main(int argc, char ** argv) {
         constexpr size_t block_size = sizeof(uint16_t) + 128;
         require(repacked.size() == rows * (cols / 128) * block_size,
                 "compressed-tensors INT8 exact repack has the wrong size");
+        ggml_backend_load_all();
+        ggml_backend_ptr cpu(ggml_backend_init_by_type(GGML_BACKEND_DEVICE_TYPE_CPU, nullptr));
+        for (bool offset_view : { false, true }) {
+            if (!cpu) {
+                std::cout << "CPU packed INT8 embedding lookup SKIPPED (no CPU backend)\n";
+                break;
+            }
+            ggml_context_ptr ctx(ggml_init({ 1024 * 1024, nullptr, false }));
+            auto * table = ggml_new_tensor_2d(ctx.get(), GGML_TYPE_Q8_0_G128, cols, rows);
+            std::memcpy(table->data, repacked.data(), repacked.size());
+            const int first_row = offset_view ? 1 : 0;
+            if (offset_view) {
+                table = ggml_view_2d(ctx.get(), table, cols, rows - 1, table->nb[1], table->nb[1]);
+            }
+            const std::array<int32_t, 5> row_ids = { 1, 0, 1, 0, 1 };
+            auto * ids = ggml_new_tensor_1d(ctx.get(), GGML_TYPE_I32, row_ids.size());
+            std::memcpy(ids->data, row_ids.data(), sizeof(row_ids));
+            auto * output = ggml_get_rows(ctx.get(), table, ids);
+            auto * graph = ggml_new_graph(ctx.get());
+            ggml_build_forward_expand(graph, output);
+            require(ggml_backend_graph_compute(cpu.get(), graph) == GGML_STATUS_SUCCESS,
+                    "CPU packed INT8 embedding lookup failed");
+            const auto * values = static_cast<const float *>(output->data);
+            for (size_t i = 0; i < row_ids.size(); ++i) {
+                const int row = row_ids[i] + first_row;
+                for (size_t col = 0; col < cols; ++col) {
+                    const int code = int((17 * row + col) % 256) - 128;
+                    const float scale = 0.5f + 0.5f * ((row + col / 128) % 3);
+                    require(values[i * cols + col] == code * scale,
+                            "CPU packed INT8 embedding lookup changed a row/lane value");
+                }
+            }
+        }
         for (size_t row = 0; row < rows; ++row) {
             for (size_t block = 0; block < cols / 128; ++block) {
                 const float expected_scale = 0.5f + 0.5f * ((row + block) % 3);
@@ -4111,7 +4409,7 @@ int main(int argc, char ** argv) {
                     adapters.read(*weight) == weights && adapters.file_type() == LLAMA_FTYPE_MOSTLY_Q8_0,
                 "BitsAndBytes INT8 weight binding is wrong");
         require(scale.has_value() && scale->target_type == GGML_TYPE_F32 &&
-                    scale->target_shape == std::vector<int64_t>({ rows }) &&
+                    scale->target_shape == std::vector<int64_t>{ rows } &&
                     scale->materialization == llama_safetensors_quant_materialization::BNB_INT8_SCALE,
                 "BitsAndBytes INT8 scale binding is wrong");
         require(input.has_value() && input->target_type == GGML_TYPE_I32 &&
@@ -4432,6 +4730,57 @@ int main(int argc, char ** argv) {
         adapters.validate_complete();
     }
     {
+        const auto path = dir.path / "nvfp4-qwen35-projection-scales";
+        // Separate projection globals cannot be represented by concatenating
+        // just the packed rows. Exercise recurrent QKV|Z and full-attention Q/K/V.
+        const std::array<std::string, 5> modules = {
+            "model.layers.0.linear_attn.in_proj_qkv", "model.layers.0.linear_attn.in_proj_z",
+            "model.layers.3.self_attn.q_proj", "model.layers.3.self_attn.k_proj",
+            "model.layers.3.self_attn.v_proj",
+        };
+        const std::array<uint64_t, 5> rows = { 256, 128, 128, 64, 64 };
+        const std::array<float, 5> globals = { 0.125f, 0.25f, 0.5f, 1.0f, 2.0f };
+        std::vector<tensor_fixture> tensors;
+        for (size_t i = 0; i < modules.size(); ++i) {
+            tensors.push_back({ modules[i] + ".weight", "U8", { rows[i], 64 },
+                                std::vector<uint8_t>(size_t(rows[i])*64, 0x22) });
+            tensors.push_back({ modules[i] + ".weight_scale", "F8_E4M3", { rows[i], 8 },
+                                std::vector<uint8_t>(size_t(rows[i])*8, 0x38) });
+            tensors.push_back({ modules[i] + ".weight_scale_2", "F32", {}, f32_bytes(globals[i]) });
+        }
+        write_single_shard_model(path, tensors);
+        write_text(path / "generation_config.json", "{}");
+        write_text(path / "tokenizer.json", "{}");
+        llama_safetensors_json config = {
+            { "model_type", "qwen3_5_text" }, { "num_hidden_layers", 24 },
+            { "mtp_num_hidden_layers", 0 }, { "linear_num_key_heads", 2 },
+            { "linear_num_value_heads", 4 }, { "linear_key_head_dim", 32 },
+            { "linear_value_head_dim", 32 },
+        };
+        config["quantization_config"] =
+            llama_safetensors_json::parse(modelopt_w4a16_nvfp4_config).at("quantization_config");
+        llama_safetensors_qwen35_importer importer(path, config);
+        ggml_type type;
+        std::array<int64_t, GGML_MAX_DIMS> ne;
+        require(!importer.describe("blk.3.attn_qkv.weight", type, ne),
+                "NVFP4 full-attention projections lost their separate global scales");
+        const std::array<std::string, 5> targets = {
+            "blk.0.attn_qkv", "blk.0.attn_gate", "blk.3.attn_q", "blk.3.attn_k", "blk.3.attn_v",
+        };
+        for (size_t i = 0; i < targets.size(); ++i) {
+            require(importer.describe(targets[i] + ".weight", type, ne) && type == GGML_TYPE_NVFP4 &&
+                        ne == std::array<int64_t, GGML_MAX_DIMS>{128, int64_t(rows[i]), 1, 1},
+                    "NVFP4 projection was incorrectly row-fused");
+            importer.bind(targets[i] + ".weight");
+            require(importer.describe(targets[i] + ".scale", type, ne) && type == GGML_TYPE_F32 && ne[0] == 1,
+                    "NVFP4 projection global scale is missing");
+            require(importer.materialize(targets[i] + ".scale", type, sizeof(float)) == f32_bytes(globals[i]),
+                    "NVFP4 projection global scale changed");
+            importer.bind(targets[i] + ".scale");
+        }
+        importer.validate_complete();
+    }
+    {
         const auto path = dir.path / "modelopt-w4a16-nvfp4-experts";
         write_single_shard_model(path, {
             { "module.weight",         "U8",       { 2, 2, 32 }, std::vector<uint8_t>(128) },
@@ -4727,6 +5076,52 @@ int main(int argc, char ** argv) {
                 sidecar_registry.read(*sidecar_a) == std::vector<uint8_t>({ 11, 12, 13, 14 }),
             "registry did not select the weight_map copy of a duplicated sidecar tensor");
 
+    {
+        // Recover only omitted names; explicit assignments still select the
+        // authoritative copy, and unlisted duplicates remain ambiguous.
+        const auto path = dir.path / "index-omissions";
+        std::filesystem::create_directories(path);
+        write_shard(path / "model-00001-of-00002.safetensors", shard_a_header, { 1, 2, 3, 4, 5, 6 });
+        write_shard(path / "model-00002-of-00002.safetensors", shard_b_header, { 7, 8, 9, 10, 11, 12, 13, 14 });
+        const auto index = path / "model.safetensors.index.json";
+        for (const auto mode : {llama_safetensors_io_mode::BUFFERED, llama_safetensors_io_mode::MMAP}) {
+            write_text(index,
+                R"({"weight_map":{"a":"model-00001-of-00002.safetensors","fp8":"model-00002-of-00002.safetensors"}})");
+            const auto recovered = llama_safetensors_registry::load(path, mode);
+            const auto * recovered_packed = recovered.find("packed");
+            require(recovered_packed && recovered.read(*recovered_packed) == std::vector<uint8_t>({ 5, 6 }),
+                    "registry did not recover an unlisted tensor from an indexed shard");
+            const auto * assigned = recovered.find("a");
+            require(assigned && recovered.read(*assigned) == std::vector<uint8_t>({ 1, 2, 3, 4 }),
+                    "recovery replaced an explicitly assigned tensor with its duplicate");
+
+            const auto rejects_with = [&](const char * expected) {
+                try {
+                    (void) llama_safetensors_registry::load(path, mode);
+                } catch (const std::runtime_error & error) {
+                    return std::string(error.what()).find(expected) != std::string::npos;
+                }
+                return false;
+            };
+            write_text(index,
+                R"({"weight_map":{"packed":"model-00001-of-00002.safetensors","fp8":"model-00002-of-00002.safetensors"}})");
+            require(rejects_with("duplicate safetensors tensor 'a'"),
+                    "registry guessed which unlisted duplicate to recover");
+
+            // An unlisted fp8 adds enough entries to hide the missing packed
+            // tensor from a completeness check based only on registry size.
+            write_text(index,
+                R"({"weight_map":{"a":"model-00001-of-00002.safetensors","packed":"model-00002-of-00002.safetensors"}})");
+            require(rejects_with("weight_map tensor 'packed' is missing from its shard"),
+                    "recovery concealed an explicit assignment to the wrong shard");
+
+            write_text(index,
+                R"({"weight_map":{"a":"model-00001-of-00002.safetensors","missing":"model-00002-of-00002.safetensors"}})");
+            require(rejects_with("weight_map tensor 'missing' is missing from its shard"),
+                    "recovered extras concealed an indexed tensor absent from all shards");
+        }
+    }
+
     // The index is authoritative; a tensor missing from its assigned shard
     // must still be rejected before any model allocation begins.
     write_text(
@@ -4754,4 +5149,7 @@ int main(int argc, char ** argv) {
     require(unsupported_rejected, "Qwen3.5 importer accepted an unsupported model contract");
 
     return 0;
+} catch (const std::exception & error) {
+    std::cerr << "test-safetensors-registry: " << error.what() << '\n';
+    return 1;
 }

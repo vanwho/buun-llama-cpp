@@ -244,6 +244,18 @@ public:
     void seq_cp  (llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) override;
     bool try_seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst,
                     llama_pos p0, llama_pos p1) override;
+    bool try_share_attn_prefix(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos n_tokens) override;
+    bool can_share_attn_prefix(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos n_tokens) const override;
+    bool can_share_attn_prefix_rows(llama_seq_id src, llama_seq_id dst,
+            llama_pos next_pos, const std::vector<llama_pos> & rows) const override;
+    bool try_share_attn_prefix_rows(llama_seq_id src, llama_seq_id dst,
+            llama_pos next_pos, const std::vector<llama_pos> & rows) override;
+    bool can_share_live_prefix(llama_seq_id src, llama_seq_id dst, llama_pos n_tokens) const override;
+    bool can_share_live_prefix_rows(llama_seq_id src, llama_seq_id dst,
+            llama_pos next_pos, const std::vector<llama_pos> & rows) const override;
+    bool try_share_live_prefix_rows(llama_seq_id src, llama_seq_id dst,
+            llama_pos next_pos, const std::vector<llama_pos> & rows) override;
+    bool try_share_live_prefix(llama_seq_id src, llama_seq_id dst, llama_pos n_tokens) override;
     bool try_seq_cp_transient(
             llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) override;
     void seq_keep(llama_seq_id seq_id)                                                          override;
@@ -441,6 +453,7 @@ public:
     bool get_has_shift() const;
 
     ggml_type type_k() const;
+    // GGML_TYPE_COUNT denotes an absent V side (key-only / MLA cache).
     ggml_type type_v() const;
 
     std::vector<uint32_t> get_layer_ids() const;
@@ -559,7 +572,13 @@ public:
     void get_prev_tokens(const llama_ubatch & ubatch, uint32_t n, std::vector<llama_token> & res) const;
 
 private:
+    llama_pos live_prefix_begin(llama_pos n_tokens) const;
+    bool can_share_range(llama_seq_id src, llama_seq_id dst, llama_pos p0, llama_pos p1) const;
+    bool can_share_destination(llama_seq_id src, llama_seq_id dst) const;
+    bool share_checked_range(llama_seq_id src, llama_seq_id dst, llama_pos p0, llama_pos p1);
     friend class vbr_live_capture_adapter;
+    friend class vbr_swa_window_capture;
+    friend class vbr_swa_window_planner;
     friend class vbr_kv_import_session;
     friend struct llama_kv_cache_vbr_stash_batch_test;
     friend class llama_kv_cache_context;
@@ -735,6 +754,11 @@ private:
     bool vbr_import_destination_input(
         uint32_t projected_wm_cells,
         vbr_import_destination_child & output) const noexcept;
+    // source_high_water=0 selects normal incoming occupancy; otherwise price
+    // the installed rows plus suffix, retaining source_backing independently.
+    uint32_t vbr_import_watermark_cells(uint32_t incoming_cells, uint32_t prefix_cells,
+                                        uint32_t source_high_water, llama_seq_id destination,
+                                        uint32_t source_backing = 0) const;
     struct vbr_import_destination_pricing {
         struct pool_row {
             const ggml_vbr_backend_iface * be = nullptr;
@@ -780,7 +804,7 @@ private:
         uint32_t projected_wm_cells,
         std::vector<llama_memory_vbr_physical_growth> * physical) const noexcept;
     bool vbr_policy_priced_steps(
-        std::vector<ggml_type> & sim, size_t start_cursor,
+        std::vector<ggml_type> & sim, size_t start_cursor, size_t end_cursor,
         int demanded_device, uint32_t watermark, bool fixed_watermark,
         bool fail_closed, llama_vbr_policy::child & output,
         vbr_hard_seal_consult_session * seal_session = nullptr) const;
@@ -1685,6 +1709,10 @@ private:
 
   private:
 
+    // Shared by decode placement and historical-window planning. An occupied
+    // SWA cell is reusable only when it is masked for every current owner.
+    bool can_reuse_cell(uint32_t stream, uint32_t cell) const;
+
     vbr_generation_event vbr_generation_begin(
             vbr_mutation_registrant registrant,
             vbr_operation_class operation_class,
@@ -1761,7 +1789,7 @@ private:
     // unified pin contract: a unit may be stepped only if its current type is a vbr tier AND
     // its side is not flag-pinned — every degrade/promote/sim walk must use this predicate
     bool vbr_unit_movable(ggml_type t, bool is_v) const;
-    uint32_t vbr_watermark_cells(uint32_t extra_tokens) const; // shared by prepare() + ensure_mapped
+    uint32_t vbr_watermark_cells(uint32_t extra_tokens) const;
     uint32_t get_pad_floor() const; // model-scoped attention read padding, also used by scratch sizing
     enum class vbr_degrade_result {
         applied,

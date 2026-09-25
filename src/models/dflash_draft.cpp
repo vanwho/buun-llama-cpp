@@ -604,7 +604,7 @@ llm_build_dflash_draft::llm_build_dflash_draft(
             // asymmetric attention: Q [head_dim, n_head, n_tokens]
             //                       K [head_dim, n_head_kv, n_kv_total]
             //                    mask [n_kv_total, n_tokens, 1, 1]
-            cur = build_attn_mha(Qcur, Kcur, Vcur, nullptr, kq_mask, nullptr, nullptr,
+            cur = build_attn_mha(Qcur, Kcur, Vcur, nullptr, kq_mask, nullptr, nullptr, 0,
                                  1.0f / sqrtf(float(n_embd_head)), il);
             cb(cur, "kqv_out", il);
 
@@ -648,7 +648,7 @@ llm_build_dflash_draft::llm_build_dflash_draft(
     if (!output_use) {
         output_use = ggml_new_tensor_2d(ctx0, GGML_TYPE_Q4_0, n_embd, model.vocab.n_tokens());
     }
-    cur = build_lora_mm(output_use, cur);
+    cur = build_lora_mm(output_use, cur, model.output_s, model.output_in_s);
     cb(cur, "result_output", -1);
     res->t_logits = cur;
 

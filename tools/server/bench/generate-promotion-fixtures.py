@@ -250,7 +250,7 @@ def token_count(text: str, tokenizer_bin: Path, model: Path) -> int:
 
 
 def pad_exact(text: str, comment: str, notes: tuple[str, ...], target: int,
-              tokenizer_bin: Path, model: Path) -> str:
+              tokenizer_bin: Path, model: Path, retrieval_key: str) -> str:
     separator = "\n" if comment else "\n\n"
     value = text.rstrip()
     note_index = 0
@@ -271,25 +271,27 @@ def pad_exact(text: str, comment: str, notes: tuple[str, ...], target: int,
             value = candidate
         break
     value += separator + f"{comment}Fixture length padding:"
-    current = token_count(value, tokenizer_bin, model)
+    retrieval_line = (f"{comment}RETRIEVAL_KEY: {retrieval_key}" if comment
+                      else f"Retrieval key: {retrieval_key}")
+    current = token_count(value + "\n" + retrieval_line, tokenizer_bin, model)
     if current >= target:
         raise RuntimeError(f"base fixture is too large: {current} >= {target} tokens")
     value += " x" * (target - current)
-    actual = token_count(value, tokenizer_bin, model)
+    actual = token_count(value + "\n" + retrieval_line, tokenizer_bin, model)
     if actual != target:
         # The Qwen vocabulary encodes whitespace-prefixed x as one token; keep
         # a correction path so vocabulary changes fail clearly, not silently.
         while actual < target:
             value += " x"
-            actual = token_count(value, tokenizer_bin, model)
+            actual = token_count(value + "\n" + retrieval_line, tokenizer_bin, model)
         while actual > target:
             if not value.endswith(" x"):
                 raise RuntimeError("cannot correct tokenizer padding without changing fixture text")
             value = value[:-2]
-            actual = token_count(value, tokenizer_bin, model)
+            actual = token_count(value + "\n" + retrieval_line, tokenizer_bin, model)
     if actual != target:
         raise RuntimeError(f"fixture token count is {actual}; expected {target}")
-    return value + "\n"
+    return value + "\n" + retrieval_line + "\n"
 
 
 def generate(output: Path, target: int, tokenizer_bin: Path, model: Path) -> None:
@@ -303,7 +305,7 @@ def generate(output: Path, target: int, tokenizer_bin: Path, model: Path) -> Non
         (output / "python" / name).write_text(text, encoding="utf-8")
         entries.append({"id": f"PY_MERGE_{number:02d}", "category": "python_sorted_merge",
                         "path": f"python/{name}", "retrieval_key": item[1],
-                        "question": f"For PY_MERGE_{number:02d}, report its RETRIEVAL_KEY exactly.",
+                        "question": "What implementation behavior does this sorted-list merge file emphasize? Answer in your own words.",
                         "expected_answer": item[1], "token_count_no_bos": target,
                         "sha256": hashlib.sha256(text.encode()).hexdigest(), "syntax_check": "py_compile"})
     for number, item in enumerate(MMAP_VARIANTS, 1):
@@ -312,7 +314,7 @@ def generate(output: Path, target: int, tokenizer_bin: Path, model: Path) -> Non
         (output / "mmap" / name).write_text(text, encoding="utf-8")
         entries.append({"id": f"MMAP_READ_{number:02d}", "category": "mmap_vs_read",
                         "path": f"mmap/{name}", "retrieval_key": item[2],
-                        "question": f"For MMAP_READ_{number:02d}, report its specific retrieval fact exactly.",
+                        "question": "What distinction does this explanation make between mmap and read? Answer in your own words.",
                         "expected_answer": item[2], "token_count_no_bos": target,
                         "sha256": hashlib.sha256(text.encode()).hexdigest(), "syntax_check": "markdown"})
     for number, item in enumerate(BASH_VARIANTS, 1):
@@ -321,7 +323,7 @@ def generate(output: Path, target: int, tokenizer_bin: Path, model: Path) -> Non
         (output / "bash" / name).write_text(text, encoding="utf-8")
         entries.append({"id": f"BASH_WATCH_{number:02d}", "category": "bash_directory_watch",
                         "path": f"bash/{name}", "retrieval_key": item[2],
-                        "question": f"For BASH_WATCH_{number:02d}, report its RETRIEVAL_KEY exactly.",
+                        "question": "How does this watcher identify newly appearing files? Answer in your own words.",
                         "expected_answer": item[2], "token_count_no_bos": target,
                         "sha256": hashlib.sha256(text.encode()).hexdigest(), "syntax_check": "bash -n"})
     manifest = {"schema": "attention-promotion-fixtures-v1", "target_model_family": "Qwen3.8-27B",
@@ -363,7 +365,8 @@ def merge_sorted(left: list[int], right: list[int]) -> list[int]:
 if __name__ == "__main__":
     print(merge_sorted([1, 4, 7], [2, 4, 9]))
 '''
-    return pad_exact(text, "# ", MERGE_NOTES + (item[1],), target, tokenizer_bin, model)
+    return pad_exact(text, "# ", MERGE_NOTES + (item[1],), target,
+                     tokenizer_bin, model, item[1])
 
 
 def build_mmap_text(number: int, item: tuple[str, str, str, str], target: int,
@@ -394,7 +397,8 @@ universally faster, and both can wait on storage when needed pages are cold.
 Specific fact for this fixture: {key_fact}
 Additional detail: {nuance}
 '''
-    return pad_exact(text, "", MMAP_NOTES + (key_fact, nuance), target, tokenizer_bin, model)
+    return pad_exact(text, "", MMAP_NOTES + (key_fact, nuance), target,
+                     tokenizer_bin, model, key_fact)
 
 
 def build_bash_text(number: int, item: tuple[str, str, str, str], target: int,
@@ -420,7 +424,8 @@ watch_new_files() {{
 
 watch_new_files
 '''
-    return pad_exact(text, "# ", BASH_NOTES + (item[2],), target, tokenizer_bin, model)
+    return pad_exact(text, "# ", BASH_NOTES + (item[2],), target,
+                     tokenizer_bin, model, retrieval)
 
 
 def write_readme(output: Path, target: int, entries: list[dict[str, Any]]) -> None:
@@ -437,9 +442,11 @@ def write_readme(output: Path, target: int, entries: list[dict[str, Any]]) -> No
                           ("Bash directory watchers", "bash/watch_directory_new_files_")):
         paths = [entry["path"].split("/")[-1] for entry in entries if entry["path"].startswith(prefix)]
         lines.append(f"| {label} | `{paths[0]}` … `{paths[-1]}` ({len(paths)}) |")
-    lines += ["", "`manifest.json` records fixture IDs, exact tokenizer counts, retrieval questions/keys, "
-              "and SHA-256 hashes. A promotion test must include file contents as ordinary appended user "
-              "context in the same slot; it must not send fixture paths or page IDs as a routing hint.", "",
+    lines += ["", "`manifest.json` records fixture IDs, tokenizer counts, natural recall questions, "
+              "reference facts, and SHA-256 hashes. The bounded live proof uses one representative file "
+              "as A, appends full B-file contents as ordinary same-slot context, and asks naturally about "
+              "A again. Acknowledgements are free-form; fixture facts are never shortened to fit an output "
+              "limit. Do not send fixture paths or page IDs as routing hints.", "",
               "Python fixtures may be syntax-checked and their `merge_sorted` functions exercised. Bash "
               "fixtures must be syntax-checked only; do not launch their indefinite watcher loops.", ""]
     (output / "README.md").write_text("\n".join(lines), encoding="utf-8")

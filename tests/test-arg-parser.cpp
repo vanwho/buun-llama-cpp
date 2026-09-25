@@ -116,6 +116,16 @@ static void test(void) {
         assert(implicit.kv_unified);
         assert(implicit.valid());
 
+        // Split target: two 16K streams need a 32K shared draft pool. Extra
+        // backup sequence IDs must not multiply that physical capacity.
+        for (uint32_t sequences : { 2u, 4u }) {
+            const auto shared = common_speculative_mtp_context_params_resolve(
+                32768, 0, sequences, false);
+            assert(shared.n_ctx == 32768);
+            assert(shared.n_seq_max == sequences);
+            assert(shared.kv_unified);
+        }
+
         const auto explicit_split = common_speculative_mtp_context_params_resolve(
             4096, 8192, 3, false);
         assert(explicit_split.n_ctx == 8192);
@@ -413,6 +423,36 @@ static void test(void) {
         assert(draft.cpuparams.n_threads_explicit);
         assert(draft.cpuparams_batch.n_threads == 7);
         assert(draft.cpuparams_batch.n_threads_explicit);
+    }
+
+    {
+        // Parameter projection only: these opaque device identities are never dereferenced.
+        const auto dev0 = reinterpret_cast<ggml_backend_dev_t>(uintptr_t(1));
+        const auto dev1 = reinterpret_cast<ggml_backend_dev_t>(uintptr_t(2));
+        common_params base;
+        base.devices = { dev0, dev1, nullptr };
+        base.split_mode = LLAMA_SPLIT_MODE_TENSOR;
+        base.speculative.draft.mparams.path = "draft.gguf";
+
+        const auto inherited = common_base_params_to_speculative(base);
+        assert(inherited.devices == base.devices);
+        assert(inherited.split_mode == LLAMA_SPLIT_MODE_TENSOR);
+
+        base.speculative.draft.devices = { dev1, nullptr };
+        const auto pinned = common_base_params_to_speculative(base);
+        assert(pinned.devices == base.speculative.draft.devices);
+        assert(pinned.split_mode == LLAMA_SPLIT_MODE_LAYER);
+        assert(base.split_mode == LLAMA_SPLIT_MODE_TENSOR);
+
+        base.speculative.draft.devices = { dev1, dev0, nullptr };
+        const auto multi = common_base_params_to_speculative(base);
+        assert(multi.devices == base.speculative.draft.devices);
+        assert(multi.split_mode == LLAMA_SPLIT_MODE_TENSOR);
+
+        base.speculative.draft.devices = { nullptr };
+        const auto cpu = common_base_params_to_speculative(base);
+        assert(cpu.devices == base.speculative.draft.devices);
+        assert(cpu.split_mode == LLAMA_SPLIT_MODE_TENSOR);
     }
 
     {

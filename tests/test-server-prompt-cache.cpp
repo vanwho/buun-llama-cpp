@@ -316,6 +316,78 @@ void test_idle_capture_session_cancellation() {
     }
 }
 
+void test_displacement_capture_session() {
+    for (int route = 0; route < 3; ++route) {
+        server_queue queue;
+        auto capture = queue.try_begin_displacement_capture();
+        CHECK(capture.continue_capture());
+        server_task cancel;
+        cancel.id = 40;
+        cancel.type = SERVER_TASK_TYPE_CANCEL;
+        cancel.id_target = 39;
+        if (route == 0) {
+            queue.post(std::move(cancel));
+        } else if (route == 1) {
+            std::vector<server_task> tasks;
+            tasks.push_back(std::move(cancel));
+            queue.post(std::move(tasks));
+        } else {
+            queue.defer(std::move(cancel));
+        }
+        CHECK(!capture.continue_capture());
+        capture = {};
+        // A queued cancellation must also prevent a fresh foreground wave.
+        CHECK(!queue.try_begin_displacement_capture());
+    }
+    {
+        server_queue queue;
+        auto idle = queue.try_begin_idle_capture();
+        CHECK(idle);
+        CHECK(queue.post(idle_capture_test_task(30)) == 30);
+        CHECK(!idle.continue_capture());
+        // Cancelled work must drain/release before foreground acquisition.
+        CHECK(!queue.try_begin_displacement_capture());
+        idle = {};
+        auto capture = queue.try_begin_displacement_capture();
+        CHECK(capture.continue_capture());
+        CHECK(!queue.try_begin_displacement_capture());
+        CHECK(queue.post(idle_capture_test_task(31)) == 31);
+        std::vector<server_task> tasks;
+        tasks.push_back(idle_capture_test_task(32));
+        CHECK(queue.post(std::move(tasks)) == 0);
+        queue.defer(idle_capture_test_task(33));
+        CHECK(capture.continue_capture());
+        auto moved = std::move(capture);
+        CHECK(!capture);
+        CHECK(moved.continue_capture());
+        moved.cancel();
+        CHECK(!moved.continue_capture());
+        moved = {};
+        auto second = queue.try_begin_displacement_capture();
+        CHECK(second.continue_capture());
+        queue.terminate();
+        CHECK(!second.continue_capture());
+        CHECK(!queue.try_begin_displacement_capture());
+    }
+    {
+        server_queue queue;
+        auto capture = queue.try_begin_displacement_capture();
+        CHECK(capture.continue_capture());
+        capture = {};
+        auto idle = queue.try_begin_idle_capture();
+        CHECK(idle.continue_capture());
+        CHECK(queue.post(idle_capture_test_task(34)) == 34);
+        CHECK(!idle.continue_capture()); // cancellation policy resets per session
+    }
+    server_queue::idle_capture_session escaped;
+    {
+        server_queue queue;
+        escaped = queue.try_begin_displacement_capture();
+        CHECK(escaped.continue_capture());
+    }
+    CHECK(!escaped.continue_capture());
+}
+
 void test_idle_capture_refuses_active_queue_yield() {
     server_queue queue;
     std::mutex mutex;
@@ -364,6 +436,7 @@ void test_idle_capture_refuses_active_queue_yield() {
     // acquire capture authority concurrently with decode/speculative work.
     CHECK(!queue.try_begin_idle_capture());
     CHECK(!queue.try_begin_prompt_boundary_capture());
+    CHECK(!queue.try_begin_displacement_capture());
 
     CHECK(queue.post(idle_capture_test_task(20)) == 20);
     {
@@ -555,6 +628,7 @@ void configure_host_accounting(
             llama_cache_acct_category::full_snapshot_payload,
             llama_cache_acct_category::checkpoint_state_payload,
             llama_cache_acct_category::typed_accelerator_payload,
+            llama_cache_acct_category::transfer_staging,
             llama_cache_acct_category::artifact_descriptor_metadata }) {
         if (!with_sidecar && category ==
                 llama_cache_acct_category::artifact_descriptor_metadata) {
@@ -723,6 +797,120 @@ server_prompt_cache::iterator publish_indexed_host_from_live(
     CHECK(published != cache.states.end());
     retention.retire(server_retention_instance_key::for_slot(slot_id));
     return published;
+}
+
+void test_active_storage_budget() {
+    server_prompt_cache cache(0, 0);
+    cache.limit_size = 100;
+    server_prompt prompt;
+    prompt.tokens = server_tokens(llama_tokens {1, 2, 3}, false);
+    CHECK(cache.publish(cache.stage(prompt, 40, 0, "incumbent")));
+    auto image = cache.reserve_active_storage(60, 3);
+    CHECK(image && cache.active_storage_bytes() == 60);
+    CHECK(cache.fits_bytes(40) && !cache.fits_bytes(41));
+    CHECK(!cache.reserve_active_storage(1));
+    CHECK(cache.states.size() == 1); // refusal cannot evict an incumbent
+    auto reader = image;
+    image.reset();
+    CHECK(cache.active_storage_bytes() == 60);
+    CHECK(cache.stage(prompt, 41, 0, "too-large").empty());
+    // Existing host pressure still operates inside the remaining envelope.
+    CHECK(cache.publish(cache.stage(prompt, 40, 0, "replacement")));
+    CHECK(cache.size() == 40 && cache.states.size() == 1);
+    reader.reset();
+    CHECK(cache.active_storage_bytes() == 0 && cache.active_storage_tokens() == 0);
+    CHECK(cache.fits_bytes(100) && !cache.fits_bytes(SIZE_MAX));
+
+    server_prompt_cache token_cache(0, 10);
+    auto token_image = token_cache.reserve_active_storage(50, 8);
+    CHECK(token_image && token_cache.effective_host_token_limit(1, 2) == 2);
+    CHECK(!token_cache.reserve_active_storage(1, 3));
+    CHECK(token_cache.publish(token_cache.stage(prompt, 1, 0, "token-pressure")) == false);
+    CHECK(token_cache.states.empty());
+    token_image.reset();
+    CHECK(token_cache.effective_host_token_limit(1, 3) == 10);
+
+    std::shared_ptr<void> detached;
+    {
+        server_prompt_cache owner(0, 0);
+        detached = owner.reserve_active_storage(100, 20);
+        CHECK(detached);
+    }
+    detached.reset(); // charge has no pointer to the destroyed cache
+
+    server_cache_authority authority;
+    configure_host_accounting(authority);
+    const auto check_admission = [&] {
+        llama_cache_budget_config config;
+        CHECK(authority.sample_budget(config));
+        CHECK(config.host.pageable_state == llama_cache_budget_capacity_state::known);
+        server_prompt_cache ordinary(0, 0);
+        ordinary.acct = &authority.ledger;
+        ordinary.publish_authority = &authority;
+        CHECK(ordinary.publish(ordinary.stage(prompt, 16, 0, "ordinary-publication")));
+    };
+    check_admission();
+
+    server_cache_authority failed_authority;
+    configure_host_accounting(failed_authority);
+    failed_authority.ledger.mark_unavailable(
+        llama_cache_acct_category::checkpoint_state_payload,
+        llama_cache_acct_resource_domain::non_device(llama_cache_acct_residency::pageable_host),
+        llama_cache_acct_measure::reserved);
+    server_prompt_cache failed_cache(0, 0);
+    failed_cache.acct = &failed_authority.ledger;
+    CHECK(!failed_cache.reserve_active_storage(20, 1));
+    CHECK(failed_cache.active_storage_bytes() == 0 && failed_authority.ledger.snapshot().live_ops == 0);
+    {
+        server_prompt_cache observed(0, 0);
+        observed.acct = &authority.ledger;
+        auto sealed = observed.reserve_active_storage(60, 3);
+        auto transient = observed.reserve_active_storage(40);
+        CHECK(sealed && transient && authority.ledger.snapshot().live_ops == 2);
+        const auto snapshot = authority.ledger.snapshot();
+        uint64_t reserved = 0;
+        for (const auto & row : snapshot.cells) {
+            const auto value = row.cell.measures[size_t(llama_cache_acct_measure::reserved)];
+            if (value.state == llama_cache_acct_known::known) { reserved += value.value; }
+        }
+        CHECK(reserved == 100 && snapshot.allocations.empty());
+        check_admission();
+        for (const auto & row : snapshot.completeness) {
+            if (row.producer == llama_cache_acct_producer::host_cache) {
+                CHECK(row.state == llama_cache_acct_known::known);
+            }
+        }
+        detached = sealed;
+        sealed.reset();
+        CHECK(observed.active_storage_bytes() == 100);
+        transient.reset();
+        CHECK(observed.active_storage_bytes() == 60);
+        detached.reset();
+        CHECK(observed.active_storage_bytes() == 0);
+        CHECK(authority.ledger.snapshot().live_ops == 0);
+        detached = observed.reserve_active_storage(20, 1);
+    }
+    CHECK(authority.ledger.snapshot().live_ops == 0);
+    detached.reset(); // detached reader has no pointer to the accounting owner
+    CHECK(authority.ledger.snapshot().live_ops == 0);
+    check_admission();
+    {
+        server_cache_authority temporary_authority;
+        configure_host_accounting(temporary_authority);
+        server_prompt_cache temporary_owner(0, 0);
+        temporary_owner.acct = &temporary_authority.ledger;
+        detached = temporary_owner.reserve_active_storage(20, 1);
+        CHECK(detached);
+    }
+    detached.reset(); // both accounting owner and cache have now been destroyed
+
+    // Separately budgeted anchors must not disable otherwise affordable windows.
+    server_prompt_cache split_budget(0, 0);
+    split_budget.limit_size = 100;
+    split_budget.quality_anchor_budget_enabled = true;
+    CHECK(split_budget.publish(split_budget.stage(prompt, 40, 0, "compact")));
+    auto split_image = split_budget.reserve_active_storage(60, 3);
+    CHECK(split_image && !split_budget.reserve_active_storage(1));
 }
 
 void test_typed_host_payload_boundary() {
@@ -1526,9 +1714,6 @@ std::list<server_prompt_cache_state> make_redundant_entry() {
     return entry;
 }
 
-constexpr const char * HOST_TRADE_TEST_PROFILE =
-    "qwen35-2b-q4-k---medium/nvidia-geforce-rtx-3090-ngl99/b512/kf16-vf16";
-
 class available_host_fallback final : public server_cache_lease_fallback_provider {
 public:
     server_cache_durable_fallback_proof acquire(
@@ -1623,7 +1808,6 @@ void configure_host_trade(
         const std::string & execution_identity,
         server_cache_lease_table * leases = nullptr) {
     configure_host_accounting(authority, true);
-    authority.calibration_profile = HOST_TRADE_TEST_PROFILE;
     cache.acct = &authority.ledger;
     cache.publish_authority = &authority;
     cache.destruction_obs = &authority.destruction;
@@ -1716,7 +1900,6 @@ struct retention_capacity_benchmark_fixture {
 
     bool prepare() {
         configure_host_trade(authority, cache, execution);
-        authority.calibration_profile = {};
         cache.retention_capacity_authority = retention_capacity_enabled;
         if (retention_capacity_enabled &&
             (!authority.retention.enable_prefix_tracking() ||
@@ -2008,7 +2191,6 @@ void test_lifecycle_retention_capacity_token_pressure_uses_tokens() {
     CHECK(shadow.last.proposed_resource == 100);
     CHECK(authority.destruction.host_trade_retention_capacity_executed == 1);
     CHECK(authority.destruction.host_trade_legacy_fallbacks == 0);
-    CHECK(authority.destruction.host_trade_unpriced == 0);
 }
 
 void test_lifecycle_defaults_and_reuse_thresholds() {
@@ -2090,8 +2272,6 @@ void test_lifecycle_defaults_and_reuse_thresholds() {
     CHECK(!server_vbr_empty_handoff_lookup_allowed(rejects_handoff(
         [](auto & gate) { gate.hard_lease = true; })));
     CHECK(!server_vbr_empty_handoff_lookup_allowed(rejects_handoff(
-        [](auto & gate) { gate.recovery_pin = true; })));
-    CHECK(!server_vbr_empty_handoff_lookup_allowed(rejects_handoff(
         [](auto & gate) { gate.deferred_task = true; })));
     CHECK(!server_vbr_empty_handoff_lookup_allowed(rejects_handoff(
         [](auto & gate) { gate.incumbent_supported = false; })));
@@ -2119,6 +2299,8 @@ void test_lifecycle_defaults_and_reuse_thresholds() {
     CHECK(vbr_reclaim.token_identity_distinguishes_attempt);
     CHECK(vbr_reclaim.successful_attempt_is_state_sealed);
     CHECK(vbr_reclaim.multi_fresh_pressure_isolated);
+    CHECK(vbr_reclaim.fragmented_projection_retries_exact);
+    CHECK(vbr_reclaim.stash_projection_retries_exact);
     CHECK(vbr_reclaim.isolated_capture_drains_without_backoff);
     CHECK(vbr_reclaim.unchanged_admission_refusal_is_suppressed);
     CHECK(vbr_reclaim.checkpoint_admission_refusals_are_independent);
@@ -2127,6 +2309,7 @@ void test_lifecycle_defaults_and_reuse_thresholds() {
     available_host_fallback vbr_selection_fallback;
     const auto vbr_selection = server_vbr_slot_selection_for_test(
         &vbr_selection_fallback);
+    CHECK(vbr_selection.pinned_empty_lookup);
     CHECK(vbr_selection.learned_selected_cold);
     CHECK(vbr_selection.learned_kept_hot);
     CHECK(vbr_selection.selection_was_pure);
@@ -2769,32 +2952,6 @@ void test_lifecycle_retention_capacity_cold_start_prior_ages_to_recency() {
     CHECK(run(true) == "prior-ordinary");
 }
 
-void make_host_trade_pair(
-        server_prompt_cache::iterator victim,
-        server_prompt_cache::iterator recovery,
-        const char * adapter,
-        llama_token token,
-        int32_t source_id,
-        bool main_family = false) {
-    victim->adapter_config_key = adapter;
-    recovery->adapter_config_key = adapter;
-    victim->prompt.tokens = server_tokens(
-        llama_tokens { token, token + 1, token + 2 }, false);
-    recovery->prompt.tokens = server_tokens(
-        llama_tokens { token, token + 1, token + 2 }, false);
-    victim->prompt.sequence_epoch = uint64_t(token);
-    recovery->prompt.sequence_epoch = uint64_t(token);
-    victim->payload.fixed_state()->main =
-        recovery->payload.fixed_state()->main;
-    victim->cache_plan_source_id = source_id;
-    recovery->cache_plan_source_id = source_id + 100;
-    victim->main_family = main_family;
-    // Keep the proof source outside the victim candidate set while still
-    // allowing the short-lived destruction pin to nest over it.
-    recovery->recovery_pins = 1;
-    CHECK(server_prompt_cache::exactly_redundant(*victim, *recovery));
-}
-
 server_cache_lease_id grant_host_lease(
         server_prompt_cache & cache,
         server_cache_lease_table & leases,
@@ -2844,7 +3001,7 @@ server_cache_lease_id grant_explicit_host_lease(
         server_cache_lease_table::IMPLICIT_SOFT_TTL_NS);
 }
 
-void test_declared_family_round_trip_and_price() {
+void test_declared_family_round_trip() {
     const common_cache_family_binding declared_main {
         { 0xe11b }, common_cache_family_role::main,
     };
@@ -2936,30 +3093,12 @@ void test_declared_family_round_trip_and_price() {
     CHECK(automatic.main_family);
     CHECK(!automatic.cache_family.declared());
 
-    const common_cache_plan_calib calib {
-        "e1-family-test", 1, 0.0, 1.0, 10.0,
-    };
-    uint32_t automatic_weight = 0;
-    uint32_t declared_weight = 0;
-    uint64_t automatic_price = 0;
-    uint64_t declared_price = 0;
-    CHECK(server_cache_host_retention_price_us(
-        calib, 100, false,
-        common_cache_family_main_family(undeclared, true),
-        automatic_weight, automatic_price));
-    CHECK(server_cache_host_retention_price_us(
-        calib, 100, false,
-        common_cache_family_main_family(declared_main, false),
-        declared_weight, declared_price));
-    CHECK(automatic_weight == SERVER_CACHE_HOST_MAIN_FAMILY_WEIGHT);
-    CHECK(declared_weight == automatic_weight);
-    CHECK(declared_price == automatic_price);
-    CHECK(!common_cache_family_allows_additional_weight(declared_main));
+    CHECK(common_cache_family_main_family(undeclared, true));
+    CHECK(common_cache_family_main_family(declared_main, false));
     const common_cache_family_binding declared_branch {
         declared_main.family, common_cache_family_role::branch,
     };
     CHECK(!common_cache_family_main_family(declared_branch, true));
-    CHECK(!common_cache_family_allows_additional_weight(declared_branch));
 
     // One lineage rule covers slot reuse, undeclared append, and an explicit
     // declaration branching from retained content. A tokenizer-global BOS or
@@ -3144,6 +3283,7 @@ void test_exact_refusal_wire_response() {
 void test_lifecycle_restore_retains_immutable_source() {
     server_cache_authority authority;
     configure_host_accounting(authority, true);
+    CHECK(authority.retention.enable_prefix_tracking());
     const std::string execution = "restore-retained-hard-fallback";
 
     server_prompt_cache cache(/* limit_size_mib */ 0, /* limit_tokens */ 0);
@@ -3608,44 +3748,6 @@ void test_durable_recovery_binds_exact_published_peer() {
     CHECK(older->recovery_pins == 1);
 }
 
-void test_unlaunched_disarm_releases_recovery_pin() {
-    server_cache_authority authority;
-    configure_host_accounting(authority, true);
-    server_prompt_cache cache(0, 0);
-    cache.acct = &authority.ledger;
-    cache.publish_authority = &authority;
-    cache.retention_obs = &authority.retention;
-    cache.destruction_obs = &authority.destruction;
-
-    server_prompt_cache::iterator displaced_copy;
-    CHECK(cache.publish(
-        make_prompt_entry("same", { 1, 2, 3 }),
-        nullptr, -1, &displaced_copy));
-    (void) publish_host_retention(authority, displaced_copy);
-    llama_cache_acct_artifact_id artifact;
-    std::vector<llama_cache_acct_op_id> ops;
-    server_cache_recovery_pin recovery_pin;
-    CHECK(cache.acquire_durable_recovery(
-        displaced_copy, artifact, ops, recovery_pin));
-    CHECK(displaced_copy->recovery_pins == 1);
-
-    server_cache_plan_execution execution;
-    execution.kind = server_cache_plan_execution_kind::cold_replay;
-    execution.target = 0;
-    auto plan = std::make_unique<common_cache_plan_record>();
-    server_cache_plan_disarm_unlaunched(
-        execution, plan, recovery_pin);
-    CHECK(!execution.authoritative());
-    CHECK(!plan);
-    CHECK(!recovery_pin.valid());
-    CHECK(displaced_copy->recovery_pins == 0);
-
-    // The former recovery source is ordinary priced inventory again: a later
-    // superset publication may retire it rather than treating it as pinned.
-    CHECK(cache.publish(make_prompt_entry("same", { 1, 2, 3, 4 })));
-    CHECK(cache.states.size() == 1);
-    CHECK(cache.states.front().prompt.n_tokens() == 4);
-}
 
 void test_displacement_save_order_preserves_prefix_recovery() {
     server_cache_authority authority;
@@ -3721,6 +3823,9 @@ void test_lifecycle_off_restore_consumes() {
 void test_lifecycle_restore_batch_timing() {
     server_cache_authority authority;
     configure_host_accounting(authority, true);
+    // Production host restores have prefix tracking enabled. Checkpoint
+    // metadata must remain outside that index and keep its own frontier.
+    CHECK(authority.retention.enable_prefix_tracking());
     server_prompt_cache cache(0, 0);
     cache.acct = &authority.ledger;
     cache.publish_authority = &authority;
@@ -3736,7 +3841,7 @@ void test_lifecycle_restore_batch_timing() {
     for (int i = 0; i < 8; ++i) {
         entry.front().prompt.checkpoints.emplace_back();
         auto & checkpoint = entry.front().prompt.checkpoints.back();
-        checkpoint.n_tokens = 4096;
+        checkpoint.n_tokens = 512 * (i + 1);
         fill_checkpoint_bytes(
             checkpoint.data_tgt, 64 * 1024, uint8_t(i + 1));
         fill_checkpoint_bytes(
@@ -3757,10 +3862,14 @@ void test_lifecycle_restore_batch_timing() {
         server_retention_instance_key::for_host_entry(&cache.states.front()),
         common_retention_pool::attention, spans, true, 4096, 4096, true));
     for (const auto & checkpoint : cache.states.front().prompt.checkpoints) {
+        server_cache_lease_identity identity;
+        CHECK(server_cache_lease_build_identity(
+            "batch-restore", cache.states.front().adapter_config_key,
+            cache.states.front().prompt.tokens, checkpoint.n_tokens, identity));
         CHECK(authority.retention.publish(
             server_retention_instance_key::for_checkpoint(-1, &checkpoint),
             common_retention_pool::attention, spans, true, 4096,
-            checkpoint.n_tokens, true));
+            checkpoint.n_tokens, true, &identity));
     }
     constexpr size_t checkpoint_plane_bytes =
         64 * 1024 + 8 * 1024 + 4 * 1024 + 1024;
@@ -3833,16 +3942,33 @@ void test_lifecycle_restore_batch_timing() {
         commit_samples.push_back(uint64_t(std::chrono::duration_cast<
             std::chrono::nanoseconds>(commit_end - commit_begin).count()));
         CHECK(live.checkpoints.size() == 8);
+        CHECK(authority.retention.prefix_tracking_available());
         // The host now owns only the marginal full-snapshot allocation. Every
         // checkpoint plane remains resident through the live aliases and is
         // therefore credited with zero host-cache release bytes.
         CHECK(cache.size() == 32);
+        auto source_checkpoint = cache.states.front().prompt.checkpoints.begin();
         for (const auto & checkpoint : live.checkpoints) {
             server_retention_candidate candidate;
+            const auto key = server_retention_instance_key::for_checkpoint(
+                100 + trial, &checkpoint);
+            CHECK(authority.retention.candidate_for_instance(
+                key, candidate));
+            CHECK(candidate.release_ops.size() == 4);
+            CHECK(candidate.record.stamp.coverage_tokens ==
+                  uint64_t(checkpoint.n_tokens));
+            server_retention_checkpoint_inventory inventory;
+            CHECK(authority.retention.checkpoint_inventory(key, inventory));
+            CHECK(inventory.identity_known);
+            CHECK(inventory.release_owned);
+            server_retention_candidate source_candidate;
             CHECK(authority.retention.candidate_for_instance(
                 server_retention_instance_key::for_checkpoint(
-                    100 + trial, &checkpoint), candidate));
-            CHECK(candidate.release_ops.size() == 4);
+                    -1, &*source_checkpoint), source_candidate));
+            CHECK(candidate.artifact_id != source_candidate.artifact_id);
+            CHECK(source_candidate.record.stamp.coverage_tokens ==
+                  candidate.record.stamp.coverage_tokens);
+            ++source_checkpoint;
         }
         authority.retention.retire_slot(100 + trial);
         CHECK(cache.size() == 32 + 8 * checkpoint_plane_bytes);
@@ -3860,271 +3986,6 @@ void test_lifecycle_restore_batch_timing() {
     CHECK(authority.ledger.snapshot().live_ops == 0);
 }
 
-void test_checkpoint_creation_churn_timing() {
-    server_cache_authority authority;
-    configure_host_accounting(authority, true);
-
-    llama_tokens token_ids(2000);
-    std::iota(token_ids.begin(), token_ids.end(), 1);
-    server_tokens tokens(token_ids, false);
-    common_chat_msg_spans spans;
-    for (size_t i = 0; i < 1000; ++i) {
-        spans.add(i % 2 == 0 ? COMMON_CHAT_ROLE_USER
-                             : COMMON_CHAT_ROLE_ASSISTANT,
-                  i * 2, 2);
-    }
-
-    std::list<common_prompt_checkpoint> ring;
-    const std::string execution_identity = "checkpoint-churn-execution";
-    const std::string adapter_identity = "checkpoint-churn-adapter";
-    const auto publish_member = [&](common_prompt_checkpoint & checkpoint,
-                                    std::array<uint64_t, 4> * timings = nullptr) {
-        server_cache_lease_identity identity;
-        CHECK(server_cache_lease_build_identity(
-            execution_identity, adapter_identity, tokens,
-            checkpoint.n_tokens, identity));
-        checkpoint.computation_frontier.version =
-            common_computation_frontier::VERSION;
-        checkpoint.computation_frontier.sequence_epoch = 1;
-        checkpoint.computation_frontier.token_count = checkpoint.n_tokens;
-        checkpoint.computation_frontier.next_position =
-            llama_pos(checkpoint.n_tokens);
-        checkpoint.computation_frontier.execution_identity =
-            identity.execution_identity;
-        checkpoint.computation_frontier.adapter_config_identity =
-            identity.adapter_config_identity;
-        checkpoint.computation_frontier.media_content_identity =
-            identity.media_content_identity;
-        fill_checkpoint_bytes(
-            checkpoint.data_tgt, 64 * 1024, uint8_t(checkpoint.n_tokens));
-        fill_checkpoint_bytes(checkpoint.accel.ring, 4 * 1024, 7);
-        const auto key = server_retention_instance_key::for_checkpoint(
-            7, &checkpoint);
-        const auto publish_begin = std::chrono::steady_clock::now();
-        CHECK(authority.retention.publish(
-            key, common_retention_pool::attention, spans, false,
-            2000, uint64_t(checkpoint.n_tokens), true, &identity));
-        const auto publish_end = std::chrono::steady_clock::now();
-        const auto artifact = authority.retention.artifact_id(key);
-        std::vector<llama_cache_acct_op_id> ops;
-        const auto admit_begin = std::chrono::steady_clock::now();
-        CHECK(authority.admit_live_checkpoint(
-            artifact, checkpoint, ops));
-        const auto admit_end = std::chrono::steady_clock::now();
-        CHECK(authority.retention.attach_release_ops(key, std::move(ops)));
-        const auto attach_end = std::chrono::steady_clock::now();
-        const auto scope = authority.leases.new_context_scope();
-        CHECK(authority.leases.grant_soft(
-            { artifact, common_retention_artifact_kind::checkpoint, 7 },
-            server_cache_lease_scope::from(scope), identity,
-            server_cache_lease_table::IMPLICIT_SOFT_TTL_NS));
-        const auto lease_end = std::chrono::steady_clock::now();
-        if (timings) {
-            (*timings)[0] = uint64_t(std::chrono::duration_cast<
-                std::chrono::nanoseconds>(publish_end - publish_begin).count());
-            (*timings)[1] = uint64_t(std::chrono::duration_cast<
-                std::chrono::nanoseconds>(admit_end - admit_begin).count());
-            (*timings)[2] = uint64_t(std::chrono::duration_cast<
-                std::chrono::nanoseconds>(attach_end - admit_end).count());
-            (*timings)[3] = uint64_t(std::chrono::duration_cast<
-                std::chrono::nanoseconds>(lease_end - attach_end).count());
-        }
-    };
-    for (int i = 0; i < 8; ++i) {
-        ring.emplace_back();
-        ring.back().n_tokens = 600 + i * 200;
-        publish_member(ring.back());
-    }
-
-    const common_cache_plan_calib calib {
-        "checkpoint-churn", 1, 10.0, 0.01, 100.0,
-    };
-    std::array<std::vector<uint64_t>, 10> samples;
-    for (auto & values : samples) {
-        values.reserve(31);
-    }
-    const auto elapsed = [](const auto & begin) {
-        return uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::steady_clock::now() - begin).count());
-    };
-
-    for (int creation = 0; creation < 31; ++creation) {
-        std::vector<server_cache_checkpoint_trade_input> legacy_prices;
-        legacy_prices.reserve(ring.size());
-        const auto legacy_inventory_begin = std::chrono::steady_clock::now();
-        uint32_t ordinal = 0;
-        uint32_t previous = UINT32_MAX;
-        int64_t previous_tokens = 0;
-        for (const auto & checkpoint : ring) {
-            server_retention_candidate candidate;
-            server_cache_lease_identity identity;
-            const auto key = server_retention_instance_key::for_checkpoint(
-                7, &checkpoint);
-            CHECK(authority.retention.candidate_for_instance(key, candidate));
-            CHECK(server_cache_lease_build_identity(
-                execution_identity, adapter_identity, tokens,
-                checkpoint.n_tokens, identity));
-            const auto lease = authority.leases.inspect(
-                candidate.artifact_id, identity);
-            if (previous != UINT32_MAX) {
-                server_cache_checkpoint_trade_input price;
-                price.ordinal = ordinal;
-                price.recovery_ordinal = previous;
-                price.artifact = candidate.artifact_id;
-                price.stable_id = candidate.record.stamp.stable_id;
-                price.payload_bytes = checkpoint.size();
-                price.replay_tokens = uint64_t(
-                    checkpoint.n_tokens - previous_tokens);
-                price.identity_known = identity.valid();
-                price.recovery_available = true;
-                price.mandatory_anchor =
-                    candidate.record.stamp.mandatory_anchor;
-                price.hard_leased = server_cache_lease_is_hard(lease);
-                price.weight_milli = SERVER_CACHE_HOST_WEIGHT_SCALE;
-                legacy_prices.push_back(price);
-            }
-            previous = ordinal++;
-            previous_tokens = checkpoint.n_tokens;
-        }
-        samples[0].push_back(elapsed(legacy_inventory_begin));
-        const auto legacy_priced_begin = std::chrono::steady_clock::now();
-        const auto legacy_plan = server_cache_plan_checkpoint_thinning(
-            legacy_prices, &calib);
-        samples[1].push_back(elapsed(legacy_priced_begin));
-
-        std::vector<server_cache_checkpoint_floor_input> legacy_floor;
-        legacy_floor.reserve(ring.size());
-        const auto legacy_floor_begin = std::chrono::steady_clock::now();
-        ordinal = 0;
-        for (const auto & checkpoint : ring) {
-            server_retention_candidate candidate;
-            server_cache_lease_identity identity;
-            const auto key = server_retention_instance_key::for_checkpoint(
-                7, &checkpoint);
-            CHECK(authority.retention.candidate_for_instance(key, candidate));
-            CHECK(server_cache_lease_build_identity(
-                execution_identity, adapter_identity, tokens,
-                checkpoint.n_tokens, identity));
-            server_cache_checkpoint_floor_input input;
-            input.ordinal = ordinal++;
-            input.recovery_pinned = authority.retention.recovery_pinned(key);
-            if (server_cache_lease_is_hard(authority.leases.inspect(
-                    candidate.artifact_id, identity))) {
-                input.protection =
-                    server_cache_checkpoint_protection::hard_lease;
-            }
-            legacy_floor.push_back(input);
-        }
-        const auto legacy_floor_plan =
-            server_cache_plan_checkpoint_capacity_floor(legacy_floor);
-        samples[2].push_back(elapsed(legacy_floor_begin));
-        CHECK(legacy_floor_plan.selected);
-
-        std::vector<server_cache_checkpoint_trade_input> cached_prices;
-        cached_prices.reserve(ring.size());
-        const auto cached_inventory_begin = std::chrono::steady_clock::now();
-        ordinal = 0;
-        previous = UINT32_MAX;
-        previous_tokens = 0;
-        for (const auto & checkpoint : ring) {
-            server_retention_checkpoint_inventory candidate;
-            CHECK(authority.retention.checkpoint_inventory(
-                server_retention_instance_key::for_checkpoint(
-                    7, &checkpoint), candidate));
-            CHECK(candidate.identity_known && candidate.release_owned);
-            if (previous != UINT32_MAX) {
-                server_cache_checkpoint_trade_input price;
-                price.ordinal = ordinal;
-                price.recovery_ordinal = previous;
-                price.artifact = candidate.artifact_id;
-                price.stable_id = candidate.stable_id;
-                price.payload_bytes = checkpoint.size();
-                price.replay_tokens = uint64_t(
-                    checkpoint.n_tokens - previous_tokens);
-                price.identity_known = candidate.identity_known;
-                price.recovery_available = true;
-                price.mandatory_anchor = candidate.mandatory_anchor;
-                price.hard_leased = server_cache_lease_is_hard(
-                    candidate.lease);
-                price.weight_milli = SERVER_CACHE_HOST_WEIGHT_SCALE;
-                cached_prices.push_back(price);
-            }
-            previous = ordinal++;
-            previous_tokens = checkpoint.n_tokens;
-        }
-        samples[3].push_back(elapsed(cached_inventory_begin));
-        const auto cached_priced_begin = std::chrono::steady_clock::now();
-        const auto cached_plan = server_cache_plan_checkpoint_thinning(
-            cached_prices, &calib);
-        samples[4].push_back(elapsed(cached_priced_begin));
-        CHECK(cached_plan.selected == legacy_plan.selected);
-        CHECK(cached_plan.reason == legacy_plan.reason);
-        if (cached_plan.selected) {
-            CHECK(cached_plan.ordinal == legacy_plan.ordinal);
-            CHECK(cached_plan.recovery_ordinal ==
-                  legacy_plan.recovery_ordinal);
-        }
-
-        std::vector<server_cache_checkpoint_floor_input> cached_floor;
-        cached_floor.reserve(ring.size());
-        const auto cached_floor_begin = std::chrono::steady_clock::now();
-        ordinal = 0;
-        for (const auto & checkpoint : ring) {
-            server_retention_checkpoint_inventory candidate;
-            CHECK(authority.retention.checkpoint_inventory(
-                server_retention_instance_key::for_checkpoint(
-                    7, &checkpoint), candidate));
-            server_cache_checkpoint_floor_input input;
-            input.ordinal = ordinal++;
-            input.recovery_pinned = candidate.recovery_pinned;
-            if (server_cache_lease_is_hard(candidate.lease)) {
-                input.protection =
-                    server_cache_checkpoint_protection::hard_lease;
-            }
-            cached_floor.push_back(input);
-        }
-        const auto cached_floor_plan =
-            server_cache_plan_checkpoint_capacity_floor(cached_floor);
-        samples[5].push_back(elapsed(cached_floor_begin));
-        CHECK(cached_floor_plan.selected);
-
-        const auto victim_key = server_retention_instance_key::for_checkpoint(
-            7, &ring.front());
-        authority.retention.retire(victim_key);
-        ring.pop_front();
-        ring.emplace_back();
-        ring.back().n_tokens = 2000;
-        std::array<uint64_t, 4> creation_timings = {};
-        publish_member(ring.back(), &creation_timings);
-        for (size_t i = 0; i < creation_timings.size(); ++i) {
-            samples[6 + i].push_back(creation_timings[i]);
-        }
-    }
-
-    for (auto & values : samples) {
-        std::sort(values.begin(), values.end());
-    }
-    std::fprintf(stderr,
-        "CHECKPOINT_CREATION_CHURN_TIMING members=8 tokens=2000 "
-        "before_inventory_ns=%" PRIu64 " before_priced_ns=%" PRIu64
-        " before_floor_ns=%" PRIu64 " after_inventory_ns=%" PRIu64
-        " after_priced_ns=%" PRIu64 " after_floor_ns=%" PRIu64
-        " publish_ns=%" PRIu64 " admit_ns=%" PRIu64
-        " attach_ns=%" PRIu64 " lease_ns=%" PRIu64 "\n",
-        samples[0][samples[0].size() / 2],
-        samples[1][samples[1].size() / 2],
-        samples[2][samples[2].size() / 2],
-        samples[3][samples[3].size() / 2],
-        samples[4][samples[4].size() / 2],
-        samples[5][samples[5].size() / 2],
-        samples[6][samples[6].size() / 2],
-        samples[7][samples[7].size() / 2],
-        samples[8][samples[8].size() / 2],
-        samples[9][samples[9].size() / 2]);
-
-    authority.retention.retire_slot(7);
-    CHECK(authority.ledger.snapshot().live_ops == 0);
-}
 
 void test_checkpoint_bounded_publication_skip_predicate() {
     common_prompt_checkpoint recovery;
@@ -4154,6 +4015,22 @@ void test_checkpoint_bounded_publication_skip_predicate() {
     CHECK(!server_cache_checkpoint_bounded_replay(recovery, incoming, 100));
     incoming.checkpoint_epoch_swa--;
     CHECK(!server_cache_checkpoint_bounded_replay(incoming, recovery, 100));
+
+    std::list<common_prompt_checkpoint> ring;
+    CHECK(!server_cache_checkpoint_publication_redundant(ring, incoming, -99, 100));
+    ring.push_back(recovery);
+    CHECK(!server_cache_checkpoint_publication_redundant(ring, incoming, -99, 100));
+    ring.push_back(recovery);
+    CHECK(server_cache_checkpoint_publication_redundant(ring, incoming, -99, 100));
+    CHECK(!server_cache_checkpoint_publication_redundant(ring, incoming, -99, 99));
+    ring.back().id_task = -99;
+    CHECK(!server_cache_checkpoint_publication_redundant(ring, incoming, -99, 100));
+    ring.back().id_task = 0;
+    incoming.computation_frontier.adapter_config_identity = "other-adapter";
+    CHECK(!server_cache_checkpoint_publication_redundant(ring, incoming, -99, 100));
+    incoming.computation_frontier.adapter_config_identity = "adapter";
+    ring.front().n_tokens = 1500;
+    CHECK(!server_cache_checkpoint_publication_redundant(ring, incoming, -99, 100));
 }
 
 void test_consuming_rebind_mints_checkpoint_ownership() {
@@ -4275,6 +4152,282 @@ void test_lifecycle_restore_clone_fault() {
     CHECK(cache.states.front().prompt.n_tokens() == 3);
 }
 
+void test_host_load_short_prefix_clone_fault() {
+    // Selection must reach clone staging without attempting a llama state API.
+    // Keep this guard explicit because the contexts below are deliberately null.
+    CHECK(server_fault("load_clone_fail"));
+    if (!server_fault("load_clone_fail")) {
+        return;
+    }
+
+    struct selection_case {
+        size_t prefix;
+        bool adapter_matches;
+        bool live_matches;
+        bool selects_host;
+    };
+    constexpr selection_case cases[] = {
+        { 1,    true,  false, true  },
+        { 128,  true,  false, true  },
+        { 500,  true,  false, true  },
+        { 7916, true,  false, true  },
+        { 0,    true,  false, false },
+        { 128,  false, false, false },
+        { 128,  true,  true,  false },
+    };
+    for (const bool observed : { false, true }) {
+        for (const auto & shape : cases) {
+            server_cache_authority authority;
+            server_prompt_cache cache(0, 0);
+            cache.publish_authority = &authority;
+            auto entry = make_retention_entry("same", 1000, 98609, 1024);
+            cache.states.splice(cache.states.end(), entry);
+            const auto source_size = cache.states.front().size();
+
+            llama_tokens request_tokens;
+            for (size_t i = 0; i < shape.prefix; ++i) {
+                request_tokens.push_back(1000 + llama_token(i));
+            }
+            request_tokens.push_back(42); // diverge after the requested prefix
+            server_tokens request(request_tokens, false);
+            server_prompt live;
+            if (shape.live_matches) {
+                live.tokens = server_tokens(request_tokens, false);
+            }
+            const auto live_tokens_before = live.n_tokens();
+            common_cache_plan_record rec;
+            rec.id_slot = 0;
+            rec.selection = common_cache_plan_selection::lru;
+            server_prompt_cache_restore_shape restore_shape;
+
+            // load() dispatches to the real observed/unobserved selector. A
+            // chosen host returns false at the armed clone-failure seam; a
+            // rejected host returns true without staging. Restoring the old
+            // f_keep < 0.25 cutoff makes every eligible case incorrectly pass
+            // through and fail this assertion in BOTH instantiations.
+            const bool loaded = cache.load(
+                live, request, nullptr, nullptr, 0,
+                shape.adapter_matches ? "same" : "other",
+                restore_shape, observed ? &rec : nullptr);
+            CHECK(loaded == !shape.selects_host);
+            CHECK(restore_shape == server_prompt_cache_restore_shape::none);
+            CHECK(live.n_tokens() == live_tokens_before);
+            CHECK(cache.states.size() == 1);
+            CHECK(cache.states.front().size() == source_size);
+            CHECK(cache.states.front().prompt.n_tokens() == 98609);
+            if (observed) {
+                const auto * selected = rec.selected_row(
+                    common_cache_plan_provider::host_cache_entry);
+                CHECK((selected != nullptr) == shape.selects_host);
+                if (selected) {
+                    CHECK(selected->lcp_tokens.value == shape.prefix);
+                    CHECK(!selected->delivered);
+                }
+            }
+        }
+    }
+}
+
+void test_recurrent_reusable_prefix() {
+    CHECK(server_prompt_checkpoint_reuse_threshold(4, 0, true) == 4);
+    CHECK(server_prompt_checkpoint_reuse_threshold(4, 0, false) == 3);
+    CHECK(server_prompt_checkpoint_reuse_threshold(4, 2, false) == 1);
+    CHECK(server_prompt_checkpoint_reuse_threshold(4, 8, true) == 0);
+    server_prompt prompt;
+    prompt.tokens = server_tokens(llama_tokens { 1, 2, 3, 4, 5, 6 }, false);
+    const server_tokens incoming(llama_tokens { 1, 2, 3, 4, 9 }, false);
+    server_prompt_cache_reuse_context context;
+    context.execution_identity = "execution";
+    const auto reusable = [&](size_t lcp, llama_pos pos_min) {
+        return server_prompt_cache_reusable_prefix(
+            prompt, incoming, lcp, pos_min, context, "adapter");
+    };
+    CHECK(reusable(0, 5) == 0);
+    CHECK(reusable(4, -1) == 0); // token ledger without state
+    CHECK(reusable(4, 3) == 4);  // directly appendable
+    CHECK(reusable(4, 5) == 0);  // no recurrent rewind available
+    prompt.checkpoints.emplace_back();
+    auto & checkpoint = prompt.checkpoints.back();
+    checkpoint.n_tokens = 2;
+    checkpoint.pos_min = checkpoint.pos_max = 1;
+    CHECK(reusable(4, 5) == 0); // empty payload
+    fill_checkpoint_bytes(checkpoint.data_tgt, 8, 1);
+    CHECK(reusable(4, 5) == 2);
+    checkpoint.pos_min = checkpoint.pos_max = 4;
+    checkpoint.n_tokens = 5;
+    CHECK(reusable(4, 5) == 0); // checkpoint is beyond divergence
+    checkpoint.pos_min = checkpoint.pos_max = 3;
+    checkpoint.n_tokens = 4;
+    CHECK(reusable(4, 5) == 4); // boundary is inclusive in token count
+    checkpoint.checkpoint_epoch = 1;
+    CHECK(reusable(4, 5) == 0);
+    checkpoint.checkpoint_epoch = 0;
+    context.frontier_required = true;
+    CHECK(reusable(4, 5) == 0); // missing sealed frontier
+    prompt.sequence_epoch = 7;
+    auto & frontier = checkpoint.computation_frontier;
+    frontier.version = common_computation_frontier::VERSION;
+    frontier.sequence_epoch = 7;
+    frontier.token_count = 4;
+    frontier.next_position = 4;
+    frontier.execution_identity = "execution";
+    frontier.adapter_config_identity = "adapter";
+    CHECK(prompt.tokens.media_content_identity(4, frontier.media_content_identity));
+    CHECK(reusable(4, 5) == 4);
+    frontier.sequence_epoch++;
+    CHECK(reusable(4, 5) == 0);
+    frontier.sequence_epoch--;
+    frontier.adapter_config_identity = "other";
+    CHECK(reusable(4, 5) == 0);
+    frontier.adapter_config_identity = "adapter";
+    frontier.media_content_identity = "other";
+    CHECK(reusable(4, 5) == 0);
+
+    context.frontier_required = false;
+    const server_tokens exact(llama_tokens { 1, 2, 3, 4 }, false);
+    CHECK(server_prompt_cache_reusable_prefix(
+        prompt, exact, 4, 5, context, "adapter") == 0);
+    // Do not fall through to an older checkpoint: execution would choose the
+    // full frontier first, then fail its final-token rollback after import.
+    common_prompt_checkpoint earlier;
+    earlier.n_tokens = 2;
+    earlier.pos_min = earlier.pos_max = 1;
+    fill_checkpoint_bytes(earlier.data_tgt, 8, 1);
+    prompt.checkpoints.insert(prompt.checkpoints.begin(), std::move(earlier));
+    CHECK(server_prompt_cache_reusable_prefix(
+        prompt, exact, 4, 5, context, "adapter") == 0);
+
+    server_prompt_cache cache(0, 0);
+    auto host = make_prompt_entry("adapter", { 1, 2, 3, 4, 5, 6 });
+    host.front().fixed_pos_min = 5;
+    host.front().prompt = prompt.clone();
+    cache.states.splice(cache.states.end(), host);
+    server_prompt live = prompt.clone();
+    live.checkpoints.pop_back();
+    context.live_pos_min = 5;
+    CHECK(server_prompt_cache_reusable_prefix(live, exact, 4, 5, context, "adapter") == 2);
+    CHECK(cache.select(live, exact, "adapter", &context) == cache.states.end());
+
+    // A full token match still requires final-token evaluation; no checkpoint
+    // means this exact hit is not a usable recurrent restore.
+    prompt.checkpoints.clear();
+    CHECK(server_prompt_cache_reusable_prefix(
+        prompt, prompt.tokens, 6, 5, context, "adapter") == 0);
+    const server_tokens append(llama_tokens { 1, 2, 3, 4, 5, 6, 7 }, false);
+    CHECK(server_prompt_cache_reusable_prefix(
+        prompt, append, 6, 5, context, "adapter") == 6);
+}
+
+void test_recurrent_selection_survives_displacement_save(bool accounted) {
+    server_cache_authority authority;
+    configure_host_accounting(authority, accounted);
+    server_prompt_cache cache(0, 0);
+    cache.acct = &authority.ledger;
+    cache.publish_authority = &authority;
+    cache.retention_obs = &authority.retention;
+    cache.destruction_obs = &authority.destruction;
+    auto short_entry = make_prompt_entry("same", { 1, 2 });
+    short_entry.front().fixed_pos_min = 1;
+    server_prompt_cache::iterator source;
+    CHECK(cache.publish(std::move(short_entry), nullptr, -1, &source));
+    if (accounted) {
+        (void) publish_host_retention(authority, source);
+    }
+
+    auto displaced = make_prompt_entry("same", { 1, 2, 3, 4, 5, 6 });
+    displaced.front().fixed_pos_min = 5;
+    const auto live = displaced.front().prompt.clone();
+    const server_tokens incoming(llama_tokens { 1, 2, 3, 4, 99 }, false);
+    server_prompt_cache_reuse_context context;
+    context.live_pos_min = 5;
+    CHECK(cache.select(live, incoming, "same", &context) == source);
+    llama_cache_acct_artifact_id artifact;
+    std::vector<llama_cache_acct_op_id> ops;
+    server_cache_recovery_pin pin;
+    CHECK(cache.acquire_durable_recovery(source, artifact, ops, pin) == accounted);
+    CHECK(cache.publish(std::move(displaced)));
+    if (!accounted) {
+        // No durability proof: the save may deduplicate the selected source.
+        // Reselect from the new inventory rather than retaining its iterator.
+        CHECK(cache.states.size() == 1);
+        CHECK(cache.select(live, incoming, "same", &context) == cache.states.end());
+        return;
+    }
+    CHECK(cache.states.size() == 2);
+    CHECK(cache.select(live, incoming, "same", &context) == source);
+    CHECK(source->recovery_pins == 1);
+    pin = {};
+    CHECK(source->recovery_pins == 0);
+}
+
+void test_host_load_recurrent_selection() {
+    // Exercise the real observed/unobserved selector, stopping at clone
+    // staging before any GPU mutation. A selected host returns false here.
+    CHECK(server_fault("load_clone_fail"));
+    if (!server_fault("load_clone_fail")) {
+        return;
+    }
+    for (const bool observed : { false, true }) {
+        for (const int live_frontier : { 0, 2, 4, 6 }) {
+            server_cache_authority authority;
+            server_prompt_cache cache(0, 0);
+            cache.publish_authority = &authority;
+            auto short_entry = make_prompt_entry("same", { 1, 2, 3, 4 });
+            short_entry.front().fixed_pos_min = 3;
+            auto * useful = &short_entry.front();
+            cache.states.splice(cache.states.end(), short_entry);
+            // Larger LCP, but the recurrent image is after the divergence.
+            auto unusable = make_prompt_entry("same", { 1, 2, 3, 4, 5, 6, 7, 8, 100 });
+            unusable.front().fixed_pos_min = 8;
+            auto * longer = &unusable.front();
+            cache.states.splice(cache.states.end(), unusable);
+            auto wrong_adapter = make_prompt_entry("other", { 1, 2, 3, 4, 5, 6, 7, 8 });
+            wrong_adapter.front().fixed_pos_min = 7;
+            cache.states.splice(cache.states.end(), wrong_adapter);
+            const server_tokens incoming(llama_tokens { 1, 2, 3, 4, 5, 6, 7, 8, 9 }, false);
+            server_prompt live;
+            live.tokens = server_tokens(llama_tokens { 1, 2, 3, 4, 5, 6, 7, 8, 50, 51 }, false);
+            if (live_frontier > 0) {
+                live.checkpoints.emplace_back();
+                auto & checkpoint = live.checkpoints.back();
+                checkpoint.n_tokens = live_frontier;
+                checkpoint.pos_min = checkpoint.pos_max = live_frontier - 1;
+                fill_checkpoint_bytes(checkpoint.data_tgt, 8, 1);
+            }
+            server_prompt_cache_reuse_context context;
+            context.live_pos_min = 9;
+            // Raw LCP ranking misses the useful shorter host in every arm.
+            CHECK(cache.select(live, incoming, "same", nullptr) == cache.states.end());
+            common_cache_plan_record rec;
+            server_prompt_cache_restore_shape shape;
+            const bool selected = live_frontier < 4;
+            CHECK(cache.load(live, incoming, nullptr, nullptr, 0, "same", shape,
+                observed ? &rec : nullptr, nullptr, &context) == !selected);
+            CHECK(shape == server_prompt_cache_restore_shape::none);
+            CHECK(live.n_tokens() == 10);
+            CHECK(cache.states.size() == 3);
+            if (observed) {
+                const auto * row = rec.selected_row(common_cache_plan_provider::host_cache_entry);
+                CHECK((row != nullptr) == selected);
+                if (row) {
+                    CHECK(row->source_id == useful->cache_plan_source_id);
+                    CHECK(row->lcp_tokens.value == 4);
+                    CHECK(!row->delivered);
+                }
+            }
+            if (live_frontier == 0) {
+                longer->prompt.checkpoints.emplace_back();
+                auto & checkpoint = longer->prompt.checkpoints.back();
+                checkpoint.n_tokens = 6;
+                checkpoint.pos_min = checkpoint.pos_max = 5;
+                fill_checkpoint_bytes(checkpoint.data_tgt, 8, 1);
+                CHECK(cache.select(live, incoming, "same", &context) ==
+                      std::next(cache.states.begin()));
+            }
+        }
+    }
+}
+
 void test_host_publication_accounting_fault_is_atomic() {
     server_cache_authority authority;
     configure_host_accounting(authority, true);
@@ -4343,10 +4496,6 @@ void test_host_publication_accounting_fault_is_atomic() {
 void test_lifecycle_authority_without_debug_is_silent() {
     server_cache_authority authority;
     configure_host_accounting(authority);
-    server_cache_plan_authority plan_authority(
-        common_cache_plan_authority_level::lru);
-    CHECK(plan_authority.configured_level ==
-          common_cache_plan_authority_level::lru);
     server_prompt_cache cache(/* limit_size_mib */ 0, /* limit_tokens */ 0);
     cache.publish_authority = &authority;
     cache.destruction_obs = &authority.destruction;
@@ -4548,124 +4697,12 @@ void test_redundancy_payload_mismatch_and_missing_catalog() {
     CHECK(authority.destruction.prepared_release_commits == 1);
 }
 
-void test_host_trade_soft_lease_weight_flips_victim() {
-    server_cache_authority authority;
-    const std::string execution = "trade-soft";
-    server_prompt_cache cache(0, 0);
-    configure_host_trade(authority, cache, execution);
-
-    auto a = install_host_trade_entry(cache, authority, "a-v", 64);
-    auto ar = install_host_trade_entry(cache, authority, "a-r", 64);
-    auto b = install_host_trade_entry(cache, authority, "b-v", 64);
-    auto br = install_host_trade_entry(cache, authority, "b-r", 64);
-    make_host_trade_pair(a, ar, "pair-a", 10, 10);
-    make_host_trade_pair(b, br, "pair-b", 20, 20);
-    CHECK(grant_host_lease(
-        cache, authority.leases, a, server_cache_lease_class::soft));
-
-    cache.limit_size = cache.size() - b->size() + 1;
-    cache.update();
-    CHECK(host_source_present(cache, 10));
-    CHECK(!host_source_present(cache, 20));
-    CHECK(authority.destruction.host_trade_attempted == 1);
-    CHECK(authority.destruction.host_trade_executed == 1);
-    CHECK(authority.destruction.host_trade_soft_lease_evictions == 0);
-    CHECK(authority.destruction_counters.last_receipt.state ==
-          common_cache_plan_destruction_state::executed);
-    CHECK(authority.destruction_counters.last_receipt.lease_verdict ==
-          common_cache_plan_destruction_lease_verdict::unleased);
-
-    // Soft protection is a price, never a veto: once it is the only
-    // certifiable victim, the same lease must still permit eviction.
-    cache.limit_size = cache.size() - a->size() + 1;
-    cache.update();
-    CHECK(!host_source_present(cache, 10));
-    CHECK(authority.destruction.host_trade_executed == 2);
-    CHECK(authority.destruction.host_trade_soft_lease_evictions == 1);
-    CHECK(cache.debug_destruction_emissions == 0);
-}
-
-void test_host_trade_main_family_weight_flips_victim() {
-    server_cache_authority authority;
-    const std::string execution = "trade-main";
-    server_prompt_cache cache(0, 0);
-    configure_host_trade(authority, cache, execution);
-
-    auto main = install_host_trade_entry(cache, authority, "m-v", 64);
-    auto main_r = install_host_trade_entry(cache, authority, "m-r", 64);
-    auto child = install_host_trade_entry(cache, authority, "c-v", 64);
-    auto child_r = install_host_trade_entry(cache, authority, "c-r", 64);
-    make_host_trade_pair(main, main_r, "pair-main", 30, 30, true);
-    make_host_trade_pair(child, child_r, "pair-child", 40, 40, false);
-    const common_cache_family_binding declared_main {
-        { 0xe11b30 }, common_cache_family_role::main,
-    };
-    const common_cache_family_binding declared_branch {
-        declared_main.family, common_cache_family_role::branch,
-    };
-    main->cache_family = declared_main;
-    main_r->cache_family = declared_main;
-    child->cache_family = declared_branch;
-    child_r->cache_family = declared_branch;
-    size_t callback_calls = 0;
-    authority.host_retention_weight_context = &callback_calls;
-    authority.host_retention_weight = [](
-            void * context,
-            const server_prompt_cache_state &,
-            uint32_t & weight) noexcept {
-        ++*static_cast<size_t *>(context);
-        weight = 9000;
-        return true;
-    };
-
-    cache.limit_size = cache.size() - child->size() + 1;
-    cache.update();
-    CHECK(host_source_present(cache, 30));
-    CHECK(!host_source_present(cache, 40));
-    CHECK(authority.destruction.host_trade_attempted == 1);
-    CHECK(authority.destruction.host_trade_main_family_evictions == 0);
-    CHECK(callback_calls == 0);
-
-    // The automatic family signal is likewise a finite pricing weight.
-    cache.limit_size = cache.size() - main->size() + 1;
-    cache.update();
-    CHECK(!host_source_present(cache, 30));
-    CHECK(authority.destruction.host_trade_executed == 2);
-    CHECK(authority.destruction.host_trade_main_family_evictions == 1);
-    CHECK(callback_calls == 0);
-}
-
-void test_host_trade_zero_destruction_tie_break() {
-    server_cache_authority authority;
-    const std::string execution = "trade-tie";
-    server_prompt_cache cache(0, 0);
-    configure_host_trade(authority, cache, execution);
-    cache.debug_observability = true;
-
-    auto destructive = install_host_trade_entry(cache, authority, "d-v", 64);
-    destructive->cache_plan_source_id = 1;
-    auto duplicate = install_host_trade_entry(cache, authority, "z-v", 64);
-    auto duplicate_r = install_host_trade_entry(cache, authority, "z-r", 64);
-    make_host_trade_pair(
-        duplicate, duplicate_r, "pair-zero", 50, 2, false);
-
-    cache.limit_size = cache.size() - duplicate->size() + 1;
-    cache.update();
-    CHECK(host_source_present(cache, 1));
-    CHECK(!host_source_present(cache, 2));
-    CHECK(authority.destruction.host_trade_attempted == 1);
-    CHECK(authority.destruction.host_trade_refused == 0);
-    CHECK(authority.destruction.host_trade_zero_destruction_ties == 1);
-    CHECK(cache.debug_recovery_pin_exclusions == 1);
-    CHECK(cache.debug_host_pressure_floor_outcomes == 1);
-    CHECK(cache.debug_destruction_emissions == 5);
-}
-
-void test_host_trade_all_refuse_falls_back_to_legacy() {
+void test_host_capacity_uses_protected_fifo() {
     server_cache_authority authority;
     const std::string execution = "trade-fallback";
     server_prompt_cache cache(0, 0);
     configure_host_trade(authority, cache, execution);
+    cache.debug_observability = true;
 
     auto oldest = install_host_trade_entry(cache, authority, "old", 64);
     auto newer = install_host_trade_entry(cache, authority, "new", 64);
@@ -4675,17 +4712,15 @@ void test_host_trade_all_refuse_falls_back_to_legacy() {
     cache.update();
     CHECK(!host_source_present(cache, 1));
     CHECK(host_source_present(cache, 2));
-    CHECK(authority.destruction.host_trade_attempted == 2);
-    CHECK(authority.destruction.host_trade_refused == 2);
+    CHECK(cache.size() <= cache.limit_size);
+    CHECK(authority.destruction.host_trade_attempted == 0);
     CHECK(authority.destruction.host_trade_legacy_fallbacks == 1);
     CHECK(authority.destruction.prepared_release_commits == 1);
-    CHECK(authority.destruction_counters.last_receipt.reason ==
-          common_cache_plan_destruction_reason::recovery_unavailable);
     const auto * event = authority.destruction.event_for_sequence(
         authority.destruction.n_events);
     CHECK(event != nullptr);
-    CHECK(event->execution !=
-          server_cache_destruction_execution::priced_host_eviction);
+    CHECK(event->execution ==
+          server_cache_destruction_execution::prepared_release);
     CHECK(cache.debug_destruction_emissions == 0);
 }
 
@@ -4715,16 +4750,14 @@ void test_host_trade_hard_lease_veto() {
     CHECK(grant_host_lease(
         cache, hard_leases, hard, server_cache_lease_class::hard));
 
-    // Neither victim has durable recovery evidence, so the ranked ladder
-    // refuses. retention capacity must still honor the hard veto and evict only the open
-    // known-nonhard entry.
+    // Retention capacity must honor the hard veto and evict only the open
+    // known-nonhard entry, without requiring a hardware calibration profile.
     cache.limit_size = cache.size() - open->size() + 1;
     cache.update();
     CHECK(host_source_present(cache, 1));
     CHECK(!host_source_present(cache, 2));
-    CHECK(authority.destruction.host_trade_attempted == 2);
+    CHECK(authority.destruction.host_trade_attempted == 1);
     CHECK(authority.destruction.host_trade_hard_lease_vetoes == 1);
-    CHECK(authority.destruction.host_trade_refused == 1);
     CHECK(authority.destruction.host_trade_executed == 0);
     CHECK(authority.destruction.host_trade_legacy_fallbacks == 0);
     CHECK(authority.destruction.host_trade_retention_capacity_executed == 1);
@@ -4763,7 +4796,6 @@ void test_host_trade_all_hard_skips_publication() {
     CHECK(host_source_present(cache, 11));
     CHECK(host_source_present(cache, 12));
     CHECK(authority.destruction.host_trade_hard_lease_vetoes == 2);
-    CHECK(authority.destruction.host_trade_refused == 0);
     CHECK(authority.destruction.host_trade_publication_skips == 1);
     CHECK(authority.ledger.snapshot().live_ops == live_ops_before);
     CHECK(authority.destruction_counters.last_receipt.state ==
@@ -4842,12 +4874,13 @@ void test_host_trade_floor_skips_recovery_pin() {
     cache.update();
     CHECK(host_source_present(cache, 21));
     CHECK(!host_source_present(cache, 22));
-    CHECK(authority.destruction.host_trade_refused == 1);
     CHECK(authority.destruction.host_trade_legacy_fallbacks == 1);
     CHECK(cache.debug_recovery_pin_exclusions == 1);
     CHECK(cache.debug_host_pressure_floor_outcomes == 1);
     CHECK(cache.debug_last_recovery_pin_excluded == pinned_artifact);
-    CHECK(cache.debug_destruction_emissions == 3);
+    // The real pin exclusion and fallback outcome remain observable; no
+    // additional "unpriced" refusal is fabricated by the retired planner.
+    CHECK(cache.debug_destruction_emissions == 2);
     std::printf(
         "CACHE_TWO_COPIES floor_vs_pinned_fallback PASS pinned=%d open=%d pins=%u\n",
         host_source_present(cache, 21) ? 1 : 0,
@@ -4950,125 +4983,10 @@ void test_host_trade_partial_substrate_is_typed() {
           common_cache_plan_destruction_reason::lease_unavailable);
 }
 
-server_cache_checkpoint_trade_input checkpoint_trade(
-        uint32_t ordinal,
-        uint64_t replay_tokens,
-        uint64_t stable_id = 1) {
-    server_cache_checkpoint_trade_input out;
-    out.ordinal = ordinal;
-    out.recovery_ordinal = ordinal == 0 ? 99 : ordinal - 1;
-    out.artifact = { uint64_t(ordinal) + 1 };
-    out.stable_id = stable_id;
-    out.payload_bytes = 4096;
-    out.replay_tokens = replay_tokens;
-    out.identity_known = true;
-    out.recovery_available = true;
-    return out;
-}
 
-void test_checkpoint_thinning_policy() {
-    const common_cache_plan_calib calib {
-        "checkpoint-test", 1, 10.0, 0.01, 100.0,
-    };
-    auto cheap = checkpoint_trade(1, 4, 8);
-    auto costly = checkpoint_trade(2, 20, 9);
-    auto plan = server_cache_plan_checkpoint_thinning(
-        { costly, cheap }, &calib);
-    CHECK(plan.selected);
-    CHECK(plan.ordinal == cheap.ordinal);
-    auto tie_high = checkpoint_trade(7, 4, 70);
-    auto tie_low = checkpoint_trade(8, 4, 60);
-    plan = server_cache_plan_checkpoint_thinning(
-        { tie_high, tie_low }, &calib);
-    CHECK(plan.selected && plan.ordinal == tie_low.ordinal);
-    const auto permuted = server_cache_plan_checkpoint_thinning(
-        { tie_low, tie_high }, &calib);
-    CHECK(permuted.selected && permuted.ordinal == plan.ordinal);
-
-    plan = server_cache_plan_checkpoint_thinning({ cheap }, nullptr);
-    CHECK(!plan.selected);
-    CHECK(plan.reason ==
-          common_cache_plan_destruction_reason::profile_unfitted);
-
-    // Soft protection is a price multiplier, never a veto. It can make the
-    // next member the lower-cost destruction while both remain eligible.
-    cheap.weight_milli = SERVER_CACHE_HOST_SOFT_LEASE_WEIGHT;
-    costly.replay_tokens = 8;
-    plan = server_cache_plan_checkpoint_thinning(
-        { cheap, costly }, &calib);
-    CHECK(plan.selected);
-    CHECK(plan.ordinal == costly.ordinal);
-
-    // The member the recovery seam would select never joins the optimum.
-    cheap.weight_milli = SERVER_CACHE_HOST_WEIGHT_SCALE;
-    cheap.seam_heuristic_protected = true;
-    costly.replay_tokens = 20;
-    plan = server_cache_plan_checkpoint_thinning(
-        { cheap, costly }, &calib);
-    CHECK(plan.selected);
-    CHECK(plan.ordinal == costly.ordinal);
-
-    // With no replay source, thinning refuses and leaves the ring intact at
-    // the caller. Hard/mandatory members are equally non-selectable.
-    cheap.seam_heuristic_protected = false;
-    cheap.recovery_available = false;
-    costly.recovery_available = false;
-    plan = server_cache_plan_checkpoint_thinning(
-        { cheap, costly }, &calib);
-    CHECK(!plan.selected);
-    CHECK(plan.reason ==
-          common_cache_plan_destruction_reason::recovery_unavailable);
-
-    cheap.recovery_available = true;
-    cheap.hard_leased = true;
-    plan = server_cache_plan_checkpoint_thinning({ cheap }, &calib);
-    CHECK(!plan.selected);
-    CHECK(plan.reason ==
-          common_cache_plan_destruction_reason::hard_lease_blocked);
-    CHECK(plan.protection ==
-          server_cache_checkpoint_protection::hard_lease);
-
-    cheap.hard_leased = false;
-    cheap.seam_heuristic_protected = true;
-    plan = server_cache_plan_checkpoint_thinning({ cheap }, &calib);
-    CHECK(!plan.selected);
-    CHECK(plan.reason ==
-          common_cache_plan_destruction_reason::mandatory_anchor);
-    CHECK(plan.protection ==
-          server_cache_checkpoint_protection::seam_heuristic);
-
-    cheap.seam_heuristic_protected = false;
-    cheap.mandatory_anchor = true;
-    plan = server_cache_plan_checkpoint_thinning({ cheap }, &calib);
-    CHECK(!plan.selected);
-    CHECK(plan.protection ==
-          server_cache_checkpoint_protection::mandatory_anchor);
-
-    auto seam = checkpoint_trade(9, 4, 90);
-    seam.seam_heuristic_protected = true;
-    auto hard = checkpoint_trade(10, 4, 100);
-    hard.hard_leased = true;
-    plan = server_cache_plan_checkpoint_thinning({ hard, seam }, &calib);
-    const auto protected_permuted =
-        server_cache_plan_checkpoint_thinning({ seam, hard }, &calib);
-    CHECK(!plan.selected && !protected_permuted.selected);
-    CHECK(plan.protection ==
-          server_cache_checkpoint_protection::seam_heuristic);
-    CHECK(protected_permuted.protection == plan.protection);
-
-    auto selected_before_protected = checkpoint_trade(11, 1, 110);
-    plan = server_cache_plan_checkpoint_thinning(
-        { selected_before_protected, seam }, &calib);
-    CHECK(plan.selected);
-    CHECK(plan.ordinal == selected_before_protected.ordinal);
-    CHECK(plan.reason == common_cache_plan_destruction_reason::none);
-    CHECK(plan.protection == server_cache_checkpoint_protection::none);
-}
-
-void test_checkpoint_thin_lane_skips_pinned_member() {
+void test_checkpoint_capacity_skips_pinned_member() {
     server_cache_authority authority;
     configure_host_accounting(authority, true);
-    authority.calibration_profile = HOST_TRADE_TEST_PROFILE;
     std::list<common_prompt_checkpoint> ring;
     ring.emplace_back();
     ring.emplace_back();
@@ -5116,8 +5034,6 @@ void test_checkpoint_thin_lane_skips_pinned_member() {
 
     server_cache_checkpoint_attempt_latch attempts;
     const common_prompt_checkpoint * seam = nullptr;
-    common_cache_plan_destruction_reason thin_reason =
-        common_cache_plan_destruction_reason::none;
     common_cache_plan_destruction_reason floor_reason =
         common_cache_plan_destruction_reason::none;
     server_cache_checkpoint_authority_context context {
@@ -5129,25 +5045,24 @@ void test_checkpoint_thin_lane_skips_pinned_member() {
         &authority.leases,
         attempts,
         seam,
-        thin_reason,
         floor_reason,
         false,
-        {},
-        false,
-        nullptr,
-        [](void *,
-           server_cache_checkpoint_authority_context::checkpoint_iterator first,
-           server_cache_checkpoint_authority_context::checkpoint_iterator) {
-            return first;
-        },
     };
-    CHECK(!server_cache_checkpoint_thin_priced(
-        context, -99, 100, nullptr, false));
+    server_cache_checkpoint_authority_context::checkpoint_iterator victim;
+    common_cache_plan_destruction_reason refusal;
+    CHECK(server_cache_checkpoint_capacity_floor(
+        context, -99, nullptr, victim, refusal));
+    CHECK(victim == ring.begin());
     CHECK(ring.size() == 2);
-    CHECK(thin_reason ==
+    CHECK(authority.retention.recovery_pinned(pinned_key));
+    ring.front().id_task = -99;
+    server_cache_checkpoint_ring_changed(context);
+    CHECK(!server_cache_checkpoint_capacity_floor(
+        context, -99, nullptr, victim, refusal));
+    CHECK(refusal ==
           common_cache_plan_destruction_reason::mandatory_anchor);
     std::printf(
-        "CACHE_TWO_COPIES thin_lane_pinned_member PASS members=%zu pinned=%d\n",
+        "CACHE_TWO_COPIES capacity_pinned_member PASS members=%zu pinned=%d\n",
         ring.size(), authority.retention.recovery_pinned(pinned_key) ? 1 : 0);
     pin = {};
     authority.retention.retire_slot(17);
@@ -5187,16 +5102,80 @@ void test_checkpoint_capacity_floor() {
           common_cache_plan_destruction_reason::hard_lease_blocked);
 }
 
+void test_checkpoint_capacity_preserves_history() {
+    const auto geometry = [] (std::initializer_list<int64_t> frontiers) {
+        std::vector<server_cache_checkpoint_floor_input> inputs;
+        for (const auto frontier : frontiers) {
+            server_cache_checkpoint_floor_input input;
+            input.ordinal = uint32_t(inputs.size());
+            input.n_tokens = frontier;
+            inputs.push_back(input);
+        }
+        return inputs;
+    };
+    auto inputs = geometry({ 512, 1020, 4092, 4604 });
+    CHECK(server_cache_plan_checkpoint_capacity_floor(inputs).ordinal == 1);
+    inputs[1].protection = server_cache_checkpoint_protection::hard_lease;
+    CHECK(server_cache_plan_checkpoint_capacity_floor(inputs).ordinal == 2);
+    inputs[2].recovery_pinned = true;
+    CHECK(server_cache_plan_checkpoint_capacity_floor(inputs).ordinal == 3);
+    inputs[3].protection = server_cache_checkpoint_protection::seam_heuristic;
+    // An early anchor is only a preference, weaker than existing protections.
+    CHECK(server_cache_plan_checkpoint_capacity_floor(inputs).ordinal == 0);
+    inputs[0].protection = server_cache_checkpoint_protection::mandatory_anchor;
+    CHECK(server_cache_plan_checkpoint_capacity_floor(inputs).ordinal == 3);
+    inputs[3].recovery_pinned = true;
+    CHECK(!server_cache_plan_checkpoint_capacity_floor(inputs).selected);
+
+    CHECK(server_cache_plan_checkpoint_capacity_floor(geometry({ 512 })).ordinal == 0);
+    CHECK(server_cache_plan_checkpoint_capacity_floor(geometry({ 512, 1024 })).ordinal == 1);
+    CHECK(server_cache_plan_checkpoint_capacity_floor(geometry({ 0, 1024, 2048 })).ordinal == 0);
+    CHECK(server_cache_plan_checkpoint_capacity_floor(geometry({ 512, 512, 2048 })).ordinal == 0);
+    CHECK(server_cache_plan_checkpoint_capacity_floor(geometry({ 1024, 512, 2048 })).ordinal == 0);
+
+    // Repeated append-only turns used to FIFO-delete every early frontier.
+    // Keep the same count limit, an early anchor, and useful interior coverage
+    // under both a small ring and the production default size.
+    for (const size_t limit : { size_t(4), size_t(32) }) {
+        inputs.clear();
+        for (int64_t frontier = 512; frontier <= 65536; frontier += 512) {
+            if (inputs.size() == limit) {
+                const auto plan = server_cache_plan_checkpoint_capacity_floor(inputs);
+                CHECK(plan.selected);
+                CHECK(plan.ordinal > 0 && plan.ordinal < inputs.size());
+                if (!plan.selected || plan.ordinal >= inputs.size()) {
+                    break;
+                }
+                inputs.erase(inputs.begin() + plan.ordinal);
+            }
+            server_cache_checkpoint_floor_input incoming;
+            incoming.n_tokens = frontier;
+            inputs.push_back(incoming);
+            for (size_t i = 0; i < inputs.size(); ++i) {
+                inputs[i].ordinal = uint32_t(i);
+                inputs[i].protection = i + 1 == inputs.size()
+                    ? server_cache_checkpoint_protection::seam_heuristic
+                    : server_cache_checkpoint_protection::none;
+            }
+            CHECK(inputs.size() <= limit);
+            CHECK(inputs.front().n_tokens == 512);
+            CHECK(inputs.back().n_tokens == frontier);
+        }
+        CHECK(inputs.size() == limit);
+        CHECK(inputs[1].n_tokens < inputs.back().n_tokens - 1024);
+    }
+}
+
 void test_checkpoint_attempt_latch_rearms_on_ring_change() {
     server_cache_checkpoint_attempt_latch latch;
     uint64_t full_computations = 0;
     uint64_t receipts = 0;
 
     // Repeated publication attempts against one protected ring generation
-    // perform and report the expensive optional-thinning pass exactly once.
+    // perform and report the publication check exactly once.
     for (int i = 0; i < 8; ++i) {
         if (latch.begin(
-                server_cache_checkpoint_attempt_lane::optional_thinning)) {
+                server_cache_checkpoint_attempt_lane::publication_check)) {
             full_computations++;
             if (latch.refusal_changed(
                     common_cache_plan_destruction_reason::mandatory_anchor)) {
@@ -5207,12 +5186,8 @@ void test_checkpoint_attempt_latch_rearms_on_ring_change() {
     CHECK(full_computations == 1);
     CHECK(receipts == 1);
 
-    // Capacity pricing and its protected-member floor are independent lanes,
-    // but each is likewise single-shot for the same membership generation.
-    CHECK(latch.begin(
-        server_cache_checkpoint_attempt_lane::capacity_thinning));
-    CHECK(!latch.begin(
-        server_cache_checkpoint_attempt_lane::capacity_thinning));
+    // Protected capacity selection is independent but likewise single-shot
+    // for the same membership generation.
     CHECK(latch.begin(server_cache_checkpoint_attempt_lane::capacity_floor));
     CHECK(!latch.begin(
         server_cache_checkpoint_attempt_lane::capacity_floor));
@@ -5221,7 +5196,7 @@ void test_checkpoint_attempt_latch_rearms_on_ring_change() {
     // and evidence both become observable again for the new ring.
     latch.ring_changed();
     if (latch.begin(
-            server_cache_checkpoint_attempt_lane::optional_thinning)) {
+            server_cache_checkpoint_attempt_lane::publication_check)) {
         full_computations++;
         if (latch.refusal_changed(
                 common_cache_plan_destruction_reason::mandatory_anchor)) {
@@ -5230,8 +5205,6 @@ void test_checkpoint_attempt_latch_rearms_on_ring_change() {
     }
     CHECK(full_computations == 2);
     CHECK(receipts == 2);
-    CHECK(latch.begin(
-        server_cache_checkpoint_attempt_lane::capacity_thinning));
     CHECK(latch.begin(server_cache_checkpoint_attempt_lane::capacity_floor));
 }
 
@@ -5244,11 +5217,9 @@ void test_checkpoint_effect_matrix_consistency() {
         common_cache_plan_destruction_effect::checkpoint_member_drop);
     receipt.actual_accounting_serial = 1;
     authority.observe_host_destruction(receipt, true);
-    authority.destruction.note_checkpoint_thin_executed(0, 64);
     CHECK(authority.destruction_counters.executed
         [size_t(common_cache_plan_selection::none)]
         [size_t(common_cache_plan_destruction_class::checkpoint_drop)] == 1);
-    CHECK(authority.destruction.checkpoint_thin_executed == 1);
 }
 
 void test_live_checkpoint_payload_ownership() {
@@ -5617,6 +5588,8 @@ int main(int argc, char ** argv) {
     }
     if (argc == 2 && std::string(argv[1]) == "--clone-fault") {
         test_lifecycle_restore_clone_fault();
+        test_host_load_short_prefix_clone_fault();
+        test_host_load_recurrent_selection();
         llama_backend_free();
         if (failures == 0) {
             std::puts("test-server-prompt-cache: CLONE_FAULT_PASS");
@@ -5645,7 +5618,10 @@ int main(int argc, char ** argv) {
     test_exact_refusal_wire_response();
     test_slot_pager_lifecycle_generation();
     test_prompt_trim_recovery_runs_paired_resets();
+    test_active_storage_budget();
+    CHECK(server_active_prefix_retention_for_test());
     test_idle_capture_session_cancellation();
+    test_displacement_capture_session();
     test_idle_capture_refuses_active_queue_yield();
     test_queue_yield_work_exception_precedes_callback_exception();
     test_speculative_decode_terminals();
@@ -5678,18 +5654,19 @@ int main(int argc, char ** argv) {
     test_lifecycle_retention_capacity_all_one_shot_converges_to_fifo();
     test_lifecycle_retention_capacity_uses_value_density_not_reuse_as_a_pin();
     test_lifecycle_retention_capacity_cold_start_prior_ages_to_recency();
-    test_declared_family_round_trip_and_price();
+    test_declared_family_round_trip();
     test_checkpoint_lineage_ignores_retier_but_rejects_content_change();
     test_checkpoint_draft_restore_refuses_without_context();
     test_checkpoint_suffix_trim_rebases_only_preserved_prefixes();
     test_lifecycle_restore_retains_immutable_source();
+    test_recurrent_reusable_prefix();
+    test_recurrent_selection_survives_displacement_save(false);
+    test_recurrent_selection_survives_displacement_save(true);
     test_implicit_soft_append_chain_is_bounded();
     test_durable_recovery_binds_exact_published_peer();
-    test_unlaunched_disarm_releases_recovery_pin();
     test_displacement_save_order_preserves_prefix_recovery();
     test_lifecycle_off_restore_consumes();
     test_lifecycle_restore_batch_timing();
-    test_checkpoint_creation_churn_timing();
     test_checkpoint_bounded_publication_skip_predicate();
     test_consuming_rebind_mints_checkpoint_ownership();
     test_lifecycle_release_prepare_failure_keeps_legacy_bound();
@@ -5697,18 +5674,15 @@ int main(int argc, char ** argv) {
     test_authority_source_ids_survive_save_dedup();
     test_exact_redundant_host_eviction();
     test_redundancy_payload_mismatch_and_missing_catalog();
-    test_host_trade_soft_lease_weight_flips_victim();
-    test_host_trade_main_family_weight_flips_victim();
-    test_host_trade_zero_destruction_tie_break();
-    test_host_trade_all_refuse_falls_back_to_legacy();
+    test_host_capacity_uses_protected_fifo();
     test_host_trade_hard_lease_veto();
     test_host_trade_all_hard_skips_publication();
     test_host_trade_floor_skips_recovery_pin();
     test_cache_control_shutdown_drains_host_pin();
     test_host_trade_partial_substrate_is_typed();
-    test_checkpoint_thinning_policy();
-    test_checkpoint_thin_lane_skips_pinned_member();
+    test_checkpoint_capacity_skips_pinned_member();
     test_checkpoint_capacity_floor();
+    test_checkpoint_capacity_preserves_history();
     test_checkpoint_attempt_latch_rearms_on_ring_change();
     test_checkpoint_effect_matrix_consistency();
     test_live_checkpoint_payload_ownership();

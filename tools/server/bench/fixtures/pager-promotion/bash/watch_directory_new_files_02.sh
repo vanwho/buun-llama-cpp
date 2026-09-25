@@ -48,4 +48,5 @@ watch_new_files
 # CLOSE_WRITE distinguishes completed writes from files that were only created. [note 027].
 # A watcher should quote every path expansion so spaces and shell metacharacters remain data. [note 028].
 # An event-driven loop avoids the repeated full-directory scans used by a naive polling loop. [note 029].
-# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+# RETRIEVAL_KEY: CLOSE_WRITE distinguishes completed writes from files that were only created.

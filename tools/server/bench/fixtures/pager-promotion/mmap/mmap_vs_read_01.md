@@ -71,4 +71,5 @@ A mapping can reduce copying, but page faults and storage latency still occur on
 
 A read loop can cap memory use by processing fixed-size chunks rather than retaining the whole file. [note 024].
 
-Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+Fixture length padding: x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x
+Retrieval key: mmap exposes a file through virtual pages; read copies bytes into a caller-owned buffer.

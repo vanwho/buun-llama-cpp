@@ -1,22 +1,17 @@
 #!/usr/bin/env python3
-"""Offline repeatability tests for file-backed pager-promotion prompts."""
+"""Offline checks for the bounded two-topic pager-promotion prompt."""
 
 from __future__ import annotations
 
-import json
 import pathlib
-import tempfile
 import unittest
 
 from pager_promotion import (
-    DEFAULT_B_COUNT,
-    FIXTURE_ROOT,
-    build_case_plan,
-    build_promotion_steps,
-    load_fixture_catalog,
-    messages_for_step,
-    select_b_fixtures,
-    write_plan,
+    BASH_QUESTION, BASH_WINNER, DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT,
+    PYTHON_QUESTION, PYTHON_WINNER, assess_natural_retrieval, build_case_plan,
+    build_promotion_steps, load_fixture_catalog, messages_for_step,
+    pages_are_cold, pages_overlapping_token_range, refresh_page_versions,
+    response_budget,
 )
 
 
@@ -26,114 +21,99 @@ class PagerPromotionPromptTest(unittest.TestCase):
         cls.catalog = load_fixture_catalog(FIXTURE_ROOT)
         cls.by_id = {item.fixture_id: item for item in cls.catalog}
 
-    def test_manifest_and_source_files_are_complete_and_hashed(self) -> None:
+    def test_fixture_manifest_and_hashes(self) -> None:
         self.assertEqual(24, len(self.catalog))
-        self.assertEqual(3, len({item.category for item in self.catalog}))
-        self.assertTrue(all(item.token_count_no_bos == 1024 for item in self.catalog))
-        for item in self.catalog:
-            self.assertEqual(64, len(item.sha256))
-            self.assertEqual((FIXTURE_ROOT / item.relative_path).read_bytes().decode("utf-8"),
-                             item.body)
+        for fixture in self.catalog:
+            self.assertEqual(1024, fixture.token_count_no_bos)
+            self.assertEqual((FIXTURE_ROOT / fixture.relative_path).read_bytes().decode(),
+                             fixture.body)
+        selected = load_fixture_catalog(FIXTURE_ROOT, [
+            *(f"PY_MERGE_{n:02d}" for n in range(1, 6)),
+            *(f"BASH_WATCH_{n:02d}" for n in range(1, 6))])
+        self.assertEqual(10, len(selected))
+        self.assertEqual("PY_MERGE_03", selected[2].fixture_id)
+        self.assertEqual("BASH_WATCH_01", selected[5].fixture_id)
 
-    def test_each_target_has_deterministic_same_family_b_documents(self) -> None:
-        for target in self.catalog:
-            first = select_b_fixtures(self.catalog, target.fixture_id)
-            second = select_b_fixtures(self.catalog, target.fixture_id)
-            self.assertEqual(first, second)
-            self.assertEqual(DEFAULT_B_COUNT, len(first))
-            self.assertTrue(all(item.category == target.category for item in first))
-            self.assertNotIn(target.fixture_id, {item.fixture_id for item in first})
-            self.assertEqual(4, len({item.fixture_id for item in first}))
+    def test_exact_three_user_turns_and_fixture_order(self) -> None:
+        steps = build_promotion_steps(self.catalog)
+        self.assertEqual(3, len(steps))
+        self.assertEqual(["compare_python", "compare_bash", "repeat_python"],
+                         [step.stage for step in steps])
+        python_ids = ("PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04",
+                      "PY_MERGE_05", "PY_MERGE_03")
+        bash_ids = tuple(f"BASH_WATCH_{n:02d}" for n in range(1, 6))
+        self.assertEqual(python_ids, steps[0].appended_fixture_ids)
+        self.assertEqual(bash_ids, steps[1].appended_fixture_ids)
+        for fixture_id in python_ids:
+            self.assertIn(self.by_id[fixture_id].body, steps[0].user_content)
+        for fixture_id in bash_ids:
+            self.assertIn(self.by_id[fixture_id].body, steps[1].user_content)
+        self.assertEqual(PYTHON_QUESTION, steps[0].question)
+        self.assertEqual(BASH_QUESTION, steps[1].question)
+        self.assertEqual(steps[0].question, steps[2].question)
+        self.assertEqual(PYTHON_QUESTION, steps[2].user_content)
+        self.assertTrue(steps[0].user_content.endswith(PYTHON_QUESTION))
+        self.assertLess(steps[0].user_content.index(self.by_id["PY_MERGE_05"].body),
+                        steps[0].user_content.index(self.by_id["PY_MERGE_03"].body))
+        self.assertEqual(PYTHON_WINNER, steps[0].expected_answer_local_only)
+        self.assertEqual(BASH_WINNER, steps[1].expected_answer_local_only)
+        self.assertEqual(PYTHON_WINNER, steps[2].expected_answer_local_only)
+        self.assertTrue(steps[1].cache_prompt)
+        self.assertTrue(steps[2].cache_prompt)
+        self.assertNotIn("RETRIEVAL_KEY", steps[0].question + steps[1].question + steps[2].question)
+        self.assertIn("RETRIEVAL_KEY: The preallocated merge writes each output position exactly once.",
+                      self.by_id["PY_MERGE_03"].body)
 
-    def test_python_case_has_exact_six_step_a_b_a_sequence(self) -> None:
-        steps = build_promotion_steps(self.catalog, "PY_MERGE_01")
-        self.assertEqual(6, len(steps))
-        self.assertEqual("ingest_A_category_check", steps[0].stage)
-        self.assertEqual("append_B_and_query_B", steps[1].stage)
-        self.assertEqual("query_A_again", steps[-1].stage)
-        self.assertEqual("YES", steps[0].expected_answer_local_only)
-        self.assertEqual("For PY_MERGE_01, report its RETRIEVAL_KEY exactly.",
-                         steps[-1].question)
-        self.assertIn(self.by_id["PY_MERGE_01"].body, steps[0].user_content)
-        self.assertNotIn(self.by_id["PY_MERGE_01"].expected_answer,
-                         steps[0].question)
-        self.assertEqual(self.by_id["PY_MERGE_01"].expected_answer,
-                         steps[-1].expected_answer_local_only)
-        self.assertTrue(all(step.cache_prompt for step in steps[1:]))
-        self.assertFalse(steps[0].cache_prompt)
-
-    def test_all_families_use_their_neutral_a_question(self) -> None:
-        expected = {
-            "PY_MERGE_01": "Does this file define a callable `merge_sorted` function? "
-                           "Reply exactly YES or NO.",
-            "MMAP_READ_01": "Does this file compare `mmap` and `read`? Reply exactly YES or NO.",
-            "BASH_WATCH_01": "Does this file watch a directory for new files? Reply exactly YES or NO.",
-        }
-        for fixture_id, question in expected.items():
-            self.assertEqual(question, build_promotion_steps(
-                self.catalog, fixture_id)[0].question)
-
-    def test_each_continuation_preserves_prior_user_and_actual_assistant_turns(self) -> None:
-        steps = build_promotion_steps(self.catalog, "MMAP_READ_03")
-        prior_answers: list[str] = []
-        previous_messages: list[dict[str, str]] = []
-        for index, step in enumerate(steps):
-            messages = messages_for_step(steps, index, prior_answers)
-            self.assertEqual("user", messages[-1]["role"])
-            self.assertEqual(step.user_content, messages[-1]["content"])
-            if index:
-                self.assertEqual(previous_messages + [
-                    {"role": "assistant", "content": prior_answers[-1]},
-                    {"role": "user", "content": step.user_content},
-                ], messages)
-            previous_messages = messages
-            prior_answers.append(step.expected_answer_local_only)
-
-    def test_wrong_prior_live_answer_stops_sequence(self) -> None:
-        steps = build_promotion_steps(self.catalog, "BASH_WATCH_01")
-        with self.assertRaisesRegex(ValueError, "did not match"):
-            messages_for_step(steps, 1, ["NO"])
+    def test_cumulative_messages_keep_real_prior_assistant_responses(self) -> None:
+        steps = build_promotion_steps(self.catalog)
+        replies = ["merge_sorted_lists_03.py", "watch_directory_new_files_01.sh"]
+        messages = messages_for_step(steps, 2, replies)
+        self.assertEqual(["user", "assistant", "user", "assistant", "user"],
+                         [message["role"] for message in messages])
+        self.assertEqual(replies[0], messages[1]["content"])
+        self.assertEqual(replies[1], messages[3]["content"])
+        self.assertEqual(steps[0].user_content, messages[0]["content"])
+        self.assertEqual(steps[1].user_content, messages[2]["content"])
+        self.assertEqual(PYTHON_QUESTION, messages[-1]["content"])
         with self.assertRaisesRegex(ValueError, "exactly one"):
-            messages_for_step(steps, 2, ["YES"])
+            messages_for_step(steps, 2, replies[:1])
 
-    def test_b_count_is_bounded_for_natural_pressure_escalation(self) -> None:
-        self.assertEqual(8, len(build_promotion_steps(
-            self.catalog, "PY_MERGE_02", b_count=6)))
+    def test_response_budget_and_filename_scoring(self) -> None:
+        self.assertEqual(16384 - 100 - 128, response_budget(100))
+        self.assertTrue(assess_natural_retrieval(
+            PYTHON_WINNER, '"merge_sorted_lists_03.py"')['matched'])
+        self.assertFalse(assess_natural_retrieval(
+            PYTHON_WINNER, "merge_sorted_lists_02.py")['matched'])
         with self.assertRaises(ValueError):
-            select_b_fixtures(self.catalog, "PY_MERGE_02", b_count=7)
+            response_budget(16384)
 
-    def test_plan_contains_prompts_and_local_expectations_separately(self) -> None:
-        plan = build_case_plan(self.catalog, "PY_MERGE_01")
-        self.assertEqual({"server_context_tokens": 8192, "gpu_hot_tokens": 4096,
+    def test_every_overlapping_page_and_mutable_version_are_tracked(self) -> None:
+        inventory = [{"logical_page_id": index, "generation": 10 + index,
+                      "content_version": 20 + index, "sequence_id": 0,
+                      "sequence_generation": 1, "position_begin": index * 256,
+                      "position_end": (index + 1) * 256, "valid_length": 256,
+                      "host_backed": True, "resident": index < 2}
+                     for index in range(5)]
+        pages = pages_overlapping_token_range(inventory, 100, 1024 + 100)
+        self.assertEqual(list(range(5)), [page["logical_page_id"] for page in pages])
+        changed_versions = [dict(page, content_version=100 + index, resident=False)
+                            for index, page in enumerate(inventory)]
+        changed_versions[-1].update(position_end=1408, valid_length=384)
+        refreshed = refresh_page_versions(changed_versions, pages)
+        self.assertEqual(list(range(100, 105)),
+                         [page["content_version"] for page in refreshed])
+        self.assertEqual(1408, refreshed[-1]["position_end"])
+        self.assertTrue(pages_are_cold(refreshed, refreshed, require_complete=True))
+
+    def test_case_plan_locks_new_geometry_and_fixture_set(self) -> None:
+        plan = build_case_plan(self.catalog, DEFAULT_TARGET_FIXTURE_ID)
+        self.assertEqual({"server_context_tokens": 16384, "gpu_hot_tokens": 4096,
                           "page_size_tokens": 256, "hot_pages": 16}, plan["geometry"])
-        final = plan["steps"][-1]
-        self.assertEqual(self.by_id["PY_MERGE_01"].retrieval_question, final["user_content"])
-        self.assertEqual(self.by_id["PY_MERGE_01"].expected_answer,
-                         final["expected_answer_local_only"])
-        self.assertNotIn("expected_answer_local_only", final["user_content"])
-
-    def test_manifest_corruption_fails_closed(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = pathlib.Path(temporary)
-            manifest = json.loads((FIXTURE_ROOT / "manifest.json").read_text())
-            (root / "manifest.json").write_text(json.dumps(manifest))
-            for item in self.catalog:
-                destination = root / item.relative_path
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_text(item.body, encoding="utf-8")
-            first = root / self.catalog[0].relative_path
-            first.write_text(first.read_text() + "tampered\n")
-            with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
-                load_fixture_catalog(root)
-
-    def test_plan_writer_refuses_to_overwrite(self) -> None:
-        plan = build_case_plan(self.catalog, "MMAP_READ_01")
-        with tempfile.TemporaryDirectory() as temporary:
-            output = pathlib.Path(temporary) / "plan.json"
-            write_plan(output, [plan])
-            self.assertEqual(plan, json.loads(output.read_text()))
-            with self.assertRaises(FileExistsError):
-                write_plan(output, [plan])
+        self.assertEqual(3, plan["request_count"])
+        self.assertEqual(PYTHON_WINNER, plan["steps"][0]["expected_answer_local_only"])
+        self.assertEqual(PYTHON_WINNER, plan["steps"][2]["expected_answer_local_only"])
+        with self.assertRaisesRegex(ValueError, "fixed"):
+            build_promotion_steps(self.catalog, "PY_MERGE_01")
 
 
 if __name__ == "__main__":
