@@ -1,5 +1,7 @@
 # Phase 93 — Turbo4 MTP and attention-pager diagnostics
 
+Revision: `hotpath-v10-20260914`.
+
 This is the compact, current phase context. Task packets own their exact
 protocols and acceptance criteria. Historical V9/phase-85 plans, old failed
 receipts, and prior raw transcripts are not startup context; consult only a
@@ -73,11 +75,15 @@ reasoning off. Preflight the complete rendered conversation; send all three
 requests even if answers are wrong. Never force eviction, select a page, or
 change route. Record the `PY_MERGE_03` page's coldness before the repeated
 question and correlate every page overlapping the Python fixture, especially
-the answer-bearing page, through natural selector, H2D, publication, target,
-and draft events. Report whole-fixture residency only if all of its pages are
-resident. Decode speed may be recorded as a secondary matched observation,
-but cannot prove which page was resident or promoted; answer quality and
-physical promotion are independent findings.
+the final `RETRIEVAL_KEY` fact page, through natural selector, H2D, publication,
+target, and draft events. Attempt 07 tracked an early fixture location inside
+resident logical pages 2–15, so its completed run never reached a cold-page
+precondition. Put `PY_MERGE_03` last in the first group; do not change fixture
+bytes. Report whole-fixture residency only if every overlapping page is
+resident. Decode speed may be recorded as a secondary observation, but cannot
+prove page residency or promotion. Answer quality and physical promotion are
+independent findings. The next run must inspect page eligibility/retention
+reasons and must not repeat the same sequence if the target remains hot.
 
 The old 8K single-file protocol and its incomplete results are historical only.
 Keep their receipts/raw roots immutable; do not make them acceptance criteria
