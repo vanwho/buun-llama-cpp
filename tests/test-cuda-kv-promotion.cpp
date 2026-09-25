@@ -728,6 +728,34 @@ static int run_proof() {
     boundary.transaction.transfers.push_back(
         promotion_plan(transfer_record, pager->snapshot(), boundary.snapshot.epoch()));
     const auto old_snapshot = pager->residency();
+    const auto prior_mapping_intact = [&]() {
+        const auto now = pager->residency();
+        if (now.epoch() != old_snapshot.epoch() ||
+                now.pages().size() != old_snapshot.pages().size()) return false;
+        for (size_t i = 0; i < now.pages().size(); ++i) {
+            if (now.pages()[i].id != old_snapshot.pages()[i].id ||
+                    now.pages()[i].physical_slot != old_snapshot.pages()[i].physical_slot) return false;
+        }
+        return true;
+    };
+
+    // Pinning every logical page forces mandatory capacity overflow, so no
+    // victim can be selected for the cold retrieval candidate.
+    auto all_pinned = boundary;
+    for (auto & page : all_pinned.pages) page.application_pin = true;
+    const auto pinned_result = pager->apply_live_policy(all_pinned);
+    assert(pinned_result.status == llama_kv_live_policy_status::all_pinned ||
+           pinned_result.status == llama_kv_live_policy_status::mandatory_overflow);
+    assert(!pinned_result.published && prior_mapping_intact());
+
+    // An invalid transfer plan is rejected before publication and likewise
+    // leaves the old target graph's table authoritative.
+    auto rejected_transfer = boundary;
+    rejected_transfer.transaction.transfers.front().runs.clear();
+    const auto rejected_result = pager->apply_live_policy(rejected_transfer);
+    assert(rejected_result.status == llama_kv_live_policy_status::transaction_failed);
+    assert(!rejected_result.published && prior_mapping_intact());
+
     const auto promotion = pager->apply_live_policy(boundary);
     if (!(promotion.status == llama_kv_live_policy_status::committed && promotion.published)) {
         std::fprintf(stderr, "promotion failed status=%d published=%d tx=%d phase=%d target=%zu\n",
@@ -737,6 +765,11 @@ static int run_proof() {
     }
     assert(promotion.status == llama_kv_live_policy_status::committed && promotion.published);
     assert(promotion.transaction.h2d_counters.copied_useful_bytes > 0);
+    assert(promotion.transaction.h2d_counters.queued > 0);
+    assert(std::any_of(promotion.decisions.begin(), promotion.decisions.end(),
+        [&](const auto & decision) {
+            return decision.victim && decision.id.logical_page != winner_logical;
+        }));
     assert(std::any_of(promotion.target_pages.begin(), promotion.target_pages.end(),
         [&](const auto & record) { return record.id == cold_it->id; }));
     assert(pager->residency().epoch() != old_snapshot.epoch());

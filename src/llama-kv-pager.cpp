@@ -8,6 +8,29 @@
 #include <new>
 #include <utility>
 
+const char * llama_kv_pager_selector_trace_outcome_name(
+        llama_kv_pager_selector_trace_outcome outcome) noexcept {
+    switch (outcome) {
+        case llama_kv_pager_selector_trace_outcome::none: return "none";
+        case llama_kv_pager_selector_trace_outcome::selector_not_run: return "selector_not_run";
+        case llama_kv_pager_selector_trace_outcome::no_eligible_cold_page: return "no_eligible_cold_page";
+        case llama_kv_pager_selector_trace_outcome::eligible_ranked_out: return "eligible_ranked_out";
+        case llama_kv_pager_selector_trace_outcome::selected_pending: return "selected_pending";
+        case llama_kv_pager_selector_trace_outcome::mailbox_dropped: return "mailbox_dropped";
+        case llama_kv_pager_selector_trace_outcome::stale_invalid_identity: return "stale_invalid_identity";
+        case llama_kv_pager_selector_trace_outcome::no_host_source: return "no_host_source";
+        case llama_kv_pager_selector_trace_outcome::mandatory_capacity: return "mandatory_capacity";
+        case llama_kv_pager_selector_trace_outcome::policy_target_omission: return "policy_target_omission";
+        case llama_kv_pager_selector_trace_outcome::slot_admission: return "slot_admission";
+        case llama_kv_pager_selector_trace_outcome::transfer_plan_rejected: return "transfer_plan_rejected";
+        case llama_kv_pager_selector_trace_outcome::async_transfer_failed: return "async_transfer_failed";
+        case llama_kv_pager_selector_trace_outcome::publication_failed: return "publication_failed";
+        case llama_kv_pager_selector_trace_outcome::promoted: return "promoted";
+        case llama_kv_pager_selector_trace_outcome::target_used: return "target_used";
+    }
+    return "invalid_outcome";
+}
+
 namespace {
 bool mul(uint64_t a, uint64_t b, uint64_t & out) noexcept {
     if (a && b > std::numeric_limits<uint64_t>::max() / a) return false;
@@ -171,6 +194,12 @@ void llama_kv_pager::record_natural_proof_target_use(
     proof.target_use_epoch = table_epoch != 0 ? table_epoch : snapshot.epoch();
     proof.target_use_query_generation = query_generation != 0
         ? query_generation : proof.query_generation;
+    if (selector_trace_.enabled && selector_trace_.mapping_published &&
+            selector_trace_.target_logical_page == int32_t(proof.logical_page) &&
+            selector_trace_.target_content_version == proof.content_version) {
+        selector_trace_.target_graph_used = true;
+        selector_trace_.outcome = llama_kv_pager_selector_trace_outcome::target_used;
+    }
     if (natural_proof_event_sequence_ != UINT64_MAX) ++natural_proof_event_sequence_;
     proof.target_event_sequence = natural_proof_event_sequence_;
 }

@@ -11,6 +11,7 @@
 #include "llama-vbr-artifact-capture.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <condition_variable>
 #include <deque>
@@ -364,6 +365,72 @@ struct llama_kv_pager_rejection_histogram {
     uint64_t publication_rejected = 0;
 };
 
+enum class llama_kv_pager_selector_trace_outcome : uint8_t {
+    none = 0,
+    selector_not_run,
+    no_eligible_cold_page,
+    eligible_ranked_out,
+    selected_pending,
+    mailbox_dropped,
+    stale_invalid_identity,
+    no_host_source,
+    mandatory_capacity,
+    policy_target_omission,
+    slot_admission,
+    transfer_plan_rejected,
+    async_transfer_failed,
+    publication_failed,
+    promoted,
+    target_used,
+};
+
+const char * llama_kv_pager_selector_trace_outcome_name(
+        llama_kv_pager_selector_trace_outcome outcome) noexcept;
+
+// One refresh-scoped selector trace. Fixed arrays and scalar page metadata
+// keep diagnostics bounded; this never stores prompts, tensors, or inventory.
+struct llama_kv_pager_selector_trace {
+    bool enabled = false;
+    uint64_t query_generation = 0;
+    uint64_t query_position = 0;
+    uint64_t table_epoch = 0;
+    uint32_t query_row = UINT32_MAX;
+    int32_t target_logical_page = -1;
+    bool target_found = false;
+    bool target_resident = false;
+    uint32_t target_valid_length = 0;
+    int64_t target_position_begin = -1;
+    uint64_t target_sequence_generation = 0;
+    uint64_t target_page_generation = 0;
+    uint64_t target_content_version = 0;
+    uint64_t target_summary_version = 0;
+    bool target_summary_ready = false;
+    bool target_host_backed = false;
+    bool target_eligible = false;
+    std::array<int32_t, 2> raw_cold_indices{{-1, -1}};
+    std::array<int32_t, 2> raw_cold_logical_pages{{-1, -1}};
+    uint32_t raw_cold_count = 0;
+    bool raw_selector_output_valid = false;
+    bool async_readback_submitted = false;
+    bool async_readback_completed = false;
+    bool synchronous_readback_completed = false;
+    bool mailbox_published = false;
+    bool mailbox_dropped = false;
+    bool candidate_authenticated = false;
+    bool policy_admitted = false;
+    uint32_t victim_logical_page = UINT32_MAX;
+    uint32_t target_physical_slot = UINT32_MAX;
+    uint64_t h2d_queued_bytes = 0;
+    uint64_t h2d_completed_bytes = 0;
+    uint64_t h2d_event_completions = 0;
+    bool h2d_completion_observed = false;
+    uint64_t published_epoch = 0;
+    bool mapping_published = false;
+    bool target_graph_used = false;
+    llama_kv_pager_selector_trace_outcome outcome =
+        llama_kv_pager_selector_trace_outcome::none;
+};
+
 enum class llama_kv_pager_status : uint8_t {
     ok = 0,
     disabled,
@@ -608,6 +675,13 @@ public:
     const llama_kv_pager_rejection_histogram & rejection_histogram() const noexcept {
         return rejection_histogram_;
     }
+    const llama_kv_pager_selector_trace & selector_trace() const noexcept {
+        return selector_trace_;
+    }
+    llama_kv_pager_selector_trace & selector_trace_for_update() noexcept {
+        return selector_trace_;
+    }
+    void reset_selector_trace() noexcept { selector_trace_ = {}; }
     void record_rejection_no_candidate() noexcept;
     void record_rejection_invalid_candidate() noexcept;
     void record_rejection_not_cold() noexcept;
@@ -736,6 +810,7 @@ private:
     llama_kv_pager_natural_proof natural_proof_;
     uint64_t natural_proof_event_sequence_ = 0;
     llama_kv_pager_rejection_histogram rejection_histogram_;
+    llama_kv_pager_selector_trace selector_trace_;
     // A complete refresh carries the bounded resident/cold regions for the
     // attention layers. Keep the two-slot owner, but size each fixed slot for
     // the runtime layer count rather than dropping later layer records.

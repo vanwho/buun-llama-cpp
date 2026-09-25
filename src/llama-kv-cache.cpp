@@ -60,6 +60,20 @@ float fp16_outward_upper(float value) {
     return ggml_fp16_to_fp32(adjacent);
 }
 
+bool pager_selector_trace_enabled() noexcept {
+    const char * value = std::getenv("LLAMA_KV_PAGER_SELECTOR_TRACE");
+    return value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+}
+
+int32_t pager_selector_trace_target() noexcept {
+    const char * value = std::getenv("LLAMA_KV_PAGER_SELECTOR_TRACE_PAGE");
+    if (value == nullptr || value[0] == '\0') return -1;
+    char * end = nullptr;
+    const long parsed = std::strtol(value, &end, 10);
+    if (end == value || *end != '\0' || parsed < 0 || parsed > INT32_MAX) return -1;
+    return int32_t(parsed);
+}
+
 } // namespace
 
 static llama_memory_failure_reason pager_failure_reason(
@@ -2277,13 +2291,35 @@ bool llama_kv_cache::pager_selector_complete(
         llama_kv_prefetch_candidate * records, uint32_t * count,
         uint64_t generation) noexcept {
     auto * cache = static_cast<llama_kv_cache *>(context);
-    if (cache == nullptr || cache->pager_ == nullptr || raw == nullptr ||
-            records == nullptr || count == nullptr || slot >= cache->pager_selector_submissions_.size() ||
-            *count == 0 || *count > cache->pager_->prefetch_candidate_mailbox().candidates_per_slot()) {
+    if (cache == nullptr || cache->pager_ == nullptr) {
+        return false;
+    }
+    auto & trace = cache->pager_->selector_trace_for_update();
+    const bool trace_current = trace.enabled && trace.query_generation == generation;
+    if (raw == nullptr || records == nullptr || count == nullptr ||
+            slot >= cache->pager_selector_submissions_.size() || *count == 0 ||
+            *count > cache->pager_->prefetch_candidate_mailbox().candidates_per_slot()) {
+        if (trace_current) {
+            trace.mailbox_dropped = true;
+            trace.outcome = llama_kv_pager_selector_trace_outcome::mailbox_dropped;
+        }
         return false;
     }
     auto & submission = cache->pager_selector_submissions_[slot];
-    if (!submission.active || submission.generation != generation) return false;
+    if (!submission.active || submission.generation != generation) {
+        if (trace_current) {
+            trace.mailbox_dropped = true;
+            trace.outcome = llama_kv_pager_selector_trace_outcome::mailbox_dropped;
+        }
+        return false;
+    }
+    if (trace_current) {
+        trace.async_readback_completed = true;
+        trace.raw_selector_output_valid = true;
+        trace.raw_cold_count = 0;
+        trace.raw_cold_indices = {{-1, -1}};
+        trace.raw_cold_logical_pages = {{-1, -1}};
+    }
     // The mailbox releases the slot when decoding fails. Mark the submission
     // complete up front so graph-owned routing descriptors can be reclaimed on
     // the next policy boundary instead of remaining pinned.
@@ -2306,6 +2342,19 @@ bool llama_kv_cache::pager_selector_complete(
                 segment.output.cold_count > output.pages.size() - output.cold_offset ||
                 segment.count != segment.output.resident_count + segment.output.cold_count) {
             return false;
+        }
+        if (trace_current) {
+            for (uint32_t rank = segment.output.resident_count;
+                    rank < segment.count && trace.raw_cold_count < trace.raw_cold_indices.size();
+                    ++rank) {
+                const int32_t index = copied_ids[segment.raw_offset + rank];
+                const uint32_t out = trace.raw_cold_count++;
+                trace.raw_cold_indices[out] = index;
+                if (index >= 0 && size_t(index) < segment.output.pages.size()) {
+                    trace.raw_cold_logical_pages[out] = int32_t(
+                            segment.output.pages[size_t(index)].identity.logical_page);
+                }
+            }
         }
         for (uint32_t rank = 0; rank < segment.count; ++rank) {
             llama_kv_prefetch_candidate candidate;
@@ -2350,7 +2399,26 @@ bool llama_kv_cache::pager_selector_complete(
             records[written++] = candidate;
         }
     }
-    if (written == 0) return false;
+    if (written == 0) {
+        if (trace_current) {
+            trace.mailbox_dropped = true;
+            trace.outcome = llama_kv_pager_selector_trace_outcome::mailbox_dropped;
+        }
+        return false;
+    }
+    if (trace_current) {
+        trace.mailbox_published = true;
+        const bool target_selected = trace.target_logical_page >= 0 &&
+            std::find(trace.raw_cold_logical_pages.begin(),
+                    trace.raw_cold_logical_pages.begin() + trace.raw_cold_count,
+                    trace.target_logical_page) !=
+                trace.raw_cold_logical_pages.begin() + trace.raw_cold_count;
+        trace.outcome = target_selected
+            ? llama_kv_pager_selector_trace_outcome::selected_pending
+            : trace.target_eligible
+                ? llama_kv_pager_selector_trace_outcome::eligible_ranked_out
+                : llama_kv_pager_selector_trace_outcome::no_eligible_cold_page;
+    }
     *count = written;
     return true;
 }
@@ -2497,6 +2565,14 @@ void llama_kv_cache::capture_kv_routing_query(
         pager_query_refresh_enabled_ = refresh;
         if (refresh) {
             pager_query_refresh_watermark_ = pager_query_accepted_tokens_;
+            pager_->reset_selector_trace();
+            if (pager_selector_trace_enabled()) {
+                auto & trace = pager_->selector_trace_for_update();
+                trace.enabled = true;
+                trace.query_generation = pager_query_generation_;
+                trace.target_logical_page = pager_selector_trace_target();
+                trace.outcome = llama_kv_pager_selector_trace_outcome::selector_not_run;
+            }
         }
         return;
     }
@@ -2537,6 +2613,13 @@ void llama_kv_cache::capture_kv_routing_query(
     if (position < 0) return;
     value.query_position = position < std::numeric_limits<llama_pos>::max()
         ? uint64_t(position) + 1 : uint64_t(position);
+    int32_t selected_query_row = -1;
+    if (tensor->op == GGML_OP_KV_PAGE_SELECT) {
+        std::memcpy(&selected_query_row, tensor->op_params + 3 * sizeof(int32_t),
+                sizeof(selected_query_row));
+    }
+    value.query_row = selected_query_row >= 0
+        ? uint32_t(selected_query_row) : UINT32_MAX;
     value.sequence_generation = snapshot.pages().empty()
         ? 0 : snapshot.pages().front().id.sequence_generation;
     value.session_generation = snapshot.pages().empty()
@@ -2580,6 +2663,57 @@ void llama_kv_cache::capture_kv_routing_query(
     } catch (...) {
         value.pages.clear();
         return;
+    }
+    auto & selector_trace = pager_->selector_trace_for_update();
+    if (selector_trace.enabled && selector_trace.query_generation == value.query_generation) {
+        selector_trace.query_position = value.query_position;
+        selector_trace.table_epoch = value.table_epoch;
+        selector_trace.query_row = value.query_row;
+        if (selector_trace.target_logical_page >= 0) {
+            const auto target = std::find_if(inventory.begin(), inventory.end(),
+                    [&](const auto & page) {
+                return page.id.logical_page == uint32_t(selector_trace.target_logical_page);
+            });
+            if (target != inventory.end()) {
+                selector_trace.target_found = true;
+                selector_trace.target_resident = target->physical_slot != UINT32_MAX;
+                selector_trace.target_valid_length = target->valid_length;
+                selector_trace.target_position_begin = target->id.position_begin;
+                selector_trace.target_sequence_generation = target->id.sequence_generation;
+                selector_trace.target_page_generation = target->id.page_generation;
+                selector_trace.target_content_version = target->content_version;
+                selector_trace.target_summary_version = pager_->routing_summary_content_version(target->id);
+                selector_trace.target_summary_ready = target->content_version != 0 &&
+                    selector_trace.target_summary_version == target->content_version;
+                if (auto * catalog = pager_->host_catalog()) {
+                    vbr_selected_page_host_view host_view;
+                    selector_trace.target_host_backed = catalog->find_page(target->id, host_view);
+                    if (!selector_trace.target_host_backed && target->id.attention_layer != UINT32_MAX) {
+                        auto bundle_id = target->id;
+                        bundle_id.attention_layer = UINT32_MAX;
+                        selector_trace.target_host_backed = catalog->find_page(bundle_id, host_view);
+                    }
+                }
+                const bool causal = selector_trace.target_position_begin >= 0 &&
+                    uint64_t(selector_trace.target_position_begin) < value.query_position &&
+                    selector_trace.target_valid_length > 0 &&
+                    selector_trace.target_valid_length <= pager_->snapshot().geometry.page_tokens &&
+                    selector_trace.target_valid_length <= value.query_position -
+                        uint64_t(selector_trace.target_position_begin);
+                selector_trace.target_eligible = !selector_trace.target_resident && causal &&
+                    selector_trace.target_sequence_generation == value.sequence_generation &&
+                    selector_trace.target_page_generation > 0 &&
+                    selector_trace.target_page_generation <= value.rollback_generation &&
+                    selector_trace.target_summary_ready;
+                if (selector_trace.target_eligible && !selector_trace.target_host_backed) {
+                    selector_trace.outcome = llama_kv_pager_selector_trace_outcome::no_host_source;
+                } else if (!selector_trace.target_eligible) {
+                    selector_trace.outcome = llama_kv_pager_selector_trace_outcome::no_eligible_cold_page;
+                }
+            } else {
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::no_eligible_cold_page;
+            }
+        }
     }
     value.refresh_enabled = pager_query_refresh_enabled_;
     try {
@@ -2780,6 +2914,35 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 std::array<int32_t, 128> selected_ids{};
                 ggml_backend_tensor_get(output.tensor, selected_ids.data(), 0,
                         size_t(count) * sizeof(selected_ids[0]));
+                auto & trace = pager_->selector_trace_for_update();
+                if (trace.enabled && trace.query_generation == output.query_generation) {
+                    trace.synchronous_readback_completed = true;
+                    trace.raw_selector_output_valid = true;
+                    trace.raw_cold_count = 0;
+                    trace.raw_cold_indices = {{-1, -1}};
+                    trace.raw_cold_logical_pages = {{-1, -1}};
+                    for (uint32_t rank = output.resident_count;
+                            rank < count && trace.raw_cold_count < trace.raw_cold_indices.size();
+                            ++rank) {
+                        const int32_t index = selected_ids[rank];
+                        const uint32_t out = trace.raw_cold_count++;
+                        trace.raw_cold_indices[out] = index;
+                        if (index >= 0 && size_t(index) < output.pages.size()) {
+                            trace.raw_cold_logical_pages[out] = int32_t(
+                                    output.pages[size_t(index)].identity.logical_page);
+                        }
+                    }
+                    const bool target_selected = trace.target_logical_page >= 0 &&
+                        std::find(trace.raw_cold_logical_pages.begin(),
+                                trace.raw_cold_logical_pages.begin() + trace.raw_cold_count,
+                                trace.target_logical_page) !=
+                            trace.raw_cold_logical_pages.begin() + trace.raw_cold_count;
+                    trace.outcome = target_selected
+                        ? llama_kv_pager_selector_trace_outcome::selected_pending
+                        : trace.target_eligible
+                            ? llama_kv_pager_selector_trace_outcome::eligible_ranked_out
+                            : llama_kv_pager_selector_trace_outcome::no_eligible_cold_page;
+                }
                 for (uint32_t rank = 0; rank < count; ++rank) {
                     const int32_t index = selected_ids[rank];
                     const bool cold = rank >= output.resident_count;
@@ -2879,11 +3042,20 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                             if (mailbox.publish_pending(routing_slot, raw_count,
                                     submission.generation, event_id) !=
                                     llama_kv_prefetch_mailbox_status::ok) {
+                                auto & trace = pager_->selector_trace_for_update();
+                                if (trace.enabled && trace.query_generation == pager_query_generation_) {
+                                    trace.mailbox_dropped = true;
+                                    trace.outcome = llama_kv_pager_selector_trace_outcome::mailbox_dropped;
+                                }
                                 pager_selector_event_cancel(this, event_id);
                                 pager_selector_event_release(this, event_id);
                                 mailbox.abandon(routing_slot);
                                 submission = {};
                             } else {
+                                auto & trace = pager_->selector_trace_for_update();
+                                if (trace.enabled && trace.query_generation == pager_query_generation_) {
+                                    trace.async_readback_submitted = true;
+                                }
                                 if (progress_trace) {
                                     LLAMA_LOG_INFO("kv-pager-progress stage=selector-readback-submitted"
                                             " query=%" PRIu64 " event=0x%" PRIx64 " count=%u\n",
@@ -3049,7 +3221,15 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             add_retrieval_identity(entry, generation);
             have_retrieval = true;
         };
+        auto & selector_trace = pager_->selector_trace_for_update();
+        const auto is_trace_target = [&](const llama_kv_prefetch_candidate & candidate) {
+            return selector_trace.enabled &&
+                selector_trace.query_generation == candidate.generation &&
+                selector_trace.target_logical_page >= 0 &&
+                uint32_t(selector_trace.target_logical_page) == candidate.identity.logical_page;
+        };
         for (const auto & candidate : candidates) {
+            const bool trace_target = is_trace_target(candidate);
             if (candidate.generation == 0 ||
                     candidate.generation > pager_query_generation_ ||
                     candidate.query_position == 0 ||
@@ -3061,6 +3241,9 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     candidate.rollback_generation < candidate.identity.page_generation ||
                     candidate.content_version == 0 ||
                     candidate.summary_version != candidate.content_version) {
+                if (trace_target) {
+                    selector_trace.outcome = llama_kv_pager_selector_trace_outcome::stale_invalid_identity;
+                }
                 pager_->record_rejection_invalid_candidate();
                 continue;
             }
@@ -3076,10 +3259,17 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         candidate.summary_version;
             });
             if (found == inventory.end()) {
+                if (trace_target) {
+                    selector_trace.outcome = llama_kv_pager_selector_trace_outcome::stale_invalid_identity;
+                }
                 pager_->record_rejection_identity_mismatch();
                 continue;
             }
+            if (trace_target) selector_trace.candidate_authenticated = true;
             if (!candidate.cold) {
+                if (trace_target) {
+                    selector_trace.outcome = llama_kv_pager_selector_trace_outcome::stale_invalid_identity;
+                }
                 auto & layer_candidates = resident_by_layer[candidate.attention_layer];
                 if (std::find_if(layer_candidates.begin(), layer_candidates.end(),
                         [&](const auto & old) { return same_bundle(old.identity,
@@ -3173,6 +3363,23 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     continue;
                 }
                 selected.push_back(entry);
+            }
+        }
+        if (selector_trace.enabled && selector_trace.query_generation == pager_query_generation_ &&
+                selector_trace.target_logical_page >= 0 && selector_trace.raw_selector_output_valid) {
+            const bool raw_target = std::find(selector_trace.raw_cold_logical_pages.begin(),
+                    selector_trace.raw_cold_logical_pages.begin() + selector_trace.raw_cold_count,
+                    selector_trace.target_logical_page) !=
+                selector_trace.raw_cold_logical_pages.begin() + selector_trace.raw_cold_count;
+            const bool policy_target = std::find_if(boundary.retrieval.selected.begin(),
+                    boundary.retrieval.selected.end(), [&](const auto & entry) {
+                return entry.id.logical_page == uint32_t(selector_trace.target_logical_page);
+            }) != boundary.retrieval.selected.end();
+            selector_trace.policy_admitted = policy_target;
+            if (!raw_target && selector_trace.target_eligible) {
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::eligible_ranked_out;
+            } else if (raw_target && selector_trace.candidate_authenticated && !policy_target) {
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::policy_target_omission;
             }
         }
         const uint32_t forced_page = pager_->test_force_logical_page();
@@ -3324,11 +3531,19 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 }
                 vbr_selected_page_host_view selected_host;
                 if (!find_host_page(target_id, selected_host)) {
+                    if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                            target_id.logical_page == uint32_t(selector_trace.target_logical_page)) {
+                        selector_trace.outcome = llama_kv_pager_selector_trace_outcome::no_host_source;
+                    }
                     pager_->record_rejection_missing_host_source();
                     promotion_valid = false;
                     break;
                 }
                 if (selected_slot == UINT32_MAX) {
+                    if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                            target_id.logical_page == uint32_t(selector_trace.target_logical_page)) {
+                        selector_trace.outcome = llama_kv_pager_selector_trace_outcome::slot_admission;
+                    }
                     pager_->record_rejection_admission();
                     promotion_valid = false;
                     break;
@@ -3436,6 +3651,13 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 }
             }
             if (!promotion_valid || promotion_pages.size() > 2) {
+                if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                        std::any_of(cold_bundles.begin(), cold_bundles.end(), [&](const auto & bundle) {
+                    return bundle.candidate.identity.logical_page ==
+                        uint32_t(selector_trace.target_logical_page);
+                })) {
+                    selector_trace.outcome = llama_kv_pager_selector_trace_outcome::transfer_plan_rejected;
+                }
                 pager_->record_rejection_transfer();
                 boundary.transaction.transfers.clear();
             } else if (!promotion_pages.empty()) {
@@ -3445,6 +3667,12 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         promotion_pages, 1,
                         { 1024, 1048576, geometry.attention_layers,
                           uint64_t(16)*1024*1024*1024 }, plan)) {
+                    if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                            std::any_of(promotion_pages.begin(), promotion_pages.end(), [&](const auto & page) {
+                        return page.page.logical_page == uint32_t(selector_trace.target_logical_page);
+                    })) {
+                        selector_trace.outcome = llama_kv_pager_selector_trace_outcome::transfer_plan_rejected;
+                    }
                     pager_->record_rejection_transfer();
                     boundary.transaction.transfers.clear();
                 } else {
@@ -3466,7 +3694,70 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     " transfers=%zu selected=%zu\n", pager_query_generation_,
                     boundary.transaction.transfers.size(), boundary.retrieval.selected.size());
         }
+        if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                selector_trace.query_generation == pager_query_generation_) {
+            selector_trace.h2d_queued_bytes = 0;
+            for (const auto & plan : boundary.transaction.transfers) {
+                if (plan.direction != llama_kv_residency_transfer_direction::h2d_promotion) continue;
+                for (const auto & page : plan.pages) {
+                    if (page.page.logical_page != uint32_t(selector_trace.target_logical_page)) continue;
+                    selector_trace.target_physical_slot = page.physical_slot;
+                    for (const auto & run : page.runs) {
+                        const uint64_t bytes = uint64_t(run.row_count) * run.row_bytes;
+                        selector_trace.h2d_queued_bytes = selector_trace.h2d_queued_bytes >
+                                UINT64_MAX - bytes
+                            ? UINT64_MAX : selector_trace.h2d_queued_bytes + bytes;
+                    }
+                }
+            }
+        }
         const auto result = pager_->apply_live_policy(boundary);
+        if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                selector_trace.query_generation == pager_query_generation_) {
+            for (const auto & decision_row : result.decisions) {
+                if (decision_row.victim) {
+                    selector_trace.victim_logical_page = decision_row.id.logical_page;
+                    break;
+                }
+            }
+            selector_trace.h2d_event_completions =
+                result.transaction.h2d_counters.event_completions;
+            selector_trace.h2d_completed_bytes =
+                result.transaction.h2d_counters.copied_useful_bytes;
+            selector_trace.h2d_completion_observed =
+                result.transaction.status == llama_kv_residency_transaction_status::committed &&
+                selector_trace.h2d_completed_bytes > 0;
+            if (result.status == llama_kv_live_policy_status::all_pinned ||
+                    result.status == llama_kv_live_policy_status::mandatory_overflow ||
+                    result.transaction.status == llama_kv_residency_transaction_status::all_pinned ||
+                    result.transaction.status == llama_kv_residency_transaction_status::insufficient_slots) {
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::mandatory_capacity;
+            } else if (result.status == llama_kv_live_policy_status::missing_host_source ||
+                    result.transaction.status == llama_kv_residency_transaction_status::missing_host_source) {
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::no_host_source;
+            } else if (result.transaction.status == llama_kv_residency_transaction_status::transfer_failed ||
+                    result.transaction.status == llama_kv_residency_transaction_status::phase_failed) {
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::async_transfer_failed;
+            } else if (result.transaction.status == llama_kv_residency_transaction_status::publish_failed ||
+                    result.transaction.status == llama_kv_residency_transaction_status::rollback_failed) {
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::publication_failed;
+            } else if (result.status == llama_kv_live_policy_status::transaction_failed) {
+                selector_trace.outcome = selector_trace.h2d_queued_bytes == 0
+                    ? llama_kv_pager_selector_trace_outcome::slot_admission
+                    : llama_kv_pager_selector_trace_outcome::transfer_plan_rejected;
+            }
+            const auto promoted_target = std::find_if(result.target_pages.begin(),
+                    result.target_pages.end(), [&](const auto & page) {
+                return page.id.logical_page == uint32_t(selector_trace.target_logical_page) &&
+                    page.physical_slot != UINT32_MAX;
+            });
+            if (result.published && promoted_target != result.target_pages.end()) {
+                selector_trace.mapping_published = true;
+                selector_trace.published_epoch = result.published_epoch;
+                selector_trace.target_physical_slot = promoted_target->physical_slot;
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::promoted;
+            }
+        }
         if (progress_trace) {
             LLAMA_LOG_INFO("kv-pager-progress stage=policy-transaction-complete query=%" PRIu64
                     " status=%s published=%d epoch=%" PRIu64 " h2d_events=%" PRIu64

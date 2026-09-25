@@ -721,7 +721,7 @@ static bool run_model_once(const options & opts, llama_kv_pager_mode mode,
         auto & dp = common_speculative_get_draft_params(spec.get(), 0);
         dp.drafting = true;
         dp.n_max = 2;
-        dp.n_past = llama_pos(opts.tokens.size());
+        dp.pos0 = llama_pos(opts.tokens.size());
         dp.id_last = sampled;
         dp.prompt = &opts.tokens;
         dp.result = &result.mtp_proposals;
