@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-11l",
-  "last_updated_utc": "2026-09-25T16:51:58+00:00",
+  "current_task": "93-11m",
+  "last_updated_utc": "2026-09-25T17:25:56+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -25922,7 +25922,7 @@
       "cluster": "repair93-selector-promotion-v10",
       "title": "Route page selection on the final causal query row",
       "packet": ".wiretail/execution/tasks/93-11l.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -25938,7 +25938,7 @@
       "depends_on": [
         "93-11k"
       ],
-      "commit": null,
+      "commit": "4e28aec02be40163a1cd553b8ea33ae6c64c5fcf",
       "context_files": [
         ".wiretail/execution/clusters/repair93-selector-promotion-v10.md",
         ".wiretail/execution/tasks/93-11l.md",
