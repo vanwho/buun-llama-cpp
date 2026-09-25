@@ -1,0 +1,484 @@
+{
+  "schema_version": 1,
+  "task": "93-11i",
+  "source_commit": "19657e3649d14fdb8534684d716101bea9991a3d",
+  "upstream_merge": {
+    "branch": "codex/task-93-11i",
+    "pre_merge_head": "5a7185543a6001d2d10b7c6c456da593ce72fe91",
+    "fetch_command": [
+      "git",
+      "fetch",
+      "--no-tags",
+      "origin",
+      "master"
+    ],
+    "fetched_ref": "origin/master",
+    "fetched_tip": "2ef0317dd91e2ca4732fffa456dc5e2311db41c7",
+    "merge_base": "2ef0317dd91e2ca4732fffa456dc5e2311db41c7",
+    "incoming_commit_count": 367,
+    "incoming_log": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/incoming-log.txt",
+      "sha256": "e581586da5bcd68db24646b1103ab9a8889366e0604dfe953efa36278aeda721"
+    },
+    "merge_command": [
+      "git",
+      "merge",
+      "--no-edit",
+      "origin/master"
+    ],
+    "outcome": "merged",
+    "merge_commit": "19657e3649d14fdb8534684d716101bea9991a3d",
+    "parents": [
+      "5a7185543a6001d2d10b7c6c456da593ce72fe91",
+      "2ef0317dd91e2ca4732fffa456dc5e2311db41c7"
+    ],
+    "fetched_tip_is_ancestor": true,
+    "conflicts": [
+      {
+        "path": "common/fit.cpp",
+        "resolution": "Kept downstream full_target_context and merged upstream follows_target_capacity.",
+        "why": "Both fitting behaviors remain available with the new upstream capacity contract."
+      },
+      {
+        "path": "common/speculative.cpp",
+        "resolution": "Kept MTP per-sequence realized context and rollback behavior; adapted draft position fields to upstream pos0; retained adaptive proposals.",
+        "why": "Preserves pager/MTP state while using the current common position API."
+      },
+      {
+        "path": "common/speculative.h",
+        "resolution": "Joined MTP context/rollback API with upstream adaptive proposal and CopySpec declarations.",
+        "why": "Keeps task-branch MTP invariants and upstream speculative interfaces."
+      },
+      {
+        "path": "docs/speculative.md",
+        "resolution": "Combined MTP draft placement guidance with upstream CopySpec documentation.",
+        "why": "Documents both supported behaviors."
+      },
+      {
+        "path": "ggml/include/ggml.h",
+        "resolution": "Retained paged Turbo4 declarations and upstream deprecated flash-attention precision declaration.",
+        "why": "Avoids dropping either API surface."
+      },
+      {
+        "path": "ggml/src/ggml-cuda/fattn-mma-f16.cuh",
+        "resolution": "Retained paged KV policy, integrated upstream sparse-mask loader/scheduling, and fixed F16 dispatch to contiguous policy while paged helper receives its explicit policy.",
+        "why": "CUDA build and direct Turbo4 tests verify the combined templates."
+      },
+      {
+        "path": "ggml/src/ggml-cuda/fattn-tile.cuh",
+        "resolution": "Adopted upstream launch signature while preserving pager-related dispatch.",
+        "why": "Call ABI matches incoming tile configuration."
+      },
+      {
+        "path": "src/llama-context.h",
+        "resolution": "Retained next-token device request and merged Hadamard transform state.",
+        "why": "Both independent context features remain represented."
+      },
+      {
+        "path": "src/llama-graph.cpp",
+        "resolution": "Kept direct-selected attention bypass and pager identity; added Hadamard identity to graph-cache keys.",
+        "why": "Graph reuse distinguishes both execution identities."
+      },
+      {
+        "path": "src/llama-graph.h",
+        "resolution": "Joined pager and Hadamard graph-parameter identity/equality members.",
+        "why": "Cache identity matches the merged runtime state."
+      },
+      {
+        "path": "src/llama-kv-cache.cpp",
+        "resolution": "Kept transient sequence-copy support and added typed prefix sharing helpers; included generated version declaration needed by LLAMA_COMMIT.",
+        "why": "Both cache transfer APIs compile against the merged cache implementation."
+      },
+      {
+        "path": "src/llama-kv-cache.h",
+        "resolution": "Combined transient copy declarations with incoming typed prefix sharing declarations.",
+        "why": "Preserves existing pager operation and upstream shared-prefix API."
+      },
+      {
+        "path": "tests/CMakeLists.txt",
+        "resolution": "Unioned fork pager/MTP/Turbo4 tests and upstream test registrations; removed one duplicate endif.",
+        "why": "Both test sets configure and their focused targets build."
+      },
+      {
+        "path": "tests/test-server-prompt-cache.cpp",
+        "resolution": "Unioned fork lifecycle/fault coverage with upstream prompt-cache test changes.",
+        "why": "Focused lifecycle and three fault CTests pass."
+      },
+      {
+        "path": "tools/server/README.md",
+        "resolution": "Kept task-branch server controls and adopted upstream device defaults.",
+        "why": "Preserves operator controls alongside new default behavior."
+      },
+      {
+        "path": "tools/server/server-context.cpp",
+        "resolution": "Joined native MTP, checkpoint, session, idle-capture, SWA/live-source logic. Changed restore gate to trim.trim_succeeded(); removed superseded priced-thinning call while retaining capacity-floor and mandatory protections.",
+        "why": "Resolves renamed/removed upstream APIs while preserving lifecycle safety; CPU/CUDA targets and lifecycle CTests pass."
+      }
+    ],
+    "source_diff": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/merge-diff.patch",
+      "sha256": "833640a8430a93b316e43548606aa4ec6387b388f13bd16b8b9b05fef43ba687"
+    },
+    "source_diff_stat": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/final-diff-stat.txt",
+      "sha256": "e7f56e157de79e28505767bdddf83512209c342979103ef7c69388e04174c0a7"
+    },
+    "conflict_comparison": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/conflicts-combined.diff",
+      "sha256": "589126070b3903222f103cdffd92d5320e66e2306c0d337fbb0a18cdeb55099f"
+    },
+    "added_line_review": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/added-line-review.txt",
+      "sha256": "833640a8430a93b316e43548606aa4ec6387b388f13bd16b8b9b05fef43ba687"
+    },
+    "commit_graph": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/commit-graph.txt",
+      "sha256": "75565391f214e82a2f76441f5302a036f0d61f63dedd1e20d7574978e4a3143c"
+    },
+    "commit_summary": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/merge-commit-summary.txt",
+      "sha256": "9266796ca1c362051faf00b0db0d3067f898d40b41d84aa7057d266b1aa405a2"
+    },
+    "final_provenance": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/final-provenance.txt",
+      "sha256": "e43d45133bd9cedf1a4f5493b10f965d21e07073f75e500288504d3c18bad42c"
+    },
+    "integrity_scan": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/integrity-scan.txt",
+      "sha256": "4ec9431bfc740fb36fcef4396c763d2aa7d1a58fa4c34d586c2763dd03385adb"
+    },
+    "worktree_check": {
+      "tracked_source_clean": true,
+      "repository_worktree_clean": false,
+      "remaining_expected": [
+        ".wiretail/execution/WORK_STATE.json",
+        ".wiretail/execution/handoffs/93-11i.md",
+        ".wiretail/execution/evidence/V10_93-11i.json"
+      ],
+      "status_snapshot": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/final-status.txt",
+        "sha256": "738e248e2fd66878cce91398b6ca1516a5985639394ace84879251b80ed71742"
+      }
+    }
+  },
+  "candidates": {
+    "cpu": {
+      "path": "build/bin/llama-server",
+      "sha256": "3f5b342b38cf8d3c1268ebc2edb7d321f209724a2ba0966d330e4fcdb7cc2aff",
+      "built_from_commit": "19657e3649d14fdb8534684d716101bea9991a3d"
+    },
+    "cuda": {
+      "path": "build-cuda/bin/llama-server",
+      "sha256": "43cf916fa602c0b85fd4ae1fdf6f74bacf9d0fe75e8384bf0fa15f2976bb3c6a",
+      "built_from_commit": "19657e3649d14fdb8534684d716101bea9991a3d"
+    },
+    "active_server": {
+      "pid": 571244,
+      "kept_loaded": true,
+      "new_server_started": false
+    },
+    "hash_record": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11i/candidate-hashes.txt",
+      "sha256": "f19e87f918084992b38b75aeab6443e6bf1715c6f0a572f35e22da4fdb98e220"
+    }
+  },
+  "builds": [
+    {
+      "command": [
+        "cmake",
+        "--build",
+        "build",
+        "-j4",
+        "--target",
+        "llama-server",
+        "test-kv-pager",
+        "test-speculative-mtp-state",
+        "test-dflash-adaptive",
+        "test-server-prompt-cache"
+      ],
+      "result": "pass",
+      "exit_code": 0,
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-build-retry3.log",
+        "sha256": "f42ddfda333ad0ce14961be61625811b0e4a1e806b0c7a8e45d0a0c85be545e8"
+      }
+    },
+    {
+      "command": [
+        "cmake",
+        "--build",
+        "build",
+        "-j4",
+        "--target",
+        "test-server-mmproj-lifecycle",
+        "test-server-media-prefix"
+      ],
+      "result": "pass",
+      "exit_code": 0,
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-server-lifecycle-build.log",
+        "sha256": "334359147f7a16f6a577171333fff5ed3957082d3ccc82e0ca2e58236605f0e2"
+      }
+    },
+    {
+      "command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "-j8",
+        "--target",
+        "llama-server",
+        "test-kv-pager",
+        "test-speculative-mtp-state",
+        "test-dflash-adaptive",
+        "test-cuda-fattn-paged-turbo4",
+        "test-cuda-kv-promotion",
+        "test-cuda-kv-page-summary",
+        "test-server-prompt-cache"
+      ],
+      "result": "pass",
+      "exit_code": 0,
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-build-retry4.log",
+        "sha256": "dfcfe7d8a049f3a4d9e3bdce55360ecc0118828445c37fae1a55f58ea511a180"
+      }
+    },
+    {
+      "command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "-j8",
+        "--target",
+        "test-server-mmproj-lifecycle"
+      ],
+      "result": "pass",
+      "exit_code": 0,
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-server-lifecycle-build.log",
+        "sha256": "157e8365f732f319e678269f7c0416b6261e8197ef806407e0e32f2ef90cea05"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build",
+        "--output-on-failure",
+        "-R",
+        "^test-(kv-pager|speculative-mtp-state|dflash-adaptive|server-prompt-cache.*|server-mmproj-lifecycle|server-media-prefix)$"
+      ],
+      "result": "pass",
+      "passed": 9,
+      "total": 9,
+      "exit_code": 0,
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-ctest-full.log",
+        "sha256": "6b4a3118eaf40bfea82fafa3d72cdf242f741318b753bfc68e7b6baf0a8234cc"
+      }
+    },
+    {
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-cuda",
+        "--output-on-failure",
+        "-R",
+        "^test-(cuda-fattn-paged-turbo4|cuda-prefill-long-context-regression|cuda-kv-promotion|cuda-kv-page-summary|kv-pager|speculative-mtp-state|dflash-adaptive|server-prompt-cache.*|server-mmproj-lifecycle|server-media-prefix)$"
+      ],
+      "result": "pass",
+      "passed": 13,
+      "total": 13,
+      "exit_code": 0,
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-ctest-retry.log",
+        "sha256": "c93e177381417e5e83e4d6969304a02b79a39be9382f6c1fe678b5b00d0e3f82"
+      }
+    }
+  ],
+  "command_logs": [
+    {
+      "command": "cmake --build build -j4 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-server-prompt-cache",
+      "result": "failed: CMake configure found an extra endif in merged test registrations",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-build.log",
+        "sha256": "8673c0640e0d00ae6b615d9851e02b137f0b638f4969d1ea5991c30f0ec63fa9"
+      }
+    },
+    {
+      "command": "cmake --build build -j4 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-server-prompt-cache",
+      "result": "failed: LLAMA_COMMIT required generated llama-version.h include",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-build-retry.log",
+        "sha256": "b43a0f389a16ee35109c0635f7aacdb63f3be23990ee1329ad4313f13941e7e3"
+      }
+    },
+    {
+      "command": "cmake --build build -j4 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-server-prompt-cache",
+      "result": "failed: upstream MTP pos0 rename and server trim/priced-thinning API changes",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-build-retry2.log",
+        "sha256": "bb9b70ff5143c27aa033096b034a48a1e99bd5581566e78aad5359a2071b8e82"
+      }
+    },
+    {
+      "command": "cmake --build build -j4 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-server-prompt-cache",
+      "result": "pass",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-build-retry3.log",
+        "sha256": "f42ddfda333ad0ce14961be61625811b0e4a1e806b0c7a8e45d0a0c85be545e8"
+      }
+    },
+    {
+      "command": "cmake --build build -j4 --target test-server-mmproj-lifecycle test-server-media-prefix",
+      "result": "pass",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-server-lifecycle-build.log",
+        "sha256": "334359147f7a16f6a577171333fff5ed3957082d3ccc82e0ca2e58236605f0e2"
+      }
+    },
+    {
+      "command": "ctest --test-dir build --output-on-failure -R ^test-(kv-pager|speculative-mtp-state|dflash-adaptive|server-prompt-cache.*)$",
+      "result": "pass: 7/7",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-ctest.log",
+        "sha256": "349b5874e82333811c063d65e614dc0f2817ec973fe71ae6cf6db240a2da399e"
+      }
+    },
+    {
+      "command": "ctest --test-dir build --output-on-failure -R ^test-(kv-pager|speculative-mtp-state|dflash-adaptive|server-prompt-cache.*|server-mmproj-lifecycle|server-media-prefix)$",
+      "result": "pass: 9/9",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-ctest-full.log",
+        "sha256": "6b4a3118eaf40bfea82fafa3d72cdf242f741318b753bfc68e7b6baf0a8234cc"
+      }
+    },
+    {
+      "command": "cmake --build build-cuda -j4 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-cuda-fattn-paged-turbo4 test-cuda-kv-promotion test-cuda-kv-page-summary test-server-prompt-cache",
+      "result": "failed: missing KVPolicy declaration and shifted paged tile arguments",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-build.log",
+        "sha256": "b3028b800e5aaf2b7ac4683b03af5c8a95471a33db5662b1461a7ea2978866e3"
+      }
+    },
+    {
+      "command": "cmake --build build-cuda -j4 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-cuda-fattn-paged-turbo4 test-cuda-kv-promotion test-cuda-kv-page-summary test-server-prompt-cache",
+      "result": "failed: iter helpers were instantiated with the wrong KV policy",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-build-retry.log",
+        "sha256": "970e2a1217d365de829a4bb1e158d658037ca8306f6fc27f7acfecf9c5d1c013"
+      }
+    },
+    {
+      "command": "cmake --build build-cuda -j4 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-cuda-fattn-paged-turbo4 test-cuda-kv-promotion test-cuda-kv-page-summary test-server-prompt-cache",
+      "result": "failed: normal outer dispatch referenced undefined KVPolicy",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-build-retry2.log",
+        "sha256": "d1bc662acaae0ff3fd4fc12dcb5cf91cf1ee374dfbe1821f61342082f5214851"
+      }
+    },
+    {
+      "command": "cmake --build build-cuda -j4 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-cuda-fattn-paged-turbo4 test-cuda-kv-promotion test-cuda-kv-page-summary test-server-prompt-cache",
+      "result": "interrupted at 26% after increasing parallelism for the configured build; no compile failure",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-build-retry3.log",
+        "sha256": "50517e8142cced4ec78905dbff88327103bc377db3b4e12361f13f8f1fd572a9"
+      }
+    },
+    {
+      "command": "cmake --build build-cuda -j8 --target llama-server test-kv-pager test-speculative-mtp-state test-dflash-adaptive test-cuda-fattn-paged-turbo4 test-cuda-kv-promotion test-cuda-kv-page-summary test-server-prompt-cache",
+      "result": "pass",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-build-retry4.log",
+        "sha256": "dfcfe7d8a049f3a4d9e3bdce55360ecc0118828445c37fae1a55f58ea511a180"
+      }
+    },
+    {
+      "command": "cmake --build build-cuda -j8 --target test-server-mmproj-lifecycle",
+      "result": "pass",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-server-lifecycle-build.log",
+        "sha256": "157e8365f732f319e678269f7c0416b6261e8197ef806407e0e32f2ef90cea05"
+      }
+    },
+    {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R ^test-(cuda-fattn-paged-turbo4|cuda-prefill-long-context-regression|cuda-kv-promotion|cuda-kv-page-summary|kv-pager|speculative-mtp-state|dflash-adaptive|server-prompt-cache.*|server-mmproj-lifecycle|server-media-prefix)$",
+      "result": "failed: 12/13; stale server-mmproj lifecycle executable had prior server-context ABI",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-ctest.log",
+        "sha256": "635e031b94737bb6c930e236cd050615a182cc9362af080e13841f6d6bd832c3"
+      }
+    },
+    {
+      "command": "ctest --test-dir build-cuda --output-on-failure -R ^test-(cuda-fattn-paged-turbo4|cuda-prefill-long-context-regression|cuda-kv-promotion|cuda-kv-page-summary|kv-pager|speculative-mtp-state|dflash-adaptive|server-prompt-cache.*|server-mmproj-lifecycle|server-media-prefix)$",
+      "result": "pass: 13/13 after rebuilding stale lifecycle target",
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-ctest-retry.log",
+        "sha256": "c93e177381417e5e83e4d6969304a02b79a39be9382f6c1fe678b5b00d0e3f82"
+      }
+    }
+  ],
+  "checks": {
+    "repair93_upstream_merge": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "git",
+        "merge",
+        "--no-edit",
+        "origin/master"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11i/merge-commit-summary.txt",
+          "sha256": "9266796ca1c362051faf00b0db0d3067f898d40b41d84aa7057d266b1aa405a2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11i/commit-graph.txt",
+          "sha256": "75565391f214e82a2f76441f5302a036f0d61f63dedd1e20d7574978e4a3143c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11i/cpu-ctest-full.log",
+          "sha256": "6b4a3118eaf40bfea82fafa3d72cdf242f741318b753bfc68e7b6baf0a8234cc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11i/cuda-ctest-retry.log",
+          "sha256": "c93e177381417e5e83e4d6969304a02b79a39be9382f6c1fe678b5b00d0e3f82"
+        }
+      ]
+    }
+  },
+  "deferred_verification": [],
+  "validation_commands": [
+    {
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11i",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11i.json"
+      ],
+      "result": "pass",
+      "exit_code": 0,
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/receipt-validation.log",
+        "sha256": "e26deec7779e5d4cbec34d5284bb77f550e00c88216c283c497314bb92f9ed24"
+      }
+    },
+    {
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/test_validate.py"
+      ],
+      "result": "pass",
+      "exit_code": 0,
+      "artifact": {
+        "path": "/srv/ai/paged-kv/results/v10/93-11i/test-validate.log",
+        "sha256": "5234c9aeb52a3f9e8685e5a61eb66786ee758cf64461903eea4b4f0b0e9c5dfd"
+      }
+    }
+  ]
+}
