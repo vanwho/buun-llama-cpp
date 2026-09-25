@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-11k",
-  "last_updated_utc": "2026-09-25T16:34:35+00:00",
+  "current_task": "93-11l",
+  "last_updated_utc": "2026-09-25T16:51:58+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -25879,7 +25879,7 @@
       "cluster": "repair93-mtp-diagnostics-v10",
       "title": "Lock the single-geometry prefill benchmark and enforce its gates",
       "packet": ".wiretail/execution/tasks/93-11k.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -25894,7 +25894,7 @@
       "depends_on": [
         "93-11j"
       ],
-      "commit": null,
+      "commit": "06a4e55194efb803617f4b1fcc095de5db50db69",
       "context_files": [
         ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
         ".wiretail/execution/tasks/93-11k.md",

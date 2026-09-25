@@ -107,6 +107,25 @@ class ReceiptTests(unittest.TestCase):
     def test_goal_true_needs_capability_fields(self):
         self.assertTrue(validator.check_review({"tasks": []}, {"goal_met": True}))
 
+    def valid_review(self):
+        return {"goal_met": True,
+                "capabilities": {key: True for key in (
+                    "build_identity_valid", "required_turbo4_placements",
+                    "controlled_model_promotion", "organic_cold_promotion",
+                    "stable_target_consumption", "full_256k_occupancy",
+                    "practical_speed_goal_met", "selected_prefill_floor_met",
+                    "selected_prefill_beats_cpu_ram")},
+                "selected_prefill_gate": {"status": "pass", "prompts": {
+                    prompt: {"selected_median_tps": 600, "cpu_ram_median_tps": 400,
+                             "distance_to_preferred_tps": 150}
+                    for prompt in ("prompt_1", "prompt_2", "prompt_3")}}}
+
+    def test_goal_true_requires_selected_prefill_gate(self):
+        review = self.valid_review()
+        self.assertFalse(validator.check_review({"tasks": []}, review))
+        review["selected_prefill_gate"]["prompts"]["prompt_2"]["selected_median_tps"] = 499
+        self.assertTrue(validator.check_review({"tasks": []}, review))
+
     def live_gate_receipt(self):
         path = Path(__file__).resolve()
         artifact = {"path": str(path),
@@ -181,14 +200,14 @@ class ReceiptTests(unittest.TestCase):
                       "dense_gpu_mtp": "gpu_turbo4"}
         for mode, placement in placements.items():
             geometries = {}
-            for geometry_name, batch, ubatch in (
-                    ("primary_1024_256", 1024, 256), ("secondary_512_128", 512, 128)):
+            for geometry_name, batch, ubatch in (("fixed_1024_256", 1024, 256),):
                 hot_limit = {"cpu_ram": 0, "selected_turbo4": 4096, "gpu_turbo4": 8192}[placement]
                 prompt_rows = {}
                 for prompt_id, prompt_text in prompt_texts.items():
                     prompt_sha = hashlib.sha256(prompt_text.encode()).hexdigest()
                     warmup = {"status": "completed", "request_attempted": True,
                               "max_tokens": 40, "thinking_mode": "off",
+                              "batch": batch, "ubatch": ubatch,
                               "candidate_binary_sha256": candidate_sha,
                               "model_sha256": model_sha, "mtp_device": "gpu",
                               "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
@@ -212,13 +231,31 @@ class ReceiptTests(unittest.TestCase):
                                   "gpu_turbo4": "dense turbo4"}[placement],
                         "route_placement_verified": True, "raw_artifact": artifact}
                         for _ in range(3)]
+                    rate = 400.0 if placement == "cpu_ram" else 600.0
+                    prefill_ms = round(5000 / rate * 1000)
+                    for result in measured:
+                        result.update(prompt_tps=rate, full_rendered_tokens=5000,
+                                      fresh_prefill_tokens=5000, cached_prefix_tokens=0,
+                                      fresh_prefill_ms=prefill_ms, logical_kv_tokens=5000,
+                                      host_backed_cold_pages=1 if placement != "gpu_turbo4" else 0,
+                                      host_backed_bytes=1024 if placement != "gpu_turbo4" else 0,
+                                      raw_request=artifact, slot_snapshot=artifact, server_log=artifact)
+                    category = {"prompt_1": "python_sorted_merge", "prompt_2": "mmap_vs_read",
+                                "prompt_3": "bash_directory_watch"}[prompt_id]
+                    manifest = json.loads((Path(__file__).parents[3] / "tools/server/bench/fixtures/pager-promotion/manifest.json").read_text())
+                    fixtures = [x for x in manifest["files"] if x["category"] == category][:5]
                     prompt_rows[prompt_id] = {
                         "prompt_text": prompt_text, "prompt_sha256": prompt_sha,
-                        "prompt_tokens": 24, "warmup": warmup,
+                        "prompt_tokens": 24, "fixture_ids": [x["id"] for x in fixtures],
+                        "fixture_sha256": [x["sha256"] for x in fixtures],
+                        "fixture_prefix_sha256": "d" * 64,
+                        "rendered_request_sha256": "e" * 64, "warmup": warmup,
                         "measured_runs": measured}
                 geometries[geometry_name] = {
                     "batch": batch, "ubatch": ubatch, "context_tokens": 8192,
                     "target_hot_tokens_limit": hot_limit,
+                    "page_size_tokens": 256, "slot_count": 1, "mtp_n_max": 2,
+                    "observed_server_command": ["server", "-b", "1024", "-ub", "256"],
                     "target_type_k": "turbo4", "target_type_v": "turbo4",
                     "mtp_device": "gpu", "mtp_type_k": "turbo4", "mtp_type_v": "turbo4",
                     "thinking_mode": "off", "prompts": prompt_rows}
@@ -230,15 +267,29 @@ class ReceiptTests(unittest.TestCase):
                 "status": "pass", "exit_code": 0, "command": ["python3", "benchmark.py"],
                 "artifacts": [artifact]}},
             "paired_benchmark": {"execution_status": "complete",
-                "candidate_identity_verified": True, "modes": modes}}
+                "candidate_identity_verified": True, "modes": modes,
+                "selected_prefill_optimization": {
+                    "status": "pass", "floor_tps": 500, "preferred_tps": 750,
+                    "initial": {"candidate_binary_sha256": candidate_sha, "measurement_count": 1,
+                        "prompts": {prompt: {"median_tps": 550, "full_rendered_tokens": 5000,
+                            "fresh_prefill_tokens": 5000, "cached_prefix_tokens": 0,
+                            "fresh_prefill_ms": 9091, "raw_artifact": artifact}
+                                    for prompt in prompt_texts}},
+                    "iterations": [],
+                    "final": {"prompts": {prompt: {
+                        "selected_median_tps": 600, "cpu_ram_median_tps": 400,
+                        "dense_gpu_median_tps": 600,
+                        "fresh_prefill_tokens": 5000, "fresh_prefill_ms": 8333,
+                        "cached_prefix_tokens": 0, "distance_to_preferred_tps": 150,
+                        "raw_artifact": artifact} for prompt in prompt_texts}}}}}
 
-    def check_paired_speed(self, receipt):
+    def check_paired_speed(self, receipt, state=None):
         return validator.check_receipt(Path(__file__).parent,
-            {"id": "93-12", "required_proofs": ["repair93_paired_speed_screen"]}, receipt)
+            {"id": "93-12", "required_proofs": ["repair93_paired_speed_screen"]}, receipt, state)
 
     def test_93_12_rejects_gated_not_measured_run(self):
         receipt = self.paired_speed_receipt()
-        receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_2"]["measured_runs"][0]["status"] = "not_measured"
+        receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]["prompts"]["prompt_2"]["measured_runs"][0]["status"] = "not_measured"
         self.assertTrue(self.check_paired_speed(receipt))
 
     def test_93_12_accepts_complete_paired_screen(self):
@@ -246,20 +297,90 @@ class ReceiptTests(unittest.TestCase):
 
     def test_93_12_rejects_prompt_mismatch(self):
         receipt = self.paired_speed_receipt()
-        receipt["paired_benchmark"]["modes"]["dense_gpu_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["prompt_sha256"] = "d" * 64
+        receipt["paired_benchmark"]["modes"]["dense_gpu_mtp"]["geometries"]["fixed_1024_256"]["prompts"]["prompt_1"]["prompt_sha256"] = "d" * 64
         self.assertTrue(self.check_paired_speed(receipt))
 
     def test_93_12_rejects_reasoning_on(self):
         receipt = self.paired_speed_receipt()
-        receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]["thinking_mode"] = "low"
+        receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]["thinking_mode"] = "low"
         self.assertTrue(self.check_paired_speed(receipt))
+
+    def test_93_12_rejects_second_or_changed_geometry_and_claim_only_command(self):
+        receipt = self.paired_speed_receipt()
+        geometries = receipt["paired_benchmark"]["modes"]["cpu_ram_mtp"]["geometries"]
+        geometries["alternate"] = dict(geometries["fixed_1024_256"])
+        self.assertTrue(self.check_paired_speed(receipt))
+        receipt = self.paired_speed_receipt()
+        geometry = receipt["paired_benchmark"]["modes"]["cpu_ram_mtp"]["geometries"]["fixed_1024_256"]
+        geometry["batch"] = 512
+        self.assertTrue(self.check_paired_speed(receipt))
+        receipt = self.paired_speed_receipt()
+        geometry = receipt["paired_benchmark"]["modes"]["cpu_ram_mtp"]["geometries"]["fixed_1024_256"]
+        geometry.pop("observed_server_command")
+        self.assertTrue(self.check_paired_speed(receipt))
+
+    def test_93_12_rejects_cached_or_miscalculated_prefill(self):
+        receipt = self.paired_speed_receipt()
+        row = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]
+        row["cached_prefix_tokens"] = 10
+        self.assertTrue(self.check_paired_speed(receipt))
+        receipt = self.paired_speed_receipt()
+        row = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]
+        row["fresh_prefill_ms"] = 1000
+        self.assertTrue(self.check_paired_speed(receipt))
+
+    def test_93_12_missed_prefill_floor_needs_three_valid_iterations(self):
+        receipt = self.paired_speed_receipt()
+        run = receipt["paired_benchmark"]
+        optimization = run["selected_prefill_optimization"]
+        optimization["status"] = "not_met"
+        for prompt in ("prompt_1", "prompt_2", "prompt_3"):
+            optimization["final"]["prompts"][prompt].update(
+                selected_median_tps=450, distance_to_preferred_tps=300)
+            for result in run["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]["prompts"][prompt]["measured_runs"]:
+                result.update(prompt_tps=450, fresh_prefill_ms=11111)
+        self.assertTrue(self.check_paired_speed(receipt))
+        artifact = optimization["initial"]["prompts"]["prompt_1"]["raw_artifact"]
+        optimization["iterations"] = [{
+            "change": f"change {i}", "hypothesis": f"hypothesis {i}",
+            "source_paths": [".wiretail/execution/v10/validate.py"],
+            "focused_test": {"status": "pass", "exit_code": 0, "raw_artifact": artifact},
+            "candidate_binary_sha256": format(i, "064x"),
+            "prompts": {p: {"prompt_tps": 450, "raw_artifact": artifact}
+                        for p in ("prompt_1", "prompt_2", "prompt_3")},
+            "raw_artifact": artifact,
+        } for i in (1, 2, 3)]
+        self.assertFalse(self.check_paired_speed(receipt))
+
+    def test_unmet_prefill_review_starts_with_bounded_fixed_geometry_cycle(self):
+        ids = ["repair", "functional", "benchmark", "review"]
+        state = {"tasks": [{"id": task_id, "status": "todo"} for task_id in ids]}
+        review = {"goal_met": False, "next_task_ids": ids,
+                  "selected_prefill_gate": {"status": "not_met"},
+                  "prefill_followup": {"task_id": "repair",
+                      "kind": "bounded_diagnosis_optimization_cycle", "batch": 1024,
+                      "ubatch": 256, "before_long_context_tests": True}}
+        self.assertFalse(validator.check_review(state, review))
 
     def test_93_12_rejects_below_prompt_acceptance_floor(self):
         receipt = self.paired_speed_receipt()
-        rows = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_2"]["measured_runs"]
+        rows = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]["prompts"]["prompt_2"]["measured_runs"]
         for row in rows:
             row.update(mtp_draft_tokens=20, mtp_accepted_tokens=7, mtp_acceptance_pct=35.0)
         self.assertTrue(self.check_paired_speed(receipt))
+
+    def test_93_12_accepts_failed_mtp_diagnostic_only_with_ordered_repair(self):
+        receipt = self.paired_speed_receipt()
+        rows = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]["prompts"]["prompt_2"]["measured_runs"]
+        for row in rows:
+            row.update(mtp_draft_tokens=20, mtp_accepted_tokens=7, mtp_acceptance_pct=35.0)
+        self.assertTrue(self.check_paired_speed(receipt))
+        state = {"tasks": [
+            {"id": "93-12", "status": "in_progress"},
+            {"id": "93-12-mtp-repair", "status": "todo",
+             "packet": ".wiretail/execution/tasks/93-12.md", "depends_on": ["93-12"]},
+            {"id": "93-13", "status": "todo", "depends_on": ["93-12-mtp-repair"]}]}
+        self.assertFalse(self.check_paired_speed(receipt, state))
 
     def test_93_12_accepts_exact_per_prompt_acceptance_floors(self):
         receipt = self.paired_speed_receipt()
@@ -275,17 +396,17 @@ class ReceiptTests(unittest.TestCase):
 
     def test_93_12_rejects_insufficient_vram_headroom(self):
         receipt = self.paired_speed_receipt()
-        row = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]
+        row = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]["prompts"]["prompt_1"]["measured_runs"][0]
         row["vram_headroom_bytes"] = 256 * 1024 * 1024
         self.assertTrue(self.check_paired_speed(receipt))
 
     def test_93_12_rejects_context_or_hot_limit_over_48k(self):
         receipt = self.paired_speed_receipt()
-        geometry = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]
+        geometry = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]
         geometry["context_tokens"] = 49153
         self.assertTrue(self.check_paired_speed(receipt))
         receipt = self.paired_speed_receipt()
-        geometry = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["primary_1024_256"]
+        geometry = receipt["paired_benchmark"]["modes"]["selected_paged_mtp"]["geometries"]["fixed_1024_256"]
         geometry["target_hot_tokens_limit"] = 49153
         self.assertTrue(self.check_paired_speed(receipt))
 
