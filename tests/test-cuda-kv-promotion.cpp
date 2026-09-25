@@ -529,7 +529,7 @@ static int run_proof() {
     ggml_tensor * membership = ggml_new_tensor_1d(selector_context, GGML_TYPE_I32, pages);
     ggml_tensor * query = ggml_new_tensor_1d(selector_context, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(selector_context, transformed, bounds,
-        metadata, membership, query, 2, cold_capacity, page_tokens, 0);
+        metadata, membership, query, 2, cold_capacity, page_tokens, 2);
     ggml_set_output(selected);
     ggml_cgraph * graph = ggml_new_graph_custom(selector_context, 64, false);
     ggml_build_forward_expand(graph, selected);
@@ -541,13 +541,14 @@ static int run_proof() {
         for (uint32_t head = 0; head < q_heads; ++head) {
             for (uint32_t d = 0; d < head_dim; ++d) {
                 q_host[(size_t(query_row) * q_heads + head) * head_dim + d] =
-                    query_row == 0 ? (1.0f + float((d + head) & 3) * .1f) : 0.0f;
+                    query_row == 0 ? (-3.0f - float((d + head) & 3) * .1f) :
+                    query_row == 2 ? (1.0f + float((d + head) & 3) * .1f) : 0.0f;
             }
         }
     }
     std::vector<float> q_layout(q_host.size());
     for (uint32_t row = 0; row < 3; ++row) for (uint32_t head = 0; head < q_heads; ++head)
-        std::memcpy(q_layout.data() + (size_t(head) * 3 + row) * head_dim,
+        std::memcpy(q_layout.data() + (size_t(row) * q_heads + head) * head_dim,
             q_host.data() + (size_t(row) * q_heads + head) * head_dim,
             head_dim * sizeof(float));
 
@@ -611,7 +612,7 @@ static int run_proof() {
                  qhead < (head + 1) * (q_heads / kv_heads); ++qhead) {
                 float value = 0.0f;
                 for (uint32_t d = 0; d < head_dim; ++d) {
-                    const float qi = transformed_host[(size_t(qhead) * 3 + 0) * head_dim + d];
+                    const float qi = transformed_host[(size_t(2) * q_heads + qhead) * head_dim + d];
                     const size_t base = size_t(d + head_dim * (2 * (head + kv_heads * logical)));
                     const float bound = ggml_fp16_to_fp32(qi >= 0 ? bound_data[base + head_dim] : bound_data[base]);
                     value += qi * bound;

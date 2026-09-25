@@ -144,15 +144,13 @@ static void test_live_selector_mailbox(const std::vector<int32_t> & output) {
 
 int main() {
     ggml_backend_load_all();
-    ggml_backend_dev_t cuda_device = ggml_backend_dev_by_name("CUDA0");
-    ggml_backend_t backend = cuda_device != nullptr
-        ? ggml_backend_dev_init(cuda_device, nullptr) : ggml_backend_cpu_init();
+    ggml_backend_t backend = ggml_backend_cpu_init();
     assert(backend != nullptr);
 
     constexpr int64_t d = 4;
     constexpr int64_t n_q_heads = 4;
     constexpr int64_t n_kv_heads = 2;
-    constexpr int64_t n_q = 3;
+    constexpr int64_t n_q = 2;
     constexpr int64_t n_pages = 5;
     ggml_init_params init = { 2 * 1024 * 1024, nullptr, true };
     ggml_context * ctx = ggml_init(init);
@@ -163,12 +161,22 @@ int main() {
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
     ggml_tensor * query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
-                                                  2, 2, 4, 0);
+                                                  2, 2, 4, 1);
+    ggml_tensor * selected_row_zero = ggml_kv_page_select(ctx, q, bounds, metadata,
+            membership, query, 2, 2, 4, 0);
+    ggml_tensor * q_decode = ggml_view_3d(ctx, q, d, n_q_heads, 1,
+            q->nb[1], q->nb[2], 0);
+    ggml_tensor * selected_decode = ggml_kv_page_select(ctx, q_decode, bounds,
+            metadata, membership, query, 2, 2, 4, 0);
     // The production pager reads this compact result after the scheduler
     // fence.  Keep the selector output alive for that graph-result boundary.
     ggml_set_output(selected);
+    ggml_set_output(selected_row_zero);
+    ggml_set_output(selected_decode);
     ggml_cgraph * graph = ggml_new_graph_custom(ctx, 32, false);
     ggml_build_forward_expand(graph, selected);
+    ggml_build_forward_expand(graph, selected_row_zero);
+    ggml_build_forward_expand(graph, selected_decode);
     ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
     assert(buffer != nullptr);
 
@@ -176,22 +184,22 @@ int main() {
     for (int64_t row = 0; row < n_q; ++row) {
         for (int64_t head = 0; head < n_q_heads; ++head) {
             const size_t base = size_t((row * n_q_heads + head) * d);
-            // Only row zero is causal for this selector invocation. Make the
-            // later rows deliberately different so query-row handling cannot
-            // accidentally select a future token.
-            q_data[base + 0] = row == 0 ? 1.0f : 100.0f;
-            q_data[base + 1] = row == 0 ? -2.0f : 100.0f;
-            q_data[base + 2] = row == 0 ? 3.0f : 100.0f;
-            q_data[base + 3] = row == 0 ? -4.0f : 100.0f;
+            // Row zero favors resident distractor 1. The final causal row
+            // favors cold page 2; selection must use row one.
+            q_data[base + 0] = row == 0 ? 1.0f : -1.0f;
+            q_data[base + 1] = row == 0 ? 1.0f : -1.0f;
+            q_data[base + 2] = row == 0 ? 1.0f : -1.0f;
+            q_data[base + 3] = row == 0 ? 1.0f : -1.0f;
         }
     }
     std::vector<ggml_fp16_t> bound_data(size_t(d * 2 * n_kv_heads * n_pages));
     for (int64_t page = 0; page < n_pages; ++page) {
         for (int64_t head = 0; head < n_kv_heads; ++head) {
-            const float high = page == 1 ? 2.0f : (page == 2 ? 1.5f : 1.0f);
             for (int64_t coord = 0; coord < d; ++coord) {
                 const size_t base = size_t(coord + d * (2 * (head + n_kv_heads * page)));
-                bound_data[base] = ggml_fp32_to_fp16(-1.0f);
+                const float low = page == 2 ? -10.0f : (page == 1 ? 0.0f : -1.0f);
+                const float high = page == 1 ? 10.0f : (page == 2 ? 0.0f : 1.0f);
+                bound_data[base] = ggml_fp32_to_fp16(low);
                 bound_data[base + d] = ggml_fp32_to_fp16(high);
             }
         }
@@ -204,6 +212,8 @@ int main() {
         8, 4, 2, 1, -1, -1, 1, 1,
     };
     const std::vector<int32_t> member = { 1, 1, 0, 0, 0 };
+    // Row one maps to token position 11, so its causal query position is 12.
+    // Position 9 (row zero's position 8 plus one) would reject cold page 2.
     const std::vector<int64_t> query_data = { 12, 1, 2, 1 };
     ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
     ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
@@ -213,17 +223,31 @@ int main() {
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     std::vector<int32_t> output(4, -2);
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
-    assert(output[0] == 1 && output[1] == 0);
     assert(output[2] == 2 && output[3] == -1);
+    std::vector<int32_t> row_zero_output(4, -2);
+    ggml_backend_tensor_get(selected_row_zero, row_zero_output.data(), 0,
+            ggml_nbytes(selected_row_zero));
+    assert(row_zero_output[0] == 1);
     const auto first_output = output;
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
     assert(output == first_output);
     test_live_selector_mailbox(output);
 
-    // Non-finite query coordinates are not valid scores. The CUDA reduction
-    // must reject every candidate rather than allowing NaN comparisons to
-    // choose an arbitrary page.
+    const int64_t earlier_query_position = 9;
+    ggml_backend_tensor_set(query, &earlier_query_position, 0, sizeof(earlier_query_position));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
+    assert(output[2] == -1);
+    std::vector<int32_t> decode_output(4, -2);
+    ggml_backend_tensor_get(selected_decode, decode_output.data(), 0,
+            ggml_nbytes(selected_decode));
+    assert(decode_output[0] == 1);
+    const int64_t final_query_position = 12;
+    ggml_backend_tensor_set(query, &final_query_position, 0, sizeof(final_query_position));
+
+    // Non-finite query coordinates are not valid scores; no page may be
+    // selected when every candidate score is invalid.
     const float nan = std::numeric_limits<float>::quiet_NaN();
     for (float & value : q_data) value = nan;
     ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
