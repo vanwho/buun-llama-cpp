@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "task": "93-11j",
+  "source_commit": "19657e3649d14fdb8534684d716101bea9991a3d",
+  "incoming_range": {
+    "pre_merge_head": "5a7185543a6001d2d10b7c6c456da593ce72fe91",
+    "fetched_ref": "origin/master",
+    "fetched_tip": "2ef0317dd91e2ca4732fffa456dc5e2311db41c7",
+    "verified_merge_base": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
+    "incoming_commit_count": 367,
+    "merge_commit": "19657e3649d14fdb8534684d716101bea9991a3d",
+    "receipt_merge_base_discrepancy": "93-11i receipt.upstream_merge.merge_base repeats fetched_tip; predecessor raw merge-base.txt and independent git merge-base agree on verified_merge_base."
+  },
+  "candidate": {
+    "cpu": {
+      "path": "build/bin/llama-server",
+      "sha256": "3f5b342b38cf8d3c1268ebc2edb7d321f209724a2ba0966d330e4fcdb7cc2aff",
+      "built_from_commit": "19657e3649d14fdb8534684d716101bea9991a3d"
+    },
+    "cuda": {
+      "path": "build-cuda/bin/llama-server",
+      "sha256": "43cf916fa602c0b85fd4ae1fdf6f74bacf9d0fe75e8384bf0fa15f2976bb3c6a",
+      "built_from_commit": "19657e3649d14fdb8534684d716101bea9991a3d"
+    }
+  },
+  "assessment": {
+    "sequence_changed": false,
+    "new_tasks": [],
+    "items": [
+      {
+        "commits": [
+          "2ef0317dd91e2ca4732fffa456dc5e2311db41c7",
+          "e9d4c3cbf9d52f3131f49613a6f434e5ab2a8897",
+          "50f6721783be71b1a879142ec9e604eb14251279",
+          "6b46b5471db0596d147ccf3dda4fa464af9e2247",
+          "cbaf043019705ddad8ddb7ea8ddf90a29220aa10",
+          "406eeb03adebb849608a0670d209e68eccdfa972",
+          "30da59942c012a965c06f501313a35afbbc46ba5",
+          "e4fad63d239aba59e87586f1134674fb95626d6a",
+          "fd4eb05086c20cea94dddee4ef58d22d21bd7998"
+        ],
+        "paths_symbols": [
+          "tools/server/server-context.cpp: server_cache_checkpoint_authority_context, VBR host artifact capture/restore, retention reuse",
+          "src/llama-kv-cache.cpp and src/llama-kv-cache-iswa.cpp: typed prefix sharing, mixed-tier and SWA restoration",
+          "tests/test-server-prompt-cache.cpp: exact-prefix, host fallback, checkpoint ring and retention tests"
+        ],
+        "upstream_behavior": "Adds/repairs active and recurrent host-prefix reuse, VBR tier provenance, bounded checkpoint retention, and retained SWA prefix restoration.",
+        "current_fork_behavior": "The merged server keeps exact token/KV lineage and authenticated VBR artifacts, capacity-floor protection, MTP companion state, and dynamic-VBR checkpoint gating. The merge receipt records explicit combined conflict resolutions in server-context.cpp and llama-kv-cache.*. Existing tests cover exact prefix and host fallback; there is no candidate-bound A-to-B-to-A timing result yet.",
+        "applicability": "Potentially applicable to file-backed A-to-B-to-A on the RTX 4080 and portable host-cache logic. SWA-specific branches apply only if the exact model has SWA layers; backend benefit is not established by CPU/CUDA build success.",
+        "expected_effect": "Could avoid prompt replay and improve reuse latency; correctness must preserve token, tier and MTP-state identity.",
+        "risk": "Stale or mismatched tier/checkpoint lineage can restore invalid KV; host cache may add copy/restore overhead when a useful prefix is absent.",
+        "falsifiable_test": "Run exact file-backed A-to-B-to-A with cache counters and raw prefill timings; require request 3 to restore the same prefix/tier and MTP state, match cold-run output, and show a measured prefill reduction. Existing test-server-prompt-cache covers deterministic lineage and fallback conditions.",
+        "disposition": "defer"
+      },
+      {
+        "commits": [
+          "a9b1b120832daef854f31ad2be3e90e528e4bf98",
+          "a3963511a4bcd5fef0ee62e5cc1e705f1189cd3e",
+          "0a15fb2ec449e4aea10507ebcd95073ca3d16017"
+        ],
+        "paths_symbols": [
+          "common/speculative.cpp: common_speculative_impl_draft_mtp, proposal_policy, sample_proposal, get_proposal",
+          "common/sampling.cpp: common_sampler_proposal_row",
+          "tests/test-sampling.cpp and tests/test-speculative-mtp-state.cpp"
+        ],
+        "upstream_behavior": "Adds request-aware sampled MTP proposals using resolved sampling policy and exact-Q proposal identity, plus adaptive depth/CopySpec integration.",
+        "current_fork_behavior": "The merged native MTP keeps per-sequence proposal state and exact-Q coverage; fork checkpoint/rollback and GPU Turbo4 draft-KV invariants remain in place. The predecessor receipt builds and tests MTP state and adaptive DFlash; this assessment also runs the focused CPU tests.",
+        "applicability": "Native MTP semantics apply to the target on CUDA and portable implementations, but target GPU Turbo4 residency does not itself prove a speed benefit. No CPU MTP/KV or selected_reference change is proposed.",
+        "expected_effect": "May improve proposal validity/acceptance under sampled decoding; can add sampler work and alter acceptance/output behavior, so speed effect is unknown.",
+        "risk": "Sampling seed, exact-Q coverage, proposal-prefix and checkpoint identity errors can alter tokens or invalidate reuse; any CPU synchronization would hurt decode latency.",
+        "falsifiable_test": "Run test-sampling and test-speculative-mtp-state for deterministic policy, exact-Q and rollback cases; then compare request-local proposal/acceptance and latency under the fixed candidate-bound prompts with MTP GPU Turbo4 unchanged.",
+        "disposition": "defer"
+      },
+      {
+        "commits": [
+          "8e93a9773be6e4ff52cb00abd846b54a248c5eeb",
+          "b74f590eafec2fafc6e0e98ee93b2e5d3efa9042",
+          "16378d93f94012d4228c8c7683adce3f286aee5d",
+          "3468e69ace40ed10fb355cca6c83dc32cc7be3c6",
+          "627d3f30fb47db61673949ab756c767a47b6f6a"
+        ],
+        "paths_symbols": [
+          "ggml/src/ggml-cuda/fattn.cu: sparse-mask conversion and standard F16 dispatch",
+          "ggml/src/ggml-cuda/fattn-mma-f16.cuh: F16 MMA scheduling/load behavior",
+          "src/llama-graph.cpp: selected_direct Turbo4 graph construction",
+          "ggml/src/ggml-cuda/fattn.cu: ggml_cuda_flash_attn_ext_paged_turbo4"
+        ],
+        "upstream_behavior": "Adds sparse-mask scheduling and F16 FlashAttention fixes/tuning, including NVIDIA-specific sparse attention and HIP/RDNA F16 tuning.",
+        "current_fork_behavior": "The target selected_direct graph invokes the separate paged Turbo4 operator with packed page/row lookup. Generic F16/sparse dispatch does not select that kernel; predecessor conflict resolution preserved the paged Turbo4 policy.",
+        "applicability": "Could affect generic F16 attention on CUDA/HIP portable configurations; does not exercise the required selected packed Turbo4 path on the 4080. No portable Turbo4-selected path evidence.",
+        "expected_effect": "Possible generic F16 sparse-attention speed/correctness gain; no expected effect on selected Turbo4 prefill/decode.",
+        "risk": "Changing shared dispatch or materializing Turbo4 through standard F16 paths risks breaking direct packed execution or adding full-cache conversion.",
+        "falsifiable_test": "Run test-cuda-fattn-paged-turbo4 and verify paged-route status/output parity on GPU; a separate portable FA test can verify only generic F16 behavior.",
+        "disposition": "not_relevant"
+      },
+      {
+        "commits": [
+          "9adc03a190158e95aaa969129615ed7555e4f9bb",
+          "5fdfa6282936576d2f352d4b97f397a109f207a6",
+          "3d10bcd19785c7b70626d7ded4a2276ef92bc850"
+        ],
+        "paths_symbols": [
+          "src/models/qwen35.cpp and src/models/qwen35moe.cpp",
+          "src/llama-kv-cache-iswa.cpp",
+          "tools/server/server-context.cpp: retained SWA window restore"
+        ],
+        "upstream_behavior": "Adds or completes Qwen3.5/hybrid and other model architecture/window support, including SWA prefix handling.",
+        "current_fork_behavior": "Merged candidate contains separate SWA/base cache ownership. The fixed workload identifies Qwen3.8-27B; no evidence in this assessment maps that target to the incoming Qwen3.5/SWA-specific changes.",
+        "applicability": "Not established for the exact target on CUDA or portable backends; architecture-specific model support cannot be assumed from family-name similarity.",
+        "expected_effect": "No supported target-specific speed or correctness effect established.",
+        "risk": "Applying the wrong cache/window model can corrupt positional coverage and checkpoint identity.",
+        "falsifiable_test": "Inspect exact target GGUF architecture and per-layer window metadata; only if it resolves to the changed architecture, test cold and restored logits/KV positions across the window boundary.",
+        "disposition": "not_relevant"
+      }
+    ],
+    "disposition": "No additional implementation task is justified. Deferred target-specific effects are already integrated and will be measured by the existing 93-12 candidate-bound sequence after its required 93-11k and 93-11l/11m/11n predecessors. Keep task order unchanged."
+  },
+  "checks": {
+    "repair93_upstream_assessment": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11j",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11j.json"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11j/assessment.md",
+          "sha256": "7b54be7ec3307fe67e0253295bfe1900122fc375ef81f63248ceddf5be30d408"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11j/assessment-checks.txt",
+          "sha256": "8b5499fd4a469a60234eab330c5978c2fdfbc4c0c6640efb6148140eb740b599"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11j/sampling.log",
+          "sha256": "10a94d591e1dc4b57bbefe19eda2b9751b180f99923d12bcd9e686c8cf1f9538"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11j/mtp-state.log",
+          "sha256": "1aa755ead227402d460f0943d3d795a7641a2fb359e007b24f4bcefebe859034"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11j/prompt-cache.log",
+          "sha256": "139a13634861b15115ac5e259e4f437993a769f6ef0c1f6efb223c20ee2deeb4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11j/cuda-paged-turbo4.log",
+          "sha256": "d09ac52030cc4b41b4f8bd6a29e4af383fb637cd11352fd1ae07f68ac37f1cc6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11j/validator-tests.log",
+          "sha256": "2c5161e6b902be0aae82fb8d315a4e755e7c5af013d37521def0ea2bc57da149"
+        }
+      ]
+    }
+  },
+  "deferred_verification": [
+    "Candidate-bound A-to-B-to-A reuse and prefill speed measurement; wait for 93-11k and 93-11l/11m/11n before 93-12.",
+    "Portable-backend selected Turbo4 execution is not established by this CUDA-focused integration and is not a 93-11j live benchmark requirement."
+  ],
+  "command_logs": [
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11j/receipt-validator.log",
+      "sha256": "e26deec7779e5d4cbec34d5284bb77f550e00c88216c283c497314bb92f9ed24"
+    }
+  ],
+  "validation_commands": [
+    [
+      "python3",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      ".wiretail/execution/v10",
+      "-p",
+      "test_validate.py"
+    ],
+    [
+      "python3",
+      ".wiretail/execution/v10/validate.py",
+      "--task",
+      "93-11j",
+      "--receipt",
+      ".wiretail/execution/evidence/V10_93-11j.json"
+    ]
+  ]
+}
