@@ -183,6 +183,109 @@ class ReceiptTests(unittest.TestCase):
             status="not_measured", reason="not attempted")
         self.assertTrue(self.check_live_gate(receipt))
 
+
+class SelectorStageTests(unittest.TestCase):
+    def valid_page(self):
+        identity = {"request_id": "req-1", "request_generation": 4,
+                    "logical_page_id": 7, "generation": 12,
+                    "content_version": 31}
+        return {
+            "selector_nominated": True,
+            "selector_stages": [
+                {"stage": "selector", **identity, "raw_output_valid": True,
+                 "raw_cold_logical_pages": [7, 9]},
+                {"stage": "mailbox", **identity, "submitted": True,
+                 "completed": True, "published": True, "dropped": False},
+                {"stage": "policy", **identity, "candidate_authenticated": True,
+                 "admitted": True, "reason": "promoted"},
+                {"stage": "h2d", **identity, "queued_bytes": 4096,
+                 "completed_bytes": 4096, "event_completions": 1,
+                 "completed": True, "completion_observed": False},
+                {"stage": "mapping", **identity, "published": True,
+                 "epoch": 8, "physical_slot": 2},
+                {"stage": "target_use", **identity, "consumed": True,
+                 "epoch": 8, "query_generation": 4},
+            ]}
+
+    def test_complete_direct_chain_and_93_11n_receipt(self):
+        page = self.valid_page()
+        self.assertFalse(validator.check_selector_stage_evidence(page, "fixture"))
+        receipt = {"candidate": {"sha256": "a" * 64},
+                   "model": {"sha256": "b" * 64},
+                   "file_promotion_campaign": {"execution_status": "complete",
+                       "candidate_identity_verified": True,
+                       "cases": [{"answer_bearing_pages": [page]}]}}
+        self.assertFalse(validator.check_93_11n_selector_receipt(Path("."), receipt))
+
+    def test_rejects_missing_or_reordered_stage_boundary(self):
+        page = self.valid_page()
+        page["selector_stages"].pop(2)
+        self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+        page = self.valid_page()
+        page["selector_stages"][3], page["selector_stages"][4] = \
+            page["selector_stages"][4], page["selector_stages"][3]
+        self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+
+    def test_rejects_identity_mutation_at_every_stage(self):
+        for stage_index in range(1, 6):
+            with self.subTest(stage=stage_index):
+                page = self.valid_page()
+                page["selector_stages"][stage_index]["content_version"] += 1
+                self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+
+    def test_rejects_unsupported_selector_and_mailbox_claims(self):
+        page = self.valid_page()
+        page["selector_stages"][0]["raw_cold_logical_pages"] = [9]
+        self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+        page = self.valid_page()
+        page["selector_stages"][1]["completed"] = False
+        self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+
+    def test_rejects_policy_h2d_mapping_and_use_without_predecessor(self):
+        mutations = [
+            (2, "candidate_authenticated", False),
+            (3, "event_completions", 0),
+            (4, "published", False),
+        ]
+        for index, key, value in mutations:
+            with self.subTest(stage=index, field=key):
+                page = self.valid_page()
+                page["selector_stages"][index][key] = value
+                self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+        page = self.valid_page()
+        page["selector_stages"][3].update(event_completions=0,
+            completion_observed=True)
+        self.assertFalse(validator.check_selector_stage_evidence(page, "fixture"))
+        page["selector_stages"][3]["completion_observed"] = False
+        self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+        page = self.valid_page()
+        page["selector_stages"][4]["published"] = False
+        self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+
+    def test_empty_natural_proof_does_not_claim_negative_nomination(self):
+        page = self.valid_page()
+        page["selector_nominated"] = None
+        page["selector_stages"][0].update(raw_output_valid=False,
+            raw_cold_logical_pages=[], explicit_reason="promotion_chain_incomplete")
+        self.assertFalse(validator.check_selector_stage_evidence(page, "fixture"))
+        page["selector_nominated"] = False
+        self.assertTrue(validator.check_selector_stage_evidence(page, "fixture"))
+
+    def test_false_nomination_requires_explicit_selector_boundary(self):
+        for reason in ("selector_not_run", "no_eligible_cold_page"):
+            with self.subTest(reason=reason):
+                page = self.valid_page()
+                page["selector_nominated"] = False
+                page["selector_stages"][0].update(raw_output_valid=False,
+                    raw_cold_logical_pages=[], explicit_reason=reason)
+                self.assertFalse(validator.check_selector_stage_evidence(page, "fixture"))
+
+    def test_invalid_raw_index_is_retained_without_nomination(self):
+        page = self.valid_page()
+        page["selector_nominated"] = False
+        page["selector_stages"][0]["raw_cold_logical_pages"] = [-1, 9]
+        self.assertFalse(validator.check_selector_stage_evidence(page, "fixture"))
+
     def paired_speed_receipt(self):
         path = Path(__file__).resolve()
         artifact = {"path": str(path),
