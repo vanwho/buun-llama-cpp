@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import statistics
 from pathlib import Path
 
 REVISION = "hotpath-v10-20260914"
@@ -73,7 +74,7 @@ def check_plan(root: Path, state: dict) -> list[str]:
     return errors
 
 
-def check_receipt(root: Path, task: dict, receipt: dict) -> list[str]:
+def check_receipt(root: Path, task: dict, receipt: dict, state: dict | None = None) -> list[str]:
     errors = []
     tid = task["id"]
     if receipt.get("schema_version") != 1 or receipt.get("task") != tid:
@@ -111,7 +112,7 @@ def check_receipt(root: Path, task: dict, receipt: dict) -> list[str]:
     if tid == "93-11g":
         errors.extend(check_93_11g_file_promotion(root, receipt))
     if tid == "93-12":
-        errors.extend(check_93_12_paired_benchmark(root, receipt))
+        errors.extend(check_93_12_paired_benchmark(root, receipt, state))
     return errors
 
 
@@ -625,8 +626,8 @@ def check_93_10_live_controls(root: Path, receipt: dict) -> list[str]:
     return errors
 
 
-def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
-    """Require the full canonical three-mode, two-geometry benchmark matrix."""
+def check_93_12_paired_benchmark(root: Path, receipt: dict, state: dict | None = None) -> list[str]:
+    """Require the fixed-geometry, cold-context three-mode benchmark matrix."""
     errors: list[str] = []
     run = receipt.get("paired_benchmark")
     if not isinstance(run, dict):
@@ -650,10 +651,9 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
         "selected_paged_mtp": "selected_turbo4",
         "dense_gpu_mtp": "gpu_turbo4",
     }
-    expected_geometries = {
-        "primary_1024_256": (1024, 256),
-        "secondary_512_128": (512, 128),
-    }
+    expected_hot_limits = {"cpu_ram": 0, "selected_turbo4": 4096, "gpu_turbo4": 8192}
+    expected_geometry = "fixed_1024_256"
+    batch, ubatch = 1024, 256
     canonical_prompts = {
         "prompt_1": "write a python function that merges two sorted lists into one sorted list, with docstring.",
         "prompt_2": "explain the difference between mmap and read for loading large files, one paragraph.",
@@ -664,6 +664,21 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
         return errors + ["93-12 requires measured results for all three KV-placement modes"]
     prompt_counts: dict[str, int] = {}
     prompt_hashes: dict[str, str] = {}
+    prefix_hashes: dict[str, str] = {}
+    rendered_hashes: dict[str, str] = {}
+    rendered_token_counts: dict[str, int] = {}
+    fixture_groups = {
+        "prompt_1": "python_sorted_merge",
+        "prompt_2": "mmap_vs_read",
+        "prompt_3": "bash_directory_watch",
+    }
+    manifest_path = ROOT / "tools/server/bench/fixtures/pager-promotion/manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text())
+        fixture_map = {entry["id"]: entry for entry in manifest["files"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        fixture_map = {}
+        errors.append("93-12 fixture manifest is missing or invalid")
     common_context = None
     for mode, expected_placement in expected_modes.items():
         mode_run = modes.get(mode)
@@ -671,10 +686,10 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
             errors.append(f"93-12 missing benchmark mode: {mode}")
             continue
         geometries = mode_run.get("geometries")
-        if not isinstance(geometries, dict) or set(geometries) != set(expected_geometries):
-            errors.append(f"93-12 {mode}: both exact batch geometries are required")
+        if not isinstance(geometries, dict) or set(geometries) != {expected_geometry}:
+            errors.append(f"93-12 {mode}: exactly fixed_1024_256 geometry is required")
             continue
-        for geometry_name, (batch, ubatch) in expected_geometries.items():
+        for geometry_name in (expected_geometry,):
             geometry = geometries.get(geometry_name)
             label_geometry = f"93-12 {mode}/{geometry_name}"
             if not isinstance(geometry, dict):
@@ -684,8 +699,14 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
                 errors.append(f"{label_geometry}: actual batch/ubatch mismatch")
             context = geometry.get("context_tokens")
             hot_limit = geometry.get("target_hot_tokens_limit")
-            if type(context) is not int or not 1 <= context <= 49152:
-                errors.append(f"{label_geometry}: context must be in 1..49152")
+            if context != 8192:
+                errors.append(f"{label_geometry}: context must be 8192")
+            if hot_limit != expected_hot_limits[expected_placement]:
+                errors.append(f"{label_geometry}: target hot limit must be {expected_hot_limits[expected_placement]}")
+            if geometry.get("page_size_tokens") != 256 or geometry.get("slot_count") != 1:
+                errors.append(f"{label_geometry}: page size 256 and one slot are required")
+            if geometry.get("mtp_n_max") != 2:
+                errors.append(f"{label_geometry}: draft_n_max must be 2")
             if type(hot_limit) is not int or not 0 <= hot_limit <= 49152:
                 errors.append(f"{label_geometry}: target hot limit must be in 0..49152")
             if common_context is None:
@@ -699,6 +720,14 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
                 errors.append(f"{label_geometry}: GPU Turbo4 MTP is required")
             if geometry.get("thinking_mode") != "off":
                 errors.append(f"{label_geometry}: thinking mode must be off")
+            command = geometry.get("observed_server_command")
+            if not isinstance(command, list) or not command:
+                errors.append(f"{label_geometry}: observed server command required")
+            else:
+                argv = [str(item) for item in command]
+                if not any(argv[i:i + 2] == ["-b", "1024"] for i in range(max(0, len(argv) - 1))) or not any(
+                        argv[i:i + 2] == ["-ub", "256"] for i in range(max(0, len(argv) - 1))):
+                    errors.append(f"{label_geometry}: observed command must include -b 1024 -ub 256")
             prompts = geometry.get("prompts")
             if not isinstance(prompts, dict) or set(prompts) != set(canonical_prompts):
                 errors.append(f"{label_geometry}: exact three canonical prompt rows required")
@@ -723,6 +752,28 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
                     errors.append(f"{label}: paired prompt hashes differ")
                 prompt_hashes[prompt_id] = expected_hash
 
+                fixture_ids = row.get("fixture_ids")
+                fixture_hashes = row.get("fixture_sha256")
+                expected_fixtures = [entry for entry in fixture_map.values()
+                                     if entry.get("category") == fixture_groups[prompt_id]][:5]
+                expected_fixtures.sort(key=lambda entry: entry["id"])
+                expected_ids = [entry["id"] for entry in expected_fixtures]
+                expected_fixture_hashes = [entry["sha256"] for entry in expected_fixtures]
+                if fixture_ids != expected_ids or fixture_hashes != expected_fixture_hashes:
+                    errors.append(f"{label}: exact fixture IDs and manifest hashes required")
+                for field in ("fixture_prefix_sha256", "rendered_request_sha256"):
+                    value = row.get(field)
+                    if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value):
+                        errors.append(f"{label}: hashed {field} required")
+                prefix = row.get("fixture_prefix_sha256")
+                if prompt_id in prefix_hashes and prefix_hashes[prompt_id] != prefix:
+                    errors.append(f"{label}: fixture prefix hash differs across paired modes")
+                prefix_hashes[prompt_id] = prefix
+                rendered_hash = row.get("rendered_request_sha256")
+                if prompt_id in rendered_hashes and rendered_hashes[prompt_id] != rendered_hash:
+                    errors.append(f"{label}: rendered request hash differs across paired modes")
+                rendered_hashes[prompt_id] = rendered_hash
+
                 warmup = row.get("warmup")
                 if not isinstance(warmup, dict):
                     errors.append(f"{label}: warmup record required")
@@ -731,6 +782,8 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
                         errors.append(f"{label}: completed live warmup required")
                     if warmup.get("max_tokens") != 40:
                         errors.append(f"{label}: warmup output limit must be 40")
+                    if warmup.get("batch") != batch or warmup.get("ubatch") != ubatch:
+                        errors.append(f"{label}: warmup observed batch/ubatch mismatch")
                     if warmup.get("thinking_mode") != "off":
                         errors.append(f"{label}: warmup thinking mode must be off")
                     if (warmup.get("candidate_binary_sha256") != candidate_sha
@@ -804,9 +857,201 @@ def check_93_12_paired_benchmark(root: Path, receipt: dict) -> list[str]:
                         errors.append(f"{run_label}: at least 512 MiB measured VRAM headroom required")
                     if type(result.get("hot_tokens")) in (int, float) and result["hot_tokens"] > hot_limit:
                         errors.append(f"{run_label}: observed hot KV exceeds mode limit")
+                    for artifact_key in ("raw_artifact", "raw_request", "slot_snapshot", "server_log"):
+                        errors.extend(check_artifact_reference(root, result.get(artifact_key), f"{run_label}/{artifact_key}"))
+                    fresh_fields = ("full_rendered_tokens", "fresh_prefill_tokens", "cached_prefix_tokens",
+                                    "fresh_prefill_ms", "logical_kv_tokens", "host_backed_cold_pages",
+                                    "host_backed_bytes")
+                    if any(type(result.get(key)) is not int for key in fresh_fields):
+                        errors.append(f"{run_label}: integer fresh-prefill and cold-context accounting required")
+                    else:
+                        full = result["full_rendered_tokens"]
+                        fresh = result["fresh_prefill_tokens"]
+                        cached = result["cached_prefix_tokens"]
+                        elapsed = result["fresh_prefill_ms"]
+                        if not 4352 <= full <= 16384 or full + 400 > context:
+                            errors.append(f"{run_label}: rendered input must be 4352..16384 and fit context with output")
+                        if prompt_id in rendered_token_counts and rendered_token_counts[prompt_id] != full:
+                            errors.append(f"{run_label}: paired full rendered token counts differ")
+                        rendered_token_counts[prompt_id] = full
+                        if fresh != full or cached != 0 or elapsed <= 0:
+                            errors.append(f"{run_label}: fresh prefill must evaluate full input with no cached prefix")
+                        elif isinstance(result.get("prompt_tps"), (int, float)) and abs(
+                                result["prompt_tps"] - fresh / (elapsed / 1000.0)) > max(0.01, result["prompt_tps"] * 0.05):
+                            errors.append(f"{run_label}: prompt_tps differs from fresh-token rate by more than 5%")
+                        if result["logical_kv_tokens"] <= 4352:
+                            errors.append(f"{run_label}: logical KV working set must exceed 4352 tokens")
+                        if expected_placement in {"cpu_ram", "selected_turbo4"} and (
+                                result["host_backed_cold_pages"] <= 0 or result["host_backed_bytes"] <= 0):
+                            errors.append(f"{run_label}: host-backed cold pages required")
+                        if expected_placement == "gpu_turbo4" and result["hot_tokens"] < result["logical_kv_tokens"]:
+                            errors.append(f"{run_label}: dense GPU mode must keep its logical KV resident")
                     errors.extend(check_artifact_reference(root, result.get("raw_artifact"), run_label))
-                errors.extend(check_prompt_mtp_median(
-                    prompt_acceptances, prompt_id, f"{label}/three-run MTP acceptance"))
+                mtp_errors = check_prompt_mtp_median(
+                    prompt_acceptances, prompt_id, f"{label}/three-run MTP acceptance")
+                if mtp_errors and not has_93_12_mtp_repair_successor(state):
+                    errors.extend(mtp_errors)
+    errors.extend(check_selected_prefill_optimization(root, run, canonical_prompts, modes))
+    return errors
+
+
+def has_93_12_mtp_repair_successor(state: dict | None) -> bool:
+    """A below-floor diagnostic is admissible only behind an ordered repair task."""
+    if not isinstance(state, dict) or not isinstance(state.get("tasks"), list):
+        return False
+    tasks = state["tasks"]
+    try:
+        index_12 = next(i for i, item in enumerate(tasks) if item.get("id") == "93-12")
+        index_13 = next(i for i, item in enumerate(tasks) if item.get("id") == "93-13")
+    except StopIteration:
+        return False
+    if index_13 != index_12 + 2:
+        return False
+    repair = tasks[index_12 + 1]
+    review = tasks[index_13]
+    repair_dependencies = repair.get("depends_on")
+    review_dependencies = review.get("depends_on")
+    return (repair.get("id") not in {None, "93-12", "93-13"}
+            and repair.get("status") not in {"done", "deferred"}
+            and isinstance(repair.get("packet"), str) and bool(repair.get("packet"))
+            and isinstance(repair_dependencies, list) and "93-12" in repair_dependencies
+            and isinstance(review_dependencies, list) and repair.get("id") in review_dependencies)
+
+
+def check_selected_prefill_optimization(root: Path, run: dict, prompts: dict,
+                                        modes: dict) -> list[str]:
+    """Check baseline, final paired medians and the bounded source-backed loop."""
+    errors: list[str] = []
+    record = run.get("selected_prefill_optimization")
+    if not isinstance(record, dict):
+        return ["93-12 requires selected_prefill_optimization"]
+    if record.get("floor_tps") != 500 or record.get("preferred_tps") != 750:
+        errors.append("93-12 prefill thresholds must be 500 floor and 750 preferred")
+    sha_re = re.compile(r"[0-9a-f]{64}")
+
+    def prompt_map(section: object, label: str, fields: tuple[str, ...]) -> dict:
+        if not isinstance(section, dict) or set(section) != set(prompts):
+            errors.append(f"{label}: exact three-prompt evidence required")
+            return {}
+        for prompt_id in prompts:
+            row = section[prompt_id]
+            if not isinstance(row, dict):
+                errors.append(f"{label}/{prompt_id}: evidence object required")
+                continue
+            for key in fields:
+                value = row.get(key)
+                if key == "raw_artifact":
+                    continue
+                if key.endswith("_sha256"):
+                    if not isinstance(value, str) or not sha_re.fullmatch(value):
+                        errors.append(f"{label}/{prompt_id}: {key} required")
+                elif (not isinstance(value, (int, float)) or not math.isfinite(value)
+                      or (key == "cached_prefix_tokens" and value < 0)
+                      or (key not in {"cached_prefix_tokens", "distance_to_preferred_tps"} and value <= 0)):
+                    errors.append(f"{label}/{prompt_id}: positive {key} required")
+            errors.extend(check_artifact_reference(root, row.get("raw_artifact"), f"{label}/{prompt_id}"))
+        return section
+
+    initial = record.get("initial")
+    if not isinstance(initial, dict) or not isinstance(initial.get("candidate_binary_sha256"), str) \
+            or not sha_re.fullmatch(initial.get("candidate_binary_sha256", "")):
+        errors.append("93-12 prefill baseline candidate hash required")
+    if not isinstance(initial, dict) or initial.get("measurement_count") != 1:
+        errors.append("93-12 baseline must state its one-observation count")
+    if isinstance(initial, dict):
+        initial_rows = prompt_map(initial.get("prompts"), "93-12 initial prefill",
+                                  ("median_tps", "full_rendered_tokens", "fresh_prefill_tokens",
+                                   "cached_prefix_tokens", "fresh_prefill_ms", "raw_artifact"))
+        for prompt_id, row in initial_rows.items():
+            if not isinstance(row, dict):
+                continue
+            if (row.get("fresh_prefill_tokens") != row.get("full_rendered_tokens")
+                    or row.get("cached_prefix_tokens") != 0):
+                errors.append(f"93-12 initial prefill/{prompt_id}: baseline must freshly evaluate the full input")
+            if isinstance(row.get("fresh_prefill_ms"), int) and row["fresh_prefill_ms"] > 0:
+                measured_rate = row["fresh_prefill_tokens"] / (row["fresh_prefill_ms"] / 1000)
+                if abs(row.get("median_tps", 0) - measured_rate) > max(0.01, measured_rate * 0.05):
+                    errors.append(f"93-12 initial prefill/{prompt_id}: baseline rate disagrees with token/time")
+    final = record.get("final")
+    final_rows = prompt_map(final.get("prompts") if isinstance(final, dict) else None,
+                            "93-12 final prefill", ("selected_median_tps", "cpu_ram_median_tps",
+                            "dense_gpu_median_tps",
+                            "fresh_prefill_tokens", "fresh_prefill_ms", "cached_prefix_tokens",
+                            "distance_to_preferred_tps", "raw_artifact"))
+    passed = True
+    for prompt_id in prompts:
+        if not isinstance(final_rows.get(prompt_id), dict):
+            passed = False
+            continue
+        row = final_rows[prompt_id]
+        if row.get("cached_prefix_tokens") != 0:
+            errors.append(f"93-12 final prefill/{prompt_id}: cached prefix must be zero")
+        if row.get("distance_to_preferred_tps") != 750 - row.get("selected_median_tps", 0):
+            errors.append(f"93-12 final prefill/{prompt_id}: distance to 750 target is incorrect")
+        if row.get("selected_median_tps", 0) < 500 or row.get("selected_median_tps", 0) <= row.get("cpu_ram_median_tps", 0):
+            passed = False
+        try:
+            selected_geometry = modes["selected_paged_mtp"]["geometries"]["fixed_1024_256"]
+            cpu_geometry = modes["cpu_ram_mtp"]["geometries"]["fixed_1024_256"]
+            dense_geometry = modes["dense_gpu_mtp"]["geometries"]["fixed_1024_256"]
+            selected_runs = selected_geometry["prompts"][prompt_id]["measured_runs"]
+            cpu_runs = cpu_geometry["prompts"][prompt_id]["measured_runs"]
+            dense_runs = dense_geometry["prompts"][prompt_id]["measured_runs"]
+            selected_rate = statistics.median(r["fresh_prefill_tokens"] / (r["fresh_prefill_ms"] / 1000)
+                                              for r in selected_runs)
+            cpu_rate = statistics.median(r["fresh_prefill_tokens"] / (r["fresh_prefill_ms"] / 1000)
+                                         for r in cpu_runs)
+            dense_rate = statistics.median(r["fresh_prefill_tokens"] / (r["fresh_prefill_ms"] / 1000)
+                                           for r in dense_runs)
+            if abs(row["selected_median_tps"] - selected_rate) > max(0.01, selected_rate * 0.05):
+                errors.append(f"93-12 final prefill/{prompt_id}: selected median differs from measured rows")
+            if abs(row["cpu_ram_median_tps"] - cpu_rate) > max(0.01, cpu_rate * 0.05):
+                errors.append(f"93-12 final prefill/{prompt_id}: CPU-RAM median differs from measured rows")
+            if abs(row["dense_gpu_median_tps"] - dense_rate) > max(0.01, dense_rate * 0.05):
+                errors.append(f"93-12 final prefill/{prompt_id}: dense-GPU median differs from measured rows")
+        except (KeyError, TypeError, ZeroDivisionError):
+            errors.append(f"93-12 final prefill/{prompt_id}: paired measured medians unavailable")
+    iterations = record.get("iterations")
+    if not isinstance(iterations, list) or len(iterations) > 3:
+        errors.append("93-12 optimization iterations must be a list of at most three")
+        iterations = []
+    if not passed and len(iterations) < 3:
+        errors.append("93-12 missed prefill floor requires three distinct valid iterations")
+    seen_changes: set[str] = set()
+    seen_candidates: set[str] = set()
+    for index, item in enumerate(iterations, 1):
+        label = f"93-12 prefill iteration {index}"
+        if not isinstance(item, dict):
+            errors.append(f"{label}: object required")
+            continue
+        change = item.get("change")
+        hypothesis = item.get("hypothesis")
+        if not isinstance(change, str) or not change.strip() or change in seen_changes:
+            errors.append(f"{label}: distinct source-backed change required")
+        seen_changes.add(change if isinstance(change, str) else "")
+        if not isinstance(hypothesis, str) or not hypothesis.strip():
+            errors.append(f"{label}: hypothesis required")
+        sources = item.get("source_paths")
+        if not isinstance(sources, list) or not sources or any(not isinstance(path, str) or not path.strip() for path in sources):
+            errors.append(f"{label}: source paths required")
+        elif any(not (ROOT / path).is_file() for path in sources):
+            errors.append(f"{label}: source-backed paths must exist")
+        test = item.get("focused_test")
+        if not isinstance(test, dict) or test.get("status") != "pass" or test.get("exit_code") != 0:
+            errors.append(f"{label}: passed focused regression required")
+        if not isinstance(item.get("candidate_binary_sha256"), str) or not sha_re.fullmatch(item.get("candidate_binary_sha256", "")):
+            errors.append(f"{label}: candidate binary hash required")
+        elif item["candidate_binary_sha256"] in seen_candidates:
+            errors.append(f"{label}: each iteration must record a distinct candidate hash")
+        else:
+            seen_candidates.add(item["candidate_binary_sha256"])
+        prompt_map(item.get("prompts"), label, ("prompt_tps", "raw_artifact"))
+        errors.extend(check_artifact_reference(root, item.get("raw_artifact"), label))
+        if isinstance(test, dict):
+            errors.extend(check_artifact_reference(root, test.get("raw_artifact"), f"{label}/focused test"))
+    expected_status = "pass" if passed else "not_met"
+    if record.get("status") != expected_status:
+        errors.append(f"93-12 selected prefill status must be {expected_status}")
     return errors
 
 
@@ -819,9 +1064,19 @@ def check_review(state: dict, review: dict) -> list[str]:
         for key in ("build_identity_valid", "required_turbo4_placements",
                     "controlled_model_promotion", "organic_cold_promotion",
                     "stable_target_consumption", "full_256k_occupancy",
-                    "practical_speed_goal_met"):
+                    "practical_speed_goal_met", "selected_prefill_floor_met",
+                    "selected_prefill_beats_cpu_ram"):
             if capabilities.get(key) is not True:
                 errors.append(f"goal_met requires explicit capability proof: {key}")
+        gate = review.get("selected_prefill_gate")
+        canonical = {"prompt_1", "prompt_2", "prompt_3"}
+        if not isinstance(gate, dict) or gate.get("status") != "pass" or set(gate.get("prompts", {})) != canonical:
+            errors.append("goal_met requires passing selected_prefill_gate for all canonical prompts")
+        elif any(not isinstance(row, dict) or row.get("selected_median_tps", 0) < 500
+                 or row.get("selected_median_tps", 0) <= row.get("cpu_ram_median_tps", 0)
+                 or row.get("distance_to_preferred_tps") != 750 - row.get("selected_median_tps", 0)
+                 for row in gate["prompts"].values()):
+            errors.append("goal_met requires per-prompt 500 tok/s, CPU-RAM win, and 750-distance evidence")
         return errors
     ids = review.get("next_task_ids", [])
     tasks = state["tasks"]
@@ -833,6 +1088,16 @@ def check_review(state: dict, review: dict) -> list[str]:
             errors.append(f"missing unfinished successor: {tid}")
     if all(tid in positions for tid in ids) and [positions[x] for x in ids] != sorted(positions[x] for x in ids):
         errors.append("review successors not in execution order")
+    gate = review.get("selected_prefill_gate")
+    if not isinstance(gate, dict) or gate.get("status") not in {"pass", "not_met", "not_measured"}:
+        errors.append("unmet review requires explicit selected-prefill status")
+    elif gate.get("status") in {"not_met", "not_measured"}:
+        followup = review.get("prefill_followup")
+        if (not isinstance(followup, dict) or not ids or followup.get("task_id") != ids[0]
+                or followup.get("kind") != "bounded_diagnosis_optimization_cycle"
+                or followup.get("batch") != 1024 or followup.get("ubatch") != 256
+                or followup.get("before_long_context_tests") is not True):
+            errors.append("unmet prefill gate requires first successor to optimize at unchanged B=1024/U=256 before long-context tests")
     return errors
 
 
@@ -849,7 +1114,7 @@ def main() -> int:
         errors = check_plan(ROOT, state)
         if args.task:
             task = next(t for t in state["tasks"] if t["id"] == args.task)
-            errors += check_receipt(ROOT, task, json.loads(args.receipt.read_text()))
+            errors += check_receipt(ROOT, task, json.loads(args.receipt.read_text()), state)
         if args.review:
             errors += check_review(state, json.loads(args.review.read_text()))
     except (OSError, ValueError, KeyError, StopIteration, TypeError) as error:
