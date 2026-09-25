@@ -39,7 +39,8 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(3, len(steps))
         self.assertEqual(["compare_python", "compare_bash", "repeat_python"],
                          [step.stage for step in steps])
-        python_ids = tuple(f"PY_MERGE_{n:02d}" for n in range(1, 6))
+        python_ids = ("PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04",
+                      "PY_MERGE_05", "PY_MERGE_03")
         bash_ids = tuple(f"BASH_WATCH_{n:02d}" for n in range(1, 6))
         self.assertEqual(python_ids, steps[0].appended_fixture_ids)
         self.assertEqual(bash_ids, steps[1].appended_fixture_ids)
@@ -51,12 +52,17 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(BASH_QUESTION, steps[1].question)
         self.assertEqual(steps[0].question, steps[2].question)
         self.assertEqual(PYTHON_QUESTION, steps[2].user_content)
+        self.assertTrue(steps[0].user_content.endswith(PYTHON_QUESTION))
+        self.assertLess(steps[0].user_content.index(self.by_id["PY_MERGE_05"].body),
+                        steps[0].user_content.index(self.by_id["PY_MERGE_03"].body))
         self.assertEqual(PYTHON_WINNER, steps[0].expected_answer_local_only)
         self.assertEqual(BASH_WINNER, steps[1].expected_answer_local_only)
         self.assertEqual(PYTHON_WINNER, steps[2].expected_answer_local_only)
         self.assertTrue(steps[1].cache_prompt)
         self.assertTrue(steps[2].cache_prompt)
         self.assertNotIn("RETRIEVAL_KEY", steps[0].question + steps[1].question + steps[2].question)
+        self.assertIn("RETRIEVAL_KEY: The preallocated merge writes each output position exactly once.",
+                      self.by_id["PY_MERGE_03"].body)
 
     def test_cumulative_messages_keep_real_prior_assistant_responses(self) -> None:
         steps = build_promotion_steps(self.catalog)

@@ -18,7 +18,7 @@ EXPECTED_SCHEMA = "attention-promotion-fixtures-v1"
 EXPECTED_TOKENS_PER_FILE = 1024
 EXPECTED_FILES_PER_FAMILY = 8
 DEFAULT_TARGET_FIXTURE_ID = "PY_MERGE_03"
-RECALL_PROBE_ANCHORS = {"PY_MERGE_03": "out = [0] * (len(left) + len(right))"}
+RECALL_PROBE_ANCHORS = {"PY_MERGE_03": "RETRIEVAL_KEY: The preallocated merge writes each output position exactly once."}
 SERVER_CONTEXT_TOKENS = 16384
 GPU_HOT_TOKENS = 4096
 PAGE_SIZE_TOKENS = 256
@@ -189,7 +189,8 @@ def build_promotion_steps(catalog: Sequence[PromotionFixture], target_id: str = 
                           ) -> tuple[PromotionStep, ...]:
     """Build the exact Python comparison, Bash comparison, Python repeat turns."""
     by_id = {item.fixture_id: item for item in catalog}
-    python_ids = tuple(f"PY_MERGE_{index:02d}" for index in range(1, 6))
+    python_ids = ("PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04",
+                  "PY_MERGE_05", "PY_MERGE_03")
     bash_ids = tuple(f"BASH_WATCH_{index:02d}" for index in range(1, 6))
     if target_id != DEFAULT_TARGET_FIXTURE_ID:
         raise ValueError("the two-topic campaign target is fixed at PY_MERGE_03")
