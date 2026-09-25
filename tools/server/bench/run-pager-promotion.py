@@ -447,8 +447,77 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
     identity = (page.get("logical_page_id"), page.get("generation"), page.get("content_version"))
     natural_identity = (natural.get("logical_page"), natural.get("page_generation"),
                         natural.get("content_version"))
+    pager_after = final_record.get("pager_after")
+    pager_after = pager_after if isinstance(pager_after, dict) else {}
+    trace = pager_after.get("selector_trace")
+    trace = trace if isinstance(trace, dict) else {}
+    raw_ids = trace.get("raw_cold_logical_pages")
+    raw_output = trace.get("raw_selector_output_valid") is True and isinstance(raw_ids, list)
+    natural_selector_evidence = natural.get("selector_published") is True and \
+        identity == natural_identity
+    if raw_output:
+        nominated: bool | None = identity[0] in raw_ids
+        nomination_source = "raw_selector_output"
+        selector_outcome = trace.get("outcome")
+    elif natural_selector_evidence:
+        nominated = True
+        nomination_source = "authenticated_natural_proof"
+        selector_outcome = "selected_pending"
+    elif trace.get("outcome") in {"selector_not_run", "no_eligible_cold_page"}:
+        nominated = False
+        nomination_source = "explicit_selector_outcome"
+        selector_outcome = trace.get("outcome")
+    else:
+        nominated = None
+        nomination_source = None
+        selector_outcome = "promotion_chain_incomplete"
     cold_before = page.get("resident") is False and page.get("host_backed") is True
-    nominated = identity == natural_identity
+    stage_identity = {
+        "request_id": final_record.get("request_id"),
+        "request_generation": final_record.get("request_generation"),
+        "logical_page_id": identity[0], "generation": identity[1],
+        "content_version": identity[2],
+    }
+    selector_stages = [
+        {"stage": "selector", **stage_identity,
+         "raw_output_valid": raw_output,
+         "raw_cold_logical_pages": raw_ids if raw_output else [],
+         "selector_nominated": nominated,
+         "natural_proof_identity": {
+             "logical_page_id": natural.get("logical_page"),
+             "generation": natural.get("page_generation"),
+             "content_version": natural.get("content_version"),
+             "selector_published": natural.get("selector_published") is True,
+         } if natural_selector_evidence else None,
+         "explicit_reason": selector_outcome if not raw_output and not natural_selector_evidence else None},
+        {"stage": "mailbox", **stage_identity,
+         "submitted": trace.get("async_readback_submitted") is True,
+         "completed": trace.get("async_readback_completed") is True or
+                     trace.get("synchronous_readback_completed") is True,
+         "published": trace.get("mailbox_published") is True,
+         "dropped": trace.get("mailbox_dropped") is True},
+        {"stage": "policy", **stage_identity,
+         "candidate_authenticated": trace.get("candidate_authenticated") is True or natural_selector_evidence,
+         "admitted": trace.get("policy_admitted") is True or natural_selector_evidence,
+         "reason": trace.get("outcome")},
+        {"stage": "h2d", **stage_identity,
+         "queued_bytes": trace.get("h2d_queued_bytes", natural.get("h2d_useful_bytes", 0)),
+         "completed_bytes": trace.get("h2d_completed_bytes", natural.get("h2d_useful_bytes", 0)),
+         "event_completions": trace.get("h2d_event_completions", 0),
+         "completed": natural.get("h2d_completed") is True or
+                      trace.get("h2d_completion_observed") is True or
+                      (trace.get("h2d_completed_bytes", 0) > 0 and trace.get("h2d_event_completions", 0) > 0),
+         "completion_observed": natural.get("h2d_completed") is True or
+                               trace.get("h2d_completion_observed") is True},
+        {"stage": "mapping", **stage_identity,
+         "published": trace.get("mapping_published") is True or natural.get("mapping_published") is True,
+         "epoch": trace.get("published_epoch", natural.get("published_epoch")),
+         "physical_slot": trace.get("target_physical_slot", natural.get("physical_slot"))},
+        {"stage": "target_use", **stage_identity,
+         "consumed": trace.get("target_graph_used") is True or natural.get("target_graph_used") is True,
+         "epoch": natural.get("target_use_epoch"),
+         "query_generation": natural.get("target_use_query_generation")},
+    ]
     result = {
         "page_identity": {
             "sequence_id": page.get("sequence_id"),
@@ -465,13 +534,18 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
         "host_backed_before_request_3": page.get("host_backed"),
         "cold_before": cold_before,
         "selector_nominated": nominated,
-        "claimed_promoted": nominated and cold_before,
+        "selector_evidence_source": nomination_source,
+        "selector_outcome": selector_outcome,
+        "selector_diagnostic": trace if trace.get("enabled") is True else None,
+        "selector_stages": selector_stages,
+        "claimed_promoted": nominated is True and cold_before,
         "events": [],
         "missing_transition": (
             "cold-before-request-3: page remained resident; host_backed=" +
             str(page.get("host_backed")) if page.get("resident") is True else
             "cold-before-request-3: page is nonresident but lacks valid host backing"
             if page.get("resident") is False and page.get("host_backed") is not True else
+            "promotion_chain_incomplete" if nominated is None else
             "page was not naturally nominated"),
     }
     if not result["claimed_promoted"]:

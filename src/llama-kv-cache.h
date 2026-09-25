@@ -1600,6 +1600,7 @@ private:
         uint64_t query_generation = 0;
         uint64_t table_epoch = 0;
         uint64_t query_position = 0;
+        uint32_t query_row = UINT32_MAX;
         uint64_t sequence_generation = 0;
         uint64_t session_generation = 0;
         uint64_t rollback_generation = 0;

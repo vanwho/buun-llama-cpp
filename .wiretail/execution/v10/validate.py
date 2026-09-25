@@ -111,6 +111,8 @@ def check_receipt(root: Path, task: dict, receipt: dict, state: dict | None = No
         errors.extend(check_93_11f_speed_geometry(root, receipt))
     if tid == "93-11g":
         errors.extend(check_93_11g_file_promotion(root, receipt))
+    if tid == "93-11n":
+        errors.extend(check_93_11n_selector_receipt(root, receipt))
     if tid == "93-12":
         errors.extend(check_93_12_paired_benchmark(root, receipt, state))
     return errors
@@ -513,6 +515,9 @@ def check_93_11g_file_promotion(root: Path, receipt: dict) -> list[str]:
                 for key in ("logical_page_id", "generation", "content_version"):
                     if event.get(key) != identity.get(key):
                         errors.append(f"93-11g promotion event {key} mismatch")
+    for index, page in enumerate(reports):
+        if isinstance(page, dict) and "selector_nominated" in page:
+            errors.extend(check_selector_stage_evidence(page, f"93-11g answer page {index + 1}"))
     if not promoted:
         errors.append("93-11g no answer-bearing page has a complete promotion chain")
     mtp = case.get("mtp") if isinstance(case.get("mtp"), dict) else {}
@@ -528,6 +533,124 @@ def check_93_11g_file_promotion(root: Path, receipt: dict) -> list[str]:
     else:
         for artifact in artifacts:
             errors.extend(check_artifact_reference(root, artifact, "93-11g case"))
+    return errors
+
+
+SELECTOR_STAGES = ("selector", "mailbox", "policy", "h2d", "mapping", "target_use")
+SELECTOR_REASONS = {
+    "selector_not_run", "no_eligible_cold_page", "eligible_ranked_out",
+    "mailbox_dropped", "stale_invalid_identity", "no_host_source",
+    "mandatory_capacity", "policy_target_omission", "slot_admission",
+    "transfer_plan_rejected", "async_transfer_failed", "publication_failed",
+    "promoted", "target_used", "promotion_chain_incomplete",
+}
+
+
+def check_selector_stage_evidence(page: dict, label: str) -> list[str]:
+    """Accept nomination and promotion edges only from bounded direct evidence."""
+    errors: list[str] = []
+    stages = page.get("selector_stages")
+    if not isinstance(stages, list) or [row.get("stage") if isinstance(row, dict) else None
+                                        for row in stages] != list(SELECTOR_STAGES):
+        return [f"{label}: six ordered selector stage records are required"]
+    identity_keys = ("request_id", "request_generation", "logical_page_id",
+                     "generation", "content_version")
+    identity = {key: stages[0].get(key) for key in identity_keys}
+    if not isinstance(identity["request_id"], str) or not identity["request_id"] or \
+            any(type(identity[key]) is not int or identity[key] < (0 if key == "logical_page_id" else 1)
+                for key in identity_keys[1:]):
+        errors.append(f"{label}: immutable request/page identity is incomplete")
+    for stage in stages:
+        if any(stage.get(key) != identity[key] for key in identity_keys):
+            errors.append(f"{label}: stage identity changed across the promotion chain")
+            break
+    selector = stages[0]
+    nominated = page.get("selector_nominated")
+    if nominated not in (True, False, None):
+        errors.append(f"{label}: selector_nominated must be true, false, or unknown")
+    raw_valid = selector.get("raw_output_valid") is True
+    raw_ids = selector.get("raw_cold_logical_pages")
+    natural = selector.get("natural_proof_identity")
+    natural_match = isinstance(natural, dict) and natural.get("selector_published") is True and \
+        all(natural.get(key) == identity[target] for key, target in
+            (("logical_page_id", "logical_page_id"), ("generation", "generation"),
+             ("content_version", "content_version")))
+    if raw_valid:
+        if not isinstance(raw_ids, list) or len(raw_ids) > 2 or \
+                any(type(value) is not int or value < -1 for value in raw_ids):
+            errors.append(f"{label}: raw selector shortlist must contain at most two logical IDs")
+        elif nominated is not (identity["logical_page_id"] in raw_ids):
+            errors.append(f"{label}: selector_nominated disagrees with raw selector output")
+    elif natural_match:
+        if nominated is not True:
+            errors.append(f"{label}: authenticated natural proof must nominate its exact page")
+    else:
+        reason = selector.get("explicit_reason")
+        if nominated is False and reason not in {"selector_not_run", "no_eligible_cold_page"}:
+            errors.append(f"{label}: negative nomination requires direct no-run/ineligible evidence")
+        if nominated is None and reason != "promotion_chain_incomplete":
+            errors.append(f"{label}: unknown nomination must remain promotion_chain_incomplete")
+        if nominated is True:
+            errors.append(f"{label}: nomination lacks raw output or matching natural proof")
+    mailbox, policy, h2d, mapping, use = stages[1:]
+    if mailbox.get("published") is True and (mailbox.get("completed") is not True or
+                                               mailbox.get("dropped") is True):
+        errors.append(f"{label}: mailbox publication lacks completed readback evidence")
+    if policy.get("admitted") is True and policy.get("candidate_authenticated") is not True:
+        errors.append(f"{label}: policy admission lacks candidate authentication")
+    reason = policy.get("reason")
+    if reason is not None and reason not in SELECTOR_REASONS:
+        errors.append(f"{label}: unknown policy/transfer outcome reason")
+    queued = h2d.get("queued_bytes")
+    completed = h2d.get("completed_bytes")
+    events = h2d.get("event_completions")
+    for key, value in (("queued_bytes", queued), ("completed_bytes", completed),
+                       ("event_completions", events)):
+        if type(value) is not int or value < 0:
+            errors.append(f"{label}: {key} must be a nonnegative integer")
+    if h2d.get("completed") is True and (type(queued) is not int or queued <= 0 or
+            type(completed) is not int or completed <= 0 or type(events) is not int or
+            events < 0 or (events == 0 and h2d.get("completion_observed") is not True)):
+        errors.append(f"{label}: completed H2D requires queued/completed bytes and event or synchronous completion evidence")
+    if mapping.get("published") is True:
+        if h2d.get("completed") is not True or type(mapping.get("epoch")) is not int or \
+                mapping["epoch"] <= 0 or type(mapping.get("physical_slot")) is not int or \
+                mapping["physical_slot"] < 0:
+            errors.append(f"{label}: mapping publication lacks completed transfer/slot/epoch evidence")
+    if use.get("consumed") is True and mapping.get("published") is not True:
+        errors.append(f"{label}: target use lacks mapping publication")
+    return errors
+
+
+def check_93_11n_selector_receipt(root: Path, receipt: dict) -> list[str]:
+    """Validate 93-11n stage reports without inferring from an empty proof."""
+    campaign = receipt.get("file_promotion_campaign")
+    if not isinstance(campaign, dict):
+        return ["93-11n requires file_promotion_campaign"]
+    errors: list[str] = []
+    if campaign.get("execution_status") != "complete":
+        errors.append("93-11n requires a completed candidate-bound campaign")
+    if campaign.get("candidate_identity_verified") is not True:
+        errors.append("93-11n requires verified candidate process identity")
+    for label in ("candidate", "model"):
+        item = receipt.get(label)
+        if not isinstance(item, dict) or not re.fullmatch(r"[0-9a-f]{64}", str(item.get("sha256", ""))):
+            errors.append(f"93-11n requires immutable {label} SHA-256")
+    cases = campaign.get("cases")
+    if not isinstance(cases, list) or not cases:
+        return errors + ["93-11n requires per-case direct selector stage evidence"]
+    seen = False
+    for case_index, case in enumerate(cases):
+        pages = case.get("answer_bearing_pages") if isinstance(case, dict) else None
+        if not isinstance(pages, list) or not pages:
+            errors.append(f"93-11n case {case_index + 1}: page stage evidence is required")
+            continue
+        for page_index, page in enumerate(pages):
+            seen = True
+            errors.extend(check_selector_stage_evidence(
+                page, f"93-11n case {case_index + 1} page {page_index + 1}"))
+    if not seen:
+        errors.append("93-11n has no direct page-stage records")
     return errors
 
 

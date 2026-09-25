@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import pathlib
+import importlib.util
+import sys
 import unittest
 
 from pager_promotion import (
@@ -13,6 +15,13 @@ from pager_promotion import (
     pages_are_cold, pages_overlapping_token_range, refresh_page_versions,
     response_budget,
 )
+
+_DRIVER_PATH = pathlib.Path(__file__).with_name("run-pager-promotion.py")
+sys.path.insert(0, str(_DRIVER_PATH.parent))
+_DRIVER_SPEC = importlib.util.spec_from_file_location("run_pager_promotion", _DRIVER_PATH)
+_DRIVER = importlib.util.module_from_spec(_DRIVER_SPEC)
+_DRIVER_SPEC.loader.exec_module(_DRIVER)
+_promotion_for_page = _DRIVER._promotion_for_page
 
 
 class PagerPromotionPromptTest(unittest.TestCase):
@@ -114,6 +123,41 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(PYTHON_WINNER, plan["steps"][2]["expected_answer_local_only"])
         with self.assertRaisesRegex(ValueError, "fixed"):
             build_promotion_steps(self.catalog, "PY_MERGE_01")
+
+    def test_empty_natural_proof_keeps_selector_nomination_unknown(self) -> None:
+        page = {"logical_page_id": 7, "generation": 12, "content_version": 31,
+                "resident": False, "host_backed": True}
+        record = {"request_id": "req-1", "request_generation": 4,
+                  "pager_after": {"selector_trace": {"enabled": False}}}
+        report = _promotion_for_page(page, {}, record, [])
+        self.assertIsNone(report["selector_nominated"])
+        self.assertEqual("promotion_chain_incomplete", report["selector_outcome"])
+        self.assertFalse(report["claimed_promoted"])
+
+    def test_direct_shortlist_is_required_for_selector_nomination(self) -> None:
+        page = {"logical_page_id": 7, "generation": 12, "content_version": 31,
+                "resident": False, "host_backed": True}
+        record = {"request_id": "req-1", "request_generation": 4,
+                  "pager_after": {"selector_trace": {
+                      "enabled": True, "raw_selector_output_valid": True,
+                      "raw_cold_logical_pages": [7, 9], "outcome": "selected_pending"}}}
+        report = _promotion_for_page(page, {}, record, [])
+        self.assertTrue(report["selector_nominated"])
+        self.assertEqual("raw_selector_output", report["selector_evidence_source"])
+        record["pager_after"]["selector_trace"]["raw_cold_logical_pages"] = [9]
+        report = _promotion_for_page(page, {}, record, [])
+        self.assertFalse(report["selector_nominated"])
+
+    def test_explicit_selector_boundary_supports_negative_nomination(self) -> None:
+        page = {"logical_page_id": 7, "generation": 12, "content_version": 31,
+                "resident": False, "host_backed": True}
+        for outcome in ("selector_not_run", "no_eligible_cold_page"):
+            with self.subTest(outcome=outcome):
+                record = {"request_id": "req-1", "request_generation": 4,
+                          "pager_after": {"selector_trace": {"enabled": True,
+                              "outcome": outcome}}}
+                report = _promotion_for_page(page, {}, record, [])
+                self.assertFalse(report["selector_nominated"])
 
 
 if __name__ == "__main__":

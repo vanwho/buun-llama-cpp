@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "task": "93-11m",
+  "source_commit": "6ceee6743d49596f42368e917d5260db2cb42e47",
+  "result": "pass",
+  "implementation": {
+    "trace_switch": "LLAMA_KV_PAGER_SELECTOR_TRACE=1",
+    "optional_target": "LLAMA_KV_PAGER_SELECTOR_TRACE_PAGE=<logical-id>",
+    "bounded_trace": "one refresh snapshot; at most two raw cold IDs; no prompt/tensor/inventory copies",
+    "changed_files": [
+      "src/llama-kv-pager.h",
+      "src/llama-kv-pager.cpp",
+      "src/llama-kv-cache.h",
+      "src/llama-kv-cache.cpp",
+      "src/llama-context.h",
+      "src/llama-context.cpp",
+      "tools/server/server-context.cpp",
+      "tools/server/bench/run-pager-promotion.py",
+      "tools/server/bench/test_pager_promotion.py",
+      ".wiretail/execution/v10/validate.py",
+      ".wiretail/execution/v10/test_validate.py",
+      "tests/test-kv-pager-model.cpp",
+      "tests/test-cuda-kv-promotion.cpp"
+    ]
+  },
+  "checks": {
+    "repair93_selector_stage_diagnostics": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-cuda-test",
+        "-R",
+        "^test-cuda-kv-promotion$",
+        "--output-on-failure"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11m/attempt-1/build-cpu.log",
+          "sha256": "e226b2cf729ec6f7d1b7f2f572d7ff96fc4a87bf2ee661658b505a61b31809b9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11m/attempt-1/build-cuda.log",
+          "sha256": "9e8491d4930126f619bc8752ab075991d8ae824a74a75134ce4ec2a37e077b9c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11m/attempt-1/pager-contract.log",
+          "sha256": "d9005c8b37e1f33e2af656fe51c6e79681d75287a746fe719c2c43d26f901cbb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11m/attempt-1/ctest-cuda.log",
+          "sha256": "5859a648804d6016d227ee44a280e8beac6aa404919bb789366828fb7fd7c2f6"
+        }
+      ]
+    },
+    "repair93_selector_stage_regressions": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools/server/bench",
+        "-p",
+        "test_pager_promotion.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11m/attempt-1/python-driver.log",
+          "sha256": "603db52fd0016ca5cdcf83b2588160ae92bde08c66ba4c61dfc8a2a74cdb95c9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11m/attempt-1/ctest-cpu.log",
+          "sha256": "bc15f60fccf6e7105ef2b7004b647b74ebd741af9ca3dbd09095cf9116a8627e"
+        }
+      ]
+    },
+    "repair93_selector_receipt_validation": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        ".wiretail/execution/v10",
+        "-p",
+        "test_validate.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11m/attempt-1/python-validate.log",
+          "sha256": "3d05b9fff75dfc7fcbe6de638ba12395759b28f24ed8d75ca3d8cc32bb02975a"
+        }
+      ]
+    }
+  },
+  "deferred_verification": [
+    "No live Qwen campaign run; candidate-bound live evidence is owned by task 93-11n."
+  ]
+}
