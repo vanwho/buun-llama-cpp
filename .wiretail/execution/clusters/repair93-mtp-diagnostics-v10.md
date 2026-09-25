@@ -1,6 +1,6 @@
 # Phase 93 — Turbo4 MTP and attention-pager diagnostics
 
-Revision: `hotpath-v10-20260914`.
+Revision: `hotpath-v10-20260914`. Amendment: `repair93-selector-promotion-20260925`.
 
 This is the compact, current phase context. Task packets own their exact
 protocols and acceptance criteria. Historical V9/phase-85 plans, old failed
@@ -21,8 +21,9 @@ evidence; do not silently label it as selected-direct or a speed result.
 - Only explicitly designated upstream merge/incoming-change tasks 93-11i and
   93-11j may use `gpt-6-luna` XHigh.
 - Keep tasks in a cluster while source/contracts/context remain cohesive; do
-  not load unrelated phase history. The current 93-11g task has an explicit
-  small context list and a compact current handoff.
+  not load unrelated phase history. The 93-11g live attempt is deferred; its
+  compact packet/handoff are historical only. The executable replacement is
+  93-11l through 93-11n in `repair93-selector-promotion-v10.md`.
 
 ## Candidate and managed-service rules
 
@@ -59,44 +60,31 @@ evidence; do not silently label it as selected-direct or a speed result.
   smaller byte budget needed; allocator and scratch headroom remain
   authoritative.
 
-## 93-11g functional-promotion exception
+## Natural selector and promotion correction
 
-The detailed protocol is in `tasks/93-11g.md`. It replaces the old one-file
-8K A/B test with exactly three same-slot requests: five complete Python merge
-fixtures and an operational allocation-efficiency filename question; five
-complete Bash watcher fixtures and an operational watcher-efficiency filename
-question; then the identical Python question again. The intended Python fact
-is `PY_MERGE_03`; the intended Bash fact is `BASH_WATCH_01`.
+Attempt 08 of 93-11g established a cold, host-backed page before request 3
+but no completed promotion. Its empty success-only `natural_proof` does not
+prove the selector emitted no nomination; raw selector output and page-level
+eligibility/policy reasons were not captured. A concrete code weakness is
+that graph construction selects Q row 0 and pairs it with `ubatch.pos[0]`,
+which can be unrelated to the final causal query in a prompt microbatch.
 
-Ten fixtures alone total 10,240 tokens, so this functional test uses a 16,384
-server context and 4,096 hot tokens (not 8K/4K). Keep 256-token pages,
-B=128/U=64, one slot, selective Turbo4 target K/V, GPU Turbo4 native MTP, and
-reasoning off. Preflight the complete rendered conversation; send all three
-requests even if answers are wrong. Never force eviction, select a page, or
-change route. Record the `PY_MERGE_03` page's coldness before the repeated
-question and correlate every page overlapping the Python fixture, especially
-the final `RETRIEVAL_KEY` fact page, through natural selector, H2D, publication,
-target, and draft events. Attempt 07 tracked an early fixture location inside
-resident logical pages 2–15, so its completed run never reached a cold-page
-precondition. Put `PY_MERGE_03` last in the first group; do not change fixture
-bytes. Report whole-fixture residency only if every overlapping page is
-resident. Decode speed may be recorded as a secondary observation, but cannot
-prove page residency or promotion. Answer quality and physical promotion are
-independent findings. The next run must inspect page eligibility/retention
-reasons and must not repeat the same sequence if the target remains hot.
-
-The old 8K single-file protocol and its incomplete results are historical only.
-Keep their receipts/raw roots immutable; do not make them acceptance criteria
-for the new sequence.
+Do not rerun the same live sequence until tasks 93-11l through 93-11n complete:
+93-11l uses the last valid causal Q row and tests row/position pairing;
+93-11m adds opt-in bounded stage diagnostics and deterministic selector-to-
+policy/transfer tests; 93-11n runs one corrected candidate-bound natural
+promotion campaign. Full code directions and test limits are in
+`clusters/repair93-selector-promotion-v10.md`. Keep attempt-08 receipt/raw
+artifacts immutable and keep answer scoring independent of page movement.
 
 ## Forward task order and evidence discipline
 
-After 93-11g, retain the declared order: 93-11i local upstream integration and
-conflict resolution; 93-11j assessment of incoming changes for useful
-performance approaches; 93-11k lock/validate the benchmark contract; then
-93-12 paired cold-context performance work. Do not sync upstream as part of
-93-11g. Report null/unmeasured values as unknown; never infer success from a
-route label, aggregate counter, or prose answer alone.
+After the deferred 93-11g disposition, run 93-11i local upstream integration,
+93-11j assessment of incoming changes, and 93-11k benchmark-contract lock.
+Then run 93-11l/11m/11n in order before 93-12 paired cold-context performance.
+Report null/unmeasured values as unknown; never infer nomination from a
+success-only proof, or promotion from a route label, aggregate counter, or
+prose answer alone.
 
 Keep current handoffs as concise state snapshots. Raw JSONL and benchmark
 records are append-only forensic artifacts, not task prompt context. Use a

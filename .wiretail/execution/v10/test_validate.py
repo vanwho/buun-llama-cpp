@@ -437,15 +437,29 @@ class ReceiptTests(unittest.TestCase):
                                   for i, stage in enumerate(stages)]}
         answers = ("merge_sorted_lists_03.py", "watch_directory_new_files_01.sh",
                    "merge_sorted_lists_03.py")
-        fixtures = [*(f"PY_MERGE_{i:02d}" for i in range(1, 6)),
+        fixtures = ["PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04", "PY_MERGE_05",
+                    "PY_MERGE_03",
                     *(f"BASH_WATCH_{i:02d}" for i in range(1, 6))]
         questions = (
             "Among these five Python implementations, which one uses an exactly preallocated result list and writes each result position once, the most allocation-efficient choice for producing a merged list? Reply with only the exact filename.",
             "Among these five Bash watchers, which one is the leanest for a single nonrecursive directory when it reports CREATE and MOVED_TO events without an extra per-event file test? Reply with only the exact filename.",
             "Among these five Python implementations, which one uses an exactly preallocated result list and writes each result position once, the most allocation-efficient choice for producing a merged list? Reply with only the exact filename.")
         appended = (fixtures[:5], fixtures[5:], [])
+        user_contents = []
+        for request_index in range(3):
+            ids = appended[request_index]
+            bodies = []
+            for fixture_id in ids:
+                entry = expected[fixture_id]
+                path = validator.ROOT / "tools/server/bench/fixtures/pager-promotion" / entry["path"]
+                bodies.append(f"Read the following file as context ({path.name}):\n--- BEGIN FILE CONTENT ---\n" +
+                              path.read_text() + "--- END FILE CONTENT ---")
+            user_contents.append(("\n\n".join(bodies) + "\n\n" if bodies else "") + questions[request_index])
         requests = [{"stage": stage, "assistant_answer": answer,
                      "question": questions[index], "appended_fixture_ids": appended[index],
+                     "user_content": user_contents[index], "cache_prompt": index > 0,
+                     "message_count": (1, 3, 5)[index], "http_status": 200,
+                     "finish_reason": "stop",
                      "request_id": f"request-{index + 1}",
                      "request_generation": index + 1,
                      "filename_selection": {"expected_filename_local_only": expected_answer,
@@ -460,10 +474,14 @@ class ReceiptTests(unittest.TestCase):
                 "fixture_sha256": expected["PY_MERGE_03"]["sha256"],
                 "fixture_hashes": {key: expected[key]["sha256"] for key in fixtures},
                 "fixture_span": {"fixture_id": "PY_MERGE_03",
-                                 "answer_bearing_source_line":
-                                     "out = [0] * (len(left) + len(right))"},
+                                 "answer_bearing_source_fact":
+                                     "RETRIEVAL_KEY: The preallocated merge writes each output position exactly once.",
+                                 "answer_bearing_byte_span": [1, 10],
+                                 "answer_bearing_token_span": [200, 201],
+                                 "answer_page_resident_after_request_1": True},
                 "requests": requests, "all_fixture_pages_present_before_request_3": True,
                 "all_fixture_pages_cold_host_backed_before_request_3": False,
+                "answer_bearing_page_cold_host_backed_before_request_3": True,
                 "answer_bearing_page_naturally_promoted": True,
                 "answer_bearing_pages": [answer_page],
                 "mtp": {"target_placement": "gpu", "draft_placement": "gpu",

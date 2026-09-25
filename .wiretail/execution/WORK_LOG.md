@@ -1208,3 +1208,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-93-11g`
 - Commit at update: `b2813042e`
 - Summary: Natural-file-recall-v2 is ready for retry: A/B acknowledgements and A-again answer are free-form; one PY_MERGE_01 live sequence replaces the 24-case exact-string gate; output allowance follows actual rendered prompt/context; the V10 gate checks one paraphrase-tolerant answer and the physical page event chain. Planner 13/13, V10 tests 39/39, fixture tokenizer/hash check 24/24, py_compile, JSON, task-state validation, and diff check pass. No live request was sent; 93-11g remains in_progress.
+
+## 2026-09-25T13:22:30+00:00 — 93-11g — deferred
+
+- Branch: `codex/task-93-11g`
+- Commit at update: `689653162`
+- Summary: Attempt 08 established the cold/host-backed precondition but no completed promotion and captured no direct selector candidate or rejection reason. Empty natural_proof does not prove no nomination. Defer this unchanged live sequence; replacement selector-row, bounded diagnostics, and candidate-bound promotion tasks 93-11l/11m/11n are inserted before 93-12.
