@@ -18,7 +18,7 @@ from mtp_diagnostic import promotion_event_chain_from_snapshots
 from pager_promotion import (
     DEFAULT_TARGET_FIXTURE_ID, FIXTURE_ROOT, RECALL_PROBE_ANCHORS,
     assess_natural_retrieval, build_promotion_steps, load_fixture_catalog,
-    messages_for_step, pages_overlapping_token_range, response_budget,
+    messages_for_step, pages_overlapping_token_range, refresh_page_versions, response_budget,
 )
 from prompt_sizing import ServerPromptRenderer, request_options
 
@@ -214,20 +214,22 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
 
     # Tokenize prefixes of the candidate-rendered prompt to map the complete
     # winning fixture body and its answer-bearing source line.
-    prefix_count = body_end_token_count = probe_end_token_count = None
-    body_start = body_end = anchor_end = None
+    prefix_count = body_end_token_count = anchor_start_token_count = probe_end_token_count = None
+    body_start = body_end = anchor_start = anchor_end = None
     if step_index == 0 and tracked_fixture is not None:
         body_start = rendered.text.find(tracked_fixture.body)
         if body_start < 0 or rendered.text.find(tracked_fixture.body, body_start + 1) >= 0:
             raise RuntimeError("candidate-rendered prompt does not contain one unique winner body")
         body_end = body_start + len(tracked_fixture.body)
         anchor = RECALL_PROBE_ANCHORS[tracked_fixture.fixture_id]
-        anchor_offset = rendered.text.find(anchor, body_start, body_end)
+        anchor_offset = rendered.text.rfind(anchor, body_start, body_end)
         if anchor_offset < 0:
             raise RuntimeError("winning fixture is missing its answer-bearing source line")
+        anchor_start = anchor_offset
         anchor_end = anchor_offset + len(anchor)
         for label, offset in (("body-prefix", body_start), ("body-end", body_end),
-                              ("answer-bearing-prefix", anchor_end)):
+                              ("answer-bearing-prefix", anchor_start),
+                              ("answer-bearing-end", anchor_end)):
             prefix = rendered.text[:offset]
             status, prefix_value, prefix_raw = json_request(base, "/tokenize", key, {
                 "content": prefix, "add_special": True, "parse_special": True,
@@ -239,6 +241,8 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
                 prefix_count = count
             elif label == "body-end":
                 body_end_token_count = count
+            elif label == "answer-bearing-prefix":
+                anchor_start_token_count = count
             else:
                 probe_end_token_count = count
             (output / f"{label}.txt").write_text(prefix, encoding="utf-8")
@@ -288,10 +292,16 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
                            f"context-derived maximum is {n_predict}")
     return answer, response, payload, {"fixture_start_token": prefix_count,
                                       "fixture_end_token": body_end_token_count,
+                                      "answer_bearing_start_token": anchor_start_token_count,
                                       "probe_end_token_count": probe_end_token_count,
                                       "fixture_start_char": body_start,
                                       "fixture_end_char": body_end,
+                                      "answer_bearing_start_char": anchor_start,
                                       "answer_bearing_end_char": anchor_end,
+                                      "fixture_start_byte": len(rendered.text[:body_start].encode("utf-8")) if body_start is not None else None,
+                                      "fixture_end_byte": len(rendered.text[:body_end].encode("utf-8")) if body_end is not None else None,
+                                      "answer_bearing_start_byte": len(rendered.text[:anchor_start].encode("utf-8")) if anchor_start is not None else None,
+                                      "answer_bearing_end_byte": len(rendered.text[:anchor_end].encode("utf-8")) if anchor_end is not None else None,
                                       "rendered_token_count": len(rendered.token_ids),
                                       "n_predict": n_predict,
                                       "generation_context_reserve_tokens": CONTEXT -
@@ -385,6 +395,7 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "appended_fixture_id": step.appended_fixture_id,
         "appended_fixture_ids": list(step.appended_fixture_ids),
         "question": step.question,
+        "user_content": step.user_content,
         "user_content_sha256": sha256(step.user_content.encode("utf-8")),
         "expected_answer_local_only": step.expected_answer_local_only or None,
         "assistant_answer": answer,
@@ -403,6 +414,11 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "render": render,
         "slot_http": {"before": before_status, "after": after_status},
         "completion_usage": response.get("usage"),
+        "finish_reason": render.get("finish_reason"),
+        "raw_response_artifact": {
+            "path": str((request_root / "completion-response.raw").resolve()),
+            "sha256": sha256_file(request_root / "completion-response.raw"),
+        },
         "message_count": len(messages),
     }
     write_json(request_root / "record.json", record)
@@ -413,16 +429,16 @@ def _snapshot_tracked_pages(inventory: list[dict[str, Any]],
                             initial: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rows = []
     for target in initial:
-        matches = [page for page in inventory
-                   if page.get("logical_page_id") == target.get("logical_page_id") and
-                   page.get("generation") == target.get("generation") and
-                   page.get("sequence_id") == target.get("sequence_id") and
-                   page.get("sequence_generation") == target.get("sequence_generation") and
-                   page.get("position_begin") == target.get("position_begin") and
-                   page.get("position_end") == target.get("position_end")]
-        rows.append(dict(matches[0]) if len(matches) == 1 else {
-            **target, "resident": None, "host_backed": None,
-            "inventory_status": "missing" if not matches else "ambiguous"})
+        try:
+            current = refresh_page_versions(inventory, [target])[0]
+            current["tracked_initial_position_begin"] = target.get("position_begin")
+            current["tracked_initial_position_end"] = target.get("position_end")
+            current["tracked_initial_content_version"] = target.get("content_version")
+            current["identity_match"] = "sequence/page/generation with overlapping token span"
+            rows.append(current)
+        except ValueError:
+            rows.append({**target, "resident": None, "host_backed": None,
+                         "inventory_status": "missing_or_ambiguous"})
     return rows
 
 
@@ -454,6 +470,8 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
         "missing_transition": (
             "cold-before-request-3: page remained resident; host_backed=" +
             str(page.get("host_backed")) if page.get("resident") is True else
+            "cold-before-request-3: page is nonresident but lacks valid host backing"
+            if page.get("resident") is False and page.get("host_backed") is not True else
             "page was not naturally nominated"),
     }
     if not result["claimed_promoted"]:
@@ -492,10 +510,23 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         messages = messages_for_step(steps, index, prior)
         result = preflight_messages(base, key, messages, model,
                                     case_root / f"preflight-request-{index + 1:02d}")
+        result["request_index"] = index
+        result["stage"] = step.stage
+        result["message_count"] = len(messages)
+        result["placeholder_prior_replies"] = prior
         preflight_rows.append(result)
-        if not result["fits"]:
-            raise RuntimeError(f"rendered request {index + 1} exceeds {CONTEXT}-token context "
-                               "with 128-token completion reserve")
+    write_json(case_root / "preflight-summary.json", {
+        "context_tokens": CONTEXT,
+        "completion_reserve_tokens": 128,
+        "requests": preflight_rows,
+        "all_fit": all(item.get("fits") is True for item in preflight_rows),
+    })
+    if not all(item.get("fits") is True for item in preflight_rows):
+        for index, result in enumerate(preflight_rows):
+            if not result.get("fits"):
+                print(f"preflight request {index + 1}: rendered={result.get('rendered_prompt_tokens')} "
+                      f"completion_reserve=128 context={CONTEXT} does not fit", flush=True)
+        raise RuntimeError("one or more rendered cumulative messages do not fit with completion reserve")
 
     answers: list[str] = []
     records: list[dict[str, Any]] = []
@@ -519,19 +550,35 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         if index == 0:
             start = record["render"].get("fixture_start_token")
             end = record["render"].get("fixture_end_token")
+            anchor_start = record["render"].get("answer_bearing_start_token")
             anchor_end = record["render"].get("probe_end_token_count")
-            if not all(type(value) is int for value in (start, end, anchor_end)) or not start < anchor_end <= end:
+            if not all(type(value) is int for value in (start, end, anchor_start, anchor_end)) or not start <= anchor_start < anchor_end <= end:
                 raise RuntimeError("cannot map the rendered winning fixture and answer-bearing source span")
             initial_pages = pages_overlapping_token_range(inventory, start, end)
-            answer_pages = pages_overlapping_token_range(inventory, start, anchor_end)
+            answer_pages = pages_overlapping_token_range(inventory, anchor_start, anchor_end)
+            answer_resident_after_request_1 = all(page.get("resident") is True for page in answer_pages)
+            if not answer_resident_after_request_1:
+                raise RuntimeError("answer-bearing page was not resident after request 1; adjust prompt placement")
+            body_bytes = target.body.encode("utf-8")
+            anchor_bytes = RECALL_PROBE_ANCHORS[target.fixture_id].encode("utf-8")
+            answer_byte_start = body_bytes.rfind(anchor_bytes)
+            if answer_byte_start < 0:
+                raise RuntimeError("answer-bearing fixture fact is missing from the fixture bytes")
             fixture_span = {"fixture_id": target.fixture_id,
                             "fixture_sha256": target.sha256,
-                            "body_byte_span": [0, len(target.body.encode("utf-8"))],
+                            "body_byte_span": [0, len(body_bytes)],
+                            "answer_bearing_byte_span": [answer_byte_start,
+                                                         answer_byte_start + len(anchor_bytes)],
                             "rendered_character_span": [record["render"].get("fixture_start_char"),
                                                          record["render"].get("fixture_end_char")],
+                            "rendered_byte_span": [record["render"].get("fixture_start_byte"),
+                                                    record["render"].get("fixture_end_byte")],
                             "token_span": [start, end],
-                            "answer_bearing_source_line": RECALL_PROBE_ANCHORS[target.fixture_id],
-                            "answer_bearing_token_span": [start, anchor_end]}
+                            "answer_bearing_source_fact": RECALL_PROBE_ANCHORS[target.fixture_id],
+                            "answer_bearing_rendered_byte_span": [record["render"].get("answer_bearing_start_byte"),
+                                                                   record["render"].get("answer_bearing_end_byte")],
+                            "answer_bearing_token_span": [anchor_start, anchor_end],
+                            "answer_page_resident_after_request_1": answer_resident_after_request_1}
             answer_ids = {page.get("logical_page_id") for page in answer_pages}
             fixture_span["answer_bearing_page_ids"] = sorted(x for x in answer_ids if x is not None)
         page_snapshots[snapshot_name] = _snapshot_tracked_pages(inventory, initial_pages) \
@@ -551,7 +598,11 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                     for page in page_snapshots["immediately_before_request_3"]]
     for report in page_reports:
         report["fixture_byte_span"] = fixture_span.get("body_byte_span")
-        report["fixture_token_span"] = fixture_span.get("token_span")
+        begin = report["page_identity"].get("position_begin")
+        end = report["page_identity"].get("position_end")
+        fixture_begin, fixture_end = fixture_span.get("token_span", [None, None])
+        report["fixture_token_span"] = [max(begin, fixture_begin), min(end, fixture_end)] \
+            if all(type(value) is int for value in (begin, end, fixture_begin, fixture_end)) else None
     answer_page_ids = set(fixture_span.get("answer_bearing_page_ids", []))
     answer_page_reports = [row for row in page_reports
                            if row["page_identity"].get("logical_page_id") in answer_page_ids]
@@ -657,7 +708,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise RuntimeError("managed candidate is not healthy")
     geometry = validate_runtime_geometry(base, key, identity)
     write_json(root / "allocator-admission.json", geometry)
-    selected_fixture_ids = [*(f"PY_MERGE_{index:02d}" for index in range(1, 6)),
+    selected_fixture_ids = ["PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04", "PY_MERGE_05",
+                            "PY_MERGE_03",
                             *(f"BASH_WATCH_{index:02d}" for index in range(1, 6))]
     catalog = load_fixture_catalog(pathlib.Path(args.fixture_root), selected_fixture_ids)
     manifest_raw = (pathlib.Path(args.fixture_root) / "manifest.json").read_bytes()
@@ -702,7 +754,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "schema": "file-backed-pager-promotion-campaign-v1",
         "execution_status": "complete" if execution_complete else "incomplete",
         "acceptance_status": "pass" if campaign_pass else "diagnostic_only",
-        "target_fixture_ids": [*([f"PY_MERGE_{index:02d}" for index in range(1, 6)]),
+        "target_fixture_ids": ["PY_MERGE_01", "PY_MERGE_02", "PY_MERGE_04", "PY_MERGE_05",
+                               "PY_MERGE_03",
                                *([f"BASH_WATCH_{index:02d}" for index in range(1, 6)])],
         "candidate_identity_verified": True, "geometry": geometry,
         "fixture_manifest_sha256": sha256(manifest_raw), "cases": cases,

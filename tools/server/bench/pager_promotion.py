@@ -231,10 +231,9 @@ def refresh_page_versions(snapshot: Sequence[Mapping[str, Any]],
                           targets: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Refresh mutable content versions for the same logical page generations.
 
-    Appending cached context can change the pager's content-version value for
-    an unchanged logical page. Page ID, generation, sequence generation, and
-    page bounds identify the tracked page across those snapshots; the current
-    content version is then used for the cold-before and promotion proof.
+    Appending cached context can change content version and expand a partial
+    page's bounds. Match sequence/page/generation and overlapping token spans,
+    then use the current bounds/content version for the promotion proof.
     """
     refreshed: list[dict[str, Any]] = []
     for target in targets:
@@ -243,8 +242,8 @@ def refresh_page_versions(snapshot: Sequence[Mapping[str, Any]],
                    page.get("generation") == target.get("generation") and
                    page.get("sequence_id") == target.get("sequence_id") and
                    page.get("sequence_generation") == target.get("sequence_generation") and
-                   page.get("position_begin") == target.get("position_begin") and
-                   page.get("position_end") == target.get("position_end")]
+                   page.get("position_begin", 0) < target.get("position_end", 0) and
+                   page.get("position_end", 0) > target.get("position_begin", 0)]
         if len(matches) != 1:
             raise ValueError("tracked logical page generation is missing or ambiguous")
         refreshed.append(dict(matches[0]))
@@ -349,13 +348,9 @@ def write_plan(path: pathlib.Path, plans: Sequence[Mapping[str, Any]]) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture-root", type=pathlib.Path, default=FIXTURE_ROOT)
-    selection = parser.add_mutually_exclusive_group()
-    selection.add_argument("--verify-only", action="store_true")
-    selection.add_argument("--case-id", help="write one target-A case")
-    selection.add_argument("--all-targets", action="store_true",
-                           help="write one case for each of the 24 target files")
-    selection.add_argument("--target-fixture-id", default=DEFAULT_TARGET_FIXTURE_ID,
-                           help="single live diagnostic target (default: PY_MERGE_01)")
+    parser.add_argument("--verify-only", action="store_true")
+    parser.add_argument("--target-fixture-id", default=DEFAULT_TARGET_FIXTURE_ID,
+                        help="fixed two-topic live diagnostic target (PY_MERGE_03)")
     parser.add_argument("--output", type=pathlib.Path,
                         help="new JSON file for the deterministic user-turn plan")
     args = parser.parse_args(argv)
@@ -367,11 +362,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.output is None:
             parser.error("--output is required with --case-id or --all-targets")
-        target_id = args.case_id or args.target_fixture_id
-        target_ids = ([item.fixture_id for item in catalog] if args.all_targets
-                      else [target_id])
-        plans = [build_case_plan(catalog, fixture_id)
-                 for fixture_id in target_ids]
+        plans = [build_case_plan(catalog, args.target_fixture_id)]
         write_plan(args.output, plans)
         print(f"Wrote {len(plans)} deterministic case plan(s) to {args.output}")
         return 0

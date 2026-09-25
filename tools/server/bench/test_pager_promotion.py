@@ -98,9 +98,11 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(list(range(5)), [page["logical_page_id"] for page in pages])
         changed_versions = [dict(page, content_version=100 + index, resident=False)
                             for index, page in enumerate(inventory)]
+        changed_versions[-1].update(position_end=1408, valid_length=384)
         refreshed = refresh_page_versions(changed_versions, pages)
         self.assertEqual(list(range(100, 105)),
                          [page["content_version"] for page in refreshed])
+        self.assertEqual(1408, refreshed[-1]["position_end"])
         self.assertTrue(pages_are_cold(refreshed, refreshed, require_complete=True))
 
     def test_case_plan_locks_new_geometry_and_fixture_set(self) -> None:

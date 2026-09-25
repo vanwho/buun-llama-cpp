@@ -12,8 +12,9 @@ Always tokenize the complete cumulative rendered conversation, including chat/hi
 
 `manifest.json` records fixture IDs, tokenizer counts, reference facts, and
 SHA-256 hashes. The current bounded live proof sends exactly three ordinary
-same-slot turns: complete `PY_MERGE_01..05` bodies plus an allocation-efficiency
-filename question; complete `BASH_WATCH_01..05` bodies plus a single-directory
+same-slot turns: complete Python bodies in the order `PY_MERGE_01`,
+`PY_MERGE_02`, `PY_MERGE_04`, `PY_MERGE_05`, `PY_MERGE_03` plus an
+allocation-efficiency filename question; complete `BASH_WATCH_01..05` bodies plus a single-directory
 watcher-efficiency filename question; and the identical Python question again
 without resending those files. The intended unique responses are
 `merge_sorted_lists_03.py` and `watch_directory_new_files_01.sh`. “Efficient” is
