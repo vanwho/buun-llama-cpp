@@ -2501,10 +2501,11 @@ void llama_kv_cache::capture_kv_routing_query(
         return;
     }
 
-    if (tensor == nullptr || layer < 0 || ubatch.seq_id == nullptr ||
+    if (tensor == nullptr || layer < 0 || ubatch.n_tokens == 0 ||
+            ubatch.n_pos == 0 || ubatch.seq_id == nullptr ||
             ubatch.n_seq_id == nullptr || ubatch.n_seq_id[0] == 0 ||
             ubatch.seq_id[0] == nullptr || ubatch.pos == nullptr ||
-            ubatch.n_pos == 0) {
+            size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos) {
         return;
     }
     // The selector graph may still be reused for the target attention shape,
@@ -2532,8 +2533,10 @@ void llama_kv_cache::capture_kv_routing_query(
     value.sequence_id = sequence_id;
     value.query_generation = pager_query_generation_;
     value.table_epoch = snapshot.epoch();
-    value.query_position = ubatch.pos[0] < std::numeric_limits<llama_pos>::max()
-        ? uint64_t(ubatch.pos[0]) + 1 : uint64_t(ubatch.pos[0]);
+    const llama_pos position = ubatch.pos[size_t(ubatch.n_tokens - 1) * ubatch.n_pos];
+    if (position < 0) return;
+    value.query_position = position < std::numeric_limits<llama_pos>::max()
+        ? uint64_t(position) + 1 : uint64_t(position);
     value.sequence_generation = snapshot.pages().empty()
         ? 0 : snapshot.pages().front().id.sequence_generation;
     value.session_generation = snapshot.pages().empty()
@@ -16777,8 +16780,11 @@ uint32_t llama_kv_cache_context::get_max_graph_seqs() const {
 ggml_tensor * llama_kv_cache_context::build_kv_page_select(
         ggml_context * ctx, ggml_tensor * q, int layer,
         const llama_ubatch & ubatch, uint32_t query_row) const {
-    if (kv == nullptr || ctx == nullptr || q == nullptr || query_row != 0 ||
+    if (kv == nullptr || ctx == nullptr || q == nullptr || q->ne[2] <= 0 ||
+            q->ne[3] != 1 || uint64_t(q->ne[2]) != ubatch.n_tokens ||
+            uint64_t(query_row) != uint64_t(q->ne[2] - 1) ||
             kv->get_kv_pager() == nullptr || ubatch.n_tokens == 0 ||
+            ubatch.n_pos == 0 || ubatch.pos == nullptr ||
             ubatch.n_seqs_unq != 1 || ubatch.seq_id == nullptr ||
             ubatch.n_seq_id == nullptr || ubatch.n_seq_id[0] != 1 ||
             ubatch.seq_id[0] == nullptr || ubatch.seq_id[0][0] < 0) {
@@ -16892,7 +16898,8 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         const llama_ubatch & ubatch) const {
     if (!can_reuse_kv_page_select(bounds, layer, ubatch) ||
             metadata == nullptr || membership == nullptr || query == nullptr ||
-            ubatch.pos == nullptr || ubatch.n_pos == 0) return false;
+            ubatch.pos == nullptr || ubatch.n_pos == 0 || ubatch.n_tokens == 0 ||
+            size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos) return false;
     const auto & pager = *kv->get_kv_pager();
     const auto sequence = pager.residency(ubatch.seq_id[0][0]);
     if (!kv->pager_query_refresh_enabled_) {
@@ -16910,6 +16917,11 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     const uint32_t kv_heads = pager.snapshot().geometry.kv_heads;
     const uint32_t dim = uint32_t(bounds->ne[0]);
     const uint32_t capacity = pager.snapshot().logical_page_count;
+    const size_t query_row = size_t(ubatch.n_tokens - 1);
+    const llama_pos position = ubatch.pos[query_row * ubatch.n_pos];
+    if (position < 0) return false;
+    const int64_t query_position = position < std::numeric_limits<llama_pos>::max()
+        ? int64_t(position) + 1 : int64_t(position);
     if (capacity == 0 || uint64_t(bounds->ne[3]) != capacity ||
             uint64_t(metadata->ne[1]) != capacity ||
             uint64_t(membership->ne[0]) != capacity) return false;
@@ -17053,9 +17065,6 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         ++old_index;
     }
     state->active_page_indices = std::move(current_page_indices);
-    const llama_pos position = ubatch.pos[0];
-    const int64_t query_position = position < std::numeric_limits<llama_pos>::max()
-        ? int64_t(position) + 1 : int64_t(position);
     const int64_t sequence_generation = inventory.front().id.sequence_generation;
     uint64_t latest_page_generation = 0;
     for (const auto & record : inventory) {

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "task": "93-11l",
+  "source_commit": "fecc0a1d90dd3ed22d0f644bf8ee305f2fff71d2",
+  "result": "complete",
+  "source_confirmed_first_row_defect": true,
+  "candidate_build_identity": null,
+  "implementation": {
+    "query_row": "q->ne[2] - 1 after validating positive single-sequence Q rows against ubatch.n_tokens",
+    "query_position": "ubatch.pos[(n_tokens - 1) * n_pos] + 1 with nonnegative-position and row-offset overflow checks",
+    "graph_reuse": "retained Q shape checked against each ubatch; refresh sidebands use current final-row position at enabled refresh boundaries; cadence skips retain the prior pager result",
+    "symbols": [
+      "llm_graph_context::cb",
+      "llm_graph_input_kv_page_select::set_input",
+      "llm_graph_input_kv_page_select::can_reuse",
+      "llama_kv_cache_context::build_kv_page_select",
+      "llama_kv_cache_context::set_kv_page_select_inputs",
+      "llama_kv_cache::capture_kv_routing_query",
+      "ggml_compute_forward_kv_page_select_f32"
+    ]
+  },
+  "checks": {
+    "repair93_selector_final_causal_row": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["ctest", "--test-dir", "build-cuda-test", "--output-on-failure", "-R", "^test-cuda-kv-promotion$"],
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/93-11l/attempt-2/ctest-cuda-promotion.log", "sha256": "3e6b11ae212ed50fa140e5ddc0ab9dd054fe3e011a0e47026cf06c7eb3ec4643"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-11l/attempt-2/test-backend-ops-cuda.log", "sha256": "4f6c7ce24451964a8548677b13c01e14d6abf7d15198beb0a37cefc9ffa97826"}
+      ]
+    },
+    "repair93_selector_row_position_regression": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["ctest", "--test-dir", "build", "--output-on-failure", "-R", "^test-kv-page-select$"],
+      "artifacts": [
+        {"path": "/srv/ai/paged-kv/results/v10/93-11l/attempt-2/test-selector-cpu.log", "sha256": "bc15f60fccf6e7105ef2b7004b647b74ebd741af9ca3dbd09095cf9116a8627e"},
+        {"path": "/srv/ai/paged-kv/results/v10/93-11l/attempt-2/test-backend-ops-cpu.log", "sha256": "276e81f5454854dd973741e530e887d2776ee0cc62cd64921b5721d8440c8921"}
+      ]
+    }
+  },
+  "builds": [
+    {"command": "cmake --build build --target llama-server test-kv-page-select test-backend-ops -j2", "exit_code": 0, "artifact": {"path": "/srv/ai/paged-kv/results/v10/93-11l/attempt-2/build-cpu.log", "sha256": "61333ffc347e75c189ec18207223fd8a2151fa2b0df8d691a7a80af8931d3644"}},
+    {"command": "cmake --build build-cuda-test --target test-backend-ops test-cuda-kv-promotion -j8", "exit_code": 0, "artifact": {"path": "/srv/ai/paged-kv/results/v10/93-11l/attempt-2/build-cuda.log", "sha256": "a94d3de06eab2757162b0cce2a6b1d0560ce66abb23b5f3d810a2b98d9862f25"}}
+  ],
+  "deferred_verification": [],
+  "natural_promotion_claimed": false,
+  "next_task": "93-11m"
+}

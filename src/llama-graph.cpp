@@ -2615,7 +2615,10 @@ public:
     }
 
     void set_input(const llama_ubatch * ubatch) override {
-        if (mctx_ == nullptr || ubatch == nullptr ||
+        if (mctx_ == nullptr || ubatch == nullptr || selected_ == nullptr ||
+                selected_->src[0] == nullptr || selected_->src[0]->ne[2] <= 0 ||
+                selected_->src[0]->ne[3] != 1 ||
+                uint64_t(selected_->src[0]->ne[2]) != ubatch->n_tokens ||
                 !mctx_->set_kv_page_select_inputs(
                     bounds_, metadata_, membership_, query_, layer_, *ubatch)) {
             // A selector is advisory. The owner keeps the previous valid
@@ -2631,7 +2634,13 @@ public:
 
     bool can_reuse(const llm_graph_params & params) override {
         mctx_ = params.mctx;
-        return mctx_ != nullptr && mctx_->can_reuse_kv_page_select(
+        return selected_ != nullptr && selected_->src[0] != nullptr &&
+                selected_->src[0]->ne[2] > 0 && selected_->src[0]->ne[3] == 1 &&
+                uint64_t(selected_->src[0]->ne[2]) == params.ubatch.n_tokens &&
+                params.ubatch.n_pos != 0 && params.ubatch.pos != nullptr &&
+                size_t(params.ubatch.n_tokens - 1) <=
+                    std::numeric_limits<size_t>::max() / params.ubatch.n_pos &&
+                mctx_ != nullptr && mctx_->can_reuse_kv_page_select(
                 bounds_, layer_, params.ubatch);
     }
 
@@ -2658,8 +2667,16 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
         // selector node to the actual post-RoPE Q dependency without copying
         // Q to the host. Expand the result explicitly so it cannot be
         // optimized out.
+        if (cur->ne[2] <= 0 || cur->ne[3] != 1 ||
+                uint64_t(cur->ne[2]) != ubatch.n_tokens ||
+                ubatch.n_pos == 0 || ubatch.pos == nullptr ||
+                size_t(ubatch.n_tokens - 1) >
+                    std::numeric_limits<size_t>::max() / ubatch.n_pos) {
+            return;
+        }
+        const uint32_t query_row = uint32_t(cur->ne[2] - 1);
         ggml_tensor * selected = mctx->build_kv_page_select(
-                ctx0, cur, il, ubatch, 0);
+                ctx0, cur, il, ubatch, query_row);
         if (selected != nullptr) {
             // The selector is consumed after the scheduler fence by the
             // pager's mailbox producer.  Expanding it makes the node run,

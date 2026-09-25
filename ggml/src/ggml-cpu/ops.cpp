@@ -8750,6 +8750,7 @@ static void ggml_compute_forward_kv_page_select_f32(
                 }
                 if (already_selected) continue;
                 const float score = ggml_kv_page_select_score(q, bounds, query_row, page);
+                if (!std::isfinite(score)) continue;
                 if (best_page < 0 || score > best_score || (score == best_score && page < best_page)) {
                     best_score = score;
                     best_page = (int32_t) page;
