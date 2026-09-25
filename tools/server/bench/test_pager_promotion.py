@@ -54,7 +54,7 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(PYTHON_WINNER, steps[0].expected_answer_local_only)
         self.assertEqual(BASH_WINNER, steps[1].expected_answer_local_only)
         self.assertEqual(PYTHON_WINNER, steps[2].expected_answer_local_only)
-        self.assertFalse(steps[1].cache_prompt)
+        self.assertTrue(steps[1].cache_prompt)
         self.assertTrue(steps[2].cache_prompt)
         self.assertNotIn("RETRIEVAL_KEY", steps[0].question + steps[1].question + steps[2].question)
 

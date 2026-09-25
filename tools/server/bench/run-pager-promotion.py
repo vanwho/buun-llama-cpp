@@ -70,6 +70,17 @@ def raw_request(url: str, key: str, body: bytes | None = None,
         return 0, f"{type(error).__name__}: {error}".encode(), "text/plain"
 
 
+class CompletionFailure(RuntimeError):
+    def __init__(self, status: int, response: dict[str, Any], payload: dict[str, Any],
+                 render: dict[str, Any]) -> None:
+        self.status = status
+        self.response = response
+        self.payload = payload
+        self.render = render
+        detail = response.get("error", response) if isinstance(response, dict) else response
+        super().__init__(f"completion returned HTTP {status}: {detail!r}")
+
+
 def json_request(base: str, path: str, key: str, body: Mapping[str, Any] | None = None,
                  timeout: float = 60.0) -> tuple[int, Any, bytes]:
     request_body = json.dumps(body, ensure_ascii=False).encode("utf-8") if body is not None else None
@@ -251,13 +262,25 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
     (output / "completion-response.json").write_text(
         json.dumps(response, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
     if status != 200 or not isinstance(response, dict):
-        raise RuntimeError(f"completion returned HTTP {status}: {response!r}")
+        raise CompletionFailure(status, response if isinstance(response, dict) else {},
+                               payload, {"rendered_token_count": len(rendered.token_ids),
+                                         "n_predict": n_predict,
+                                         "generation_context_reserve_tokens": CONTEXT -
+                                             len(rendered.token_ids) - n_predict,
+                                         "template_id": rendered.template_id,
+                                         "tokenizer_id": rendered.tokenizer_id})
     choices = response.get("choices")
     message = choices[0].get("message") if isinstance(choices, list) and choices and \
         isinstance(choices[0], dict) else None
     answer = message.get("content") if isinstance(message, dict) else None
     if not isinstance(answer, str):
-        raise RuntimeError("completion response has no textual assistant content")
+        raise CompletionFailure(status, response, payload,
+                               {"rendered_token_count": len(rendered.token_ids),
+                                "n_predict": n_predict,
+                                "generation_context_reserve_tokens": CONTEXT -
+                                    len(rendered.token_ids) - n_predict,
+                                "template_id": rendered.template_id,
+                                "tokenizer_id": rendered.tokenizer_id})
     usage = response.get("usage")
     completion_tokens = usage.get("completion_tokens") if isinstance(usage, dict) else None
     if isinstance(completion_tokens, int) and completion_tokens > n_predict:
@@ -319,9 +342,16 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
     messages = messages_for_step(steps, step_index, prior_answers)
     before_status, before_slot, before_raw = get_slot(base, key)
     (request_root / "slots-before.json").write_bytes(before_raw + b"\n")
-    answer, response, payload, render = request_completion(
-        base, key, messages, model=model, cache_prompt=step.cache_prompt,
-        output=request_root, step_index=step_index, tracked_fixture=tracked_fixture)
+    runtime_error = None
+    try:
+        answer, response, payload, render = request_completion(
+            base, key, messages, model=model, cache_prompt=step.cache_prompt,
+            output=request_root, step_index=step_index, tracked_fixture=tracked_fixture)
+        http_status = 200
+    except CompletionFailure as error:
+        answer, response, payload, render = None, error.response, error.payload, error.render
+        http_status = error.status
+        runtime_error = str(error)
     after_status, after_slot, after_raw = get_slot(base, key)
     (request_root / "slots-after.json").write_bytes(after_raw + b"\n")
     pager_after = after_slot.get("pager_metrics")
@@ -358,8 +388,10 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         "user_content_sha256": sha256(step.user_content.encode("utf-8")),
         "expected_answer_local_only": step.expected_answer_local_only or None,
         "assistant_answer": answer,
-        "filename_selection": assess_natural_retrieval(step.expected_answer_local_only, answer),
-        "request_id": response.get("id"), "http_status": 200,
+        "filename_selection": assess_natural_retrieval(
+            step.expected_answer_local_only, answer if isinstance(answer, str) else ""),
+        "request_id": response.get("id"), "http_status": http_status,
+        "runtime_error": runtime_error,
         "prompt_tokens": render["rendered_token_count"], "n_predict": render["n_predict"],
         "cache_prompt": step.cache_prompt,
         "request_generation": (after_slot.get("pager_metrics") or {}).get("request_generation"),
@@ -399,12 +431,32 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
     identity = (page.get("logical_page_id"), page.get("generation"), page.get("content_version"))
     natural_identity = (natural.get("logical_page"), natural.get("page_generation"),
                         natural.get("content_version"))
-    result = {"page_identity": {"logical_page_id": identity[0], "generation": identity[1],
-                                "content_version": identity[2]},
-              "claimed_promoted": identity == natural_identity,
-              "cold_before": page.get("resident") is False and page.get("host_backed") is True,
-              "events": [], "missing_transition": "page was not naturally nominated"}
-    if identity != natural_identity:
+    cold_before = page.get("resident") is False and page.get("host_backed") is True
+    nominated = identity == natural_identity
+    result = {
+        "page_identity": {
+            "sequence_id": page.get("sequence_id"),
+            "sequence_generation": page.get("sequence_generation"),
+            "logical_page_id": identity[0],
+            "generation": identity[1],
+            "content_version": identity[2],
+            "position_begin": page.get("position_begin"),
+            "position_end": page.get("position_end"),
+        },
+        "request_id": final_record.get("request_id"),
+        "request_generation": final_record.get("request_generation"),
+        "resident_before_request_3": page.get("resident"),
+        "host_backed_before_request_3": page.get("host_backed"),
+        "cold_before": cold_before,
+        "selector_nominated": nominated,
+        "claimed_promoted": nominated and cold_before,
+        "events": [],
+        "missing_transition": (
+            "cold-before-request-3: page remained resident; host_backed=" +
+            str(page.get("host_backed")) if page.get("resident") is True else
+            "page was not naturally nominated"),
+    }
+    if not result["claimed_promoted"]:
         return result
     chain = promotion_event_chain_from_snapshots(
         cold_pages, natural, request_id=str(final_record.get("request_id") or ""),
@@ -460,7 +512,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         record = request_record(base, key, case_root, steps, index, answers, model,
                                 tracked_fixture=target if index == 0 else None)
         records.append(record)
-        answers.append(record["assistant_answer"])
+        answers.append(record["assistant_answer"] if isinstance(record["assistant_answer"], str) else "")
         inventory = get_pages({"pager_metrics": record["pager_after"]})
         snapshot_name = ("after_request_1" if index == 0 else
                          "after_request_2" if index == 1 else "after_request_3")
@@ -497,6 +549,9 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     page_reports = [_promotion_for_page(page, natural, final_record,
                                        page_snapshots["immediately_before_request_3"])
                     for page in page_snapshots["immediately_before_request_3"]]
+    for report in page_reports:
+        report["fixture_byte_span"] = fixture_span.get("body_byte_span")
+        report["fixture_token_span"] = fixture_span.get("token_span")
     answer_page_ids = set(fixture_span.get("answer_bearing_page_ids", []))
     answer_page_reports = [row for row in page_reports
                            if row["page_identity"].get("logical_page_id") in answer_page_ids]
@@ -514,6 +569,9 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
            "draft_type_v": mtp_metrics.get("mtp_type_v"),
            "draft_n_max": 2}
     case = {
+        "execution_status": "complete" if all(
+            record.get("http_status") == 200 for record in records) else "incomplete",
+        "requests_attempted": len(records),
         "fixture_id": target.fixture_id, "fixture_sha256": target.sha256,
         "fixture_hashes": {fixture_id: next(item.sha256 for item in catalog
                                               if item.fixture_id == fixture_id)
@@ -636,7 +694,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         if case is None:
             break
 
-    execution_complete = len(cases) == len(targets) and not failures
+    execution_complete = len(cases) == len(targets) and not failures and all(
+        case.get("execution_status") == "complete" for case in cases)
     campaign_pass = execution_complete and all(
         case.get("acceptance_status") == "pass" for case in cases)
     return {

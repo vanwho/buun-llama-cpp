@@ -205,10 +205,8 @@ def build_promotion_steps(catalog: Sequence[PromotionFixture], target_id: str = 
     return (
         PromotionStep(0, "compare_python", "PY_MERGE_03", "PY_MERGE_01",
                       appended_python, PYTHON_QUESTION, first, PYTHON_WINNER, False),
-        # Re-render the cumulative A→B conversation on turn two so ordinary
-        # paging sees the full prompt while appending the Bash topic.
         PromotionStep(1, "compare_bash", "BASH_WATCH_01", "BASH_WATCH_01",
-                      appended_bash, BASH_QUESTION, second, BASH_WINNER, False),
+                      appended_bash, BASH_QUESTION, second, BASH_WINNER, True),
         PromotionStep(2, "repeat_python", "PY_MERGE_03", None, (), PYTHON_QUESTION,
                       PYTHON_QUESTION, PYTHON_WINNER, True),
     )
