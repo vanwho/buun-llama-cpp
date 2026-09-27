@@ -387,6 +387,39 @@ enum class llama_kv_pager_selector_trace_outcome : uint8_t {
 const char * llama_kv_pager_selector_trace_outcome_name(
         llama_kv_pager_selector_trace_outcome outcome) noexcept;
 
+// Opt-in graph-registration evidence for the Qcur_routing selector path.
+// Values are diagnostic only and never affect routing decisions.
+enum class llama_kv_pager_selector_gate : uint8_t {
+    callback_not_invoked = 0,
+    callback_name_mismatch,
+    null_memory_context,
+    invalid_query_shape,
+    query_rows_mismatch,
+    invalid_positions,
+    callback_matched,
+    routing_query_created,
+    selector_nodes_created,
+    selector_builder_returned_null,
+    graph_input_rejected_reuse,
+    sideband_inputs_rejected,
+    capture_called,
+    missing_owner_context_or_query,
+    invalid_query_or_ubatch,
+    pager_sequence_or_inventory_absent,
+    layer_not_registered,
+    invalid_geometry_or_count,
+    no_attention_capacity,
+    tensor_allocation_failed,
+    unsupported_query_head_width,
+    kv_layer_storage_absent,
+};
+
+const char * llama_kv_pager_selector_gate_name(
+        llama_kv_pager_selector_gate gate) noexcept;
+llama_kv_pager_selector_gate llama_kv_pager_selector_q_shape_gate(
+        int32_t rank, int64_t query_dim, int64_t query_heads,
+        int64_t query_rows, int64_t outer_dim, uint32_t ubatch_tokens) noexcept;
+
 // One refresh-scoped selector trace. Fixed arrays and scalar page metadata
 // keep diagnostics bounded; this never stores prompts, tensors, or inventory.
 struct llama_kv_pager_selector_trace {
@@ -429,6 +462,20 @@ struct llama_kv_pager_selector_trace {
     bool target_graph_used = false;
     llama_kv_pager_selector_trace_outcome outcome =
         llama_kv_pager_selector_trace_outcome::none;
+    llama_kv_pager_selector_gate graph_gate =
+        llama_kv_pager_selector_gate::callback_not_invoked;
+    uint32_t graph_query_rank = 0;
+    uint32_t graph_query_dim = 0;
+    uint32_t graph_query_heads = 0;
+    uint32_t graph_query_rows = 0;
+    uint32_t graph_ubatch_tokens = 0;
+    uint32_t graph_position_count = 0;
+    int64_t graph_last_position = -1;
+    int32_t graph_layer = -1;
+    bool graph_callback_seen = false;
+    bool routing_q_created = false;
+    bool selected_created = false;
+    bool capture_handoff_created = false;
 };
 
 constexpr size_t LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY = 16;

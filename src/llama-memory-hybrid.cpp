@@ -641,6 +641,14 @@ bool llama_memory_hybrid_context::can_reuse_kv_page_select(
             bounds, layer, ubatch);
 }
 
+void llama_memory_hybrid_context::note_kv_page_select_gate(
+        llama_kv_pager_selector_gate gate, const ggml_tensor * q, int layer,
+        const llama_ubatch & ubatch, uint32_t query_row) const {
+    if (get_attn() != nullptr) {
+        get_attn()->note_kv_page_select_gate(gate, q, layer, ubatch, query_row);
+    }
+}
+
 void llama_memory_hybrid_context::capture_kv_routing_query(
         ggml_tensor * tensor, int layer,
         const llama_ubatch & ubatch) const {

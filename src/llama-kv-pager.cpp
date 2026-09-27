@@ -31,6 +31,47 @@ const char * llama_kv_pager_selector_trace_outcome_name(
     return "invalid_outcome";
 }
 
+const char * llama_kv_pager_selector_gate_name(
+        llama_kv_pager_selector_gate gate) noexcept {
+    switch (gate) {
+        case llama_kv_pager_selector_gate::callback_not_invoked: return "callback_not_invoked";
+        case llama_kv_pager_selector_gate::callback_name_mismatch: return "callback_name_mismatch";
+        case llama_kv_pager_selector_gate::null_memory_context: return "null_memory_context";
+        case llama_kv_pager_selector_gate::invalid_query_shape: return "invalid_query_shape";
+        case llama_kv_pager_selector_gate::query_rows_mismatch: return "query_rows_mismatch";
+        case llama_kv_pager_selector_gate::invalid_positions: return "invalid_positions";
+        case llama_kv_pager_selector_gate::callback_matched: return "callback_matched";
+        case llama_kv_pager_selector_gate::routing_query_created: return "routing_query_created";
+        case llama_kv_pager_selector_gate::selector_nodes_created: return "selector_nodes_created";
+        case llama_kv_pager_selector_gate::selector_builder_returned_null: return "selector_builder_returned_null";
+        case llama_kv_pager_selector_gate::graph_input_rejected_reuse: return "graph_input_rejected_reuse";
+        case llama_kv_pager_selector_gate::sideband_inputs_rejected: return "sideband_inputs_rejected";
+        case llama_kv_pager_selector_gate::capture_called: return "capture_called";
+        case llama_kv_pager_selector_gate::missing_owner_context_or_query: return "missing_owner_context_or_query";
+        case llama_kv_pager_selector_gate::invalid_query_or_ubatch: return "invalid_query_or_ubatch";
+        case llama_kv_pager_selector_gate::pager_sequence_or_inventory_absent: return "pager_sequence_or_inventory_absent";
+        case llama_kv_pager_selector_gate::layer_not_registered: return "layer_not_registered";
+        case llama_kv_pager_selector_gate::invalid_geometry_or_count: return "invalid_geometry_or_count";
+        case llama_kv_pager_selector_gate::no_attention_capacity: return "no_attention_capacity";
+        case llama_kv_pager_selector_gate::tensor_allocation_failed: return "tensor_allocation_failed";
+        case llama_kv_pager_selector_gate::unsupported_query_head_width: return "unsupported_query_head_width";
+        case llama_kv_pager_selector_gate::kv_layer_storage_absent: return "kv_layer_storage_absent";
+    }
+    return "invalid_gate";
+}
+
+llama_kv_pager_selector_gate llama_kv_pager_selector_q_shape_gate(
+        int32_t rank, int64_t query_dim, int64_t query_heads,
+        int64_t query_rows, int64_t outer_dim, uint32_t ubatch_tokens) noexcept {
+    if (rank != 3 || query_dim <= 0 || query_heads <= 0 || query_rows <= 0 || outer_dim != 1) {
+        return llama_kv_pager_selector_gate::invalid_query_shape;
+    }
+    if (uint64_t(query_rows) != ubatch_tokens) {
+        return llama_kv_pager_selector_gate::query_rows_mismatch;
+    }
+    return llama_kv_pager_selector_gate::callback_matched;
+}
+
 namespace {
 bool mul(uint64_t a, uint64_t b, uint64_t & out) noexcept {
     if (a && b > std::numeric_limits<uint64_t>::max() / a) return false;

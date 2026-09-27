@@ -24,6 +24,7 @@ namespace {
 constexpr uint64_t seed = UINT64_C(0x49060001);
 constexpr uint32_t pages = 8;
 constexpr uint32_t page_tokens = 256;
+constexpr uint32_t final_query_row = 2;
 constexpr uint32_t layers = 16;
 constexpr uint32_t kv_heads = 2;
 constexpr uint32_t q_heads = 4;
@@ -529,7 +530,9 @@ static int run_proof() {
     ggml_tensor * membership = ggml_new_tensor_1d(selector_context, GGML_TYPE_I32, pages);
     ggml_tensor * query = ggml_new_tensor_1d(selector_context, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(selector_context, transformed, bounds,
-        metadata, membership, query, 2, cold_capacity, page_tokens, 2);
+        metadata, membership, query, 2, cold_capacity, page_tokens, final_query_row);
+    const int32_t routed_query_row = selected->op_params[3];
+    assert(routed_query_row == int32_t(final_query_row));
     ggml_set_output(selected);
     ggml_cgraph * graph = ggml_new_graph_custom(selector_context, 64, false);
     ggml_build_forward_expand(graph, selected);
@@ -587,8 +590,10 @@ static int run_proof() {
             [&](const auto & value) { return value.id.logical_page == logical; });
         membership_data[logical] = record != records.end() && record->physical_slot != UINT32_MAX;
     }
+    const int64_t final_query_position = int64_t(pages * page_tokens);
     const std::array<int64_t, 4> query_data = {
-        int64_t(pages * page_tokens), 1, int64_t(snapshot_generation), 1 };
+        final_query_position, 1, int64_t(snapshot_generation), 1 };
+    assert(final_query_position > 0);
     ggml_backend_tensor_set(q, q_layout.data(), 0, ggml_nbytes(q));
     ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
     ggml_backend_tensor_set(metadata, metadata_data.data(), 0, ggml_nbytes(metadata));
@@ -602,6 +607,7 @@ static int run_proof() {
     const int32_t winner_index = selector_output[2];
     assert(winner_index >= 0 && winner_index < int32_t(pages));
     const uint32_t winner_logical = uint32_t(winner_index);
+    assert(final_query_position > int64_t(page_id(winner_logical).position_begin));
     assert(std::find(membership_data.begin(), membership_data.end(), 0) != membership_data.end());
     assert(membership_data[winner_logical] == 0);
 
@@ -661,7 +667,7 @@ static int run_proof() {
         candidate.summary_version = pager->routing_summary_content_version(it->id);
         candidate.speculation_generation = 1;
         candidate.selector_rank = rank;
-        candidate.query_position = pages * page_tokens;
+        candidate.query_position = final_query_position;
         candidate.cold = membership_data[index] == 0;
         candidate.rollback_generation = it->id.page_generation;
     }
@@ -835,5 +841,11 @@ static int run_proof() {
 } // namespace
 
 int main() {
+    assert(llama_kv_pager_selector_q_shape_gate(3, head_dim, q_heads, 2, 1, 3) ==
+        llama_kv_pager_selector_gate::query_rows_mismatch);
+    assert(llama_kv_pager_selector_q_shape_gate(3, head_dim, q_heads, 3, 1, 3) ==
+        llama_kv_pager_selector_gate::callback_matched);
+    assert(std::strcmp(llama_kv_pager_selector_gate_name(
+        llama_kv_pager_selector_gate::query_rows_mismatch), "query_rows_mismatch") == 0);
     return run_proof();
 }

@@ -17068,18 +17068,62 @@ uint32_t llama_kv_cache_context::get_max_graph_seqs() const {
     return max_graph_seqs;
 }
 
+void llama_kv_cache_context::note_kv_page_select_gate(
+        llama_kv_pager_selector_gate gate, const ggml_tensor * q, int layer,
+        const llama_ubatch & ubatch, uint32_t query_row) const {
+    if (kv == nullptr || kv->pager_ == nullptr) return;
+    auto & trace = kv->pager_->selector_trace_for_update();
+    if (!trace.enabled) return;
+    if (gate == llama_kv_pager_selector_gate::callback_name_mismatch) {
+        trace.graph_callback_seen = true;
+        if (trace.graph_gate != llama_kv_pager_selector_gate::callback_not_invoked) return;
+    } else {
+        trace.graph_callback_seen = true;
+    }
+    trace.graph_gate = gate;
+    trace.graph_layer = layer;
+    trace.graph_query_rank = q != nullptr ? (q->ne[3] == 1 ? 3 : 4) : 0;
+    trace.graph_query_dim = q != nullptr && q->ne[0] > 0
+        ? uint32_t(std::min<int64_t>(q->ne[0], UINT32_MAX)) : 0;
+    trace.graph_query_heads = q != nullptr && q->ne[1] > 0
+        ? uint32_t(std::min<int64_t>(q->ne[1], UINT32_MAX)) : 0;
+    trace.graph_query_rows = q != nullptr && q->ne[2] > 0
+        ? uint32_t(std::min<int64_t>(q->ne[2], UINT32_MAX)) : 0;
+    if (gate == llama_kv_pager_selector_gate::routing_query_created) {
+        trace.routing_q_created = true;
+    } else if (gate == llama_kv_pager_selector_gate::selector_nodes_created) {
+        trace.selected_created = true;
+    } else if (gate == llama_kv_pager_selector_gate::capture_called) {
+        trace.capture_handoff_created = true;
+    }
+    trace.graph_ubatch_tokens = ubatch.n_tokens;
+    trace.graph_position_count = ubatch.n_pos;
+    trace.query_row = query_row;
+    if (ubatch.pos != nullptr && ubatch.n_tokens > 0 && ubatch.n_pos > 0 &&
+            size_t(ubatch.n_tokens - 1) <=
+                std::numeric_limits<size_t>::max() / ubatch.n_pos) {
+        trace.graph_last_position = ubatch.pos[size_t(ubatch.n_tokens - 1) * ubatch.n_pos];
+    }
+}
+
 ggml_tensor * llama_kv_cache_context::build_kv_page_select(
         ggml_context * ctx, ggml_tensor * q, int layer,
         const llama_ubatch & ubatch, uint32_t query_row) const {
+    const auto reject = [&](llama_kv_pager_selector_gate gate) -> ggml_tensor * {
+        note_kv_page_select_gate(gate, q, layer, ubatch, query_row);
+        return nullptr;
+    };
     if (kv == nullptr || ctx == nullptr || q == nullptr || q->ne[2] <= 0 ||
-            q->ne[3] != 1 || uint64_t(q->ne[2]) != ubatch.n_tokens ||
-            uint64_t(query_row) != uint64_t(q->ne[2] - 1) ||
-            kv->get_kv_pager() == nullptr || ubatch.n_tokens == 0 ||
+            kv->get_kv_pager() == nullptr) {
+        return reject(llama_kv_pager_selector_gate::missing_owner_context_or_query);
+    }
+    if (q->ne[3] != 1 || uint64_t(q->ne[2]) != ubatch.n_tokens ||
+            uint64_t(query_row) != uint64_t(q->ne[2] - 1) || ubatch.n_tokens == 0 ||
             ubatch.n_pos == 0 || ubatch.pos == nullptr ||
             ubatch.n_seqs_unq != 1 || ubatch.seq_id == nullptr ||
             ubatch.n_seq_id == nullptr || ubatch.n_seq_id[0] != 1 ||
             ubatch.seq_id[0] == nullptr || ubatch.seq_id[0][0] < 0) {
-        return nullptr;
+        return reject(llama_kv_pager_selector_gate::invalid_query_or_ubatch);
     }
     const auto & pager = *kv->get_kv_pager();
     const auto & snapshot = pager.snapshot();
@@ -17087,12 +17131,16 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     const auto inventory = pager.exact_page_records(ubatch.seq_id[0][0]);
     const auto layer_it = std::find(snapshot.geometry.model_layer_ids.begin(),
             snapshot.geometry.model_layer_ids.end(), uint32_t(layer));
-    if (sequence.epoch() == 0 || inventory.empty() || layer_it ==
-            snapshot.geometry.model_layer_ids.end() || q->ne[3] != 1 ||
-            q->ne[0] == 0 || q->ne[1] == 0 ||
+    if (sequence.epoch() == 0 || inventory.empty()) {
+        return reject(llama_kv_pager_selector_gate::pager_sequence_or_inventory_absent);
+    }
+    if (layer_it == snapshot.geometry.model_layer_ids.end()) {
+        return reject(llama_kv_pager_selector_gate::layer_not_registered);
+    }
+    if (q->ne[0] == 0 || q->ne[1] == 0 || snapshot.geometry.kv_heads == 0 ||
             q->ne[1] % snapshot.geometry.kv_heads != 0 ||
             uint64_t(inventory.size()) > uint64_t(std::numeric_limits<int32_t>::max())) {
-        return nullptr;
+        return reject(llama_kv_pager_selector_gate::invalid_geometry_or_count);
     }
 
     // Selector coordinates are logical page IDs, not positions in the
@@ -17105,10 +17153,14 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
         attention_pages = std::max<uint64_t>(1, (hot_capacity + 1) / 2);
     }
     attention_pages = std::min(attention_pages, hot_capacity);
-    if (attention_pages == 0 || attention_pages > INT32_MAX) return nullptr;
+    if (attention_pages == 0 || attention_pages > INT32_MAX) {
+        return reject(llama_kv_pager_selector_gate::no_attention_capacity);
+    }
     const int k_resident = int(std::min(attention_pages, page_count));
     const int k_cold = int(std::min<uint64_t>(2, inventory.size()));
-    if (k_resident + k_cold == 0) return nullptr;
+    if (k_resident + k_cold == 0) {
+        return reject(llama_kv_pager_selector_gate::no_attention_capacity);
+    }
 
     ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16,
             q->ne[0], 2, snapshot.geometry.kv_heads, page_count);
@@ -17116,7 +17168,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, page_count);
     ggml_tensor * query = ggml_new_tensor_4d(ctx, GGML_TYPE_I64, 4, 1, 1, 1);
     if (bounds == nullptr || metadata == nullptr || membership == nullptr || query == nullptr) {
-        return nullptr;
+        return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
     }
     ggml_set_input(bounds);
     ggml_set_input(metadata);
@@ -17132,11 +17184,18 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     // InnerQ inverse scale D on CUDA; the CPU reference retains identity D.
     // This node is router-only: target attention retains its original Q and
     // performs its own fused transform.
-    if (q->ne[0] % 128 != 0) return nullptr;
+    if (q->ne[0] % 128 != 0) {
+        return reject(llama_kv_pager_selector_gate::unsupported_query_head_width);
+    }
     ggml_tensor * routing_q = ggml_turbo_wht(ctx, ggml_cont(ctx, q), 2);
+    if (routing_q == nullptr) {
+        return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+    }
+    note_kv_page_select_gate(llama_kv_pager_selector_gate::routing_query_created,
+            q, layer, ubatch, query_row);
     const auto layer_index = size_t(layer_it - snapshot.geometry.model_layer_ids.begin());
     if (layer_index >= kv->layers.size() || kv->layers[layer_index].k == nullptr) {
-        return nullptr;
+        return reject(llama_kv_pager_selector_gate::kv_layer_storage_absent);
     }
     // The catalogue is the persistent mutable input.  The summary node owns
     // the device-side refreshed view and copies cold/unchanged pages through
@@ -17144,8 +17203,16 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     // bound.
     ggml_tensor * summary = ggml_kv_page_summary(ctx, kv->layers[layer_index].k,
             metadata, bounds, snapshot.geometry.page_tokens);
-    return ggml_kv_page_select(ctx, routing_q, summary, metadata, membership, query,
+    if (summary == nullptr) {
+        return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+    }
+    ggml_tensor * selected = ggml_kv_page_select(ctx, routing_q, summary, metadata, membership, query,
             k_resident, k_cold, snapshot.geometry.page_tokens, int(query_row));
+    note_kv_page_select_gate(selected != nullptr
+            ? llama_kv_pager_selector_gate::selector_nodes_created
+            : llama_kv_pager_selector_gate::tensor_allocation_failed,
+            q, layer, ubatch, query_row);
+    return selected;
 }
 
 bool llama_kv_cache_context::can_reuse_kv_page_select(
