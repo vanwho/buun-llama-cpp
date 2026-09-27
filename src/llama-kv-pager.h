@@ -767,6 +767,8 @@ public:
     }
     uint64_t inventory_copy_count() const noexcept { return inventory_copy_count_; }
     uint64_t store_copy_count() const noexcept { return store_copy_count_; }
+    void note_query_refresh() noexcept { ++query_refresh_count_; }
+    uint64_t query_refresh_count() const noexcept { return query_refresh_count_; }
     uint64_t summary_build_calls() const noexcept { return summary_build_calls_; }
     uint64_t summary_build_bytes() const noexcept { return summary_build_bytes_; }
     uint64_t summary_read_calls() const noexcept { return summary_read_calls_; }
@@ -986,6 +988,7 @@ private:
     llama_kv_residency_transfer_counters d2h_counters_;
     uint64_t promotion_pages_ = 0;
     uint64_t eviction_pages_ = 0;
+    uint64_t query_refresh_count_ = 0;
     uint64_t seal_calls_ = 0;
     uint64_t seal_pages_scanned_ = 0;
     uint64_t seal_pages_changed_ = 0;

@@ -1267,6 +1267,7 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.d2h_transfers = kv_pager_owner->d2h_counters();
     result.promotion_pages = kv_pager_owner->promotion_pages();
     result.eviction_pages = kv_pager_owner->eviction_pages();
+    result.query_refresh_count = kv_pager_owner->query_refresh_count();
     result.seal_calls = kv_pager_owner->seal_calls();
     result.seal_pages_scanned = kv_pager_owner->seal_pages_scanned();
     result.seal_pages_changed = kv_pager_owner->seal_pages_changed();

@@ -296,6 +296,20 @@ private:
     bool applied = false;
 };
 
+// Native MTP verification is tied to the history chosen for one server turn.
+// Mutable generation-tail page-table epochs may advance between proposals;
+// only a changed turn or frozen-history generation invalidates this binding.
+class common_speculative_mtp_history_epoch {
+public:
+    bool bind(uint64_t turn_id, uint64_t frozen_history_generation) noexcept;
+    bool matches(uint64_t turn_id, uint64_t frozen_history_generation) const noexcept;
+    void clear() noexcept;
+
+private:
+    uint64_t turn = 0;
+    uint64_t history = 0;
+};
+
 // Host-checkpoint codec for the deferred MTP hidden row. A complete draft
 // sequence image is not usable without this carry at a nonzero frontier.
 bool common_speculative_mtp_carry_state_save(

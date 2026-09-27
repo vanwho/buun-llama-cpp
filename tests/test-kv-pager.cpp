@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -123,6 +124,12 @@ static void test_turn_epoch_state_and_geometry() {
     assert(pager->transition_turn(0, 1, 1,
         llama_kv_pager_turn_phase::generating, 700, 704, frontier, 33) ==
         llama_kv_pager_turn_status::ok);
+    const auto frozen = pager->turn_state(0);
+    assert(frozen.phase == llama_kv_pager_turn_phase::generating);
+    assert(frozen.turn_id == 1 && frozen.frozen_history_generation == 33);
+    assert(frozen.selected_history.size() == 1 &&
+        frozen.selected_history[0].identity == frontier &&
+        frozen.selected_history[0].content_version == 9);
     assert(pager->clear_turn_state(0, 1, 1) == llama_kv_pager_turn_status::ok);
     const auto cleared = pager->turn_state(0);
     assert(cleared.phase == llama_kv_pager_turn_phase::idle);
@@ -881,6 +888,29 @@ static void test_pager_host_mutation() {
     assert(pager->host_catalog()->snapshot().live_pages == 1);
     assert(pager->exact_page_records(0).size() == 1);
 
+    // Freeze the canonical resident page as history. A generation write may
+    // append into the next page, but cannot overwrite the selected identity.
+    const auto frozen_record = pager->residency().pages()[0];
+    const uint64_t query_refreshes_before_freeze = pager->query_refresh_count();
+    assert(pager->transition_turn(0, 44, 0,
+            llama_kv_pager_turn_phase::query_provisional, 32, 36,
+            frozen_record.id, 0) == llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, 44, 0,
+            llama_kv_pager_turn_phase::retrieval_commit, 32, 36,
+            frozen_record.id, 45,
+            { { frozen_record.id, frozen_record.content_version } }) ==
+            llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, 44, 1,
+            llama_kv_pager_turn_phase::generating, 32, 36,
+            frozen_record.id, 45) == llama_kv_pager_turn_status::ok);
+    assert(pager->begin_write(0, 1, 0, ticket) ==
+            llama_kv_pager_write_status::all_pinned);
+    assert(pager->begin_write(0, 1, 256, ticket) ==
+            llama_kv_pager_write_status::ok);
+    assert(pager->cancel_write(ticket) == llama_kv_pager_write_status::ok);
+    assert(pager->query_refresh_count() == query_refreshes_before_freeze);
+    assert(pager->clear_turn_state(0, 44, 1) == llama_kv_pager_turn_status::ok);
+
     uint8_t prior_byte = 0;
     assert(pager->host_catalog()->pages()[0].page.units[0].bytes->read(
             0, &prior_byte, 1));
@@ -1435,5 +1465,6 @@ int main() {
     for (const auto reason : refused.reasons) {
         assert(llama_kv_pager_capability_reason_name(reason) != nullptr);
     }
+    std::cout << "frozen_history_and_mtp_epoch=pass\n";
     return 0;
 }

@@ -1754,6 +1754,15 @@ struct server_slot {
     // prompt.sequence_epoch: prompt lineage survives valid reuse, while an
     // asynchronous completion must never cross a slot reuse boundary.
     uint64_t slot_session_generation = 0;
+    uint64_t pager_frozen_history_generation = 0;
+    bool pager_history_frozen = false;
+    uint64_t pager_freeze_table_epoch = 0;
+    uint64_t pager_freeze_selector_refresh_count = 0;
+    uint64_t pager_freeze_h2d_queued = 0;
+    uint64_t pager_freeze_promotion_pages = 0;
+    uint64_t pager_freeze_eviction_pages = 0;
+    uint64_t pager_freeze_summary_build_calls = 0;
+    common_speculative_mtp_history_epoch pager_mtp_history_epoch;
     // A fragmented projection may exceed its bounded source-read budget.
     // Retry that sealed frontier with the existing full-layout streamer.
     std::array<uint8_t, 32> vbr_idle_exact_retry_identity = {};
@@ -3021,6 +3030,39 @@ struct server_slot {
         if (is_processing()) {
             GGML_ASSERT(task);
 
+            if (pager_history_frozen && ctx_tgt != nullptr) {
+                const auto pager = ctx_tgt->get_kv_pager_metrics();
+                const auto delta = [](uint64_t after, uint64_t before) {
+                    return after >= before ? after - before : UINT64_MAX;
+                };
+                SLT_INF(*this, "kv pager generated span: turn=%" PRIu64
+                    " history_generation=%" PRIu64 " selector_refresh_delta=%" PRIu64
+                    " h2d_queued_delta=%" PRIu64 " promotion_pages_delta=%" PRIu64
+                    " eviction_pages_delta=%" PRIu64 " summary_build_calls_delta=%" PRIu64
+                    " table_epoch_before=%" PRIu64 " table_epoch_after=%" PRIu64 "\n",
+                    slot_session_generation, pager_frozen_history_generation,
+                    delta(pager.query_refresh_count, pager_freeze_selector_refresh_count),
+                    delta(pager.h2d_transfers.queued, pager_freeze_h2d_queued),
+                    delta(pager.promotion_pages, pager_freeze_promotion_pages),
+                    delta(pager.eviction_pages, pager_freeze_eviction_pages),
+                    delta(pager.summary_build_calls, pager_freeze_summary_build_calls),
+                    pager_freeze_table_epoch, pager.table_epoch);
+            }
+            if (ctx_tgt != nullptr && slot_session_generation != 0) {
+                // release() runs after the request's scheduler work has
+                // completed or been cancelled; this is the safe unpin edge.
+                ctx_tgt->end_kv_pager_turn(id, slot_session_generation);
+            }
+            pager_history_frozen = false;
+            pager_frozen_history_generation = 0;
+            pager_freeze_table_epoch = 0;
+            pager_freeze_selector_refresh_count = 0;
+            pager_freeze_h2d_queued = 0;
+            pager_freeze_promotion_pages = 0;
+            pager_freeze_eviction_pages = 0;
+            pager_freeze_summary_build_calls = 0;
+            pager_mtp_history_epoch.clear();
+
             SLT_INF(*this, "stop processing: n_tokens = %d, truncated = %d\n", prompt.n_tokens(), truncated);
 
             // cache-plan observer: a request that ends before its record finalized (error, cancel) resolves
@@ -3188,6 +3230,32 @@ struct server_slot {
 
             callback_on_release(id);
         }
+    }
+
+    bool freeze_pager_history_for_generation() {
+        if (ctx_tgt == nullptr || slot_session_generation == 0) return true;
+        uint64_t generation = 0;
+        if (!ctx_tgt->freeze_kv_pager_history(
+                id, slot_session_generation, &generation)) return false;
+        pager_frozen_history_generation = generation;
+        pager_history_frozen = generation != 0;
+        if (!pager_history_frozen) return true;
+        if (!pager_mtp_history_epoch.bind(slot_session_generation, generation)) return false;
+        const auto pager = ctx_tgt->get_kv_pager_metrics();
+        pager_freeze_table_epoch = pager.table_epoch;
+        pager_freeze_selector_refresh_count = pager.query_refresh_count;
+        pager_freeze_h2d_queued = pager.h2d_transfers.queued;
+        pager_freeze_promotion_pages = pager.promotion_pages;
+        pager_freeze_eviction_pages = pager.eviction_pages;
+        pager_freeze_summary_build_calls = pager.summary_build_calls;
+        SLT_INF(*this, "kv pager history frozen: turn=%" PRIu64
+            " history_generation=%" PRIu64 " table_epoch=%" PRIu64
+            " selector_refresh_count=%" PRIu64 " h2d_queued=%" PRIu64
+            " promotion_pages=%" PRIu64 " eviction_pages=%" PRIu64 "\n",
+            slot_session_generation, generation, pager_freeze_table_epoch,
+            pager_freeze_selector_refresh_count, pager_freeze_h2d_queued,
+            pager_freeze_promotion_pages, pager_freeze_eviction_pages);
+        return true;
     }
 
     size_t find_stopping_strings(const std::string & text, const size_t last_token_size, bool is_full_stop) {
@@ -11630,6 +11698,20 @@ private:
         }
         slot.task = std::move(launched_task);
 
+        // Open one pager turn from server-owned request identity, never from
+        // decode/verify submissions. Chat carries role spans; raw completion
+        // requests have no trustworthy role boundary and explicitly use the
+        // complete tokenized prompt as their compatibility query span.
+        {
+            const auto & spans = slot.task->params.message_spans;
+            int64_t query_start = spans.spans.empty()
+                ? 0 : int64_t(spans.last_user_message_pos());
+            const int64_t query_end = int64_t(slot.task->n_tokens());
+            if (query_start < 0 || query_start >= query_end) query_start = 0;
+            ctx_tgt->begin_kv_pager_turn(
+                    slot.id, slot.slot_session_generation, query_start, query_end);
+        }
+
         if (prepared_host_restore) {
             server_retention_lineage_ticket restored_source;
             if (slot.retention_obs->consume_prepared_launch(
@@ -11913,6 +11995,11 @@ private:
             ~release_frontier_logits() { state.clear(); }
         } release { slot.frontier_logits };
         slot.frontier_logits.pending = false;
+        if (!slot.freeze_pager_history_for_generation()) {
+            send_error(slot, "Unable to freeze selected KV history for generation");
+            slot.release();
+            return;
+        }
         slot.state = SLOT_STATE_GENERATING;
         if (slot.can_speculate()) {
             if (params_base.speculative.type() == COMMON_SPECULATIVE_TYPE_DFLASH) {
@@ -19896,6 +19983,22 @@ private:
             const bool mtp_verification = server_is_native_mtp_verification_batch(
                 params_base.speculative.has_type(COMMON_SPECULATIVE_TYPE_DRAFT_MTP),
                 batch_view.n_tokens, has_prompt_tokens);
+            if (mtp_verification) {
+                for (const auto & slot : slots) {
+                    if (slot.is_processing() && slot.can_speculate() &&
+                            slot.pager_history_frozen &&
+                            (!slot.pager_mtp_history_epoch.matches(
+                                slot.slot_session_generation,
+                                slot.pager_frozen_history_generation) ||
+                             !ctx_tgt->kv_pager_history_matches(
+                                slot.id, slot.slot_session_generation,
+                                slot.pager_frozen_history_generation))) {
+                        speculative_ok = false;
+                        ret = -1;
+                        return;
+                    }
+                }
+            }
             ctx_tgt->set_kv_attention_mtp_verification(
                 mtp_verification || speculative_verification);
             try {
@@ -20342,6 +20445,12 @@ private:
                     slot, slot.i_batch-off);
 
                 // prompt evaluated for next-token prediction
+                if (!slot.freeze_pager_history_for_generation()) {
+                    send_error(slot, "Unable to freeze selected KV history for generation");
+                    slot.release();
+                    slot.i_batch = -1;
+                    return;
+                }
                 slot.state = SLOT_STATE_GENERATING;
 
                 if (slot.diff_self_spec) {
@@ -20914,6 +21023,21 @@ private:
                 // the target before any accepted token is published.
                 SLT_ERR(slot, "%s\n", "failed to roll back speculative draft; resetting slot");
                 send_error(slot, "Compute error rolling back speculative draft");
+                slot.release();
+                slot.mandatory_recovery_reset(
+                    server_cache_destruction_reason::restore_failure);
+                return;
+            }
+
+            if (native_mtp && slot.pager_history_frozen &&
+                    (!slot.pager_mtp_history_epoch.matches(
+                        slot.slot_session_generation,
+                        slot.pager_frozen_history_generation) ||
+                     !ctx_tgt->kv_pager_history_matches(
+                        slot.id, slot.slot_session_generation,
+                        slot.pager_frozen_history_generation))) {
+                SLT_ERR(slot, "%s\n", "native MTP rollback changed frozen KV history identity");
+                send_error(slot, "Speculative rollback changed frozen KV history");
                 slot.release();
                 slot.mandatory_recovery_reset(
                     server_cache_destruction_reason::restore_failure);

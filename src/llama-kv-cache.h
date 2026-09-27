@@ -200,6 +200,13 @@ public:
             ggml_tensor * tensor, int layer,
             const llama_ubatch & ubatch) override;
     void note_kv_pager_accepted_tokens(uint32_t count) override;
+    void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
+            int64_t query_start, int64_t query_end) override;
+    bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
+            uint64_t * frozen_history_generation) override;
+    bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
+            uint64_t frozen_history_generation) const override;
+    void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override;
     void finish_pager_batch(bool graph_succeeded) noexcept;
     llama_kv_pager * get_kv_pager() const noexcept { return pager_; }
     llama_memory_failure_reason last_failure_reason() const noexcept {
@@ -1577,6 +1584,14 @@ private:
     // A policy boundary is needed after page maintenance or a ready routing
     // candidate, not after every unchanged write-frontier publication.
     bool pager_policy_dirty_ = false;
+    std::map<int32_t, std::vector<llama_kv_pager_selected_history>>
+        pager_committed_history_;
+    struct pager_pending_turn {
+        uint64_t turn_id = 0;
+        int64_t query_start = -1;
+        int64_t query_end = -1;
+    };
+    std::map<int32_t, pager_pending_turn> pager_pending_turns_;
     int32_t pager_policy_current_sequence_ = -1;
     uint32_t pager_policy_current_page_ = UINT32_MAX;
     uint32_t pager_policy_current_slot_ = UINT32_MAX;
