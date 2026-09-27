@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "task": "94-01",
+  "source_commit": "d792ae64df47d03a582eb35b948f7012ccc2ae61",
+  "source_dirty_diff_sha256": "28f65fd47f75dad21c38d3ddd542fed4ce336f5a9797fdaaf17938cd27d5c11d",
+  "build_identity": {
+    "build_tree": "build-cuda",
+    "target": "test-kv-pager",
+    "executable": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-kv-pager",
+    "executable_sha256": "6cd8c6b844bf8b1a63b2b6deb777549e885c9b2a457966ca709c01d81965fd43",
+    "build_flags": "56:CMAKE_BUILD_TYPE:STRING=Release\n62:CMAKE_CUDA_ARCHITECTURES:STRING=89-real\n83:CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++"
+  },
+  "checks": {
+    "turn_epoch_state_and_geometry": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-kv-pager"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-01/attempt-01/turn_epoch_state_and_geometry-pass.log",
+          "sha256": "aad0c0c7631bbb3aa47542e062dbfd447399649dc152107fee9a2bda63fd017f"
+        }
+      ]
+    }
+  },
+  "working_tree_dirty_diff_sha256": "4fdf36b9354d3ef6f102a2564d2703c32b8b45280b31052cb5f57d7ac14788a3",
+  "source_dirty_paths": [
+    "common/arg.cpp",
+    "src/llama-kv-pager-config.cpp",
+    "src/llama-kv-pager-config.h",
+    "src/llama-kv-pager.cpp",
+    "src/llama-kv-pager.h",
+    "tests/test-kv-pager.cpp"
+  ]
+}

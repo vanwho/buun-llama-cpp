@@ -2330,6 +2330,29 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_env("LLAMA_KV_PAGE_SIZE"));
     add_opt(common_arg(
+        {"--kv-gen-tail"}, "TOKENS|auto",
+        "minimum page-rounded generation tail tokens (default: auto, one mutable page)",
+        [](common_params & params, const std::string & value) {
+            common_kv_pager_set_count(params.kv_pager.generation_tail_tokens, value, "--kv-gen-tail");
+        }
+    ).set_env("LLAMA_KV_GEN_TAIL"));
+    add_opt(common_arg(
+        {"--kv-retrieval-pages"}, "N|auto",
+        "historical retrieval page budget (default: auto, remaining admitted pages)",
+        [](common_params & params, const std::string & value) {
+            common_kv_pager_set_count(params.kv_pager.retrieval_pages, value, "--kv-retrieval-pages");
+        }
+    ).set_env("LLAMA_KV_RETRIEVAL_PAGES"));
+    add_opt(common_arg(
+        {"--kv-retrieval"}, "turn|cadence",
+        "historical retrieval policy at turn boundaries (default: turn)",
+        [](common_params & params, const std::string & value) {
+            if (!llama_kv_pager_parse_retrieval_policy(value, params.kv_pager.retrieval_policy)) {
+                throw std::invalid_argument("invalid --kv-retrieval policy (expected turn or cadence)");
+            }
+        }
+    ).set_env("LLAMA_KV_RETRIEVAL"));
+    add_opt(common_arg(
         {"--kv-vram-budget"}, "SIZE|auto", "experimental pager VRAM budget (default: auto)",
         [](common_params & params, const std::string & value) { common_kv_pager_set_size(params.kv_pager.vram_budget, value, "--kv-vram-budget"); }
     ).set_env("LLAMA_KV_VRAM_BUDGET"));

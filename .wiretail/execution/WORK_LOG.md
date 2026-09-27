@@ -1241,3 +1241,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Attempt 13 nominated/authenticated a cold host-backed page but proved no admission, H2D, publication or target use. Failed checks and all usage records remain unchanged.
 - User authorized proceeding with the forward architecture. Next: 94-01, new 94-01a authoritative admission repair, 94-02 freeze, then 95-03 corrected natural promotion/replay proof.
 - Preserved all existing dirty source changes; new tasks use only compact forward context. No legacy A/B/A rerun, active-service restart or model-provider invocation was performed.
+
+## 2026-09-27T20:53:13+00:00 — 94-01 — done
+
+- Branch: `codex/task-94-01`
+- Commit at update: `d792ae64d`
+- Summary: Implemented turn retrieval state and H/R/G admission; turn_epoch_state_and_geometry passes and the packet receipt validator passes.

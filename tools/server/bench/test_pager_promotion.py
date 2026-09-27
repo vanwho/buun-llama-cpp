@@ -88,7 +88,8 @@ class PagerPromotionPromptTest(unittest.TestCase):
             messages_for_step(steps, 2, replies[:1])
 
     def test_response_budget_and_filename_scoring(self) -> None:
-        self.assertEqual(16384 - 100 - 128, response_budget(100))
+        self.assertEqual(64, response_budget(100))
+        self.assertEqual(32, response_budget(16384 - 128 - 32))
         self.assertTrue(assess_natural_retrieval(
             PYTHON_WINNER, '"merge_sorted_lists_03.py"')['matched'])
         self.assertFalse(assess_natural_retrieval(

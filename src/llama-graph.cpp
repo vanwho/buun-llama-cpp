@@ -5246,6 +5246,10 @@ ggml_tensor * llm_graph_context::build_attn(
         cb(cur, "kqv_out_exact_wave", il);
     } else if (inp->direct_attention) {
         GGML_ASSERT(inp->direct_storage != nullptr);
+        // Direct paged attention does not enter build_attn_mha(), where the
+        // selector normally captures the current post-RoPE query. Preserve
+        // that graph-registration boundary for the direct CUDA consumer.
+        cb(q_cur, "Qcur_routing", il);
         const auto * pager = inp->mctx->get_kv_pager();
         if (pager == nullptr) {
             throw std::runtime_error("direct paged attention has no pager geometry");

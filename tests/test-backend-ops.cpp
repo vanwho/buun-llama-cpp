@@ -8345,7 +8345,7 @@ struct test_kv_page_select : public test_case {
         membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
         query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
         ggml_tensor * out = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
-                4, 4, 4, int(n_queries - 1));
+                4, 4, 4, int(n_queries - 1), 0);
         ggml_set_name(out, "out");
         return out;
     }

@@ -14,6 +14,8 @@ const char * llama_kv_pager_selector_trace_outcome_name(
         case llama_kv_pager_selector_trace_outcome::none: return "none";
         case llama_kv_pager_selector_trace_outcome::selector_not_run: return "selector_not_run";
         case llama_kv_pager_selector_trace_outcome::no_eligible_cold_page: return "no_eligible_cold_page";
+        case llama_kv_pager_selector_trace_outcome::selector_no_rankable_score: return "selector_no_rankable_score";
+        case llama_kv_pager_selector_trace_outcome::selector_no_eligible_candidate: return "selector_no_eligible_candidate";
         case llama_kv_pager_selector_trace_outcome::eligible_ranked_out: return "eligible_ranked_out";
         case llama_kv_pager_selector_trace_outcome::selected_pending: return "selected_pending";
         case llama_kv_pager_selector_trace_outcome::mailbox_dropped: return "mailbox_dropped";
@@ -1497,6 +1499,30 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
     output.router_refresh_tokens = config.router_refresh_tokens;
     output.logical_page_count = uint32_t(logical);
     output.physical_page_count = uint32_t(result.admitted_pages);
+    const uint64_t anchor_tokens = config.pin_recent.automatic
+        ? 0 : config.pin_recent.value;
+    const uint64_t anchor_pages =
+        (anchor_tokens + geometry.page_tokens - 1) / geometry.page_tokens;
+    // MTP capacity is the logical draft context length, not generation slack.
+    // Only explicitly admitted in-flight transfer destinations are counted
+    // here as mandatory extra GPU pages.
+    const uint64_t slack_pages = resources.admission.transfer_destination_pages;
+    const uint32_t generation_tokens = config.generation_tail_tokens.automatic
+        ? geometry.page_tokens : config.generation_tail_tokens.value;
+    llama_kv_pager_turn_geometry turn_geometry;
+    if (anchor_pages > UINT32_MAX || slack_pages > UINT32_MAX ||
+        !llama_kv_pager_derive_turn_geometry(
+            output.physical_page_count, geometry.page_tokens, generation_tokens,
+            uint32_t(anchor_pages), uint32_t(slack_pages),
+            turn_geometry, config.retrieval_pages.automatic
+                ? UINT32_MAX : config.retrieval_pages.value)) {
+        status = llama_kv_pager_status::admission;
+        output.admission = result;
+        return false;
+    }
+    output.retrieval_pages = turn_geometry.retrieval_pages;
+    output.generation_pages = turn_geometry.generation_pages;
+    output.generation_tail_tokens = turn_geometry.generation_tokens;
     output.physical_rows = rows;
     output.physical_bytes = bytes;
     uint64_t slab_offset = 0;
@@ -1564,6 +1590,135 @@ bool llama_kv_pager_plan(const llama_kv_pager_config & config,
         ? resources.admission.user_budget_bytes : result.usable_device_bytes;
     status = llama_kv_pager_status::ok;
     return true;
+}
+
+llama_kv_pager_turn_state llama_kv_pager::turn_state(int32_t sequence_id) const {
+    const auto found = turn_states_.find(sequence_id);
+    return found == turn_states_.end() ? llama_kv_pager_turn_state{} : found->second;
+}
+
+llama_kv_pager_turn_status llama_kv_pager::transition_turn(
+        int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch,
+        llama_kv_pager_turn_phase next_phase, int64_t query_start, int64_t query_end,
+        const llama_kv_page_id & committed_frontier, uint64_t frozen_history_generation,
+        std::vector<llama_kv_pager_selected_history> selected_history) noexcept {
+    if (sequence_id < 0 || turn_id == 0 || query_start < 0 || query_end <= query_start ||
+        committed_frontier.sequence_id != sequence_id ||
+        committed_frontier.sequence_generation == 0 ||
+        committed_frontier.position_begin < 0 ||
+        committed_frontier.position_end <= committed_frontier.position_begin) {
+        return llama_kv_pager_turn_status::invalid_query;
+    }
+    const auto found = turn_states_.find(sequence_id);
+    const llama_kv_pager_turn_state current = found == turn_states_.end()
+        ? llama_kv_pager_turn_state{} : found->second;
+    if (current.phase == llama_kv_pager_turn_phase::idle) {
+        if (turn_id <= current.turn_id) return llama_kv_pager_turn_status::stale_turn;
+        if (expected_retrieval_epoch != current.retrieval_epoch) {
+            return llama_kv_pager_turn_status::stale_epoch;
+        }
+        if (next_phase != llama_kv_pager_turn_phase::query_provisional) {
+            return llama_kv_pager_turn_status::invalid_transition;
+        }
+    } else {
+        if (turn_id != current.turn_id) return llama_kv_pager_turn_status::stale_turn;
+        if (expected_retrieval_epoch != current.retrieval_epoch) {
+            return llama_kv_pager_turn_status::stale_epoch;
+        }
+        const bool legal =
+            (current.phase == llama_kv_pager_turn_phase::query_provisional &&
+                next_phase == llama_kv_pager_turn_phase::retrieval_commit) ||
+            (current.phase == llama_kv_pager_turn_phase::retrieval_commit &&
+                (next_phase == llama_kv_pager_turn_phase::query_replay ||
+                 next_phase == llama_kv_pager_turn_phase::generating)) ||
+            (current.phase == llama_kv_pager_turn_phase::query_replay &&
+                next_phase == llama_kv_pager_turn_phase::generating);
+        if (!legal) return llama_kv_pager_turn_status::invalid_transition;
+        if (query_start != current.query_start || query_end != current.query_end ||
+            committed_frontier != current.committed_frontier ||
+            (current.phase != llama_kv_pager_turn_phase::query_provisional &&
+             frozen_history_generation != current.frozen_history_generation)) {
+            return llama_kv_pager_turn_status::invalid_query;
+        }
+    }
+    if (next_phase == llama_kv_pager_turn_phase::retrieval_commit) {
+        if (selected_history.size() > UINT32_MAX) {
+            return llama_kv_pager_turn_status::invalid_transition;
+        }
+        for (size_t i = 0; i < selected_history.size(); ++i) {
+            const auto & selected = selected_history[i];
+            if (selected.content_version == 0 || selected.identity.sequence_id != sequence_id) {
+                return llama_kv_pager_turn_status::invalid_transition;
+            }
+            for (size_t j = 0; j < i; ++j) {
+                if (selected_history[j].identity == selected.identity) {
+                    return llama_kv_pager_turn_status::invalid_transition;
+                }
+            }
+        }
+    } else if (!selected_history.empty()) {
+        return llama_kv_pager_turn_status::invalid_transition;
+    }
+    try {
+        auto next = current;
+        if (current.phase == llama_kv_pager_turn_phase::idle) {
+            next.turn_id = turn_id;
+            next.query_start = query_start;
+            next.query_end = query_end;
+            next.committed_frontier = committed_frontier;
+            next.has_committed_frontier = true;
+        }
+        next.phase = next_phase;
+        if (next_phase == llama_kv_pager_turn_phase::retrieval_commit) {
+            if (next.retrieval_epoch == UINT64_MAX) return llama_kv_pager_turn_status::stale_epoch;
+            ++next.retrieval_epoch;
+            next.selected_history = std::move(selected_history);
+            next.frozen_history_generation = frozen_history_generation;
+        }
+        next.mutable_page_table_epoch = residency_.snapshot().epoch();
+        turn_states_[sequence_id] = std::move(next);
+        const auto & stored = turn_states_[sequence_id];
+        snapshot_.turn_id = stored.turn_id;
+        snapshot_.retrieval_epoch = stored.retrieval_epoch;
+        snapshot_.frozen_history_generation = stored.frozen_history_generation;
+        snapshot_.mutable_page_table_epoch = stored.mutable_page_table_epoch;
+        snapshot_.query_start = stored.query_start;
+        snapshot_.query_end = stored.query_end;
+        snapshot_.selected_history_count = uint32_t(stored.selected_history.size());
+        snapshot_.turn_phase = uint8_t(stored.phase);
+    } catch (...) {
+        return llama_kv_pager_turn_status::invalid_transition;
+    }
+    return llama_kv_pager_turn_status::ok;
+}
+
+llama_kv_pager_turn_status llama_kv_pager::clear_turn_state(
+        int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch) noexcept {
+    const auto found = turn_states_.find(sequence_id);
+    if (found == turn_states_.end() || found->second.turn_id != turn_id) {
+        return llama_kv_pager_turn_status::stale_turn;
+    }
+    if (found->second.retrieval_epoch != expected_retrieval_epoch) {
+        return llama_kv_pager_turn_status::stale_epoch;
+    }
+    auto & state = found->second;
+    state.phase = llama_kv_pager_turn_phase::idle;
+    state.query_start = -1;
+    state.query_end = -1;
+    state.committed_frontier = {};
+    state.has_committed_frontier = false;
+    state.frozen_history_generation = 0;
+    state.mutable_page_table_epoch = residency_.snapshot().epoch();
+    state.selected_history.clear();
+    snapshot_.turn_id = state.turn_id;
+    snapshot_.retrieval_epoch = state.retrieval_epoch;
+    snapshot_.frozen_history_generation = 0;
+    snapshot_.mutable_page_table_epoch = state.mutable_page_table_epoch;
+    snapshot_.query_start = -1;
+    snapshot_.query_end = -1;
+    snapshot_.selected_history_count = 0;
+    snapshot_.turn_phase = uint8_t(llama_kv_pager_turn_phase::idle);
+    return llama_kv_pager_turn_status::ok;
 }
 
 std::unique_ptr<llama_kv_pager> llama_kv_pager::create(
@@ -2548,10 +2703,11 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(
         cold.host_valid = true;
         cold.dirty = false;
         cold.pin_count = 0;
-        // The retained host object is authenticated by the serialized page
-        // generation, which is also the canonical content version exposed by
-        // exact cold-page enumeration.
-        cold.content_version = cold.id.page_generation;
+        // Keep the content version captured by the sealed routing summary.
+        // The serialized page generation authenticates the host object, but
+        // it is independent of the version proving the summary describes
+        // these bytes.
+        cold.content_version = page.content_version;
         remember_logical_page(cold);
     }
     page = {};
@@ -3565,6 +3721,10 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         pages_ = std::move(next);
         slot_pages_ = std::move(next_slots);
         current_page_index_ = next_current;
+        snapshot_.mutable_page_table_epoch = residency_.snapshot().epoch();
+        for (auto & state_entry : turn_states_) {
+            state_entry.second.mutable_page_table_epoch = snapshot_.mutable_page_table_epoch;
+        }
         for (const auto & old : old_pages) {
             const bool retained = std::any_of(pages_.begin(), pages_.end(),
                     [&](const auto & candidate) {

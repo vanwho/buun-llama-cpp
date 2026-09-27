@@ -35,6 +35,104 @@ static llama_kv_pager_geometry geometry(uint64_t context) {
     return result;
 }
 
+static void test_turn_epoch_state_and_geometry() {
+    llama_kv_pager_turn_geometry derived;
+    assert(llama_kv_pager_derive_turn_geometry(5, 256, 300, 1, 0, derived));
+    assert(derived.hot_pages == 5 && derived.generation_pages == 2);
+    assert(derived.generation_tokens == 512 && derived.retrieval_pages == 3);
+    assert(uint64_t(derived.retrieval_pages) + derived.generation_pages <= derived.hot_pages);
+    // With only one of the three retrieval pages selected, generation can
+    // borrow the two unoccupied historical slots while preserving G.
+    const uint32_t borrowed_generation_pages =
+        llama_kv_pager_generation_available_pages(derived, 1);
+    assert(borrowed_generation_pages == 4);
+    assert(borrowed_generation_pages >= derived.generation_pages);
+    assert(llama_kv_pager_generation_available_pages(derived, 4) == 0);
+    assert(!llama_kv_pager_derive_turn_geometry(2, 256, 513, 0, 0, derived));
+    assert(!llama_kv_pager_derive_turn_geometry(4, 256, 256, 4, 0, derived));
+    assert(llama_kv_pager_derive_turn_geometry(5, 256, 256, 1, 0, derived, 2));
+    assert(derived.retrieval_pages == 2 && derived.generation_pages == 1);
+    assert(llama_kv_pager_derive_turn_geometry(5, 256, 256, 1, 1, derived));
+    assert(derived.generation_pages == 2 && derived.retrieval_pages == 3);
+    assert(!llama_kv_pager_derive_turn_geometry(5, 256, 256, 0, 0, derived, 5));
+    assert(!llama_kv_pager_derive_turn_geometry(UINT32_MAX, UINT32_MAX,
+        UINT32_MAX, 0, UINT32_MAX, derived));
+
+    llama_kv_retrieval_policy policy;
+    assert(llama_kv_pager_parse_retrieval_policy("turn", policy));
+    assert(policy == llama_kv_retrieval_policy::turn);
+    assert(llama_kv_pager_parse_retrieval_policy("cadence", policy));
+    assert(policy == llama_kv_retrieval_policy::cadence);
+    assert(!llama_kv_pager_parse_retrieval_policy("accepted-token", policy));
+
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    config.hot_pages.automatic = false;
+    config.hot_pages.value = 4;
+    config.retrieval_pages.automatic = false;
+    config.retrieval_pages.value = 3;
+    llama_kv_pager_backend backend;
+    backend.allocate = [](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(1));
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = bytes;
+        return true;
+    };
+    backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+    llama_kv_pager_status status;
+    auto pager = llama_kv_pager::create(
+        config, geometry(1024), resources(640, 128), backend, status);
+    assert(pager && status == llama_kv_pager_status::ok);
+    assert(pager->snapshot().retrieval_pages == 3);
+    assert(pager->snapshot().generation_pages == 1);
+
+    llama_kv_page_id frontier;
+    frontier.sequence_id = 0;
+    frontier.sequence_generation = 7;
+    frontier.logical_page = 2;
+    frontier.position_begin = 512;
+    frontier.position_end = 767;
+    assert(pager->transition_turn(0, 1, 0,
+        llama_kv_pager_turn_phase::query_provisional, 700, 704, frontier, 0) ==
+        llama_kv_pager_turn_status::ok);
+    const auto provisional = pager->turn_state(0);
+    assert(provisional.turn_id == 1 && provisional.retrieval_epoch == 0);
+    assert(provisional.query_start == 700 && provisional.query_end == 704);
+
+    assert(pager->transition_turn(0, 2, 0,
+        llama_kv_pager_turn_phase::retrieval_commit, 700, 704, frontier, 33) ==
+        llama_kv_pager_turn_status::stale_turn);
+    assert(pager->turn_state(0).phase == provisional.phase);
+    assert(pager->transition_turn(0, 1, 0,
+        llama_kv_pager_turn_phase::retrieval_commit, 701, 704, frontier, 33) ==
+        llama_kv_pager_turn_status::invalid_query);
+    assert(pager->turn_state(0).query_start == provisional.query_start);
+    assert(pager->transition_turn(0, 1, 0,
+        llama_kv_pager_turn_phase::retrieval_commit, 700, 704, frontier, 33,
+        { { frontier, 9 } }) == llama_kv_pager_turn_status::ok);
+    const auto committed = pager->turn_state(0);
+    assert(committed.retrieval_epoch == 1 && committed.frozen_history_generation == 33);
+    assert(committed.selected_history.size() == 1);
+    assert(committed.selected_history[0].identity == frontier);
+    assert(committed.selected_history[0].content_version == 9);
+    assert(pager->snapshot().mutable_page_table_epoch !=
+        pager->snapshot().frozen_history_generation);
+    assert(pager->transition_turn(0, 1, 1,
+        llama_kv_pager_turn_phase::query_replay, 700, 704, frontier, 33) ==
+        llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, 1, 1,
+        llama_kv_pager_turn_phase::generating, 700, 704, frontier, 33) ==
+        llama_kv_pager_turn_status::ok);
+    assert(pager->clear_turn_state(0, 1, 1) == llama_kv_pager_turn_status::ok);
+    const auto cleared = pager->turn_state(0);
+    assert(cleared.phase == llama_kv_pager_turn_phase::idle);
+    assert(cleared.turn_id == 1 && cleared.retrieval_epoch == 1);
+    assert(cleared.selected_history.empty() && !cleared.has_committed_frontier);
+    assert(pager->transition_turn(0, 2, 1,
+        llama_kv_pager_turn_phase::query_provisional, 800, 802, frontier, 0) ==
+        llama_kv_pager_turn_status::ok);
+}
+
 static void test_layer_slot_geometry() {
     llama_kv_pager_geometry layered;
     layered.context_tokens = 512;
@@ -854,6 +952,9 @@ static void test_pager_host_mutation() {
     // published exactly once before its slot is reused.
     const auto tail_pages = tail_pager->host_catalog()->pages();
     assert(tail_pages.empty());
+    const auto tail_before_eviction = tail_pager->residency().pages();
+    assert(tail_before_eviction.size() == 1);
+    const auto tail_content_version = tail_before_eviction[0].content_version;
     assert(tail_pager->begin_write(0, 1, 256, ticket) ==
             llama_kv_pager_write_status::ok);
     const auto retained_tail_pages = tail_pager->host_catalog()->pages();
@@ -873,7 +974,7 @@ static void test_pager_host_mutation() {
             [&](const auto & record) { return record.id == cold_tail_id; });
     assert(cold_record != cold_records.end());
     assert(cold_record->valid_length == 17);
-    assert(cold_record->content_version == cold_tail_id.page_generation);
+    assert(cold_record->content_version == tail_content_version);
     assert(cold_record->host_valid && !cold_record->dirty);
     assert(cold_record->physical_slot == UINT32_MAX);
     assert(tail_pager->cancel_write(ticket) == llama_kv_pager_write_status::ok);
@@ -931,6 +1032,7 @@ static void test_pager_host_mutation() {
 }
 
 int main() {
+    test_turn_epoch_state_and_geometry();
     test_layer_slot_geometry();
     test_dynamic_live_geometry_and_capture();
     test_host_seal_boundary();

@@ -11,6 +11,11 @@ enum class llama_kv_pager_mode : uint8_t {
     exact,
 };
 
+enum class llama_kv_retrieval_policy : uint8_t {
+    turn = 0,
+    cadence,
+};
+
 struct llama_kv_pager_auto_size {
     bool automatic = true;
     uint64_t bytes = 0;
@@ -27,6 +32,9 @@ struct llama_kv_pager_auto_count {
 struct llama_kv_pager_config {
     llama_kv_pager_mode mode = llama_kv_pager_mode::off;
     uint32_t page_size = 256;
+    llama_kv_pager_auto_count generation_tail_tokens;
+    llama_kv_pager_auto_count retrieval_pages;
+    llama_kv_retrieval_policy retrieval_policy = llama_kv_retrieval_policy::turn;
     llama_kv_pager_auto_size vram_budget;
     llama_kv_pager_auto_size host_budget;
     llama_kv_pager_auto_size safety_headroom;
@@ -107,3 +115,20 @@ llama_kv_pager_capability_result llama_kv_pager_evaluate_capability(
 bool llama_kv_pager_parse_size(const std::string & raw, llama_kv_pager_auto_size & out);
 bool llama_kv_pager_parse_count(const std::string & raw, llama_kv_pager_auto_count & out);
 bool llama_kv_pager_parse_mode(const std::string & raw, llama_kv_pager_mode & out);
+bool llama_kv_pager_parse_retrieval_policy(const std::string & raw, llama_kv_retrieval_policy & out);
+
+struct llama_kv_pager_turn_geometry {
+    uint32_t hot_pages = 0;
+    uint32_t retrieval_pages = 0;
+    uint32_t generation_pages = 0;
+    uint32_t generation_tokens = 0;
+};
+
+bool llama_kv_pager_derive_turn_geometry(
+        uint32_t hot_pages, uint32_t page_tokens,
+        uint32_t generation_tail_tokens, uint32_t mandatory_anchor_pages,
+        uint32_t mandatory_slack_pages, llama_kv_pager_turn_geometry & output,
+        uint32_t requested_retrieval_pages = UINT32_MAX) noexcept;
+uint32_t llama_kv_pager_generation_available_pages(
+        const llama_kv_pager_turn_geometry & geometry,
+        uint32_t selected_history_pages) noexcept;

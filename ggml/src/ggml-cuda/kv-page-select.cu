@@ -51,6 +51,8 @@ __global__ void page_select_scores(
 
     __shared__ float reduction[256];
     __shared__ int invalid_reduction[256];
+    __shared__ int positive_unbounded[256];
+    __shared__ int negative_unbounded[256];
     if (!page_select_eligible(metadata, metadata_nb0, metadata_nb1,
             membership, membership_nb0, query, query_nb0, page, 1, page_size,
             metadata_fields) &&
@@ -66,6 +68,8 @@ __global__ void page_select_scores(
         for (int q_head = kv_head * group; q_head < (kv_head + 1) * group; ++q_head) {
             float partial = 0.0f;
             int invalid = 0;
+            int positive_inf = 0;
+            int negative_inf = 0;
             const char * q_row = (const char *) q + q_head * q_nb1 + query_row * q_nb2;
             for (int coord = threadIdx.x; coord < d; coord += blockDim.x) {
                 const float qi = *(const float *)(q_row + coord * q_nb0);
@@ -73,18 +77,30 @@ __global__ void page_select_scores(
                     kv_head * bounds_nb2 + page * bounds_nb3;
                 const float lo = __half2float(*(const half *) b);
                 const float hi = __half2float(*(const half *) (b + bounds_nb1));
-                if (!isfinite(qi) || !isfinite(lo) || !isfinite(hi) || lo > hi) {
+                if (!isfinite(qi) || isnan(lo) || isnan(hi) || lo > hi) {
                     invalid = 1;
+                } else if (qi == 0.0f) {
+                    // A zero query coordinate contributes zero even when an
+                    // outward-rounded half bound is infinite.
+                } else if (isinf(qi >= 0.0f ? hi : lo)) {
+                    const float bound = qi >= 0.0f ? hi : lo;
+                    const bool positive = signbit(qi) == signbit(bound);
+                    if (positive) positive_inf = 1;
+                    else negative_inf = 1;
                 } else {
                     partial += qi >= 0.0f ? qi * hi : qi * lo;
                 }
             }
             reduction[threadIdx.x] = partial;
             invalid_reduction[threadIdx.x] = invalid;
+            positive_unbounded[threadIdx.x] = positive_inf;
+            negative_unbounded[threadIdx.x] = negative_inf;
             __syncthreads();
             for (int width = blockDim.x / 2; width > 0; width >>= 1) {
                 if (threadIdx.x < width) {
                     invalid_reduction[threadIdx.x] |= invalid_reduction[threadIdx.x + width];
+                    positive_unbounded[threadIdx.x] |= positive_unbounded[threadIdx.x + width];
+                    negative_unbounded[threadIdx.x] |= negative_unbounded[threadIdx.x + width];
                 }
                 __syncthreads();
             }
@@ -92,8 +108,11 @@ __global__ void page_select_scores(
                 if (threadIdx.x < width) reduction[threadIdx.x] += reduction[threadIdx.x + width];
                 __syncthreads();
             }
-            if (threadIdx.x == 0 && invalid_reduction[0] == 0 && isfinite(reduction[0])) {
-                best = max(best, reduction[0]);
+            if (threadIdx.x == 0 && invalid_reduction[0] == 0) {
+                const float score = positive_unbounded[0]
+                    ? __int_as_float(0x7f800000)
+                    : negative_unbounded[0] ? -__int_as_float(0x7f800000) : reduction[0];
+                if (!isnan(score)) best = max(best, score);
             }
             __syncthreads();
         }
@@ -126,7 +145,7 @@ __global__ void page_select_build_keys(
     if (page >= n_pages) return;
     const uint64_t invalid = UINT64_MAX;
     const float score = scores[page];
-    const uint64_t key = isfinite(score)
+    const uint64_t key = !isnan(score) && score != -__int_as_float(0x7f800000)
         ? (uint64_t(page_select_descending_score_key(score)) << 32) |
             uint32_t(page)
         : invalid;
@@ -170,7 +189,7 @@ __global__ void page_select_rank(
             if (!page_select_eligible(metadata, metadata_nb0, metadata_nb1,
                     membership, membership_nb0, query, query_nb0, page, expected_membership,
                     page_size, metadata_fields)) continue;
-            if (!isfinite(scores[page])) continue;
+            if (isnan(scores[page]) || scores[page] == -__int_as_float(0x7f800000)) continue;
             bool selected = false;
             for (int prior = 0; prior < rank; ++prior) {
                 if (output[begin + prior] == page) {
@@ -204,6 +223,28 @@ __global__ void page_select_rank(
     }
 }
 
+__global__ void page_select_report_failure(
+        const float * scores,
+        const int64_t * metadata, size_t metadata_nb0, size_t metadata_nb1,
+        const int32_t * membership, size_t membership_nb0,
+        const int64_t * query, size_t query_nb0,
+        int32_t * output, int n_pages, int cold_begin, int cold_count,
+        int page_size, int metadata_fields) {
+    if (blockIdx.x != 0 || threadIdx.x != 0 || cold_count == 0 ||
+            output[cold_begin] != -1) return;
+    bool eligible = false;
+    bool rankable = false;
+    for (int page = 0; page < n_pages; ++page) {
+        if (!page_select_eligible(metadata, metadata_nb0, metadata_nb1,
+                membership, membership_nb0, query, query_nb0, page, 0,
+                page_size, metadata_fields)) continue;
+        eligible = true;
+        const float score = scores[page];
+        rankable |= !isnan(score) && score != -__int_as_float(0x7f800000);
+    }
+    output[cold_begin] = eligible ? (rankable ? -1 : -2) : -3;
+}
+
 } // namespace
 
 void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
@@ -216,6 +257,7 @@ void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * 
     const int k_cold = ggml_get_op_params_i32(dst, 1);
     const int page_size = ggml_get_op_params_i32(dst, 2);
     const int query_row = ggml_get_op_params_i32(dst, 3);
+    const int diagnostic_mode = ggml_get_op_params_i32(dst, 4);
     const int n_pages = bounds->ne[3];
     const int metadata_fields = metadata->ne[0];
     const int output_count = k_resident + k_cold;
@@ -301,4 +343,12 @@ void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * 
         CUDA_CHECK(cudaGetLastError());
     }
 #endif
+    if (diagnostic_mode) {
+        page_select_report_failure<<<1, 1, 0, stream>>>(scores.get(),
+            (const int64_t *) metadata->data, metadata->nb[0], metadata->nb[1],
+            (const int32_t *) membership->data, membership->nb[0],
+            (const int64_t *) query->data, query->nb[0], output, n_pages,
+            k_resident, k_cold, page_size, metadata_fields);
+        CUDA_CHECK(cudaGetLastError());
+    }
 }

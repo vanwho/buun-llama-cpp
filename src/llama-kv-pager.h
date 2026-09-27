@@ -17,6 +17,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <map>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -300,6 +301,19 @@ struct llama_kv_pager_snapshot {
     uint64_t physical_rows = 0;
     uint64_t physical_bytes = 0;
     uint32_t physical_layer_slot_count = 0;
+    // Admission-derived retrieval and generation geometry. R + G is always
+    // bounded by H; spare historical slots remain borrowable by generation.
+    uint32_t retrieval_pages = 0;
+    uint32_t generation_pages = 0;
+    uint32_t generation_tail_tokens = 0;
+    uint64_t turn_id = 0;
+    uint64_t retrieval_epoch = 0;
+    uint64_t frozen_history_generation = 0;
+    uint64_t mutable_page_table_epoch = 0;
+    uint32_t selected_history_count = 0;
+    uint8_t turn_phase = 0;
+    int64_t query_start = -1;
+    int64_t query_end = -1;
     uint64_t host_metadata_bytes = 0;
     uint64_t mtp_rows = 0;
     uint64_t host_budget_bytes = 0;
@@ -310,6 +324,40 @@ struct llama_kv_pager_snapshot {
     // and a failed allocation is never silently retried with the same tuple.
     std::vector<llama_kv_pager_admission_attempt> admission_attempts;
     bool initialized = false;
+};
+
+enum class llama_kv_pager_turn_phase : uint8_t {
+    idle = 0,
+    query_provisional,
+    retrieval_commit,
+    query_replay,
+    generating,
+};
+
+enum class llama_kv_pager_turn_status : uint8_t {
+    ok = 0,
+    stale_turn,
+    stale_epoch,
+    invalid_transition,
+    invalid_query,
+};
+
+struct llama_kv_pager_selected_history {
+    llama_kv_page_id identity;
+    uint64_t content_version = 0;
+};
+
+struct llama_kv_pager_turn_state {
+    uint64_t turn_id = 0;
+    uint64_t retrieval_epoch = 0;
+    llama_kv_pager_turn_phase phase = llama_kv_pager_turn_phase::idle;
+    int64_t query_start = -1;
+    int64_t query_end = -1;
+    llama_kv_page_id committed_frontier;
+    bool has_committed_frontier = false;
+    uint64_t frozen_history_generation = 0;
+    uint64_t mutable_page_table_epoch = 0;
+    std::vector<llama_kv_pager_selected_history> selected_history;
 };
 
 // One bounded, process-local receipt for a naturally ranked cold page.  This
@@ -369,6 +417,8 @@ enum class llama_kv_pager_selector_trace_outcome : uint8_t {
     none = 0,
     selector_not_run,
     no_eligible_cold_page,
+    selector_no_rankable_score,
+    selector_no_eligible_candidate,
     eligible_ranked_out,
     selected_pending,
     mailbox_dropped,
@@ -444,6 +494,7 @@ struct llama_kv_pager_selector_trace {
     std::array<int32_t, 2> raw_cold_logical_pages{{-1, -1}};
     uint32_t raw_cold_count = 0;
     bool raw_selector_output_valid = false;
+    int32_t selector_diagnostic_failure = 0;
     bool async_readback_submitted = false;
     bool async_readback_completed = false;
     bool synchronous_readback_completed = false;
@@ -571,6 +622,22 @@ public:
     llama_kv_residency_snapshot residency() const noexcept { return residency_.snapshot(); }
     llama_kv_residency_snapshot residency(int32_t sequence_id) const noexcept {
         return residency_.snapshot().for_sequence(sequence_id);
+    }
+    llama_kv_pager_turn_state turn_state(int32_t sequence_id) const;
+    llama_kv_pager_turn_status transition_turn(
+            int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch,
+            llama_kv_pager_turn_phase next_phase, int64_t query_start, int64_t query_end,
+            const llama_kv_page_id & committed_frontier, uint64_t frozen_history_generation,
+            std::vector<llama_kv_pager_selected_history> selected_history = {}) noexcept;
+    llama_kv_pager_turn_status clear_turn_state(
+            int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch) noexcept;
+    llama_kv_pager_turn_status end_turn(
+            int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch) noexcept {
+        return clear_turn_state(sequence_id, turn_id, expected_retrieval_epoch);
+    }
+    llama_kv_pager_turn_status abort_turn(
+            int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch) noexcept {
+        return clear_turn_state(sequence_id, turn_id, expected_retrieval_epoch);
     }
 
     // Reconcile the current resident table with authenticated canonical host
@@ -910,6 +977,7 @@ private:
     uint32_t current_page_index_ = UINT32_MAX;
     uint64_t mutation_generation_ = 1;
     llama_kv_residency_table residency_{0};
+    std::map<int32_t, llama_kv_pager_turn_state> turn_states_;
     llama_kv_residency_transfer_counters transfer_counters_;
     llama_kv_residency_transfer_counters h2d_counters_;
     llama_kv_residency_transfer_counters d2h_counters_;

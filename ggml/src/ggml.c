@@ -5914,7 +5914,8 @@ struct ggml_tensor * ggml_kv_page_select(
         int                   k_resident,
         int                   k_cold,
         int                   page_size,
-        int                   query_row) {
+        int                   query_row,
+        int                   diagnostic_mode) {
     GGML_ASSERT(q != NULL && bounds != NULL && page_metadata != NULL &&
                 resident_membership != NULL && query_metadata != NULL);
     GGML_ASSERT(q->type == GGML_TYPE_F32 && q->ne[0] > 0 && q->ne[1] > 0);
@@ -5942,6 +5943,7 @@ struct ggml_tensor * ggml_kv_page_select(
     ggml_set_op_params_i32(result, 1, k_cold);
     ggml_set_op_params_i32(result, 2, page_size);
     ggml_set_op_params_i32(result, 3, query_row);
+    ggml_set_op_params_i32(result, 4, diagnostic_mode != 0);
     return result;
 }
 
