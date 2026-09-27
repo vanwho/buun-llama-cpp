@@ -2008,6 +2008,9 @@ public:
     bool can_reuse_kv_page_select(
             const ggml_tensor * bounds, int layer,
             const llama_ubatch & ubatch) const override;
+    void note_kv_page_select_gate(
+            llama_kv_pager_selector_gate gate, const ggml_tensor * q, int layer,
+            const llama_ubatch & ubatch, uint32_t query_row) const override;
     void capture_kv_routing_query(
             ggml_tensor * tensor, int layer,
             const llama_ubatch & ubatch) const override;

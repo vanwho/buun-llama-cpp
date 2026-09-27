@@ -2596,6 +2596,14 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
 
 namespace {
 
+bool graph_selector_trace_enabled() {
+    static const bool enabled = []() {
+        const char * value = std::getenv("LLAMA_KV_PAGER_SELECTOR_TRACE");
+        return value != nullptr && value[0] != '\0' && std::strcmp(value, "0") != 0;
+    }();
+    return enabled;
+}
+
 // The selector's Q is part of the model graph, while its catalogue and
 // generation sidebands are mutable boundary inputs. Keep the latter in the
 // normal graph-input lifecycle so graph reuse never leaves a pointer to a
@@ -2621,6 +2629,12 @@ public:
                 uint64_t(selected_->src[0]->ne[2]) != ubatch->n_tokens ||
                 !mctx_->set_kv_page_select_inputs(
                     bounds_, metadata_, membership_, query_, layer_, *ubatch)) {
+            if (graph_selector_trace_enabled() && mctx_ != nullptr && ubatch != nullptr) {
+                mctx_->note_kv_page_select_gate(
+                    llama_kv_pager_selector_gate::sideband_inputs_rejected,
+                    selected_ != nullptr ? selected_->src[0] : nullptr,
+                    layer_, *ubatch, ubatch->n_tokens > 0 ? ubatch->n_tokens - 1 : 0);
+            }
             // A selector is advisory. The owner keeps the previous valid
             // selection when a boundary cannot refresh its sideband inputs.
             return;
@@ -2629,12 +2643,16 @@ public:
         // selector output is first registered with the pager. Re-register it
         // here after its generation/epoch sidebands have been refreshed so a
         // completed current-Q result can reach the next policy boundary.
+        if (graph_selector_trace_enabled()) {
+            mctx_->note_kv_page_select_gate(llama_kv_pager_selector_gate::capture_called,
+                    selected_->src[0], layer_, *ubatch, ubatch->n_tokens - 1);
+        }
         mctx_->capture_kv_routing_query(selected_, layer_, *ubatch);
     }
 
     bool can_reuse(const llm_graph_params & params) override {
         mctx_ = params.mctx;
-        return selected_ != nullptr && selected_->src[0] != nullptr &&
+        const bool valid = params.ubatch.n_tokens > 0 && selected_ != nullptr && selected_->src[0] != nullptr &&
                 selected_->src[0]->ne[2] > 0 && selected_->src[0]->ne[3] == 1 &&
                 uint64_t(selected_->src[0]->ne[2]) == params.ubatch.n_tokens &&
                 params.ubatch.n_pos != 0 && params.ubatch.pos != nullptr &&
@@ -2642,6 +2660,14 @@ public:
                     std::numeric_limits<size_t>::max() / params.ubatch.n_pos &&
                 mctx_ != nullptr && mctx_->can_reuse_kv_page_select(
                 bounds_, layer_, params.ubatch);
+        if (!valid && graph_selector_trace_enabled() && mctx_ != nullptr) {
+            mctx_->note_kv_page_select_gate(
+                llama_kv_pager_selector_gate::graph_input_rejected_reuse,
+                selected_ != nullptr ? selected_->src[0] : nullptr,
+                layer_, params.ubatch,
+                params.ubatch.n_tokens > 0 ? params.ubatch.n_tokens - 1 : 0);
+        }
+        return valid;
     }
 
 private:
@@ -2661,20 +2687,42 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
         cb_func(ubatch, cur, name, il);
     }
 
-    if (strcmp(name, "Qcur_routing") == 0 && mctx != nullptr) {
+    if (graph_selector_trace_enabled() && mctx != nullptr && name != nullptr && strcmp(name, "Qcur_routing") != 0) {
+        mctx->note_kv_page_select_gate(
+            llama_kv_pager_selector_gate::callback_name_mismatch,
+            cur, il, ubatch, ubatch.n_tokens > 0 ? ubatch.n_tokens - 1 : 0);
+    }
+    if (name != nullptr && strcmp(name, "Qcur_routing") == 0) {
         // This callback is reached from build_attn_mha before its head/query
         // permutation. A configured memory owner may therefore attach one
         // selector node to the actual post-RoPE Q dependency without copying
         // Q to the host. Expand the result explicitly so it cannot be
         // optimized out.
-        if (cur->ne[2] <= 0 || cur->ne[3] != 1 ||
-                uint64_t(cur->ne[2]) != ubatch.n_tokens ||
-                ubatch.n_pos == 0 || ubatch.pos == nullptr ||
+        if (mctx == nullptr) return;
+        const auto query_gate = cur == nullptr
+            ? llama_kv_pager_selector_gate::invalid_query_shape
+            : llama_kv_pager_selector_q_shape_gate(cur->ne[3] == 1 ? 3 : 4,
+                    cur->ne[0], cur->ne[1],
+                    cur->ne[2], cur->ne[3], ubatch.n_tokens);
+        if (query_gate != llama_kv_pager_selector_gate::callback_matched) {
+            mctx->note_kv_page_select_gate(
+                query_gate,
+                cur, il, ubatch, 0);
+            return;
+        }
+        if (ubatch.n_pos == 0 || ubatch.pos == nullptr ||
                 size_t(ubatch.n_tokens - 1) >
                     std::numeric_limits<size_t>::max() / ubatch.n_pos) {
+            mctx->note_kv_page_select_gate(
+                llama_kv_pager_selector_gate::invalid_positions,
+                cur, il, ubatch, 0);
             return;
         }
         const uint32_t query_row = uint32_t(cur->ne[2] - 1);
+        if (graph_selector_trace_enabled()) {
+            mctx->note_kv_page_select_gate(llama_kv_pager_selector_gate::callback_matched,
+                    cur, il, ubatch, query_row);
+        }
         ggml_tensor * selected = mctx->build_kv_page_select(
                 ctx0, cur, il, ubatch, query_row);
         if (selected != nullptr) {
@@ -2689,6 +2737,14 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
             res->add_input(std::make_unique<llm_graph_input_kv_page_select>(
                     mctx, selected->src[1]->src[2], selected->src[2], selected->src[3],
                     selected->src[4], selected, il));
+            if (graph_selector_trace_enabled()) {
+                mctx->note_kv_page_select_gate(llama_kv_pager_selector_gate::capture_called,
+                        cur, il, ubatch, query_row);
+            }
+        } else {
+            if (graph_selector_trace_enabled()) mctx->note_kv_page_select_gate(
+                llama_kv_pager_selector_gate::selector_builder_returned_null,
+                cur, il, ubatch, query_row);
         }
     }
 

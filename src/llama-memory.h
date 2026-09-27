@@ -13,6 +13,7 @@
 #include <vector>
 
 struct llama_ubatch;
+enum class llama_kv_pager_selector_gate : uint8_t;
 class llama_kv_attention_telemetry;
 // Internal physical-growth evidence retained across composite memory trees.
 // The public preflight remains scalar, but composites must not sum per-device
@@ -257,6 +258,11 @@ struct llama_memory_context_i {
             const llama_ubatch & /* ubatch */) const {
         return false;
     }
+
+    virtual void note_kv_page_select_gate(
+            llama_kv_pager_selector_gate /* gate */, const ggml_tensor * /* q */,
+            int /* layer */, const llama_ubatch & /* ubatch */,
+            uint32_t /* query_row */) const {}
 
     // Register the graph-produced selector output with the owning pager. The
     // callback records ownership and generation metadata only; synchronization
