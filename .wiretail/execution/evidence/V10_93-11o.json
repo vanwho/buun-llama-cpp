@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "task": "93-11o",
+  "source_commit": "0bbcdc01946817ffb14e36a957a1389f046d5b65",
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/candidate-bundle/llama-server",
+    "sha256": "d99d75411a7e05e3c2594fae9b740a0e4515acccb1cdd109f930afa18923e16e",
+    "mapped_implementation_dso": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/candidate-bundle/libllama-server-impl.so",
+      "sha256": "43c1d0e938939876a97a615911d36b41968e0502ada6a265b7ba1c026ee1748b"
+    }
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "process_identity": {
+    "pid": 118758,
+    "start_ticks_since_boot": 846131,
+    "effective_argv": [
+      "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/candidate-bundle/llama-server",
+      "-m",
+      "/srv/ai/models/text/current.gguf",
+      "--alias",
+      "qwen38-fast-turbo4-mtp",
+      "-ngl",
+      "999",
+      "--fit",
+      "off",
+      "-fa",
+      "on",
+      "-c",
+      "16384",
+      "-np",
+      "1",
+      "-ctk",
+      "turbo4",
+      "-ctv",
+      "turbo4",
+      "-b",
+      "128",
+      "-ub",
+      "64",
+      "--context-shift",
+      "--poll",
+      "0",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8080",
+      "--api-key-file",
+      "/srv/ai/config/llama/api-keys",
+      "--metrics",
+      "--reasoning-preserve",
+      "--kv-pager",
+      "selective",
+      "--kv-page-size",
+      "256",
+      "--kv-hot-pages",
+      "16",
+      "--kv-pin-recent",
+      "0",
+      "--device",
+      "CUDA0",
+      "--ctx-checkpoints",
+      "0",
+      "--cache-ram",
+      "0",
+      "--no-cache-idle-slots",
+      "--spec-draft-kv-device",
+      "gpu",
+      "--spec-type",
+      "draft-mtp",
+      "--spec-draft-n-max",
+      "2",
+      "--spec-draft-type-k",
+      "turbo4",
+      "--spec-draft-type-v",
+      "turbo4"
+    ],
+    "artifact": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/identity-pre-request.json",
+      "sha256": "4d855fd0079b82e7a0c4cd65a7cd3b801c8cbaafce2d6d7523aca75d1fde281c"
+    }
+  },
+  "runtime_config": {
+    "context_tokens": 16384,
+    "batch": 128,
+    "ubatch": 64,
+    "parallel": 1,
+    "pager": "selective",
+    "page_size_tokens": 256,
+    "target_type_k": "turbo4",
+    "target_type_v": "turbo4",
+    "mtp": "native",
+    "mtp_device": "gpu",
+    "mtp_type_k": "turbo4",
+    "mtp_type_v": "turbo4",
+    "device": "CUDA0"
+  },
+  "live_finding": {
+    "http_status": 200,
+    "request_count": 1,
+    "trace_latest": {
+      "query_generation": 6,
+      "query_position": 67,
+      "query_row": 0,
+      "graph_gate": "capture_called",
+      "graph_query_rank": 3,
+      "graph_query_dim": 256,
+      "graph_query_heads": 24,
+      "graph_query_rows": 1,
+      "graph_ubatch_tokens": 1,
+      "graph_position_count": 4,
+      "graph_last_position": 66,
+      "graph_layer": 63,
+      "graph_callback_seen": true,
+      "routing_q_created": true,
+      "selected_created": true,
+      "capture_handoff_created": true,
+      "outcome": "no_eligible_cold_page"
+    },
+    "identity_after_request": {
+      "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/identity-post-request.json",
+      "sha256": "987d380f7f567fa1ed2ee8382eabb4b4da8b3565f8fa9889421dc00513f375cf"
+    }
+  },
+  "checks": {
+    "repair93_selector_graph_registration_diagnostics": {
+      "status": "pass",
+      "command": [
+        "python3",
+        "-"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/live-request-body.json",
+          "sha256": "74a8dee925e6d50140a2f21a234e9b666c0d4d8b00c44a1011d6142055d44ebb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/live-request-result.json",
+          "sha256": "c5a1692436602584f754704dd48ebfd8d9b02421b6103a2564b08b624ad8f75d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/diagnostic-summary.json",
+          "sha256": "96ebf770aae3e1f1da6a0bbd5f17522838d6b84cb8bbaf5f844e8f6d31c7641e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/slots-selector-trace.json",
+          "sha256": "57bff08b79952a3121eb7b594683d29600e5f80b6e06650c3886e30a08b7d265"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/identity-pre-request.json",
+          "sha256": "4d855fd0079b82e7a0c4cd65a7cd3b801c8cbaafce2d6d7523aca75d1fde281c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/candidate-sha256.txt",
+          "sha256": "6eaa1d20786b1b3dd950c1db745386f3672a812dbc3380f0559cbf002a43a1d8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/model.sha256",
+          "sha256": "e21bfc0bed19830fb176f4c93e063d986462ef35d470e3959e50fe34324e757f"
+        }
+      ]
+    },
+    "repair93_selector_graph_registration_tests": {
+      "status": "pass",
+      "command": [
+        "build-cuda-test/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "build_command": [
+        "cmake",
+        "--build",
+        "build-cuda-test",
+        "--target",
+        "llama-server",
+        "test-cuda-kv-promotion",
+        "-j2"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/cuda-build-03.log",
+          "sha256": "60e91e0d706d941190df0b514ad46dba0b67100accd364836c4fc40256bb3d13"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11o/attempt-01/test-cuda-kv-promotion-02.log",
+          "sha256": "d2c03c64d2ee7f3c64548f7f4d10f5b68a60cfd424d280214a02f9ff1b3b4943"
+        }
+      ]
+    }
+  }
+}
