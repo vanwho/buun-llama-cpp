@@ -99,12 +99,18 @@ void test_transaction_rows_and_checkpoint() {
     source.target_process_refreshed();
     std::vector<uint8_t> state;
     assert(common_speculative_mtp_carry_state_save(source, source_h, state));
+    assert(state.size() == 3 * sizeof(uint32_t) + source_h.size() * sizeof(float));
 
     common_speculative_mtp_carry_lifecycle restored;
     std::vector<float> restored_h(source_h.size(), 0.0f);
     assert(common_speculative_mtp_carry_state_load(restored, restored_h, state));
     assert(restored.draft_ready());
     assert(restored_h == source_h);
+    auto stale_state = state;
+    stale_state[sizeof(uint32_t)]++;
+    const std::vector<float> unchanged_h = restored_h;
+    assert(!common_speculative_mtp_carry_state_load(restored, restored_h, stale_state));
+    assert(restored_h == unchanged_h && restored.draft_ready());
     restored.sequence_transition(common_speculative_sequence_event::target_restored_without_draft);
     assert(!restored.draft_ready());
 
@@ -132,6 +138,8 @@ void test_transaction_rows_and_checkpoint() {
     assert(!frozen_history.matches(29, 72));
     frozen_history.clear();
     assert(!frozen_history.matches(29, 71));
+    std::cout << "query_checkpoint_mtp_carry=pass carry_bytes="
+              << state.size() << " rollback_once=pass\n";
     std::cout << "frozen_history_and_mtp_epoch=pass\n";
 }
 

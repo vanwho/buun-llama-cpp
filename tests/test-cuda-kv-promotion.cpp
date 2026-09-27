@@ -820,6 +820,41 @@ static int run_proof() {
         [&](const auto & record) { return record.id == cold_it->id; }));
     assert(pager->residency().epoch() != old_snapshot.epoch());
 
+    // Exercise the post-publication query rewind against the CUDA promoted
+    // mapping. A range edit at the query frontier may advance the mutable
+    // page-table epoch, but it must retain the selected historical identity
+    // and its authenticated content version.
+    const auto query_frontier = std::max_element(records.begin(), records.end(),
+        [](const auto & lhs, const auto & rhs) {
+            return lhs.id.position_end < rhs.id.position_end;
+        })->id;
+    assert(committed_candidate->query_position <=
+        uint64_t(std::numeric_limits<llama_pos>::max()));
+    const llama_pos query_position =
+        static_cast<llama_pos>(committed_candidate->query_position);
+    assert(pager->transition_turn(0, boundary.query_commit.turn_id, 0,
+        llama_kv_pager_turn_phase::query_provisional,
+        query_position, query_position + 1, query_frontier, 0) ==
+        llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, boundary.query_commit.turn_id, 0,
+        llama_kv_pager_turn_phase::retrieval_commit,
+        query_position, query_position + 1, query_frontier,
+        boundary.query_commit.retrieval_epoch,
+        { { cold_it->id, cold_it->content_version } }) ==
+        llama_kv_pager_turn_status::ok);
+    const uint64_t rewind_epoch = pager->residency().epoch();
+    assert(pager->mutate({ llama_kv_pager_mutation_kind::remove, 0, -1,
+        query_position, -1, 0, 0, rewind_epoch }) ==
+        llama_kv_pager_write_status::ok);
+    const auto retained_turn = pager->turn_state(0);
+    assert(retained_turn.phase == llama_kv_pager_turn_phase::retrieval_commit);
+    assert(retained_turn.selected_history.size() == 1 &&
+        retained_turn.selected_history[0].identity == cold_it->id &&
+        retained_turn.selected_history[0].content_version == cold_it->content_version);
+    const auto after_rewind = pager->residency();
+    assert(std::any_of(after_rewind.pages().begin(), after_rewind.pages().end(),
+        [&](const auto & page) { return page.id == cold_it->id; }));
+
     uint64_t host_checksum = 0, device_checksum = 0, generation = 0, content = 0;
     uint32_t physical_slot = UINT32_MAX;
     assert(pager->test_page_checksums(winner_logical, host_checksum, device_checksum,
@@ -903,7 +938,8 @@ static int run_proof() {
         "cuda_deterministic_selector_transaction_integration=pass mature_fa_consumption_parity=pass "
         "seed=0x%llx winner_logical=%u margin=%.6f copy_bytes=%llu "
         "published_epoch=%llu owner_generation=%llu checksum=0x%llx "
-        "reference_tolerance=0.002 perturb_delta=%.6f n_q=1,2,3 prefill=pass\n",
+        "reference_tolerance=0.002 perturb_delta=%.6f n_q=1,2,3 prefill=pass "
+        "query_checkpoint_restore_and_mapping=pass\n",
         (unsigned long long) seed, winner_logical, margin,
         (unsigned long long) promotion.transaction.h2d_counters.copied_useful_bytes,
         (unsigned long long) promotion.published_epoch,
