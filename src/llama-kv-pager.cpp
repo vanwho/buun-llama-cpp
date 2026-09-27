@@ -14,6 +14,8 @@ const char * llama_kv_pager_selector_trace_outcome_name(
         case llama_kv_pager_selector_trace_outcome::none: return "none";
         case llama_kv_pager_selector_trace_outcome::selector_not_run: return "selector_not_run";
         case llama_kv_pager_selector_trace_outcome::no_eligible_cold_page: return "no_eligible_cold_page";
+        case llama_kv_pager_selector_trace_outcome::selector_no_rankable_score: return "selector_no_rankable_score";
+        case llama_kv_pager_selector_trace_outcome::selector_no_eligible_candidate: return "selector_no_eligible_candidate";
         case llama_kv_pager_selector_trace_outcome::eligible_ranked_out: return "eligible_ranked_out";
         case llama_kv_pager_selector_trace_outcome::selected_pending: return "selected_pending";
         case llama_kv_pager_selector_trace_outcome::mailbox_dropped: return "mailbox_dropped";
@@ -2548,10 +2550,11 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(
         cold.host_valid = true;
         cold.dirty = false;
         cold.pin_count = 0;
-        // The retained host object is authenticated by the serialized page
-        // generation, which is also the canonical content version exposed by
-        // exact cold-page enumeration.
-        cold.content_version = cold.id.page_generation;
+        // Keep the content version captured by the sealed routing summary.
+        // The serialized page generation authenticates the host object, but
+        // it is independent of the version proving the summary describes
+        // these bytes.
+        cold.content_version = page.content_version;
         remember_logical_page(cold);
     }
     page = {};

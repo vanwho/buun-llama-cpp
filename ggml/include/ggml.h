@@ -2650,9 +2650,9 @@ extern "C" {
     // Select pages by the conservative upper-bound score induced by q and a
     // stored-space min/max catalogue.  The output is [k_resident+k_cold] I32:
     // resident pages occupy the first range, cold pages the second range, and
-    // unavailable slots are -1.  The four op parameters are fixed capacities,
-    // page size, and query row; dynamic generation/position state belongs in
-    // src4 so captured graphs do not need to be rebuilt.
+    // unavailable slots are -1. The fifth op parameter enables a bounded
+    // failure code in the first empty cold slot for diagnostics: -2 means
+    // eligible pages had no rankable score, -3 means no cold page was eligible.
     GGML_API struct ggml_tensor * ggml_kv_page_select(
             struct ggml_context * ctx,
             struct ggml_tensor  * q,
@@ -2663,7 +2663,8 @@ extern "C" {
             int                   k_resident,
             int                   k_cold,
             int                   page_size,
-            int                   query_row);
+            int                   query_row,
+            int                   diagnostic_mode);
 
     // Metadata fields are [position, valid length, sequence generation,
     // page generation, physical slot, stream, ready, update]. A page is

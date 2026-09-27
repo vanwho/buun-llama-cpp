@@ -854,6 +854,9 @@ static void test_pager_host_mutation() {
     // published exactly once before its slot is reused.
     const auto tail_pages = tail_pager->host_catalog()->pages();
     assert(tail_pages.empty());
+    const auto tail_before_eviction = tail_pager->residency().pages();
+    assert(tail_before_eviction.size() == 1);
+    const auto tail_content_version = tail_before_eviction[0].content_version;
     assert(tail_pager->begin_write(0, 1, 256, ticket) ==
             llama_kv_pager_write_status::ok);
     const auto retained_tail_pages = tail_pager->host_catalog()->pages();
@@ -873,7 +876,7 @@ static void test_pager_host_mutation() {
             [&](const auto & record) { return record.id == cold_tail_id; });
     assert(cold_record != cold_records.end());
     assert(cold_record->valid_length == 17);
-    assert(cold_record->content_version == cold_tail_id.page_generation);
+    assert(cold_record->content_version == tail_content_version);
     assert(cold_record->host_valid && !cold_record->dirty);
     assert(cold_record->physical_slot == UINT32_MAX);
     assert(tail_pager->cancel_write(ticket) == llama_kv_pager_write_status::ok);

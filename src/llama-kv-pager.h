@@ -369,6 +369,8 @@ enum class llama_kv_pager_selector_trace_outcome : uint8_t {
     none = 0,
     selector_not_run,
     no_eligible_cold_page,
+    selector_no_rankable_score,
+    selector_no_eligible_candidate,
     eligible_ranked_out,
     selected_pending,
     mailbox_dropped,
@@ -444,6 +446,7 @@ struct llama_kv_pager_selector_trace {
     std::array<int32_t, 2> raw_cold_logical_pages{{-1, -1}};
     uint32_t raw_cold_count = 0;
     bool raw_selector_output_valid = false;
+    int32_t selector_diagnostic_failure = 0;
     bool async_readback_submitted = false;
     bool async_readback_completed = false;
     bool synchronous_readback_completed = false;

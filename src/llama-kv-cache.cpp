@@ -2347,7 +2347,12 @@ bool llama_kv_cache::pager_selector_complete(
             for (uint32_t rank = segment.output.resident_count;
                     rank < segment.count && trace.raw_cold_count < trace.raw_cold_indices.size();
                     ++rank) {
-                const int32_t index = copied_ids[segment.raw_offset + rank];
+                const int32_t raw_index = copied_ids[segment.raw_offset + rank];
+                if (rank == segment.output.resident_count &&
+                        (raw_index == -2 || raw_index == -3)) {
+                    trace.selector_diagnostic_failure = raw_index;
+                }
+                const int32_t index = raw_index < 0 ? -1 : raw_index;
                 const uint32_t out = trace.raw_cold_count++;
                 trace.raw_cold_indices[out] = index;
                 if (index >= 0 && size_t(index) < segment.output.pages.size()) {
@@ -2402,7 +2407,11 @@ bool llama_kv_cache::pager_selector_complete(
     if (written == 0) {
         if (trace_current) {
             trace.mailbox_dropped = true;
-            trace.outcome = llama_kv_pager_selector_trace_outcome::mailbox_dropped;
+            trace.outcome = trace.selector_diagnostic_failure == -2
+                ? llama_kv_pager_selector_trace_outcome::selector_no_rankable_score
+                : trace.selector_diagnostic_failure == -3
+                    ? llama_kv_pager_selector_trace_outcome::selector_no_eligible_candidate
+                    : llama_kv_pager_selector_trace_outcome::mailbox_dropped;
         }
         return false;
     }
@@ -3265,55 +3274,60 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 pager_->record_rejection_identity_mismatch();
                 continue;
             }
+            // The selector names a layer-local copy, while the ordinary live
+            // policy consumes the canonical logical-bundle identity from its
+            // inventory. Keep the layer separately as nomination provenance,
+            // but pass the authenticated inventory identity downstream so
+            // exact retrieval lookups in the policy builder can match it.
+            auto authenticated_candidate = candidate;
+            authenticated_candidate.identity = found->id;
+            const auto & accepted = authenticated_candidate;
             if (trace_target) selector_trace.candidate_authenticated = true;
-            if (!candidate.cold) {
+            if (!accepted.cold) {
                 if (trace_target) {
                     selector_trace.outcome = llama_kv_pager_selector_trace_outcome::stale_invalid_identity;
                 }
                 auto & layer_candidates = resident_by_layer[candidate.attention_layer];
                 if (std::find_if(layer_candidates.begin(), layer_candidates.end(),
                         [&](const auto & old) { return same_bundle(old.identity,
-                            candidate.identity); }) == layer_candidates.end()) {
-                    layer_candidates.push_back(candidate);
+                            accepted.identity); }) == layer_candidates.end()) {
+                    layer_candidates.push_back(accepted);
                 }
                 continue;
             }
-            const bool also_resident = std::find_if(candidates.begin(), candidates.end(),
-                    [&](const auto & old) {
-                auto a = old.identity;
-                auto b = candidate.identity;
-                a.attention_layer = UINT32_MAX;
-                b.attention_layer = UINT32_MAX;
-                return !old.cold && a == b;
-            }) != candidates.end();
-            if (also_resident) continue;
+            // This candidate describes a cold page in this attention layer.
+            // A resident copy elsewhere in the logical bundle cannot satisfy
+            // it; cold bundle aggregation below deduplicates the transfer
+            // request while the live pager skips layers already resident.
             auto bundle = std::find_if(cold_bundles.begin(), cold_bundles.end(),
                     [&](const auto & old) { return same_bundle(old.candidate.identity,
-                        candidate.identity); });
+                        accepted.identity); });
             if (bundle == cold_bundles.end()) {
                 cold_bundle value;
-                value.candidate = candidate;
-                value.priority = candidate.score;
+                value.candidate = accepted;
+                value.priority = accepted.score;
                 value.nominating_layers.push_back(candidate.attention_layer);
                 cold_bundles.push_back(std::move(value));
             } else {
-                bundle->priority = std::max(bundle->priority, candidate.score);
+                bundle->priority = std::max(bundle->priority, accepted.score);
                 if (std::find(bundle->nominating_layers.begin(),
                         bundle->nominating_layers.end(), candidate.attention_layer) ==
                         bundle->nominating_layers.end()) {
                     bundle->nominating_layers.push_back(candidate.attention_layer);
                 }
-                if (candidate.score > bundle->candidate.score ||
-                        (candidate.score == bundle->candidate.score &&
+                if (accepted.score > bundle->candidate.score ||
+                        (accepted.score == bundle->candidate.score &&
                          candidate.attention_layer < bundle->candidate.attention_layer)) {
-                    bundle->candidate = candidate;
+                    bundle->candidate = accepted;
                 }
             }
         }
-        // Reserve the shared cold admission window before filling the union
-        // with resident ranks. This makes the two-cold-bundle limit explicit
-        // and prevents a large resident route from consuming it.
-        const size_t cold_budget = std::min<size_t>(2, cold_bundles.size());
+        // Let the live policy rank the complete bounded selector nomination
+        // set. The transfer transaction applies its independent H2D page cap
+        // below; truncating here could discard a valid nomination before the
+        // ordinary policy sees it.
+        const size_t cold_budget = std::min<size_t>(boundary.hot_capacity,
+                cold_bundles.size());
         const size_t resident_boundary_limit = boundary.hot_capacity > cold_budget
             ? boundary.hot_capacity - cold_budget : 0;
         for (auto & layer : resident_by_layer) {
@@ -3336,8 +3350,15 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             }
         }
         std::sort(cold_bundles.begin(), cold_bundles.end(),
-                [](const auto & lhs, const auto & rhs) {
+                [&](const auto & lhs, const auto & rhs) {
             if (lhs.priority != rhs.priority) return lhs.priority > rhs.priority;
+            const uint32_t final_layer = pager_snapshot.geometry.model_layer_ids.empty()
+                ? UINT32_MAX : pager_snapshot.geometry.model_layer_ids.back();
+            const bool lhs_final_layer = std::find(lhs.nominating_layers.begin(),
+                    lhs.nominating_layers.end(), final_layer) != lhs.nominating_layers.end();
+            const bool rhs_final_layer = std::find(rhs.nominating_layers.begin(),
+                    rhs.nominating_layers.end(), final_layer) != rhs.nominating_layers.end();
+            if (lhs_final_layer != rhs_final_layer) return lhs_final_layer;
             if (lhs.nominating_layers.size() != rhs.nominating_layers.size()) {
                 return lhs.nominating_layers.size() > rhs.nominating_layers.size();
             }
@@ -3371,15 +3392,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     selector_trace.raw_cold_logical_pages.begin() + selector_trace.raw_cold_count,
                     selector_trace.target_logical_page) !=
                 selector_trace.raw_cold_logical_pages.begin() + selector_trace.raw_cold_count;
-            const bool policy_target = std::find_if(boundary.retrieval.selected.begin(),
-                    boundary.retrieval.selected.end(), [&](const auto & entry) {
-                return entry.id.logical_page == uint32_t(selector_trace.target_logical_page);
-            }) != boundary.retrieval.selected.end();
-            selector_trace.policy_admitted = policy_target;
             if (!raw_target && selector_trace.target_eligible) {
                 selector_trace.outcome = llama_kv_pager_selector_trace_outcome::eligible_ranked_out;
-            } else if (raw_target && selector_trace.candidate_authenticated && !policy_target) {
-                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::policy_target_omission;
             }
         }
         const uint32_t forced_page = pager_->test_force_logical_page();
@@ -3496,6 +3510,27 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             decision = llama_kv_policy_decide(
                     policy_input, boundary.policy, previous_policy_target);
             policy_target_bound = true;
+            if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                    selector_trace.query_generation == pager_query_generation_) {
+                selector_trace.policy_admitted = std::any_of(
+                        decision.target.begin(), decision.target.end(), [&](uint64_t policy_id) {
+                    return policy_id != 0 && policy_id <= policy_trace.pages.size() &&
+                        policy_trace.pages[size_t(policy_id - 1)].id.logical_page ==
+                            uint32_t(selector_trace.target_logical_page);
+                });
+                const bool raw_target = std::find(
+                        selector_trace.raw_cold_logical_pages.begin(),
+                        selector_trace.raw_cold_logical_pages.begin() +
+                            selector_trace.raw_cold_count,
+                        selector_trace.target_logical_page) !=
+                    selector_trace.raw_cold_logical_pages.begin() +
+                        selector_trace.raw_cold_count;
+                if (raw_target && selector_trace.candidate_authenticated &&
+                        !selector_trace.policy_admitted) {
+                    selector_trace.outcome =
+                        llama_kv_pager_selector_trace_outcome::policy_target_omission;
+                }
+            }
             for (const auto policy_id : decision.target) {
                 if (policy_id == 0 || policy_id > policy_trace.pages.size()) continue;
                 const auto & id = policy_trace.pages[size_t(policy_id - 1)].id;
@@ -3528,6 +3563,9 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         [&](const auto & page) { return page.record.id == target_id; });
                 if (source == boundary.pages.end() || source->record.physical_slot != UINT32_MAX) {
                     continue;
+                }
+                if (promotion_pages.size() >= boundary.transaction.max_h2d_pages) {
+                    break;
                 }
                 vbr_selected_page_host_view selected_host;
                 if (!find_host_page(target_id, selected_host)) {
@@ -3650,7 +3688,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     if (!used[slot]) { selected_slot = slot; break; }
                 }
             }
-            if (!promotion_valid || promotion_pages.size() > 2) {
+            if (!promotion_valid || promotion_pages.size() >
+                    boundary.transaction.max_h2d_pages) {
                 if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
                         std::any_of(cold_bundles.begin(), cold_bundles.end(), [&](const auto & bundle) {
                     return bundle.candidate.identity.logical_page ==
@@ -17207,7 +17246,8 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
         return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
     }
     ggml_tensor * selected = ggml_kv_page_select(ctx, routing_q, summary, metadata, membership, query,
-            k_resident, k_cold, snapshot.geometry.page_tokens, int(query_row));
+            k_resident, k_cold, snapshot.geometry.page_tokens, int(query_row),
+            pager.selector_trace().enabled ? 1 : 0);
     note_kv_page_select_gate(selected != nullptr
             ? llama_kv_pager_selector_gate::selector_nodes_created
             : llama_kv_pager_selector_gate::tensor_allocation_failed,

@@ -3930,6 +3930,7 @@ public:
                             trace.raw_cold_logical_pages.begin() + trace.raw_cold_count)},
                         {"raw_cold_count", trace.raw_cold_count},
                         {"raw_selector_output_valid", trace.raw_selector_output_valid},
+                        {"selector_diagnostic_failure", trace.selector_diagnostic_failure},
                         {"async_readback_submitted", trace.async_readback_submitted},
                         {"async_readback_completed", trace.async_readback_completed},
                         {"synchronous_readback_completed", trace.synchronous_readback_completed},

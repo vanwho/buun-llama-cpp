@@ -530,7 +530,7 @@ static int run_proof() {
     ggml_tensor * membership = ggml_new_tensor_1d(selector_context, GGML_TYPE_I32, pages);
     ggml_tensor * query = ggml_new_tensor_1d(selector_context, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(selector_context, transformed, bounds,
-        metadata, membership, query, 2, cold_capacity, page_tokens, final_query_row);
+        metadata, membership, query, 2, cold_capacity, page_tokens, final_query_row, 1);
     const int32_t routed_query_row = selected->op_params[3];
     assert(routed_query_row == int32_t(final_query_row));
     ggml_set_output(selected);
@@ -819,6 +819,45 @@ static int run_proof() {
     free_dense(perturbed_output);
     free_dense(consumed_output);
     free_dense(reference_output);
+
+    // Diagnostic mode distinguishes eligible pages with unusable scores
+    // from pages that are ineligible, without reading query tensors back.
+    const auto unbounded = std::find(membership_data.begin(), membership_data.end(), 0);
+    assert(unbounded != membership_data.end());
+    const uint32_t unbounded_page = uint32_t(unbounded - membership_data.begin());
+    for (uint32_t logical = 0; logical < pages; ++logical) {
+        if (membership_data[logical] != 0) continue;
+        for (uint32_t head = 0; head < kv_heads; ++head) {
+            for (uint32_t d = 0; d < head_dim; ++d) {
+                const size_t base = size_t(d + head_dim * 2 * (head + kv_heads * logical));
+                bound_data[base] = ggml_fp32_to_fp16(std::numeric_limits<float>::quiet_NaN());
+                bound_data[base + head_dim] = ggml_fp32_to_fp16(std::numeric_limits<float>::quiet_NaN());
+            }
+        }
+    }
+    ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    std::fill(selector_output.begin(), selector_output.end(), -1);
+    ggml_backend_tensor_get(selected, selector_output.data(), 0, ggml_nbytes(selected));
+    assert(selector_output[2] == -2);
+
+    // Half precision catalogue intervals can conservatively overflow to
+    // +/-infinity for unusually large finite K values. Such an interval has
+    // an unbounded upper score, so it must remain rankable instead of
+    // turning every cold candidate into the selector's -1 sentinel.
+    for (uint32_t head = 0; head < kv_heads; ++head) {
+        for (uint32_t d = 0; d < head_dim; ++d) {
+            const size_t base = size_t(d + head_dim * 2 * (head + kv_heads * unbounded_page));
+            bound_data[base] = ggml_fp32_to_fp16(-std::numeric_limits<float>::infinity());
+            bound_data[base + head_dim] = ggml_fp32_to_fp16(std::numeric_limits<float>::infinity());
+        }
+    }
+    ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
+    assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    std::fill(selector_output.begin(), selector_output.end(), -1);
+    ggml_backend_tensor_get(selected, selector_output.data(), 0, ggml_nbytes(selected));
+    assert(std::find(selector_output.begin() + 2, selector_output.end(),
+            int32_t(unbounded_page)) != selector_output.end());
 
     std::fprintf(stdout,
         "cuda_production_promotion_chain=pass mature_fa_consumption_parity=pass "

@@ -161,13 +161,13 @@ int main() {
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
     ggml_tensor * query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
-                                                  2, 2, 4, 1);
+                                                  2, 2, 4, 1, 0);
     ggml_tensor * selected_row_zero = ggml_kv_page_select(ctx, q, bounds, metadata,
-            membership, query, 2, 2, 4, 0);
+            membership, query, 2, 2, 4, 0, 0);
     ggml_tensor * q_decode = ggml_view_3d(ctx, q, d, n_q_heads, 1,
             q->nb[1], q->nb[2], 0);
     ggml_tensor * selected_decode = ggml_kv_page_select(ctx, q_decode, bounds,
-            metadata, membership, query, 2, 2, 4, 0);
+            metadata, membership, query, 2, 2, 4, 0, 0);
     // The production pager reads this compact result after the scheduler
     // fence.  Keep the selector output alive for that graph-result boundary.
     ggml_set_output(selected);

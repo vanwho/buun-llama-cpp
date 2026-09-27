@@ -23,6 +23,7 @@ SERVER_CONTEXT_TOKENS = 16384
 GPU_HOT_TOKENS = 4096
 PAGE_SIZE_TOKENS = 256
 GENERATION_CONTEXT_RESERVE_TOKENS = 128
+GENERATION_COMPLETION_LIMIT_TOKENS = 64
 
 
 def response_budget(prompt_tokens: int, context_tokens: int = SERVER_CONTEXT_TOKENS) -> int:
@@ -34,7 +35,7 @@ def response_budget(prompt_tokens: int, context_tokens: int = SERVER_CONTEXT_TOK
     available = context_tokens - prompt_tokens - GENERATION_CONTEXT_RESERVE_TOKENS
     if available <= 0:
         raise ValueError("rendered prompt leaves no safe completion space in the server context")
-    return available
+    return min(available, GENERATION_COMPLETION_LIMIT_TOKENS)
 
 PYTHON_QUESTION = ("Among these five Python implementations, which one uses an exactly "
                    "preallocated result list and writes each result position once, the "
