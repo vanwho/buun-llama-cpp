@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "94",
-  "current_task": "94-02",
-  "last_updated_utc": "2026-09-27T21:32:58+00:00",
+  "current_phase": "95",
+  "current_task": "95-01",
+  "last_updated_utc": "2026-09-27T22:02:07+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -26818,7 +26818,7 @@
       "cluster": "forward94-turn-epoch",
       "title": "Freeze historical selection during generation and native MTP",
       "packet": ".wiretail/execution/tasks/94-02.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -26834,7 +26834,7 @@
       "depends_on": [
         "94-01a"
       ],
-      "commit": null,
+      "commit": "df8bc835267294654fb179e90ac6d7a0e6ce14de",
       "context_files": [
         ".wiretail/execution/clusters/forward94-turn-epoch.md",
         ".wiretail/execution/tasks/94-02.md",
@@ -26859,7 +26859,47 @@
         "94-02",
         "--receipt",
         ".wiretail/execution/evidence/V10_94-02.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/94-02-attempt-1-20260927T213320792276737-20260927T213320795218323-Pdk6gr.jsonl:255",
+            "total_tokens": 41634272,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 41462238,
+            "cached_input_tokens": 40661760,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 800478,
+            "output_tokens": 172034,
+            "thinking_tokens": 83148
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 41634272,
+          "input_tokens": 41462238,
+          "cached_input_tokens": 40661760,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 800478,
+          "output_tokens": 172034,
+          "thinking_tokens": 83148,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "95-01",
@@ -29341,16 +29381,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 2,
-        "total_tokens": 35368896,
-        "input_tokens": 35229230,
-        "cached_input_tokens": 34579712,
+        "usage_events": 3,
+        "total_tokens": 77003168,
+        "input_tokens": 76691468,
+        "cached_input_tokens": 75241472,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 649518,
-        "output_tokens": 139666,
-        "thinking_tokens": 59625,
+        "input_tokens_minus_cached_tokens": 1449996,
+        "output_tokens": 311700,
+        "thinking_tokens": 142773,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 2,
+        "total_tokens_derived_events": 3,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -29365,17 +29405,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 385,
-      "total_tokens": 8278766025,
-      "input_tokens": 8256541037,
-      "cached_input_tokens": 8076942080,
+      "usage_events": 386,
+      "total_tokens": 8320400297,
+      "input_tokens": 8298003275,
+      "cached_input_tokens": 8117603840,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 31,
-      "input_tokens_minus_cached_tokens": 179598957,
-      "output_tokens": 22224988,
-      "thinking_tokens": 8664019,
+      "cache_write_input_tokens_known_events": 32,
+      "input_tokens_minus_cached_tokens": 180399435,
+      "output_tokens": 22397022,
+      "thinking_tokens": 8747167,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 385,
+      "total_tokens_derived_events": 386,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

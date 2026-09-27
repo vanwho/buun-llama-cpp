@@ -109,6 +109,23 @@ public:
     void note_kv_pager_accepted_tokens(uint32_t count) override {
         mem_attn->note_kv_pager_accepted_tokens(count);
     }
+    void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
+            int64_t query_start, int64_t query_end) override {
+        mem_attn->begin_kv_pager_turn(sequence_id, turn_id, query_start, query_end);
+    }
+    bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
+            uint64_t * frozen_history_generation) override {
+        return mem_attn->freeze_kv_pager_history(
+                sequence_id, turn_id, frozen_history_generation);
+    }
+    bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
+            uint64_t frozen_history_generation) const override {
+        return mem_attn->kv_pager_history_matches(
+                sequence_id, turn_id, frozen_history_generation);
+    }
+    void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override {
+        mem_attn->end_kv_pager_turn(sequence_id, turn_id);
+    }
 
     //
     // llama_memory_i

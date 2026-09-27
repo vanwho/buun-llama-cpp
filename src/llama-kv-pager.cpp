@@ -2801,12 +2801,23 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     }
     const uint32_t logical = uint32_t(logical64);
     const uint32_t offset = uint32_t(offset64);
+    const auto frozen_history_page = [&](const page_state * candidate) {
+        if (candidate == nullptr || !candidate->present) return false;
+        for (const auto & entry : turn_states_) {
+            if (entry.second.phase == llama_kv_pager_turn_phase::idle) continue;
+            for (const auto & selected : entry.second.selected_history) {
+                if (selected.identity == candidate->record.id) return true;
+            }
+        }
+        return false;
+    };
     const uint64_t physical = uint64_t(snapshot_.physical_page_count - 1) * snapshot_.geometry.page_tokens + offset;
     if (physical > UINT32_MAX) return llama_kv_pager_write_status::overflow;
     page_state * page = find_page(sequence_id, logical);
     if (page != nullptr && page->record.id.sequence_generation != sequence_generation) {
         return llama_kv_pager_write_status::stale_generation;
     }
+    if (frozen_history_page(page)) return llama_kv_pager_write_status::all_pinned;
     if (page != nullptr && page->host_inflight) {
         // The GPU source slot is pinned until its D2H event has completed. A
         // tail rewrite must wait for that publication rather than racing the
@@ -2867,7 +2878,8 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
             (void) seal_ready_pages(false);
             for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
                 page_state * candidate = find_slot(i);
-                if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
+            if (candidate && !frozen_history_page(candidate) &&
+                    candidate->record.pin_count == 0 && candidate->record.host_valid &&
                     (routing_summary_provider_.build == nullptr ||
                      candidate->summary_content_version == candidate->content_version) &&
                     (candidate->record.state == llama_kv_page_state::host_clean ||
@@ -2895,7 +2907,8 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
                 wait_host_completions();
                 for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
                     page_state * candidate = find_slot(i);
-                    if (candidate && candidate->record.pin_count == 0 && candidate->record.host_valid &&
+                    if (candidate && !frozen_history_page(candidate) &&
+                            candidate->record.pin_count == 0 && candidate->record.host_valid &&
                             (routing_summary_provider_.build == nullptr ||
                              candidate->summary_content_version == candidate->content_version) &&
                             (candidate->record.state == llama_kv_page_state::host_clean ||

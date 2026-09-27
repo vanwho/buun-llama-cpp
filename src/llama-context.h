@@ -117,6 +117,7 @@ struct llama_kv_pager_metrics_snapshot {
     llama_kv_residency_transfer_counters d2h_transfers;
     uint64_t promotion_pages = 0;
     uint64_t eviction_pages = 0;
+    uint64_t query_refresh_count = 0;
     uint64_t seal_calls = 0;
     uint64_t seal_pages_scanned = 0;
     uint64_t seal_pages_changed = 0;
@@ -457,6 +458,24 @@ struct llama_context {
         if (memory && count != 0) {
             memory->note_kv_pager_accepted_tokens(count);
         }
+    }
+    void begin_kv_pager_turn(int32_t sequence_id, uint64_t turn_id,
+            int64_t query_start, int64_t query_end) noexcept {
+        if (memory) memory->begin_kv_pager_turn(
+                sequence_id, turn_id, query_start, query_end);
+    }
+    bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
+            uint64_t * frozen_history_generation) noexcept {
+        return !memory || memory->freeze_kv_pager_history(
+                sequence_id, turn_id, frozen_history_generation);
+    }
+    bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
+            uint64_t frozen_history_generation) const noexcept {
+        return !memory || memory->kv_pager_history_matches(
+                sequence_id, turn_id, frozen_history_generation);
+    }
+    void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) noexcept {
+        if (memory) memory->end_kv_pager_turn(sequence_id, turn_id);
     }
     llama_kv_attention_execution_decision prepare_kv_attention(
             const llama_kv_attention_operator_metadata & metadata,

@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "task": "94-02",
+  "source_commit": "095749f78dd6654ee0309b290d62e40fbd6cbdb6",
+  "source_dirty_paths": [
+    "common/speculative.cpp",
+    "common/speculative.h",
+    "src/llama-context.cpp",
+    "src/llama-context.h",
+    "src/llama-kv-cache.cpp",
+    "src/llama-kv-cache.h",
+    "src/llama-kv-pager.cpp",
+    "src/llama-kv-pager.h",
+    "src/llama-memory-hybrid-iswa.h",
+    "src/llama-memory-hybrid.h",
+    "src/llama-memory.h",
+    "tests/test-kv-pager.cpp",
+    "tests/test-speculative-mtp-state.cpp",
+    "tools/server/server-context.cpp"
+  ],
+  "source_dirty_diff_sha256": "3e7ed3a984c710aae6a6db02b126968e396044440c4c331e3953926357515525",
+  "working_tree_dirty_diff_sha256": "157832c8937f51128806c0e2ab615003a5e62886f61793559bfacd8c7e4cae45",
+  "build_identity": {
+    "cuda_build_tree": "build-cuda",
+    "cuda_targets": [
+      "llama-server",
+      "test-kv-pager",
+      "test-speculative-mtp-state"
+    ],
+    "cuda_executables": [
+      {
+        "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "sha256": "f3f376fff2832e4f2de8ece5f3db0d479f023f24491e7a998fc6bbce80b83c6f"
+      },
+      {
+        "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-kv-pager",
+        "sha256": "ebd93aa638ebea70f79705bfe6e0cc0a7b25008c12372b8da9836f91152f3b02"
+      },
+      {
+        "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-speculative-mtp-state",
+        "sha256": "2178debc78457b08acca9aadde28bec385acc430635ca9cdc86320fa1888e5c6"
+      }
+    ],
+    "cuda_build_flags": "CMAKE_BUILD_TYPE:STRING=Release\nCMAKE_CUDA_ARCHITECTURES:STRING=89-real\nCMAKE_CUDA_COMPILER:FILEPATH=/usr/bin/nvcc\nCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++",
+    "build_log": {
+      "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/targeted-build-final.log",
+      "sha256": "8cbf4347ae1b012355d0fadcf42c1ee9688d211531a822b4f4e7f7c72fc7e71a"
+    },
+    "loaded_candidate_executable_dso_sha256": {
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.24.0": "2fc34d1f0ce40aba677ec3be068493c7a15fc2efb8f849290f0e3ecfaeeab8c3",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.24.0": "87d1386d497d4e2c4e57603a1bb4abde7cdcf473886aea981007116fc8e73c07",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.24.0": "b18f7288f5f5c390f0572a7c6901d603bf5c4e1835093dd3301e332f6c12d3a2",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.24.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.4.1": "23d932d218aca7570d0087e2d0e11a74b821dae086aba22d9cd81ca1851ae73d",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so": "e839a226b7af305f4f02d07118b4bffdbbc386f8b5ca1a26f788423aa1185968",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.4.1": "f7d7ab6ca3c56709a7b28d9438430d478efdbfb896002b07d0e52286bd711ff5",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.4.1": "7b138d699f2abb0af6b7a6b1a61f3bb87047915730c3ed999f0ff12aec7e3384",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server": "f3f376fff2832e4f2de8ece5f3db0d479f023f24491e7a998fc6bbce80b83c6f"
+    }
+  },
+  "candidate": {
+    "profile": "qwen38-fast",
+    "pid": 681216,
+    "process_start_time_local": "Sun Sep 27 23:54:35 2026",
+    "systemd_active_enter": "Sun 2026-09-27 23:54:35 CEST",
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "binary_sha256": "f3f376fff2832e4f2de8ece5f3db0d479f023f24491e7a998fc6bbce80b83c6f",
+    "argv": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+      "-m",
+      "/srv/ai/models/text/current.gguf",
+      "--alias",
+      "qwen38-fast-turbo4-mtp",
+      "-ngl",
+      "999",
+      "--fit",
+      "off",
+      "-fa",
+      "on",
+      "-c",
+      "8192",
+      "-np",
+      "1",
+      "-ctk",
+      "turbo4",
+      "-ctv",
+      "turbo4",
+      "-b",
+      "1024",
+      "-ub",
+      "256",
+      "--context-shift",
+      "--poll",
+      "0",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8080",
+      "--api-key-file",
+      "/srv/ai/config/llama/api-keys",
+      "--metrics",
+      "--reasoning-preserve",
+      "--kv-pager",
+      "selective",
+      "--kv-page-size",
+      "256",
+      "--kv-hot-pages",
+      "16",
+      "--device",
+      "CUDA0",
+      "--ctx-checkpoints",
+      "0",
+      "--cache-ram",
+      "0",
+      "--no-cache-idle-slots",
+      "--spec-draft-kv-device",
+      "gpu",
+      "--spec-type",
+      "draft-mtp",
+      "--spec-draft-n-max",
+      "2",
+      "--spec-draft-type-k",
+      "turbo4",
+      "--spec-draft-type-v",
+      "turbo4"
+    ],
+    "effective_command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --device CUDA0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+    "loaded_dsos": [
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.24.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.24.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.24.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.24.0",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.4.1",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.4.1",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.4.1",
+      "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server"
+    ],
+    "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "context_tokens": 8192,
+    "hot_pages": 16,
+    "page_size_tokens": 256,
+    "hot_capacity_tokens": 4096,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "turbo4/gpu",
+    "mtp": {
+      "placement": "gpu",
+      "type_k": "turbo4",
+      "type_v": "turbo4",
+      "spec_type": "draft-mtp",
+      "draft_n_max": 2
+    },
+    "service": "llama-server.service",
+    "port": 8080
+  },
+  "live_result": {
+    "model": {
+      "source": "unsloth/Qwen3.8-27B-GGUF",
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "file": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "quantization": "UD-IQ4_XS",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "size_bytes": 14252845984
+    },
+    "geometry": {
+      "L": 8192,
+      "H": 4096,
+      "page_tokens": 256,
+      "hot_pages": 16
+    },
+    "prompt_tokens": 30,
+    "actual_generated_tokens": 128,
+    "resolved_capacity_tokens": 8192,
+    "mtp": {
+      "mode": "native",
+      "source": "prometheus_counter_delta",
+      "draft_tokens": 92,
+      "accepted_tokens": 57,
+      "acceptance_percent": 61.95652174,
+      "acceptance_rate": 61.95652174,
+      "journal_case_key": "909f3699a4e1b76633ce3df44ee7957b7d0369c130cde54ce4a348c383eff84f",
+      "journal_excerpt_sha256": "e44e07cadfac613bb0d0f85380428c1eaaa6becacdd88b1e692af8e9959ca100"
+    },
+    "frozen_history_span": {
+      "turn_id": 1,
+      "frozen_history_generation": 1,
+      "selector_refresh_delta": 0,
+      "h2d_queued_delta": 0,
+      "promotion_pages_delta": 0,
+      "eviction_pages_delta": 0,
+      "summary_build_calls_delta": 0,
+      "table_epoch_before": 56,
+      "table_epoch_after": 429
+    },
+    "candidate_identity_artifact": {
+      "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/candidate-identity.json",
+      "sha256": "bd039b1567ed4d94cf7625ad22f82161deaaca109c716ee1dbf96b64b991d593"
+    }
+  },
+  "checks": {
+    "frozen_history_and_mtp_epoch": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-kv-pager"
+      ],
+      "supporting_command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-speculative-mtp-state"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/targeted-build-final.log",
+          "sha256": "8cbf4347ae1b012355d0fadcf42c1ee9688d211531a822b4f4e7f7c72fc7e71a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/test-kv-pager-final.log",
+          "sha256": "403c5c8493cec01fdc4068b423497ca01f68ec27c0d2b48a7cd8fa518b31e41f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/test-speculative-mtp-state-final.log",
+          "sha256": "d8a310acb871b005a7e7d58f7bd00f1e6e0c9e3a0effa330e6d7489303a08fc7"
+        }
+      ]
+    },
+    "frozen_history_cuda_smoke": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "fast",
+        "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke",
+        "--mode",
+        "selective",
+        "--device",
+        "CUDA0",
+        "--page-size",
+        "256",
+        "--batch",
+        "1024",
+        "--ubatch",
+        "256",
+        "--context",
+        "8192",
+        "--mtp",
+        "native",
+        "--kv-hot-pages",
+        "16",
+        "--one-case",
+        "--one-trial",
+        "--generation-length",
+        "128",
+        "--case-index",
+        "0"
+      ],
+      "environment": {
+        "BENCH_SERVER_BIN": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "BENCH_MODES": "off"
+      },
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke-runner.log",
+          "sha256": "d0a4e4dc88765db873e039f130c829bfa4fa4e38f00a34683d7f977234da9327"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/records.jsonl",
+          "sha256": "666d0f79064d9eb5b09a994d55918b61f011855dfd3ab1f79b5224082572d1e5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/run-config.json",
+          "sha256": "c368cf28b5a297ab6def164a03f77b34461ff69bfb822ef5361aab1b10c1a263"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/lifecycle-state.json",
+          "sha256": "8c2835f67906e8b4fb9395f67af12ee10c95c8fea448c748ba999e8bc53251e0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/raw/startup-mtp.log",
+          "sha256": "8abbd0cda1f37f57069464b5388d2c7023bb7b9e743611db570e4f93b00c7154"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/raw/off-measured-1-p0.mtp-before.prom",
+          "sha256": "e4572bccf9d8056475f3a79f3422b4b301be077ad43d89547297d07d9da0c402"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/raw/off-measured-1-p0.mtp-after.prom",
+          "sha256": "7cd8d0ba22363f21f969711215fc5b774e925eb2da2fc4af152138ae0d8784d1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/kv-pager-generated-span.log",
+          "sha256": "bb696c4075e828c84b879965e7791857ccabf5ff448192fbf9339aac43ddc1ea"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-02/attempt-01/live-smoke/candidate-identity.json",
+          "sha256": "bd039b1567ed4d94cf7625ad22f82161deaaca109c716ee1dbf96b64b991d593"
+        }
+      ]
+    }
+  },
+  "deferred_verification": []
+}

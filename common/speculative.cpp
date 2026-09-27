@@ -230,6 +230,25 @@ void common_speculative_mtp_rollback_guard::reset() noexcept {
     applied = false;
 }
 
+bool common_speculative_mtp_history_epoch::bind(
+        uint64_t turn_id, uint64_t frozen_history_generation) noexcept {
+    if (turn_id == 0 || frozen_history_generation == 0) return false;
+    turn = turn_id;
+    history = frozen_history_generation;
+    return true;
+}
+
+bool common_speculative_mtp_history_epoch::matches(
+        uint64_t turn_id, uint64_t frozen_history_generation) const noexcept {
+    return turn != 0 && history != 0 && turn == turn_id &&
+        history == frozen_history_generation;
+}
+
+void common_speculative_mtp_history_epoch::clear() noexcept {
+    turn = 0;
+    history = 0;
+}
+
 common_speculative_checkpoint_policy common_speculative_checkpoint_policy_resolve(
         bool has_draft_context,
         bool vbr_prompt_cache,

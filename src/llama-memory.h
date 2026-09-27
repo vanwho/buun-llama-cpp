@@ -346,6 +346,20 @@ struct llama_memory_i {
     // recurrent-only and out-of-tree memories inert.
     virtual void note_kv_pager_accepted_tokens(uint32_t /* count */) {}
 
+    // Server-owned logical turn notifications. They are separate from decode
+    // submissions so prefill, target verification and rollback cannot mint turns.
+    virtual void begin_kv_pager_turn(
+            int32_t /* sequence_id */, uint64_t /* turn_id */,
+            int64_t /* query_start */, int64_t /* query_end */) {}
+    virtual bool freeze_kv_pager_history(
+            int32_t /* sequence_id */, uint64_t /* turn_id */,
+            uint64_t * /* frozen_history_generation */) { return true; }
+    virtual bool kv_pager_history_matches(
+            int32_t /* sequence_id */, uint64_t /* turn_id */,
+            uint64_t /* frozen_history_generation */) const { return true; }
+    virtual void end_kv_pager_turn(
+            int32_t /* sequence_id */, uint64_t /* turn_id */) {}
+
     // split the input batch into a set of ubatches and verify that they can fit into the cache
     // return a context object containing the ubatches and memory state required to process them
     // check the llama_memory_context_i::get_status() for the result

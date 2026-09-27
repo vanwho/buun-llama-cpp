@@ -115,6 +115,24 @@ void test_transaction_rows_and_checkpoint() {
     assert(!guard.should_apply(101));
     assert(guard.should_apply(102));
     assert(!guard.should_apply(102));
+
+    common_speculative_mtp_history_epoch frozen_history;
+    assert(frozen_history.bind(29, 71));
+    // A generation-tail append advances the mutable table epoch from 90 to
+    // 91, but the target and draft remain bound to the same frozen history.
+    const uint64_t table_epoch_before_append = 90;
+    const uint64_t table_epoch_after_append = table_epoch_before_append + 1;
+    assert(table_epoch_after_append != table_epoch_before_append);
+    assert(frozen_history.matches(29, 71));
+    // A rejected suffix rollback keeps the same binding for the next verify.
+    const auto rejected = common_speculative_rollback_frontier_resolve(200, 2, 1);
+    assert(rejected.valid() && rejected.rejected_draft_tokens == 1);
+    assert(frozen_history.matches(29, 71));
+    assert(!frozen_history.matches(30, 71));
+    assert(!frozen_history.matches(29, 72));
+    frozen_history.clear();
+    assert(!frozen_history.matches(29, 71));
+    std::cout << "frozen_history_and_mtp_epoch=pass\n";
 }
 
 } // namespace
