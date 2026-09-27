@@ -299,6 +299,17 @@ std::vector<std::unique_ptr<field>> make_llama_cmpl_schema(const common_params &
             SRV_TRC("chat format: %s\n", common_chat_format_name(ctx.params.chat_parser_params.format));
         }));
 
+    add((new field_json("rendered_user_message_count"))
+        ->set_desc("Server-derived user-message count for authenticating rendered role spans")
+        ->set_handler([&](field_eval_context & ctx, const json & data) {
+            const int64_t count = data.at("rendered_user_message_count").get<int64_t>();
+            if (count < 0 || count > INT32_MAX) {
+                throw std::invalid_argument("rendered user-message count is out of range");
+            }
+            ctx.params.rendered_user_message_count = (int32_t) count;
+            ctx.params.rendered_user_message_count_present = true;
+        }));
+
     add((new field_str("reasoning_format"))
         ->set_desc("Reasoning format for chain-of-thought models")
         ->set_handler([&](field_eval_context & ctx, const json & data) {

@@ -134,6 +134,10 @@ struct task_params {
 
     // message spans for checkpointing
     common_chat_msg_spans message_spans;
+    bool rendered_user_message_count_present = false;
+    int32_t rendered_user_message_count = 0;
+    int64_t final_user_token_begin = -1;
+    int64_t final_user_token_end = -1;
 
     // Embeddings
     int32_t embd_normalize = 2; // (-1=none, 0=max absolute int16, 1=taxicab, 2=Euclidean/L2, >2=p-norm)

@@ -1613,6 +1613,7 @@ json oaicompat_chat_params_parse(
     }
 
     llama_params["message_delimiters"] = chat_params.message_delimiters.to_json();
+    llama_params["rendered_user_message_count"] = chat_params.rendered_user_message_count;
 
     // Reasoning budget: pass parameters through to sampling layer
     {
