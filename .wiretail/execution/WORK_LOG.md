@@ -1247,3 +1247,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-94-01`
 - Commit at update: `d792ae64d`
 - Summary: Implemented turn retrieval state and H/R/G admission; turn_epoch_state_and_geometry passes and the packet receipt validator passes.
+
+## 2026-09-27T21:32:33+00:00 — 94-01a — done
+
+- Branch: `codex/task-94-01a`
+- Commit at update: `42bf9cc25`
+- Summary: Implemented authoritative authenticated query-commit admission with shared deterministic target slots; required CPU and CUDA proofs, incremental builds, diff check, and V10 receipt validation pass.

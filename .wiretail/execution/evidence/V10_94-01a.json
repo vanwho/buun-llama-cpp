@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "task": "94-01a",
+  "source_commit": "42bf9cc25182c3a765dc3a2ba1181cd4bed79e39",
+  "source_dirty_diff_sha256": "163dc3e4fba3f1ebd249a93c9a0bb4ce458e65d737685c850ccd0e970bd2c648",
+  "source_dirty_paths": [
+    "src/llama-kv-cache.cpp",
+    "src/llama-kv-live-policy.cpp",
+    "src/llama-kv-live-policy.h",
+    "src/llama-kv-pager.cpp",
+    "src/llama-kv-pager.h",
+    "tests/test-cuda-kv-promotion.cpp",
+    "tests/test-kv-policy.cpp"
+  ],
+  "build_identity": {
+    "cuda_build_tree": "build-cuda",
+    "cuda_targets": [
+      "test-kv-policy",
+      "test-cuda-kv-promotion"
+    ],
+    "cuda_executables": [
+      {
+        "path": "build-cuda/bin/test-kv-policy",
+        "sha256": "6d15af911bf0de513825c83ed7ce3af43c04d7bdedaa243b53d7f41b6ee00fb9"
+      },
+      {
+        "path": "build-cuda/bin/test-cuda-kv-promotion",
+        "sha256": "4e0bef565d5221eab34516cec55e010233607b6524e29052ed130603da6ff16f"
+      }
+    ],
+    "cuda_build_flags": "CMAKE_BUILD_TYPE:STRING=Release\nCMAKE_CUDA_ARCHITECTURES:STRING=89-real\nCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++",
+    "cpu_build_tree": "build-14-01-cpu",
+    "cpu_target": "test-kv-policy",
+    "cpu_executable": {
+      "path": "build-14-01-cpu/bin/test-kv-policy",
+      "sha256": "4f23357ed610861bc3aff71c7eb5bd2f63177ff411885f050e8eb6f3e1f3f31c"
+    },
+    "cpu_assertion_flags": "-O3 -UNDEBUG -std=gnu++17 -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wextra-semi",
+    "build_logs": [
+      {
+        "path": "/srv/ai/paged-kv/results/forward/94-01a/attempt-01/cuda-build-final.log",
+        "sha256": "f386f4a903ab146ee5aa5f6f0a5838dacba87f127ef8a5c3f59c2a693528809c"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/forward/94-01a/attempt-01/cpu-build-final.log",
+        "sha256": "25b1119c163517b4e83e81c303082f1a6c8902056331c31a1f21123df83e9608"
+      }
+    ]
+  },
+  "checks": {
+    "query_commit_authoritative_admission": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-14-01-cpu/bin/test-kv-policy",
+        "--query-commit-authoritative-admission"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-01a/attempt-01/cpu-proof-final.log",
+          "sha256": "a74afa93d2b0be07df5b60342cad9372ec9b57850911aa542c7f97d10f578b60"
+        }
+      ]
+    },
+    "query_commit_cuda_transaction_use": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/94-01a/attempt-01/cuda-proof-final.log",
+          "sha256": "e99f1374a022bcd58d2c7d2e34c7141275090225bb1191281c089ec829603ab7"
+        }
+      ]
+    }
+  },
+  "working_tree_dirty_diff_sha256": "cac41f2bdd5253d0f9732b7c2dccf8172aa20321a8b6578fdfb5a2fc77c0a8de"
+}
