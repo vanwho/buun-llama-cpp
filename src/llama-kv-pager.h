@@ -431,6 +431,8 @@ struct llama_kv_pager_selector_trace {
         llama_kv_pager_selector_trace_outcome::none;
 };
 
+constexpr size_t LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY = 16;
+
 enum class llama_kv_pager_status : uint8_t {
     ok = 0,
     disabled,
@@ -661,7 +663,13 @@ public:
     const llama_kv_pager_natural_proof & natural_proof() const noexcept {
         return natural_proof_;
     }
-    void begin_natural_proof_request() noexcept { natural_proof_ = {}; }
+    void begin_natural_proof_request() noexcept {
+        natural_proof_ = {};
+        selector_trace_ = {};
+        selector_trace_history_ = {};
+        selector_trace_history_count_ = 0;
+        selector_trace_history_next_ = 0;
+    }
     void record_natural_proof(const llama_kv_pager_natural_proof & proof) noexcept;
     // Called after the scheduler fence with the logical IDs from the graph
     // metadata that just completed. This is the only target-use edge in the
@@ -678,10 +686,30 @@ public:
     const llama_kv_pager_selector_trace & selector_trace() const noexcept {
         return selector_trace_;
     }
+    const std::array<llama_kv_pager_selector_trace,
+            LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY> & selector_trace_history() const noexcept {
+        return selector_trace_history_;
+    }
+    uint32_t selector_trace_history_count() const noexcept {
+        return selector_trace_history_count_;
+    }
+    uint32_t selector_trace_history_next() const noexcept {
+        return selector_trace_history_next_;
+    }
     llama_kv_pager_selector_trace & selector_trace_for_update() noexcept {
         return selector_trace_;
     }
-    void reset_selector_trace() noexcept { selector_trace_ = {}; }
+    void reset_selector_trace() noexcept {
+        if (selector_trace_.enabled && selector_trace_.query_generation != 0) {
+            selector_trace_history_[selector_trace_history_next_] = selector_trace_;
+            selector_trace_history_next_ = uint32_t(
+                (selector_trace_history_next_ + 1) % LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY);
+            selector_trace_history_count_ = std::min<uint32_t>(
+                selector_trace_history_count_ + 1,
+                uint32_t(LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY));
+        }
+        selector_trace_ = {};
+    }
     void record_rejection_no_candidate() noexcept;
     void record_rejection_invalid_candidate() noexcept;
     void record_rejection_not_cold() noexcept;
@@ -811,6 +839,10 @@ private:
     uint64_t natural_proof_event_sequence_ = 0;
     llama_kv_pager_rejection_histogram rejection_histogram_;
     llama_kv_pager_selector_trace selector_trace_;
+    std::array<llama_kv_pager_selector_trace,
+        LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY> selector_trace_history_{};
+    uint32_t selector_trace_history_count_ = 0;
+    uint32_t selector_trace_history_next_ = 0;
     // A complete refresh carries the bounded resident/cold regions for the
     // attention layers. Keep the two-slot owner, but size each fixed slot for
     // the runtime layer count rather than dropping later layer records.

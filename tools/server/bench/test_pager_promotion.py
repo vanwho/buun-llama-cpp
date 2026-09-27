@@ -148,6 +148,26 @@ class PagerPromotionPromptTest(unittest.TestCase):
         report = _promotion_for_page(page, {}, record, [])
         self.assertFalse(report["selector_nominated"])
 
+    def test_live_trace_uses_captured_selector_result_before_later_reset(self) -> None:
+        page = {"logical_page_id": 7, "generation": 12, "content_version": 31,
+                "resident": False, "host_backed": True}
+        record = {"request_id": "req-1", "request_generation": 4,
+                  "pager_after": {"selector_trace": {"enabled": True,
+                      "target_logical_page": 7, "outcome": "selector_not_run"}}}
+        snapshots = [
+            {"observed_monotonic_ns": 1, "trace": {"enabled": True,
+                "target_logical_page": 7, "outcome": "selector_not_run"}},
+            {"observed_monotonic_ns": 2, "trace": {"enabled": True,
+                "target_logical_page": 7, "target_found": True,
+                "target_eligible": True, "target_page_generation": 12,
+                "target_content_version": 31, "raw_selector_output_valid": True,
+                "raw_cold_logical_pages": [7, 9], "outcome": "selected_pending"}},
+        ]
+        report = _promotion_for_page(page, {}, record, [], snapshots)
+        self.assertTrue(report["selector_nominated"])
+        self.assertEqual("raw_selector_output", report["selector_evidence_source"])
+        self.assertEqual("selected_pending", report["selector_diagnostic"]["outcome"])
+
     def test_explicit_selector_boundary_supports_negative_nomination(self) -> None:
         page = {"logical_page_id": 7, "generation": 12, "content_version": 31,
                 "resident": False, "host_backed": True}

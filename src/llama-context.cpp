@@ -1277,6 +1277,9 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.natural_proof = kv_pager_owner->natural_proof();
     result.rejection_histogram = kv_pager_owner->rejection_histogram();
     result.selector_trace = kv_pager_owner->selector_trace();
+    result.selector_trace_history = kv_pager_owner->selector_trace_history();
+    result.selector_trace_history_count = kv_pager_owner->selector_trace_history_count();
+    result.selector_trace_history_next = kv_pager_owner->selector_trace_history_next();
     result.host_seal_d2h_calls = kv_pager_owner->host_seal_d2h_calls();
     result.host_seal_d2h_bytes = kv_pager_owner->host_seal_d2h_bytes();
     result.host_seal_d2h_async_completions = kv_pager_owner->host_seal_d2h_async_completions();

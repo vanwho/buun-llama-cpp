@@ -3903,6 +3903,65 @@ public:
                         UINT64_MAX - pager.transfers.transfer_time_us
                     ? UINT64_MAX
                     : pager.execution.copy_time_us + pager.transfers.transfer_time_us;
+                const auto selector_trace_json = [](const llama_kv_pager_selector_trace & trace) {
+                    return json{
+                        {"enabled", trace.enabled},
+                        {"query_generation", trace.query_generation},
+                        {"query_position", trace.query_position},
+                        {"table_epoch", trace.table_epoch},
+                        {"query_row", trace.query_row},
+                        {"target_logical_page", trace.target_logical_page},
+                        {"target_found", trace.target_found},
+                        {"target_resident", trace.target_resident},
+                        {"target_valid_length", trace.target_valid_length},
+                        {"target_position_begin", trace.target_position_begin},
+                        {"target_sequence_generation", trace.target_sequence_generation},
+                        {"target_page_generation", trace.target_page_generation},
+                        {"target_content_version", trace.target_content_version},
+                        {"target_summary_version", trace.target_summary_version},
+                        {"target_summary_ready", trace.target_summary_ready},
+                        {"target_host_backed", trace.target_host_backed},
+                        {"target_eligible", trace.target_eligible},
+                        {"raw_cold_indices", std::vector<int32_t>(
+                            trace.raw_cold_indices.begin(),
+                            trace.raw_cold_indices.begin() + trace.raw_cold_count)},
+                        {"raw_cold_logical_pages", std::vector<int32_t>(
+                            trace.raw_cold_logical_pages.begin(),
+                            trace.raw_cold_logical_pages.begin() + trace.raw_cold_count)},
+                        {"raw_cold_count", trace.raw_cold_count},
+                        {"raw_selector_output_valid", trace.raw_selector_output_valid},
+                        {"async_readback_submitted", trace.async_readback_submitted},
+                        {"async_readback_completed", trace.async_readback_completed},
+                        {"synchronous_readback_completed", trace.synchronous_readback_completed},
+                        {"mailbox_published", trace.mailbox_published},
+                        {"mailbox_dropped", trace.mailbox_dropped},
+                        {"candidate_authenticated", trace.candidate_authenticated},
+                        {"policy_admitted", trace.policy_admitted},
+                        {"victim_logical_page", trace.victim_logical_page},
+                        {"target_physical_slot", trace.target_physical_slot},
+                        {"h2d_queued_bytes", trace.h2d_queued_bytes},
+                        {"h2d_completed_bytes", trace.h2d_completed_bytes},
+                        {"h2d_event_completions", trace.h2d_event_completions},
+                        {"h2d_completion_observed", trace.h2d_completion_observed},
+                        {"published_epoch", trace.published_epoch},
+                        {"mapping_published", trace.mapping_published},
+                        {"target_graph_used", trace.target_graph_used},
+                        {"outcome", llama_kv_pager_selector_trace_outcome_name(trace.outcome)},
+                    };
+                };
+                json selector_trace_history = json::array();
+                const uint32_t history_capacity = uint32_t(
+                    LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY);
+                const uint32_t history_begin = (pager.selector_trace_history_next +
+                    history_capacity - pager.selector_trace_history_count) % history_capacity;
+                for (uint32_t i = 0; i < pager.selector_trace_history_count; ++i) {
+                    const uint32_t index = (history_begin + i) % history_capacity;
+                    selector_trace_history.push_back(
+                        selector_trace_json(pager.selector_trace_history[index]));
+                }
+                if (pager.selector_trace.enabled) {
+                    selector_trace_history.push_back(selector_trace_json(pager.selector_trace));
+                }
                 result.pager_metrics = {
                     {"status", "ok"},
                     {"mode", pager.mode == llama_kv_pager_mode::observe ? "observe" :
@@ -4190,53 +4249,8 @@ public:
                         {"transfer_rejected", pager.rejection_histogram.transfer_rejected},
                         {"publication_rejected", pager.rejection_histogram.publication_rejected},
                     }},
-                    {"selector_trace", {
-                        {"enabled", pager.selector_trace.enabled},
-                        {"query_generation", pager.selector_trace.query_generation},
-                        {"query_position", pager.selector_trace.query_position},
-                        {"table_epoch", pager.selector_trace.table_epoch},
-                        {"query_row", pager.selector_trace.query_row},
-                        {"target_logical_page", pager.selector_trace.target_logical_page},
-                        {"target_found", pager.selector_trace.target_found},
-                        {"target_resident", pager.selector_trace.target_resident},
-                        {"target_valid_length", pager.selector_trace.target_valid_length},
-                        {"target_position_begin", pager.selector_trace.target_position_begin},
-                        {"target_sequence_generation", pager.selector_trace.target_sequence_generation},
-                        {"target_page_generation", pager.selector_trace.target_page_generation},
-                        {"target_content_version", pager.selector_trace.target_content_version},
-                        {"target_summary_version", pager.selector_trace.target_summary_version},
-                        {"target_summary_ready", pager.selector_trace.target_summary_ready},
-                        {"target_host_backed", pager.selector_trace.target_host_backed},
-                        {"target_eligible", pager.selector_trace.target_eligible},
-                        {"raw_cold_indices", std::vector<int32_t>(
-                            pager.selector_trace.raw_cold_indices.begin(),
-                            pager.selector_trace.raw_cold_indices.begin() +
-                                pager.selector_trace.raw_cold_count)},
-                        {"raw_cold_logical_pages", std::vector<int32_t>(
-                            pager.selector_trace.raw_cold_logical_pages.begin(),
-                            pager.selector_trace.raw_cold_logical_pages.begin() +
-                                pager.selector_trace.raw_cold_count)},
-                        {"raw_cold_count", pager.selector_trace.raw_cold_count},
-                        {"raw_selector_output_valid", pager.selector_trace.raw_selector_output_valid},
-                        {"async_readback_submitted", pager.selector_trace.async_readback_submitted},
-                        {"async_readback_completed", pager.selector_trace.async_readback_completed},
-                        {"synchronous_readback_completed", pager.selector_trace.synchronous_readback_completed},
-                        {"mailbox_published", pager.selector_trace.mailbox_published},
-                        {"mailbox_dropped", pager.selector_trace.mailbox_dropped},
-                        {"candidate_authenticated", pager.selector_trace.candidate_authenticated},
-                        {"policy_admitted", pager.selector_trace.policy_admitted},
-                        {"victim_logical_page", pager.selector_trace.victim_logical_page},
-                        {"target_physical_slot", pager.selector_trace.target_physical_slot},
-                        {"h2d_queued_bytes", pager.selector_trace.h2d_queued_bytes},
-                        {"h2d_completed_bytes", pager.selector_trace.h2d_completed_bytes},
-                        {"h2d_event_completions", pager.selector_trace.h2d_event_completions},
-                        {"h2d_completion_observed", pager.selector_trace.h2d_completion_observed},
-                        {"published_epoch", pager.selector_trace.published_epoch},
-                        {"mapping_published", pager.selector_trace.mapping_published},
-                        {"target_graph_used", pager.selector_trace.target_graph_used},
-                        {"outcome", llama_kv_pager_selector_trace_outcome_name(
-                            pager.selector_trace.outcome)},
-                    }},
+                    {"selector_trace", selector_trace_json(pager.selector_trace)},
+                    {"selector_trace_history", selector_trace_history},
                     {"host_seal_d2h_calls", pager.host_seal_d2h_calls},
                     {"host_seal_d2h_bytes", pager.host_seal_d2h_bytes},
                     {"host_seal_d2h_async_completions", pager.host_seal_d2h_async_completions},

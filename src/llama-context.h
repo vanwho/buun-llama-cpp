@@ -14,6 +14,7 @@
 #include "ggml-cpp.h"
 #include "ggml-opt.h"
 
+#include <array>
 #include <map>
 #include <string>
 #include <vector>
@@ -125,6 +126,10 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t summary_read_bytes = 0;
     llama_kv_pager_natural_proof natural_proof;
     llama_kv_pager_selector_trace selector_trace;
+    std::array<llama_kv_pager_selector_trace,
+        LLAMA_KV_PAGER_SELECTOR_TRACE_HISTORY_CAPACITY> selector_trace_history{};
+    uint32_t selector_trace_history_count = 0;
+    uint32_t selector_trace_history_next = 0;
     uint64_t host_seal_d2h_calls = 0;
     uint64_t host_seal_d2h_bytes = 0;
     uint64_t host_seal_d2h_async_completions = 0;

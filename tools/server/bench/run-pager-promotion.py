@@ -10,6 +10,8 @@ import os
 import pathlib
 import subprocess
 import sys
+import threading
+import time
 import urllib.error
 import urllib.request
 from typing import Any, Mapping
@@ -194,7 +196,8 @@ def get_pages(slot: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
                        model: str, cache_prompt: bool, output: pathlib.Path,
-                       step_index: int, tracked_fixture: Any | None = None
+                       step_index: int, tracked_fixture: Any | None = None,
+                       selector_trace_page: int | None = None
                        ) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]]:
     request_options_value = request_options(chat_template_kwargs={"enable_thinking": False})
     request_options_value["reasoning_effort"] = "none"
@@ -256,8 +259,56 @@ def request_completion(base: str, key: str, messages: list[dict[str, str]], *,
     }
     request_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     (output / "completion-request.json").write_bytes(request_body + b"\n")
-    status, response_raw, content_type = raw_request(
-        base.rstrip("/") + "/v1/chat/completions", key, request_body, timeout=600.0)
+    trace_stop = threading.Event()
+    trace_snapshots: list[dict[str, Any]] = []
+    trace_poll_errors: list[str] = []
+    trace_thread: threading.Thread | None = None
+    if step_index == 2 and selector_trace_page is not None:
+        def poll_selector_trace() -> None:
+            seen_signatures: set[str] = set()
+            while not trace_stop.is_set():
+                try:
+                    _, slot, _ = get_slot(base, key)
+                    pager = slot.get("pager_metrics")
+                    traces = []
+                    if isinstance(pager, dict):
+                        history = pager.get("selector_trace_history")
+                        if isinstance(history, list):
+                            traces.extend(history)
+                        current = pager.get("selector_trace")
+                        if isinstance(current, dict):
+                            traces.append(current)
+                    for trace in traces:
+                        if not isinstance(trace, dict) or trace.get("enabled") is not True or \
+                                trace.get("target_logical_page") != selector_trace_page:
+                            continue
+                        signature = json.dumps(trace, sort_keys=True, separators=(",", ":"))
+                        if signature not in seen_signatures and len(trace_snapshots) < 256:
+                            trace_snapshots.append({"observed_monotonic_ns": time.monotonic_ns(),
+                                                   "trace": trace})
+                            seen_signatures.add(signature)
+                except Exception as error:
+                    if len(trace_poll_errors) < 8:
+                        trace_poll_errors.append(f"{type(error).__name__}: {error}")
+                trace_stop.wait(0.25)
+
+        trace_thread = threading.Thread(target=poll_selector_trace, daemon=True)
+        trace_thread.start()
+    try:
+        status, response_raw, content_type = raw_request(
+            base.rstrip("/") + "/v1/chat/completions", key, request_body, timeout=600.0)
+    finally:
+        trace_stop.set()
+        if trace_thread is not None:
+            trace_thread.join(timeout=5.0)
+        if step_index == 2 and selector_trace_page is not None:
+            write_json(output / "selector-trace-poll-snapshots.json", {
+                "schema": "selector-trace-poll-snapshots-v1",
+                "target_logical_page_id": selector_trace_page,
+                "poll_interval_ms": 250,
+                "snapshots": trace_snapshots,
+                "errors": trace_poll_errors,
+            })
     (output / "completion-response.raw").write_bytes(response_raw)
     try:
         response = json.loads(response_raw.decode("utf-8"))
@@ -345,7 +396,8 @@ def artifact_refs(case_root: pathlib.Path) -> list[dict[str, str]]:
 
 def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[Any, ...],
                    step_index: int, prior_answers: list[str], model: str,
-                   tracked_fixture: Any | None = None) -> dict[str, Any]:
+                   tracked_fixture: Any | None = None,
+                   selector_trace_page: int | None = None) -> dict[str, Any]:
     request_root = case_root / f"request-{step_index + 1:02d}"
     request_root.mkdir(parents=True, exist_ok=True)
     step = steps[step_index]
@@ -356,7 +408,8 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
     try:
         answer, response, payload, render = request_completion(
             base, key, messages, model=model, cache_prompt=step.cache_prompt,
-            output=request_root, step_index=step_index, tracked_fixture=tracked_fixture)
+            output=request_root, step_index=step_index, tracked_fixture=tracked_fixture,
+            selector_trace_page=selector_trace_page)
         http_status = 200
     except CompletionFailure as error:
         answer, response, payload, render = None, error.response, error.payload, error.render
@@ -421,6 +474,14 @@ def request_record(base: str, key: str, case_root: pathlib.Path, steps: tuple[An
         },
         "message_count": len(messages),
     }
+    trace_poll_path = request_root / "selector-trace-poll-snapshots.json"
+    if trace_poll_path.is_file():
+        trace_poll = json.loads(trace_poll_path.read_text(encoding="utf-8"))
+        record["selector_trace_poll_artifact"] = {
+            "path": str(trace_poll_path.resolve()), "sha256": sha256_file(trace_poll_path),
+            "snapshot_count": len(trace_poll.get("snapshots", [])),
+            "target_logical_page_id": trace_poll.get("target_logical_page_id"),
+        }
     write_json(request_root / "record.json", record)
     return record
 
@@ -443,7 +504,9 @@ def _snapshot_tracked_pages(inventory: list[dict[str, Any]],
 
 
 def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
-                        final_record: Mapping[str, Any], cold_pages: list[dict[str, Any]]) -> dict[str, Any]:
+                        final_record: Mapping[str, Any], cold_pages: list[dict[str, Any]],
+                        selector_trace_snapshots: list[dict[str, Any]] | None = None
+                        ) -> dict[str, Any]:
     identity = (page.get("logical_page_id"), page.get("generation"), page.get("content_version"))
     natural_identity = (natural.get("logical_page"), natural.get("page_generation"),
                         natural.get("content_version"))
@@ -451,6 +514,32 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
     pager_after = pager_after if isinstance(pager_after, dict) else {}
     trace = pager_after.get("selector_trace")
     trace = trace if isinstance(trace, dict) else {}
+    matching_traces = []
+    for snapshot in selector_trace_snapshots or []:
+        candidate = snapshot.get("trace") if isinstance(snapshot, dict) else None
+        if not isinstance(candidate, dict) or candidate.get("enabled") is not True or \
+                candidate.get("target_logical_page") != identity[0]:
+            continue
+        if candidate.get("target_page_generation", 0) not in (0, identity[1]) or \
+                candidate.get("target_content_version", 0) not in (0, identity[2]):
+            continue
+        matching_traces.append(snapshot)
+    def trace_quality(snapshot: Mapping[str, Any]) -> tuple[int, ...]:
+        candidate = snapshot.get("trace", {})
+        return (
+            int(candidate.get("target_found") is True),
+            int(candidate.get("target_eligible") is True),
+            int(candidate.get("raw_selector_output_valid") is True),
+            int(candidate.get("mailbox_published") is True),
+            int(candidate.get("candidate_authenticated") is True),
+            int(candidate.get("policy_admitted") is True),
+            int(candidate.get("h2d_completed_bytes", 0) > 0),
+            int(candidate.get("mapping_published") is True),
+            int(candidate.get("target_graph_used") is True),
+            int(snapshot.get("observed_monotonic_ns", 0)),
+        )
+    if matching_traces:
+        trace = max(matching_traces, key=trace_quality)["trace"]
     raw_ids = trace.get("raw_cold_logical_pages")
     raw_output = trace.get("raw_selector_output_valid") is True and isinstance(raw_ids, list)
     natural_selector_evidence = natural.get("selector_published") is True and \
@@ -567,7 +656,7 @@ def _promotion_for_page(page: Mapping[str, Any], natural: Mapping[str, Any],
 
 
 def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
-             root: pathlib.Path, model: str) -> dict[str, Any]:
+             root: pathlib.Path, model: str, selector_trace_page: int) -> dict[str, Any]:
     case_root = root / "cases" / target.fixture_id
     case_root.mkdir(parents=True, exist_ok=True)
     erase_and_verify(base, key, case_root / "reset")
@@ -615,7 +704,8 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
             if not actual_preflight["fits"]:
                 raise RuntimeError("actual request 3 exceeds context with completion reserve")
         record = request_record(base, key, case_root, steps, index, answers, model,
-                                tracked_fixture=target if index == 0 else None)
+                                tracked_fixture=target if index == 0 else None,
+                                selector_trace_page=selector_trace_page if index == 2 else None)
         records.append(record)
         answers.append(record["assistant_answer"] if isinstance(record["assistant_answer"], str) else "")
         inventory = get_pages({"pager_metrics": record["pager_after"]})
@@ -655,6 +745,8 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
                             "answer_page_resident_after_request_1": answer_resident_after_request_1}
             answer_ids = {page.get("logical_page_id") for page in answer_pages}
             fixture_span["answer_bearing_page_ids"] = sorted(x for x in answer_ids if x is not None)
+            if fixture_span["answer_bearing_page_ids"] != [selector_trace_page]:
+                raise RuntimeError("candidate-rendered answer page differs from the filtered selector trace target")
         page_snapshots[snapshot_name] = _snapshot_tracked_pages(inventory, initial_pages) \
             if index else [dict(page) for page in initial_pages]
         write_json(case_root / f"{snapshot_name}-tracked-pages.json", page_snapshots[snapshot_name])
@@ -667,8 +759,14 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
     final_record = records[2]
     natural = final_record["pager_after"].get("natural_proof", {})
     natural = natural if isinstance(natural, dict) else {}
+    trace_poll_path = case_root / "request-03" / "selector-trace-poll-snapshots.json"
+    trace_poll = json.loads(trace_poll_path.read_text(encoding="utf-8")) \
+        if trace_poll_path.is_file() else {}
+    trace_poll_snapshots = trace_poll.get("snapshots", []) \
+        if isinstance(trace_poll, dict) and isinstance(trace_poll.get("snapshots"), list) else []
     page_reports = [_promotion_for_page(page, natural, final_record,
-                                       page_snapshots["immediately_before_request_3"])
+                                       page_snapshots["immediately_before_request_3"],
+                                       trace_poll_snapshots)
                     for page in page_snapshots["immediately_before_request_3"]]
     for report in page_reports:
         report["fixture_byte_span"] = fixture_span.get("body_byte_span")
@@ -719,6 +817,7 @@ def run_case(base: str, key: str, catalog: tuple[Any, ...], target: Any,
         "request_1_filename_selection": records[0]["filename_selection"],
         "request_2_filename_selection": records[1]["filename_selection"],
         "request_3_filename_selection": records[2]["filename_selection"],
+        "selector_trace_poll_snapshot_count": len(trace_poll_snapshots),
         "final_answer": final_record["assistant_answer"],
         "final_request_id": final_record.get("request_id"),
         "final_request_generation": final_record.get("request_generation"),
@@ -798,7 +897,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     targets = [target_by_id[DEFAULT_TARGET_FIXTURE_ID]]
     for target in targets:
         try:
-            case = run_case(base, key, catalog, target, root, args.model_alias)
+            case = run_case(base, key, catalog, target, root, args.model_alias,
+                            args.selector_trace_page)
             cases.append(case)
             case_status = case.get("acceptance_status", "diagnostic_incomplete")
             error = None
@@ -849,6 +949,8 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--fixture-root", default=str(FIXTURE_ROOT))
     result.add_argument("--target-fixture-id", default=DEFAULT_TARGET_FIXTURE_ID,
                         help="fixed two-topic target PY_MERGE_03")
+    result.add_argument("--selector-trace-page", required=True, type=int,
+                        help="candidate-preflight logical page ID filtered by server diagnostics")
     return result
 
 
