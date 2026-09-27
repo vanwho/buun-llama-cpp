@@ -4,11 +4,19 @@ Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
 This is the authoritative contract for phases 94–102. It implements the fully
 read Sol handoff retained in `SOURCE_FORWARD_PLAN.md`; that long reference is
-not automatically loaded into task sessions. The existing narrow 93-11o repair
-and 93-11n natural-promotion proof run first on current semantics. The unstarted
-93-12/93-13 packets are removed and replaced by the work below. All historical
-receipts remain unchanged. Supersede accepted-token historical reselection and
-fixed direct-versus-packed route preferences after the baseline proof.
+not automatically loaded into task sessions. By the user's 2026-09-27 direction,
+the remaining legacy 93-11n campaign is deferred, not passed. 93-11o's completed
+selector repair and the existing uncommitted source work are preserved. Start
+94-01 next; 94-01a repairs authenticated selection-to-admission under the new
+turn-boundary contract. Do not repeat the legacy A/B/A or require its failed
+receipt to pass before implementing this architecture. The unstarted
+93-12/93-13 packets remain removed. Actual promotion is still required under
+the corrected query/replay semantics in 95-03 and later integration proofs.
+Supersede accepted-token historical reselection and fixed route preferences.
+
+Read `POLICY_ADMISSION_BASELINE.md` for the compact attempt-13 finding. The
+unchanged Sol source handoff is research provenance; its instruction to finish
+93-11n first is overridden by this explicit scheduling amendment.
 
 ## Architecture decisions
 
@@ -55,8 +63,8 @@ card, service paths or these counts in portable production logic.
 
 | Phase | Tasks | Result |
 | --- | --- | --- |
-| 93 | 93-11o then 93-11n | Repair selector capture, prove existing natural chain |
-| 94 | 94-01–02 | Explicit retrieval epoch; frozen history and MTP mapping |
+| 93 | 93-11o done; 93-11n deferred | Selector repair retained; legacy promotion unproven |
+| 94 | 94-01, 94-01a, 94-02 | Retrieval epoch; authoritative admission; frozen history/MTP |
 | 95 | 95-01–03 | Exact final-user span, bounded checkpoint, query-only replay |
 | 96 | 96-01–02 | Whole-user-span target Q; measured Mean-K/current selection |
 | 97 | 97-01–02 | Protected history, generation ring, sealing/rollback |

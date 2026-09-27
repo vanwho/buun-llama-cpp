@@ -1,8 +1,10 @@
 # Current execution plan
 
 The authoritative forward plan is [turn-boundary retrieval](forward/OVERVIEW.md),
-with [minimal testing](forward/TESTING.md). Current 93-11o/93-11n finish the
-narrow physical-promotion baseline first; phases94–102 then implement it.
+with [minimal testing](forward/TESTING.md). 93-11o's selector repair is retained;
+93-11n's legacy promotion proof is deferred, not passed. Start phase94 with
+94-01, 94-01a admission repair, then 94-02. The corrected live promotion proof
+belongs to 95-03; the remaining forward phases still require real integration.
 The full researched handoff is retained in forward/SOURCE_FORWARD_PLAN.md but
 is not automatically loaded into task sessions.
 

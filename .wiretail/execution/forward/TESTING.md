@@ -30,8 +30,10 @@ Retain a successful candidate loaded for the next task.
   R/G derive from each invariant. Ring test may choose G=256 with R<=H-G.
 - Use B=1024/U=256 for all new comparable speeds, target/draft Turbo4, native
   GPU MTP, draft-n-max=2, temperature=0, reasoning/thinking off. These are test
-  settings, not production constants. Keep 93-11n's existing narrow baseline
-  geometry until its proof passes; label it separately from later speeds.
+  settings, not production constants. The legacy 93-11n campaign is deferred;
+  its B128/U64 results are diagnostics, not the new comparable speed baseline.
+  Do not rerun it as a prerequisite. Use 94-01a's focused admission tests before
+  95-03's short changed/unchanged query integration proof.
 - Keep fresh input speed probes <=16K tokens. For local tests and scaling,
   physical target hot capacity H <=49,152; L may grow to 128K/256K independently.
   Product code derives H/G from model/backend/memory and remains tunable.

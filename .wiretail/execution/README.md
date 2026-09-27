@@ -1,8 +1,10 @@
 # Current hot-KV execution package
 
 The active forward contract is [OVERVIEW](forward/OVERVIEW.md) and
-[TESTING](forward/TESTING.md). Finish 93-11o/93-11n's narrow baseline, then
-execute phases94–102. Unstarted93-12/93-13 are removed from the runnable graph;
+[TESTING](forward/TESTING.md). The remaining legacy 93-11n proof is deferred,
+not passed; execute 94-01, 94-01a, 94-02 and then phases95–102. The specific
+admission failure is repaired under the new architecture before its live proof.
+Unstarted93-12/93-13 are removed from the runnable graph;
 their old packets are archived for provenance. Forward tasks supersede the
 old accepted-token historical refresh and universal attention-route preference.
 Only current packets/selected source regions and compact handoffs are loaded.

@@ -2,9 +2,11 @@
 
 Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
-Tasks in this context area: `94-01`, `94-02`.
+Tasks in this context area: `94-01`, `94-01a`, `94-02`.
 
-Purpose: Add turn retrieval state and derived R/G admission; Freeze historical selection during generation and native MTP.
+Purpose: Add turn retrieval state and derived R/G admission; commit authenticated
+query-selected history through one transaction; freeze history during generation
+and native MTP. 93-11n is deferred, not a prerequisite proof. Do not reopen it.
 
 Read the current packet and forward/OVERVIEW + forward/TESTING only, plus
 its explicit source regions and compact immediate-predecessor handoff.

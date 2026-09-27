@@ -15,9 +15,9 @@
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "93",
-  "current_task": "93-11n",
-  "last_updated_utc": "2026-09-27T12:07:28+00:00",
+  "current_phase": "94",
+  "current_task": "94-01",
+  "last_updated_utc": "2026-09-27T16:26:04+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "93-11o/93-11n baseline, then forward phases94-102; optional advancements scheduled only after core success",
+    "active_scope": "Forward phases94-102 including 94-01a admission repair; 93-11n legacy campaign is user-authorized deferred, not passed; corrected natural promotion proof belongs to 95-03; optional advancements only after core success",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -26336,8 +26336,8 @@
       "cluster": "repair93-live-promotion-v10",
       "title": "Prove natural cold-page promotion on the corrected candidate",
       "packet": ".wiretail/execution/tasks/93-11n.md",
-      "status": "in_progress",
-      "blocker": null,
+      "status": "deferred",
+      "blocker": "User-authorized deferral of legacy campaign after attempt 13: natural nomination/mailbox authentication observed, admission/H2D/publication/use unproven. Admission repair moves to 94-01a; corrected live chain proof to 95-03. Not a passed task.",
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
@@ -26354,7 +26354,7 @@
         "93-11m",
         "93-11o"
       ],
-      "commit": null,
+      "commit": "a43f3a1d6ce65c41e17731a28c3b5114b8106a48",
       "context_files": [
         ".wiretail/execution/clusters/repair93-live-promotion-v10.md",
         ".wiretail/execution/tasks/93-11n.md",
@@ -26432,19 +26432,51 @@
             "input_tokens_minus_cached_tokens": 870990,
             "output_tokens": 185635,
             "thinking_tokens": 97627
+          },
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11n-attempt-1-20260927T120748366732898-20260927T120748369436900-LwBZWZ.jsonl:321",
+            "total_tokens": 16211004,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 16139028,
+            "cached_input_tokens": 15754752,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 384276,
+            "output_tokens": 71976,
+            "thinking_tokens": 35467
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11n-attempt-2-20260927T125348288400529-20260927T125348291107355-hMPA96.jsonl:671",
+            "total_tokens": 42587545,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 42403407,
+            "cached_input_tokens": 41554176,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 849231,
+            "output_tokens": 184138,
+            "thinking_tokens": 103474
           }
         ],
         "totals": {
-          "usage_events": 3,
-          "total_tokens": 90963766,
-          "input_tokens": 90421549,
-          "cached_input_tokens": 87915776,
+          "usage_events": 5,
+          "total_tokens": 149762315,
+          "input_tokens": 148963984,
+          "cached_input_tokens": 145224704,
           "cache_write_input_tokens": 0,
-          "input_tokens_minus_cached_tokens": 2505773,
-          "output_tokens": 542217,
-          "thinking_tokens": 283050,
+          "input_tokens_minus_cached_tokens": 3739280,
+          "output_tokens": 798331,
+          "thinking_tokens": 421991,
           "total_tokens_reported_events": 0,
-          "total_tokens_derived_events": 3,
+          "total_tokens_derived_events": 5,
           "total_tokens_source": "derived_input_plus_output",
           "thinking_tokens_relation": "subset_of_output_tokens"
         }
@@ -26617,7 +26649,7 @@
         "turn_epoch_state_and_geometry"
       ],
       "depends_on": [
-        "93-11n"
+        "93-11o"
       ],
       "commit": null,
       "context_files": [
@@ -26625,7 +26657,7 @@
         ".wiretail/execution/tasks/94-01.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/93-11n.md",
+        ".wiretail/execution/forward/POLICY_ADMISSION_BASELINE.md",
         "src/llama-kv-pager.h",
         "src/llama-kv-pager.cpp",
         "src/llama-kv-pager-config.h",
@@ -26641,6 +26673,63 @@
         "94-01",
         "--receipt",
         ".wiretail/execution/evidence/V10_94-01.json"
+      ]
+    },
+    {
+      "id": "94-01a",
+      "phase": "94",
+      "cluster": "forward94-turn-epoch",
+      "title": "Commit authenticated query-selected history without legacy reranking",
+      "packet": ".wiretail/execution/tasks/94-01a.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "query_commit_authoritative_admission",
+        "query_commit_cuda_transaction_use"
+      ],
+      "depends_on": [
+        "94-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward94-turn-epoch.md",
+        ".wiretail/execution/tasks/94-01a.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/POLICY_ADMISSION_BASELINE.md",
+        ".wiretail/execution/handoffs/94-01.md",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-cache.h",
+        "src/llama-kv-live-policy.h",
+        "src/llama-kv-live-policy.cpp",
+        "src/llama-kv-policy.h",
+        "src/llama-kv-policy.cpp",
+        "src/llama-kv-pager.h",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-residency.h",
+        "src/llama-kv-residency.cpp",
+        "src/llama-kv-residency-transaction.h",
+        "src/llama-kv-residency-transaction.cpp",
+        "src/llama-kv-prefetch.h",
+        "src/llama-kv-prefetch.cpp",
+        "tests/test-kv-policy.cpp",
+        "tests/test-kv-pager.cpp",
+        "tests/test-cuda-kv-promotion.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "94-01a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_94-01a.json"
       ]
     },
     {
@@ -26663,7 +26752,7 @@
         "frozen_history_cuda_smoke"
       ],
       "depends_on": [
-        "94-01"
+        "94-01a"
       ],
       "commit": null,
       "context_files": [
@@ -26671,7 +26760,7 @@
         ".wiretail/execution/tasks/94-02.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/94-01.md",
+        ".wiretail/execution/handoffs/94-01a.md",
         "src/llama-kv-cache.cpp",
         "src/llama-kv-cache.h",
         "src/llama-kv-live-policy.cpp",
@@ -26805,7 +26894,8 @@
       "plan_amendment": "forward-turn-retrieval-20260927",
       "required_proofs": [
         "query_replay_changed_and_unchanged",
-        "query_replay_cuda_parity"
+        "query_replay_cuda_parity",
+        "query_replay_natural_promotion_chain"
       ],
       "depends_on": [
         "95-02"
@@ -29149,17 +29239,17 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 50,
-        "total_tokens": 2021994107,
-        "input_tokens": 2015331181,
-        "cached_input_tokens": 1973085696,
+        "usage_events": 52,
+        "total_tokens": 2080792656,
+        "input_tokens": 2073873616,
+        "cached_input_tokens": 2030394624,
         "cache_write_input_tokens": 0,
-        "cache_write_input_tokens_known_events": 27,
-        "input_tokens_minus_cached_tokens": 42245485,
-        "output_tokens": 6662926,
-        "thinking_tokens": 3056501,
+        "cache_write_input_tokens_known_events": 29,
+        "input_tokens_minus_cached_tokens": 43478992,
+        "output_tokens": 6919040,
+        "thinking_tokens": 3195442,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 50,
+        "total_tokens_derived_events": 52,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -29174,17 +29264,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 381,
-      "total_tokens": 8184598580,
-      "input_tokens": 8162769372,
-      "cached_input_tokens": 7985053440,
+      "usage_events": 383,
+      "total_tokens": 8243397129,
+      "input_tokens": 8221311807,
+      "cached_input_tokens": 8042362368,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 27,
-      "input_tokens_minus_cached_tokens": 177715932,
-      "output_tokens": 21829208,
-      "thinking_tokens": 8465453,
+      "cache_write_input_tokens_known_events": 29,
+      "input_tokens_minus_cached_tokens": 178949439,
+      "output_tokens": 22085322,
+      "thinking_tokens": 8604394,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 381,
+      "total_tokens_derived_events": 383,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

@@ -2,7 +2,12 @@
 
 Revision: `hotpath-v10-20260914`; repair: `repair93-selector-promotion-20260925`.
 
-This is a fresh session after the 93-11o graph-registration fix. Never resume
+Historical/deferred cluster as of the user's 2026-09-27 direction. Do not
+execute 93-11n again. Start 94-01; admission repair is 94-01a and the corrected
+natural promotion/replay proof is 95-03. The instructions below document the
+old campaign only and are not active execution directions.
+
+This was a fresh session after the 93-11o graph-registration fix. Never resume
 the old 93-11n session or load its raw transcript. Read the current packet,
 this cluster, and the immediately preceding task's compact handoff/receipt
 summary only. Keep context task-focused; raw campaign data stays under
@@ -18,7 +23,7 @@ summary only. Keep context task-focused; raw campaign data stays under
   Do not infer physical promotion from the filename answer or MTP acceptance.
 - 93-11e is deferred historical work; never execute it or treat its old receipt
   as current proof.
-- After 93-11n passes, phase94 begins the forward architecture. Unstarted
+- 93-11n is now deferred, not passed; phase94 begins without its legacy proof. Unstarted
   93-12/93-13 were removed; the corrected final speed work is phase100 and
   scaling is phase101, followed by phase102 goal assessment. Do not run the
   archived pre-correction campaign or broaden this baseline proof.

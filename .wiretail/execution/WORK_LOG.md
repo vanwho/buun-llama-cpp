@@ -1228,3 +1228,16 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-93-11o`
 - Commit at update: `0bbcdc019`
 - Summary: brief verified result
+
+## 2026-09-27T12:07:48+00:00 — 93-11n — done
+
+- Branch: `codex/task-93-11n`
+- Commit at update: `a43f3a1d6`
+- Summary: brief verified result
+
+## 2026-09-27 — authorized planning correction: defer legacy 93-11n
+
+- Supersedes the erroneous `done` transition above: status is `deferred`, not passed.
+- Attempt 13 nominated/authenticated a cold host-backed page but proved no admission, H2D, publication or target use. Failed checks and all usage records remain unchanged.
+- User authorized proceeding with the forward architecture. Next: 94-01, new 94-01a authoritative admission repair, 94-02 freeze, then 95-03 corrected natural promotion/replay proof.
+- Preserved all existing dirty source changes; new tasks use only compact forward context. No legacy A/B/A rerun, active-service restart or model-provider invocation was performed.
