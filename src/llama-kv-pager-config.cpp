@@ -65,9 +65,60 @@ bool llama_kv_pager_parse_mode(const std::string & raw, llama_kv_pager_mode & ou
     return true;
 }
 
+bool llama_kv_pager_parse_retrieval_policy(
+        const std::string & raw, llama_kv_retrieval_policy & out) {
+    const std::string s = pager_lower(raw);
+    if (s == "turn") out = llama_kv_retrieval_policy::turn;
+    else if (s == "cadence") out = llama_kv_retrieval_policy::cadence;
+    else return false;
+    return true;
+}
+
+bool llama_kv_pager_derive_turn_geometry(
+        uint32_t hot_pages, uint32_t page_tokens,
+        uint32_t generation_tail_tokens, uint32_t mandatory_anchor_pages,
+        uint32_t mandatory_slack_pages, llama_kv_pager_turn_geometry & output,
+        uint32_t requested_retrieval_pages) noexcept {
+    output = {};
+    if (hot_pages == 0 || page_tokens == 0) return false;
+    const uint64_t minimum_generation_pages = uint64_t(1) + mandatory_slack_pages;
+    const uint64_t requested_pages =
+        (uint64_t(generation_tail_tokens) + page_tokens - 1) / page_tokens;
+    const uint64_t generation_pages = std::max(minimum_generation_pages, requested_pages);
+    if (generation_pages > hot_pages || generation_pages > UINT32_MAX) return false;
+    const uint64_t available_retrieval_pages = uint64_t(hot_pages) - generation_pages;
+    const uint64_t retrieval_pages = requested_retrieval_pages == UINT32_MAX
+        ? available_retrieval_pages
+        : requested_retrieval_pages;
+    if (retrieval_pages > available_retrieval_pages) return false;
+    if (mandatory_anchor_pages > retrieval_pages) return false;
+    const uint64_t generation_tokens = generation_pages * page_tokens;
+    if (generation_tokens > UINT32_MAX) return false;
+    output.hot_pages = hot_pages;
+    output.generation_pages = uint32_t(generation_pages);
+    output.retrieval_pages = uint32_t(retrieval_pages);
+    output.generation_tokens = uint32_t(generation_tokens);
+    return uint64_t(output.retrieval_pages) + output.generation_pages <= output.hot_pages;
+}
+
+uint32_t llama_kv_pager_generation_available_pages(
+        const llama_kv_pager_turn_geometry & geometry,
+        uint32_t selected_history_pages) noexcept {
+    if (selected_history_pages > geometry.retrieval_pages ||
+        selected_history_pages > geometry.hot_pages) return 0;
+    const uint32_t available = geometry.hot_pages - selected_history_pages;
+    return available < geometry.generation_pages ? 0 : available;
+}
+
 bool llama_kv_pager_config::validate(std::string & error) const {
     if (mode == llama_kv_pager_mode::off) return true;
     if (page_size == 0 || page_size % 256 != 0) { error = "page geometry requires a nonzero 256-token multiple"; return false; }
+    if (!generation_tail_tokens.automatic && generation_tail_tokens.value == 0) {
+        error = "generation tail must be auto or positive"; return false;
+    }
+    if (!retrieval_pages.automatic && retrieval_pages.value == 0) {
+        error = "retrieval page budget must be auto or positive"; return false;
+    }
     if (hot_pages.automatic == false && hot_pages.value == 0) { error = "hot-page cap must be auto or positive"; return false; }
     if (hot_pages.automatic == false && hot_pages.value > 0 && vram_budget.automatic == false && vram_budget.bytes == 0) {
         error = "hot-page cap contradicts an empty VRAM budget"; return false;
@@ -96,6 +147,9 @@ std::string llama_kv_pager_config::summary() const {
     // and is also useful as a machine-readable key/value line in logs.
     return "mode=" + mode_name() +
            " page_size_tokens=" + std::to_string(page_size) +
+           " generation_tail_tokens=" + count_name(generation_tail_tokens) +
+           " retrieval_pages=" + count_name(retrieval_pages) +
+           " retrieval_policy=" + (retrieval_policy == llama_kv_retrieval_policy::turn ? "turn" : "cadence") +
            " vram_budget_bytes=" + size_name(vram_budget) +
            " host_budget_bytes=" + size_name(host_budget) +
            " safety_headroom_bytes=" + size_name(safety_headroom) +
