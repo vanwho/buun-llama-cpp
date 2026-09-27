@@ -1259,3 +1259,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-94-02`
 - Commit at update: `095749f78`
 - Summary: Implemented server-owned pager turn freeze and native MTP history binding; deterministic tests and managed CUDA Qwen smoke pass.
+
+## 2026-09-27T22:13:19+00:00 — 95-01 — done
+
+- Branch: `codex/task-95-01`
+- Commit at update: `a1ea5c84b`
+- Summary: Carried authenticated rendered final-user token spans through server tasks; deterministic span proof and affected builds pass.

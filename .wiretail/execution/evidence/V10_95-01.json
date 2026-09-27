@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "task": "95-01",
+  "source_commit": "a1ea5c84b6834b6a05f07a1bf677490ea27476a2",
+  "build_identity": "/srv/ai/paged-kv/results/forward/95-01/attempt-01/build-identity.json",
+  "checks": {
+    "templated_final_user_span": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-chat-template"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/95-01/attempt-01/templated-final-user-span.log",
+          "sha256": "2a5fe4aa4d4c0d1b605a46d2e1552be5bb45d773a2fc24642c1947a3c8cda5f3"
+        }
+      ]
+    }
+  }
+}
