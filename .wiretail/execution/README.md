@@ -1,5 +1,12 @@
 # Current hot-KV execution package
 
+The active forward contract is [OVERVIEW](forward/OVERVIEW.md) and
+[TESTING](forward/TESTING.md). Finish 93-11o/93-11n's narrow baseline, then
+execute phases94–102. Unstarted93-12/93-13 are removed from the runnable graph;
+their old packets are archived for provenance. Forward tasks supersede the
+old accepted-token historical refresh and universal attention-route preference.
+Only current packets/selected source regions and compact handoffs are loaded.
+
 Read the [long-horizon context and usage policy](CONTEXT_POLICY.md) first. For
 execution, trust the current task in `WORK_STATE.json`, its packet/cluster, and
 its explicit `context_files`; those identify the active design slice. Do not

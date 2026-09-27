@@ -1,0 +1,101 @@
+# Active forward implementation: turn-boundary retrieval and query replay
+
+Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
+
+This is the authoritative contract for phases 94–102. It implements the fully
+read Sol handoff retained in `SOURCE_FORWARD_PLAN.md`; that long reference is
+not automatically loaded into task sessions. The existing narrow 93-11o repair
+and 93-11n natural-promotion proof run first on current semantics. The unstarted
+93-12/93-13 packets are removed and replaced by the work below. All historical
+receipts remain unchanged. Supersede accepted-token historical reselection and
+fixed direct-versus-packed route preferences after the baseline proof.
+
+## Architecture decisions
+
+Reuse `llama_kv_pager`, residency/transactions, host store, routing catalogue,
+GPU selector, Turbo4 attention and native MTP. No second KVMem pager/library.
+The target is Qwen3.8-27B UD-IQ4_XS, with 16 full-attention layers and 48
+Gated DeltaNet layers. Derive that geometry from the model; never put model,
+card, service paths or these counts in portable production logic.
+
+- L = logical history capacity; C = occupied tokens; H = physical GPU target
+  KV capacity; R = frozen historical allocation; G = minimum generation tail;
+  A = separate attention view/workspace if needed; B/U = batch/microbatch.
+- R + G <= H. G is a guaranteed minimum with spare slots borrowable; it is
+  not a maximum generation length or a permanently empty partition.
+- Target K/V and native-MTP draft K/V stay Turbo4. Draft capacity equals L,
+  and stays entirely GPU-resident. Draft paging and VBR are optional later work.
+- Complete sealed target KV remains canonical and inclusive in CPU RAM.
+  Promotion retains the host copy; clean eviction drops residency without D2H.
+- The final user span is located in the actual rendered/tokenized request.
+  Checkpoint immediately before it; process it provisionally; capture target Q
+  over that user span; choose history; H2D misses only; publish; restore and
+  replay only the query if the historical set changed; then freeze that set.
+- Query replay must restore GDN/convolution/frontier/MTP carry and provisional
+  writes while retaining the newly published historical map. Never restore an
+  old page table over the new selection or serialize full-L KV per user turn.
+- No historical reselection, H2D or eviction during assistant generation.
+  The historical set is stable across speculative verification/rollback.
+  Generation mapping epochs may advance as a separate rolling tail changes.
+- Generation may recycle only its oldest completed, clean, host-backed,
+  unpinned pages. Current, in-flight, speculative-pinned and frozen historical
+  pages are excluded. Spilled output becomes retrievable history next turn.
+- GDN remains exact and GPU-resident and processes every committed token.
+- Pageable host storage plus a bounded pinned transfer ring is the initial
+  default. Seal D2H once per completed page and overlap next-chunk compute;
+  selection diff and batched H2D happen before generation.
+- Compare direct paged Turbo4 and compressed GPU-packed mature FA using the
+  same selected IDs, encoded bytes and native positions. Choose by shape and
+  total preparation+kernel+append cost; no CPU or F16-history fallback.
+- Summary scoring remains in Turbo4's actual transformed domain. User-span
+  mean Q is the first candidate; final-row is a diagnostic baseline; compare
+  current min/max scoring with Mean-K before choosing a new default.
+
+## Execution order
+
+| Phase | Tasks | Result |
+| --- | --- | --- |
+| 93 | 93-11o then 93-11n | Repair selector capture, prove existing natural chain |
+| 94 | 94-01–02 | Explicit retrieval epoch; frozen history and MTP mapping |
+| 95 | 95-01–03 | Exact final-user span, bounded checkpoint, query-only replay |
+| 96 | 96-01–02 | Whole-user-span target Q; measured Mean-K/current selection |
+| 97 | 97-01–02 | Protected history, generation ring, sealing/rollback |
+| 98 | 98-01–02 | Inclusive host authority and batched async promotion |
+| 99 | 99-01–02 | Matched GPU kernel comparison; shape-aware production routes |
+| 100 | 100-01–03 | Reliable harness, small paired speed/quality, release decision |
+| 101 | 101-01–03 | 32K/16K, 128K, then full 256K occupancy and memory proof |
+| 102 | 102-01 | Goal assessment, useful final curve, concrete next remediation |
+
+Optional follower-MTP and first-attention-Q one-pass experiments are fully
+specified in `OPTIONAL_ADVANCEMENTS.md`. Schedule them as phases 103/104 (or
+next unused phases) only after the primary architecture is proven and the
+measured savings justify them. They do not delay primary success.
+
+## Evidence and release rules
+
+Read only the current packet/cluster and explicit context. Use compact
+predecessor handoffs; full histories, source reference and raw JSONL stay out
+of loaded context. Clusters follow source/lifecycle boundaries, not task count.
+All implementation and recovery work stays on `gpt-6-luna` High under the
+existing project lock; simpler models can follow the precise packet steps.
+
+Implementation completion requires the specified executable correctness proof.
+Fix config/auth/port/identity errors and retry the smallest affected request.
+Benchmarks can complete with valid measured poor performance; those findings
+create source-directed remediation tasks before scaling. A missing measurement
+is not a speed finding. Keep physical promotion, answer quality and MTP
+acceptance as separate fields. No exact filename/YES/NO output-format gates.
+
+Primary goal remains 256K full logical/host history, bounded H, natural
+promotion, correct replay/freeze/ring, native GPU MTP, selected fresh prefill
+>=500 tok/s per canonical prompt (750 preferred), and materially faster decode
+than ordinary CPU-KV offload. Speeds below target must remain visibly failed
+goal findings and must cause actual repair tasks, not another unchanged audit.
+Use 3x CPU-KV decode as the reporting target; final acceptance requires a
+positive matched speed advantage and the architectural no-decode-PCIe proof.
+Full-resident Turbo4 identity and feature-off controls remain unchanged.
+
+Server-specific artifacts stay under `/srv/ai` or `.wiretail`. Preserve
+uncommitted source work; Wiretail owns separate implementation/metadata
+commits. Follow CONTRIBUTING; publication and human-authored issue/PR posts
+are not part of these tasks.

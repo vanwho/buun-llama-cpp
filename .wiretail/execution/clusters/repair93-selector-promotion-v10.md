@@ -2,13 +2,12 @@
 
 Revision: `hotpath-v10-20260914`. Amendment: `repair93-selector-promotion-20260925`.
 
-This cluster starts after the phase-93 upstream integration and benchmark
-contract lock. It repairs/proves natural cold-page promotion and then owns the
-dependent paired cold-context speed screen and final phase review. The existing
-`repair93-mtp-diagnostics-v10.md` performance contract remains normative for
-the 93-12/93-13 speed and quality thresholds. Keep the tasks separate by code
-boundary so selector semantics, decision evidence, and live results cannot be
-confused.
+This cluster records the completed selector-row and bounded stage-diagnostic
+work in 93-11l/93-11m. The live graph-registration repair, natural-promotion
+campaign, paired speed screen, and phase review now have fresh, narrower
+clusters so a failed long-running session cannot be reused across those
+boundaries. This file is historical context for the completed tasks only; do
+not use it as the active cluster context for 93-11o onward.
 
 ## Shared context and invariants
 
@@ -31,7 +30,7 @@ confused.
 - Every failed setup/configuration is repaired and rerun within its owning task.
   A failed model answer is reported separately from physical page movement.
 
-## Task sequence
+## Completed tasks
 
 1. `93-11l`: select the last valid causal Q row of each selector-bearing
    microbatch, pair it with that row's logical position, and add a deterministic
@@ -40,16 +39,5 @@ confused.
    deterministic tests/receipt validation. Prove the diagnostics distinguish
    ineligible, ranked-out, mailbox-dropped, policy-rejected, transfer-rejected,
    and promoted/used outcomes without per-token logging.
-3. `93-11n`: rebuild/load the exact corrected candidate and run one natural
-   candidate-bound file-recall/promotion campaign. Do not repeat an unchanged
-   failed conversation; fix the first measured failing stage and create a
-   dependent repair task if that requires source work.
-4. Deferred `93-11e` remains historical only; do not run it.
-5. `93-12` runs paired cold-context speed after 93-11n plus the existing
-   upstream and benchmark-contract prerequisites; `93-13` reviews those
-   results and schedules only evidence-driven follow-up work.
-
-After those tasks, 93-12 may run only when 93-11n proves cold page → selector
-nomination → completed H2D → mapping publication → target graph use, with
-per-request GPU Turbo4 MTP placement verified independently. Answer scoring,
-MTP acceptance, and physical promotion remain separate evidence fields.
+The successor clusters own the still-open work. Consult their task packet and
+cluster only; do not load this file for those tasks.

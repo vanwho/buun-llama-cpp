@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
-  "canonical_plan": ".wiretail/execution/v10/REPAIR85_PLAN.md",
-  "active_plan_amendment": ".wiretail/execution/v10/REPAIR85_PLAN.md",
-  "technical_change_spec": ".wiretail/execution/v10/REPAIR85_PLAN.md",
-  "execution_cookbook": ".wiretail/execution/v10/REPAIR85_TESTING.md",
-  "implementation_contracts": ".wiretail/execution/v10/REPAIR85_PLAN.md",
-  "benchmark_protocol": ".wiretail/execution/v10/REPAIR85_TESTING.md",
+  "canonical_plan": ".wiretail/execution/forward/OVERVIEW.md",
+  "active_plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
+  "technical_change_spec": ".wiretail/execution/forward/OVERVIEW.md",
+  "execution_cookbook": ".wiretail/execution/forward/TESTING.md",
+  "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
+  "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "For85-09 onward load repair85 packet/cluster and explicit context_files only; historical V10 overview, old testing and summaries are superseded, not loaded. New subsystem/context-based clusters reset stale sessions; no task-count cap.",
+  "context_policy": "Finish93-11o/93-11n narrow baseline first; phase94 onward load forward OVERVIEW/TESTING + current packet/cluster + bounded context_files only. Old accepted-token refresh/route policy and93-12/93-13 are superseded. Source handoff/raw history not auto-loaded; subsystem clusters reset stale sessions without a task-count cap.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "93",
-  "current_task": "93-11n",
-  "last_updated_utc": "2026-09-25T17:53:47+00:00",
+  "current_task": "93-11o",
+  "last_updated_utc": "2026-09-27T11:27:25.905883+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,19 +48,22 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "repair85 tasks85-09 through85-19, route-policy task92-01, then bounded MTP diagnosis tasks93-01 through93-05; prior done records do not certify current capabilities",
+    "active_scope": "93-11o/93-11n baseline, then forward phases94-102; optional advancements scheduled only after core success",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
     "target_hot_capacity": "dynamic H after full-L draft, weights, recurrent state, A workspace, scratch, GPU catalogue and reserve; no fixed70K/77K production constant",
-    "attention_path": "Corrected paged Turbo4 fused GPU attention or eligible mature contiguous view; reference is oracle, no mandatory native-MTP fallback, CPU attention or full-L F16 staging",
+    "attention_path": "GPU-native direct-paged or compressed mature FA chosen by matched shape/preparation/kernel/append timings; reference explicit oracle only",
     "cold_proof": "production GPU selector -> immutable submission -> completed H2D -> publication -> completed target consumption; controlled and organic claims separate",
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
-    "speed_policy": "Small invariant-specific CUDA tests first; original3prompts plus actual C>H small matched speed at phase end; timings are findings, setup failures repaired/retested within task",
-    "scale_policy": "Conditional32K/128K pilots then262144 capacity and honest occupancy, measured scratch before H; no per-edit context curve or indefinite slow loop",
-    "task_completion": "named required implementation tests and hashed raw receipt; no deferred CUDA/live substitution; benchmark failed findings stay explicitly failed",
+    "speed_policy": "B1024/U256 canonical3prompts warm1x40 measured3x400; reasoning off and MTP always; selected fresh>=500 each prompt preferred750; poor measured speed schedules concrete repairs, not repeated audits",
+    "scale_policy": "8K/4K useful short-path release ->32K/16K ->128K ->256K actual committed occupancy; H dynamically admitted; final context curve findings only",
+    "task_completion": "named executable proofs with compact hashed receipts; fix setup and retry smallest affected row; benchmark measurements may miss goals honestly and require actual successor repairs before scaling",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
-    "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication"
+    "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication",
+    "retrieval_semantics": "final-user-span target Q; turn-boundary promote/diff; query-only hybrid checkpoint replay when history changes; frozen historical selection during generation",
+    "generation_semantics": "R+G<=H; G guaranteed minimum, not output ceiling; recycle oldest clean host-backed generation-owned pages, never frozen history",
+    "host_semantics": "inclusive canonical completed Turbo4 pages in pageable RAM plus bounded pinned staging; clean eviction mapping drop; no historical decode PCIe"
   },
   "external_gates": [
     {
@@ -108,7 +111,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "00-02",
@@ -143,7 +147,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "00-03",
@@ -178,7 +183,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "00-04",
@@ -213,7 +219,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "00-05",
@@ -249,7 +256,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "01-01",
@@ -286,7 +294,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "01-02",
@@ -321,7 +330,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "01-03",
@@ -356,7 +366,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "01-04",
@@ -392,7 +403,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "02-01",
@@ -427,7 +439,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "02-02",
@@ -462,7 +475,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "02-03",
@@ -498,7 +512,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "02-04",
@@ -533,7 +548,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "02-05",
@@ -568,7 +584,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "03-01",
@@ -603,7 +620,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "03-02",
@@ -638,7 +656,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "03-03",
@@ -673,7 +692,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "03-04",
@@ -708,7 +728,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "04-01",
@@ -743,7 +764,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "04-02",
@@ -778,7 +800,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "04-03",
@@ -814,7 +837,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "04-04",
@@ -849,7 +873,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "05-01",
@@ -884,7 +909,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "05-02",
@@ -921,7 +947,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "05-03",
@@ -957,7 +984,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "05-04",
@@ -992,7 +1020,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "06-01",
@@ -1027,7 +1056,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "06-02",
@@ -1062,7 +1092,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "06-03",
@@ -1097,7 +1128,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "06-04",
@@ -1133,7 +1165,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "06-05",
@@ -1168,7 +1201,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "07-01",
@@ -1203,7 +1237,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "07-02",
@@ -1238,7 +1273,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "08-01",
@@ -1273,7 +1309,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "08-02",
@@ -1308,7 +1345,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "08-03",
@@ -1343,7 +1381,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "08-04",
@@ -1378,7 +1417,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "08-05",
@@ -1413,7 +1453,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "09-01",
@@ -1448,7 +1489,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "09-02",
@@ -1483,7 +1525,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "09-03",
@@ -1518,7 +1561,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "09-04",
@@ -1553,7 +1597,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "09-05",
@@ -1588,7 +1633,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "10-01",
@@ -1623,7 +1669,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "10-02",
@@ -1658,7 +1705,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "10-03",
@@ -1693,7 +1741,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "10-04",
@@ -1728,7 +1777,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "10-05",
@@ -1763,7 +1813,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "11-01",
@@ -1798,7 +1849,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "11-02",
@@ -1833,7 +1885,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "11-03",
@@ -1868,7 +1921,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "11-04",
@@ -1903,7 +1957,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "11-05",
@@ -1938,7 +1993,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "12-01",
@@ -1973,7 +2029,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "12-02",
@@ -2008,7 +2065,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "12-03",
@@ -2043,7 +2101,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "13-01",
@@ -2078,7 +2137,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "13-02",
@@ -2113,7 +2173,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "13-03",
@@ -2148,7 +2209,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "13-04",
@@ -2183,7 +2245,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "13-05",
@@ -2218,7 +2281,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "14-01",
@@ -2253,7 +2317,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "14-02",
@@ -2288,7 +2353,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "14-03",
@@ -2323,7 +2389,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "14-04",
@@ -2358,7 +2425,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "14-05",
@@ -2393,7 +2461,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-01",
@@ -2428,7 +2497,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-02",
@@ -2463,7 +2533,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-03",
@@ -2498,7 +2569,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-04",
@@ -2533,7 +2605,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-05",
@@ -2568,7 +2641,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-06",
@@ -2603,7 +2677,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-07",
@@ -2638,7 +2713,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-08",
@@ -2673,7 +2749,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "15-09",
@@ -2708,7 +2785,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "16-01",
@@ -2743,7 +2821,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "16-02",
@@ -2778,7 +2857,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-01",
@@ -2813,7 +2893,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-02",
@@ -2848,7 +2929,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-03",
@@ -2883,7 +2965,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-04",
@@ -2918,7 +3001,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-05",
@@ -2953,7 +3037,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-06",
@@ -2988,7 +3073,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-07",
@@ -3023,7 +3109,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-08",
@@ -3058,7 +3145,8 @@
         "active_context_tokens": null,
         "thinking_tokens_relation": "subset_of_output_tokens",
         "events": []
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-09",
@@ -3113,7 +3201,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-10",
@@ -3168,7 +3257,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-11",
@@ -3223,7 +3313,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-12",
@@ -3278,7 +3369,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-13",
@@ -3333,7 +3425,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-14",
@@ -3388,7 +3481,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-15",
@@ -3443,7 +3537,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "17-16",
@@ -3498,7 +3593,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "18-01",
@@ -3553,7 +3649,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "18-02",
@@ -3608,7 +3705,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "18-03",
@@ -3663,7 +3761,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "18-04",
@@ -3718,7 +3817,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "18-05",
@@ -3773,7 +3873,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "18-06",
@@ -3828,7 +3929,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-01",
@@ -3883,7 +3985,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-02",
@@ -3938,7 +4041,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-03",
@@ -3993,7 +4097,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-04",
@@ -4048,7 +4153,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-05",
@@ -4103,7 +4209,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-06",
@@ -4158,7 +4265,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-07",
@@ -4213,7 +4321,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-08",
@@ -4268,7 +4377,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "19-09",
@@ -4323,7 +4433,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "20-01",
@@ -4378,7 +4489,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "20-02",
@@ -4433,7 +4545,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "20-03",
@@ -4488,7 +4601,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "20-04",
@@ -4543,7 +4657,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "20-05",
@@ -4598,7 +4713,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "20-06",
@@ -4653,7 +4769,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "20-07",
@@ -4708,7 +4825,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-01",
@@ -4763,7 +4881,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-02",
@@ -4818,7 +4937,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-03",
@@ -4873,7 +4993,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-04",
@@ -4928,7 +5049,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-05",
@@ -4983,7 +5105,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-06",
@@ -5038,7 +5161,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-07",
@@ -5093,7 +5217,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-08",
@@ -5148,7 +5273,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-09",
@@ -5203,7 +5329,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-10",
@@ -5258,7 +5385,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "21-11",
@@ -5313,7 +5441,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "22-01",
@@ -5368,7 +5497,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-01",
@@ -5423,7 +5553,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-02",
@@ -5478,7 +5609,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-03",
@@ -5533,7 +5665,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-04",
@@ -5588,7 +5721,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-05",
@@ -5643,7 +5777,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-06",
@@ -5698,7 +5833,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-07",
@@ -5753,7 +5889,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-08",
@@ -5808,7 +5945,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-09",
@@ -5863,7 +6001,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-10",
@@ -5918,7 +6057,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "23-11",
@@ -5973,7 +6113,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "24-01",
@@ -6028,7 +6169,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "25-01",
@@ -6083,7 +6225,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "25-02",
@@ -6268,7 +6411,8 @@
         ]
       },
       "scope_revision": "speed-first-20260911",
-      "usage_note": "Retains8 historical reported turns from the superseded blocked full-population task. New work begins with short attribution in a fresh cluster; old scope archived."
+      "usage_note": "Retains8 historical reported turns from the superseded blocked full-population task. New work begins with short attribution in a fresh cluster; old scope archived.",
+      "context_files": []
     },
     {
       "id": "25-03",
@@ -6324,7 +6468,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-04",
@@ -6380,7 +6525,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-05",
@@ -6436,7 +6582,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-06",
@@ -6492,7 +6639,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-07",
@@ -6548,7 +6696,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-08",
@@ -6604,7 +6753,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-09",
@@ -6660,7 +6810,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-10",
@@ -6716,7 +6867,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-11",
@@ -6772,7 +6924,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-12",
@@ -6828,7 +6981,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-13",
@@ -6884,7 +7038,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-14",
@@ -6940,7 +7095,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "25-15",
@@ -6996,7 +7152,8 @@
           }
         ]
       },
-      "scope_revision": "speed-first-20260911"
+      "scope_revision": "speed-first-20260911",
+      "context_files": []
     },
     {
       "id": "26-01",
@@ -7197,7 +7354,8 @@
         ]
       },
       "scope_revision": "interactive-hot-kv-20260912",
-      "previous_scope_archive": ".wiretail/execution/archive/phase26-before-interactive-20260912/state-excerpt.json"
+      "previous_scope_archive": ".wiretail/execution/archive/phase26-before-interactive-20260912/state-excerpt.json",
+      "context_files": []
     },
     {
       "id": "26-02",
@@ -7253,7 +7411,8 @@
           }
         ]
       },
-      "scope_revision": "interactive-hot-kv-20260912"
+      "scope_revision": "interactive-hot-kv-20260912",
+      "context_files": []
     },
     {
       "id": "26-03",
@@ -7309,7 +7468,8 @@
           }
         ]
       },
-      "scope_revision": "interactive-hot-kv-20260912"
+      "scope_revision": "interactive-hot-kv-20260912",
+      "context_files": []
     },
     {
       "id": "26-04",
@@ -7365,7 +7525,8 @@
           }
         ]
       },
-      "scope_revision": "interactive-hot-kv-20260912"
+      "scope_revision": "interactive-hot-kv-20260912",
+      "context_files": []
     },
     {
       "id": "26-05",
@@ -7421,7 +7582,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "26-06",
@@ -7477,7 +7639,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "26-07",
@@ -7533,7 +7696,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "26-08",
@@ -7589,7 +7753,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "27-01",
@@ -7645,7 +7810,8 @@
           }
         ]
       },
-      "scope_revision": "interactive-hot-kv-20260912"
+      "scope_revision": "interactive-hot-kv-20260912",
+      "context_files": []
     },
     {
       "id": "27-02",
@@ -7702,7 +7868,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "27-03",
@@ -7758,7 +7925,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "28-01",
@@ -7814,7 +7982,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "28-02",
@@ -7870,7 +8039,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "28-03",
@@ -7926,7 +8096,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "28-04",
@@ -7982,7 +8153,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "28-05",
@@ -8038,7 +8210,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "28-06",
@@ -8094,7 +8267,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "28-07",
@@ -8150,7 +8324,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "29-01",
@@ -8206,7 +8381,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "29-02",
@@ -8262,7 +8438,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "29-03",
@@ -8318,7 +8495,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "30-01",
@@ -8375,7 +8553,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "31-01",
@@ -8430,7 +8609,8 @@
           }
         ]
       },
-      "commit": "9cef462874c045d28974445df9ef5252400458f0"
+      "commit": "9cef462874c045d28974445df9ef5252400458f0",
+      "context_files": []
     },
     {
       "id": "31-02",
@@ -8485,7 +8665,8 @@
             "total_tokens_source": "derived_input_plus_output"
           }
         ]
-      }
+      },
+      "context_files": []
     },
     {
       "id": "31-03",
@@ -8540,7 +8721,8 @@
           }
         ]
       },
-      "commit": "f58edd5989afd3828629a23b8cf8a985e9cd0af0"
+      "commit": "f58edd5989afd3828629a23b8cf8a985e9cd0af0",
+      "context_files": []
     },
     {
       "id": "31-04",
@@ -8595,7 +8777,8 @@
           }
         ]
       },
-      "commit": "9a12cc45ca329be09c59d51f3cd96375e9991ca9"
+      "commit": "9a12cc45ca329be09c59d51f3cd96375e9991ca9",
+      "context_files": []
     },
     {
       "id": "31-05",
@@ -8650,7 +8833,8 @@
           }
         ]
       },
-      "commit": "c25314458de750b13ac2c7a861da1adaac1e73fc"
+      "commit": "c25314458de750b13ac2c7a861da1adaac1e73fc",
+      "context_files": []
     },
     {
       "id": "31-06",
@@ -8705,7 +8889,8 @@
           }
         ]
       },
-      "commit": "e5a0738f59a1b72459ec1f0a2a8327c2419f1923"
+      "commit": "e5a0738f59a1b72459ec1f0a2a8327c2419f1923",
+      "context_files": []
     },
     {
       "id": "32-01",
@@ -8760,7 +8945,8 @@
           }
         ]
       },
-      "commit": "9c27d496a2057393c4a402c9960005dbcae0fcd8"
+      "commit": "9c27d496a2057393c4a402c9960005dbcae0fcd8",
+      "context_files": []
     },
     {
       "id": "33-01",
@@ -25902,8 +26088,6 @@
         ".wiretail/execution/tasks/93-11j.md",
         ".wiretail/execution/handoffs/93-11i.md",
         ".wiretail/execution/handoffs/93-11j.md",
-        ".wiretail/execution/tasks/93-12.md",
-        ".wiretail/execution/tasks/93-13.md",
         ".wiretail/execution/v10/validate.py",
         ".wiretail/execution/v10/test_validate.py"
       ],
@@ -26062,12 +26246,57 @@
       }
     },
     {
+      "id": "93-11o",
+      "phase": "93",
+      "cluster": "repair93-selector-registration-v10",
+      "title": "Repair live Qwen selector graph registration",
+      "packet": ".wiretail/execution/tasks/93-11o.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "repair93-selector-promotion-20260925",
+      "required_proofs": [
+        "repair93_selector_graph_registration_diagnostics",
+        "repair93_selector_graph_registration_tests"
+      ],
+      "depends_on": [
+        "93-11m"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/repair93-selector-registration-v10.md",
+        ".wiretail/execution/tasks/93-11o.md",
+        ".wiretail/execution/forward/SELECTOR_BASELINE.md",
+        "src/llama-graph.cpp",
+        "src/llama-memory.h",
+        "src/llama-memory-hybrid.cpp",
+        "src/llama-memory-hybrid.h",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-cache.h",
+        "tools/server/server-context.cpp",
+        "tests/test-cuda-kv-promotion.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "93-11o",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_93-11o.json"
+      ]
+    },
+    {
       "id": "93-11n",
       "phase": "93",
-      "cluster": "repair93-selector-promotion-v10",
+      "cluster": "repair93-live-promotion-v10",
       "title": "Prove natural cold-page promotion on the corrected candidate",
       "packet": ".wiretail/execution/tasks/93-11n.md",
-      "status": "todo",
+      "status": "in_progress",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -26082,16 +26311,15 @@
         "repair93_promotion_raw_evidence_validated"
       ],
       "depends_on": [
-        "93-11m"
+        "93-11m",
+        "93-11o"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/repair93-selector-promotion-v10.md",
+        ".wiretail/execution/clusters/repair93-live-promotion-v10.md",
         ".wiretail/execution/tasks/93-11n.md",
-        ".wiretail/execution/tasks/93-11l.md",
-        ".wiretail/execution/tasks/93-11m.md",
-        ".wiretail/execution/handoffs/93-11m.md",
-        ".wiretail/execution/evidence/V10_93-11m.json",
+        ".wiretail/execution/tasks/93-11o.md",
+        ".wiretail/execution/handoffs/93-11o.md",
         "tools/server/bench/fixtures/pager-promotion/README.md",
         "tools/server/bench/fixtures/pager-promotion/manifest.json",
         "tools/server/bench/pager_promotion.py",
@@ -26108,12 +26336,84 @@
         "93-11n",
         "--receipt",
         ".wiretail/execution/evidence/V10_93-11n.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11n-attempt-1-20260925T175409474452562-20260925T175409478730081-BM5Gwg.jsonl:278",
+            "total_tokens": 29920404,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 29744863,
+            "cached_input_tokens": 28964864,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 779999,
+            "output_tokens": 175541,
+            "thinking_tokens": 90951
+          },
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11n-attempt-1-20260925T184447618985681-20260925T184447622109937-S6F52P.jsonl:22",
+            "total_tokens": 30385457,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 30204416,
+            "cached_input_tokens": 29349632,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 854784,
+            "output_tokens": 181041,
+            "thinking_tokens": 94472
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/93-11n-attempt-2-20260925T184837939851831-20260925T184837942980458-fqTEZl.jsonl:14",
+            "total_tokens": 30657905,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 30472270,
+            "cached_input_tokens": 29601280,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 870990,
+            "output_tokens": 185635,
+            "thinking_tokens": 97627
+          }
+        ],
+        "totals": {
+          "usage_events": 3,
+          "total_tokens": 90963766,
+          "input_tokens": 90421549,
+          "cached_input_tokens": 87915776,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 2505773,
+          "output_tokens": 542217,
+          "thinking_tokens": 283050,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 3,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "93-11e",
       "phase": "93",
-      "cluster": "repair93-selector-promotion-v10",
+      "cluster": "repair93-live-promotion-v10",
       "title": "Superseded: cold-promotion proof consolidated in 93-11g",
       "superseded_by": "93-11g",
       "packet": ".wiretail/execution/tasks/93-11e.md",
@@ -26259,11 +26559,11 @@
       }
     },
     {
-      "id": "93-12",
-      "phase": "93",
-      "cluster": "repair93-selector-promotion-v10",
-      "title": "Paired MTP placement speed with real cold-context pressure",
-      "packet": ".wiretail/execution/tasks/93-12.md",
+      "id": "94-01",
+      "phase": "94",
+      "cluster": "forward94-turn-epoch",
+      "title": "Add turn retrieval state and derived R/G admission",
+      "packet": ".wiretail/execution/tasks/94-01.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
@@ -26272,62 +26572,43 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "repair93-selector-promotion-20260925",
+      "plan_amendment": "forward-turn-retrieval-20260927",
       "required_proofs": [
-        "repair93_paired_speed_screen"
+        "turn_epoch_state_and_geometry"
       ],
       "depends_on": [
-        "93-10",
-        "93-11",
-        "93-11a",
-        "93-11b",
-        "93-11c",
-        "93-11d",
-        "93-11f",
-        "93-11i",
-        "93-11j",
-        "93-11k",
         "93-11n"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/repair93-selector-promotion-v10.md",
-        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
-        ".wiretail/execution/tasks/93-12.md",
-        ".wiretail/execution/tasks/93-11f.md",
-        ".wiretail/execution/evidence/V10_93-11f.json",
-        ".wiretail/execution/handoffs/93-11f.md",
-        ".wiretail/execution/tasks/93-11n.md",
-        ".wiretail/execution/evidence/V10_93-11n.json",
+        ".wiretail/execution/clusters/forward94-turn-epoch.md",
+        ".wiretail/execution/tasks/94-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
         ".wiretail/execution/handoffs/93-11n.md",
-        ".wiretail/execution/tasks/93-11i.md",
-        ".wiretail/execution/evidence/V10_93-11i.json",
-        ".wiretail/execution/handoffs/93-11i.md",
-        ".wiretail/execution/tasks/93-11j.md",
-        ".wiretail/execution/evidence/V10_93-11j.json",
-        ".wiretail/execution/handoffs/93-11j.md",
-        ".wiretail/execution/tasks/93-11k.md",
-        ".wiretail/execution/evidence/V10_93-11k.json",
-        ".wiretail/execution/handoffs/93-11k.md",
-        ".wiretail/execution/evidence/V10_93-10.json",
-        ".wiretail/execution/v10/validate.py",
-        ".wiretail/execution/v10/test_validate.py"
+        "src/llama-kv-pager.h",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-pager-config.h",
+        "src/llama-kv-pager-config.cpp",
+        "src/llama-kv-residency.h",
+        "common/arg.cpp",
+        "tests/test-kv-pager.cpp"
       ],
       "completion_check": [
         "python3",
         ".wiretail/execution/v10/validate.py",
         "--task",
-        "93-12",
+        "94-01",
         "--receipt",
-        ".wiretail/execution/evidence/V10_93-12.json"
+        ".wiretail/execution/evidence/V10_94-01.json"
       ]
     },
     {
-      "id": "93-13",
-      "phase": "93",
-      "cluster": "repair93-selector-promotion-v10",
-      "title": "Review phase-93 promotion and paired cold-context speed evidence",
-      "packet": ".wiretail/execution/tasks/93-13.md",
+      "id": "94-02",
+      "phase": "94",
+      "cluster": "forward94-turn-epoch",
+      "title": "Freeze historical selection during generation and native MTP",
+      "packet": ".wiretail/execution/tasks/94-02.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
@@ -26336,45 +26617,858 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "repair93-selector-promotion-20260925",
+      "plan_amendment": "forward-turn-retrieval-20260927",
       "required_proofs": [
-        "repair93_phase_summary_gate"
+        "frozen_history_and_mtp_epoch",
+        "frozen_history_cuda_smoke"
       ],
       "depends_on": [
-        "93-12"
+        "94-01"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/repair93-selector-promotion-v10.md",
-        ".wiretail/execution/clusters/repair93-mtp-diagnostics-v10.md",
-        ".wiretail/execution/tasks/93-13.md",
-        ".wiretail/execution/evidence/V10_93-10.json",
-        ".wiretail/execution/handoffs/93-10.md",
-        ".wiretail/execution/evidence/V10_93-11f.json",
-        ".wiretail/execution/handoffs/93-11f.md",
-        ".wiretail/execution/evidence/V10_93-11n.json",
-        ".wiretail/execution/handoffs/93-11n.md",
-        ".wiretail/execution/tasks/93-11i.md",
-        ".wiretail/execution/evidence/V10_93-11i.json",
-        ".wiretail/execution/handoffs/93-11i.md",
-        ".wiretail/execution/tasks/93-11j.md",
-        ".wiretail/execution/evidence/V10_93-11j.json",
-        ".wiretail/execution/handoffs/93-11j.md",
-        ".wiretail/execution/tasks/93-11k.md",
-        ".wiretail/execution/evidence/V10_93-11k.json",
-        ".wiretail/execution/handoffs/93-11k.md",
-        ".wiretail/execution/evidence/V10_93-12.json",
-        ".wiretail/execution/handoffs/93-12.md",
-        ".wiretail/execution/v10/validate.py",
-        ".wiretail/execution/v10/test_validate.py"
+        ".wiretail/execution/clusters/forward94-turn-epoch.md",
+        ".wiretail/execution/tasks/94-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/94-01.md",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-cache.h",
+        "src/llama-kv-live-policy.cpp",
+        "src/llama-kv-live-policy.h",
+        "src/llama-kv-pager-config.cpp",
+        "src/llama-memory.h",
+        "tools/server/server-context.cpp",
+        "common/speculative.cpp",
+        "tests/test-kv-pager.cpp",
+        "tests/test-speculative-mtp-state.cpp"
       ],
       "completion_check": [
         "python3",
         ".wiretail/execution/v10/validate.py",
         "--task",
-        "93-13",
+        "94-02",
         "--receipt",
-        ".wiretail/execution/evidence/V10_93-13.json"
+        ".wiretail/execution/evidence/V10_94-02.json"
+      ]
+    },
+    {
+      "id": "95-01",
+      "phase": "95",
+      "cluster": "forward95-query-replay",
+      "title": "Carry exact rendered final-user token span into the slot",
+      "packet": ".wiretail/execution/tasks/95-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "templated_final_user_span"
+      ],
+      "depends_on": [
+        "94-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward95-query-replay.md",
+        ".wiretail/execution/tasks/95-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/94-02.md",
+        "common/chat.cpp",
+        "common/chat.h",
+        "tools/server/server-common.cpp",
+        "tools/server/server-common.h",
+        "tools/server/server-task.h",
+        "tools/server/server-task.cpp",
+        "tools/server/server-context.cpp",
+        "tests/test-chat-template.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "95-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_95-01.json"
+      ]
+    },
+    {
+      "id": "95-02",
+      "phase": "95",
+      "cluster": "forward95-query-replay",
+      "title": "Checkpoint hybrid query state without copying full history",
+      "packet": ".wiretail/execution/tasks/95-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "query_checkpoint_restore_and_mapping"
+      ],
+      "depends_on": [
+        "95-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward95-query-replay.md",
+        ".wiretail/execution/tasks/95-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/95-01.md",
+        "src/llama-context.cpp",
+        "src/llama-context.h",
+        "src/llama-memory-hybrid.cpp",
+        "src/llama-memory-recurrent.cpp",
+        "src/llama-memory-recurrent.h",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-cache.cpp",
+        "include/llama.h",
+        "tools/server/server-context.cpp",
+        "common/speculative.cpp",
+        "common/speculative.h",
+        "tests/test-speculative-mtp-state.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "95-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_95-02.json"
+      ]
+    },
+    {
+      "id": "95-03",
+      "phase": "95",
+      "cluster": "forward95-query-replay",
+      "title": "Retrieve, publish and replay only the final user span",
+      "packet": ".wiretail/execution/tasks/95-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "query_replay_changed_and_unchanged",
+        "query_replay_cuda_parity"
+      ],
+      "depends_on": [
+        "95-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward95-query-replay.md",
+        ".wiretail/execution/tasks/95-03.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/95-02.md",
+        "tools/server/server-context.cpp",
+        "src/llama-context.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-live-policy.cpp",
+        "src/llama-memory-hybrid.cpp",
+        "common/speculative.cpp",
+        "tests/test-kv-pager.cpp",
+        "tests/test-speculative-mtp-state.cpp",
+        "tools/server/bench/run-pager-promotion.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "95-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_95-03.json"
+      ]
+    },
+    {
+      "id": "96-01",
+      "phase": "96",
+      "cluster": "forward96-query-scoring",
+      "title": "Aggregate target Q across the actual final user span",
+      "packet": ".wiretail/execution/tasks/96-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "user_span_q_aggregation_and_transform"
+      ],
+      "depends_on": [
+        "95-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward96-query-scoring.md",
+        ".wiretail/execution/tasks/96-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/95-03.md",
+        "src/llama-graph.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-cache.h",
+        "src/llama-memory.h",
+        "src/llama-memory-hybrid.cpp",
+        "src/llama-kv-routing-retrieval.cpp",
+        "ggml/src/ggml-cuda/kv-page-select.cu",
+        "tests/test-kv-page-select.cpp",
+        "tests/test-backend-ops.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "96-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_96-01.json"
+      ]
+    },
+    {
+      "id": "96-02",
+      "phase": "96",
+      "cluster": "forward96-query-scoring",
+      "title": "Add Mean-K retrieval baseline and select a measured scorer",
+      "packet": ".wiretail/execution/tasks/96-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "mean_k_summary_version_and_recall",
+        "scorer_small_cuda_comparison"
+      ],
+      "depends_on": [
+        "96-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward96-query-scoring.md",
+        ".wiretail/execution/tasks/96-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/96-01.md",
+        "src/llama-kv-routing-summary.h",
+        "src/llama-kv-routing-summary.cpp",
+        "src/llama-kv-routing-retrieval.h",
+        "src/llama-kv-routing-retrieval.cpp",
+        "src/llama-kv-cache.cpp",
+        "ggml/src/ggml-cuda/kv-page-summary.cu",
+        "ggml/src/ggml-cuda/kv-page-select.cu",
+        "tests/test-kv-routing-summary.cpp",
+        "tests/test-kv-routing-retrieval.cpp",
+        "tests/test-cuda-kv-page-summary.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "96-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_96-02.json"
+      ]
+    },
+    {
+      "id": "97-01",
+      "phase": "97",
+      "cluster": "forward97-generation-ring",
+      "title": "Classify pages and protect history while recycling generation",
+      "packet": ".wiretail/execution/tasks/97-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "generation_ring_victim_and_history_pins"
+      ],
+      "depends_on": [
+        "96-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward97-generation-ring.md",
+        ".wiretail/execution/tasks/97-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/96-02.md",
+        "src/llama-kv-pager.h",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-residency.h",
+        "src/llama-kv-live-policy.cpp",
+        "tests/test-kv-pager.cpp",
+        "tests/test-kv-residency.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "97-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_97-01.json"
+      ]
+    },
+    {
+      "id": "97-02",
+      "phase": "97",
+      "cluster": "forward97-generation-ring",
+      "title": "Seal generation pages once and preserve native-MTP rollback",
+      "packet": ".wiretail/execution/tasks/97-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "generation_seal_and_rejection",
+        "generation_ring_cuda_integration"
+      ],
+      "depends_on": [
+        "97-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward97-generation-ring.md",
+        ".wiretail/execution/tasks/97-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/97-01.md",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-residency-transfer.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-context.cpp",
+        "common/speculative.cpp",
+        "tools/server/server-context.cpp",
+        "tests/test-speculative-mtp-state.cpp",
+        "tests/test-cuda-kv-promotion.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "97-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_97-02.json"
+      ]
+    },
+    {
+      "id": "98-01",
+      "phase": "98",
+      "cluster": "forward98-host-transfer",
+      "title": "Audit inclusive host authority and bounded pinned staging",
+      "packet": ".wiretail/execution/tasks/98-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "inclusive_host_and_page_seal_topology"
+      ],
+      "depends_on": [
+        "97-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward98-host-transfer.md",
+        ".wiretail/execution/tasks/98-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/97-02.md",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-residency-transfer.h",
+        "src/llama-kv-residency-transfer.cpp",
+        "src/llama-kv-residency-transaction.cpp",
+        "src/llama-kv-cache.cpp",
+        "tests/test-kv-residency.cpp",
+        "tests/test-kv-pager.cpp",
+        "tests/test-cuda-kv-promotion.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "98-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_98-01.json"
+      ]
+    },
+    {
+      "id": "98-02",
+      "phase": "98",
+      "cluster": "forward98-host-transfer",
+      "title": "Diff turn selections and batch only missing-page H2D",
+      "packet": ".wiretail/execution/tasks/98-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "selection_diff_async_batch_and_publication"
+      ],
+      "depends_on": [
+        "98-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward98-host-transfer.md",
+        ".wiretail/execution/tasks/98-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/98-01.md",
+        "src/llama-kv-live-policy.cpp",
+        "src/llama-kv-live-policy.h",
+        "src/llama-kv-residency-transaction.cpp",
+        "src/llama-kv-residency-transfer.cpp",
+        "src/llama-kv-prefetch.cpp",
+        "src/llama-kv-cache.cpp",
+        "tests/test-cuda-kv-promotion.cpp",
+        "tests/test-kv-prefetch.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "98-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_98-02.json"
+      ]
+    },
+    {
+      "id": "99-01",
+      "phase": "99",
+      "cluster": "forward99-gpu-attention",
+      "title": "Compare direct-paged and mature Turbo4 FA on identical pages",
+      "packet": ".wiretail/execution/tasks/99-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "matched_turbo4_route_parity",
+        "matched_turbo4_route_timings"
+      ],
+      "depends_on": [
+        "98-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward99-gpu-attention.md",
+        ".wiretail/execution/tasks/99-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/98-02.md",
+        "src/llama-kv-attention-execution.cpp",
+        "src/llama-kv-attention-execution.h",
+        "src/llama-kv-attention-view.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-graph.cpp",
+        "ggml/src/ggml-cuda/fattn-paged-turbo4.cuh",
+        "tests/test-cuda-fattn-paged-turbo4.cu",
+        "tests/test-kv-attention-execution.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "99-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_99-01.json"
+      ]
+    },
+    {
+      "id": "99-02",
+      "phase": "99",
+      "cluster": "forward99-gpu-attention",
+      "title": "Install measured shape-aware fast attention dispatch",
+      "packet": ".wiretail/execution/tasks/99-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "shape_dispatch_parity_and_cost",
+        "fast_dispatch_cuda_smoke"
+      ],
+      "depends_on": [
+        "99-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward99-gpu-attention.md",
+        ".wiretail/execution/tasks/99-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/99-01.md",
+        "src/llama-kv-attention-execution.cpp",
+        "src/llama-kv-attention-execution.h",
+        "src/llama-kv-attention-view.cpp",
+        "src/llama-graph.cpp",
+        "src/llama-kv-cache.cpp",
+        "tests/test-kv-attention-execution.cpp",
+        "tests/test-cuda-fattn-paged-turbo4.cu",
+        "tools/server/README.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "99-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_99-02.json"
+      ]
+    },
+    {
+      "id": "100-01",
+      "phase": "100",
+      "cluster": "forward100-performance",
+      "title": "Prepare reliable canonical benchmark and stage accounting",
+      "packet": ".wiretail/execution/tasks/100-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "canonical_forward_harness_contract",
+        "candidate_setup_smoke"
+      ],
+      "depends_on": [
+        "99-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-performance.md",
+        ".wiretail/execution/tasks/100-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/99-02.md",
+        "tools/server/bench/run-pager-profile-benchmark.py",
+        "tools/server/bench/pager_benchmark_contract.py",
+        "tools/server/bench/prompt_sizing.py",
+        "tools/server/bench/test_pager_benchmark_adapter.py",
+        "tools/server/bench/run-pager-promotion.py",
+        "tools/server/bench/README.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-01.json"
+      ]
+    },
+    {
+      "id": "100-02",
+      "phase": "100",
+      "cluster": "forward100-performance",
+      "title": "Measure corrected 8K/4K hot-cache speed and bounded recall",
+      "packet": ".wiretail/execution/tasks/100-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "canonical_three_prompt_measured",
+        "bounded_recall_and_frozen_decode"
+      ],
+      "depends_on": [
+        "100-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-performance.md",
+        ".wiretail/execution/tasks/100-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/100-01.md",
+        "tools/server/bench/run-pager-profile-benchmark.py",
+        "tools/server/bench/pager_benchmark_contract.py",
+        "tools/server/bench/fixtures/pager-promotion/manifest.json",
+        "tools/server/bench/prompt_sizing.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-02.json"
+      ]
+    },
+    {
+      "id": "100-03",
+      "phase": "100",
+      "cluster": "forward100-performance",
+      "title": "Release useful short-path performance or schedule precise repairs",
+      "packet": ".wiretail/execution/tasks/100-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "short_path_release_or_scheduled_repairs"
+      ],
+      "depends_on": [
+        "100-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-performance.md",
+        ".wiretail/execution/tasks/100-03.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/100-02.md",
+        "src/llama-kv-attention-execution.cpp",
+        "src/llama-graph.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-pager.cpp",
+        "common/speculative.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03.json"
+      ]
+    },
+    {
+      "id": "101-01",
+      "phase": "101",
+      "cluster": "forward101-capacity",
+      "title": "Prove 32K logical history with 16K hot capacity",
+      "packet": ".wiretail/execution/tasks/101-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "32k_16k_committed_history_and_speed"
+      ],
+      "depends_on": [
+        "100-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward101-capacity.md",
+        ".wiretail/execution/tasks/101-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/100-03.md",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/validate-occupied-frontier.py",
+        "tools/server/bench/measure-speed-occupancy.py",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-cache.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-01.json"
+      ]
+    },
+    {
+      "id": "101-02",
+      "phase": "101",
+      "cluster": "forward101-capacity",
+      "title": "Scale to occupied 128K with a measured bounded hot pool",
+      "packet": ".wiretail/execution/tasks/101-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "128k_occupancy_memory_and_turn_boundary"
+      ],
+      "depends_on": [
+        "101-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward101-capacity.md",
+        ".wiretail/execution/tasks/101-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-01.md",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/validate-occupied-frontier.py",
+        "tools/server/bench/measure-speed-occupancy.py",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-cache.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-02.json"
+      ]
+    },
+    {
+      "id": "101-03",
+      "phase": "101",
+      "cluster": "forward101-full-256k",
+      "title": "Prove full 256K history, hot paging and full-L GPU Turbo4 MTP",
+      "packet": ".wiretail/execution/tasks/101-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "256k_allocation_and_committed_occupancy",
+        "256k_promotion_replay_ring_mtp_and_memory"
+      ],
+      "depends_on": [
+        "101-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward101-full-256k.md",
+        ".wiretail/execution/tasks/101-03.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-02.md",
+        "tools/server/bench/run-occupancy-frontier.py",
+        "tools/server/bench/validate-occupied-frontier.py",
+        "tools/server/bench/measure-speed-occupancy.py",
+        "tools/server/bench/run-pager-promotion.py",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-cache.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-03.json"
+      ]
+    },
+    {
+      "id": "102-01",
+      "phase": "102",
+      "cluster": "forward102-goal-review",
+      "title": "Assess final measured goals and create real follow-up work if needed",
+      "packet": ".wiretail/execution/tasks/102-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-turn-retrieval-20260927",
+      "required_proofs": [
+        "final_goal_summary_and_successors"
+      ],
+      "depends_on": [
+        "101-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward102-goal-review.md",
+        ".wiretail/execution/tasks/102-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-03.md",
+        "tools/server/bench/measure-speed-occupancy.py",
+        "tools/server/bench/validate-speed-occupancy.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "102-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_102-01.json"
       ]
     }
   ],
@@ -28015,17 +29109,17 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 46,
-        "total_tokens": 1917059502,
-        "input_tokens": 1911003464,
-        "cached_input_tokens": 1871571712,
+        "usage_events": 49,
+        "total_tokens": 2008023268,
+        "input_tokens": 2001425013,
+        "cached_input_tokens": 1959487488,
         "cache_write_input_tokens": 0,
-        "cache_write_input_tokens_known_events": 23,
-        "input_tokens_minus_cached_tokens": 39431752,
-        "output_tokens": 6056038,
-        "thinking_tokens": 2739414,
+        "cache_write_input_tokens_known_events": 26,
+        "input_tokens_minus_cached_tokens": 41937525,
+        "output_tokens": 6598255,
+        "thinking_tokens": 3022464,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 46,
+        "total_tokens_derived_events": 49,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -28040,17 +29134,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 377,
-      "total_tokens": 8079663975,
-      "input_tokens": 8058441655,
-      "cached_input_tokens": 7883539456,
+      "usage_events": 380,
+      "total_tokens": 8170627741,
+      "input_tokens": 8148863204,
+      "cached_input_tokens": 7971455232,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 23,
-      "input_tokens_minus_cached_tokens": 174902199,
-      "output_tokens": 21222320,
-      "thinking_tokens": 8148366,
+      "cache_write_input_tokens_known_events": 26,
+      "input_tokens_minus_cached_tokens": 177407972,
+      "output_tokens": 21764537,
+      "thinking_tokens": 8431416,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 377,
+      "total_tokens_derived_events": 380,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

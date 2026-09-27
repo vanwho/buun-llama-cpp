@@ -1214,3 +1214,11 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-93-11g`
 - Commit at update: `689653162`
 - Summary: Attempt 08 established the cold/host-backed precondition but no completed promotion and captured no direct selector candidate or rejection reason. Empty natural_proof does not prove no nomination. Defer this unchanged live sequence; replacement selector-row, bounded diagnostics, and candidate-bound promotion tasks 93-11l/11m/11n are inserted before 93-12.
+
+## 2026-09-27 — forward-turn-retrieval-20260927 — plan amendment
+
+- Read and preserved the entire researched Sol handoff in forward/SOURCE_FORWARD_PLAN.md (SHA256 9f528e59fa2d9eab463c75f9d48d9feab277b7ba465f12547e16cae96ce5a440).
+- Preserve 93-11o then 93-11n as the narrow current selector/promotion baseline. Remove unstarted93-12/93-13 from the runnable graph; archive their original packets and scheduling records without rewriting historical evidence.
+- Add20 code-directed Luna High tasks in phases94–102: turn epoch/freeze, exact user span and bounded hybrid replay, whole-span Q/Mean-K comparison, generation ring, inclusive async transfers, matched GPU route dispatch, small canonical speed/release,32K/128K/full256K occupancy and final goal review.
+- Forward OVERVIEW/TESTING supersede periodic accepted-token retrieval and fixed route preferences. Long source history is retained but excluded from task context. Missing/setup-invalid measurements are repaired/retried; valid poor speed creates concrete source repair/retest tasks before scaling.
+- All435 state entries and active plan dependencies/context/completion commands validate. Existing production-source WIP remains unchanged; only execution metadata is committed for this amendment.

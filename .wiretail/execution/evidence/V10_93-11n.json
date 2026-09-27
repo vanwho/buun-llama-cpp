@@ -1,0 +1,535 @@
+{
+  "schema_version": 1,
+  "task": "93-11n",
+  "source_commit": "e5e5f5c2bb32a5e44f447c2449cb7bc2ad678b55",
+  "result": "diagnostic_incomplete",
+  "candidate": {
+    "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/llama-server",
+    "sha256": "dafce49f2022f6f52becefc42cb5a7912fc284131df92c99852f18ab8cf1ea9e",
+    "server_implementation_dso_sha256": "a429b7a8ff09429757fcf656db2d89b3e8e011b84675653f15901b24198a76a7"
+  },
+  "model": {
+    "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "service_identity": {
+    "service": "llama-server.service",
+    "endpoint": "http://127.0.0.1:8080",
+    "pid": 956365,
+    "start_time_ticks": 7081506,
+    "command": [
+      "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/llama-server",
+      "-m",
+      "/srv/ai/models/text/current.gguf",
+      "--alias",
+      "qwen38-fast-turbo4-mtp",
+      "-ngl",
+      "999",
+      "--fit",
+      "off",
+      "-fa",
+      "on",
+      "-c",
+      "16384",
+      "-np",
+      "1",
+      "-ctk",
+      "turbo4",
+      "-ctv",
+      "turbo4",
+      "-b",
+      "128",
+      "-ub",
+      "64",
+      "--context-shift",
+      "--poll",
+      "0",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8080",
+      "--api-key-file",
+      "/srv/ai/config/llama/api-keys",
+      "--metrics",
+      "--reasoning-preserve",
+      "--kv-pager",
+      "selective",
+      "--kv-page-size",
+      "256",
+      "--kv-hot-pages",
+      "16",
+      "--kv-pin-recent",
+      "0",
+      "--device",
+      "CUDA0",
+      "--ctx-checkpoints",
+      "0",
+      "--cache-ram",
+      "0",
+      "--no-cache-idle-slots",
+      "--spec-draft-kv-device",
+      "gpu",
+      "--spec-type",
+      "draft-mtp",
+      "--spec-draft-n-max",
+      "2",
+      "--spec-draft-type-k",
+      "turbo4",
+      "--spec-draft-type-v",
+      "turbo4"
+    ],
+    "selector_trace": {
+      "enabled": true,
+      "target_page": "20",
+      "verified_from_process_environment": true
+    },
+    "loaded_candidate_dsos": [
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/libggml-base.so.0.24.0",
+        "sha256": "0427a12563c167305ee3c2c673c99d9b9496d923668a209291bde5a9041e0ecc"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/libggml-cpu.so.0.24.0",
+        "sha256": "4fd981c01ee455518b65f2d7a9947e88f7fc05f9aff66ca5b419713dcb184445"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/libggml-cuda.so.0.24.0",
+        "sha256": "1f480d5f301c9c20764ee6f7aecb6490ec9d90e625f092761427b53fa753666c"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/libggml.so.0.24.0",
+        "sha256": "58c9d1ca7126296da90a116cd52dc64e9e5f9735545eedc56bc6d5e827fb2d0d"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/libllama-common.so.0.4.1",
+        "sha256": "be786e9db14676c512c018ab4c8a7a38f89c20ec6816cdb7a3c5da45af2b4f70"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/libllama-server-impl.so",
+        "sha256": "a429b7a8ff09429757fcf656db2d89b3e8e011b84675653f15901b24198a76a7"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/libllama.so.0.4.1",
+        "sha256": "7184ac00e16b709a8e2b141d6b8a338236ec180264ab77f332c9aab6c0550b24"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/libmtmd.so.0.4.1",
+        "sha256": "c1e651ece37f59e2360d4b8e00501869526cb0ada90889d2a61f4d728fefca6b"
+      },
+      {
+        "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/llama-server",
+        "sha256": "dafce49f2022f6f52becefc42cb5a7912fc284131df92c99852f18ab8cf1ea9e"
+      }
+    ]
+  },
+  "setup": {
+    "context_tokens": 16384,
+    "hot_tokens": 4096,
+    "page_size_tokens": 256,
+    "batch": 128,
+    "ubatch": 64,
+    "pager_mode": "selective",
+    "target_type_k": "turbo4",
+    "target_type_v": "turbo4",
+    "host_backing": "canonical host Turbo4",
+    "mtp_backend": "gpu",
+    "mtp_type_k": "turbo4",
+    "mtp_type_v": "turbo4",
+    "draft_n_max": 2,
+    "thinking": "off",
+    "answer_bearing_page_id": 20
+  },
+  "file_promotion_campaign": {
+    "execution_status": "complete",
+    "acceptance_status": "diagnostic_incomplete",
+    "candidate_identity_verified": true,
+    "requests_attempted": 3,
+    "case_count": 1,
+    "all_fixture_pages_cold_host_backed_before_request_3": true,
+    "answer_bearing_page_naturally_promoted": false,
+    "selector_history_snapshot_count": 19,
+    "mtp": {
+      "draft_n_max": 2,
+      "draft_placement": "gpu",
+      "draft_type_k": "turbo4",
+      "draft_type_v": "turbo4",
+      "target_placement": "gpu",
+      "target_type_k": "turbo4",
+      "target_type_v": "turbo4"
+    },
+    "filename_answers": {
+      "request_1": {
+        "answer": "merge_sorted_lists_05.py",
+        "expected_filename_local_only": "merge_sorted_lists_03.py",
+        "matched": false,
+        "method": "trimmed exact filename comparison",
+        "status": "fail"
+      },
+      "request_2": {
+        "answer": "</think>\n\namers and a small predictable small small predictable small small predictable small",
+        "expected_filename_local_only": "watch_directory_new_files_01.sh",
+        "matched": false,
+        "method": "trimmed exact filename comparison",
+        "status": "fail"
+      },
+      "request_3": {
+        "answer": "merge_sorted.txt",
+        "expected_filename_local_only": "merge_sorted_lists_03.py",
+        "matched": false,
+        "method": "trimmed exact filename comparison",
+        "status": "fail"
+      }
+    },
+    "request_ids": [
+      "chatcmpl-3ExInngreiEGg1ofuQ9cwSzvX6qoNdIh",
+      "chatcmpl-zaFcvgYsVjh0dHBXhtM3YfdoMH8l2trs",
+      "chatcmpl-YGOb3wH9NDQC1Vd2JjWdpG87Sz2ZX3CN"
+    ],
+    "cases": [
+      {
+        "execution_status": "complete",
+        "acceptance_status": "diagnostic_incomplete",
+        "answer_bearing_pages": [
+          {
+            "claimed_promoted": false,
+            "cold_before": true,
+            "events": [],
+            "fixture_byte_span": [
+              0,
+              3932
+            ],
+            "fixture_token_span": [
+              5120,
+              5262
+            ],
+            "host_backed_before_request_3": true,
+            "missing_transition": "page was not naturally nominated",
+            "page_identity": {
+              "content_version": 22,
+              "generation": 22,
+              "logical_page_id": 20,
+              "position_begin": 5120,
+              "position_end": 5376,
+              "sequence_generation": 1,
+              "sequence_id": 0
+            },
+            "request_generation": 3,
+            "request_id": "chatcmpl-YGOb3wH9NDQC1Vd2JjWdpG87Sz2ZX3CN",
+            "resident_before_request_3": false,
+            "selector_diagnostic": {
+              "async_readback_completed": false,
+              "async_readback_submitted": false,
+              "candidate_authenticated": false,
+              "enabled": true,
+              "h2d_completed_bytes": 0,
+              "h2d_completion_observed": false,
+              "h2d_event_completions": 0,
+              "h2d_queued_bytes": 0,
+              "mailbox_dropped": false,
+              "mailbox_published": false,
+              "mapping_published": false,
+              "outcome": "selector_not_run",
+              "policy_admitted": false,
+              "published_epoch": 0,
+              "query_generation": 182,
+              "query_position": 0,
+              "query_row": 4294967295,
+              "raw_cold_count": 0,
+              "raw_cold_indices": [],
+              "raw_cold_logical_pages": [],
+              "raw_selector_output_valid": false,
+              "synchronous_readback_completed": false,
+              "table_epoch": 0,
+              "target_content_version": 0,
+              "target_eligible": false,
+              "target_found": false,
+              "target_graph_used": false,
+              "target_host_backed": false,
+              "target_logical_page": 20,
+              "target_page_generation": 0,
+              "target_physical_slot": 4294967295,
+              "target_position_begin": -1,
+              "target_resident": false,
+              "target_sequence_generation": 0,
+              "target_summary_ready": false,
+              "target_summary_version": 0,
+              "target_valid_length": 0,
+              "victim_logical_page": 4294967295
+            },
+            "selector_evidence_source": "explicit_selector_outcome",
+            "selector_nominated": false,
+            "selector_outcome": "selector_not_run",
+            "selector_stages": [
+              {
+                "content_version": 22,
+                "explicit_reason": "selector_not_run",
+                "generation": 22,
+                "logical_page_id": 20,
+                "natural_proof_identity": null,
+                "raw_cold_logical_pages": [],
+                "raw_output_valid": false,
+                "request_generation": 3,
+                "request_id": "chatcmpl-YGOb3wH9NDQC1Vd2JjWdpG87Sz2ZX3CN",
+                "selector_nominated": false,
+                "stage": "selector"
+              },
+              {
+                "completed": false,
+                "content_version": 22,
+                "dropped": false,
+                "generation": 22,
+                "logical_page_id": 20,
+                "published": false,
+                "request_generation": 3,
+                "request_id": "chatcmpl-YGOb3wH9NDQC1Vd2JjWdpG87Sz2ZX3CN",
+                "stage": "mailbox",
+                "submitted": false
+              },
+              {
+                "admitted": false,
+                "candidate_authenticated": false,
+                "content_version": 22,
+                "generation": 22,
+                "logical_page_id": 20,
+                "reason": "selector_not_run",
+                "request_generation": 3,
+                "request_id": "chatcmpl-YGOb3wH9NDQC1Vd2JjWdpG87Sz2ZX3CN",
+                "stage": "policy"
+              },
+              {
+                "completed": false,
+                "completed_bytes": 0,
+                "completion_observed": false,
+                "content_version": 22,
+                "event_completions": 0,
+                "generation": 22,
+                "logical_page_id": 20,
+                "queued_bytes": 0,
+                "request_generation": 3,
+                "request_id": "chatcmpl-YGOb3wH9NDQC1Vd2JjWdpG87Sz2ZX3CN",
+                "stage": "h2d"
+              },
+              {
+                "content_version": 22,
+                "epoch": 0,
+                "generation": 22,
+                "logical_page_id": 20,
+                "physical_slot": 4294967295,
+                "published": false,
+                "request_generation": 3,
+                "request_id": "chatcmpl-YGOb3wH9NDQC1Vd2JjWdpG87Sz2ZX3CN",
+                "stage": "mapping"
+              },
+              {
+                "consumed": false,
+                "content_version": 22,
+                "epoch": 0,
+                "generation": 22,
+                "logical_page_id": 20,
+                "query_generation": 0,
+                "request_generation": 3,
+                "request_id": "chatcmpl-YGOb3wH9NDQC1Vd2JjWdpG87Sz2ZX3CN",
+                "stage": "target_use"
+              }
+            ]
+          }
+        ],
+        "all_fixture_pages_cold_host_backed_before_request_3": true,
+        "mtp": {
+          "draft_n_max": 2,
+          "draft_placement": "gpu",
+          "draft_type_k": "turbo4",
+          "draft_type_v": "turbo4",
+          "target_placement": "gpu",
+          "target_type_k": "turbo4",
+          "target_type_v": "turbo4"
+        }
+      }
+    ]
+  },
+  "checks": {
+    "repair93_natural_cold_promotion_chain": {
+      "status": "fail",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign",
+        "--server-binary",
+        "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/llama-server",
+        "--selector-trace-page",
+        "20"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/campaign-progress.json",
+          "sha256": "14adba6b85c1693460e927f5079a4b72c8996ba3ebe9d6f7d45b9b375a080f7e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/case-summary.json",
+          "sha256": "962b4c5fc54079dc114cfb13559ba54d6b694e2902d3976b14e04d41edac22b6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-03/selector-trace-poll-snapshots.json",
+          "sha256": "d9d3894e3f2c9d85a01a5653365da4d6b630f73b98af2e49b57b0d18b39ef12f"
+        }
+      ],
+      "reason": "The live campaign completed, but page 20 had no direct selector nomination; all recorded target traces were selector_not_run with query_row UINT32_MAX. No later promotion stage occurred."
+    },
+    "repair93_candidate_mtp_verified": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion.py",
+        "--output",
+        "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign",
+        "--server-binary",
+        "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-bundle/llama-server",
+        "--selector-trace-page",
+        "20"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/case-summary.json",
+          "sha256": "962b4c5fc54079dc114cfb13559ba54d6b694e2902d3976b14e04d41edac22b6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-03/record.json",
+          "sha256": "3d4d5c3363f9afc5107adfea99967e228d18b3d65437ef0732dbbb53c577b367"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-lifecycle.json",
+          "sha256": "46c32c83c0ffe3b3801acc73ceced6550dc616b741d84685aec846705da93013"
+        }
+      ]
+    },
+    "repair93_promotion_raw_evidence_validated": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/verify-diagnostic.py"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/verify-diagnostic.py",
+          "sha256": "131010f5c25ded3a30f118dab4fa061478f1a4e6deb521f17edbfa38bc09d551"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/verify-diagnostic.log",
+          "sha256": "dd56decba509f30f1f66d985f351ed18c8f6fc02bfe32ea0168e9f34c57680f4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-03/selector-trace-poll-snapshots.json",
+          "sha256": "d9d3894e3f2c9d85a01a5653365da4d6b630f73b98af2e49b57b0d18b39ef12f"
+        }
+      ]
+    }
+  },
+  "raw_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/build-llama-server.log",
+      "sha256": "6768116faef4d58624c398d5048d40023c84f3dd9db9d5e3b6f6f35a9307a8a9"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/python-tests.log",
+      "sha256": "643c7cfc3921e5830e047bed28578bc933677c101c9c5a9f6610b6207052d03c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-build-sha256.txt",
+      "sha256": "e5ce06734bcebbf7911e52c37f9ef3df562dcba4fc2123c02615c8e1d808850f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-ldd-bundled.txt",
+      "sha256": "3f753669851c2912420f7a89253a25b60e6b871643ed88f84735dc30b6b7586f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/candidate-lifecycle.json",
+      "sha256": "46c32c83c0ffe3b3801acc73ceced6550dc616b741d84685aec846705da93013"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/managed-activate.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/health.json",
+      "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/candidate-identity.json",
+      "sha256": "aa0659f098f3aeca8765a72e993ec967de9c5cf8fc2793c3d2184c7f6d5346aa"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/campaign-progress.json",
+      "sha256": "14adba6b85c1693460e927f5079a4b72c8996ba3ebe9d6f7d45b9b375a080f7e"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/case-summary.json",
+      "sha256": "962b4c5fc54079dc114cfb13559ba54d6b694e2902d3976b14e04d41edac22b6"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-01/record.json",
+      "sha256": "d10f23b577c3bd9dbcb9682bbb571c5c7bff32716830676b1350d70e4776a3a1"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-02/record.json",
+      "sha256": "3bc48598ba8e388e1c476d896e36de92345181d815f43117916cf0646de2ab99"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-03/record.json",
+      "sha256": "3d4d5c3363f9afc5107adfea99967e228d18b3d65437ef0732dbbb53c577b367"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-03/selector-trace-poll-snapshots.json",
+      "sha256": "d9d3894e3f2c9d85a01a5653365da4d6b630f73b98af2e49b57b0d18b39ef12f"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/verify-diagnostic.py",
+      "sha256": "131010f5c25ded3a30f118dab4fa061478f1a4e6deb521f17edbfa38bc09d551"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/verify-diagnostic.log",
+      "sha256": "dd56decba509f30f1f66d985f351ed18c8f6fc02bfe32ea0168e9f34c57680f4"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-01/completion-response.raw",
+      "sha256": "e722ca3110b667f82baffac6809a435b8baae44ab97646da911e79f1c17e533e"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-02/completion-response.raw",
+      "sha256": "edc874906c63e482081055183a4c6edb01b024ca4058eac49e9a22a34c458b4b"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/campaign/cases/PY_MERGE_03/request-03/completion-response.raw",
+      "sha256": "91fce422f3834bf7d946c2cf286582338a496ffa839f91f5979aa4ec279f6804"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/build-promotion-test.log",
+      "sha256": "9e8491d4930126f619bc8752ab075991d8ae824a74a75134ce4ec2a37e077b9c"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/ctest-cuda.log",
+      "sha256": "3e6b11ae212ed50fa140e5ddc0ab9dd054fe3e011a0e47026cf06c7eb3ec4643"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/plan-check.log",
+      "sha256": "4aeac8d2c4faca5d0c66242ea0ce066273e6c59be62525a1ab4f3a063cf66d40"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/v10/93-11n/attempt-03/completion-check.log",
+      "sha256": "1b061128952fb9cea5cdc8c597d319fff99e2a797f8ae390b02f790a184d3645"
+    }
+  ],
+  "deferred_verification": [
+    "The physical cold-page promotion chain is unproven. Task 93-11o is scheduled to diagnose/fix the live Qwen graph registration/capture gate; 93-11n must rerun the campaign afterward. 93-12 remains gated."
+  ],
+  "local_validation": {
+    "cuda_server_build": "pass",
+    "promotion_driver_tests": "10 pass",
+    "cuda_promotion_ctest": "pass",
+    "task_plan_check": "pass",
+    "natural_promotion_completion_check": "fail: selector nomination absent"
+  }
+}

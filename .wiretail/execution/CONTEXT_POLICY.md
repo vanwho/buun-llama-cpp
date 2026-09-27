@@ -4,6 +4,12 @@ This compact policy is injected into each Wiretail task and recovery-assessment
 prompt. It supplements the current task packet; it does not replace its scope or
 acceptance criteria.
 
+For phase94 onward, forward/OVERVIEW.md and forward/TESTING.md supersede
+REPAIR85's accepted-token retrieval cadence and route preference. Do not load
+the full researched SOURCE_FORWARD_PLAN, retired93-12/93-13, old summaries or
+all predecessor gates. Finish the current93-11o/93-11n narrow baseline on its
+own packet first; the forward policy change starts only afterward.
+
 ## Token accounting: what the numbers mean
 
 Wiretail records one detail entry per Codex JSONL `turn.completed` usage object.

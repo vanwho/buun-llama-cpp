@@ -1,0 +1,111 @@
+# Minimal testing and honest performance measurement
+
+Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
+
+## Setup once, verify cheaply, keep loaded
+
+Use the existing incremental `build-cuda` tree and build only named affected
+targets. Record source base SHA + dirty-diff hash, build flags, binary and loaded
+DSO hashes, model SHA, endpoint owner PID/start time, effective argv, L/H/G/A,
+B/U, codecs and MTP placement. Reuse the managed 8080 service only when these
+match; otherwise reload through the current managed lifecycle. One Qwen process
+at a time. Never touch 8092 or use `pgrep | head` to choose identity.
+
+Known local bindings: `CANONICAL_BENCHMARK_RUNNER=/srv/ai/benchmarks/run-profile-benchmark.sh`,
+`LLAMA_API_KEY_FILE=/srv/ai/config/llama/api-keys`, model resolved from
+`/srv/ai/models/text/current.gguf`, and candidate via `BENCH_SERVER_BIN`.
+Use existing credential-file readers and lifecycle lock; never print keys.
+Use `sudo -n` for service actions. If it fails, inspect `id`, `sudo -n -l`,
+executable command paths and process privilege restrictions and repair the
+authorized launch path within the task. Do not switch to a CPU-only 27B run.
+Retain a successful candidate loaded for the next task.
+
+## Geometry
+
+- Small implementation tests: real CUDA fixtures with 1–3 pages; synthetic
+  tiny page sizes belong only in deterministic tests. CPU float math is an
+  oracle, not CPU Turbo4 inference. A CPU fixture refusing TurboQuant execution
+  is a known backend boundary, not a host-storage failure.
+- First corrected live semantics: L=8192, H=4096, page=256, one slot;
+  R/G derive from each invariant. Ring test may choose G=256 with R<=H-G.
+- Use B=1024/U=256 for all new comparable speeds, target/draft Turbo4, native
+  GPU MTP, draft-n-max=2, temperature=0, reasoning/thinking off. These are test
+  settings, not production constants. Keep 93-11n's existing narrow baseline
+  geometry until its proof passes; label it separately from later speeds.
+- Keep fresh input speed probes <=16K tokens. For local tests and scaling,
+  physical target hot capacity H <=49,152; L may grow to 128K/256K independently.
+  Product code derives H/G from model/backend/memory and remains tunable.
+- Reserve full-L draft, weights, GDN, catalogue, transfer slabs, graph/scratch,
+  peak verify/replay usage and measured safety headroom before H. If OOM, stop
+  only the owned restart loop, ensure one model is loaded, reduce H/R or packed
+  workspace first, and keep L/full-L draft/B/U fixed. A changed geometry must
+  be relabeled and controls rerun. Do not silently shrink an L-labeled result.
+
+## Fast iteration
+
+Each code edit gets only its named deterministic regression and affected
+CUDA fixture. Phase-ending integration proof is 1–2 short requests or one
+A/B/A campaign where needed. Do not repeat all prior gates, 24/48-case matrices,
+ten-trial campaigns, 256K fills or the final context curve per implementation.
+Builds that make progress are allowed to finish; avoid a universal 240s bound.
+Long occupancy work is resumable with candidate-identity-bound checkpoints and
+per-request journals, never an in-memory loop whose partial work is discarded.
+
+Use polling of forward progress for long ingest, but a slow progressing loop
+is a diagnostic failure worth stopping after one representative chunk. Compare
+fresh token count, route/kernel attribution, GPU utilization/power, copy waits
+and CPU time; repair the cause before another long frontier. No indefinite
+same-profile reruns. Config/identity/auth/missing-runner errors are repaired and
+the affected row retried, not passed to the next task as not_measured.
+
+## Canonical performance workload
+
+Keep the exact final user prompts:
+
+1. `write a python function that merges two sorted lists into one sorted list, with docstring.`
+2. `explain the difference between mmap and read for loading large files, one paragraph.`
+3. `write a bash script that watches a directory and prints new files as they appear.`
+
+One warmup with 40 requested output tokens, then three measured requests per
+prompt with 400 requested output tokens. EOG can shorten actual output; record
+actual tokens and elapsed time. Never require exactly 400 generated tokens or
+strict answer formatting. B=1024/U=256. MTP acceptance median goals are 75%,
+40%,60% respectively; report drafted/accepted raw counts independently.
+
+The final paired short campaign uses fixture-backed actual C>H, same rendered
+prefix/final prompts, one binary/model and one B/U. Separate cold fresh ingest
+from cached conversation reuse; cached input is never counted as fresh prefill.
+Clear/reset via existing slot lifecycle between fresh rows. Measure retrieval,
+promotion, checkpoint/replay, view preparation, kernel time, decode and
+generation sealing separately. Record overhead without adding synchronization
+to production: CUDA events in explicit profiling runs, async/readiness counters
+in normal runs. Compare direct and packed using identical page IDs/bytes.
+
+Minimum selected fresh-prefill goal is 500 tok/s for each canonical prompt;
+750 is preferred. A completed measurement below goal stays a failed goal
+finding. Phase 100-03 must schedule a concrete source repair and minimal retest
+before capacity work. There is no universal number-of-attempts optimization
+law, no shortening facts to fit a 16-token cap, and no repeated audit task.
+
+Ordinary CPU-main-KV and dense-GPU controls must report actual codec/route.
+Keep Turbo4 wherever the implemented control supports it; if ordinary CPU
+Turbo4 attention is unsupported, report that typed capability boundary and
+measure the existing original supported CPU-offload control with its codec
+explicitly labeled as a non-codec-matched baseline. Do not implement a new
+CPU TurboQuant kernel for a benchmark, invent a Turbo4 speed, or relabel exact
+host-streaming as ordinary CPU offload. Production selected target/draft remain
+Turbo4. Phase 100-01 must resolve/control this before the campaign.
+
+## Scaling/final findings
+
+Prove 32K/16K useful speed before 128K, then 256K. Allocation and occupied C
+are different proofs. Grow C using cached incremental input chunks <=16K;
+fresh-token accounting excludes prior history. Keep enough logical space for
+query/replay/output; use a final no-output commit probe to measure full-L
+occupancy if supported by the existing driver, and report the last actual C.
+Do not claim C=262144 from allocation or a partial frontier.
+
+The 20K/40K/60K/100K/175K/256K speed curve is a final reporting experiment
+after the architecture works, not an implementation gate. Prefer samples from
+the single scaling frontier; do not refill L six times. H remains admitted,
+never equals occupied C by assumption. YaRN beyond 256K remains a stretch goal.
