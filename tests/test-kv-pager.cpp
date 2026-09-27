@@ -116,6 +116,19 @@ static void test_turn_epoch_state_and_geometry() {
     assert(committed.selected_history.size() == 1);
     assert(committed.selected_history[0].identity == frontier);
     assert(committed.selected_history[0].content_version == 9);
+    // Query rollback edits only the provisional attention tail. It must not
+    // reinstall the selection that existed before retrieval publication.
+    const uint64_t query_rollback_epoch = pager->residency().epoch();
+    assert(pager->mutate({ llama_kv_pager_mutation_kind::remove, 0, -1,
+        700, -1, 0, 0, query_rollback_epoch }) ==
+        llama_kv_pager_write_status::ok);
+    const auto after_query_rollback = pager->turn_state(0);
+    assert(after_query_rollback.phase == llama_kv_pager_turn_phase::retrieval_commit);
+    assert(after_query_rollback.selected_history.size() == 1 &&
+        after_query_rollback.selected_history[0].identity == frontier &&
+        after_query_rollback.selected_history[0].content_version == 9);
+    std::cout << "query_checkpoint_restore_and_mapping=pass history_map=retained "
+                 "query_tail_mutation=pass\n";
     assert(pager->snapshot().mutable_page_table_epoch !=
         pager->snapshot().frozen_history_generation);
     assert(pager->transition_turn(0, 1, 1,
@@ -669,6 +682,7 @@ static void test_cuda_async_host_publication() {
             assert(completed[0].content_version == 7);
             assert(completed[0].result.status != llama_kv_pager_host_status::ok);
             assert(host->snapshot().live_pages == 0);
+            std::cout << "query_checkpoint_stale_d2h=discarded old_content_version=7\n";
 
             // A later owner-prepared generation remains publishable, proving
             // that stale completion did not poison or pin the slot.

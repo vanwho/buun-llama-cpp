@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "task": "95-02",
+  "source_commit": "f7b645c02382a777d1c80c10e6387a6661acb652",
+  "build_identity": "/srv/ai/paged-kv/results/forward/95-02/attempt-01/build-identity.json",
+  "checks": {
+    "query_checkpoint_restore_and_mapping": {
+      "status": "pass",
+      "command": [
+        "build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/95-02/attempt-01/test-cuda-kv-promotion.log",
+          "sha256": "b48f74bd34e3e82e25053adb9fc8207143cd9a1172c2723389da1ea58a7483db"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/95-02/attempt-01/test-kv-pager.log",
+          "sha256": "9077320abe5f25d4169371e398102cdafdc74bf272aa5bdf0814fae0909a1c00"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/95-02/attempt-01/test-speculative-mtp-state.log",
+          "sha256": "708ec8f948ddb9f01e63649d42b2a089a9070f0542d8386a239e44c4bb7e13b6"
+        }
+      ]
+    }
+  },
+  "build_identity_sha256": "8e586a6155bd6341ff0e5f027c540101d0679724550392e26d2e91e31c972633"
+}

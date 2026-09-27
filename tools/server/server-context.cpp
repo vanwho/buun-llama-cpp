@@ -1710,6 +1710,218 @@ struct server_swa_window_checkpoint {
     std::shared_ptr<const vbr_swa_window_image> image;
 };
 
+// Request-local replay checkpoint. It deliberately owns only the hybrid
+// recurrent image and speculative carry; attention remains in its live cache
+// and is rewound by range removal so a newly published historical page map is
+// never replaced by an older table image.
+struct server_query_checkpoint {
+    enum class phase : uint8_t { empty, prepared, restored };
+
+    phase state = phase::empty;
+    uint64_t turn_id = 0;
+    uint64_t session_generation = 0;
+    llama_seq_id sequence_id = -1;
+    llama_pos query_begin = -1;
+    llama_pos target_frontier = -1;
+    llama_pos draft_frontier = -1;
+    bool pager_enabled = false;
+    uint64_t pager_table_epoch = 0;
+    uint64_t pager_representation_epoch = 0;
+    bool carry_required = false;
+    std::vector<uint8_t> target_recurrent;
+    std::vector<uint8_t> draft_recurrent;
+    std::vector<uint8_t> mtp_carry;
+
+    void clear() noexcept {
+        state = phase::empty;
+        turn_id = 0;
+        session_generation = 0;
+        sequence_id = -1;
+        query_begin = -1;
+        target_frontier = -1;
+        draft_frontier = -1;
+        pager_enabled = false;
+        pager_table_epoch = 0;
+        pager_representation_epoch = 0;
+        carry_required = false;
+        target_recurrent.clear();
+        draft_recurrent.clear();
+        mtp_carry.clear();
+    }
+
+    bool capture(llama_context * target, llama_context * draft,
+            common_speculative * speculative, llama_seq_id seq_id,
+            uint64_t request_id, uint64_t generation, llama_pos begin,
+            int64_t processed_tokens, bool require_mtp_carry) noexcept {
+        clear();
+        if (target == nullptr || seq_id < 0 || request_id == 0 ||
+                generation == 0 || begin < 0 || processed_tokens != begin) {
+            return false;
+        }
+        try {
+            const auto capture_partial = [seq_id](llama_context * ctx,
+                    std::vector<uint8_t> & output, llama_pos & frontier) {
+                if (ctx == nullptr) return true;
+                frontier = llama_memory_seq_pos_max(llama_get_memory(ctx), seq_id);
+                const size_t bytes = llama_state_seq_get_size_ext(
+                    ctx, seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+                if (bytes == 0) return false;
+                output.resize(bytes);
+                return llama_state_seq_get_data_ext(ctx, output.data(), bytes,
+                    seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == bytes;
+            };
+
+            if (!capture_partial(target, target_recurrent, target_frontier) ||
+                    !capture_partial(draft, draft_recurrent, draft_frontier)) {
+                clear();
+                return false;
+            }
+            if (target_frontier != begin - 1 ||
+                    (draft != nullptr && draft_frontier != begin - 1)) {
+                clear();
+                return false;
+            }
+            if (speculative != nullptr) {
+                // This is the host serialization API. In particular, do not
+                // use ON_DEVICE state here: that API replaces the previous
+                // same-sequence device snapshot owned by speculative rollback.
+                const bool carry_saved = common_speculative_get_state(
+                    speculative, seq_id, mtp_carry);
+                if (require_mtp_carry && (!carry_saved || mtp_carry.empty())) {
+                    clear();
+                    return false;
+                }
+            }
+            turn_id = request_id;
+            session_generation = generation;
+            sequence_id = seq_id;
+            query_begin = begin;
+            carry_required = require_mtp_carry;
+            const auto pager = target->get_kv_pager_metrics(
+                nullptr, request_id, generation);
+            pager_enabled = pager.enabled;
+            pager_table_epoch = pager.table_epoch;
+            pager_representation_epoch = pager.representation_epoch;
+            state = phase::prepared;
+            return true;
+        } catch (...) {
+            clear();
+            return false;
+        }
+    }
+
+    bool restore(llama_context * target, llama_context * draft,
+            common_speculative * speculative, llama_seq_id seq_id,
+            uint64_t request_id, uint64_t generation) noexcept {
+        if (state == phase::restored) {
+            return turn_id == request_id && session_generation == generation &&
+                sequence_id == seq_id;
+        }
+        if (state != phase::prepared || target == nullptr || seq_id != sequence_id ||
+                request_id != turn_id || generation != session_generation ||
+                (carry_required && (speculative == nullptr || mtp_carry.empty())) ||
+                !llama_memory_can_seq_rm_partial(llama_get_memory(target)) ||
+                (draft != nullptr &&
+                 !llama_memory_can_seq_rm_partial(llama_get_memory(draft)))) {
+            return false;
+        }
+        const llama_pos target_live_frontier = llama_memory_seq_pos_max(
+            llama_get_memory(target), seq_id);
+        const llama_pos draft_live_frontier = draft != nullptr
+            ? llama_memory_seq_pos_max(llama_get_memory(draft), seq_id) : -1;
+        if (target_live_frontier < query_begin ||
+                (draft != nullptr && draft_live_frontier < query_begin)) {
+            return false;
+        }
+        if (pager_enabled) {
+            const auto pager = target->get_kv_pager_metrics(
+                nullptr, request_id, generation);
+            // Retrieval is allowed to advance the mutable table epoch. The
+            // representation identity must remain the same, and restoration
+            // never writes the captured epoch or page map back.
+            if (!pager.enabled || pager.table_epoch < pager_table_epoch ||
+                    pager.representation_epoch != pager_representation_epoch) {
+                return false;
+            }
+        }
+
+        // Stage undo images before the first mutation. These remain bounded
+        // to recurrent state and make a rejected state read a no-mutation
+        // result for the already-live recurrent frontier.
+        std::vector<uint8_t> target_undo;
+        std::vector<uint8_t> draft_undo;
+        try {
+            const auto capture_undo = [seq_id](llama_context * ctx,
+                    std::vector<uint8_t> & output) {
+                if (ctx == nullptr) return true;
+                const size_t bytes = llama_state_seq_get_size_ext(
+                    ctx, seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+                if (bytes == 0) return false;
+                output.resize(bytes);
+                return llama_state_seq_get_data_ext(ctx, output.data(), bytes,
+                    seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == bytes;
+            };
+            if (!capture_undo(target, target_undo) ||
+                    !capture_undo(draft, draft_undo)) return false;
+        } catch (...) {
+            return false;
+        }
+
+        const auto restore_partial = [seq_id](llama_context * ctx,
+                const std::vector<uint8_t> & image) {
+            return ctx == nullptr || (!image.empty() &&
+                llama_state_seq_set_data_ext(ctx, image.data(), image.size(),
+                    seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == image.size());
+        };
+        if (!restore_partial(target, target_recurrent) ||
+                !restore_partial(draft, draft_recurrent)) {
+            (void) restore_partial(target, target_undo);
+            (void) restore_partial(draft, draft_undo);
+            return false;
+        }
+
+        // Remove attention only. This invalidates provisional query summaries
+        // and host versions through the pager's normal mutation path, while
+        // preserving the newly selected historical pages and recurrent state.
+        const bool target_removed = llama_memory_seq_rm_attn(
+            llama_get_memory(target), seq_id, query_begin, -1);
+        const bool draft_removed = target_removed && (draft == nullptr ||
+            llama_memory_seq_rm_attn(
+                llama_get_memory(draft), seq_id, query_begin, -1));
+        if (!target_removed) {
+            (void) restore_partial(target, target_undo);
+            (void) restore_partial(draft, draft_undo);
+            return false;
+        }
+        if (!draft_removed) {
+            // The target is now at the valid pre-query checkpoint. Quarantine
+            // a draft whose attention tail could not be truncated; never roll
+            // the target back to a recurrent frontier whose attention was
+            // already removed.
+            if (draft != nullptr) {
+                (void) llama_memory_seq_rm(
+                    llama_get_memory(draft), seq_id, -1, -1);
+            }
+            if (speculative != nullptr) {
+                common_speculative_sequence_transition(speculative, seq_id,
+                    common_speculative_sequence_event::target_restored_without_draft);
+            }
+            state = phase::restored;
+            return true;
+        }
+        if (speculative != nullptr && !mtp_carry.empty() &&
+                !common_speculative_set_state(speculative, seq_id, mtp_carry)) {
+            // Carry state is optional for target correctness. Invalidate it
+            // explicitly so subsequent drafting starts from the restored
+            // target frontier without consuming a provisional hidden row.
+            common_speculative_sequence_transition(speculative, seq_id,
+                common_speculative_sequence_event::target_restored_without_draft);
+        }
+        state = phase::restored;
+        return true;
+    }
+};
+
 struct server_slot {
     int id;
 
@@ -1754,6 +1966,7 @@ struct server_slot {
     // prompt.sequence_epoch: prompt lineage survives valid reuse, while an
     // asynchronous completion must never cross a slot reuse boundary.
     uint64_t slot_session_generation = 0;
+    server_query_checkpoint query_checkpoint;
     uint64_t pager_frozen_history_generation = 0;
     bool pager_history_frozen = false;
     uint64_t pager_freeze_table_epoch = 0;
@@ -3053,6 +3266,7 @@ struct server_slot {
                 // completed or been cancelled; this is the safe unpin edge.
                 ctx_tgt->end_kv_pager_turn(id, slot_session_generation);
             }
+            query_checkpoint.clear();
             pager_history_frozen = false;
             pager_frozen_history_generation = 0;
             pager_freeze_table_epoch = 0;
@@ -5511,6 +5725,7 @@ private:
             return false;
         }
         slot.slot_session_generation = generation;
+        slot.query_checkpoint.clear();
         return true;
     }
 
@@ -19056,6 +19271,41 @@ private:
 
                     const bool is_user_start = spans.is_user_start(n_tokens_start);
                     const bool is_last_user_message = n_tokens_start == last_user_pos;
+
+                    // Capture the replay boundary before the exact final-user
+                    // batch is decoded. The checkpoint owns recurrent/draft
+                    // state and MTP carry only; history KV remains in place.
+                    const int64_t query_begin =
+                        slot.task->params.final_user_token_begin;
+                    if (is_user_start && query_begin >= 0 &&
+                            n_tokens_start == query_begin &&
+                            slot.query_checkpoint.state ==
+                                server_query_checkpoint::phase::empty) {
+                        const bool captured = slot.query_checkpoint.capture(
+                            ctx_tgt, ctx_dft.get(), slot.get_spec(), slot.id,
+                            slot.slot_session_generation,
+                            slot.slot_session_generation,
+                            llama_pos(query_begin), n_tokens_start,
+                            params_base.speculative.uses_mtp_as_primary_drafter());
+                        if (!captured) {
+                            SLT_WRN(slot,
+                                "query replay checkpoint unavailable at user seam; "
+                                "request will retain the full-suffix path (%s)\n",
+                                "boundary or state capture rejected");
+                        } else {
+                            SLT_DBG(slot,
+                                "query checkpoint prepared: query_begin=%d "
+                                "target_recurrent_bytes=%zu draft_recurrent_bytes=%zu "
+                                "mtp_carry_bytes=%zu history_bytes_copied=0 "
+                                "table_epoch=%" PRIu64 " representation_epoch=%" PRIu64 "\n",
+                                int(query_begin),
+                                slot.query_checkpoint.target_recurrent.size(),
+                                slot.query_checkpoint.draft_recurrent.size(),
+                                slot.query_checkpoint.mtp_carry.size(),
+                                slot.query_checkpoint.pager_table_epoch,
+                                slot.query_checkpoint.pager_representation_epoch);
+                        }
+                    }
 
                     // entire prompt has been processed
                     if (slot.prompt.n_tokens() == slot.task->n_tokens()) {
