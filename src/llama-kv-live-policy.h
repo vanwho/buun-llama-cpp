@@ -18,6 +18,7 @@ enum class llama_kv_live_policy_status : uint8_t {
     stale_snapshot,
     unavailable_inventory,
     mandatory_overflow,
+    query_capacity_refused,
     missing_host_source,
     all_pinned,
     dirty_victim,
@@ -56,6 +57,39 @@ struct llama_kv_live_policy_page {
     bool speculative_pin = false;
 };
 
+struct llama_kv_query_commit_page {
+    llama_kv_page_id identity;
+    uint64_t content_version = 0;
+    std::vector<uint32_t> attention_layers;
+};
+
+// Captured after selector output has been authenticated against the canonical
+// inventory. Its order is authoritative for this boundary.
+struct llama_kv_query_commit {
+    bool enabled = false;
+    uint64_t turn_id = 0;
+    uint64_t retrieval_epoch = 0;
+    uint64_t query_generation = 0;
+    uint64_t table_epoch = 0;
+    uint64_t query_position = 0;
+    uint64_t rollback_generation = 0;
+    uint64_t model_identity = 0;
+    uint64_t session_generation = 0;
+    uint64_t sequence_generation = 0;
+    uint64_t representation_epoch = 0;
+    int32_t sequence_id = -1;
+    uint32_t retrieval_budget = 0;
+    uint32_t generation_budget = 0;
+    bool selection_truncated = false;
+    std::vector<llama_kv_query_commit_page> selected;
+};
+
+// Add one authenticated layer-local nomination to the canonical logical
+// bundle list, preserving first-seen order and merging its layer membership.
+bool llama_kv_query_commit_add_candidate(
+        llama_kv_query_commit & commit, const llama_kv_page_id & canonical_identity,
+        uint64_t content_version, uint32_t attention_layer) noexcept;
+
 // The caller supplies the complete logical inventory for the sequence. This
 // is the trace boundary: residency is immutable at `snapshot.epoch()`, while
 // `pages` may also contain authenticated host-only pages for cold promotion.
@@ -70,6 +104,7 @@ struct llama_kv_live_policy_boundary {
     std::vector<llama_kv_live_policy_page> pages;
     llama_kv_routing_retrieval_result retrieval;
     std::vector<llama_kv_page_id> previous_target;
+    llama_kv_query_commit query_commit;
 
     llama_kv_policy_controller_config policy;
 
@@ -78,6 +113,12 @@ struct llama_kv_live_policy_boundary {
     // assignment and leaves all transfer bytes opaque to policy.
     llama_kv_residency_transaction_request transaction;
 };
+
+// Resolve the immutable target and physical slot assignments shared by the
+// transfer planner and the transaction owner. Returns false before mutation.
+bool llama_kv_live_policy_prepare_query_target(
+        const llama_kv_live_policy_boundary & boundary,
+        std::vector<llama_kv_page_record> & target) noexcept;
 
 struct llama_kv_live_policy_trace_page {
     llama_kv_page_id id;

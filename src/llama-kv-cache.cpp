@@ -3116,6 +3116,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             pager_policy_dirty_ = false;
             return;
         }
+        uint64_t current_rollback_generation = 0;
+        for (const auto & page : inventory) {
+            current_rollback_generation = std::max<uint64_t>(
+                    current_rollback_generation, page.id.page_generation);
+        }
         // A routed list is advisory. Keep the last authenticated selection
         // until a new transaction commits; a refused/stale boundary must not
         // turn a bounded route into an implicit dense route.
@@ -3202,8 +3207,9 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         };
         std::map<uint32_t, std::vector<llama_kv_prefetch_candidate>> resident_by_layer;
         std::vector<cold_bundle> cold_bundles;
+        uint64_t authenticated_query_position = 0;
         const auto add_retrieval_identity = [&](const llama_kv_routing_retrieval_entry & entry,
-                                                uint64_t generation) {
+                                                uint64_t generation, uint64_t query_position) {
             if (boundary.retrieval.query_generation != 0) return;
             const auto & id = entry.id;
             boundary.retrieval.status = llama_kv_routing_retrieval_status::ok;
@@ -3215,10 +3221,12 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             boundary.retrieval.session_generation = id.session_generation;
             boundary.retrieval.sequence_generation = id.sequence_generation;
             boundary.retrieval.sequence_id = id.sequence_id;
-            boundary.retrieval.position = id.position_begin;
+            boundary.retrieval.position = query_position <= uint64_t(std::numeric_limits<llama_pos>::max())
+                ? llama_pos(query_position) : std::numeric_limits<llama_pos>::max();
         };
         const auto append_boundary = [&](const llama_kv_routing_retrieval_entry & entry,
-                                         uint64_t generation, size_t limit) {
+                                         uint64_t generation, uint64_t query_position,
+                                         size_t limit) {
             if (std::find_if(boundary.retrieval.selected.begin(),
                     boundary.retrieval.selected.end(),
                     [&](const auto & old) { return same_bundle(old.id, entry.id); }) !=
@@ -3227,7 +3235,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 return;
             }
             boundary.retrieval.selected.push_back(entry);
-            add_retrieval_identity(entry, generation);
+            add_retrieval_identity(entry, generation, query_position);
             have_retrieval = true;
         };
         auto & selector_trace = pager_->selector_trace_for_update();
@@ -3240,19 +3248,27 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         for (const auto & candidate : candidates) {
             const bool trace_target = is_trace_target(candidate);
             if (candidate.generation == 0 ||
-                    candidate.generation > pager_query_generation_ ||
+                    candidate.generation != pager_query_generation_ ||
+                    candidate.table_epoch != snapshot.epoch() ||
                     candidate.query_position == 0 ||
                     !is_attention_layer(candidate.attention_layer) ||
                     candidate.identity.sequence_id != pager_last_sequence_id_ ||
                     candidate.identity.sequence_generation == 0 ||
                     candidate.identity.page_generation == 0 ||
                     candidate.speculation_generation != candidate.identity.sequence_generation ||
-                    candidate.rollback_generation < candidate.identity.page_generation ||
+                    candidate.rollback_generation != current_rollback_generation ||
                     candidate.content_version == 0 ||
                     candidate.summary_version != candidate.content_version) {
                 if (trace_target) {
                     selector_trace.outcome = llama_kv_pager_selector_trace_outcome::stale_invalid_identity;
                 }
+                pager_->record_rejection_invalid_candidate();
+                continue;
+            }
+            if (authenticated_query_position != 0 &&
+                    authenticated_query_position != candidate.query_position) {
+                if (trace_target) selector_trace.outcome =
+                    llama_kv_pager_selector_trace_outcome::stale_invalid_identity;
                 pager_->record_rejection_invalid_candidate();
                 continue;
             }
@@ -3274,6 +3290,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 pager_->record_rejection_identity_mismatch();
                 continue;
             }
+            authenticated_query_position = candidate.query_position;
             // The selector names a layer-local copy, while the ordinary live
             // policy consumes the canonical logical-bundle identity from its
             // inventory. Keep the layer separately as nomination provenance,
@@ -3346,7 +3363,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     candidate.score, true, false, 0,
                 };
                 selected.push_back(entry);
-                append_boundary(entry, candidate.generation, resident_boundary_limit);
+                append_boundary(entry, candidate.generation, candidate.query_position,
+                        resident_boundary_limit);
             }
         }
         std::sort(cold_bundles.begin(), cold_bundles.end(),
@@ -3374,7 +3392,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 candidate.identity, llama_kv_routing_retrieval_reason::summary,
                 bundle.priority, true, false, 0,
             };
-            append_boundary(entry, candidate.generation, boundary.hot_capacity);
+            append_boundary(entry, candidate.generation, candidate.query_position,
+                    boundary.hot_capacity);
             for (const uint32_t layer : bundle.nominating_layers) {
                 auto & selected = attention_by_layer[layer];
                 if (selected.size() >= attention_page_limit ||
@@ -3414,7 +3433,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 boundary.retrieval.session_generation = forced->id.session_generation;
                 boundary.retrieval.sequence_generation = forced->id.sequence_generation;
                 boundary.retrieval.sequence_id = forced->id.sequence_id;
-                boundary.retrieval.position = forced->id.position_begin;
+                boundary.retrieval.position = selector_trace.query_generation == pager_query_generation_ &&
+                        selector_trace.query_position > 0
+                    ? llama_pos(selector_trace.query_position)
+                    : forced->id.position_begin + 1;
                 boundary.retrieval.selected.push_back({
                         forced->id, llama_kv_routing_retrieval_reason::forced,
                         0.0f, false, false, 0 });
@@ -3489,8 +3511,50 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             boundary.pages.push_back(std::move(page));
         }
 
-        // Ask the same diagnostic policy for its target order so the transfer
-        // destination exactly matches the policy's occupied-slot assignment.
+        const auto turn_state = pager_->turn_state(pager_last_sequence_id_);
+        boundary.query_commit.enabled = true;
+        boundary.query_commit.turn_id = turn_state.turn_id != 0
+            ? turn_state.turn_id : std::max<uint64_t>(1, pager_query_generation_);
+        boundary.query_commit.retrieval_epoch = turn_state.retrieval_epoch != 0
+            ? turn_state.retrieval_epoch : std::max<uint64_t>(1, pager_query_generation_);
+        boundary.query_commit.query_generation = boundary.retrieval.query_generation;
+        boundary.query_commit.table_epoch = boundary.retrieval.table_epoch;
+        boundary.query_commit.query_position = boundary.retrieval.position >= 0
+            ? uint64_t(boundary.retrieval.position) : 0;
+        boundary.query_commit.rollback_generation = current_rollback_generation;
+        boundary.query_commit.model_identity = boundary.retrieval.model_identity;
+        boundary.query_commit.session_generation = boundary.retrieval.session_generation;
+        boundary.query_commit.sequence_generation = boundary.retrieval.sequence_generation;
+        boundary.query_commit.representation_epoch = boundary.retrieval.representation_epoch;
+        boundary.query_commit.sequence_id = boundary.retrieval.sequence_id;
+        boundary.query_commit.retrieval_budget = pager_snapshot.retrieval_pages;
+        boundary.query_commit.generation_budget = pager_snapshot.generation_pages;
+        for (const auto & entry : boundary.retrieval.selected) {
+            const auto canonical = std::find_if(inventory.begin(), inventory.end(),
+                    [&](const auto & page) { return same_bundle(page.id, entry.id); });
+            if (canonical == inventory.end()) continue;
+            bool accepted_layer = false;
+            for (const auto & layer : attention_by_layer) {
+                if (std::any_of(layer.second.begin(), layer.second.end(), [&](const auto & member) {
+                    return same_bundle(member.id, canonical->id);
+                })) {
+                    if (!llama_kv_query_commit_add_candidate(boundary.query_commit,
+                            canonical->id, canonical->content_version, layer.first)) {
+                        boundary.query_commit.selection_truncated =
+                            boundary.query_commit.selected.size() >=
+                                boundary.query_commit.retrieval_budget;
+                        accepted_layer = false;
+                        break;
+                    }
+                    accepted_layer = true;
+                }
+            }
+            if (!accepted_layer && boundary.query_commit.selected.size() >=
+                    boundary.query_commit.retrieval_budget) break;
+        }
+
+        // Resolve the committed target once. The upload plan below and the
+        // pager transaction consume these exact identities and slots.
         uint32_t selected_slot = UINT32_MAX;
         std::vector<bool> used(boundary.hot_capacity, false);
         bool policy_target_bound = false;
@@ -3498,7 +3562,53 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         llama_kv_policy_trace policy_input;
         std::vector<llama_kv_policy_page> policy_pages;
         llama_kv_policy_decision decision;
-        if (llama_kv_live_policy_build_trace(
+        std::vector<llama_kv_page_record> committed_target;
+        if (llama_kv_live_policy_prepare_query_target(boundary, committed_target)) {
+            policy_target_bound = true;
+            if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                    selector_trace.query_generation == pager_query_generation_ &&
+                    selector_trace.candidate_authenticated) {
+                const bool raw_target = std::find(
+                        selector_trace.raw_cold_logical_pages.begin(),
+                        selector_trace.raw_cold_logical_pages.begin() +
+                            selector_trace.raw_cold_count,
+                        selector_trace.target_logical_page) !=
+                    selector_trace.raw_cold_logical_pages.begin() +
+                        selector_trace.raw_cold_count;
+                if (raw_target) {
+                    selector_trace.policy_decision_evaluated = true;
+                    selector_trace.policy_admitted = std::any_of(committed_target.begin(),
+                            committed_target.end(), [&](const auto & page) {
+                        return page.id.logical_page ==
+                            uint32_t(selector_trace.target_logical_page);
+                    });
+                    if (!selector_trace.policy_admitted) {
+                        selector_trace.outcome = boundary.query_commit.selection_truncated
+                            ? llama_kv_pager_selector_trace_outcome::query_commit_selection_truncated
+                            : llama_kv_pager_selector_trace_outcome::policy_target_omission;
+                    }
+                }
+            }
+            for (const auto & record : committed_target) {
+                const auto trace_page = std::find_if(boundary.pages.begin(), boundary.pages.end(),
+                        [&](const auto & page) { return page.record.id == record.id; });
+                if (trace_page == boundary.pages.end()) { policy_target_bound = false; break; }
+                if (trace_page->record.physical_slot != UINT32_MAX) {
+                    used[trace_page->record.physical_slot] = true;
+                }
+            }
+        }
+        if (!policy_target_bound && boundary.query_commit.enabled) {
+            pager_policy_dirty_ = true;
+            if (selector_trace.enabled && selector_trace.target_logical_page >= 0) {
+                selector_trace.policy_decision_evaluated = true;
+                selector_trace.outcome = llama_kv_pager_selector_trace_outcome::query_commit_capacity_refusal;
+            }
+            pager_->record_rejection_admission();
+            LLAMA_LOG_DEBUG("%s: authenticated query commit refused before transfer planning\n", __func__);
+            return;
+        }
+        if (!policy_target_bound && llama_kv_live_policy_build_trace(
                 boundary, policy_trace, policy_input, policy_pages)) {
             policy_input.pages = policy_pages;
             std::vector<uint64_t> previous_policy_target;
@@ -3512,6 +3622,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             policy_target_bound = true;
             if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
                     selector_trace.query_generation == pager_query_generation_) {
+                selector_trace.policy_decision_evaluated = true;
                 selector_trace.policy_admitted = std::any_of(
                         decision.target.begin(), decision.target.end(), [&](uint64_t policy_id) {
                     return policy_id != 0 && policy_id <= policy_trace.pages.size() &&
@@ -3556,17 +3667,25 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             const auto & geometry = pager_->snapshot().geometry;
             std::vector<llama_kv_residency_transfer_page> promotion_pages;
             bool promotion_valid = true;
-            for (const auto policy_id : decision.target) {
-                if (policy_id == 0 || policy_id > policy_trace.pages.size()) continue;
-                const auto & target_id = policy_trace.pages[size_t(policy_id - 1)].id;
+            std::vector<llama_kv_page_record> target_for_upload = committed_target;
+            if (!boundary.query_commit.enabled) {
+                for (const auto policy_id : decision.target) {
+                    if (policy_id == 0 || policy_id > policy_trace.pages.size()) continue;
+                    const auto & target_id = policy_trace.pages[size_t(policy_id - 1)].id;
+                    const auto source = std::find_if(boundary.pages.begin(), boundary.pages.end(),
+                            [&](const auto & page) { return page.record.id == target_id; });
+                    if (source != boundary.pages.end()) target_for_upload.push_back(source->record);
+                }
+            }
+            for (const auto & target_record : target_for_upload) {
+                const auto target_id = target_record.id;
                 const auto source = std::find_if(boundary.pages.begin(), boundary.pages.end(),
                         [&](const auto & page) { return page.record.id == target_id; });
                 if (source == boundary.pages.end() || source->record.physical_slot != UINT32_MAX) {
                     continue;
                 }
-                if (promotion_pages.size() >= boundary.transaction.max_h2d_pages) {
-                    break;
-                }
+                const uint32_t destination_slot = boundary.query_commit.enabled
+                    ? target_record.physical_slot : selected_slot;
                 vbr_selected_page_host_view selected_host;
                 if (!find_host_page(target_id, selected_host)) {
                     if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
@@ -3577,7 +3696,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     promotion_valid = false;
                     break;
                 }
-                if (selected_slot == UINT32_MAX) {
+                if (destination_slot == UINT32_MAX) {
                     if (selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
                             target_id.logical_page == uint32_t(selector_trace.target_logical_page)) {
                         selector_trace.outcome = llama_kv_pager_selector_trace_outcome::slot_admission;
@@ -3602,7 +3721,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 llama_kv_residency_transfer_page transfer_page;
                 transfer_page.page = target_id;
                 transfer_page.table_epoch = snapshot.epoch();
-                transfer_page.physical_slot = selected_slot;
+                transfer_page.physical_slot = destination_slot;
                 transfer_page.layer = transfer_layer;
                 transfer_page.content_version = source->record.content_version;
                 transfer_page.valid_length = source->record.valid_length;
@@ -3649,9 +3768,9 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     const uint64_t layer_offset = unit_geometry->offset;
                     if (unit.bytes->size() != uint64_t(unit.valid_rows) * unit.row_bytes ||
                         uint64_t(unit.valid_rows) * unit.row_bytes > page_bytes ||
-                        uint64_t(selected_slot) > UINT64_MAX / page_bytes ||
-                        layer_offset > UINT64_MAX - uint64_t(selected_slot) * page_bytes ||
-                        uint64_t(selected_slot) * geometry.page_tokens > UINT32_MAX) {
+                        uint64_t(destination_slot) > UINT64_MAX / page_bytes ||
+                        layer_offset > UINT64_MAX - uint64_t(destination_slot) * page_bytes ||
+                        uint64_t(destination_slot) * geometry.page_tokens > UINT32_MAX) {
                         promotion_valid = false;
                         break;
                     }
@@ -3661,11 +3780,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     run.lane = 0;
                     run.layer = uint32_t(layer);
                     run.side = value ? 1 : 0;
-                    run.first_physical_row = selected_slot * geometry.page_tokens;
+                    run.first_physical_row = destination_slot * geometry.page_tokens;
                     run.row_count = unit.valid_rows;
                     run.row_bytes = unit.row_bytes;
                     run.host_offset = unit_host_offset;
-                    run.device_offset = uint64_t(selected_slot) * page_bytes;
+                    run.device_offset = uint64_t(destination_slot) * page_bytes;
                     transfer_page.runs.push_back(run);
                 }
                 const uint32_t first_layer = transfer_layer == UINT32_MAX ? 0 : transfer_layer;
@@ -3682,10 +3801,12 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     break;
                 }
                 promotion_pages.push_back(std::move(transfer_page));
-                used[selected_slot] = true;
-                selected_slot = UINT32_MAX;
-                for (uint32_t slot = 0; slot < used.size(); ++slot) {
-                    if (!used[slot]) { selected_slot = slot; break; }
+                if (!boundary.query_commit.enabled) {
+                    used[destination_slot] = true;
+                    selected_slot = UINT32_MAX;
+                    for (uint32_t slot = 0; slot < used.size(); ++slot) {
+                        if (!used[slot]) { selected_slot = slot; break; }
+                    }
                 }
             }
             if (!promotion_valid || promotion_pages.size() >
@@ -3935,6 +4056,13 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             result.status == llama_kv_live_policy_status::no_change ||
             result.status == llama_kv_live_policy_status::safe_fallback) {
             pager_policy_dirty_ = false;
+            if (boundary.query_commit.enabled) {
+                // The committed R set is already bounded by admission. Keep
+                // all of its selected members visible to the layers that
+                // nominated them, even when resident anchors would fill the
+                // older attention working-set default first.
+                attention_page_limit = boundary.hot_capacity;
+            }
             auto & per_layer = pager_attention_selection_by_layer_[pager_last_sequence_id_];
             // Every layer receives its own bounded ready set. Mandatory
             // current/pinned rows are installed first; ranked mailbox rows
@@ -3964,6 +4092,14 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                             entry.reason != llama_kv_routing_retrieval_reason::exploration) {
                         continue;
                     }
+                    const auto committed = std::find_if(boundary.query_commit.selected.begin(),
+                            boundary.query_commit.selected.end(), [&](const auto & page) {
+                        return same_bundle(page.identity, entry.id);
+                    });
+                    if (boundary.query_commit.enabled && (committed == boundary.query_commit.selected.end() ||
+                            std::find(committed->attention_layers.begin(),
+                                committed->attention_layers.end(), layer) ==
+                                committed->attention_layers.end())) continue;
                     const bool was_cold = std::any_of(inventory.begin(), inventory.end(),
                             [&](const auto & page) {
                         return same_bundle(page.id, entry.id) &&
@@ -3987,17 +4123,20 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         if (resident != result.target_pages.end()) append_if_resident(*resident);
                     }
                 }
-                // A promotion is selected by the same authenticated summary
-                // result, but its nominating layer need not be the first layer
-                // used to construct a fused attention graph. Carry the bounded
-                // committed retrieval set across the model's attention layers
-                // so at least one completed target graph consumes the promoted
-                // logical page without introducing a client-selected ID.
+                // Keep the exact committed set in its nominating layer views.
                 for (const auto & entry : boundary.retrieval.selected) {
                     if (entry.reason != llama_kv_routing_retrieval_reason::summary &&
                             entry.reason != llama_kv_routing_retrieval_reason::exploration) {
                         continue;
                     }
+                    const auto committed = std::find_if(boundary.query_commit.selected.begin(),
+                            boundary.query_commit.selected.end(), [&](const auto & page) {
+                        return same_bundle(page.identity, entry.id);
+                    });
+                    if (boundary.query_commit.enabled && (committed == boundary.query_commit.selected.end() ||
+                            std::find(committed->attention_layers.begin(),
+                                committed->attention_layers.end(), layer) ==
+                                committed->attention_layers.end())) continue;
                     const auto resident = std::find_if(result.target_pages.begin(),
                             result.target_pages.end(), [&](const auto & page) {
                         return same_bundle(page.id, entry.id) &&

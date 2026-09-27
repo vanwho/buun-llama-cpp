@@ -690,6 +690,11 @@ static int run_proof() {
     const auto cold_it = std::find_if(records.begin(), records.end(),
         [&](const auto & record) { return record.id.logical_page == winner_logical; });
     assert(cold_it != records.end() && cold_it->physical_slot == UINT32_MAX);
+    const auto committed_candidate = std::find_if(ready.begin(), ready.end(),
+        [&](const auto & candidate) {
+            return candidate.identity.logical_page == winner_logical && candidate.cold;
+        });
+    assert(committed_candidate != ready.end());
     std::vector<llama_kv_live_policy_page> live_pages;
     for (const auto & record : records) {
         llama_kv_live_policy_page live;
@@ -717,18 +722,47 @@ static int run_proof() {
         boundary.previous_target.push_back(record.id);
     boundary.retrieval.status = llama_kv_routing_retrieval_status::ok;
     boundary.retrieval.table_epoch = boundary.snapshot.epoch();
+    boundary.retrieval.query_generation = committed_candidate->generation;
+    boundary.retrieval.model_identity = cold_it->id.model_identity;
+    boundary.retrieval.topology_identity = cold_it->id.topology_identity;
+    boundary.retrieval.representation_epoch = cold_it->id.representation_epoch;
+    boundary.retrieval.session_generation = cold_it->id.session_generation;
+    boundary.retrieval.sequence_generation = cold_it->id.sequence_generation;
+    boundary.retrieval.sequence_id = cold_it->id.sequence_id;
+    boundary.retrieval.position = committed_candidate->query_position;
     boundary.retrieval.selected.push_back({ cold_it->id,
         llama_kv_routing_retrieval_reason::summary, score(winner_logical), true, false, 1 });
+    boundary.query_commit.enabled = true;
+    boundary.query_commit.turn_id = std::max<uint64_t>(1, committed_candidate->generation);
+    boundary.query_commit.retrieval_epoch = std::max<uint64_t>(1, committed_candidate->generation);
+    boundary.query_commit.query_generation = committed_candidate->generation;
+    boundary.query_commit.table_epoch = boundary.snapshot.epoch();
+    boundary.query_commit.query_position = committed_candidate->query_position;
+    boundary.query_commit.rollback_generation = std::max_element(records.begin(), records.end(),
+        [](const auto & lhs, const auto & rhs) {
+            return lhs.id.page_generation < rhs.id.page_generation;
+        })->id.page_generation;
+    boundary.query_commit.model_identity = cold_it->id.model_identity;
+    boundary.query_commit.session_generation = cold_it->id.session_generation;
+    boundary.query_commit.sequence_generation = cold_it->id.sequence_generation;
+    boundary.query_commit.representation_epoch = cold_it->id.representation_epoch;
+    boundary.query_commit.sequence_id = cold_it->id.sequence_id;
+    boundary.query_commit.retrieval_budget = hot_capacity - 1;
+    boundary.query_commit.generation_budget = 1;
+    boundary.query_commit.selected.push_back({ cold_it->id, cold_it->content_version, { 0 } });
     boundary.policy = llama_kv_policy_release_defaults(hot_capacity);
     boundary.transaction.max_h2d_pages = 1;
     boundary.transaction.staging_capacity = pager->upload_ring()->capacity_bytes();
     llama_kv_page_record transfer_record = *cold_it;
     transfer_record.physical_slot = UINT32_MAX;
-    // The production policy assigns the free slot; the transfer plan carries
-    // the slot chosen by the immutable inventory's only free physical slot.
-    // The policy keeps the newest resident page and the recent cold page,
-    // then assigns the ranked winner to the remaining slot.
-    const uint32_t free_slot = 2;
+    // Use the same prepared query target the pager will publish so the upload
+    // and immutable mapping have one slot assignment.
+    std::vector<llama_kv_page_record> committed_target;
+    assert(llama_kv_live_policy_prepare_query_target(boundary, committed_target));
+    const auto committed_cold = std::find_if(committed_target.begin(), committed_target.end(),
+        [&](const auto & record) { return record.id == cold_it->id; });
+    assert(committed_cold != committed_target.end());
+    const uint32_t free_slot = committed_cold->physical_slot;
     assert(free_slot < hot_capacity);
     transfer_record.physical_slot = free_slot;
     boundary.transaction.transfers.push_back(
@@ -751,7 +785,8 @@ static int run_proof() {
     for (auto & page : all_pinned.pages) page.application_pin = true;
     const auto pinned_result = pager->apply_live_policy(all_pinned);
     assert(pinned_result.status == llama_kv_live_policy_status::all_pinned ||
-           pinned_result.status == llama_kv_live_policy_status::mandatory_overflow);
+           pinned_result.status == llama_kv_live_policy_status::mandatory_overflow ||
+           pinned_result.status == llama_kv_live_policy_status::query_capacity_refused);
     assert(!pinned_result.published && prior_mapping_intact());
 
     // An invalid transfer plan is rejected before publication and likewise
@@ -759,6 +794,11 @@ static int run_proof() {
     auto rejected_transfer = boundary;
     rejected_transfer.transaction.transfers.front().runs.clear();
     const auto rejected_result = pager->apply_live_policy(rejected_transfer);
+    if (rejected_result.status != llama_kv_live_policy_status::transaction_failed) {
+        std::fprintf(stderr, "invalid committed transfer status=%d tx=%d phase=%d published=%d\n",
+            int(rejected_result.status), int(rejected_result.transaction.status),
+            int(rejected_result.transaction.failed_phase), int(rejected_result.published));
+    }
     assert(rejected_result.status == llama_kv_live_policy_status::transaction_failed);
     assert(!rejected_result.published && prior_mapping_intact());
 
@@ -860,7 +900,7 @@ static int run_proof() {
             int32_t(unbounded_page)) != selector_output.end());
 
     std::fprintf(stdout,
-        "cuda_production_promotion_chain=pass mature_fa_consumption_parity=pass "
+        "cuda_deterministic_selector_transaction_integration=pass mature_fa_consumption_parity=pass "
         "seed=0x%llx winner_logical=%u margin=%.6f copy_bytes=%llu "
         "published_epoch=%llu owner_generation=%llu checksum=0x%llx "
         "reference_tolerance=0.002 perturb_delta=%.6f n_q=1,2,3 prefill=pass\n",
