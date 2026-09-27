@@ -1265,3 +1265,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-95-01`
 - Commit at update: `a1ea5c84b`
 - Summary: Carried authenticated rendered final-user token spans through server tasks; deterministic span proof and affected builds pass.
+
+## 2026-09-27T22:33:06+00:00 — 95-02 — done
+
+- Branch: `codex/task-95-02`
+- Commit at update: `f7b645c02`
+- Summary: Bounded query checkpoint and mapping proof passed
