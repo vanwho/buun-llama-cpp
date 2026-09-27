@@ -426,6 +426,8 @@ enum class llama_kv_pager_selector_trace_outcome : uint8_t {
     no_host_source,
     mandatory_capacity,
     policy_target_omission,
+    query_commit_selection_truncated,
+    query_commit_capacity_refusal,
     slot_admission,
     transfer_plan_rejected,
     async_transfer_failed,
@@ -501,6 +503,7 @@ struct llama_kv_pager_selector_trace {
     bool mailbox_published = false;
     bool mailbox_dropped = false;
     bool candidate_authenticated = false;
+    bool policy_decision_evaluated = false;
     bool policy_admitted = false;
     uint32_t victim_logical_page = UINT32_MAX;
     uint32_t target_physical_slot = UINT32_MAX;

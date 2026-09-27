@@ -23,6 +23,8 @@ const char * llama_kv_pager_selector_trace_outcome_name(
         case llama_kv_pager_selector_trace_outcome::no_host_source: return "no_host_source";
         case llama_kv_pager_selector_trace_outcome::mandatory_capacity: return "mandatory_capacity";
         case llama_kv_pager_selector_trace_outcome::policy_target_omission: return "policy_target_omission";
+        case llama_kv_pager_selector_trace_outcome::query_commit_selection_truncated: return "query_commit_selection_truncated";
+        case llama_kv_pager_selector_trace_outcome::query_commit_capacity_refusal: return "query_commit_capacity_refusal";
         case llama_kv_pager_selector_trace_outcome::slot_admission: return "slot_admission";
         case llama_kv_pager_selector_trace_outcome::transfer_plan_rejected: return "transfer_plan_rejected";
         case llama_kv_pager_selector_trace_outcome::async_transfer_failed: return "async_transfer_failed";

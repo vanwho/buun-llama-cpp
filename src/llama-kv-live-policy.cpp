@@ -111,6 +111,7 @@ const char * llama_kv_live_policy_status_name(
         case llama_kv_live_policy_status::stale_snapshot: return "stale_snapshot";
         case llama_kv_live_policy_status::unavailable_inventory: return "unavailable_inventory";
         case llama_kv_live_policy_status::mandatory_overflow: return "mandatory_overflow";
+        case llama_kv_live_policy_status::query_capacity_refused: return "query_capacity_refused";
         case llama_kv_live_policy_status::missing_host_source: return "missing_host_source";
         case llama_kv_live_policy_status::all_pinned: return "all_pinned";
         case llama_kv_live_policy_status::dirty_victim: return "dirty_victim";
@@ -118,6 +119,163 @@ const char * llama_kv_live_policy_status_name(
         case llama_kv_live_policy_status::_count: break;
     }
     return "invalid";
+}
+
+bool llama_kv_query_commit_add_candidate(
+        llama_kv_query_commit & commit, const llama_kv_page_id & canonical_identity,
+        uint64_t content_version, uint32_t attention_layer) noexcept {
+    if (!commit.enabled || content_version == 0 || attention_layer == UINT32_MAX) return false;
+    const auto existing = std::find_if(commit.selected.begin(), commit.selected.end(),
+            [&](const auto & page) { return same_logical_page(page.identity, canonical_identity); });
+    if (existing != commit.selected.end()) {
+        if (existing->identity != canonical_identity || existing->content_version != content_version) return false;
+        if (std::find(existing->attention_layers.begin(), existing->attention_layers.end(),
+                attention_layer) == existing->attention_layers.end()) {
+            existing->attention_layers.push_back(attention_layer);
+        }
+        return true;
+    }
+    if (commit.retrieval_budget == 0 || commit.selected.size() >= commit.retrieval_budget) return false;
+    llama_kv_query_commit_page page;
+    page.identity = canonical_identity;
+    page.content_version = content_version;
+    page.attention_layers.push_back(attention_layer);
+    commit.selected.push_back(std::move(page));
+    return true;
+}
+
+bool llama_kv_live_policy_prepare_query_target(
+        const llama_kv_live_policy_boundary & boundary,
+        std::vector<llama_kv_page_record> & target) noexcept {
+    target.clear();
+    try {
+        const auto & commit = boundary.query_commit;
+        if (!commit.enabled || commit.query_generation == 0 || commit.turn_id == 0 ||
+            commit.retrieval_epoch == 0 || commit.table_epoch != boundary.snapshot.epoch() ||
+            commit.query_position == 0 || commit.rollback_generation == 0 ||
+            commit.model_identity == 0 || commit.session_generation == 0 ||
+            commit.sequence_generation == 0 || commit.sequence_id < 0 ||
+            commit.representation_epoch == 0 || commit.retrieval_budget == 0 ||
+            uint64_t(commit.retrieval_budget) + commit.generation_budget > boundary.hot_capacity ||
+            boundary.retrieval.status != llama_kv_routing_retrieval_status::ok ||
+            boundary.retrieval.table_epoch != commit.table_epoch ||
+            boundary.retrieval.position < 0 ||
+            uint64_t(boundary.retrieval.position) != commit.query_position ||
+            boundary.retrieval.query_generation != commit.query_generation ||
+            boundary.retrieval.model_identity != commit.model_identity ||
+            boundary.retrieval.session_generation != commit.session_generation ||
+            boundary.retrieval.sequence_generation != commit.sequence_generation ||
+            boundary.retrieval.sequence_id != commit.sequence_id ||
+            boundary.retrieval.representation_epoch != commit.representation_epoch) return false;
+
+        const auto get = [&](const llama_kv_page_id & id) -> const llama_kv_live_policy_page * {
+            const auto found = std::find_if(boundary.pages.begin(), boundary.pages.end(),
+                    [&](const auto & page) { return page.record.id == id; });
+            return found == boundary.pages.end() ? nullptr : &*found;
+        };
+        uint64_t inventory_rollback_generation = 0;
+        for (const auto & page : boundary.pages) {
+            inventory_rollback_generation = std::max<uint64_t>(
+                    inventory_rollback_generation, page.record.id.page_generation);
+        }
+        if (commit.rollback_generation != inventory_rollback_generation) return false;
+        std::vector<const llama_kv_live_policy_page *> retrieval;
+        retrieval.reserve(commit.selected.size());
+        for (size_t i = 0; i < commit.selected.size(); ++i) {
+            const auto & item = commit.selected[i];
+            const auto * page = get(item.identity);
+            if (page == nullptr || item.content_version == 0 ||
+                page->record.content_version != item.content_version ||
+                item.identity.model_identity != commit.model_identity ||
+                item.identity.session_generation != commit.session_generation ||
+                item.identity.sequence_generation != commit.sequence_generation ||
+                item.identity.sequence_id != commit.sequence_id ||
+                item.identity.representation_epoch != commit.representation_epoch ||
+                (!page->record.host_valid && page->record.physical_slot == UINT32_MAX)) return false;
+            for (size_t j = 0; j < i; ++j) {
+                if (same_logical_page(commit.selected[j].identity, item.identity)) return false;
+            }
+            retrieval.push_back(page);
+        }
+
+        uint32_t generation_mandatory = 0;
+        uint32_t retrieval_mandatory = 0;
+        std::vector<const llama_kv_live_policy_page *> mandatory;
+        for (const auto & page : boundary.pages) {
+            const bool write = boundary.has_write_page && page.record.id == boundary.write_page;
+            const bool generation = page.current || write || page.inflight_pin ||
+                page.speculative_pin || page.record.pin_count != 0;
+            const bool pinned = generation || page.anchor || page.application_pin;
+            if (!pinned) continue;
+            mandatory.push_back(&page);
+            if (generation) ++generation_mandatory;
+            else ++retrieval_mandatory;
+        }
+        if (generation_mandatory > commit.generation_budget ||
+            retrieval_mandatory > commit.retrieval_budget) return false;
+        const uint32_t remaining_retrieval = commit.retrieval_budget - retrieval_mandatory;
+        const size_t selected_history = std::count_if(retrieval.begin(), retrieval.end(),
+                [&](const auto * page) {
+            return std::find(mandatory.begin(), mandatory.end(), page) == mandatory.end();
+        });
+        if (selected_history > remaining_retrieval) return false;
+        if (mandatory.size() + retrieval.size() > boundary.hot_capacity) return false;
+
+        std::vector<const llama_kv_live_policy_page *> ordered;
+        ordered.reserve(mandatory.size() + retrieval.size());
+        for (const auto * page : mandatory) ordered.push_back(page);
+        for (const auto * page : retrieval) {
+            if (std::find(ordered.begin(), ordered.end(), page) == ordered.end()) ordered.push_back(page);
+        }
+        std::vector<bool> used(boundary.snapshot.slot_capacity(), false);
+        for (const auto * page : ordered) {
+            if (page->record.physical_slot == UINT32_MAX) continue;
+            const uint32_t slot = page->record.physical_slot;
+            if (slot >= used.size() || used[slot]) return false;
+            used[slot] = true;
+        }
+        target.reserve(ordered.size());
+        for (const auto * page : ordered) {
+            auto record = page->record;
+            if (record.physical_slot == UINT32_MAX) {
+                if (!record.host_valid) return false;
+                uint32_t slot = UINT32_MAX;
+                for (uint32_t i = 0; i < used.size(); ++i) if (!used[i]) { slot = i; break; }
+                if (slot == UINT32_MAX) {
+                    for (uint32_t i = 0; i < used.size(); ++i) {
+                        const bool old_slot = std::any_of(boundary.snapshot.pages().begin(),
+                                boundary.snapshot.pages().end(), [&](const auto & old) {
+                            return old.physical_slot == i && std::none_of(ordered.begin(), ordered.end(),
+                                    [&](const auto * keep) { return keep->record.id == old.id; });
+                        });
+                        if (old_slot && !used[i]) { slot = i; break; }
+                    }
+                }
+                // Recycle a slot owned by an omitted clean resident.
+                if (slot == UINT32_MAX) {
+                    for (const auto & old : boundary.snapshot.pages()) {
+                        const bool retained = std::any_of(ordered.begin(), ordered.end(),
+                                [&](const auto * keep) { return keep->record.id == old.id; });
+                        if (!retained && old.pin_count == 0 && !old.dirty) {
+                            slot = old.physical_slot;
+                            break;
+                        }
+                    }
+                }
+                if (slot == UINT32_MAX || slot >= used.size()) return false;
+                record.physical_slot = slot;
+                record.state = llama_kv_page_state::gpu_host_clean;
+                record.dirty = false;
+                record.pin_count = 0;
+                used[slot] = true;
+            }
+            target.push_back(record);
+        }
+        return true;
+    } catch (...) {
+        target.clear();
+        return false;
+    }
 }
 
 bool llama_kv_live_policy_build_trace(
@@ -309,7 +467,45 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
         }
         previous_policy_target.push_back(it->policy_id);
     }
-    output.policy = llama_kv_policy_decide(policy_trace, policy_config, previous_policy_target);
+    std::vector<llama_kv_page_record> committed_target;
+    if (boundary.query_commit.enabled) {
+        if (!llama_kv_live_policy_prepare_query_target(boundary, committed_target)) {
+            output.status = llama_kv_live_policy_status::query_capacity_refused;
+            return output;
+        }
+        output.policy.status = llama_kv_policy_status::ok;
+        for (const auto & record : committed_target) {
+            const auto found = std::find_if(output.trace.pages.begin(), output.trace.pages.end(),
+                    [&](const auto & page) { return page.id == record.id; });
+            if (found == output.trace.pages.end()) {
+                output.status = llama_kv_live_policy_status::stale_snapshot;
+                return output;
+            }
+            output.policy.target.push_back(found->policy_id);
+            const auto prior = std::find(boundary.previous_target.begin(),
+                    boundary.previous_target.end(), record.id);
+            if (prior != boundary.previous_target.end()) output.policy.keeps.push_back(found->policy_id);
+            else output.policy.adds.push_back(found->policy_id);
+            output.policy.records.push_back({ found->policy_id,
+                std::find_if(boundary.query_commit.selected.begin(), boundary.query_commit.selected.end(),
+                    [&](const auto & page) { return page.identity == record.id; }) !=
+                    boundary.query_commit.selected.end()
+                    ? llama_kv_policy_reason::summary : llama_kv_policy_reason::mandatory, 0 });
+        }
+        for (const auto & old : current.pages()) {
+            if (std::none_of(committed_target.begin(), committed_target.end(),
+                    [&](const auto & page) { return page.id == old.id; })) {
+                const auto found = std::find_if(output.trace.pages.begin(), output.trace.pages.end(),
+                        [&](const auto & page) { return page.id == old.id; });
+                if (found != output.trace.pages.end()) {
+                    output.policy.victims.push_back(found->policy_id);
+                    output.policy.records.push_back({ found->policy_id, llama_kv_policy_reason::victim, 0 });
+                }
+            }
+        }
+    } else {
+        output.policy = llama_kv_policy_decide(policy_trace, policy_config, previous_policy_target);
+    }
     output.trace.target_pages = uint32_t(output.policy.target.size());
     output.retrieval_fallback = output.trace.retrieval_fallback;
     if (output.policy.status == llama_kv_policy_status::pin_overflow) {
@@ -317,8 +513,9 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
         return output;
     }
     if (output.policy.status != llama_kv_policy_status::ok ||
-        output.policy.target.size() != std::min<uint32_t>(boundary.hot_capacity,
-                                                           boundary.logical_page_count)) {
+        (!boundary.query_commit.enabled &&
+         output.policy.target.size() != std::min<uint32_t>(boundary.hot_capacity,
+                                                            boundary.logical_page_count))) {
         output.status = llama_kv_live_policy_status::unavailable_inventory;
         return output;
     }
@@ -340,7 +537,7 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
                 return page != nullptr && page->record.physical_slot == UINT32_MAX &&
                     page->record.host_valid;
             });
-    if ((output.retrieval_fallback ||
+    if (!boundary.query_commit.enabled && (output.retrieval_fallback ||
             (telemetry_unavailable && !selected_cold_page)) &&
         boundary.previous_target.size() == output.policy.target.size()) {
         bool safe = true;
@@ -374,12 +571,15 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
 
     std::vector<bool> used(pool.slot_capacity(), false);
     std::vector<llama_kv_page_record> desired;
+    if (boundary.query_commit.enabled) {
+        desired = committed_target;
+    }
     desired.reserve(output.policy.target.size());
     // Preserve the physical slots of pages that remain resident before
     // assigning a slot to a cold promotion. This permits an occupied pool to
     // replace a victim without accidentally assigning the new page to a slot
     // still owned by a retained page.
-    for (const uint64_t policy_id : output.policy.target) {
+    if (!boundary.query_commit.enabled) for (const uint64_t policy_id : output.policy.target) {
         if (policy_id == 0 || policy_id > output.trace.pages.size()) {
             output.status = llama_kv_live_policy_status::unavailable_inventory;
             return output;
@@ -399,7 +599,7 @@ llama_kv_live_policy_result llama_kv_live_policy_apply(
             used[source->record.physical_slot] = true;
         }
     }
-    for (const uint64_t policy_id : output.policy.target) {
+    if (!boundary.query_commit.enabled) for (const uint64_t policy_id : output.policy.target) {
         if (policy_id == 0 || policy_id > output.trace.pages.size()) {
             output.status = llama_kv_live_policy_status::unavailable_inventory;
             return output;
