@@ -11704,9 +11704,19 @@ private:
         // complete tokenized prompt as their compatibility query span.
         {
             const auto & spans = slot.task->params.message_spans;
-            int64_t query_start = spans.spans.empty()
-                ? 0 : int64_t(spans.last_user_message_pos());
-            const int64_t query_end = int64_t(slot.task->n_tokens());
+            const bool has_rendered_user_span =
+                slot.task->params.final_user_token_begin >= 0 &&
+                slot.task->params.final_user_token_end >
+                    slot.task->params.final_user_token_begin &&
+                slot.task->params.final_user_token_end <=
+                    int64_t(slot.task->n_tokens());
+            int64_t query_start = has_rendered_user_span
+                ? slot.task->params.final_user_token_begin
+                : (slot.task->params.rendered_user_message_count_present || spans.spans.empty()
+                    ? 0 : int64_t(spans.last_user_message_pos()));
+            const int64_t query_end = has_rendered_user_span
+                ? slot.task->params.final_user_token_end
+                : int64_t(slot.task->n_tokens());
             if (query_start < 0 || query_start >= query_end) query_start = 0;
             ctx_tgt->begin_kv_pager_turn(
                     slot.id, slot.slot_session_generation, query_start, query_end);
@@ -18971,7 +18981,11 @@ private:
                     }
 
                     const auto & spans = slot.task->params.message_spans;
-                    const auto last_user_pos = spans.last_user_message_pos();
+                    const auto last_user_pos =
+                        slot.task->params.final_user_token_begin >= 0
+                            ? (int32_t) slot.task->params.final_user_token_begin
+                            : (slot.task->params.rendered_user_message_count_present
+                                ? -1 : spans.last_user_message_pos());
 
                     // add prompt tokens for processing in the current batch
                     while (slot.prompt.n_tokens() < slot.task->n_tokens() &&
@@ -23187,6 +23201,22 @@ std::unique_ptr<server_res_generator> server_routes::handle_completions_impl(
                     data);
 
             task.params.message_spans = task.tokens.find_message_spans(delimiters);
+            if (task.params.rendered_user_message_count_present) {
+                if (task.tokens.has_media()) {
+                    SRV_WRN("%s", "final-user token span is unsupported for multimodal chat prompts; using the full prompt as the fresh query suffix\n");
+                } else {
+                    size_t user_begin = 0;
+                    size_t user_end = 0;
+                    if (task.params.message_spans.final_user_span(
+                            (size_t) task.params.rendered_user_message_count,
+                            task.tokens.size(), user_begin, user_end)) {
+                        task.params.final_user_token_begin = (int64_t) user_begin;
+                        task.params.final_user_token_end = (int64_t) user_end;
+                    } else {
+                        SRV_WRN("%s", "rendered final-user token span is ambiguous or outside the tokenized prompt; using the full prompt as the fresh query suffix\n");
+                    }
+                }
+            }
 
             task.id_slot = json_value(data, "id_slot", -1);
             task.cache_family_binding_token = family_binding_token;

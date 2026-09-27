@@ -150,6 +150,41 @@ void common_chat_msg_delimiters::tokenize(const llama_vocab * vocab) {
     }
 }
 
+bool common_chat_msg_spans::final_user_span(
+        size_t expected_user_count,
+        size_t token_count,
+        size_t & begin,
+        size_t & end) const noexcept {
+    begin = 0;
+    end = 0;
+    if (expected_user_count == 0) {
+        return false;
+    }
+
+    size_t user_count = 0;
+    size_t previous_end = 0;
+    bool have_previous = false;
+    const common_chat_msg_span * final_user = nullptr;
+    for (const auto & span : spans) {
+        if (span.role == COMMON_CHAT_ROLE_USER) {
+            user_count++;
+            final_user = &span;
+        }
+        if (!span.valid() || span.pos > token_count || span.len > token_count - span.pos ||
+            (have_previous && span.pos < previous_end)) {
+            return false;
+        }
+        previous_end = span.pos + span.len;
+        have_previous = true;
+    }
+    if (user_count != expected_user_count || final_user == nullptr || final_user->len == 0) {
+        return false;
+    }
+    begin = final_user->pos;
+    end = final_user->pos + final_user->len;
+    return begin < end && end <= token_count;
+}
+
 common_chat_msg_spans common_chat_msg_delimiters::split(const llama_tokens & tokens, const std::map<size_t, size_t> & skips) const {
     std::vector<std::pair<common_chat_role, size_t>> matches;
 
@@ -1424,8 +1459,14 @@ static common_chat_params common_chat_templates_apply_legacy(const struct common
 common_chat_params common_chat_templates_apply(const struct common_chat_templates *        tmpls,
                                                const struct common_chat_templates_inputs & inputs) {
     GGML_ASSERT(tmpls != nullptr);
-    return inputs.use_jinja ? common_chat_templates_apply_jinja(tmpls, inputs) :
-                              common_chat_templates_apply_legacy(tmpls, inputs);
+    common_chat_params result = inputs.use_jinja ? common_chat_templates_apply_jinja(tmpls, inputs) :
+                                                   common_chat_templates_apply_legacy(tmpls, inputs);
+    for (const auto & message : inputs.messages) {
+        if (message.role == "user") {
+            result.rendered_user_message_count++;
+        }
+    }
+    return result;
 }
 
 common_chat_msg common_chat_parse(const std::string &               input,
