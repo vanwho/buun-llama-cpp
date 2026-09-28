@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "task": "96-02",
+  "source_commit": "111068902b6c23305b457107925240df570f5409",
+  "build_identity": {
+    "dirty_source_diff_sha256": "8e182c300f55e96f7ba0fdc95f9484d36be9e4cb6a78b0dfff0a048899acb94c",
+    "build_command": "cmake --build build-cuda-test --target test-kv-routing-summary test-kv-page-select test-cuda-kv-page-summary test-backend-ops test-cuda-kv-promotion -j4",
+    "backend": "CUDA0; NVIDIA GeForce RTX 4080; compute capability 8.9",
+    "executables": {
+      "build-cuda-test/bin/test-kv-routing-summary": "5a376224692ce69e3daab74bb620c772e24f8865c44f7b950ac858e888f86334",
+      "build-cuda-test/bin/test-kv-page-select": "dcd5ce771572d02e5059aa7e465c3c3fd83477e33c8cd2c8444bdd3d06486401",
+      "build-cuda-test/bin/test-cuda-kv-page-summary": "ceb2d779cb47411681b1097afa0392732268de03489724238d9446b6ca8c3e9f"
+    },
+    "shared_libraries": {
+      "build-cuda-test/bin/libllama.so": "f65b0804a8c9ebe9ea525bbbf3e0b6ebff69deaaa60f5037b4dbd58657e31421",
+      "build-cuda-test/bin/libggml-cuda.so": "287e32976cf143ce292561653c1babeb27b09fc4bd0e5c540a14a357a2658abf"
+    }
+  },
+  "checks": {
+    "mean_k_summary_version_and_recall": {
+      "command": [
+        "build-cuda-test/bin/test-kv-routing-summary"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/96-02/attempt-01/test-kv-routing-summary-cuda-final.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    "scorer_small_cuda_comparison": {
+      "command": [
+        "build-cuda-test/bin/test-kv-page-select"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/96-02/attempt-01/test-kv-page-select-cuda-final.log",
+          "sha256": "5368b913a8accd231f229624a8b8aa4dccbdd4a6ea159a3e28774dd98e3d8835"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/96-02/attempt-01/scorer-small-cuda-final-repeat.log",
+          "sha256": "33d89873274dd3b9c589645be86a2cf0097f428fa82c243f72ed3aee573f9ac4"
+        }
+      ],
+      "measurements": {
+        "backend": "CUDA0 / NVIDIA GeForce RTX 4080 / compute capability 8.9",
+        "required_page": 3,
+        "current_recall": "0/1",
+        "mean_k_recall": "1/1",
+        "current_false_promotions": 1,
+        "mean_k_false_promotions": 0,
+        "top1_overlap": 0,
+        "current_selector_us_mean": 51.753,
+        "mean_k_selector_us_mean": 47.127,
+        "summary_update_cuda_us": 339.819,
+        "catalogue_bytes": 7680,
+        "combined_current_us": 391.572,
+        "combined_mean_k_us": 386.946,
+        "mean_k_cost_change_percent": -1.18
+      }
+    }
+  },
+  "additional_checks": {
+    "cuda_summary_update_and_cold_copy": {
+      "command": [
+        "build-cuda-test/bin/test-cuda-kv-page-summary"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/96-02/attempt-01/test-cuda-kv-page-summary-final.log",
+          "sha256": "1f959a29df01370957d930ff3d81cf87c7f3f0beba10a8138f84f565c119e485"
+        }
+      ]
+    },
+    "final_build": {
+      "command": [
+        "cmake",
+        "--build",
+        "build-cuda-test",
+        "--target",
+        "test-kv-routing-summary",
+        "test-kv-page-select",
+        "test-cuda-kv-page-summary",
+        "test-backend-ops",
+        "test-cuda-kv-promotion",
+        "-j4"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/96-02/attempt-01/build-final.log",
+          "sha256": "5c6358a0158cf0ac082d5c130b748fa77a6b836f72f3274432b62835db866dcf"
+        }
+      ]
+    }
+  },
+  "deferred_verification": [
+    "Live natural promotion/replay/cancellation verification is assigned to task 100-04; no live server or model test was run."
+  ]
+}
