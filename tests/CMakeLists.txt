@@ -675,8 +675,9 @@ if (TARGET ggml-cuda)
     llama_build_and_test(test-cuda-kv-promotion.cpp)
     target_include_directories(test-cuda-kv-promotion PRIVATE
         ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}/common
         ${PROJECT_SOURCE_DIR}/ggml/src)
-    target_link_libraries(test-cuda-kv-promotion PRIVATE llama)
+    target_link_libraries(test-cuda-kv-promotion PRIVATE llama llama-common)
     target_compile_definitions(test-cuda-kv-promotion PRIVATE GGML_USE_CUDA)
     if (MSVC)
         target_compile_options(test-cuda-kv-promotion PRIVATE /UNDEBUG)

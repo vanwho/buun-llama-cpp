@@ -3744,6 +3744,12 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                 copy.record.pin_count = 0;
                 copy.record.host_valid = false;
                 copy.record.dirty = true;
+                // A copied page starts as ordinary prior history.  It must
+                // not inherit generation-ring ownership or an enqueue bit
+                // from the source page's turn-local content version.
+                copy.owner = page_owner::prior_turn_history;
+                copy.owner_turn_id = 0;
+                copy.generation_queued = false;
                 copy.maintenance_pending = true;
                 copy.host_content_version = 0;
                 copy.summary_content_version = 0;
@@ -3844,6 +3850,13 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                         page.record.dirty = true;
                         page.maintenance_pending = true;
                         page.content_version = advance_content_version(page.content_version);
+                        page.record.content_version = page.content_version;
+                        page.record.valid_length = end_row;
+                        // The old FIFO entry names the old page identity and
+                        // content version.  Keep it lazily discardable, while
+                        // allowing the accepted rollback version to enqueue
+                        // exactly once after its seal completes.
+                        page.generation_queued = false;
                         page.host_content_version = 0;
                         page.summary_content_version = 0;
                     }
@@ -3852,6 +3865,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                     page.record.id.page_generation = uint32_t(++mutation_generation_);
                     page.record.host_valid = false;
                     page.record.dirty = true;
+                    page.generation_queued = false;
                     page.maintenance_pending = true;
                     page.host_content_version = 0;
                     page.summary_content_version = 0;

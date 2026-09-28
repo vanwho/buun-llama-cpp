@@ -4,6 +4,7 @@
 #include "llama-kv-live-policy.h"
 #include "llama-kv-pager.h"
 #include "llama-kv-prefetch.h"
+#include "speculative.h"
 
 #include <algorithm>
 #include <array>
@@ -12,8 +13,10 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <numeric>
 #include <vector>
 
@@ -31,6 +34,7 @@ constexpr uint32_t q_heads = 4;
 constexpr uint32_t head_dim = 128;
 constexpr uint32_t cold_capacity = 2;
 constexpr uint32_t hot_capacity = 3;
+constexpr uint32_t retrieval_capacity = 2;
 constexpr uint64_t source_namespace = UINT64_C(0x49060002);
 
 static uint64_t mix(uint64_t value) {
@@ -67,6 +71,8 @@ struct promotion_fixture {
     uint64_t row_bytes_unit = ggml_row_size(GGML_TYPE_TURBO4_0, head_dim * kv_heads);
     std::vector<std::vector<std::vector<uint8_t>>> bytes;
     std::vector<std::vector<std::vector<uint8_t>>> capture_bytes;
+    std::mutex capture_mutex;
+    std::vector<std::pair<uint32_t, uint64_t>> capture_versions;
     std::vector<vbr_selected_page_unit_source> sources;
     vbr_selected_page_capture_snapshot snapshot;
 
@@ -98,6 +104,12 @@ struct promotion_fixture {
                         vbr_selected_page_capture_snapshot_provider & provider) noexcept {
         auto & self = *static_cast<promotion_fixture *>(context);
         if (page.id.logical_page >= self.bytes.size()) return false;
+        try {
+            std::lock_guard<std::mutex> lock(self.capture_mutex);
+            self.capture_versions.emplace_back(page.id.logical_page, page.content_version);
+        } catch (...) {
+            return false;
+        }
         request = {};
         request.source_namespace = source_namespace;
         request.child_id = 0;
@@ -165,10 +177,10 @@ struct promotion_fixture {
                                     uint64_t(layer) * 313 + uint64_t(side) * 97 +
                                     uint64_t(head) * 29 + uint64_t(row) * 17 + d);
                                 float value = float(int32_t(r & 31) - 15) / 15.0f;
-                                // Page zero is deliberately aligned with the
-                                // positive transformed query.  It is later
-                                // evicted and is therefore a cold winner.
-                                if (logical == 0 && side == 0) value += 2.0f;
+                                // Generated page one is deliberately aligned
+                                // with the positive transformed query. Ring
+                                // wrap later spills it to the cold catalogue.
+                                if (logical == 1 && side == 0) value += 2.0f;
                                 values[head * head_dim + d] = value;
                             }
                         }
@@ -249,7 +261,9 @@ static bool build_summary(void * context, const llama_kv_page_record & page,
     const auto & source = fixture.bytes[page.id.logical_page][0];
     output = {};
     output.id = page.id;
-    output.row_indices = { 0, 85, 170, 255 };
+    if (page.valid_length == 0) return false;
+    output.row_indices = { 0, page.valid_length / 3,
+        (page.valid_length * 2) / 3, page.valid_length - 1 };
     output.rotated_k_rows.resize(output.row_indices.size() * config.vector_dim);
     std::vector<float> decoded(head_dim * kv_heads);
     for (size_t i = 0; i < output.row_indices.size(); ++i) {
@@ -445,6 +459,8 @@ static int run_proof() {
     config.page_size = page_tokens;
     config.hot_pages.automatic = false;
     config.hot_pages.value = hot_capacity;
+    config.retrieval_pages.automatic = false;
+    config.retrieval_pages.value = retrieval_capacity;
     llama_kv_pager_resources resources = pager_resources(geometry.page_bytes, backend, device);
     llama_kv_pager_snapshot planned;
     llama_kv_pager_status status;
@@ -470,6 +486,22 @@ static int run_proof() {
     ggml_tensor * storage = ggml_new_tensor_1d(storage_context, GGML_TYPE_I8, planned.physical_bytes);
     ggml_backend_buffer_t storage_buffer = ggml_backend_alloc_ctx_tensors(storage_context, backend);
     assert(storage_buffer != nullptr);
+    ggml_context * draft_context = ggml_init({ ggml_tensor_overhead(), nullptr, true });
+    assert(draft_context != nullptr);
+    ggml_tensor * draft_storage = ggml_new_tensor_3d(draft_context, GGML_TYPE_TURBO4_0,
+        head_dim * kv_heads, pages * page_tokens, layers * 2);
+    ggml_backend_buffer_t draft_buffer = ggml_backend_alloc_ctx_tensors(draft_context, backend);
+    assert(draft_buffer != nullptr && draft_buffer != storage_buffer);
+    std::vector<uint8_t> draft_reference(size_t(pages) * page_tokens * fixture.row_bytes_unit *
+        promotion_fixture::unit_count);
+    for (uint32_t unit = 0; unit < promotion_fixture::unit_count; ++unit) {
+        for (uint32_t logical = 0; logical < pages; ++logical) {
+            std::memcpy(draft_reference.data() +
+                    (size_t(unit) * pages + logical) * page_tokens * fixture.row_bytes_unit,
+                fixture.bytes[logical][unit].data(), page_tokens * fixture.row_bytes_unit);
+        }
+    }
+    ggml_backend_tensor_set(draft_storage, draft_reference.data(), 0, ggml_nbytes(draft_storage));
     resources.external_storage_buffer = storage_buffer;
     resources.external_storage_tensor = storage;
     auto pager = llama_kv_pager::create(config, geometry, resources, {}, status);
@@ -478,18 +510,8 @@ static int run_proof() {
     pager->set_host_provider({ &fixture, promotion_fixture::prepare });
     pager->set_routing_summary_provider({ &fixture, build_summary });
 
-    std::array<uint32_t, pages> slots{};
-    for (uint32_t logical = 0; logical < pages; ++logical) {
-        const auto id = page_id(logical);
-        llama_kv_pager_write_ticket ticket;
-        for (uint32_t row = 0; row < page_tokens; ++row) {
-            assert(pager->begin_restore_page(id, id.position_begin + row, ticket) ==
-                   llama_kv_pager_write_status::ok);
-            slots[logical] = ticket.physical_slot;
-            assert(pager->complete_write(ticket, layers * 2, true) ==
-                   llama_kv_pager_write_status::ok);
-        }
-        const uint32_t slot = slots[logical];
+    assert(planned.generation_pages == 1);
+    auto write_cuda_page = [&](uint32_t logical, uint32_t slot) {
         for (uint32_t layer = 0; layer < layers; ++layer) {
             for (uint32_t side = 0; side < 2; ++side) {
                 const uint64_t page_bytes = side == 0 ? planned.geometry.layer_k_page_bytes[layer]
@@ -500,22 +522,118 @@ static int run_proof() {
                     offset + uint64_t(slot) * page_bytes, page_bytes);
             }
         }
-        pager->release_sequence_pins(0);
-        const uint32_t sealed = pager->seal_ready_pages();
-        if (sealed != 1) {
-            const auto debug_records = pager->exact_page_records(0);
-            for (const auto & debug : debug_records) {
-                std::fprintf(stderr, "record logical=%u state=%d host=%d dirty=%d pin=%u valid=%u slot=%u\n",
-                    debug.id.logical_page, int(debug.state), int(debug.host_valid), int(debug.dirty),
-                    debug.pin_count, debug.valid_length, debug.physical_slot);
+    };
+    auto write_page_metadata = [&](uint32_t logical, bool restore) {
+        const auto id = page_id(logical);
+        llama_kv_pager_write_ticket ticket;
+        uint32_t slot = UINT32_MAX;
+        for (uint32_t row = 0; row < page_tokens; ++row) {
+            const auto result = restore
+                ? pager->begin_restore_page(id, id.position_begin + row, ticket)
+                : pager->begin_write(0, 1, llama_pos(logical * page_tokens + row), ticket);
+            assert(result == llama_kv_pager_write_status::ok);
+            if (slot == UINT32_MAX) {
+                slot = ticket.physical_slot;
+                write_cuda_page(logical, slot);
+            } else {
+                assert(slot == ticket.physical_slot);
             }
-            std::fprintf(stderr, "seal failed logical=%u result=%u host_pages=%zu\n",
-                logical, sealed, pager->host_catalog() ? pager->host_catalog()->pages().size() : 0);
-            return 1;
+            assert(pager->complete_write(ticket, layers * 2, true) ==
+                   llama_kv_pager_write_status::ok);
         }
+        return slot;
+    };
+
+    // Freeze one historical page, then generate seven pages through the
+    // bounded target ring. The accepted frontier is resolved before the
+    // rejected final row is removed from page 7.
+    (void) write_page_metadata(0, true);
+    pager->release_sequence_pins(0);
+    assert(pager->seal_ready_pages() == 1);
+    const auto history_records = pager->exact_page_records(0);
+    const auto history_it = std::find_if(history_records.begin(), history_records.end(),
+        [](const auto & record) { return record.id.logical_page == 0; });
+    assert(history_it != history_records.end() && history_it->host_valid);
+    const uint64_t turn_id = 97;
+    assert(pager->transition_turn(0, turn_id, 0,
+        llama_kv_pager_turn_phase::query_provisional, 255, 256, history_it->id, 0) ==
+        llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, turn_id, 0,
+        llama_kv_pager_turn_phase::retrieval_commit, 255, 256, history_it->id, 1,
+        { { history_it->id, history_it->content_version } }) == llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, turn_id, 1,
+        llama_kv_pager_turn_phase::generating, 255, 256, history_it->id, 1) ==
+        llama_kv_pager_turn_status::ok);
+    for (uint32_t logical = 1; logical < pages; ++logical) {
+        (void) write_page_metadata(logical, false);
+        (void) pager->seal_ready_pages();
     }
-    const auto records = pager->exact_page_records(0);
-    assert(records.size() == pages);
+
+    const auto rejected_frontier = common_speculative_rollback_frontier_resolve(2045, 2, 1);
+    assert(rejected_frontier.valid() && rejected_frontier.accepted_token_count == 2047 &&
+        rejected_frontier.rejected_suffix_begin == 2047 &&
+        rejected_frontier.rejected_suffix_end == 2048 &&
+        rejected_frontier.rejected_draft_tokens == 1);
+    const int64_t full_l_draft_frontier = rejected_frontier.accepted_token_count;
+    assert(full_l_draft_frontier == 2047);
+    const auto full_generated = pager->exact_page_records(0);
+    const auto rejected_page = std::find_if(full_generated.begin(), full_generated.end(),
+        [](const auto & record) { return record.id.logical_page == 7; });
+    assert(rejected_page != full_generated.end() && rejected_page->valid_length == page_tokens);
+    const auto rejected_identity = rejected_page->id;
+    const auto rejected_version = rejected_page->content_version;
+    (void) pager->seal_ready_pages();
+    const uint64_t rollback_epoch = pager->residency().epoch();
+    assert(pager->mutate({ llama_kv_pager_mutation_kind::remove, 0, -1,
+        llama_pos(rejected_frontier.rejected_suffix_begin), -1, 0, 0, rollback_epoch, true }) ==
+        llama_kv_pager_write_status::ok);
+    const auto accepted_turn = pager->turn_state(0);
+    assert(accepted_turn.selected_history.size() == 1 &&
+        accepted_turn.selected_history[0].identity == history_it->id &&
+        accepted_turn.selected_history[0].content_version == history_it->content_version);
+    const auto accepted_page = pager->exact_page_records(0);
+    const auto accepted_page_it = std::find_if(accepted_page.begin(), accepted_page.end(),
+        [](const auto & record) { return record.id.logical_page == 7; });
+    assert(accepted_page_it != accepted_page.end() && accepted_page_it->valid_length == 255 &&
+        accepted_page_it->id != rejected_identity &&
+        accepted_page_it->content_version > rejected_version && !accepted_page_it->host_valid);
+    vbr_selected_page_host_view rejected_host_page;
+    assert(!pager->host_catalog()->find_page(rejected_identity, rejected_host_page));
+    assert(pager->clear_turn_state(0, turn_id, 1) == llama_kv_pager_turn_status::ok);
+    assert(pager->host_inflight_pages() == 0);
+    const auto final_records = pager->exact_page_records(0);
+    assert(final_records.size() == pages);
+    const auto sealed_accepted = std::find_if(final_records.begin(), final_records.end(),
+        [](const auto & record) { return record.id.logical_page == 7; });
+    assert(sealed_accepted != final_records.end() && sealed_accepted->valid_length == 255 &&
+        sealed_accepted->host_valid && sealed_accepted->content_version > rejected_version);
+    vbr_selected_page_host_view accepted_host_page;
+    assert(pager->host_catalog()->find_page(sealed_accepted->id, accepted_host_page));
+    assert(accepted_host_page.page.positions.size() == 255 &&
+        accepted_host_page.page.positions.back() == rejected_frontier.rejected_suffix_begin - 1 &&
+        std::none_of(accepted_host_page.page.positions.begin(),
+            accepted_host_page.page.positions.end(), [&](llama_pos position) {
+                return position >= rejected_frontier.rejected_suffix_begin;
+            }));
+    assert(accepted_host_page.page.units.size() == promotion_fixture::unit_count &&
+        std::all_of(accepted_host_page.page.units.begin(), accepted_host_page.page.units.end(),
+            [](const auto & unit) { return unit.valid_rows == 255; }));
+    std::vector<uint8_t> draft_after(draft_reference.size());
+    ggml_backend_tensor_get(draft_storage, draft_after.data(), 0, ggml_nbytes(draft_storage));
+    assert(draft_after == draft_reference);
+    {
+        std::lock_guard<std::mutex> lock(fixture.capture_mutex);
+        const auto captures_for = [&](uint32_t logical, uint64_t version) {
+            return std::count(fixture.capture_versions.begin(), fixture.capture_versions.end(),
+                std::make_pair(logical, version));
+        };
+        assert(captures_for(7, rejected_version) == 1);
+        assert(captures_for(7, sealed_accepted->content_version) == 1);
+    }
+    std::cout << "generation_seal_and_rejection=pass rejected_identity_invalidated=1 "
+        << "accepted_length=" << sealed_accepted->valid_length
+        << " content_version=" << sealed_accepted->content_version << "\n";
+    const auto & records = final_records;
 
     // The selector consumes transformed Q and bounds decoded from the exact
     // packed K rows above.  Membership is derived from the live inventory.
@@ -557,11 +675,14 @@ static int run_proof() {
 
     std::vector<ggml_fp16_t> bound_data(size_t(head_dim) * 2 * kv_heads * pages);
     for (uint32_t logical = 0; logical < pages; ++logical) {
+        const auto record = std::find_if(records.begin(), records.end(),
+            [&](const auto & value) { return value.id.logical_page == logical; });
+        assert(record != records.end());
         const auto & source = fixture.bytes[logical][0];
         std::vector<float> decoded(head_dim * kv_heads);
         std::vector<float> lo(head_dim * kv_heads, std::numeric_limits<float>::infinity());
         std::vector<float> hi(head_dim * kv_heads, -std::numeric_limits<float>::infinity());
-        for (uint32_t row = 0; row < page_tokens; ++row) {
+        for (uint32_t row = 0; row < record->valid_length; ++row) {
             dequantize_row_turbo4_0(reinterpret_cast<const block_turbo4_0 *>(
                 source.data() + row * fixture.row_bytes_unit), decoded.data(), head_dim * kv_heads);
             for (uint32_t d = 0; d < decoded.size(); ++d) {
@@ -581,16 +702,16 @@ static int run_proof() {
     for (const auto & record : records) snapshot_generation = std::max<uint64_t>(
         snapshot_generation, record.id.page_generation);
     for (uint32_t logical = 0; logical < pages; ++logical) {
-        const auto id = page_id(logical);
-        metadata_data[4 * logical + 0] = id.position_begin;
-        metadata_data[4 * logical + 1] = page_tokens;
-        metadata_data[4 * logical + 2] = id.sequence_generation;
-        metadata_data[4 * logical + 3] = id.page_generation;
         const auto record = std::find_if(records.begin(), records.end(),
             [&](const auto & value) { return value.id.logical_page == logical; });
+        assert(record != records.end());
+        metadata_data[4 * logical + 0] = record->id.position_begin;
+        metadata_data[4 * logical + 1] = record->valid_length;
+        metadata_data[4 * logical + 2] = record->id.sequence_generation;
+        metadata_data[4 * logical + 3] = record->id.page_generation;
         membership_data[logical] = record != records.end() && record->physical_slot != UINT32_MAX;
     }
-    const int64_t final_query_position = int64_t(pages * page_tokens);
+    const int64_t final_query_position = rejected_frontier.accepted_token_count;
     const std::array<int64_t, 4> query_data = {
         final_query_position, 1, int64_t(snapshot_generation), 1 };
     assert(final_query_position > 0);
@@ -607,7 +728,8 @@ static int run_proof() {
     const int32_t winner_index = selector_output[2];
     assert(winner_index >= 0 && winner_index < int32_t(pages));
     const uint32_t winner_logical = uint32_t(winner_index);
-    assert(final_query_position > int64_t(page_id(winner_logical).position_begin));
+    assert(winner_logical > 0 && final_query_position >
+        int64_t(winner_logical * page_tokens));
     assert(std::find(membership_data.begin(), membership_data.end(), 0) != membership_data.end());
     assert(membership_data[winner_logical] == 0);
 
@@ -689,7 +811,8 @@ static int run_proof() {
 
     const auto cold_it = std::find_if(records.begin(), records.end(),
         [&](const auto & record) { return record.id.logical_page == winner_logical; });
-    assert(cold_it != records.end() && cold_it->physical_slot == UINT32_MAX);
+    assert(cold_it != records.end() && cold_it->physical_slot == UINT32_MAX &&
+        cold_it->id.logical_page > 0 && cold_it->valid_length == page_tokens);
     const auto committed_candidate = std::find_if(ready.begin(), ready.end(),
         [&](const auto & candidate) {
             return candidate.identity.logical_page == winner_logical && candidate.cold;
@@ -716,7 +839,7 @@ static int run_proof() {
     boundary.logical_page_count = pages;
     boundary.pages = live_pages;
     boundary.has_write_page = true;
-    boundary.write_page = page_id(pages - 1);
+    boundary.write_page = sealed_accepted->id;
     boundary.previous_target.clear();
     for (const auto & record : records) if (record.physical_slot != UINT32_MAX)
         boundary.previous_target.push_back(record.id);
@@ -733,8 +856,10 @@ static int run_proof() {
     boundary.retrieval.selected.push_back({ cold_it->id,
         llama_kv_routing_retrieval_reason::summary, score(winner_logical), true, false, 1 });
     boundary.query_commit.enabled = true;
-    boundary.query_commit.turn_id = std::max<uint64_t>(1, committed_candidate->generation);
-    boundary.query_commit.retrieval_epoch = std::max<uint64_t>(1, committed_candidate->generation);
+    const auto prior_turn = pager->turn_state(0);
+    boundary.query_commit.turn_id = std::max<uint64_t>(prior_turn.turn_id + 1,
+        committed_candidate->generation);
+    boundary.query_commit.retrieval_epoch = prior_turn.retrieval_epoch;
     boundary.query_commit.query_generation = committed_candidate->generation;
     boundary.query_commit.table_epoch = boundary.snapshot.epoch();
     boundary.query_commit.query_position = committed_candidate->query_position;
@@ -832,11 +957,13 @@ static int run_proof() {
         uint64_t(std::numeric_limits<llama_pos>::max()));
     const llama_pos query_position =
         static_cast<llama_pos>(committed_candidate->query_position);
-    assert(pager->transition_turn(0, boundary.query_commit.turn_id, 0,
+    assert(pager->transition_turn(0, boundary.query_commit.turn_id,
+        boundary.query_commit.retrieval_epoch,
         llama_kv_pager_turn_phase::query_provisional,
         query_position, query_position + 1, query_frontier, 0) ==
         llama_kv_pager_turn_status::ok);
-    assert(pager->transition_turn(0, boundary.query_commit.turn_id, 0,
+    assert(pager->transition_turn(0, boundary.query_commit.turn_id,
+        boundary.query_commit.retrieval_epoch,
         llama_kv_pager_turn_phase::retrieval_commit,
         query_position, query_position + 1, query_frontier,
         boundary.query_commit.retrieval_epoch,
@@ -895,8 +1022,8 @@ static int run_proof() {
     free_dense(consumed_output);
     free_dense(reference_output);
 
-    // Diagnostic mode distinguishes eligible pages with unusable scores
-    // from pages that are ineligible, without reading query tensors back.
+    // Diagnostic mode confirms resident inventory remains selectable while
+    // cold-page intervals are unusable, without reading query tensors back.
     const auto unbounded = std::find(membership_data.begin(), membership_data.end(), 0);
     assert(unbounded != membership_data.end());
     const uint32_t unbounded_page = uint32_t(unbounded - membership_data.begin());
@@ -914,7 +1041,8 @@ static int run_proof() {
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     std::fill(selector_output.begin(), selector_output.end(), -1);
     ggml_backend_tensor_get(selected, selector_output.data(), 0, ggml_nbytes(selected));
-    assert(selector_output[2] == -2);
+    assert(selector_output[0] >= 0 && selector_output[0] < int32_t(pages));
+    assert(membership_data[selector_output[0]] != 0);
 
     // Half precision catalogue intervals can conservatively overflow to
     // +/-infinity for unusually large finite K values. Such an interval has
@@ -945,8 +1073,15 @@ static int run_proof() {
         (unsigned long long) promotion.published_epoch,
         (unsigned long long) generation, (unsigned long long) host_checksum, delta);
 
+    std::fprintf(stdout, "generation_ring_cuda_integration=pass generated_pages=%u "
+        "target_capacity=%u generation_capacity=%u rejected_suffix=1 "
+        "cold_generated_winner=%u separate_full_l_draft=1\n",
+        pages - 1, hot_capacity, planned.generation_pages, winner_logical);
+
     ggml_backend_buffer_free(selector_buffer);
     ggml_free(selector_context);
+    ggml_backend_buffer_free(draft_buffer);
+    ggml_free(draft_context);
     ggml_backend_buffer_free(storage_buffer);
     ggml_free(storage_context);
     ggml_backend_free(backend);

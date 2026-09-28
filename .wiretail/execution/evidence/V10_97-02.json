@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "task": "97-02",
+  "source_commit": "a613c1da407e8cd59b1aea252580973a94b22194",
+  "build": {
+    "command": [
+      "cmake",
+      "--build",
+      "build-cuda-test",
+      "--target",
+      "test-cuda-kv-promotion",
+      "test-speculative-mtp-state",
+      "test-kv-pager",
+      "-j2"
+    ],
+    "build_directory": "build-cuda-test",
+    "backend": "CUDA",
+    "device": "NVIDIA GeForce RTX 4080, compute capability 8.9, 15942 MiB VRAM",
+    "executable": "/srv/repos/vanwho/buun-llama-cpp/build-cuda-test/bin/test-cuda-kv-promotion",
+    "executable_sha256": "28a7344069d86acf83a2fb93c3091f9ffda0fbf9a09ebde02900979242a7cca9",
+    "llama_shared_library": "/srv/repos/vanwho/buun-llama-cpp/build-cuda-test/bin/libllama.so",
+    "llama_shared_library_sha256": "8afdb38b54c5c4a777b6db51016e586a4cc5430fa63129899f7849a1a72e7c87",
+    "llama_common_shared_library": "/srv/repos/vanwho/buun-llama-cpp/build-cuda-test/bin/libllama-common.so",
+    "llama_common_shared_library_sha256": "11a28fb4d943c59e535c010ef3f4a1c9f93557a70b8e1439ec193b49fb5563b9",
+    "dirty_source_diff_sha256": "f858413caa1ba8a46075206c022825762442a5ef01574c71f25d1867b2c554c7",
+    "changed_source_files": [
+      "src/llama-kv-pager.cpp",
+      "tests/CMakeLists.txt",
+      "tests/test-cuda-kv-promotion.cpp"
+    ]
+  },
+  "checks": {
+    "generation_seal_and_rejection": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda-test/bin/test-cuda-kv-promotion"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/97-02/attempt-01/cuda-proof.log",
+          "sha256": "b73d9414f3af948836be56b802b46926b59ec0a26307300735b6448a3aa1a7a3"
+        }
+      ],
+      "proof_line": "generation_seal_and_rejection=pass rejected_identity_invalidated=1 accepted_length=255 content_version=257"
+    },
+    "generation_ring_cuda_integration": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda-test/bin/test-cuda-kv-promotion"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/97-02/attempt-01/cuda-proof.log",
+          "sha256": "b73d9414f3af948836be56b802b46926b59ec0a26307300735b6448a3aa1a7a3"
+        }
+      ],
+      "proof_line": "generation_ring_cuda_integration=pass generated_pages=7 target_capacity=3 generation_capacity=1 rejected_suffix=1 cold_generated_winner=1 separate_full_l_draft=1"
+    }
+  },
+  "supporting_checks": {
+    "speculative_mtp_state": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda-test/bin/test-speculative-mtp-state"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/97-02/attempt-01/mtp-proof.log",
+          "sha256": "708ec8f948ddb9f01e63649d42b2a089a9070f0542d8386a239e44c4bb7e13b6"
+        }
+      ]
+    },
+    "kv_pager": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda-test/bin/test-kv-pager"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/97-02/attempt-01/pager-proof.log",
+          "sha256": "0ec0f8737c3f5dc55c3489066b09467c1900774ac79ee3547d0c5afb07eb04cb"
+        }
+      ]
+    },
+    "build_log": {
+      "path": "/srv/ai/paged-kv/results/forward/97-02/attempt-01/build-proof.log",
+      "sha256": "18065a0f7abdf96840d59db2f99ad66f028971d97f0716d31bf4f9d725b56bb7"
+    }
+  },
+  "runtime_scope": {
+    "managed_service_touched": false,
+    "live_native_mtp_request_counters_observed": false,
+    "deferred_to": "100-04 final replay/cancellation/promotion verification",
+    "note": "The focused CUDA fixture measured the shared accepted/rejected frontier, generation seal and selector/promotion behavior. Server request-local native-MTP accounting remains implemented in server-context.cpp; no live model conversation was required by the named proofs."
+  }
+}
