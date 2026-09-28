@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "task": "98-02",
+  "source_commit": "73c46ac41d64fe712e4b5c6df7da851d1e8b0756",
+  "build_identity": {
+    "tree": "build-cuda-test",
+    "configuration": "Release",
+    "compiler": "/usr/bin/c++",
+    "cuda_architecture": "89-real",
+    "ggml_cuda": true,
+    "dirty_diff_sha256": "b42f2b3322ed1f6479c5a01073a58e27a04f3be78b9d886c3a339993c6dfee54",
+    "binaries": [
+      { "path": "build-cuda-test/bin/test-cuda-kv-promotion", "sha256": "15d93a36529036518d3f3be76301e82fecccea34c44d809eabfbcb0367fbfb79" },
+      { "path": "build-cuda-test/bin/test-kv-residency", "sha256": "494ac79cf3fc7e9e3f3c2134bc891a426b82a89b83cd741f76333326510ab504" },
+      { "path": "build-cuda-test/bin/test-kv-prefetch", "sha256": "9014bee01c07ac35f1384ec0987a8181d2e5c36a87410d4854a730cddd222601" },
+      { "path": "build-cuda-test/bin/libllama.so", "sha256": "db38b2deae3c6f72bf6d294ce04663c3a4e17e99ace2201727a6b3504bc112bb" },
+      { "path": "build-cuda-test/bin/libggml-cuda.so", "sha256": "024b8d6860f983ac703f051c1d281fcb7d35329f846e62e56585a35f475220cd" }
+    ]
+  },
+  "profile": {
+    "cuda_device": "NVIDIA GeForce RTX 4080",
+    "compute_capability": "8.9",
+    "selected_pages": 3,
+    "resident_hits": 1,
+    "cold_misses": 2,
+    "uploaded_pages": 2,
+    "h2d_useful_bytes": 2162688,
+    "selection_transaction_d2h_bytes": 0,
+    "resident_slot_preserved": true,
+    "exact_promoted_kv_bytes": true,
+    "content_versions_checked": true,
+    "stale_resident_version_rejected": true,
+    "stale_query_event_rejected": true,
+    "transfer_failure_rollback": true,
+    "atomic_publication": true
+  },
+  "checks": {
+    "selection_diff_async_batch_and_publication": {
+      "command": ["build-cuda-test/bin/test-cuda-kv-promotion"],
+      "exit_code": 0,
+      "status": "pass",
+      "artifacts": [
+        { "path": "/srv/ai/paged-kv/results/forward/98-02/attempt-01/build-final.log", "sha256": "9e8491d4930126f619bc8752ab075991d8ae824a74a75134ce4ec2a37e077b9c" },
+        { "path": "/srv/ai/paged-kv/results/forward/98-02/attempt-01/test-cuda-kv-promotion-final.log", "sha256": "f44b8f6a0253af00e7452c96052d9bf366ad6c163f0c9e09df1325f40349adf0" },
+        { "path": "/srv/ai/paged-kv/results/forward/98-02/attempt-01/test-kv-residency-final.log", "sha256": "acb4b7cf01428a5b4615fff203c92cca36165b1bf08720fa517343e20ad66bc1" },
+        { "path": "/srv/ai/paged-kv/results/forward/98-02/attempt-01/test-kv-prefetch.log", "sha256": "5d7fe763fd505b749446119e564b7507b74b3100089fc24e9d6ad564e5bbea57" },
+        { "path": "/srv/ai/paged-kv/results/forward/98-02/attempt-01/diff-check.log", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" }
+      ],
+      "supporting_commands": [
+        ["build-cuda-test/bin/test-kv-residency"],
+        ["build-cuda-test/bin/test-kv-prefetch"],
+        ["git", "diff", "--check"]
+      ]
+    }
+  },
+  "deferred_verification": []
+}
