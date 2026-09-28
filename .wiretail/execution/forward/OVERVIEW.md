@@ -86,8 +86,11 @@ measured savings justify them. They do not delay primary success.
 Read only the current packet/cluster and explicit context. Use compact
 predecessor handoffs; full histories, source reference and raw JSONL stay out
 of loaded context. Clusters follow source/lifecycle boundaries, not task count.
-All implementation and recovery work stays on `gpt-6-luna` High under the
-existing project lock; simpler models can follow the precise packet steps.
+All tasks stay on `gpt-6-luna`. Use the per-task reasoning pin in WORK_STATE:
+Medium only for bounded procedural harness/benchmark/occupancy tasks; High for
+kernel/state-machine changes, algorithm or route decisions, integration proof,
+diagnosis and goal assessment. Retry assessments remain Luna High. No task in
+this sequence may use Terra, Sol or Astra.
 
 Implementation completion requires the specified executable correctness proof.
 Fix config/auth/port/identity errors and retry the smallest affected request.

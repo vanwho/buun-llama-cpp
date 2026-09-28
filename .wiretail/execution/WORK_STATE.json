@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "96",
-  "current_task": "96-01",
-  "last_updated_utc": "2026-09-28T01:47:41+00:00",
+  "current_task": "96-02",
+  "last_updated_utc": "2026-09-28T03:36:32+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -27188,7 +27188,7 @@
       "cluster": "forward96-query-scoring",
       "title": "Aggregate target Q across the actual final user span",
       "packet": ".wiretail/execution/tasks/96-01.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -27203,7 +27203,7 @@
       "depends_on": [
         "95-02"
       ],
-      "commit": null,
+      "commit": "689b7c2e23d59115db81d902810716a35ec385ea",
       "context_files": [
         ".wiretail/execution/clusters/forward96-query-scoring.md",
         ".wiretail/execution/tasks/96-01.md",
@@ -27227,7 +27227,63 @@
         "96-01",
         "--receipt",
         ".wiretail/execution/evidence/V10_96-01.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/96-01-attempt-1-20260928T023150751292845-20260928T023150754407222-8pl6iO.jsonl:128",
+            "total_tokens": 3935730,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 3910383,
+            "cached_input_tokens": 3772672,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 137711,
+            "output_tokens": 25347,
+            "thinking_tokens": 15059
+          },
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/96-01-attempt-1-20260928T024653416425889-20260928T024653419098388-3HfDVR.jsonl:445",
+            "total_tokens": 23624104,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 23513674,
+            "cached_input_tokens": 22963712,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 549962,
+            "output_tokens": 110430,
+            "thinking_tokens": 57848
+          }
+        ],
+        "totals": {
+          "usage_events": 2,
+          "total_tokens": 27559834,
+          "input_tokens": 27424057,
+          "cached_input_tokens": 26736384,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 687673,
+          "output_tokens": 135777,
+          "thinking_tokens": 72907,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 2,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
     },
     {
       "id": "96-02",
@@ -27564,7 +27620,7 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
-      "recommended_reasoning": "high",
+      "recommended_reasoning": "medium",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
@@ -27609,7 +27665,7 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
-      "recommended_reasoning": "high",
+      "recommended_reasoning": "medium",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
@@ -27749,7 +27805,7 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
-      "recommended_reasoning": "high",
+      "recommended_reasoning": "medium",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
@@ -27792,7 +27848,7 @@
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
-      "recommended_reasoning": "high",
+      "recommended_reasoning": "medium",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
@@ -29605,6 +29661,27 @@
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
+    },
+    "96": {
+      "event_type": "turn.completed",
+      "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+      "generation_level_breakdown_available": false,
+      "active_context_tokens": null,
+      "thinking_tokens_relation": "subset_of_output_tokens",
+      "totals": {
+        "usage_events": 2,
+        "total_tokens": 27559834,
+        "input_tokens": 27424057,
+        "cached_input_tokens": 26736384,
+        "cache_write_input_tokens": 0,
+        "input_tokens_minus_cached_tokens": 687673,
+        "output_tokens": 135777,
+        "thinking_tokens": 72907,
+        "total_tokens_reported_events": 0,
+        "total_tokens_derived_events": 2,
+        "total_tokens_source": "derived_input_plus_output",
+        "thinking_tokens_relation": "subset_of_output_tokens"
+      }
     }
   },
   "token_usage": {
@@ -29616,17 +29693,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 390,
-      "total_tokens": 8444420913,
-      "input_tokens": 8421575298,
-      "cached_input_tokens": 8238490368,
+      "usage_events": 392,
+      "total_tokens": 8471980747,
+      "input_tokens": 8448999355,
+      "cached_input_tokens": 8265226752,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 36,
-      "input_tokens_minus_cached_tokens": 183084930,
-      "output_tokens": 22845615,
-      "thinking_tokens": 8976576,
+      "cache_write_input_tokens_known_events": 38,
+      "input_tokens_minus_cached_tokens": 183772603,
+      "output_tokens": 22981392,
+      "thinking_tokens": 9049483,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 390,
+      "total_tokens_derived_events": 392,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

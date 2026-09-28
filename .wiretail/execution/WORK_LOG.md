@@ -1291,3 +1291,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Reconciled 96-01's packet dependency with state (`95-02`); 95-03 remains deferred and does not gate scorer implementation. Updated the forward overview/testing contract to start from the state pointer and reserve final replay/cancel/promotion proof for 100-04.
 - Clarified that deterministic-only implementation tasks must not reload Qwen; added a build/test recovery ladder for CUDA configuration, wrong identity, backend/fixture mismatch, source failures, and capacity failures. Tightened the 100-03 repair-task insertion recipe and synchronized its state title.
 - No source implementation files, services, or benchmark evidence changed. Existing source diffs remain preserved for the runner's checkpoint carry-forward.
+
+## 2026-09-28T02:46:53+00:00 — 96-01 — done
+
+- Branch: `codex/task-96-01`
+- Commit at update: `55ecab77a`
+- Summary: brief verified result
