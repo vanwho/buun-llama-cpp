@@ -787,8 +787,10 @@ static void test_cuda_async_host_publication() {
     host_resources.host_stream_index = 0;
     host_resources.host_backend = backend;
     host_resources.host_lanes = { { device, backend, false } };
-    host_resources.host_ring_bytes = 2u * 64u * 1024u;
-    host_resources.host_chunk_bytes = 64u * 1024u;
+    // The complete page is much larger than this pinned staging ring. The
+    // capture must stream through the fixed slab and publish pageable bytes.
+    host_resources.host_ring_bytes = 2u * 64u;
+    host_resources.host_chunk_bytes = 64u;
     host_resources.host_budget.host.pageable_cap = 1u << 20;
     host_resources.host_budget.host.pageable_state =
             llama_cache_budget_capacity_state::known;
@@ -814,6 +816,15 @@ static void test_cuda_async_host_publication() {
         assert(host->snapshot().live_pages == 0);
         assert(fixture.prepare_thread == fixture.owner_thread);
 
+        auto next_page = page;
+        ++next_page.id.logical_page;
+        ++next_page.id.page_generation;
+        next_page.id.position_begin += VBR_GENERATION_PAGE_CELLS;
+        next_page.id.position_end += VBR_GENERATION_PAGE_CELLS;
+        const auto queued_next = host->enqueue(next_page, 7);
+        assert(queued_next.status == llama_kv_pager_host_status::ok);
+        assert(queued_next.queued);
+
         // The worker owns only the immutable snapshot acquired by enqueue.
         // Mutating the live generation before the owner drains completion must
         // invalidate the old bytes instead of making them canonical.
@@ -821,14 +832,20 @@ static void test_cuda_async_host_publication() {
         ++fixture.snapshot.unit_descriptors[0].repr_gen;
 
         std::vector<llama_kv_pager_host_completion> completed;
-        assert(host->wait() >= 1);
+        assert(host->wait() >= 2);
         host->drain(completed);
-        assert(completed.size() == 1);
-        if (completed.size() == 1) {
+        assert(completed.size() == 2);
+        uint64_t stale_actual_d2h_bytes = 0;
+        if (completed.size() == 2) {
             assert(completed[0].content_version == 7);
             assert(completed[0].result.status != llama_kv_pager_host_status::ok);
+            assert(completed[1].content_version == 7);
+            assert(completed[1].result.status != llama_kv_pager_host_status::ok);
+            stale_actual_d2h_bytes = completed[0].result.transfer.bytes +
+                completed[1].result.transfer.bytes;
             assert(host->snapshot().live_pages == 0);
-            std::cout << "query_checkpoint_stale_d2h=discarded old_content_version=7\n";
+            std::cout << "query_checkpoint_stale_d2h=discarded old_content_version=7 "
+                         "multi_page_captures=2\n";
 
             // A later owner-prepared generation remains publishable, proving
             // that stale completion did not poison or pin the slot.
@@ -841,10 +858,18 @@ static void test_cuda_async_host_publication() {
             assert(completed[0].result.status == llama_kv_pager_host_status::ok);
             assert(completed[0].result.queued == false);
             assert(completed[0].result.transfer.event_completions > 0);
+            assert(completed[0].result.transfer.bytes > host_resources.host_ring_bytes);
+            assert(completed[0].result.pageable_bytes >= completed[0].result.transfer.bytes);
+            assert(completed[0].result.pinned_bytes <= host_resources.host_ring_bytes);
+            assert(stale_actual_d2h_bytes > 0);
             fprintf(stderr,
-                    "SPEED25_07_HOST async payload=%llu pageable=%llu metadata=%llu "
-                    "pinned=%llu ring=%llu submitted_chunks=%llu waits=%llu events=%llu\n",
+                    "inclusive_host_and_page_seal_topology=pass async useful_d2h=%llu "
+                    "actual_d2h=%llu "
+                    "pageable=%llu metadata=%llu pinned_payload=%llu peak_pinned=%llu "
+                    "submitted_chunks=%llu waits=%llu events=%llu async_captures=3\n",
                     (unsigned long long) completed[0].result.transfer.bytes,
+                    (unsigned long long) (stale_actual_d2h_bytes +
+                        completed[0].result.transfer.bytes),
                     (unsigned long long) completed[0].result.pageable_bytes,
                     (unsigned long long) completed[0].result.metadata_bytes,
                     (unsigned long long) completed[0].result.pinned_bytes,
