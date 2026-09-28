@@ -711,12 +711,16 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         return llama_kv_attention_execution_route::selected_dense;
     }
 
-    if (direct_capable && production_direct_shape(metadata, phase)) {
-        return llama_kv_attention_execution_route::selected_direct;
+    if (packed_capable) {
+        // Matched CUDA measurements show the mature Turbo4 FA route with a
+        // bounded packed view wins for decode, native-MTP verify and large
+        // prefill. The view is retained across the frozen turn and refreshed
+        // only for changed pages, so its preparation cost is amortized.
+        return llama_kv_attention_execution_route::selected_packed;
     }
 
-    if (packed_capable) {
-        return llama_kv_attention_execution_route::selected_packed;
+    if (direct_capable && production_direct_shape(metadata, phase)) {
+        return llama_kv_attention_execution_route::selected_direct;
     }
 
     // selected_reference is a correctness oracle for explicit diagnostics,
