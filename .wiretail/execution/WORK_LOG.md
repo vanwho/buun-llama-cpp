@@ -1333,3 +1333,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-99-01`
 - Commit at update: `19bb1178c`
 - Summary: Matched direct-paged and GPU-packed mature Turbo4 FA on identical pages; CUDA parity passed for Q=1, Q=3, and Q=256, with packed route provisionally faster on all three measured shapes.
+
+## 2026-09-28T06:21:08+00:00 — 99-02 — done
+
+- Branch: `codex/task-99-02`
+- Commit at update: `8393fecc2`
+- Summary: Installed measured shape-aware packed Turbo4 dispatch; unit, CUDA parity, and candidate-verified live Qwen replay/page-crossing proofs pass.

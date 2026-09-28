@@ -219,44 +219,42 @@ static void test_routes_epochs_and_fences() {
            execution.metrics().pack_time_us == 7 &&
            execution.metrics().pack_epochs == 1);
 
-    // Automatic multi-page Turbo4 prefill uses the persistent paged consumer.
-    // The compact packed bridge remains a diagnostic-only override.
-    llama_kv_attention_execution direct_over_packed(
+    // Automatic noncontiguous Turbo4 selection uses the retained packed view.
+    llama_kv_attention_execution automatic_packed(
             llama_kv_attention_execution_mode::selective);
-    const auto direct_packed = direct_over_packed.prepare(selected_prefill,
+    const auto packed_default = automatic_packed.prepare(selected_prefill,
             llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
             {}, false, true);
-    assert(direct_packed.route == llama_kv_attention_execution_route::selected_direct);
-    assert(direct_over_packed.metrics().selected_page_ids.size() == 2 &&
-           direct_over_packed.metrics().selected_page_ids[0] == 0 &&
-           direct_over_packed.metrics().selected_page_ids[1] == 2);
-    assert(direct_over_packed.metrics().pack_bytes == 0);
-    assert(direct_over_packed.metrics().pack_epochs == 0);
-    direct_over_packed.complete_one_graph();
+    assert(packed_default.route == llama_kv_attention_execution_route::selected_packed);
+    assert(automatic_packed.metrics().selected_page_ids.size() == 2 &&
+           automatic_packed.metrics().selected_page_ids[0] == 0 &&
+           automatic_packed.metrics().selected_page_ids[1] == 2);
+    assert(automatic_packed.metrics().pack_bytes == 0);
+    assert(automatic_packed.metrics().pack_epochs == 0);
+    automatic_packed.complete_one_graph();
 
     // A table/tail publication updates the mutable descriptor inputs while
-    // preserving the direct graph topology and physical page view.
-    const auto direct_replay = direct_over_packed.prepare(metadata(snapshot(701), 2, 1),
+    // preserving the packed graph topology and version-keyed packed owner.
+    const auto packed_replay = automatic_packed.prepare(metadata(snapshot(701), 2, 1),
             llama_kv_attention_execution_phase::prefill, 7, 11, true, scratch,
             {}, false, true);
-    assert(!direct_replay.graph_rebuild);
-    assert(direct_over_packed.metrics().selected_page_ids.size() == 2 &&
-           direct_over_packed.metrics().selected_page_ids[0] == 0 &&
-           direct_over_packed.metrics().selected_page_ids[1] == 2);
-    assert(direct_over_packed.metrics().pack_bytes == 0);
-    assert(direct_over_packed.metrics().pack_epochs == 0);
-    direct_over_packed.complete_one_graph();
+    assert(!packed_replay.graph_rebuild);
+    assert(automatic_packed.metrics().selected_page_ids.size() == 2 &&
+           automatic_packed.metrics().selected_page_ids[0] == 0 &&
+           automatic_packed.metrics().selected_page_ids[1] == 2);
+    assert(automatic_packed.metrics().pack_bytes == 0);
+    assert(automatic_packed.metrics().pack_epochs == 0);
+    automatic_packed.complete_one_graph();
 
-    // Production prefill direct dispatch uses the CUDA launch planner's
-    // query tile; this multi-page shape must not manufacture packed storage.
+    // Small prefill verification shares the measured packed route.
     const auto packed_prefill = metadata(snapshot(), 2, 1);
-    const auto direct_policy = direct_over_packed.prepare(packed_prefill,
+    const auto packed_policy = automatic_packed.prepare(packed_prefill,
             llama_kv_attention_execution_phase::prefill, 8, 12, true, scratch,
             {}, false, true);
-    assert(direct_policy.route == llama_kv_attention_execution_route::selected_direct);
-    assert(direct_over_packed.metrics().pack_bytes == 0);
-    assert(direct_over_packed.metrics().pack_epochs == 0);
-    direct_over_packed.complete_one_graph();
+    assert(packed_policy.route == llama_kv_attention_execution_route::selected_packed);
+    assert(automatic_packed.metrics().pack_bytes == 0);
+    assert(automatic_packed.metrics().pack_epochs == 0);
+    automatic_packed.complete_one_graph();
 
     llama_kv_attention_execution explicit_reference(
             llama_kv_attention_execution_mode::selective);
@@ -267,10 +265,8 @@ static void test_routes_epochs_and_fences() {
     assert(reference_control.route == llama_kv_attention_execution_route::selected_reference);
     explicit_reference.complete_one_graph();
 
-    // The automatic route and the explicit direct diagnostic must consume
-    // the same selected logical pages. Output parity for this pair is proved
-    // by the CUDA route/promotion diagnostic; this unit test guards the
-    // dispatch and page-set contract without manufacturing a second FA.
+    // Explicit direct remains available for diagnostics and uses the same
+    // selection as automatic packed dispatch.
     llama_kv_attention_execution explicit_direct(
             llama_kv_attention_execution_mode::selective);
     explicit_direct.set_route_override("direct");
@@ -281,16 +277,16 @@ static void test_routes_epochs_and_fences() {
     const auto explicit_page_ids = explicit_direct.metrics().selected_page_ids;
     explicit_direct.complete_one_graph();
 
-    llama_kv_attention_execution automatic_direct(
+    llama_kv_attention_execution automatic_selected(
             llama_kv_attention_execution_mode::selective);
-    const auto automatic_direct_decision = automatic_direct.prepare(selected_single_page,
+    const auto automatic_selected_decision = automatic_selected.prepare(selected_single_page,
             llama_kv_attention_execution_phase::decode, 7, 11, true, scratch,
             {}, false, true);
-    assert(automatic_direct_decision.route == llama_kv_attention_execution_route::selected_direct);
-    assert(automatic_direct.metrics().selected_page_ids == explicit_page_ids);
-    assert(automatic_direct.metrics().pack_bytes == 0);
-    assert(automatic_direct.metrics().pack_epochs == 0);
-    automatic_direct.complete_one_graph();
+    assert(automatic_selected_decision.route == llama_kv_attention_execution_route::selected_packed);
+    assert(automatic_selected.metrics().selected_page_ids == explicit_page_ids);
+    assert(automatic_selected.metrics().pack_bytes == 0);
+    assert(automatic_selected.metrics().pack_epochs == 0);
+    automatic_selected.complete_one_graph();
 
     // Forced routes compare the same metadata and fail closed when their
     // capability contract is absent. This is the diagnostic seam used by the
@@ -483,11 +479,11 @@ static void test_view_sized_scratch_contract() {
 
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::decode, true, false, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+           llama_kv_attention_execution_route::selected_packed);
     const auto single_page = metadata(snapshot(), 1, 1, { 0 }, 255);
     assert(execution.planned_route(single_page,
             llama_kv_attention_execution_phase::decode, true, false, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+           llama_kv_attention_execution_route::selected_packed);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::mtp_verify, true, false, false) ==
            llama_kv_attention_execution_route::selected_direct);
@@ -496,16 +492,24 @@ static void test_view_sized_scratch_contract() {
     native_mtp_execution.set_native_mtp_enabled(true);
     assert(native_mtp_execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, true, false, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+           llama_kv_attention_execution_route::selected_packed);
     assert(native_mtp_execution.planned_route(selected,
             llama_kv_attention_execution_phase::decode, true, false, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+           llama_kv_attention_execution_route::selected_packed);
     assert(native_mtp_execution.planned_route(selected,
             llama_kv_attention_execution_phase::mtp_verify, true, false, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+           llama_kv_attention_execution_route::selected_packed);
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, true, false, true) ==
-           llama_kv_attention_execution_route::selected_direct);
+           llama_kv_attention_execution_route::selected_packed);
+    for (const auto phase : { llama_kv_attention_execution_phase::prefill,
+                              llama_kv_attention_execution_phase::decode,
+                              llama_kv_attention_execution_phase::mtp_verify }) {
+        assert(execution.planned_route(selected, phase, true, false, true) ==
+               llama_kv_attention_execution_route::selected_packed);
+        assert(execution.planned_route(selected, phase, true, false, false) ==
+               llama_kv_attention_execution_route::selected_direct);
+    }
     assert(execution.planned_route(selected,
             llama_kv_attention_execution_phase::prefill, false, true, false) ==
            llama_kv_attention_execution_route::selected_dense);
