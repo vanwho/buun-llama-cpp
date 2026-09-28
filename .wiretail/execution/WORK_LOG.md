@@ -1327,3 +1327,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-98-02`
 - Commit at update: `73c46ac41`
 - Summary: Implemented selection diff and batched only two missing-page H2D uploads; resident hit/version checks, stale rejection, rollback, CUDA proof, and local regressions pass.
+
+## 2026-09-28T05:53:39+00:00 — 99-01 — done
+
+- Branch: `codex/task-99-01`
+- Commit at update: `19bb1178c`
+- Summary: Matched direct-paged and GPU-packed mature Turbo4 FA on identical pages; CUDA parity passed for Q=1, Q=3, and Q=256, with packed route provisionally faster on all three measured shapes.
