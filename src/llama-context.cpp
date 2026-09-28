@@ -3091,18 +3091,38 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
                 // stale advisory route and rebuild a bounded working set from
                 // current, sink, recent, then prior-resident pages.
                 selected_pages.clear();
+                // The routed set is advisory. Rebuild every page touched by
+                // this ubatch before filling any remaining capacity with
+                // recent, sink, or fallback pages.
+                std::vector<uint32_t> optional_pages;
                 for (const auto & page : pager_snapshot.pages()) {
-                    if (pager.is_current_page(page.id)) append_fallback(page.id);
+                    if (pager.is_current_page(page.id)) optional_pages.push_back(page.id.logical_page);
                 }
                 for (const auto & page : pager_snapshot.pages()) {
-                    if (page.id.logical_page == 0) append_fallback(page.id);
+                    if (page.id.logical_page == 0) optional_pages.push_back(page.id.logical_page);
                 }
-                append_request_boundary();
+                if (request_page != UINT32_MAX) optional_pages.push_back(request_page);
+                if (request_following_page != UINT32_MAX) {
+                    optional_pages.push_back(request_following_page);
+                }
                 for (auto page = pager_snapshot.pages().rbegin();
                         page != pager_snapshot.pages().rend(); ++page) {
-                    append_fallback(page->id);
+                    optional_pages.push_back(page->id.logical_page);
                 }
-                for (const auto & id : routed_pages) append_fallback(id);
+                std::vector<uint32_t> refreshed_pages;
+                if (!llama_kv_attention_refresh_page_ids(query_pages, optional_pages,
+                        bounded_pages, refreshed_pages)) {
+                    return refuse("stale routing refresh cannot cover mandatory query pages");
+                }
+                for (const uint32_t logical_page : refreshed_pages) {
+                    const auto page = std::find_if(pager_snapshot.pages().begin(),
+                            pager_snapshot.pages().end(), [&](const auto & value) {
+                        return value.id.logical_page == logical_page;
+                    });
+                    if (page == pager_snapshot.pages().end() || !append_page(page->id)) {
+                        return refuse("stale routing refresh page is no longer resident");
+                    }
+                }
             }
         } else {
             // No route is an explicit bounded fallback, not permission to

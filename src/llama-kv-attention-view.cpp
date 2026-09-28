@@ -47,9 +47,40 @@ bool llama_kv_attention_query_page_ids(
                 return false;
             }
             const uint32_t page = uint32_t(logical);
-            if (page_ids.empty() || page_ids.back() != page) page_ids.push_back(page);
+            if (std::find(page_ids.begin(), page_ids.end(), page) == page_ids.end()) {
+                page_ids.push_back(page);
+            }
         }
         return !page_ids.empty();
+    } catch (...) {
+        page_ids.clear();
+        return false;
+    }
+}
+
+bool llama_kv_attention_refresh_page_ids(
+        const std::vector<uint32_t> & query_pages,
+        const std::vector<uint32_t> & optional_pages,
+        uint32_t capacity,
+        std::vector<uint32_t> & page_ids) noexcept {
+    page_ids.clear();
+    try {
+        for (const uint32_t page : query_pages) {
+            if (std::find(page_ids.begin(), page_ids.end(), page) == page_ids.end()) {
+                page_ids.push_back(page);
+            }
+        }
+        if (page_ids.empty() || page_ids.size() > capacity) {
+            page_ids.clear();
+            return false;
+        }
+        for (const uint32_t page : optional_pages) {
+            if (page_ids.size() >= capacity) break;
+            if (std::find(page_ids.begin(), page_ids.end(), page) == page_ids.end()) {
+                page_ids.push_back(page);
+            }
+        }
+        return true;
     } catch (...) {
         page_ids.clear();
         return false;
