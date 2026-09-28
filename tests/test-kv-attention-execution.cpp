@@ -143,8 +143,17 @@ static void test_query_pages_cover_cross_page_ubatch() {
     assert(pages.size() == 2 && pages[0] == 19 && pages[1] == 20);
     assert(llama_kv_attention_query_page_ids({ 0, 1, 255, 256, 257 }, 256, pages));
     assert(pages.size() == 2 && pages[0] == 0 && pages[1] == 1);
+    assert(llama_kv_attention_query_page_ids({ 0, 256, 0 }, 256, pages));
+    assert(pages.size() == 2 && pages[0] == 0 && pages[1] == 1);
+    std::vector<uint32_t> refreshed;
+    assert(llama_kv_attention_refresh_page_ids({ 0, 1 }, { 7, 5 }, 2, refreshed));
+    assert(refreshed.size() == 2 && refreshed[0] == 0 && refreshed[1] == 1);
+    assert(!llama_kv_attention_refresh_page_ids({ 0, 1, 2 }, { 7 }, 2, refreshed));
+    assert(refreshed.empty());
     assert(!llama_kv_attention_query_page_ids({ 0, -1 }, 256, pages));
     assert(pages.empty());
+    std::fprintf(stdout, "mandatory_query_pages_survive_routing_refresh=pass "
+        "nonmonotonic_positions=0,256,0 unique_pages=2\n");
 }
 
 static void test_routes_epochs_and_fences() {

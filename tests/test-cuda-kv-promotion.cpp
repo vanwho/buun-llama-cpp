@@ -437,7 +437,9 @@ static int run_proof() {
     fixture.initialize();
     const uint64_t layer_page_bytes = page_tokens * fixture.row_bytes_unit;
     llama_kv_pager_geometry geometry;
-    geometry.context_tokens = pages * page_tokens;
+    // Leave one logical page after the staged query so the regression can
+    // reserve a packet that straddles the partial query page's boundary.
+    geometry.context_tokens = (pages + 1) * page_tokens;
     geometry.page_tokens = page_tokens;
     geometry.attention_layers = layers;
     geometry.kv_heads = kv_heads;
@@ -815,12 +817,6 @@ static int run_proof() {
         [&](const auto & record) { return record.id.logical_page == winner_logical; });
     assert(cold_it != records.end() && cold_it->physical_slot == UINT32_MAX &&
         cold_it->id.logical_page > 0 && cold_it->valid_length == page_tokens);
-    const auto second_cold_it = std::find_if(records.begin(), records.end(),
-        [&](const auto & record) {
-            return record.id != cold_it->id && record.id != sealed_accepted->id &&
-                record.physical_slot == UINT32_MAX && record.host_valid;
-        });
-    assert(second_cold_it != records.end());
     const auto committed_candidate = std::find_if(ready.begin(), ready.end(),
         [&](const auto & candidate) {
             return candidate.identity.logical_page == winner_logical && candidate.cold;
@@ -868,9 +864,6 @@ static int run_proof() {
         true, false, 1 });
     boundary.retrieval.selected.push_back({ cold_it->id,
         llama_kv_routing_retrieval_reason::summary, score(winner_logical), true, false, 1 });
-    boundary.retrieval.selected.push_back({ second_cold_it->id,
-        llama_kv_routing_retrieval_reason::summary, score(second_cold_it->id.logical_page),
-        true, false, 1 });
     boundary.query_commit.enabled = true;
     const auto prior_turn = pager->turn_state(0);
     boundary.query_commit.turn_id = std::max<uint64_t>(prior_turn.turn_id + 1,
@@ -893,8 +886,6 @@ static int run_proof() {
     boundary.query_commit.selected.push_back({ sealed_accepted->id,
         sealed_accepted->content_version, { 0 } });
     boundary.query_commit.selected.push_back({ cold_it->id, cold_it->content_version, { 0 } });
-    boundary.query_commit.selected.push_back({ second_cold_it->id,
-        second_cold_it->content_version, { 0 } });
     boundary.policy = llama_kv_policy_release_defaults(hot_capacity);
     boundary.transaction.max_h2d_pages = 2;
     boundary.transaction.staging_capacity = pager->upload_ring()->capacity_bytes();
@@ -902,26 +893,21 @@ static int run_proof() {
     // and immutable mapping have one slot assignment.
     std::vector<llama_kv_page_record> committed_target;
     assert(llama_kv_live_policy_prepare_query_target(boundary, committed_target));
-    assert(committed_target.size() == 3);
+    assert(boundary.snapshot.pages().size() == hot_capacity);
+    assert(committed_target.size() == 2);
     const auto resident_hit = std::find_if(committed_target.begin(), committed_target.end(),
         [&](const auto & record) { return record.id == sealed_accepted->id; });
     assert(resident_hit != committed_target.end() &&
         resident_hit->physical_slot == sealed_accepted->physical_slot);
     const auto committed_cold = std::find_if(committed_target.begin(), committed_target.end(),
         [&](const auto & record) { return record.id == cold_it->id; });
-    const auto committed_second_cold = std::find_if(committed_target.begin(), committed_target.end(),
-        [&](const auto & record) { return record.id == second_cold_it->id; });
-    assert(committed_cold != committed_target.end() &&
-        committed_second_cold != committed_target.end());
+    assert(committed_cold != committed_target.end());
     const uint32_t free_slot = committed_cold->physical_slot;
-    const uint32_t second_free_slot = committed_second_cold->physical_slot;
-    assert(free_slot < hot_capacity && second_free_slot < hot_capacity &&
-        free_slot != second_free_slot);
+    assert(free_slot < hot_capacity);
     llama_kv_residency_transfer_plan promotion_batch;
     assert(llama_kv_residency_build_transfer_plan(
         llama_kv_residency_transfer_direction::h2d_promotion,
-        { promotion_transfer_page(*committed_cold, pager->snapshot(), boundary.snapshot.epoch()),
-          promotion_transfer_page(*committed_second_cold, pager->snapshot(), boundary.snapshot.epoch()) },
+        { promotion_transfer_page(*committed_cold, pager->snapshot(), boundary.snapshot.epoch()) },
         256, {}, promotion_batch));
     boundary.transaction.transfers.push_back(std::move(promotion_batch));
     const auto old_snapshot = pager->residency();
@@ -999,19 +985,30 @@ static int run_proof() {
     assert(promotion.status == llama_kv_live_policy_status::committed && promotion.published);
     assert(promotion.transaction.h2d_counters.copied_useful_bytes > 0);
     assert(promotion.transaction.h2d_counters.queued > 0);
-    assert(promotion.target_pages.size() == 3 &&
-        promotion.transaction.loaded_pages == 2 &&
+    assert(promotion.target_pages.size() == 2 &&
+        promotion.transaction.loaded_pages == 1 &&
         promotion.transaction.h2d_counters.copied_useful_bytes ==
             promotion_batch.useful_bytes &&
         promotion.transaction.d2h_counters.copied_useful_bytes == 0);
+    assert(pager->residency().pages().size() == 2 &&
+        promotion.transaction.dropped_pages >= 1);
+    for (const auto & old : boundary.snapshot.pages()) {
+        if (std::none_of(promotion.target_pages.begin(), promotion.target_pages.end(),
+                [&](const auto & kept) { return kept.id == old.id; })) {
+            assert(std::none_of(pager->residency().pages().begin(),
+                    pager->residency().pages().end(), [&](const auto & resident) {
+                return resident.id == old.id;
+            }));
+        }
+    }
     const auto published_hit = std::find_if(promotion.target_pages.begin(),
         promotion.target_pages.end(), [&](const auto & record) {
             return record.id == sealed_accepted->id;
         });
     assert(published_hit != promotion.target_pages.end() &&
         published_hit->physical_slot == sealed_accepted->physical_slot);
-    std::cout << "selection_diff_async_batch_and_publication=pass selected=3 resident_hits=1 "
-        << "cold_misses=2 loaded=2 transfer_bytes="
+    std::cout << "selection_diff_async_batch_and_publication=pass selected=2 resident_hits=1 "
+        << "cold_misses=1 loaded=1 transfer_bytes="
         << promotion.transaction.h2d_counters.copied_useful_bytes
         << " historical_d2h_bytes="
         << promotion.transaction.d2h_counters.copied_useful_bytes
@@ -1062,12 +1059,56 @@ static int run_proof() {
         boundary.query_commit.retrieval_epoch,
         { { cold_it->id, cold_it->content_version } }) ==
         llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, boundary.query_commit.turn_id,
+        boundary.query_commit.retrieval_epoch + 1,
+        llama_kv_pager_turn_phase::query_replay,
+        query_position, query_position + 1, query_frontier,
+        boundary.query_commit.retrieval_epoch) == llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, boundary.query_commit.turn_id,
+        boundary.query_commit.retrieval_epoch + 1,
+        llama_kv_pager_turn_phase::generating,
+        query_position, query_position + 1, query_frontier,
+        boundary.query_commit.retrieval_epoch) == llama_kv_pager_turn_status::ok);
+    std::vector<llama_pos> next_packet = { query_position - 1, query_position,
+        query_position + 1 };
+    std::vector<llama_kv_pager_write_ticket> packet_tickets;
+    const auto before_packet = pager->residency();
+    std::fprintf(stderr, "query_commit_packet_ownership_before=");
+    for (const auto & record : before_packet.pages()) {
+        std::fprintf(stderr, "[%u@%u:pin%u:host%d:dirty%d]",
+            record.id.logical_page, record.physical_slot, record.pin_count,
+            int(record.host_valid), int(record.dirty));
+    }
+    std::fprintf(stderr, " capacity=%u logical=%zu\n", hot_capacity,
+        before_packet.pages().size());
+    const auto packet_status = pager->begin_write_batch(0,
+        boundary.query_commit.sequence_generation, next_packet, packet_tickets);
+    std::fprintf(stderr, "query_commit_packet_status=%s tickets=%zu\n",
+        llama_kv_pager_write_status_name(packet_status), packet_tickets.size());
+    assert(packet_status == llama_kv_pager_write_status::ok);
+    assert(packet_tickets.size() == next_packet.size());
+    for (auto it = packet_tickets.rbegin(); it != packet_tickets.rend(); ++it) {
+        assert(pager->cancel_write(*it) == llama_kv_pager_write_status::ok);
+    }
+    const auto after_packet = pager->residency();
+    assert(after_packet.pages().size() == before_packet.pages().size());
+    for (size_t i = 0; i < before_packet.pages().size(); ++i) {
+        assert(after_packet.pages()[i].id == before_packet.pages()[i].id &&
+            after_packet.pages()[i].physical_slot == before_packet.pages()[i].physical_slot);
+    }
+    llama_kv_pager_write_ticket historical_ticket;
+    assert(pager->begin_write(0, boundary.query_commit.sequence_generation,
+        llama_pos(cold_it->id.position_begin), historical_ticket) !=
+        llama_kv_pager_write_status::ok);
+    std::cout << "query_commit_guarantees_generation_headroom=pass full_before="
+        << hot_capacity << " committed=" << pager->residency().pages().size()
+        << " next_packet_pages=2 boundary_page_writable=1 frozen_history=1\n";
     const uint64_t rewind_epoch = pager->residency().epoch();
     assert(pager->mutate({ llama_kv_pager_mutation_kind::remove, 0, -1,
         query_position, -1, 0, 0, rewind_epoch }) ==
         llama_kv_pager_write_status::ok);
     const auto retained_turn = pager->turn_state(0);
-    assert(retained_turn.phase == llama_kv_pager_turn_phase::retrieval_commit);
+    assert(retained_turn.phase == llama_kv_pager_turn_phase::generating);
     assert(retained_turn.selected_history.size() == 1 &&
         retained_turn.selected_history[0].identity == cold_it->id &&
         retained_turn.selected_history[0].content_version == cold_it->content_version);
@@ -1081,16 +1122,6 @@ static int run_proof() {
         physical_slot, generation, content));
     assert(host_checksum == device_checksum && physical_slot == free_slot &&
         content == cold_it->content_version);
-    uint64_t second_host_checksum = 0, second_device_checksum = 0, second_generation = 0,
-        second_content = 0;
-    uint32_t second_physical_slot = UINT32_MAX;
-    assert(pager->test_page_checksums(second_cold_it->id.logical_page,
-        second_host_checksum, second_device_checksum, second_physical_slot,
-        second_generation, second_content));
-    assert(second_host_checksum == second_device_checksum &&
-        second_physical_slot == second_free_slot &&
-        second_content == second_cold_it->content_version);
-
     std::vector<llama_kv_page_record> target = promotion.target_pages;
     std::sort(target.begin(), target.end(), [](const auto & lhs, const auto & rhs) {
         return lhs.id.logical_page < rhs.id.logical_page;

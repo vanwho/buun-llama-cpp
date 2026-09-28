@@ -1371,3 +1371,9 @@ receives `PROJECT_ROOT` from the shared runner.
   assessments pin gpt-6-luna/high. Shared Wiretail defaults are unchanged.
 - Final256K proof separates allocation, actual functional frontier with reserve,
   and exact-full commit capability; no partial frontier is labeled full C.
+
+## 2026-09-28T23:37:27+00:00 — 100-02a — done
+
+- Branch: `codex/task-100-02a`
+- Commit at update: `a1922c32e`
+- Summary: verified query-commit generation headroom and mandatory query-page refresh proofs

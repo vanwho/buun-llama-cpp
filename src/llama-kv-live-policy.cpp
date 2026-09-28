@@ -225,22 +225,38 @@ bool llama_kv_live_policy_prepare_query_target(
         uint32_t generation_mandatory = 0;
         uint32_t retrieval_mandatory = 0;
         std::vector<const llama_kv_live_policy_page *> mandatory;
+        std::vector<llama_kv_page_id> mandatory_ids;
+        std::vector<bool> mandatory_generation;
         for (const auto & page : boundary.pages) {
             const bool write = boundary.has_write_page && page.record.id == boundary.write_page;
             const bool generation = page.current || write || page.inflight_pin ||
                 page.speculative_pin || page.record.pin_count != 0;
             const bool pinned = generation || page.anchor || page.application_pin;
             if (!pinned) continue;
-            mandatory.push_back(&page);
-            if (generation) ++generation_mandatory;
-            else ++retrieval_mandatory;
+            const auto existing = std::find(mandatory_ids.begin(), mandatory_ids.end(),
+                    page.record.id);
+            if (existing == mandatory_ids.end()) {
+                mandatory_ids.push_back(page.record.id);
+                mandatory_generation.push_back(generation);
+                mandatory.push_back(&page);
+                if (generation) ++generation_mandatory;
+                else ++retrieval_mandatory;
+            } else if (generation) {
+                const size_t index = size_t(existing - mandatory_ids.begin());
+                if (!mandatory_generation[index]) {
+                    mandatory_generation[index] = true;
+                    --retrieval_mandatory;
+                    ++generation_mandatory;
+                }
+            }
         }
         if (generation_mandatory > commit.generation_budget ||
             retrieval_mandatory > commit.retrieval_budget) return false;
         const uint32_t remaining_retrieval = commit.retrieval_budget - retrieval_mandatory;
         const size_t selected_history = std::count_if(retrieval.begin(), retrieval.end(),
                 [&](const auto * page) {
-            return std::find(mandatory.begin(), mandatory.end(), page) == mandatory.end();
+            return std::find(mandatory_ids.begin(), mandatory_ids.end(),
+                    page->record.id) == mandatory_ids.end();
         });
         if (selected_history > remaining_retrieval) return false;
         // A selected resident may already be mandatory (for example the
@@ -249,10 +265,22 @@ bool llama_kv_live_policy_prepare_query_target(
         if (mandatory.size() + selected_history > boundary.hot_capacity) return false;
 
         std::vector<const llama_kv_live_policy_page *> ordered;
+        std::vector<llama_kv_page_id> ordered_ids;
         ordered.reserve(mandatory.size() + retrieval.size());
-        for (const auto * page : mandatory) ordered.push_back(page);
+        ordered_ids.reserve(mandatory.size() + retrieval.size());
+        for (const auto * page : mandatory) {
+            if (std::find(ordered_ids.begin(), ordered_ids.end(), page->record.id) ==
+                    ordered_ids.end()) {
+                ordered.push_back(page);
+                ordered_ids.push_back(page->record.id);
+            }
+        }
         for (const auto * page : retrieval) {
-            if (std::find(ordered.begin(), ordered.end(), page) == ordered.end()) ordered.push_back(page);
+            if (std::find(ordered_ids.begin(), ordered_ids.end(), page->record.id) ==
+                    ordered_ids.end()) {
+                ordered.push_back(page);
+                ordered_ids.push_back(page->record.id);
+            }
         }
         std::vector<bool> used(boundary.snapshot.slot_capacity(), false);
         for (const auto * page : ordered) {

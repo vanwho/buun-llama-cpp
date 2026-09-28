@@ -39,6 +39,14 @@ bool llama_kv_attention_query_page_ids(
         uint32_t page_tokens,
         std::vector<uint32_t> & page_ids) noexcept;
 
+// Rebuild a bounded selected set after an advisory route becomes stale.
+// Mandatory query pages retain priority; optional pages fill remaining slots.
+bool llama_kv_attention_refresh_page_ids(
+        const std::vector<uint32_t> & query_pages,
+        const std::vector<uint32_t> & optional_pages,
+        uint32_t capacity,
+        std::vector<uint32_t> & page_ids) noexcept;
+
 class llama_kv_attention_view {
 public:
     llama_kv_attention_view() = default;
