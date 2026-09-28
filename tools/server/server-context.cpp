@@ -1812,17 +1812,23 @@ struct server_query_checkpoint {
 
     bool restore(llama_context * target, llama_context * draft,
             common_speculative * speculative, llama_seq_id seq_id,
-            uint64_t request_id, uint64_t generation) noexcept {
+            uint64_t request_id, uint64_t generation,
+            const char ** failure_reason = nullptr) noexcept {
+        if (failure_reason != nullptr) *failure_reason = "unknown";
         if (state == phase::restored) {
             return turn_id == request_id && session_generation == generation &&
                 sequence_id == seq_id;
         }
         if (state != phase::prepared || target == nullptr || seq_id != sequence_id ||
                 request_id != turn_id || generation != session_generation ||
-                (carry_required && (speculative == nullptr || mtp_carry.empty())) ||
-                !llama_memory_can_seq_rm_partial(llama_get_memory(target)) ||
+                (carry_required && (speculative == nullptr || mtp_carry.empty()))) {
+            if (failure_reason != nullptr) *failure_reason = "checkpoint_identity_or_carry";
+            return false;
+        }
+        if (!llama_memory_can_seq_rm_partial(llama_get_memory(target)) ||
                 (draft != nullptr &&
                  !llama_memory_can_seq_rm_partial(llama_get_memory(draft)))) {
+            if (failure_reason != nullptr) *failure_reason = "partial_remove_unsupported";
             return false;
         }
         const llama_pos target_live_frontier = llama_memory_seq_pos_max(
@@ -1831,16 +1837,18 @@ struct server_query_checkpoint {
             ? llama_memory_seq_pos_max(llama_get_memory(draft), seq_id) : -1;
         if (target_live_frontier < query_begin ||
                 (draft != nullptr && draft_live_frontier < query_begin)) {
+            if (failure_reason != nullptr) *failure_reason = "frontier_before_query";
             return false;
         }
         if (pager_enabled) {
             const auto pager = target->get_kv_pager_metrics(
                 nullptr, request_id, generation);
-            // Retrieval is allowed to advance the mutable table epoch. The
-            // representation identity must remain the same, and restoration
-            // never writes the captured epoch or page map back.
-            if (!pager.enabled || pager.table_epoch < pager_table_epoch ||
-                    pager.representation_epoch != pager_representation_epoch) {
+            // Retrieval can advance both the mutable table and physical
+            // representation epochs as selected cold pages are promoted.
+            // Restoration never writes either captured epoch or the page map
+            // back; only the live pager remaining enabled is required.
+            if (!pager.enabled) {
+                if (failure_reason != nullptr) *failure_reason = "pager_disabled";
                 return false;
             }
         }
@@ -1862,8 +1870,12 @@ struct server_query_checkpoint {
                     seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == bytes;
             };
             if (!capture_undo(target, target_undo) ||
-                    !capture_undo(draft, draft_undo)) return false;
+                    !capture_undo(draft, draft_undo)) {
+                if (failure_reason != nullptr) *failure_reason = "undo_capture";
+                return false;
+            }
         } catch (...) {
+            if (failure_reason != nullptr) *failure_reason = "undo_exception";
             return false;
         }
 
@@ -1877,20 +1889,25 @@ struct server_query_checkpoint {
                 !restore_partial(draft, draft_recurrent)) {
             (void) restore_partial(target, target_undo);
             (void) restore_partial(draft, draft_undo);
+            if (failure_reason != nullptr) *failure_reason = "recurrent_restore";
             return false;
         }
 
         // Remove attention only. This invalidates provisional query summaries
         // and host versions through the pager's normal mutation path, while
         // preserving the newly selected historical pages and recurrent state.
-        const bool target_removed = llama_memory_seq_rm_attn(
+        // The query suffix is provisional state owned by this request. Use
+        // the transient mutation path so replay can remove it without
+        // publishing a new external checkpoint lineage for the live history.
+        const bool target_removed = llama_memory_seq_rm_attn_transient(
             llama_get_memory(target), seq_id, query_begin, -1);
         const bool draft_removed = target_removed && (draft == nullptr ||
-            llama_memory_seq_rm_attn(
+            llama_memory_seq_rm_attn_transient(
                 llama_get_memory(draft), seq_id, query_begin, -1));
         if (!target_removed) {
             (void) restore_partial(target, target_undo);
             (void) restore_partial(draft, draft_undo);
+            if (failure_reason != nullptr) *failure_reason = "target_attention_remove";
             return false;
         }
         if (!draft_removed) {
@@ -1967,6 +1984,9 @@ struct server_slot {
     // asynchronous completion must never cross a slot reuse boundary.
     uint64_t slot_session_generation = 0;
     server_query_checkpoint query_checkpoint;
+    bool pager_query_committed = false;
+    bool query_replay_pending = false;
+    uint32_t query_replay_count = 0;
     uint64_t pager_frozen_history_generation = 0;
     bool pager_history_frozen = false;
     uint64_t pager_freeze_table_epoch = 0;
@@ -3267,6 +3287,9 @@ struct server_slot {
                 ctx_tgt->end_kv_pager_turn(id, slot_session_generation);
             }
             query_checkpoint.clear();
+            pager_query_committed = false;
+            query_replay_pending = false;
+            query_replay_count = 0;
             pager_history_frozen = false;
             pager_frozen_history_generation = 0;
             pager_freeze_table_epoch = 0;
@@ -4508,6 +4531,10 @@ public:
                         {"candidate_was_cold", pager.natural_proof.candidate_was_cold},
                         {"host_ready", pager.natural_proof.host_ready},
                         {"promotion_published", pager.natural_proof.promotion_published},
+                        {"candidate_authenticated",
+                            pager.natural_proof.candidate_authenticated},
+                        {"query_commit_admitted",
+                            pager.natural_proof.query_commit_admitted},
                         {"selector_published", pager.natural_proof.selector_published},
                         {"h2d_queued", pager.natural_proof.h2d_queued},
                         {"h2d_completed", pager.natural_proof.h2d_completed},
@@ -11912,6 +11939,10 @@ private:
             ctx_tgt->begin_kv_pager_proof_request();
         }
         slot.task = std::move(launched_task);
+        slot.pager_query_committed = false;
+        slot.query_replay_pending = false;
+        slot.query_replay_count = 0;
+        slot.query_checkpoint.clear();
 
         // Open one pager turn from server-owned request identity, never from
         // decode/verify submissions. Chat carries role spans; raw completion
@@ -17917,6 +17948,74 @@ private:
                     // used to determine the number of tokens added to the batch for the current slot
                     const auto n_tokens_prev = batch.size();
 
+                    const int64_t query_begin =
+                        slot.task->params.final_user_token_begin;
+                    const int64_t query_end =
+                        slot.task->params.final_user_token_end;
+                    const bool exact_query_span = query_begin >= 0 &&
+                        query_end > query_begin &&
+                        query_end <= int64_t(slot.task->n_tokens());
+                    if (!starting_prompt && exact_query_span &&
+                            int64_t(slot.prompt.n_tokens()) == query_end &&
+                            !slot.pager_query_committed) {
+                        bool history_changed = false;
+                        uint64_t history_generation = 0;
+                        const bool committed = ctx_tgt->commit_kv_pager_query(
+                            slot.id, slot.slot_session_generation,
+                            &history_changed, &history_generation);
+                        if (!committed) {
+                            SLT_ERR(slot, "%s\n",
+                                "failed to commit final-user retrieval before query replay");
+                            send_error(slot,
+                                "Unable to commit selected KV history for query replay");
+                            slot.release();
+                            return;
+                        }
+                        slot.pager_query_committed = true;
+                        if (history_changed) {
+                            if (slot.query_checkpoint.state !=
+                                    server_query_checkpoint::phase::prepared) {
+                                SLT_ERR(slot, "%s\n",
+                                    "historical selection changed without a usable query checkpoint");
+                                send_error(slot,
+                                    "Unable to replay final-user query after retrieval");
+                                slot.release();
+                                return;
+                            }
+                            const char * restore_failure = nullptr;
+                            const bool restored = slot.query_checkpoint.restore(
+                                ctx_tgt, ctx_dft.get(), slot.get_spec(), slot.id,
+                                slot.slot_session_generation,
+                                slot.slot_session_generation, &restore_failure);
+                            if (!restored || slot.query_replay_count != 0) {
+                                SLT_ERR(slot,
+                                    "query replay checkpoint restore failed or replay repeated: %s replay_count=%u\n",
+                                    restore_failure != nullptr ? restore_failure : "null",
+                                    slot.query_replay_count);
+                                send_error(slot,
+                                    "Unable to restore final-user query for replay");
+                                slot.release();
+                                return;
+                            }
+                            slot.prompt.tokens.keep_first(size_t(query_begin));
+                            slot.query_replay_pending = true;
+                            ++slot.query_replay_count;
+                            SLT_INF(slot, "query replay: begin=%" PRId64
+                                " end=%" PRId64 " history_generation=%" PRIu64
+                                " replay_count=%u\n", query_begin, query_end,
+                                history_generation, slot.query_replay_count);
+                        } else {
+                            SLT_INF(slot, "%s",
+                                "query replay: unchanged history; replay_count=0\n");
+                        }
+                    } else if (!starting_prompt && exact_query_span &&
+                            slot.query_replay_pending &&
+                            int64_t(slot.prompt.n_tokens()) == query_end) {
+                        slot.query_replay_pending = false;
+                        SLT_INF(slot, "query replay: completed replay_count=%u\n",
+                            slot.query_replay_count);
+                    }
+
                     // TODO: maybe move branch to outside of this loop in the future
                     if (slot.state == SLOT_STATE_STARTED) {
                         slot.stats.update_prompt_start();
@@ -19205,6 +19304,12 @@ private:
                     // add prompt tokens for processing in the current batch
                     while (slot.prompt.n_tokens() < slot.task->n_tokens() &&
                            batch.size() < n_batch) {
+                        if (exact_query_span &&
+                                int64_t(slot.prompt.n_tokens()) == query_end &&
+                                (!slot.pager_query_committed ||
+                                 slot.query_replay_pending)) {
+                            break;
+                        }
                         // get next token to process
                         llama_token cur_tok = input_tokens[slot.prompt.n_tokens()];
                         if (cur_tok == LLAMA_TOKEN_NULL) {
@@ -19230,7 +19335,8 @@ private:
                         slot.prompt.tokens.push_back(cur_tok);
 
                         // break at the last user message, or at user messages at least min step past the last checkpoint
-                        if (do_checkpoint && spans.is_user_start(slot.prompt.n_tokens())) {
+                        if (do_checkpoint && slot.query_replay_count == 0 &&
+                                spans.is_user_start(slot.prompt.n_tokens())) {
                             const auto pos = slot.prompt.n_tokens();
                             if (pos == last_user_pos || last_checkpoint < 0 || pos > last_checkpoint + params_base.checkpoint_min_step) {
                                 break;
@@ -19275,8 +19381,6 @@ private:
                     // Capture the replay boundary before the exact final-user
                     // batch is decoded. The checkpoint owns recurrent/draft
                     // state and MTP carry only; history KV remains in place.
-                    const int64_t query_begin =
-                        slot.task->params.final_user_token_begin;
                     if (is_user_start && query_begin >= 0 &&
                             n_tokens_start == query_begin &&
                             slot.query_checkpoint.state ==

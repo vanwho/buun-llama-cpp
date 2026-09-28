@@ -40,6 +40,25 @@ static llama_kv_page_record live_resident(uint32_t logical, uint32_t slot) {
     return record;
 }
 
+static void test_residency_snapshot_reconciles_stale_slots() {
+    llama_kv_residency_table table(1);
+    auto initial = table.begin();
+    const auto current = live_resident(26, 0);
+    assert(table.replace(initial, current) == llama_kv_residency_status::ok);
+    assert(table.publish(initial) == llama_kv_residency_status::ok);
+
+    auto stale_catalogue = live_resident(24, 0);
+    std::vector<llama_kv_page_record> records { current, stale_catalogue };
+    llama_kv_live_policy_reconcile_residency_records(table.snapshot(), records);
+    assert(records[0].id == current.id && records[0].physical_slot == 0);
+    assert(records[1].id == stale_catalogue.id &&
+           records[1].physical_slot == UINT32_MAX &&
+           records[1].state == llama_kv_page_state::host_clean &&
+           !records[1].dirty && records[1].pin_count == 0);
+    assert(records[1].host_valid); // preserve the authenticated cold source bit
+    std::cout << "query_commit_reconciles_stale_resident_slot=pass\n";
+}
+
 struct live_transfer_fake {
     bool fail_issue = false;
     std::vector<std::vector<uint8_t>> copied;
@@ -813,12 +832,14 @@ static bool test_live_lifecycle() {
 
 int main(int argc, char ** argv) {
     if (argc == 2 && std::strcmp(argv[1], "--query-commit-authoritative-admission") == 0) {
+        test_residency_snapshot_reconciles_stale_slots();
         test_live_policy_publication();
         test_query_commit_authoritative_admission();
         test_live_policy_multi_promotion();
         std::cout << "query_commit_authoritative_admission=pass\n";
         return 0;
     }
+    test_residency_snapshot_reconciles_stale_slots();
     test_live_policy_publication();
     test_live_policy_multi_promotion();
     test_query_commit_authoritative_admission();

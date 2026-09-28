@@ -8416,6 +8416,46 @@ struct test_kv_page_select : public test_case {
     }
 };
 
+struct test_kv_query_accumulate : public test_case {
+    ggml_tensor * q = nullptr;
+    ggml_tensor * positions = nullptr;
+    ggml_tensor * sum = nullptr;
+    ggml_tensor * count = nullptr;
+    ggml_tensor * control = nullptr;
+
+    std::string op_desc(ggml_tensor * t) override {
+        GGML_UNUSED(t);
+        return "KV_QUERY_ACCUMULATE";
+    }
+
+    std::string vars() override { return "user-span-filter"; }
+    double max_err() override { return 1e-6; }
+
+    ggml_tensor * build_graph(ggml_context * ctx) override {
+        q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, 8, 2, 4);
+        positions = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
+        sum = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, 8, 2);
+        count = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 2);
+        control = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 3);
+        return ggml_kv_query_accumulate(ctx, q, positions, sum, count, control);
+    }
+
+    void initialize_tensors(ggml_context * ctx) override {
+        GGML_UNUSED(ctx);
+        std::vector<float> q_data(64);
+        for (size_t i = 0; i < q_data.size(); ++i) q_data[i] = float(i % 11) - 5.0f;
+        const int64_t position_data[] = { 9, 10, 11, 13 };
+        const int64_t count_data[] = { 0, INT64_MIN };
+        const int64_t control_data[] = { 17, 10, 12 };
+        std::vector<float> sum_data(16, 0.0f);
+        ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
+        ggml_backend_tensor_set(positions, position_data, 0, ggml_nbytes(positions));
+        ggml_backend_tensor_set(sum, sum_data.data(), 0, ggml_nbytes(sum));
+        ggml_backend_tensor_set(count, count_data, 0, ggml_nbytes(count));
+        ggml_backend_tensor_set(control, control_data, 0, ggml_nbytes(control));
+    }
+};
+
 // qwen4exp QSA indexer top-k fusion: expand per-block scores to cells, add the f16 mask, top-k.
 struct test_topk_qsa : public test_case {
     const int64_t n_blocks;
@@ -12504,6 +12544,7 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
     test_cases.emplace_back(new test_kv_page_select(2, 1, 17)); // exact ties
     test_cases.emplace_back(new test_kv_page_select(1, 2, 29)); // no candidates
     test_cases.emplace_back(new test_kv_page_select(64, 3, 41)); // K > valid count
+    test_cases.emplace_back(new test_kv_query_accumulate());
 
     for (int64_t n : {4095, 4096, 4097, 16385}) {
         for (int k : {1, 16, 64}) {

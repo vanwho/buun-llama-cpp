@@ -754,6 +754,10 @@ extern "C" {
         // resident membership, and the query/snapshot metadata respectively.
         GGML_OP_KV_PAGE_SELECT,
 
+        // Accumulate transformed query rows whose positions fall within a
+        // turn's user span, updating persistent sum/count sidebands.
+        GGML_OP_KV_QUERY_ACCUMULATE,
+
         // Incrementally update a min/max catalogue from packed Turbo4 K.
         GGML_OP_KV_PAGE_SUMMARY,
 
@@ -2665,6 +2669,16 @@ extern "C" {
             int                   page_size,
             int                   query_row,
             int                   diagnostic_mode);
+
+    // Accumulate transformed query rows whose absolute positions are in
+    // [query_start, query_end), resetting persistent sum/count on turn change.
+    GGML_API struct ggml_tensor * ggml_kv_query_accumulate(
+            struct ggml_context * ctx,
+            struct ggml_tensor  * q,
+            struct ggml_tensor  * positions,
+            struct ggml_tensor  * sum,
+            struct ggml_tensor  * count,
+            struct ggml_tensor  * control);
 
     // Metadata fields are [position, valid length, sequence generation,
     // page generation, physical slot, stream, ready, update]. A page is

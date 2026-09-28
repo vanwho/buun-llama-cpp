@@ -8659,11 +8659,17 @@ static float ggml_kv_page_select_score(
     const int64_t group = q->ne[1] / bounds->ne[2];
     for (int64_t kv_head = 0; kv_head < bounds->ne[2]; ++kv_head) {
         for (int64_t q_head = kv_head * group; q_head < (kv_head + 1) * group; ++q_head) {
-            const char * q_data = (const char *) q->data + q_head * q->nb[1] + query_row * q->nb[2];
             float score = 0.0f;
             bool valid = true;
             for (int64_t d = 0; d < q->ne[0]; ++d) {
-                const float qi = *(const float *)(q_data + d * q->nb[0]);
+                float qi = 0.0f;
+                const int64_t row_begin = query_row < 0 ? 0 : query_row;
+                const int64_t row_end = query_row < 0 ? q->ne[2] : query_row + 1;
+                for (int64_t row = row_begin; row < row_end; ++row) {
+                    const char * q_data = (const char *) q->data + q_head * q->nb[1] + row * q->nb[2];
+                    qi += *(const float *)(q_data + d * q->nb[0]);
+                }
+                if (query_row < 0) qi /= float(row_end - row_begin);
                 const char * b = (const char *) bounds->data + d * bounds->nb[0] +
                     kv_head * bounds->nb[2] + page * bounds->nb[3];
                 const float lo = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b));
@@ -8766,6 +8772,48 @@ void ggml_compute_forward_kv_page_select(
         ggml_tensor * dst) {
     GGML_ASSERT(dst->src[0]->type == GGML_TYPE_F32);
     ggml_compute_forward_kv_page_select_f32(params, dst);
+}
+
+void ggml_compute_forward_kv_query_accumulate(
+        const ggml_compute_params * params,
+        ggml_tensor * dst) {
+    GGML_ASSERT(params->ith == 0 && params->nth == 1);
+    const ggml_tensor * q = dst->src[0];
+    const ggml_tensor * positions = dst->src[1];
+    ggml_tensor * sum = dst->src[2];
+    ggml_tensor * count = dst->src[3];
+    const ggml_tensor * control = dst->src[4];
+    const int64_t turn_id = ((const int64_t *) control->data)[0];
+    const int64_t query_start = ((const int64_t *) control->data)[1];
+    const int64_t query_end = ((const int64_t *) control->data)[2];
+    int64_t * counts = (int64_t *) count->data;
+    if (counts[1] != turn_id) {
+        memset(sum->data, 0, ggml_nbytes(sum));
+        counts[0] = 0;
+        counts[1] = turn_id;
+    }
+    for (int64_t row = 0; row < q->ne[2]; ++row) {
+        const int64_t position = *(const int64_t *) ((const char *) positions->data + row * positions->nb[0]);
+        if (position < query_start || position >= query_end) continue;
+        for (int64_t head = 0; head < q->ne[1]; ++head) {
+            const char * q_row = (const char *) q->data + head * q->nb[1] + row * q->nb[2];
+            char * sum_row = (char *) sum->data + head * sum->nb[1];
+            for (int64_t d = 0; d < q->ne[0]; ++d) {
+                *(float *) (sum_row + d * sum->nb[0]) +=
+                    *(const float *) (q_row + d * q->nb[0]);
+            }
+        }
+        counts[0]++;
+    }
+    const float divisor = counts[0] > 0 ? float(counts[0]) : 1.0f;
+    for (int64_t head = 0; head < sum->ne[1]; ++head) {
+        const char * sum_row = (const char *) sum->data + head * sum->nb[1];
+        char * out_row = (char *) dst->data + head * dst->nb[1];
+        for (int64_t d = 0; d < sum->ne[0]; ++d) {
+            *(float *) (out_row + d * dst->nb[0]) =
+                *(const float *) (sum_row + d * sum->nb[0]) / divisor;
+        }
+    }
 }
 
 // ggml_compute_forward_kv_page_summary

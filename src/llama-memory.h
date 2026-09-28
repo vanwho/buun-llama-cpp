@@ -251,6 +251,13 @@ struct llama_memory_context_i {
         return false;
     }
 
+    // Refresh the position and turn controls for a graph-owned persistent
+    // device accumulator. Sum/count tensors are owned by the KV cache.
+    virtual bool set_kv_query_accumulate_inputs(
+            ggml_tensor * /* accumulator */, const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
     // Selector graph reuse is valid only when the logical catalogue shape and
     // sequence identity still match the captured node.
     virtual bool can_reuse_kv_page_select(
@@ -351,6 +358,13 @@ struct llama_memory_i {
     virtual void begin_kv_pager_turn(
             int32_t /* sequence_id */, uint64_t /* turn_id */,
             int64_t /* query_start */, int64_t /* query_end */) {}
+    virtual bool commit_kv_pager_query(
+            int32_t /* sequence_id */, uint64_t /* turn_id */,
+            bool * changed, uint64_t * frozen_history_generation) {
+        if (changed != nullptr) *changed = false;
+        if (frozen_history_generation != nullptr) *frozen_history_generation = 0;
+        return true;
+    }
     virtual bool freeze_kv_pager_history(
             int32_t /* sequence_id */, uint64_t /* turn_id */,
             uint64_t * /* frozen_history_generation */) { return true; }

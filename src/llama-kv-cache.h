@@ -204,6 +204,8 @@ public:
             int64_t query_start, int64_t query_end) override;
     bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
             uint64_t * frozen_history_generation) override;
+    bool commit_kv_pager_query(int32_t sequence_id, uint64_t turn_id,
+            bool * changed, uint64_t * frozen_history_generation) override;
     bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
             uint64_t frozen_history_generation) const override;
     void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override;
@@ -1586,6 +1588,8 @@ private:
     bool pager_policy_dirty_ = false;
     std::map<int32_t, std::vector<llama_kv_pager_selected_history>>
         pager_committed_history_;
+    std::map<int32_t, std::vector<llama_kv_pager_selected_history>>
+        pager_turn_initial_history_;
     struct pager_pending_turn {
         uint64_t turn_id = 0;
         int64_t query_start = -1;
@@ -1652,6 +1656,7 @@ private:
         uint64_t content_version = 0;
         uint64_t summary_version = 0;
         bool resident = false;
+        bool query_safe = true;
         bool valid = false;
     };
     struct pager_selector_input_state {
@@ -1667,6 +1672,17 @@ private:
     // Graph inputs own the stable logical catalogue.  This cache is only the
     // host-side dirty map; the tensors remain owned by the graph allocator.
     mutable std::vector<pager_selector_input_state> pager_selector_inputs_;
+    struct pager_query_accumulator_state {
+        llama_seq_id sequence_id = -1;
+        uint32_t layer = UINT32_MAX;
+        int64_t dim = 0;
+        int64_t heads = 0;
+        ggml_context * ctx = nullptr;
+        ggml_backend_buffer_t buffer = nullptr;
+        ggml_tensor * sum = nullptr;
+        ggml_tensor * count = nullptr;
+    };
+    mutable std::vector<pager_query_accumulator_state> pager_query_accumulators_;
     struct pager_summary_cache_item {
         uint32_t layer = UINT32_MAX;
         uint32_t head = UINT32_MAX;
@@ -2020,6 +2036,8 @@ public:
             ggml_tensor * bounds, ggml_tensor * metadata,
             ggml_tensor * membership, ggml_tensor * query, int layer,
             const llama_ubatch & ubatch) const override;
+    bool set_kv_query_accumulate_inputs(
+            ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
     bool can_reuse_kv_page_select(
             const ggml_tensor * bounds, int layer,
             const llama_ubatch & ubatch) const override;

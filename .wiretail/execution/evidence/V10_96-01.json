@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "task": "96-01",
+  "source_commit": "55ecab77a47facf912665d22bb66bcce3e80b2fa",
+  "build_identity": {
+    "dirty_source_diff_sha256": "b5a6d9f848cec8b2d14224e3a87b7fe05b0d3f0376d17a89de7f6525ae9cb05b",
+    "build_command": "cmake --build build-cuda --target test-kv-page-select -j2",
+    "backend": "CUDA0 / NVIDIA GeForce RTX 4080 / compute capability 8.9",
+    "executables": [
+      {
+        "path": "build-cuda/bin/test-kv-page-select",
+        "sha256": "640dc8f489ae7c4b4385748e6c330f142f17542a278052c7fed9430d2759a9ca"
+      },
+      {
+        "path": "build-cuda/bin/test-backend-ops",
+        "sha256": "ffbc8da82887becc84fb9073e32021fdb8f1cc2f80ad155dfc81b8c051f58267"
+      }
+    ],
+    "shared_libraries": [
+      {
+        "path": "build-cuda/bin/libggml-cuda.so",
+        "sha256": "0f45d0c5fc6c07e46728098cd2e3a8a28f6709ced829b781e9bf838753adce33"
+      },
+      {
+        "path": "build-cuda/bin/libllama.so",
+        "sha256": "ae35a775d77d6933ebee50688f643da93f2874a073aeb50fa79f657dbdcf8bbb"
+      }
+    ]
+  },
+  "checks": {
+    "user_span_q_aggregation_and_transform": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-page-select"
+      ],
+      "result": {
+        "backend": "CUDA0",
+        "device": "NVIDIA GeForce RTX 4080",
+        "max_abs_error": 0,
+        "tolerance": 1e-06
+      },
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/96-01/attempt-01/test-kv-page-select.log",
+          "sha256": "a18f5489537668c2908b62b0b933daa3fd60e562d9fd3753ad7af9ec2fdd0b9d"
+        }
+      ]
+    }
+  },
+  "additional_checks": {
+    "backend_op_comparison": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-backend-ops",
+        "test",
+        "-o",
+        "KV_QUERY_ACCUMULATE",
+        "-b",
+        "CUDA0"
+      ],
+      "result": "KV_QUERY_ACCUMULATE(user-span-filter) OK; 1/1 op tests passed; 2/2 backends passed",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/96-01/attempt-01/test-backend-ops.log",
+          "sha256": "901ce0ccf3d1210c316c1d9629f3b84ddf77f8a852afa926ed222bad8fd06eac"
+        }
+      ]
+    }
+  },
+  "build_artifacts": [
+    {
+      "path": "/srv/ai/paged-kv/results/forward/96-01/attempt-01/build-accumulator-retry.log",
+      "sha256": "27c4e2fc75605afcd6cb47a19d863320437b30fbe10a643b956b14cc7b8ec842"
+    },
+    {
+      "path": "/srv/ai/paged-kv/results/forward/96-01/attempt-01/build-backend-ops.log",
+      "sha256": "6fe12d06d77af669573998810e5cc8240ed1cb6a76ceb7beaf5ced4942af4aa9"
+    }
+  ]
+}
