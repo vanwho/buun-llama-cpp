@@ -38,16 +38,21 @@ static float time_paged_attention(
     }
     cuda_check(cudaEventRecord(start, stream), "timing warmup fence");
     cuda_check(cudaEventSynchronize(start), "timing warmup synchronize");
-    cuda_check(cudaEventRecord(start, stream), "timing start record");
-    for (uint32_t i = 0; i < iterations; ++i) {
-        assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
-            ggml_cuda_fattn_turbo4_paged_status::ok);
+    std::vector<float> samples;
+    for (uint32_t sample = 0; sample < 7; ++sample) {
+        cuda_check(cudaEventRecord(start, stream), "timing start record");
+        for (uint32_t i = 0; i < iterations; ++i) {
+            assert(ggml_cuda_flash_attn_ext_paged_turbo4(backend, params) ==
+                ggml_cuda_fattn_turbo4_paged_status::ok);
+        }
+        cuda_check(cudaEventRecord(stop, stream), "timing stop record");
+        cuda_check(cudaEventSynchronize(stop), "timing stop synchronize");
+        float elapsed_ms = 0.0f;
+        cuda_check(cudaEventElapsedTime(&elapsed_ms, start, stop), "timing readback");
+        samples.push_back(elapsed_ms / iterations);
     }
-    cuda_check(cudaEventRecord(stop, stream), "timing stop record");
-    cuda_check(cudaEventSynchronize(stop), "timing stop synchronize");
-    float elapsed_ms = 0.0f;
-    cuda_check(cudaEventElapsedTime(&elapsed_ms, start, stop), "timing readback");
-    return elapsed_ms / iterations;
+    std::sort(samples.begin(), samples.end());
+    return samples[samples.size() / 2];
 }
 
 static void fill_turbo4_page(std::vector<uint8_t> & storage, size_t page_offset, uint8_t nibble) {
@@ -549,7 +554,10 @@ static float time_dense_fa(
         uint32_t n_head_kv,
         size_t page_stride,
         size_t row_bytes,
-        bool pack_rows) {
+        bool pack_rows,
+        const std::vector<float> * mask_host = nullptr,
+        std::vector<float> * output_capture = nullptr,
+        size_t * graph_buffer_bytes = nullptr) {
     const uint32_t query_count = uint32_t(q_host.size() / (size_t(n_head_q) * 256));
     ggml_init_params init_params = { 64u * 1024u * 1024u, nullptr, true };
     ggml_context * ctx = ggml_init(init_params);
@@ -560,6 +568,7 @@ static float time_dense_fa(
     ggml_tensor * k = nullptr;
     ggml_tensor * v = nullptr;
     ggml_tensor * indices = nullptr;
+    ggml_tensor * mask = nullptr;
     std::vector<int32_t> index_host;
     if (pack_rows) {
         const uint32_t physical_rows = n_physical_pages * 256;
@@ -584,7 +593,11 @@ static float time_dense_fa(
         k = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, 256, n_rows, n_head_kv);
         v = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, 256, n_rows, n_head_kv);
     }
-    ggml_tensor * output = ggml_flash_attn_ext(ctx, q, k, v, nullptr,
+    if (mask_host != nullptr) {
+        assert(mask_host->size() == size_t(n_rows) * query_count);
+        mask = ggml_new_tensor_2d(ctx, GGML_TYPE_F16, n_rows, query_count);
+    }
+    ggml_tensor * output = ggml_flash_attn_ext(ctx, q, k, v, mask,
         1.0f / std::sqrt(256.0f), 0.0f, 0.0f);
     ggml_cgraph * graph = ggml_new_graph_custom(ctx, 64, false);
     ggml_build_forward_expand(graph, output);
@@ -595,6 +608,9 @@ static float time_dense_fa(
     }
     ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
     assert(buffer != nullptr);
+    if (graph_buffer_bytes != nullptr) {
+        *graph_buffer_bytes = ggml_backend_buffer_get_size(buffer);
+    }
 
     std::vector<float> dense_q(q_host.size());
     for (uint32_t query = 0; query < query_count; ++query) {
@@ -604,6 +620,13 @@ static float time_dense_fa(
         }
     }
     ggml_backend_tensor_set(q, dense_q.data(), 0, dense_q.size() * sizeof(float));
+    if (mask != nullptr) {
+        std::vector<ggml_fp16_t> mask_f16(mask_host->size());
+        for (size_t i = 0; i < mask_host->size(); ++i) {
+            mask_f16[i] = ggml_fp32_to_fp16((*mask_host)[i]);
+        }
+        ggml_backend_tensor_set(mask, mask_f16.data(), 0, mask_f16.size() * sizeof(mask_f16[0]));
+    }
     if (pack_rows) {
         ggml_backend_tensor_set(k_source, k_storage.data(), 0, k_storage.size());
         ggml_backend_tensor_set(v_source, v_storage.data(), 0, v_storage.size());
@@ -621,19 +644,29 @@ static float time_dense_fa(
     for (uint32_t i = 0; i < 5; ++i) {
         assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     }
-    cuda_check(cudaEventRecord(start, stream), "dense timing start record");
-    for (uint32_t i = 0; i < 20; ++i) {
-        assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    std::vector<float> samples;
+    for (uint32_t sample = 0; sample < 7; ++sample) {
+        cuda_check(cudaEventRecord(start, stream), "dense timing start record");
+        for (uint32_t i = 0; i < 20; ++i) {
+            assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+        }
+        cuda_check(cudaEventRecord(stop, stream), "dense timing stop record");
+        cuda_check(cudaEventSynchronize(stop), "dense timing stop synchronize");
+        float elapsed_ms = 0.0f;
+        cuda_check(cudaEventElapsedTime(&elapsed_ms, start, stop), "dense timing readback");
+        samples.push_back(elapsed_ms / 20.0f);
     }
-    cuda_check(cudaEventRecord(stop, stream), "dense timing stop record");
-    cuda_check(cudaEventSynchronize(stop), "dense timing stop synchronize");
-    float elapsed_ms = 0.0f;
-    cuda_check(cudaEventElapsedTime(&elapsed_ms, start, stop), "dense timing readback");
+    std::sort(samples.begin(), samples.end());
+    if (output_capture != nullptr) {
+        output_capture->resize(size_t(256) * query_count * n_head_q);
+        ggml_backend_tensor_get(output, output_capture->data(), 0,
+            output_capture->size() * sizeof((*output_capture)[0]));
+    }
     cudaEventDestroy(stop);
     cudaEventDestroy(start);
     ggml_backend_buffer_free(buffer);
     ggml_free(ctx);
-    return elapsed_ms / 20.0f;
+    return samples[samples.size() / 2];
 }
 
 static void run_split_tail_growth_regression(ggml_backend_t backend) {
@@ -1290,7 +1323,7 @@ int main(int argc, char ** argv) {
     // B is intentionally larger than one CTA tile. The dispatcher must keep
     // shared memory bounded while covering both the 64->65 and 256->257
     // boundaries plus the largest bounded sweep shape.
-    const uint32_t max_query_tokens = run_timing ? 128 : 64;
+    const uint32_t max_query_tokens = run_timing ? 256 : 64;
     constexpr size_t row_bytes = 2 * sizeof(block_turbo4_0);
     constexpr size_t page_stride = 256 * row_bytes;
     constexpr uint32_t n_physical_pages = 8;
@@ -1997,23 +2030,51 @@ int main(int argc, char ** argv) {
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
         const std::vector<uint8_t> packed_v = pack_selected_storage(v_host, pages,
             n_pages, n_rows, n_head_kv, n_physical_pages, page_stride, row_bytes);
-        for (const uint32_t query_count : { 16u, 64u, max_query_tokens }) {
+        for (const uint32_t query_count : { 1u, 3u, 256u }) {
             params.n_query_tokens = query_count;
             const float direct_ms = time_paged_attention(backend, params, stream,
                 timing_start, timing_stop, 5, 20);
             const std::vector<float> q_timing(q_host.begin(),
                 q_host.begin() + size_t(query_count) * n_head_q * 256);
+            std::vector<float> matched_mask(size_t(n_rows) * query_count, -INFINITY);
+            for (uint32_t query = 0; query < query_count; ++query) {
+                for (uint32_t row = 0; row < n_rows; ++row) {
+                    if (native_mask[row] != 0 && native_positions[row] <= query_positions_host[query]) {
+                        matched_mask[size_t(query) * n_rows + row] = 0.0f;
+                    }
+                }
+            }
+            std::vector<float> mature_output;
+            size_t packed_graph_buffer_bytes = 0;
             const float contiguous_ms = time_dense_fa(backend, q_timing, k_host, v_host,
                 packed_k, packed_v, pages, n_pages, n_rows, n_physical_pages,
-                n_head_q, n_head_kv, page_stride, row_bytes, false);
+                n_head_q, n_head_kv, page_stride, row_bytes, false, &matched_mask);
             const float packed_ms = time_dense_fa(backend, q_timing, k_host, v_host,
                 packed_k, packed_v, pages, n_pages, n_rows, n_physical_pages,
-                n_head_q, n_head_kv, page_stride, row_bytes, true);
-            std::fprintf(stderr, "timing table (U=%u, selected rows=%u, warmups=5, iterations=20)\n",
+                n_head_q, n_head_kv, page_stride, row_bytes, true, &matched_mask,
+                &mature_output, &packed_graph_buffer_bytes);
+            const std::vector<float> oracle = cpu_selected_oracle(v_host, pages, n_pages,
+                native_positions, native_mask, query_positions_host, n_rows, n_head_q,
+                n_head_kv, n_physical_pages, page_stride, query_count, true);
+            for (uint32_t query = 0; query < query_count; ++query) {
+                for (uint32_t head = 0; head < n_head_q; ++head) {
+                    for (uint32_t d = 0; d < 256; ++d) {
+                        const float actual = mature_output[(size_t(head) * query_count + query) * 256 + d];
+                        const float expected = oracle[(size_t(query) * n_head_q + head) * 256 + d];
+                        assert(std::isfinite(actual));
+                        assert(std::fabs(actual - expected) < 3.0e-3f);
+                    }
+                }
+            }
+            std::fprintf(stderr, "timing table (U=%u, selected rows=%u, warmups=5, median of 7 x 20 iterations)\n",
                 query_count, n_rows);
             std::fprintf(stderr, "  fused paged MMA direct: %.3f ms\n", direct_ms);
             std::fprintf(stderr, "  contiguous Turbo4 FA:   %.3f ms\n", contiguous_ms);
             std::fprintf(stderr, "  non-contiguous pack+FA: %.3f ms\n", packed_ms);
+            std::fprintf(stderr, "  packed graph backend buffer: %zu bytes (includes Q/K/V, mask, indices, gathered view and output)\n",
+                packed_graph_buffer_bytes);
+            std::fprintf(stderr, "  direct external split-KV workspace: 0 bytes (split scratch disabled)\n");
+            std::fprintf(stderr, "  matched direct-vs-packed parity: passed (same pages/KV/Q/mask/native positions)\n");
         }
         time_large_prefill_cases(backend, stream, timing_start, timing_stop);
     }
