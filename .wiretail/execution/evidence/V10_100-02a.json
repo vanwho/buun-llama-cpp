@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "task": "100-02a",
+  "source_commit": "a1922c32e88182cc91c77e43d8a3a16262f0775f",
+  "build_identity": {
+    "build_directory": "build-cuda-test",
+    "generator": "Unix Makefiles",
+    "cuda_architecture": "89-real",
+    "targets": [
+      "test-kv-attention-execution",
+      "test-kv-pager",
+      "test-cuda-kv-promotion"
+    ],
+    "binary_sha256": {
+      "test-kv-attention-execution": "0fcb0507076c2cbdbf8c75adc57b32154d284d0b65562bc7ecead9dcdb7dc8e6",
+      "test-kv-pager": "fb5065efc89a330c07f0ff493d79312d996b11311d04ab0845c4c89a563a7ca4",
+      "test-cuda-kv-promotion": "6f6be50cdbc0fb450045ca0e2e5973797b2aaad59979be24224a8b27e4072834"
+    }
+  },
+  "dirty_identity": {
+    "source_test_diff_sha256": "d7911270df0fb9dd0892675241fea336be84a93eaf366b276a409262eb799db2",
+    "tracked_worktree_diff_sha256": "f5db89da918966da51625a0e67d7d83b61f3e38b4019e3313bf59ee89b44a7da",
+    "worktree_status": "source and tests modified; WORK_STATE task pointer/status is runner-owned"
+  },
+  "checks": {
+    "query_commit_guarantees_generation_headroom": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["build-cuda-test/bin/test-cuda-kv-promotion"],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02a/attempt-01/test-cuda-kv-promotion.log",
+          "sha256": "246f425f0137636e7c7252c21f55a6d8e4f3f707aa49b9311ecf8d5015ccdd9b"
+        }
+      ]
+    },
+    "mandatory_query_pages_survive_routing_refresh": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": ["build-cuda-test/bin/test-kv-attention-execution"],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02a/attempt-01/test-kv-attention-execution.log",
+          "sha256": "5e51bc2055635642e2a736245f4174b196714defb3dbf6649cb901a8e75107a3"
+        }
+      ]
+    }
+  }
+}
