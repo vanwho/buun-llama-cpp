@@ -366,6 +366,9 @@ struct llama_kv_pager_turn_state {
     uint64_t frozen_history_generation = 0;
     uint64_t mutable_page_table_epoch = 0;
     std::vector<llama_kv_pager_selected_history> selected_history;
+    // Clean generation pages in logical order. Entries are authenticated by
+    // full page identity and discarded lazily after rollback or rewrite.
+    std::vector<llama_kv_page_id> completed_generation_pages;
 };
 
 // One bounded, process-local receipt for a naturally ranked cold page.  This
@@ -916,6 +919,13 @@ public:
             const llama_kv_page_id & id) const noexcept;
 
 private:
+    enum class page_owner : uint8_t {
+        prior_turn_history = 0,
+        frozen_history,
+        current_turn_generation,
+        mutable_current_write,
+    };
+
     struct page_state {
         llama_kv_page_record record;
         std::vector<uint8_t> valid_rows;
@@ -927,6 +937,9 @@ private:
         bool host_inflight = false;
         bool maintenance_pending = false;
         bool present = false;
+        page_owner owner = page_owner::prior_turn_history;
+        uint64_t owner_turn_id = 0;
+        bool generation_queued = false;
     };
 
     llama_kv_pager_write_status publish_page(page_state & page) noexcept;
@@ -948,6 +961,12 @@ private:
     const page_state * find_page(int32_t sequence_id, uint32_t logical_page) const noexcept;
     page_state * find_slot(uint32_t slot) noexcept;
     void release_current_pin(page_state * except) noexcept;
+    bool frozen_history_page(const page_state * page) const noexcept;
+    bool generation_page_evictable(const page_state * page, int32_t sequence_id,
+            uint64_t turn_id) const noexcept;
+    page_state * oldest_generation_victim(int32_t sequence_id,
+            uint64_t turn_id) noexcept;
+    void queue_generation_page(page_state & page) noexcept;
 
     llama_kv_pager() = default;
     llama_kv_pager_snapshot snapshot_;
