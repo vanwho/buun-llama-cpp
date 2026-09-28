@@ -29,6 +29,12 @@ enum class llama_kv_live_policy_status : uint8_t {
 const char * llama_kv_live_policy_status_name(
         llama_kv_live_policy_status status) noexcept;
 
+// Reconcile merged exact-page inventory slot hints against the immutable
+// residency snapshot before constructing a live policy boundary.
+void llama_kv_live_policy_reconcile_residency_records(
+        const llama_kv_residency_snapshot & snapshot,
+        std::vector<llama_kv_page_record> & records) noexcept;
+
 // One immutable logical-page description at a decode boundary. `record` is
 // copied from either the current residency table or the canonical host catalog;
 // a cold record has UINT32_MAX as its physical slot. The numeric fields are

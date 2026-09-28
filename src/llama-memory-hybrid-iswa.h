@@ -77,6 +77,11 @@ public:
         return mem_attn->freeze_kv_pager_history(
                 sequence_id, turn_id, frozen_history_generation);
     }
+    bool commit_kv_pager_query(int32_t sequence_id, uint64_t turn_id,
+            bool * changed, uint64_t * frozen_history_generation) override {
+        return mem_attn->commit_kv_pager_query(
+                sequence_id, turn_id, changed, frozen_history_generation);
+    }
     bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
             uint64_t frozen_history_generation) const override {
         return mem_attn->kv_pager_history_matches(

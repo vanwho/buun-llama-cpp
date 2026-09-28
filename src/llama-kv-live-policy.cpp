@@ -121,6 +121,30 @@ const char * llama_kv_live_policy_status_name(
     return "invalid";
 }
 
+void llama_kv_live_policy_reconcile_residency_records(
+        const llama_kv_residency_snapshot & snapshot,
+        std::vector<llama_kv_page_record> & records) noexcept {
+    for (auto & record : records) {
+        const auto resident = std::find_if(snapshot.pages().begin(), snapshot.pages().end(),
+                [&](const auto & current) { return current.id == record.id; });
+        if (resident != snapshot.pages().end()) {
+            record.physical_slot = resident->physical_slot;
+            record.state = resident->state;
+            record.host_valid = resident->host_valid;
+            record.dirty = resident->dirty;
+            record.pin_count = resident->pin_count;
+        } else if (record.physical_slot != UINT32_MAX) {
+            // A merged cold-catalogue entry can retain a formerly owned slot.
+            // It may be selected only as host-cold; never let that stale slot
+            // alias the page that currently owns it in the published table.
+            record.physical_slot = UINT32_MAX;
+            record.state = llama_kv_page_state::host_clean;
+            record.dirty = false;
+            record.pin_count = 0;
+        }
+    }
+}
+
 bool llama_kv_query_commit_add_candidate(
         llama_kv_query_commit & commit, const llama_kv_page_id & canonical_identity,
         uint64_t content_version, uint32_t attention_layer) noexcept {

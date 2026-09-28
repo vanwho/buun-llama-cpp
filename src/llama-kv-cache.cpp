@@ -2776,12 +2776,20 @@ void llama_kv_cache::begin_kv_pager_turn(
     if (state.phase != llama_kv_pager_turn_phase::idle) return;
     const auto inventory = pager_->exact_page_records(sequence_id);
     if (inventory.empty()) return;
+    auto & committed_history = pager_committed_history_[sequence_id];
+    committed_history.erase(std::remove_if(committed_history.begin(),
+            committed_history.end(), [&](const auto & selected) {
+        return !llama_kv_pager_page_is_before_query(
+            selected.identity.position_begin,
+            pager_->snapshot().geometry.page_tokens, query_start);
+    }), committed_history.end());
     const auto frontier = std::max_element(inventory.begin(), inventory.end(),
             [](const auto & a, const auto & b) {
         if (a.id.position_end != b.id.position_end) return a.id.position_end < b.id.position_end;
         return a.id.page_generation < b.id.page_generation;
     });
     if (frontier == inventory.end() || frontier->id.sequence_id != sequence_id) return;
+    pager_turn_initial_history_[sequence_id] = committed_history;
     (void) pager_->transition_turn(sequence_id, turn_id, state.retrieval_epoch,
             llama_kv_pager_turn_phase::query_provisional, query_start, query_end,
             frontier->id, state.frozen_history_generation);
@@ -2800,17 +2808,16 @@ bool llama_kv_cache::freeze_kv_pager_history(
                 pending->second.query_start, pending->second.query_end);
         state = pager_->turn_state(sequence_id);
     }
-    if (state.turn_id != turn_id || state.phase != llama_kv_pager_turn_phase::query_provisional ||
-            !state.has_committed_frontier) return false;
-    std::vector<llama_kv_pager_selected_history> selected;
-    const auto found = pager_committed_history_.find(sequence_id);
-    if (found != pager_committed_history_.end()) selected = found->second;
-    const uint64_t frozen_generation = turn_id;
-    if (pager_->transition_turn(sequence_id, turn_id, state.retrieval_epoch,
-            llama_kv_pager_turn_phase::retrieval_commit, state.query_start, state.query_end,
-            state.committed_frontier, frozen_generation, std::move(selected)) !=
-            llama_kv_pager_turn_status::ok) return false;
-    state = pager_->turn_state(sequence_id);
+    if (state.phase == llama_kv_pager_turn_phase::query_provisional) {
+        bool changed = false;
+        if (!commit_kv_pager_query(sequence_id, turn_id, &changed,
+                frozen_history_generation)) return false;
+        state = pager_->turn_state(sequence_id);
+    }
+    if (state.turn_id != turn_id || state.phase != llama_kv_pager_turn_phase::query_replay) {
+        return false;
+    }
+    const uint64_t frozen_generation = state.frozen_history_generation;
     if (pager_->transition_turn(sequence_id, turn_id, state.retrieval_epoch,
             llama_kv_pager_turn_phase::generating, state.query_start, state.query_end,
             state.committed_frontier, frozen_generation) != llama_kv_pager_turn_status::ok) {
@@ -2818,6 +2825,54 @@ bool llama_kv_cache::freeze_kv_pager_history(
         return false;
     }
     if (frozen_history_generation != nullptr) *frozen_history_generation = frozen_generation;
+    return true;
+}
+
+bool llama_kv_cache::commit_kv_pager_query(
+        int32_t sequence_id, uint64_t turn_id, bool * changed,
+        uint64_t * frozen_history_generation) {
+    if (changed != nullptr) *changed = false;
+    if (pager_ == nullptr) {
+        if (frozen_history_generation != nullptr) *frozen_history_generation = 0;
+        return true;
+    }
+    if (sequence_id < 0 || turn_id == 0) return false;
+    auto state = pager_->turn_state(sequence_id);
+    if (state.phase == llama_kv_pager_turn_phase::idle) {
+        const auto pending = pager_pending_turns_.find(sequence_id);
+        if (pending == pager_pending_turns_.end() ||
+                pending->second.turn_id != turn_id) return false;
+        begin_kv_pager_turn(sequence_id, turn_id,
+                pending->second.query_start, pending->second.query_end);
+        state = pager_->turn_state(sequence_id);
+    }
+    if (state.turn_id != turn_id ||
+            state.phase != llama_kv_pager_turn_phase::query_provisional ||
+            !state.has_committed_frontier) return false;
+
+    std::vector<llama_kv_pager_selected_history> selected;
+    const auto found = pager_committed_history_.find(sequence_id);
+    if (found != pager_committed_history_.end()) selected = found->second;
+    const auto initial = pager_turn_initial_history_.find(sequence_id);
+    const std::vector<llama_kv_pager_selected_history> empty;
+    const auto & before = initial == pager_turn_initial_history_.end()
+        ? empty : initial->second;
+    const bool selection_changed =
+        !llama_kv_pager_history_selection_equal(before, selected);
+    const uint64_t frozen_generation = turn_id;
+    if (pager_->transition_turn(sequence_id, turn_id, state.retrieval_epoch,
+            llama_kv_pager_turn_phase::retrieval_commit, state.query_start, state.query_end,
+            state.committed_frontier, frozen_generation, std::move(selected)) !=
+            llama_kv_pager_turn_status::ok) return false;
+    state = pager_->turn_state(sequence_id);
+    if (pager_->transition_turn(sequence_id, turn_id, state.retrieval_epoch,
+            llama_kv_pager_turn_phase::query_replay, state.query_start, state.query_end,
+            state.committed_frontier, frozen_generation) !=
+            llama_kv_pager_turn_status::ok) return false;
+    if (changed != nullptr) *changed = selection_changed;
+    if (frozen_history_generation != nullptr) {
+        *frozen_history_generation = frozen_generation;
+    }
     return true;
 }
 
@@ -2837,7 +2892,7 @@ void llama_kv_cache::end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) {
     if (state.turn_id != turn_id || state.phase == llama_kv_pager_turn_phase::idle) return;
     if (pager_->clear_turn_state(sequence_id, turn_id, state.retrieval_epoch) !=
             llama_kv_pager_turn_status::ok) return;
-    pager_committed_history_.erase(sequence_id);
+    pager_turn_initial_history_.erase(sequence_id);
     pager_pending_turns_.erase(sequence_id);
 }
 
@@ -2891,9 +2946,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
     }
     try {
         const auto turn = pager_->turn_state(pager_last_sequence_id_);
-        if (turn.phase == llama_kv_pager_turn_phase::generating) {
-            // The page table may advance for output-owned tail writes, but the
-            // historical selection cannot be reranked, promoted or evicted.
+        if (turn.phase == llama_kv_pager_turn_phase::generating ||
+                turn.phase == llama_kv_pager_turn_phase::query_replay) {
+            // Replay and generation both consume the final committed history.
+            // The page table may advance for query/output-owned tail writes,
+            // but this historical selection cannot be reranked or evicted.
             return;
         }
         if (turn.phase != llama_kv_pager_turn_phase::query_provisional) {
@@ -3223,6 +3280,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             pager_policy_dirty_ = false;
             return;
         }
+        // exact_page_records merges the residency snapshot with cold catalogue
+        // records. Reconcile stale slot hints before policy can mistake an
+        // evicted history page for the active query writer's physical slot.
+        llama_kv_live_policy_reconcile_residency_records(snapshot, inventory);
         uint64_t current_rollback_generation = 0;
         for (const auto & page : inventory) {
             current_rollback_generation = std::max<uint64_t>(
@@ -3346,6 +3407,9 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             have_retrieval = true;
         };
         auto & selector_trace = pager_->selector_trace_for_update();
+        const auto active_turn = pager_->turn_state(pager_last_sequence_id_);
+        const bool provisional_query =
+            active_turn.phase == llama_kv_pager_turn_phase::query_provisional;
         const auto is_trace_target = [&](const llama_kv_prefetch_candidate & candidate) {
             return selector_trace.enabled &&
                 selector_trace.query_generation == candidate.generation &&
@@ -3354,16 +3418,24 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         };
         for (const auto & candidate : candidates) {
             const bool trace_target = is_trace_target(candidate);
+            if (provisional_query &&
+                    !llama_kv_pager_page_is_before_query(
+                        candidate.identity.position_begin,
+                        pager_snapshot.geometry.page_tokens,
+                        active_turn.query_start)) {
+                if (trace_target) selector_trace.outcome =
+                    llama_kv_pager_selector_trace_outcome::no_eligible_cold_page;
+                pager_->record_rejection_no_candidate();
+                continue;
+            }
             if (candidate.generation == 0 ||
                     candidate.generation != pager_query_generation_ ||
-                    candidate.table_epoch != snapshot.epoch() ||
                     candidate.query_position == 0 ||
                     !is_attention_layer(candidate.attention_layer) ||
                     candidate.identity.sequence_id != pager_last_sequence_id_ ||
                     candidate.identity.sequence_generation == 0 ||
                     candidate.identity.page_generation == 0 ||
                     candidate.speculation_generation != candidate.identity.sequence_generation ||
-                    candidate.rollback_generation != current_rollback_generation ||
                     candidate.content_version == 0 ||
                     candidate.summary_version != candidate.content_version) {
                 if (trace_target) {
@@ -3380,8 +3452,12 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 continue;
             }
             // The current inventory is consulted only to authenticate the
-            // sealed descriptor's identity and content version. It is never
-            // used to decode the selector's returned index.
+            // sealed descriptor's complete identity and content version. A
+            // mutable table epoch or maximum page generation can advance when
+            // the provisional query appends another tail page; that must not
+            // invalidate an unchanged historical candidate. Exact identity,
+            // content version and summary version remain mandatory. The
+            // inventory is never used to decode the selector's returned index.
             const auto found = std::find_if(inventory.begin(), inventory.end(),
                     [&](const auto & page) {
                 return (page.id == candidate.identity ||
@@ -3406,6 +3482,14 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             auto authenticated_candidate = candidate;
             authenticated_candidate.identity = found->id;
             const auto & accepted = authenticated_candidate;
+            if (accepted.cold && !has_host(accepted.identity)) {
+                if (trace_target) {
+                    selector_trace.outcome =
+                        llama_kv_pager_selector_trace_outcome::no_host_source;
+                }
+                pager_->record_rejection_missing_host_source();
+                continue;
+            }
             if (trace_target) selector_trace.candidate_authenticated = true;
             if (!accepted.cold) {
                 if (trace_target) {
@@ -4047,6 +4131,19 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 if (before == inventory.end() || before->physical_slot != UINT32_MAX) {
                     continue;
                 }
+                const auto admitted = std::find_if(
+                    boundary.query_commit.selected.begin(),
+                    boundary.query_commit.selected.end(), [&](const auto & page) {
+                        return same_bundle(page.identity, before->id) &&
+                            page.content_version == before->content_version &&
+                            std::find(page.attention_layers.begin(),
+                                page.attention_layers.end(),
+                                candidate.attention_layer) != page.attention_layers.end();
+                    });
+                if (!boundary.query_commit.enabled ||
+                        admitted == boundary.query_commit.selected.end()) {
+                    continue;
+                }
                 const auto after = std::find_if(result.target_pages.begin(),
                         result.target_pages.end(), [&](const auto & page) {
                     return page.id == before->id || same_bundle(page.id, before->id);
@@ -4068,6 +4165,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                 proof.candidate_was_cold = true;
                 proof.host_ready = has_host(before->id);
                 proof.promotion_published = true;
+                proof.candidate_authenticated = true;
+                proof.query_commit_admitted = true;
                 proof.selector_published = true;
                 for (const auto & plan : boundary.transaction.transfers) {
                     if (plan.direction != llama_kv_residency_transfer_direction::h2d_promotion) {
@@ -4129,6 +4228,16 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         if (before == inventory.end() || after == result.target_pages.end()) {
                             continue;
                         }
+                        const auto admitted = std::find_if(
+                            boundary.query_commit.selected.begin(),
+                            boundary.query_commit.selected.end(), [&](const auto & page) {
+                                return same_bundle(page.identity, before->id) &&
+                                    page.content_version == before->content_version;
+                            });
+                        if (!boundary.query_commit.enabled ||
+                                admitted == boundary.query_commit.selected.end()) {
+                            continue;
+                        }
 
                         llama_kv_pager_natural_proof proof;
                         proof.query_generation = pager_query_generation_;
@@ -4144,6 +4253,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         proof.candidate_was_cold = true;
                         proof.host_ready = true;
                         proof.promotion_published = true;
+                        proof.candidate_authenticated = true;
+                        proof.query_commit_admitted = true;
                         proof.selector_published = true;
                         proof.h2d_queued = true;
                         proof.h2d_useful_bytes = result.transaction.h2d_counters.copied_useful_bytes;
@@ -17583,6 +17694,10 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     if (position < 0) return false;
     const int64_t query_position = position < std::numeric_limits<llama_pos>::max()
         ? int64_t(position) + 1 : int64_t(position);
+    const auto turn = pager.turn_state(ubatch.seq_id[0][0]);
+    const bool query_provisional =
+        turn.phase == llama_kv_pager_turn_phase::query_provisional &&
+        turn.query_start >= 0;
     if (capacity == 0 || uint64_t(bounds->ne[3]) != capacity ||
             uint64_t(metadata->ne[1]) != capacity ||
             uint64_t(membership->ne[0]) != capacity) return false;
@@ -17636,14 +17751,17 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         const bool summary_changed = identity_changed ||
             previous.content_version != record.content_version ||
             previous.summary_version != summary_version;
+        const bool query_safe = !query_provisional ||
+            llama_kv_pager_page_is_before_query(record.id.position_begin,
+                pager.snapshot().geometry.page_tokens, turn.query_start);
         const bool membership_changed = summary_changed || previous.resident != resident;
-        if (!membership_changed) continue;
+        if (!membership_changed && previous.query_safe == query_safe) continue;
 
         const bool summary_ready = summary_version != 0 &&
             summary_version == record.content_version;
         const bool summary_update = resident && summary_changed;
         int64_t page_data[9] = {
-            record.id.position_begin, int64_t(record.valid_length),
+            record.id.position_begin, int64_t(query_safe ? record.valid_length : 0),
             int64_t(record.id.sequence_generation), int64_t(record.id.page_generation),
             int64_t(record.physical_slot),
             int64_t(kv->get_stream_for_seq(ubatch.seq_id[0][0])),
@@ -17689,6 +17807,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         previous.content_version = record.content_version;
         previous.summary_version = summary_version;
         previous.resident = resident;
+        previous.query_safe = query_safe;
         previous.valid = true;
     }
     // Retire only IDs that were active in the previous descriptor. The old

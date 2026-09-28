@@ -204,6 +204,8 @@ public:
             int64_t query_start, int64_t query_end) override;
     bool freeze_kv_pager_history(int32_t sequence_id, uint64_t turn_id,
             uint64_t * frozen_history_generation) override;
+    bool commit_kv_pager_query(int32_t sequence_id, uint64_t turn_id,
+            bool * changed, uint64_t * frozen_history_generation) override;
     bool kv_pager_history_matches(int32_t sequence_id, uint64_t turn_id,
             uint64_t frozen_history_generation) const override;
     void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override;
@@ -1586,6 +1588,8 @@ private:
     bool pager_policy_dirty_ = false;
     std::map<int32_t, std::vector<llama_kv_pager_selected_history>>
         pager_committed_history_;
+    std::map<int32_t, std::vector<llama_kv_pager_selected_history>>
+        pager_turn_initial_history_;
     struct pager_pending_turn {
         uint64_t turn_id = 0;
         int64_t query_start = -1;
@@ -1652,6 +1656,7 @@ private:
         uint64_t content_version = 0;
         uint64_t summary_version = 0;
         bool resident = false;
+        bool query_safe = true;
         bool valid = false;
     };
     struct pager_selector_input_state {

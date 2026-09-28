@@ -2,11 +2,35 @@
 #include "llama-vbr-artifact-stage.h"
 #include "llama-model.h"
 
+
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <limits>
 #include <new>
 #include <utility>
+
+bool llama_kv_pager_history_selection_equal(
+        const std::vector<llama_kv_pager_selected_history> & lhs,
+        const std::vector<llama_kv_pager_selected_history> & rhs) noexcept {
+    if (lhs.size() != rhs.size()) return false;
+    for (const auto & item : lhs) {
+        const auto match = std::find_if(rhs.begin(), rhs.end(),
+                [&](const auto & candidate) {
+            return candidate.identity == item.identity &&
+                candidate.content_version == item.content_version;
+        });
+        if (match == rhs.end()) return false;
+    }
+    return true;
+}
+
+bool llama_kv_pager_page_is_before_query(
+        int64_t page_position_begin, uint32_t page_tokens,
+        int64_t query_start) noexcept {
+    return page_position_begin >= 0 && query_start >= page_position_begin &&
+        uint64_t(page_tokens) <= uint64_t(query_start - page_position_begin);
+}
 
 const char * llama_kv_pager_selector_trace_outcome_name(
         llama_kv_pager_selector_trace_outcome outcome) noexcept {
@@ -3408,6 +3432,7 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
         auto next = pages_;
         auto next_slots = slot_pages_;
         uint32_t next_current = current_page_index_;
+        std::vector<llama_kv_page_id> query_frontier_pin_releases;
 
         if (mutation.release_sequence_pins) {
             for (auto & page : next) {
@@ -3544,9 +3569,32 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                     mutation.kind != llama_kv_pager_mutation_kind::rewind) {
                 return llama_kv_pager_write_status::invalid_position;
             }
+            const auto committed_history = [&](const page_state & page) {
+                for (const auto & entry : turn_states_) {
+                    if (entry.second.phase == llama_kv_pager_turn_phase::idle) continue;
+                    for (const auto & selected : entry.second.selected_history) {
+                        if (selected.identity == page.record.id) return true;
+                    }
+                }
+                return false;
+            };
+            const auto query_rewindable_frontier = [&](const page_state & page) {
+                const auto turn = turn_states_.find(page.record.id.sequence_id);
+                return mutation.kind == llama_kv_pager_mutation_kind::remove &&
+                    turn != turn_states_.end() &&
+                    turn->second.phase == llama_kv_pager_turn_phase::query_replay &&
+                    turn->second.turn_id != 0 && turn->second.query_start >= 0 &&
+                    mutation.position_begin >= turn->second.query_start &&
+                    next_current < next.size() && &page == &next[next_current] &&
+                    page.record.state == llama_kv_page_state::filling_gpu &&
+                    !page.host_inflight && page.record.pin_count == 1 &&
+                    mutation.position_begin >= page.record.id.position_begin &&
+                    !committed_history(page);
+            };
             if (reject_pinned([&](const page_state & page) {
-                    return selected(page, mutation.sequence_id) && overlaps(page);
-                })) {
+                    return selected(page, mutation.sequence_id) && overlaps(page) &&
+                        !query_rewindable_frontier(page);
+            })) {
                 return llama_kv_pager_write_status::all_pinned;
             }
             for (auto & page : next) {
@@ -3573,9 +3621,14 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                     page.record.id.position_begin = llama_pos(new_begin);
                     page.record.id.position_end = llama_pos(new_end);
                 } else {
+                    const bool preserve_frontier_identity =
+                        query_rewindable_frontier(page);
                     for (uint32_t row = 0; row < page.valid_rows.size(); ++row) {
                         const llama_pos pos = page.record.id.position_begin + llama_pos(row);
                         if (pos >= begin && pos < end) page.valid_rows[row] = 0;
+                    }
+                    if (preserve_frontier_identity) {
+                        query_frontier_pin_releases.push_back(page.record.id);
                     }
                     uint32_t end_row = 0;
                     for (uint32_t row = 0; row < page.valid_rows.size(); ++row) {
@@ -3591,7 +3644,9 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                                         [](uint8_t value) { return value != 0; });
                         page.record.state = full
                             ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
-                        page.record.id.page_generation = uint32_t(++mutation_generation_);
+                        if (!preserve_frontier_identity) {
+                            page.record.id.page_generation = uint32_t(++mutation_generation_);
+                        }
                         page.record.host_valid = false;
                         page.record.dirty = true;
                         page.maintenance_pending = true;
@@ -3711,7 +3766,27 @@ llama_kv_pager_write_status llama_kv_pager::mutate(
                 return candidate.present && candidate.record.id == page.id;
             });
             if (!retained) add_host_invalidation(page.id);
-            if (!retained && residency_.erase(tx, page.id) != llama_kv_residency_status::ok) {
+            const bool query_frontier_removed = std::any_of(
+                query_frontier_pin_releases.begin(), query_frontier_pin_releases.end(),
+                [&](const auto & id) {
+                    return id.session_generation == page.id.session_generation &&
+                        id.sequence_id == page.id.sequence_id &&
+                        id.sequence_generation == page.id.sequence_generation &&
+                        id.logical_page == page.id.logical_page &&
+                        id.page_generation == page.id.page_generation;
+                });
+            if (!retained && query_frontier_removed) {
+                auto released_frontier = page;
+                released_frontier.pin_count = 0;
+                if (residency_.update(tx, released_frontier) !=
+                        llama_kv_residency_status::ok) {
+                    residency_.rollback(tx);
+                    return llama_kv_pager_write_status::transaction;
+                }
+            }
+            const auto erase_status = !retained
+                ? residency_.erase(tx, page.id) : llama_kv_residency_status::ok;
+            if (erase_status != llama_kv_residency_status::ok) {
                 residency_.rollback(tx);
                 return llama_kv_pager_write_status::transaction;
             }

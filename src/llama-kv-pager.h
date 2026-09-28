@@ -347,6 +347,14 @@ struct llama_kv_pager_selected_history {
     uint64_t content_version = 0;
 };
 
+bool llama_kv_pager_history_selection_equal(
+        const std::vector<llama_kv_pager_selected_history> & lhs,
+        const std::vector<llama_kv_pager_selected_history> & rhs) noexcept;
+
+bool llama_kv_pager_page_is_before_query(
+        int64_t page_position_begin, uint32_t page_tokens,
+        int64_t query_start) noexcept;
+
 struct llama_kv_pager_turn_state {
     uint64_t turn_id = 0;
     uint64_t retrieval_epoch = 0;
@@ -377,6 +385,10 @@ struct llama_kv_pager_natural_proof {
     bool candidate_was_cold = false;
     bool host_ready = false;
     bool promotion_published = false;
+    // The receipt joins an authenticated selector nomination to its admission
+    // in the final query-commit target for this exact logical page/version.
+    bool candidate_authenticated = false;
+    bool query_commit_admitted = false;
     // One bounded physical edge receipt. These flags are set only at the
     // corresponding owner boundary; a table epoch or attention sample alone
     // never implies a completed target use.
