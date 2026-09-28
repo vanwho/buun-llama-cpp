@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "task": "97-01",
+  "source_commit": "41e37387049e0bc62b8dd5a46861b379273edd8f",
+  "build_identity": {
+    "dirty_source_diff_sha256": "c7229be2fabc4bbf3591c9fb000b3c3ddf5853b6f1ace3bb9fb4317160528456",
+    "build_command": "cmake --build build-cuda-test --target test-kv-pager -j4",
+    "backend": "CUDA0 detected: NVIDIA GeForce RTX 4080, compute capability 8.9; deterministic synthetic pager and host-provider fixture",
+    "executables": {
+      "build-cuda-test/bin/test-kv-pager": "959b7d55efe5ec3289495704961da98d722c6aa0326715f555ac78be81a5b116"
+    },
+    "shared_libraries": {
+      "build-cuda-test/bin/libllama.so": "7300c2f53d3d90e91db3b8bdc7b2b94afb04baf7a66aeb0ffe6ce144ab8c945d",
+      "build-cuda-test/bin/libggml-cuda.so": "024b8d6860f983ac703f051c1d281fcb7d35329f846e62e56585a35f475220cd"
+    }
+  },
+  "checks": {
+    "generation_ring_victim_and_history_pins": {
+      "command": [
+        "build-cuda-test/bin/test-kv-pager"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/97-01/attempt-01/test-kv-pager.log",
+          "sha256": "0ec0f8737c3f5dc55c3489066b09467c1900774ac79ee3547d0c5afb07eb04cb"
+        }
+      ],
+      "measurements": {
+        "accepted_tokens": 529,
+        "generation_pages_G": 1,
+        "physical_pages_H": 3,
+        "oldest_generation_evicted": true,
+        "selected_history_retained": true,
+        "partial_tail_position_end": 785,
+        "rejected_seal_excluded": true
+      }
+    }
+  },
+  "additional_checks": {
+    "final_build": {
+      "command": [
+        "cmake",
+        "--build",
+        "build-cuda-test",
+        "--target",
+        "test-kv-pager",
+        "-j4"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/97-01/attempt-01/build-final.log",
+          "sha256": "ef2b2ff911322b65ee9e20a781cf438f180e2674367fbdd5d460907128113ddb"
+        }
+      ]
+    },
+    "diff_check": {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/97-01/attempt-01/diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    }
+  },
+  "deferred_verification": [
+    "No live-server proof is required by 97-01. Live natural selection, replay, cancellation and promotion verification belongs to task 100-04; no managed service was reloaded and no benchmark request was sent."
+  ]
+}
