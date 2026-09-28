@@ -1,6 +1,8 @@
 # Minimal testing and honest performance measurement
 
 Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
+Current repair amendment: `forward-generation-admission-20260929`.
+`REPAIR100.md` supplies the exact current diagnosis and100-02a–f ownership.
 
 ## Setup once, verify cheaply, keep loaded
 
@@ -179,3 +181,47 @@ The 20K/40K/60K/100K/175K/256K speed curve is a final reporting experiment
 after the architecture works, not an implementation gate. Prefer samples from
 the single scaling frontier; do not refill L six times. H remains admitted,
 never equals occupied C by assumption. YaRN beyond 256K remains a stretch goal.
+
+## Current repair and receipt protocol
+
+100-02 was prematurely marked done without a receipt; it is deliberately
+deferred, preserving its source work and usage. Current owners are100-02a/b
+admission/ring,100-02c hot-path costs,100-02d MTP,100-02e natural promotion,
+100-02f paired speeds.100-03 reads those results;100-04 releases scaling.
+The original36-request ceiling is retired.36 is the number of VALID rows in
+a completed three-placement campaign, not a lifetime recovery budget.
+Use one short selected smoke before completing selected12 and control12+12;
+only failed/missing rows retry within an identical candidate. EOG is normal.
+
+For each new task, receipt path is `evidence/V10_<task>.json` under execution.
+Use schema_version=1, matching task ID, full source_commit plus actual build/
+dirty identity. `checks` maps EVERY required_proofs key to status=pass,
+exit_code=0, actual executable argv in `command`, and nonempty `artifacts`
+with path and SHA256. A fixture/schema check cannot claim a live proof.
+Measurement_complete and goal_status are different fields: a completed slow
+benchmark can pass measurement while goal_status remains miss.
+Keep receipt/handoff compact; raw requests/logs remain under the task raw root.
+
+Before the state completion transition run the exact command:
+
+```bash
+python3 .wiretail/execution/v10/validate.py --task TASK_ID --receipt .wiretail/execution/evidence/V10_TASK_ID.json
+PROJECT_ROOT="$PWD" python3 /srv/wiretail/task_state.py validate
+```
+
+Replace both TASK_ID placeholders with the CURRENT task. Only after both pass:
+
+```bash
+PROJECT_ROOT="$PWD" python3 /srv/wiretail/task_state.py complete TASK_ID --summary "verified named proofs and receipt"
+```
+
+Replace TASK_ID with the current task here too; the CLI advances current_task.
+Do not manually mark done first and fabricate a receipt on retry. A deliberate
+planning correction preserves usage and immutable historical evidence. Use
+`reconcile-current` for a stale derived pointer, then validate again.
+
+When future work is necessary, schedule an actual repair+retest before its
+consumer and move/defer the original incomplete measurement to that owner.
+Never leave the current test waiting for a later task that cannot be reached.
+Task status deferred is not a passed proof and never releases a consumer that
+explicitly requires that proof; update dependencies to its replacement owner.

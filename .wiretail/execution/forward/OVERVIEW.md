@@ -2,13 +2,17 @@
 
 Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
-This is the authoritative contract for phases 94–102. It implements the fully
+This is the authoritative contract for phases 94–102. The current amendment is
+`forward-generation-admission-20260929`; read `REPAIR100.md` for the latest
+failure boundary and executable repair order. It implements the fully
 read Sol handoff retained in `SOURCE_FORWARD_PLAN.md`; that long reference is
 not automatically loaded into task sessions. By the user's 2026-09-27 direction,
 the remaining legacy 93-11n campaign is deferred, not passed. 93-11o's completed
 selector repair and the existing uncommitted source work are preserved. Start
-from the first unfinished task named by `WORK_STATE.json`; at this revision
-that is 96-01. Phases 94 and 95-01/02 are complete, while 95-03 is intentionally
+from the first unfinished task named by `WORK_STATE.json`; after this repair
+that is 100-02a. 100-02 is deferred with its query-page implementation and
+partial measurements preserved; it is not a passed campaign. Prior94–99
+implementation checkpoints and completed100-01 are preserved;95-03 is intentionally
 deferred. 94-01a repaired authenticated selection-to-admission under the new
 turn-boundary contract. Do not repeat the legacy A/B/A or require its failed
 receipt before implementing the current architecture. The unstarted 93-12/93-13
@@ -72,7 +76,7 @@ card, service paths or these counts in portable production logic.
 | 97 | 97-01–02 | Protected history, generation ring, sealing/rollback |
 | 98 | 98-01–02 | Inclusive host authority and batched async promotion |
 | 99 | 99-01–02 | Matched GPU kernel comparison; shape-aware production routes |
-| 100 | 100-01–04 | Reliable harness, short paired speed/quality, then final replay/promotion/MTP correctness proof |
+| 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/04 | Budget/ownership and batch-ring repair; hot-path cost reduction; MTP/retrieval proof; staged paired speeds; cost-based remediation; final replay/cancel proof |
 | 101 | 101-01–03 | 32K/16K, 128K, then full 256K occupancy and memory proof |
 | 102 | 102-01 | Goal assessment, useful final curve, concrete next remediation |
 
@@ -98,6 +102,13 @@ Benchmarks can complete with valid measured poor performance; those findings
 create source-directed remediation tasks before scaling. A missing measurement
 is not a speed finding. Keep physical promotion, answer quality and MTP
 acceptance as separate fields. No exact filename/YES/NO output-format gates.
+
+The new repair tasks supersede the failed100-02 campaign, not its source work.
+Query-page capacity repair is already committed separately. Do not diagnose
+an absent prefill spill subsystem from the old `no_victim` label: the latest
+run prefills beyond H and fails during generation. Trace query-commit ownership
+and production batch preflight first. A fixed number of valid campaign rows
+is not a lifetime retry budget. Update scheduling/receipts before declaring done.
 
 The initial query replay and natural promotion work has partial live evidence;
 its complete one-pass parity and cancellation checks are delayed until the

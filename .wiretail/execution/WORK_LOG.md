@@ -1345,3 +1345,29 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-01`
 - Commit at update: `1beaa47b0`
 - Summary: Implemented canonical cache-aware stage accounting and result checker; focused tests and selected/dense/CPU candidate setup smokes passed with receipt V10_100-01.
+
+## 2026-09-28T07:51:01+00:00 — 100-02 — done
+
+- Branch: `codex/task-100-02`
+- Commit at update: `6266f879f`
+- Summary: brief verified result
+
+## 2026-09-29 — planning correction after100-02
+
+- Preserved six source/test files as implementation commit
+  `ccc61f52545ddca9fe6b17a258119b04bd44ad8c`; focused CUDA attention test passes.
+- Corrected100-02's premature done disposition to deferred, not accepted.
+  No required receipt existed; latest request failed generation admission after
+  prefill crossed H. Both raw attempts and all three usage events are retained.
+- Inserted100-02a–f for query-budget/ownership, production batch/ring, hot-path
+  delta-copy/view costs, MTP replay/carry, natural promotion/freeze and staged
+  canonical paired measurements.100-03/04 moved to current review context and
+  depend on repaired results before capacity scaling.
+- Retired the lifetime36-request budget, stalephase93/96 startup directions,
+  and deadlock-prone test-waits-for-later-repair approach. No answer-format gate,
+  no CPU diagnostic inference and no full matrix per implementation change.
+- Current context is forward/REPAIR100 plus OVERVIEW/TESTING and task-local
+  symbols/compact handoffs. Next runnable task100-02a; all new tasks and
+  assessments pin gpt-6-luna/high. Shared Wiretail defaults are unchanged.
+- Final256K proof separates allocation, actual functional frontier with reserve,
+  and exact-full commit capability; no partial frontier is labeled full C.

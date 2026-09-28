@@ -8,7 +8,7 @@
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Finish93-11o/93-11n narrow baseline first; phase94 onward load forward OVERVIEW/TESTING + current packet/cluster + bounded context_files only. Old accepted-token refresh/route policy and93-12/93-13 are superseded. Source handoff/raw history not auto-loaded; subsystem clusters reset stale sessions without a task-count cap.",
+  "context_policy": "Current100-02a-f repairs supersede incomplete100-02. Load forward OVERVIEW/TESTING/REPAIR100, current packet/cluster and explicit compact handoffs/symbol regions only. Legacy93/95 campaigns, raw Codex transcripts and original request ceilings stay out of startup context. Clusters follow shared subsystem/lifecycle context, without a task-count cap.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "100",
-  "current_task": "100-02",
-  "last_updated_utc": "2026-09-28T06:48:05+00:00",
+  "current_task": "100-02a",
+  "last_updated_utc": "2026-09-28T22:26:39.296184+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "Phases94-100 continue through short-path optimization and measurement; 95-03 bundled proof is deferred, not passed; final integrated replay/promotion/cancellation proof is 100-04 before any capacity scaling; optional work only after core success",
+    "active_scope": "Preserve completed94-99/100-01 and deferred93/95/100-02 implementation. Execute100-02a-f admission/ring/hot-path/MTP/promotion/staged-measurement repairs;100-03 schedules measured speed remediation;100-04 final replay/cancel proof releases101 capacity;102 creates runnable successors on unmet goals.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -58,7 +58,7 @@
     "benchmark_identity": "immutable build-time executable/DSO source receipt, observed endpoint process hashes, actual token geometry and exact paired original3prompt controls",
     "speed_policy": "B1024/U256 canonical3prompts warm1x40 measured3x400; reasoning off and MTP always; selected fresh>=500 each prompt preferred750; poor measured speed schedules concrete repairs, not repeated audits",
     "scale_policy": "8K/4K useful short-path release ->32K/16K ->128K ->256K actual committed occupancy; H dynamically admitted; final context curve findings only",
-    "task_completion": "named executable proofs with compact hashed receipts; fix setup and retry smallest affected row; benchmark measurements may miss goals honestly and require actual successor repairs before scaling",
+    "task_completion": "Run named executable proofs and exact completion_check BEFORE state complete. Preserve usage/source/evidence on deliberate planning correction; reconcile derived current pointer. Missing measurement is not done; setup errors repaired in-task; true source defects get ordered repair and minimal retest, never an unreachable future dependency.",
     "final_review": "only current summary; actual ordered repair/benchmark/summary/review successors if goal unmet; no evidence-only retry loop",
     "code_portability": "dynamic model/device/memory geometry; server-specific material only in /srv/ai or .wiretail, separate metadata commits; no upstream publication",
     "retrieval_semantics": "final-user-span target Q; turn-boundary promote/diff; query-only hybrid checkpoint replay when history changes; frozen historical selection during generation",
@@ -27982,7 +27982,7 @@
       "cluster": "forward100-performance",
       "title": "Measure corrected 8K/4K hot-cache speed and bounded recall",
       "packet": ".wiretail/execution/tasks/100-02.md",
-      "status": "todo",
+      "status": "deferred",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "medium",
@@ -27998,7 +27998,7 @@
       "depends_on": [
         "100-01"
       ],
-      "commit": null,
+      "commit": "6266f879f5ab13601f15a62a789bf08641e70289",
       "context_files": [
         ".wiretail/execution/clusters/forward100-performance.md",
         ".wiretail/execution/tasks/100-02.md",
@@ -28017,12 +28017,369 @@
         "100-02",
         "--receipt",
         ".wiretail/execution/evidence/V10_100-02.json"
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-02-attempt-1-20260928T064829127306590-20260928T064829131068554-ZDUTrF.jsonl:344",
+            "total_tokens": 33210539,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 33054968,
+            "cached_input_tokens": 32304128,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 750840,
+            "output_tokens": 155571,
+            "thinking_tokens": 78708
+          },
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-02-attempt-1-20260928T075101642570179-20260928T075101645365298-Hg4q9Z.jsonl:65",
+            "total_tokens": 37478445,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 37303680,
+            "cached_input_tokens": 36485120,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 818560,
+            "output_tokens": 174765,
+            "thinking_tokens": 89247
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-02-attempt-2-20260928T080059561307546-20260928T080059563981225-ZFw6we.jsonl:136",
+            "total_tokens": 4347893,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 4316626,
+            "cached_input_tokens": 4167168,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 149458,
+            "output_tokens": 31267,
+            "thinking_tokens": 16651
+          }
+        ],
+        "totals": {
+          "usage_events": 3,
+          "total_tokens": 75036877,
+          "input_tokens": 74675274,
+          "cached_input_tokens": 72956416,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 1718858,
+          "output_tokens": 361603,
+          "thinking_tokens": 184606,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 3,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      },
+      "deferred_reason": "Planning correction2026-09-29: prematurely completed without receipt. Preserve query-page implementation and partial live evidence; admission/ring/MTP/promotion/measurements are owned by100-02a through100-02f.",
+      "replacement_tasks": [
+        "100-02a",
+        "100-02b",
+        "100-02c",
+        "100-02d",
+        "100-02e",
+        "100-02f"
+      ],
+      "implementation_checkpoint_commit": "ccc61f52545ddca9fe6b17a258119b04bd44ad8c"
+    },
+    {
+      "id": "100-02a",
+      "phase": "100",
+      "cluster": "forward100-admission",
+      "title": "Guarantee generation headroom at query commit",
+      "packet": ".wiretail/execution/tasks/100-02a.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-generation-admission-20260929",
+      "required_proofs": [
+        "query_commit_guarantees_generation_headroom",
+        "mandatory_query_pages_survive_routing_refresh"
+      ],
+      "depends_on": [
+        "100-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-admission.md",
+        ".wiretail/execution/tasks/100-02a.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/handoffs/100-02.md",
+        "src/llama-kv-live-policy.cpp",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-attention-view.cpp",
+        "src/llama-context.cpp",
+        "tests/test-kv-pager.cpp",
+        "tests/test-kv-attention-execution.cpp",
+        "tests/test-cuda-kv-promotion.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-02a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-02a.json"
+      ]
+    },
+    {
+      "id": "100-02b",
+      "phase": "100",
+      "cluster": "forward100-admission",
+      "title": "Make batch admission and generation recycling agree",
+      "packet": ".wiretail/execution/tasks/100-02b.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-generation-admission-20260929",
+      "required_proofs": [
+        "batch_ring_admission_and_rollback",
+        "async_ring_seal_fence_and_version"
+      ],
+      "depends_on": [
+        "100-02a"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-admission.md",
+        ".wiretail/execution/tasks/100-02b.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/handoffs/100-02a.md",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-pager.h",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-residency-transfer.cpp",
+        "tests/test-kv-pager.cpp",
+        "tests/test-cuda-kv-promotion.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-02b",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-02b.json"
+      ]
+    },
+    {
+      "id": "100-02c",
+      "phase": "100",
+      "cluster": "forward100-hotpath",
+      "title": "Reduce measured packed-view, sealing and graph overhead",
+      "packet": ".wiretail/execution/tasks/100-02c.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-generation-admission-20260929",
+      "required_proofs": [
+        "hot_path_delta_copy_and_async_seal_contract",
+        "short_cost_attribution_measured"
+      ],
+      "depends_on": [
+        "100-02b"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-hotpath.md",
+        ".wiretail/execution/tasks/100-02c.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/handoffs/100-02b.md",
+        "src/llama-kv-attention-execution.cpp",
+        "src/llama-graph.cpp",
+        "src/llama-kv-cache.cpp",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-residency-transfer.cpp",
+        "tests/test-kv-attention-execution.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-02c",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-02c.json"
+      ]
+    },
+    {
+      "id": "100-02d",
+      "phase": "100",
+      "cluster": "forward100-mtp-live",
+      "title": "Bind GPU Turbo4 MTP to replayed target state",
+      "packet": ".wiretail/execution/tasks/100-02d.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-generation-admission-20260929",
+      "required_proofs": [
+        "mtp_query_replay_carry_and_verify_contract",
+        "gpu_turbo4_mtp_request_accounting_measured"
+      ],
+      "depends_on": [
+        "100-02c"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-mtp-live.md",
+        ".wiretail/execution/tasks/100-02d.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/handoffs/100-02c.md",
+        "tools/server/server-context.cpp",
+        "common/speculative.cpp",
+        "src/llama-context.cpp",
+        "src/llama-memory-hybrid.cpp",
+        "tests/test-speculative-mtp-state.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-02d",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-02d.json"
+      ]
+    },
+    {
+      "id": "100-02e",
+      "phase": "100",
+      "cluster": "forward100-mtp-live",
+      "title": "Prove natural cold promotion and frozen GPU-only generation",
+      "packet": ".wiretail/execution/tasks/100-02e.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-generation-admission-20260929",
+      "required_proofs": [
+        "natural_promotion_replay_target_consumption",
+        "frozen_history_gpu_mtp_and_generation_boundary"
+      ],
+      "depends_on": [
+        "100-02d"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-mtp-live.md",
+        ".wiretail/execution/tasks/100-02e.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/handoffs/100-02d.md",
+        "tools/server/bench/run-pager-promotion.py",
+        "tools/server/bench/pager_benchmark_contract.py",
+        "tools/server/bench/fixtures/pager-promotion/manifest.json",
+        "src/llama-kv-pager.cpp",
+        "src/llama-kv-live-policy.cpp",
+        "src/llama-kv-residency-transaction.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-02e",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-02e.json"
+      ]
+    },
+    {
+      "id": "100-02f",
+      "phase": "100",
+      "cluster": "forward100-benchmark",
+      "title": "Measure repaired hot-cache setup with staged canonical controls",
+      "packet": ".wiretail/execution/tasks/100-02f.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-generation-admission-20260929",
+      "required_proofs": [
+        "canonical_repaired_three_prompt_paired_measurements",
+        "short_path_summary_and_resumable_row_contract"
+      ],
+      "depends_on": [
+        "100-02e"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-benchmark.md",
+        ".wiretail/execution/tasks/100-02f.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/handoffs/100-02e.md",
+        "tools/server/bench/run-pager-profile-benchmark.py",
+        "tools/server/bench/pager_benchmark_contract.py",
+        "tools/server/bench/prompt_sizing.py",
+        "tools/server/bench/test_pager_benchmark_adapter.py",
+        ".wiretail/execution/forward/canonical_result_check.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-02f",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-02f.json"
       ]
     },
     {
       "id": "100-03",
       "phase": "100",
-      "cluster": "forward100-performance",
+      "cluster": "forward100-review",
       "title": "Assess short-path performance and schedule precise repairs",
       "packet": ".wiretail/execution/tasks/100-03.md",
       "status": "todo",
@@ -28033,20 +28390,21 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "forward-turn-retrieval-20260927",
+      "plan_amendment": "forward-generation-admission-20260929",
       "required_proofs": [
         "short_path_release_or_scheduled_repairs"
       ],
       "depends_on": [
-        "100-02"
+        "100-02f"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward100-performance.md",
+        ".wiretail/execution/clusters/forward100-review.md",
         ".wiretail/execution/tasks/100-03.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/100-02.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/handoffs/100-02f.md",
         "src/llama-kv-attention-execution.cpp",
         "src/llama-graph.cpp",
         "src/llama-kv-cache.cpp",
@@ -28065,7 +28423,7 @@
     {
       "id": "100-04",
       "phase": "100",
-      "cluster": "forward100-performance",
+      "cluster": "forward100-review",
       "title": "Verify final replay parity, cancellation and natural promotion",
       "packet": ".wiretail/execution/tasks/100-04.md",
       "status": "todo",
@@ -28076,7 +28434,7 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "forward-turn-retrieval-20260927",
+      "plan_amendment": "forward-generation-admission-20260929",
       "required_proofs": [
         "final_query_replay_one_pass_parity",
         "final_query_cancel_preserves_state",
@@ -28086,11 +28444,12 @@
         "100-03"
       ],
       "context_files": [
-        ".wiretail/execution/clusters/forward100-performance.md",
+        ".wiretail/execution/clusters/forward100-review.md",
         ".wiretail/execution/tasks/100-04.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/95-03.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/handoffs/100-02e.md",
         ".wiretail/execution/handoffs/100-03.md",
         "tools/server/server-context.cpp",
         "src/llama-context.cpp",
@@ -28144,6 +28503,7 @@
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
         ".wiretail/execution/handoffs/100-03.md",
+        ".wiretail/execution/handoffs/100-04.md",
         "tools/server/bench/run-occupancy-frontier.py",
         "tools/server/bench/validate-occupied-frontier.py",
         "tools/server/bench/measure-speed-occupancy.py",
@@ -30073,16 +30433,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 1,
-        "total_tokens": 11634137,
-        "input_tokens": 11569971,
-        "cached_input_tokens": 11253760,
+        "usage_events": 4,
+        "total_tokens": 86671014,
+        "input_tokens": 86245245,
+        "cached_input_tokens": 84210176,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 316211,
-        "output_tokens": 64166,
-        "thinking_tokens": 27863,
+        "input_tokens_minus_cached_tokens": 2035069,
+        "output_tokens": 425769,
+        "thinking_tokens": 212469,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 1,
+        "total_tokens_derived_events": 4,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -30097,17 +30457,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 400,
-      "total_tokens": 8643436671,
-      "input_tokens": 8619737853,
-      "cached_input_tokens": 8432304896,
+      "usage_events": 403,
+      "total_tokens": 8718473548,
+      "input_tokens": 8694413127,
+      "cached_input_tokens": 8505261312,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 46,
-      "input_tokens_minus_cached_tokens": 187432957,
-      "output_tokens": 23698818,
-      "thinking_tokens": 9426205,
+      "cache_write_input_tokens_known_events": 49,
+      "input_tokens_minus_cached_tokens": 189151815,
+      "output_tokens": 24060421,
+      "thinking_tokens": 9610811,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 400,
+      "total_tokens_derived_events": 403,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

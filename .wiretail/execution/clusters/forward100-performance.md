@@ -2,7 +2,9 @@
 
 Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
-Tasks in this context area: `100-01`, `100-02`, `100-03`, `100-04`.
+Historical tasks in this context area: `100-01` done, `100-02` deferred.
+Do not resume the retired campaign. New repair owners are100-02a–f;
+100-03/04 now use forward100-review after the repaired benchmark.
 
 Purpose: Prepare the canonical benchmark, measure short-path speed, diagnose repairs, then verify integrated replay correctness before context scaling.
 

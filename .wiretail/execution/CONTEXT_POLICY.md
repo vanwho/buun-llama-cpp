@@ -8,11 +8,21 @@ For phase94 onward, forward/OVERVIEW.md and forward/TESTING.md supersede
 REPAIR85's accepted-token retrieval cadence and route preference. Do not load
 the full researched SOURCE_FORWARD_PLAN, retired93-12/93-13, old summaries or
 all predecessor gates. 93-11n is explicitly deferred by the user, not passed.
-Resume at the first unfinished task named by WORK_STATE.json; currently that is
-96-01. Phases 94 and 95-01/02 are complete, 95-03 is intentionally deferred,
-and 100-04 owns final replay/cancellation/promotion verification before scale.
+Resume at the first unfinished task named by WORK_STATE.json, not a historical
+hardcoded task ID. Current repair is forward/REPAIR100.md:100-02 is deferred,
+not passed;100-02a–f repair admission/ring, reduce measured costs, verify MTP/
+natural promotion and collect staged speeds.100-03 assesses THESE results;
+100-04 owns final replay/cancellation/promotion verification before scale.
 Use forward/POLICY_ADMISSION_BASELINE.md for the only needed legacy finding.
 Never revive the old campaign or load its transcripts.
+
+For100-02a onward, do not load the retired100-02 packet/request ceiling or
+old receipts to reconstruct a diary. Load only REPAIR100's compact facts and
+the current packet/cluster/explicit predecessor handoff. Source entries in a
+context list are pointers: use rg and the packet's SYMBOL regions, never read
+all of server-context.cpp, llama-context.cpp or llama-kv-cache.cpp at startup.
+Verify required receipts before a completion transition. Metadata correction
+must preserve prior source commits and all task token-usage events.
 
 ## Token accounting: what the numbers mean
 
