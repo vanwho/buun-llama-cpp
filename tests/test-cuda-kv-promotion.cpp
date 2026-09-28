@@ -629,10 +629,15 @@ static int run_proof() {
         };
         assert(captures_for(7, rejected_version) == 1);
         assert(captures_for(7, sealed_accepted->content_version) == 1);
+        for (const auto & record : final_records) {
+            if (!record.host_valid) continue;
+            assert(captures_for(record.id.logical_page, record.content_version) == 1);
+        }
     }
     std::cout << "generation_seal_and_rejection=pass rejected_identity_invalidated=1 "
         << "accepted_length=" << sealed_accepted->valid_length
-        << " content_version=" << sealed_accepted->content_version << "\n";
+        << " content_version=" << sealed_accepted->content_version
+        << " capture_once_per_version=1 duplicate_d2h_avoided=1\n";
     const auto & records = final_records;
 
     // The selector consumes transformed Q and bounds decoded from the exact
@@ -937,6 +942,19 @@ static int run_proof() {
     assert(promotion.status == llama_kv_live_policy_status::committed && promotion.published);
     assert(promotion.transaction.h2d_counters.copied_useful_bytes > 0);
     assert(promotion.transaction.h2d_counters.queued > 0);
+    const auto evicted_clean = std::find_if(promotion.decisions.begin(),
+        promotion.decisions.end(), [](const auto & decision) {
+            return decision.victim;
+        });
+    assert(evicted_clean != promotion.decisions.end());
+    vbr_selected_page_host_view evicted_host;
+    assert(pager->host_catalog()->find_page(evicted_clean->id, evicted_host));
+    assert(!evicted_host.page.units.empty() && evicted_host.page.units[0].bytes);
+    std::vector<uint8_t> retained_host_bytes(
+        evicted_host.page.units[0].bytes->size());
+    assert(evicted_host.page.units[0].bytes->read(
+        0, retained_host_bytes.data(), retained_host_bytes.size()));
+    assert(retained_host_bytes == fixture.bytes[evicted_clean->id.logical_page][0]);
     assert(std::any_of(promotion.decisions.begin(), promotion.decisions.end(),
         [&](const auto & decision) {
             return decision.victim && decision.id.logical_page != winner_logical;
@@ -1075,7 +1093,8 @@ static int run_proof() {
 
     std::fprintf(stdout, "generation_ring_cuda_integration=pass generated_pages=%u "
         "target_capacity=%u generation_capacity=%u rejected_suffix=1 "
-        "cold_generated_winner=%u separate_full_l_draft=1\n",
+        "cold_generated_winner=%u separate_full_l_draft=1 "
+        "clean_eviction_host_bytes_retained=1\n",
         pages - 1, hot_capacity, planned.generation_pages, winner_logical);
 
     ggml_backend_buffer_free(selector_buffer);

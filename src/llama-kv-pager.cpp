@@ -2600,12 +2600,23 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                     page.record = previous;
                     continue;
                 }
-                const auto result = full && host_->async_enabled()
+                auto result = full && host_->async_enabled()
                     ? host_->enqueue(page.record, page.content_version)
                     : host_->seal(page.record);
+                if (result.status == llama_kv_pager_host_status::ring_unavailable &&
+                        full && host_->async_enabled()) {
+                    // Backpressure only when the bounded capture queue has no
+                    // safe slot for another immutable page snapshot. The worker
+                    // drains independently while the next prefill chunk runs;
+                    // waiting here is limited to actual queue exhaustion.
+                    (void) host_->wait();
+                    drain_host_completions();
+                    result = host_->enqueue(page.record, page.content_version);
+                }
                 if (result.status != llama_kv_pager_host_status::ok) {
                     page.record = previous;
                     (void) publish_page(page);
+                    queue_maintenance(page);
                     continue;
                 }
                 if (result.queued) {
