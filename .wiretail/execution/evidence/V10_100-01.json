@@ -1,0 +1,284 @@
+{
+  "build_identity": {
+    "build_bundle_source": {
+      "fingerprint_sha256": "eebd944bde210449deae012372480bca3ae1e684773602416ff7c1ee2acb0e79",
+      "head": "1beaa47b02e40db0ef6ea837ef8caadfb39f011f",
+      "staged_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "untracked_source": [],
+      "untracked_source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "worktree_diff_sha256": "bda92932e774112181644b74f79d813f56b3db4d2605b36f3223923ebd5b5a09"
+    },
+    "candidate_binary_sha256": "6eb66eee896978fa2665d0d9dd66fb9b1a6605182c13e90471f9736a518045cb",
+    "candidate_build_receipt": {
+      "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/candidate-bundle/build-receipt.json",
+      "sha256": "854f772d6795d0b508bdaf66d3fb8ead1daae33094e1c3bff8ebfe0c6abefacc"
+    },
+    "candidate_bundle_root": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/candidate-bundle",
+    "endpoint": "http://127.0.0.1:8080",
+    "live_identity_artifact": {
+      "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/proofs/candidate-live-identity.json",
+      "sha256": "dd8888f7dc631c21db53af8784d0e31be00a1a517724a4e86211a349cb26c0cd"
+    },
+    "live_service": "llama-server.service",
+    "model": {
+      "file": "Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "quantization": "UD-IQ4_XS",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "size_bytes": 14252845984,
+      "source": "unsloth/Qwen3.8-27B-GGUF"
+    },
+    "source_dirty_sha256": "81f63a34b521a000474b47af5cbeaa1678047062972aea539c746763ef08a77d"
+  },
+  "checks": {
+    "candidate_setup_smoke": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/dense-gpu-command.log",
+          "sha256": "ab5377afd075994a5fd1d6b0300e04e3b5abba507f359365d8a097a8c0db2ec6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/dense-gpu/run-config.json",
+          "sha256": "4ac879a0d382ee056cf9592eea562e81d5934d58322a6117e7e90406b85a937f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/dense-gpu/records.jsonl",
+          "sha256": "ba70d4ace0dae656c2917f7d6a49fab9e2fbd39c726bbb11353ba1db3febbd69"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/cpu-main-kv-command.log",
+          "sha256": "9fdd482e663d712060f6cfb90e4fce5859ffad41809b71574cf717cb39413e89"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/cpu-main-kv-turbo4/run-config.json",
+          "sha256": "3dbab1103ca262a9a13fb00f3f6299f7ffeae5c04a47e9c4549fc5054cfd3d9d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/cpu-main-kv-turbo4/records.jsonl",
+          "sha256": "e8747709c22270bf7a73a4fc76a8b8a114adb8de058ad1ff4d3ceea28557ab5d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/selected-production-retry-command.log",
+          "sha256": "30449e55da6c7baba983d6ece864ca18b720dec9c811a439478d7ad493e85e8b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/selected-production-retry/run-config.json",
+          "sha256": "b0d06d9a580c90e8811c8bd0fa59e3bf456fed79a25ef4fca47005f17d4d4096"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/selected-production-retry/records.jsonl",
+          "sha256": "38727fa655f03c1959e2cc10f8fe76e10c1c2f40c9270d721699a8276d782572"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/selected-production-retry/raw/off-measured-1-p0.mtp-before.prom",
+          "sha256": "fa7db3c747bc1bdaa08e6faa991f2bb07586a27db86f89f5d805def536d4b9b4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/selected-production-retry/raw/off-measured-1-p0.mtp-after.prom",
+          "sha256": "89def788200a043f4479c1602bb5ab16341b0fc7dba9ce99b5c0dee884ae76ae"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/proofs/candidate-live-identity.json",
+          "sha256": "dd8888f7dc631c21db53af8784d0e31be00a1a517724a4e86211a349cb26c0cd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/candidate-bundle/build-receipt.json",
+          "sha256": "854f772d6795d0b508bdaf66d3fb8ead1daae33094e1c3bff8ebfe0c6abefacc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/prompt-preflight.json",
+          "sha256": "fba0570e16a353b47d11145553690e5c198d1acb3e8b41f43383dea24408a562"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/fixture-prefix-preflight.json",
+          "sha256": "1b2d10fb52ff075df8717b7e47f1fe9e60cbac732c1c3448e1f4cc626fcc10dc"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-profile-benchmark.py",
+        "fast",
+        "short",
+        "/srv/ai/paged-kv/results/forward/100-01/attempt-01/selected-production-retry",
+        "--mode",
+        "selective",
+        "--context",
+        "derived",
+        "--batch",
+        "1024",
+        "--ubatch",
+        "256",
+        "--mtp",
+        "native",
+        "--one-case",
+        "--one-trial",
+        "--generation-length",
+        "400",
+        "--startup-timeout",
+        "300",
+        "--prefill-timeout",
+        "300",
+        "--decode-timeout",
+        "180",
+        "--total-timeout",
+        "900"
+      ],
+      "environment": {
+        "BENCH_ENDPOINT": "http://127.0.0.1:8080/v1/chat/completions",
+        "BENCH_SERVER_BIN": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/candidate-bundle/bin/llama-server",
+        "CANONICAL_BENCHMARK_RUNNER": "/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "LLAMA_API_KEY_FILE": "/srv/ai/config/llama/api-keys",
+        "LLAMA_PROFILE_ACTIVATOR": "/srv/ai/scripts/activate-ai-profile.sh",
+        "PAGER_BUILD_RECEIPT": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/candidate-bundle/build-receipt.json",
+        "PAGER_BUNDLE_ROOT": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/candidate-bundle"
+      },
+      "exit_code": 0,
+      "observed": {
+        "cpu_main_kv_control": {
+          "actual_codec": "Turbo4 target, Turbo4 draft",
+          "command": [
+            "python3",
+            "tools/server/bench/run-pager-profile-benchmark.py",
+            "fast",
+            "short",
+            "/srv/ai/paged-kv/results/forward/100-01/attempt-01/cpu-main-kv-turbo4",
+            "--mode",
+            "off",
+            "--context",
+            "derived",
+            "--batch",
+            "1024",
+            "--ubatch",
+            "256",
+            "--mtp",
+            "native",
+            "--one-case",
+            "--one-trial",
+            "--generation-length",
+            "400",
+            "--startup-timeout",
+            "300",
+            "--prefill-timeout",
+            "300",
+            "--decode-timeout",
+            "180",
+            "--total-timeout",
+            "900",
+            "--no-kv-offload"
+          ],
+          "exit_code": 0,
+          "observed_placement": "CPU main KV/GPU draft"
+        },
+        "dense_gpu_control": {
+          "actual_codec": "Turbo4 target, Turbo4 draft",
+          "command": [
+            "python3",
+            "tools/server/bench/run-pager-profile-benchmark.py",
+            "fast",
+            "short",
+            "/srv/ai/paged-kv/results/forward/100-01/attempt-01/dense-gpu",
+            "--mode",
+            "off",
+            "--context",
+            "derived",
+            "--batch",
+            "1024",
+            "--ubatch",
+            "256",
+            "--mtp",
+            "native",
+            "--one-case",
+            "--one-trial",
+            "--generation-length",
+            "400",
+            "--startup-timeout",
+            "300",
+            "--prefill-timeout",
+            "300",
+            "--decode-timeout",
+            "180",
+            "--total-timeout",
+            "900"
+          ],
+          "exit_code": 0,
+          "observed_placement": "GPU/GPU"
+        },
+        "selected_production": {
+          "accepted_tokens": 182,
+          "batch_tokens": 1024,
+          "completion_tokens": 334,
+          "context_tokens": 22016,
+          "draft": "GPU Turbo4",
+          "draft_n_max": 2,
+          "drafted_tokens": 234,
+          "fresh_prefill_tokens_per_second": 82.7189156101623,
+          "historical_d2h_aligned_bytes": 0,
+          "historical_h2d_aligned_bytes": 0,
+          "mode": "selective",
+          "page_size_tokens": 256,
+          "pid": 1321852,
+          "process_start_and_argv": "Mon Sep 28 08:40:02 2026 /srv/ai/paged-kv/results/forward/100-01/attempt-01/candidate-bundle/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 22016 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 24 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+          "prompt_tokens": 30,
+          "reasoning": "off",
+          "target": "GPU Turbo4",
+          "ubatch_tokens": 256
+        }
+      },
+      "status": "pass"
+    },
+    "canonical_forward_harness_contract": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/proofs/canonical-forward-unit-tests.log",
+          "sha256": "68746ef1cc0baa693f4025dc3880edb7c1cdbd37044ff44018d5bf554852aa35"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/prompt-preflight.json",
+          "sha256": "fba0570e16a353b47d11145553690e5c198d1acb3e8b41f43383dea24408a562"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/fixture-prefix-preflight.json",
+          "sha256": "1b2d10fb52ff075df8717b7e47f1fe9e60cbac732c1c3448e1f4cc626fcc10dc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/proofs/canonical-forward-result.json",
+          "sha256": "6658d521d758493f22a5ed1ab4bc10603be0ce51b5909780b27d1feb7745af28"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/proofs/canonical-forward-result-check.json",
+          "sha256": "d10e1d7ce1df027bf0aec8abdf069c02b79996bf7e6daa1ab32ccb3af03e15ee"
+        }
+      ],
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tools/server/bench/test_pager_benchmark_adapter.py"
+      ],
+      "exit_code": 0,
+      "result_checker": {
+        "artifacts": [
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/proofs/canonical-forward-result-check.json",
+            "sha256": "d10e1d7ce1df027bf0aec8abdf069c02b79996bf7e6daa1ab32ccb3af03e15ee"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-01/attempt-01/proofs/canonical-forward-result.json",
+            "sha256": "6658d521d758493f22a5ed1ab4bc10603be0ce51b5909780b27d1feb7745af28"
+          }
+        ],
+        "command": [
+          "python3",
+          ".wiretail/execution/forward/check_canonical_result.py",
+          "/srv/ai/paged-kv/results/forward/100-01/attempt-01/proofs/canonical-forward-result.json"
+        ],
+        "exit_code": 0,
+        "status": "pass"
+      },
+      "status": "pass"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "1beaa47b02e40db0ef6ea837ef8caadfb39f011f",
+  "task": "100-01"
+}

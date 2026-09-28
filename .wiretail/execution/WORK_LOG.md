@@ -1339,3 +1339,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-99-02`
 - Commit at update: `8393fecc2`
 - Summary: Installed measured shape-aware packed Turbo4 dispatch; unit, CUDA parity, and candidate-verified live Qwen replay/page-crossing proofs pass.
+
+## 2026-09-28T06:47:47+00:00 — 100-01 — done
+
+- Branch: `codex/task-100-01`
+- Commit at update: `1beaa47b0`
+- Summary: Implemented canonical cache-aware stage accounting and result checker; focused tests and selected/dense/CPU candidate setup smokes passed with receipt V10_100-01.
