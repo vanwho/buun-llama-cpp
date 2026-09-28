@@ -8340,12 +8340,12 @@ struct test_kv_page_select : public test_case {
         constexpr int64_t n_kv_heads = 2;
         constexpr int64_t n_pages = 7;
         q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, n_q_heads, n_queries);
-        bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 2, n_kv_heads, n_pages);
+        bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 3, n_kv_heads, n_pages);
         metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 4, n_pages);
         membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
         query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
         ggml_tensor * out = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
-                4, 4, 4, int(n_queries - 1), 0);
+                4, 4, 4, int(n_queries - 1), 0, 0);
         ggml_set_name(out, "out");
         return out;
     }

@@ -8654,7 +8654,8 @@ static float ggml_kv_page_select_score(
         const ggml_tensor * q,
         const ggml_tensor * bounds,
         int64_t query_row,
-        int64_t page) {
+        int64_t page,
+        int scorer_mode) {
     float best = -INFINITY;
     const int64_t group = q->ne[1] / bounds->ne[2];
     for (int64_t kv_head = 0; kv_head < bounds->ne[2]; ++kv_head) {
@@ -8672,6 +8673,15 @@ static float ggml_kv_page_select_score(
                 if (query_row < 0) qi /= float(row_end - row_begin);
                 const char * b = (const char *) bounds->data + d * bounds->nb[0] +
                     kv_head * bounds->nb[2] + page * bounds->nb[3];
+                if (scorer_mode == 1) {
+                    const float mean = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b + 2 * bounds->nb[1]));
+                    if (!std::isfinite(qi) || !std::isfinite(mean)) {
+                        valid = false;
+                        break;
+                    }
+                    score += qi * mean;
+                    continue;
+                }
                 const float lo = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b));
                 const float hi = GGML_FP16_TO_FP32(*(const ggml_fp16_t *)(b + bounds->nb[1]));
                 if (!std::isfinite(qi) || !std::isfinite(lo) ||
@@ -8731,6 +8741,7 @@ static void ggml_compute_forward_kv_page_select_f32(
     const int k_cold = ggml_get_op_params_i32(dst, 1);
     const int page_size = ggml_get_op_params_i32(dst, 2);
     const int query_row = ggml_get_op_params_i32(dst, 3);
+    const int scorer_mode = ggml_get_op_params_i32(dst, 5);
     const int64_t n_pages = bounds->ne[3];
     int32_t * output = (int32_t *) dst->data;
     std::fill(output, output + k_resident + k_cold, -1);
@@ -8755,7 +8766,7 @@ static void ggml_compute_forward_kv_page_select_f32(
                     }
                 }
                 if (already_selected) continue;
-                const float score = ggml_kv_page_select_score(q, bounds, query_row, page);
+                const float score = ggml_kv_page_select_score(q, bounds, query_row, page, scorer_mode);
                 if (!std::isfinite(score)) continue;
                 if (best_page < 0 || score > best_score || (score == best_score && page < best_page)) {
                     best_score = score;
@@ -8861,6 +8872,8 @@ void ggml_compute_forward_kv_page_summary(
                 *(ggml_fp16_t *)(out) = *(const ggml_fp16_t *)(src);
                 *(ggml_fp16_t *)(out + dst->nb[1]) =
                     *(const ggml_fp16_t *)(src + catalogue->nb[1]);
+                *(ggml_fp16_t *)(out + 2 * dst->nb[1]) =
+                    *(const ggml_fp16_t *)(src + 2 * catalogue->nb[1]);
             }
         }
 
@@ -8878,6 +8891,7 @@ void ggml_compute_forward_kv_page_summary(
 
         std::vector<float> minimum(size_t(dim * n_heads), INFINITY);
         std::vector<float> maximum(size_t(dim * n_heads), -INFINITY);
+        std::vector<double> sum(size_t(dim * n_heads), 0.0);
         std::vector<uint8_t> invalid(size_t(dim * n_heads), 0);
         for (int64_t row = 0; row < valid_rows; ++row) {
             const char * source = (const char *) k->data + stream * k->nb[2] +
@@ -8893,6 +8907,7 @@ void ggml_compute_forward_kv_page_summary(
                     } else {
                         minimum[index] = std::min(minimum[index], value);
                         maximum[index] = std::max(maximum[index], value);
+                        sum[index] += value;
                     }
                 }
             }
@@ -8907,9 +8922,12 @@ void ggml_compute_forward_kv_page_summary(
                     const ggml_fp16_t poison = ggml_fp32_to_fp16(NAN);
                     *(ggml_fp16_t *)(out) = poison;
                     *(ggml_fp16_t *)(out + dst->nb[1]) = poison;
+                    *(ggml_fp16_t *)(out + 2 * dst->nb[1]) = poison;
                 } else {
                     *(ggml_fp16_t *)(out) = ggml_kv_page_summary_lower(minimum[index]);
                     *(ggml_fp16_t *)(out + dst->nb[1]) = ggml_kv_page_summary_upper(maximum[index]);
+                    *(ggml_fp16_t *)(out + 2 * dst->nb[1]) =
+                        ggml_fp32_to_fp16(float(sum[index] / valid_rows));
                 }
             }
         }

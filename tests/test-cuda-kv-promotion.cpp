@@ -525,12 +525,12 @@ static int run_proof() {
         head_dim, q_heads, 3);
     ggml_tensor * transformed = ggml_turbo_wht(selector_context, ggml_cont(selector_context, q), 2);
     ggml_tensor * bounds = ggml_new_tensor_4d(selector_context, GGML_TYPE_F16,
-        head_dim, 2, kv_heads, pages);
+        head_dim, 3, kv_heads, pages);
     ggml_tensor * metadata = ggml_new_tensor_2d(selector_context, GGML_TYPE_I64, 4, pages);
     ggml_tensor * membership = ggml_new_tensor_1d(selector_context, GGML_TYPE_I32, pages);
     ggml_tensor * query = ggml_new_tensor_1d(selector_context, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(selector_context, transformed, bounds,
-        metadata, membership, query, 2, cold_capacity, page_tokens, final_query_row, 1);
+        metadata, membership, query, 2, cold_capacity, page_tokens, final_query_row, 1, 0);
     const int32_t routed_query_row = selected->op_params[3];
     assert(routed_query_row == int32_t(final_query_row));
     ggml_set_output(selected);

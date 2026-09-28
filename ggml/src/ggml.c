@@ -5917,13 +5917,14 @@ struct ggml_tensor * ggml_kv_page_select(
         int                   k_cold,
         int                   page_size,
         int                   query_row,
-        int                   diagnostic_mode) {
+        int                   diagnostic_mode,
+        int                   scorer_mode) {
     GGML_ASSERT(q != NULL && bounds != NULL && page_metadata != NULL &&
                 resident_membership != NULL && query_metadata != NULL);
     GGML_ASSERT(q->type == GGML_TYPE_F32 && q->ne[0] > 0 && q->ne[1] > 0);
     GGML_ASSERT(q->ne[3] == 1 && q->ne[2] > 0 && query_row >= -1 && query_row < q->ne[2]);
     GGML_ASSERT(bounds->type == GGML_TYPE_F16 && bounds->ne[0] == q->ne[0] &&
-                bounds->ne[1] == 2 && bounds->ne[2] > 0 && bounds->ne[3] > 0);
+                bounds->ne[1] >= 3 && bounds->ne[2] > 0 && bounds->ne[3] > 0);
     GGML_ASSERT(q->ne[1] % bounds->ne[2] == 0);
     GGML_ASSERT(page_metadata->type == GGML_TYPE_I64 && page_metadata->ne[0] >= 4 &&
                 page_metadata->ne[1] == bounds->ne[3]);
@@ -5933,6 +5934,7 @@ struct ggml_tensor * ggml_kv_page_select(
                 query_metadata->ne[1] == 1 && query_metadata->ne[2] == 1 && query_metadata->ne[3] == 1);
     GGML_ASSERT(k_resident >= 0 && k_cold >= 0 && k_resident + k_cold > 0);
     GGML_ASSERT(page_size > 0);
+    GGML_ASSERT(scorer_mode == 0 || scorer_mode == 1);
 
     struct ggml_tensor * result = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, k_resident + k_cold);
     result->op = GGML_OP_KV_PAGE_SELECT;
@@ -5946,6 +5948,7 @@ struct ggml_tensor * ggml_kv_page_select(
     ggml_set_op_params_i32(result, 2, page_size);
     ggml_set_op_params_i32(result, 3, query_row);
     ggml_set_op_params_i32(result, 4, diagnostic_mode != 0);
+    ggml_set_op_params_i32(result, 5, scorer_mode);
     return result;
 }
 
@@ -5987,7 +5990,7 @@ struct ggml_tensor * ggml_kv_page_summary(
     GGML_ASSERT(page_metadata->type == GGML_TYPE_I64 && page_metadata->ne[0] >= 8 &&
                 page_metadata->ne[1] > 0);
     GGML_ASSERT(catalogue->type == GGML_TYPE_F16 && catalogue->ne[0] > 0 &&
-                catalogue->ne[1] == 2 && catalogue->ne[2] > 0 &&
+                catalogue->ne[1] >= 3 && catalogue->ne[2] > 0 &&
                 catalogue->ne[3] == page_metadata->ne[1]);
     GGML_ASSERT(k->ne[0] / catalogue->ne[2] == catalogue->ne[0]);
     GGML_ASSERT(page_size > 0);

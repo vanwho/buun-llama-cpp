@@ -12,7 +12,7 @@
 // the KV page. Query producers apply the transpose of the mature FA
 // reconstruction (including active InnerQ calibration) before scoring, so
 // no inverse rotation is applied while sealing a page.
-constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 4;
+constexpr uint32_t LLAMA_KV_ROUTING_SUMMARY_VERSION = 6;
 
 enum class llama_kv_routing_summary_form : uint8_t {
     representatives = 0,
@@ -21,6 +21,8 @@ enum class llama_kv_routing_summary_form : uint8_t {
     // is the device-side estimator form; it is intentionally not advertised
     // as a mathematical upper bound after quantization.
     minmax_ranges,
+    // Arithmetic mean of every decoded transformed K row in the page.
+    mean_k,
 };
 
 enum class llama_kv_routing_summary_status : uint8_t {
@@ -69,6 +71,8 @@ struct llama_kv_routing_page_input {
     // become a range summary.
     std::vector<float> range_min;
     std::vector<float> range_max;
+    // Optional full-page arithmetic mean carried alongside min/max summaries.
+    std::vector<float> mean_k_values;
 };
 
 // The allocation is context-admission metadata, not a per-query scratch
@@ -95,8 +99,8 @@ struct llama_kv_routing_summary_device_layout {
             uint32_t element_bytes = sizeof(uint16_t)) noexcept;
 };
 
-// Fixed catalogue layout consumed by GGML_OP_KV_PAGE_SELECT. It has one
-// whole-page min/max pair per KV head, rather than resident-only storage.
+// Fixed catalogue layout consumed by GGML_OP_KV_PAGE_SELECT. It has whole-page
+// min/max plus Mean-K per KV head, rather than resident-only storage.
 struct llama_kv_routing_catalogue_layout {
     uint64_t logical_pages = 0;
     uint32_t kv_heads = 0;
@@ -259,6 +263,8 @@ public:
             const llama_kv_page_id & id) const noexcept;
     const std::vector<float> * range_max(
             const llama_kv_page_id & id) const noexcept;
+    const std::vector<float> * mean_k(uint32_t logical_page) const noexcept;
+    const std::vector<float> * mean_k(const llama_kv_page_id & id) const noexcept;
     uint64_t content_version(const llama_kv_page_id & id) const noexcept;
 
     llama_kv_routing_score_result score(

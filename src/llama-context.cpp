@@ -214,9 +214,9 @@ static uint64_t llama_context_catalogue_reserve_bytes(
         uint64_t payload = 0;
         uint64_t metadata = 0;
         uint64_t layer = 0;
-        if (row == 0 || row > UINT64_MAX / 2 ||
-            pages > UINT64_MAX / (row * 2) ||
-            !multiply(pages, row * 2, payload) ||
+        if (row == 0 || row > UINT64_MAX / 3 ||
+            pages > UINT64_MAX / (row * 3) ||
+            !multiply(pages, row * 3, payload) ||
             pages > UINT64_MAX / (sizeof(uint8_t) + sizeof(uint32_t) +
                                    2 * sizeof(llama_pos)) ||
             !multiply(pages, sizeof(uint8_t) + sizeof(uint32_t) +

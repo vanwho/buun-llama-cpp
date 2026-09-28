@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -61,14 +62,15 @@ fixture make_fixture() {
     set_page(2, 2, 129, 0, true);
     set_page(3, 3, 256, 0, false); // copy-through cold page
 
-    f.catalogue.resize(size_t(kDim * 2 * kHeads * kPages));
+    f.catalogue.resize(size_t(kDim * 3 * kHeads * kPages));
     for (int64_t page = 0; page < kPages; ++page) {
         for (int64_t head = 0; head < kHeads; ++head) {
             for (int64_t coord = 0; coord < kDim; ++coord) {
-                const size_t base = size_t(coord + kDim * (2 * (head + kHeads * page)));
+                const size_t base = size_t(coord + kDim * (3 * (head + kHeads * page)));
                 const float seed = 20.0f + float(page * 3 + head) + float(coord) * 0.01f;
                 f.catalogue[base] = ggml_fp32_to_fp16(seed);
                 f.catalogue[base + kDim] = ggml_fp32_to_fp16(seed + 1.0f);
+                f.catalogue[base + 2 * kDim] = ggml_fp32_to_fp16(seed + 0.5f);
             }
         }
     }
@@ -85,6 +87,7 @@ std::vector<ggml_fp16_t> reference_summary(const fixture & f) {
         if (data[6] == 0 || data[7] == 0) continue;
         std::vector<float> minimum(size_t(elements), INFINITY);
         std::vector<float> maximum(size_t(elements), -INFINITY);
+        std::vector<double> sum(size_t(elements), 0.0);
         for (int64_t row = 0; row < data[1]; ++row) {
             const auto * source = reinterpret_cast<const block_turbo4_0 *>(f.k.data() +
                     size_t((data[5] * kRows + data[4] * kPageSize + row) * row_bytes));
@@ -92,14 +95,16 @@ std::vector<ggml_fp16_t> reference_summary(const fixture & f) {
             for (int64_t i = 0; i < elements; ++i) {
                 minimum[size_t(i)] = std::min(minimum[size_t(i)], decoded[size_t(i)]);
                 maximum[size_t(i)] = std::max(maximum[size_t(i)], decoded[size_t(i)]);
+                sum[size_t(i)] += decoded[size_t(i)];
             }
         }
         for (int64_t head = 0; head < kHeads; ++head) {
             for (int64_t coord = 0; coord < kDim; ++coord) {
                 const size_t i = size_t(head * kDim + coord);
-                const size_t base = size_t(coord + kDim * (2 * (head + kHeads * page)));
+                const size_t base = size_t(coord + kDim * (3 * (head + kHeads * page)));
                 result[base] = ggml_fp32_to_fp16(std::nextafter(minimum[i], -INFINITY));
                 result[base + kDim] = ggml_fp32_to_fp16(std::nextafter(maximum[i], INFINITY));
+                result[base + 2 * kDim] = ggml_fp32_to_fp16(float(sum[i] / data[1]));
             }
         }
     }
@@ -112,7 +117,7 @@ std::vector<ggml_fp16_t> run_summary(ggml_backend_t backend, const fixture & f) 
     assert(ctx != nullptr);
     ggml_tensor * k = ggml_new_tensor_3d(ctx, GGML_TYPE_TURBO4_0, kDim * kHeads, kRows, kStreams);
     ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 8, kPages);
-    ggml_tensor * catalogue = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, kDim, 2, kHeads, kPages);
+    ggml_tensor * catalogue = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, kDim, 3, kHeads, kPages);
     ggml_tensor * summary = ggml_kv_page_summary(ctx, k, metadata, catalogue, kPageSize);
     ggml_set_output(summary);
     ggml_cgraph * graph = ggml_new_graph_custom(ctx, 32, false);
@@ -125,7 +130,13 @@ std::vector<ggml_fp16_t> run_summary(ggml_backend_t backend, const fixture & f) 
     ggml_backend_tensor_set(k, f.k.data(), 0, f.k.size());
     ggml_backend_tensor_set(metadata, f.metadata.data(), 0, f.metadata.size() * sizeof(int64_t));
     ggml_backend_tensor_set(catalogue, f.catalogue.data(), 0, f.catalogue.size() * sizeof(ggml_fp16_t));
+    const auto update_begin = std::chrono::steady_clock::now();
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    ggml_backend_synchronize(backend);
+    const double update_us = std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - update_begin).count();
+    std::fprintf(stderr, "summary_update backend=%s time_us=%.3f catalogue_bytes=%zu\n",
+            ggml_backend_name(backend), update_us, f.catalogue.size() * sizeof(ggml_fp16_t));
 
     std::vector<ggml_fp16_t> result(f.catalogue.size());
     ggml_backend_tensor_get(summary, result.data(), 0, result.size() * sizeof(result[0]));
@@ -147,7 +158,7 @@ std::vector<ggml_fp16_t> run_summary(ggml_backend_t backend, const fixture & f) 
     // Dirtying one logical page changes only that page's output slice.
     std::vector<ggml_fp16_t> changed_catalogue = f.catalogue;
     for (int64_t coord = 0; coord < kDim; ++coord) {
-        const size_t base = size_t(coord + kDim * (2 * (0 + kHeads * 1)));
+        const size_t base = size_t(coord + kDim * (3 * (0 + kHeads * 1)));
         changed_catalogue[base] = ggml_fp32_to_fp16(99.0f);
         changed_catalogue[base + kDim] = ggml_fp32_to_fp16(100.0f);
     }
@@ -163,9 +174,10 @@ std::vector<ggml_fp16_t> run_summary(ggml_backend_t backend, const fixture & f) 
         if (page == 1) continue;
         for (int64_t head = 0; head < kHeads; ++head) {
             for (int64_t coord = 0; coord < kDim; ++coord) {
-                const size_t base = size_t(coord + kDim * (2 * (head + kHeads * page)));
+                const size_t base = size_t(coord + kDim * (3 * (head + kHeads * page)));
                 assert(result[base] == f.catalogue[base]);
                 assert(result[base + kDim] == f.catalogue[base + kDim]);
+                assert(result[base + 2 * kDim] == f.catalogue[base + 2 * kDim]);
             }
         }
     }

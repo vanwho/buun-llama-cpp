@@ -1297,3 +1297,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-96-01`
 - Commit at update: `55ecab77a`
 - Summary: brief verified result
+
+## 2026-09-28T04:16:44+00:00 — 96-02 — done
+
+- Branch: `codex/task-96-02`
+- Commit at update: `111068902`
+- Summary: Implemented and selected Mean-K from repeated CUDA recall and boundary-cost comparison; named receipts and deterministic GPU fixtures pass. Live promotion/replay remains assigned to 100-04.
