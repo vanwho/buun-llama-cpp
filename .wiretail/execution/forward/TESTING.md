@@ -98,6 +98,13 @@ CPU TurboQuant kernel for a benchmark, invent a Turbo4 speed, or relabel exact
 host-streaming as ordinary CPU offload. Production selected target/draft remain
 Turbo4. Phase 100-01 must resolve/control this before the campaign.
 
+The 95-03 attempt-38 live run is useful partial evidence for a changed query
+replay, a following unchanged query, and natural promotion. Do not rerun that
+full campaign now. The matched one-pass parity, cancellation and final
+selected-route check moves to 100-04, after the initial short performance
+iteration and before any context scaling. Short-path speed results before
+100-04 are diagnostic; unfinished parity must not block phases96-100-03.
+
 ## Scaling/final findings
 
 Prove 32K/16K useful speed before 128K, then 256K. Allocation and occupied C

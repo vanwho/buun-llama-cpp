@@ -2,9 +2,9 @@
 
 Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
-Tasks in this context area: `100-01`, `100-02`, `100-03`.
+Tasks in this context area: `100-01`, `100-02`, `100-03`, `100-04`.
 
-Purpose: Prepare reliable canonical benchmark and stage accounting; Measure corrected 8K/4K hot-cache speed and bounded recall; Release useful short-path performance or schedule precise repairs.
+Purpose: Prepare the canonical benchmark, measure short-path speed, diagnose repairs, then verify integrated replay correctness before context scaling.
 
 Read the current packet and forward/OVERVIEW + forward/TESTING only, plus
 its explicit source regions and compact immediate-predecessor handoff.

@@ -65,12 +65,12 @@ card, service paths or these counts in portable production logic.
 | --- | --- | --- |
 | 93 | 93-11o done; 93-11n deferred | Selector repair retained; legacy promotion unproven |
 | 94 | 94-01, 94-01a, 94-02 | Retrieval epoch; authoritative admission; frozen history/MTP |
-| 95 | 95-01–03 | Exact final-user span, bounded checkpoint, query-only replay |
+| 95 | 95-01–02; 95-03 deferred | Exact final-user span and bounded checkpoint/replay implementation; final parity/cancel proof moves to 100-04 |
 | 96 | 96-01–02 | Whole-user-span target Q; measured Mean-K/current selection |
 | 97 | 97-01–02 | Protected history, generation ring, sealing/rollback |
 | 98 | 98-01–02 | Inclusive host authority and batched async promotion |
 | 99 | 99-01–02 | Matched GPU kernel comparison; shape-aware production routes |
-| 100 | 100-01–03 | Reliable harness, small paired speed/quality, release decision |
+| 100 | 100-01–04 | Reliable harness, short paired speed/quality, then final replay/promotion/MTP correctness proof |
 | 101 | 101-01–03 | 32K/16K, 128K, then full 256K occupancy and memory proof |
 | 102 | 102-01 | Goal assessment, useful final curve, concrete next remediation |
 
@@ -93,6 +93,14 @@ Benchmarks can complete with valid measured poor performance; those findings
 create source-directed remediation tasks before scaling. A missing measurement
 is not a speed finding. Keep physical promotion, answer quality and MTP
 acceptance as separate fields. No exact filename/YES/NO output-format gates.
+
+The initial query replay and natural promotion work has partial live evidence;
+its complete one-pass parity and cancellation checks are delayed until the
+attention implementation and first speed campaign settle. Short-path speed
+results before 100-04 are diagnostic; do not start context scaling until that
+integrated correctness task passes. This order allows scorer/kernel work and
+useful short-path measurements to proceed without repeatedly rerunning an
+early full integration fixture.
 
 Primary goal remains 256K full logical/host history, bounded H, natural
 promotion, correct replay/freeze/ring, native GPU MTP, selected fresh prefill

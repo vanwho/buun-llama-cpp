@@ -1271,3 +1271,16 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-95-02`
 - Commit at update: `f7b645c02`
 - Summary: Bounded query checkpoint and mapping proof passed
+
+## 2026-09-28T00:37:20+00:00 — 95-03 — done
+
+- Branch: `codex/task-95-03`
+- Commit at update: `0f333736e`
+- Summary: brief verified result
+
+## 2026-09-28 — corrective scheduling: defer bundled 95-03 release proof
+
+- The prior task state was contradictory: 95-03 was `done` with no receipt; its parity and cancellation proofs were absent. Corrected it to `deferred`, preserving the failed/missing proof status and token usage.
+- Attempt-38 live evidence remains useful: one changed query replay, one unchanged query with zero replay, and promotion/H2D activity. It is not the matched one-pass parity or cancellation proof.
+- 96-01 now depends on 95-02 so scorer/kernel development continues. Added 100-04 for a compact final parity/cancellation/natural-promotion check after the fast route and short speed iteration; 101-01 now waits for 100-04.
+- No raw campaign rerun or service restart performed. Existing implementation edits and server state are preserved.

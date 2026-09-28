@@ -4,7 +4,7 @@ Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
 Tasks in this context area: `95-01`, `95-02`, `95-03`.
 
-Purpose: Carry exact rendered final-user token span into the slot; Checkpoint hybrid query state without copying full history; Retrieve, publish and replay only the final user span.
+Purpose: Carry the exact rendered final-user span and bounded checkpoint/replay implementation. The 95-03 live run is partial; final parity/cancellation proof is deliberately delayed to 100-04 after scorer/kernel and short-speed iteration.
 
 Read the current packet and forward/OVERVIEW + forward/TESTING only, plus
 its explicit source regions and compact immediate-predecessor handoff.
