@@ -226,6 +226,17 @@ process), so an unrelated service such as one on another port is not touched.
 The run fails closed before measuring when the active candidate does not match
 the requested binary or configuration.
 
+The pager profile adapter explicitly passes `B=1024` and `U=256` by default;
+use `--batch` and `--ubatch` together to request another matched geometry.
+Measured records retain prompt and cached token counts independently. Fresh
+prefill throughput is computed only when both are known, so cached prompt rows
+cannot increase the fresh-token rate. `stage_accounting` records the supported
+request-local stages; unavailable stages remain `not_exposed` rather than zero.
+Ordinary counter accounting does not add CUDA synchronization. The compact
+checker in `.wiretail/execution/forward/check_canonical_result.py` validates
+result identity, finite measured rows, MTP counts, logical/physical byte
+geometry, frozen-decode PCIe movement, and raw artifact hashes.
+
 Live runs require `BENCH_ENDPOINT`, `CANONICAL_BENCHMARK_RUNNER`,
 `LLAMA_ACTIVE_PROFILE`, and `LLAMA_PROFILE_ACTIVATOR`. Set
 `PAGER_CORPUS` for the frozen corpus, and optionally set

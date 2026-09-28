@@ -534,8 +534,79 @@ def workload_geometry(requested: Mapping[str, Any], observed: Mapping[str, Any])
                            "page_size_tokens": page_tokens, "hot_pages": hot_pages,
                            "hot_tokens": hot_tokens, "batch_tokens": observed.get("batch_tokens", requested.get("batch_tokens")),
                            "ubatch_tokens": observed.get("ubatch_tokens", requested.get("ubatch_tokens"))},
-            "measured": {"request_tokens": measured, "cached_tokens": observed.get("cached_tokens", 0),
+            "measured": {"request_tokens": measured, "cached_tokens": observed.get("cached_tokens"),
             "new_tokens": new_tokens}}
+
+
+CANONICAL_STAGE_NAMES = (
+    "fresh_prefill", "cached_tokens", "provisional_query", "selector", "h2d",
+    "publication", "checkpoint_restore", "query_replay", "compressed_view_prepare",
+    "kernel_prepare", "steady_decode", "generation_seal",
+)
+
+
+def canonical_stage_accounting(*, prompt_tokens: int | None,
+                               cached_tokens: int | None,
+                               elapsed_us: float | None,
+                               measurements: Mapping[str, Any] | None = None,
+                               counters_before: Mapping[str, Any] | None = None,
+                               counters_after: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Describe per-request timing without turning missing instrumentation into zero.
+
+    ``measurements`` may contain stage durations from an explicit profiling run.
+    Ordinary runs can provide monotonic asynchronous counter snapshots. No CUDA
+    event or synchronization is initiated here.
+    """
+    stages = measurements if isinstance(measurements, Mapping) else {}
+    before = counters_before if isinstance(counters_before, Mapping) else {}
+    after = counters_after if isinstance(counters_after, Mapping) else {}
+    fresh_tokens = None
+    if (_integer(prompt_tokens) and prompt_tokens >= 0 and
+            _integer(cached_tokens) and cached_tokens >= 0 and
+            cached_tokens <= prompt_tokens):
+        fresh_tokens = prompt_tokens - cached_tokens
+    result: dict[str, Any] = {
+        "prompt_tokens": prompt_tokens,
+        "cached_tokens": cached_tokens,
+        "fresh_tokens": fresh_tokens,
+        "fresh_prefill_tokens_per_second": None,
+        "timing_source": "request_local_async_counters",
+        "synchronization_added": False,
+        "stages": {},
+    }
+    if fresh_tokens is not None and fresh_tokens > 0 and _finite_nonnegative(elapsed_us) and elapsed_us > 0:
+        result["fresh_prefill_tokens_per_second"] = fresh_tokens * 1_000_000 / elapsed_us
+    for name in CANONICAL_STAGE_NAMES:
+        direct = stages.get(name)
+        duration = direct.get("duration_us") if isinstance(direct, Mapping) else direct
+        source = "profile_measurement" if duration is not None else None
+        if (duration is None and name == "fresh_prefill" and
+                _finite_nonnegative(elapsed_us) and elapsed_us > 0):
+            # The canonical request timing already measures prefill without
+            # synchronizing the device. Keep this request-local source distinct
+            # from optional fine-grained profile/counter instrumentation.
+            duration = elapsed_us
+            source = "request_local_timing"
+        if duration is None:
+            start = before.get(name)
+            end = after.get(name)
+            if _finite_nonnegative(start) and _finite_nonnegative(end) and end >= start:
+                duration = end - start
+                source = "async_counter_delta"
+        if not _finite_nonnegative(duration):
+            duration = None
+            source = None
+        result["stages"][name] = {
+            "duration_us": duration,
+            "source": source,
+            "status": "measured" if duration is not None else "not_exposed",
+        }
+    return result
+
+
+def _finite_nonnegative(value: Any) -> bool:
+    return (not isinstance(value, bool) and isinstance(value, (int, float)) and
+            math.isfinite(value) and value >= 0)
 
 
 def aggregate_paired_trials(records: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:

@@ -29,6 +29,7 @@ from pager_benchmark_contract import (
     mtp_counter_delta,
     parse_mtp_counters,
     resolve_context,
+    canonical_stage_accounting,
     validate_native_mtp_record,
     validate_native_runtime_identity,
     validate_corpus,
@@ -516,6 +517,25 @@ def record_validation_errors(output: pathlib.Path) -> list[str]:
                 if record.get("error") is not True and record.get("phase") == "measured"]
     for record in measured:
         errors.extend(validate_native_mtp_record(record, mtp_requested=mtp_requested))
+        usage = record.get("usage")
+        usage = usage if isinstance(usage, dict) else {}
+        details = usage.get("prompt_tokens_details")
+        details = details if isinstance(details, dict) else {}
+        cached = details.get("cached_tokens")
+        timings = record.get("timings")
+        timings = timings if isinstance(timings, dict) else {}
+        prompt_ms = timings.get("prompt_ms")
+        elapsed_us = prompt_ms * 1000 if isinstance(prompt_ms, (int, float)) and not isinstance(prompt_ms, bool) else None
+        record["stage_accounting"] = canonical_stage_accounting(
+            prompt_tokens=usage.get("prompt_tokens"),
+            cached_tokens=cached,
+            elapsed_us=elapsed_us,
+            measurements=record.get("stage_measurements"),
+            counters_before=record.get("stage_counters_before"),
+            counters_after=record.get("stage_counters_after"),
+        )
+    if measured:
+        records_path.write_text("".join(json.dumps(record, sort_keys=True) + "\n" for record in records))
     if mtp_requested:
         requested_indexes = _requested_prompt_indexes(config)
         measured_indexes = {record.get("prompt_index") for record in measured
@@ -1028,6 +1048,8 @@ def write_dry_run(output: pathlib.Path, target: str, variant: str, endpoint: str
                      "target_kv_placement": "cpu" if os.environ.get("BENCH_NO_KV_OFFLOAD", "0") == "1" else "gpu",
                      "no_kv_offload": os.environ.get("BENCH_NO_KV_OFFLOAD", "0") == "1",
                      "draft_kv": "turbo4"},
+        "batch_tokens": int(os.environ.get("BENCH_BATCH", "1024")),
+        "ubatch_tokens": int(os.environ.get("BENCH_UBATCH", "256")),
         "prompt": {"target_context_tokens": resolved_context,
                     "occupied_prompt_tokens": None,
                     "generation_reserve_tokens": None,
@@ -1171,9 +1193,9 @@ def _main() -> int:
                         help="optional pager safety headroom forwarded to the canonical runner")
     parser.add_argument("--kv-pin-recent", default=None,
                         help="recent-token pin budget forwarded to the canonical runner")
-    parser.add_argument("--batch", type=int, default=None,
+    parser.add_argument("--batch", type=int, default=1024,
                         help="per-run logical decode batch B")
-    parser.add_argument("--ubatch", type=int, default=None,
+    parser.add_argument("--ubatch", type=int, default=256,
                         help="per-run physical microbatch U")
     parser.add_argument("--context", default="derived",
                         help="corpus-derived context, or an explicit token count")
@@ -1249,6 +1271,8 @@ def _main() -> int:
         os.environ["BENCH_CONTEXT"] = str(context["resolved"])
         os.environ["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
         os.environ["BENCH_MTP"] = args.mtp
+        os.environ["BENCH_BATCH"] = str(args.batch)
+        os.environ["BENCH_UBATCH"] = str(args.ubatch)
         os.environ["BENCH_NO_KV_OFFLOAD"] = "1" if args.no_kv_offload else "0"
         os.environ["BENCH_RESUME"] = "1" if args.resume else "0"
         os.environ["BENCH_CASE_IDS"] = ",".join(args.case_id)
@@ -1322,6 +1346,8 @@ def _main() -> int:
     env["BENCH_CONTEXT"] = str(context["resolved"])
     env["BENCH_CONTEXT_REQUESTED"] = str(context["requested"])
     env["BENCH_MTP"] = args.mtp
+    env["BENCH_BATCH"] = str(args.batch)
+    env["BENCH_UBATCH"] = str(args.ubatch)
     env["BENCH_NO_KV_OFFLOAD"] = "1" if args.no_kv_offload else "0"
     env["BENCH_RESUME"] = "1" if args.resume else "0"
     env["BENCH_CASE_IDS"] = ",".join(args.case_id)
@@ -1344,9 +1370,6 @@ def _main() -> int:
     env["BENCH_PREFILL_TIMEOUT"] = str(args.prefill_timeout)
     env["BENCH_DECODE_TIMEOUT"] = str(args.decode_timeout)
     env["BENCH_TOTAL_TIMEOUT"] = str(args.total_timeout)
-    if args.batch is not None:
-        env["BENCH_BATCH"] = str(args.batch)
-        env["BENCH_UBATCH"] = str(args.ubatch)
     # Successful runs remain loaded by default. Explicit control/revert runs
     # opt into restoration; failed runs are restored by the canonical runner.
     env["BENCH_RESTORE_PROFILE"] = "1" if args.restore_control else "0"
