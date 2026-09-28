@@ -27647,7 +27647,7 @@
       "id": "100-03",
       "phase": "100",
       "cluster": "forward100-performance",
-      "title": "Release useful short-path performance or schedule precise repairs",
+      "title": "Assess short-path performance and schedule precise repairs",
       "packet": ".wiretail/execution/tasks/100-03.md",
       "status": "todo",
       "blocker": null,

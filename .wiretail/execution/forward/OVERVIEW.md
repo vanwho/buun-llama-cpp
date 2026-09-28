@@ -7,11 +7,13 @@ read Sol handoff retained in `SOURCE_FORWARD_PLAN.md`; that long reference is
 not automatically loaded into task sessions. By the user's 2026-09-27 direction,
 the remaining legacy 93-11n campaign is deferred, not passed. 93-11o's completed
 selector repair and the existing uncommitted source work are preserved. Start
-94-01 next; 94-01a repairs authenticated selection-to-admission under the new
+from the first unfinished task named by `WORK_STATE.json`; at this revision
+that is 96-01. Phases 94 and 95-01/02 are complete, while 95-03 is intentionally
+deferred. 94-01a repaired authenticated selection-to-admission under the new
 turn-boundary contract. Do not repeat the legacy A/B/A or require its failed
-receipt to pass before implementing this architecture. The unstarted
-93-12/93-13 packets remain removed. Actual promotion is still required under
-the corrected query/replay semantics in 95-03 and later integration proofs.
+receipt before implementing the current architecture. The unstarted 93-12/93-13
+packets remain removed. Final replay parity, cancellation and natural-promotion
+integration proof is owned by 100-04, before any phase-101 capacity scaling.
 Supersede accepted-token historical reselection and fixed route preferences.
 
 Read `POLICY_ADMISSION_BASELINE.md` for the compact attempt-13 finding. The

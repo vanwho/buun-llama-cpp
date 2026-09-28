@@ -1284,3 +1284,10 @@ receives `PROJECT_ROOT` from the shared runner.
 - Attempt-38 live evidence remains useful: one changed query replay, one unchanged query with zero replay, and promotion/H2D activity. It is not the matched one-pass parity or cancellation proof.
 - 96-01 now depends on 95-02 so scorer/kernel development continues. Added 100-04 for a compact final parity/cancellation/natural-promotion check after the fast route and short speed iteration; 101-01 now waits for 100-04.
 - No raw campaign rerun or service restart performed. Existing implementation edits and server state are preserved.
+
+## 2026-09-28T02:10:28+00:00 — plan robustness review for remaining tasks
+
+- Confirmed the state validator reports 437 tasks and `current_task=96-01`; the 16 remaining tasks form a valid dependency chain through final goal review.
+- Reconciled 96-01's packet dependency with state (`95-02`); 95-03 remains deferred and does not gate scorer implementation. Updated the forward overview/testing contract to start from the state pointer and reserve final replay/cancel/promotion proof for 100-04.
+- Clarified that deterministic-only implementation tasks must not reload Qwen; added a build/test recovery ladder for CUDA configuration, wrong identity, backend/fixture mismatch, source failures, and capacity failures. Tightened the 100-03 repair-task insertion recipe and synchronized its state title.
+- No source implementation files, services, or benchmark evidence changed. Existing source diffs remain preserved for the runner's checkpoint carry-forward.

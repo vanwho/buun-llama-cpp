@@ -32,8 +32,10 @@ Retain a successful candidate loaded for the next task.
   GPU MTP, draft-n-max=2, temperature=0, reasoning/thinking off. These are test
   settings, not production constants. The legacy 93-11n campaign is deferred;
   its B128/U64 results are diagnostics, not the new comparable speed baseline.
-  Do not rerun it as a prerequisite. Use 94-01a's focused admission tests before
-  95-03's short changed/unchanged query integration proof.
+  Do not rerun it as a prerequisite. Phases 94 and 95-01/02 are complete;
+  95-03's partial changed/unchanged query proof is historical evidence, not a
+  gate on 96-01 through 100-03. Final integrated replay/cancellation/promotion
+  is owned by 100-04 after the short performance iteration and before scaling.
 - Keep fresh input speed probes <=16K tokens. For local tests and scaling,
   physical target hot capacity H <=49,152; L may grow to 128K/256K independently.
   Product code derives H/G from model/backend/memory and remains tunable.
@@ -46,12 +48,57 @@ Retain a successful candidate loaded for the next task.
 ## Fast iteration
 
 Each code edit gets only its named deterministic regression and affected
-CUDA fixture. Phase-ending integration proof is 1–2 short requests or one
-A/B/A campaign where needed. Do not repeat all prior gates, 24/48-case matrices,
-ten-trial campaigns, 256K fills or the final context curve per implementation.
-Builds that make progress are allowed to finish; avoid a universal 240s bound.
-Long occupancy work is resumable with candidate-identity-bound checkpoints and
-per-request journals, never an in-memory loop whose partial work is discarded.
+CUDA fixture. Do not launch, reload, or benchmark the managed Qwen service
+unless the task's named proof explicitly requires a live request. A task whose
+proof is only a unit/CUDA fixture completes from that executable proof; the
+generic service-identity boilerplate is a safety rule for any live run, not an
+instruction to create one. When a live proof is required, use at most the
+smallest named request/campaign for that task. Do not repeat all prior gates,
+24/48-case matrices, ten-trial campaigns, 256K fills or the final context curve
+per implementation. Builds that make progress are allowed to finish; avoid a
+universal 240s bound. Long occupancy work is resumable with
+candidate-identity-bound checkpoints and per-request journals, never an
+in-memory loop whose partial work is discarded.
+
+### Build/test recovery ladder
+
+When a build or test fails, preserve its complete command, exit status and raw
+output, then classify it before retrying. Do not repeat the same command with
+no changed cause.
+
+1. **Configuration or target discovery:** inspect the existing build cache,
+   generator, CUDA architecture selection, and `ctest -N`/build target list.
+   Repair the local build configuration or target invocation; do not add a
+   server-specific architecture to production CMake or expand to a full build.
+2. **Wrong executable or live identity:** compare candidate binary, loaded
+   DSO, model, process start time, command line and cache/MTP flags. Correct
+   the launch/managed lifecycle and repeat only the affected short check.
+3. **Fixture/backend mismatch:** use the backend that supports the behavior
+   being tested. In particular, a CPU fixture declining TurboQuant execution
+   does not fail CUDA Turbo4 behavior or CPU host-storage correctness. Keep a
+   CPU math oracle separate from TurboQuant inference and run the named CUDA
+   fixture for Turbo4 kernels.
+4. **Source assertion or parity failure:** identify the first failing state or
+   numerical boundary, add/fix the smallest regression at that owner, build
+   only affected targets, and rerun that fixture. A passing receipt/schema
+   validator never substitutes for the executable assertion.
+5. **Resource/capacity failure:** preserve the actual frontier and allocation
+   ledger. For a short implementation fixture, reduce only its scratch/page
+   fixture geometry if the production invariant remains covered; for live
+   Qwen, keep L, Turbo4 and MTP fixed and reduce admitted H/workspace according
+   to the memory ledger. Relabel changed geometry and retry only the failed
+   proof. Never convert allocation or partial occupancy into a pass.
+
+After a materially new diagnostic/repair path, either produce the named proof
+or leave the task resumable with the precise unresolved source boundary and
+the next command/action. Do not mark a required proof `done`, `deferred`, or
+`blocked` merely because the first build, fixture configuration, server
+identity, or request failed. If the underlying behavior is a real defect,
+repair it in scope or insert one source-directed dependency task and minimal
+retest before consumers that require it; do not stop unrelated implementation
+tasks that do not depend on that behavior. Keep the current task pointer equal
+to the first unfinished task and run both state and V10 receipt validation
+after any task/dependency insertion.
 
 Use polling of forward progress for long ingest, but a slow progressing loop
 is a diagnostic failure worth stopping after one representative chunk. Compare
@@ -88,6 +135,20 @@ Minimum selected fresh-prefill goal is 500 tok/s for each canonical prompt;
 finding. Phase 100-03 must schedule a concrete source repair and minimal retest
 before capacity work. There is no universal number-of-attempts optimization
 law, no shortening facts to fit a 16-token cap, and no repeated audit task.
+
+If 100-03 inserts repair tasks, use task IDs `100-03a`, `100-03b`, etc. in
+the state-list order immediately after `100-03`; set each dependency to the
+previous repair task; preserve every existing task's usage ledger and proof
+metadata; make `100-04` depend on the last repair/retest; and leave
+`101-01 -> 100-04` unchanged. Add each packet, cluster membership and V10
+proof requirement before completing 100-03. Keep `current_task` at the first
+unfinished item (the runner/task-state completion transition advances it).
+Run `PROJECT_ROOT="$PWD" python3 /srv/wiretail/task_state.py validate` and
+`python3 .wiretail/execution/v10/validate.py --task 100-03 --receipt
+.wiretail/execution/evidence/V10_100-03.json`; fix metadata/receipt structure
+errors in 100-03 rather than leaving the next run to discover them. These
+repair packets must contain one measured cause, one owner/symbol, one focused
+regression and one minimal retest—not another full benchmark loop.
 
 Ordinary CPU-main-KV and dense-GPU controls must report actual codec/route.
 Keep Turbo4 wherever the implemented control supports it; if ordinary CPU
