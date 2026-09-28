@@ -1454,10 +1454,11 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
 
     "GLU",
     "KV_PAGE_SELECT",
+    "KV_QUERY_ACCUMULATE",
     "KV_PAGE_SUMMARY",
 };
 
-static_assert(GGML_OP_COUNT == 108, "GGML_OP_COUNT != 108");
+static_assert(GGML_OP_COUNT == 109, "GGML_OP_COUNT != 109");
 
 static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
     "none",
@@ -1576,10 +1577,11 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
 
     "glu(x)",
     "kv_page_select(q, bounds, metadata, resident, query)",
+    "kv_query_accumulate(q, positions, sum, count, control)",
     "kv_page_summary(k, metadata, catalogue)",
 };
 
-static_assert(GGML_OP_COUNT == 108, "GGML_OP_COUNT != 108");
+static_assert(GGML_OP_COUNT == 109, "GGML_OP_COUNT != 109");
 
 static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
 
@@ -5919,7 +5921,7 @@ struct ggml_tensor * ggml_kv_page_select(
     GGML_ASSERT(q != NULL && bounds != NULL && page_metadata != NULL &&
                 resident_membership != NULL && query_metadata != NULL);
     GGML_ASSERT(q->type == GGML_TYPE_F32 && q->ne[0] > 0 && q->ne[1] > 0);
-    GGML_ASSERT(q->ne[3] == 1 && q->ne[2] > 0 && query_row >= 0 && query_row < q->ne[2]);
+    GGML_ASSERT(q->ne[3] == 1 && q->ne[2] > 0 && query_row >= -1 && query_row < q->ne[2]);
     GGML_ASSERT(bounds->type == GGML_TYPE_F16 && bounds->ne[0] == q->ne[0] &&
                 bounds->ne[1] == 2 && bounds->ne[2] > 0 && bounds->ne[3] > 0);
     GGML_ASSERT(q->ne[1] % bounds->ne[2] == 0);
@@ -5944,6 +5946,30 @@ struct ggml_tensor * ggml_kv_page_select(
     ggml_set_op_params_i32(result, 2, page_size);
     ggml_set_op_params_i32(result, 3, query_row);
     ggml_set_op_params_i32(result, 4, diagnostic_mode != 0);
+    return result;
+}
+
+struct ggml_tensor * ggml_kv_query_accumulate(
+        struct ggml_context * ctx,
+        struct ggml_tensor  * q,
+        struct ggml_tensor  * positions,
+        struct ggml_tensor  * sum,
+        struct ggml_tensor  * count,
+        struct ggml_tensor  * control) {
+    GGML_ASSERT(q != NULL && positions != NULL && sum != NULL && count != NULL && control != NULL);
+    GGML_ASSERT(q->type == GGML_TYPE_F32 && q->ne[0] > 0 && q->ne[1] > 0 && q->ne[2] > 0 && q->ne[3] == 1);
+    GGML_ASSERT(positions->type == GGML_TYPE_I64 && positions->ne[0] == q->ne[2]);
+    GGML_ASSERT(sum->type == GGML_TYPE_F32 && sum->ne[0] == q->ne[0] && sum->ne[1] == q->ne[1]);
+    GGML_ASSERT(count->type == GGML_TYPE_I64 && ggml_nelements(count) == 2);
+    GGML_ASSERT(control->type == GGML_TYPE_I64 && ggml_nelements(control) == 3);
+
+    struct ggml_tensor * result = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, q->ne[0], q->ne[1]);
+    result->op = GGML_OP_KV_QUERY_ACCUMULATE;
+    result->src[0] = q;
+    result->src[1] = positions;
+    result->src[2] = sum;
+    result->src[3] = count;
+    result->src[4] = control;
     return result;
 }
 

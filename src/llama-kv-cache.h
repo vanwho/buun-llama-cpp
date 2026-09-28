@@ -1672,6 +1672,17 @@ private:
     // Graph inputs own the stable logical catalogue.  This cache is only the
     // host-side dirty map; the tensors remain owned by the graph allocator.
     mutable std::vector<pager_selector_input_state> pager_selector_inputs_;
+    struct pager_query_accumulator_state {
+        llama_seq_id sequence_id = -1;
+        uint32_t layer = UINT32_MAX;
+        int64_t dim = 0;
+        int64_t heads = 0;
+        ggml_context * ctx = nullptr;
+        ggml_backend_buffer_t buffer = nullptr;
+        ggml_tensor * sum = nullptr;
+        ggml_tensor * count = nullptr;
+    };
+    mutable std::vector<pager_query_accumulator_state> pager_query_accumulators_;
     struct pager_summary_cache_item {
         uint32_t layer = UINT32_MAX;
         uint32_t head = UINT32_MAX;
@@ -2025,6 +2036,8 @@ public:
             ggml_tensor * bounds, ggml_tensor * metadata,
             ggml_tensor * membership, ggml_tensor * query, int layer,
             const llama_ubatch & ubatch) const override;
+    bool set_kv_query_accumulate_inputs(
+            ggml_tensor * accumulator, const llama_ubatch & ubatch) const override;
     bool can_reuse_kv_page_select(
             const ggml_tensor * bounds, int layer,
             const llama_ubatch & ubatch) const override;

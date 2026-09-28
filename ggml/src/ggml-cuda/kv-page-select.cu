@@ -13,6 +13,63 @@ using namespace cub;
 
 namespace {
 
+__global__ void query_accumulate_reset(float * sum, size_t n, int64_t * count,
+        const int64_t * control) {
+    const int64_t turn_id = control[0];
+    if (count[1] != turn_id) {
+        for (size_t i = threadIdx.x; i < n; i += blockDim.x) sum[i] = 0.0f;
+        __syncthreads();
+        if (threadIdx.x == 0) {
+        count[0] = 0;
+        count[1] = turn_id;
+        }
+    }
+}
+
+__global__ void query_accumulate_rows(const float * q, size_t q_nb0, size_t q_nb1,
+        size_t q_nb2, const int64_t * positions, size_t pos_nb0, float * sum,
+        size_t sum_nb0, size_t sum_nb1, int64_t * count,
+        const int64_t * control, int d, int heads, int rows) {
+    const int64_t query_start = control[1];
+    const int64_t query_end = control[2];
+    const int64_t linear = int64_t(blockIdx.x) * blockDim.x + threadIdx.x;
+    const int64_t total = int64_t(d) * heads;
+    if (linear < total) {
+        const int head = linear / d;
+        const int coord = linear % d;
+        float value = 0.0f;
+        for (int row = 0; row < rows; ++row) {
+            const int64_t pos = *(const int64_t *)((const char *) positions + row * pos_nb0);
+            if (pos < query_start || pos >= query_end) continue;
+            const char * q_row = (const char *) q + head * q_nb1 + row * q_nb2;
+            value += *(const float *)(q_row + coord * q_nb0);
+        }
+        char * sum_row = (char *) sum + head * sum_nb1;
+        *(float *)(sum_row + coord * sum_nb0) += value;
+    }
+    if (linear == 0) {
+        int64_t added = 0;
+        for (int row = 0; row < rows; ++row) {
+            const int64_t pos = *(const int64_t *)((const char *) positions + row * pos_nb0);
+            added += pos >= query_start && pos < query_end;
+        }
+        count[0] += added;
+    }
+}
+
+__global__ void query_accumulate_mean(const float * sum, size_t sum_nb0, size_t sum_nb1,
+        const int64_t * count, float * out, size_t out_nb0, size_t out_nb1,
+        int d, int heads) {
+    const int64_t i = int64_t(blockIdx.x) * blockDim.x + threadIdx.x;
+    if (i >= int64_t(d) * heads) return;
+    const int head = i / d;
+    const int coord = i % d;
+    const char * s = (const char *) sum + head * sum_nb1 + coord * sum_nb0;
+    char * o = (char *) out + head * out_nb1 + coord * out_nb0;
+    const int64_t n = count[0];
+    *(float *)o = n > 0 ? *(const float *)s / float(n) : 0.0f;
+}
+
 __device__ bool page_select_eligible(
         const int64_t * metadata, size_t metadata_nb0, size_t metadata_nb1,
         const int32_t * membership, size_t membership_nb0,
@@ -45,7 +102,7 @@ __global__ void page_select_scores(
         const int32_t * membership, size_t membership_nb0,
         const int64_t * query, size_t query_nb0, int metadata_fields, int page_size,
         float * scores, int n_pages, int d, int n_q_heads, int n_kv_heads,
-        int query_row) {
+        int n_q_rows, int query_row) {
     const int page = blockIdx.x;
     if (page >= n_pages) return;
 
@@ -70,9 +127,15 @@ __global__ void page_select_scores(
             int invalid = 0;
             int positive_inf = 0;
             int negative_inf = 0;
-            const char * q_row = (const char *) q + q_head * q_nb1 + query_row * q_nb2;
             for (int coord = threadIdx.x; coord < d; coord += blockDim.x) {
-                const float qi = *(const float *)(q_row + coord * q_nb0);
+                float qi = 0.0f;
+                const int row_begin = query_row < 0 ? 0 : query_row;
+                const int row_end = query_row < 0 ? n_q_rows : query_row + 1;
+                for (int row = row_begin; row < row_end; ++row) {
+                    const char * q_row = (const char *) q + q_head * q_nb1 + row * q_nb2;
+                    qi += *(const float *)(q_row + coord * q_nb0);
+                }
+                if (query_row < 0) qi /= float(row_end - row_begin);
                 const char * b = (const char *) bounds + coord * bounds_nb0 +
                     kv_head * bounds_nb2 + page * bounds_nb3;
                 const float lo = __half2float(*(const half *) b);
@@ -276,7 +339,7 @@ void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * 
         (const int32_t *) membership->data, membership->nb[0],
         (const int64_t *) query->data, query->nb[0], metadata_fields, page_size,
         scores.get(), n_pages,
-        q->ne[0], q->ne[1], bounds->ne[2], query_row);
+        q->ne[0], q->ne[1], bounds->ne[2], q->ne[2], query_row);
     CUDA_CHECK(cudaGetLastError());
 
 #ifdef GGML_CUDA_USE_CUB
@@ -351,4 +414,30 @@ void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * 
             k_resident, k_cold, page_size, metadata_fields);
         CUDA_CHECK(cudaGetLastError());
     }
+}
+
+void ggml_cuda_op_kv_query_accumulate(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+    const ggml_tensor * q = dst->src[0];
+    const ggml_tensor * positions = dst->src[1];
+    ggml_tensor * sum = dst->src[2];
+    ggml_tensor * count = dst->src[3];
+    const ggml_tensor * control = dst->src[4];
+    cudaStream_t stream = ctx.stream();
+    const int64_t n = q->ne[0] * q->ne[1];
+    const int threads = 256;
+    const int blocks = int((n + threads - 1) / threads);
+    query_accumulate_reset<<<1, threads, 0, stream>>>(
+            (float *) sum->data, size_t(ggml_nelements(sum)),
+            (int64_t *) count->data, (const int64_t *) control->data);
+    CUDA_CHECK(cudaGetLastError());
+    query_accumulate_rows<<<blocks, threads, 0, stream>>>(
+            (const float *) q->data, q->nb[0], q->nb[1], q->nb[2],
+            (const int64_t *) positions->data, positions->nb[0],
+            (float *) sum->data, sum->nb[0], sum->nb[1], (int64_t *) count->data,
+            (const int64_t *) control->data, q->ne[0], q->ne[1], q->ne[2]);
+    CUDA_CHECK(cudaGetLastError());
+    query_accumulate_mean<<<blocks, threads, 0, stream>>>(
+            (const float *) sum->data, sum->nb[0], sum->nb[1], (const int64_t *) count->data,
+            (float *) dst->data, dst->nb[0], dst->nb[1], q->ne[0], q->ne[1]);
+    CUDA_CHECK(cudaGetLastError());
 }

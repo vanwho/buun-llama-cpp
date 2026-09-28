@@ -17,6 +17,7 @@
 #include "llama-vram-demand.h"
 #include "llama-vram-ledger.h"
 #include "ggml-turbo-meansub.h"
+#include "ggml-alloc.h"
 
 #include <algorithm>
 #include <cassert>
@@ -2248,6 +2249,10 @@ llama_kv_cache::llama_kv_cache(
 }
 
 llama_kv_cache::~llama_kv_cache() {
+    for (auto & state : pager_query_accumulators_) {
+        if (state.buffer != nullptr) ggml_backend_buffer_free(state.buffer);
+        if (state.ctx != nullptr) ggml_free(state.ctx);
+    }
     vbr_release_resources();
 }
 
@@ -2640,8 +2645,11 @@ void llama_kv_cache::capture_kv_routing_query(
     value.table_epoch = snapshot.epoch();
     const llama_pos position = ubatch.pos[size_t(ubatch.n_tokens - 1) * ubatch.n_pos];
     if (position < 0) return;
-    value.query_position = position < std::numeric_limits<llama_pos>::max()
-        ? uint64_t(position) + 1 : uint64_t(position);
+    value.query_position = turn.phase == llama_kv_pager_turn_phase::query_provisional &&
+            turn.query_end > 0
+        ? uint64_t(turn.query_end)
+        : (position < std::numeric_limits<llama_pos>::max()
+            ? uint64_t(position) + 1 : uint64_t(position));
     int32_t selected_query_row = -1;
     if (tensor->op == GGML_OP_KV_PAGE_SELECT) {
         std::memcpy(&selected_query_row, tensor->op_params + 3 * sizeof(int32_t),
@@ -17575,6 +17583,94 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
         return reject(llama_kv_pager_selector_gate::no_attention_capacity);
     }
 
+    const auto turn = pager.turn_state(ubatch.seq_id[0][0]);
+    if (turn.phase != llama_kv_pager_turn_phase::query_provisional ||
+            turn.query_start < 0 || turn.query_end <= turn.query_start) {
+        return reject(llama_kv_pager_selector_gate::invalid_query_or_ubatch);
+    }
+    bool has_final_user_row = false;
+    bool has_user_rows = false;
+    for (size_t row = 0; row < ubatch.n_tokens; ++row) {
+        const llama_pos position = ubatch.pos[row * ubatch.n_pos];
+        if (position >= turn.query_start && position < turn.query_end) {
+            has_user_rows = true;
+            has_final_user_row = has_final_user_row || position == turn.query_end - 1;
+        }
+    }
+    if (!has_user_rows) {
+        return reject(llama_kv_pager_selector_gate::invalid_query_or_ubatch);
+    }
+    // Turbo4 stores dequantized K in its forward coefficient domain. Mature
+    // FA reconstructs it as D * (S1 * H * S2) * coeff, so the router uses the
+    // transpose on Q: (S2 * H * S1) * D * Q. Direction 2 applies the active
+    // InnerQ inverse scale D on CUDA; the CPU reference retains identity D.
+    // This node is router-only: target attention retains its original Q and
+    // performs its own fused transform.
+    if (q->ne[0] % 128 != 0) {
+        return reject(llama_kv_pager_selector_gate::unsupported_query_head_width);
+    }
+    const auto layer_index = size_t(layer_it - snapshot.geometry.model_layer_ids.begin());
+    if (layer_index >= kv->layers.size() || kv->layers[layer_index].k == nullptr) {
+        return reject(llama_kv_pager_selector_gate::kv_layer_storage_absent);
+    }
+    const llama_seq_id sequence_id = ubatch.seq_id[0][0];
+    auto state_it = std::find_if(kv->pager_query_accumulators_.begin(),
+            kv->pager_query_accumulators_.end(), [&](const auto & state) {
+        return state.sequence_id == sequence_id && state.layer == uint32_t(layer) &&
+            state.dim == q->ne[0] && state.heads == q->ne[1];
+    });
+    if (state_it == kv->pager_query_accumulators_.end()) {
+        llama_kv_cache::pager_query_accumulator_state state;
+        state.sequence_id = sequence_id;
+        state.layer = uint32_t(layer);
+        state.dim = q->ne[0];
+        state.heads = q->ne[1];
+        ggml_init_params ip = { 4 * ggml_tensor_overhead(), nullptr, true };
+        state.ctx = ggml_init(ip);
+        if (state.ctx == nullptr) return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+        state.sum = ggml_new_tensor_2d(state.ctx, GGML_TYPE_F32, q->ne[0], q->ne[1]);
+        state.count = ggml_new_tensor_1d(state.ctx, GGML_TYPE_I64, 2);
+        if (state.sum == nullptr || state.count == nullptr || kv->layers[layer_index].k->buffer == nullptr) {
+            ggml_free(state.ctx);
+            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+        }
+        state.buffer = ggml_backend_alloc_ctx_tensors_from_buft(state.ctx,
+                ggml_backend_buffer_get_type(kv->layers[layer_index].k->buffer));
+        if (state.buffer == nullptr) {
+            ggml_free(state.ctx);
+            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+        }
+        const int64_t init_count[2] = { 0, INT64_MIN };
+        ggml_backend_tensor_set(state.count, init_count, 0, sizeof(init_count));
+        try {
+            kv->pager_query_accumulators_.push_back(state);
+        } catch (...) {
+            ggml_backend_buffer_free(state.buffer);
+            ggml_free(state.ctx);
+            return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+        }
+        state_it = kv->pager_query_accumulators_.end() - 1;
+    }
+    ggml_tensor * positions = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, ubatch.n_tokens);
+    ggml_tensor * control = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 3);
+    if (positions == nullptr || control == nullptr) {
+        return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+    }
+    ggml_set_input(positions);
+    ggml_set_input(control);
+    ggml_set_name(positions, "kv_routing_query_positions");
+    ggml_set_name(control, "kv_routing_query_span");
+    ggml_tensor * routing_q = ggml_turbo_wht(ctx, ggml_cont(ctx, q), 2);
+    ggml_tensor * accumulated_q = routing_q != nullptr
+        ? ggml_kv_query_accumulate(ctx, routing_q, positions,
+                state_it->sum, state_it->count, control) : nullptr;
+    if (accumulated_q == nullptr) {
+        return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
+    }
+    note_kv_page_select_gate(llama_kv_pager_selector_gate::routing_query_created,
+            q, layer, ubatch, query_row);
+    if (!has_final_user_row) return accumulated_q;
+
     ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16,
             q->ne[0], 2, snapshot.geometry.kv_heads, page_count);
     ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 9, page_count);
@@ -17591,25 +17687,6 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     ggml_set_name(metadata, "kv_routing_page_metadata");
     ggml_set_name(membership, "kv_routing_resident_membership");
     ggml_set_name(query, "kv_routing_query_metadata");
-    // Turbo4 stores dequantized K in its forward coefficient domain. Mature
-    // FA reconstructs it as D * (S1 * H * S2) * coeff, so the router uses the
-    // transpose on Q: (S2 * H * S1) * D * Q. Direction 2 applies the active
-    // InnerQ inverse scale D on CUDA; the CPU reference retains identity D.
-    // This node is router-only: target attention retains its original Q and
-    // performs its own fused transform.
-    if (q->ne[0] % 128 != 0) {
-        return reject(llama_kv_pager_selector_gate::unsupported_query_head_width);
-    }
-    ggml_tensor * routing_q = ggml_turbo_wht(ctx, ggml_cont(ctx, q), 2);
-    if (routing_q == nullptr) {
-        return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
-    }
-    note_kv_page_select_gate(llama_kv_pager_selector_gate::routing_query_created,
-            q, layer, ubatch, query_row);
-    const auto layer_index = size_t(layer_it - snapshot.geometry.model_layer_ids.begin());
-    if (layer_index >= kv->layers.size() || kv->layers[layer_index].k == nullptr) {
-        return reject(llama_kv_pager_selector_gate::kv_layer_storage_absent);
-    }
     // The catalogue is the persistent mutable input.  The summary node owns
     // the device-side refreshed view and copies cold/unchanged pages through
     // from that catalogue, so eviction never destroys a previously sealed
@@ -17619,8 +17696,8 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     if (summary == nullptr) {
         return reject(llama_kv_pager_selector_gate::tensor_allocation_failed);
     }
-    ggml_tensor * selected = ggml_kv_page_select(ctx, routing_q, summary, metadata, membership, query,
-            k_resident, k_cold, snapshot.geometry.page_tokens, int(query_row),
+    ggml_tensor * selected = ggml_kv_page_select(ctx, accumulated_q, summary, metadata, membership, query,
+            k_resident, k_cold, snapshot.geometry.page_tokens, -1,
             pager.selector_trace().enabled ? 1 : 0);
     note_kv_page_select_gate(selected != nullptr
             ? llama_kv_pager_selector_gate::selector_nodes_created
@@ -17692,12 +17769,14 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     const size_t query_row = size_t(ubatch.n_tokens - 1);
     const llama_pos position = ubatch.pos[query_row * ubatch.n_pos];
     if (position < 0) return false;
-    const int64_t query_position = position < std::numeric_limits<llama_pos>::max()
-        ? int64_t(position) + 1 : int64_t(position);
     const auto turn = pager.turn_state(ubatch.seq_id[0][0]);
     const bool query_provisional =
         turn.phase == llama_kv_pager_turn_phase::query_provisional &&
         turn.query_start >= 0;
+    const int64_t query_position = query_provisional && turn.query_end > 0
+        ? turn.query_end
+        : (position < std::numeric_limits<llama_pos>::max()
+            ? int64_t(position) + 1 : int64_t(position));
     if (capacity == 0 || uint64_t(bounds->ne[3]) != capacity ||
             uint64_t(metadata->ne[1]) != capacity ||
             uint64_t(membership->ne[0]) != capacity) return false;
@@ -17862,6 +17941,33 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     // refreshing these sidebands. Do not bless every descriptor for this
     // layer: older graphs can leave descriptors with the same layer but a
     // dead tensor pointer, which the post-fence policy would dereference.
+    return true;
+}
+
+bool llama_kv_cache_context::set_kv_query_accumulate_inputs(
+        ggml_tensor * accumulator, const llama_ubatch & ubatch) const {
+    if (kv == nullptr || kv->get_kv_pager() == nullptr || accumulator == nullptr ||
+            accumulator->op != GGML_OP_KV_QUERY_ACCUMULATE ||
+            accumulator->src[1] == nullptr || accumulator->src[4] == nullptr ||
+            ubatch.n_tokens == 0 || ubatch.pos == nullptr || ubatch.n_pos == 0 ||
+            ubatch.n_tokens != accumulator->src[1]->ne[0] ||
+            size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos ||
+            ubatch.n_seqs_unq != 1 || ubatch.seq_id == nullptr ||
+            ubatch.n_seq_id == nullptr || ubatch.n_seq_id[0] != 1 ||
+            ubatch.seq_id[0] == nullptr || ubatch.seq_id[0][0] < 0) return false;
+    std::vector<int64_t> positions(ubatch.n_tokens);
+    for (size_t row = 0; row < ubatch.n_tokens; ++row) {
+        positions[row] = ubatch.pos[row * ubatch.n_pos];
+    }
+    const auto turn = kv->get_kv_pager()->turn_state(ubatch.seq_id[0][0]);
+    if (turn.phase != llama_kv_pager_turn_phase::query_provisional ||
+            turn.query_start < 0 || turn.query_end <= turn.query_start) return false;
+    int64_t controls[3] = { 0, turn.query_start, turn.query_end };
+    static_assert(sizeof(controls[0]) == sizeof(turn.turn_id), "turn id width mismatch");
+    std::memcpy(&controls[0], &turn.turn_id, sizeof(turn.turn_id));
+    ggml_backend_tensor_set(accumulator->src[1], positions.data(), 0,
+            positions.size() * sizeof(positions[0]));
+    ggml_backend_tensor_set(accumulator->src[4], controls, 0, sizeof(controls));
     return true;
 }
 

@@ -251,6 +251,13 @@ struct llama_memory_context_i {
         return false;
     }
 
+    // Refresh the position and turn controls for a graph-owned persistent
+    // device accumulator. Sum/count tensors are owned by the KV cache.
+    virtual bool set_kv_query_accumulate_inputs(
+            ggml_tensor * /* accumulator */, const llama_ubatch & /* ubatch */) const {
+        return false;
+    }
+
     // Selector graph reuse is valid only when the logical catalogue shape and
     // sequence identity still match the captured node.
     virtual bool can_reuse_kv_page_select(

@@ -1101,6 +1101,11 @@ static struct ggml_backend_meta_split_state ggml_backend_meta_get_split_state(
                 // generations, so this node is deliberately mirrored.
                 split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
             } break;
+            case GGML_OP_KV_QUERY_ACCUMULATE: {
+                // The running accumulator is shared mutable state. Keep its
+                // input shards together on one backend and preserve ordering.
+                split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
+            } break;
             case GGML_OP_KV_PAGE_SUMMARY: {
                 split_state = {GGML_BACKEND_SPLIT_AXIS_MIRRORED, {0}, {1}, 1};
             } break;

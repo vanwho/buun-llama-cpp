@@ -2624,9 +2624,11 @@ public:
 
     void set_input(const llama_ubatch * ubatch) override {
         if (mctx_ == nullptr || ubatch == nullptr || selected_ == nullptr ||
-                selected_->src[0] == nullptr || selected_->src[0]->ne[2] <= 0 ||
-                selected_->src[0]->ne[3] != 1 ||
-                uint64_t(selected_->src[0]->ne[2]) != ubatch->n_tokens ||
+                selected_->src[0] == nullptr || selected_->src[0]->op != GGML_OP_KV_QUERY_ACCUMULATE ||
+                selected_->src[0]->src[0] == nullptr || selected_->src[0]->src[0]->ne[2] <= 0 ||
+                selected_->src[0]->src[0]->ne[3] != 1 ||
+                uint64_t(selected_->src[0]->src[0]->ne[2]) != ubatch->n_tokens ||
+                !mctx_->set_kv_query_accumulate_inputs(selected_->src[0], *ubatch) ||
                 !mctx_->set_kv_page_select_inputs(
                     bounds_, metadata_, membership_, query_, layer_, *ubatch)) {
             if (graph_selector_trace_enabled() && mctx_ != nullptr && ubatch != nullptr) {
@@ -2653,8 +2655,10 @@ public:
     bool can_reuse(const llm_graph_params & params) override {
         mctx_ = params.mctx;
         const bool valid = params.ubatch.n_tokens > 0 && selected_ != nullptr && selected_->src[0] != nullptr &&
-                selected_->src[0]->ne[2] > 0 && selected_->src[0]->ne[3] == 1 &&
-                uint64_t(selected_->src[0]->ne[2]) == params.ubatch.n_tokens &&
+                selected_->src[0]->op == GGML_OP_KV_QUERY_ACCUMULATE &&
+                selected_->src[0]->src[0] != nullptr && selected_->src[0]->src[0]->ne[2] > 0 &&
+                selected_->src[0]->src[0]->ne[3] == 1 &&
+                uint64_t(selected_->src[0]->src[0]->ne[2]) == params.ubatch.n_tokens &&
                 params.ubatch.n_pos != 0 && params.ubatch.pos != nullptr &&
                 size_t(params.ubatch.n_tokens - 1) <=
                     std::numeric_limits<size_t>::max() / params.ubatch.n_pos &&
@@ -2678,6 +2682,32 @@ private:
     ggml_tensor * query_ = nullptr;
     ggml_tensor * selected_ = nullptr;
     int layer_ = -1;
+};
+
+class llm_graph_input_kv_query_accumulate final : public llm_graph_input_i {
+public:
+    llm_graph_input_kv_query_accumulate(
+            const llama_memory_context_i * mctx, ggml_tensor * accumulator) :
+        mctx_(mctx), accumulator_(accumulator) {}
+
+    void set_input(const llama_ubatch * ubatch) override {
+        if (mctx_ != nullptr && ubatch != nullptr) {
+            mctx_->set_kv_query_accumulate_inputs(accumulator_, *ubatch);
+        }
+    }
+
+    bool can_reuse(const llm_graph_params & params) override {
+        mctx_ = params.mctx;
+        // The accumulator's backing tensors are KV-cache owned, while the
+        // current positions/control tensors belong to this graph build. Force
+        // graph input refresh/rebuild across ubatches and turn boundaries.
+        (void) params;
+        return false;
+    }
+
+private:
+    const llama_memory_context_i * mctx_ = nullptr;
+    ggml_tensor * accumulator_ = nullptr;
 };
 
 } // namespace
@@ -2726,6 +2756,20 @@ void llm_graph_context::cb(ggml_tensor * cur, const char * name, int il) const {
         ggml_tensor * selected = mctx->build_kv_page_select(
                 ctx0, cur, il, ubatch, query_row);
         if (selected != nullptr) {
+            ggml_tensor * accumulator = selected->op == GGML_OP_KV_QUERY_ACCUMULATE
+                ? selected
+                : (selected->src[0] != nullptr &&
+                   selected->src[0]->op == GGML_OP_KV_QUERY_ACCUMULATE
+                    ? selected->src[0] : nullptr);
+            if (accumulator != nullptr) {
+                res->add_input(std::make_unique<llm_graph_input_kv_query_accumulate>(
+                        mctx, accumulator));
+            }
+            if (selected->op == GGML_OP_KV_QUERY_ACCUMULATE) {
+                ggml_set_output(selected);
+                ggml_build_forward_expand(gf, selected);
+                return;
+            }
             // The selector is consumed after the scheduler fence by the
             // pager's mailbox producer.  Expanding it makes the node run,
             // but does not keep its compact ID buffer alive after the last
