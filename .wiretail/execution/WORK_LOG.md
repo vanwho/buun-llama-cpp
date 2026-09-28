@@ -1321,3 +1321,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-98-01`
 - Commit at update: `b21160beb`
 - Summary: Implemented bounded host capture backpressure and verified pageable canonical storage, async CUDA staging, stale completion, clean eviction host retention, and named CUDA/residency proofs. See .wiretail/execution/handoffs/98-01.md and V10_98-01.json.
+
+## 2026-09-28T05:44:32+00:00 — 98-02 — done
+
+- Branch: `codex/task-98-02`
+- Commit at update: `73c46ac41`
+- Summary: Implemented selection diff and batched only two missing-page H2D uploads; resident hit/version checks, stale rejection, rollback, CUDA proof, and local regressions pass.

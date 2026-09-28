@@ -403,7 +403,7 @@ static std::vector<uint8_t> read_device_pages(ggml_tensor * storage,
     return result;
 }
 
-static llama_kv_residency_transfer_plan promotion_plan(
+static llama_kv_residency_transfer_page promotion_transfer_page(
         const llama_kv_page_record & page, const llama_kv_pager_snapshot & snapshot,
         uint64_t epoch) {
     llama_kv_residency_transfer_page transfer;
@@ -423,10 +423,7 @@ static llama_kv_residency_transfer_plan promotion_plan(
                 offset, uint64_t(page.physical_slot) * bytes });
         }
     }
-    llama_kv_residency_transfer_plan output;
-    assert(llama_kv_residency_build_transfer_plan(
-        llama_kv_residency_transfer_direction::h2d_promotion, { transfer }, 256, {}, output));
-    return output;
+    return transfer;
 }
 
 static int run_proof() {
@@ -818,6 +815,12 @@ static int run_proof() {
         [&](const auto & record) { return record.id.logical_page == winner_logical; });
     assert(cold_it != records.end() && cold_it->physical_slot == UINT32_MAX &&
         cold_it->id.logical_page > 0 && cold_it->valid_length == page_tokens);
+    const auto second_cold_it = std::find_if(records.begin(), records.end(),
+        [&](const auto & record) {
+            return record.id != cold_it->id && record.id != sealed_accepted->id &&
+                record.physical_slot == UINT32_MAX && record.host_valid;
+        });
+    assert(second_cold_it != records.end());
     const auto committed_candidate = std::find_if(ready.begin(), ready.end(),
         [&](const auto & candidate) {
             return candidate.identity.logical_page == winner_logical && candidate.cold;
@@ -858,8 +861,16 @@ static int run_proof() {
     boundary.retrieval.sequence_generation = cold_it->id.sequence_generation;
     boundary.retrieval.sequence_id = cold_it->id.sequence_id;
     boundary.retrieval.position = committed_candidate->query_position;
+    // The selected current page is a resident hit. The two historical cold
+    // pages below are the only identities that need H2D.
+    boundary.retrieval.selected.push_back({ sealed_accepted->id,
+        llama_kv_routing_retrieval_reason::recent, score(sealed_accepted->id.logical_page),
+        true, false, 1 });
     boundary.retrieval.selected.push_back({ cold_it->id,
         llama_kv_routing_retrieval_reason::summary, score(winner_logical), true, false, 1 });
+    boundary.retrieval.selected.push_back({ second_cold_it->id,
+        llama_kv_routing_retrieval_reason::summary, score(second_cold_it->id.logical_page),
+        true, false, 1 });
     boundary.query_commit.enabled = true;
     const auto prior_turn = pager->turn_state(0);
     boundary.query_commit.turn_id = std::max<uint64_t>(prior_turn.turn_id + 1,
@@ -879,24 +890,40 @@ static int run_proof() {
     boundary.query_commit.sequence_id = cold_it->id.sequence_id;
     boundary.query_commit.retrieval_budget = hot_capacity - 1;
     boundary.query_commit.generation_budget = 1;
+    boundary.query_commit.selected.push_back({ sealed_accepted->id,
+        sealed_accepted->content_version, { 0 } });
     boundary.query_commit.selected.push_back({ cold_it->id, cold_it->content_version, { 0 } });
+    boundary.query_commit.selected.push_back({ second_cold_it->id,
+        second_cold_it->content_version, { 0 } });
     boundary.policy = llama_kv_policy_release_defaults(hot_capacity);
-    boundary.transaction.max_h2d_pages = 1;
+    boundary.transaction.max_h2d_pages = 2;
     boundary.transaction.staging_capacity = pager->upload_ring()->capacity_bytes();
-    llama_kv_page_record transfer_record = *cold_it;
-    transfer_record.physical_slot = UINT32_MAX;
     // Use the same prepared query target the pager will publish so the upload
     // and immutable mapping have one slot assignment.
     std::vector<llama_kv_page_record> committed_target;
     assert(llama_kv_live_policy_prepare_query_target(boundary, committed_target));
+    assert(committed_target.size() == 3);
+    const auto resident_hit = std::find_if(committed_target.begin(), committed_target.end(),
+        [&](const auto & record) { return record.id == sealed_accepted->id; });
+    assert(resident_hit != committed_target.end() &&
+        resident_hit->physical_slot == sealed_accepted->physical_slot);
     const auto committed_cold = std::find_if(committed_target.begin(), committed_target.end(),
         [&](const auto & record) { return record.id == cold_it->id; });
-    assert(committed_cold != committed_target.end());
+    const auto committed_second_cold = std::find_if(committed_target.begin(), committed_target.end(),
+        [&](const auto & record) { return record.id == second_cold_it->id; });
+    assert(committed_cold != committed_target.end() &&
+        committed_second_cold != committed_target.end());
     const uint32_t free_slot = committed_cold->physical_slot;
-    assert(free_slot < hot_capacity);
-    transfer_record.physical_slot = free_slot;
-    boundary.transaction.transfers.push_back(
-        promotion_plan(transfer_record, pager->snapshot(), boundary.snapshot.epoch()));
+    const uint32_t second_free_slot = committed_second_cold->physical_slot;
+    assert(free_slot < hot_capacity && second_free_slot < hot_capacity &&
+        free_slot != second_free_slot);
+    llama_kv_residency_transfer_plan promotion_batch;
+    assert(llama_kv_residency_build_transfer_plan(
+        llama_kv_residency_transfer_direction::h2d_promotion,
+        { promotion_transfer_page(*committed_cold, pager->snapshot(), boundary.snapshot.epoch()),
+          promotion_transfer_page(*committed_second_cold, pager->snapshot(), boundary.snapshot.epoch()) },
+        256, {}, promotion_batch));
+    boundary.transaction.transfers.push_back(std::move(promotion_batch));
     const auto old_snapshot = pager->residency();
     const auto prior_mapping_intact = [&]() {
         const auto now = pager->residency();
@@ -908,6 +935,28 @@ static int run_proof() {
         }
         return true;
     };
+
+    auto stale_selection = boundary;
+    const auto stale_hit = std::find_if(stale_selection.pages.begin(),
+        stale_selection.pages.end(), [&](const auto & page) {
+            return page.record.id == sealed_accepted->id;
+        });
+    assert(stale_hit != stale_selection.pages.end());
+    ++stale_hit->record.content_version;
+    ++stale_selection.query_commit.selected[0].content_version;
+    std::vector<llama_kv_page_record> stale_target;
+    assert(!llama_kv_live_policy_prepare_query_target(stale_selection, stale_target));
+    const auto stale_selection_result = pager->apply_live_policy(stale_selection);
+    assert(stale_selection_result.status ==
+        llama_kv_live_policy_status::query_capacity_refused &&
+        !stale_selection_result.published && prior_mapping_intact());
+
+    auto stale_query_event = boundary;
+    ++stale_query_event.query_commit.query_generation;
+    const auto stale_query_event_result = pager->apply_live_policy(stale_query_event);
+    assert(stale_query_event_result.status ==
+        llama_kv_live_policy_status::query_capacity_refused &&
+        !stale_query_event_result.published && prior_mapping_intact());
 
     // Pinning every logical page forces mandatory capacity overflow, so no
     // victim can be selected for the cold retrieval candidate.
@@ -932,6 +981,14 @@ static int run_proof() {
     assert(rejected_result.status == llama_kv_live_policy_status::transaction_failed);
     assert(!rejected_result.published && prior_mapping_intact());
 
+    // A transfer execution failure after reservation still leaves the old
+    // mapping usable and does not publish either cold page.
+    auto failed_upload = boundary;
+    failed_upload.transaction.transfers.front().runs.front().host_offset = UINT64_MAX;
+    const auto failed_upload_result = pager->apply_live_policy(failed_upload);
+    assert(failed_upload_result.status == llama_kv_live_policy_status::transaction_failed &&
+        !failed_upload_result.published && prior_mapping_intact());
+
     const auto promotion = pager->apply_live_policy(boundary);
     if (!(promotion.status == llama_kv_live_policy_status::committed && promotion.published)) {
         std::fprintf(stderr, "promotion failed status=%d published=%d tx=%d phase=%d target=%zu\n",
@@ -942,6 +999,24 @@ static int run_proof() {
     assert(promotion.status == llama_kv_live_policy_status::committed && promotion.published);
     assert(promotion.transaction.h2d_counters.copied_useful_bytes > 0);
     assert(promotion.transaction.h2d_counters.queued > 0);
+    assert(promotion.target_pages.size() == 3 &&
+        promotion.transaction.loaded_pages == 2 &&
+        promotion.transaction.h2d_counters.copied_useful_bytes ==
+            promotion_batch.useful_bytes &&
+        promotion.transaction.d2h_counters.copied_useful_bytes == 0);
+    const auto published_hit = std::find_if(promotion.target_pages.begin(),
+        promotion.target_pages.end(), [&](const auto & record) {
+            return record.id == sealed_accepted->id;
+        });
+    assert(published_hit != promotion.target_pages.end() &&
+        published_hit->physical_slot == sealed_accepted->physical_slot);
+    std::cout << "selection_diff_async_batch_and_publication=pass selected=3 resident_hits=1 "
+        << "cold_misses=2 loaded=2 transfer_bytes="
+        << promotion.transaction.h2d_counters.copied_useful_bytes
+        << " historical_d2h_bytes="
+        << promotion.transaction.d2h_counters.copied_useful_bytes
+        << " stale_resident_version_rejected=1 stale_query_event_rejected=1 "
+        << "transfer_failure_rollback=1 atomic_publish=1\n";
     const auto evicted_clean = std::find_if(promotion.decisions.begin(),
         promotion.decisions.end(), [](const auto & decision) {
             return decision.victim;
@@ -1004,7 +1079,17 @@ static int run_proof() {
     uint32_t physical_slot = UINT32_MAX;
     assert(pager->test_page_checksums(winner_logical, host_checksum, device_checksum,
         physical_slot, generation, content));
-    assert(host_checksum == device_checksum && physical_slot == free_slot);
+    assert(host_checksum == device_checksum && physical_slot == free_slot &&
+        content == cold_it->content_version);
+    uint64_t second_host_checksum = 0, second_device_checksum = 0, second_generation = 0,
+        second_content = 0;
+    uint32_t second_physical_slot = UINT32_MAX;
+    assert(pager->test_page_checksums(second_cold_it->id.logical_page,
+        second_host_checksum, second_device_checksum, second_physical_slot,
+        second_generation, second_content));
+    assert(second_host_checksum == second_device_checksum &&
+        second_physical_slot == second_free_slot &&
+        second_content == second_cold_it->content_version);
 
     std::vector<llama_kv_page_record> target = promotion.target_pages;
     std::sort(target.begin(), target.end(), [](const auto & lhs, const auto & rhs) {
@@ -1017,6 +1102,7 @@ static int run_proof() {
     auto v_reference = pack_pages(fixture, target_ids, 0, 1);
     auto k_device = read_device_pages(storage, pager->snapshot(), target, 0, 0, target_rows);
     auto v_device = read_device_pages(storage, pager->snapshot(), target, 0, 1, target_rows);
+    assert(k_device == k_reference && v_device == v_reference);
     auto reference_output = run_dense_fa(backend, q_host, k_reference, v_reference, target_rows);
     auto consumed_output = run_dense_fa(backend, q_host, k_device, v_device, target_rows);
     assert(reference_output.values.size() == consumed_output.values.size());

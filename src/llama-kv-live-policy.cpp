@@ -243,7 +243,10 @@ bool llama_kv_live_policy_prepare_query_target(
             return std::find(mandatory.begin(), mandatory.end(), page) == mandatory.end();
         });
         if (selected_history > remaining_retrieval) return false;
-        if (mandatory.size() + retrieval.size() > boundary.hot_capacity) return false;
+        // A selected resident may already be mandatory (for example the
+        // current generated page). Count it once when checking capacity; the
+        // ordered target below also deduplicates these identities.
+        if (mandatory.size() + selected_history > boundary.hot_capacity) return false;
 
         std::vector<const llama_kv_live_policy_page *> ordered;
         ordered.reserve(mandatory.size() + retrieval.size());
@@ -256,6 +259,13 @@ bool llama_kv_live_policy_prepare_query_target(
             if (page->record.physical_slot == UINT32_MAX) continue;
             const uint32_t slot = page->record.physical_slot;
             if (slot >= used.size() || used[slot]) return false;
+            const auto resident = std::find_if(boundary.snapshot.pages().begin(),
+                    boundary.snapshot.pages().end(), [&](const auto & current) {
+                return current.id == page->record.id;
+            });
+            if (resident == boundary.snapshot.pages().end() ||
+                resident->physical_slot != slot ||
+                resident->content_version != page->record.content_version) return false;
             used[slot] = true;
         }
         target.reserve(ordered.size());
