@@ -17,6 +17,11 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from pager_benchmark_contract import validate_authenticated_slot_progress
+from pager_benchmark_contract import canonical_stage_accounting, workload_geometry
+
+FORWARD = HERE.parents[2] / ".wiretail/execution/forward"
+sys.path.insert(0, str(FORWARD))
+from canonical_result_check import validate_result
 
 MODULE_SPEC = importlib.util.spec_from_file_location(
     "run_pager_profile_benchmark", HERE / "run-pager-profile-benchmark.py")
@@ -32,8 +37,8 @@ def identity(profile: str, pid: int, *, binary: str = "/opt/llama-server") -> di
         "binary": binary,
         "model": "/models/qwen.gguf",
         "context": "22016",
-        "batch": "128",
-        "ubatch": "128",
+        "batch": "1024",
+        "ubatch": "256",
         "pager_mode": "selective",
         "page_size_tokens": "256",
         "target_kv_placement": "gpu",
@@ -176,6 +181,58 @@ def mtp_record(draft: int | None = 12, accepted: int | None = 8,
 
 
 class AdapterContractTests(unittest.TestCase):
+    def test_fresh_prefill_accounting_excludes_cached_tokens_and_keeps_missing_null(self) -> None:
+        accounting = canonical_stage_accounting(
+            prompt_tokens=1000, cached_tokens=700, elapsed_us=100000,
+            counters_before={"selector": 12}, counters_after={"selector": 19})
+        self.assertEqual(300, accounting["fresh_tokens"])
+        self.assertEqual(3000.0, accounting["fresh_prefill_tokens_per_second"])
+        self.assertEqual(100000, accounting["stages"]["fresh_prefill"]["duration_us"])
+        self.assertEqual("request_local_timing", accounting["stages"]["fresh_prefill"]["source"])
+        self.assertEqual(7, accounting["stages"]["selector"]["duration_us"])
+        self.assertEqual("not_exposed", accounting["stages"]["h2d"]["status"])
+        self.assertFalse(accounting["synchronization_added"])
+        unknown = canonical_stage_accounting(
+            prompt_tokens=1000, cached_tokens=None, elapsed_us=100000)
+        self.assertIsNone(unknown["fresh_tokens"])
+        self.assertIsNone(unknown["fresh_prefill_tokens_per_second"])
+        geometry = workload_geometry({}, {"prompt_tokens": 1000})
+        self.assertIsNone(geometry["measured"]["cached_tokens"])
+        self.assertIsNone(geometry["measured"]["new_tokens"])
+
+    def test_project_checker_accepts_complete_row_and_rejects_bad_identity_cache_or_pcie(self) -> None:
+        value = {
+            "identity": {"binary": "/build/llama-server", "model": "/models/qwen.gguf",
+                         "batch": 1024, "ubatch": 256, "pager_mode": "selective",
+                         "target_kv_placement": "gpu", "mtp_placement": "gpu",
+                         "mtp_type_k": "turbo4", "mtp_type_v": "turbo4"},
+            "expected_identity": {"binary": "/build/llama-server", "model": "/models/qwen.gguf",
+                                  "batch": 1024, "ubatch": 256,
+                                  "pager_mode": "selective", "target_kv_placement": "gpu",
+                                  "mtp_placement": "gpu"},
+            "rows": [{"status": "measured", "prompt_tokens": 100, "cached_tokens": 20,
+                      "fresh_tokens": 80, "elapsed_us": 1000,
+                      "prompt_tokens_per_second": 80000, "drafted_tokens": 10,
+                      "accepted_tokens": 5}],
+            "geometry": {"logical_bytes": 4096, "physical_bytes": 2048},
+            "frozen_decode": {"historical_pcie_bytes": 0},
+            "raw_artifacts": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            artifact = pathlib.Path(directory) / "raw.log"
+            artifact.write_text("measured\n")
+            value["raw_artifacts"] = [{"path": str(artifact), "sha256": __import__("hashlib").sha256(
+                artifact.read_bytes()).hexdigest()}]
+            self.assertEqual([], validate_result(value))
+            for label, mutate, expected_error in (
+                    ("identity", lambda row: row["identity"].update(batch=128), "identity.batch_mismatch"),
+                    ("cache", lambda row: row["rows"][0].update(cached_tokens=None), "rows[0].cached_tokens_unknown"),
+                    ("pcie", lambda row: row["frozen_decode"].update(historical_pcie_bytes=128),
+                     "frozen_decode_historical_pcie_nonzero_or_unknown")):
+                bad = json.loads(json.dumps(value))
+                mutate(bad)
+                self.assertIn(expected_error, validate_result(bad), label)
+
     def test_authenticated_slot_progress_requires_monotonic_request_progress(self) -> None:
         def sample(processed: int, route: str = "selected reference") -> dict[str, object]:
             return {"slots": [{
@@ -405,6 +462,8 @@ class AdapterContractTests(unittest.TestCase):
             self.assertEqual("acceptance", config["context"]["mode"])
             self.assertFalse(config["context"]["diagnostic_only"])
             self.assertEqual(22016, config["launcher"]["context"])
+            self.assertEqual(1024, config["batch_tokens"])
+            self.assertEqual(256, config["ubatch_tokens"])
             self.assertEqual("exact-rendered-token-preflight", config["launcher"]["token_sizing"])
             self.assertEqual("gpu", config["launcher"]["target_kv_placement"])
             self.assertFalse(config["launcher"]["no_kv_offload"])
