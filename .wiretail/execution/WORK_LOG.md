@@ -1309,3 +1309,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-97-01`
 - Commit at update: `41e373870`
 - Summary: Implemented turn-owned generation ring eviction; named history-pinning proof and V10 receipt pass.
+
+## 2026-09-28T05:17:21+00:00 — 97-02 — done
+
+- Branch: `codex/task-97-02`
+- Commit at update: `a613c1da4`
+- Summary: Fixed suffix rollback record length/version and generation FIFO ownership; passed generation seal/rejection and multi-wrap CUDA selector/promotion proofs plus focused MTP and pager tests; V10 receipt validated. Live native-MTP counters remain for 100-04.
