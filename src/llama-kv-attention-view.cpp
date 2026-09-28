@@ -29,6 +29,33 @@ const char * llama_kv_attention_view_status_name(
     return "invalid";
 }
 
+bool llama_kv_attention_query_page_ids(
+        const std::vector<llama_pos> & query_positions,
+        uint32_t page_tokens,
+        std::vector<uint32_t> & page_ids) noexcept {
+    page_ids.clear();
+    if (page_tokens == 0) return false;
+    try {
+        for (const llama_pos position : query_positions) {
+            if (position < 0) {
+                page_ids.clear();
+                return false;
+            }
+            const uint64_t logical = uint64_t(position) / page_tokens;
+            if (logical > UINT32_MAX) {
+                page_ids.clear();
+                return false;
+            }
+            const uint32_t page = uint32_t(logical);
+            if (page_ids.empty() || page_ids.back() != page) page_ids.push_back(page);
+        }
+        return !page_ids.empty();
+    } catch (...) {
+        page_ids.clear();
+        return false;
+    }
+}
+
 llama_kv_attention_view::llama_kv_attention_view(
         std::shared_ptr<const state> state) noexcept : state_(std::move(state)) {}
 

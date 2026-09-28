@@ -975,7 +975,12 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                     }
                 }
                 if (compact_row == UINT32_MAX || compact_row >= packed_row_capacity) {
-                    throw std::runtime_error("packed selected attention current row is outside capacity");
+                    std::ostringstream error;
+                    error << "packed selected attention current row is outside capacity"
+                          << " (query=" << query << ", compact_row=" << compact_row
+                          << ", capacity=" << packed_row_capacity
+                          << ", pages=" << pages.size() << ")";
+                    throw std::runtime_error(error.str());
                 }
                 packed_current_rows[token] = int64_t(compact_row);
             }
@@ -1301,6 +1306,21 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         const auto & metadata = params.kv_attention_metadata;
         if (!metadata.valid() || !metadata.enabled()) {
             return false;
+        }
+        if (packed) {
+            const auto * pager = mctx->get_kv_pager();
+            if (pager == nullptr) {
+                return false;
+            }
+            const uint32_t page_tokens = pager->snapshot().geometry.page_tokens;
+            // Packed row storage is sized from the selected view when this
+            // graph is built. A later prefill chunk can expand that view while
+            // retaining the same physical key; do not refresh its descriptors
+            // into a graph whose packed owner is now too small.
+            if (llama_kv_attention_packed_row_capacity(metadata, page_tokens) !=
+                    packed_row_capacity) {
+                return false;
+            }
         }
         if ((dense || packed) && metadata.graph_physical_key() !=
                 selected_metadata.graph_physical_key()) {

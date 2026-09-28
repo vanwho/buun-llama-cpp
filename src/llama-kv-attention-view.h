@@ -31,6 +31,14 @@ enum class llama_kv_attention_view_status : uint8_t {
 const char * llama_kv_attention_view_status_name(
         llama_kv_attention_view_status status) noexcept;
 
+// Return the unique logical pages touched by the current query rows, in query
+// order. Selected attention must include every such page before historical
+// pages consume the remaining bounded view.
+bool llama_kv_attention_query_page_ids(
+        const std::vector<llama_pos> & query_positions,
+        uint32_t page_tokens,
+        std::vector<uint32_t> & page_ids) noexcept;
+
 class llama_kv_attention_view {
 public:
     llama_kv_attention_view() = default;

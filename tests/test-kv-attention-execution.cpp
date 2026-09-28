@@ -132,6 +132,21 @@ static void test_prefill_admission() {
     assert(large_decision.route == llama_kv_attention_execution_route::selected_packed);
 }
 
+static void test_query_pages_cover_cross_page_ubatch() {
+    std::vector<llama_pos> positions;
+    positions.reserve(256);
+    for (llama_pos position = 4982; position < 5238; ++position) {
+        positions.push_back(position);
+    }
+    std::vector<uint32_t> pages;
+    assert(llama_kv_attention_query_page_ids(positions, 256, pages));
+    assert(pages.size() == 2 && pages[0] == 19 && pages[1] == 20);
+    assert(llama_kv_attention_query_page_ids({ 0, 1, 255, 256, 257 }, 256, pages));
+    assert(pages.size() == 2 && pages[0] == 0 && pages[1] == 1);
+    assert(!llama_kv_attention_query_page_ids({ 0, -1 }, 256, pages));
+    assert(pages.empty());
+}
+
 static void test_routes_epochs_and_fences() {
     const auto selected_prefill = metadata(snapshot(), 2, 1);
     const auto selected_decode = metadata(snapshot(), 1, 1);
@@ -355,6 +370,12 @@ static void test_packed_cache_identity_and_versions() {
     const auto selected_metadata = metadata(snap, 1, 1);
     assert(selected_metadata.get_n_kv() == 444);
     assert(llama_kv_attention_packed_row_capacity(selected_metadata) == 512);
+    const auto earlier_prefill_view = metadata(snap, 1, 1, { 0 }, 255);
+    assert(llama_kv_attention_packed_row_capacity(earlier_prefill_view) == 256);
+    // A same-physical-key prefill update that adds another selected page
+    // needs a larger packed owner and must force graph reconstruction.
+    assert(llama_kv_attention_packed_row_capacity(earlier_prefill_view) !=
+           llama_kv_attention_packed_row_capacity(selected_metadata));
     const size_t k_row_bytes = ggml_row_size(source_k->type, source_k->ne[0] * source_k->ne[1]);
     const size_t v_row_bytes = ggml_row_size(source_v->type, source_v->ne[0] * source_v->ne[1]);
     assert(llama_kv_attention_packed_allocation_bytes(512, k_row_bytes, v_row_bytes) ==
@@ -859,6 +880,7 @@ static void test_no_change_decode_replay() {
 
 int main() {
     test_prefill_admission();
+    test_query_pages_cover_cross_page_ubatch();
     test_routes_epochs_and_fences();
     test_packed_cache_identity_and_versions();
     test_view_sized_scratch_contract();

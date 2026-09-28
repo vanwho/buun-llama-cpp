@@ -2948,8 +2948,19 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     }
 
     auto & selected_pages = kv_attention_selected_pages_scratch_;
+    auto & query_positions = kv_attention_query_positions_scratch_;
     try {
         selected_pages.clear();
+        query_positions.clear();
+        query_positions.reserve(ubatch.n_tokens);
+        for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
+            query_positions.push_back(ubatch.pos[token * ubatch.n_pos]);
+        }
+        auto & query_pages = kv_attention_query_pages_scratch_;
+        if (!llama_kv_attention_query_page_ids(query_positions,
+                pager_geometry.geometry.page_tokens, query_pages)) {
+            return refuse("selected attention query positions have invalid page geometry");
+        }
         const uint32_t route_layer = pager_geometry.geometry.model_layer_ids.empty()
             ? 0 : pager_geometry.geometry.model_layer_ids.front();
         const auto & routed_pages = attention->selected_attention_pages(route_layer);
@@ -3017,6 +3028,26 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
             if (selected_pages.size() >= bounded_pages) return;
             (void) append_page(id);
         };
+        // Reserve every page touched by this ubatch. The request page is fixed
+        // at prefill start and cannot cover a later ubatch crossing a different
+        // page boundary; omitting either query page leaves current-row indices
+        // outside the packed owner.
+        for (const uint32_t logical_page : query_pages) {
+            const auto page = std::find_if(pager_snapshot.pages().begin(),
+                    pager_snapshot.pages().end(), [&](const auto & value) {
+                return value.id.logical_page == logical_page;
+            });
+            if (page == pager_snapshot.pages().end()) {
+                return refuse("selected attention query page is absent from pager snapshot");
+            }
+            append_fallback(page->id);
+        }
+        for (const uint32_t logical_page : query_pages) {
+            if (std::find(selected_pages.begin(), selected_pages.end(), logical_page) ==
+                    selected_pages.end()) {
+                return refuse("selected attention window cannot cover current query pages");
+            }
+        }
         // A write batch can create the next frontier after the last policy
         // boundary. Reserve its page before consuming advisory routed slots;
         // otherwise the packed owner may lack the current query row exactly
@@ -3120,15 +3151,6 @@ llama_kv_attention_execution_decision llama_context::prepare_kv_attention_graph(
     op_params.n_query_tokens = ubatch.n_tokens;
     op_params.n_batch = 1;
     op_params.causal = cparams.causal_attn;
-    auto & query_positions = kv_attention_query_positions_scratch_;
-    query_positions.clear();
-    query_positions.reserve(ubatch.n_tokens);
-    for (uint32_t token = 0; token < ubatch.n_tokens; ++token) {
-        // M-RoPE stores n_pos coordinates per token.  The first coordinate is
-        // the causal sequence position; the remaining coordinates describe
-        // spatial/auxiliary axes and are not part of the KV row identity.
-        query_positions.push_back(ubatch.pos[token * ubatch.n_pos]);
-    }
     // Transfer the retained allocation into the short-lived parameter object
     // without allocating a second query-position buffer. build() copies the
     // immutable payload into the submitted metadata; swap it back immediately
