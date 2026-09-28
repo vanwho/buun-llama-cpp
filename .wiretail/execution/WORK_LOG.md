@@ -1303,3 +1303,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-96-02`
 - Commit at update: `111068902`
 - Summary: Implemented and selected Mean-K from repeated CUDA recall and boundary-cost comparison; named receipts and deterministic GPU fixtures pass. Live promotion/replay remains assigned to 100-04.
+
+## 2026-09-28T04:51:19+00:00 — 97-01 — done
+
+- Branch: `codex/task-97-01`
+- Commit at update: `41e373870`
+- Summary: Implemented turn-owned generation ring eviction; named history-pinning proof and V10 receipt pass.

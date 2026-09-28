@@ -1623,6 +1623,83 @@ llama_kv_pager_turn_state llama_kv_pager::turn_state(int32_t sequence_id) const 
     return found == turn_states_.end() ? llama_kv_pager_turn_state{} : found->second;
 }
 
+bool llama_kv_pager::frozen_history_page(const page_state * page) const noexcept {
+    if (page == nullptr || !page->present) return false;
+    if (page->owner == page_owner::frozen_history) return true;
+    for (const auto & entry : turn_states_) {
+        if (entry.second.phase == llama_kv_pager_turn_phase::idle) continue;
+        for (const auto & selected : entry.second.selected_history) {
+            if (selected.identity == page->record.id) return true;
+        }
+    }
+    return false;
+}
+
+bool llama_kv_pager::generation_page_evictable(const page_state * page,
+        int32_t sequence_id, uint64_t turn_id) const noexcept {
+    return page != nullptr && page->present &&
+        page->record.id.sequence_id == sequence_id &&
+        page->owner == page_owner::current_turn_generation &&
+        page->owner_turn_id == turn_id && !page->host_inflight &&
+        page->generation_queued && page->record.pin_count == 0 && page->record.host_valid &&
+        !page->record.dirty &&
+        page->host_content_version == page->content_version &&
+        page->record.content_version == page->content_version &&
+        !frozen_history_page(page) &&
+        (routing_summary_provider_.build == nullptr ||
+         page->summary_content_version == page->content_version) &&
+        (page->record.state == llama_kv_page_state::host_clean ||
+         page->record.state == llama_kv_page_state::gpu_host_clean);
+}
+
+llama_kv_pager::page_state * llama_kv_pager::oldest_generation_victim(
+        int32_t sequence_id, uint64_t turn_id) noexcept {
+    const auto found = turn_states_.find(sequence_id);
+    if (found == turn_states_.end() || found->second.turn_id != turn_id) return nullptr;
+    auto & queue = found->second.completed_generation_pages;
+    while (!queue.empty()) {
+        const llama_kv_page_id identity = queue.front();
+        page_state * page = find_page(sequence_id, identity.logical_page);
+        if (page == nullptr || page->record.id != identity ||
+                page->owner != page_owner::current_turn_generation ||
+                page->owner_turn_id != turn_id || !page->generation_queued) {
+            queue.erase(queue.begin());
+            continue;
+        }
+        if (generation_page_evictable(page, sequence_id, turn_id)) return page;
+        return nullptr;
+    }
+    return nullptr;
+}
+
+void llama_kv_pager::queue_generation_page(page_state & page) noexcept {
+    if (!page.present || page.generation_queued ||
+            page.owner != page_owner::current_turn_generation || page.host_inflight ||
+            page.record.pin_count != 0 || !page.record.host_valid || page.record.dirty ||
+            page.host_content_version != page.content_version ||
+            page.record.content_version != page.content_version) return;
+    const auto found = turn_states_.find(page.record.id.sequence_id);
+    if (found == turn_states_.end() || found->second.phase != llama_kv_pager_turn_phase::generating ||
+            found->second.turn_id != page.owner_turn_id) return;
+    auto & queue = found->second.completed_generation_pages;
+    try {
+        const auto at = std::lower_bound(queue.begin(), queue.end(), page.record.id,
+                [](const llama_kv_page_id & lhs, const llama_kv_page_id & rhs) {
+            if (lhs.position_begin != rhs.position_begin) return lhs.position_begin < rhs.position_begin;
+            return lhs.page_generation < rhs.page_generation;
+        });
+        if (at != queue.end() && *at == page.record.id) {
+            page.generation_queued = true;
+            return;
+        }
+        queue.insert(at, page.record.id);
+        page.generation_queued = true;
+    } catch (...) {
+        // Fail closed: without the per-turn index this page cannot be used by
+        // generation admission, but generic eviction remains available later.
+    }
+}
+
 llama_kv_pager_turn_status llama_kv_pager::transition_turn(
         int32_t sequence_id, uint64_t turn_id, uint64_t expected_retrieval_epoch,
         llama_kv_pager_turn_phase next_phase, int64_t query_start, int64_t query_end,
@@ -1700,10 +1777,25 @@ llama_kv_pager_turn_status llama_kv_pager::transition_turn(
             ++next.retrieval_epoch;
             next.selected_history = std::move(selected_history);
             next.frozen_history_generation = frozen_history_generation;
+            next.completed_generation_pages.clear();
         }
         next.mutable_page_table_epoch = residency_.snapshot().epoch();
         turn_states_[sequence_id] = std::move(next);
         const auto & stored = turn_states_[sequence_id];
+        if (next_phase == llama_kv_pager_turn_phase::retrieval_commit) {
+            for (auto & page : pages_) {
+                if (!page.present) continue;
+                const bool selected = std::any_of(stored.selected_history.begin(),
+                        stored.selected_history.end(), [&](const auto & item) {
+                    return item.identity == page.record.id;
+                });
+                if (selected) {
+                    page.owner = page_owner::frozen_history;
+                    page.owner_turn_id = turn_id;
+                    page.generation_queued = false;
+                }
+            }
+        }
         snapshot_.turn_id = stored.turn_id;
         snapshot_.retrieval_epoch = stored.retrieval_epoch;
         snapshot_.frozen_history_generation = stored.frozen_history_generation;
@@ -1728,6 +1820,35 @@ llama_kv_pager_turn_status llama_kv_pager::clear_turn_state(
         return llama_kv_pager_turn_status::stale_epoch;
     }
     auto & state = found->second;
+    for (auto & page : pages_) {
+        if (!page.present || page.record.id.sequence_id != sequence_id) continue;
+        if (page.owner_turn_id == turn_id && page.owner != page_owner::frozen_history) {
+            page.owner = page_owner::prior_turn_history;
+            page.owner_turn_id = 0;
+            page.generation_queued = false;
+        }
+        if (current_page_index_ < pages_.size() && &page == &pages_[current_page_index_]) {
+            if (page.record.pin_count != 0) page.record.pin_count--;
+            page.record.state = page.record.host_valid
+                ? llama_kv_page_state::gpu_host_clean : llama_kv_page_state::gpu_dirty;
+            queue_maintenance(page);
+            (void) publish_page(page);
+            current_page_index_ = UINT32_MAX;
+        }
+    }
+    (void) seal_ready_pages(false);
+    if (host_ && host_->async_enabled() && host_inflight_pages() != 0) {
+        drain_host_completions();
+        if (host_inflight_pages() != 0) wait_host_completions();
+        (void) seal_ready_pages(false);
+    }
+    for (auto & page : pages_) {
+        if (page.present && page.owner == page_owner::frozen_history &&
+                page.owner_turn_id == turn_id) {
+            page.owner = page_owner::prior_turn_history;
+            page.owner_turn_id = 0;
+        }
+    }
     state.phase = llama_kv_pager_turn_phase::idle;
     state.query_start = -1;
     state.query_end = -1;
@@ -1736,6 +1857,7 @@ llama_kv_pager_turn_status llama_kv_pager::clear_turn_state(
     state.frozen_history_generation = 0;
     state.mutable_page_table_epoch = residency_.snapshot().epoch();
     state.selected_history.clear();
+    state.completed_generation_pages.clear();
     snapshot_.turn_id = state.turn_id;
     snapshot_.retrieval_epoch = state.retrieval_epoch;
     snapshot_.frozen_history_generation = 0;
@@ -2280,6 +2402,7 @@ void llama_kv_pager::drain_host_completions() noexcept {
                     : host_seal_d2h_async_completions_ +
                         item.result.transfer.event_completions;
                 remember_logical_page(page.record);
+                queue_generation_page(page);
             } else {
                 page.record.host_valid = false;
                 page.record.dirty = true;
@@ -2603,6 +2726,7 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                 ++seal_pages_changed_;
                 ++sealed;
             }
+            queue_generation_page(page);
         }
         maintenance_processing_indices_.clear();
         return sealed;
@@ -2615,6 +2739,18 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
 bool llama_kv_pager::invalidate_host_page(
         const llama_kv_page_id & page) noexcept {
     const bool invalidated = !host_ || host_->invalidate(page);
+    for (auto & resident : pages_) {
+        if (!resident.present || resident.record.id != page) continue;
+        resident.record.host_valid = false;
+        resident.record.dirty = true;
+        resident.host_content_version = 0;
+        if (resident.record.state == llama_kv_page_state::host_clean ||
+                resident.record.state == llama_kv_page_state::gpu_host_clean) {
+            resident.record.state = llama_kv_page_state::gpu_dirty;
+        }
+        queue_maintenance(resident);
+        (void) publish_page(resident);
+    }
     invalidate_routing_summaries({ page });
     return invalidated;
 }
@@ -2708,6 +2844,14 @@ llama_kv_pager_write_status llama_kv_pager::erase_page(
         return result == llama_kv_residency_status::pinned_slot
             ? llama_kv_pager_write_status::all_pinned
             : llama_kv_pager_write_status::transaction;
+    }
+    if (page.owner == page_owner::current_turn_generation && page.owner_turn_id != 0) {
+        const auto turn = turn_states_.find(page.record.id.sequence_id);
+        if (turn != turn_states_.end() && turn->second.turn_id == page.owner_turn_id) {
+            auto & queue = turn->second.completed_generation_pages;
+            const auto queued = std::find(queue.begin(), queue.end(), page.record.id);
+            if (queued != queue.end()) queue.erase(queued);
+        }
     }
     if (page.record.physical_slot < slot_pages_.size()) {
         slot_pages_[page.record.physical_slot] = -1;
@@ -2825,15 +2969,26 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     }
     const uint32_t logical = uint32_t(logical64);
     const uint32_t offset = uint32_t(offset64);
-    const auto frozen_history_page = [&](const page_state * candidate) {
-        if (candidate == nullptr || !candidate->present) return false;
-        for (const auto & entry : turn_states_) {
-            if (entry.second.phase == llama_kv_pager_turn_phase::idle) continue;
-            for (const auto & selected : entry.second.selected_history) {
-                if (selected.identity == candidate->record.id) return true;
+    const auto turn = turn_states_.find(sequence_id);
+    const bool generation_active = turn != turn_states_.end() &&
+        turn->second.phase == llama_kv_pager_turn_phase::generating;
+    const uint64_t active_turn_id = generation_active ? turn->second.turn_id : 0;
+    const auto find_victim = [&]() -> page_state * {
+        if (generation_active) return oldest_generation_victim(sequence_id, active_turn_id);
+        for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
+            page_state * candidate = find_slot(i);
+            if (candidate && !frozen_history_page(candidate) && !candidate->host_inflight &&
+                    candidate->record.pin_count == 0 && candidate->record.host_valid &&
+                    candidate->host_content_version == candidate->content_version &&
+                    candidate->record.content_version == candidate->content_version &&
+                    (routing_summary_provider_.build == nullptr ||
+                     candidate->summary_content_version == candidate->content_version) &&
+                    (candidate->record.state == llama_kv_page_state::host_clean ||
+                     candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
+                return candidate;
             }
         }
-        return false;
+        return nullptr;
     };
     const uint64_t physical = uint64_t(snapshot_.physical_page_count - 1) * snapshot_.geometry.page_tokens + offset;
     if (physical > UINT32_MAX) return llama_kv_pager_write_status::overflow;
@@ -2861,6 +3016,9 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     }
     const uint64_t content_version_before = page != nullptr ? page->content_version : 0;
     const llama_kv_page_id previous_id = page != nullptr ? page->record.id : llama_kv_page_id{};
+    const page_owner owner_before = page != nullptr ? page->owner : page_owner::prior_turn_history;
+    const uint64_t owner_turn_before = page != nullptr ? page->owner_turn_id : 0;
+    const bool generation_queued_before = page != nullptr && page->generation_queued;
     if (page != nullptr) {
         invalidate_routing_summaries({ previous_id });
         page->content_version = advance_content_version(page->content_version);
@@ -2877,6 +3035,11 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     if (page != nullptr && page->record.host_valid) {
         page->record.host_valid = false;
         page->record.dirty = true;
+    }
+    if (page != nullptr) {
+        page->owner = page_owner::mutable_current_write;
+        page->owner_turn_id = generation_active ? active_turn_id : 0;
+        page->generation_queued = false;
     }
 
     // Crossing into another logical page closes the previous append tail.
@@ -2900,19 +3063,11 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
             // Give the maintenance queue one bounded opportunity to finish
             // that pair before selecting an eviction victim.
             (void) seal_ready_pages(false);
-            for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
-                page_state * candidate = find_slot(i);
-            if (candidate && !frozen_history_page(candidate) &&
-                    candidate->record.pin_count == 0 && candidate->record.host_valid &&
-                    (routing_summary_provider_.build == nullptr ||
-                     candidate->summary_content_version == candidate->content_version) &&
-                    (candidate->record.state == llama_kv_page_state::host_clean ||
-                     candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
-                    if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
-                        return llama_kv_pager_write_status::transaction;
-                    }
-                    slot = i;
-                    break;
+            page_state * candidate = find_victim();
+            if (candidate != nullptr) {
+                slot = candidate->record.physical_slot;
+                if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
+                    return llama_kv_pager_write_status::transaction;
                 }
             }
         }
@@ -2929,19 +3084,11 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
                 // could otherwise wait for a worker that is waiting for room.
                 drain_host_completions();
                 wait_host_completions();
-                for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
-                    page_state * candidate = find_slot(i);
-                    if (candidate && !frozen_history_page(candidate) &&
-                            candidate->record.pin_count == 0 && candidate->record.host_valid &&
-                            (routing_summary_provider_.build == nullptr ||
-                             candidate->summary_content_version == candidate->content_version) &&
-                            (candidate->record.state == llama_kv_page_state::host_clean ||
-                             candidate->record.state == llama_kv_page_state::gpu_host_clean)) {
-                        if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
-                            return llama_kv_pager_write_status::transaction;
-                        }
-                        slot = i;
-                        break;
+                page_state * candidate = find_victim();
+                if (candidate != nullptr) {
+                    slot = candidate->record.physical_slot;
+                    if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
+                        return llama_kv_pager_write_status::transaction;
                     }
                 }
             }
@@ -2973,6 +3120,9 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         page->content_version = 1;
         page->host_content_version = 0;
         page->summary_content_version = 0;
+        page->owner = page_owner::mutable_current_write;
+        page->owner_turn_id = generation_active ? active_turn_id : 0;
+        page->generation_queued = false;
         slot_pages_[slot] = int32_t(page_index);
         created = true;
     }
@@ -3006,6 +3156,9 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
             page->content_version = content_version_before;
             page->host_content_version = 0;
             page->summary_content_version = 0;
+            page->owner = owner_before;
+            page->owner_turn_id = owner_turn_before;
+            page->generation_queued = generation_queued_before;
         }
         if (created) {
             slot_pages_[page->record.physical_slot] = -1;
@@ -3013,6 +3166,9 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
         }
         return llama_kv_pager_write_status::transaction;
     }
+    page->owner = generation_active
+        ? page_owner::current_turn_generation : page_owner::prior_turn_history;
+    if (!generation_active) page->owner_turn_id = 0;
     ticket.sequence_id = sequence_id;
     ticket.sequence_generation = sequence_generation;
     ticket.logical_page = logical;
@@ -3096,20 +3252,38 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
         const auto available_slots = [&]() {
             uint32_t available = 0;
             for (uint32_t slot = 0; slot < slot_pages_.size(); ++slot) {
-                if (slot_pages_[slot] < 0) {
+                if (slot_pages_[slot] < 0) ++available;
+            }
+            const auto active = turn_states_.find(sequence_id);
+            if (active != turn_states_.end() &&
+                    active->second.phase == llama_kv_pager_turn_phase::generating) {
+                for (const auto & identity : active->second.completed_generation_pages) {
+                    const page_state * page = find_page(sequence_id, identity.logical_page);
+                    if (page == nullptr || page->record.id != identity ||
+                            page->owner != page_owner::current_turn_generation ||
+                            page->owner_turn_id != active->second.turn_id ||
+                            !page->generation_queued) continue;
+                    if (std::find(written_logical_pages.begin(), written_logical_pages.end(),
+                            identity.logical_page) != written_logical_pages.end()) break;
+                    if (!generation_page_evictable(page, sequence_id, active->second.turn_id)) break;
                     ++available;
-                    continue;
                 }
+                return available;
+            }
+            for (uint32_t slot = 0; slot < slot_pages_.size(); ++slot) {
+                if (slot_pages_[slot] < 0) continue;
                 const page_state * page = find_slot(slot);
-                if (page != nullptr && page->record.pin_count == 0 &&
-                        (page->record.id.sequence_id != sequence_id ||
-                         std::find(written_logical_pages.begin(), written_logical_pages.end(),
-                             page->record.id.logical_page) == written_logical_pages.end()) &&
-                        page->record.host_valid &&
+                if (page == nullptr || (page->record.id.sequence_id == sequence_id &&
+                        std::find(written_logical_pages.begin(), written_logical_pages.end(),
+                            page->record.id.logical_page) != written_logical_pages.end())) continue;
+                if (!frozen_history_page(page) && !page->host_inflight &&
+                        page->record.pin_count == 0 && page->record.host_valid &&
+                        page->host_content_version == page->content_version &&
+                        page->record.content_version == page->content_version &&
+                        (routing_summary_provider_.build == nullptr ||
+                         page->summary_content_version == page->content_version) &&
                         (page->record.state == llama_kv_page_state::host_clean ||
-                         page->record.state == llama_kv_page_state::gpu_host_clean)) {
-                    ++available;
-                }
+                         page->record.state == llama_kv_page_state::gpu_host_clean)) ++available;
             }
             return available;
         };
@@ -3263,6 +3437,15 @@ llama_kv_pager_write_status llama_kv_pager::complete_write(
     // The partial page is the write frontier. Keep it pinned until a later page takes over.
     const bool is_current = current_page_index_ < pages_.size() &&
         &pages_[current_page_index_] == page;
+    const auto active_turn = turn_states_.find(ticket.sequence_id);
+    if (active_turn != turn_states_.end() &&
+            active_turn->second.phase == llama_kv_pager_turn_phase::generating) {
+        page->owner = page_owner::current_turn_generation;
+        page->owner_turn_id = active_turn->second.turn_id;
+    } else if (page->owner != page_owner::frozen_history) {
+        page->owner = page_owner::prior_turn_history;
+        page->owner_turn_id = 0;
+    }
     if (full || !is_current) {
         queue_maintenance(*page);
     }
@@ -3313,6 +3496,16 @@ llama_kv_pager_write_status llama_kv_pager::cancel_write(
     page->record.state = full
         ? llama_kv_page_state::gpu_dirty : llama_kv_page_state::filling_gpu;
     page->record.dirty = true;
+    const auto active_turn = turn_states_.find(ticket.sequence_id);
+    if (active_turn != turn_states_.end() &&
+            active_turn->second.phase == llama_kv_pager_turn_phase::generating) {
+        page->owner = page_owner::current_turn_generation;
+        page->owner_turn_id = active_turn->second.turn_id;
+    } else if (page->owner != page_owner::frozen_history) {
+        page->owner = page_owner::prior_turn_history;
+        page->owner_turn_id = 0;
+    }
+    page->generation_queued = false;
     queue_maintenance(*page);
     return publish_page(*page);
 }

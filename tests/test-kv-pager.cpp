@@ -403,6 +403,7 @@ struct host_page_fixture {
     std::vector<ggml_tensor *> device_tensors;
     std::thread::id prepare_thread;
     std::thread::id owner_thread;
+    bool reject_recheck = false;
 
     static bool read(
             const void * context, uint64_t offset,
@@ -425,7 +426,9 @@ struct host_page_fixture {
     static bool recheck(
             void * context,
             const vbr_selected_page_capture_snapshot & expected) noexcept {
-        const auto & current = static_cast<host_page_fixture *>(context)->snapshot;
+        const auto & self = *static_cast<host_page_fixture *>(context);
+        if (self.reject_recheck) return false;
+        const auto & current = self.snapshot;
         if (current.pages != expected.pages ||
                 current.units.size() != expected.units.size() ||
                 current.unit_descriptors.size() != expected.unit_descriptors.size()) {
@@ -1218,6 +1221,179 @@ static void test_pager_host_mutation() {
     assert(pager->exact_page_records(0).empty());
 }
 
+static void test_generation_ring_victim_and_history_pins() {
+    host_page_fixture fixture;
+    fixture.initialize();
+    auto host_resources = resources(1u << 20, 128);
+    host_resources.host_capture_enabled = true;
+    host_resources.host_source_namespace = host_page_fixture::source_namespace;
+    host_resources.host_child_id = 0;
+    host_resources.host_stream_index = 0;
+    host_resources.host_lanes = { { nullptr, nullptr, false } };
+    host_resources.host_ring_bytes = 128;
+    host_resources.host_chunk_bytes = 64;
+    host_resources.host_budget.host.pageable_cap = 1u << 20;
+    host_resources.host_budget.host.pageable_state = llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.pinned_cap = 128;
+    host_resources.host_budget.host.pinned_state = llama_cache_budget_capacity_state::known;
+    host_resources.host_budget.host.total_cap = 1u << 20;
+    host_resources.host_budget.host.total_state = llama_cache_budget_capacity_state::known;
+
+    llama_kv_pager_config config;
+    config.mode = llama_kv_pager_mode::selective;
+    config.hot_pages.automatic = false;
+    config.hot_pages.value = 3;
+    config.retrieval_pages.automatic = false;
+    config.retrieval_pages.value = 2;
+    llama_kv_pager_backend backend;
+    backend.allocate = [](uint64_t bytes, llama_kv_pager_allocation & allocation) {
+        allocation.handle = reinterpret_cast<void *>(uintptr_t(0x97));
+        allocation.requested_bytes = bytes;
+        allocation.realized_bytes = bytes;
+        return true;
+    };
+    backend.release = [](llama_kv_pager_allocation & allocation) { allocation = {}; };
+    llama_kv_pager_status status;
+    auto pager = llama_kv_pager::create(
+            config, geometry(2048), host_resources, backend, status);
+    assert(pager && status == llama_kv_pager_status::ok);
+    assert(pager->snapshot().physical_page_count == 3);
+    assert(pager->snapshot().generation_pages == 1);
+    pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    pager->set_host_provider({ &fixture, host_page_fixture::prepare });
+
+    llama_kv_pager_write_ticket ticket;
+    for (llama_pos position = 0; position < 256; ++position) {
+        assert(pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
+        assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+    }
+    fixture.snapshot.pages[0] = pager->residency().pages()[0].id;
+    assert(pager->seal_ready_pages() == 1);
+    const auto history = pager->residency().pages()[0];
+    assert(pager->transition_turn(0, 97, 0,
+            llama_kv_pager_turn_phase::query_provisional, 250, 256,
+            history.id, 0) == llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, 97, 0,
+            llama_kv_pager_turn_phase::retrieval_commit, 250, 256,
+            history.id, 1, { { history.id, history.content_version } }) ==
+            llama_kv_pager_turn_status::ok);
+    assert(pager->transition_turn(0, 97, 1,
+            llama_kv_pager_turn_phase::generating, 250, 256,
+            history.id, 1) == llama_kv_pager_turn_status::ok);
+
+    // G is one page (256 tokens). Accept three full generation pages while
+    // the selected historical needle remains resident in the third slot.
+    const uint64_t generation_page_tokens = pager->snapshot().geometry.page_tokens;
+    const uint64_t accepted_tokens = 2 * generation_page_tokens + 17;
+    for (llama_pos position = 256; position < 256 + llama_pos(accepted_tokens); ++position) {
+        if (position > 256 && position % 256 == 0) {
+            const uint32_t prior_logical = uint32_t(position / 256 - 1);
+            const auto current = pager->residency().pages();
+            fixture.snapshot.pages.clear();
+            for (const auto & page : current) {
+                if (page.id.logical_page >= 1 && page.id.logical_page <= prior_logical) {
+                    fixture.snapshot.pages.push_back(page.id);
+                }
+            }
+            assert(!fixture.snapshot.pages.empty());
+        }
+        if (position == 512) {
+            (void) pager->seal_ready_pages();
+            const auto indexed = pager->turn_state(0).completed_generation_pages;
+            assert(indexed.size() == 1 && indexed[0].logical_page == 1);
+        }
+        assert(pager->begin_write(0, 1, position, ticket) == llama_kv_pager_write_status::ok);
+        assert(pager->complete_write(ticket, 32, true) == llama_kv_pager_write_status::ok);
+        if (position == 768) (void) pager->seal_ready_pages();
+    }
+    assert(accepted_tokens > 2 * uint64_t(pager->snapshot().generation_pages) *
+            pager->snapshot().geometry.page_tokens);
+    const auto pages = pager->residency().pages();
+    bool retained_history = false;
+    bool evicted_oldest_generation = true;
+    bool retained_newer_generation = false;
+    bool retained_mutable_tail = false;
+    for (const auto & page : pages) {
+        retained_history = retained_history || page.id == history.id;
+        evicted_oldest_generation = evicted_oldest_generation && page.id.logical_page != 1;
+        retained_newer_generation = retained_newer_generation || page.id.logical_page == 2;
+        retained_mutable_tail = retained_mutable_tail || page.id.logical_page == 3;
+    }
+    assert(retained_history && evicted_oldest_generation && retained_newer_generation &&
+            retained_mutable_tail && pages.size() == 3);
+    const auto generation_state = pager->turn_state(0);
+    assert(std::none_of(generation_state.completed_generation_pages.begin(),
+            generation_state.completed_generation_pages.end(),
+            [](const auto & id) { return id.logical_page == 1 || id.logical_page == 3; }));
+
+    const auto tail = std::find_if(pages.begin(), pages.end(),
+            [](const auto & page) { return page.id.logical_page == 3; });
+    assert(tail != pages.end() && tail->id.position_end == 785 && tail->pin_count != 0);
+    fixture.snapshot.pages[0] = tail->id;
+    assert(pager->clear_turn_state(0, 97, 1) == llama_kv_pager_turn_status::ok);
+    assert(pager->turn_state(0).completed_generation_pages.empty());
+    // A rejected seal cannot enter the generation queue or displace frozen
+    // history. The partial current write is made immutable at the boundary,
+    // its attempted host capture is rejected, and admission reports no safe
+    // victim while retaining both existing identities.
+    host_page_fixture rejected_fixture;
+    rejected_fixture.initialize();
+    auto rejected_resources = host_resources;
+    rejected_resources.host_source_namespace = host_page_fixture::source_namespace;
+    llama_kv_pager_config rejected_config = config;
+    rejected_config.hot_pages.value = 2;
+    rejected_config.retrieval_pages.value = 1;
+    auto rejected_pager = llama_kv_pager::create(
+            rejected_config, geometry(1024), rejected_resources, backend, status);
+    assert(rejected_pager && status == llama_kv_pager_status::ok);
+    rejected_pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    rejected_pager->set_host_provider(
+            { &rejected_fixture, host_page_fixture::prepare });
+    for (llama_pos position = 0; position < 256; ++position) {
+        assert(rejected_pager->begin_write(0, 1, position, ticket) ==
+                llama_kv_pager_write_status::ok);
+        assert(rejected_pager->complete_write(ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    rejected_fixture.snapshot.pages[0] = rejected_pager->residency().pages()[0].id;
+    assert(rejected_pager->seal_ready_pages() == 1);
+    const auto rejected_history = rejected_pager->residency().pages()[0];
+    assert(rejected_pager->transition_turn(0, 98, 0,
+            llama_kv_pager_turn_phase::query_provisional, 250, 256,
+            rejected_history.id, 0) == llama_kv_pager_turn_status::ok);
+    assert(rejected_pager->transition_turn(0, 98, 0,
+            llama_kv_pager_turn_phase::retrieval_commit, 250, 256,
+            rejected_history.id, 1,
+            { { rejected_history.id, rejected_history.content_version } }) ==
+            llama_kv_pager_turn_status::ok);
+    assert(rejected_pager->transition_turn(0, 98, 1,
+            llama_kv_pager_turn_phase::generating, 250, 256,
+            rejected_history.id, 1) == llama_kv_pager_turn_status::ok);
+    assert(rejected_pager->begin_write(0, 1, 256, ticket) ==
+            llama_kv_pager_write_status::ok);
+    assert(rejected_pager->complete_write(ticket, 32, true) ==
+            llama_kv_pager_write_status::ok);
+    const auto dirty_generation = rejected_pager->residency().pages();
+    const auto dirty = std::find_if(dirty_generation.begin(), dirty_generation.end(),
+            [](const auto & page) { return page.id.logical_page == 1; });
+    assert(dirty != dirty_generation.end() && !dirty->host_valid);
+    rejected_fixture.snapshot.pages[0] = dirty->id;
+    rejected_fixture.reject_recheck = true;
+    assert(rejected_pager->begin_write(0, 1, 512, ticket) ==
+            llama_kv_pager_write_status::no_victim);
+    const auto after_rejection = rejected_pager->residency().pages();
+    assert(after_rejection.size() == 2);
+    assert(std::any_of(after_rejection.begin(), after_rejection.end(),
+            [&](const auto & page) { return page.id == rejected_history.id; }));
+    assert(std::none_of(after_rejection.begin(), after_rejection.end(),
+            [](const auto & page) { return page.id.logical_page == 2; }));
+    std::cout << "generation_ring_victim_and_history_pins=pass accepted_tokens="
+              << accepted_tokens << " G=" << pager->snapshot().generation_pages
+              << " H=" << pager->snapshot().physical_page_count
+              << " oldest_generation_evicted=1 history_retained=1 mutable_tail_retained=1"
+                 " rejected_seal_excluded=1\n";
+}
+
 int main() {
     test_turn_epoch_state_and_geometry();
     test_layer_slot_geometry();
@@ -1228,6 +1404,7 @@ int main() {
     test_compact_checkpoint_page_identity();
     test_mode_lifecycle_matrix();
     test_pager_host_mutation();
+    test_generation_ring_victim_and_history_pins();
     test_full_256k_capacity_plan();
     llama_kv_pager_config off;
     llama_kv_pager_snapshot snapshot;
