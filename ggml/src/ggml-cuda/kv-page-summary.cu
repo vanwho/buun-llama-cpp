@@ -47,11 +47,14 @@ __global__ void kv_page_summary_kernel(
             *(half *) destination = *(const half *) source;
             *(half *)(destination + output_nb1) =
                 *(const half *)(source + catalogue_nb1);
+            *(half *)(destination + 2 * output_nb1) =
+                *(const half *)(source + 2 * catalogue_nb1);
             continue;
         }
 
         float minimum = FLT_MAX;
         float maximum = -FLT_MAX;
+        float sum = 0.0f;
         bool invalid = false;
         for (int row = 0; row < valid_rows; ++row) {
             const char * row_data = k + stream * k_nb2 +
@@ -69,6 +72,7 @@ __global__ void kv_page_summary_kernel(
             } else {
                 minimum = fminf(minimum, value);
                 maximum = fmaxf(maximum, value);
+                sum += value;
             }
         }
         if (invalid || !isfinite(minimum) || !isfinite(maximum)) {
@@ -76,9 +80,11 @@ __global__ void kv_page_summary_kernel(
             // eligible zero interval. The selector is finite/ordering gated.
             *(half *) destination = __float2half(NAN);
             *(half *)(destination + output_nb1) = __float2half(NAN);
+            *(half *)(destination + 2 * output_nb1) = __float2half(NAN);
         } else {
             *(half *) destination = summary_lower(minimum);
             *(half *)(destination + output_nb1) = summary_upper(maximum);
+            *(half *)(destination + 2 * output_nb1) = __float2half(sum / valid_rows);
         }
     }
 }

@@ -9,6 +9,7 @@
 #endif
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
@@ -265,7 +266,7 @@ int main() {
     std::fprintf(stderr, "kv page selector test backend=%s\n", ggml_backend_name(backend));
     test_user_span_accumulator(backend);
 
-    constexpr int64_t d = 4;
+    constexpr int64_t d = 128;
     constexpr int64_t n_q_heads = 4;
     constexpr int64_t n_kv_heads = 2;
     constexpr int64_t n_q = 3;
@@ -274,31 +275,47 @@ int main() {
     ggml_context * ctx = ggml_init(init);
     assert(ctx != nullptr);
     ggml_tensor * q = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, d, n_q_heads, n_q);
-    ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 2, n_kv_heads, n_pages);
+    ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16, d, 3, n_kv_heads, n_pages);
     ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 8, n_pages);
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, n_pages);
     ggml_tensor * query = ggml_new_tensor_1d(ctx, GGML_TYPE_I64, 4);
     ggml_tensor * selected = ggml_kv_page_select(ctx, q, bounds, metadata, membership, query,
-                                                  2, 2, 4, 1, 0);
+                                                  2, 2, 4, 1, 0, 0);
     ggml_tensor * selected_row_zero = ggml_kv_page_select(ctx, q, bounds, metadata,
-            membership, query, 2, 2, 4, 0, 0);
+            membership, query, 2, 2, 4, 0, 0, 0);
     ggml_tensor * selected_mean = ggml_kv_page_select(ctx, q, bounds, metadata,
-            membership, query, 2, 2, 4, -1, 0);
+            membership, query, 2, 2, 4, -1, 0, 0);
+    ggml_tensor * selected_mean_k = ggml_kv_page_select(ctx, q, bounds, metadata,
+            membership, query, 2, 2, 4, -1, 0, 1);
+    ggml_tensor * current_cold_top1 = ggml_kv_page_select(ctx, q, bounds, metadata,
+            membership, query, 2, 1, 4, -1, 0, 0);
+    ggml_tensor * mean_k_cold_top1 = ggml_kv_page_select(ctx, q, bounds, metadata,
+            membership, query, 2, 1, 4, -1, 0, 1);
     ggml_tensor * q_decode = ggml_view_3d(ctx, q, d, n_q_heads, 1,
             q->nb[1], q->nb[2], 2 * q->nb[2]);
     ggml_tensor * selected_decode = ggml_kv_page_select(ctx, q_decode, bounds,
-            metadata, membership, query, 2, 2, 4, 0, 0);
+            metadata, membership, query, 2, 2, 4, 0, 0, 0);
     // The production pager reads this compact result after the scheduler
     // fence.  Keep the selector output alive for that graph-result boundary.
     ggml_set_output(selected);
     ggml_set_output(selected_row_zero);
     ggml_set_output(selected_mean);
+    ggml_set_output(selected_mean_k);
+    ggml_set_output(current_cold_top1);
+    ggml_set_output(mean_k_cold_top1);
     ggml_set_output(selected_decode);
     ggml_cgraph * graph = ggml_new_graph_custom(ctx, 32, false);
     ggml_build_forward_expand(graph, selected);
     ggml_build_forward_expand(graph, selected_row_zero);
     ggml_build_forward_expand(graph, selected_mean);
+    ggml_build_forward_expand(graph, selected_mean_k);
+    ggml_build_forward_expand(graph, current_cold_top1);
+    ggml_build_forward_expand(graph, mean_k_cold_top1);
     ggml_build_forward_expand(graph, selected_decode);
+    ggml_cgraph * graph_current = ggml_new_graph_custom(ctx, 16, false);
+    ggml_cgraph * graph_mean_k = ggml_new_graph_custom(ctx, 16, false);
+    ggml_build_forward_expand(graph_current, current_cold_top1);
+    ggml_build_forward_expand(graph_mean_k, mean_k_cold_top1);
     ggml_backend_buffer_t buffer = ggml_backend_alloc_ctx_tensors(ctx, backend);
     assert(buffer != nullptr);
 
@@ -315,15 +332,16 @@ int main() {
             q_data[base + 3] = value;
         }
     }
-    std::vector<ggml_fp16_t> bound_data(size_t(d * 2 * n_kv_heads * n_pages));
+    std::vector<ggml_fp16_t> bound_data(size_t(d * 3 * n_kv_heads * n_pages));
     for (int64_t page = 0; page < n_pages; ++page) {
         for (int64_t head = 0; head < n_kv_heads; ++head) {
             for (int64_t coord = 0; coord < d; ++coord) {
-                const size_t base = size_t(coord + d * (2 * (head + n_kv_heads * page)));
+                const size_t base = size_t(coord + d * (3 * (head + n_kv_heads * page)));
                 const float low = page == 2 ? -10.0f : (page == 1 ? 0.0f : -1.0f);
                 const float high = page == 1 ? 10.0f : (page == 2 ? 0.0f : 1.0f);
                 bound_data[base] = ggml_fp32_to_fp16(low);
                 bound_data[base + d] = ggml_fp32_to_fp16(high);
+                bound_data[base + 2 * d] = ggml_fp32_to_fp16(page == 2 ? 0.0f : page == 3 ? -20.0f : 0.0f);
             }
         }
     }
@@ -335,17 +353,32 @@ int main() {
         8, 4, 2, 1, -1, -1, 1, 1,
     };
     const std::vector<int32_t> member = { 1, 1, 0, 0, 0 };
-    // The final row maps to token position 11, so its causal query position is 12.
-    const std::vector<int64_t> query_data = { 12, 1, 2, 1 };
+    // The final row maps to token position 15, so its causal query position is 16.
+    const std::vector<int64_t> query_data = { 16, 1, 2, 1 };
     ggml_backend_tensor_set(q, q_data.data(), 0, ggml_nbytes(q));
     ggml_backend_tensor_set(bounds, bound_data.data(), 0, ggml_nbytes(bounds));
     ggml_backend_tensor_set(metadata, page_data.data(), 0, ggml_nbytes(metadata));
     ggml_backend_tensor_set(membership, member.data(), 0, ggml_nbytes(membership));
     ggml_backend_tensor_set(query, query_data.data(), 0, ggml_nbytes(query));
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
+    constexpr int timing_iterations = 20;
+    const auto current_begin = std::chrono::steady_clock::now();
+    for (int i = 0; i < timing_iterations; ++i) {
+        assert(ggml_backend_graph_compute(backend, graph_current) == GGML_STATUS_SUCCESS);
+    }
+    ggml_backend_synchronize(backend);
+    const double current_selector_us = std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - current_begin).count() / timing_iterations;
+    const auto mean_begin = std::chrono::steady_clock::now();
+    for (int i = 0; i < timing_iterations; ++i) {
+        assert(ggml_backend_graph_compute(backend, graph_mean_k) == GGML_STATUS_SUCCESS);
+    }
+    ggml_backend_synchronize(backend);
+    const double mean_selector_us = std::chrono::duration<double, std::micro>(
+            std::chrono::steady_clock::now() - mean_begin).count() / timing_iterations;
     std::vector<int32_t> output(4, -2);
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
-    assert(output[2] == 2 && output[3] == -1);
+    assert(output[2] == 2 && output[3] == 3);
     std::vector<int32_t> row_zero_output(4, -2);
     ggml_backend_tensor_get(selected_row_zero, row_zero_output.data(), 0,
             ggml_nbytes(selected_row_zero));
@@ -353,7 +386,21 @@ int main() {
     std::vector<int32_t> mean_output(4, -2);
     ggml_backend_tensor_get(selected_mean, mean_output.data(), 0,
             ggml_nbytes(selected_mean));
-    assert(mean_output[2] == 2 && mean_output[3] == -1);
+    assert(mean_output[2] == 2 && mean_output[3] == 3);
+    std::vector<int32_t> mean_k_output(4, -2);
+    ggml_backend_tensor_get(selected_mean_k, mean_k_output.data(), 0,
+            ggml_nbytes(selected_mean_k));
+    assert(mean_k_output[2] == 3 && mean_k_output[3] == 2);
+    int32_t current_top1 = -1, mean_k_top1 = -1;
+    ggml_backend_tensor_get(current_cold_top1, &current_top1, 2 * sizeof(int32_t), sizeof(int32_t));
+    ggml_backend_tensor_get(mean_k_cold_top1, &mean_k_top1, 2 * sizeof(int32_t), sizeof(int32_t));
+    assert(current_top1 == 2 && mean_k_top1 == 3);
+    std::fprintf(stderr,
+            "scorer_comparison backend=%s required_page=3 current_recall=0 mean_k_recall=1 "
+            "current_false_promotions=1 mean_k_false_promotions=0 top1_overlap=0 "
+            "current_selector_us=%.3f mean_k_selector_us=%.3f catalogue_bytes=%zu\n",
+            ggml_backend_name(backend), current_selector_us, mean_selector_us,
+            size_t(ggml_nbytes(bounds)));
     const auto first_output = output;
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
@@ -369,7 +416,7 @@ int main() {
     ggml_backend_tensor_get(selected_decode, decode_output.data(), 0,
             ggml_nbytes(selected_decode));
     assert(decode_output[0] == 1);
-    const int64_t final_query_position = 12;
+    const int64_t final_query_position = 16;
     ggml_backend_tensor_set(query, &final_query_position, 0, sizeof(final_query_position));
 
     // Non-finite query coordinates are not valid scores; no page may be
@@ -392,6 +439,9 @@ int main() {
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
     assert(output[0] == -1);
+    ggml_backend_tensor_get(mean_k_cold_top1, &mean_k_top1,
+            2 * sizeof(int32_t), sizeof(int32_t));
+    assert(mean_k_top1 == -1);
 
     // Equal negative scores still use the ascending logical-page tie break.
     std::fill(q_data.begin(), q_data.end(), -1.0f);
@@ -399,9 +449,10 @@ int main() {
         page_data[8 * page + 6] = 1;
         for (int64_t head = 0; head < n_kv_heads; ++head) {
             for (int64_t coord = 0; coord < d; ++coord) {
-                const size_t base = size_t(coord + d * (2 * (head + n_kv_heads * page)));
+                const size_t base = size_t(coord + d * (3 * (head + n_kv_heads * page)));
                 bound_data[base] = ggml_fp32_to_fp16(1.0f);
                 bound_data[base + d] = ggml_fp32_to_fp16(2.0f);
+                bound_data[base + 2 * d] = ggml_fp32_to_fp16(1.0f);
             }
         }
     }
@@ -411,7 +462,11 @@ int main() {
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
     assert(output[0] == 0 && output[1] == 1);
-    assert(output[2] == 2 && output[3] == -1);
+    assert(output[2] == 2 && output[3] == 3);
+    ggml_backend_tensor_get(selected_mean_k, mean_k_output.data(), 0,
+            ggml_nbytes(selected_mean_k));
+    assert(mean_k_output[0] == 0 && mean_k_output[1] == 1);
+    assert(mean_k_output[2] == 2 && mean_k_output[3] == 3);
 
     // A disabled refresh and a stale snapshot publish only padding, never a
     // candidate from the previous generation.
@@ -420,6 +475,9 @@ int main() {
     assert(ggml_backend_graph_compute(backend, graph) == GGML_STATUS_SUCCESS);
     ggml_backend_tensor_get(selected, output.data(), 0, ggml_nbytes(selected));
     for (int32_t value : output) assert(value == -1);
+    ggml_backend_tensor_get(selected_mean_k, mean_k_output.data(), 0,
+            ggml_nbytes(selected_mean_k));
+    for (int32_t value : mean_k_output) assert(value == -1);
 
     ggml_backend_buffer_free(buffer);
     ggml_free(ctx);

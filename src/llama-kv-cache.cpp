@@ -4624,6 +4624,7 @@ bool llama_kv_cache::pager_routing_summary_build(
                             std::numeric_limits<float>::infinity());
                     item.input.range_max.assign(size_t(subblocks) * config.vector_dim,
                             -std::numeric_limits<float>::infinity());
+                    item.input.mean_k_values.assign(config.vector_dim, 0.0f);
                 }
                 std::vector<uint8_t> encoded(static_cast<size_t>(row_bytes), uint8_t(0));
                 std::vector<float> decoded(size_t(tensor->ne[0]));
@@ -4641,6 +4642,7 @@ bool llama_kv_cache::pager_routing_summary_build(
                             const size_t index = size_t(subblock) * config.vector_dim + d;
                             item.input.range_min[index] = std::min(item.input.range_min[index], value);
                             item.input.range_max[index] = std::max(item.input.range_max[index], value);
+                            item.input.mean_k_values[d] += value / float(valid_rows);
                         }
                     }
                 }
@@ -17672,7 +17674,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     if (!has_final_user_row) return accumulated_q;
 
     ggml_tensor * bounds = ggml_new_tensor_4d(ctx, GGML_TYPE_F16,
-            q->ne[0], 2, snapshot.geometry.kv_heads, page_count);
+            q->ne[0], 3, snapshot.geometry.kv_heads, page_count);
     ggml_tensor * metadata = ggml_new_tensor_2d(ctx, GGML_TYPE_I64, 9, page_count);
     ggml_tensor * membership = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, page_count);
     ggml_tensor * query = ggml_new_tensor_4d(ctx, GGML_TYPE_I64, 4, 1, 1, 1);
@@ -17698,7 +17700,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     }
     ggml_tensor * selected = ggml_kv_page_select(ctx, accumulated_q, summary, metadata, membership, query,
             k_resident, k_cold, snapshot.geometry.page_tokens, -1,
-            pager.selector_trace().enabled ? 1 : 0);
+            pager.selector_trace().enabled ? 1 : 0, 1);
     note_kv_page_select_gate(selected != nullptr
             ? llama_kv_pager_selector_gate::selector_nodes_created
             : llama_kv_pager_selector_gate::tensor_allocation_failed,
@@ -17815,7 +17817,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     }
 
     const uint64_t bounds_page_bytes = bounds->nb[3];
-    const uint64_t bounds_values = uint64_t(dim) * 2 * kv_heads;
+    const uint64_t bounds_values = uint64_t(dim) * 3 * kv_heads;
     if (bounds_values > std::numeric_limits<uint64_t>::max() / sizeof(ggml_fp16_t) ||
             bounds_page_bytes < bounds_values * sizeof(ggml_fp16_t) ||
             metadata->ne[0] < 8 || metadata->nb[1] < 8 * sizeof(int64_t)) return false;
@@ -17866,9 +17868,13 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
                         lo = std::min(lo, (*lower)[block * dim + d]);
                         hi = std::max(hi, (*upper)[block * dim + d]);
                     }
-                    const size_t base = d + size_t(dim) * 2 * head;
+                    const size_t base = d + size_t(dim) * 3 * head;
                     bound_data[base] = ggml_fp32_to_fp16(fp16_outward_lower(lo));
                     bound_data[base + dim] = ggml_fp32_to_fp16(fp16_outward_upper(hi));
+                    const auto * mean = summary->mean_k(record.id);
+                    if (mean != nullptr && mean->size() >= dim) {
+                        bound_data[base + 2 * dim] = ggml_fp32_to_fp16((*mean)[d]);
+                    }
                 }
             }
         }

@@ -168,7 +168,7 @@ int main() {
     assert(layout.subblocks_per_page == 4);
     assert(layout.bytes == 10ull * 16 * 4 * 4 * 256 * 2 * sizeof(uint16_t));
     const auto catalogue = llama_kv_routing_catalogue_layout::make(10, 4, 256);
-    assert(catalogue.bytes == 10ull * 4 * 256 * 2 * sizeof(uint16_t));
+    assert(catalogue.bytes == 10ull * 4 * 256 * 3 * sizeof(uint16_t));
     assert(llama_kv_routing_summary_device_layout::make(
             10, 16, 4, 256, VBR_GENERATION_PAGE_CELLS, 16, sizeof(uint16_t)).bytes ==
             10ull * 16 * 4 * 16 * 256 * 2 * sizeof(uint16_t));
@@ -185,6 +185,21 @@ int main() {
     assert(range_ranked.status == llama_kv_routing_summary_status::ok);
     assert(range_ranked.top_pages[0].logical_page == 2);
     assert(range_ranked.comparisons == 3ull * 4 * 4);
+    auto mean_config = config;
+    mean_config.form = llama_kv_routing_summary_form::mean_k;
+    const auto means = llama_kv_routing_summary_store::build(
+            snap, inputs, mean_config, status);
+    assert(status == llama_kv_routing_summary_status::ok && means.valid());
+    assert(means.version() == LLAMA_KV_ROUTING_SUMMARY_VERSION);
+    assert(means.mean_k(0) != nullptr && means.mean_k(0)->size() == 4);
+    assert((*means.mean_k(0))[0] == 2.0f / 256.0f);
+    const auto mean_ranked = means.score(snap, { 1, 0, 0, 0 }, 3);
+    assert(mean_ranked.status == llama_kv_routing_summary_status::ok);
+    assert(mean_ranked.top_pages[0].logical_page == 2);
+    auto sparse_mean_config = mean_config;
+    const auto sparse_mean = llama_kv_routing_summary_store::build(
+            snap, sparse_inputs, sparse_mean_config, status);
+    assert(!sparse_mean.valid() && status == llama_kv_routing_summary_status::invalid_page);
     float range_score = 0.0f;
     const float range_query[] = { 1.0f, -2.0f };
     const float range_min[] = { -1.0f, -3.0f };

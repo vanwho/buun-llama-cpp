@@ -2668,7 +2668,8 @@ extern "C" {
             int                   k_cold,
             int                   page_size,
             int                   query_row,
-            int                   diagnostic_mode);
+            int                   diagnostic_mode,
+            int                   scorer_mode);
 
     // Accumulate transformed query rows whose absolute positions are in
     // [query_start, query_end), resetting persistent sum/count on turn change.

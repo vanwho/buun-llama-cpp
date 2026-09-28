@@ -102,7 +102,7 @@ __global__ void page_select_scores(
         const int32_t * membership, size_t membership_nb0,
         const int64_t * query, size_t query_nb0, int metadata_fields, int page_size,
         float * scores, int n_pages, int d, int n_q_heads, int n_kv_heads,
-        int n_q_rows, int query_row) {
+        int n_q_rows, int query_row, int scorer_mode) {
     const int page = blockIdx.x;
     if (page >= n_pages) return;
 
@@ -138,6 +138,12 @@ __global__ void page_select_scores(
                 if (query_row < 0) qi /= float(row_end - row_begin);
                 const char * b = (const char *) bounds + coord * bounds_nb0 +
                     kv_head * bounds_nb2 + page * bounds_nb3;
+                if (scorer_mode == 1) {
+                    const float mean = __half2float(*(const half *)(b + 2 * bounds_nb1));
+                    if (!isfinite(mean)) invalid = 1;
+                    else partial += qi * mean;
+                    continue;
+                }
                 const float lo = __half2float(*(const half *) b);
                 const float hi = __half2float(*(const half *) (b + bounds_nb1));
                 if (!isfinite(qi) || isnan(lo) || isnan(hi) || lo > hi) {
@@ -321,6 +327,7 @@ void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * 
     const int page_size = ggml_get_op_params_i32(dst, 2);
     const int query_row = ggml_get_op_params_i32(dst, 3);
     const int diagnostic_mode = ggml_get_op_params_i32(dst, 4);
+    const int scorer_mode = ggml_get_op_params_i32(dst, 5);
     const int n_pages = bounds->ne[3];
     const int metadata_fields = metadata->ne[0];
     const int output_count = k_resident + k_cold;
@@ -339,7 +346,7 @@ void ggml_cuda_op_kv_page_select(ggml_backend_cuda_context & ctx, ggml_tensor * 
         (const int32_t *) membership->data, membership->nb[0],
         (const int64_t *) query->data, query->nb[0], metadata_fields, page_size,
         scores.get(), n_pages,
-        q->ne[0], q->ne[1], bounds->ne[2], q->ne[2], query_row);
+        q->ne[0], q->ne[1], bounds->ne[2], q->ne[2], query_row, scorer_mode);
     CUDA_CHECK(cudaGetLastError());
 
 #ifdef GGML_CUDA_USE_CUB

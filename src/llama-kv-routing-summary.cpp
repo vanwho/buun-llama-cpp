@@ -63,7 +63,8 @@ bool inventory_matches_snapshot(
 bool valid_form(llama_kv_routing_summary_form form) {
     return form == llama_kv_routing_summary_form::representatives ||
            form == llama_kv_routing_summary_form::centroid_upper_bound ||
-           form == llama_kv_routing_summary_form::minmax_ranges;
+           form == llama_kv_routing_summary_form::minmax_ranges ||
+           form == llama_kv_routing_summary_form::mean_k;
 }
 
 bool valid_subblock(uint32_t page_tokens, uint32_t subblock_tokens) {
@@ -153,6 +154,24 @@ bool make_vectors(const llama_kv_routing_page_input & input,
                   uint64_t & source_rows) {
     if (row_count == 0 || !valid_form(config.form)) return false;
     std::vector<uint32_t> rows;
+    if (config.form == llama_kv_routing_summary_form::mean_k) {
+        uint64_t expected = 0;
+        if (!input.row_indices.empty() || !mul(row_count, config.vector_dim, expected) ||
+                input.rotated_k_rows.size() != expected) return false;
+        vectors.assign(config.vector_dim, 0.0f);
+        for (uint64_t row = 0; row < row_count; ++row) {
+            for (uint32_t d = 0; d < config.vector_dim; ++d) {
+                const float value = input.rotated_k_rows[size_t(row) * config.vector_dim + d];
+                if (!std::isfinite(value)) return false;
+                vectors[d] += value;
+            }
+        }
+        const float inverse = 1.0f / float(row_count);
+        for (float & value : vectors) value *= inverse;
+        source_rows = row_count;
+        radius = 0.0f;
+        return true;
+    }
     if (input.row_indices.empty()) {
         uint64_t expected = 0;
         if (!mul(row_count, config.vector_dim, expected) || input.rotated_k_rows.size() != expected) return false;
@@ -295,7 +314,7 @@ llama_kv_routing_catalogue_layout llama_kv_routing_catalogue_layout::make(
     result.element_bytes = element_bytes;
     uint64_t values = 0;
     if (element_bytes == 0 || !mul(logical_pages, kv_heads, values) ||
-            !mul(values, vector_dim, values) || !mul(values, 2, values) ||
+            !mul(values, vector_dim, values) || !mul(values, 3, values) ||
             !mul(values, element_bytes, result.bytes)) {
         result = {};
     }
@@ -394,6 +413,16 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::build(
             if (!made) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
+            }
+            if (config.form == llama_kv_routing_summary_form::minmax_ranges &&
+                    !it->mean_k_values.empty()) {
+                if (it->mean_k_values.size() != config.vector_dim ||
+                        std::any_of(it->mean_k_values.begin(), it->mean_k_values.end(),
+                                [](float value) { return !std::isfinite(value); })) {
+                    status = llama_kv_routing_summary_status::invalid_page;
+                    return {};
+                }
+                summary.vectors = it->mean_k_values;
             }
             summary.source_bytes = it->source_bytes;
             result.pages_.push_back(std::move(summary));
@@ -518,6 +547,16 @@ llama_kv_routing_summary_store llama_kv_routing_summary_store::update_pages(
             if (!made) {
                 status = llama_kv_routing_summary_status::invalid_page;
                 return {};
+            }
+            if (config.form == llama_kv_routing_summary_form::minmax_ranges &&
+                    !inputs[i].mean_k_values.empty()) {
+                if (inputs[i].mean_k_values.size() != config.vector_dim ||
+                        std::any_of(inputs[i].mean_k_values.begin(), inputs[i].mean_k_values.end(),
+                                [](float value) { return !std::isfinite(value); })) {
+                    status = llama_kv_routing_summary_status::invalid_page;
+                    return {};
+                }
+                summary.vectors = inputs[i].mean_k_values;
             }
             summary.source_bytes = inputs[i].source_bytes;
             updates.push_back(std::move(summary));
@@ -676,6 +715,25 @@ const std::vector<float> * llama_kv_routing_summary_store::range_max(
     return it == pages_.end() || it->range_max.empty() ? nullptr : &it->range_max;
 }
 
+const std::vector<float> * llama_kv_routing_summary_store::mean_k(
+        uint32_t logical_page) const noexcept {
+    const auto it = std::find_if(pages_.begin(), pages_.end(), [&](const auto & page) {
+        return page.id.logical_page == logical_page;
+    });
+    return it == pages_.end() || it->vectors.empty() ||
+            (form_ != llama_kv_routing_summary_form::mean_k &&
+             form_ != llama_kv_routing_summary_form::minmax_ranges) ? nullptr : &it->vectors;
+}
+
+const std::vector<float> * llama_kv_routing_summary_store::mean_k(
+        const llama_kv_page_id & id) const noexcept {
+    const auto it = std::find_if(pages_.begin(), pages_.end(),
+            [&](const auto & page) { return page.id == id; });
+    return it == pages_.end() || it->vectors.empty() ||
+            (form_ != llama_kv_routing_summary_form::mean_k &&
+             form_ != llama_kv_routing_summary_form::minmax_ranges) ? nullptr : &it->vectors;
+}
+
 uint64_t llama_kv_routing_summary_store::content_version(
         const llama_kv_page_id & id) const noexcept {
     const auto it = std::find_if(pages_.begin(), pages_.end(),
@@ -696,6 +754,13 @@ void llama_kv_routing_summary_store::rebuild_accounting(
         if (subblocks == 0 || !mul(pages_.size(), subblocks, vectors) ||
             !mul(vectors, vector_dim_, vectors) || !mul(vectors, 2, vectors) ||
             !mul(vectors, sizeof(float), payload)) {
+            accounting_ = {};
+            return;
+        }
+        uint64_t mean_values = 0;
+        if (!mul(uint64_t(std::count_if(pages_.begin(), pages_.end(), [](const auto & page) {
+                        return !page.vectors.empty(); })), vector_dim_, mean_values) ||
+                !mul(mean_values, sizeof(float), mean_values) || !add(payload, mean_values, payload)) {
             accounting_ = {};
             return;
         }
