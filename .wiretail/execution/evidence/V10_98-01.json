@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "task": "98-01",
+  "source_commit": "b21160bebfed0ce024b4738f2d75633cdf62ccd7",
+  "build_identity": {
+    "tree": "build-cuda-test",
+    "configuration": "Release",
+    "compiler": "/usr/bin/c++",
+    "ggml_cuda": true,
+    "cuda_architecture": "89-real",
+    "dirty_diff_sha256": "e199c1dd60aeefef7dac2bea3101ed873d84522087a0c89786309b6afa64b828",
+    "binaries": [
+      {
+        "path": "build-cuda-test/bin/test-kv-pager",
+        "sha256": "fb5065efc89a330c07f0ff493d79312d996b11311d04ab0845c4c89a563a7ca4"
+      },
+      {
+        "path": "build-cuda-test/bin/test-kv-residency",
+        "sha256": "494ac79cf3fc7e9e3f3c2134bc891a426b82a89b83cd741f76333326510ab504"
+      },
+      {
+        "path": "build-cuda-test/bin/test-cuda-kv-promotion",
+        "sha256": "2d968f830f3e04272c5ea9724ca089c7a210294509740562ac5296813fe00a9f"
+      }
+    ]
+  },
+  "profile": {
+    "cuda_device": "NVIDIA GeForce RTX 4080",
+    "useful_d2h_bytes": 16384,
+    "actual_d2h_bytes": 32768,
+    "pageable_bytes": 16384,
+    "catalog_pinned_payload_bytes": 0,
+    "peak_pinned_staging_bytes": 128,
+    "submitted_chunks": 256,
+    "staging_reuse_waits": 192,
+    "event_completions": 256,
+    "async_page_captures_queued": 3,
+    "capture_once_per_content_version": true,
+    "clean_eviction_host_bytes_retained": true,
+    "compute_overlap_ratio": null,
+    "compute_overlap_note": "Async capture is queued independently and the test exercises back-to-back page captures; this fixture does not timestamp a CUDA compute/D2H overlap ratio."
+  },
+  "checks": {
+    "inclusive_host_and_page_seal_topology": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda-test/bin/test-cuda-kv-promotion"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/98-01/attempt-01/build-final.log",
+          "sha256": "6f7c360f845b616434030d8e5ccf463533b5269a95647b0fc09d9a99e721d04d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/98-01/attempt-01/residency.log",
+          "sha256": "acb4b7cf01428a5b4615fff203c92cca36165b1bf08720fa517343e20ad66bc1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/98-01/attempt-01/pager.log",
+          "sha256": "28340b360b8127462c66b2cde69f00c9f316c3c2194376242bdd414ab8e14ac6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/98-01/attempt-01/cuda-promotion.log",
+          "sha256": "5e1c73a10718aa530022caafc60d5dbe305643461f112ad87c5c88d18e45749d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/98-01/attempt-01/diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "supporting_commands": [
+        [
+          "build-cuda-test/bin/test-kv-residency"
+        ],
+        [
+          "build-cuda-test/bin/test-kv-pager"
+        ],
+        [
+          "build-cuda-test/bin/test-cuda-kv-promotion"
+        ]
+      ]
+    }
+  },
+  "deferred_verification": []
+}

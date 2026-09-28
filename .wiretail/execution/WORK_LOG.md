@@ -1315,3 +1315,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-97-02`
 - Commit at update: `a613c1da4`
 - Summary: Fixed suffix rollback record length/version and generation FIFO ownership; passed generation seal/rejection and multi-wrap CUDA selector/promotion proofs plus focused MTP and pager tests; V10 receipt validated. Live native-MTP counters remain for 100-04.
+
+## 2026-09-28T05:33:44+00:00 — 98-01 — done
+
+- Branch: `codex/task-98-01`
+- Commit at update: `b21160beb`
+- Summary: Implemented bounded host capture backpressure and verified pageable canonical storage, async CUDA staging, stale completion, clean eviction host retention, and named CUDA/residency proofs. See .wiretail/execution/handoffs/98-01.md and V10_98-01.json.
