@@ -1,16 +1,18 @@
 # Active forward implementation: turn-boundary retrieval and query replay
 
-Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
+Revision: `hotpath-v10-20260914`. Amendment: `post100-hotpath-20260930`.
 
 This is the authoritative contract for phases 94–102. The current amendment is
-`forward-generation-admission-20260929`; read `REPAIR100.md` for the latest
-failure boundary and executable repair order. It implements the fully
+`post100-hotpath-20260930`; read `HOTPATH_POST100.md` for the current measured
+failure boundary, KVMem comparison, pinned master merge and source-directed
+repair order. `REPAIR100.md` is historical context for completed 100-02a–f,
+not a restart instruction. It implements the fully
 read Sol handoff retained in `SOURCE_FORWARD_PLAN.md`; that long reference is
 not automatically loaded into task sessions. By the user's 2026-09-27 direction,
 the remaining legacy 93-11n campaign is deferred, not passed. 93-11o's completed
 selector repair and the existing uncommitted source work are preserved. Start
-from the first unfinished task named by `WORK_STATE.json`; after this repair
-that is 100-02a. 100-02 is deferred with its query-page implementation and
+from the first unfinished task named by `WORK_STATE.json`; after this amendment
+that is 100-03d. 100-02 is deferred with its query-page implementation and
 partial measurements preserved; it is not a passed campaign. Prior94–99
 implementation checkpoints and completed100-01 are preserved;95-03 is intentionally
 deferred. 94-01a repaired authenticated selection-to-admission under the new
@@ -76,7 +78,7 @@ card, service paths or these counts in portable production logic.
 | 97 | 97-01–02 | Protected history, generation ring, sealing/rollback |
 | 98 | 98-01–02 | Inclusive host authority and batched async promotion |
 | 99 | 99-01–02 | Matched GPU kernel comparison; shape-aware production routes |
-| 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/04 | Budget/ownership and batch-ring repair; hot-path cost reduction; MTP/retrieval proof; staged paired speeds; cost-based remediation; final replay/cancel proof |
+| 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/a/b/c done; 100-03d–i; 100-04 | Merge synced master; request-local attribution; measured packed/host/MTP repair; minimal matched speed decision; small final replay/cancel proof |
 | 101 | 101-01–03 | 32K/16K, 128K, then full 256K occupancy and memory proof |
 | 102 | 102-01 | Goal assessment, useful final curve, concrete next remediation |
 
@@ -112,11 +114,11 @@ is not a lifetime retry budget. Update scheduling/receipts before declaring done
 
 The initial query replay and natural promotion work has partial live evidence;
 its complete one-pass parity and cancellation checks are delayed until the
-attention implementation and first speed campaign settle. Short-path speed
-results before 100-04 are diagnostic; do not start context scaling until that
-integrated correctness task passes. This order allows scorer/kernel work and
-useful short-path measurements to proceed without repeatedly rerunning an
-early full integration fixture.
+attention implementation and first speed campaign settle. The 100-03b paired
+campaign is a failed goal result; 100-03c's single post-edit row is diagnostic.
+100-03i produces the post-merge matched result and, on a miss, inserts one
+source-directed repair successor before 100-04. Do not scale until the
+short-path speed gate and 100-04 integrated correctness proof pass.
 
 Primary goal remains 256K full logical/host history, bounded H, natural
 promotion, correct replay/freeze/ring, native GPU MTP, selected fresh prefill

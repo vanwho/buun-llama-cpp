@@ -4,6 +4,11 @@ Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 Current repair amendment: `forward-generation-admission-20260929`.
 `REPAIR100.md` supplies the exact current diagnosis and100-02a–f ownership.
 
+Post-merge amendment `post100-hotpath-20260930`: for tasks 100-03d onward,
+`HOTPATH_POST100.md` and their packets supersede the 100-02a–f/100-03
+directions below. In particular 100-03i, not 100-03, owns the next canonical
+matched speed decision; 100-03d merges pinned fork master first.
+
 ## Setup once, verify cheaply, keep loaded
 
 Use the existing incremental `build-cuda` tree and build only named affected
@@ -134,21 +139,18 @@ in normal runs. Compare direct and packed using identical page IDs/bytes.
 
 Minimum selected fresh-prefill goal is 500 tok/s for each canonical prompt;
 750 is preferred. A completed measurement below goal stays a failed goal
-finding. Phase 100-03 must schedule a concrete source repair and minimal retest
+finding. Phase 100-03i must schedule a concrete source repair and minimal retest
 before capacity work. There is no universal number-of-attempts optimization
 law, no shortening facts to fit a 16-token cap, and no repeated audit task.
 
-If 100-03 inserts repair tasks, use task IDs `100-03a`, `100-03b`, etc. in
-the state-list order immediately after `100-03`; set each dependency to the
-previous repair task; preserve every existing task's usage ledger and proof
-metadata; make `100-04` depend on the last repair/retest; and leave
-`101-01 -> 100-04` unchanged. Add each packet, cluster membership and V10
-proof requirement before completing 100-03. Keep `current_task` at the first
-unfinished item (the runner/task-state completion transition advances it).
-Run `PROJECT_ROOT="$PWD" python3 /srv/wiretail/task_state.py validate` and
-`python3 .wiretail/execution/v10/validate.py --task 100-03 --receipt
-.wiretail/execution/evidence/V10_100-03.json`; fix metadata/receipt structure
-errors in 100-03 rather than leaving the next run to discover them. These
+If 100-03i measures a miss, insert the next unused `100-03j`, `100-03k`, etc.
+directly after it and before 100-04. Set each dependency to its predecessor,
+preserve usage ledgers, point 100-04 at the final repair/retest, and leave
+`101-01 -> 100-04` unchanged. Give a new task a contiguous final cluster,
+packet, context and V10 proof check *before* completing 100-03i. Keep
+`current_task` at the first unfinished item. Run both state validation and
+the 100-03i V10 receipt validator; a measured `goal_miss` is honest evidence
+but does not authorize phase 101. These
 repair packets must contain one measured cause, one owner/symbol, one focused
 regression and one minimal retest—not another full benchmark loop.
 

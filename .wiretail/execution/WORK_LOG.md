@@ -1443,3 +1443,15 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03c`
 - Commit at update: `82dffee73`
 - Summary: reduced packed selected-view row-membership scans; focused regression and one natural-stop CUDA prompt-1 diagnostic passed; V10 receipt validated and 100-02f service restored
+
+## 2026-09-29T08:45:19+00:00 — 100-04 — done
+
+- Branch: `codex/task-100-04`
+- Commit at update: `3f3d6c61c`
+- Summary: brief verified result
+
+## 2026-09-29T22:52:53+00:00 — 100-04 — todo
+
+- Branch: `codex/task-100-04`
+- Commit at update: `3f3d6c61c`
+- Summary: Reopened invalid completion: Integrated replay parity receipt absent; premature terminal status from interrupted attempt
