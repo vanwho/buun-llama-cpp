@@ -118,6 +118,12 @@ def main() -> int:
     parser.add_argument("--prefix", type=int, default=6144)
     parser.add_argument("--deltas", type=int, nargs="+", default=[64, 256])
     parser.add_argument("--max-tokens", type=int, default=1)
+    parser.add_argument("--base-messages-json", type=pathlib.Path,
+                        help="existing conversation messages to reuse as the cached prefix")
+    parser.add_argument("--question-index", type=int, choices=(0, 1, 2),
+                        help="append one canonical final question from run-final-curve.py")
+    parser.add_argument("--honor-eos", action="store_true",
+                        help="allow the appended response to finish naturally")
     parser.add_argument("--mode", choices=("off", "observe", "selective", "exact"), default="selective")
     parser.add_argument("--mtp-mode", choices=("native", "off"), default="native")
     parser.add_argument("--server-bin", type=pathlib.Path, required=True)
@@ -152,9 +158,29 @@ def main() -> int:
     if not model_hash:
         raise RuntimeError("resolved model hash unavailable")
 
+    base_messages = [{"role": "user", "content": ""}]
+    if args.base_messages_json is not None:
+        value = json.loads(args.base_messages_json.read_text(encoding="utf-8"))
+        if (not isinstance(value, list) or not value or
+                any(not isinstance(message, dict) or message.get("role") not in
+                    ("system", "user", "assistant") or
+                    not isinstance(message.get("content"), str) for message in value)):
+            raise ValueError("base messages must be a non-empty JSON array of role/content objects")
+        base_messages = [dict(message) for message in value]
+        last_user = next((message for message in reversed(base_messages)
+                          if message.get("role") == "user"), None)
+        if last_user is None:
+            raise ValueError("base messages must contain a user message")
+        last_user["content"] += (
+            f"\n\n{MARKER}\n\nContinue the existing conversation briefly to commit this prefix.")
     question = "Reply with exactly 64 slash characters and no other text."
-    base = fit_exact(renderer, [{"role": "user", "content": f"{MARKER}\n\n{question}"}],
-                     args.prefix - args.max_tokens, args.max_tokens, (question,))
+    protected_prefix = (question,)
+    if args.base_messages_json is None:
+        base_messages = [{"role": "user", "content": f"{MARKER}\n\n{question}"}]
+    else:
+        protected_prefix = ("Continue the existing conversation briefly to commit this prefix.",)
+    base = fit_exact(renderer, base_messages,
+                     args.prefix - args.max_tokens, args.max_tokens, protected_prefix)
     prefix_prompt_tokens = len(base.token_ids)
     (args.output / "prefix-token-ids.json").write_text(json.dumps(list(base.token_ids)) + "\n", encoding="utf-8")
     (args.output / "prefix.txt").write_text(base.rendered_text, encoding="utf-8")
@@ -189,7 +215,10 @@ def main() -> int:
             # passed to fit_exact.  Account for the committed output reserve
             # here so the new prompt itself grows by exactly ``delta`` tokens.
             target_prompt = first_frontier + delta + args.max_tokens
-            append_question = f"Append segment {delta}: emit exactly 64 slash characters and no other text."
+            if args.question_index is None:
+                append_question = f"Append segment {delta}: emit exactly 64 slash characters and no other text."
+            else:
+                append_question = driver.QUESTIONS[args.question_index]
             messages = history + [{"role": "user", "content": f"{MARKER}\n\n{append_question}"}]
             fit = fit_exact(renderer, messages, target_prompt - args.max_tokens,
                             args.max_tokens, (append_question,))
@@ -200,7 +229,7 @@ def main() -> int:
                 f"cached-append-{delta}", index, 1, full_prompt_tokens, args.timeout, path,
                 cache_condition="live-continuation", mode=args.mode,
                 mtp_requested=args.mtp_mode == "native", reset_mode="paired-restore",
-                ignore_eos=True,
+                ignore_eos=not args.honor_eos,
                 startup_timeout=60, progress_idle_timeout=args.timeout,
                 decode_idle_timeout=120, total_timeout=args.timeout)
             records.append({"name": f"append-{delta}",
@@ -218,6 +247,14 @@ def main() -> int:
             "logical_context_L": args.context,
             "append_deltas": args.deltas,
             "tokenizer": {"id": renderer.tokenizer_id, "template_id": renderer.template_id},
+            "base_messages_path": (str(args.base_messages_json)
+                                   if args.base_messages_json is not None else None),
+            "base_messages_sha256": (hashlib.sha256(args.base_messages_json.read_bytes()).hexdigest()
+                                      if args.base_messages_json is not None else None),
+            "canonical_question_index": args.question_index,
+            "canonical_question_sha256": (hashlib.sha256(
+                driver.QUESTIONS[args.question_index].encode()).hexdigest()
+                if args.question_index is not None else None),
         },
         "not_reachable_reason": (None if first_frontier is not None else {
             "kind": "bounded_prefix_request_failed_or_timed_out",
