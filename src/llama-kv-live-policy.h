@@ -90,6 +90,13 @@ struct llama_kv_query_commit {
     std::vector<llama_kv_query_commit_page> selected;
 };
 
+// R is the admission-derived historical-page allowance. Pages touched by the
+// active query are mandatory current state, so remove them before selecting
+// historical pages and leave G available for generation.
+uint32_t llama_kv_query_history_budget(
+        uint32_t retrieval_pages, int64_t query_start, int64_t query_end,
+        uint32_t page_tokens) noexcept;
+
 // Add one authenticated layer-local nomination to the canonical logical
 // bundle list, preserving first-seen order and merging its layer membership.
 bool llama_kv_query_commit_add_candidate(

@@ -3725,7 +3725,9 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         boundary.query_commit.sequence_generation = boundary.retrieval.sequence_generation;
         boundary.query_commit.representation_epoch = boundary.retrieval.representation_epoch;
         boundary.query_commit.sequence_id = boundary.retrieval.sequence_id;
-        boundary.query_commit.retrieval_budget = pager_snapshot.retrieval_pages;
+        boundary.query_commit.retrieval_budget = llama_kv_query_history_budget(
+            pager_snapshot.retrieval_pages, turn_state.query_start,
+            turn_state.query_end, pager_snapshot.geometry.page_tokens);
         boundary.query_commit.generation_budget = pager_snapshot.generation_pages;
         for (const auto & entry : boundary.retrieval.selected) {
             const auto canonical = std::find_if(inventory.begin(), inventory.end(),
@@ -6774,8 +6776,16 @@ void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & 
                         sequence_id, 0, positions, tickets);
                 if (write_status != llama_kv_pager_write_status::ok) {
                     last_failure_reason_ = pager_failure_reason(write_status);
+                    const auto turn = pager_->turn_state(sequence_id);
                     throw std::runtime_error(std::string("KV pager batch write reservation failed: ") +
-                            llama_kv_pager_write_status_name(write_status));
+                            llama_kv_pager_write_status_name(write_status) +
+                            " sequence=" + std::to_string(sequence_id) +
+                            " positions=" + std::to_string(positions.front()) + ".." +
+                                std::to_string(positions.back()) +
+                            " rows=" + std::to_string(positions.size()) +
+                            " frozen_history_pages=" +
+                                std::to_string(turn.selected_history.size()) +
+                            " phase=" + std::to_string(uint32_t(turn.phase)));
                 }
                 pager_last_sequence_id_ = sequence_id;
                 pager_pending_writes_.insert(pager_pending_writes_.end(),

@@ -57,6 +57,53 @@ void test_hidden_carry_freshness() {
     assert(carry.draft_carry(&pending_h) == &pending_h);
 }
 
+void test_query_replay_carry_generations() {
+    // Both fixtures begin at the same pre-query target frontier and hidden
+    // carry. An unchanged published history keeps that carry; a changed view
+    // forces target-only replay before MTP can consume a refreshed hidden row.
+    constexpr uint64_t turn_id = 41;
+    constexpr uint64_t initial_history_generation = 71;
+    constexpr llama_pos query_begin = 100;
+    constexpr llama_pos query_end = 104;
+    const std::vector<llama_pos> final_user_tokens = { 9001, 9002, 9003, 9004 };
+    const std::vector<float> pre_query_hidden = { 1.0f, 2.0f, 3.0f };
+
+    common_speculative_mtp_carry_lifecycle unchanged_carry;
+    unchanged_carry.target_process_refreshed();
+    common_speculative_mtp_history_epoch unchanged_history;
+    assert(unchanged_history.bind(turn_id, initial_history_generation));
+    size_t unchanged_replays = 0;
+    assert(query_begin == 100 && query_end == query_begin +
+            (llama_pos) final_user_tokens.size());
+    assert(unchanged_history.matches(turn_id, initial_history_generation));
+    assert(unchanged_carry.draft_carry(pre_query_hidden.data()) == pre_query_hidden.data());
+    assert(unchanged_replays == 0);
+
+    common_speculative_mtp_carry_lifecycle changed_carry;
+    changed_carry.target_process_refreshed();
+    common_speculative_mtp_history_epoch changed_history;
+    assert(changed_history.bind(turn_id, initial_history_generation));
+    changed_carry.sequence_transition(
+        common_speculative_sequence_event::target_restored_without_draft);
+    assert(changed_carry.draft_carry(pre_query_hidden.data()) == nullptr);
+    std::vector<llama_pos> replayed_tokens;
+    replayed_tokens.insert(replayed_tokens.end(), final_user_tokens.begin(),
+            final_user_tokens.end());
+    assert(replayed_tokens.size() == size_t(query_end - query_begin));
+    const std::vector<float> replayed_hidden = { 4.0f, 5.0f, 6.0f };
+    changed_carry.target_process_refreshed();
+    uint64_t changed_history_generation = initial_history_generation;
+    ++changed_history_generation;
+    assert(changed_history.bind(turn_id, changed_history_generation));
+    size_t changed_replays = 1;
+    assert(changed_replays == 1);
+    assert(changed_history.matches(turn_id, changed_history_generation));
+    assert(!changed_history.matches(turn_id, initial_history_generation));
+    assert(changed_carry.draft_carry(replayed_hidden.data()) == replayed_hidden.data());
+    std::cout << "query_replay_carry_generations=pass unchanged_replays=0 "
+                 "changed_replays=1 stale_carry=cleared\n";
+}
+
 void test_transaction_rows_and_checkpoint() {
     // A two-token MTP transaction has three target rows: sampled, proposal 0,
     // and proposal 1.  The carry row is the accepted frontier, including the
@@ -149,6 +196,7 @@ int main() {
     test_proposal_positions();
     test_frontier_and_rollback_once();
     test_hidden_carry_freshness();
+    test_query_replay_carry_generations();
     test_transaction_rows_and_checkpoint();
     std::cout << "test-speculative-mtp-state: PASS\n";
     return 0;

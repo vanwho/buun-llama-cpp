@@ -966,6 +966,9 @@ private:
             uint64_t turn_id) const noexcept;
     page_state * oldest_generation_victim(int32_t sequence_id,
             uint64_t turn_id) noexcept;
+    page_state * oldest_unselected_history_victim(int32_t sequence_id,
+            const llama_kv_pager_turn_state & turn,
+            const std::vector<uint32_t> & excluded_logical_pages) noexcept;
     void queue_generation_page(page_state & page) noexcept;
     llama_kv_pager_write_status begin_write_planned(
             int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
