@@ -1248,8 +1248,9 @@ def _main() -> int:
                                     args.prefill_timeout, args.decode_timeout,
                                     args.total_timeout)):
         parser.error("all timeout limits must be positive")
-    if args.mtp == "native" and args.target != "fast":
-        parser.error("native MTP is only available with the canonical Qwen3.8 fast profile")
+    # Native MTP availability is a property of the loaded runtime candidate,
+    # not of the public profile name. The managed runner validates the actual
+    # draft placement, codec, and n-max before it accepts a live row.
     if args.one_case:
         args.case_index = [0]
     endpoint = os.environ.get("BENCH_ENDPOINT")
@@ -1384,6 +1385,19 @@ def _main() -> int:
         runner_error = f"canonical_runner_error:{error}"
     after = service_snapshot(endpoint)
     telemetry_after, telemetry_after_error = read_server_metrics(endpoint)
+    restoration: dict[str, object] | None = None
+    if args.restore_control and before.get("profile"):
+        before_identity = before.get("identity")
+        after_identity = after.get("identity")
+        if isinstance(before_identity, dict) and isinstance(after_identity, dict) and \
+                identity_mismatches(after_identity, before_identity):
+            # The site runner restores the profile's default environment. The
+            # adapter has the exact transient overrides captured before the
+            # control, so re-enter that managed candidate before validating it.
+            restoration = restore_profile_locked(before.get("profile"),
+                                                 before.get("transient_overrides"))
+            after = service_snapshot(endpoint)
+            telemetry_after, telemetry_after_error = read_server_metrics(endpoint)
     if telemetry_after_error:
         validation_errors.append(telemetry_after_error)
     if runner_error:
@@ -1406,12 +1420,16 @@ def _main() -> int:
         requested = None
         if isinstance(identity_config, dict):
             requested = identity_config.get("candidate") or identity_config.get("requested")
-        if isinstance(requested, dict):
-            mismatches = identity_mismatches(after.get("identity", {}), requested)
+        expected_after = before.get("identity") if args.restore_control else requested
+        if isinstance(expected_after, dict):
+            mismatches = identity_mismatches(after.get("identity", {}), expected_after)
             if mismatches:
-                validation_errors.append("runtime_identity_mismatch:" + ",".join(mismatches))
+                prefix = "control_restore_identity_mismatch" if args.restore_control else "runtime_identity_mismatch"
+                validation_errors.append(prefix + ":" + ",".join(mismatches))
         else:
             validation_errors.append("missing_runtime_identity")
+        if args.restore_control and restoration is not None:
+            validation_errors.extend(verify_restoration(before, after, restoration))
     if args.restore_control and before.get("profile") and after.get("profile") != before.get("profile"):
         validation_errors.append("control_profile_not_restored")
     if canonical_rc == 0 and (not after.get("health") or after["health"].get("http_code") != 200):  # type: ignore[union-attr]
@@ -1438,7 +1456,6 @@ def _main() -> int:
             if error != "telemetry_unavailable"
         )
 
-    restoration: dict[str, object] | None = None
     if canonical_rc != 0 or validation_errors:
         # The canonical runner restores its own failed attempts. This second,
         # idempotent call covers failures discovered only by this adapter after
