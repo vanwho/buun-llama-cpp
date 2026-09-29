@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "task": "100-02e",
+  "source_commit": "ab28f82d4cd9193ae7f35dd06d6cab8093f801df",
+  "build_identity": {
+    "build_directory": "build-cuda",
+    "generator": "Unix Makefiles",
+    "cuda_architecture": "89-real",
+    "targets": [
+      "test-cuda-kv-promotion",
+      "llama-server-100-02e-evidence-window",
+      "libllama.so",
+      "libllama-server-impl.so"
+    ],
+    "binary_sha256": {
+      "test-cuda-kv-promotion": "5c7a29d8675503b4d42d6af07cc628c00231a181e9c3401dfeb72c2a18bca1c5",
+      "llama-server-100-02e-evidence-window": "35d7df7f448fe5ad0676b8de279ce3e8df48533c40f6f19b0f2be36d77a8bd43",
+      "libllama.so": "90c0d38db9fa0f7ed9115e82639320a49a6a7134bda51862bd2084e2846e066f",
+      "libllama-server-impl.so": "86eb1dcf2a19152ceafbfbb59baaa6272fcf3c6de41e21da3897c67806dbb5ce"
+    },
+    "live_candidate": {
+      "pid": 2221980,
+      "start_time_ticks": 15328629,
+      "executable_sha256": "35d7df7f448fe5ad0676b8de279ce3e8df48533c40f6f19b0f2be36d77a8bd43",
+      "libllama_sha256": "90c0d38db9fa0f7ed9115e82639320a49a6a7134bda51862bd2084e2846e066f",
+      "server_impl_sha256": "86eb1dcf2a19152ceafbfbb59baaa6272fcf3c6de41e21da3897c67806dbb5ce",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "context_tokens": 8192,
+      "hot_tokens": 4096,
+      "page_size_tokens": 256,
+      "batch": 1024,
+      "ubatch": 256,
+      "target_kv": "turbo4",
+      "draft_kv": "turbo4",
+      "draft_placement": "gpu",
+      "draft_n_max": 2,
+      "reasoning": "off"
+    }
+  },
+  "dirty_identity": {
+    "source_test_diff_sha256": "0a811357ea4f2c3e33605730d22df0dd87955bbfe28b5701c147ee39e50d5e31",
+    "tracked_worktree_diff_sha256": "2f7fd6932c086921a16392b7ac870618b46a42dd05bcd579b4a0182a56b98792",
+    "worktree_status": "100-02e source, tests and bench diagnostics modified; carried forward phase100 implementation remains in worktree; WORK_STATE transition runner-owned"
+  },
+  "checks": {
+    "natural_promotion_replay_target_consumption": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion.py",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/100-02e/attempt-01/evidence-window-final-live",
+        "--server-binary",
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server-100-02e-evidence-window",
+        "--selector-trace-page",
+        "1"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02e/attempt-01/evidence-window-final-live/campaign-progress.json",
+          "sha256": "82355e97693afa4f49fe80bd190b1b97f802a625e899f507eba5e576ee6d3a81"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02e/attempt-01/evidence-window-final-live-runner.log",
+          "sha256": "a18e4debf19625d1712ce763f7ebd16604a6533fed45fcc380ec58f8d15bdcf8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02e/attempt-01/evidence-window-final-live/candidate-identity.json",
+          "sha256": "3297995055e5b3023024f002b9735b56131eafe2b528d6987ec2b8b94af6d7a5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02e/attempt-01/runtime-process-final.txt",
+          "sha256": "465d77011cc06989b53ce30a9d99d9f3f8ef549c1de10c29748b9a1cb10a7c0d"
+        }
+      ]
+    },
+    "frozen_history_gpu_mtp_and_generation_boundary": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02e/attempt-01/test-ring-query-span.log",
+          "sha256": "ef6e2a05ce0ac0a7efd540b359954f2d73b940a1af7440db069054c61c176289"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02e/attempt-01/evidence-window-final-live/campaign-progress.json",
+          "sha256": "82355e97693afa4f49fe80bd190b1b97f802a625e899f507eba5e576ee6d3a81"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02e/attempt-01/runtime-process-final.txt",
+          "sha256": "465d77011cc06989b53ce30a9d99d9f3f8ef549c1de10c29748b9a1cb10a7c0d"
+        }
+      ]
+    }
+  }
+}

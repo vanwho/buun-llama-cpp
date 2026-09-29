@@ -22,6 +22,8 @@ _DRIVER_SPEC = importlib.util.spec_from_file_location("run_pager_promotion", _DR
 _DRIVER = importlib.util.module_from_spec(_DRIVER_SPEC)
 _DRIVER_SPEC.loader.exec_module(_DRIVER)
 _promotion_for_page = _DRIVER._promotion_for_page
+_completed_pressure_tail_pages = _DRIVER.completed_pressure_tail_pages
+_generation_start_index = _DRIVER.generation_start_index
 
 
 class PagerPromotionPromptTest(unittest.TestCase):
@@ -42,6 +44,16 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(10, len(selected))
         self.assertEqual("PY_MERGE_03", selected[2].fixture_id)
         self.assertEqual("BASH_WATCH_01", selected[5].fixture_id)
+
+    def test_generation_window_starts_after_changed_query_is_frozen(self) -> None:
+        samples = [
+            {"query_replay_count": 0, "frozen_history_generation": 0},
+            {"query_replay_count": 1, "frozen_history_generation": 0},
+            {"query_replay_count": 1, "frozen_history_generation": 7},
+            {"query_replay_count": 1, "frozen_history_generation": 7},
+        ]
+        self.assertEqual(2, _generation_start_index(samples))
+        self.assertIsNone(_generation_start_index(samples[:2]))
 
     def test_exact_three_user_turns_and_fixture_order(self) -> None:
         steps = build_promotion_steps(self.catalog)
@@ -124,6 +136,38 @@ class PagerPromotionPromptTest(unittest.TestCase):
         self.assertEqual(PYTHON_WINNER, plan["steps"][2]["expected_answer_local_only"])
         with self.assertRaisesRegex(ValueError, "fixed"):
             build_promotion_steps(self.catalog, "PY_MERGE_01")
+
+    def test_live_sequence_is_bounded_and_uses_natural_content_questions(self) -> None:
+        selected = load_fixture_catalog(FIXTURE_ROOT, [
+            "PY_MERGE_03", *(f"BASH_WATCH_{n:02d}" for n in range(4, 8))])
+        target = next(item for item in selected if item.fixture_id == "PY_MERGE_03")
+        steps = _DRIVER.build_minimal_steps(selected, target)
+        self.assertEqual(["source_file", "bash_pressure", "natural_recall"],
+                         [step.stage for step in steps])
+        self.assertEqual(("PY_MERGE_03",), steps[0].appended_fixture_ids)
+        self.assertEqual(("BASH_WATCH_04", "BASH_WATCH_05", "BASH_WATCH_06"),
+                         steps[1].appended_fixture_ids)
+        self.assertIn(target.filename, steps[0].question)
+        self.assertIn(target.filename, steps[2].question)
+        self.assertIn("Explain normally", steps[2].question)
+        self.assertNotIn("RETRIEVAL_KEY", steps[2].question)
+        self.assertTrue(steps[1].cache_prompt)
+        self.assertTrue(steps[2].cache_prompt)
+        self.assertEqual((), steps[2].appended_fixture_ids)
+        self.assertEqual(3, len(steps))
+        self.assertEqual(8192, _DRIVER.CONTEXT)
+        self.assertEqual(4096, _DRIVER.HOT_TOKENS)
+        self.assertEqual(1024, _DRIVER.BATCH)
+        self.assertEqual(256, _DRIVER.UBATCH)
+
+    def test_pressure_readiness_covers_only_newly_completed_full_pages(self) -> None:
+        inventory = [
+            {"logical_page_id": index, "position_begin": index * 256,
+             "position_end": (index + 1) * 256, "valid_length": 256}
+            for index in range(7)]
+        pages = _completed_pressure_tail_pages(inventory, 1379, 1792)
+        self.assertEqual([5, 6], [page["logical_page_id"] for page in pages])
+        self.assertEqual([], _completed_pressure_tail_pages(inventory, 1792, 1900))
 
     def test_empty_natural_proof_keeps_selector_nomination_unknown(self) -> None:
         page = {"logical_page_id": 7, "generation": 12, "content_version": 31,

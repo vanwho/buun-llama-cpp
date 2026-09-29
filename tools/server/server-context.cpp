@@ -3642,6 +3642,8 @@ struct server_slot {
             {"n_ctx",         n_ctx},
             {"speculative",   can_speculate()},
             {"is_processing", is_processing()},
+            {"query_replay_count", query_replay_count},
+            {"pager_frozen_history_generation", pager_frozen_history_generation},
             {"computation_frontier_ratchet", {
                 {"read_path", frontier_ratchet_flipped ? "frontier" : "legacy"},
                 {"threshold", frontier_ratchet_min_agreements},
@@ -4190,7 +4192,12 @@ public:
                     slot_generation, telemetry_config_generation);
             if (pager.enabled) {
                 json page_inventory = json::array();
-                for (const auto & page : pager.page_inventory) {
+                for (size_t page_index = 0;
+                        page_index < pager.page_inventory.size(); ++page_index) {
+                    const auto & page = pager.page_inventory[page_index];
+                    const uint64_t summary_version =
+                        page_index < pager.page_summary_content_versions.size()
+                        ? pager.page_summary_content_versions[page_index] : 0;
                     page_inventory.push_back({
                         {"sequence_id", page.id.sequence_id},
                         {"sequence_generation", page.id.sequence_generation},
@@ -4202,6 +4209,9 @@ public:
                         {"valid_length", page.valid_length},
                         {"resident", page.physical_slot != UINT32_MAX},
                         {"host_backed", page.host_valid},
+                        {"summary_content_version", summary_version},
+                        {"summary_ready", page.content_version != 0 &&
+                            summary_version == page.content_version},
                     });
                 }
                 const uint64_t copy_time_us = pager.execution.copy_time_us >
@@ -4249,6 +4259,9 @@ public:
                         {"h2d_completed_bytes", trace.h2d_completed_bytes},
                         {"h2d_event_completions", trace.h2d_event_completions},
                         {"h2d_completion_observed", trace.h2d_completion_observed},
+                        {"transaction_status", trace.transaction_status},
+                        {"transaction_failed_phase", trace.transaction_failed_phase},
+                        {"transfer_failure_status", trace.transfer_failure_status},
                         {"published_epoch", trace.published_epoch},
                         {"mapping_published", trace.mapping_published},
                         {"target_graph_used", trace.target_graph_used},

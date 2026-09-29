@@ -1141,14 +1141,20 @@ static __global__ void k_set_rows_turbo4_coop(
 
     // load + affine tap (raw-domain per-head mean subtract; kmean_mu null => no-op)
     float v = src_row[ch];
-    if (kmean_mu) v -= kmean_mu[ch];
+    if (!isfinite(v)) v = 0.0f;
+    if (kmean_mu) {
+        const float mean = kmean_mu[ch];
+        v = isfinite(mean) ? v - mean : 0.0f;
+        if (!isfinite(v)) v = 0.0f;
+    }
 
     // ||tapped|| via a 128-thread tree reduction
     __shared__ float rsm[QK_TURBO4];
     rsm[tid] = v * v; __syncthreads();
     #pragma unroll
     for (int s = QK_TURBO4/2; s > 0; s >>= 1) { if (tid < s) rsm[tid] += rsm[tid + s]; __syncthreads(); }
-    const float norm     = sqrtf(rsm[0]);
+    float norm = sqrtf(rsm[0]);
+    if (!isfinite(norm)) norm = 0.0f;
     const float inv_norm = norm > 1e-10f ? 1.0f / norm : 0.0f;
     __syncthreads();
 

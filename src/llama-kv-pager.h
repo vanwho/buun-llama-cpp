@@ -526,6 +526,9 @@ struct llama_kv_pager_selector_trace {
     uint64_t h2d_completed_bytes = 0;
     uint64_t h2d_event_completions = 0;
     bool h2d_completion_observed = false;
+    uint8_t transaction_status = UINT8_MAX;
+    uint8_t transaction_failed_phase = UINT8_MAX;
+    uint8_t transfer_failure_status = UINT8_MAX;
     uint64_t published_epoch = 0;
     bool mapping_published = false;
     bool target_graph_used = false;

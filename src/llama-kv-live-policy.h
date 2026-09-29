@@ -63,6 +63,18 @@ struct llama_kv_live_policy_page {
     bool speculative_pin = false;
 };
 
+// Preserve the routing-boundary ownership flags when projecting a page into
+// the live admission boundary.
+void llama_kv_live_policy_apply_routing_attributes(
+        llama_kv_live_policy_page & page,
+        const llama_kv_routing_page_attributes & attributes) noexcept;
+
+// Rank selector entries before the smaller physical retrieval budget is
+// applied. Returns true when lower-ranked entries were omitted.
+bool llama_kv_live_policy_rank_query_candidates(
+        std::vector<llama_kv_routing_retrieval_entry> & candidates,
+        uint32_t retrieval_budget);
+
 struct llama_kv_query_commit_page {
     llama_kv_page_id identity;
     uint64_t content_version = 0;
@@ -78,6 +90,8 @@ struct llama_kv_query_commit {
     uint64_t query_generation = 0;
     uint64_t table_epoch = 0;
     uint64_t query_position = 0;
+    int64_t query_start = -1;
+    int64_t query_end = -1;
     uint64_t rollback_generation = 0;
     uint64_t model_identity = 0;
     uint64_t session_generation = 0;

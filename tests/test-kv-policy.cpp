@@ -368,6 +368,8 @@ static void test_live_policy_multi_promotion() {
     boundary.query_commit.query_generation = 3;
     boundary.query_commit.table_epoch = boundary.snapshot.epoch();
     boundary.query_commit.query_position = 300;
+    boundary.query_commit.query_start = 299;
+    boundary.query_commit.query_end = 301;
     boundary.query_commit.rollback_generation = live_page_id(5).page_generation;
     boundary.query_commit.model_identity = live_page_id(0).model_identity;
     boundary.query_commit.session_generation = live_page_id(0).session_generation;
@@ -441,7 +443,7 @@ static void test_query_commit_authoritative_admission() {
     // The query's current page consumes hot capacity alongside R historical
     // pages and the separately reserved G generation pages.
     assert(llama_kv_query_history_budget(16, 4470, 4551, 256) == 15);
-    assert(llama_kv_query_history_budget(16, 4090, 4609, 256) == 13);
+    assert(llama_kv_query_history_budget(16, 4090, 4609, 256) == 12);
     assert(llama_kv_query_history_budget(1, 4470, 4551, 256) == 0);
     assert(llama_kv_query_history_budget(16, -1, 8, 256) == 0);
 
@@ -455,6 +457,15 @@ static void test_query_commit_authoritative_admission() {
     auto layer_copy = live_page_id(1);
     layer_copy.attention_layer = 1;
     assert(!llama_kv_query_commit_add_candidate(bundle_commit, layer_copy, 7, 1));
+
+    std::vector<llama_kv_routing_retrieval_entry> ranked_candidates = {
+        { live_page_id(2), llama_kv_routing_retrieval_reason::summary,
+          1.0f, true, false, 0 },
+        { live_page_id(1), llama_kv_routing_retrieval_reason::summary,
+          9.0f, true, false, 0 },
+    };
+    assert(llama_kv_live_policy_rank_query_candidates(ranked_candidates, 1));
+    assert(ranked_candidates.size() == 1 && ranked_candidates[0].id == live_page_id(1));
 
     llama_kv_residency_table table(2);
     auto initial = table.begin();
@@ -471,7 +482,13 @@ static void test_query_commit_authoritative_admission() {
     boundary.logical_page_count = 3;
     boundary.policy.hysteresis_q = UINT64_MAX;
     boundary.pages[0].record.content_version = 4;
-    boundary.pages[0].current = true;
+    llama_kv_routing_page_attributes query_page_attributes;
+    query_page_attributes.id = boundary.pages[0].record.id;
+    query_page_attributes.current = true;
+    query_page_attributes.structural = true;
+    llama_kv_live_policy_apply_routing_attributes(
+            boundary.pages[0], query_page_attributes);
+    assert(boundary.pages[0].current && boundary.pages[0].structural);
     boundary.pages[1].record.content_version = 7;
     boundary.pages[2].record.content_version = 9;
     boundary.query_commit.enabled = true;
@@ -487,6 +504,8 @@ static void test_query_commit_authoritative_admission() {
     boundary.query_commit.query_generation = boundary.retrieval.query_generation;
     boundary.query_commit.table_epoch = boundary.snapshot.epoch();
     boundary.query_commit.query_position = 300;
+    boundary.query_commit.query_start = 299;
+    boundary.query_commit.query_end = 301;
     boundary.query_commit.rollback_generation = live_page_id(2).page_generation;
     boundary.query_commit.model_identity = live_page_id(0).model_identity;
     boundary.query_commit.session_generation = live_page_id(0).session_generation;
@@ -503,6 +522,17 @@ static void test_query_commit_authoritative_admission() {
     assert(prepared[0].id == live_page_id(0));
     assert(prepared[1].id == live_page_id(1));
     assert(prepared[1].physical_slot == 1);
+
+    auto query_overlap = boundary;
+    query_overlap.query_commit.query_start = 512;
+    query_overlap.query_commit.query_end = 600;
+    query_overlap.query_commit.query_position = 599;
+    query_overlap.retrieval.position = 599;
+    query_overlap.query_commit.selected.clear();
+    std::vector<llama_kv_page_record> overlap_target;
+    assert(llama_kv_live_policy_prepare_query_target(query_overlap, overlap_target));
+    assert(overlap_target.size() == 2 && overlap_target[0].id == live_page_id(0) &&
+           overlap_target[1].id == live_page_id(2));
 
     live_transfer_fake fake;
     auto backend = live_pool_backend(fake);

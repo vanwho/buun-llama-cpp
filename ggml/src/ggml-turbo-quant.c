@@ -477,14 +477,21 @@ void quantize_row_turbo4_0_ref(const float * GGML_RESTRICT x, block_turbo4_0 * G
 
         /* Step 1: Extract norm */
         float norm_sq = 0.0f;
-        for (int i = 0; i < d; i++) norm_sq += src[i] * src[i];
+        for (int i = 0; i < d; i++) {
+            const float value = isfinite(src[i]) ? src[i] : 0.0f;
+            norm_sq += value * value;
+        }
         float norm = sqrtf(norm_sq);
+        if (!isfinite(norm)) norm = 0.0f;
 
         /* Normalize */
         float normalized[TURBO_D];
         if (norm > 1e-10f) {
             const float inv = 1.0f / norm;
-            for (int i = 0; i < d; i++) normalized[i] = src[i] * inv;
+            for (int i = 0; i < d; i++) {
+                const float value = isfinite(src[i]) ? src[i] : 0.0f;
+                normalized[i] = value * inv;
+            }
         } else {
             memset(normalized, 0, d * sizeof(float));
         }

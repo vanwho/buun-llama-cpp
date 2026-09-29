@@ -902,6 +902,8 @@ static int run_proof() {
     boundary.query_commit.query_generation = committed_candidate->generation;
     boundary.query_commit.table_epoch = boundary.snapshot.epoch();
     boundary.query_commit.query_position = committed_candidate->query_position;
+    boundary.query_commit.query_start = int64_t(committed_candidate->query_position);
+    boundary.query_commit.query_end = int64_t(committed_candidate->query_position + 1);
     boundary.query_commit.rollback_generation = std::max_element(records.begin(), records.end(),
         [](const auto & lhs, const auto & rhs) {
             return lhs.id.page_generation < rhs.id.page_generation;

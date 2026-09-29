@@ -83,6 +83,23 @@ class MTPDiagnosticTest(unittest.TestCase):
             request_generation=9, prior_request_generation=8)
         self.assertIn("promotion_event_order_invalid", proof["errors"])
 
+    def test_promotion_event_chain_allows_draft_before_target_after_publication(self):
+        cold, natural = self.promotion_snapshots()
+        natural["draft_event_sequence"] = 4
+        natural["target_event_sequence"] = 5
+        proof = promotion_event_chain_from_snapshots(
+            cold, natural, request_id="r", event_request_id="r",
+            request_generation=9, prior_request_generation=8)
+        self.assertTrue(proof["valid"], proof["errors"])
+
+    def test_promotion_event_chain_rejects_draft_before_publication(self):
+        cold, natural = self.promotion_snapshots()
+        natural["draft_event_sequence"] = 2
+        proof = promotion_event_chain_from_snapshots(
+            cold, natural, request_id="r", event_request_id="r",
+            request_generation=9, prior_request_generation=8)
+        self.assertIn("promotion_event_order_invalid", proof["errors"])
+
     def test_promotion_event_chain_rejects_stale_request_generation(self):
         cold, natural = self.promotion_snapshots()
         proof = promotion_event_chain_from_snapshots(

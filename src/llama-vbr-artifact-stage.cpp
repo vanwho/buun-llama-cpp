@@ -320,12 +320,33 @@ vbr_h2d_status vbr_h2d_chunk_ring::stream(
         }
     };
 
+    // Host sealing and historical promotion share one bounded pinned ring.
+    // D2H owns its operation for the duration of a page capture, so a query
+    // boundary must wait for that short critical section instead of treating
+    // ordinary direction contention as a missing staging ring. Keep the wait
+    // bounded and observe request cancellation while the other direction runs.
+    constexpr auto ring_wait_limit = std::chrono::seconds(5);
+    const auto ring_wait_deadline = std::chrono::steady_clock::now() + ring_wait_limit;
+    uint64_t ring_contention_waits = 0;
+    vbr_pinned_ring_operation operation;
+    while (!(operation = impl_->core->try_begin_operation())) {
+        if (transfer.continue_transfer &&
+                !transfer.continue_transfer(transfer.continue_context)) {
+            return vbr_h2d_status::cancelled;
+        }
+        if (std::chrono::steady_clock::now() >= ring_wait_deadline) {
+            return vbr_h2d_status::ring_unavailable;
+        }
+        ++ring_contention_waits;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
     vbr_bounded_pinned_ring_core::pump_stats pump_stats;
     const auto pumped = vbr_h2d_status(
-        impl_->core->pump(transfer.lane, callbacks, pump_stats));
+        impl_->core->pump_reserved(operation, transfer.lane, callbacks, pump_stats));
     stats.bytes = pump_stats.bytes;
     stats.chunks = pump_stats.chunks;
-    stats.backpressure_waits = pump_stats.backpressure_waits;
+    stats.backpressure_waits = pump_stats.backpressure_waits + ring_contention_waits;
     stats.event_completions = pump_stats.event_completions;
     stats.synchronous_fallbacks = pump_stats.synchronous_fallbacks;
     stats.peak_pinned_bytes = pump_stats.peak_pinned_bytes;
