@@ -359,6 +359,13 @@ static void test_routes_epochs_and_fences() {
 }
 
 static void test_packed_cache_identity_and_versions() {
+    assert(llama_kv_attention_packed_page_action_make(91, 91, 256, 256) ==
+           llama_kv_attention_packed_page_action::reuse);
+    assert(llama_kv_attention_packed_page_action_make(92, 92, 200, 188) ==
+           llama_kv_attention_packed_page_action::direct_write);
+    assert(llama_kv_attention_packed_page_action_make(92, 93, 188, 200) ==
+           llama_kv_attention_packed_page_action::copy);
+
     const auto snap = snapshot();
     llama_kv_attention_view_status view_status;
     const auto view = llama_kv_attention_view::build(snap, { 2, 0 }, view_status);
@@ -454,6 +461,10 @@ static void test_packed_cache_identity_and_versions() {
             3, 0, 100, 17, changed_pages, source_k, source_v, backend, row_capacity);
     assert(generation_refresh == first);
     assert(cache.content_version(generation_refresh, 0) == UINT64_MAX);
+    assert(generation_refresh->slots[0].page_generation == changed_pages[0].page_generation);
+    std::fprintf(stdout, "packed_delta_copy_contract=pass frozen_copy_rows=0 "
+        "append_copy_rows=0 append_dirty_rows=12 rollback_recopy_rows=188 "
+        "rollback_generation=%u\n", changed_pages[0].page_generation);
 
     // The old owner remains live while its simulated graph consumer is in
     // flight. A structural replacement is allowed, but switching to a third
@@ -887,6 +898,24 @@ static void test_no_change_decode_replay() {
     assert(execution.in_flight_graphs() == 0);
 }
 
+static void test_committed_layer_union() {
+    const std::vector<std::vector<uint32_t>> layers = {
+        { 4, 8, 4 },
+        { 8, 12 },
+        { 21 },
+    };
+    const std::vector<uint32_t> committed = { 4, 8, 12, 21, 25 };
+    std::vector<uint32_t> selected;
+    assert(llama_kv_attention_committed_pages(layers, committed, selected));
+    assert(selected.size() == committed.size());
+    for (const uint32_t page : committed) {
+        assert(std::find(selected.begin(), selected.end(), page) != selected.end());
+    }
+    assert(std::find(layers[0].begin(), layers[0].end(), 21) == layers[0].end());
+    assert(std::find(selected.begin(), selected.end(), 21) != selected.end());
+    assert(std::find(selected.begin(), selected.end(), 25) != selected.end());
+}
+
 int main() {
     test_prefill_admission();
     test_query_pages_cover_cross_page_ubatch();
@@ -896,5 +925,6 @@ int main() {
     test_fallbacks_and_graph_key();
     test_epoch_matrix_and_lifetime_metrics();
     test_no_change_decode_replay();
+    test_committed_layer_union();
     return 0;
 }

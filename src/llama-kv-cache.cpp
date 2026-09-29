@@ -3358,8 +3358,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         const auto & pager_snapshot = pager_->snapshot();
         uint64_t attention_page_limit = pager_snapshot.admission.attention_pages;
         if (attention_page_limit == 0) {
-            attention_page_limit = std::max<uint64_t>(1,
-                    (uint64_t(boundary.hot_capacity) + 1) / 2);
+            attention_page_limit = boundary.hot_capacity;
         }
         attention_page_limit = std::min<uint64_t>(attention_page_limit,
                 boundary.hot_capacity);
@@ -4436,6 +4435,23 @@ const std::vector<llama_kv_page_id> & llama_kv_cache::selected_attention_pages(
     if (sequence == pager_attention_selection_by_layer_.end()) return empty;
     const auto layer = sequence->second.find(layer_index);
     return layer == sequence->second.end() ? empty : layer->second;
+}
+
+bool llama_kv_cache::selected_attention_page_layers(
+        llama_seq_id sequence_id,
+        std::vector<std::vector<llama_kv_page_id>> & pages) const noexcept {
+    pages.clear();
+    const auto sequence = pager_attention_selection_by_layer_.find(sequence_id);
+    if (sequence == pager_attention_selection_by_layer_.end()) return true;
+    try {
+        for (const auto & layer : sequence->second) {
+            pages.push_back(layer.second);
+        }
+        return true;
+    } catch (...) {
+        pages.clear();
+        return false;
+    }
 }
 
 void llama_kv_cache::finish_pager_batch(bool graph_succeeded) noexcept {
@@ -17573,7 +17589,7 @@ ggml_tensor * llama_kv_cache_context::build_kv_page_select(
     const uint64_t hot_capacity = snapshot.physical_page_count;
     uint64_t attention_pages = snapshot.admission.attention_pages;
     if (attention_pages == 0) {
-        attention_pages = std::max<uint64_t>(1, (hot_capacity + 1) / 2);
+        attention_pages = hot_capacity;
     }
     attention_pages = std::min(attention_pages, hot_capacity);
     if (attention_pages == 0 || attention_pages > INT32_MAX) {
@@ -18137,6 +18153,18 @@ const std::vector<llama_kv_page_id> & llama_kv_cache_context::selected_attention
         return empty;
     }
     return kv->selected_attention_pages(ubatches[i_cur].seq_id[0][0], layer);
+}
+
+bool llama_kv_cache_context::selected_attention_page_layers(
+        std::vector<std::vector<llama_kv_page_id>> & pages) const noexcept {
+    pages.clear();
+    if (!kv || sinfos.empty() || i_cur >= sinfos.size() || ubatches.empty() ||
+        i_cur >= ubatches.size() || ubatches[i_cur].seq_id == nullptr ||
+        ubatches[i_cur].n_seq_id == nullptr || ubatches[i_cur].n_seq_id[0] != 1 ||
+        ubatches[i_cur].seq_id[0] == nullptr) {
+        return false;
+    }
+    return kv->selected_attention_page_layers(ubatches[i_cur].seq_id[0][0], pages);
 }
 
 llama_turbo_meansub_ref llama_kv_cache_context::get_turbo_meansub_ref(int32_t il) const {

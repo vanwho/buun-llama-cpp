@@ -45,6 +45,33 @@ bool production_direct_shape(
 
 } // namespace
 
+bool llama_kv_attention_committed_pages(
+        const std::vector<std::vector<uint32_t>> & layer_pages,
+        const std::vector<uint32_t> & committed_pages,
+        std::vector<uint32_t> & output) noexcept {
+    output.clear();
+    try {
+        const auto is_committed = [&](uint32_t page) {
+            return std::find(committed_pages.begin(), committed_pages.end(), page) !=
+                committed_pages.end();
+        };
+        const auto append = [&](uint32_t page) {
+            if (is_committed(page) &&
+                    std::find(output.begin(), output.end(), page) == output.end()) {
+                output.push_back(page);
+            }
+        };
+        for (const auto & layer : layer_pages) {
+            for (const uint32_t page : layer) append(page);
+        }
+        for (const uint32_t page : committed_pages) append(page);
+        return true;
+    } catch (...) {
+        output.clear();
+        return false;
+    }
+}
+
 uint32_t llama_kv_attention_packed_row_capacity(
         const llama_kv_attention_operator_metadata & metadata,
         uint32_t page_tokens) noexcept {
@@ -482,6 +509,20 @@ void llama_kv_attention_packed_cache::set_content_versions(
         }
     }
     rebuild_dirty_intervals(*cached);
+}
+
+llama_kv_attention_packed_page_action llama_kv_attention_packed_page_action_make(
+        uint64_t cached_content_version,
+        uint32_t page_generation,
+        uint32_t current_row_count,
+        uint32_t cached_row_count) noexcept {
+    if (current_row_count > cached_row_count) {
+        return llama_kv_attention_packed_page_action::direct_write;
+    }
+    if (cached_content_version == uint64_t(page_generation)) {
+        return llama_kv_attention_packed_page_action::reuse;
+    }
+    return llama_kv_attention_packed_page_action::copy;
 }
 
 const char * llama_kv_attention_execution_mode_name(

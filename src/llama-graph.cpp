@@ -1017,7 +1017,10 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         const uint64_t cached_version = packed_cache != nullptr
                             ? packed_cache->content_version(layer.cache_entry, copy.page_index)
                             : UINT64_MAX;
-                        if (uint64_t(generation) == cached_version) {
+                        const auto page_action = llama_kv_attention_packed_page_action_make(
+                                cached_version, generation, page.row_count,
+                                copy.page_row_count);
+                        if (page_action == llama_kv_attention_packed_page_action::reuse) {
                             if (kv_attention_metrics != nullptr) {
                                 kv_attention_metrics->packed_copy_reuses =
                                     kv_attention_metrics->packed_copy_reuses == UINT64_MAX
@@ -1025,7 +1028,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                             }
                             continue;
                         }
-                        if (page.row_count > copy.page_row_count) {
+                        if (page_action == llama_kv_attention_packed_page_action::direct_write) {
                             // Appending to a resident page does not dirty its
                             // historical rows. The graph writes every new
                             // current row directly into the packed owner;

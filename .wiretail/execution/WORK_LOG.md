@@ -1383,3 +1383,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-02b`
 - Commit at update: `ef9c06f80`
 - Summary: verified named proofs and receipt
+
+## 2026-09-29T00:34:19+00:00 — 100-02c — done
+
+- Branch: `codex/task-100-02c`
+- Commit at update: `82f839212`
+- Summary: verified hot-path copy/async-seal contract and short cost attribution; V10 receipt and local state validation pass

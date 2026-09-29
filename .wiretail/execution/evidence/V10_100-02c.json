@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "task": "100-02c",
+  "source_commit": "82f839212a5e324efe2f62b2391ef899719d6a59",
+  "build_identity": {
+    "build_directory": "build-cuda",
+    "generator": "Unix Makefiles",
+    "cuda_architecture": "89-real",
+    "targets": [
+      "test-cache-budget",
+      "test-kv-attention-execution",
+      "test-kv-pager",
+      "test-cuda-kv-promotion",
+      "llama-server"
+    ],
+    "binary_sha256": {
+      "test-cache-budget": "4579df0995bfab90577e7744bcefe275bb88951a03eb5b93c0a911f9014e73da",
+      "test-kv-attention-execution": "4c201578970dbf9b787577cf1195f8de6ac104c7358b241546d5604da78d5e57",
+      "test-kv-pager": "a81034ff9c915c7f679e3f22d18ac67a0393e94c76709370a7791751a521aec4",
+      "test-cuda-kv-promotion": "73f46e0e33b24e49442e5d13af7fed50b15e3cf55fe988ac8cd1ef2f300a60ce",
+      "llama-server-100-02c-final2": "ddb3c5a8e8213c0b8a48db4ff571761ca7dc29ec5124daf7237698ecd7fbc6ee"
+    }
+  },
+  "dirty_identity": {
+    "source_test_diff_sha256": "254e8e6c2e23d548a607dff73fe2a40d104d98df622d29aaf7e0426a04af1f5a",
+    "tracked_worktree_diff_sha256": "c4205a24513a51fc119ab14cb3ace58eebe70ee7fb27135aee7b65ec8893b66d",
+    "worktree_status": "task implementation and tests modified; WORK_STATE task pointer/status is runner-owned"
+  },
+  "checks": {
+    "hot_path_delta_copy_and_async_seal_contract": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-attention-execution"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/test-kv-attention-execution-final.log",
+          "sha256": "bc656db6cb17cc5b5a710721e618ca83c809dcf591144ab0b8f2f5ef5ca20d7e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/test-kv-pager-final.log",
+          "sha256": "b85e4036bce331000441572ea7619454e127011dbcc6d6b71d4f29ba945c082c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/test-cuda-kv-promotion-final.log",
+          "sha256": "ef6e2a05ce0ac0a7efd540b359954f2d73b940a1af7440db069054c61c176289"
+        }
+      ]
+    },
+    "short_cost_attribution_measured": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "big",
+        "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/attribution-final3",
+        "--mode",
+        "selective",
+        "--device",
+        "cuda0",
+        "--page-size",
+        "256",
+        "--batch",
+        "1024",
+        "--ubatch",
+        "256",
+        "--context",
+        "8192",
+        "--mtp",
+        "native",
+        "--one-case",
+        "--one-trial",
+        "--generation-length",
+        "128",
+        "--kv-hot-pages",
+        "16"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/cost-attribution.md",
+          "sha256": "c300cb0fed7bf70e7118ded7081e3f94bb6f5608908d9a8e4f4e82c1b74cf9e8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/attribution-final3/records.jsonl",
+          "sha256": "d21b1dda8702fd2ffae964684b305bfb68071d81c2c5cdcf3b2b001e5b7fddbf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/cached-append-final/coordinate.json",
+          "sha256": "bb7e3468f49bffec2209c2d2fa16c490665c3fe561fe2e535a251c10b718b633"
+        }
+      ]
+    }
+  }
+}
