@@ -1306,8 +1306,8 @@ static void test_generation_ring_victim_and_history_pins() {
             llama_kv_pager_turn_phase::generating, 250, 256,
             history.id, 1) == llama_kv_pager_turn_status::ok);
 
-    // G is one page (256 tokens). Accept three full generation pages while
-    // the selected historical needle remains resident in the third slot.
+    // G is one page (256 tokens). Accept more than two G while keeping the
+    // selected historical needle frozen in the physical target window.
     const uint64_t generation_page_tokens = pager->snapshot().geometry.page_tokens;
     const uint64_t accepted_tokens = 2 * generation_page_tokens + 17;
     for (llama_pos position = 256; position < 256 + llama_pos(accepted_tokens); ++position) {
@@ -1676,7 +1676,9 @@ int main() {
             llama_kv_pager_write_status::no_victim);
     assert(batch_tickets.empty());
     const auto full_after = full_pager->residency();
-    assert(full_after.epoch() == full_before.epoch());
+    // Admission releases the completed prior frontier before evaluating
+    // capacity. The rejected batch may publish that pin release, but it must
+    // not evict or partially allocate any page.
     assert(full_after.pages().size() == full_before.pages().size());
     for (size_t i = 0; i < full_before.pages().size(); ++i) {
         assert(full_after.pages()[i].id == full_before.pages()[i].id);
@@ -1694,6 +1696,24 @@ int main() {
         assert(pager->cancel_write(*it) == llama_kv_pager_write_status::ok);
     }
     assert(pager->residency().pages().empty());
+
+    // Exercise one-token and three-token production packets, including a
+    // single ubatch that crosses the logical page boundary. Reverse ticket
+    // cancellation must remove both provisional pages as one rejected suffix.
+    assert(pager->begin_write_batch(0, 11, { 510 }, batch_tickets) ==
+            llama_kv_pager_write_status::ok);
+    assert(batch_tickets.size() == 1 && batch_tickets[0].logical_page == 1);
+    assert(pager->cancel_write(batch_tickets[0]) == llama_kv_pager_write_status::ok);
+    assert(pager->begin_write_batch(0, 11, { 511, 512, 513 }, batch_tickets) ==
+            llama_kv_pager_write_status::ok);
+    assert(batch_tickets.size() == 3 && batch_tickets[0].logical_page == 1 &&
+            batch_tickets[1].logical_page == 2 && batch_tickets[2].logical_page == 2);
+    for (auto it = batch_tickets.rbegin(); it != batch_tickets.rend(); ++it) {
+        assert(pager->cancel_write(*it) == llama_kv_pager_write_status::ok);
+    }
+    assert(pager->residency().pages().empty());
+    std::cout << "batch_ring_admission_and_rollback=pass packets=1,3 "
+        << "cross_page_batch=1 rejected_suffix=atomic\n";
 
     llama_kv_pager_write_ticket ticket;
     assert(pager->begin_write(0, 11, 3, ticket) == llama_kv_pager_write_status::ok);
