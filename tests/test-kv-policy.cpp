@@ -92,6 +92,20 @@ struct live_transfer_fake {
     static bool restore_clean(void *, const llama_kv_page_record &) noexcept { return true; }
 };
 
+struct live_cancel_phase {
+    llama_kv_residency_transaction_phase cancel_at =
+        llama_kv_residency_transaction_phase::_count;
+    uint32_t callbacks = 0;
+
+    static bool phase(void * opaque,
+                      llama_kv_residency_transaction_phase value) noexcept {
+        auto & self = *static_cast<live_cancel_phase *>(opaque);
+        if (value != self.cancel_at) return true;
+        ++self.callbacks;
+        return false;
+    }
+};
+
 static llama_kv_residency_transaction_hooks live_transaction_hooks() {
     llama_kv_residency_transaction_hooks hooks;
     hooks.drop_clean = live_transfer_fake::drop_clean;
@@ -317,6 +331,74 @@ static void test_live_policy_publication() {
     assert(failed_result.status == llama_kv_live_policy_status::transaction_failed);
     assert(!failed_result.published && failed_table.snapshot().epoch() == 1 &&
            failed_table.snapshot().pages().size() == 2);
+}
+
+static void test_live_policy_cancellation_boundaries() {
+    llama_kv_residency_table table(2);
+    auto initial = table.begin();
+    assert(table.replace(initial, live_resident(0, 0)) == llama_kv_residency_status::ok);
+    assert(table.replace(initial, live_resident(2, 1)) == llama_kv_residency_status::ok);
+    assert(table.publish(initial) == llama_kv_residency_status::ok);
+
+    live_transfer_fake fake;
+    auto backend = live_pool_backend(fake);
+    llama_kv_residency_pool_status pool_status;
+    auto pool = llama_kv_residency_pool::create(
+        { 2, 64, 4, 4, 1024 }, backend, pool_status);
+    assert(pool && pool_status == llama_kv_residency_pool_status::ok);
+    vbr_h2d_status ring_status;
+    auto ring = vbr_h2d_chunk_ring::create({ {} }, 128, 32, ring_status);
+    assert(ring && ring_status == vbr_h2d_status::ok);
+    llama_kv_residency_transfer_transport transport;
+    transport.upload_ring = ring.get();
+    transport.context = &fake;
+    transport.host_read = live_transfer_fake::host_read;
+    transport.recheck = live_transfer_fake::recheck;
+
+    auto boundary = live_boundary(table.snapshot(), live_promotion());
+    const auto original = table.snapshot();
+    auto cancel = [&](llama_kv_residency_transaction_phase phase) {
+        live_cancel_phase cancellation;
+        cancellation.cancel_at = phase;
+        auto hooks = live_transaction_hooks();
+        hooks.context = &cancellation;
+        hooks.phase = live_cancel_phase::phase;
+        const size_t copies_before = fake.copied.size();
+        const auto result = llama_kv_live_policy_apply(
+            table, *pool, boundary, backend, transport, hooks);
+        assert(cancellation.callbacks == 1);
+        assert(result.status == llama_kv_live_policy_status::transaction_failed);
+        assert(!result.published && !result.transaction.published &&
+            result.transaction.rollback_complete);
+        const auto current = table.snapshot();
+        assert(current.epoch() == original.epoch() &&
+            current.pages().size() == original.pages().size());
+        for (size_t i = 0; i < original.pages().size(); ++i) {
+            assert(current.pages()[i].id == original.pages()[i].id &&
+                current.pages()[i].physical_slot == original.pages()[i].physical_slot);
+        }
+        assert(pool->mapped_slots() == 0);
+        return fake.copied.size() - copies_before;
+    };
+
+    const size_t before_h2d_copies = cancel(
+        llama_kv_residency_transaction_phase::load);
+    assert(before_h2d_copies == 0);
+    const size_t completed_h2d_copies = cancel(
+        llama_kv_residency_transaction_phase::recheck);
+    assert(completed_h2d_copies == 1);
+
+    auto hooks = live_transaction_hooks();
+    const auto retry = llama_kv_live_policy_apply(
+        table, *pool, boundary, backend, transport, hooks);
+    assert(retry.status == llama_kv_live_policy_status::committed && retry.published);
+    assert(retry.target_pages.size() == 2);
+    assert(retry.target_pages[0].id == live_page_id(0));
+    assert(retry.target_pages[1].id == live_page_id(1));
+    assert(pool->mapped_slots() == 1);
+    assert(fake.copied.size() == 2);
+    std::cout << "query_cancel_boundaries=pass before_h2d=atomic "
+                 "after_h2d_before_publish=atomic retry_same_slot=pass\n";
 }
 
 static void test_live_policy_multi_promotion() {
@@ -871,6 +953,7 @@ int main(int argc, char ** argv) {
     if (argc == 2 && std::strcmp(argv[1], "--query-commit-authoritative-admission") == 0) {
         test_residency_snapshot_reconciles_stale_slots();
         test_live_policy_publication();
+        test_live_policy_cancellation_boundaries();
         test_query_commit_authoritative_admission();
         test_live_policy_multi_promotion();
         std::cout << "query_commit_authoritative_admission=pass\n";
@@ -878,6 +961,7 @@ int main(int argc, char ** argv) {
     }
     test_residency_snapshot_reconciles_stale_slots();
     test_live_policy_publication();
+    test_live_policy_cancellation_boundaries();
     test_live_policy_multi_promotion();
     test_query_commit_authoritative_admission();
     if (!test_live_lifecycle()) return 1;
