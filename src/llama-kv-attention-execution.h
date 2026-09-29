@@ -25,6 +25,11 @@ enum class llama_kv_attention_execution_phase : uint8_t {
     mtp_verify,
 };
 
+bool llama_kv_attention_committed_pages(
+        const std::vector<std::vector<uint32_t>> & layer_pages,
+        const std::vector<uint32_t> & committed_pages,
+        std::vector<uint32_t> & output) noexcept;
+
 enum class llama_kv_attention_execution_route : uint8_t {
     dense = 0,
     observe,
@@ -203,6 +208,20 @@ private:
     bool graph_build_active_ = false;
     uint64_t next_owner_generation_ = 1;
 };
+
+enum class llama_kv_attention_packed_page_action : uint8_t {
+    reuse = 0,
+    direct_write = 1,
+    copy = 2,
+};
+
+// Select the historical packed-page action. Appended rows are written by the
+// graph into the packed owner, so a growing tail never recopies its prefix.
+llama_kv_attention_packed_page_action llama_kv_attention_packed_page_action_make(
+        uint64_t cached_content_version,
+        uint32_t page_generation,
+        uint32_t current_row_count,
+        uint32_t cached_row_count) noexcept;
 
 const char * llama_kv_attention_execution_mode_name(
         llama_kv_attention_execution_mode mode) noexcept;

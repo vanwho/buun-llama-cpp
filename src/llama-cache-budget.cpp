@@ -390,8 +390,8 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
     }
 
     // A packed owner is a persistent cross-layer K/V destination. It is
-    // intentionally solved together with H: auto A is bounded to roughly
-    // half of the candidate H, while an explicit A is never silently reduced.
+    // intentionally solved together with H: auto A follows candidate H, while
+    // an explicit A is never silently reduced.
     // This fixed-point step keeps the full-L target slab and the compact
     // selected workspace in one admission ledger.
     const uint64_t packed_per_page = input.packed_workspace_page_bytes;
@@ -430,14 +430,13 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
                 std::min(max_admitted,
                     (flexible_bytes - packed_bytes) / out.page_charge_bytes);
         } else {
-            // Solve H + ceil(H/2) * packed_page_charge <= flexible_bytes by
-            // binary search. A fixed-point iteration can oscillate between a
-            // full H and zero when one A page is larger than one H page.
+            // Solve H + H * packed_page_charge <= flexible_bytes by binary
+            // search so packed capacity stays inside the same memory ledger.
             uint64_t low = 0;
             uint64_t high = max_admitted;
             while (low < high) {
                 const uint64_t candidate = low + (high - low + 1) / 2;
-                const uint64_t candidate_a = std::max<uint64_t>(1, (candidate + 1) / 2);
+                const uint64_t candidate_a = candidate;
                 uint64_t packed_bytes = 0;
                 uint64_t target_bytes = 0;
                 uint64_t total_bytes = 0;
@@ -452,7 +451,7 @@ llama_cache_budget_admission_result llama_cache_budget_admit(
                 }
             }
             admitted = low;
-            a_pages = admitted == 0 ? 0 : std::max<uint64_t>(1, (admitted + 1) / 2);
+            a_pages = admitted;
         }
         if (a_pages > admitted) {
             out.refusal = llama_cache_budget_admission_refusal::insufficient_capacity;

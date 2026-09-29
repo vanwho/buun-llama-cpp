@@ -218,6 +218,9 @@ public:
             llama_seq_id sequence_id) const noexcept;
     const std::vector<llama_kv_page_id> & selected_attention_pages(
             llama_seq_id sequence_id, uint32_t layer_index) const noexcept;
+    bool selected_attention_page_layers(
+            llama_seq_id sequence_id,
+            std::vector<std::vector<llama_kv_page_id>> & pages) const noexcept;
     bool reserve_kv_attention_scratch(
             const llama_kv_attention_scratch_request & request);
 
@@ -2087,6 +2090,8 @@ public:
     const std::vector<llama_kv_page_id> & selected_attention_pages() const noexcept;
     const std::vector<llama_kv_page_id> & selected_attention_pages(
             uint32_t layer) const noexcept;
+    bool selected_attention_page_layers(
+            std::vector<std::vector<llama_kv_page_id>> & pages) const noexcept;
 
 
     // TurboQuant rotation accessors

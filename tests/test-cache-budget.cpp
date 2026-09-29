@@ -364,6 +364,7 @@ static void test_dynamic_lha_admission() {
         CHECK(full.resolved_context_tokens == context);
         CHECK(full.logical_page_count == context / 256);
         CHECK(full.attention_pages <= full.admitted_pages);
+        CHECK(full.attention_pages == full.admitted_pages);
         CHECK(full.admitted_pages == full.logical_page_count);
         CHECK(full.attention_tokens == full.attention_pages * 256);
 
@@ -375,6 +376,7 @@ static void test_dynamic_lha_admission() {
         CHECK(result.resolved_context_tokens == context);
         CHECK(result.admitted_pages >= 3);
         CHECK(result.attention_pages <= result.admitted_pages);
+        CHECK(result.attention_pages == result.admitted_pages);
         CHECK(result.packed_workspace_bytes != 0);
         CHECK(result.packed_dequant_bytes != 0);
         CHECK(result.catalogue_bytes == ((bounded.catalogue_bytes + 63) / 64) * 64);
