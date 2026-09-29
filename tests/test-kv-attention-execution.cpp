@@ -561,6 +561,111 @@ static void test_packed_cache_identity_and_versions() {
     ggml_backend_free(backend);
 }
 
+static void test_packed_view_copy_intervals() {
+    const auto snap = snapshot();
+    llama_kv_attention_view_status view_status;
+    const auto view = llama_kv_attention_view::build(snap, { 2, 0 }, view_status);
+    assert(view_status == llama_kv_attention_view_status::ok);
+    const auto & pages = view.pages();
+    assert(pages.size() == 2);
+    assert(pages[0].native_position_begin == 0 && pages[0].row_count == 256);
+    assert(pages[1].native_position_begin == 512 && pages[1].row_count == 188);
+
+    // Metadata query positions can be duplicated and nonmonotonic. The
+    // optimized plan must preserve membership semantics across both selected
+    // pages and retain the same current/history span boundaries.
+    const std::vector<llama_pos> queries = { 600, 254, 512, 255, 600, 699 };
+    std::vector<llama_kv_attention_view_copy_interval> intervals;
+    uint64_t query_positions_examined = 0;
+    assert(llama_kv_attention_view_copy_intervals(
+            pages, queries, intervals, &query_positions_examined));
+    const auto expect = [&](size_t index, uint32_t page_index, uint32_t row_begin,
+            uint32_t row_count, bool current_rows) {
+        assert(index < intervals.size());
+        const auto & interval = intervals[index];
+        assert(interval.page_index == page_index);
+        assert(interval.row_begin == row_begin);
+        assert(interval.row_count == row_count);
+        assert(interval.current_rows == current_rows);
+    };
+    assert(intervals.size() == 7);
+    expect(0, 0, 0, 254, false);
+    expect(1, 0, 254, 2, true);
+    expect(2, 1, 0, 1, true);
+    expect(3, 1, 1, 87, false);
+    expect(4, 1, 88, 1, true);
+    expect(5, 1, 89, 98, false);
+    expect(6, 1, 187, 1, true);
+    assert(query_positions_examined == 5);
+
+    // Count the old row-by-query membership comparisons on this exact shape.
+    // The new plan visits only the unique query positions that fall in a page.
+    uint64_t old_membership_comparisons = 0;
+    for (const auto & page : pages) {
+        for (uint32_t row = 0; row < page.row_count; ++row) {
+            const llama_pos position = page.native_position_begin + row;
+            for (const llama_pos query : queries) {
+                ++old_membership_comparisons;
+                if (query == position) {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Appending the current tail row changes only that page's final interval;
+    // the other frozen page remains one unchanged historical span.
+    auto before_append_pages = pages;
+    assert(before_append_pages[0].row_count > 1);
+    --before_append_pages[0].row_count;
+    --before_append_pages[0].native_position_end;
+    std::vector<llama_kv_attention_view_copy_interval> before_append;
+    assert(llama_kv_attention_view_copy_intervals(
+            before_append_pages, { 255 }, before_append));
+    assert(before_append.size() == 2);
+    assert(before_append[0].page_index == 0 && before_append[0].row_count == 255 &&
+            !before_append[0].current_rows);
+    assert(before_append[1].page_index == 1 && before_append[1].row_count == 188 &&
+            !before_append[1].current_rows);
+
+    std::vector<llama_kv_attention_view_copy_interval> after_append;
+    assert(llama_kv_attention_view_copy_intervals(pages, { 255 }, after_append));
+    assert(after_append.size() == 3);
+    assert(after_append[0].page_index == 0 && after_append[0].row_count == 255 &&
+            !after_append[0].current_rows);
+    assert(after_append[1].page_index == 0 && after_append[1].row_begin == 255 &&
+            after_append[1].row_count == 1 && after_append[1].current_rows);
+    assert(after_append[2].page_index == 1 && after_append[2].row_count == 188 &&
+            !after_append[2].current_rows);
+    auto rollback_pages = pages;
+    ++rollback_pages[0].page_generation;
+    assert(rollback_pages[1].page_generation == pages[1].page_generation);
+    std::vector<llama_kv_attention_view_copy_interval> after_rollback;
+    assert(llama_kv_attention_view_copy_intervals(rollback_pages, { 255 }, after_rollback));
+    assert(after_rollback.size() == after_append.size());
+    for (size_t i = 0; i < after_append.size(); ++i) {
+        assert(after_rollback[i].page_index == after_append[i].page_index);
+        assert(after_rollback[i].row_begin == after_append[i].row_begin);
+        assert(after_rollback[i].row_count == after_append[i].row_count);
+        assert(after_rollback[i].current_rows == after_append[i].current_rows);
+    }
+    assert(llama_kv_attention_packed_page_action_make(
+            pages[1].page_generation, rollback_pages[1].page_generation,
+            pages[1].row_count, pages[1].row_count) ==
+            llama_kv_attention_packed_page_action::reuse);
+    assert(llama_kv_attention_packed_page_action_make(
+            pages[0].page_generation, rollback_pages[0].page_generation,
+            pages[0].row_count, pages[0].row_count) ==
+            llama_kv_attention_packed_page_action::copy);
+
+    std::fprintf(stdout, "packed_view_copy_intervals=pass "
+        "old_row_membership_comparisons=%llu new_query_positions_examined=%llu "
+        "cross_page_intervals=%zu append_direct_write_rows=1 "
+        "frozen_page_reused=1 rollback_invalidated_pages=1\n",
+        (unsigned long long) old_membership_comparisons,
+        (unsigned long long) query_positions_examined, intervals.size());
+}
+
 static void test_view_sized_scratch_contract() {
     const auto selected = metadata(snapshot(), 2, 1);
     const auto high_selected = metadata(snapshot_high_logical_positions(), 2, 1,
@@ -970,6 +1075,7 @@ int main() {
     test_prefill_admission();
     test_query_pages_cover_cross_page_ubatch();
     test_routes_epochs_and_fences();
+    test_packed_view_copy_intervals();
     test_packed_cache_identity_and_versions();
     test_view_sized_scratch_contract();
     test_fallbacks_and_graph_key();
