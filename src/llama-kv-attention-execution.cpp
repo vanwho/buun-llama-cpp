@@ -176,6 +176,41 @@ bool llama_kv_attention_packed_cache::same_structural_key(
 void llama_kv_attention_packed_cache::update_slots(
         entry & cached,
         const std::vector<llama_kv_attention_view_page> & pages) {
+    // Append-only updates keep the selected page order and owner destinations
+    // stable. Refresh those slots in place so this hot path does not allocate
+    // replacement vectors or search every old slot for each current page.
+    bool same_order = cached.slots.size() == pages.size() &&
+        cached.content_versions.size() == pages.size();
+    for (size_t i = 0; same_order && i < pages.size(); ++i) {
+        const auto & old = cached.slots[i];
+        const auto & page = pages[i];
+        same_order = old.logical_page == page.logical_page &&
+            old.source_physical_slot == page.source_physical_slot &&
+            old.destination_row_begin == page.compact_row_begin &&
+            old.native_position_begin == page.native_position_begin;
+    }
+    if (same_order) {
+        for (size_t i = 0; i < pages.size(); ++i) {
+            const auto & page = pages[i];
+            auto & current = cached.slots[i];
+            const uint64_t copied_version = current.page_generation == page.page_generation &&
+                    current.native_position_end <= page.native_position_end
+                ? current.copied_content_version : UINT64_MAX;
+            current.logical_page = page.logical_page;
+            current.source_physical_slot = page.source_physical_slot;
+            current.page_generation = page.page_generation;
+            current.native_position_begin = page.native_position_begin;
+            current.native_position_end = page.native_position_end;
+            current.valid_rows = page.row_count;
+            current.destination_row_begin = page.compact_row_begin;
+            current.copied_content_version = copied_version;
+            cached.content_versions[i] = copied_version;
+        }
+        cached.pages = pages;
+        rebuild_dirty_intervals(cached);
+        return;
+    }
+
     std::vector<slot> next_slots;
     std::vector<uint64_t> next_versions;
     std::vector<dirty_interval> next_dirty;
@@ -201,8 +236,12 @@ void llama_kv_attention_packed_cache::update_slots(
             if (previous.logical_page == page.logical_page &&
                     previous.source_physical_slot == page.source_physical_slot &&
                     previous.page_generation == page.page_generation &&
-                    previous.valid_rows == page.row_count &&
-                    previous.destination_row_begin == page.compact_row_begin) {
+                    previous.destination_row_begin == page.compact_row_begin &&
+                    previous.native_position_begin == page.native_position_begin &&
+                    previous.native_position_end <= page.native_position_end) {
+                // A partial page can grow while its committed prefix remains
+                // byte-for-byte immutable. Keep that prefix's copied version;
+                // the new rows are written by the current graph submission.
                 next.copied_content_version = previous.copied_content_version;
                 break;
             }

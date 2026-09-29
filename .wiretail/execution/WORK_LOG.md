@@ -1425,3 +1425,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03`
 - Commit at update: `d91c34605`
 - Summary: verified measured short-path miss, ordered packed-reuse repair and paired retest packets, release checker, V10 receipt, and state plan
+
+## 2026-09-29T06:51:00+00:00 — 100-03a — done
+
+- Branch: `codex/task-100-03a`
+- Commit at update: `dfe0c1fd9`
+- Summary: Implemented and verified packed append copy and descriptor reuse. Focused CUDA fixture and the single post-edit live diagnostic passed; V10 receipt validated. Packed-copy counters fell; graph comparison was inconclusive under differing MTP acceptance. Restored the prior managed candidate.

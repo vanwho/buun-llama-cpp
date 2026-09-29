@@ -455,6 +455,56 @@ static void test_packed_cache_identity_and_versions() {
             3, 0, 99, 17, tail.pages(), source_k, source_v, backend, row_capacity);
     assert(tail_entry == first && tail_entry->k->ne[2] == row_capacity);
 
+    // An immutable partial-page prefix keeps its packed content version when
+    // one row is appended. Only the new tail is supplied by the current graph.
+    auto before_append_pages = view.pages();
+    assert(before_append_pages[0].row_count > 1);
+    --before_append_pages[0].row_count;
+    --before_append_pages[0].native_position_end;
+    auto * append_entry = cache.find_or_create(6, 6, 99, 17, before_append_pages,
+            source_k, source_v, backend, row_capacity);
+    assert(append_entry != nullptr);
+    for (uint32_t i = 0; i < before_append_pages.size(); ++i) {
+        cache.set_content_version(append_entry, i, before_append_pages[i].page_generation);
+    }
+    assert(llama_kv_attention_packed_page_action_make(
+            cache.content_version(append_entry, 1), before_append_pages[1].page_generation,
+            before_append_pages[1].row_count, append_entry->slots[1].valid_rows) ==
+            llama_kv_attention_packed_page_action::reuse);
+
+    auto * append_refresh = cache.find_or_create(6, 6, 100, 17, view.pages(),
+            source_k, source_v, backend, row_capacity);
+    assert(append_refresh == append_entry);
+    assert(append_refresh->slots[0].valid_rows == before_append_pages[0].row_count + 1);
+    assert(cache.content_version(append_refresh, 0) == before_append_pages[0].page_generation);
+    assert(cache.content_version(append_refresh, 1) == before_append_pages[1].page_generation);
+    assert(llama_kv_attention_packed_page_action_make(
+            cache.content_version(append_refresh, 0), view.pages()[0].page_generation,
+            view.pages()[0].row_count, before_append_pages[0].row_count) ==
+            llama_kv_attention_packed_page_action::direct_write);
+    assert(llama_kv_attention_packed_page_action_make(
+            cache.content_version(append_refresh, 1), view.pages()[1].page_generation,
+            view.pages()[1].row_count, before_append_pages[1].row_count) ==
+            llama_kv_attention_packed_page_action::reuse);
+    assert(append_refresh->slots[0].valid_rows - before_append_pages[0].row_count == 1);
+
+    auto rollback_pages = view.pages();
+    ++rollback_pages[0].page_generation;
+    auto * rollback_refresh = cache.find_or_create(6, 6, 101, 17, rollback_pages,
+            source_k, source_v, backend, row_capacity);
+    assert(rollback_refresh == append_entry);
+    assert(cache.content_version(rollback_refresh, 0) == UINT64_MAX);
+    assert(cache.content_version(rollback_refresh, 1) == view.pages()[1].page_generation);
+    assert(llama_kv_attention_packed_page_action_make(
+            cache.content_version(rollback_refresh, 0), rollback_pages[0].page_generation,
+            rollback_pages[0].row_count, append_refresh->slots[0].valid_rows) ==
+            llama_kv_attention_packed_page_action::copy);
+    assert(llama_kv_attention_packed_page_action_make(
+            cache.content_version(rollback_refresh, 1), rollback_pages[1].page_generation,
+            rollback_pages[1].row_count, append_refresh->slots[1].valid_rows) ==
+            llama_kv_attention_packed_page_action::reuse);
+    cache.clear_sequence(6);
+
     auto changed_pages = tail.pages();
     changed_pages[0].page_generation++;
     auto * generation_refresh = cache.find_or_create(
@@ -463,8 +513,8 @@ static void test_packed_cache_identity_and_versions() {
     assert(cache.content_version(generation_refresh, 0) == UINT64_MAX);
     assert(generation_refresh->slots[0].page_generation == changed_pages[0].page_generation);
     std::fprintf(stdout, "packed_delta_copy_contract=pass frozen_copy_rows=0 "
-        "append_copy_rows=0 append_dirty_rows=12 rollback_recopy_rows=188 "
-        "rollback_generation=%u\n", changed_pages[0].page_generation);
+        "append_direct_write_rows=1 rollback_invalidated_pages=1 "
+        "rollback_generation=%u\n", rollback_pages[0].page_generation);
 
     // The old owner remains live while its simulated graph consumer is in
     // flight. A structural replacement is allowed, but switching to a third
