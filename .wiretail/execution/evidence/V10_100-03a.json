@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "task": "100-03a",
+  "source_commit": "dfe0c1fd99d77cf80217b4fa984738f21f0b4300",
+  "build_identity": {
+    "build_performed": true,
+    "build_dir": "/srv/repos/vanwho/buun-llama-cpp/build-cuda",
+    "build_type": "Release",
+    "cuda": true,
+    "source_commit": "dfe0c1fd99d77cf80217b4fa984738f21f0b4300",
+    "dirty_source_diff_sha256": "4099ffc397352fca27cb9bc1fa2860308354cda63a7e96f596a900b42f7e4ec9",
+    "candidate_bundle": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/post-edit-candidate",
+    "candidate_manifest_sha256": "e6c6b39b694263db967a7d772ba765fead31f389992819ebdd8a03209b473683",
+    "candidate_binary_sha256": "47259e9b2cb647312a8a6c8377fc6d7f87208763d3059ad62f380b6e0f84ce31",
+    "candidate_loaded_dsos": {
+      "libllama-server-impl.so": "6621ccf12a80f3553f4e2dbb4a5415fdb52f979075d9d062593efaa38fc52d50",
+      "libggml-cuda.so.0": "600460973ed30070a2b8dac069190a4a0e175669d0cd0c0a952655f038d31114"
+    }
+  },
+  "diagnostics": {
+    "shape": {
+      "logical_context_L": 8192,
+      "target_hot_H": 4096,
+      "page_tokens": 256,
+      "batch": 1024,
+      "ubatch": 256,
+      "question_index": 1,
+      "requested_append_tokens": 256,
+      "output_budget": 400,
+      "mtp": "GPU native Turbo4, nmax=2"
+    },
+    "baseline": {
+      "candidate_binary_sha256": "35d7df7f448fe5ad0676b8de279ce3e8df48533c40f6f19b0f2be36d77a8bd43",
+      "loaded_libllama_server_impl_sha256": "86eb1dcf2a19152ceafbfbb59baaa6272fcf3c6de41e21da3897c67806dbb5ce",
+      "loaded_libggml_cuda_sha256": "333c882ab7fa0d7363b6b024b3b0d7ce15da84ecd455d6aa5d087467837664cb",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "pid": 2352348,
+      "start_ticks": 15850249,
+      "observed_argv": [
+        "/srv/ai/paged-kv/results/forward/100-02f/attempt-02/candidate-bundle/llama-server",
+        "-m", "/srv/ai/models/text/current.gguf",
+        "-c", "8192", "-b", "1024", "-ub", "256",
+        "--kv-pager", "selective", "--kv-page-size", "256",
+        "--spec-draft-kv-device", "gpu", "--spec-type", "draft-mtp",
+        "--spec-draft-n-max", "2"
+      ],
+      "prefix_prompt_tokens": 4720,
+      "append_cache_n": 5119,
+      "append_prompt_n": 257,
+      "append_output_tokens": 400,
+      "append_finish_reason": "length",
+      "mtp_draft_tokens": 267,
+      "mtp_accepted_tokens": 262,
+      "movement_delta": {
+        "graph_capture_count": 141,
+        "graph_replay_count": 0,
+        "graph_rebuild_count": 141,
+        "packed_copy_updates": 529,
+        "packed_copy_rows": 127120,
+        "waits": 141,
+        "wait_time_us": 1698370,
+        "h2d_useful_bytes": 0
+      },
+      "coordinate_sha256": "f44b99aa94af159ab64da4e2507a88409b2d0c62414c7c4d063bd5642593221d",
+      "append_sse_sha256": "6adfe134ce2ec837fae4fa3b8e0e988e53411dcca04aca3fb9bc09ef5a568542",
+      "argv_reference_after_restore": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/restored-process-identity.json"
+    },
+    "post_edit": {
+      "candidate_binary_sha256": "47259e9b2cb647312a8a6c8377fc6d7f87208763d3059ad62f380b6e0f84ce31",
+      "loaded_libllama_server_impl_sha256": "6621ccf12a80f3553f4e2dbb4a5415fdb52f979075d9d062593efaa38fc52d50",
+      "loaded_libggml_cuda_sha256": "600460973ed30070a2b8dac069190a4a0e175669d0cd0c0a952655f038d31114",
+      "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+      "pid": 2401734,
+      "start_ticks": 16194169,
+      "argv_artifact": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/post-process-identity.json",
+      "prefix_prompt_tokens": 4720,
+      "append_cache_n": 5119,
+      "append_prompt_n": 257,
+      "append_output_tokens": 400,
+      "append_finish_reason": "length",
+      "mtp_draft_tokens": 300,
+      "mtp_accepted_tokens": 187,
+      "movement_delta": {
+        "graph_capture_count": 216,
+        "graph_replay_count": 0,
+        "graph_rebuild_count": 216,
+        "packed_copy_updates": 495,
+        "packed_copy_rows": 122849,
+        "waits": 216,
+        "wait_time_us": 2603200,
+        "h2d_useful_bytes": 0
+      },
+      "coordinate_sha256": "abffc488b4536babe0899c2ea71202fc91e0939eb2a63268ed4e101e32ca4476",
+      "append_sse_sha256": "8af5847bfe86d002587b58dc6ec038ae9c5201f232fe5f9c1b16dc3caed803c9"
+    },
+    "interpretation": "Packed copy updates fell by 34 and copied rows fell by 4271. Graph captures/rebuilds increased by 75 and waits increased by 904830 us. The single diagnostic also had different native-MTP acceptance (262/267 baseline versus 187/300 post-edit), so it does not isolate graph rebuild cost from speculative decode shape and is not a speed gate."
+  },
+  "checks": {
+    "packed_append_copy_graph_reuse": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/test-kv-attention-execution"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/focused-build.log",
+          "sha256": "5901979e77113ecef714eb1c84ad8432ee45c0d7ce309eaa59af80a6428c621d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/focused-test.log",
+          "sha256": "ed51b822d631d5c4d8ce8ab4a3da0753737f75f4f1baaf16ba3a1064b6f04b25"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/baseline-context5120/coordinate.json",
+          "sha256": "f44b99aa94af159ab64da4e2507a88409b2d0c62414c7c4d063bd5642593221d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/post-edit-context5120/coordinate.json",
+          "sha256": "abffc488b4536babe0899c2ea71202fc91e0939eb2a63268ed4e101e32ca4476"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/baseline-context5120/raw-append-256.sse",
+          "sha256": "6adfe134ce2ec837fae4fa3b8e0e988e53411dcca04aca3fb9bc09ef5a568542"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/post-edit-context5120/raw-append-256.sse",
+          "sha256": "8af5847bfe86d002587b58dc6ec038ae9c5201f232fe5f9c1b16dc3caed803c9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/post-process-identity.json",
+          "sha256": "13b9019401490a4d579335b6f0167bd2feae6dd2364b4fbf4ce91c716273c747"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/restored-process-identity.json",
+          "sha256": "7d7f6b924325df360c0f4b5ba4a42ce36e8b5f392aad325608594726f11fe172"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/post-edit-candidate/build-identity.json",
+          "sha256": "e6c6b39b694263db967a7d772ba765fead31f389992819ebdd8a03209b473683"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/server-build.log",
+          "sha256": "68af5ef0690d2917d45f1306d5ad3a15a6e53696ac9acf48a2ec163ea8127bb8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/post-edit-run.log",
+          "sha256": "b4eda40997b1cb47a5d0664b02fd4caca451635a42fe81960ae9c2cbc628e51c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03a/attempt-01/task-state-validation.log",
+          "sha256": "5d7bedce1ba66bbf1dd02a70806095b988cb561971be76ff3f49478a5eaa730a"
+        }
+      ]
+    }
+  },
+  "decision": {
+    "packed_copy_result": "improved_in_single_diagnostic",
+    "graph_capture_result": "inconclusive_due_to_different_mtp_acceptance_and_increased_count",
+    "live_result": "measured_shape_diagnostic_finished_at_output_budget",
+    "service_restored": true,
+    "restored_pid": 2407971,
+    "restored_candidate_sha256": "35d7df7f448fe5ad0676b8de279ce3e8df48533c40f6f19b0f2be36d77a8bd43"
+  }
+}
