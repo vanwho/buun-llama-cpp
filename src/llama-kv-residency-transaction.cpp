@@ -433,6 +433,7 @@ llama_kv_residency_execute_transaction(
                 request.transfers[index], request.staging_capacity,
                 request.catalog, claims[index]);
             if (status == llama_kv_residency_pool_status::ok) return true;
+            result.transfer_failure_status = status;
             result.status = status == llama_kv_residency_pool_status::slot_unavailable
                 ? llama_kv_residency_transaction_status::insufficient_slots
                 : llama_kv_residency_transaction_status::transfer_failed;
@@ -499,6 +500,7 @@ llama_kv_residency_execute_transaction(
             result.transfer_counters.map_failures +=
                 transfer_result.counters.map_failures;
             if (transfer_result.status != llama_kv_residency_pool_status::ok) {
+                result.transfer_failure_status = transfer_result.status;
                 result.status = transfer_result.status ==
                     llama_kv_residency_pool_status::stale_completion
                     ? llama_kv_residency_transaction_status::stale_generation

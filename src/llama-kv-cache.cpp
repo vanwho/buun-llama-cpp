@@ -20,6 +20,7 @@
 #include "ggml-alloc.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cctype>
 #include <cmath>
@@ -3657,7 +3658,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                         entry.id.logical_page, entry.id.attention_layer, uint32_t(entry.reason));
             }
         }
-        for (const auto & record : inventory) {
+        for (size_t inventory_index = 0; inventory_index < inventory.size(); ++inventory_index) {
+            const auto & record = inventory[inventory_index];
             llama_kv_live_policy_page page;
             page.record = record;
             const auto host = has_host(record.id);
@@ -3670,6 +3672,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             page.recency = record.id.logical_page;
             page.fault_cost = page.record.physical_slot == UINT32_MAX ? 1 : 0;
             page.dirty_cost = page.record.dirty ? 1 : 0;
+            llama_kv_live_policy_apply_routing_attributes(
+                    page, attributes[inventory_index]);
             page.attention_layer = kv_attention_telemetry_ != nullptr
                 ? kv_attention_telemetry_->layer_index() : 0;
             if (kv_attention_telemetry_ != nullptr) {
@@ -3719,6 +3723,8 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
         boundary.query_commit.table_epoch = boundary.retrieval.table_epoch;
         boundary.query_commit.query_position = boundary.retrieval.position >= 0
             ? uint64_t(boundary.retrieval.position) : 0;
+        boundary.query_commit.query_start = turn_state.query_start;
+        boundary.query_commit.query_end = turn_state.query_end;
         boundary.query_commit.rollback_generation = current_rollback_generation;
         boundary.query_commit.model_identity = boundary.retrieval.model_identity;
         boundary.query_commit.session_generation = boundary.retrieval.session_generation;
@@ -3729,7 +3735,11 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             pager_snapshot.retrieval_pages, turn_state.query_start,
             turn_state.query_end, pager_snapshot.geometry.page_tokens);
         boundary.query_commit.generation_budget = pager_snapshot.generation_pages;
-        for (const auto & entry : boundary.retrieval.selected) {
+        auto query_candidates = boundary.retrieval.selected;
+        boundary.query_commit.selection_truncated =
+            llama_kv_live_policy_rank_query_candidates(
+                    query_candidates, boundary.query_commit.retrieval_budget);
+        for (const auto & entry : query_candidates) {
             const auto canonical = std::find_if(inventory.begin(), inventory.end(),
                     [&](const auto & page) { return same_bundle(page.id, entry.id); });
             if (canonical == inventory.end()) continue;
@@ -4087,6 +4097,10 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
             selector_trace.h2d_completion_observed =
                 result.transaction.status == llama_kv_residency_transaction_status::committed &&
                 selector_trace.h2d_completed_bytes > 0;
+            selector_trace.transaction_status = uint8_t(result.transaction.status);
+            selector_trace.transaction_failed_phase = uint8_t(result.transaction.failed_phase);
+            selector_trace.transfer_failure_status =
+                uint8_t(result.transaction.transfer_failure_status);
             if (result.status == llama_kv_live_policy_status::all_pinned ||
                     result.status == llama_kv_live_policy_status::mandatory_overflow ||
                     result.transaction.status == llama_kv_residency_transaction_status::all_pinned ||
@@ -4128,10 +4142,32 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     result.transaction.h2d_counters.copied_aligned_bytes);
         }
         if (result.status == llama_kv_live_policy_status::committed) {
-            // Retain only the first candidate that was genuinely cold before
-            // this boundary and became resident in the committed target. The
-            // record is an audit receipt; it is not consulted by policy.
-            for (const auto & candidate : candidates) {
+            // Retain one naturally admitted cold candidate as an audit
+            // receipt. When bounded tracing names a specific candidate,
+            // prefer that identity so the receipt proves the observed page;
+            // this does not affect candidate order or policy selection.
+            const auto traced_candidate = std::find_if(candidates.begin(), candidates.end(),
+                    [&](const auto & candidate) {
+                return selector_trace.enabled && selector_trace.target_logical_page >= 0 &&
+                    candidate.identity.logical_page ==
+                        uint32_t(selector_trace.target_logical_page) &&
+                    candidate.identity.page_generation ==
+                        selector_trace.target_page_generation &&
+                    candidate.content_version == selector_trace.target_content_version;
+            });
+            const size_t traced_candidate_index = traced_candidate == candidates.end()
+                ? candidates.size() : size_t(traced_candidate - candidates.begin());
+            for (size_t proof_index = 0; proof_index < candidates.size(); ++proof_index) {
+                size_t candidate_index = proof_index;
+                if (traced_candidate_index < candidates.size()) {
+                    if (proof_index == 0) {
+                        candidate_index = traced_candidate_index;
+                    } else {
+                        candidate_index = proof_index - 1;
+                        if (candidate_index >= traced_candidate_index) ++candidate_index;
+                    }
+                }
+                const auto & candidate = candidates[candidate_index];
                 const auto before = std::find_if(inventory.begin(), inventory.end(),
                         [&](const auto & page) {
                     return page.id == candidate.identity ||
@@ -4584,18 +4620,33 @@ bool llama_kv_cache::pager_routing_summary_build(
         const llama_kv_routing_summary_config & config,
         llama_kv_routing_page_input & output) noexcept {
     auto * cache = static_cast<llama_kv_cache *>(context);
+    const auto log_tail_failure = [&](const char * reason, uint32_t logical_unit = UINT32_MAX,
+                                      uint32_t row = UINT32_MAX,
+                                      uint16_t norm_bits = 0, float value = 0.0f) {
+        if (page.id.logical_page < 15 || page.id.logical_page > 18) return;
+        static std::atomic<uint32_t> reports{0};
+        if (reports.fetch_add(1, std::memory_order_relaxed) < 24) {
+            std::fprintf(stderr, "pager summary input failure reason=%s page=%u version=%llu layer=%u head=%u unit=%u row=%u norm_bits=0x%04x value=%g\n",
+                    reason, page.id.logical_page,
+                    (unsigned long long) page.content_version,
+                    config.layer_index, config.head_index, logical_unit,
+                    row, unsigned(norm_bits), value);
+        }
+    };
     if (cache == nullptr || cache->pager_ == nullptr || cache->layers.empty() ||
         page.id.position_begin < 0 || page.id.position_end <= page.id.position_begin ||
         page.physical_slot == UINT32_MAX || config.representative_count < 4 ||
         config.representative_count > 8 || config.vector_dim == 0 ||
         config.form != llama_kv_routing_summary_form::minmax_ranges ||
         config.layer_index >= cache->layers.size()) {
+        log_tail_failure("invalid_provider_or_page");
         return false;
     }
     const uint64_t valid_rows = uint64_t(page.id.position_end - page.id.position_begin);
     if (valid_rows == 0 || valid_rows > VBR_GENERATION_PAGE_CELLS ||
             page.content_version == 0 || config.subblock_tokens == 0 ||
             VBR_GENERATION_PAGE_CELLS % config.subblock_tokens != 0) {
+        log_tail_failure("invalid_rows_or_config");
         return false;
     }
     try {
@@ -4608,7 +4659,10 @@ bool llama_kv_cache::pager_routing_summary_build(
             cached.content_version = page.content_version;
             const auto * host = cache->pager_->host_catalog();
             vbr_selected_page_host_view host_page;
-            if (host == nullptr || !host->find_page(page.id, host_page)) return false;
+            if (host == nullptr || !host->find_page(page.id, host_page)) {
+                log_tail_failure("host_page_missing");
+                return false;
+            }
             const uint32_t subblocks = VBR_GENERATION_PAGE_CELLS / config.subblock_tokens;
             uint64_t captured_bytes = 0;
             for (uint32_t layer_index = 0; layer_index < cache->layers.size(); ++layer_index) {
@@ -4617,7 +4671,10 @@ bool llama_kv_cache::pager_routing_summary_build(
                 const uint32_t heads = cache->hparams.n_head_kv(layer.il);
                 if (tensor == nullptr || tensor->type != GGML_TYPE_TURBO4_0 ||
                         tensor->ne[0] <= 0 || heads == 0 || tensor->ne[0] % heads != 0 ||
-                        uint32_t(tensor->ne[0] / heads) != config.vector_dim) return false;
+                        uint32_t(tensor->ne[0] / heads) != config.vector_dim) {
+                    log_tail_failure("tensor_shape_or_type", layer_index * 2);
+                    return false;
+                }
                 const uint64_t row_bytes = ggml_row_size(tensor->type, tensor->ne[0]);
                 const uint32_t logical_unit = layer_index * 2;
                 const auto unit_it = std::find_if(host_page.page.units.begin(),
@@ -4626,9 +4683,13 @@ bool llama_kv_cache::pager_routing_summary_build(
                         unit.side == vbr_artifact_side::key && unit.bytes &&
                         unit.row_bytes == row_bytes && unit.valid_rows >= valid_rows;
                 });
-                if (unit_it == host_page.page.units.end()) return false;
+                if (unit_it == host_page.page.units.end()) {
+                    log_tail_failure("key_unit_missing_or_short", logical_unit);
+                    return false;
+                }
                 if (valid_rows > std::numeric_limits<uint64_t>::max() / row_bytes ||
                         captured_bytes > std::numeric_limits<uint64_t>::max() - valid_rows * row_bytes) {
+                    log_tail_failure("captured_byte_overflow", logical_unit);
                     return false;
                 }
                 captured_bytes += valid_rows * row_bytes;
@@ -4648,7 +4709,10 @@ bool llama_kv_cache::pager_routing_summary_build(
                 std::vector<float> decoded(size_t(tensor->ne[0]));
                 for (uint32_t row = 0; row < valid_rows; ++row) {
                     if (!unit_it->bytes->read(uint64_t(row) * row_bytes,
-                            encoded.data(), encoded.size())) return false;
+                            encoded.data(), encoded.size())) {
+                        log_tail_failure("host_unit_read_failed", logical_unit);
+                        return false;
+                    }
                     dequantize_row_turbo4_0(encoded.data(), decoded.data(), tensor->ne[0]);
                     const uint32_t subblock = std::min<uint32_t>(subblocks - 1,
                             row / config.subblock_tokens);
@@ -4656,7 +4720,13 @@ bool llama_kv_cache::pager_routing_summary_build(
                         auto & item = layer_items[head];
                         for (uint32_t d = 0; d < config.vector_dim; ++d) {
                             const float value = decoded[size_t(head) * config.vector_dim + d];
-                            if (!std::isfinite(value)) return false;
+                            if (!std::isfinite(value)) {
+                                ggml_fp16_t norm_bits = 0;
+                                std::memcpy(&norm_bits, encoded.data(), sizeof(norm_bits));
+                                log_tail_failure("nonfinite_dequantized_value", logical_unit,
+                                        row, norm_bits, value);
+                                return false;
+                            }
                             const size_t index = size_t(subblock) * config.vector_dim + d;
                             item.input.range_min[index] = std::min(item.input.range_min[index], value);
                             item.input.range_max[index] = std::max(item.input.range_max[index], value);
@@ -4677,10 +4747,14 @@ bool llama_kv_cache::pager_routing_summary_build(
                 [&](const auto & value) {
             return value.layer == config.layer_index && value.head == config.head_index;
         });
-        if (item == cached.items.end()) return false;
+        if (item == cached.items.end()) {
+            log_tail_failure("head_item_missing");
+            return false;
+        }
         output = item->input;
         return true;
     } catch (...) {
+        log_tail_failure("exception");
         output = {};
         cache->pager_summary_cache_ = {};
         return false;

@@ -1132,6 +1132,11 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
             // caller distinguish a complete host-backed cold page from a
             // resident page without exposing any residency control surface.
             result.page_inventory = kv_pager_owner->exact_page_records(0);
+            result.page_summary_content_versions.reserve(result.page_inventory.size());
+            for (const auto & page : result.page_inventory) {
+                result.page_summary_content_versions.push_back(
+                    kv_pager_owner->routing_summary_content_version(page.id));
+            }
         } catch (...) {
             result.page_inventory.clear();
         }

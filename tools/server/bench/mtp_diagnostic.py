@@ -186,7 +186,10 @@ def promotion_event_chain_from_snapshots(
             natural["target_use_epoch"] < natural["published_epoch"]:
         errors.append("target_did_not_consume_promoted_page")
     if natural.get("draft_graph_used") is not True or \
-            natural.get("draft_use_query_generation") != natural.get("query_generation"):
+            natural.get("draft_use_query_generation") != natural.get("query_generation") or \
+            not isinstance(natural.get("draft_use_epoch"), int) or \
+            not isinstance(natural.get("published_epoch"), int) or \
+            natural["draft_use_epoch"] < natural["published_epoch"]:
         errors.append("draft_did_not_consume_promoted_page")
 
     sequences = {
@@ -197,9 +200,16 @@ def promotion_event_chain_from_snapshots(
         "target_consumed": natural.get("target_event_sequence"),
         "draft_consumed": natural.get("draft_event_sequence"),
     }
-    ordered = list(sequences.values())
-    if any(type(value) is not int or value <= 0 for value in ordered[1:]) or \
-            ordered != sorted(ordered) or len(set(ordered)) != len(ordered):
+    movement = [sequences[name] for name in (
+        "page_cold_before_request", "page_selected", "h2d_completed", "mapping_published")]
+    consumers = [sequences["target_consumed"], sequences["draft_consumed"]]
+    # MTP drafts may consume the promoted page before target verification.
+    # Both graph uses must follow publication, but their relative order is
+    # determined by speculative scheduling and is not a promotion invariant.
+    if any(type(value) is not int or value <= 0 for value in movement[1:]) or \
+            movement != sorted(movement) or len(set(movement)) != len(movement) or \
+            any(type(value) is not int or value <= movement[-1] for value in consumers) or \
+            consumers[0] == consumers[1]:
         errors.append("promotion_event_order_invalid")
 
     return {

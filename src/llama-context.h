@@ -53,6 +53,7 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t page_tokens = 0;
     uint64_t logical_pages = 0;
     std::vector<llama_kv_page_record> page_inventory;
+    std::vector<uint64_t> page_summary_content_versions;
     uint64_t physical_page_capacity = 0;
     uint64_t physical_pool_capacity_bytes = 0;
     uint64_t resident_pages = 0;

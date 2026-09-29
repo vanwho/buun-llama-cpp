@@ -4928,6 +4928,7 @@ static void test_h2d_bounded_streaming() {
         &blocked_destination, fake_h2d_destination::issue,
         fake_h2d_destination::complete, true,
     };
+    blocked_transfer.continue_transfer = [](void *) noexcept { return true; };
     vbr_capture_stream_status capture_result =
         vbr_capture_stream_status::internal_error;
     std::thread capture_thread([&]() {
@@ -4941,15 +4942,24 @@ static void test_h2d_bounded_streaming() {
         std::this_thread::yield();
     }
     CHECK(d2h_input.entered.load(std::memory_order_acquire));
-    CHECK(adoption->stream(blocked_transfer, stats) ==
-          vbr_h2d_status::ring_unavailable);
+    std::atomic<bool> h2d_done { false };
+    vbr_h2d_status h2d_result = vbr_h2d_status::internal_error;
+    vbr_h2d_stats h2d_stats;
+    std::thread h2d_thread([&]() {
+        h2d_result = adoption->stream(blocked_transfer, h2d_stats);
+        h2d_done.store(true, std::memory_order_release);
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    CHECK(!h2d_done.load(std::memory_order_acquire));
     CHECK(blocked_chain.size() == 0);
     CHECK(blocked_destination.bytes == 0);
     d2h_input.release.store(true, std::memory_order_release);
     capture_thread.join();
+    h2d_thread.join();
     CHECK(capture_result == vbr_capture_stream_status::ok);
+    CHECK(h2d_result == vbr_h2d_status::ok);
+    CHECK(h2d_stats.backpressure_waits > 0);
     CHECK(read_chain(blocked_chain) == d2h_input.source.bytes);
-    CHECK(adoption->stream(blocked_transfer, stats) == vbr_h2d_status::ok);
     CHECK(blocked_destination.valid);
     CHECK(blocked_destination.bytes == h2d_input.size);
 

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <math.h>
 #include <stdio.h>
 #include <string>
@@ -326,6 +327,21 @@ static void test_bonsai_codecs() {
     assert(pq == ptq);
 }
 
+static void test_turbo4_nonfinite_values_do_not_poison_rows() {
+    constexpr int width = 128;
+    std::vector<float> input(width, 0.25f), decoded(width);
+    input[0] = std::numeric_limits<float>::quiet_NaN();
+    input[1] = std::numeric_limits<float>::infinity();
+    std::vector<uint8_t> packed(ggml_row_size(GGML_TYPE_TURBO4_0, width));
+    const size_t written = ggml_quantize_chunk(
+            GGML_TYPE_TURBO4_0, input.data(), packed.data(), 0, 1, width, nullptr);
+    assert(written == packed.size());
+    ggml_get_type_traits(GGML_TYPE_TURBO4_0)->to_float(
+            packed.data(), decoded.data(), width);
+    assert(std::all_of(decoded.begin(), decoded.end(),
+                       [](float value) { return std::isfinite(value); }));
+}
+
 int main(int argc, char * argv[]) {
     bool verbose = false;
 
@@ -343,6 +359,7 @@ int main(int argc, char * argv[]) {
 
     ggml_cpu_init();
     test_bonsai_codecs();
+    test_turbo4_nonfinite_values_do_not_poison_rows();
 
     int num_failed = 0;
 

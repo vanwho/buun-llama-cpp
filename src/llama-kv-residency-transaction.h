@@ -115,6 +115,10 @@ struct llama_kv_residency_transaction_result {
     uint32_t loaded_pages = 0;
     bool published = false;
     bool rollback_complete = false;
+    // Preserve the lower-level pool/transport refusal so a failed transaction
+    // can distinguish reservation, mapping and event/copy failures.
+    llama_kv_residency_pool_status transfer_failure_status =
+        llama_kv_residency_pool_status::ok;
     llama_kv_residency_transfer_counters transfer_counters;
     // Direction-specific copies prevent a mixed transaction from attributing
     // a promotion to D2H or a reseal to H2D in the metrics boundary.

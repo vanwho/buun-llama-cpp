@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstdio>
 #include <limits>
 #include <new>
@@ -1310,7 +1311,17 @@ void llama_kv_pager::reconcile_live_target(
                 ? page.content_version : 0;
             state->host_inflight = preserve_host_inflight;
             state->host_inflight_version = preserved_host_inflight_version;
-            state->maintenance_pending = false;
+            const bool needs_host_seal = host_ != nullptr &&
+                (!page.host_valid || page.dirty ||
+                 state->host_content_version != page.content_version);
+            const bool needs_summary = routing_summary_provider_.build != nullptr &&
+                state->summary_content_version != page.content_version;
+            // Reconciliation replaces the live-policy mirror after a table
+            // publication. Keep immutable maintenance work visible across that
+            // boundary so a later decode fence can seal host bytes and publish
+            // the content-version-matched routing summary.
+            state->maintenance_pending = !preserve_host_inflight &&
+                (needs_host_seal || needs_summary);
             state->completed_segments = snapshot_.geometry.attention_layers * 2;
             const uint32_t rows = uint32_t(std::min<uint64_t>(
                     snapshot_.geometry.page_tokens,
@@ -2719,6 +2730,22 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                     if (!routing_summary_provider_.build(
                             routing_summary_provider_.context, page.record,
                             configs[config_index], input)) {
+                        if (page.record.id.logical_page >= 15 &&
+                                page.record.id.logical_page <= 18) {
+                            static std::atomic<uint32_t> tail_summary_failure_logs{0};
+                            if (tail_summary_failure_logs.fetch_add(1,
+                                    std::memory_order_relaxed) < 16) {
+                                std::fprintf(stderr, "kv pager: routing summary source unavailable page=%u generation=%llu version=%llu host_valid=%d state=%u slot=%u layer=%u head=%u\n",
+                                        page.record.id.logical_page,
+                                        (unsigned long long) page.record.id.page_generation,
+                                        (unsigned long long) page.content_version,
+                                        page.record.host_valid ? 1 : 0,
+                                        unsigned(page.record.state),
+                                        page.record.physical_slot,
+                                        configs[config_index].layer_index,
+                                        configs[config_index].head_index);
+                            }
+                        }
                         item.summary_ok = false;
                         continue;
                     }
@@ -2749,6 +2776,15 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                             snapshot, inventory, group.inputs, configs[config_index],
                             summary_status, true);
                     if (summary_status != llama_kv_routing_summary_status::ok) {
+                        static std::atomic<uint32_t> summary_failure_logs{0};
+                        if (summary_failure_logs.fetch_add(1, std::memory_order_relaxed) < 8) {
+                            std::fprintf(stderr, "kv pager: routing summary publication failed status=%s layer=%u head=%u inputs=%zu inventory=%zu snapshot_pages=%zu\n",
+                                    llama_kv_routing_summary_status_name(summary_status),
+                                    configs[config_index].layer_index,
+                                    configs[config_index].head_index,
+                                    group.inputs.size(), inventory.size(),
+                                    snapshot.pages().size());
+                        }
                         for (const size_t page_index : group.pages) {
                             auto it = std::find_if(changed.begin(), changed.end(),
                                     [&](const auto & item) { return item.index == page_index; });

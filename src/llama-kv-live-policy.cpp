@@ -180,6 +180,47 @@ uint32_t llama_kv_query_history_budget(
         ? 0 : retrieval_pages - uint32_t(mandatory);
 }
 
+void llama_kv_live_policy_apply_routing_attributes(
+        llama_kv_live_policy_page & page,
+        const llama_kv_routing_page_attributes & attributes) noexcept {
+    if (page.record.id != attributes.id) return;
+    page.recent = attributes.recent;
+    page.structural = attributes.structural;
+    page.current = attributes.current;
+    page.application_pin = attributes.application_pin;
+    page.inflight_pin = attributes.inflight_pin;
+    page.speculative_pin = attributes.speculative_pin;
+}
+
+bool llama_kv_live_policy_rank_query_candidates(
+        std::vector<llama_kv_routing_retrieval_entry> & candidates,
+        uint32_t retrieval_budget) {
+    const auto priority = [](llama_kv_routing_retrieval_reason reason) {
+        switch (reason) {
+            case llama_kv_routing_retrieval_reason::mandatory: return 0;
+            case llama_kv_routing_retrieval_reason::structural: return 1;
+            case llama_kv_routing_retrieval_reason::recent: return 2;
+            case llama_kv_routing_retrieval_reason::summary: return 3;
+            case llama_kv_routing_retrieval_reason::exploration: return 4;
+            case llama_kv_routing_retrieval_reason::fallback: return 5;
+            case llama_kv_routing_retrieval_reason::forced: return 0;
+        }
+        return 6;
+    };
+    std::stable_sort(candidates.begin(), candidates.end(),
+            [&](const auto & lhs, const auto & rhs) {
+        const int lhs_priority = priority(lhs.reason);
+        const int rhs_priority = priority(rhs.reason);
+        if (lhs_priority != rhs_priority) return lhs_priority < rhs_priority;
+        if (lhs.score_available != rhs.score_available) return lhs.score_available;
+        if (lhs.score_available && lhs.score != rhs.score) return lhs.score > rhs.score;
+        return false;
+    });
+    const bool truncated = candidates.size() > retrieval_budget;
+    if (truncated) candidates.resize(retrieval_budget);
+    return truncated;
+}
+
 bool llama_kv_live_policy_prepare_query_target(
         const llama_kv_live_policy_boundary & boundary,
         std::vector<llama_kv_page_record> & target) noexcept {
@@ -189,6 +230,9 @@ bool llama_kv_live_policy_prepare_query_target(
         if (!commit.enabled || commit.query_generation == 0 || commit.turn_id == 0 ||
             commit.retrieval_epoch == 0 || commit.table_epoch != boundary.snapshot.epoch() ||
             commit.query_position == 0 || commit.rollback_generation == 0 ||
+            commit.query_start < 0 || commit.query_end <= commit.query_start ||
+            commit.query_position < uint64_t(commit.query_start) ||
+            commit.query_position > uint64_t(commit.query_end) ||
             commit.model_identity == 0 || commit.session_generation == 0 ||
             commit.sequence_generation == 0 || commit.sequence_id < 0 ||
             commit.representation_epoch == 0 || commit.retrieval_budget == 0 ||
@@ -241,9 +285,13 @@ bool llama_kv_live_policy_prepare_query_target(
         std::vector<bool> mandatory_generation;
         for (const auto & page : boundary.pages) {
             const bool write = boundary.has_write_page && page.record.id == boundary.write_page;
-            const bool generation = page.current || write || page.inflight_pin ||
-                page.speculative_pin || page.record.pin_count != 0;
-            const bool pinned = generation || page.anchor || page.application_pin;
+            const bool query_page = page.record.id.position_begin >= 0 &&
+                uint64_t(page.record.id.position_begin) < uint64_t(commit.query_end) &&
+                uint64_t(std::max<llama_pos>(0, page.record.id.position_end)) >
+                    uint64_t(commit.query_start);
+            const bool generation = !query_page && (page.current || write || page.inflight_pin ||
+                page.speculative_pin || page.record.pin_count != 0);
+            const bool pinned = query_page || generation || page.anchor || page.application_pin;
             if (!pinned) continue;
             const auto existing = std::find(mandatory_ids.begin(), mandatory_ids.end(),
                     page.record.id);
@@ -252,7 +300,7 @@ bool llama_kv_live_policy_prepare_query_target(
                 mandatory_generation.push_back(generation);
                 mandatory.push_back(&page);
                 if (generation) ++generation_mandatory;
-                else ++retrieval_mandatory;
+                else if (!query_page) ++retrieval_mandatory;
             } else if (generation) {
                 const size_t index = size_t(existing - mandatory_ids.begin());
                 if (!mandatory_generation[index]) {
