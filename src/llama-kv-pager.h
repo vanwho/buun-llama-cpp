@@ -967,6 +967,11 @@ private:
     page_state * oldest_generation_victim(int32_t sequence_id,
             uint64_t turn_id) noexcept;
     void queue_generation_page(page_state & page) noexcept;
+    llama_kv_pager_write_status begin_write_planned(
+            int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
+            llama_kv_pager_write_ticket & ticket, uint32_t planned_slot,
+            const llama_kv_page_id * planned_victim,
+            uint64_t planned_victim_content_version) noexcept;
 
     llama_kv_pager() = default;
     llama_kv_pager_snapshot snapshot_;

@@ -2959,6 +2959,15 @@ void llama_kv_pager::release_sequence_pins(int32_t sequence_id) noexcept {
 llama_kv_pager_write_status llama_kv_pager::begin_write(
         int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
         llama_kv_pager_write_ticket & ticket) noexcept {
+    return begin_write_planned(sequence_id, sequence_generation, position,
+            ticket, UINT32_MAX, nullptr, 0);
+}
+
+llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
+        int32_t sequence_id, uint64_t sequence_generation, llama_pos position,
+        llama_kv_pager_write_ticket & ticket, uint32_t planned_slot,
+        const llama_kv_page_id * planned_victim,
+        uint64_t planned_victim_content_version) noexcept {
     ticket = {};
     ticket.attention_layer = UINT32_MAX;
     if (!snapshot_.initialized || snapshot_.physical_page_count == 0) {
@@ -3065,10 +3074,42 @@ llama_kv_pager_write_status llama_kv_pager::begin_write(
     bool created = false;
     if (page == nullptr) {
         uint32_t slot = UINT32_MAX;
-        for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
-            if (slot_pages_[i] < 0) { slot = i; break; }
+        if (planned_slot != UINT32_MAX) {
+            slot = planned_slot;
+            if (slot >= slot_pages_.size()) return llama_kv_pager_write_status::transaction;
+            if (planned_victim != nullptr) {
+                page_state * candidate = find_slot(slot);
+                if (candidate == nullptr || candidate->record.id != *planned_victim ||
+                        candidate->content_version != planned_victim_content_version ||
+                        candidate->host_inflight || candidate->record.pin_count != 0 ||
+                        frozen_history_page(candidate) || !candidate->record.host_valid ||
+                        candidate->record.dirty ||
+                        candidate->host_content_version != candidate->content_version ||
+                        candidate->record.content_version != candidate->content_version ||
+                        (routing_summary_provider_.build != nullptr &&
+                         candidate->summary_content_version != candidate->content_version) ||
+                        (candidate->record.state != llama_kv_page_state::host_clean &&
+                         candidate->record.state != llama_kv_page_state::gpu_host_clean)) {
+                    return llama_kv_pager_write_status::transaction;
+                }
+                const auto turn_state = turn_states_.find(sequence_id);
+                if (turn_state != turn_states_.end() &&
+                        turn_state->second.phase == llama_kv_pager_turn_phase::generating &&
+                        oldest_generation_victim(sequence_id, turn_state->second.turn_id) != candidate) {
+                    return llama_kv_pager_write_status::transaction;
+                }
+                if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
+                    return llama_kv_pager_write_status::transaction;
+                }
+            } else if (slot_pages_[slot] >= 0) {
+                return llama_kv_pager_write_status::transaction;
+            }
+        } else {
+            for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
+                if (slot_pages_[i] < 0) { slot = i; break; }
+            }
         }
-        if (slot == UINT32_MAX) {
+        if (slot == UINT32_MAX && planned_slot == UINT32_MAX) {
             // A page may only leave the target pool after both canonical host
             // bytes and its immutable routing summary have been published.
             // Give the maintenance queue one bounded opportunity to finish
@@ -3260,66 +3301,120 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
             }
         }
 
-        const auto available_slots = [&]() {
-            uint32_t available = 0;
+        struct planned_page_slot {
+            uint32_t logical_page = UINT32_MAX;
+            uint32_t slot = UINT32_MAX;
+            llama_kv_page_id victim{};
+            uint64_t victim_content_version = 0;
+            bool has_victim = false;
+        };
+        std::vector<planned_page_slot> reservation;
+        const auto build_reservation_plan = [&]() {
+            reservation.clear();
+            std::vector<uint32_t> slots;
+            std::vector<llama_kv_page_id> victims;
             for (uint32_t slot = 0; slot < slot_pages_.size(); ++slot) {
-                if (slot_pages_[slot] < 0) ++available;
+                if (slot_pages_[slot] < 0) slots.push_back(slot);
             }
             const auto active = turn_states_.find(sequence_id);
             if (active != turn_states_.end() &&
                     active->second.phase == llama_kv_pager_turn_phase::generating) {
-                for (const auto & identity : active->second.completed_generation_pages) {
+                auto & fifo = active->second.completed_generation_pages;
+                size_t at = 0;
+                while (at < fifo.size()) {
+                    const auto identity = fifo[at];
                     const page_state * page = find_page(sequence_id, identity.logical_page);
                     if (page == nullptr || page->record.id != identity ||
                             page->owner != page_owner::current_turn_generation ||
                             page->owner_turn_id != active->second.turn_id ||
-                            !page->generation_queued) continue;
+                            !page->generation_queued) {
+                        fifo.erase(fifo.begin() + at);
+                        continue;
+                    }
+                    // A valid oldest page awaiting a pin or seal fence blocks
+                    // younger entries. Touched pages are protected by the same
+                    // FIFO rule and cannot be skipped to satisfy this batch.
                     if (std::find(written_logical_pages.begin(), written_logical_pages.end(),
-                            identity.logical_page) != written_logical_pages.end()) break;
-                    if (!generation_page_evictable(page, sequence_id, active->second.turn_id)) break;
-                    ++available;
+                            identity.logical_page) != written_logical_pages.end() ||
+                            !generation_page_evictable(page, sequence_id, active->second.turn_id)) {
+                        break;
+                    }
+                    victims.push_back(identity);
+                    ++at;
                 }
-                return available;
+            } else {
+                for (uint32_t slot = 0; slot < slot_pages_.size(); ++slot) {
+                    if (slot_pages_[slot] < 0) continue;
+                    const page_state * page = find_slot(slot);
+                    if (page == nullptr || (page->record.id.sequence_id == sequence_id &&
+                            std::find(written_logical_pages.begin(), written_logical_pages.end(),
+                                page->record.id.logical_page) != written_logical_pages.end())) continue;
+                    if (!frozen_history_page(page) && !page->host_inflight &&
+                            page->record.pin_count == 0 && page->record.host_valid &&
+                            page->host_content_version == page->content_version &&
+                            page->record.content_version == page->content_version &&
+                            (routing_summary_provider_.build == nullptr ||
+                             page->summary_content_version == page->content_version) &&
+                            (page->record.state == llama_kv_page_state::host_clean ||
+                             page->record.state == llama_kv_page_state::gpu_host_clean)) {
+                        victims.push_back(page->record.id);
+                    }
+                }
             }
-            for (uint32_t slot = 0; slot < slot_pages_.size(); ++slot) {
-                if (slot_pages_[slot] < 0) continue;
-                const page_state * page = find_slot(slot);
-                if (page == nullptr || (page->record.id.sequence_id == sequence_id &&
-                        std::find(written_logical_pages.begin(), written_logical_pages.end(),
-                            page->record.id.logical_page) != written_logical_pages.end())) continue;
-                if (!frozen_history_page(page) && !page->host_inflight &&
-                        page->record.pin_count == 0 && page->record.host_valid &&
-                        page->host_content_version == page->content_version &&
-                        page->record.content_version == page->content_version &&
-                        (routing_summary_provider_.build == nullptr ||
-                         page->summary_content_version == page->content_version) &&
-                        (page->record.state == llama_kv_page_state::host_clean ||
-                         page->record.state == llama_kv_page_state::gpu_host_clean)) ++available;
+            size_t victim_at = 0;
+            for (const uint32_t logical : new_logical_pages) {
+                if (!slots.empty()) {
+                    reservation.push_back({ logical, slots.front(), {}, 0, false });
+                    slots.erase(slots.begin());
+                } else if (victim_at < victims.size()) {
+                    const auto victim = victims[victim_at++];
+                    const page_state * page = find_page(victim.sequence_id, victim.logical_page);
+                    if (page == nullptr || page->record.id != victim) return false;
+                    reservation.push_back({ logical, page->record.physical_slot, victim,
+                            page->content_version, true });
+                } else {
+                    reservation.clear();
+                    return false;
+                }
             }
-            return available;
+            return true;
         };
+
+        // Calls arrive after the preceding graph fence. Release only this
+        // pager's completed frontier, and only when the new batch will not
+        // write that page. Ticket pins on every other page remain untouched.
+        if (current_page_index_ < pages_.size()) {
+            page_state & frontier = pages_[current_page_index_];
+            if (frontier.present && frontier.record.id.sequence_id == sequence_id &&
+                    std::find(written_logical_pages.begin(), written_logical_pages.end(),
+                        frontier.record.id.logical_page) == written_logical_pages.end() &&
+                    !frontier.host_inflight) {
+                release_current_pin(nullptr);
+                current_page_index_ = UINT32_MAX;
+            }
+        }
 
         // The batch preflight must give completed full pages the same
         // maintenance opportunity as begin_write().  A write frontier keeps
         // its page pinned until the graph fence is complete; once the page is
         // full, sealing publishes its host copy and releases that pin so the
         // batch can evict it atomically when the next logical page crosses H.
-        if (available_slots() < new_logical_pages.size() && host_) {
+        if (!build_reservation_plan() && host_) {
             (void) seal_ready_pages(false);
         }
 
         // A completion may be the only producer that can turn a slot into a
         // clean host-backed victim.  Wait once at this capacity boundary, not
         // once per token or once per attempted row.
-        if (available_slots() < new_logical_pages.size() && host_ &&
+        if (!build_reservation_plan() && host_ &&
                 host_->async_enabled()) {
             drain_host_completions();
-            if (available_slots() < new_logical_pages.size() && host_inflight_pages() != 0) {
+            if (!build_reservation_plan() && host_inflight_pages() != 0) {
                 wait_host_completions();
             }
         }
 
-        if (available_slots() < new_logical_pages.size()) {
+        if (!build_reservation_plan()) {
             bool any_page = false;
             bool all_pinned = true;
             for (const auto & page : pages_) {
@@ -3361,7 +3456,25 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
         tickets.reserve(positions.size());
         for (const llama_pos position : positions) {
             llama_kv_pager_write_ticket ticket;
-            const auto status = begin_write(sequence_id, sequence_generation, position, ticket);
+            const uint32_t logical = uint32_t(uint64_t(position) /
+                    snapshot_.geometry.page_tokens);
+            const bool is_new = std::find(new_logical_pages.begin(),
+                    new_logical_pages.end(), logical) != new_logical_pages.end() &&
+                    find_page(sequence_id, logical) == nullptr;
+            const auto planned = is_new ? std::find_if(reservation.begin(), reservation.end(),
+                    [logical](const planned_page_slot & entry) {
+                        return entry.logical_page == logical;
+                    }) : reservation.end();
+            if (is_new && planned == reservation.end()) {
+                for (auto it = tickets.rbegin(); it != tickets.rend(); ++it) (void) cancel_write(*it);
+                tickets.clear();
+                return llama_kv_pager_write_status::transaction;
+            }
+            const auto status = is_new
+                ? begin_write_planned(sequence_id, sequence_generation, position, ticket,
+                        planned->slot, planned->has_victim ? &planned->victim : nullptr,
+                        planned->victim_content_version)
+                : begin_write(sequence_id, sequence_generation, position, ticket);
             if (status != llama_kv_pager_write_status::ok) {
                 for (auto it = tickets.rbegin(); it != tickets.rend(); ++it) {
                     (void) cancel_write(*it);

@@ -524,21 +524,49 @@ static int run_proof() {
     };
     auto write_page_metadata = [&](uint32_t logical, bool restore) {
         const auto id = page_id(logical);
-        llama_kv_pager_write_ticket ticket;
         uint32_t slot = UINT32_MAX;
-        for (uint32_t row = 0; row < page_tokens; ++row) {
-            const auto result = restore
-                ? pager->begin_restore_page(id, id.position_begin + row, ticket)
-                : pager->begin_write(0, 1, llama_pos(logical * page_tokens + row), ticket);
-            assert(result == llama_kv_pager_write_status::ok);
-            if (slot == UINT32_MAX) {
-                slot = ticket.physical_slot;
-                write_cuda_page(logical, slot);
-            } else {
-                assert(slot == ticket.physical_slot);
+        if (restore) {
+            for (uint32_t row = 0; row < page_tokens; ++row) {
+                llama_kv_pager_write_ticket ticket;
+                assert(pager->begin_restore_page(id, id.position_begin + row, ticket) ==
+                       llama_kv_pager_write_status::ok);
+                if (slot == UINT32_MAX) {
+                    slot = ticket.physical_slot;
+                    write_cuda_page(logical, slot);
+                } else {
+                    assert(slot == ticket.physical_slot);
+                }
+                assert(pager->complete_write(ticket, layers * 2, true) ==
+                       llama_kv_pager_write_status::ok);
             }
-            assert(pager->complete_write(ticket, layers * 2, true) ==
+            return slot;
+        }
+
+        // Exercise production batch admission with one- and three-row
+        // packets throughout the multi-wrap CUDA generation fixture.
+        uint32_t row = 0;
+        uint32_t packet_index = 0;
+        while (row < page_tokens) {
+            const uint32_t packet_size = packet_index++ % 2 == 0 ? 1 : 3;
+            std::vector<llama_pos> positions;
+            for (uint32_t i = 0; i < packet_size && row + i < page_tokens; ++i) {
+                positions.push_back(llama_pos(logical * page_tokens + row + i));
+            }
+            std::vector<llama_kv_pager_write_ticket> tickets;
+            assert(pager->begin_write_batch(0, 1, positions, tickets) ==
                    llama_kv_pager_write_status::ok);
+            assert(tickets.size() == positions.size());
+            for (const auto & ticket : tickets) {
+                if (slot == UINT32_MAX) {
+                    slot = ticket.physical_slot;
+                    write_cuda_page(logical, slot);
+                } else {
+                    assert(slot == ticket.physical_slot);
+                }
+                assert(pager->complete_write(ticket, layers * 2, true) ==
+                       llama_kv_pager_write_status::ok);
+            }
+            row += uint32_t(positions.size());
         }
         return slot;
     };
@@ -637,6 +665,8 @@ static int run_proof() {
         << "accepted_length=" << sealed_accepted->valid_length
         << " content_version=" << sealed_accepted->content_version
         << " capture_once_per_version=1 duplicate_d2h_avoided=1\n";
+    std::cout << "async_ring_seal_fence_and_version=pass rejected_version_invalidated=1 "
+        << "accepted_version_resealed=1 completion_drained=1 host_roundtrip=verified\n";
     const auto & records = final_records;
 
     // The selector consumes transformed Q and bounds decoded from the exact

@@ -1377,3 +1377,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-02a`
 - Commit at update: `a1922c32e`
 - Summary: verified query-commit generation headroom and mandatory query-page refresh proofs
+
+## 2026-09-29T00:03:46+00:00 — 100-02b — done
+
+- Branch: `codex/task-100-02b`
+- Commit at update: `ef9c06f80`
+- Summary: verified named proofs and receipt
