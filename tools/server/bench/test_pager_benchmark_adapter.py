@@ -19,9 +19,7 @@ sys.path.insert(0, str(HERE))
 from pager_benchmark_contract import validate_authenticated_slot_progress
 from pager_benchmark_contract import canonical_stage_accounting, workload_geometry
 
-FORWARD = HERE.parents[2] / ".wiretail/execution/forward"
-sys.path.insert(0, str(FORWARD))
-from canonical_result_check import validate_result
+from canonical_result_check import validate_result, summarize_short_path_results
 
 MODULE_SPEC = importlib.util.spec_from_file_location(
     "run_pager_profile_benchmark", HERE / "run-pager-profile-benchmark.py")
@@ -181,6 +179,71 @@ def mtp_record(draft: int | None = 12, accepted: int | None = 8,
 
 
 class AdapterContractTests(unittest.TestCase):
+    def short_path_rows(self) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for placement in ("selected", "dense_gpu", "cpu_target_gpu_mtp"):
+            for prompt in range(3):
+                for trial in range(0, 4):
+                    rows.append({
+                        "placement": placement,
+                        "prompt_index": prompt,
+                        "phase": "warmup" if trial == 0 else "measured",
+                        "trial_index": trial,
+                        "row_key": f"{placement}-{prompt}-{trial}",
+                        "identity": {"binary_sha256": "candidate-binary",
+                                     "loaded_dso_sha256": "candidate-dsos",
+                                     "source_commit": "candidate-source",
+                                     "model_sha256": "model", "logical_tokens": 8192,
+                                     "hot_tokens": 4096, "batch": 1024, "ubatch": 256,
+                                     "mtp": "gpu-turbo4-nmax2"},
+                        "prefix_sha256": "a" * 64,
+                        "logical_tokens": 8192,
+                        "fresh_prefill_tokens_per_second": 100.0,
+                        "decode_tokens_per_second": 30.0,
+                        "requested_tokens": 400,
+                        "actual_tokens": 17 if prompt == 1 and trial == 1 else 400,
+                        "drafted_tokens": 20,
+                        "accepted_tokens": 10,
+                        "raw_artifacts": [{"path": f"{placement}/{prompt}/{trial}.json",
+                                           "sha256": "b" * 64}],
+                    })
+        return rows
+
+    def test_short_path_summary_separates_incomplete_evidence_from_goal_miss(self) -> None:
+        rows = self.short_path_rows()
+        complete = summarize_short_path_results(rows, expected_prefix_sha256="a" * 64)
+        self.assertTrue(complete["measurement_complete"])
+        self.assertEqual("goal_miss", complete["goal_status"])
+        self.assertEqual("goal_miss", complete["prefill_goal_findings"]["0"])
+        self.assertEqual("goal_miss", complete["prefill_target_findings"]["0"])
+        self.assertEqual({"0": "goal_miss", "1": "pass", "2": "goal_miss"},
+                         complete["mtp_goal_findings"])
+        self.assertEqual(12, complete["row_counts"]["selected"])
+        self.assertEqual(17, rows[5]["actual_tokens"])
+
+        partial = summarize_short_path_results(rows[:-1])
+        self.assertFalse(partial["measurement_complete"])
+        self.assertEqual("not_measured", partial["goal_status"])
+        self.assertTrue(partial["missing_slots"])
+
+    def test_short_path_summary_rejects_duplicate_keys_stale_identity_and_prefix(self) -> None:
+        rows = self.short_path_rows()
+        rows[1]["row_key"] = rows[0]["row_key"]
+        rows[2]["identity"] = {"binary_sha256": "changed"}
+        rows[3]["prefix_sha256"] = "c" * 64
+        summary = summarize_short_path_results(rows, expected_prefix_sha256="a" * 64)
+        self.assertFalse(summary["measurement_complete"])
+        self.assertIn("rows[1].row_key_duplicate", summary["errors"])
+        self.assertIn("rows[2].identity_changed_within_placement", summary["errors"])
+        self.assertIn("prefix_mismatch_across_rows", summary["errors"])
+        self.assertIn("prefix_expected_identity_mismatch", summary["errors"])
+
+        rows = self.short_path_rows()
+        rows[12]["identity"]["binary_sha256"] = "stale-control-binary"
+        summary = summarize_short_path_results(rows)
+        self.assertIn("identity_candidate_binary_sha256_mismatch_across_placements",
+                      summary["errors"])
+
     def test_fresh_prefill_accounting_excludes_cached_tokens_and_keeps_missing_null(self) -> None:
         accounting = canonical_stage_accounting(
             prompt_tokens=1000, cached_tokens=700, elapsed_us=100000,
@@ -288,7 +351,7 @@ class AdapterContractTests(unittest.TestCase):
     def run_main(self, output: pathlib.Path, snapshots: list[dict[str, object]],
                  metrics: list[dict[str, object] | None], *, runner_rc: int = 0,
                  restore: dict[str, object] | None = None,
-                 mode: str = "selective") -> int:
+                 mode: str = "selective", restore_control: bool = False) -> int:
         expected = identity("candidate", 202)
 
         def canonical(command: list[str], **_: object) -> object:
@@ -297,6 +360,10 @@ class AdapterContractTests(unittest.TestCase):
             self.write_canonical_artifacts(pathlib.Path(command[2]), expected)
             return adapter.subprocess.CompletedProcess(command, runner_rc)
 
+        argv = ["run-pager-profile-benchmark.py", "fast", "short", str(output),
+                "--mode", mode]
+        if restore_control:
+            argv.append("--restore-control")
         with patch.dict(adapter.os.environ, {
             "BENCH_ENDPOINT": "http://127.0.0.1:8080/v1",
             "CANONICAL_BENCHMARK_RUNNER": "/fake/canonical-runner",
@@ -306,8 +373,7 @@ class AdapterContractTests(unittest.TestCase):
                 patch.object(adapter, "read_server_metrics", side_effect=[(item, None) for item in metrics]), \
                 patch.object(adapter, "restore_profile", return_value=restore), \
                 patch.object(adapter.subprocess, "run", side_effect=canonical), \
-                patch.object(adapter.sys, "argv", ["run-pager-profile-benchmark.py", "fast", "short", str(output),
-                                                    "--mode", mode]):
+                patch.object(adapter.sys, "argv", argv):
             return adapter.main()
 
     def test_missing_queue_and_mtp_not_present_are_explicit(self) -> None:
@@ -680,6 +746,27 @@ class AdapterContractTests(unittest.TestCase):
             self.assertEqual(0, rc)
             lifecycle = json.loads((output / "lifecycle-state.json").read_text())
             self.assertEqual("passed", lifecycle["adapter_validation"])
+
+    def test_control_restores_exact_previously_loaded_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = pathlib.Path(directory)
+            before = snapshot("prior", 101)
+            before["transient_overrides"] = {"AI_BENCHMARK_SERVER_BIN": "/opt/candidate"}
+            restored = snapshot("prior", 303)
+            restored["transient_overrides"] = before["transient_overrides"]
+            restoration = {"attempted": True, "state": "restored", "profile": "prior",
+                           "exit_code": 0, "transient_overrides": {"state": "restored"}}
+            with patch.object(adapter, "restore_profile_locked", return_value=restoration) as restore:
+                rc = self.run_main(output,
+                                   [before, snapshot("default", 202), restored],
+                                   [telemetry(), telemetry(), telemetry()],
+                                   restore_control=True)
+            self.assertEqual(0, rc)
+            restore.assert_called_once_with("prior", before["transient_overrides"])
+            lifecycle = json.loads((output / "lifecycle-state.json").read_text())
+            self.assertEqual("passed", lifecycle["adapter_validation"])
+            self.assertEqual("prior", lifecycle["profile_after"])
+            self.assertEqual(303, lifecycle["server_pid_after"])
 
     def test_candidate_mismatch_restores_prior_identity(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
