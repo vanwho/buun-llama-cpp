@@ -1401,3 +1401,21 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-02e`
 - Commit at update: `ab28f82d4`
 - Summary: verified natural promotion, frozen history GPU MTP boundary, deterministic ring proof and V10 receipt
+
+## 2026-09-29T04:40:20+00:00 — 100-02f — done
+
+- Branch: `codex/task-100-02f`
+- Commit at update: `83bb2a11c`
+- Summary: brief verified result
+
+## 2026-09-29T04:44:06+00:00 — 100-02f — in_progress
+
+- Branch: `codex/task-100-02f`
+- Commit at update: `83bb2a11c`
+- Summary: Task started
+
+## 2026-09-29T06:04:22+00:00 — 100-02f — done
+
+- Branch: `codex/task-100-02f`
+- Commit at update: `83bb2a11c`
+- Summary: verified 36 paired rows, hashed short-path results, adapter contract, V10 receipt, and selected candidate restoration
