@@ -1437,3 +1437,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03b`
 - Commit at update: `ad40f0a99`
 - Summary: completed 36-row canonical paired gate with exact candidate, frozen prefix and hashed evidence; miss triggered ordered 100-03c repair before 100-04
+
+## 2026-09-29T08:13:18+00:00 — 100-03c — done
+
+- Branch: `codex/task-100-03c`
+- Commit at update: `82dffee73`
+- Summary: reduced packed selected-view row-membership scans; focused regression and one natural-stop CUDA prompt-1 diagnostic passed; V10 receipt validated and 100-02f service restored

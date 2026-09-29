@@ -1,0 +1,153 @@
+{
+  "checks": {
+    "packed_view_refresh_scan_reduction": {
+      "artifacts": [
+        {
+          "description": "focused test output",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/focused-test.log",
+          "sha256": "eaec338f6beb58a8eb3e1aa7a172eead1e797e3f54f99ad1ea89b3ad2fd37fbb"
+        },
+        {
+          "description": "focused test build output",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/focused-build.log",
+          "sha256": "5901979e77113ecef714eb1c84ad8432ee45c0d7ce309eaa59af80a6428c621d"
+        },
+        {
+          "description": "candidate server build output",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/candidate-build.log",
+          "sha256": "b499c1f5c171c0555fd0770d7f5236d1eeda1131a77ac26c1f76a8cf0465cbe2"
+        },
+        {
+          "description": "changed source SHA256 listing",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/changed-source-sha256.txt",
+          "sha256": "2e70d8a3244266c42ca7f33d864447b80fdfa8af929b0f2ab255082177eacf89"
+        },
+        {
+          "description": "candidate bundle immutable build receipt",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/candidate-bundle/build-receipt.json",
+          "sha256": "e3ce17f40d6e18015a2bf5e88b3f2f2d1d412b782467e15f54759bba1fa669c1"
+        },
+        {
+          "description": "candidate bundle build identity",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/candidate-bundle/build-identity.json",
+          "sha256": "c95f449e661af325a25257abaf9a88b9e96e9aef076ea830e70bb7445f9b1109"
+        },
+        {
+          "description": "candidate bundle file SHA256 listing",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/candidate-sha256.txt",
+          "sha256": "54e5ccda63679bc012b91e5e7fcc2af337a10149b949fb47dbf59da7999748e2"
+        },
+        {
+          "description": "live row request body",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.request.json",
+          "sha256": "9c41060806c45b60be13192ab82f4396ce04379417aeeef736c871e453c101e6"
+        },
+        {
+          "description": "live row streamed response",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.json",
+          "sha256": "47965c6b6d3319dc7249ce88666c0d86e762e10fdc8d6adb2dd23379b6f70571"
+        },
+        {
+          "description": "live row preflight token response",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.preflight.json",
+          "sha256": "a8dffc5df1f99b02f03aec08ee91af38ac41732a5f7e38ea741d8c312b25806e"
+        },
+        {
+          "description": "live row pre-request cache snapshot",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.slot-before.json",
+          "sha256": "6c76b95ea719886fe762cd19f704795adbf36da6adf623c78a4302ae605a3262"
+        },
+        {
+          "description": "live row fresh-slot erase response",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.slot-erase.json",
+          "sha256": "3877222144555dd01aabfc7f20c7b27229c25f48fdb0e2ef1254b18bd7bf2fd8"
+        },
+        {
+          "description": "live row post-request cache snapshot",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.slot-after.json",
+          "sha256": "e68c1794d2aeee9e9123449c79e18c368eed337c33cd000dd772c61a9a0e0cbc"
+        },
+        {
+          "description": "live row MTP metrics before",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.mtp-before.prom",
+          "sha256": "a43fd9b482e93597b990f62081bd45a2d4c4c7beb4f6a95dcca786834f9d929e"
+        },
+        {
+          "description": "live row MTP metrics after",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.mtp-after.prom",
+          "sha256": "b9f3c27eaf226ca896d079f7c36f38b6b97d34ec1426f873ae7c2d0f8f24c604"
+        },
+        {
+          "description": "live row MTP journal excerpt",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/raw/off-measured-1-p1.journal.log",
+          "sha256": "a72a3fc5744cc44621c4ac714bcade05559e6bd2ed9d98ac2951d2a9e1b4a886"
+        },
+        {
+          "description": "live row canonical result record",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/records.jsonl",
+          "sha256": "cb58dd0d104b956751ff225d6c3bbeffb1125ae7541f1e5ac215b9c649ff6090"
+        },
+        {
+          "description": "live row case state",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/case-state.jsonl",
+          "sha256": "fb01c0665f24e2696a498b44b84d06399035346feacad7948cca0950898f35a6"
+        },
+        {
+          "description": "live row summary including natural finish",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/live-row-summary.json",
+          "sha256": "9070306916cf1a7d348ae2da88cd1e5cb1e7b614e444a83cbb4a7066e20937e9"
+        },
+        {
+          "description": "candidate endpoint/runtime identity",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/candidate-runtime-identity.json",
+          "sha256": "799474b16003071abca5343f47e774ed1022965936589235b62e6c9cc4bb68ad"
+        },
+        {
+          "description": "diagnostic run configuration, request and endpoint",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic/run-config.json",
+          "sha256": "1b3cb7d9e4579abfc0d852c7bf7ebef7c3fa7216bfac9da1864a33bb325f871e"
+        },
+        {
+          "description": "diagnostic adapter raw output, including restore validation finding",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/live-diagnostic.log",
+          "sha256": "f9e5e5b357a9d7ee5324154a21493c2d1f264cc9b8f1385e9b5906f3e55a0679"
+        },
+        {
+          "description": "exact original managed-service environment",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/service-env-before.txt",
+          "sha256": "c9a4e6bdfab7844f06334017e57d962916abd531ac1e7cd7705e6586a1b8b697"
+        },
+        {
+          "description": "manually restored 100-02f service identity",
+          "path": "/srv/ai/paged-kv/results/forward/100-03c/attempt-01/restored-process-identity.json",
+          "sha256": "de5fbe35645b02b0b6009cbedea0c847aa0593ebddb074374ef4d6f2c85e1dd9"
+        }
+      ],
+      "command": [
+        "build-cuda/bin/test-kv-attention-execution"
+      ],
+      "exit_code": 0,
+      "live_diagnostic": {
+        "batch": 1024,
+        "completion_tokens": 285,
+        "context_tokens": 8192,
+        "finish_reason": "stop",
+        "fresh_slot_clear": true,
+        "mtp": "native_gpu_turbo4_nmax2",
+        "prompt_index": 1,
+        "prompt_tokens": 4326,
+        "row_status": "pass",
+        "target_device": "cuda0",
+        "target_kv": "turbo4_gpu",
+        "temperature": 0,
+        "ubatch": 256
+      },
+      "restoration_note": "The adapter restored the qwen38-big profile default and then reported a control identity mismatch. The pre-run AI_BENCHMARK_* values were reapplied and llama-server restarted; binary, loaded DSO paths, exact command, health HTTP 200 and 100-02f candidate hash were then verified.",
+      "status": "pass",
+      "summary": "Deterministic sparse unsorted duplicate cross-page fixture: old row-membership loop examined 2650 query elements; interval planner visited 5 unique selected-page query positions and emitted 7 exact intervals. Append direct-write, frozen-page reuse, rollback invalidation and one natural-stop prompt-1 CUDA/Turbo4/native-MTP diagnostic are recorded."
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "82dffee734a14dc496267792e94f71e1d991dd01",
+  "task": "100-03c"
+}
