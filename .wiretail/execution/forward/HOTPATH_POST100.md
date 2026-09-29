@@ -64,6 +64,13 @@ not license importing KVMem's separate pager: its target/draft codecs and
 architecture differ from this all-Turbo4 target. Preserve original native
 positions/RoPE and the final committed page map during replay. Check whether
 Buun already implements an equivalent fast path before adding another one.
+KVMem's replay report also demonstrates a quality boundary: a tool/media
+suffix after a query cannot be dropped or treated as part of the scored Q.
+Buun's server currently commits at `final_user_token_end` *before* processing
+the later suffix, restores to `final_user_token_begin` only on changed history,
+then replays that query and continues the remaining task tokens. Preserve that
+ordering; add a tiny suffix case to the final replay fixture, not a second
+live campaign.
 
 ## Incoming fork master
 
