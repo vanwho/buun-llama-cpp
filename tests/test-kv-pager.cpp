@@ -1412,6 +1412,76 @@ static void test_generation_ring_victim_and_history_pins() {
             [&](const auto & page) { return page.id == rejected_history.id; }));
     assert(std::none_of(after_rejection.begin(), after_rejection.end(),
             [](const auto & page) { return page.id.logical_page == 2; }));
+
+    // Before the generation FIFO contains a completed page, a full hot pool
+    // may still need to reclaim an unselected prior page for the generation
+    // tail. Keep the selected page and active query page stable while doing so.
+    host_page_fixture borrow_fixture;
+    borrow_fixture.initialize();
+    auto borrow_config = config;
+    auto borrow_resources = host_resources;
+    borrow_resources.host_source_namespace = host_page_fixture::source_namespace;
+    borrow_config.hot_pages.value = 3;
+    borrow_config.retrieval_pages.value = 2;
+    auto borrow_pager = llama_kv_pager::create(
+            borrow_config, geometry(1024), borrow_resources, backend, status);
+    assert(borrow_pager && status == llama_kv_pager_status::ok);
+    borrow_pager->bind_representation_identity(5, 6, 7, 8, 9, 10, 4);
+    borrow_pager->set_host_provider(
+            { &borrow_fixture, host_page_fixture::prepare });
+    for (uint32_t logical = 0; logical < 3; ++logical) {
+        const llama_pos begin = llama_pos(logical * 256);
+        for (llama_pos position = begin; position < begin + 256; ++position) {
+            assert(borrow_pager->begin_write(0, 1, position, ticket) ==
+                    llama_kv_pager_write_status::ok);
+            assert(borrow_pager->complete_write(ticket, 32, true) ==
+                    llama_kv_pager_write_status::ok);
+        }
+        const auto pages_before_seal = borrow_pager->residency().pages();
+        const auto page = std::find_if(pages_before_seal.begin(), pages_before_seal.end(),
+                [&](const auto & value) { return value.id.logical_page == logical; });
+        assert(page != pages_before_seal.end());
+        if (logical < 2) {
+            borrow_fixture.snapshot.pages[0] = page->id;
+            assert(borrow_pager->seal_ready_pages() == 1);
+        }
+    }
+    const auto before_borrow = borrow_pager->residency().pages();
+    const auto selected_page = *std::find_if(before_borrow.begin(), before_borrow.end(),
+            [](const auto & page) { return page.id.logical_page == 0; });
+    const auto query_page = *std::find_if(before_borrow.begin(), before_borrow.end(),
+            [](const auto & page) { return page.id.logical_page == 2; });
+    assert(borrow_pager->transition_turn(0, 99, 0,
+            llama_kv_pager_turn_phase::query_provisional, 512, 768,
+            query_page.id, 0) == llama_kv_pager_turn_status::ok);
+    assert(borrow_pager->transition_turn(0, 99, 0,
+            llama_kv_pager_turn_phase::retrieval_commit, 512, 768,
+            query_page.id, 1,
+            { { selected_page.id, selected_page.content_version } }) ==
+            llama_kv_pager_turn_status::ok);
+    assert(borrow_pager->transition_turn(0, 99, 1,
+            llama_kv_pager_turn_phase::query_replay, 512, 768,
+            query_page.id, 1) == llama_kv_pager_turn_status::ok);
+    assert(borrow_pager->transition_turn(0, 99, 1,
+            llama_kv_pager_turn_phase::generating, 512, 768,
+            query_page.id, 1) == llama_kv_pager_turn_status::ok);
+    std::vector<llama_kv_pager_write_ticket> borrow_tickets;
+    assert(borrow_pager->begin_write_batch(0, 1, { 768, 769, 770 },
+            borrow_tickets) == llama_kv_pager_write_status::ok);
+    assert(borrow_tickets.size() == 3);
+    for (const auto & borrow_ticket : borrow_tickets) {
+        assert(borrow_pager->complete_write(borrow_ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    const auto after_borrow = borrow_pager->residency().pages();
+    assert(std::any_of(after_borrow.begin(), after_borrow.end(),
+            [&](const auto & page) { return page.id == selected_page.id; }));
+    assert(std::any_of(after_borrow.begin(), after_borrow.end(),
+            [&](const auto & page) { return page.id == query_page.id; }));
+    assert(std::none_of(after_borrow.begin(), after_borrow.end(),
+            [](const auto & page) { return page.id.logical_page == 1; }));
+    assert(std::any_of(after_borrow.begin(), after_borrow.end(),
+            [](const auto & page) { return page.id.logical_page == 3; }));
     std::cout << "generation_ring_victim_and_history_pins=pass accepted_tokens="
               << accepted_tokens << " G=" << pager->snapshot().generation_pages
               << " H=" << pager->snapshot().physical_page_count

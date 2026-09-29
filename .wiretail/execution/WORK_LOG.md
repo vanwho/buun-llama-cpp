@@ -1389,3 +1389,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-02c`
 - Commit at update: `82f839212`
 - Summary: verified hot-path copy/async-seal contract and short cost attribution; V10 receipt and local state validation pass
+
+## 2026-09-29T01:09:57+00:00 — 100-02d — done
+
+- Branch: `codex/task-100-02d`
+- Commit at update: `9ec7e6fd6`
+- Summary: verified query replay carry and GPU Turbo4 MTP request accounting

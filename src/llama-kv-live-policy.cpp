@@ -168,6 +168,18 @@ bool llama_kv_query_commit_add_candidate(
     return true;
 }
 
+uint32_t llama_kv_query_history_budget(
+        uint32_t retrieval_pages, int64_t query_start, int64_t query_end,
+        uint32_t page_tokens) noexcept {
+    if (retrieval_pages == 0 || query_start < 0 || query_end <= query_start ||
+            page_tokens == 0) return 0;
+    const uint64_t first = uint64_t(query_start) / page_tokens;
+    const uint64_t last = uint64_t(query_end - 1) / page_tokens;
+    const uint64_t mandatory = last - first + 1;
+    return mandatory >= retrieval_pages
+        ? 0 : retrieval_pages - uint32_t(mandatory);
+}
+
 bool llama_kv_live_policy_prepare_query_target(
         const llama_kv_live_policy_boundary & boundary,
         std::vector<llama_kv_page_record> & target) noexcept {

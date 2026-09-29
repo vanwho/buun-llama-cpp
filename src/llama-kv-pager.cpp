@@ -1672,6 +1672,42 @@ llama_kv_pager::page_state * llama_kv_pager::oldest_generation_victim(
     return nullptr;
 }
 
+llama_kv_pager::page_state * llama_kv_pager::oldest_unselected_history_victim(
+        int32_t sequence_id, const llama_kv_pager_turn_state & turn,
+        const std::vector<uint32_t> & excluded_logical_pages) noexcept {
+    page_state * oldest = nullptr;
+    for (auto & page : pages_) {
+        if (!page.present || page.record.id.sequence_id != sequence_id ||
+                page.owner != page_owner::prior_turn_history ||
+                page.host_inflight || page.record.pin_count != 0 ||
+                !page.record.host_valid || page.record.dirty ||
+                page.host_content_version != page.content_version ||
+                page.record.content_version != page.content_version ||
+                (routing_summary_provider_.build != nullptr &&
+                 page.summary_content_version != page.content_version) ||
+                (page.record.state != llama_kv_page_state::host_clean &&
+                 page.record.state != llama_kv_page_state::gpu_host_clean) ||
+                frozen_history_page(&page) ||
+                std::find(excluded_logical_pages.begin(), excluded_logical_pages.end(),
+                    page.record.id.logical_page) != excluded_logical_pages.end()) {
+            continue;
+        }
+        const uint64_t page_begin = uint64_t(page.record.id.logical_page) *
+            snapshot_.geometry.page_tokens;
+        const uint64_t page_end = page_begin + snapshot_.geometry.page_tokens;
+        if (turn.query_start >= 0 && turn.query_end > turn.query_start &&
+                page_begin < uint64_t(turn.query_end) &&
+                page_end > uint64_t(turn.query_start)) {
+            continue;
+        }
+        if (oldest == nullptr || page.record.id.position_begin <
+                oldest->record.id.position_begin) {
+            oldest = &page;
+        }
+    }
+    return oldest;
+}
+
 void llama_kv_pager::queue_generation_page(page_state & page) noexcept {
     if (!page.present || page.generation_queued ||
             page.owner != page_owner::current_turn_generation || page.host_inflight ||
@@ -2994,7 +3030,13 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
         turn->second.phase == llama_kv_pager_turn_phase::generating;
     const uint64_t active_turn_id = generation_active ? turn->second.turn_id : 0;
     const auto find_victim = [&]() -> page_state * {
-        if (generation_active) return oldest_generation_victim(sequence_id, active_turn_id);
+        if (generation_active) {
+            if (auto * generated = oldest_generation_victim(sequence_id, active_turn_id)) {
+                return generated;
+            }
+            return oldest_unselected_history_victim(
+                sequence_id, turn->second, {});
+        }
         for (uint32_t i = 0; i < slot_pages_.size(); ++i) {
             page_state * candidate = find_slot(i);
             if (candidate && !frozen_history_page(candidate) && !candidate->host_inflight &&
@@ -3094,9 +3136,14 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_planned(
                 }
                 const auto turn_state = turn_states_.find(sequence_id);
                 if (turn_state != turn_states_.end() &&
-                        turn_state->second.phase == llama_kv_pager_turn_phase::generating &&
-                        oldest_generation_victim(sequence_id, turn_state->second.turn_id) != candidate) {
-                    return llama_kv_pager_write_status::transaction;
+                        turn_state->second.phase == llama_kv_pager_turn_phase::generating) {
+                    const auto * generation_victim = oldest_generation_victim(
+                        sequence_id, turn_state->second.turn_id);
+                    const auto * history_victim = oldest_unselected_history_victim(
+                        sequence_id, turn_state->second, {});
+                    if (generation_victim != candidate && history_victim != candidate) {
+                        return llama_kv_pager_write_status::transaction;
+                    }
                 }
                 if (erase_page(*candidate, true) != llama_kv_pager_write_status::ok) {
                     return llama_kv_pager_write_status::transaction;
@@ -3341,6 +3388,20 @@ llama_kv_pager_write_status llama_kv_pager::begin_write_batch(
                     }
                     victims.push_back(identity);
                     ++at;
+                }
+                // The selected history and the live query tail stay pinned,
+                // but an unselected host-backed prior page may supply the
+                // generation tail's first physical slot before the turn has
+                // produced any completed page for the FIFO to recycle.
+                while (victims.size() < new_logical_pages.size()) {
+                    std::vector<uint32_t> excluded = written_logical_pages;
+                    for (const auto & victim : victims) {
+                        excluded.push_back(victim.logical_page);
+                    }
+                    const auto * candidate = oldest_unselected_history_victim(
+                        sequence_id, active->second, excluded);
+                    if (candidate == nullptr) break;
+                    victims.push_back(candidate->record.id);
                 }
             } else {
                 for (uint32_t slot = 0; slot < slot_pages_.size(); ++slot) {

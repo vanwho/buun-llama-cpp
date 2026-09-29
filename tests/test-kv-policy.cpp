@@ -438,6 +438,13 @@ static void test_live_policy_multi_promotion() {
 }
 
 static void test_query_commit_authoritative_admission() {
+    // The query's current page consumes hot capacity alongside R historical
+    // pages and the separately reserved G generation pages.
+    assert(llama_kv_query_history_budget(16, 4470, 4551, 256) == 15);
+    assert(llama_kv_query_history_budget(16, 4090, 4609, 256) == 13);
+    assert(llama_kv_query_history_budget(1, 4470, 4551, 256) == 0);
+    assert(llama_kv_query_history_budget(16, -1, 8, 256) == 0);
+
     llama_kv_query_commit bundle_commit;
     bundle_commit.enabled = true;
     bundle_commit.retrieval_budget = 1;

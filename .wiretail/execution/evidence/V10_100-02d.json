@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "task": "100-02d",
+  "source_commit": "9ec7e6fd6002443ac86c4066e4a4076facd3571c",
+  "build_identity": {
+    "build_directory": "build-cuda",
+    "generator": "Unix Makefiles",
+    "cuda_architecture": "89-real",
+    "targets": [
+      "test-kv-pager",
+      "test-kv-policy",
+      "test-speculative-mtp-state",
+      "llama-server-100-02d-attempt1",
+      "libllama-server-impl.so"
+    ],
+    "binary_sha256": {
+      "test-kv-pager": "06a0babd67a464fb4df7b80d3d6769c2d80e13421a0a38586e86fb7882e793a2",
+      "test-kv-policy": "1924de7b7eb10a8e34b97cf8b013b8daef1fb0ad87fb794a0a6eb6b04a781671",
+      "test-speculative-mtp-state": "0e81091eda052dd64dfe49d9a256ded4dbb4a6e0798d945ff83883a26a5d65a8",
+      "llama-server-100-02d-attempt1": "05d4a509ec9e0b716d74e8e9b8ad0fc11a065cf9f6bb9af58a9f908b429bfc7c",
+      "libllama-server-impl.so": "67e5f23799ecdf7d2bb8ab574c9fd12485b7982ad49c85e98475bb9baa0abca3"
+    }
+  },
+  "dirty_identity": {
+    "source_test_diff_sha256": "666cea2c7a978ba103166ed0509f08c95b0a4b77e9bbc8dc34f69570533b9151",
+    "tracked_worktree_diff_sha256": "06c82e6a7c5174263fb479df34d690866b59a7405d5d41c5a2e45e468405fcdd",
+    "worktree_status": "100-02d implementation/tests modified; WORK_LOG/WORK_STATE transition runner-owned and task complete"
+  },
+  "checks": {
+    "mtp_query_replay_carry_and_verify_contract": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-speculative-mtp-state"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/test-speculative-mtp-state.log",
+          "sha256": "7819a5b20022045a3e2041c986deafaf1d5629ee5be6772a6b93e60aae7ef04a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/test-kv-pager.log",
+          "sha256": "b85e4036bce331000441572ea7619454e127011dbcc6d6b71d4f29ba945c082c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/test-kv-policy.log",
+          "sha256": "aa2d1491ccd3d0871e95f77396b5b5b3fee3749b36793e39a036556b34fae69d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/selected-final-journal-excerpt.log",
+          "sha256": "b33fcb65ddcb51aa8ce2ce4f7696e297db5963c0bba1ba17506d264ec56d191a"
+        }
+      ]
+    },
+    "gpu_turbo4_mtp_request_accounting_measured": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/live_replay_row.py",
+        "--label",
+        "selected-final-h17-p0",
+        "--send"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/dense-final-p0/record.json",
+          "sha256": "0a0e9e2fb27e4c3c314d3d315963185ad95572abd7be5d6aa873f4f14e3a20bf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/selected-final-h17-p0/record.json",
+          "sha256": "4c37108b3dfaaf619e8333f89b863544b3422920b232b9b5c75e09d91b2834fd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/dense-final-p0-command.txt",
+          "sha256": "eba0777dbf55289cd09eb452ab5a18f63fcad79ebf83a807abba4ee561778562"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/selected-final-h17-p0-command.txt",
+          "sha256": "0a39ff60c148b7042183db865d6b2897688c3ec617a86286995335c12cd18d47"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/runtime-process-final.txt",
+          "sha256": "838724b7e7cd4e5b5b3d5b8a59d049be5804eb366238f8cd7a3b8d2a322fde21"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02d/attempt-01/selected-final-journal-excerpt.log",
+          "sha256": "b33fcb65ddcb51aa8ce2ce4f7696e297db5963c0bba1ba17506d264ec56d191a"
+        }
+      ]
+    }
+  }
+}
