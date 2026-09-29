@@ -15,7 +15,11 @@ BENCH_TOOLS = Path(__file__).resolve().parents[3] / "tools/server/bench"
 if str(BENCH_TOOLS) not in sys.path:
     sys.path.insert(0, str(BENCH_TOOLS))
 
-from canonical_result_check import summarize_short_path_results, validate_result
+from canonical_result_check import (
+    summarize_short_path_results,
+    validate_result,
+    validate_short_path_release,
+)
 
 
 def main() -> int:
@@ -23,6 +27,10 @@ def main() -> int:
     parser.add_argument("result", type=Path)
     parser.add_argument("--short-path", action="store_true",
                         help="also verify the paired three-placement row contract")
+    parser.add_argument("--release-gate", type=Path,
+                        help="verify a 100-03 pass or ordered remediation decision")
+    parser.add_argument("--state", type=Path,
+                        help="Wiretail WORK_STATE.json for --release-gate")
     args = parser.parse_args()
     try:
         value = json.loads(args.result.read_text())
@@ -63,6 +71,21 @@ def main() -> int:
                     reference = (str(artifact.get("path")), str(artifact.get("sha256")))
                     if reference not in references:
                         errors.append(f"short_path_rows[{row_index}].raw_artifacts[{artifact_index}]_not_indexed")
+    if args.release_gate:
+        if not args.state:
+            errors.append("release_state_required")
+        else:
+            try:
+                gate = json.loads(args.release_gate.read_text())
+                state = json.loads(args.state.read_text())
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"release_input_read_error:{error}")
+            else:
+                if not isinstance(gate, dict) or not isinstance(state, dict):
+                    errors.append("release_input_not_object")
+                else:
+                    errors.extend(validate_short_path_release(
+                        gate, value, state, root=Path.cwd()))
     print(json.dumps({"status": "pass" if not errors else "fail", "errors": errors,
                       "short_path_summary": campaign_summary}, sort_keys=True))
     return 0 if not errors else 1
