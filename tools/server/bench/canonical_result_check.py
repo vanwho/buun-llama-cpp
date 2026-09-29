@@ -313,3 +313,97 @@ def summarize_short_path_results(
         "matched_decode_ratios": ratios,
         "stage_cost_attribution": dict(stage_cost_attribution or {}),
     }
+
+
+def validate_short_path_release(gate: Mapping[str, Any], result: Mapping[str, Any],
+                                state: Mapping[str, Any], *, root: Path) -> list[str]:
+    """Check that a measured gate decision is backed by the ordered task graph."""
+    errors: list[str] = []
+    if gate.get("schema_version") != 1 or gate.get("task") != "100-03":
+        errors.append("gate_identity_invalid")
+    if gate.get("result_goal_status") != result.get("goal_status"):
+        errors.append("gate_result_goal_status_mismatch")
+    result_path = gate.get("result_path")
+    result_hash = gate.get("result_sha256")
+    if not isinstance(result_path, str) or not result_path:
+        errors.append("gate_result_path_missing")
+    else:
+        path = Path(result_path)
+        if not path.is_absolute():
+            path = root / path
+        if not path.is_file():
+            errors.append("gate_result_file_missing")
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != result_hash:
+            errors.append("gate_result_sha256_mismatch")
+
+    tasks = state.get("tasks")
+    if not isinstance(tasks, list):
+        return errors + ["state_tasks_missing"]
+    positions = {task.get("id"): index for index, task in enumerate(tasks)
+                 if isinstance(task, Mapping)}
+    by_id = {task.get("id"): task for task in tasks if isinstance(task, Mapping)}
+    required = ("100-03", "100-04", "101-01")
+    if any(task_id not in by_id for task_id in required):
+        return errors + ["release_tasks_missing"]
+    current_index = positions["100-03"]
+    if gate.get("decision") == "pass":
+        summary = result.get("short_path_summary")
+        if not isinstance(summary, Mapping) or not summary.get("measurement_complete") or \
+                summary.get("goal_status") != "pass":
+            errors.append("pass_decision_without_measured_gate")
+        frozen_decode = result.get("frozen_decode")
+        if not isinstance(frozen_decode, Mapping) or frozen_decode.get("historical_pcie_bytes") != 0:
+            errors.append("pass_decision_without_frozen_decode_proof")
+        cpu_ratios = (summary.get("matched_decode_ratios", {}).get("cpu_target_gpu_mtp", [])
+                      if isinstance(summary, Mapping) and
+                      isinstance(summary.get("matched_decode_ratios"), Mapping) else [])
+        if len(cpu_ratios) != PROMPT_COUNT or any(
+                not isinstance(item, Mapping) or
+                not _finite_nonnegative(item.get("selected_to_control_decode_ratio")) or
+                item["selected_to_control_decode_ratio"] >= 1.0
+                for item in cpu_ratios):
+            errors.append("pass_decision_without_selected_cpu_decode_advantage")
+        repairs = gate.get("repair_tasks", [])
+        if repairs:
+            errors.append("pass_decision_has_repair_tasks")
+        if by_id["100-04"].get("depends_on") != ["100-03"]:
+            errors.append("pass_release_dependency_mismatch")
+        if by_id["101-01"].get("depends_on") != ["100-04"]:
+            errors.append("capacity_release_dependency_mismatch")
+        return errors
+
+    if gate.get("decision") != "remediation_scheduled":
+        return errors + ["gate_decision_invalid"]
+    summary = result.get("short_path_summary")
+    if not isinstance(summary, Mapping) or not summary.get("measurement_complete") or \
+            summary.get("goal_status") != "goal_miss":
+        errors.append("repair_decision_without_measured_miss")
+    repair_ids = gate.get("repair_tasks")
+    if not isinstance(repair_ids, list) or not repair_ids:
+        return errors + ["repair_task_ids_missing"]
+    expected_order = list(range(current_index + 1, current_index + 1 + len(repair_ids)))
+    if any(positions.get(task_id) != index for task_id, index in zip(repair_ids, expected_order)):
+        errors.append("repair_tasks_not_immediately_after_100_03_in_order")
+    prior = "100-03"
+    for task_id in repair_ids:
+        task = by_id.get(task_id)
+        if task is None:
+            errors.append(f"repair_task_missing:{task_id}")
+            continue
+        if task.get("depends_on") != [prior]:
+            errors.append(f"repair_dependency_mismatch:{task_id}")
+        for field in ("packet",):
+            path = root / str(task.get(field, ""))
+            if not path.is_file():
+                errors.append(f"repair_packet_missing:{task_id}")
+        cluster = root / ".wiretail/execution/clusters" / (str(task.get("cluster", "")) + ".md")
+        if not cluster.is_file():
+            errors.append(f"repair_cluster_missing:{task_id}")
+        prior = task_id
+    if positions["100-04"] != current_index + len(repair_ids) + 1:
+        errors.append("100-04_not_after_repair_chain")
+    if by_id["100-04"].get("depends_on") != [prior]:
+        errors.append("100-04_repair_dependency_mismatch")
+    if by_id["101-01"].get("depends_on") != ["100-04"]:
+        errors.append("101-01_release_dependency_mismatch")
+    return errors

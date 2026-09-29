@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "100",
-  "current_task": "100-03",
-  "last_updated_utc": "2026-09-29T06:05:34+00:00",
+  "current_task": "100-03a",
+  "last_updated_utc": "2026-09-29T06:16:03+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -28638,7 +28638,7 @@
       "cluster": "forward100-review",
       "title": "Assess short-path performance and schedule precise repairs",
       "packet": ".wiretail/execution/tasks/100-03.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -28653,7 +28653,7 @@
       "depends_on": [
         "100-02f"
       ],
-      "commit": null,
+      "commit": "a7d709828513cafff41a26b4013f0ff82d7f2e89",
       "context_files": [
         ".wiretail/execution/clusters/forward100-review.md",
         ".wiretail/execution/tasks/100-03.md",
@@ -28674,6 +28674,133 @@
         "100-03",
         "--receipt",
         ".wiretail/execution/evidence/V10_100-03.json"
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03-attempt-1-20260929T060557137703255-20260929T060557140122934-uZgMLw.jsonl:85",
+            "total_tokens": 2754467,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 2728640,
+            "cached_input_tokens": 2617344,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 111296,
+            "output_tokens": 25827,
+            "thinking_tokens": 10595
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 2754467,
+          "input_tokens": 2728640,
+          "cached_input_tokens": 2617344,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 111296,
+          "output_tokens": 25827,
+          "thinking_tokens": 10595,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
+    },
+    {
+      "phase": "100",
+      "cluster": "forward100-review",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-generation-admission-20260929",
+      "commit": null,
+      "id": "100-03a",
+      "title": "Reduce packed append copies and graph reconstruction",
+      "packet": ".wiretail/execution/tasks/100-03a.md",
+      "required_proofs": [
+        "packed_append_copy_graph_reuse"
+      ],
+      "depends_on": [
+        "100-03"
+      ],
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-review.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/tasks/100-03a.md",
+        ".wiretail/execution/handoffs/100-02f.md",
+        ".wiretail/execution/handoffs/100-03.md",
+        "src/llama-kv-attention-execution.cpp",
+        "src/llama-graph.cpp",
+        "tests/test-kv-attention-execution.cpp",
+        "tools/server/bench/run-pager-profile-benchmark.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03a.json"
+      ]
+    },
+    {
+      "phase": "100",
+      "cluster": "forward100-review",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "forward-generation-admission-20260929",
+      "commit": null,
+      "id": "100-03b",
+      "title": "Recheck paired short-path medians after packed reuse repair",
+      "packet": ".wiretail/execution/tasks/100-03b.md",
+      "required_proofs": [
+        "paired_short_path_retest_and_gate"
+      ],
+      "depends_on": [
+        "100-03a"
+      ],
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-review.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/forward/REPAIR100.md",
+        ".wiretail/execution/tasks/100-03b.md",
+        ".wiretail/execution/handoffs/100-02f.md",
+        ".wiretail/execution/handoffs/100-03a.md",
+        ".wiretail/execution/forward/check_canonical_result.py",
+        "tools/server/bench/canonical_result_check.py",
+        "tools/server/bench/run-pager-profile-benchmark.py"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03b",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03b.json"
       ]
     },
     {
@@ -28697,7 +28824,7 @@
         "final_candidate_natural_promotion_mtp"
       ],
       "depends_on": [
-        "100-03"
+        "100-03b"
       ],
       "context_files": [
         ".wiretail/execution/clusters/forward100-review.md",
@@ -28707,6 +28834,7 @@
         ".wiretail/execution/forward/REPAIR100.md",
         ".wiretail/execution/handoffs/100-02e.md",
         ".wiretail/execution/handoffs/100-03.md",
+        ".wiretail/execution/handoffs/100-03b.md",
         "tools/server/server-context.cpp",
         "src/llama-context.cpp",
         "src/llama-kv-cache.cpp",
@@ -30689,16 +30817,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 11,
-        "total_tokens": 273552013,
-        "input_tokens": 272204906,
-        "cached_input_tokens": 266094336,
+        "usage_events": 12,
+        "total_tokens": 276306480,
+        "input_tokens": 274933546,
+        "cached_input_tokens": 268711680,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 6110570,
-        "output_tokens": 1347107,
-        "thinking_tokens": 674215,
+        "input_tokens_minus_cached_tokens": 6221866,
+        "output_tokens": 1372934,
+        "thinking_tokens": 684810,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 11,
+        "total_tokens_derived_events": 12,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -30713,17 +30841,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 410,
-      "total_tokens": 8905354547,
-      "input_tokens": 8880372788,
-      "cached_input_tokens": 8687145472,
+      "usage_events": 411,
+      "total_tokens": 8908109014,
+      "input_tokens": 8883101428,
+      "cached_input_tokens": 8689762816,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 56,
-      "input_tokens_minus_cached_tokens": 193227316,
-      "output_tokens": 24981759,
-      "thinking_tokens": 10072557,
+      "cache_write_input_tokens_known_events": 57,
+      "input_tokens_minus_cached_tokens": 193338612,
+      "output_tokens": 25007586,
+      "thinking_tokens": 10083152,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 410,
+      "total_tokens_derived_events": 411,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

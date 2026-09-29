@@ -1,0 +1,63 @@
+{
+  "build_identity": {
+    "assessment_tree_sha256": "56048b2fde30b68fef72450cafbe501e90ffef5244d9bc6672e12a6389c1aa4c",
+    "build_performed": false,
+    "measured_candidate_binary_sha256": "35d7df7f448fe5ad0676b8de279ce3e8df48533c40f6f19b0f2be36d77a8bd43",
+    "measured_candidate_model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "scope": "measurement assessment and remediation scheduling; no executable was built or benchmarked in this task"
+  },
+  "checks": {
+    "short_path_release_or_scheduled_repairs": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03/attempt-01/release-check.log",
+          "sha256": "637a7c4bd0c07a3429dfc81b6dfeaaee13436811f44cd9411e103f48984ddfca"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/SHORT_PATH_GATE.json",
+          "sha256": "1b8380877a37f8b4b0070c90c659ff98d60e85246d25cff5442b1cf90cc13614"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02f/attempt-02/SHORT_PATH_RESULTS.json",
+          "sha256": "29a6ee78b910376ba807935ced7b8944c427b58f805bd6ca9bfc69a878150a61"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/cost-attribution.md",
+          "sha256": "c300cb0fed7bf70e7118ded7081e3f94bb6f5608908d9a8e4f4e82c1b74cf9e8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03/attempt-01/task-state-validation.log",
+          "sha256": "5d7bedce1ba66bbf1dd02a70806095b988cb561971be76ff3f49478a5eaa730a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03/attempt-01/pycompile.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "command": [
+        "python3",
+        ".wiretail/execution/forward/check_canonical_result.py",
+        "/srv/ai/paged-kv/results/forward/100-02f/attempt-02/SHORT_PATH_RESULTS.json",
+        "--short-path",
+        "--release-gate",
+        ".wiretail/execution/evidence/SHORT_PATH_GATE.json",
+        "--state",
+        ".wiretail/execution/WORK_STATE.json"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "decision": {
+    "goal_status": "goal_miss",
+    "next_release_task": "100-04",
+    "release_status": "remediation_scheduled",
+    "repair_tasks": [
+      "100-03a",
+      "100-03b"
+    ]
+  },
+  "schema_version": 1,
+  "source_commit": "d91c346054f3c477bab4cb6aa786fea7e4d12890",
+  "task": "100-03"
+}

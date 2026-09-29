@@ -1,0 +1,93 @@
+{
+  "capacity_release_task": "100-04",
+  "causes": [
+    {
+      "cached_append_256_fresh_tokens": {
+        "graph_captures_or_rebuilds": 47,
+        "graph_replays": 0,
+        "packed_copy_updates": 224,
+        "packed_rows_updated": 56010,
+        "useful_or_aligned_h2d_bytes": 0,
+        "wait_microseconds": 591930
+      },
+      "evidence_sha256": "c300cb0fed7bf70e7118ded7081e3f94bb6f5608908d9a8e4f4e82c1b74cf9e8",
+      "evidence_source": "/srv/ai/paged-kv/results/forward/100-02c/attempt-01/cost-attribution.md",
+      "interpretation": "measured cached-append work points to repeated graph reconstruction and packed-row updates; 100-03a must capture the same counters on the 100-02f candidate before editing",
+      "owner": "llama_kv_attention_packed_cache::update_slots; llm_graph_input_attn_kv::can_reuse and packed descriptor refresh",
+      "scope": "contextual_reference_not_paired_on_the_100_02f_candidate"
+    }
+  ],
+  "decision": "remediation_scheduled",
+  "deferred_verification": [
+    "final same-view query replay parity, cancellation, and natural promotion remain owned by 100-04"
+  ],
+  "frozen_prefix_sha256": "ad528d87807f615a95b0694c0b0dd097e3facd24be14b71914a5ecf9694f4067",
+  "goal_status": "goal_miss",
+  "matched_decode_ratios": {
+    "cpu_target_gpu_mtp": [
+      {
+        "prompt_index": 0,
+        "selected_to_control_decode_ratio": 0.8679797513340731
+      },
+      {
+        "prompt_index": 1,
+        "selected_to_control_decode_ratio": 1.1142068670414915
+      },
+      {
+        "prompt_index": 2,
+        "selected_to_control_decode_ratio": 0.7171388443292047
+      }
+    ],
+    "dense_gpu": [
+      {
+        "prompt_index": 0,
+        "selected_to_control_decode_ratio": 0.27813329346128207
+      },
+      {
+        "prompt_index": 1,
+        "selected_to_control_decode_ratio": 0.3379868575166223
+      },
+      {
+        "prompt_index": 2,
+        "selected_to_control_decode_ratio": 0.2054761415405271
+      }
+    ]
+  },
+  "measurement_complete": true,
+  "measurement_identity": {
+    "batch": 1024,
+    "binary": "35d7df7f448fe5ad0676b8de279ce3e8df48533c40f6f19b0f2be36d77a8bd43",
+    "model": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "mtp_placement": "gpu",
+    "mtp_type_k": "turbo4",
+    "mtp_type_v": "turbo4",
+    "pager_mode": "selective",
+    "target_kv_placement": "gpu",
+    "ubatch": 256
+  },
+  "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+  "repair_tasks": [
+    "100-03a",
+    "100-03b"
+  ],
+  "result_goal_status": "goal_miss",
+  "result_path": "/srv/ai/paged-kv/results/forward/100-02f/attempt-02/SHORT_PATH_RESULTS.json",
+  "result_sha256": "29a6ee78b910376ba807935ced7b8944c427b58f805bd6ca9bfc69a878150a61",
+  "schema_version": 1,
+  "selected_fresh_prefill_median_tps": {
+    "0": 182.9839779330368,
+    "1": 182.28968485627811,
+    "2": 183.36168369673086
+  },
+  "selected_mtp_acceptance_percent": {
+    "0": 21.042830540037244,
+    "1": 0.0,
+    "2": 0.0
+  },
+  "selected_mtp_goals_percent": {
+    "0": 75.0,
+    "1": 40.0,
+    "2": 60.0
+  },
+  "task": "100-03"
+}
