@@ -1431,3 +1431,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03a`
 - Commit at update: `dfe0c1fd9`
 - Summary: Implemented and verified packed append copy and descriptor reuse. Focused CUDA fixture and the single post-edit live diagnostic passed; V10 receipt validated. Packed-copy counters fell; graph comparison was inconclusive under differing MTP acceptance. Restored the prior managed candidate.
+
+## 2026-09-29T07:45:08+00:00 — 100-03b — done
+
+- Branch: `codex/task-100-03b`
+- Commit at update: `ad40f0a99`
+- Summary: completed 36-row canonical paired gate with exact candidate, frozen prefix and hashed evidence; miss triggered ordered 100-03c repair before 100-04

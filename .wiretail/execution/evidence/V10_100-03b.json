@@ -1,0 +1,99 @@
+{
+  "checks": {
+    "paired_short_path_retest_and_gate": {
+      "artifacts": [
+        {
+          "description": "paired result, 36 rows and full 640-file raw-artifact index",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/SHORT_PATH_RESULTS.json",
+          "sha256": "3ca1e5ecfdc64b4906fa94eb819902e233d3f0cc7eea2f4f7a7da2ae4cd88e0c"
+        },
+        {
+          "description": "human-readable paired medians, gate findings and cost owner summary",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/SHORT_PATH_RESULTS.md",
+          "sha256": "1f344e602483ace7201bb12d5d8929f4a6389f597efdebeef0b819f317bd99bd"
+        },
+        {
+          "description": "canonical paired short-path result checker output",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/short-path-check.log",
+          "sha256": "12691e1dbc8d1d6e5ed89eec1566f9c55ee2672f0aee8ba7f7d5142bc87375e0"
+        },
+        {
+          "description": "canonical result and ordered remediation release-gate validation output",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/release-gate-check.log",
+          "sha256": "12691e1dbc8d1d6e5ed89eec1566f9c55ee2672f0aee8ba7f7d5142bc87375e0"
+        },
+        {
+          "description": "100-03 measured remediation decision and ordered repair chain",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/100-03-release-gate.json",
+          "sha256": "db03ce5b50175bd97727d873f73d05f28889865d68872cf078fa52e72150be83"
+        },
+        {
+          "description": "source/build and candidate identity",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/candidate-bundle/build-identity.json",
+          "sha256": "e6c6b39b694263db967a7d772ba765fead31f389992819ebdd8a03209b473683"
+        },
+        {
+          "description": "candidate build receipt including binary and loaded DSO hashes",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/candidate-bundle/build-receipt.json",
+          "sha256": "951725e8be80cef1dbb0a965046682f98248332525b988fc003c7ffa79da70a3"
+        },
+        {
+          "description": "frozen shared-prefix source artifact",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/frozen-prefix-messages.json",
+          "sha256": "ad528d87807f615a95b0694c0b0dd097e3facd24be14b71914a5ecf9694f4067"
+        },
+        {
+          "description": "rendered canonical prompt token IDs and hashes",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/prompt-token-ids.json",
+          "sha256": "7aa63a560a09c0c9e70548fad23c612278432da5b98aa839545dc4bdd5057b20"
+        },
+        {
+          "description": "live server start evidence for all placements",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/process-start-evidence.txt",
+          "sha256": "0d3ec87c0a665afe856aae41f153fba6b08262007b9e8ae9ac831bea2aa72ef3"
+        },
+        {
+          "description": "restored baseline service PID, argv, binary hash and health",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/restored-process-identity.json",
+          "sha256": "08a3b36f2b54a0f5a53b94ff0bfd516d40798b692ea4a171defdd277b7c71f99"
+        },
+        {
+          "description": "selected-placement canonical runner invocation/output",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/selected-run.log",
+          "sha256": "5aa3c67c5ac359f0e16c71ef5a36f4579149896c06fafd3ead0301d05a319388"
+        },
+        {
+          "description": "dense GPU control invocation/output",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/dense-gpu-run.log",
+          "sha256": "1e1ff836facff028af6495abe43480943d03560d857980a8d3cac9c2632185ff"
+        },
+        {
+          "description": "CPU-main-KV/GPU-MTP control invocation/output",
+          "path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/cpu-target-run.log",
+          "sha256": "f16fd250b327b4b3ccc0cd9d0642c4986e3b5a6d482fe0c02e7f5f58d5749bdb"
+        }
+      ],
+      "command": [
+        "python3",
+        ".wiretail/execution/forward/check_canonical_result.py",
+        "--short-path",
+        "--release-gate",
+        "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/100-03-release-gate.json",
+        "--state",
+        ".wiretail/execution/WORK_STATE.json",
+        "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/SHORT_PATH_RESULTS.json"
+      ],
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "decision": {
+    "capacity_scaling_authorized": false,
+    "goal_status": "goal_miss",
+    "next_repair_task": "100-03c",
+    "release_decision": "remediation_scheduled"
+  },
+  "schema_version": 1,
+  "source_commit": "dfe0c1fd99d77cf80217b4fa984738f21f0b4300",
+  "task": "100-03b"
+}
