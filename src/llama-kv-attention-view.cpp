@@ -29,6 +29,77 @@ const char * llama_kv_attention_view_status_name(
     return "invalid";
 }
 
+bool llama_kv_attention_view_copy_intervals(
+        const std::vector<llama_kv_attention_view_page> & pages,
+        const std::vector<llama_pos> & query_positions,
+        std::vector<llama_kv_attention_view_copy_interval> & intervals,
+        uint64_t * query_positions_examined) noexcept {
+    intervals.clear();
+    if (query_positions_examined != nullptr) {
+        *query_positions_examined = 0;
+    }
+
+    try {
+        std::vector<llama_pos> sorted_queries = query_positions;
+        std::sort(sorted_queries.begin(), sorted_queries.end());
+        sorted_queries.erase(std::unique(sorted_queries.begin(), sorted_queries.end()),
+                sorted_queries.end());
+
+        for (size_t page_index = 0; page_index < pages.size(); ++page_index) {
+            const auto & page = pages[page_index];
+            if (page.native_position_begin < 0 ||
+                    uint64_t(page.native_position_begin) >
+                        uint64_t(std::numeric_limits<llama_pos>::max()) - page.row_count) {
+                intervals.clear();
+                return false;
+            }
+            if (page.row_count == 0) {
+                continue;
+            }
+
+            const llama_pos page_begin = page.native_position_begin;
+            const llama_pos page_end = page_begin + page.row_count;
+            auto query = std::lower_bound(sorted_queries.begin(), sorted_queries.end(), page_begin);
+            uint32_t row_begin = 0;
+            while (query != sorted_queries.end() && *query < page_end) {
+                if (query_positions_examined != nullptr) {
+                    ++*query_positions_examined;
+                }
+                const uint32_t current_row = uint32_t(*query - page_begin);
+                if (current_row > row_begin) {
+                    intervals.push_back({ uint32_t(page_index), row_begin,
+                            current_row - row_begin, false });
+                }
+
+                uint32_t current_end = current_row + 1;
+                ++query;
+                while (query != sorted_queries.end() && *query < page_end &&
+                        *query == page_begin + current_end) {
+                    if (query_positions_examined != nullptr) {
+                        ++*query_positions_examined;
+                    }
+                    ++current_end;
+                    ++query;
+                }
+                intervals.push_back({ uint32_t(page_index), current_row,
+                        current_end - current_row, true });
+                row_begin = current_end;
+            }
+            if (row_begin < page.row_count) {
+                intervals.push_back({ uint32_t(page_index), row_begin,
+                        page.row_count - row_begin, false });
+            }
+        }
+        return true;
+    } catch (...) {
+        intervals.clear();
+        if (query_positions_examined != nullptr) {
+            *query_positions_examined = 0;
+        }
+        return false;
+    }
+}
+
 bool llama_kv_attention_query_page_ids(
         const std::vector<llama_pos> & query_positions,
         uint32_t page_tokens,

@@ -19,6 +19,26 @@ struct llama_kv_attention_view_page {
     uint32_t page_generation = 0;
 };
 
+// One contiguous source/destination copy span in a packed selected view.
+// Current-query spans are written by the graph; history spans copy the
+// existing native Turbo4 rows into the compact owner.
+struct llama_kv_attention_view_copy_interval {
+    uint32_t page_index = 0;
+    uint32_t row_begin = 0;
+    uint32_t row_count = 0;
+    bool current_rows = false;
+};
+
+// Build the same per-page current/history spans as row-by-row membership
+// checks, while sorting/deduplicating arbitrary query positions once and
+// visiting only queries that fall inside selected pages. The optional count
+// reports visited unique query positions for deterministic tests/diagnostics.
+bool llama_kv_attention_view_copy_intervals(
+        const std::vector<llama_kv_attention_view_page> & pages,
+        const std::vector<llama_pos> & query_positions,
+        std::vector<llama_kv_attention_view_copy_interval> & intervals,
+        uint64_t * query_positions_examined = nullptr) noexcept;
+
 enum class llama_kv_attention_view_status : uint8_t {
     ok = 0,
     invalid_argument,

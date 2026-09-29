@@ -1463,56 +1463,47 @@ bool llm_graph_input_attn_kv::refresh_selected_data(
         }
         const auto & pages = metadata.page_table();
         const auto & queries = metadata.query_positions();
+        std::vector<llama_kv_attention_view_copy_interval> expected_copies;
+        if (!llama_kv_attention_view_copy_intervals(
+                pages, queries, expected_copies)) {
+            return false;
+        }
         for (auto & layer : packed_layers) {
             if (layer.cache_entry == nullptr || layer.copies.empty() ||
                     layer.cache_entry->source_k == nullptr ||
-                    layer.cache_entry->source_v == nullptr) {
+                    layer.cache_entry->source_v == nullptr ||
+                    layer.copies.size() != expected_copies.size()) {
                 return false;
             }
-            size_t copy_index = 0;
-            for (size_t page_index = 0; page_index < pages.size(); ++page_index) {
-                const auto & page = pages[page_index];
+            for (size_t copy_index = 0; copy_index < expected_copies.size(); ++copy_index) {
+                const auto & expected = expected_copies[copy_index];
+                if (expected.page_index >= pages.size()) {
+                    return false;
+                }
+                const auto & page = pages[expected.page_index];
                 const uint64_t source_row = uint64_t(page.source_physical_slot) *
                     VBR_GENERATION_PAGE_CELLS;
-                uint32_t row_begin = 0;
-                while (row_begin < page.row_count) {
-                    const auto is_current = [&](uint32_t row) {
-                        const llama_pos position = page.native_position_begin + row;
-                        return std::find(queries.begin(), queries.end(), position) != queries.end();
-                    };
-                    const bool current_rows = is_current(row_begin);
-                    uint32_t row_end = row_begin + 1;
-                    while (row_end < page.row_count && is_current(row_end) == current_rows) {
-                        ++row_end;
-                    }
-                    if (copy_index >= layer.copies.size()) {
-                        return false;
-                    }
-                    const auto & copy = layer.copies[copy_index++];
-                    const uint32_t row_count = row_end - row_begin;
-                    const uint64_t source_k_offset = (source_row + row_begin) *
-                        layer.cache_entry->source_k->nb[2];
-                    const uint64_t source_v_offset = (source_row + row_begin) *
-                        layer.cache_entry->source_v->nb[2];
-                    if (copy.page_index != page_index ||
+                const uint64_t source_k_offset = (source_row + expected.row_begin) *
+                    layer.cache_entry->source_k->nb[2];
+                const uint64_t source_v_offset = (source_row + expected.row_begin) *
+                    layer.cache_entry->source_v->nb[2];
+                const auto & copy = layer.copies[copy_index];
+                if (copy.page_index != expected.page_index ||
                             copy.page_index >= layer.cache_entry->content_versions.size() ||
                             copy.source_k == nullptr ||
                             copy.source_v == nullptr || copy.packed_k == nullptr ||
-                            copy.packed_v == nullptr || copy.current_rows != current_rows ||
-                            copy.page_row_count != page.row_count || copy.row_count != row_count ||
+                            copy.packed_v == nullptr ||
+                            copy.current_rows != expected.current_rows ||
+                            copy.page_row_count != page.row_count ||
+                            copy.row_count != expected.row_count ||
                             copy.source_offset_k != source_k_offset ||
                             copy.source_offset_v != source_v_offset ||
-                            copy.source_k->ne[2] != int64_t(row_count) ||
-                            copy.source_v->ne[2] != int64_t(row_count) ||
-                            copy.packed_k->ne[2] != int64_t(row_count) ||
-                            copy.packed_v->ne[2] != int64_t(row_count)) {
-                        return false;
-                    }
-                    row_begin = row_end;
+                            copy.source_k->ne[2] != int64_t(expected.row_count) ||
+                            copy.source_v->ne[2] != int64_t(expected.row_count) ||
+                            copy.packed_k->ne[2] != int64_t(expected.row_count) ||
+                            copy.packed_v->ne[2] != int64_t(expected.row_count)) {
+                    return false;
                 }
-            }
-            if (copy_index != layer.copies.size()) {
-                return false;
             }
         }
         // The physical descriptors were proven to retain the same page and
