@@ -12,6 +12,9 @@
 #include <utility>
 #include <vector>
 
+#undef NDEBUG
+#include <cassert>
+
 static llama_kv_page_id live_page_id(uint32_t logical) {
     llama_kv_page_id id;
     id.session_generation = 1;
@@ -367,7 +370,16 @@ static void test_live_policy_cancellation_boundaries() {
         const auto result = llama_kv_live_policy_apply(
             table, *pool, boundary, backend, transport, hooks);
         assert(cancellation.callbacks == 1);
-        assert(result.status == llama_kv_live_policy_status::transaction_failed);
+        const auto expected_status = phase == llama_kv_residency_transaction_phase::recheck
+            ? llama_kv_live_policy_status::stale_snapshot
+            : llama_kv_live_policy_status::transaction_failed;
+        if (result.status != expected_status) {
+            std::fprintf(stderr, "cancellation phase=%d returned status=%d expected=%d published=%d tx_status=%d failed_phase=%d rollback=%d\n",
+                int(phase), int(result.status), int(expected_status), int(result.published),
+                int(result.transaction.status), int(result.transaction.failed_phase),
+                int(result.transaction.rollback_complete));
+        }
+        assert(result.status == expected_status);
         assert(!result.published && !result.transaction.published &&
             result.transaction.rollback_complete);
         const auto current = table.snapshot();
@@ -1107,7 +1119,10 @@ int main(int argc, char ** argv) {
     prefetch_config.max_queued_pages = 4;
     prefetch_config.max_queued_bytes = 40;
     prefetch_config.max_events = 2;
-    prefetch_config.max_pinned_slots = 3;
+    // Leave room for the required queued page and the subsequent probe
+    // intents while earlier completed pages remain ready for the test's
+    // ordering assertions.
+    prefetch_config.max_pinned_slots = 8;
     prefetch_config.staging_slots = 2;
     prefetch_config.wait_budget_steps = 2;
     llama_kv_prefetch_backend prefetch_backend;
@@ -1154,7 +1169,9 @@ int main(int argc, char ** argv) {
 
     assert(scheduler->counters().useful_bytes == 24);
     assert(scheduler->counters().aligned_bytes == 30);
-    fake.complete_next = 3;
+    const auto required_submit = std::find(fake.submitted.begin(), fake.submitted.end(), 12);
+    assert(required_submit != fake.submitted.end());
+    fake.complete_next = fake.tickets[size_t(required_submit - fake.submitted.begin())].value;
     const auto ready = scheduler->ensure_ready({ intent(12, 1, true) }, { 10, 11 }, 2);
     assert(ready.readiness == llama_kv_prefetch_readiness::waited_ready);
     assert(ready.ready.size() == 1 && ready.ready[0] == 12);
