@@ -1567,14 +1567,9 @@ struct server_batch {
     llama_batch batch;
     bool batch_rendered = false;
 
-    struct token {
-        int32_t id_slot;
-        llama_token token;
-        llama_pos pos;
-        bool output;
-        bool is_prompt; // for stats tracking
-    };
-    std::vector<token> tokens;
+    // Prompt classification is server-only metadata; the model inputs and
+    // sequence IDs already live in llama_batch and should not be duplicated.
+    std::vector<uint8_t> prompt_tokens;
     int32_t n_tokens_alloc = 0;
     int32_t n_embd = 0;
 
@@ -1605,32 +1600,34 @@ struct server_batch {
         this->n_embd = n_embd;
         batch = llama_batch_init(n_tokens_alloc, 0, 1);
         tokens_ptr = batch.token;
-        tokens.reserve(n_tokens_alloc);
+        prompt_tokens.reserve(n_tokens_alloc);
     }
 
     bool add(int32_t id_slot, llama_token token, llama_pos pos, bool output, bool is_prompt) {
         GGML_ASSERT(!has_embd); // cannot mix tokens + embd in same batch
         GGML_ASSERT(batch.pos != nullptr);
-        if ((int32_t)tokens.size() >= n_tokens_alloc) {
+        if (size() >= n_tokens_alloc) {
             return false;
         }
-        tokens.push_back({ id_slot, token, pos, output, is_prompt });
+        prompt_tokens.push_back(is_prompt ? 1 : 0);
+        common_batch_add(batch, token, pos, { id_slot }, output);
         return true;
     }
 
     bool add(int32_t id_slot, const std::vector<float> & embd_in, llama_pos pos, bool output, bool is_prompt) {
         GGML_ASSERT(batch.pos != nullptr);
-        if ((int32_t)tokens.size() >= n_tokens_alloc) {
+        if (size() >= n_tokens_alloc) {
             return false;
         }
-        tokens.push_back({ id_slot, LLAMA_TOKEN_NULL, pos, output, is_prompt });
+        prompt_tokens.push_back(is_prompt ? 1 : 0);
+        common_batch_add(batch, LLAMA_TOKEN_NULL, pos, { id_slot }, output);
         has_embd = true;
         embd.insert(embd.end(), embd_in.begin(), embd_in.end());
         return true;
     }
 
     void clear() {
-        tokens.clear();
+        prompt_tokens.clear();
         embd.clear();
         common_batch_clear(batch);
         slot_batched      = nullptr;
@@ -1645,22 +1642,17 @@ struct server_batch {
     }
 
     int32_t size() const {
-        return (int32_t)tokens.size();
+        return batch.n_tokens;
     }
 
     void set_output(int32_t idx, bool output) {
-        GGML_ASSERT(idx >= 0 && idx < (int32_t)tokens.size());
-        tokens[idx].output = output;
+        GGML_ASSERT(idx >= 0 && idx < size());
+        batch.logits[idx] = output;
     }
 
     void render() {
         GGML_ASSERT(!batch_rendered);
         GGML_ASSERT(batch.pos != nullptr);
-        common_batch_clear(batch);
-        for (int32_t i = 0; i < size(); i++) {
-            const auto & t = tokens[i];
-            common_batch_add(batch, t.token, t.pos, { t.id_slot }, t.output);
-        }
         if (has_embd) {
             batch.token = nullptr; // will be restored on clear()
             batch.embd  = embd.data();
@@ -1690,6 +1682,37 @@ struct server_batch {
         return view;
     }
 };
+
+bool server_batch_direct_assembly_contract_for_test() {
+    server_batch batch;
+    batch.init(3, 0);
+    if (!batch.add(2, 17, 10, false, true) ||
+            !batch.add(2, 19, 11, false, true) ||
+            !batch.add(2, 23, 12, false, true)) {
+        return false;
+    }
+    batch.set_output(2, true);
+    batch.render();
+    const llama_batch view = batch.get_view(0, 3);
+    const bool valid = view.n_tokens == 3 && view.token != nullptr &&
+        view.token[0] == 17 && view.token[1] == 19 && view.token[2] == 23 &&
+        view.pos[0] == 10 && view.pos[1] == 11 && view.pos[2] == 12 &&
+        view.n_seq_id[0] == 1 && view.n_seq_id[1] == 1 &&
+        view.n_seq_id[2] == 1 && view.seq_id[0][0] == 2 &&
+        view.seq_id[1][0] == 2 && view.seq_id[2][0] == 2 &&
+        view.logits[0] == 0 && view.logits[1] == 0 && view.logits[2] == 1 &&
+        batch.prompt_tokens.size() == 3 && batch.prompt_tokens[0] == 1 &&
+        batch.prompt_tokens[1] == 1 && batch.prompt_tokens[2] == 1;
+    batch.clear();
+    return valid && batch.batch.n_tokens == 0;
+}
+
+static bool server_hotpath_profile_enabled(llama_kv_pager_mode mode) noexcept {
+    const char * value = std::getenv("LLAMA_HOTPATH_PROFILE");
+    return (value != nullptr && std::strcmp(value, "1") == 0) ||
+        mode == llama_kv_pager_mode::selective ||
+        mode == llama_kv_pager_mode::exact;
+}
 
 // Outcome of an attempt to save a slot's state to the host prompt cache. A live slot may be
 // cleared without losing state only when its state is now durable in the cache (published OR already
@@ -21020,10 +21043,22 @@ private:
             }
         }
 
+        const bool hotpath_profile = server_hotpath_profile_enabled(params_base.kv_pager.mode);
+        const int64_t batch_prepare_start_us = hotpath_profile ? ggml_time_us() : 0;
+        int64_t pre_decode_elapsed_us = 0;
+        int64_t batch_render_elapsed_us = 0;
         try {
             scoped_timer t(t_pre_decode, n_pre_decode);
+            const int64_t pre_decode_start_us = hotpath_profile ? ggml_time_us() : 0;
             pre_decode();
+            if (hotpath_profile) {
+                pre_decode_elapsed_us = ggml_time_us() - pre_decode_start_us;
+            }
+            const int64_t render_start_us = hotpath_profile ? ggml_time_us() : 0;
             batch.render();
+            if (hotpath_profile) {
+                batch_render_elapsed_us = ggml_time_us() - render_start_us;
+            }
         } catch (const std::exception & e) {
             cycle_failed = true;
             SRV_ERR("pre_decode() failed: %s\n", e.what());
@@ -21031,6 +21066,13 @@ private:
 
             // the batch is half-built and not rendered, skip now to avoid UB
             return;
+        }
+        if (hotpath_profile) {
+            SRV_INF("hotpath stage=prompt_batch tokens=%d pre_decode_us=%" PRId64
+                    " render_us=%" PRId64 " total_us=%" PRId64 "\n",
+                    batch.size(), pre_decode_elapsed_us,
+                    batch_render_elapsed_us,
+                    ggml_time_us() - batch_prepare_start_us);
         }
 
         // fork: the chunk loop below never runs for an empty batch, so the empty-batch
@@ -21130,6 +21172,7 @@ private:
     }
 
     void pre_decode() {
+        const bool hotpath_profile = server_hotpath_profile_enabled(params_base.kv_pager.mode);
         frontier_logits_sampled_cycle = false;
         // apply context-shift if needed
         // TODO: simplify and improve
@@ -23244,6 +23287,8 @@ private:
                         // the lifecycle owner is guaranteed to refuse.
                         do_checkpoint = false;
                     }
+                    const int64_t checkpoint_capture_start_us =
+                        hotpath_profile && do_checkpoint ? ggml_time_us() : 0;
                     std::list<common_prompt_checkpoint> staged;
                     if (do_checkpoint) {
                         // Stage the complete checkpoint in a detached list node before evicting
@@ -23485,6 +23530,16 @@ private:
                         if (staged.empty()) {
                             do_checkpoint = false;
                         }
+                    }
+                    if (checkpoint_capture_start_us != 0) {
+                        const auto staged_bytes = staged.empty()
+                            ? size_t(0) : staged.back().size();
+                        SLT_INF(slot,
+                                "hotpath stage=checkpoint_capture frontier=%" PRId64
+                                " elapsed_us=%" PRId64 " retained=%d bytes=%zu\n",
+                                ckpt_n_tokens,
+                                ggml_time_us() - checkpoint_capture_start_us,
+                                staged.empty() ? 0 : 1, staged_bytes);
                     }
 
                     bool staged_checkpoint_published = false;
@@ -24001,8 +24056,8 @@ private:
         bool has_output = false;
         bool has_prompt_tokens = false;
         for (int i = off; i < off + batch_view.n_tokens; ++i) {
-            has_output |= batch.tokens[i].output;
-            has_prompt_tokens |= batch.tokens[i].is_prompt;
+            has_output |= batch.batch.logits[i] != 0;
+            has_prompt_tokens |= batch.prompt_tokens[i] != 0;
         }
 
         // Keep target verification and the dependent speculative update inside
@@ -24012,6 +24067,8 @@ private:
         int ret = 0;
         bool speculative_ok = true;
         std::exception_ptr speculative_exception;
+        int64_t llama_decode_elapsed_us = 0;
+        int64_t explicit_compute_wait_us = 0;
         const int64_t t_verify_start = ggml_time_us();
         int64_t t_verify_elapsed = 0;
         const bool speculative_verification = std::any_of(
@@ -24042,7 +24099,13 @@ private:
             ctx_tgt->set_kv_attention_mtp_verification(
                 mtp_verification || speculative_verification);
             try {
+                const int64_t llama_decode_start_us =
+                    server_hotpath_profile_enabled(params_base.kv_pager.mode) ? ggml_time_us() : 0;
                 ret = llama_decode(ctx_tgt, batch_view);
+                if (llama_decode_start_us != 0) {
+                    llama_decode_elapsed_us =
+                        ggml_time_us() - llama_decode_start_us;
+                }
                 if (ret == 0 && (mtp_verification ||
                         (server_mtp_state_diagnostic_enabled() && has_output))) {
                     for (auto & slot : slots) {
@@ -24063,7 +24126,13 @@ private:
             }
             ctx_tgt->set_kv_attention_mtp_verification(false);
             if (ret == 0 && has_output) {
+                const int64_t synchronize_start_us =
+                    server_hotpath_profile_enabled(params_base.kv_pager.mode) ? ggml_time_us() : 0;
                 llama_synchronize(ctx_tgt);
+                if (synchronize_start_us != 0) {
+                    explicit_compute_wait_us =
+                        ggml_time_us() - synchronize_start_us;
+                }
             }
 
             t_verify_elapsed = ggml_time_us() - t_verify_start;
@@ -24081,6 +24150,13 @@ private:
             }
             }, speculative_exception);
         t_verify_total += t_verify_elapsed;
+        if (server_hotpath_profile_enabled(params_base.kv_pager.mode)) {
+            SRV_INF("hotpath stage=llama_decode slot=%d offset=%d tokens=%d prompt=%d "
+                    "api_wall_us=%" PRId64 " explicit_wait_us=%" PRId64 "\n",
+                    batch.batch.seq_id[off][0], off, batch_view.n_tokens,
+                    has_prompt_tokens ? 1 : 0,
+                    llama_decode_elapsed_us, explicit_compute_wait_us);
+        }
         SRV_DBG("  verify ubatch: %d tok, %.1fms (%.2fms/tok)\n",
                 batch_view.n_tokens, t_verify_elapsed / 1e3,
                 t_verify_elapsed / 1e3 / std::max(1, batch_view.n_tokens));
@@ -25644,15 +25720,13 @@ private:
         uint64_t n_prompt_tokens = 0;
 
         for (int i = off; i < off + n_tokens; ++i) {
-            const auto & t = batch.tokens[i];
-
-            if (!t.is_prompt) {
+            if (batch.prompt_tokens[i] == 0) {
                 continue; // generated tokens are handled after sampling
             }
 
             n_prompt_tokens++;
 
-            auto & slot = slots[t.id_slot];
+            auto & slot = slots[batch.batch.seq_id[i][0]];
             if (slot.stats.is_set()) {
                 slot.stats.n_prompt_processed++;
             }
@@ -25669,9 +25743,8 @@ private:
         // note: a second pass, it must run after the sync to reflect the compute
         const int64_t t_now = ggml_time_us();
         for (int i = off; i < off + n_tokens; ++i) {
-            const auto & t = batch.tokens[i];
-            auto & slot = slots[t.id_slot];
-            if (t.is_prompt && slot.stats.is_set()) {
+            auto & slot = slots[batch.batch.seq_id[i][0]];
+            if (batch.prompt_tokens[i] != 0 && slot.stats.is_set()) {
                 slot.stats.set_prompt_last(t_now);
             }
         }

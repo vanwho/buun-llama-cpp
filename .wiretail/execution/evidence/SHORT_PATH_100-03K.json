@@ -1,0 +1,279 @@
+{
+  "schema_version": 1,
+  "task": "100-03k",
+  "proof": "row_local_prefill_owner_repair",
+  "decision": "goal_miss",
+  "reason": "The canonical single measured prompt-2 row remains below the unchanged 500 tok/s floor.",
+  "workload": {
+    "target": "big",
+    "profile": "qwen38-big",
+    "prompt_index": 1,
+    "prompt": "explain the difference between mmap and read for loading large files, one paragraph.",
+    "prompt_tokens": 4326,
+    "cached_tokens": 0,
+    "context_tokens": 8192,
+    "admission_horizon_tokens": 4096,
+    "page_size_tokens": 256,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "GPU Turbo4",
+    "mtp": "native GPU Turbo4, nmax=2",
+    "temperature": 0,
+    "reasoning": "off",
+    "clean_slot": true,
+    "warmups": 1,
+    "warmup_max_tokens": 40,
+    "measured_rows": 1,
+    "measured_max_tokens": 400
+  },
+  "candidate": {
+    "source_commit": "938df7a8f6990bc08dc4187935fce70de573dd9b",
+    "source_diff_sha256": "be19450c60d8706fafdf1d38963da1330096fd65072bc3e9c48b2358a1dce567",
+    "binary_sha256": "87878b33bbd6fb27fa4cc00baf611d97e5a9ffa189cd024ea113c892209e2675",
+    "loaded_dso_hashes": {
+      "libggml-base.so.0": "59a73fb5a1ee0b360cc59a35ec30388622d55c29b2f3cbcefcb6f4f5f79e53ce",
+      "libggml-cpu.so.0": "494ef1467cd59de7034dac41ba557f2ee634d319e08e502520ac8087b063dd5a",
+      "libggml-cuda.so.0": "b8b1087db9437236a573b949cae0342d7159a2b2b9344f166f4123097cc6a0bf",
+      "libggml.so.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+      "libllama-common.so.0": "473b677d5ac9410a6a8770c55800499a0ff8c16a09942c5e7a9bf913ded2cfc3",
+      "libllama-server-impl.so": "a51a4f26a9f8a82b3565b127ab052b74ceafa827fdd2bc2f22ab6411162b26ac",
+      "libllama.so.0": "599705fd1c686913ef36d9cf99818904757da10baf46812ec2bfe05f62b2f48f",
+      "libmtmd.so.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c"
+    },
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "frozen_prefix_sha256": "ad528d87807f615a95b0694c0b0dd097e3facd24be14b71914a5ecf9694f4067",
+    "build_receipt": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/candidate-bundle-final/build-receipt.json",
+    "build_receipt_sha256": "ffe59cf0ef4d6cbaf8e85850bff446036b07b69927693d5ee53fb375feca5d35",
+    "runtime_identity_verified": true,
+    "active_binary": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/candidate-bundle-final/llama-server"
+  },
+  "measured": {
+    "http_code": 200,
+    "completion_tokens": 172,
+    "prompt_tokens": 4326,
+    "fresh_prefill_us": 20393959.0,
+    "fresh_prefill_tokens_per_second": 212.12163856953916,
+    "decode_tokens_per_second": 35.81579371778411,
+    "mtp_accepted": 68,
+    "mtp_drafted": 126,
+    "mtp_acceptance_percent": 53.96825397,
+    "case_key": "e482fce20065ee61e7d482b8efda3e24a09fe72f616fb4e14c443ad5eb742835"
+  },
+  "warmup": {
+    "prompt_tokens": 4326,
+    "completion_tokens": 40,
+    "prefill_tokens_per_second": 260.4721421852758,
+    "mtp_accepted": 19,
+    "mtp_drafted": 27
+  },
+  "comparison": {
+    "baseline_100_03j_prefill_tokens_per_second": 210.6143395356319,
+    "repair_100_03k_prefill_tokens_per_second": 212.12163856953916,
+    "change_percent": 0.715668,
+    "speed_floor_tokens_per_second": 500,
+    "statistical_status": "one selected row per candidate; no medians or confidence interval"
+  },
+  "timing_attribution": {
+    "source": "direct hotpath stage log records in measured request journal",
+    "prompt_batch_count": 9,
+    "prompt_batch_tokens": 4326,
+    "prompt_batch_pre_decode_us": 185054,
+    "prompt_batch_render_us": 2,
+    "prompt_batch_records": [
+      {
+        "tokens": 1024,
+        "pre_decode_us": 37,
+        "render_us": 0,
+        "total_us": 37
+      },
+      {
+        "tokens": 106,
+        "pre_decode_us": 15,
+        "render_us": 0,
+        "total_us": 15
+      },
+      {
+        "tokens": 1024,
+        "pre_decode_us": 53805,
+        "render_us": 1,
+        "total_us": 53806
+      },
+      {
+        "tokens": 1024,
+        "pre_decode_us": 34,
+        "render_us": 0,
+        "total_us": 34
+      },
+      {
+        "tokens": 888,
+        "pre_decode_us": 54,
+        "render_us": 1,
+        "total_us": 55
+      },
+      {
+        "tokens": 233,
+        "pre_decode_us": 24,
+        "render_us": 0,
+        "total_us": 24
+      },
+      {
+        "tokens": 20,
+        "pre_decode_us": 69854,
+        "render_us": 0,
+        "total_us": 69854
+      },
+      {
+        "tokens": 3,
+        "pre_decode_us": 19,
+        "render_us": 0,
+        "total_us": 20
+      },
+      {
+        "tokens": 4,
+        "pre_decode_us": 61212,
+        "render_us": 0,
+        "total_us": 61212
+      }
+    ],
+    "checkpoint_capture_count": 3,
+    "checkpoint_capture_elapsed_us": 161082,
+    "checkpoint_capture_records": [
+      {
+        "frontier": 1130,
+        "elapsed_us": 53747,
+        "retained": 1,
+        "bytes": 158135304
+      },
+      {
+        "frontier": 4299,
+        "elapsed_us": 53069,
+        "retained": 1,
+        "bytes": 161557824
+      },
+      {
+        "frontier": 4322,
+        "elapsed_us": 54266,
+        "retained": 1,
+        "bytes": 161582664
+      }
+    ],
+    "prompt_llama_decode_call_count": 9,
+    "prompt_llama_decode_api_wall_us": 20098448,
+    "prompt_llama_decode_explicit_wait_us": 4,
+    "prompt_llama_decode_records": [
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 1024,
+        "prompt": 1,
+        "api_wall_us": 1463580,
+        "explicit_wait_us": 0
+      },
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 106,
+        "prompt": 1,
+        "api_wall_us": 1711531,
+        "explicit_wait_us": 0
+      },
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 1024,
+        "prompt": 1,
+        "api_wall_us": 2397721,
+        "explicit_wait_us": 0
+      },
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 1024,
+        "prompt": 1,
+        "api_wall_us": 5326632,
+        "explicit_wait_us": 0
+      },
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 888,
+        "prompt": 1,
+        "api_wall_us": 6334397,
+        "explicit_wait_us": 0
+      },
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 233,
+        "prompt": 1,
+        "api_wall_us": 2558277,
+        "explicit_wait_us": 0
+      },
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 20,
+        "prompt": 1,
+        "api_wall_us": 194043,
+        "explicit_wait_us": 0
+      },
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 3,
+        "prompt": 1,
+        "api_wall_us": 52158,
+        "explicit_wait_us": 0
+      },
+      {
+        "slot": 0,
+        "offset": 0,
+        "tokens": 4,
+        "prompt": 1,
+        "api_wall_us": 60109,
+        "explicit_wait_us": 4
+      }
+    ],
+    "interpretation": "API wall time is measured across llama_decode calls and may include backend work or waits internal to the call; explicit_wait_us covers only the separately timed server wait. These measurements do not split device compute from internal synchronization."
+  },
+  "checkpoint_observation": {
+    "created_capture_frontiers": [
+      1130,
+      4299,
+      4322
+    ],
+    "capture_count": 3,
+    "capture_total_elapsed_us": 161082,
+    "pager_faults": 0,
+    "pager_evictions": 0,
+    "pager_h2d_actual_bytes": 0,
+    "pager_d2h_actual_bytes": 0
+  },
+  "adapter": {
+    "canonical_exit_code": 0,
+    "validation": "passed",
+    "validation_errors": [],
+    "resume_usable": true
+  },
+  "limitations": [
+    "The benchmark adapter does not persist outbound request bodies; files under requests/ are explicit canonical payload reconstructions and wire_capture=false.",
+    "llama_decode API wall time includes internal backend work and possible internal waits; this retake cannot isolate compute from those internal waits.",
+    "One matched row is not a statistical comparison. TTFT and per-kernel timing were not collected."
+  ],
+  "raw_root": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01",
+  "raw_artifacts": {
+    "run_config": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/run-config.json",
+    "lifecycle_state": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/lifecycle-state.json",
+    "records": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/records.jsonl",
+    "measured_response": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.json",
+    "measured_journal": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.journal.log",
+    "mtp_before": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-before.prom",
+    "mtp_after": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-after.prom",
+    "requests": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/requests",
+    "launch_record": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/launch-final.json",
+    "timing_summary": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/measured-stage-timing-summary.json",
+    "candidate_identity": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/candidate-identity-final.json",
+    "build_log": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/build-final.log",
+    "fixture_output": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/prompt-cache-fixture-final.log"
+  }
+}

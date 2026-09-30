@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "task": "100-03k",
+  "source_commit": "938df7a8f6990bc08dc4187935fce70de573dd9b",
+  "decision": "goal_miss",
+  "measurement_evidence": {
+    "path": ".wiretail/execution/evidence/SHORT_PATH_100-03K.json",
+    "sha256": "e4084253de016dcce0591555de1d4ee205580f120f6007205037d1e291a211ec"
+  },
+  "checks": {
+    "row_local_prefill_owner_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "cmake --build build-cuda --target test-server-prompt-cache llama-server -j 8",
+        "build-cuda/bin/test-server-prompt-cache",
+        "canonical selected prompt-2 retake via run-pager-profile-benchmark.py (40-token warmup, 400-token measured)"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/build-final.log",
+          "sha256": "ee0181e5adb3988ed0b47b8c941cac877ff71f25a572a1d37f001b9c1678de23"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/prompt-cache-fixture-final.log",
+          "sha256": "f0f0df879bd6e7b09bfa211f286f45ef2d076de0a285210f6f25e7d98204d951"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/candidate-identity-final.json",
+          "sha256": "662b06e874c12afaf4b0c297069156ace32ed0e9e15be09d0a8b181d78486445"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/candidate-bundle-final/build-receipt.json",
+          "sha256": "ffe59cf0ef4d6cbaf8e85850bff446036b07b69927693d5ee53fb375feca5d35"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/records.jsonl",
+          "sha256": "013b07e54c1a8f6a12d4336a5762d3593f03dccdd1ef139f4bbc6b4ba37b7891"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/case-manifest.json",
+          "sha256": "751649c6a17241e2a74e4f2b2f175d26e6b6dbe89047b269444331caaed04083"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/run-config.json",
+          "sha256": "9a1e68bda505a98e51f72776c750b6b2fa5c94cb448197a72809e4d85988790d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/lifecycle-state.json",
+          "sha256": "5f0d0df6c9218903de031dc011fbb3f35e7ae81a4203663f09c0afe1922c5bc9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/summary.json",
+          "sha256": "7ed30c6854439a530243f113effc99a8b33641eae26c1f58a90b1322c7582747"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.json",
+          "sha256": "50cfdb47e85197f484a20a77faf14f10967e33e62502cdcdb4a81bf98bdc0568"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.journal.log",
+          "sha256": "a4ba84d7b30b8ca0b5b7ba5f5a5b3aa1d17510658bce27053ca3937e64bcba46"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-before.prom",
+          "sha256": "4507a5abe0f92003cc3b6fead0576729269c1545a2e4164a81a2e270809a6358"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-after.prom",
+          "sha256": "2602657ed9c57e822699f0077e60bbfaae8b6e2342e5b38c3b5bc45326ae7c0e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.slot-before.json",
+          "sha256": "e12b3e5f145b745f774a8136129ef0d74387e25e055be996253b71f5a0e887a6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.slot-after.json",
+          "sha256": "b55e3392bacadc756523d068e582fe3c9fec3d32acaee6f2157681065f081ce1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/requests/measured-prompt-2.json",
+          "sha256": "a8db825700c7ef13e1c02f85ede6f54102ad9b0d6e0f46ca567b01bc4629836f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/requests/warmup-prompt-2.json",
+          "sha256": "8ca4eba914c2dedfed87b736480dd3c410b5d9f107fe127d923893a76ccaee7d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final/requests/manifest.json",
+          "sha256": "d1adc0b6c3f3483c05cf7c3305f4cd0296eb700d703c9cef9eb23cbebbb77c7e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/launch-final.json",
+          "sha256": "f1ec272c3f32f8b843d161f022e963fe7d6b4ac26f05d91b775940703fea65fb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/measured-stage-timing-summary.json",
+          "sha256": "29b16df398b6e1beb7cdc63a3c26d171a4ade05306d11b92ee7eb8164d41dd92"
+        }
+      ],
+      "retake": {
+        "status": "complete_goal_miss",
+        "prompt_index": 1,
+        "prefill_tokens_per_second": 212.12163856953916,
+        "floor_tokens_per_second": 500,
+        "adapter_exit_code": 0,
+        "adapter_validation": "passed",
+        "artifact_root": "/srv/ai/paged-kv/results/forward/100-03k/attempt-01/selected-p2-retake-final"
+      }
+    }
+  }
+}

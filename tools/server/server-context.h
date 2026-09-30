@@ -55,6 +55,9 @@ bool server_live_rewind_checkpoint_admit(
     int64_t prompt_tokens,
     bool required_user_seam) noexcept;
 
+// Exercises the direct server-batch assembly path without a model or service.
+bool server_batch_direct_assembly_contract_for_test();
+
 // The page authority is deliberately single-slot until its multi-sequence
 // accounting and publication proof are complete.  The off/observe paths do
 // not acquire that authority and therefore retain ordinary multi-slot use.
