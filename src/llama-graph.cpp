@@ -19,6 +19,10 @@
 #include "llama-memory-hybrid-iswa.h"
 #include "llama-memory-recurrent.h"
 
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+
 llm_graph_input_attn_kv::~llm_graph_input_attn_kv() {
     // A scheduler allocation or input-binding failure can destroy the graph
     // input before submission. Cancel provisional packed owners; pager writes
@@ -1278,8 +1282,20 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     this->mctx = mctx;
 
     bool res = true;
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+    bool reason_recorded = false;
+    const auto record_rebuild_reason = [&](llama_kv_attention_graph_rebuild_reason reason) {
+        if (!profile || kv_attention_metrics == nullptr) return;
+        kv_attention_metrics->record_graph_rebuild_reason(reason);
+        reason_recorded = true;
+    };
 
-    res &= self_k_idxs->ne[0] == params.ubatch.n_tokens;
+    const bool ubatch_shape_changed = self_k_idxs->ne[0] != params.ubatch.n_tokens;
+    if (ubatch_shape_changed) {
+        record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::ubatch_shape);
+    }
+    res &= !ubatch_shape_changed;
   //res &= self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
 
     const bool exact_wave = params.kv_attention_exact_plan != nullptr;
@@ -1322,15 +1338,18 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
             // into a graph whose packed owner is now too small.
             if (llama_kv_attention_packed_row_capacity(metadata, page_tokens) !=
                     packed_row_capacity) {
+                record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::row_capacity);
                 return false;
             }
         }
         if ((dense || packed) && metadata.graph_physical_key() !=
                 selected_metadata.graph_physical_key()) {
+            record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::physical_key);
             return false;
         }
         if (metadata.graph_content_key() != selected_content_key &&
                 !refresh_selected_data(metadata)) {
+            record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::content_key);
             return false;
         }
         selected_metadata = metadata;
@@ -1396,11 +1415,28 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         res &= (direct_page_mass != nullptr) == telemetry_enabled;
     }
 
+    if (!res && !reason_recorded) {
+        record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::other);
+    }
     return res;
 }
 
 bool llm_graph_input_attn_kv::refresh_selected_data(
         const llama_kv_attention_operator_metadata & metadata) {
+    struct hotpath_timer {
+        llama_kv_attention_execution_metrics * metrics;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~hotpath_timer() {
+            if (!active || metrics == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            metrics->record_hotpath_time(metrics->selected_refresh_us,
+                    uint64_t(std::max<int64_t>(0, elapsed)));
+        }
+    } timer { kv_attention_metrics, std::chrono::steady_clock::now(),
+        std::getenv("LLAMA_HOTPATH_PROFILE") != nullptr &&
+        std::strcmp(std::getenv("LLAMA_HOTPATH_PROFILE"), "1") == 0 };
     if (!selected_attention || exact_wave_attention || !metadata.valid()) {
         return false;
     }
@@ -4549,7 +4585,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 layer.cache_entry = packed_cache->find_or_create(layer_id, sequence_id,
                         mctx_cur->get_vbr_epoch(), layer.source_lifetime_epoch,
                         selected_metadata->page_table(), source_k, source_v, packed_backend,
-                        layer.row_capacity);
+                        layer.row_capacity, kv_attention_metrics);
                 if (layer.cache_entry == nullptr) {
                     throw std::runtime_error("packed selected attention allocation failed");
                 }
