@@ -586,6 +586,85 @@ void test_server_batch_direct_assembly_contract() {
     CHECK(server_batch_direct_assembly_contract_for_test());
 }
 
+void test_server_query_replay_transition() {
+    uint32_t commits = 0;
+    uint32_t restores = 0;
+    const auto unchanged = server_query_replay_transition(
+        true, 0,
+        [&](bool & changed, uint64_t & generation) {
+            ++commits;
+            changed = false;
+            generation = 41;
+            return true;
+        },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(unchanged.committed);
+    CHECK(unchanged.status == server_query_replay_transition_status::unchanged);
+    CHECK(unchanged.history_generation == 41);
+    CHECK(commits == 1 && restores == 0);
+
+    const auto replay = server_query_replay_transition(
+        true, 0,
+        [&](bool & changed, uint64_t & generation) {
+            ++commits;
+            changed = true;
+            generation = 42;
+            return true;
+        },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(replay.committed);
+    CHECK(replay.status == server_query_replay_transition_status::replay);
+    CHECK(replay.history_generation == 42);
+    CHECK(commits == 2 && restores == 1);
+
+    const auto missing_checkpoint = server_query_replay_transition(
+        false, 0,
+        [](bool & changed, uint64_t & generation) {
+            changed = true;
+            generation = 43;
+            return true;
+        },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(missing_checkpoint.committed);
+    CHECK(missing_checkpoint.status == server_query_replay_transition_status::failed);
+    CHECK(restores == 1);
+
+    const auto repeated = server_query_replay_transition(
+        true, 1,
+        [](bool & changed, uint64_t & generation) {
+            changed = true;
+            generation = 44;
+            return true;
+        },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(repeated.committed);
+    CHECK(repeated.status == server_query_replay_transition_status::failed);
+    CHECK(restores == 1);
+
+    const auto failed_commit = server_query_replay_transition(
+        true, 0,
+        [](bool &, uint64_t &) { return false; },
+        [&]() {
+            ++restores;
+            return true;
+        });
+    CHECK(!failed_commit.committed);
+    CHECK(failed_commit.status == server_query_replay_transition_status::failed);
+    CHECK(restores == 1);
+}
+
 void test_slot_frontier_logits_companion() {
     const auto result = server_slot_frontier_logits_for_test();
     CHECK(result.round_trip);
@@ -5807,6 +5886,7 @@ int main(int argc, char ** argv) {
     test_speculative_decode_terminals();
     test_live_rewind_near_tail_checkpoint_admission();
     test_server_batch_direct_assembly_contract();
+    test_server_query_replay_transition();
     test_slot_frontier_logits_companion();
     test_fixed_host_pressure_shadow_records_counterfactual();
     test_fixed_host_shadow_uses_exact_cross_lineage_prefix();

@@ -1442,6 +1442,33 @@ server_speculative_decode_terminal_resolve(
     return server_speculative_decode_terminal::success;
 }
 
+server_query_replay_transition_result server_query_replay_transition(
+        bool checkpoint_prepared,
+        uint32_t replay_count,
+        const std::function<bool(bool &, uint64_t &)> & commit,
+        const std::function<bool()> & restore) {
+    server_query_replay_transition_result result;
+    if (!commit || !restore) {
+        return result;
+    }
+
+    bool history_changed = false;
+    if (!commit(history_changed, result.history_generation)) {
+        return result;
+    }
+    result.committed = true;
+    if (!history_changed) {
+        result.status = server_query_replay_transition_status::unchanged;
+        return result;
+    }
+    if (!checkpoint_prepared || replay_count != 0 || !restore()) {
+        return result;
+    }
+
+    result.status = server_query_replay_transition_status::replay;
+    return result;
+}
+
 bool server_memory_failure_is_logical_capacity(
         llama_memory_failure_reason reason) noexcept {
     return reason == llama_memory_failure_reason::none ||
@@ -21649,12 +21676,24 @@ private:
                     if (!starting_prompt && exact_query_span &&
                             int64_t(slot.prompt.n_tokens()) == query_end &&
                             !slot.pager_query_committed) {
-                        bool history_changed = false;
-                        uint64_t history_generation = 0;
-                        const bool committed = ctx_tgt->commit_kv_pager_query(
-                            slot.id, slot.slot_session_generation,
-                            &history_changed, &history_generation);
-                        if (!committed) {
+                        const char * restore_failure = nullptr;
+                        const auto transition = server_query_replay_transition(
+                            slot.query_checkpoint.state ==
+                                server_query_checkpoint::phase::prepared,
+                            slot.query_replay_count,
+                            [&](bool & history_changed, uint64_t & history_generation) {
+                                return ctx_tgt->commit_kv_pager_query(
+                                    slot.id, slot.slot_session_generation,
+                                    &history_changed, &history_generation);
+                            },
+                            [&]() {
+                                return slot.query_checkpoint.restore(
+                                    ctx_tgt, ctx_dft.get(), slot.get_spec(), slot.id,
+                                    slot.slot_session_generation,
+                                    slot.slot_session_generation, &restore_failure);
+                            });
+                        slot.pager_query_committed = transition.committed;
+                        if (!transition.committed) {
                             SLT_ERR(slot, "%s\n",
                                 "failed to commit final-user retrieval before query replay");
                             send_error(slot,
@@ -21662,32 +21701,25 @@ private:
                             slot.release();
                             return;
                         }
-                        slot.pager_query_committed = true;
-                        if (history_changed) {
-                            if (slot.query_checkpoint.state !=
-                                    server_query_checkpoint::phase::prepared) {
-                                SLT_ERR(slot, "%s\n",
-                                    "historical selection changed without a usable query checkpoint");
-                                send_error(slot,
-                                    "Unable to replay final-user query after retrieval");
-                                slot.release();
-                                return;
-                            }
-                            const char * restore_failure = nullptr;
-                            const bool restored = slot.query_checkpoint.restore(
-                                ctx_tgt, ctx_dft.get(), slot.get_spec(), slot.id,
-                                slot.slot_session_generation,
-                                slot.slot_session_generation, &restore_failure);
-                            if (!restored || slot.query_replay_count != 0) {
+                        if (transition.status ==
+                                server_query_replay_transition_status::failed) {
+                            if (restore_failure != nullptr) {
                                 SLT_ERR(slot,
-                                    "query replay checkpoint restore failed or replay repeated: %s replay_count=%u\n",
-                                    restore_failure != nullptr ? restore_failure : "null",
+                                    "query replay checkpoint restore failed: %s replay_count=%u\n",
+                                    restore_failure,
                                     slot.query_replay_count);
-                                send_error(slot,
-                                    "Unable to restore final-user query for replay");
-                                slot.release();
-                                return;
+                            } else {
+                                SLT_ERR(slot,
+                                    "history changed without a usable query checkpoint or at replay_count=%u\n",
+                                    slot.query_replay_count);
                             }
+                            send_error(slot,
+                                "Unable to restore final-user query for replay");
+                            slot.release();
+                            return;
+                        }
+                        if (transition.status ==
+                                server_query_replay_transition_status::replay) {
                             const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
                             if (profile_env != nullptr && std::strcmp(profile_env, "1") == 0) {
                                 slot.query_checkpoint.replay_start_us =
@@ -21699,7 +21731,7 @@ private:
                             SLT_INF(slot, "query replay: begin=%" PRId64
                                 " end=%" PRId64 " history_generation=%" PRIu64
                                 " replay_count=%u\n", query_begin, query_end,
-                                history_generation, slot.query_replay_count);
+                                transition.history_generation, slot.query_replay_count);
                         } else {
                             SLT_INF(slot, "%s",
                                 "query replay: unchanged history; replay_count=0\n");

@@ -3,12 +3,14 @@
 #include "server-http.h"
 #include "server-task.h"
 #include "server-queue.h"
+#include "llama.h"
 
 #include "json.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -16,6 +18,28 @@
 struct server_context_impl; // private implementation
 class server_cache_control_authority;
 enum class llama_memory_failure_reason : uint8_t;
+
+// Shared final-user boundary transition. The server loop and its model-backed
+// regression fixture supply the real pager commit and checkpoint restore
+// operations; this helper owns the commit/replay decision.
+enum class server_query_replay_transition_status : uint8_t {
+    failed,
+    unchanged,
+    replay,
+};
+
+struct server_query_replay_transition_result {
+    server_query_replay_transition_status status =
+        server_query_replay_transition_status::failed;
+    bool committed = false;
+    uint64_t history_generation = 0;
+};
+
+server_query_replay_transition_result server_query_replay_transition(
+    bool checkpoint_prepared,
+    uint32_t replay_count,
+    const std::function<bool(bool &, uint64_t &)> & commit,
+    const std::function<bool()> & restore);
 
 enum class server_speculative_decode_terminal {
     success,
