@@ -1915,6 +1915,13 @@ static bool prefill_page_wave_boundary(
     return prefill_page_number(previous_position + 1, page_tokens) != previous_page;
 }
 
+static bool llama_context_hotpath_profile_enabled(llama_kv_pager_mode mode) noexcept {
+    const char * value = std::getenv("LLAMA_HOTPATH_PROFILE");
+    return (value != nullptr && std::strcmp(value, "1") == 0) ||
+        mode == llama_kv_pager_mode::selective ||
+        mode == llama_kv_pager_mode::exact;
+}
+
 uint32_t llama_context::prefill_ubatch_size(uint32_t requested) const noexcept {
     if (requested == 0 || kv_pager.mode == llama_kv_pager_mode::off ||
         kv_pager.mode == llama_kv_pager_mode::observe || !kv_pager_owner) {
@@ -2407,6 +2414,8 @@ void llama_context::synchronize() {
                 uint32_t(kv_attention_execution.route()));
     }
     ggml_backend_sched_synchronize(sched.get());
+    const int64_t backend_wait_us = std::max<int64_t>(
+            0, ggml_time_us() - wait_start_us);
     if (pager_progress) {
         LLAMA_LOG_INFO("kv-pager-progress stage=graph-sync-complete graphs=%zu elapsed_us=%" PRId64 "\n",
                 kv_attention_execution.in_flight_graphs(),
@@ -2524,6 +2533,16 @@ void llama_context::synchronize() {
     if (n_queued_tokens > 0 && !has_evaluated_once) {
         t_load_us = ggml_time_us() - t_start_us;
         has_evaluated_once = true;
+    }
+
+    if (llama_context_hotpath_profile_enabled(kv_pager.mode)) {
+        const int64_t total_fence_us = std::max<int64_t>(
+                0, ggml_time_us() - wait_start_us);
+        LLAMA_LOG_INFO("hotpath stage=context_fence in_flight=%d backend_wait_us=%" PRId64
+                " retained_state_us=%" PRId64 " total_us=%" PRId64 "\n",
+                kv_attention_wait ? 1 : 0, backend_wait_us,
+                std::max<int64_t>(0, total_fence_us - backend_wait_us),
+                total_fence_us);
     }
 
     n_queued_tokens = 0;
@@ -6533,6 +6552,15 @@ bool llama_context::set_adapter_cvec(
 }
 
 llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, llm_graph_type gtype, llama_memory_context_i * mctx, ggml_status & ret) {
+    const bool hotpath_profile = llama_context_hotpath_profile_enabled(kv_pager.mode);
+    const int64_t ubatch_start_us = hotpath_profile ? ggml_time_us() : 0;
+    int64_t apply_us = 0;
+    int64_t attention_prepare_us = 0;
+    int64_t graph_build_elapsed_us = 0;
+    int64_t set_inputs_us = 0;
+    int64_t backend_submit_us = 0;
+    int64_t retained_state_us = 0;
+    const int64_t apply_start_us = hotpath_profile ? ggml_time_us() : 0;
     if (mctx && !mctx->apply()) {
         last_memory_failure_reason_ = mctx->get_failure_reason();
         mctx->finish(false);
@@ -6540,7 +6568,11 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         ret = GGML_STATUS_FAILED;
         return nullptr;
     }
+    if (hotpath_profile) {
+        apply_us = ggml_time_us() - apply_start_us;
+    }
 
+    const int64_t attention_prepare_start_us = hotpath_profile ? ggml_time_us() : 0;
     if (memory) {
         memory->capture_kv_routing_query(nullptr, -1, ubatch);
     }
@@ -6553,6 +6585,9 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         ret = GGML_STATUS_FAILED;
         return nullptr;
     }
+    if (hotpath_profile) {
+        attention_prepare_us = ggml_time_us() - attention_prepare_start_us;
+    }
 
     auto * res = get_gf_res_prev();
     auto * gf  = res->get_gf();
@@ -6561,9 +6596,6 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     // in order to correctly reuse a graph, it's full topology has to be uniquely determined by these parameters
     const auto gparams = graph_params(res, ubatch, mctx, gtype);
 
-    const char * hotpath_profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
-    const bool hotpath_profile = hotpath_profile_env != nullptr &&
-        std::strcmp(hotpath_profile_env, "1") == 0;
     const auto graph_decision_start = hotpath_profile
         ? std::chrono::steady_clock::now()
         : std::chrono::steady_clock::time_point{};
@@ -6633,9 +6665,10 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         if (hotpath_profile) {
             const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
                     std::chrono::steady_clock::now() - graph_build_start).count();
+            graph_build_elapsed_us = std::max<int64_t>(0, elapsed);
             kv_attention_execution.metrics_mutable().record_hotpath_time(
                     kv_attention_execution.metrics_mutable().graph_build_us,
-                    uint64_t(std::max<int64_t>(0, elapsed)));
+                    uint64_t(graph_build_elapsed_us));
         }
     }
 
@@ -6659,6 +6692,7 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     }
 
     // set the input data for the input tensors
+    const int64_t set_inputs_start_us = hotpath_profile ? ggml_time_us() : 0;
     try {
         // FIXME this call causes a crash if any model inputs were not used in the graph and were therefore not allocated
         res->set_inputs(&ubatch);
@@ -6695,8 +6729,15 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         }
         throw;
     }
+    if (hotpath_profile) {
+        set_inputs_us = ggml_time_us() - set_inputs_start_us;
+    }
 
+    const int64_t backend_submit_start_us = hotpath_profile ? ggml_time_us() : 0;
     const auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);
+    if (hotpath_profile) {
+        backend_submit_us = ggml_time_us() - backend_submit_start_us;
+    }
     if (status != GGML_STATUS_SUCCESS) {
         if (mctx) mctx->finish(false);
         LLAMA_LOG_ERROR("%s: failed to compute graph, compute status: %d\n", __func__, status);
@@ -6704,7 +6745,25 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         return nullptr;
     }
 
+    const int64_t retained_state_start_us = hotpath_profile ? ggml_time_us() : 0;
     if (mctx) mctx->finish(true);
+    if (hotpath_profile) {
+        retained_state_us = ggml_time_us() - retained_state_start_us;
+        const llama_pos first_position = ubatch.n_tokens != 0 && ubatch.pos != nullptr
+            ? ubatch.pos[0] : -1;
+        const llama_pos last_position = ubatch.n_tokens != 0 && ubatch.pos != nullptr
+            ? ubatch.pos[size_t(ubatch.n_tokens - 1) * std::max<uint32_t>(1, ubatch.n_pos)] : -1;
+        LLAMA_LOG_INFO("hotpath stage=context_ubatch tokens=%u first_pos=%" PRId64
+                " last_pos=%" PRId64 " graph_reuse=%d apply_us=%" PRId64
+                " attention_prepare_us=%" PRId64 " graph_build_us=%" PRId64
+                " set_inputs_us=%" PRId64 " backend_submit_us=%" PRId64
+                " retained_state_us=%" PRId64 " total_us=%" PRId64 "\n",
+                ubatch.n_tokens, int64_t(first_position), int64_t(last_position),
+                graph_reuse ? 1 : 0,
+                apply_us, attention_prepare_us, graph_build_elapsed_us,
+                set_inputs_us, backend_submit_us, retained_state_us,
+                ggml_time_us() - ubatch_start_us);
+    }
 
     ret = GGML_STATUS_SUCCESS;
 
@@ -8426,17 +8485,20 @@ ggml_status llama_context::graph_compute(
     int n_threads        = batched ? cparams.n_threads_batch : cparams.n_threads;
     ggml_threadpool_t tp = batched ? threadpool_batch        : threadpool;
 
-    if (backend_cpu != nullptr) {
-        auto * reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(backend_cpu));
-        auto * set_threadpool_fn = (decltype(ggml_backend_cpu_set_threadpool) *) ggml_backend_reg_get_proc_address(reg, "ggml_backend_cpu_set_threadpool");
-        if (set_threadpool_fn) {
-            set_threadpool_fn(backend_cpu, tp);
+    if (graph_thread_config.needs_update(n_threads, tp)) {
+        if (backend_cpu != nullptr) {
+            auto * reg = ggml_backend_dev_backend_reg(ggml_backend_get_device(backend_cpu));
+            auto * set_threadpool_fn = (decltype(ggml_backend_cpu_set_threadpool) *) ggml_backend_reg_get_proc_address(reg, "ggml_backend_cpu_set_threadpool");
+            if (set_threadpool_fn) {
+                set_threadpool_fn(backend_cpu, tp);
+            }
         }
-    }
 
-    // set the number of threads for all the backends
-    for (const auto & set_n_threads_fn : set_n_threads_fns) {
-        set_n_threads_fn.second(set_n_threads_fn.first, n_threads);
+        // Backend thread settings persist until the thread count or pool changes.
+        for (const auto & set_n_threads_fn : set_n_threads_fns) {
+            set_n_threads_fn.second(set_n_threads_fn.first, n_threads);
+        }
+        graph_thread_config.record(n_threads, tp);
     }
 
     const int64_t queue_start_us = ggml_time_us();
