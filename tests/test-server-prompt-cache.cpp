@@ -582,6 +582,10 @@ void test_live_rewind_near_tail_checkpoint_admission() {
         prompt_tokens, prompt_tokens - 4, prompt_tokens, false));
 }
 
+void test_server_batch_direct_assembly_contract() {
+    CHECK(server_batch_direct_assembly_contract_for_test());
+}
+
 void test_slot_frontier_logits_companion() {
     const auto result = server_slot_frontier_logits_for_test();
     CHECK(result.round_trip);
@@ -5802,6 +5806,7 @@ int main(int argc, char ** argv) {
     test_queue_yield_work_exception_precedes_callback_exception();
     test_speculative_decode_terminals();
     test_live_rewind_near_tail_checkpoint_admission();
+    test_server_batch_direct_assembly_contract();
     test_slot_frontier_logits_companion();
     test_fixed_host_pressure_shadow_records_counterfactual();
     test_fixed_host_shadow_uses_exact_cross_lineage_prefix();
