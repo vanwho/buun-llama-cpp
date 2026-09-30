@@ -21,6 +21,7 @@
 #include <vector>
 
 #undef NDEBUG
+#include <cassert>
 
 namespace {
 
@@ -1173,6 +1174,48 @@ static int run_proof() {
     for (size_t i = 0; i < reference_output.values.size(); ++i)
         max_error = std::max(max_error, std::abs(reference_output.values[i] - consumed_output.values[i]));
     assert(max_error < 2e-3f);
+
+    // Exercise the changed/unchanged final-user boundary with the actual CUDA
+    // selected-page mapping above. The provisional view is the three-page
+    // pre-publication map; the committed view is the two-page final map. Only
+    // the final query row is projected to deterministic target logits.
+    const auto provisional_records = old_snapshot.pages();
+    assert(provisional_records.size() == 3 && target.size() == 2);
+    std::vector<llama_kv_page_id> provisional_ids;
+    for (const auto & record : provisional_records) provisional_ids.push_back(record.id);
+    const auto k_provisional = pack_pages(fixture, provisional_ids, 0, 0);
+    const auto v_provisional = pack_pages(fixture, provisional_ids, 0, 1);
+    auto provisional_output = run_dense_fa(
+        backend, q_host, k_provisional, v_provisional, uint32_t(provisional_ids.size()) * page_tokens);
+    constexpr size_t query_width = size_t(q_heads) * head_dim;
+    auto target_logits = [](const dense_result & output) {
+        assert(output.values.size() == query_width * 3);
+        std::vector<float> logits(16, 0.0f);
+        for (size_t token = 0; token < logits.size(); ++token) {
+            for (size_t i = 0; i < query_width; ++i) {
+                const float weight = float(int((token + 3 * i) % 17) - 8) / 8.0f;
+                logits[token] += output.values[2 * query_width + i] * weight;
+            }
+        }
+        return logits;
+    };
+    const auto final_logits = target_logits(consumed_output);
+    const auto single_pass_logits = target_logits(reference_output);
+    const auto provisional_logits = target_logits(provisional_output);
+    assert(std::all_of(provisional_logits.begin(), provisional_logits.end(),
+        [](float value) { return std::isfinite(value); }));
+    float logits_error = 0.0f;
+    for (size_t i = 0; i < final_logits.size(); ++i)
+        logits_error = std::max(logits_error, std::abs(final_logits[i] - single_pass_logits[i]));
+    assert(logits_error < 2e-3f);
+
+    auto argmax_token = [](const std::vector<float> & logits) {
+        return uint32_t(std::max_element(logits.begin(), logits.end()) - logits.begin());
+    };
+    assert(argmax_token(final_logits) == argmax_token(single_pass_logits));
+    std::cout << "selected_final_map_cuda_attention_parity=pass pages=3->2 "
+        << "max_logit_error=" << logits_error << "\n";
+    free_dense(provisional_output);
     auto perturbed = v_reference;
     const auto winner_target = std::find_if(target.begin(), target.end(),
         [&](const auto & record) { return record.id == cold_it->id; });
@@ -1233,8 +1276,7 @@ static int run_proof() {
         "cuda_deterministic_selector_transaction_integration=pass mature_fa_consumption_parity=pass "
         "seed=0x%llx winner_logical=%u margin=%.6f copy_bytes=%llu "
         "published_epoch=%llu owner_generation=%llu checksum=0x%llx "
-        "reference_tolerance=0.002 perturb_delta=%.6f n_q=1,2,3 prefill=pass "
-        "query_checkpoint_restore_and_mapping=pass\n",
+        "reference_tolerance=0.002 perturb_delta=%.6f n_q=1,2,3 prefill=pass\n",
         (unsigned long long) seed, winner_logical, margin,
         (unsigned long long) promotion.transaction.h2d_counters.copied_useful_bytes,
         (unsigned long long) promotion.published_epoch,
