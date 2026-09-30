@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "task": "100-03h",
+  "source_commit": "0d540ff65a38d0e4708c69926c9bbbd1e88c3c89",
+  "checks": {
+    "mtp_first_divergence_classified_and_state_sound": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "--target",
+        "llama-server",
+        "test-speculative-mtp-state",
+        "test-kv-attention-execution",
+        "-j2"
+      ],
+      "classification": "selected_history_mtp_verify_nan_logits; repaired automatic MTP route selects packed attention for incomplete causal history while retaining dense for complete history",
+      "live_result": {
+        "prompt": "bounded canonical prompt 0",
+        "prompt_tokens": 4329,
+        "completion_tokens": 80,
+        "drafted": 54,
+        "accepted": 47,
+        "rejected": 7,
+        "restore_failures": 0,
+        "multirow_target_logits_finite": true,
+        "multirow_events": 6
+      },
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/build-repair.log",
+          "sha256": "74cf7158911dbfcc307b3d7e0f9fa42b307c9f939f4289677534abc7bb39cde5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/test-speculative-mtp-state-repair.log",
+          "sha256": "e20d645916ad811ff035508ad50bba4343e3c0fc5a9bea7b13032a9bef9c610d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/test-kv-attention-execution-repair.log",
+          "sha256": "731edc8a75362e637d18acd189548c15023a1a9167c4d9a6b9841b3c8e5ac643"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/divergence-classification.json",
+          "sha256": "e8785065925a14d6505c4e3e11af2cfdbae349e302bcc786a493c92cc647f4bc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/repaired-bounded-p0.summary.json",
+          "sha256": "0729abe202b1de36ba319f721c87cd8e7a7a7256a2d0846fd7a5a34c569558d0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/repaired-bounded-p0.response.json",
+          "sha256": "587676dce4e61ada6da7066d851db1058fdc08b5770619f9a6ad02608370cf23"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/repaired-bounded-p0.slots.json",
+          "sha256": "610cc96b0e7b1ad65d92a54c1b413449d3f481b3cf39f2df0e30f73daba56fbd"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/repaired-mtp-events.json",
+          "sha256": "3eeecc7a57c9ec0393cd45982086f2ac13df6614658bc14c6aafcf622e3f268c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/repaired-journal.log",
+          "sha256": "cfbe5b965c2ca1fd7e8e22a8a9f2bd14ba1f908e2f2e2eed18c6f6184ed0ed2f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/identity.sha256",
+          "sha256": "39d7a0c04180d150d647c3bb7d915b190c977a45305c16ec5cf6d3070c6a94b5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/candidate-manifest.txt",
+          "sha256": "e1b827429409cddf9480baa1c617f939fc5b5c04eab37e87f27c2a7806b2ba11"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/final-mapped-project-files.txt",
+          "sha256": "b39d0a7aaa581aadf4bc379191b800646fb56718c4d68229d5e64df5be84d97b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/final-run-meta.txt",
+          "sha256": "09eb9fe2e1255da2c8adca77339824778bf8a1175bc9f1c4eaa8311cca00ad90"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/candidate-ldd.txt",
+          "sha256": "57f136af0e5ca3900954bd33cf5a068f5ea88f5f1a61210863aab4d5b16e3988"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03h/attempt-01/final-health.json",
+          "sha256": "a29ee2b15c494311c52521766e44af56a3ad2248e7a8ab465e5206463c13d288"
+        }
+      ]
+    }
+  }
+}

@@ -1635,3 +1635,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03g`
 - Commit at update: `ca116dcb6`
 - Summary: Measured canonical host sealing at 2.945% of fresh prefill with exact valid-byte transfer; CUDA pager and promotion fixtures pass, so production sealing remains unchanged.
+
+## 2026-09-30T05:20:50+00:00 — 100-03h — done
+
+- Branch: `codex/task-100-03h`
+- Commit at update: `0d540ff65`
+- Summary: Classified selected-history MTP verification NaNs and repaired automatic route selection; focused state/route tests and repaired bounded live row pass

@@ -745,6 +745,20 @@ static void test_view_sized_scratch_contract() {
     assert(execution.planned_route(metadata(snapshot(), 1, 1, { 0 }, 255),
             llama_kv_attention_execution_phase::decode, true, true, true) ==
            llama_kv_attention_execution_route::selected_dense);
+    const auto full_history_snapshot = snapshot_slots(5, 1, 7, 601);
+    const auto complete_mtp_history = metadata(full_history_snapshot,
+            3, 1, { 2, 1, 0 }, 600, 24, 4);
+    const auto bounded_mtp_history = metadata(full_history_snapshot,
+            3, 1, { 2, 0 }, 600, 24, 4);
+    assert(complete_mtp_history.get_n_kv() == 601);
+    assert(bounded_mtp_history.get_n_kv() < 601);
+    assert(execution.planned_route(complete_mtp_history,
+            llama_kv_attention_execution_phase::mtp_verify, true, true, true) ==
+           llama_kv_attention_execution_route::selected_dense);
+    assert(execution.planned_route(bounded_mtp_history,
+            llama_kv_attention_execution_phase::mtp_verify, true, true, true) ==
+           llama_kv_attention_execution_route::selected_packed);
+    std::fprintf(stdout, "mtp_sparse_history_route=pass complete=dense bounded=packed\n");
     const auto standard_dense = metadata(snapshot(), 1, 1, { 0 }, 255, 16, 4,
             GGML_TYPE_Q4_0, GGML_TYPE_Q4_0);
     const auto standard_dense_view = llama_kv_attention_dense_view_check(standard_dense, 8);
