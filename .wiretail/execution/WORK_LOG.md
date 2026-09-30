@@ -1617,3 +1617,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03e`
 - Commit at update: `2a9fa49bc`
 - Summary: Task started
+
+## 2026-09-30T04:29:09+00:00 — 100-03e — done
+
+- Branch: `codex/task-100-03e`
+- Commit at update: `80baf015f`
+- Summary: Added and verified opt-in CPU hotpath attribution; deterministic fixture and one authenticated prompt-2 request captured with candidate identity, request-local counters, phase reconciliation, and restored service. Deferred: live graph rebuild reason buckets were all zero despite 46 rebuild decisions; legacy adapter pager scrape failed after the successful HTTP request.

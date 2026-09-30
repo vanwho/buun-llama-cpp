@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "task": "100-03e",
+  "source_commit": "80baf015f09519754f76a2648218660a9dedd6fe",
+  "checks": {
+    "request_local_hotpath_attribution": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-attention-execution"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/test-kv-attention-execution.log",
+          "sha256": "eaec338f6beb58a8eb3e1aa7a172eead1e797e3f54f99ad1ea89b3ad2fd37fbb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/request-local-attribution.json",
+          "sha256": "220c427ded2a7130de72f3f096bf3018b7b27b8229169125c0a98864e8a49012"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/phase-us.json",
+          "sha256": "879ff39854f3168df570182e4deeec985f5105516f3eb862d307fa9127da556b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/raw/off-measured-1-p1.json",
+          "sha256": "4f512cc68a3b5b5c093cfcf2b1fa3d462b0856650058b1dfadbca4367b75a970"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/records.jsonl",
+          "sha256": "9a56a4f67495983797d02c96725de840f2d69680440df9a0f42fc15e26b1b01c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/case-state.jsonl",
+          "sha256": "c647db0708b7927f9cbfcd8c9cc696f35d9bb0da9528779aacdd7b82c4a1b32b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/run-config.json",
+          "sha256": "f5e66fc92c8c534b5b45911fd052eecfa801642fb1ba20e808d28e9596e0efb2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/bundle-manifest.json",
+          "sha256": "805fe3b78a4dbbcb37ce101fb2e03adec1c2a20b90bcea86e61cb04ac622be21"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/slot-baseline.json",
+          "sha256": "3a692c95de8016a82e705831230b3f06b2a1fbf83e39eccc9d3b819f0462a446"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/slot-post-request.json",
+          "sha256": "99ad109b32b5eb961b0a6303010e8354a785c045de913629e75eb87008709f24"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/slot-processing.json",
+          "sha256": "0088fdfabac8966fa811d35ccf3a94eabf9efd23157a98d1083e657f701e67cf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/profile-env-capture.json",
+          "sha256": "5d92feff5295483fe68e119d1aaf3701d8a1cc318558ab2a1a60b4dd75d8dab9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/restored-process-identity.json",
+          "sha256": "89ea088cc950e53444d4ac980c4dad6274810a184cce3d169a66ba5ce7f130a0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/gpu-samples.csv",
+          "sha256": "9fb292defe755502d76fe5d1ca1779cd360050820c6f387c19045bf80400b642"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/candidate-bundle/build-receipt.json",
+          "sha256": "9ceefc41acb02423225b7565fdfb5e0deba0aa17de55016a68d57f9e577257eb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/candidate-version.txt",
+          "sha256": "590fa789c85b247e02ac13149e920c73a82a8f881e1ed0e6da51a8686255528e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/candidate-help-retry.log",
+          "sha256": "5c83c37207e35e457a9ad290e660945c2fa3d1a48d3fba9abbb72ca87d048365"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/build-full-corrected.log",
+          "sha256": "4079e52af97f342d90fb1a5e81a8b37910531972c75240adbd060aa528e50e49"
+        }
+      ]
+    }
+  }
+}
