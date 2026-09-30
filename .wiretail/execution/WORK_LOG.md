@@ -1641,3 +1641,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03h`
 - Commit at update: `0d540ff65`
 - Summary: Classified selected-history MTP verification NaNs and repaired automatic route selection; focused state/route tests and repaired bounded live row pass
+
+## 2026-09-30T05:49:13+00:00 — 100-03i — done
+
+- Branch: `codex/task-100-03i`
+- Commit at update: `891a483aa`
+- Summary: measured goal_miss with hashed Stage 1 rows; scheduled 100-03j repair before 100-04

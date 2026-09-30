@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "100",
-  "current_task": "100-03i",
-  "last_updated_utc": "2026-09-30T05:21:05+00:00",
+  "current_task": "100-03j",
+  "last_updated_utc": "2026-09-30T05:51:04+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -29487,7 +29487,7 @@
       "cluster": "forward100-final",
       "title": "Run the minimal matched three-prompt speed decision and schedule repair if needed",
       "packet": ".wiretail/execution/tasks/100-03i.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -29518,6 +29518,88 @@
         "--receipt",
         ".wiretail/execution/evidence/V10_100-03i.json"
       ],
+      "commit": "891a483aaaa5d7a7a616580e52ac42ad59984474",
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03i-attempt-1-20260930T052128058014107-20260930T052128060557606-8ly8fc.jsonl:139",
+            "total_tokens": 6721523,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 6654299,
+            "cached_input_tokens": 6448128,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 206171,
+            "output_tokens": 67224,
+            "thinking_tokens": 40356
+          }
+        ],
+        "totals": {
+          "usage_events": 1,
+          "total_tokens": 6721523,
+          "input_tokens": 6654299,
+          "cached_input_tokens": 6448128,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 206171,
+          "output_tokens": 67224,
+          "thinking_tokens": 40356,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 1,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      }
+    },
+    {
+      "id": "100-03j",
+      "phase": "100",
+      "cluster": "forward100-final",
+      "title": "Reduce repeated live-rewind checkpoint materialization in prefill",
+      "packet": ".wiretail/execution/tasks/100-03j.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "post100-hotpath-20260930",
+      "depends_on": [
+        "100-03i"
+      ],
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-final.md",
+        ".wiretail/execution/tasks/100-03j.md",
+        ".wiretail/execution/tasks/100-03i.md",
+        ".wiretail/execution/forward/HOTPATH_POST100.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/100-03i.md",
+        "tools/server/server-context.cpp",
+        "tests/test-server-prompt-cache.cpp",
+        "tools/server/bench/run-pager-profile-benchmark.py"
+      ],
+      "required_proofs": [
+        "live_rewind_checkpoint_prefill_repair"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03j",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03j.json"
+      ],
       "commit": null
     },
     {
@@ -29541,7 +29623,7 @@
         "final_candidate_natural_promotion_mtp"
       ],
       "depends_on": [
-        "100-03i"
+        "100-03j"
       ],
       "context_files": [
         ".wiretail/execution/clusters/forward100-final.md",
@@ -31584,16 +31666,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 29,
-        "total_tokens": 576014068,
-        "input_tokens": 572879683,
-        "cached_input_tokens": 557561344,
+        "usage_events": 30,
+        "total_tokens": 582735591,
+        "input_tokens": 579533982,
+        "cached_input_tokens": 564009472,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 15318339,
-        "output_tokens": 3134385,
-        "thinking_tokens": 1596063,
+        "input_tokens_minus_cached_tokens": 15524510,
+        "output_tokens": 3201609,
+        "thinking_tokens": 1636419,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 29,
+        "total_tokens_derived_events": 30,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -31608,17 +31690,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 428,
-      "total_tokens": 9207816602,
-      "input_tokens": 9181047565,
-      "cached_input_tokens": 8978612480,
+      "usage_events": 429,
+      "total_tokens": 9214538125,
+      "input_tokens": 9187701864,
+      "cached_input_tokens": 8985060608,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 74,
-      "input_tokens_minus_cached_tokens": 202435085,
-      "output_tokens": 26769037,
-      "thinking_tokens": 10994405,
+      "cache_write_input_tokens_known_events": 75,
+      "input_tokens_minus_cached_tokens": 202641256,
+      "output_tokens": 26836261,
+      "thinking_tokens": 11034761,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 428,
+      "total_tokens_derived_events": 429,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

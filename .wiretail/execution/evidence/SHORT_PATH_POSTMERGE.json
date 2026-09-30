@@ -1,0 +1,509 @@
+{
+  "artifact_index": {
+    "file_count": 131,
+    "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/artifact-index.json",
+    "sha256": "64f68d25ddcbbd687d7a8f734700225dc96abc102942b31650f523535dc6f6ed"
+  },
+  "candidate": {
+    "actual_argv": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/llama-server -m /srv/ai/models/text/current.gguf --alias qwen-3.8 -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --kv-pin-recent 0 --device cuda0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+    "binary_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/llama-server",
+    "binary_sha256": "6df0d99dd78135c8d27260c2bba193dd941ce1c20b7fd3475ca20711a8c87c19",
+    "build_receipt_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/build-receipt.json",
+    "build_receipt_sha256": "4186d3657ab8c0e55eb8483503cb2c74686e80588639c22e6f65b1e632bf0357",
+    "bundle_manifest_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/bundle-manifest.json",
+    "bundle_manifest_sha256": "eec41652e92b51491de1802fceca2dfdfd89b406bfc45d59bedf160b8bf44b71",
+    "health_http": 200,
+    "loaded_dsos": [
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/libggml-base.so.0",
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/libggml-cpu.so.0",
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/libggml-cuda.so.0",
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/libggml.so.0",
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/libllama-common.so.0",
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/libllama-server-impl.so",
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/libllama.so.0",
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/libmtmd.so.0",
+      "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/candidate-bundle/llama-server"
+    ],
+    "loaded_file_hashes": null,
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "server_pid": 3561713,
+    "source_commit": "0d540ff65a38d0e4708c69926c9bbbd1e88c3c89",
+    "source_diff_sha256": null,
+    "source_diff_status": "not captured by 100-03h; preserved as unknown",
+    "source_dirty_files": [
+      ".wiretail/execution/WORK_STATE.json",
+      "src/llama-kv-attention-execution.cpp",
+      "tests/test-kv-attention-execution.cpp",
+      "tests/test-speculative-mtp-state.cpp",
+      "tools/server/server-context.cpp"
+    ],
+    "source_dirty_status": "source commit and dirty file names are pinned by the 100-03h candidate manifest; unrecorded diff hash remains null"
+  },
+  "decision": "goal_miss",
+  "generated_utc": "2026-09-30T05:39:38.727702+00:00",
+  "goal_status": "miss",
+  "launch_record": {
+    "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/launch.json",
+    "sha256": "ddd93bc04ba3c9c1595b8c3988c9e13fa595659227a7a679f8932f385dca5437"
+  },
+  "limitations": {
+    "completion_token_eog": "actual finish reason recorded per row",
+    "controls": "not run because selected stage-1 floor failed",
+    "gpu_power_utilization": "not sampled per row",
+    "pager_counter_scope": "pager telemetry snapshots include cumulative counters; they are not treated as row-local deltas",
+    "peak_vram_ram": "not exposed per request in canonical record",
+    "request_bodies": "The canonical runner does not emit outbound request bodies to disk. The compact JSON request files were reconstructed from its payload template, exact prompts, and frozen prefix; hashes and construction method are in the request manifest.",
+    "request_local_stage_breakdown": "only total fresh prefill is timed; checkpoint, selector, view preparation, kernel and transfer sub-stages are not exposed per request",
+    "ttft": "not exposed per request"
+  },
+  "measurement_complete": true,
+  "observed_stage1_cost": {
+    "checkpoint_log": "per-row journals show repeated live-rewind checkpoint creation/replacement during each 4.3K-token fresh prefill; see raw_artifacts",
+    "fresh_prefill_ms": [
+      20561.456,
+      20539.912,
+      20554.787
+    ],
+    "fresh_prefill_tok_s": [
+      210.5395649024077,
+      210.6143395356319,
+      210.51057352236245
+    ],
+    "hypothesis": "Repeated near-end live-rewind checkpoint materialization may contribute materially to fresh prefill: five reported checkpoint images per measured 4.3K-token prompt, each about 151-154 MiB. Request timings do not isolate checkpoint wall time; this is a source-directed hypothesis, not a proven attribution.",
+    "live_rewind_checkpoints": [
+      {
+        "checkpoint_creations": 5,
+        "checkpoints": [
+          {
+            "pos_max": 1129,
+            "pos_min": 1129,
+            "reported_image_size_mib": 150.81,
+            "tokens": 1130
+          },
+          {
+            "pos_max": 4068,
+            "pos_min": 4068,
+            "reported_image_size_mib": 153.837,
+            "tokens": 4069
+          },
+          {
+            "pos_max": 4298,
+            "pos_min": 4298,
+            "reported_image_size_mib": 154.074,
+            "tokens": 4299
+          },
+          {
+            "pos_max": 4321,
+            "pos_min": 4321,
+            "reported_image_size_mib": 154.097,
+            "tokens": 4322
+          },
+          {
+            "pos_max": 4324,
+            "pos_min": 4324,
+            "reported_image_size_mib": 154.1,
+            "tokens": 4325
+          }
+        ],
+        "interpretation": "request-local checkpoint creation signal; image-size sum is not measured copy traffic or time",
+        "prompt_index": 0,
+        "query_replay_log_lines": 1,
+        "raw_journal_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.journal.log",
+        "raw_journal_sha256": "8c84a157fa526c1c15b5e240d3db308336283f13bf21e0d937643cd598149b80",
+        "reported_image_size_sum_mib": 766.918
+      },
+      {
+        "checkpoint_creations": 5,
+        "checkpoints": [
+          {
+            "pos_max": 1129,
+            "pos_min": 1129,
+            "reported_image_size_mib": 150.81,
+            "tokens": 1130
+          },
+          {
+            "pos_max": 4065,
+            "pos_min": 4065,
+            "reported_image_size_mib": 153.834,
+            "tokens": 4066
+          },
+          {
+            "pos_max": 4298,
+            "pos_min": 4298,
+            "reported_image_size_mib": 154.074,
+            "tokens": 4299
+          },
+          {
+            "pos_max": 4318,
+            "pos_min": 4318,
+            "reported_image_size_mib": 154.094,
+            "tokens": 4319
+          },
+          {
+            "pos_max": 4321,
+            "pos_min": 4321,
+            "reported_image_size_mib": 154.097,
+            "tokens": 4322
+          }
+        ],
+        "interpretation": "request-local checkpoint creation signal; image-size sum is not measured copy traffic or time",
+        "prompt_index": 1,
+        "query_replay_log_lines": 1,
+        "raw_journal_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.journal.log",
+        "raw_journal_sha256": "a7d748f8da72a8f4e35f1136ca9fe9fc8d89734a8a972dbd278b8244d032031f",
+        "reported_image_size_sum_mib": 766.909
+      },
+      {
+        "checkpoint_creations": 5,
+        "checkpoints": [
+          {
+            "pos_max": 1129,
+            "pos_min": 1129,
+            "reported_image_size_mib": 150.81,
+            "tokens": 1130
+          },
+          {
+            "pos_max": 4066,
+            "pos_min": 4066,
+            "reported_image_size_mib": 153.835,
+            "tokens": 4067
+          },
+          {
+            "pos_max": 4298,
+            "pos_min": 4298,
+            "reported_image_size_mib": 154.074,
+            "tokens": 4299
+          },
+          {
+            "pos_max": 4319,
+            "pos_min": 4319,
+            "reported_image_size_mib": 154.095,
+            "tokens": 4320
+          },
+          {
+            "pos_max": 4322,
+            "pos_min": 4322,
+            "reported_image_size_mib": 154.098,
+            "tokens": 4323
+          }
+        ],
+        "interpretation": "request-local checkpoint creation signal; image-size sum is not measured copy traffic or time",
+        "prompt_index": 2,
+        "query_replay_log_lines": 1,
+        "raw_journal_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.journal.log",
+        "raw_journal_sha256": "fb90ff62ad7a26f424424581141c2c33e0740d15fdd3ccd00d9c4bf55090461f",
+        "reported_image_size_sum_mib": 766.912
+      }
+    ],
+    "median_tok_s": null,
+    "unattributed_substages": true
+  },
+  "request_manifest": {
+    "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/requests/manifest.json",
+    "request_body_sha256s": [
+      "1cfe07a3cffe1108fa9dc7bcc9c3379f666dab5c3c33e9297fa6581d354c0e72",
+      "96d0346274aff2a59de6652d05b14d8b791e9ac106c4843bce6665f8f5e606a3",
+      "8ca4eba914c2dedfed87b736480dd3c410b5d9f107fe127d923893a76ccaee7d",
+      "a8db825700c7ef13e1c02f85ede6f54102ad9b0d6e0f46ca567b01bc4629836f",
+      "1fd9ee25e0378bf6638974aaafcb25c4e7e381be69fdf48246f9e8aa1da8c588",
+      "677b926351ddc2f6adb6bb04209e088bb604175b325150c975e9ef347fbafbd9"
+    ],
+    "sha256": "8f7a2fba44c2255be2ccd4fa43b2dac9665051b8fb980c4d708d3f776be46a34"
+  },
+  "revision": "post100-hotpath-20260930",
+  "schema_version": 1,
+  "source_raw_root": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01",
+  "stage1": {
+    "all_selected_rows_below_floor": true,
+    "cpu_control_rows": null,
+    "decision_is_based_on_individual_rows": true,
+    "dense_gpu_control_rows": null,
+    "mtp_acceptance_medians_percent": null,
+    "preferred_tok_s": 750,
+    "selected_cpu_decode_ratios": null,
+    "selected_dense_prompt_ratios": null,
+    "selected_fresh_prefill_floor_tok_s": 500,
+    "selected_prompt_medians_tok_s": null,
+    "selected_rows": [
+      {
+        "actual_output_tokens": 181,
+        "cached_tokens": 0,
+        "case_id": "big/off/measured/1/0",
+        "decode_ms": 4799.715,
+        "decode_tok_s": 37.50222669471,
+        "errors": 0,
+        "finish_reason": "stop",
+        "fresh_prefill_median_tok_s": null,
+        "fresh_prefill_ms": 20561.456,
+        "fresh_prefill_tok_s": 210.5395649024077,
+        "fresh_tokens": 4329,
+        "host_backed_inventory_entries_observed": 2,
+        "host_backed_inventory_position_ranges": [
+          [
+            0,
+            256
+          ],
+          [
+            256,
+            512
+          ]
+        ],
+        "http_total_seconds": 25.375092,
+        "mtp_acceptance_goal_met": false,
+        "mtp_acceptance_goal_percent": 75,
+        "mtp_acceptance_percent": 58.20895522,
+        "mtp_accepted": 78,
+        "mtp_drafted": 134,
+        "prompt": "write a python function that merges two sorted lists into one sorted list, with docstring.",
+        "prompt_exceeds_H_tokens": true,
+        "prompt_index": 0,
+        "prompt_tokens": 4329,
+        "raw_artifacts": [
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.json",
+            "sha256": "42e418dce22f1a9f257791cfd5cd31470eac22345e3632468bfdfc34ad5adc3e"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.preflight.json",
+            "sha256": "5214769c19419cd06f9518bd954771a22f0777539f8f15c57ed0c47f76c06388"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.mtp-before.prom",
+            "sha256": "919d1bca896f6f0c70d84c436e8cb99ad12c8a024ded04823d938242d15a025b"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.mtp-after.prom",
+            "sha256": "ade3f46d33228402446c5d3480915616bb1c9e465fcd2557e780501b72bdd0e2"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.mtp-before.json",
+            "sha256": "f5c65c485a86e182c0c0f830dac51d9e8f6d2323341f59f89c6d2ef7a55e94ba"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.mtp-after.json",
+            "sha256": "896542c9b8a38690325463baa2758129874b9f0cbc7ecc3e91d36162444aa3c2"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.slot-before.json",
+            "sha256": "76a0d8d35244ab72e44eb1f38ca84778837e2ac3d668506b0070789164a2af22"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.slot-after.json",
+            "sha256": "cdf7143a1f41339380cdb88723af2b3d188abdef06e9fc83ef41c9e6c3a4b7b9"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.journal.log",
+            "sha256": "8c84a157fa526c1c15b5e240d3db308336283f13bf21e0d937643cd598149b80"
+          }
+        ],
+        "request": {
+          "body_bytes": 17524,
+          "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/requests/measured-p0.json",
+          "sha256": "96d0346274aff2a59de6652d05b14d8b791e9ac106c4843bce6665f8f5e606a3"
+        },
+        "requested_output_tokens": 400,
+        "slot_telemetry_raw_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p0.slot-after.json",
+        "slot_telemetry_raw_sha256": "cdf7143a1f41339380cdb88723af2b3d188abdef06e9fc83ef41c9e6c3a4b7b9",
+        "ttft_ms": null,
+        "ttft_status": "not exposed by canonical runner"
+      },
+      {
+        "actual_output_tokens": 400,
+        "cached_tokens": 0,
+        "case_id": "big/off/measured/1/1",
+        "decode_ms": 18044.782,
+        "decode_tok_s": 22.111655325068487,
+        "errors": 0,
+        "finish_reason": "length",
+        "fresh_prefill_median_tok_s": null,
+        "fresh_prefill_ms": 20539.912,
+        "fresh_prefill_tok_s": 210.6143395356319,
+        "fresh_tokens": 4326,
+        "host_backed_inventory_entries_observed": 2,
+        "host_backed_inventory_position_ranges": [
+          [
+            0,
+            256
+          ],
+          [
+            256,
+            512
+          ]
+        ],
+        "http_total_seconds": 38.591624,
+        "mtp_acceptance_goal_met": false,
+        "mtp_acceptance_goal_percent": 40,
+        "mtp_acceptance_percent": 0.0,
+        "mtp_accepted": 0,
+        "mtp_drafted": 398,
+        "prompt": "explain the difference between mmap and read for loading large files, one paragraph.",
+        "prompt_exceeds_H_tokens": true,
+        "prompt_index": 1,
+        "prompt_tokens": 4326,
+        "raw_artifacts": [
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.json",
+            "sha256": "d2c6fe956125f3ed6e6da0644a87cbc3bc4264224384820c2ae0945214c21667"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.preflight.json",
+            "sha256": "a8dffc5df1f99b02f03aec08ee91af38ac41732a5f7e38ea741d8c312b25806e"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.mtp-before.prom",
+            "sha256": "53164aad442cdbe7142275d5bfa32befd5dd55a0e19aab65fe8567333763f594"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.mtp-after.prom",
+            "sha256": "b42b8507ef00c41dbaa25456c4aacc4725559bb024b801ff620b8bbf9cab92a8"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.mtp-before.json",
+            "sha256": "1bfabdf93afa0d7beb79343fb89129a2de2f3c2d859a8f67780c30eb8b838376"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.mtp-after.json",
+            "sha256": "47be13cfca42c2f919e6ace29b4effee8e2aad8d76c3cbebbdacf6e0d283a064"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.slot-before.json",
+            "sha256": "ac2392c3d3d0801ec1900193a9f633948aaaf5176cd592fd29164edc47a65a49"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.slot-after.json",
+            "sha256": "e8c2e31020408845ae031dcecdff4652e01b1c0ffd3818a16c07bba2e4670866"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.journal.log",
+            "sha256": "a7d748f8da72a8f4e35f1136ca9fe9fc8d89734a8a972dbd278b8244d032031f"
+          }
+        ],
+        "request": {
+          "body_bytes": 17518,
+          "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/requests/measured-p1.json",
+          "sha256": "a8db825700c7ef13e1c02f85ede6f54102ad9b0d6e0f46ca567b01bc4629836f"
+        },
+        "requested_output_tokens": 400,
+        "slot_telemetry_raw_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p1.slot-after.json",
+        "slot_telemetry_raw_sha256": "e8c2e31020408845ae031dcecdff4652e01b1c0ffd3818a16c07bba2e4670866",
+        "ttft_ms": null,
+        "ttft_status": "not exposed by canonical runner"
+      },
+      {
+        "actual_output_tokens": 400,
+        "cached_tokens": 0,
+        "case_id": "big/off/measured/1/2",
+        "decode_ms": 18066.143,
+        "decode_tok_s": 22.08551100254216,
+        "errors": 0,
+        "finish_reason": "length",
+        "fresh_prefill_median_tok_s": null,
+        "fresh_prefill_ms": 20554.787,
+        "fresh_prefill_tok_s": 210.51057352236245,
+        "fresh_tokens": 4327,
+        "host_backed_inventory_entries_observed": 2,
+        "host_backed_inventory_position_ranges": [
+          [
+            0,
+            256
+          ],
+          [
+            256,
+            512
+          ]
+        ],
+        "http_total_seconds": 38.627147,
+        "mtp_acceptance_goal_met": false,
+        "mtp_acceptance_goal_percent": 60,
+        "mtp_acceptance_percent": 0.0,
+        "mtp_accepted": 0,
+        "mtp_drafted": 398,
+        "prompt": "write a bash script that watches a directory and prints new files as they appear.",
+        "prompt_exceeds_H_tokens": true,
+        "prompt_index": 2,
+        "prompt_tokens": 4327,
+        "raw_artifacts": [
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.json",
+            "sha256": "4aa4baa420f7f7df9dd974cc1e9f88f9dee9ee4880ba9da927e54c4e61f29255"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.preflight.json",
+            "sha256": "d3648478959d326369f9e1c7ee5bb5aa7a7a713f8e580ed138efbcb151ec7e63"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.mtp-before.prom",
+            "sha256": "6f588c34df6b82c95ef987d6df023ad3880fe94269b7280ce642d2d3c8cd4513"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.mtp-after.prom",
+            "sha256": "16f6e29ad3e88d3ced0fd128fc17d28a7cc842224d9134746d64a75898643031"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.mtp-before.json",
+            "sha256": "1c065f22be45583dbc3741ed78e49893e8ede224ef3bfe462e5dd563f2ab1daa"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.mtp-after.json",
+            "sha256": "aeafb584fcfc4fbdf028b0dc7a12f5a36e761b09a7f45280f086123db8e30ac3"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.slot-before.json",
+            "sha256": "b857d94c74b28897eabcf6d832cff5bfb9e103a7e57d5e867e9853781b21fdad"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.slot-after.json",
+            "sha256": "f0bae1ea3f58ef8c6509010ad02f71c25359685ab593e12b24a495ba15855064"
+          },
+          {
+            "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.journal.log",
+            "sha256": "fb90ff62ad7a26f424424581141c2c33e0740d15fdd3ccd00d9c4bf55090461f"
+          }
+        ],
+        "request": {
+          "body_bytes": 17515,
+          "path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/requests/measured-p2.json",
+          "sha256": "677b926351ddc2f6adb6bb04209e088bb604175b325150c975e9ef347fbafbd9"
+        },
+        "requested_output_tokens": 400,
+        "slot_telemetry_raw_path": "/srv/ai/paged-kv/results/forward/100-03i/attempt-01/selected-stage1/raw/off-measured-1-p2.slot-after.json",
+        "slot_telemetry_raw_sha256": "f0bae1ea3f58ef8c6509010ad02f71c25359685ab593e12b24a495ba15855064",
+        "ttft_ms": null,
+        "ttft_status": "not exposed by canonical runner"
+      }
+    ],
+    "stage2_run": false
+  },
+  "stop_reason": "all selected Stage 1 prompts were below 500 tok/s; Stage 2 and controls were not run",
+  "task": "100-03i",
+  "typed_diagnostic": "goal_miss",
+  "workload": {
+    "batch_B": 1024,
+    "candidate_target": "qwen38-big",
+    "clear_slot_before_each_row": true,
+    "cold_host_backed_C_gt_H_observation": "For each row, fresh input tokens exceed H=4096 and the same post-row slot telemetry snapshot contains host_backed page inventory entries; see each row slot telemetry artifact.",
+    "context_L": 8192,
+    "fresh_slot": true,
+    "hot_H": 4096,
+    "measured_per_prompt": 1,
+    "mtp": "native full-L GPU Turbo4",
+    "mtp_nmax": 2,
+    "page_size": 256,
+    "prefix_messages_sha256": "ad528d87807f615a95b0694c0b0dd097e3facd24be14b71914a5ecf9694f4067",
+    "prefix_path": "/srv/ai/paged-kv/results/forward/100-03b/attempt-01/frozen-prefix-messages.json",
+    "prompts": [
+      "write a python function that merges two sorted lists into one sorted list, with docstring.",
+      "explain the difference between mmap and read for loading large files, one paragraph.",
+      "write a bash script that watches a directory and prints new files as they appear."
+    ],
+    "reasoning": "off",
+    "requested_output_tokens": 400,
+    "stage": 1,
+    "target_kv": "GPU Turbo4",
+    "temperature": 0,
+    "ubatch_U": 256,
+    "warmup_max_tokens": 40,
+    "warmups_per_prompt": 1
+  }
+}
