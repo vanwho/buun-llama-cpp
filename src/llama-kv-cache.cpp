@@ -2926,7 +2926,7 @@ void llama_kv_cache::seal_kv_pager_pages() {
             pager->record_diagnostic_seal_boundary_us(
                     uint64_t(std::max<int64_t>(0, elapsed)));
         }
-    } timer { pager_.get(), profile ? std::chrono::steady_clock::now()
+    } timer { pager_, profile ? std::chrono::steady_clock::now()
                                     : std::chrono::steady_clock::time_point{}, profile };
     if (pager_ != nullptr) {
         // Polling completion is cheap and does not touch the device source.
@@ -2987,7 +2987,7 @@ void llama_kv_cache::apply_pager_live_policy() noexcept {
                     std::chrono::steady_clock::now() - start).count();
             pager->record_diagnostic_policy_us(uint64_t(std::max<int64_t>(0, elapsed)));
         }
-    } timer { pager_.get(), profile ? std::chrono::steady_clock::now()
+    } timer { pager_, profile ? std::chrono::steady_clock::now()
                                     : std::chrono::steady_clock::time_point{}, profile };
     try {
         const auto turn = pager_->turn_state(pager_last_sequence_id_);

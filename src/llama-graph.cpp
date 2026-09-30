@@ -771,6 +771,8 @@ void llm_graph_input_attn_no_cache::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
     if (self_k_idxs_by_layer.empty()) {
         if (graph_input_allocated(self_k_idxs)) {
             mctx->set_input_k_idxs(self_k_idxs, ubatch);
@@ -996,7 +998,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                 ? ggml_time_us() : 0;
             uint64_t packed_bytes = 0;
             const auto record_current_append = [&](const packed_copy & copy) {
-                if (!timer.active || kv_attention_metrics == nullptr || !copy.current_rows) return;
+                if (!profile || kv_attention_metrics == nullptr || !copy.current_rows) return;
                 kv_attention_metrics->packed_current_append_rows =
                     kv_attention_metrics->packed_current_append_rows > UINT64_MAX - copy.row_count
                     ? UINT64_MAX
@@ -1091,7 +1093,7 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         }
                         packed_bytes = packed_bytes > UINT64_MAX - copy.bytes
                             ? UINT64_MAX : packed_bytes + copy.bytes;
-                        if (timer.active) {
+                        if (profile) {
                             kv_attention_metrics->packed_history_copy_bytes =
                                 kv_attention_metrics->packed_history_copy_bytes > UINT64_MAX - copy.bytes
                                 ? UINT64_MAX

@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+struct llama_kv_attention_execution_metrics;
+
 // This is an internal execution seam.  It deliberately does not add a public
 // C API: selection policy owns the page list, while this object owns the
 // prompt/decode route and the graph lifetime of the selected view.
