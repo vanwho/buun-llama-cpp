@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+struct llama_kv_attention_execution_metrics;
+
 // This is an internal execution seam.  It deliberately does not add a public
 // C API: selection policy owns the page list, while this object owns the
 // prompt/decode route and the graph lifetime of the selected view.
@@ -149,7 +151,8 @@ public:
             ggml_tensor * source_k,
             ggml_tensor * source_v,
             ggml_backend_t backend,
-            uint32_t row_capacity = 0) noexcept;
+            uint32_t row_capacity = 0,
+            llama_kv_attention_execution_metrics * metrics = nullptr) noexcept;
 
     void begin_graph_build() noexcept;
     // Discard owners created by the current graph build when graph
@@ -362,6 +365,22 @@ struct llama_kv_attention_execution_route_counts {
     void record(llama_kv_attention_execution_route route) noexcept;
 };
 
+enum class llama_kv_attention_graph_rebuild_reason : uint8_t {
+    other,
+    row_capacity,
+    physical_key,
+    content_key,
+    ubatch_shape,
+    source_lifetime,
+};
+
+llama_kv_attention_graph_rebuild_reason llama_kv_attention_graph_reason(
+        bool row_capacity_changed,
+        bool physical_key_changed,
+        bool content_key_changed,
+        bool ubatch_shape_changed,
+        bool source_lifetime_changed) noexcept;
+
 // These counters deliberately cover the backend-neutral admission boundary.
 // CUDA event timings are recorded by the backend fixture, while the live
 // context can add descriptor, token, kernel, and wait timings through the
@@ -376,6 +395,24 @@ struct llama_kv_attention_execution_metrics {
     // These counters describe the backend-neutral graph decision boundary.
     // They are intentionally separate from CUDA capture/update/launch events.
     uint64_t graph_construction_us = 0;
+    // Opt-in CPU-side attribution counters. They are populated only when
+    // LLAMA_HOTPATH_PROFILE=1 and never synchronize a backend.
+    uint64_t graph_reuse_decisions = 0;
+    uint64_t graph_rebuild_decisions = 0;
+    uint64_t graph_reuse_us = 0;
+    uint64_t graph_build_us = 0;
+    uint64_t route_decision_us = 0;
+    uint64_t selected_refresh_us = 0;
+    uint64_t packed_cache_lookup_us = 0;
+    uint64_t packed_cache_allocations = 0;
+    uint64_t packed_cache_reuses = 0;
+    uint64_t packed_cache_drains = 0;
+    uint64_t rebuild_reason_row_capacity = 0;
+    uint64_t rebuild_reason_physical_key = 0;
+    uint64_t rebuild_reason_content_key = 0;
+    uint64_t rebuild_reason_ubatch_shape = 0;
+    uint64_t rebuild_reason_source_lifetime = 0;
+    uint64_t rebuild_reason_other = 0;
     uint64_t requested_ubatch = 0;
     uint64_t physical_write_capacity = 0;
     uint64_t effective_ubatch = 0;
@@ -391,6 +428,9 @@ struct llama_kv_attention_execution_metrics {
     // graph allocation and incremental copy work visible beside the normal H
     // ledger instead of presenting only a kernel-time counter.
     uint64_t packed_storage_bytes = 0;
+    uint64_t packed_history_copy_bytes = 0;
+    uint64_t packed_current_append_rows = 0;
+    uint64_t packed_current_append_bytes = 0;
     uint64_t packed_copy_updates = 0;
     uint64_t packed_copy_rows = 0;
     uint64_t packed_copy_reuses = 0;
@@ -456,6 +496,10 @@ struct llama_kv_attention_execution_metrics {
         graph_construction_us = graph_construction_us > UINT64_MAX - elapsed_us
             ? UINT64_MAX : graph_construction_us + elapsed_us;
     }
+    void record_hotpath_time(uint64_t & counter, uint64_t elapsed_us) noexcept {
+        counter = counter > UINT64_MAX - elapsed_us ? UINT64_MAX : counter + elapsed_us;
+    }
+    void record_graph_rebuild_reason(llama_kv_attention_graph_rebuild_reason reason) noexcept;
     void record_effective_ubatch(uint64_t value) noexcept {
         effective_ubatch = value;
     }

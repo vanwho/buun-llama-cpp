@@ -1893,6 +1893,10 @@ struct server_query_checkpoint {
     bool pager_enabled = false;
     uint64_t pager_table_epoch = 0;
     uint64_t pager_representation_epoch = 0;
+    uint64_t capture_us = 0;
+    uint64_t restore_us = 0;
+    uint64_t replay_start_us = 0;
+    uint64_t replay_us = 0;
     bool carry_required = false;
     std::vector<uint8_t> target_recurrent;
     std::vector<uint8_t> draft_recurrent;
@@ -1909,6 +1913,10 @@ struct server_query_checkpoint {
         pager_enabled = false;
         pager_table_epoch = 0;
         pager_representation_epoch = 0;
+        capture_us = 0;
+        restore_us = 0;
+        replay_start_us = 0;
+        replay_us = 0;
         carry_required = false;
         target_recurrent.clear();
         draft_recurrent.clear();
@@ -1920,6 +1928,21 @@ struct server_query_checkpoint {
             uint64_t request_id, uint64_t generation, llama_pos begin,
             int64_t processed_tokens, bool require_mtp_carry) noexcept {
         clear();
+        const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+        const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+        struct profile_timer {
+            uint64_t & result;
+            std::chrono::steady_clock::time_point start;
+            bool active;
+            ~profile_timer() {
+                if (!active) return;
+                const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                        std::chrono::steady_clock::now() - start).count();
+                const uint64_t value = uint64_t(std::max<int64_t>(0, elapsed));
+                result = result > UINT64_MAX - value ? UINT64_MAX : result + value;
+            }
+        } timer { capture_us, profile ? std::chrono::steady_clock::now()
+                                     : std::chrono::steady_clock::time_point{}, profile };
         if (target == nullptr || seq_id < 0 || request_id == 0 ||
                 generation == 0 || begin < 0 || processed_tokens != begin) {
             return false;
@@ -1980,6 +2003,21 @@ struct server_query_checkpoint {
             common_speculative * speculative, llama_seq_id seq_id,
             uint64_t request_id, uint64_t generation,
             const char ** failure_reason = nullptr) noexcept {
+        const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+        const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+        struct profile_timer {
+            uint64_t & result;
+            std::chrono::steady_clock::time_point start;
+            bool active;
+            ~profile_timer() {
+                if (!active) return;
+                const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                        std::chrono::steady_clock::now() - start).count();
+                const uint64_t value = uint64_t(std::max<int64_t>(0, elapsed));
+                result = result > UINT64_MAX - value ? UINT64_MAX : result + value;
+            }
+        } timer { restore_us, profile ? std::chrono::steady_clock::now()
+                                     : std::chrono::steady_clock::time_point{}, profile };
         if (failure_reason != nullptr) *failure_reason = "unknown";
         if (state == phase::restored) {
             return turn_id == request_id && session_generation == generation &&
@@ -3836,6 +3874,9 @@ struct server_slot {
             {"speculative",   can_speculate()},
             {"is_processing", is_processing()},
             {"query_replay_count", query_replay_count},
+            {"query_checkpoint_capture_us", query_checkpoint.capture_us},
+            {"query_checkpoint_restore_us", query_checkpoint.restore_us},
+            {"query_replay_us", query_checkpoint.replay_us},
             {"pager_frozen_history_generation", pager_frozen_history_generation},
             {"computation_frontier_ratchet", {
                 {"read_path", frontier_ratchet_flipped ? "frontier" : "legacy"},
@@ -4634,6 +4675,31 @@ public:
                     {"graph_submission_count", pager.execution.graph_submission_count},
                     {"graph_completion_count", pager.execution.graph_completion_count},
                     {"graph_construction_us", pager.execution.graph_construction_us},
+                    {"hotpath_profile_enabled",
+                        std::getenv("LLAMA_HOTPATH_PROFILE") != nullptr &&
+                        std::strcmp(std::getenv("LLAMA_HOTPATH_PROFILE"), "1") == 0},
+                    {"hotpath_graph_reuse_decisions", pager.execution.graph_reuse_decisions},
+                    {"hotpath_graph_rebuild_decisions", pager.execution.graph_rebuild_decisions},
+                    {"hotpath_graph_reuse_us", pager.execution.graph_reuse_us},
+                    {"hotpath_graph_build_us", pager.execution.graph_build_us},
+                    {"hotpath_route_decision_us", pager.execution.route_decision_us},
+                    {"hotpath_rebuild_reason_row_capacity",
+                        pager.execution.rebuild_reason_row_capacity},
+                    {"hotpath_rebuild_reason_physical_key",
+                        pager.execution.rebuild_reason_physical_key},
+                    {"hotpath_rebuild_reason_content_key",
+                        pager.execution.rebuild_reason_content_key},
+                    {"hotpath_rebuild_reason_ubatch_shape",
+                        pager.execution.rebuild_reason_ubatch_shape},
+                    {"hotpath_rebuild_reason_source_lifetime",
+                        pager.execution.rebuild_reason_source_lifetime},
+                    {"hotpath_rebuild_reason_other",
+                        pager.execution.rebuild_reason_other},
+                    {"hotpath_selected_refresh_us", pager.execution.selected_refresh_us},
+                    {"hotpath_packed_cache_lookup_us", pager.execution.packed_cache_lookup_us},
+                    {"hotpath_packed_cache_allocations", pager.execution.packed_cache_allocations},
+                    {"hotpath_packed_cache_reuses", pager.execution.packed_cache_reuses},
+                    {"hotpath_packed_cache_drains", pager.execution.packed_cache_drains},
                     {"requested_batch", params_base.n_batch},
                     {"requested_ubatch", pager.execution.requested_ubatch},
                     {"physical_write_capacity", pager.execution.physical_write_capacity},
@@ -4653,6 +4719,9 @@ public:
                     {"table_epoch_changes", pager.execution.table_epoch_changes},
                     {"table_upload_bytes", pager.execution.table_upload_bytes},
                     {"packed_storage_bytes", pager.execution.packed_storage_bytes},
+                    {"packed_history_copy_bytes", pager.execution.packed_history_copy_bytes},
+                    {"packed_current_append_rows", pager.execution.packed_current_append_rows},
+                    {"packed_current_append_bytes", pager.execution.packed_current_append_bytes},
                     {"packed_copy_updates", pager.execution.packed_copy_updates},
                     {"packed_copy_rows", pager.execution.packed_copy_rows},
                     {"packed_copy_reuses", pager.execution.packed_copy_reuses},
@@ -4811,6 +4880,13 @@ public:
                     {"host_seal_d2h_bytes", pager.host_seal_d2h_bytes},
                     {"host_seal_d2h_async_completions", pager.host_seal_d2h_async_completions},
                     {"host_seal_queued", pager.host_seal_queued},
+                    {"hotpath_seal_us", pager.diagnostic_seal_us},
+                    {"hotpath_seal_boundary_us", pager.diagnostic_seal_boundary_us},
+                    {"hotpath_policy_us", pager.diagnostic_policy_us},
+                    {"hotpath_host_enqueue_us", pager.diagnostic_host_enqueue_us},
+                    {"hotpath_host_completion_us", pager.diagnostic_host_completion_us},
+                    {"hotpath_queue_wait_us", pager.diagnostic_queue_wait_us},
+                    {"hotpath_queue_waits", pager.diagnostic_queue_waits},
                     {"host_inflight_pages", pager.host_inflight_pages},
                     {"inventory_copy_count", pager.inventory_copy_count},
                     {"store_copy_count", pager.store_copy_count},
@@ -21521,6 +21597,11 @@ private:
                                 slot.release();
                                 return;
                             }
+                            const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+                            if (profile_env != nullptr && std::strcmp(profile_env, "1") == 0) {
+                                slot.query_checkpoint.replay_start_us =
+                                    uint64_t(std::max<int64_t>(0, ggml_time_us()));
+                            }
                             slot.prompt.tokens.keep_first(size_t(query_begin));
                             slot.query_replay_pending = true;
                             ++slot.query_replay_count;
@@ -21536,6 +21617,15 @@ private:
                             slot.query_replay_pending &&
                             int64_t(slot.prompt.n_tokens()) == query_end) {
                         slot.query_replay_pending = false;
+                        if (slot.query_checkpoint.replay_start_us != 0) {
+                            const uint64_t now_us = uint64_t(std::max<int64_t>(0, ggml_time_us()));
+                            const uint64_t elapsed = now_us >= slot.query_checkpoint.replay_start_us
+                                ? now_us - slot.query_checkpoint.replay_start_us : 0;
+                            slot.query_checkpoint.replay_us =
+                                slot.query_checkpoint.replay_us > UINT64_MAX - elapsed
+                                ? UINT64_MAX : slot.query_checkpoint.replay_us + elapsed;
+                            slot.query_checkpoint.replay_start_us = 0;
+                        }
                         SLT_INF(slot, "query replay: completed replay_count=%u\n",
                             slot.query_replay_count);
                     }

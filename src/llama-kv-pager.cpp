@@ -6,7 +6,10 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <new>
 #include <utility>
@@ -2389,6 +2392,23 @@ void llama_kv_pager::rebuild_maintenance_queue() noexcept {
 }
 
 void llama_kv_pager::drain_host_completions() noexcept {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    struct completion_timer {
+        llama_kv_pager * pager;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~completion_timer() {
+            if (!active || pager == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            const uint64_t value = uint64_t(std::max<int64_t>(0, elapsed));
+            pager->diagnostic_host_completion_us_ =
+                pager->diagnostic_host_completion_us_ > UINT64_MAX - value
+                ? UINT64_MAX : pager->diagnostic_host_completion_us_ + value;
+        }
+    } timer { this, profile_env != nullptr && std::strcmp(profile_env, "1") == 0
+            ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{},
+        profile_env != nullptr && std::strcmp(profile_env, "1") == 0 };
     if (host_ && host_->async_enabled()) {
         std::vector<llama_kv_pager_host_completion> completed;
         host_->drain(completed);
@@ -2530,6 +2550,22 @@ void llama_kv_pager::poll_host_completions() noexcept {
 }
 
 uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+    struct seal_timer {
+        llama_kv_pager * pager;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~seal_timer() {
+            if (!active || pager == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            const uint64_t value = uint64_t(std::max<int64_t>(0, elapsed));
+            pager->diagnostic_seal_us_ = pager->diagnostic_seal_us_ > UINT64_MAX - value
+                ? UINT64_MAX : pager->diagnostic_seal_us_ + value;
+        }
+    } timer { this, profile ? std::chrono::steady_clock::now()
+                            : std::chrono::steady_clock::time_point{}, profile };
     const bool queued_work = !maintenance_queue_complete_ ||
         !maintenance_page_indices_.empty() || !maintenance_processing_indices_.empty();
     if (!queued_work && (!host_ || !host_->completion_ready())) return 0;
@@ -2647,16 +2683,33 @@ uint32_t llama_kv_pager::seal_ready_pages(bool publish_catalogue) noexcept {
                     page.record = previous;
                     continue;
                 }
+                const auto enqueue_start = profile ? std::chrono::steady_clock::now()
+                                                   : std::chrono::steady_clock::time_point{};
                 auto result = full && host_->async_enabled()
                     ? host_->enqueue(page.record, page.content_version)
                     : host_->seal(page.record);
+                if (profile) {
+                    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                            std::chrono::steady_clock::now() - enqueue_start).count();
+                    const uint64_t value = uint64_t(std::max<int64_t>(0, elapsed));
+                    diagnostic_host_enqueue_us_ = diagnostic_host_enqueue_us_ > UINT64_MAX - value
+                        ? UINT64_MAX : diagnostic_host_enqueue_us_ + value;
+                }
                 if (result.status == llama_kv_pager_host_status::ring_unavailable &&
                         full && host_->async_enabled()) {
                     // Backpressure only when the bounded capture queue has no
                     // safe slot for another immutable page snapshot. The worker
                     // drains independently while the next prefill chunk runs;
                     // waiting here is limited to actual queue exhaustion.
+                    const auto wait_start = std::chrono::steady_clock::now();
                     (void) host_->wait();
+                    const auto wait_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                            std::chrono::steady_clock::now() - wait_start).count();
+                    const uint64_t wait_value = uint64_t(std::max<int64_t>(0, wait_elapsed));
+                    diagnostic_queue_waits_ = diagnostic_queue_waits_ == UINT64_MAX
+                        ? UINT64_MAX : diagnostic_queue_waits_ + 1;
+                    diagnostic_queue_wait_us_ = diagnostic_queue_wait_us_ > UINT64_MAX - wait_value
+                        ? UINT64_MAX : diagnostic_queue_wait_us_ + wait_value;
                     drain_host_completions();
                     result = host_->enqueue(page.record, page.content_version);
                 }

@@ -6,6 +6,7 @@
 #include "ggml.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <limits>
 
@@ -397,7 +398,23 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         ggml_tensor * source_k,
         ggml_tensor * source_v,
         ggml_backend_t backend,
-        uint32_t row_capacity) noexcept {
+        uint32_t row_capacity,
+        llama_kv_attention_execution_metrics * metrics) noexcept {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+    const auto profile_start = profile ? std::chrono::steady_clock::now()
+                                       : std::chrono::steady_clock::time_point{};
+    const auto record_profile = [&](bool reused, bool allocated) {
+        if (!profile || metrics == nullptr) return;
+        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - profile_start).count();
+        metrics->record_hotpath_time(metrics->packed_cache_lookup_us,
+                uint64_t(std::max<int64_t>(0, elapsed)));
+        if (reused) metrics->packed_cache_reuses = saturating_add(
+                metrics->packed_cache_reuses, uint64_t(1));
+        if (allocated) metrics->packed_cache_allocations = saturating_add(
+                metrics->packed_cache_allocations, uint64_t(1));
+    };
     if (source_k == nullptr || source_v == nullptr || backend == nullptr || pages.empty()) {
         return nullptr;
     }
@@ -434,6 +451,7 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
             update_slots(*cached, pages);
             cached->representation_epoch = representation_epoch;
             cached->current_graph_use = true;
+            record_profile(true, false);
             return cached.get();
         } catch (...) {
             return nullptr;
@@ -500,9 +518,14 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         for (auto & previous : entries_) {
             if (!previous->draining && same_domain(*previous, layer_id, sequence_id, backend)) {
                 previous->draining = true;
+                if (profile && metrics != nullptr) {
+                    metrics->packed_cache_drains = saturating_add(
+                            metrics->packed_cache_drains, uint64_t(1));
+                }
             }
         }
         entries_.push_back(std::move(cached));
+        record_profile(false, true);
         if (graph_build_active_) {
             try {
                 graph_build_entries_.push_back(entries_.back().get());
@@ -642,6 +665,40 @@ void llama_kv_attention_execution_route_counts::record(
     }
 }
 
+llama_kv_attention_graph_rebuild_reason llama_kv_attention_graph_reason(
+        bool row_capacity_changed,
+        bool physical_key_changed,
+        bool content_key_changed,
+        bool ubatch_shape_changed,
+        bool source_lifetime_changed) noexcept {
+    if (row_capacity_changed) return llama_kv_attention_graph_rebuild_reason::row_capacity;
+    if (physical_key_changed) return llama_kv_attention_graph_rebuild_reason::physical_key;
+    if (content_key_changed) return llama_kv_attention_graph_rebuild_reason::content_key;
+    if (ubatch_shape_changed) return llama_kv_attention_graph_rebuild_reason::ubatch_shape;
+    if (source_lifetime_changed) return llama_kv_attention_graph_rebuild_reason::source_lifetime;
+    return llama_kv_attention_graph_rebuild_reason::other;
+}
+
+void llama_kv_attention_execution_metrics::record_graph_rebuild_reason(
+        llama_kv_attention_graph_rebuild_reason reason) noexcept {
+    uint64_t * counter = nullptr;
+    switch (reason) {
+        case llama_kv_attention_graph_rebuild_reason::row_capacity:
+            counter = &rebuild_reason_row_capacity; break;
+        case llama_kv_attention_graph_rebuild_reason::physical_key:
+            counter = &rebuild_reason_physical_key; break;
+        case llama_kv_attention_graph_rebuild_reason::content_key:
+            counter = &rebuild_reason_content_key; break;
+        case llama_kv_attention_graph_rebuild_reason::ubatch_shape:
+            counter = &rebuild_reason_ubatch_shape; break;
+        case llama_kv_attention_graph_rebuild_reason::source_lifetime:
+            counter = &rebuild_reason_source_lifetime; break;
+        case llama_kv_attention_graph_rebuild_reason::other:
+            counter = &rebuild_reason_other; break;
+    }
+    if (counter != nullptr) *counter = saturating_add(*counter, uint64_t(1));
+}
+
 void llama_kv_attention_execution_metrics::record_wait_time_us(uint64_t elapsed_us) noexcept {
     wait_time_us = saturating_add(wait_time_us, elapsed_us);
 }
@@ -747,6 +804,21 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         bool direct_capable,
         bool dense_capable,
         bool packed_capable) const noexcept {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    struct route_timer {
+        llama_kv_attention_execution_metrics * metrics;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~route_timer() {
+            if (!active || metrics == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            metrics->record_hotpath_time(metrics->route_decision_us,
+                    uint64_t(std::max<int64_t>(0, elapsed)));
+        }
+    } timer { &metrics_, profile_env != nullptr && std::strcmp(profile_env, "1") == 0
+            ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{},
+        profile_env != nullptr && std::strcmp(profile_env, "1") == 0 };
     if (mode_ == llama_kv_attention_execution_mode::off) {
         return llama_kv_attention_execution_route::dense;
     }

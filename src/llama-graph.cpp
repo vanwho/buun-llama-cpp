@@ -19,6 +19,10 @@
 #include "llama-memory-hybrid-iswa.h"
 #include "llama-memory-recurrent.h"
 
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+
 llm_graph_input_attn_kv::~llm_graph_input_attn_kv() {
     // A scheduler allocation or input-binding failure can destroy the graph
     // input before submission. Cancel provisional packed owners; pager writes
@@ -767,6 +771,8 @@ void llm_graph_input_attn_no_cache::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
     if (self_k_idxs_by_layer.empty()) {
         if (graph_input_allocated(self_k_idxs)) {
             mctx->set_input_k_idxs(self_k_idxs, ubatch);
@@ -991,6 +997,17 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             const int64_t pack_start = kv_attention_metrics && update_selected
                 ? ggml_time_us() : 0;
             uint64_t packed_bytes = 0;
+            const auto record_current_append = [&](const packed_copy & copy) {
+                if (!profile || kv_attention_metrics == nullptr || !copy.current_rows) return;
+                kv_attention_metrics->packed_current_append_rows =
+                    kv_attention_metrics->packed_current_append_rows > UINT64_MAX - copy.row_count
+                    ? UINT64_MAX
+                    : kv_attention_metrics->packed_current_append_rows + copy.row_count;
+                kv_attention_metrics->packed_current_append_bytes =
+                    kv_attention_metrics->packed_current_append_bytes > UINT64_MAX - copy.bytes
+                    ? UINT64_MAX
+                    : kv_attention_metrics->packed_current_append_bytes + copy.bytes;
+            };
             if (initialize_selected && kv_attention_metrics != nullptr) {
                 uint64_t storage_bytes = 0;
                 for (const auto & layer : packed_layers) {
@@ -1033,10 +1050,12 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                             // historical rows. The graph writes every new
                             // current row directly into the packed owner;
                             // avoid replaying the unchanged prefix here.
+                            record_current_append(copy);
                             continue;
                         }
                         if (copy.current_rows && cached_version == UINT64_MAX) {
                             // The first graph write supplies the current row.
+                            record_current_append(copy);
                             continue;
                         }
                         // Source and destination page views are graph-owned
@@ -1074,6 +1093,12 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         }
                         packed_bytes = packed_bytes > UINT64_MAX - copy.bytes
                             ? UINT64_MAX : packed_bytes + copy.bytes;
+                        if (profile) {
+                            kv_attention_metrics->packed_history_copy_bytes =
+                                kv_attention_metrics->packed_history_copy_bytes > UINT64_MAX - copy.bytes
+                                ? UINT64_MAX
+                                : kv_attention_metrics->packed_history_copy_bytes + copy.bytes;
+                        }
                     }
                 }
                 if (kv_attention_metrics != nullptr && packed_bytes != 0) {
@@ -1278,8 +1303,20 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
     this->mctx = mctx;
 
     bool res = true;
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+    bool reason_recorded = false;
+    const auto record_rebuild_reason = [&](llama_kv_attention_graph_rebuild_reason reason) {
+        if (!profile || kv_attention_metrics == nullptr) return;
+        kv_attention_metrics->record_graph_rebuild_reason(reason);
+        reason_recorded = true;
+    };
 
-    res &= self_k_idxs->ne[0] == params.ubatch.n_tokens;
+    const bool ubatch_shape_changed = self_k_idxs->ne[0] != params.ubatch.n_tokens;
+    if (ubatch_shape_changed) {
+        record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::ubatch_shape);
+    }
+    res &= !ubatch_shape_changed;
   //res &= self_v_idxs->ne[0] == params.ubatch.n_tokens; // TODO: need to move this to the unified cache and check there
 
     const bool exact_wave = params.kv_attention_exact_plan != nullptr;
@@ -1322,15 +1359,18 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
             // into a graph whose packed owner is now too small.
             if (llama_kv_attention_packed_row_capacity(metadata, page_tokens) !=
                     packed_row_capacity) {
+                record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::row_capacity);
                 return false;
             }
         }
         if ((dense || packed) && metadata.graph_physical_key() !=
                 selected_metadata.graph_physical_key()) {
+            record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::physical_key);
             return false;
         }
         if (metadata.graph_content_key() != selected_content_key &&
                 !refresh_selected_data(metadata)) {
+            record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::content_key);
             return false;
         }
         selected_metadata = metadata;
@@ -1396,11 +1436,28 @@ bool llm_graph_input_attn_kv::can_reuse(const llm_graph_params & params) {
         res &= (direct_page_mass != nullptr) == telemetry_enabled;
     }
 
+    if (!res && !reason_recorded) {
+        record_rebuild_reason(llama_kv_attention_graph_rebuild_reason::other);
+    }
     return res;
 }
 
 bool llm_graph_input_attn_kv::refresh_selected_data(
         const llama_kv_attention_operator_metadata & metadata) {
+    struct hotpath_timer {
+        llama_kv_attention_execution_metrics * metrics;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~hotpath_timer() {
+            if (!active || metrics == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            metrics->record_hotpath_time(metrics->selected_refresh_us,
+                    uint64_t(std::max<int64_t>(0, elapsed)));
+        }
+    } timer { kv_attention_metrics, std::chrono::steady_clock::now(),
+        std::getenv("LLAMA_HOTPATH_PROFILE") != nullptr &&
+        std::strcmp(std::getenv("LLAMA_HOTPATH_PROFILE"), "1") == 0 };
     if (!selected_attention || exact_wave_attention || !metadata.valid()) {
         return false;
     }
@@ -4549,7 +4606,7 @@ static std::unique_ptr<llm_graph_input_attn_kv> build_attn_inp_kv_impl(
                 layer.cache_entry = packed_cache->find_or_create(layer_id, sequence_id,
                         mctx_cur->get_vbr_epoch(), layer.source_lifetime_epoch,
                         selected_metadata->page_table(), source_k, source_v, packed_backend,
-                        layer.row_capacity);
+                        layer.row_capacity, kv_attention_metrics);
                 if (layer.cache_entry == nullptr) {
                     throw std::runtime_error("packed selected attention allocation failed");
                 }

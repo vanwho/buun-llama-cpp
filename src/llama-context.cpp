@@ -1275,6 +1275,13 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.eviction_pages = kv_pager_owner->eviction_pages();
     result.query_refresh_count = kv_pager_owner->query_refresh_count();
     result.seal_calls = kv_pager_owner->seal_calls();
+    result.diagnostic_seal_us = kv_pager_owner->diagnostic_seal_us();
+    result.diagnostic_seal_boundary_us = kv_pager_owner->diagnostic_seal_boundary_us();
+    result.diagnostic_policy_us = kv_pager_owner->diagnostic_policy_us();
+    result.diagnostic_host_enqueue_us = kv_pager_owner->diagnostic_host_enqueue_us();
+    result.diagnostic_host_completion_us = kv_pager_owner->diagnostic_host_completion_us();
+    result.diagnostic_queue_wait_us = kv_pager_owner->diagnostic_queue_wait_us();
+    result.diagnostic_queue_waits = kv_pager_owner->diagnostic_queue_waits();
     result.seal_pages_scanned = kv_pager_owner->seal_pages_scanned();
     result.seal_pages_changed = kv_pager_owner->seal_pages_changed();
     result.summary_build_calls = kv_pager_owner->summary_build_calls();
@@ -6554,7 +6561,27 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
     // in order to correctly reuse a graph, it's full topology has to be uniquely determined by these parameters
     const auto gparams = graph_params(res, ubatch, mctx, gtype);
 
-    if (!graph_reuse_disable && gf_res_prev_active == res && res->can_reuse(gparams)) {
+    const char * hotpath_profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool hotpath_profile = hotpath_profile_env != nullptr &&
+        std::strcmp(hotpath_profile_env, "1") == 0;
+    const auto graph_decision_start = hotpath_profile
+        ? std::chrono::steady_clock::now()
+        : std::chrono::steady_clock::time_point{};
+    const bool graph_reuse = !graph_reuse_disable && gf_res_prev_active == res &&
+        res->can_reuse(gparams);
+    if (hotpath_profile) {
+        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - graph_decision_start).count();
+        kv_attention_execution.metrics_mutable().record_hotpath_time(
+                kv_attention_execution.metrics_mutable().graph_reuse_us,
+                uint64_t(std::max<int64_t>(0, elapsed)));
+        auto & count = graph_reuse
+            ? kv_attention_execution.metrics_mutable().graph_reuse_decisions
+            : kv_attention_execution.metrics_mutable().graph_rebuild_decisions;
+        count = count == UINT64_MAX ? UINT64_MAX : count + 1;
+    }
+
+    if (graph_reuse) {
         //LLAMA_LOG_DEBUG("%s: reusing previous graph\n", __func__);
 
         // with pipeline parallelism, the previous graph_compute_async may still be running
@@ -6566,6 +6593,9 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
 
         n_reused++;
     } else {
+        const auto graph_build_start = hotpath_profile
+            ? std::chrono::steady_clock::now()
+            : std::chrono::steady_clock::time_point{};
         try {
         gf_res_prev_active = nullptr;
         res->reset();
@@ -6600,6 +6630,13 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
         }
 
         gf_res_prev_active = res;
+        if (hotpath_profile) {
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - graph_build_start).count();
+            kv_attention_execution.metrics_mutable().record_hotpath_time(
+                    kv_attention_execution.metrics_mutable().graph_build_us,
+                    uint64_t(std::max<int64_t>(0, elapsed)));
+        }
     }
 
     // Staged DFlash decodes answer every eval-callback ask with "no" (hiddens are
