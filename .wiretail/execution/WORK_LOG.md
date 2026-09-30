@@ -1647,3 +1647,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03i`
 - Commit at update: `891a483aa`
 - Summary: measured goal_miss with hashed Stage 1 rows; scheduled 100-03j repair before 100-04
+
+## 2026-09-30T06:21:35+00:00 — 100-03j — done
+
+- Branch: `codex/task-100-03j`
+- Commit at update: `2a5b594ed`
+- Summary: Implemented and fixture-validated near-tail live-rewind checkpoint coalescing; selected prompt-2 retake passed integrity checks but measured 212.158 tok/s (+0.733% vs baseline), below the 500 tok/s goal. Scheduled 100-03k prefill timing repair before 100-04.

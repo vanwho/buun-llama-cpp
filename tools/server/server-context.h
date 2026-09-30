@@ -46,6 +46,15 @@ bool server_is_native_mtp_verification_batch(
     int32_t n_tokens,
     bool has_prompt_tokens) noexcept;
 
+// Live-rewind snapshots are needed at the final user seam and at the final
+// prefill rollback frontier. Near-end intermediate frontiers can be omitted
+// before serializing their target/draft state.
+bool server_live_rewind_checkpoint_admit(
+    int64_t checkpoint_frontier,
+    int64_t prompt_cursor,
+    int64_t prompt_tokens,
+    bool required_user_seam) noexcept;
+
 // The page authority is deliberately single-slot until its multi-sequence
 // accounting and publication proof are complete.  The off/observe paths do
 // not acquire that authority and therefore retain ordinary multi-slot use.

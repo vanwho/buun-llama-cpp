@@ -1455,6 +1455,25 @@ bool server_is_native_mtp_verification_batch(
     return native_mtp_configured && n_tokens > 1 && !has_prompt_tokens;
 }
 
+bool server_live_rewind_checkpoint_admit(
+        int64_t checkpoint_frontier,
+        int64_t prompt_cursor,
+        int64_t prompt_tokens,
+        bool required_user_seam) noexcept {
+    if (required_user_seam) {
+        return true;
+    }
+
+    // The prompt scheduler deliberately leaves the final four tokens outside
+    // the checkpointed frontier. That exact image is the newest safe prefill
+    // rollback point for native MTP. Capturing earlier near-tail batches only
+    // replaces this image without adding a distinct seam or rollback point.
+    return prompt_tokens >= 4 &&
+        checkpoint_frontier == prompt_tokens - 4 &&
+        checkpoint_frontier >= 0 &&
+        checkpoint_frontier < prompt_cursor;
+}
+
 namespace {
 
 // Pager authority is intentionally narrower than ordinary VBR/prompt-cache
@@ -23133,6 +23152,17 @@ private:
                     //       yet processed and therefore it is not part of the checkpoint.
                     const int ckpt_id_task = slot.task->id;
                     const int64_t ckpt_n_tokens = slot.prompt.n_tokens() - n_tokens_cur;
+                    if (do_checkpoint && live_rewind_checkpoint &&
+                            near_prompt_end && !typed_swa_checkpoint &&
+                            !server_live_rewind_checkpoint_admit(
+                                ckpt_n_tokens, slot.prompt.n_tokens(),
+                                slot.task->n_tokens(), is_last_user_message)) {
+                        // Avoid materializing intermediate near-tail copies.
+                        // The final-user seam remains eligible above, while
+                        // only the scheduler's final four-token boundary may
+                        // publish the newest live MTP rollback image.
+                        do_checkpoint = false;
+                    }
                     if (do_checkpoint && typed_swa_checkpoint) {
                         // A natural multi-slot batch may leave fewer than four
                         // tokens. The deferred near-end capture below already

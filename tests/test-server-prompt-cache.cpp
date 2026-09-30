@@ -549,6 +549,39 @@ void test_speculative_decode_terminals() {
     CHECK(reset.idle_prompt_preserved);
 }
 
+void test_live_rewind_near_tail_checkpoint_admission() {
+    // The measured second 4.3K-token prompt has a final-user seam at 4299
+    // and near-tail frontiers 4319 and 4322. Retain the seam and only the
+    // newest image (prompt_tokens - 4) before the expensive snapshot is staged.
+    const int64_t prompt_tokens = 4326;
+    const int64_t final_user_seam = 4299;
+    CHECK(server_live_rewind_checkpoint_admit(
+        final_user_seam, 4300, prompt_tokens, true));
+
+    size_t staged_near_tail = 0;
+    int64_t retained_rollback_frontier = -1;
+    const int64_t observed_near_tail[] = { 4066, 4319, 4322 };
+    const int64_t cursors[] = { 4070, 4322, 4325 };
+    for (size_t i = 0; i < sizeof(observed_near_tail) /
+            sizeof(observed_near_tail[0]); ++i) {
+        if (!server_live_rewind_checkpoint_admit(
+                observed_near_tail[i], cursors[i], prompt_tokens, false)) {
+            continue;
+        }
+        staged_near_tail++;
+        retained_rollback_frontier = observed_near_tail[i];
+    }
+    CHECK(staged_near_tail == 1);
+    CHECK(retained_rollback_frontier == 4322);
+
+    // An adjacent earlier frontier is skipped before it can create another
+    // snapshot; a completed or malformed frontier is never admitted.
+    CHECK(!server_live_rewind_checkpoint_admit(
+        4321, prompt_tokens - 4, prompt_tokens, false));
+    CHECK(!server_live_rewind_checkpoint_admit(
+        prompt_tokens, prompt_tokens - 4, prompt_tokens, false));
+}
+
 void test_slot_frontier_logits_companion() {
     const auto result = server_slot_frontier_logits_for_test();
     CHECK(result.round_trip);
@@ -5768,6 +5801,7 @@ int main(int argc, char ** argv) {
     test_idle_capture_refuses_active_queue_yield();
     test_queue_yield_work_exception_precedes_callback_exception();
     test_speculative_decode_terminals();
+    test_live_rewind_near_tail_checkpoint_admission();
     test_slot_frontier_logits_companion();
     test_fixed_host_pressure_shadow_records_counterfactual();
     test_fixed_host_shadow_uses_exact_cross_lineage_prefix();

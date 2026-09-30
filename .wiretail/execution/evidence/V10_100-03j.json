@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "task": "100-03j",
+  "source_commit": "2a5b594ed5b398bc7326ad25be646ffe474f96db",
+  "decision": "goal_miss",
+  "measurement_evidence": {
+    "path": ".wiretail/execution/evidence/SHORT_PATH_100-03J.json",
+    "sha256": "bede2ed34bb543c1b064215157afd87efb135e928bb3875cfcb1774d69640758"
+  },
+  "checks": {
+    "live_rewind_checkpoint_prefill_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-server-prompt-cache"
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/prompt-cache-fixture-final.log",
+          "sha256": "38f1ad90255f621c2c3f889d14d08f035d2172680b80b0401fc262d6c62bfb43"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/records.jsonl",
+          "sha256": "31ca6d92e5de233e98daa8de8a36596c26e9b8906f51d1a64efb18a82a1756c2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/case-manifest.json",
+          "sha256": "71ce6216290a6b578bf94e025f4c7c87bf008482caaaa7f5c5317818c3c75541"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/run-config.json",
+          "sha256": "0ccd7b34035a534370d5722a14125e4a3ebfa99f664bdac5c8d9e8ac0f3ef860"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/lifecycle-state.json",
+          "sha256": "989f8a186d0bdedc7b8c217c4f9651562d0a645970a2f6656488ed4cd3f27ec6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/summary.json",
+          "sha256": "87e160e3565ad0e5e2bc9cfa0a35d807281c7171c4089c7b7f0e9cf6cefd4332"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.json",
+          "sha256": "58cfaeabc8dcaef10b51a80accda2ce3fc632e7558886085b22149af8ca91528"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.journal.log",
+          "sha256": "d03c7651e8a0554582ef6c33c579268aca0954739e3daa37a4e0f79a13fc1daf"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-before.prom",
+          "sha256": "51058547ed26210a8eaddd81faefec34a124d06a73b79e827ddeba8662558670"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-after.prom",
+          "sha256": "b88c6c39641db23b785decf55866919e34b4c039f45c913b84299d175f9b044d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.slot-before.json",
+          "sha256": "9bab690c16e7a3335864e09d9d126534430f1bc90795bd3177b84f42fb487e3f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.slot-after.json",
+          "sha256": "9676799eeba8328dbf0fe865bbf4320d60310165e22d20e3a19ddccb6f7883f7"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/requests/measured-prompt-2.json",
+          "sha256": "a8db825700c7ef13e1c02f85ede6f54102ad9b0d6e0f46ca567b01bc4629836f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/requests/warmup-prompt-2.json",
+          "sha256": "8ca4eba914c2dedfed87b736480dd3c410b5d9f107fe127d923893a76ccaee7d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/requests/manifest.json",
+          "sha256": "e906295abefcffcf806ba2350fd23a62375a8437b38357e42ff4c0f0189ef89b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/candidate-identity-final.json",
+          "sha256": "ae1c88f02011516b264b192f90c1a8fbfd3f2ed81768c16aed2fbde235d21d9f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/candidate-bundle-final/build-receipt.json",
+          "sha256": "34c6e93ec03fc16638a4acdd31c18eae722c78794acf7d00d335736ed5331c7f"
+        }
+      ],
+      "retake": {
+        "status": "complete_goal_miss",
+        "prompt_index": 1,
+        "prefill_tokens_per_second": 212.15837156532467,
+        "floor_tokens_per_second": 500,
+        "adapter_exit_code": 0,
+        "adapter_validation": "passed",
+        "artifact_root": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final"
+      }
+    }
+  }
+}
