@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "task": "100-03j",
+  "proof": "live_rewind_checkpoint_prefill_repair",
+  "decision": "goal_miss",
+  "reason": "fresh prefill remains below the unchanged 500 tok/s floor",
+  "workload": {
+    "target": "big",
+    "profile": "qwen38-big",
+    "prompt_index": 1,
+    "prompt": "explain the difference between mmap and read for loading large files, one paragraph.",
+    "prompt_tokens": 4326,
+    "cached_tokens": 0,
+    "context_tokens": 8192,
+    "admission_horizon_tokens": 4096,
+    "page_size_tokens": 256,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "GPU Turbo4",
+    "mtp": "native GPU Turbo4, nmax=2",
+    "temperature": 0,
+    "reasoning": "off",
+    "clean_slot": true,
+    "warmups": 1,
+    "warmup_max_tokens": 40,
+    "measured_rows": 1,
+    "measured_max_tokens": 400
+  },
+  "candidate": {
+    "source_commit": "2a5b594ed5b398bc7326ad25be646ffe474f96db",
+    "source_diff_sha256": "3ae6a91df3ab7b0807c2359591424ae891f321aa0ada09a5827d0e4be0d43571",
+    "binary_sha256": "d0edda5f1d725988d9c2208187a888639184c64664640c3e3ead5bac896eca34",
+    "loaded_dso_hashes": {
+      "libggml-base.so.0": "b59e50ba4dda5f5f02cf0c82a7883a0be758ae530e1cc9c4473f6ff37bb0ea2c",
+      "libggml-cpu.so.0": "494ef1467cd59de7034dac41ba557f2ee634d319e08e502520ac8087b063dd5a",
+      "libggml-cuda.so.0": "b8b1087db9437236a573b949cae0342d7159a2b2b9344f166f4123097cc6a0bf",
+      "libggml.so.0": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798",
+      "libllama-common.so.0": "280f4019d2f4b5c184859b45f31549f4b517c7333caba2e8a3386fc4d88ca302",
+      "libllama-server-impl.so": "c52cd5a0a5e50b60b63429574fa450440a2f187b366a6141f418e925c6a4a784",
+      "libllama.so.0": "2b02c0a6ce907f39b578c9dc8889a48871a90f8077b4cb90a04553326b7f3286",
+      "libmtmd.so.0": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c"
+    },
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "frozen_prefix_sha256": "ad528d87807f615a95b0694c0b0dd097e3facd24be14b71914a5ecf9694f4067",
+    "build_receipt": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/candidate-bundle-final/build-receipt.json",
+    "runtime_identity_verified": true,
+    "active_binary": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/candidate-bundle-final/llama-server"
+  },
+  "checkpoint_observation": {
+    "baseline_created_frontiers": [
+      1130,
+      4066,
+      4299,
+      4319,
+      4322
+    ],
+    "repair_created_frontiers": [
+      1130,
+      4299,
+      4322
+    ],
+    "baseline_created_count": 5,
+    "repair_created_count": 3,
+    "created_images_reduced": 2,
+    "retained_final_user_seam_frontier": 4299,
+    "retained_newest_mtp_rollback_frontier": 4322,
+    "skipped_redundant_near_tail_frontiers": [
+      4066,
+      4319
+    ],
+    "image_size_signal_mib": [
+      150.81,
+      153.834,
+      154.074,
+      154.094,
+      154.097
+    ],
+    "limitation": "checkpoint image size is not measured copy bytes or wall-time attribution"
+  },
+  "comparison": {
+    "baseline_single_row_prefill_tokens_per_second": 210.6143395356319,
+    "repair_single_row_prefill_tokens_per_second": 212.15837156532467,
+    "change_percent": 0.733109,
+    "baseline_request_prefill_us": 20539912.0,
+    "repair_request_prefill_us": 20390428.0,
+    "speed_floor_tokens_per_second": 500,
+    "statistical_status": "one matched row per candidate; no medians or confidence interval"
+  },
+  "warmup": {
+    "completion_tokens": 40,
+    "prompt_tokens": 4326,
+    "prefill_tokens_per_second": 260.9143752120005,
+    "mtp_accepted": 18,
+    "mtp_drafted": 26
+  },
+  "measured": {
+    "http_code": 200,
+    "completion_tokens": 400,
+    "prompt_tokens": 4326,
+    "fresh_prefill_us": 20390428.0,
+    "fresh_prefill_tokens_per_second": 212.15837156532467,
+    "decode_tokens_per_second": 29.39815132046328,
+    "mtp_accepted": 105,
+    "mtp_drafted": 329,
+    "mtp_acceptance_percent": 31.91489362,
+    "case_key": "b674b98b2a00a47be19c533271b5d3645afec6efa86bc67f5b2f257bfe9b9055"
+  },
+  "pager_metrics": {
+    "faults": 0,
+    "evictions": 0,
+    "d2h_useful_bytes": 0,
+    "d2h_actual_bytes": 0,
+    "h2d_useful_bytes": 0,
+    "h2d_actual_bytes": 0,
+    "useful_prefetches": 0,
+    "copy_us": 0,
+    "wait_us": 7216650.0,
+    "queue_us": 4599950.0,
+    "peak_vram_bytes": 69206000.0,
+    "steady_vram_bytes": 0,
+    "peak_ram_bytes": 79833600.0,
+    "steady_ram_bytes": 79833600.0,
+    "selected_page_count": 1,
+    "kv_codec": "turbo4"
+  },
+  "limitations": [
+    "TTFT and request-local checkpoint capture duration are not exposed.",
+    "The canonical benchmark adapter does not persist outbound HTTP request bodies; request files are transparently marked as reconstructed payload records.",
+    "The retake remains far below the 500 tok/s floor; this is not a speed pass.",
+    "CPU/dense controls and Stage 2 were not run, per the task scope."
+  ],
+  "raw_root": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01",
+  "raw_artifacts": {
+    "run_config": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/run-config.json",
+    "lifecycle_state": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/lifecycle-state.json",
+    "case_manifest": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/case-manifest.json",
+    "records": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/records.jsonl",
+    "measured_response": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.json",
+    "measured_journal": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.journal.log",
+    "mtp_before": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-before.prom",
+    "mtp_after": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-after.prom",
+    "requests": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/selected-p2-retake-final/requests",
+    "fixture_output": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/prompt-cache-fixture-final.log",
+    "candidate_identity": "/srv/ai/paged-kv/results/forward/100-03j/attempt-01/candidate-identity-final.json"
+  }
+}
