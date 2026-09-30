@@ -1,5 +1,6 @@
 #include "llama-kv-attention-execution.h"
 #include "llama-graph.h"
+#include "llama-context.h"
 
 #include <cassert>
 #include <cstdio>
@@ -130,6 +131,18 @@ static void test_prefill_admission() {
             1, 1, true, {}, {}, false, true);
     assert(large_decision.status == llama_kv_attention_execution_status::ok);
     assert(large_decision.route == llama_kv_attention_execution_route::selected_packed);
+}
+
+static void test_graph_thread_config_cache() {
+    llama_context_graph_thread_config_cache cache;
+    auto pool_a = reinterpret_cast<ggml_threadpool_t>(uintptr_t(1));
+    auto pool_b = reinterpret_cast<ggml_threadpool_t>(uintptr_t(2));
+
+    assert(cache.needs_update(8, pool_a));
+    cache.record(8, pool_a);
+    assert(!cache.needs_update(8, pool_a));
+    assert(cache.needs_update(4, pool_a));
+    assert(cache.needs_update(8, pool_b));
 }
 
 static void test_query_pages_cover_cross_page_ubatch() {
@@ -1107,6 +1120,7 @@ static void test_committed_layer_union() {
 
 int main() {
     test_prefill_admission();
+    test_graph_thread_config_cache();
     test_query_pages_cover_cross_page_ubatch();
     test_routes_epochs_and_fences();
     test_packed_view_copy_intervals();

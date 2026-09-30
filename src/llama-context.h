@@ -402,6 +402,21 @@ struct dflash_capture_data {
     }
 };
 
+struct llama_context_graph_thread_config_cache {
+    bool initialized = false;
+    int n_threads = 0;
+    ggml_threadpool_t threadpool = nullptr;
+
+    bool needs_update(int threads, ggml_threadpool_t pool) const noexcept {
+        return !initialized || n_threads != threads || threadpool != pool;
+    }
+    void record(int threads, ggml_threadpool_t pool) noexcept {
+        initialized = true;
+        n_threads = threads;
+        threadpool = pool;
+    }
+};
+
 struct llama_context {
     // init scheduler and compute buffers, reserve worst-case graphs
     llama_context(
@@ -925,6 +940,11 @@ private:
 
     ggml_threadpool_t threadpool       = nullptr;
     ggml_threadpool_t threadpool_batch = nullptr;
+
+    // Backend thread settings persist across graph submissions. Cache the
+    // selected pair so repeated microbatches do not reconfigure unchanged
+    // backends on the hot path.
+    llama_context_graph_thread_config_cache graph_thread_config;
 
     ggml_abort_callback abort_callback      = nullptr;
     void *              abort_callback_data = nullptr;
