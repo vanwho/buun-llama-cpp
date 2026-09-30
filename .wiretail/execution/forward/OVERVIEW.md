@@ -1,30 +1,21 @@
 # Active forward implementation: turn-boundary retrieval and query replay
 
-Revision: `hotpath-v10-20260914`. Amendment: `post100-hotpath-20260930`.
+Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
 
-This is the authoritative contract for phases 94–102. The current amendment is
-`post100-hotpath-20260930`; read `HOTPATH_POST100.md` for the current measured
-failure boundary, KVMem comparison, pinned master merge and source-directed
-repair order. `REPAIR100.md` is historical context for completed 100-02a–f,
-not a restart instruction. It implements the fully
-read Sol handoff retained in `SOURCE_FORWARD_PLAN.md`; that long reference is
-not automatically loaded into task sessions. By the user's 2026-09-27 direction,
-the remaining legacy 93-11n campaign is deferred, not passed. 93-11o's completed
-selector repair and the existing uncommitted source work are preserved. Start
-from the first unfinished task named by `WORK_STATE.json`; after this amendment
-that is 100-03d. 100-02 is deferred with its query-page implementation and
-partial measurements preserved; it is not a passed campaign. Prior94–99
-implementation checkpoints and completed100-01 are preserved;95-03 is intentionally
-deferred. 94-01a repaired authenticated selection-to-admission under the new
-turn-boundary contract. Do not repeat the legacy A/B/A or require its failed
-receipt before implementing the current architecture. The unstarted 93-12/93-13
-packets remain removed. Final replay parity, cancellation and natural-promotion
-integration proof is owned by 100-04, before any phase-101 capacity scaling.
-Supersede accepted-token historical reselection and fixed route preferences.
+This is the authoritative architecture contract through phase103. The current
+execution amendment is `gpu-execution-101-20260930`; read `SPEED101.md` for the
+code findings, measured failure boundary and specific implementation order.
+Completed phase100 and HOTPATH_POST100/REPAIR100 are provenance, not startup
+instructions. Start at current_task in WORK_STATE; after this amendment it is
+101-01. The blocked100-04a audit is deferred, not passed: its useful code is
+preserved and101-10 owns actual integrated replay parity. Phase101 now repairs
+GPU execution before scale; former101 capacity tasks move to102, and the final
+review to103. Legacy93/95 incomplete proofs remain deferred and must not be
+reopened as gates. Preserve the already implemented turn-boundary architecture.
 
-Read `POLICY_ADMISSION_BASELINE.md` for the compact attempt-13 finding. The
-unchanged Sol source handoff is research provenance; its instruction to finish
-93-11n first is overridden by this explicit scheduling amendment.
+POLICY_ADMISSION_BASELINE and the long Sol handoff are historical research,
+not required startup context. Their legacy campaign/release ordering is
+overridden by this explicit scheduling amendment.
 
 ## Architecture decisions
 
@@ -79,11 +70,12 @@ card, service paths or these counts in portable production logic.
 | 98 | 98-01–02 | Inclusive host authority and batched async promotion |
 | 99 | 99-01–02 | Matched GPU kernel comparison; shape-aware production routes |
 | 100 | 100-01 done; 100-02 deferred; 100-02a–f; 100-03/a/b/c done; 100-03d–i; 100-04 | Merge synced master; request-local attribution; measured packed/host/MTP repair; minimal matched speed decision; small final replay/cancel proof |
-| 101 | 101-01–03 | 32K/16K, 128K, then full 256K occupancy and memory proof |
-| 102 | 102-01 | Goal assessment, useful final curve, concrete next remediation |
+| 101 | 101-01–12 | GPU attribution, fused Turbo4, parallel GDN, stable graphs, encoded copy, overlap, MTP device/alignment repair, real replay/promotion proof, canonical speed release |
+| 102 | 102-01–03 | 32K/16K, 128K, then full 256K occupancy and memory proof after GPU101_RELEASE passes |
+| 103 | 103-01 | Goal assessment, useful final curve, concrete next remediation |
 
 Optional follower-MTP and first-attention-Q one-pass experiments are fully
-specified in `OPTIONAL_ADVANCEMENTS.md`. Schedule them as phases 103/104 (or
+specified in `OPTIONAL_ADVANCEMENTS.md`. Schedule them as phases 104/105 (or
 next unused phases) only after the primary architecture is proven and the
 measured savings justify them. They do not delay primary success.
 
@@ -112,13 +104,13 @@ run prefills beyond H and fails during generation. Trace query-commit ownership
 and production batch preflight first. A fixed number of valid campaign rows
 is not a lifetime retry budget. Update scheduling/receipts before declaring done.
 
-The initial query replay and natural promotion work has partial live evidence;
-its complete one-pass parity and cancellation checks are delayed until the
-attention implementation and first speed campaign settle. The 100-03b paired
-campaign is a failed goal result; 100-03c's single post-edit row is diagnostic.
-100-03i produces the post-merge matched result and, on a miss, inserts one
-source-directed repair successor before 100-04. Do not scale until the
-short-path speed gate and 100-04 integrated correctness proof pass.
+Phase100 speed remains a goal miss (~212 fresh tok/s in the latest4K row).
+101-10 replaces the missing integrated parity proof;101-11 observes natural
+promotion on that implementation, and101-12 produces GPU101_RELEASE. Do not
+scale until this release actually passes. A measured miss inserts concrete
+101-12a/b... repairs and a renewed speed decision before102-01, never another
+unchanged audit of100-04a. No completed historical task substitutes for this
+current implementation's runtime proof.
 
 Primary goal remains 256K full logical/host history, bounded H, natural
 promotion, correct replay/freeze/ring, native GPU MTP, selected fresh prefill

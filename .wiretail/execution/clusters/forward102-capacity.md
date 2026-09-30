@@ -1,10 +1,10 @@
-# Cluster forward101-full-256k
+# Cluster forward102-capacity
 
 Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
-Tasks in this context area: `101-03`.
+Tasks in this context area: `102-01`, `102-02`.
 
-Purpose: Prove full 256K history, hot paging and full-L GPU Turbo4 MTP.
+Purpose: Prove 32K logical history with 16K hot capacity; Scale to occupied 128K with a measured bounded hot pool.
 
 Read the current packet and forward/OVERVIEW + forward/TESTING only, plus
 its explicit source regions and compact immediate-predecessor handoff.
@@ -21,7 +21,7 @@ from the actual model/device admission. Stage counters may not add CUDA fences.
 Use one managed Qwen process and preserve its verified candidate on success.
 
 Each packet specifies minimal tests. Broader canonical performance/scaling
-work belongs only to phases100/101. Bad measured speed creates a concrete
+work belongs only to phases101/102. Bad measured speed creates a concrete
 source repair/retest before scaling; missing/setup-invalid rows do not pass.
 New candidate semantics are validated by the task's executable named proofs.
 Handoffs contain current result/symbols/raw pointers, never an appended diary.

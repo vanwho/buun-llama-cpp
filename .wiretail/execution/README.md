@@ -1,10 +1,10 @@
 # Current hot-KV execution package
 
-The active forward contract is [OVERVIEW](forward/OVERVIEW.md) and
-[TESTING](forward/TESTING.md). The remaining legacy 93-11n proof is deferred,
-not passed; execute 94-01, 94-01a, 94-02 and continue through phase100. 95-03's
-live replay/promotion result is partial; its parity/cancellation proof moves to
-100-04 so phases96-100-03 can iterate. Scaling waits on 100-04.
+The active forward contract is [OVERVIEW](forward/OVERVIEW.md),
+[SPEED101](forward/SPEED101.md) and [TESTING](forward/TESTING.md).
+Next is101-01: actual GPU attribution, then source-directed execution repairs.
+Blocked100-04a is deferred without claiming parity;101-10 owns its real proof.
+Scale tests move to102 and final review to103, after101-12's speed release.
 Unstarted93-12/93-13 are removed from the runnable graph;
 their old packets are archived for provenance. Forward tasks supersede the
 old accepted-token historical refresh and universal attention-route preference.
@@ -21,6 +21,15 @@ each task and assessment prompt, while task-specific context remains bounded.
 PROJECT_ROOT=/srv/repos/vanwho/buun-llama-cpp \
 PROJECT_BRANCH=plan/attention-aware-kv-paging /srv/wiretail/wiretail.sh
 ```
+
+The project model defaults, family IDs, retry assessors, and final repair
+attempt are configured in `.wiretail/models.json`. Wiretail uses GPT-6.1 Sol
+high to assess a failed attempt 2, then GPT-6 Luna xhigh to assess a failed
+attempt 3; the final attempt runs on GPT-6 Luna high. The task prompt prefix is
+carried into each assessment and retry. Task/state execution-model locks may
+override those project defaults; the new phase101 task metadata pins Luna
+High for code/state work and Medium for the procedural benchmark. Existing
+project-wide model-map edits are preserved by this planning correction.
 
 Each bounded task explicitly lists `context_files`. Read that list, the current
 packet/cluster, repository instructions, and the current task handoff if

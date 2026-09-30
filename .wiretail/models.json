@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "defaults": {
+    "task_model": "gpt-6-luna",
+    "task_reasoning": "low"
+  },
+  "families": {
+    "luna": "gpt-6-luna",
+    "sol": "gpt-6.1-sol"
+  },
+  "retry": {
+    "reasoning": "high",
+    "assessment_before_attempt_3": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high"
+    },
+    "assessment_before_attempt_4": {
+      "model": "gpt-6-luna",
+      "reasoning": "xhigh"
+    },
+    "final_attempt": {
+      "model": "gpt-6-luna",
+      "reasoning": "high"
+    }
+  }
+}

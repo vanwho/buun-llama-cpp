@@ -1,13 +1,9 @@
 # Minimal testing and honest performance measurement
 
-Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
-Current repair amendment: `forward-generation-admission-20260929`.
-`REPAIR100.md` supplies the exact current diagnosis and100-02a–f ownership.
-
-Post-merge amendment `post100-hotpath-20260930`: for tasks 100-03d onward,
-`HOTPATH_POST100.md` and their packets supersede the 100-02a–f/100-03
-directions below. In particular 100-03i, not 100-03, owns the next canonical
-matched speed decision; 100-03d merges pinned fork master first.
+Revision: `hotpath-v10-20260914`. Amendment: `gpu-execution-101-20260930`.
+Current source-directed procedure is SPEED101 and tasks101-01–12. Completed
+phase100 and its repair/audit packets are provenance, not runnable context.
+101-12 owns the canonical speed decision;102 owns capacity after that release.
 
 ## Setup once, verify cheaply, keep loaded
 
@@ -39,10 +35,9 @@ Retain a successful candidate loaded for the next task.
   GPU MTP, draft-n-max=2, temperature=0, reasoning/thinking off. These are test
   settings, not production constants. The legacy 93-11n campaign is deferred;
   its B128/U64 results are diagnostics, not the new comparable speed baseline.
-  Do not rerun it as a prerequisite. Phases 94 and 95-01/02 are complete;
-  95-03's partial changed/unchanged query proof is historical evidence, not a
-  gate on 96-01 through 100-03. Final integrated replay/cancellation/promotion
-  is owned by 100-04 after the short performance iteration and before scaling.
+  Do not rerun it as a prerequisite. Final integrated replay/cancellation is
+  owned by101-10; natural promotion by101-11, after GPU execution repairs.
+  Missing100-04a receipt is not a gate on these implementation tasks.
 - Keep fresh input speed probes <=16K tokens. For local tests and scaling,
   physical target hot capacity H <=49,152; L may grow to 128K/256K independently.
   Product code derives H/G from model/backend/memory and remains tunable.
@@ -60,7 +55,9 @@ unless the task's named proof explicitly requires a live request. A task whose
 proof is only a unit/CUDA fixture completes from that executable proof; the
 generic service-identity boilerplate is a safety rule for any live run, not an
 instruction to create one. When a live proof is required, use at most the
-smallest named request/campaign for that task. Do not repeat all prior gates,
+smallest named request/campaign for that task. Most implementation probes use
+256–1024 fresh tokens and <=80 output; the4K attribution row is reserved for
+101-01 and materially affected retakes. Do not repeat all prior gates,
 24/48-case matrices, ten-trial campaigns, 256K fills or the final context curve
 per implementation. Builds that make progress are allowed to finish; avoid a
 universal 240s bound. Long occupancy work is resumable with
@@ -137,22 +134,16 @@ generation sealing separately. Record overhead without adding synchronization
 to production: CUDA events in explicit profiling runs, async/readiness counters
 in normal runs. Compare direct and packed using identical page IDs/bytes.
 
-Minimum selected fresh-prefill goal is 500 tok/s for each canonical prompt;
-750 is preferred. A completed measurement below goal stays a failed goal
-finding. Phase 100-03i must schedule a concrete source repair and minimal retest
-before capacity work. There is no universal number-of-attempts optimization
-law, no shortening facts to fit a 16-token cap, and no repeated audit task.
-
-If 100-03i measures a miss, insert the next unused `100-03j`, `100-03k`, etc.
-directly after it and before 100-04. Set each dependency to its predecessor,
-preserve usage ledgers, point 100-04 at the final repair/retest, and leave
-`101-01 -> 100-04` unchanged. Give a new task a contiguous final cluster,
-packet, context and V10 proof check *before* completing 100-03i. Keep
-`current_task` at the first unfinished item. Run both state validation and
-the 100-03i V10 receipt validator; a measured `goal_miss` is honest evidence
-but does not authorize phase 101. These
-repair packets must contain one measured cause, one owner/symbol, one focused
-regression and one minimal retest—not another full benchmark loop.
+Minimum selected fresh-prefill goal is500 tok/s for each canonical prompt;
+750 is preferred. A completed measurement below goal stays a failed finding.
+101-12 must insert specific101-12a/b... repair/retest/review successors before
+102-01 on a miss and update102-01 to depend on the actual new release task.
+Preserve usage ledgers; create packet/cluster/proofs/contexts and validate
+ordering before completing the measurement. A truthful goal_miss receipt can
+complete the benchmark only if those runnable successors exist. It cannot
+authorize scale. No universal optimization-attempt count or unchanged audit.
+Each successor has one measured cause, explicit code owner/algorithm, focused
+regression and minimum retake. Never reopen the exhausted100-04a task.
 
 Ordinary CPU-main-KV and dense-GPU controls must report actual codec/route.
 Keep Turbo4 wherever the implemented control supports it; if ordinary CPU
@@ -163,12 +154,11 @@ CPU TurboQuant kernel for a benchmark, invent a Turbo4 speed, or relabel exact
 host-streaming as ordinary CPU offload. Production selected target/draft remain
 Turbo4. Phase 100-01 must resolve/control this before the campaign.
 
-The 95-03 attempt-38 live run is useful partial evidence for a changed query
-replay, a following unchanged query, and natural promotion. Do not rerun that
-full campaign now. The matched one-pass parity, cancellation and final
-selected-route check moves to 100-04, after the initial short performance
-iteration and before any context scaling. Short-path speed results before
-100-04 are diagnostic; unfinished parity must not block phases96-100-03.
+Prior live promotion is useful provenance, not an integrated parity proof.
+101-10 tests the real server checkpoint/target/draft path with one loaded
+model;101-11 observes natural promotion on the final implementation. The
+oracle starts from the same pre-query recurrent state and final historical
+map, not history recomputed under a different map. These proofs precede102.
 
 ## Scaling/final findings
 

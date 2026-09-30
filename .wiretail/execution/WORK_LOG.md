@@ -1689,3 +1689,23 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-04`
 - Commit at update: `98f98a117`
 - Summary: Verified cancellation and natural CUDA promotion/MTP; removed modeled replay assertions and scheduled actual server replay parity repair 100-04a before 101-01; V10 receipt validated.
+
+## 2026-09-30T08:17:21+00:00 — 100-04a — in_progress
+
+- Branch: `codex/task-100-04a`
+- Commit at update: `810b448da`
+- Summary: Task started
+
+## 2026-09-30T09:07:56+00:00 — 100-04a — blocked
+
+- Branch: `codex/task-100-04a`
+- Commit at update: `810b448da`
+- Summary: Automatic substantive retry budget exhausted after 4 total attempts; see the latest handoff and recovery-assessment artifacts. Latest agent output: /srv/repos/vanwho/buun-llama-cpp/.wiretail/build/100-04a-attempt-4-20260930T090333482253493-final.md.
+
+## 2026-10-01 — GPU execution planning correction
+
+- Preserved useful100-04a production replay-transition helper and focused regression in source commit `bbc80bf86`; rebuilt test-server-prompt-cache and CTest passed. This is callback/control-flow coverage, not integrated parity.
+- Deferred the exhausted100-04a audit without claiming its missing proof. Compact handoff names101-10 as the actual one-model server replay owner; prior attempt text archived, usage/raw evidence unchanged.
+- Audited CUDA Turbo4 dispatch, packed/current writes, hybrid graph reuse, GDN chunk/serial dispatch, native MTP hidden handoff and page-wave sealing. Fused contiguous Turbo4 is unreachable due to branch guard `!turbo_kv`; GDN fast cubin capability excludes cc890/U256 and rollback snapshots; CPU attention has not been established as the timing owner.
+- Added detailed101-01–12 GPU execution/MTP/state/promotion/benchmark tasks and bounded subsystem clusters. Former capacity101-01–03 moved to102-01–03; final review moved to103-01. Active SPEED101 replaces historical repair instructions; setup mistakes are repaired locally and speed misses produce real successors before scaling.
+- Reconciled current pointer to101-01, ready; state/active-plan/diff validation pass. Generic source and execution metadata remain separate commits. Existing project model-map work is preserved; universal Wiretail defaults unchanged.

@@ -3,21 +3,21 @@
   "project": "Qwen3.8 dynamic-context attention-aware Turbo4 KV paging",
   "canonical_plan": ".wiretail/execution/forward/OVERVIEW.md",
   "active_plan_amendment": ".wiretail/execution/forward/OVERVIEW.md",
-  "technical_change_spec": ".wiretail/execution/forward/OVERVIEW.md",
+  "technical_change_spec": ".wiretail/execution/forward/SPEED101.md",
   "execution_cookbook": ".wiretail/execution/forward/TESTING.md",
   "implementation_contracts": ".wiretail/execution/forward/OVERVIEW.md",
   "benchmark_protocol": ".wiretail/execution/forward/TESTING.md",
   "scope_revision": "hotpath-v10-20260914",
-  "context_policy": "Current100-02a-f repairs supersede incomplete100-02. Load forward OVERVIEW/TESTING/REPAIR100, current packet/cluster and explicit compact handoffs/symbol regions only. Legacy93/95 campaigns, raw Codex transcripts and original request ceilings stay out of startup context. Clusters follow shared subsystem/lifecycle context, without a task-count cap.",
+  "context_policy": "Current gpu-execution-101-20260930: SPEED101/TESTING, current packet/cluster and one compact predecessor only. Inspect named source regions on demand. Completed100 journals, REPAIR100/HOTPATH_POST100, full source files and raw Codex JSONL are not startup context. Cluster by shared subsystem/lifecycle without fixed task count.",
   "planned_upstream_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "repository": "/srv/repos/vanwho/buun-llama-cpp",
   "upstream": "https://github.com/spiritbuun/buun-llama-cpp",
   "base_commit": "da458765dde0e0414fc530e2e577d9a8e2ac6795",
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
-  "current_phase": "100",
-  "current_task": "100-04a",
-  "last_updated_utc": "2026-09-30T08:16:46+00:00",
+  "current_phase": "101",
+  "current_task": "101-01",
+  "last_updated_utc": "2026-09-30T22:03:03.884517+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -48,7 +48,7 @@
     "benchmark_restore_policy": "restore only for explicit control/revert benchmark, teardown, failed-start recovery, or final cleanup; never restore between successful dependent tasks"
   },
   "completion_contract": {
-    "active_scope": "Preserve completed94-99/100-01 and deferred93/95/100-02 implementation. Execute100-02a-f admission/ring/hot-path/MTP/promotion/staged-measurement repairs;100-03 schedules measured speed remediation;100-04 final replay/cancel proof releases101 capacity;102 creates runnable successors on unmet goals.",
+    "active_scope": "100-04a deferred with useful source preserved; implement GPU execution/MTP repairs101-01\u201312, actual replay/promotion proof and canonical speed release. On real misses insert specific successors before102 scaling. Former101 capacity is102; final review is103.",
     "native_mtp_context": "equals resolved target per-sequence logical context L",
     "native_mtp_residency": "Turbo4 K/V entirely GPU-resident; never a target pager victim",
     "target_cold_backing": "canonical opaque Turbo4 K/V in CPU RAM; initial tail host-ready only after D2H completion",
@@ -29935,7 +29935,7 @@
       "cluster": "forward100-final",
       "title": "Exercise real final-user replay parity at a common server boundary",
       "packet": ".wiretail/execution/tasks/100-04a.md",
-      "status": "todo",
+      "status": "deferred",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -29950,17 +29950,10 @@
       "depends_on": [
         "100-04"
       ],
-      "commit": null,
+      "commit": "bbc80bf86cf06f9f978f31ec6c8c9c9b19b869a9",
       "context_files": [
-        ".wiretail/execution/clusters/forward100-final.md",
         ".wiretail/execution/tasks/100-04a.md",
-        ".wiretail/execution/handoffs/100-04a.md",
-        ".wiretail/execution/handoffs/100-04.md",
-        "tools/server/server-context.cpp",
-        "src/llama-memory-hybrid.cpp",
-        "common/speculative.cpp",
-        "tests/test-server-prompt-cache.cpp",
-        "tests/test-cuda-kv-promotion.cpp"
+        ".wiretail/execution/handoffs/100-04a.md"
       ],
       "completion_check": [
         "python3",
@@ -29969,42 +29962,157 @@
         "100-04a",
         "--receipt",
         ".wiretail/execution/evidence/V10_100-04a.json"
-      ]
+      ],
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-04a-attempt-1-20260930T081709976247529-20260930T081709978883698-C64xsE.jsonl:106",
+            "total_tokens": 61736814,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 61338290,
+            "cached_input_tokens": 59587840,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 1750450,
+            "output_tokens": 398524,
+            "thinking_tokens": 231116
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-04a-attempt-2-20260930T083704885740258-20260930T083704888206468-I7RrIe.jsonl:34",
+            "total_tokens": 63235932,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 62823712,
+            "cached_input_tokens": 61039104,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 1784608,
+            "output_tokens": 412220,
+            "thinking_tokens": 241285
+          },
+          {
+            "attempt": 3,
+            "kind": "assessment",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-04a-assessment-before-attempt-3-20260930T084318631629243-20260930T084318635011640-M72WEE.jsonl:39",
+            "total_tokens": 671325,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 663870,
+            "cached_input_tokens": 614912,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 48958,
+            "output_tokens": 7455,
+            "thinking_tokens": 3256
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-04a-attempt-3-20260930T084909874886455-20260930T084909878550708-Bhmq05.jsonl:96",
+            "total_tokens": 66257475,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 65825588,
+            "cached_input_tokens": 63924992,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 1900596,
+            "output_tokens": 431887,
+            "thinking_tokens": 252710
+          },
+          {
+            "attempt": 4,
+            "kind": "assessment",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-04a-assessment-before-attempt-4-20260930T085912592025135-20260930T085912594912080-DhEf46.jsonl:35",
+            "total_tokens": 683661,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 675840,
+            "cached_input_tokens": 621312,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 54528,
+            "output_tokens": 7821,
+            "thinking_tokens": 2491
+          },
+          {
+            "attempt": 4,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-04a-attempt-4-20260930T090333482253493-20260930T090333484716393-IECljg.jsonl:42",
+            "total_tokens": 1012978,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 1003840,
+            "cached_input_tokens": 944640,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 59200,
+            "output_tokens": 9138,
+            "thinking_tokens": 4236
+          }
+        ],
+        "totals": {
+          "usage_events": 6,
+          "total_tokens": 193598185,
+          "input_tokens": 192331140,
+          "cached_input_tokens": 186732800,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 5598340,
+          "output_tokens": 1267045,
+          "thinking_tokens": 735094,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 6,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      },
+      "transferred_to": "101-10",
+      "deferral_reason": "Preserve callback/source work; actual one-process server replay parity is implemented after GPU execution repairs in101-10. No absent historical receipt gate."
     },
     {
       "id": "101-01",
       "phase": "101",
-      "cluster": "forward101-capacity",
-      "title": "Prove 32K logical history with 16K hot capacity",
+      "cluster": "gpu101-attention",
+      "title": "Attribute actual GPU prefill and make detailed profiling opt-in",
       "packet": ".wiretail/execution/tasks/101-01.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
-      "recommended_reasoning": "medium",
+      "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "forward-turn-retrieval-20260927",
+      "plan_amendment": "gpu-execution-101-20260930",
       "required_proofs": [
-        "32k_16k_committed_history_and_speed"
+        "matched_gpu_prefill_attribution_and_profile_off"
       ],
       "depends_on": [
-        "100-04a"
+        "100-04"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward101-capacity.md",
+        ".wiretail/execution/clusters/gpu101-attention.md",
         ".wiretail/execution/tasks/101-01.md",
-        ".wiretail/execution/forward/OVERVIEW.md",
-        ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/100-03i.md",
-        ".wiretail/execution/handoffs/100-04.md",
-        "tools/server/bench/run-occupancy-frontier.py",
-        "tools/server/bench/validate-occupied-frontier.py",
-        "tools/server/bench/measure-speed-occupancy.py",
-        "src/llama-kv-pager.cpp",
-        "src/llama-kv-cache.cpp"
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md"
       ],
       "completion_check": [
         "python3",
@@ -30018,36 +30126,31 @@
     {
       "id": "101-02",
       "phase": "101",
-      "cluster": "forward101-capacity",
-      "title": "Scale to occupied 128K with a measured bounded hot pool",
+      "cluster": "gpu101-attention",
+      "title": "Restore a proven matched-Turbo4 fused decode/verify dispatch",
       "packet": ".wiretail/execution/tasks/101-02.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
-      "recommended_reasoning": "medium",
+      "recommended_reasoning": "high",
       "assessment_model": "gpt-6-luna",
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "forward-turn-retrieval-20260927",
+      "plan_amendment": "gpu-execution-101-20260930",
       "required_proofs": [
-        "128k_occupancy_memory_and_turn_boundary"
+        "matched_turbo4_fused_decode_finite_and_dispatched"
       ],
       "depends_on": [
         "101-01"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward101-capacity.md",
+        ".wiretail/execution/clusters/gpu101-attention.md",
         ".wiretail/execution/tasks/101-02.md",
-        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/SPEED101.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/101-01.md",
-        "tools/server/bench/run-occupancy-frontier.py",
-        "tools/server/bench/validate-occupied-frontier.py",
-        "tools/server/bench/measure-speed-occupancy.py",
-        "src/llama-kv-pager.cpp",
-        "src/llama-kv-cache.cpp"
+        ".wiretail/execution/handoffs/101-01.md"
       ],
       "completion_check": [
         "python3",
@@ -30061,8 +30164,8 @@
     {
       "id": "101-03",
       "phase": "101",
-      "cluster": "forward101-full-256k",
-      "title": "Prove full 256K history, hot paging and full-L GPU Turbo4 MTP",
+      "cluster": "gpu101-attention",
+      "title": "Batched compressed Turbo4 attention without full-range F16 expansion",
       "packet": ".wiretail/execution/tasks/101-03.md",
       "status": "todo",
       "blocker": null,
@@ -30072,27 +30175,20 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "forward-turn-retrieval-20260927",
+      "plan_amendment": "gpu-execution-101-20260930",
       "required_proofs": [
-        "256k_allocation_and_committed_occupancy",
-        "256k_promotion_replay_ring_mtp_and_memory"
+        "batched_turbo4_fused_prefill_parity_and_cost"
       ],
       "depends_on": [
         "101-02"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward101-full-256k.md",
+        ".wiretail/execution/clusters/gpu101-attention.md",
         ".wiretail/execution/tasks/101-03.md",
-        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/SPEED101.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/101-02.md",
-        "tools/server/bench/run-occupancy-frontier.py",
-        "tools/server/bench/validate-occupied-frontier.py",
-        "tools/server/bench/measure-speed-occupancy.py",
-        "tools/server/bench/run-pager-promotion.py",
-        "src/llama-kv-pager.cpp",
-        "src/llama-kv-cache.cpp"
+        ".wiretail/execution/handoffs/101-02.md"
       ],
       "completion_check": [
         "python3",
@@ -30104,11 +30200,11 @@
       ]
     },
     {
-      "id": "102-01",
-      "phase": "102",
-      "cluster": "forward102-goal-review",
-      "title": "Assess final measured goals and create real follow-up work if needed",
-      "packet": ".wiretail/execution/tasks/102-01.md",
+      "id": "101-04",
+      "phase": "101",
+      "cluster": "gpu101-recurrent-graphs",
+      "title": "Parallel GDN prefill with an exact rollback-snapshot tail",
+      "packet": ".wiretail/execution/tasks/101-04.md",
       "status": "todo",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
@@ -30117,22 +30213,363 @@
       "assessment_reasoning": "high",
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
-      "plan_amendment": "forward-turn-retrieval-20260927",
+      "plan_amendment": "gpu-execution-101-20260930",
       "required_proofs": [
-        "final_goal_summary_and_successors"
+        "parallel_gdn_prefill_preserves_mtp_rollback"
       ],
       "depends_on": [
         "101-03"
       ],
       "commit": null,
       "context_files": [
-        ".wiretail/execution/clusters/forward102-goal-review.md",
+        ".wiretail/execution/clusters/gpu101-recurrent-graphs.md",
+        ".wiretail/execution/tasks/101-04.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-03.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-04",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-04.json"
+      ]
+    },
+    {
+      "id": "101-05",
+      "phase": "101",
+      "cluster": "gpu101-recurrent-graphs",
+      "title": "Stable bounded attention owners and correct hybrid graph reuse",
+      "packet": ".wiretail/execution/tasks/101-05.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "stable_hybrid_attention_graphs_and_capacity_masks"
+      ],
+      "depends_on": [
+        "101-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-recurrent-graphs.md",
+        ".wiretail/execution/tasks/101-05.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-04.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-05",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-05.json"
+      ]
+    },
+    {
+      "id": "101-06",
+      "phase": "101",
+      "cluster": "gpu101-storage",
+      "title": "Encode current KV once and append packed rows by GPU byte copy",
+      "packet": ".wiretail/execution/tasks/101-06.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "encoded_kv_single_write_and_packed_append_parity"
+      ],
+      "depends_on": [
+        "101-05"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-storage.md",
+        ".wiretail/execution/tasks/101-06.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-05.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-06",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-06.json"
+      ]
+    },
+    {
+      "id": "101-07",
+      "phase": "101",
+      "cluster": "gpu101-storage",
+      "title": "Event-driven host sealing and bounded hot-loop metadata work",
+      "packet": ".wiretail/execution/tasks/101-07.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "bounded_async_seal_and_no_decode_history_pcie"
+      ],
+      "depends_on": [
+        "101-06"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-storage.md",
+        ".wiretail/execution/tasks/101-07.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-06.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-07",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-07.json"
+      ]
+    },
+    {
+      "id": "101-08",
+      "phase": "101",
+      "cluster": "gpu101-mtp",
+      "title": "Complete device-native MTP prompt hidden handoff and carry ownership",
+      "packet": ".wiretail/execution/tasks/101-08.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "mtp_device_prefill_handoff_and_carry_parity"
+      ],
+      "depends_on": [
+        "101-07"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-mtp.md",
+        ".wiretail/execution/tasks/101-08.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-07.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-08",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-08.json"
+      ]
+    },
+    {
+      "id": "101-09",
+      "phase": "101",
+      "cluster": "gpu101-mtp",
+      "title": "Repair first MTP disagreement and align selected-history attention if needed",
+      "packet": ".wiretail/execution/tasks/101-09.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "mtp_first_divergence_repaired_or_measured_alignment"
+      ],
+      "depends_on": [
+        "101-08"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-mtp.md",
+        ".wiretail/execution/tasks/101-09.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-08.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-09",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-09.json"
+      ]
+    },
+    {
+      "id": "101-10",
+      "phase": "101",
+      "cluster": "gpu101-final-proof",
+      "title": "Real server checkpoint/replay parity with one Qwen model allocation",
+      "packet": ".wiretail/execution/tasks/101-10.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "integrated_server_query_replay_one_pass_parity"
+      ],
+      "depends_on": [
+        "101-09"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-final-proof.md",
+        ".wiretail/execution/tasks/101-10.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-09.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-10",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-10.json"
+      ]
+    },
+    {
+      "id": "101-11",
+      "phase": "101",
+      "cluster": "gpu101-final-proof",
+      "title": "Natural cold promotion and frozen-generation proof on the final route",
+      "packet": ".wiretail/execution/tasks/101-11.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "final_natural_promotion_and_frozen_mtp_history"
+      ],
+      "depends_on": [
+        "101-10"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-final-proof.md",
+        ".wiretail/execution/tasks/101-11.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-10.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-11",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-11.json"
+      ]
+    },
+    {
+      "id": "101-12",
+      "phase": "101",
+      "cluster": "gpu101-final-proof",
+      "title": "Canonical speed decision and source-directed iteration release",
+      "packet": ".wiretail/execution/tasks/101-12.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "medium",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "canonical_speed_measured_and_scale_release_or_repairs"
+      ],
+      "depends_on": [
+        "101-11"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/gpu101-final-proof.md",
+        ".wiretail/execution/tasks/101-12.md",
+        ".wiretail/execution/forward/SPEED101.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/101-11.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "101-12",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_101-12.json"
+      ]
+    },
+    {
+      "id": "102-01",
+      "phase": "102",
+      "cluster": "forward102-capacity",
+      "title": "Prove 32K logical history with 16K hot capacity",
+      "packet": ".wiretail/execution/tasks/102-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "medium",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "32k_16k_committed_history_and_speed"
+      ],
+      "depends_on": [
+        "101-12"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward102-capacity.md",
         ".wiretail/execution/tasks/102-01.md",
         ".wiretail/execution/forward/OVERVIEW.md",
         ".wiretail/execution/forward/TESTING.md",
-        ".wiretail/execution/handoffs/101-03.md",
-        "tools/server/bench/measure-speed-occupancy.py",
-        "tools/server/bench/validate-speed-occupancy.py"
+        ".wiretail/execution/handoffs/101-12.md",
+        ".wiretail/execution/forward/SPEED101.md"
       ],
       "completion_check": [
         "python3",
@@ -30141,6 +30578,121 @@
         "102-01",
         "--receipt",
         ".wiretail/execution/evidence/V10_102-01.json"
+      ]
+    },
+    {
+      "id": "102-02",
+      "phase": "102",
+      "cluster": "forward102-capacity",
+      "title": "Scale to occupied 128K with a measured bounded hot pool",
+      "packet": ".wiretail/execution/tasks/102-02.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "medium",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "128k_occupancy_memory_and_turn_boundary"
+      ],
+      "depends_on": [
+        "102-01"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward102-capacity.md",
+        ".wiretail/execution/tasks/102-02.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/102-01.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "102-02",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_102-02.json"
+      ]
+    },
+    {
+      "id": "102-03",
+      "phase": "102",
+      "cluster": "forward102-full-256k",
+      "title": "Prove full 256K history, hot paging and full-L GPU Turbo4 MTP",
+      "packet": ".wiretail/execution/tasks/102-03.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "256k_allocation_and_committed_occupancy",
+        "256k_promotion_replay_ring_mtp_and_memory"
+      ],
+      "depends_on": [
+        "102-02"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward102-full-256k.md",
+        ".wiretail/execution/tasks/102-03.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/102-02.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "102-03",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_102-03.json"
+      ]
+    },
+    {
+      "id": "103-01",
+      "phase": "103",
+      "cluster": "forward103-goal-review",
+      "title": "Assess final measured goals and create real follow-up work if needed",
+      "packet": ".wiretail/execution/tasks/103-01.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "gpu-execution-101-20260930",
+      "required_proofs": [
+        "final_goal_summary_and_successors"
+      ],
+      "depends_on": [
+        "102-03"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward103-goal-review.md",
+        ".wiretail/execution/tasks/103-01.md",
+        ".wiretail/execution/forward/OVERVIEW.md",
+        ".wiretail/execution/forward/TESTING.md",
+        ".wiretail/execution/handoffs/102-03.md"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "103-01",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_103-01.json"
       ]
     }
   ],
@@ -31929,16 +32481,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 34,
-        "total_tokens": 714464625,
-        "input_tokens": 710292051,
-        "cached_input_tokens": 691164672,
+        "usage_events": 40,
+        "total_tokens": 908062810,
+        "input_tokens": 902623191,
+        "cached_input_tokens": 877897472,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 19127379,
-        "output_tokens": 4172574,
-        "thinking_tokens": 2192271,
+        "input_tokens_minus_cached_tokens": 24725719,
+        "output_tokens": 5439619,
+        "thinking_tokens": 2927365,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 34,
+        "total_tokens_derived_events": 40,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -31953,17 +32505,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 433,
-      "total_tokens": 9346267159,
-      "input_tokens": 9318459933,
-      "cached_input_tokens": 9112215808,
+      "usage_events": 439,
+      "total_tokens": 9539865344,
+      "input_tokens": 9510791073,
+      "cached_input_tokens": 9298948608,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 79,
-      "input_tokens_minus_cached_tokens": 206244125,
-      "output_tokens": 27807226,
-      "thinking_tokens": 11590613,
+      "cache_write_input_tokens_known_events": 85,
+      "input_tokens_minus_cached_tokens": 211842465,
+      "output_tokens": 29074271,
+      "thinking_tokens": 12325707,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 433,
+      "total_tokens_derived_events": 439,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

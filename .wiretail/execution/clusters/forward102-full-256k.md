@@ -1,10 +1,10 @@
-# Cluster forward102-goal-review
+# Cluster forward102-full-256k
 
 Revision: `hotpath-v10-20260914`. Amendment: `forward-turn-retrieval-20260927`.
 
-Tasks in this context area: `102-01`.
+Tasks in this context area: `102-03`.
 
-Purpose: Assess final measured goals and create real follow-up work if needed.
+Purpose: Prove full 256K history, hot paging and full-L GPU Turbo4 MTP.
 
 Read the current packet and forward/OVERVIEW + forward/TESTING only, plus
 its explicit source regions and compact immediate-predecessor handoff.
@@ -21,7 +21,7 @@ from the actual model/device admission. Stage counters may not add CUDA fences.
 Use one managed Qwen process and preserve its verified candidate on success.
 
 Each packet specifies minimal tests. Broader canonical performance/scaling
-work belongs only to phases100/101. Bad measured speed creates a concrete
+work belongs only to phases101/102. Bad measured speed creates a concrete
 source repair/retest before scaling; missing/setup-invalid rows do not pass.
 New candidate semantics are validated by the task's executable named proofs.
 Handoffs contain current result/symbols/raw pointers, never an appended diary.
