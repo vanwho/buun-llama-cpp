@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "task": "100-03f",
+  "source_commit": "13b709cab7abf9e764857c4e8f5944d47cf9af35",
+  "checks": {
+    "selected_hotpath_measured_repair_or_no_change": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-attention-execution"
+      ],
+      "decision": "no_change",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03f/attempt-01/selected-hotpath-no-change.json",
+          "sha256": "d5d463a8b83b649ecbb98396dd5b3bca82b3afce8a0e7b25fb716d15dc772ea5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03f/attempt-01/test-kv-attention-execution.log",
+          "sha256": "eaec338f6beb58a8eb3e1aa7a172eead1e797e3f54f99ad1ea89b3ad2fd37fbb"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03f/attempt-01/test-status.json",
+          "sha256": "14fd527d93b779c03928a66250b1ba5d924eeb1ce41715b10c6ec643c9fe5d6f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/request-local-attribution.json",
+          "sha256": "220c427ded2a7130de72f3f096bf3018b7b27b8229169125c0a98864e8a49012"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/phase-us.json",
+          "sha256": "879ff39854f3168df570182e4deeec985f5105516f3eb862d307fa9127da556b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/slot-baseline.json",
+          "sha256": "3a692c95de8016a82e705831230b3f06b2a1fbf83e39eccc9d3b819f0462a446"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/slot-post-request.json",
+          "sha256": "99ad109b32b5eb961b0a6303010e8354a785c045de913629e75eb87008709f24"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/raw/off-measured-1-p1.json",
+          "sha256": "4f512cc68a3b5b5c093cfcf2b1fa3d462b0856650058b1dfadbca4367b75a970"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/candidate-bundle/build-receipt.json",
+          "sha256": "9ceefc41acb02423225b7565fdfb5e0deba0aa17de55016a68d57f9e577257eb"
+        }
+      ]
+    }
+  }
+}
