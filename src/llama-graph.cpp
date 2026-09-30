@@ -995,6 +995,17 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
             const int64_t pack_start = kv_attention_metrics && update_selected
                 ? ggml_time_us() : 0;
             uint64_t packed_bytes = 0;
+            const auto record_current_append = [&](const packed_copy & copy) {
+                if (!timer.active || kv_attention_metrics == nullptr || !copy.current_rows) return;
+                kv_attention_metrics->packed_current_append_rows =
+                    kv_attention_metrics->packed_current_append_rows > UINT64_MAX - copy.row_count
+                    ? UINT64_MAX
+                    : kv_attention_metrics->packed_current_append_rows + copy.row_count;
+                kv_attention_metrics->packed_current_append_bytes =
+                    kv_attention_metrics->packed_current_append_bytes > UINT64_MAX - copy.bytes
+                    ? UINT64_MAX
+                    : kv_attention_metrics->packed_current_append_bytes + copy.bytes;
+            };
             if (initialize_selected && kv_attention_metrics != nullptr) {
                 uint64_t storage_bytes = 0;
                 for (const auto & layer : packed_layers) {
@@ -1037,10 +1048,12 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                             // historical rows. The graph writes every new
                             // current row directly into the packed owner;
                             // avoid replaying the unchanged prefix here.
+                            record_current_append(copy);
                             continue;
                         }
                         if (copy.current_rows && cached_version == UINT64_MAX) {
                             // The first graph write supplies the current row.
+                            record_current_append(copy);
                             continue;
                         }
                         // Source and destination page views are graph-owned
@@ -1078,6 +1091,12 @@ void llm_graph_input_attn_kv::set_input(const llama_ubatch * ubatch) {
                         }
                         packed_bytes = packed_bytes > UINT64_MAX - copy.bytes
                             ? UINT64_MAX : packed_bytes + copy.bytes;
+                        if (timer.active) {
+                            kv_attention_metrics->packed_history_copy_bytes =
+                                kv_attention_metrics->packed_history_copy_bytes > UINT64_MAX - copy.bytes
+                                ? UINT64_MAX
+                                : kv_attention_metrics->packed_history_copy_bytes + copy.bytes;
+                        }
                     }
                 }
                 if (kv_attention_metrics != nullptr && packed_bytes != 0) {

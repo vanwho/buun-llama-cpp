@@ -1276,8 +1276,10 @@ llama_kv_pager_metrics_snapshot llama_context::get_kv_pager_metrics(
     result.query_refresh_count = kv_pager_owner->query_refresh_count();
     result.seal_calls = kv_pager_owner->seal_calls();
     result.diagnostic_seal_us = kv_pager_owner->diagnostic_seal_us();
+    result.diagnostic_seal_boundary_us = kv_pager_owner->diagnostic_seal_boundary_us();
     result.diagnostic_policy_us = kv_pager_owner->diagnostic_policy_us();
     result.diagnostic_host_enqueue_us = kv_pager_owner->diagnostic_host_enqueue_us();
+    result.diagnostic_host_completion_us = kv_pager_owner->diagnostic_host_completion_us();
     result.diagnostic_queue_wait_us = kv_pager_owner->diagnostic_queue_wait_us();
     result.diagnostic_queue_waits = kv_pager_owner->diagnostic_queue_waits();
     result.seal_pages_scanned = kv_pager_owner->seal_pages_scanned();

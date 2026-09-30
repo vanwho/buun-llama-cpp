@@ -1895,6 +1895,8 @@ struct server_query_checkpoint {
     uint64_t pager_representation_epoch = 0;
     uint64_t capture_us = 0;
     uint64_t restore_us = 0;
+    uint64_t replay_start_us = 0;
+    uint64_t replay_us = 0;
     bool carry_required = false;
     std::vector<uint8_t> target_recurrent;
     std::vector<uint8_t> draft_recurrent;
@@ -1913,6 +1915,8 @@ struct server_query_checkpoint {
         pager_representation_epoch = 0;
         capture_us = 0;
         restore_us = 0;
+        replay_start_us = 0;
+        replay_us = 0;
         carry_required = false;
         target_recurrent.clear();
         draft_recurrent.clear();
@@ -3872,6 +3876,7 @@ struct server_slot {
             {"query_replay_count", query_replay_count},
             {"query_checkpoint_capture_us", query_checkpoint.capture_us},
             {"query_checkpoint_restore_us", query_checkpoint.restore_us},
+            {"query_replay_us", query_checkpoint.replay_us},
             {"pager_frozen_history_generation", pager_frozen_history_generation},
             {"computation_frontier_ratchet", {
                 {"read_path", frontier_ratchet_flipped ? "frontier" : "legacy"},
@@ -4677,6 +4682,7 @@ public:
                     {"hotpath_graph_rebuild_decisions", pager.execution.graph_rebuild_decisions},
                     {"hotpath_graph_reuse_us", pager.execution.graph_reuse_us},
                     {"hotpath_graph_build_us", pager.execution.graph_build_us},
+                    {"hotpath_route_decision_us", pager.execution.route_decision_us},
                     {"hotpath_rebuild_reason_row_capacity",
                         pager.execution.rebuild_reason_row_capacity},
                     {"hotpath_rebuild_reason_physical_key",
@@ -4693,6 +4699,7 @@ public:
                     {"hotpath_packed_cache_lookup_us", pager.execution.packed_cache_lookup_us},
                     {"hotpath_packed_cache_allocations", pager.execution.packed_cache_allocations},
                     {"hotpath_packed_cache_reuses", pager.execution.packed_cache_reuses},
+                    {"hotpath_packed_cache_drains", pager.execution.packed_cache_drains},
                     {"requested_batch", params_base.n_batch},
                     {"requested_ubatch", pager.execution.requested_ubatch},
                     {"physical_write_capacity", pager.execution.physical_write_capacity},
@@ -4712,6 +4719,9 @@ public:
                     {"table_epoch_changes", pager.execution.table_epoch_changes},
                     {"table_upload_bytes", pager.execution.table_upload_bytes},
                     {"packed_storage_bytes", pager.execution.packed_storage_bytes},
+                    {"packed_history_copy_bytes", pager.execution.packed_history_copy_bytes},
+                    {"packed_current_append_rows", pager.execution.packed_current_append_rows},
+                    {"packed_current_append_bytes", pager.execution.packed_current_append_bytes},
                     {"packed_copy_updates", pager.execution.packed_copy_updates},
                     {"packed_copy_rows", pager.execution.packed_copy_rows},
                     {"packed_copy_reuses", pager.execution.packed_copy_reuses},
@@ -4871,8 +4881,10 @@ public:
                     {"host_seal_d2h_async_completions", pager.host_seal_d2h_async_completions},
                     {"host_seal_queued", pager.host_seal_queued},
                     {"hotpath_seal_us", pager.diagnostic_seal_us},
+                    {"hotpath_seal_boundary_us", pager.diagnostic_seal_boundary_us},
                     {"hotpath_policy_us", pager.diagnostic_policy_us},
                     {"hotpath_host_enqueue_us", pager.diagnostic_host_enqueue_us},
+                    {"hotpath_host_completion_us", pager.diagnostic_host_completion_us},
                     {"hotpath_queue_wait_us", pager.diagnostic_queue_wait_us},
                     {"hotpath_queue_waits", pager.diagnostic_queue_waits},
                     {"host_inflight_pages", pager.host_inflight_pages},
@@ -21585,6 +21597,11 @@ private:
                                 slot.release();
                                 return;
                             }
+                            const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+                            if (profile_env != nullptr && std::strcmp(profile_env, "1") == 0) {
+                                slot.query_checkpoint.replay_start_us =
+                                    uint64_t(std::max<int64_t>(0, ggml_time_us()));
+                            }
                             slot.prompt.tokens.keep_first(size_t(query_begin));
                             slot.query_replay_pending = true;
                             ++slot.query_replay_count;
@@ -21600,6 +21617,15 @@ private:
                             slot.query_replay_pending &&
                             int64_t(slot.prompt.n_tokens()) == query_end) {
                         slot.query_replay_pending = false;
+                        if (slot.query_checkpoint.replay_start_us != 0) {
+                            const uint64_t now_us = uint64_t(std::max<int64_t>(0, ggml_time_us()));
+                            const uint64_t elapsed = now_us >= slot.query_checkpoint.replay_start_us
+                                ? now_us - slot.query_checkpoint.replay_start_us : 0;
+                            slot.query_checkpoint.replay_us =
+                                slot.query_checkpoint.replay_us > UINT64_MAX - elapsed
+                                ? UINT64_MAX : slot.query_checkpoint.replay_us + elapsed;
+                            slot.query_checkpoint.replay_start_us = 0;
+                        }
                         SLT_INF(slot, "query replay: completed replay_count=%u\n",
                             slot.query_replay_count);
                     }

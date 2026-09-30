@@ -399,10 +399,12 @@ struct llama_kv_attention_execution_metrics {
     uint64_t graph_rebuild_decisions = 0;
     uint64_t graph_reuse_us = 0;
     uint64_t graph_build_us = 0;
+    uint64_t route_decision_us = 0;
     uint64_t selected_refresh_us = 0;
     uint64_t packed_cache_lookup_us = 0;
     uint64_t packed_cache_allocations = 0;
     uint64_t packed_cache_reuses = 0;
+    uint64_t packed_cache_drains = 0;
     uint64_t rebuild_reason_row_capacity = 0;
     uint64_t rebuild_reason_physical_key = 0;
     uint64_t rebuild_reason_content_key = 0;
@@ -424,6 +426,9 @@ struct llama_kv_attention_execution_metrics {
     // graph allocation and incremental copy work visible beside the normal H
     // ledger instead of presenting only a kernel-time counter.
     uint64_t packed_storage_bytes = 0;
+    uint64_t packed_history_copy_bytes = 0;
+    uint64_t packed_current_append_rows = 0;
+    uint64_t packed_current_append_bytes = 0;
     uint64_t packed_copy_updates = 0;
     uint64_t packed_copy_rows = 0;
     uint64_t packed_copy_reuses = 0;

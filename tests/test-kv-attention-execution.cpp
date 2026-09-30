@@ -351,12 +351,15 @@ static void test_routes_epochs_and_fences() {
     execution.record_queue_time_us(13);
     execution.metrics_mutable().record_hotpath_time(
             execution.metrics_mutable().graph_build_us, 17);
+    execution.metrics_mutable().record_hotpath_time(
+            execution.metrics_mutable().route_decision_us, 19);
     execution.metrics_mutable().record_graph_rebuild_reason(
             llama_kv_attention_graph_reason(true, false, false, false, false));
     assert(execution.metrics().wait_time_us == 7);
     assert(execution.metrics().copy_time_us == 11);
     assert(execution.metrics().queue_time_us == 13);
     assert(execution.metrics().graph_build_us == 17);
+    assert(execution.metrics().route_decision_us == 19);
     assert(execution.metrics().rebuild_reason_row_capacity == 1);
     assert(llama_kv_attention_graph_reason(false, true, false, false, false) ==
            llama_kv_attention_graph_rebuild_reason::physical_key);
@@ -371,6 +374,7 @@ static void test_routes_epochs_and_fences() {
     assert(execution.metrics_reset_epoch() == reset_epoch + 1);
     assert(execution.metrics().wait_time_us == 0);
     assert(execution.metrics().graph_build_us == 0);
+    assert(execution.metrics().route_decision_us == 0);
     assert(execution.metrics().rebuild_reason_row_capacity == 0);
 }
 

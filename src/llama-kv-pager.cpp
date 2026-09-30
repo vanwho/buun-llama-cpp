@@ -2392,6 +2392,23 @@ void llama_kv_pager::rebuild_maintenance_queue() noexcept {
 }
 
 void llama_kv_pager::drain_host_completions() noexcept {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    struct completion_timer {
+        llama_kv_pager * pager;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~completion_timer() {
+            if (!active || pager == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            const uint64_t value = uint64_t(std::max<int64_t>(0, elapsed));
+            pager->diagnostic_host_completion_us_ =
+                pager->diagnostic_host_completion_us_ > UINT64_MAX - value
+                ? UINT64_MAX : pager->diagnostic_host_completion_us_ + value;
+        }
+    } timer { this, profile_env != nullptr && std::strcmp(profile_env, "1") == 0
+            ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{},
+        profile_env != nullptr && std::strcmp(profile_env, "1") == 0 };
     if (host_ && host_->async_enabled()) {
         std::vector<llama_kv_pager_host_completion> completed;
         host_->drain(completed);

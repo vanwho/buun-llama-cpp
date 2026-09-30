@@ -772,7 +772,13 @@ public:
     uint64_t eviction_pages() const noexcept { return eviction_pages_; }
     uint64_t seal_calls() const noexcept { return seal_calls_; }
     uint64_t diagnostic_seal_us() const noexcept { return diagnostic_seal_us_; }
+    uint64_t diagnostic_seal_boundary_us() const noexcept { return diagnostic_seal_boundary_us_; }
+    void record_diagnostic_seal_boundary_us(uint64_t value) noexcept {
+        diagnostic_seal_boundary_us_ = diagnostic_seal_boundary_us_ > UINT64_MAX - value
+            ? UINT64_MAX : diagnostic_seal_boundary_us_ + value;
+    }
     uint64_t diagnostic_host_enqueue_us() const noexcept { return diagnostic_host_enqueue_us_; }
+    uint64_t diagnostic_host_completion_us() const noexcept { return diagnostic_host_completion_us_; }
     uint64_t diagnostic_queue_wait_us() const noexcept { return diagnostic_queue_wait_us_; }
     uint64_t diagnostic_queue_waits() const noexcept { return diagnostic_queue_waits_; }
     void record_diagnostic_policy_us(uint64_t value) noexcept {
@@ -1042,7 +1048,9 @@ private:
     uint64_t query_refresh_count_ = 0;
     uint64_t seal_calls_ = 0;
     uint64_t diagnostic_seal_us_ = 0;
+    uint64_t diagnostic_seal_boundary_us_ = 0;
     uint64_t diagnostic_host_enqueue_us_ = 0;
+    uint64_t diagnostic_host_completion_us_ = 0;
     uint64_t diagnostic_queue_wait_us_ = 0;
     uint64_t diagnostic_queue_waits_ = 0;
     uint64_t diagnostic_policy_us_ = 0;

@@ -121,8 +121,10 @@ struct llama_kv_pager_metrics_snapshot {
     uint64_t query_refresh_count = 0;
     uint64_t seal_calls = 0;
     uint64_t diagnostic_seal_us = 0;
+    uint64_t diagnostic_seal_boundary_us = 0;
     uint64_t diagnostic_policy_us = 0;
     uint64_t diagnostic_host_enqueue_us = 0;
+    uint64_t diagnostic_host_completion_us = 0;
     uint64_t diagnostic_queue_wait_us = 0;
     uint64_t diagnostic_queue_waits = 0;
     uint64_t seal_pages_scanned = 0;

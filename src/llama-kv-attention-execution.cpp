@@ -518,6 +518,10 @@ llama_kv_attention_packed_cache::entry * llama_kv_attention_packed_cache::find_o
         for (auto & previous : entries_) {
             if (!previous->draining && same_domain(*previous, layer_id, sequence_id, backend)) {
                 previous->draining = true;
+                if (profile && metrics != nullptr) {
+                    metrics->packed_cache_drains = saturating_add(
+                            metrics->packed_cache_drains, uint64_t(1));
+                }
             }
         }
         entries_.push_back(std::move(cached));
@@ -800,6 +804,21 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         bool direct_capable,
         bool dense_capable,
         bool packed_capable) const noexcept {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    struct route_timer {
+        llama_kv_attention_execution_metrics * metrics;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~route_timer() {
+            if (!active || metrics == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            metrics->record_hotpath_time(metrics->route_decision_us,
+                    uint64_t(std::max<int64_t>(0, elapsed)));
+        }
+    } timer { &metrics_, profile_env != nullptr && std::strcmp(profile_env, "1") == 0
+            ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{},
+        profile_env != nullptr && std::strcmp(profile_env, "1") == 0 };
     if (mode_ == llama_kv_attention_execution_mode::off) {
         return llama_kv_attention_execution_route::dense;
     }

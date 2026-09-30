@@ -2913,6 +2913,21 @@ void llama_kv_cache::end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) {
 }
 
 void llama_kv_cache::seal_kv_pager_pages() {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+    struct seal_boundary_timer {
+        llama_kv_pager * pager;
+        std::chrono::steady_clock::time_point start;
+        bool active;
+        ~seal_boundary_timer() {
+            if (!active || pager == nullptr) return;
+            const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::steady_clock::now() - start).count();
+            pager->record_diagnostic_seal_boundary_us(
+                    uint64_t(std::max<int64_t>(0, elapsed)));
+        }
+    } timer { pager_.get(), profile ? std::chrono::steady_clock::now()
+                                    : std::chrono::steady_clock::time_point{}, profile };
     if (pager_ != nullptr) {
         // Polling completion is cheap and does not touch the device source.
         // Host capture and summary construction run only when the pager has
