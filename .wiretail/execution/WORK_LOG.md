@@ -1629,3 +1629,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03f`
 - Commit at update: `13b709cab`
 - Summary: Tested no-change decision: 100-03e graph-build attribution was 17.95% of fresh-prefill wall, packed lookup 0.13%, selected refresh 0; no measured reason justified a bucket/copy/route change. Existing packed owner-capacity and copy-interval invariant fixtures passed. Unknown copy duration, dense delta, and live graph-rebuild causes retained in evidence.
+
+## 2026-09-30T04:44:09+00:00 — 100-03g — done
+
+- Branch: `codex/task-100-03g`
+- Commit at update: `ca116dcb6`
+- Summary: Measured canonical host sealing at 2.945% of fresh prefill with exact valid-byte transfer; CUDA pager and promotion fixtures pass, so production sealing remains unchanged.
