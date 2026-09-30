@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "task": "100-03l",
+  "source_commit": "d2da095c6658f9abbcccb687edc608894ae8ec17",
+  "decision": "goal_miss",
+  "measurement_evidence": {
+    "path": ".wiretail/execution/evidence/SHORT_PATH_100-03L.json",
+    "sha256": "b494902fcdac590f1cbb8a7dad817e4826ab34979bb2e648222731e3efd2aa92"
+  },
+  "checks": {
+    "llama_decode_prefill_owner_repair": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "--target",
+        "test-kv-attention-execution",
+        "llama-server",
+        "-j",
+        "8"
+      ],
+      "live_retake": "One canonical prompt-2 retake completed: one 40-token warmup and one 400-token measured request, native MTP, fresh slot. The measured row is a goal miss at 211.65984472211056 tok/s. The context-level LLAMA_LOG_INFO stage lines were filtered; stage-timing-final.json reports captured server-level timing and graph metric deltas and explicitly leaves unobserved internal stage durations unavailable.",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/build-retry.log",
+          "sha256": "332ce49c5378510effb84fb931305c0a0c8a368406b29ec11b1bdb83e5ad47d5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/kv-attention-fixture.log",
+          "sha256": "731edc8a75362e637d18acd189548c15023a1a9167c4d9a6b9841b3c8e5ac643"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/candidate-identity-final.json",
+          "sha256": "aa1eff7c819a33709181cb848c1449986bc2d70f646215c3b2d24d0110101b3f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/candidate-bundle-final/build-receipt.json",
+          "sha256": "b35510c9d15315ca326b81b3d9c9ffee0db85161871fb7d3d3e54a2d5dd642e5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/launch-final.json",
+          "sha256": "8854c65c07e9c8e2649bcf39870b5a0d136b4bf4ab029d582227c3e738f5402f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/stage-timing-final.json",
+          "sha256": "5684e1e378edcd6f9b58cce5543cbc3fd32405591d3c97809b7324f1db7446ab"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/records.jsonl",
+          "sha256": "71161d9bc0ffec325545263e6f8721b855dc777d993d8829e5ade9ad7d44019a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/summary.json",
+          "sha256": "7ec5d0b8ffe3cba01894d15ac26ea56c3d1905eda6de51c63d8c671d115e5706"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/case-manifest.json",
+          "sha256": "5a3676ce29f77ce2fe4d6b67ed162e24043cbebdff2462033fcea66e87c3be2d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/run-config.json",
+          "sha256": "82791924c1ee466b30abba6db7bee8c640ffb04c8b2218fef34a63776fe173c6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/lifecycle-state.json",
+          "sha256": "f4d672807fc5fe4e7a536ff69d6d7bb6528db218c5e5577bd441e2101eded796"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.json",
+          "sha256": "d71aacbc481bf07168ef05dcb778dee835b3ca908c8e6e36c6dc73ee34235ce5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.journal.log",
+          "sha256": "e2ecfd02ec8bee0ebb818420db398f818eb4cf7be254157eea57b804b56fc13e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-before.prom",
+          "sha256": "f4607d4f15c3869b7b30829e40fd335f021664f0d8ab8f8db5a8e245dd7755f1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/raw/off-measured-1-p1.mtp-after.prom",
+          "sha256": "d005707ac7cb1c2c3cb433f9069a1985aa3921ec6df73cea26bb08eabc4cefec"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/raw/off-warmup-1-p1.json",
+          "sha256": "f41b35fbeb9f14fdeb6c4db327e9fae40c2b0beaf37a674b77b22ce39576c462"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/requests/measured-prompt-2.json",
+          "sha256": "fbab4bb4d6c2c40bebe0c518f1a952226174e67f3d3b597d76c2806d9191cbf6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/requests/manifest.json",
+          "sha256": "bcd4ddc98100ee6c90d1c6345df5802209058e5123faf8e9d72ceabe654c52f3"
+        }
+      ]
+    }
+  }
+}

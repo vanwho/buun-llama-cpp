@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "task": "100-03l",
+  "proof": "llama_decode_prefill_owner_repair",
+  "decision": "goal_miss",
+  "classification": {
+    "floor_tok_s": 500,
+    "measured_tok_s": 211.6598447221106,
+    "distance_to_floor_tok_s": -288.3401552778894,
+    "prior_100_03k_tok_s": 212.122,
+    "change_vs_prior_tok_s": -0.4621552778894227,
+    "change_vs_prior_percent": -0.21787239319326357
+  },
+  "measurement": {
+    "request_count": 1,
+    "warmup_count": 1,
+    "warmup_max_tokens": 40,
+    "measured_max_tokens": 400,
+    "prompt_index": 1,
+    "http_code": 200,
+    "fresh_prompt_tokens": 4326,
+    "cached_tokens": 0,
+    "fresh_prefill_us": 20438454.0,
+    "decode_tok_s": 28.57957574586783,
+    "mtp": {
+      "acceptance_percent": 28.48664688,
+      "acceptance_rate": 28.48664688,
+      "accepted_tokens": 96,
+      "draft_tokens": 337,
+      "journal_case_key": "e1fe9d3adaa4de44594fe49d2b430a3d2073b4bd43be59e6270c4e0f10621eb1",
+      "journal_excerpt_sha256": "e2ecfd02ec8bee0ebb818420db398f818eb4cf7be254157eea57b804b56fc13e",
+      "mode": "native",
+      "source": "prometheus_counter_delta"
+    },
+    "pager_status": "ok",
+    "context_tokens": 8192,
+    "page_size": 256,
+    "batch": 1024,
+    "ubatch": 256,
+    "target_kv": "CUDA",
+    "kv_codec": "turbo4",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "frozen_prefix_sha256": "ad528d87807f615a95b0694c0b0dd097e3facd24be14b71914a5ecf9694f4067"
+  },
+  "candidate": {
+    "root": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/candidate-bundle-final",
+    "identity_path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/candidate-identity-final.json",
+    "identity_sha256": "aa1eff7c819a33709181cb848c1449986bc2d70f646215c3b2d24d0110101b3f",
+    "source_commit": "d2da095c6658f9abbcccb687edc608894ae8ec17",
+    "source_diff_sha256": "f8f282b262691cfbefbadb81e74cc46c4cd462535a03c30ad2a371bca8c7d405"
+  },
+  "stage_timing_path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/stage-timing-final.json",
+  "stage_timing_sha256": "5684e1e378edcd6f9b58cce5543cbc3fd32405591d3c97809b7324f1db7446ab",
+  "request_record_path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/selected-p2-retake-final/requests/measured-prompt-2.json",
+  "request_record_sha256": "fbab4bb4d6c2c40bebe0c518f1a952226174e67f3d3b597d76c2806d9191cbf6",
+  "limitation": "Candidate LLAMA_LOG_INFO context_ubatch/context_fence lines were filtered by managed common logger verbosity. Captured server-level timing and graph metric deltas are reported; unavailable internal stage durations are not inferred."
+}
