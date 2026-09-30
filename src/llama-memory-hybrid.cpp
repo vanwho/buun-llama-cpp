@@ -1,4 +1,5 @@
 #include "llama-memory-hybrid.h"
+#include "llama-io.h"
 
 #include "llama-impl.h"
 #include "llama-model.h"
@@ -462,11 +463,13 @@ void llama_memory_hybrid::state_read(llama_io_read_i & io, llama_seq_id seq_id, 
     mutation_scope mutation(this, vbr_operation_kind::state_import,
             vbr_operation_class::state_api, seq_id, 0, std::numeric_limits<llama_pos>::max());
     try {
-        if ((flags & LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == 0) {
+        const bool read_attn = (flags & LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == 0;
+        if (read_attn) {
             mem_attn->state_read(io, seq_id, flags);
         }
         mem_recr->state_read(io, seq_id, flags);
     } catch (...) {
+        io.discard();
         // State import is a composite publication. If either child rejects the stream, drop the
         // imported sequence from both children before the failed operation is closed.
         if (seq_id < 0) {
@@ -479,6 +482,14 @@ void llama_memory_hybrid::state_read(llama_io_read_i & io, llama_seq_id seq_id, 
         mutation.finish(false);
         throw;
     }
+}
+
+void llama_memory_hybrid::state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1) const {
+    mem_attn->state_write_range(io, seq_id, p0, p1);
+}
+
+void llama_memory_hybrid::state_append_range(llama_io_read_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_pos p_limit) {
+    mem_attn->state_append_range(io, seq_id, p0, p1, p_limit);
 }
 
 llama_kv_cache * llama_memory_hybrid::get_mem_attn() const {
