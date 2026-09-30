@@ -1665,3 +1665,27 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03l`
 - Commit at update: `d2da095c6`
 - Summary: Built and fixture-verified llama_context prefill instrumentation and thread-config reuse; completed one canonical retake, recorded truthful stage evidence, and classified the row as a 500 tok/s goal miss.
+
+## 2026-09-30T08:06:06+00:00 — 100-04 — done
+
+- Branch: `codex/task-100-04`
+- Commit at update: `98f98a117`
+- Summary: Final query replay parity, cancellation safety and natural CUDA promotion/MTP verified; V10 receipt validated.
+
+## 2026-09-30T08:09:10+00:00 — 100-04 — todo
+
+- Branch: `codex/task-100-04`
+- Commit at update: `98f98a117`
+- Summary: Reopened after verifier failure: Completion receipt parity fixture modeled recurrent/GDN checkpoint and replay bookkeeping instead of exercising the server checkpoint/replay owner; packet acceptance requires actual common-boundary replay state including recurrent GDN, draft carry, and suffix ordering.
+
+## 2026-09-30T08:10:43+00:00 — 100-04 — in_progress
+
+- Branch: `codex/task-100-04`
+- Commit at update: `98f98a117`
+- Summary: Task started
+
+## 2026-09-30T08:16:13+00:00 — 100-04 — done
+
+- Branch: `codex/task-100-04`
+- Commit at update: `98f98a117`
+- Summary: Verified cancellation and natural CUDA promotion/MTP; removed modeled replay assertions and scheduled actual server replay parity repair 100-04a before 101-01; V10 receipt validated.

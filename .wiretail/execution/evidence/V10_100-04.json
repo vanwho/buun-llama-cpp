@@ -1,0 +1,117 @@
+{
+  "candidate": {
+    "binary_sha256": "a46918e9fdc4c58b4bb4285d21988e2141382f080cd63d751eae00fa2a456fac",
+    "geometry": {
+      "batch": 1024,
+      "context_tokens": 8192,
+      "draft_kv": "Turbo4",
+      "draft_n_max": 2,
+      "hot_tokens": 4096,
+      "mtp_placement": "GPU",
+      "page_tokens": 256,
+      "pager": "selective",
+      "target_kv": "Turbo4",
+      "target_v": "Turbo4",
+      "ubatch": 256
+    },
+    "identity_artifact": {
+      "path": "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/candidate-identity-final.json",
+      "sha256": "aa1eff7c819a33709181cb848c1449986bc2d70f646215c3b2d24d0110101b3f"
+    },
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "service_check": {
+      "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/service-final-check.json",
+      "sha256": "9da7f86c8f2c50df1eeea278cf63dc998e7d4ce248e5b8541650e4cfc9d2fd7d"
+    },
+    "source_diff_sha256": "f8f282b262691cfbefbadb81e74cc46c4cd462535a03c30ad2a371bca8c7d405",
+    "source_head": "d2da095c6658f9abbcccb687edc608894ae8ec17"
+  },
+  "checks": {
+    "final_candidate_natural_promotion_mtp": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/natural-promotion-run.log",
+          "sha256": "2fe2cbe1fe090298713c5302b53de9f6226ad43a5448de12600893ae6afc09d6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/natural-promotion/campaign-progress.json",
+          "sha256": "6c1018751c185f4db632c7e931d7a3a09da900ac1e71d8ffae6740f6b94fdee8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/natural-promotion/cases/PY_MERGE_03/case-summary.json",
+          "sha256": "15cb391688bca648f224e2d87c8d3dfb2637a52bd1055d7d6b52e9024ad7b89e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/natural-promotion-proof-summary.json",
+          "sha256": "f77000f42b2e366a6361e8ad33d50ac93001ef8816dc04bd91d3c901039bb6f0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/natural-promotion/candidate-identity.json",
+          "sha256": "277565f1dd17f4fe78ae885531f08dd5ae313815bc8afbf79b294a90c76df638"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/natural-promotion/health-response.json",
+          "sha256": "6489d6d7a33c5d40e18fc61eeb6c34c341279ee61816394dde5189aa4ad8fae5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/service-final-check.json",
+          "sha256": "9da7f86c8f2c50df1eeea278cf63dc998e7d4ce248e5b8541650e4cfc9d2fd7d"
+        }
+      ],
+      "command": [
+        "python3",
+        "tools/server/bench/run-pager-promotion.py",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/100-04/attempt-03/natural-promotion",
+        "--server-binary",
+        "/srv/ai/paged-kv/results/forward/100-03l/attempt-01/candidate-bundle-final/llama-server",
+        "--model",
+        "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "--selector-trace-page",
+        "1"
+      ],
+      "exit_code": 0,
+      "result": "Natural cold page 1/version 256 nominated, 8650752 useful bytes H2D-completed, map published, target and draft graphs consumed it; native GPU Turbo4 MTP verified. Answer-quality diagnostic mismatch (slash output) is separate from movement.",
+      "status": "pass"
+    },
+    "final_query_cancel_preserves_state": {
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/test-kv-policy-worktree-asserts.log",
+          "sha256": "3a98c7c4952b7819266ac3fbcfe93616a1b02993d8411819acf0571ff5da8fc8"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/test-kv-policy-build-asserts.log",
+          "sha256": "fd38ed1f5b36003abdafce3f8b0359ea9da0ea5a96a311f25535d2a9ef717d01"
+        }
+      ],
+      "command": [
+        "build-cuda/bin/test-kv-policy"
+      ],
+      "exit_code": 0,
+      "result": "Cancellation before H2D and after H2D before publication preserved prior map/epoch and pins; subsequent clean retry published once; assertions active.",
+      "status": "pass"
+    },
+    "final_map_cuda_attention_parity": {
+      "command": [
+        "build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "exit_code": 0,
+      "status": "pass",
+      "result": "Three-page provisional to two-page final map consumed by selected CUDA attention path; direct selected reference max output error 0 under 0.002 tolerance. This does not assert server replay state.",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/focused-build-repair.log",
+          "sha256": "fdb459cc750da808041b18738f25f6a19b1a7928eddf6182f193bcf5eca7b063"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-04/attempt-03/test-cuda-map-parity-repair.log",
+          "sha256": "611afcd079b9d4f938544032dbabadd4b61da9bfa8cc3345884f40c255d1a241"
+        }
+      ]
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "98f98a1170968a18aee9f39f8fee18a47e91a390",
+  "task": "100-04"
+}

@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "100",
-  "current_task": "100-04",
-  "last_updated_utc": "2026-09-30T07:24:19+00:00",
+  "current_task": "100-04a",
+  "last_updated_utc": "2026-09-30T08:16:46+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -29806,9 +29806,9 @@
       "id": "100-04",
       "phase": "100",
       "cluster": "forward100-final",
-      "title": "Verify final replay parity, cancellation and natural promotion",
+      "title": "Final cancel and natural-promotion proof on final hot route",
       "packet": ".wiretail/execution/tasks/100-04.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -29818,7 +29818,6 @@
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "post100-hotpath-20260930",
       "required_proofs": [
-        "final_query_replay_one_pass_parity",
         "final_query_cancel_preserves_state",
         "final_candidate_natural_promotion_mtp"
       ],
@@ -29845,7 +29844,7 @@
         "--receipt",
         ".wiretail/execution/evidence/V10_100-04.json"
       ],
-      "commit": null,
+      "commit": "9bdcfcc01ceb1a7d2f4fc8d32af691df03da69ad",
       "token_usage": {
         "schema_version": 2,
         "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
@@ -29885,19 +29884,35 @@
             "input_tokens_minus_cached_tokens": 1798533,
             "output_tokens": 305812,
             "thinking_tokens": 159641
+          },
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-04-attempt-1-20260930T072441356424235-20260930T072441359960422-6H1qnJ.jsonl:381",
+            "total_tokens": 57608743,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 57248065,
+            "cached_input_tokens": 55740928,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 1507137,
+            "output_tokens": 360678,
+            "thinking_tokens": 202024
           }
         ],
         "totals": {
-          "usage_events": 2,
-          "total_tokens": 104443581,
-          "input_tokens": 103843413,
-          "cached_input_tokens": 100399616,
+          "usage_events": 3,
+          "total_tokens": 162052324,
+          "input_tokens": 161091478,
+          "cached_input_tokens": 156140544,
           "cache_write_input_tokens": 0,
-          "input_tokens_minus_cached_tokens": 3443797,
-          "output_tokens": 600168,
-          "thinking_tokens": 311189,
+          "input_tokens_minus_cached_tokens": 4950934,
+          "output_tokens": 960846,
+          "thinking_tokens": 513213,
           "total_tokens_reported_events": 0,
-          "total_tokens_derived_events": 2,
+          "total_tokens_derived_events": 3,
           "total_tokens_source": "derived_input_plus_output",
           "thinking_tokens_relation": "subset_of_output_tokens"
         }
@@ -29907,7 +29922,54 @@
         "check_exit_code": 1,
         "reason": "Integrated replay parity receipt absent; premature terminal status from interrupted attempt",
         "reopened_utc": "2026-09-29T22:52:53+00:00"
+      },
+      "reopened_completion": {
+        "previous_commit": "98f98a1170968a18aee9f39f8fee18a47e91a390",
+        "reason": "Completion receipt parity fixture modeled recurrent/GDN checkpoint and replay bookkeeping instead of exercising the server checkpoint/replay owner; packet acceptance requires actual common-boundary replay state including recurrent GDN, draft carry, and suffix ordering.",
+        "reopened_utc": "2026-09-30T08:09:10+00:00"
       }
+    },
+    {
+      "id": "100-04a",
+      "phase": "100",
+      "cluster": "forward100-final",
+      "title": "Exercise real final-user replay parity at a common server boundary",
+      "packet": ".wiretail/execution/tasks/100-04a.md",
+      "status": "todo",
+      "blocker": null,
+      "recommended_model": "gpt-6-luna",
+      "recommended_reasoning": "high",
+      "assessment_model": "gpt-6-luna",
+      "assessment_reasoning": "high",
+      "retry1_reasoning": "high",
+      "scope_revision": "hotpath-v10-20260914",
+      "plan_amendment": "post100-hotpath-20260930",
+      "required_proofs": [
+        "final_query_replay_one_pass_parity"
+      ],
+      "depends_on": [
+        "100-04"
+      ],
+      "commit": null,
+      "context_files": [
+        ".wiretail/execution/clusters/forward100-final.md",
+        ".wiretail/execution/tasks/100-04a.md",
+        ".wiretail/execution/handoffs/100-04a.md",
+        ".wiretail/execution/handoffs/100-04.md",
+        "tools/server/server-context.cpp",
+        "src/llama-memory-hybrid.cpp",
+        "common/speculative.cpp",
+        "tests/test-server-prompt-cache.cpp",
+        "tests/test-cuda-kv-promotion.cpp"
+      ],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-04a",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-04a.json"
+      ]
     },
     {
       "id": "101-01",
@@ -29928,7 +29990,7 @@
         "32k_16k_committed_history_and_speed"
       ],
       "depends_on": [
-        "100-04"
+        "100-04a"
       ],
       "commit": null,
       "context_files": [
@@ -31867,16 +31929,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 33,
-        "total_tokens": 656855882,
-        "input_tokens": 653043986,
-        "cached_input_tokens": 635423744,
+        "usage_events": 34,
+        "total_tokens": 714464625,
+        "input_tokens": 710292051,
+        "cached_input_tokens": 691164672,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 17620242,
-        "output_tokens": 3811896,
-        "thinking_tokens": 1990247,
+        "input_tokens_minus_cached_tokens": 19127379,
+        "output_tokens": 4172574,
+        "thinking_tokens": 2192271,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 33,
+        "total_tokens_derived_events": 34,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -31891,17 +31953,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 432,
-      "total_tokens": 9288658416,
-      "input_tokens": 9261211868,
-      "cached_input_tokens": 9056474880,
+      "usage_events": 433,
+      "total_tokens": 9346267159,
+      "input_tokens": 9318459933,
+      "cached_input_tokens": 9112215808,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 78,
-      "input_tokens_minus_cached_tokens": 204736988,
-      "output_tokens": 27446548,
-      "thinking_tokens": 11388589,
+      "cache_write_input_tokens_known_events": 79,
+      "input_tokens_minus_cached_tokens": 206244125,
+      "output_tokens": 27807226,
+      "thinking_tokens": 11590613,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 432,
+      "total_tokens_derived_events": 433,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },
