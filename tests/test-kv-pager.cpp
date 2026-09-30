@@ -881,9 +881,18 @@ static void test_cuda_async_host_publication() {
             const auto pages = host->pages();
             assert(pages.size() == 1 && pages[0].page.units.size() ==
                     VBR_SELECTED_PAGE_REQUIRED_UNITS);
-            uint8_t byte = 0;
-            assert(pages[0].page.units[0].bytes->read(0, &byte, 1));
-            assert(byte == fixture.storage[0][0]);
+            assert(pages[0].page.positions.size() == VBR_GENERATION_PAGE_CELLS);
+            for (uint32_t unit = 0; unit < VBR_SELECTED_PAGE_REQUIRED_UNITS; ++unit) {
+                const auto & host_unit = pages[0].page.units[unit];
+                const size_t expected_bytes =
+                    VBR_GENERATION_PAGE_CELLS * host_page_fixture::row_bytes;
+                assert(host_unit.valid_rows == VBR_GENERATION_PAGE_CELLS);
+                assert(host_unit.bytes && host_unit.bytes->size() == expected_bytes);
+                std::vector<uint8_t> published(expected_bytes);
+                assert(host_unit.bytes->read(0, published.data(), published.size()));
+                assert(std::equal(published.begin(), published.end(),
+                    fixture.storage[unit].begin()));
+            }
 
             const auto cancelled_enqueue = host->enqueue(page, 9);
             assert(cancelled_enqueue.status == llama_kv_pager_host_status::ok);
