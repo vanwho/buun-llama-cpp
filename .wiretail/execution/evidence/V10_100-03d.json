@@ -1,0 +1,159 @@
+{
+  "checks": {
+    "pinned_master_merge_compiles_and_preserves_contracts": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "--target",
+        "llama-server",
+        "test-kv-attention-execution",
+        "test-kv-attention-exact",
+        "test-speculative-mtp-state",
+        "test-mtp-minimal-repair",
+        "test-cuda-kv-promotion",
+        "test-arg-parser",
+        "test-quantize-fns",
+        "-j2"
+      ],
+      "notes": "Pinned MERGE_HEAD ab22bc538502534c96041ccb62162f7278476ee8 remains active; all 12 conflict paths are staged and both unmerged-path/index-entry checks are empty. The fresh binary SHA256 matches the authenticated live candidate exactly. That one short request returned HTTP 200 and recorded model SHA256, selected dense route, target and draft Turbo4 placement, MTP acceptance counter delta, and service restoration. Adapter pager-field scrape was unavailable; captured direct slot/runtime evidence is retained.",
+      "artifacts": [
+        {
+          "description": "fresh incremental CUDA build for server and affected fixture targets (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/build.log",
+          "sha256": "ef237bf4cc2f8c602f3ede336d1a3a9853cbbca2241a020ae9b06fc10997bbbb"
+        },
+        {
+          "description": "focused pager and attention execution fixture (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/test-kv-attention-execution.log",
+          "sha256": "eaec338f6beb58a8eb3e1aa7a172eead1e797e3f54f99ad1ea89b3ad2fd37fbb"
+        },
+        {
+          "description": "exact attention fixture (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/test-kv-attention-exact.log",
+          "sha256": "1dd79b20da415694ed4c5dc517815254742a034cc2d196d6dd31455615d31065"
+        },
+        {
+          "description": "speculative MTP state fixture (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/test-speculative-mtp-state.log",
+          "sha256": "7819a5b20022045a3e2041c986deafaf1d5629ee5be6772a6b93e60aae7ef04a"
+        },
+        {
+          "description": "MTP minimal repair fixture (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/test-mtp-minimal-repair.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "description": "CUDA KV promotion fixture (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/test-cuda-kv-promotion.log",
+          "sha256": "ef6e2a05ce0ac0a7efd540b359954f2d73b940a1af7440db069054c61c176289"
+        },
+        {
+          "description": "server argument parser fixture (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/test-arg-parser.log",
+          "sha256": "0ae2d9580518158d8a924f63a7ad854db76f4a72eefe08d439f1e113b626415c"
+        },
+        {
+          "description": "quantization function fixture (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/test-quantize-fns.log",
+          "sha256": "f519b229ffbcb46e432eae28c06c1df6711703a7e3cd4507e82df629ec9171a4"
+        },
+        {
+          "description": "server CLI help output from fresh binary (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/llama-server-help.log",
+          "sha256": "5c83c37207e35e457a9ad290e660945c2fa3d1a48d3fba9abbb72ca87d048365"
+        },
+        {
+          "description": "resolved conflict worktree SHA256 and marker review",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-03/resolution-review.txt",
+          "sha256": "9edbb9bf63383f5da18d216757725798b5e1e5e6d29475ed91faf8fdf94004b9"
+        },
+        {
+          "description": "semantic review anchors for fork/upstream interfaces",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-03/semantic-anchors.txt",
+          "sha256": "9929d7510ff6cc1b18e9e60dbbb7dd63147352ffd16d09dc3873a2e6b89725df"
+        },
+        {
+          "description": "worktree whitespace check (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/git-diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "description": "task state validation (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/task-state-validation.log",
+          "sha256": "fc2c99b00879341252d30512ec5cd53ff0073be8bd8dd1961f0e5551f64a1137"
+        },
+        {
+          "description": "candidate build identity and executable/DSO hashes",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/candidate-bundle/build-identity.json",
+          "sha256": "caa5e4c4b89f8686066abebbce710fbef8371f878a7927c5560eff4a63d60f28"
+        },
+        {
+          "description": "authenticated 27B request, candidate identity, route, MTP, restoration summary",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/live-observation.json",
+          "sha256": "4b0135ce5b0703efe592cbc33fb289ab108895d5e4efd37c7da74afe7adea863"
+        },
+        {
+          "description": "canonical live request result record",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/live-diagnostic/records.jsonl",
+          "sha256": "48f1c07b8bd2c798941d963efde2c5c5260aaf6756d337a8f86e0c8d53fff393"
+        },
+        {
+          "description": "authenticated streamed response",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/live-diagnostic/raw/off-measured-1-p1.json",
+          "sha256": "b2148a8a8ec91935c4376a87df5afa8ead02cdb0b8ced89a8dd254afdb1ef758"
+        },
+        {
+          "description": "selected route and Turbo4 K/V placement snapshot",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/live-diagnostic/raw/off-measured-1-p1.slot-after.json",
+          "sha256": "b3b739a0e75cbdff87c1168e6afb75b5f4568047e8d5c36459929ff237447b2d"
+        },
+        {
+          "description": "MTP counters before request",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/live-diagnostic/raw/off-measured-1-p1.mtp-before.prom",
+          "sha256": "34742b4fc054e55891c905a04e3fc0b32fea06152bd9cf03ca787407d32e8a27"
+        },
+        {
+          "description": "MTP counters after request",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/live-diagnostic/raw/off-measured-1-p1.mtp-after.prom",
+          "sha256": "58d8b495ed7db3eff97bb782fb1d7300dd3367e9648fc0e4ca0bc433b4c0dd69"
+        },
+        {
+          "description": "runtime identity and service restoration evidence",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/live-diagnostic/lifecycle-state.json",
+          "sha256": "9febe75cd46dd1545367af6f63934e4f257ffe622f99c1b3ca943efc97d031e4"
+        },
+        {
+          "description": "live request runner summary and telemetry limitation",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-01/live-diagnostic.log",
+          "sha256": "771cad86f9045e1b558bfe55a66632fce788232dc8d641a202152e2869e64754"
+        },
+        {
+          "description": "cached merge whitespace check (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/git-diff-check-cached.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "description": "git diff --name-only --diff-filter=U (attempt 4; empty)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/unmerged-paths.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "description": "git ls-files -u (attempt 4; empty)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/unmerged-index.txt",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "description": "exit status for all focused fixtures and server help (attempt 4)",
+          "path": "/srv/ai/paged-kv/results/forward/100-03d/attempt-04/fixture-status.tsv",
+          "sha256": "5b23cf5257781aa0ae9f250e8db6295c060229018e5c89aac5ac96fbfa93a358"
+        }
+      ]
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "3d68e2588929c42a4baa45f7a2df769101cb3d8b",
+  "task": "100-03d"
+}

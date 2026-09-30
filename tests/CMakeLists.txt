@@ -151,6 +151,12 @@ endif ()
 llama_build_and_test(test-server-recurrent-expansion.cpp)
 target_include_directories(test-server-recurrent-expansion PRIVATE ${PROJECT_SOURCE_DIR}/tools/server)
 
+llama_build_and_test(
+    test-server-resume-store.cpp
+    ${PROJECT_SOURCE_DIR}/tools/server/server-resume-store.cpp)
+target_include_directories(test-server-resume-store PRIVATE ${PROJECT_SOURCE_DIR}/tools/server)
+target_link_libraries(test-server-resume-store PRIVATE vendor::hash)
+
 llama_build_and_test(test-kv-cells.cpp)
 target_include_directories(test-kv-cells PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
@@ -201,6 +207,9 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     target_include_directories(test-recurrent-state-rollback PRIVATE ${PROJECT_SOURCE_DIR}/src)
     llama_build(test-vbr-swa-window.cpp)
     target_include_directories(test-vbr-swa-window PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    # run by hand with a sliding-window model
+    llama_build(test-state-restore-swa-exact.cpp)
+    target_include_directories(test-state-restore-swa-exact PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
     llama_build(test-vbr-representation-epoch.cpp)
     target_include_directories(test-vbr-representation-epoch PRIVATE ${PROJECT_SOURCE_DIR}/src)
@@ -416,12 +425,15 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
         test-llama-archs
         NAME test-generate-models
         LABEL main
-        ARGS -o "${MODEL_DIR}"
+        # Preserve the pre-sync state fixtures' weight scale and make failures
+        # reproducible. Architecture operator tests retain their broader default.
+        ARGS -o "${MODEL_DIR}" -s 1234 -d 0.01
     )
     set_tests_properties(test-generate-models PROPERTIES
         FIXTURES_SETUP generate-models
     )
 
+    # Test recurrent-state rollback across all architectures, using the generated dummy models
     llama_test(
         test-recurrent-state-rollback
         LABEL main
@@ -486,6 +498,15 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
     set_tests_properties(test-recurrent-state-rollback-kimi-k3 PROPERTIES
         FIXTURES_REQUIRED generate-models
     )
+    set_tests_properties(test-recurrent-state-rollback PROPERTIES FIXTURES_REQUIRED generate-models)
+
+    llama_test(
+        test-recurrent-state-rollback
+        NAME test-recurrent-state-rollback-all-models
+        LABEL main
+        ARGS --models "${MODEL_DIR}" --fit off)
+    set_tests_properties(test-recurrent-state-rollback-all-models PROPERTIES
+        FIXTURES_REQUIRED generate-models)
 
     foreach (MODEL qwen35-dense nemotron_h-dense deepseek4-moe kimi-k3-moe)
         llama_test(
@@ -494,8 +515,15 @@ if (NOT WIN32 OR NOT BUILD_SHARED_LIBS)
             LABEL main
             ARGS -m "${MODEL_DIR}/${MODEL}.gguf" --cache-pattern-fill)
         set_tests_properties(test-recurrent-state-pattern-${MODEL} PROPERTIES
-            FIXTURES_REQUIRED generate-models)
+            FIXTURES_REQUIRED generate-models SKIP_RETURN_CODE 77)
     endforeach()
+
+    set_tests_properties(
+        test-recurrent-state-rollback
+        test-recurrent-state-rollback-nemotron-h
+        test-recurrent-state-rollback-dsv4
+        test-recurrent-state-rollback-kimi-k3
+        PROPERTIES SKIP_RETURN_CODE 77)
 
     # Test state save/load functionality across all architectures, using the generated dummy models
     llama_test(
@@ -541,7 +569,7 @@ add_test(NAME test-download-model COMMAND ${CMAKE_COMMAND}
     -DDEST=${MODEL_DEST}
     -DNAME=${MODEL_NAME}
     -DHASH=${MODEL_HASH}
-    -P ${CMAKE_SOURCE_DIR}/cmake/download-models.cmake
+    -P ${PROJECT_SOURCE_DIR}/cmake/download-models.cmake
 )
 set_tests_properties(test-download-model PROPERTIES FIXTURES_SETUP test-download-model)
 
@@ -647,6 +675,9 @@ llama_build_and_test(test-model-resolution.cpp)
 add_executable(test-moe-metadata test-moe-metadata.cpp)
 target_link_libraries(test-moe-metadata PRIVATE llama)
 llama_test(test-moe-metadata)
+add_executable(test-model-qkv-split test-model-qkv-split.cpp)
+target_link_libraries(test-model-qkv-split PRIVATE llama)
+llama_test(test-model-qkv-split)
 # the test serves its repos from an httplib server, and the library links it privately
 target_link_libraries(test-model-resolution PRIVATE cpp-httplib)
 
@@ -1021,6 +1052,17 @@ if ((TARGET ggml-cuda OR TARGET ggml-hip) AND NOT GGML_BACKEND_DL)
         target_link_libraries(test-vbr-vmm PRIVATE ggml-hip)
     endif()
     llama_test(test-vbr-vmm LABEL "backend")
+    llama_build(test-vbr-memory-info.cpp)
+    if (TARGET ggml-cuda)
+        target_link_libraries(test-vbr-memory-info PRIVATE ggml-cuda)
+    else()
+        target_link_libraries(test-vbr-memory-info PRIVATE ggml-hip)
+    endif()
+    llama_test(test-vbr-memory-info LABEL "backend")
+    set_tests_properties(test-vbr-memory-info PROPERTIES SKIP_RETURN_CODE 77 RUN_SERIAL TRUE)
+
+    # exhausts the device on purpose, so it is run by hand with a model dynamic VBR can manage
+    llama_build(test-vbr-import-exhausted.cpp)
 endif()
 
 # the tensor API kernels come from a separate metallib - check they produce correct results
@@ -1031,12 +1073,16 @@ if (GGML_METAL AND NOT GGML_METAL_EMBED_LIBRARY)
     set_tests_properties(test-backend-ops-metallib-tensor PROPERTIES ENVIRONMENT GGML_METAL_TENSOR_ENABLE=1)
 endif()
 
+if (GGML_CPU)
+    llama_build_and_test(test-tiled-mulmat.cpp)
+endif()
 llama_build_and_test(test-model-load-cancel.cpp LABEL "model")
 llama_build_and_test(test-autorelease.cpp       LABEL "model")
 llama_build_and_test(test-backend-sampler.cpp   LABEL "model")
 
 # Test for state restore with fragmented KV cache
 # Requires a model, uses same args pattern as test-thread-safety
+# TODO: run on all dummy models
 llama_build_and_test(test-state-restore-fragmented.cpp LABEL "model" ARGS -m "${MODEL_DEST}")
 set_tests_properties(test-state-restore-fragmented PROPERTIES FIXTURES_REQUIRED test-download-model)
 
@@ -1044,7 +1090,7 @@ if (APPLE)
     llama_build(test-rset-release.cpp)
 endif()
 
-if (NOT GGML_BACKEND_DL)
+if (NOT GGML_BACKEND_DL AND GGML_CPU)
     # these tests use the backends directly and cannot be built with dynamic loading
     llama_build_and_test(test-barrier.cpp)
     llama_build_and_test(test-quantize-fns.cpp)
@@ -1096,6 +1142,10 @@ if (NOT LLAMA_USE_SYSTEM_GGML)
     llama_build_and_test(test-alloc.cpp)
     llama_build_and_test(test-backend-meta-replay.cpp)
     set_tests_properties(test-backend-meta-replay PROPERTIES SKIP_RETURN_CODE 77)
+    llama_build_and_test(test-backend-meta-partial-io.cpp)
+    set_tests_properties(test-backend-meta-partial-io PROPERTIES SKIP_RETURN_CODE 77)
+    llama_build_and_test(test-backend-meta-split-state.cpp)
+    set_tests_properties(test-backend-meta-split-state PROPERTIES SKIP_RETURN_CODE 77)
 endif()
 
 llama_build(test-export-graph-ops.cpp)

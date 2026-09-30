@@ -16,8 +16,8 @@
   "compared_llama_commit": "67a17c17caa95742186f8b1ecadd1b5abd6d5ebb",
   "status": "ready",
   "current_phase": "100",
-  "current_task": "100-03d",
-  "last_updated_utc": "2026-09-29T22:52:53+00:00",
+  "current_task": "100-03e",
+  "last_updated_utc": "2026-09-30T03:29:05+00:00",
   "runner": {
     "path": "/srv/wiretail/wiretail.sh",
     "required_git_mode": "auto",
@@ -28972,7 +28972,7 @@
       "cluster": "forward100-merge",
       "title": "Merge pinned synced fork master and preserve Turbo4 pager/MTP contracts",
       "packet": ".wiretail/execution/tasks/100-03d.md",
-      "status": "todo",
+      "status": "done",
       "blocker": null,
       "recommended_model": "gpt-6-luna",
       "recommended_reasoning": "high",
@@ -28982,8 +28982,12 @@
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "post100-hotpath-20260930",
       "upstream_merge_commit": "ab22bc538502534c96041ccb62162f7278476ee8",
-      "required_proofs": ["pinned_master_merge_compiles_and_preserves_contracts"],
-      "depends_on": ["100-03c"],
+      "required_proofs": [
+        "pinned_master_merge_compiles_and_preserves_contracts"
+      ],
+      "depends_on": [
+        "100-03c"
+      ],
       "context_files": [
         ".wiretail/execution/clusters/forward100-merge.md",
         ".wiretail/execution/tasks/100-03d.md",
@@ -28991,8 +28995,172 @@
         ".wiretail/execution/handoffs/100-03c.md",
         "CONTRIBUTING.md"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "100-03d", "--receipt", ".wiretail/execution/evidence/V10_100-03d.json"],
-      "commit": null
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03d",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03d.json"
+      ],
+      "commit": "3ecb032f3bc9adda4c534ccffc99d8ea077b3b2d",
+      "token_usage": {
+        "schema_version": 2,
+        "scope": "Codex CLI turn.completed usage object; not a per-generation breakdown and not active context-window occupancy",
+        "event_type": "turn.completed",
+        "generation_level_breakdown_available": false,
+        "active_context_tokens": null,
+        "thinking_tokens_relation": "subset_of_output_tokens",
+        "events": [
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03d-attempt-1-20260930T003657011182279-20260930T003657013791699-97Xup5.jsonl:315",
+            "total_tokens": 23569553,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 23501247,
+            "cached_input_tokens": 23106304,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 394943,
+            "output_tokens": 68306,
+            "thinking_tokens": 25705
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03d-attempt-2-20260930T013542116564694-20260930T013542119134483-6AvUgs.jsonl:49",
+            "total_tokens": 1262040,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 1254238,
+            "cached_input_tokens": 1189632,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 64606,
+            "output_tokens": 7802,
+            "thinking_tokens": 3124
+          },
+          {
+            "attempt": 1,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03d-attempt-1-20260930T022025841319047-20260930T022025844080555-vw1uAC.jsonl:59",
+            "total_tokens": 1492465,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 1480268,
+            "cached_input_tokens": 1409536,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 70732,
+            "output_tokens": 12197,
+            "thinking_tokens": 4292
+          },
+          {
+            "attempt": 2,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03d-attempt-2-20260930T022612427179006-20260930T022612429925194-37nI6v.jsonl:46",
+            "total_tokens": 970673,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 960561,
+            "cached_input_tokens": 899840,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 60721,
+            "output_tokens": 10112,
+            "thinking_tokens": 3368
+          },
+          {
+            "attempt": 3,
+            "kind": "assessment",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03d-assessment-before-attempt-3-20260930T022942081909889-20260930T022942084567546-YH5SKN.jsonl:32",
+            "total_tokens": 474034,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 465103,
+            "cached_input_tokens": 423168,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 41935,
+            "output_tokens": 8931,
+            "thinking_tokens": 4218
+          },
+          {
+            "attempt": 3,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03d-attempt-3-20260930T030503443969310-20260930T030503447168666-zAS6wW.jsonl:75",
+            "total_tokens": 1733012,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 1719071,
+            "cached_input_tokens": 1633792,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 85279,
+            "output_tokens": 13941,
+            "thinking_tokens": 4527
+          },
+          {
+            "attempt": 4,
+            "kind": "assessment",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03d-assessment-before-attempt-4-20260930T031204871258330-20260930T031204874200808-BKHTr5.jsonl:48",
+            "total_tokens": 858713,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 847127,
+            "cached_input_tokens": 790016,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 57111,
+            "output_tokens": 11586,
+            "thinking_tokens": 4878
+          },
+          {
+            "attempt": 4,
+            "kind": "task",
+            "model": "gpt-6-luna",
+            "reasoning": "high",
+            "source": ".wiretail/build/100-03d-attempt-4-20260930T032415317438419-20260930T032415320368546-zueHRF.jsonl:48",
+            "total_tokens": 1005405,
+            "total_tokens_derived": true,
+            "total_tokens_source": "derived_input_plus_output",
+            "input_tokens": 991050,
+            "cached_input_tokens": 929792,
+            "cache_write_input_tokens": 0,
+            "input_tokens_minus_cached_tokens": 61258,
+            "output_tokens": 14355,
+            "thinking_tokens": 5955
+          }
+        ],
+        "totals": {
+          "usage_events": 8,
+          "total_tokens": 31365895,
+          "input_tokens": 31218665,
+          "cached_input_tokens": 30382080,
+          "cache_write_input_tokens": 0,
+          "input_tokens_minus_cached_tokens": 836585,
+          "output_tokens": 147230,
+          "thinking_tokens": 56067,
+          "total_tokens_reported_events": 0,
+          "total_tokens_derived_events": 8,
+          "total_tokens_source": "derived_input_plus_output",
+          "thinking_tokens_relation": "subset_of_output_tokens"
+        }
+      },
+      "reopened_completion": {
+        "previous_commit": "3d68e2588929c42a4baa45f7a2df769101cb3d8b",
+        "reason": "Attempt 4 revalidates the post-completion cached-diff gate fixed after attempt 3; reopening preserves the invalid completion history pending final audit.",
+        "reopened_utc": "2026-09-30T03:25:43+00:00"
+      }
     },
     {
       "id": "100-03e",
@@ -29009,8 +29177,12 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "post100-hotpath-20260930",
-      "required_proofs": ["request_local_hotpath_attribution"],
-      "depends_on": ["100-03d"],
+      "required_proofs": [
+        "request_local_hotpath_attribution"
+      ],
+      "depends_on": [
+        "100-03d"
+      ],
       "context_files": [
         ".wiretail/execution/clusters/forward100-postmerge-hotpath.md",
         ".wiretail/execution/tasks/100-03e.md",
@@ -29020,7 +29192,14 @@
         "src/llama-kv-cache.cpp",
         "src/llama-kv-pager.cpp"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "100-03e", "--receipt", ".wiretail/execution/evidence/V10_100-03e.json"],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03e",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03e.json"
+      ],
       "commit": null
     },
     {
@@ -29038,8 +29217,12 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "post100-hotpath-20260930",
-      "required_proofs": ["selected_hotpath_measured_repair_or_no_change"],
-      "depends_on": ["100-03e"],
+      "required_proofs": [
+        "selected_hotpath_measured_repair_or_no_change"
+      ],
+      "depends_on": [
+        "100-03e"
+      ],
       "context_files": [
         ".wiretail/execution/clusters/forward100-postmerge-hotpath.md",
         ".wiretail/execution/tasks/100-03f.md",
@@ -29048,7 +29231,14 @@
         "src/llama-kv-attention-execution.cpp",
         "src/llama-graph.cpp"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "100-03f", "--receipt", ".wiretail/execution/evidence/V10_100-03f.json"],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03f",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03f.json"
+      ],
       "commit": null
     },
     {
@@ -29066,8 +29256,12 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "post100-hotpath-20260930",
-      "required_proofs": ["canonical_host_seal_overlap_or_measured_no_change"],
-      "depends_on": ["100-03f"],
+      "required_proofs": [
+        "canonical_host_seal_overlap_or_measured_no_change"
+      ],
+      "depends_on": [
+        "100-03f"
+      ],
       "context_files": [
         ".wiretail/execution/clusters/forward100-postmerge-hotpath.md",
         ".wiretail/execution/tasks/100-03g.md",
@@ -29077,7 +29271,14 @@
         "src/llama-kv-cache.cpp",
         "src/llama-kv-pager.cpp"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "100-03g", "--receipt", ".wiretail/execution/evidence/V10_100-03g.json"],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03g",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03g.json"
+      ],
       "commit": null
     },
     {
@@ -29095,8 +29296,12 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "post100-hotpath-20260930",
-      "required_proofs": ["mtp_first_divergence_classified_and_state_sound"],
-      "depends_on": ["100-03g"],
+      "required_proofs": [
+        "mtp_first_divergence_classified_and_state_sound"
+      ],
+      "depends_on": [
+        "100-03g"
+      ],
       "context_files": [
         ".wiretail/execution/clusters/forward100-postmerge-hotpath.md",
         ".wiretail/execution/tasks/100-03h.md",
@@ -29106,7 +29311,14 @@
         "tools/server/server-context.cpp",
         "tests/test-speculative-mtp-state.cpp"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "100-03h", "--receipt", ".wiretail/execution/evidence/V10_100-03h.json"],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03h",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03h.json"
+      ],
       "commit": null
     },
     {
@@ -29124,8 +29336,12 @@
       "retry1_reasoning": "high",
       "scope_revision": "hotpath-v10-20260914",
       "plan_amendment": "post100-hotpath-20260930",
-      "required_proofs": ["short_matched_speed_decision"],
-      "depends_on": ["100-03h"],
+      "required_proofs": [
+        "short_matched_speed_decision"
+      ],
+      "depends_on": [
+        "100-03h"
+      ],
       "context_files": [
         ".wiretail/execution/clusters/forward100-final.md",
         ".wiretail/execution/tasks/100-03i.md",
@@ -29134,7 +29350,14 @@
         ".wiretail/execution/handoffs/100-03h.md",
         "tools/server/bench/run-pager-profile-benchmark.py"
       ],
-      "completion_check": ["python3", ".wiretail/execution/v10/validate.py", "--task", "100-03i", "--receipt", ".wiretail/execution/evidence/V10_100-03i.json"],
+      "completion_check": [
+        "python3",
+        ".wiretail/execution/v10/validate.py",
+        "--task",
+        "100-03i",
+        "--receipt",
+        ".wiretail/execution/evidence/V10_100-03i.json"
+      ],
       "commit": null
     },
     {
@@ -31201,16 +31424,16 @@
       "active_context_tokens": null,
       "thinking_tokens_relation": "subset_of_output_tokens",
       "totals": {
-        "usage_events": 17,
-        "total_tokens": 472334679,
-        "input_tokens": 469827472,
-        "cached_input_tokens": 457594112,
+        "usage_events": 25,
+        "total_tokens": 503700574,
+        "input_tokens": 501046137,
+        "cached_input_tokens": 487976192,
         "cache_write_input_tokens": 0,
-        "input_tokens_minus_cached_tokens": 12233360,
-        "output_tokens": 2507207,
-        "thinking_tokens": 1260125,
+        "input_tokens_minus_cached_tokens": 13069945,
+        "output_tokens": 2654437,
+        "thinking_tokens": 1316192,
         "total_tokens_reported_events": 0,
-        "total_tokens_derived_events": 17,
+        "total_tokens_derived_events": 25,
         "total_tokens_source": "derived_input_plus_output",
         "thinking_tokens_relation": "subset_of_output_tokens"
       }
@@ -31225,17 +31448,17 @@
     "active_context_size_reported": false,
     "thinking_tokens_relation": "subset_of_output_tokens",
     "totals": {
-      "usage_events": 416,
-      "total_tokens": 9104137213,
-      "input_tokens": 9077995354,
-      "cached_input_tokens": 8878645248,
+      "usage_events": 424,
+      "total_tokens": 9135503108,
+      "input_tokens": 9109214019,
+      "cached_input_tokens": 8909027328,
       "cache_write_input_tokens": 0,
-      "cache_write_input_tokens_known_events": 62,
-      "input_tokens_minus_cached_tokens": 199350106,
-      "output_tokens": 26141859,
-      "thinking_tokens": 10658467,
+      "cache_write_input_tokens_known_events": 70,
+      "input_tokens_minus_cached_tokens": 200186691,
+      "output_tokens": 26289089,
+      "thinking_tokens": 10714534,
       "total_tokens_reported_events": 0,
-      "total_tokens_derived_events": 416,
+      "total_tokens_derived_events": 424,
       "total_tokens_source": "derived_input_plus_output",
       "thinking_tokens_relation": "subset_of_output_tokens"
     },

@@ -1455,3 +1455,159 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-04`
 - Commit at update: `3f3d6c61c`
 - Summary: Reopened invalid completion: Integrated replay parity receipt absent; premature terminal status from interrupted attempt
+
+## 2026-09-30T01:32:36+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Resolved pinned upstream merge conflicts preserving Turbo4 pager/MTP ownership; CUDA server and affected fixtures pass, live candidate request and restoration recorded, V10 receipt validated.
+
+## 2026-09-30T01:34:11+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Wiretail post-completion verification failed
+
+## 2026-09-30T01:35:42+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: brief verified result
+
+## 2026-09-30T01:38:48+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Prior post-completion verification rejected a stale apply_patch anchor; current merged source already contains the resolved implementation, and all declared evidence is being revalidated.
+
+## 2026-09-30T01:38:48+00:00 — 100-03d — in_progress
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Task started
+
+## 2026-09-30T01:39:57+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Revalidated the pinned merge, resolved source contents, existing build/fixture and live evidence, diff check, and V10 proof after the stale patch anchor failure.
+
+## 2026-09-30T01:40:39+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Wiretail post-completion verification failed
+
+## 2026-09-30T02:20:26+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: brief verified result
+
+## 2026-09-30T02:22:04+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Wiretail post-completion verification recovery attempt: re-establish current merge proof and rerun required completion validation.
+
+## 2026-09-30T02:22:04+00:00 — 100-03d — in_progress
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Task started
+
+## 2026-09-30T02:23:57+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Re-established pinned-master merge proof with fresh CUDA build, affected fixtures, CLI check, receipt validation, and clean diff check.
+
+## 2026-09-30T02:24:42+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Wiretail post-completion verification failed
+
+## 2026-09-30T02:26:12+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: brief verified result
+
+## 2026-09-30T02:27:22+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Recovery attempt 2: completion wrapper rejected an obsolete handoff patch anchor; revalidate the existing resolved merge proof and refresh current handoff.
+
+## 2026-09-30T02:27:37+00:00 — 100-03d — in_progress
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Task started
+
+## 2026-09-30T02:28:57+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Pinned master merge resolved; attempt-02 CUDA build, focused fixtures, CLI, diff check, and V10 proof passed.
+
+## 2026-09-30T02:29:41+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Wiretail post-completion verification failed
+
+## 2026-09-30T03:05:03+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: brief verified result
+
+## 2026-09-30T03:06:25+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Prior completion was invalid: merge HEAD remains active with 12 unresolved index entries despite the V10 receipt; resolving and revalidating current proof.
+
+## 2026-09-30T03:06:52+00:00 — 100-03d — in_progress
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Task started
+
+## 2026-09-30T03:11:17+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Resolved and staged the 12 pinned-merge conflict paths; verified active pinned MERGE_HEAD with no unmerged index entries; fresh CUDA build, all seven focused fixtures, server help, diff check, state validation and V10 receipt passed. Reused authenticated runtime proof from the byte-identical candidate; merge commit remains with Wiretail.
+
+## 2026-09-30T03:12:04+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Wiretail post-completion verification failed
+
+## 2026-09-30T03:24:15+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: brief verified result
+
+## 2026-09-30T03:25:43+00:00 — 100-03d — todo
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Reopened after verifier failure: Attempt 4 revalidates the post-completion cached-diff gate fixed after attempt 3; reopening preserves the invalid completion history pending final audit.
+
+## 2026-09-30T03:25:43+00:00 — 100-03d — in_progress
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Task started
+
+## 2026-09-30T03:28:34+00:00 — 100-03d — done
+
+- Branch: `codex/task-100-03d`
+- Commit at update: `3d68e2588`
+- Summary: Pinned fork master merge resolved; attempt-4 build, focused fixtures, merge/diff gates and V10 receipt all pass.
