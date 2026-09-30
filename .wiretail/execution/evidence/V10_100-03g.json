@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "task": "100-03g",
+  "source_commit": "ca116dcb64e7bd8b889b6451633a7f888c1f88fb",
+  "checks": {
+    "canonical_host_seal_overlap_or_measured_no_change": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-kv-pager"
+      ],
+      "decision": "no_change",
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03g/attempt-01/build-final.log",
+          "sha256": "3a1ac79ab49c883e0fd4a25d885007eeae6f71e6a7109a87c5d003b1b70aeb48"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03g/attempt-01/test-kv-pager-final.log",
+          "sha256": "b85e4036bce331000441572ea7619454e127011dbcc6d6b71d4f29ba945c082c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03g/attempt-01/test-kv-pager-final.exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03g/attempt-01/build-promotion.log",
+          "sha256": "354e6cabc6291c8f80ecb3bae268013ba76b2e3cde22a7b58231b1757be5737d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03g/attempt-01/test-cuda-kv-promotion.log",
+          "sha256": "ef6e2a05ce0ac0a7efd540b359954f2d73b940a1af7440db069054c61c176289"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03g/attempt-01/test-cuda-kv-promotion.exit",
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/request-local-attribution.json",
+          "sha256": "220c427ded2a7130de72f3f096bf3018b7b27b8229169125c0a98864e8a49012"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/phase-us.json",
+          "sha256": "879ff39854f3168df570182e4deeec985f5105516f3eb862d307fa9127da556b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/slot-post-request.json",
+          "sha256": "99ad109b32b5eb961b0a6303010e8354a785c045de913629e75eb87008709f24"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03e/attempt-01/live-diagnostic/raw/off-measured-1-p1.json",
+          "sha256": "4f512cc68a3b5b5c093cfcf2b1fa3d462b0856650058b1dfadbca4367b75a970"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03f/attempt-01/selected-hotpath-no-change.json",
+          "sha256": "d5d463a8b83b649ecbb98396dd5b3bca82b3afce8a0e7b25fb716d15dc772ea5"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/100-03g/attempt-01/canonical-host-seal-no-change.json",
+          "sha256": "67c20268509f247aeecc5ada675721953f8284e26a9da19987d8ecfdc0ec148f"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/tests/test-kv-pager.cpp",
+          "sha256": "c215b3536243ed3e1c1fdc53f4ebde40b042dac49bc947365989b1764f3043e7"
+        }
+      ]
+    }
+  }
+}
