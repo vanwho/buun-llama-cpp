@@ -1653,3 +1653,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-100-03j`
 - Commit at update: `2a5b594ed`
 - Summary: Implemented and fixture-validated near-tail live-rewind checkpoint coalescing; selected prompt-2 retake passed integrity checks but measured 212.158 tok/s (+0.733% vs baseline), below the 500 tok/s goal. Scheduled 100-03k prefill timing repair before 100-04.
+
+## 2026-09-30T06:52:54+00:00 — 100-03k — done
+
+- Branch: `codex/task-100-03k`
+- Commit at update: `938df7a8f`
+- Summary: Implemented direct prompt-batch assembly and request-local timing; fixture and canonical prompt-2 retake passed validation, row classified goal_miss at 212.122 tok/s; scheduled 100-03l as the required measured llama_decode-path follow-up before 100-04.
