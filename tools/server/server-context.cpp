@@ -1783,7 +1783,7 @@ static json server_mtp_logit_identity(
     const int32_t * argmax = llama_get_logits_argmax(ctx);
     const int32_t argmax_n = llama_get_logits_argmax_n(ctx);
     const int32_t argmax_k = llama_get_logits_argmax_k(ctx);
-    constexpr int32_t trace_top_k = 4;
+    constexpr int32_t trace_top_k = 8;
 
     for (const int32_t row : rows) {
         llama_token argmax_id = LLAMA_TOKEN_NULL;
@@ -3344,6 +3344,33 @@ struct server_slot {
         }
 
         const auto pager = ctx_tgt->get_kv_pager_metrics();
+        json selected_page_versions = json::array();
+        for (const uint32_t logical_page : pager.execution.selected_page_ids) {
+            const auto page = std::find_if(pager.page_inventory.begin(),
+                    pager.page_inventory.end(), [logical_page](const auto & candidate) {
+                        return candidate.id.sequence_id == 0 &&
+                            candidate.id.logical_page == logical_page;
+                    });
+            if (page == pager.page_inventory.end()) {
+                selected_page_versions.push_back({
+                    {"logical_page_id", logical_page},
+                    {"identity_available", false},
+                });
+                continue;
+            }
+            selected_page_versions.push_back({
+                {"logical_page_id", logical_page},
+                {"identity_available", true},
+                {"sequence_generation", page->id.sequence_generation},
+                {"page_generation", page->id.page_generation},
+                {"content_version", page->content_version},
+                {"position_begin", page->id.position_begin},
+                {"position_end", page->id.position_end},
+                {"valid_length", page->valid_length},
+                {"resident", page->physical_slot != UINT32_MAX},
+                {"host_backed", page->host_valid},
+            });
+        }
         json event = {
             {"step", mtp_state_diagnostic_steps},
             {"target_input_token_ids", target_ids},
@@ -3360,6 +3387,8 @@ struct server_slot {
             {"checkpoint_generation_swa", spec_ckpt.checkpoint_epoch_swa},
             {"route", llama_kv_attention_execution_route_name(pager.route)},
             {"page_table_epoch", pager.table_epoch},
+            {"selected_page_ids", pager.execution.selected_page_ids},
+            {"selected_page_versions", selected_page_versions},
             {"target_state_restored_before_verification",
                 mtp_target_restored_before_verify},
             {"draft_state_restored_before_verification",

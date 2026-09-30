@@ -853,12 +853,31 @@ llama_kv_attention_execution_route llama_kv_attention_execution::planned_route(
         }
     }
 
-    // Native MTP verification is a normal selected target transaction. Its
-    // graph carries the same page table, native positions, and causal mask as
-    // an ordinary decode; the rollback owner trims the target and draft state
-    // only after the graph has completed. Keep route selection based on the
-    // actual shape/capability contract rather than the speculative flag so a
-    // native verify batch can consume the fast selected target directly.
+    // A selected dense view is valid for MTP verification only while it
+    // contains the complete causal history. A bounded view with evicted prefix
+    // pages can still pass the dense storage-contiguity check, but the dense
+    // Flash Attention graph produces non-finite logits for the multirow MTP
+    // verification shape. The packed consumer applies the same frozen page
+    // view and causal positions without assuming that the selected window
+    // starts at position zero.
+    if (phase == llama_kv_attention_execution_phase::mtp_verify &&
+            packed_capable && !metadata.query_positions().empty()) {
+        const auto & query_positions = metadata.query_positions();
+        const llama_pos max_query = *std::max_element(
+                query_positions.begin(), query_positions.end());
+        const auto & native_positions = metadata.native_positions();
+        const bool complete_history = max_query >= 0 &&
+            !native_positions.empty() && native_positions.front() == 0 &&
+            native_positions.back() == max_query &&
+            native_positions.size() == uint64_t(max_query) + 1;
+        if (!complete_history) {
+            return llama_kv_attention_execution_route::selected_packed;
+        }
+    }
+
+    // Native MTP verification over a fully resident history can use the same
+    // selected dense route as ordinary decode. The rollback owner trims the
+    // target and draft state only after the graph has completed.
     if (dense_capable) {
         return llama_kv_attention_execution_route::selected_dense;
     }

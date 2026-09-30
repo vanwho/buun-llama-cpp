@@ -1,5 +1,6 @@
 #include "speculative.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <iostream>
@@ -190,6 +191,64 @@ void test_transaction_rows_and_checkpoint() {
     std::cout << "frozen_history_and_mtp_epoch=pass\n";
 }
 
+void test_reject_rollback_and_next_proposal() {
+    // Reproduce the first changed-history rejection with the same nmax=2
+    // transaction shape used by native MTP. Target verification owns the
+    // sampled row and both draft rows until acceptance resolves the frontier.
+    constexpr llama_pos n_past = 100;
+    constexpr uint16_t n_draft = 2;
+    constexpr uint16_t n_accepted = 1;
+    const std::vector<llama_pos> target_positions = {
+        n_past, n_past + 1, n_past + 2,
+    };
+    const std::vector<llama_pos> draft_positions = {
+        common_speculative_mtp_draft_position(n_past, 0, false),
+        common_speculative_mtp_draft_position(n_past, 1, false),
+    };
+    assert(target_positions[0] == n_past);
+    assert(target_positions[1] == draft_positions[0]);
+    assert(target_positions[2] == draft_positions[1]);
+
+    const auto frontier = common_speculative_rollback_frontier_resolve(
+        n_past, n_draft, n_accepted);
+    assert(frontier.valid());
+    assert(frontier.accepted_draft_tokens == 1);
+    assert(frontier.rejected_draft_tokens == 1);
+    assert(frontier.accepted_token_count == 102);
+    assert(frontier.rejected_suffix_begin == 102);
+    assert(frontier.rejected_suffix_end == 103);
+
+    // Rejection truncates both provisional views at exactly one shared
+    // absolute frontier. No proposal from the old transaction may survive.
+    std::vector<llama_pos> target_provisional = target_positions;
+    std::vector<llama_pos> draft_provisional = draft_positions;
+    const auto discard_rejected_suffix = [&frontier](auto & positions) {
+        positions.erase(std::remove_if(positions.begin(), positions.end(),
+                [&frontier](llama_pos position) {
+                    return position >= frontier.rejected_suffix_begin;
+                }), positions.end());
+    };
+    discard_rejected_suffix(target_provisional);
+    discard_rejected_suffix(draft_provisional);
+    assert((target_provisional == std::vector<llama_pos>{100, 101}));
+    assert((draft_provisional == std::vector<llama_pos>{101}));
+    assert(target_provisional.back() + 1 == frontier.accepted_token_count);
+    assert(draft_provisional.back() + 1 == frontier.accepted_token_count);
+
+    // A subsequent proposal begins from the accepted target/draft frontier,
+    // and MTP carry comes from the accepted verification row rather than the
+    // discarded suffix. The proposal accounting denominator remains n_draft.
+    const llama_pos next_proposal = common_speculative_mtp_draft_position(
+        (llama_pos) frontier.accepted_token_count, 0, false);
+    assert(next_proposal == frontier.accepted_token_count + 1);
+    assert(common_speculative_mtp_carry_row(3, n_accepted) == 1);
+    const uint16_t acceptance_denominator = n_draft;
+    assert(acceptance_denominator == 2);
+    assert(n_accepted + frontier.rejected_draft_tokens == acceptance_denominator);
+    std::cout << "reject_rollback_next_proposal=pass target_frontier=102 "
+                 "draft_frontier=102 denominator=2\n";
+}
+
 } // namespace
 
 int main() {
@@ -198,6 +257,7 @@ int main() {
     test_hidden_carry_freshness();
     test_query_replay_carry_generations();
     test_transaction_rows_and_checkpoint();
+    test_reject_rollback_and_next_proposal();
     std::cout << "test-speculative-mtp-state: PASS\n";
     return 0;
 }
