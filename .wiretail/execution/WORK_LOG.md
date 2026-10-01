@@ -1715,3 +1715,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-01`
 - Commit at update: `389b09016`
 - Summary: Matched fresh pager-off/selective GPU prefill attribution and explicit profiling gate verified; V10 receipt and handoff complete.
+
+## 2026-10-01T01:26:19+00:00 — 101-02 — done
+
+- Branch: `codex/task-101-02`
+- Commit at update: `404223c61`
+- Summary: Matched Turbo4 fused dispatch validated; CUDA parity and Q1/Q3 H4096 microbench passed; live canonical prompt1 passed with native MTP; V10 receipt validated.
