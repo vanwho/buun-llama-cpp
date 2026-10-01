@@ -37,11 +37,27 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <time.h>
 #include <unordered_map>
 #include <vector>
 
 extern "C" void dequantize_row_turbo4_0(
         const void * x, float * y, int64_t k);
+
+static bool llama_kv_hotpath_profile_exact() noexcept {
+    const char * value = std::getenv("LLAMA_HOTPATH_PROFILE");
+    return value != nullptr && std::strcmp(value, "1") == 0;
+}
+
+static uint64_t llama_kv_thread_cpu_us() noexcept {
+#if defined(__linux__) && defined(CLOCK_THREAD_CPUTIME_ID)
+    struct timespec value;
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) == 0) {
+        return uint64_t(value.tv_sec) * 1000000ull + uint64_t(value.tv_nsec) / 1000ull;
+    }
+#endif
+    return 0;
+}
 
 namespace {
 
@@ -4948,6 +4964,7 @@ bool llama_kv_cache::pager_routing_summary_build(
         log_tail_failure("invalid_rows_or_config");
         return false;
     }
+    const bool profile = llama_kv_hotpath_profile_exact();
     try {
         auto & cached = cache->pager_summary_cache_;
         bool cache_hit = cached.valid && cached.identity == page.id &&
@@ -4964,6 +4981,12 @@ bool llama_kv_cache::pager_routing_summary_build(
             cache_hit = false;
         }
         if (!cache_hit) {
+            const uint64_t rebuild_wall_start = profile ? uint64_t(ggml_time_us()) : 0;
+            const uint64_t rebuild_thread_start = profile ? llama_kv_thread_cpu_us() : 0;
+            uint64_t host_k_read_calls = 0;
+            uint64_t host_k_read_bytes = 0;
+            uint64_t decoded_k_rows = 0;
+            uint64_t decoded_floats = 0;
             cached = {};
             cached.identity = page.id;
             cached.content_version = page.content_version;
@@ -5023,6 +5046,10 @@ bool llama_kv_cache::pager_routing_summary_build(
                         log_tail_failure("host_unit_read_failed", logical_unit);
                         return false;
                     }
+                    ++host_k_read_calls;
+                    host_k_read_bytes += row_bytes;
+                    ++decoded_k_rows;
+                    decoded_floats += uint64_t(tensor->ne[0]);
                     dequantize_row_turbo4_0(encoded.data(), decoded.data(), tensor->ne[0]);
                     const uint32_t subblock = std::min<uint32_t>(subblocks - 1,
                             row / config.subblock_tokens);
@@ -5052,6 +5079,21 @@ bool llama_kv_cache::pager_routing_summary_build(
             }
             if (!cached.items.empty()) cached.items.front().input.source_bytes = captured_bytes;
             cached.valid = true;
+            if (profile) {
+                LLAMA_LOG_INFO("hotpath stage=summary_cache_rebuild phase=page_seal page=%u "
+                        "version=%" PRIu64 " layer=%u head=%u cache_miss=1 "
+                        "host_k_read_calls=%" PRIu64 " host_k_read_bytes=%" PRIu64
+                        " decoded_k_rows=%" PRIu64 " decoded_floats=%" PRIu64
+                        " cpu_wall_us=%" PRIu64 " cpu_thread_us=%" PRIu64 "\n",
+                        page.id.logical_page, page.content_version,
+                        config.layer_index, config.head_index,
+                        host_k_read_calls, host_k_read_bytes, decoded_k_rows,
+                        decoded_floats,
+                        uint64_t(std::max<int64_t>(0, ggml_time_us() -
+                                int64_t(rebuild_wall_start))),
+                        llama_kv_thread_cpu_us() >= rebuild_thread_start
+                            ? llama_kv_thread_cpu_us() - rebuild_thread_start : 0);
+            }
             item = std::find_if(cached.items.begin(), cached.items.end(),
                     [&](const auto & value) {
                 return value.layer == config.layer_index && value.head == config.head_index;
@@ -18526,11 +18568,42 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             metadata == nullptr || membership == nullptr || query == nullptr ||
             ubatch.pos == nullptr || ubatch.n_pos == 0 || ubatch.n_tokens == 0 ||
             size_t(ubatch.n_tokens - 1) > std::numeric_limits<size_t>::max() / ubatch.n_pos) return false;
+    const bool profile = llama_kv_hotpath_profile_exact();
+    struct selector_profile_timer {
+        bool active;
+        int layer;
+        uint32_t tokens;
+        uint64_t wall_start_us;
+        uint64_t thread_start_us;
+        uint64_t tensor_set_calls = 0;
+        uint64_t upload_submit_bytes = 0;
+        ~selector_profile_timer() {
+            if (!active) return;
+            const uint64_t wall_end_us = uint64_t(ggml_time_us());
+            const uint64_t thread_end_us = llama_kv_thread_cpu_us();
+            LLAMA_LOG_INFO("hotpath stage=selector_sideband phase=query_prepare layer=%d "
+                    "tokens=%u tensor_set_calls=%" PRIu64 " upload_submit_bytes=%" PRIu64
+                    " cpu_wall_us=%" PRIu64 " cpu_thread_us=%" PRIu64 "\n",
+                    layer, tokens, tensor_set_calls, upload_submit_bytes,
+                    wall_end_us >= wall_start_us ? wall_end_us - wall_start_us : 0,
+                    thread_end_us >= thread_start_us ? thread_end_us - thread_start_us : 0);
+        }
+    } profile_timer { profile, layer, ubatch.n_tokens,
+            profile ? uint64_t(ggml_time_us()) : 0,
+            profile ? llama_kv_thread_cpu_us() : 0 };
+    auto set_profiled = [&](ggml_tensor * tensor, const void * data,
+                            size_t offset, size_t bytes) {
+        ggml_backend_tensor_set(tensor, data, offset, bytes);
+        if (profile) {
+            ++profile_timer.tensor_set_calls;
+            profile_timer.upload_submit_bytes += bytes;
+        }
+    };
     const auto & pager = *kv->get_kv_pager();
     const auto sequence = pager.residency(ubatch.seq_id[0][0]);
     if (!kv->pager_query_refresh_enabled_) {
         const int64_t disabled = 0;
-        ggml_backend_tensor_set(query, &disabled,
+        set_profiled(query, &disabled,
                 size_t(3) * query->nb[0], sizeof(disabled));
         return true;
     }
@@ -18654,14 +18727,14 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
             }
         }
         if (summary_changed) {
-            ggml_backend_tensor_set(bounds, bound_data.data(),
+            set_profiled(bounds, bound_data.data(),
                     size_t(page_index) * bounds_page_bytes,
                     bound_data.size() * sizeof(bound_data[0]));
         }
-        ggml_backend_tensor_set(metadata, page_data,
+        set_profiled(metadata, page_data,
                 size_t(page_index) * metadata->nb[1], sizeof(page_data));
         const int32_t membership_value = resident ? 1 : 0;
-        ggml_backend_tensor_set(membership, &membership_value,
+        set_profiled(membership, &membership_value,
                 size_t(page_index) * membership->nb[0], sizeof(membership_value));
         previous.identity = record.id;
         previous.content_version = record.content_version;
@@ -18696,10 +18769,10 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
         const int64_t page_data[9] = { 0, 0, 0, 0, -1, -1, 0, 0, 0 };
         const int32_t membership_value = 0;
         std::vector<ggml_fp16_t> zeros(size_t(bounds_values), ggml_fp32_to_fp16(0.0f));
-        ggml_backend_tensor_set(bounds, zeros.data(), size_t(page_index) * bounds_page_bytes,
+        set_profiled(bounds, zeros.data(), size_t(page_index) * bounds_page_bytes,
                 zeros.size() * sizeof(zeros[0]));
-        ggml_backend_tensor_set(metadata, page_data, size_t(page_index) * metadata->nb[1], sizeof(page_data));
-        ggml_backend_tensor_set(membership, &membership_value,
+        set_profiled(metadata, page_data, size_t(page_index) * metadata->nb[1], sizeof(page_data));
+        set_profiled(membership, &membership_value,
                 size_t(page_index) * membership->nb[0], sizeof(membership_value));
         previous = {};
         ++old_index;
@@ -18716,7 +18789,7 @@ bool llama_kv_cache_context::set_kv_page_select_inputs(
     const int64_t refresh_enabled = kv->pager_query_refresh_enabled_ ? 1 : 0;
     const int64_t query_data[4] = {
         query_position, sequence_generation, snapshot_generation, refresh_enabled };
-    ggml_backend_tensor_set(query, query_data, 0, sizeof(query_data));
+    set_profiled(query, query_data, 0, sizeof(query_data));
 
     // The graph input's caller re-registers the exact selected tensor after
     // refreshing these sidebands. Do not bless every descriptor for this

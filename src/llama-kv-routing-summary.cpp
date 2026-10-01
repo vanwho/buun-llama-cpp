@@ -2,11 +2,15 @@
 #include "ggml.h"
 
 #include <algorithm>
+#include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
 #include <chrono>
 #include <cmath>
 #include <cstring>
 #include <limits>
 #include <new>
+#include <time.h>
 
 namespace {
 bool add(uint64_t a, uint64_t b, uint64_t & out) {
@@ -744,6 +748,19 @@ uint64_t llama_kv_routing_summary_store::content_version(
 void llama_kv_routing_summary_store::rebuild_accounting(
         const llama_kv_routing_summary_config & config,
         std::chrono::steady_clock::time_point start) noexcept {
+    const char * profile_env = std::getenv("LLAMA_HOTPATH_PROFILE");
+    const bool profile = profile_env != nullptr && std::strcmp(profile_env, "1") == 0;
+    const int64_t wall_start_us = profile ? ggml_time_us() : 0;
+    uint64_t thread_start_us = 0;
+#if defined(__linux__) && defined(CLOCK_THREAD_CPUTIME_ID)
+    if (profile) {
+        struct timespec value;
+        if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) == 0) {
+            thread_start_us = uint64_t(value.tv_sec) * 1000000ull +
+                uint64_t(value.tv_nsec) / 1000ull;
+        }
+    }
+#endif
     uint64_t vectors = 0, payload = 0, metadata = 0, logical = 0, charged = 0;
     const uint64_t vector_count = form_ == llama_kv_routing_summary_form::representatives
         ? representative_count_ : 1;
@@ -802,6 +819,7 @@ void llama_kv_routing_summary_store::rebuild_accounting(
         }
     }
     uint64_t hash = 1469598103934665603ull;
+    uint64_t payload_floats_hashed = 0;
     hash = hash_mix(hash, LLAMA_KV_ROUTING_SUMMARY_VERSION);
     hash = hash_mix(hash, uint32_t(form_));
     hash = hash_mix(hash, layer_index_);
@@ -810,12 +828,39 @@ void llama_kv_routing_summary_store::rebuild_accounting(
     hash = hash_mix(hash, subblock_tokens_);
     for (const auto & page : pages_) {
         hash = hash_id(hash, page.id);
-        for (const float value : page.vectors) hash = hash_float(hash, value);
-        for (const float value : page.range_min) hash = hash_float(hash, value);
-        for (const float value : page.range_max) hash = hash_float(hash, value);
+        for (const float value : page.vectors) {
+            hash = hash_float(hash, value);
+            ++payload_floats_hashed;
+        }
+        for (const float value : page.range_min) {
+            hash = hash_float(hash, value);
+            ++payload_floats_hashed;
+        }
+        for (const float value : page.range_max) {
+            hash = hash_float(hash, value);
+            ++payload_floats_hashed;
+        }
         hash = hash_float(hash, page.radius);
     }
     accounting_.content_hash = hash == 0 ? 1 : hash;
+    if (profile) {
+        uint64_t thread_end_us = 0;
+#if defined(__linux__) && defined(CLOCK_THREAD_CPUTIME_ID)
+        struct timespec value;
+        if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) == 0) {
+            thread_end_us = uint64_t(value.tv_sec) * 1000000ull +
+                uint64_t(value.tv_nsec) / 1000ull;
+        }
+#endif
+        std::fprintf(stderr, "hotpath stage=catalogue_accounting phase=page_seal "
+                "layer=%u head=%u pages=%zu payload_bytes=%" PRIu64
+                " payload_floats_hashed=%" PRIu64 " digest_wall_us=%" PRId64
+                " digest_thread_us=%" PRIu64 "\n",
+                config.layer_index, config.head_index, pages_.size(), payload,
+                payload_floats_hashed,
+                std::max<int64_t>(0, ggml_time_us() - wall_start_us),
+                thread_end_us >= thread_start_us ? thread_end_us - thread_start_us : 0);
+    }
 }
 
 llama_kv_routing_score_result llama_kv_routing_summary_store::score(

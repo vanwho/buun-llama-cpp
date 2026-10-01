@@ -375,12 +375,21 @@ static void test_full_256k_capacity_plan() {
 
 static uint64_t routing_provider_calls = 0;
 static uint64_t routing_provider_source_bytes = 0;
+struct routing_provider_visit {
+    uint32_t page;
+    uint32_t layer;
+    uint32_t head;
+};
+static std::vector<routing_provider_visit> routing_provider_visits;
 
 static bool build_routing_summary(
         void *, const llama_kv_page_record & page,
         const llama_kv_routing_summary_config & config,
         llama_kv_routing_page_input & output) noexcept {
     ++routing_provider_calls;
+    routing_provider_visits.push_back({
+        page.id.logical_page, config.layer_index, config.head_index,
+    });
     output = {};
     output.id = page.id;
     const uint32_t rows = uint32_t(page.id.position_end - page.id.position_begin);
@@ -2006,6 +2015,47 @@ int main() {
     const auto summary_scores = summary_pager->routing_summaries().score(
             summary_pager->residency(), summary_query, 1);
     assert(summary_scores.status == llama_kv_routing_summary_status::ok);
+
+    // Two dirty pages and multiple head configurations expose the
+    // configuration-major visitation that defeats the provider's one-page
+    // cache. Preserve the exact observed page/configuration sequence so a
+    // later owner can verify page-major batching without relying on provider
+    // byte totals as physical device-read counts.
+    auto locality_pager = llama_kv_pager::create(
+            config, geometry(1024), resources(1024, 128), write_backend, status);
+    assert(locality_pager && status == llama_kv_pager_status::ok);
+    locality_pager->set_routing_summary_provider({ nullptr, build_routing_summary });
+    const uint64_t saved_provider_calls = routing_provider_calls;
+    const uint64_t saved_provider_source_bytes = routing_provider_source_bytes;
+    routing_provider_calls = 0;
+    routing_provider_source_bytes = 0;
+    routing_provider_visits.clear();
+    for (llama_pos position = 0; position < 512; ++position) {
+        assert(locality_pager->begin_write(0, 1, position, ticket) ==
+                llama_kv_pager_write_status::ok);
+        assert(locality_pager->complete_write(ticket, 32, true) ==
+                llama_kv_pager_write_status::ok);
+    }
+    assert(locality_pager->seal_ready_pages() == 2);
+    const size_t locality_config_count =
+        size_t(geometry(1024).attention_layers) * geometry(1024).kv_heads;
+    assert(locality_config_count >= 2);
+    assert(routing_provider_calls == 2 * locality_config_count);
+    assert(routing_provider_visits.size() == routing_provider_calls);
+    for (size_t config_index = 0; config_index < locality_config_count; ++config_index) {
+        const auto & first = routing_provider_visits[config_index * 2];
+        const auto & second = routing_provider_visits[config_index * 2 + 1];
+        assert(first.page == 0 && second.page == 1);
+        assert(first.layer == config_index / geometry(1024).kv_heads);
+        assert(first.head == config_index % geometry(1024).kv_heads);
+        assert(second.layer == first.layer && second.head == first.head);
+    }
+    std::cout << "summary_locality_repro=pass changed_pages=2 configurations="
+              << locality_config_count << " provider_builds=" << routing_provider_calls
+              << " visitation=config-major all_page_rebuilds=" << routing_provider_calls
+              << " ideal_page-major_builds=" << locality_config_count << "\n";
+    routing_provider_calls = saved_provider_calls;
+    routing_provider_source_bytes = saved_provider_source_bytes;
 
     // Extending the tail advances only that page's content version. The
     // already-clean page is neither sampled nor republished.
