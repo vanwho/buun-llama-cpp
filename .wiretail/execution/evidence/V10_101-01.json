@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "task": "101-01",
+  "source_commit": "389b09016907c3e907c3c499738936d6be44257e",
+  "build_identity": {
+    "candidate": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "candidate_sha256": "8d66334886f13f727c6d81f00a0cc44abe43c1806075ebe3997c24358a8be860",
+    "dirty": true,
+    "source_diff_sha256": "2760a91ee6178425283e980e64b6cf460c62c4f8a4d05af84ec7fbf86184371b",
+    "gpu": "CUDA device 0"
+  },
+  "checks": {
+    "matched_gpu_prefill_attribution_and_profile_off": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "/srv/ai/benchmarks/run-profile-benchmark.sh",
+        "fast",
+        "<fresh-output-dir>",
+        "--device",
+        "cuda0",
+        "--page-size",
+        "256",
+        "--batch",
+        "1024",
+        "--ubatch",
+        "256",
+        "--context",
+        "8192",
+        "--mtp",
+        "native",
+        "--one-case",
+        "--one-trial"
+      ],
+      "runner_environment": {
+        "BENCH_ENDPOINT": "http://127.0.0.1:8080/v1/chat/completions",
+        "BENCH_SHARED_PREFIX_MESSAGES_FILE": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/frozen-prefix-messages.json",
+        "BENCH_WARMUP_MAX_TOKENS": "40",
+        "BENCH_MAX_TOKENS": "80",
+        "BENCH_WARMUPS": "1",
+        "BENCH_MEASURED": "1",
+        "BENCH_CLEAR_SLOT": "1",
+        "reasoning": "off",
+        "temperature": "0",
+        "modes": "off"
+      },
+      "candidate": {
+        "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "sha256": "8d66334886f13f727c6d81f00a0cc44abe43c1806075ebe3997c24358a8be860",
+        "source_commit": "389b09016907c3e907c3c499738936d6be44257e",
+        "dirty_source_diff_sha256": "2760a91ee6178425283e980e64b6cf460c62c4f8a4d05af84ec7fbf86184371b"
+      },
+      "artifacts": [
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_BASELINE.json",
+          "sha256": "857edfda8049cc4b794b64487f9429459b9f77415b82df12c4eb5fea58daf03c"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_BASELINE.md",
+          "sha256": "2a6a87733efc8d4de3563db489ff0b5d7d0a476d9b0eac0437b737d8b5cd6f37"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/pager-off-fresh/records.jsonl",
+          "sha256": "feb87184cfac1fbf06dd9b263d509b525e4f8fb451eda8d0ea15444c52383757"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/pager-off-fresh/run-config.json",
+          "sha256": "77ef079f06b98e33c3a5b039f2f5895ac6fa540349c3be4665ed2767c5fe85f2"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/pager-off-fresh/raw/wire-requests/measured-1-p1.json",
+          "sha256": "26cb0006b16ca506fef34792439edebced036aec737eade625befc2778413079"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/selective-fresh/records.jsonl",
+          "sha256": "f9014f1e5af9fd6aa72e8c418dcab753d4f7546b297ba74826f1eb8ab1021e1f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/selective-fresh/run-config.json",
+          "sha256": "da49f12e8d646e63cba760a36e90fe4b7f6d8e3e81a81a9c204d7ecbb464f878"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/selective-fresh/raw/wire-requests/measured-1-p1.json",
+          "sha256": "26cb0006b16ca506fef34792439edebced036aec737eade625befc2778413079"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/selective-fresh/raw/off-measured-1-p1.mtp-after.prom",
+          "sha256": "c62666d8d264a7e78197bd102058dd8eeadbc8bb6a704b578a45f76072e8a14f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/nsys-selected-v2.nsys-rep",
+          "sha256": "f7510b1954474c210384e0e2c255a371319c0058a8f19b8c465b24fa0459ad7f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/nsys-selected-v2-request-window.json",
+          "sha256": "b9bb6004e08ce1936acf2e1d2c94fdf5f7d8a88a836d37a2b17d897dd6ff4836"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/nsys-selected-v2-request.journal.log",
+          "sha256": "21d6480ae4713b9d821fc060091ffab75e899598911ce69b4471b5c7d8c2043b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/nsys-live-request-v4.sse",
+          "sha256": "1b4aca9d763270d194bd3a8b7120d0c7b8f9f1a2e2018fdf3d2d7192fbd3ca31"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/test-kv-attention-execution.log",
+          "sha256": "731edc8a75362e637d18acd189548c15023a1a9167c4d9a6b9841b3c8e5ac643"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-01/attempt-01/raw/build.log",
+          "sha256": "8c5786fee994e03daf6fe3e0da586dbc27d4f2c685cd104ab05ae9fddb45b589"
+        }
+      ],
+      "notes": "Both matched rows completed fresh with zero prompt-cache hits. Profiled candidate trace records GPU prefill; that separate traced replay fails at decode with no_victim and is labeled accordingly."
+    }
+  }
+}

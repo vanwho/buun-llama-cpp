@@ -1709,3 +1709,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Audited CUDA Turbo4 dispatch, packed/current writes, hybrid graph reuse, GDN chunk/serial dispatch, native MTP hidden handoff and page-wave sealing. Fused contiguous Turbo4 is unreachable due to branch guard `!turbo_kv`; GDN fast cubin capability excludes cc890/U256 and rollback snapshots; CPU attention has not been established as the timing owner.
 - Added detailed101-01–12 GPU execution/MTP/state/promotion/benchmark tasks and bounded subsystem clusters. Former capacity101-01–03 moved to102-01–03; final review moved to103-01. Active SPEED101 replaces historical repair instructions; setup mistakes are repaired locally and speed misses produce real successors before scaling.
 - Reconciled current pointer to101-01, ready; state/active-plan/diff validation pass. Generic source and execution metadata remain separate commits. Existing project model-map work is preserved; universal Wiretail defaults unchanged.
+
+## 2026-10-01T00:14:51+00:00 — 101-01 — done
+
+- Branch: `codex/task-101-01`
+- Commit at update: `389b09016`
+- Summary: Matched fresh pager-off/selective GPU prefill attribution and explicit profiling gate verified; V10 receipt and handoff complete.
