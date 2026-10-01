@@ -1711,6 +1711,7 @@ private:
     struct pager_summary_cache_item {
         uint32_t layer = UINT32_MAX;
         uint32_t head = UINT32_MAX;
+        bool consumed = false;
         llama_kv_routing_page_input input;
     };
     struct pager_summary_cache {
@@ -1720,7 +1721,7 @@ private:
         std::vector<pager_summary_cache_item> items;
     };
     // One immutable canonical page is decoded once for all layer/head summary
-    // entries. Subsequent head publications copy only their compact ranges.
+    // entries, which transfer to the pager as their configs are published.
     pager_summary_cache pager_summary_cache_;
     std::vector<llama_kv_pager_write_ticket> pager_pending_writes_;
     vbr_lineage_uuid pager_host_lineage_;

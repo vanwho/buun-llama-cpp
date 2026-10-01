@@ -4950,8 +4950,19 @@ bool llama_kv_cache::pager_routing_summary_build(
     }
     try {
         auto & cached = cache->pager_summary_cache_;
-        const bool cache_hit = cached.valid && cached.identity == page.id &&
+        bool cache_hit = cached.valid && cached.identity == page.id &&
             cached.content_version == page.content_version;
+        auto item = std::find_if(cached.items.begin(), cached.items.end(),
+                [&](const auto & value) {
+            return value.layer == config.layer_index && value.head == config.head_index;
+        });
+        // Each summary is transferred once into the pager's owning batch. If
+        // a caller retries an already-consumed entry, rebuild the page cache
+        // so retry behavior remains identical without copying every normal
+        // per-head vector publication.
+        if (cache_hit && (item == cached.items.end() || item->consumed)) {
+            cache_hit = false;
+        }
         if (!cache_hit) {
             cached = {};
             cached.identity = page.id;
@@ -5041,16 +5052,21 @@ bool llama_kv_cache::pager_routing_summary_build(
             }
             if (!cached.items.empty()) cached.items.front().input.source_bytes = captured_bytes;
             cached.valid = true;
+            item = std::find_if(cached.items.begin(), cached.items.end(),
+                    [&](const auto & value) {
+                return value.layer == config.layer_index && value.head == config.head_index;
+            });
         }
-        const auto item = std::find_if(cached.items.begin(), cached.items.end(),
-                [&](const auto & value) {
-            return value.layer == config.layer_index && value.head == config.head_index;
-        });
         if (item == cached.items.end()) {
             log_tail_failure("head_item_missing");
             return false;
         }
-        output = item->input;
+        output = std::move(item->input);
+        item->consumed = true;
+        if (std::all_of(cached.items.begin(), cached.items.end(),
+                [](const auto & value) { return value.consumed; })) {
+            cached.valid = false;
+        }
         return true;
     } catch (...) {
         log_tail_failure("exception");
