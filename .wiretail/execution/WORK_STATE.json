@@ -30730,7 +30730,7 @@
       "depends_on": [
         "101-07"
       ],
-      "commit": "89092e93931edc5fda2db20d108a79a77d7b731e",
+      "commit": "d25a28a2f2d8ea5f0b4b1ea2e8b7a92cd010dbf7",
       "context_files": [
         ".wiretail/execution/clusters/gpu101-mtp.md",
         ".wiretail/execution/tasks/101-08.md",
