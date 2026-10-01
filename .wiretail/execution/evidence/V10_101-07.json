@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "task": "101-07",
+  "source_commit": "689853fd83d0bfdf677d8b48fbaf81558e4f3f8e",
+  "summary": "Queue-based pager maintenance and O(1) current-page lookup verified with bounded CUDA host sealing and zero historical H2D/selector operations during generation.",
+  "checks": {
+    "bounded_async_seal_and_no_decode_history_pcie": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "bash",
+        "-c",
+        "build-cuda/bin/test-kv-pager && build-cuda/bin/test-cuda-kv-promotion"
+      ],
+      "artifacts": [
+        {
+          "path": ".wiretail/execution/evidence/101-07-proof.log",
+          "sha256": "9e2e8160254779f5531a7a8571c798594a807804ac9b8038e4704c500600e8c9"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-07-incremental-build.log",
+          "sha256": "003b5dd2923791c2d27e3397bea6c790d61812b27488fe28288a1c7f86be119b"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-07-build.log",
+          "sha256": "82ad2678aa2fe9fd39e54553a9afed96cc66ba4acde85c637159b17693969389"
+        }
+      ],
+      "metrics": {
+        "host_queue_bound_pages": 2,
+        "over_capacity_capture_rejections": 1,
+        "pinned_staging_bytes": 128,
+        "completed_copy_events": 256,
+        "chunk_ring_backpressure_waits": 192,
+        "actual_d2h_bytes_including_stale_captures": 32768,
+        "canonical_pageable_bytes": 16384,
+        "generation_pages": 7,
+        "generation_h2d_submissions": 0,
+        "generation_selector_graphs": 0,
+        "capture_once_per_content_version": true,
+        "encoded_host_backing_verified": true,
+        "later_query_promotion_verified": true
+      }
+    }
+  }
+}

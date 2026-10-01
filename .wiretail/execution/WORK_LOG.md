@@ -1751,3 +1751,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-06`
 - Commit at update: `a7a3296d5`
 - Summary: verified encoded single-write packed append parity and matched CUDA timing
+
+## 2026-10-01T04:22:35+00:00 — 101-07 — done
+
+- Branch: `codex/task-101-07`
+- Commit at update: `689853fd8`
+- Summary: verified bounded asynchronous KV sealing and zero generation history H2D/selector work
