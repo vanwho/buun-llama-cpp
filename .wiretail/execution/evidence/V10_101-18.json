@@ -1,0 +1,1064 @@
+{
+  "candidate": {
+    "path": "build-cuda/bin/llama-server",
+    "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+  },
+  "checks": {
+    "owner_repaired_canonical_speed_and_functionality": {
+      "additional_commands": [
+        [
+          "./build-cuda/bin/test-kv-pager"
+        ],
+        [
+          "./build-cuda/bin/test-kv-routing-summary"
+        ],
+        [
+          "./build-cuda/bin/test-cuda-fattn-paged-turbo4"
+        ],
+        [
+          "./build-cuda/bin/test-kv-attention-execution"
+        ],
+        [
+          "./build-cuda/bin/test-cuda-kv-promotion"
+        ],
+        [
+          "python3",
+          "tools/server/bench/run-pager-promotion.py",
+          "--output",
+          "/srv/ai/paged-kv/results/forward/101-18/attempt-01/natural-promotion",
+          "--server-binary",
+          "build-cuda/bin/llama-server",
+          "--selector-trace-page",
+          "5"
+        ],
+        [
+          "sudo",
+          "-n",
+          "systemctl",
+          "restart",
+          "llama-server.service"
+        ],
+        [
+          "python3",
+          "tools/server/bench/validate-gpu101-release.py"
+        ],
+        [
+          "python3",
+          "tools/server/bench/test-gpu101-release.py"
+        ],
+        [
+          "python3",
+          "-m",
+          "py_compile",
+          "tools/server/bench/validate-gpu101-release.py",
+          "tools/server/bench/test-gpu101-release.py"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ]
+      ],
+      "artifacts": [
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/build.log",
+          "sha256": "f4b938bde6062eda417ce31d606ba8c77a4d0c2d35654d8234f137cf822911e1"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/test-kv-pager.log",
+          "sha256": "67580b947e21e5d019fa34e8729c9a802f73167c7484e43d0add27d0fcc41c05"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/test-kv-routing-summary.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/test-cuda-fattn-paged-turbo4.log",
+          "sha256": "6f688c2e573bad48439515f79c915dcb47f6cbf030ecf857e78104ba52576746"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/test-kv-attention-execution.log",
+          "sha256": "e8837d7d8d8eeec4294d5b2feace208d680cf622ce0d80a3877ab0b210fd8b54"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/test-cuda-kv-promotion.log",
+          "sha256": "add5e1c4c26a45835fb02c9d77f16873047ca8fafa44f4df19514ac3d2cb27c3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.json",
+          "sha256": "0c7747f68262c7f3f3986bbb3d7688dca5dc373abfab1e34d24b426527271d8c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.log",
+          "sha256": "914c577d1963df8eedcc6b93d150893a38dd0a77fab515c3e58eaef752aaba2f"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/natural-promotion/campaign-progress.json",
+          "sha256": "f798661b61a8ec3476b2c6b1b5b55a8f983ecdb47b087c9030c37670b4900ac4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/natural-promotion/candidate-identity.json",
+          "sha256": "09fab20f0c5351d06c67fb5656d0667b3791fed28701844478645b5dc96167ca"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/natural-promotion.log",
+          "sha256": "03ad83d2b76a2f5f5c4fb483921e6085e7c4135e735c42408af2da5e4850bc3d"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/run-config.json",
+          "sha256": "4b99484b6a4c479fcf743c0ba49d3fd238b49193a415a24a05b5c4bd9a317db0"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/summary.json",
+          "sha256": "aa3e52b75217dd057b6b6ef76854366cdc81ff05b81d1fd9b1aefabbb5cef210"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/records.jsonl",
+          "sha256": "17d8f99f3311d06a1b201362a193cf15441579a403e05dbe204b64441a196db4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected-runner.log",
+          "sha256": "91f4664aefe7bc47ceea0a1c1fed3ac03da6e633be1c9e2f525076ef5f46384b"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/pager-off-all-gpu/run-config.json",
+          "sha256": "a6a8e34605989755a54f0dd89a0784596351b69c088756a5ef7ad1cd6704268c"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/pager-off-all-gpu/summary.json",
+          "sha256": "040a6f1f577c2c8f94593a3e5e3b78d9f614e88f5bfcfd70cc0bcc9d67981fd9"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/pager-off-all-gpu/records.jsonl",
+          "sha256": "a1797df86c60c528d9faf1e46d15c62f950375320ed7d81f66af7317e2804d80"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/pager-off-runner.log",
+          "sha256": "f8f20c8eef7ef404915d34704401d0582c3b4d2bfd4b72517ebbdad971a5f36a"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/cpu-main-kv-gpu-mtp/run-config.json",
+          "sha256": "52dd38039b474ed2d69a9f6f1053f21e06da30541b56b1f30ae6b2b36f663957"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/cpu-main-kv-gpu-mtp/summary.json",
+          "sha256": "34d3593ba2f0d5322f407543905e806ea1dfb8ece8aa9c6e825e26dd7d888b11"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/cpu-main-kv-gpu-mtp/records.jsonl",
+          "sha256": "373b97766c5fe366220164113a22a6520d6615807032022a50853bb2de5684d4"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/cpu-main-kv-runner.log",
+          "sha256": "1a9cf31013359523392f0b0c313c4516e0252e4b15d62a4073462940cb616f80"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected-ttft/ttft.json",
+          "sha256": "9c326c2304b9b8b207c523a016b5af5025f1d9731aa3651af3334d8bcbed2be6"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected-ttft/raw/prompt-1.sse",
+          "sha256": "7b9c1392ca6ad43bcfe459e7db3e4fb46b414d87519d7f8160b9d5eedbc2e233"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected-ttft/raw/prompt-2.sse",
+          "sha256": "873b177650cbe4acd19c0a1cc8af07163278a8d0200e507f103650b9db1cf9e3"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected-ttft/raw/prompt-3.sse",
+          "sha256": "473a31057a52b15ab41057a39d91fb8e21d6d91a85de4a683eecc8519c275152"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/raw/progress-off-measured-1-p0.jsonl",
+          "sha256": "033fe16371425ec0cdba8c3604219d1968ad58c61787ef7e6d7664e629290dcc"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/release-validation.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/release-validator-tests.log",
+          "sha256": "a403b031ca53505b1068c5c1262f30475f8ef294ae83636c47835f0a12e632af"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/release-validator-pycompile.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "6af04933f990e20b019322fe221cf8aaea76066985e4b691e534973b4aa0b696"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/GPU101_RELEASE.md",
+          "sha256": "a717d288babba9ead78c52d06eba998aa705677be93a770d2fdcd02ebd8c584e"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/raw/101-18/source.diff",
+          "sha256": "93e16327869c36a468ed55e47db6750d1b833a2320eb3477ce96aaae8592a845"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-18/GPU101_RELEASE.pre-101-18.json",
+          "sha256": "9f35a4f25c8b8c3a68d5a5c38a4b8ecb3cb3c84a2fc447e77a46308b13765cfa"
+        },
+        {
+          "path": "/srv/repos/vanwho/buun-llama-cpp/.wiretail/execution/evidence/provenance/101-18/GPU101_RELEASE.pre-101-18.md",
+          "sha256": "ba2554cf8e0cbb3fb4b1f1ec7febcce3cf6dbe2fac5d40ea6c3de47fbe40440d"
+        }
+      ],
+      "build_command": [
+        "cmake",
+        "--build",
+        "build-cuda",
+        "--target",
+        "llama-server",
+        "test-kv-pager",
+        "test-kv-routing-summary",
+        "test-cuda-fattn-paged-turbo4",
+        "test-kv-attention-execution",
+        "test-cuda-kv-promotion",
+        "test-server-query-replay",
+        "-j8"
+      ],
+      "candidate": {
+        "path": "build-cuda/bin/llama-server",
+        "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+      },
+      "command": [
+        "./build-cuda/bin/test-server-query-replay",
+        "--model",
+        "/srv/ai/models/text/current.gguf",
+        "--B",
+        "1024",
+        "--U",
+        "256",
+        "--L",
+        "8192",
+        "--H",
+        "4096",
+        "--output",
+        "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.json"
+      ],
+      "coverage": {
+        "candidate_identity_verified": true,
+        "candidate_kept_loaded": true,
+        "canonical_protocol": {
+          "fresh_slot_each_row": true,
+          "geometry": {
+            "batch": 1024,
+            "context_tokens": 8192,
+            "hot_tokens": 4096,
+            "page_tokens": 256,
+            "ubatch": 256
+          },
+          "measured_outputs_per_prompt": 400,
+          "measured_rows_per_prompt": 3,
+          "prompts": [
+            "Python sorted merge",
+            "mmap versus read paragraph",
+            "Bash directory watcher"
+          ],
+          "reasoning": "off",
+          "request_actual_tokens": {
+            "prompt_1": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "input_tokens": [
+                4115,
+                4115,
+                4115
+              ],
+              "output_tokens": [
+                400,
+                400,
+                400
+              ]
+            },
+            "prompt_2": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "input_tokens": [
+                4112,
+                4112,
+                4112
+              ],
+              "output_tokens": [
+                144,
+                167,
+                162
+              ]
+            },
+            "prompt_3": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "input_tokens": [
+                4113,
+                4113,
+                4113
+              ],
+              "output_tokens": [
+                400,
+                400,
+                400
+              ]
+            }
+          },
+          "selected": {
+            "prompt_1": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "canonical_ttft_ms": null,
+              "decode_beats_cpu_kv": true,
+              "decode_tok_s_median": 60.054102876742036,
+              "errors": 0,
+              "fresh_input_tokens": [
+                4115,
+                4115,
+                4115
+              ],
+              "fresh_prefill_tok_s_median": 1452.0753385382206,
+              "measured_samples": 3,
+              "mtp_acceptance_percent_median": 48.56230032,
+              "mtp_gate_pass": false,
+              "output_tokens": [
+                400,
+                400,
+                400
+              ],
+              "prefill_gate_pass": true,
+              "raw_accepted_counts": [
+                152,
+                128,
+                157
+              ],
+              "raw_drafted_counts": [
+                313,
+                326,
+                307
+              ],
+              "raw_mtp_acceptance_percent": [
+                48.56230031948881,
+                39.263803680981596,
+                51.14006514657981
+              ],
+              "samples": 3,
+              "status": "measured_goal_miss",
+              "supplemental_ttft_ms": 3134.88
+            },
+            "prompt_2": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "canonical_ttft_ms": null,
+              "decode_beats_cpu_kv": true,
+              "decode_tok_s_median": 58.45229221934641,
+              "errors": 0,
+              "fresh_input_tokens": [
+                4112,
+                4112,
+                4112
+              ],
+              "fresh_prefill_tok_s_median": 1463.8359193722592,
+              "measured_samples": 3,
+              "mtp_acceptance_percent_median": 47.58064516,
+              "mtp_gate_pass": true,
+              "output_tokens": [
+                144,
+                167,
+                162
+              ],
+              "prefill_gate_pass": true,
+              "raw_accepted_counts": [
+                59,
+                58,
+                59
+              ],
+              "raw_drafted_counts": [
+                106,
+                128,
+                124
+              ],
+              "raw_mtp_acceptance_percent": [
+                55.660377358490564,
+                45.3125,
+                47.58064516129033
+              ],
+              "samples": 3,
+              "status": "pass",
+              "supplemental_ttft_ms": 298.772
+            },
+            "prompt_3": {
+              "cached_input_tokens": [
+                0,
+                0,
+                0
+              ],
+              "canonical_ttft_ms": null,
+              "decode_beats_cpu_kv": true,
+              "decode_tok_s_median": 65.41358930430435,
+              "errors": 0,
+              "fresh_input_tokens": [
+                4113,
+                4113,
+                4113
+              ],
+              "fresh_prefill_tok_s_median": 1451.1939448553358,
+              "measured_samples": 3,
+              "mtp_acceptance_percent_median": 59.79381443,
+              "mtp_gate_pass": false,
+              "output_tokens": [
+                400,
+                400,
+                400
+              ],
+              "prefill_gate_pass": true,
+              "raw_accepted_counts": [
+                158,
+                174,
+                207
+              ],
+              "raw_drafted_counts": [
+                301,
+                291,
+                282
+              ],
+              "raw_mtp_acceptance_percent": [
+                52.49169435215947,
+                59.79381443298969,
+                73.40425531914893
+              ],
+              "samples": 3,
+              "status": "measured_goal_miss",
+              "supplemental_ttft_ms": 298.428
+            }
+          },
+          "shared_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20",
+          "supplemental_ttft": {
+            "artifact": {
+              "path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected-ttft/ttft.json",
+              "sha256": "9c326c2304b9b8b207c523a016b5af5025f1d9731aa3651af3334d8bcbed2be6"
+            },
+            "measurement": "One 32-token streaming request per prompt using the frozen prefix after the canonical rows. These are supplemental request-level TTFT values, not the canonical three-row median and not a separate gate.",
+            "per_prompt_ms": {
+              "prompt_1": 3134.88,
+              "prompt_2": 298.772,
+              "prompt_3": 298.428
+            },
+            "status": "complete"
+          },
+          "temperature": 0,
+          "warmup_outputs": 40
+        },
+        "comparisons": {
+          "per_prompt": {
+            "prompt_1": {
+              "selected_to_cpu_decode_ratio": 2.355523603020679,
+              "selected_to_cpu_prefill_3x": false,
+              "selected_to_cpu_prefill_5x": false,
+              "selected_to_cpu_prefill_ratio": 2.1977257289047682,
+              "selected_to_pager_off_decode_ratio": 0.7129160772258636,
+              "selected_to_pager_off_prefill_ratio": 0.9331141987561202
+            },
+            "prompt_2": {
+              "selected_to_cpu_decode_ratio": 3.153368160017911,
+              "selected_to_cpu_prefill_3x": false,
+              "selected_to_cpu_prefill_5x": false,
+              "selected_to_cpu_prefill_ratio": 2.2035301513888284,
+              "selected_to_pager_off_decode_ratio": 0.9294212038181923,
+              "selected_to_pager_off_prefill_ratio": 0.9406580426605643
+            },
+            "prompt_3": {
+              "selected_to_cpu_decode_ratio": 3.1015697621994707,
+              "selected_to_cpu_prefill_3x": false,
+              "selected_to_cpu_prefill_5x": false,
+              "selected_to_cpu_prefill_ratio": 2.1963123514140412,
+              "selected_to_pager_off_decode_ratio": 0.918044805849516,
+              "selected_to_pager_off_prefill_ratio": 0.9316647484420748
+            }
+          },
+          "summary": {
+            "all_mtp_floors_pass": false,
+            "all_selected_decode_beats_cpu": true,
+            "all_selected_prefill_at_least_500": true,
+            "all_selected_prefill_at_least_750": true,
+            "five_x_cpu_prefill_ratio_pass": false,
+            "selected_decode_must_beat_cpu_main_kv": true,
+            "selected_mtp_floors_percent": {
+              "prompt_1": 75,
+              "prompt_2": 40,
+              "prompt_3": 60
+            },
+            "selected_prefill_beats_dense_gpu_control": false,
+            "selected_prefill_minimum_goal_tok_s": 500,
+            "selected_prefill_preferred_goal_tok_s": 750,
+            "three_x_cpu_prefill_ratio_pass": false
+          }
+        },
+        "controls": {
+          "cpu_main_kv_gpu_mtp": {
+            "codec_capability_exception": "ordinary CPU-main-KV via --no-kv-offload; Turbo4 MTP remains GPU",
+            "mtp_placement": "gpu",
+            "pager_mode": "off",
+            "per_prompt": {
+              "prompt_1": {
+                "cached_input_tokens": [
+                  0,
+                  0,
+                  0
+                ],
+                "canonical_ttft_ms": null,
+                "decode_tok_s_median": 25.495012149201045,
+                "errors": 0,
+                "fresh_input_tokens": [
+                  4115,
+                  4115,
+                  4115
+                ],
+                "fresh_prefill_tok_s_median": 660.71726760093,
+                "measured_samples": 3,
+                "mtp_acceptance_percent_median": 80.37037037,
+                "output_tokens": [
+                  386,
+                  386,
+                  386
+                ],
+                "raw_accepted_counts": [
+                  217,
+                  217,
+                  217
+                ],
+                "raw_drafted_counts": [
+                  270,
+                  270,
+                  270
+                ],
+                "raw_mtp_acceptance_percent": [
+                  80.37037037037037,
+                  80.37037037037037,
+                  80.37037037037037
+                ],
+                "samples": 3,
+                "supplemental_ttft_ms": null
+              },
+              "prompt_2": {
+                "cached_input_tokens": [
+                  0,
+                  0,
+                  0
+                ],
+                "canonical_ttft_ms": null,
+                "decode_tok_s_median": 18.536462998666927,
+                "errors": 0,
+                "fresh_input_tokens": [
+                  4112,
+                  4112,
+                  4112
+                ],
+                "fresh_prefill_tok_s_median": 664.3139956354312,
+                "measured_samples": 3,
+                "mtp_acceptance_percent_median": 50.0,
+                "output_tokens": [
+                  168,
+                  168,
+                  168
+                ],
+                "raw_accepted_counts": [
+                  62,
+                  63,
+                  63
+                ],
+                "raw_drafted_counts": [
+                  126,
+                  126,
+                  126
+                ],
+                "raw_mtp_acceptance_percent": [
+                  49.2063492063492,
+                  50.0,
+                  50.0
+                ],
+                "samples": 3,
+                "supplemental_ttft_ms": null
+              },
+              "prompt_3": {
+                "cached_input_tokens": [
+                  0,
+                  0,
+                  0
+                ],
+                "canonical_ttft_ms": null,
+                "decode_tok_s_median": 21.090478151268943,
+                "errors": 0,
+                "fresh_input_tokens": [
+                  4113,
+                  4113,
+                  4113
+                ],
+                "fresh_prefill_tok_s_median": 660.7411481891547,
+                "measured_samples": 3,
+                "mtp_acceptance_percent_median": 65.03496503,
+                "output_tokens": [
+                  400,
+                  400,
+                  400
+                ],
+                "raw_accepted_counts": [
+                  186,
+                  186,
+                  186
+                ],
+                "raw_drafted_counts": [
+                  286,
+                  286,
+                  286
+                ],
+                "raw_mtp_acceptance_percent": [
+                  65.03496503496503,
+                  65.03496503496503,
+                  65.03496503496503
+                ],
+                "samples": 3,
+                "supplemental_ttft_ms": null
+              }
+            },
+            "status": "complete",
+            "target_kv_placement": "cpu"
+          },
+          "pager_off_all_gpu": {
+            "codec_capability_exception": null,
+            "mtp_placement": "gpu",
+            "pager_mode": "off",
+            "per_prompt": {
+              "prompt_1": {
+                "cached_input_tokens": [
+                  0,
+                  0,
+                  0
+                ],
+                "canonical_ttft_ms": null,
+                "decode_tok_s_median": 84.23726830572781,
+                "errors": 0,
+                "fresh_input_tokens": [
+                  4115,
+                  4115,
+                  4115
+                ],
+                "fresh_prefill_tok_s_median": 1556.1603718750578,
+                "measured_samples": 3,
+                "mtp_acceptance_percent_median": 78.19548872,
+                "output_tokens": [
+                  379,
+                  379,
+                  386
+                ],
+                "raw_accepted_counts": [
+                  208,
+                  208,
+                  188
+                ],
+                "raw_drafted_counts": [
+                  266,
+                  266,
+                  276
+                ],
+                "raw_mtp_acceptance_percent": [
+                  78.19548872180451,
+                  78.19548872180451,
+                  68.11594202898551
+                ],
+                "samples": 3,
+                "supplemental_ttft_ms": null
+              },
+              "prompt_2": {
+                "cached_input_tokens": [
+                  0,
+                  0,
+                  0
+                ],
+                "canonical_ttft_ms": null,
+                "decode_tok_s_median": 62.89106809616159,
+                "errors": 0,
+                "fresh_input_tokens": [
+                  4112,
+                  4112,
+                  4112
+                ],
+                "fresh_prefill_tok_s_median": 1556.182856026973,
+                "measured_samples": 3,
+                "mtp_acceptance_percent_median": 51.61290323,
+                "output_tokens": [
+                  168,
+                  166,
+                  166
+                ],
+                "raw_accepted_counts": [
+                  63,
+                  64,
+                  64
+                ],
+                "raw_drafted_counts": [
+                  126,
+                  124,
+                  124
+                ],
+                "raw_mtp_acceptance_percent": [
+                  50.0,
+                  51.61290322580645,
+                  51.61290322580645
+                ],
+                "samples": 3,
+                "supplemental_ttft_ms": null
+              },
+              "prompt_3": {
+                "cached_input_tokens": [
+                  0,
+                  0,
+                  0
+                ],
+                "canonical_ttft_ms": null,
+                "decode_tok_s_median": 71.2531554968863,
+                "errors": 0,
+                "fresh_input_tokens": [
+                  4113,
+                  4113,
+                  4113
+                ],
+                "fresh_prefill_tok_s_median": 1557.63534821084,
+                "measured_samples": 3,
+                "mtp_acceptance_percent_median": 63.32179931,
+                "output_tokens": [
+                  400,
+                  400,
+                  400
+                ],
+                "raw_accepted_counts": [
+                  183,
+                  183,
+                  183
+                ],
+                "raw_drafted_counts": [
+                  289,
+                  289,
+                  289
+                ],
+                "raw_mtp_acceptance_percent": [
+                  63.32179930795848,
+                  63.32179930795848,
+                  63.32179930795848
+                ],
+                "samples": 3,
+                "supplemental_ttft_ms": null
+              }
+            },
+            "status": "complete",
+            "target_kv_placement": "gpu"
+          }
+        },
+        "decision_task": "101-18",
+        "loaded_dso_identities": [
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3",
+            "sha256": "4e5b69f41a2748033a794891b7448430c6ca4d29e87481ca27369aa9ee7efb6f"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3",
+            "sha256": "fec04b8d07bd24a1d3832c9d440c21d53626155e2fcf703ecc7f8a8cca38ae5c"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3",
+            "sha256": "8eaa637818dc78a76c115f5e64bbf5d06862688f64c309f8aa72261dbf14e208"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3",
+            "sha256": "e3606444f8f701685a0b055f36e72da0a9eb1766ea2005f1665715e1ce954798"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0",
+            "sha256": "d0e2b570de1817c560ac5f13ffdb0c88f3377ae21e95ae240192ead45e0ce1d7"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+            "sha256": "9c2524621bc24e6a0f2aad3fb70c9387efe50ad1b63c5590b672708ae6dc8fd3"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0",
+            "sha256": "a9d27f905422acc2c9de09d5d4f0dca3045d0f122554acbc0fbb7acd2a019d6a"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0",
+            "sha256": "de1199a2939f366e0bf1845c5b2f7c4d60b2733b25164dc1753b139418fe816c"
+          },
+          {
+            "path": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+            "sha256": "300dc8cf420abbd0b9121ffafd9ed90e4caf299a797280186ac84426a10ade54"
+          }
+        ],
+        "matched_runtime_pids": {
+          "cpu_main_kv_gpu_mtp": 2064564,
+          "pager_off_all_gpu": 2061092,
+          "selected": 2037909
+        },
+        "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+        "natural_recall": {
+          "cold_to_use_chain": true,
+          "content_version": 256,
+          "generation": 7,
+          "h2d_aligned_bytes": 34603008,
+          "h2d_useful_bytes": 34603008,
+          "page_id": 5,
+          "selector_rank": "4/5",
+          "status": "pass"
+        },
+        "ordered_successors": [
+          "101-12h"
+        ],
+        "query_replay": {
+          "captured": true,
+          "mtp_next_cycle": true,
+          "passed": true,
+          "restored": true
+        },
+        "release_goal_status": "goal_miss",
+        "retained_service_pid": 2077995,
+        "selected_rows": {
+          "prompt_1": {
+            "cached_input_tokens": [
+              0,
+              0,
+              0
+            ],
+            "canonical_ttft_ms": null,
+            "decode_beats_cpu_kv": true,
+            "decode_tok_s_median": 60.054102876742036,
+            "errors": 0,
+            "fresh_input_tokens": [
+              4115,
+              4115,
+              4115
+            ],
+            "fresh_prefill_tok_s_median": 1452.0753385382206,
+            "measured_samples": 3,
+            "mtp_acceptance_percent_median": 48.56230032,
+            "mtp_gate_pass": false,
+            "output_tokens": [
+              400,
+              400,
+              400
+            ],
+            "prefill_gate_pass": true,
+            "raw_accepted_counts": [
+              152,
+              128,
+              157
+            ],
+            "raw_drafted_counts": [
+              313,
+              326,
+              307
+            ],
+            "raw_mtp_acceptance_percent": [
+              48.56230031948881,
+              39.263803680981596,
+              51.14006514657981
+            ],
+            "samples": 3,
+            "status": "measured_goal_miss",
+            "supplemental_ttft_ms": 3134.88
+          },
+          "prompt_2": {
+            "cached_input_tokens": [
+              0,
+              0,
+              0
+            ],
+            "canonical_ttft_ms": null,
+            "decode_beats_cpu_kv": true,
+            "decode_tok_s_median": 58.45229221934641,
+            "errors": 0,
+            "fresh_input_tokens": [
+              4112,
+              4112,
+              4112
+            ],
+            "fresh_prefill_tok_s_median": 1463.8359193722592,
+            "measured_samples": 3,
+            "mtp_acceptance_percent_median": 47.58064516,
+            "mtp_gate_pass": true,
+            "output_tokens": [
+              144,
+              167,
+              162
+            ],
+            "prefill_gate_pass": true,
+            "raw_accepted_counts": [
+              59,
+              58,
+              59
+            ],
+            "raw_drafted_counts": [
+              106,
+              128,
+              124
+            ],
+            "raw_mtp_acceptance_percent": [
+              55.660377358490564,
+              45.3125,
+              47.58064516129033
+            ],
+            "samples": 3,
+            "status": "pass",
+            "supplemental_ttft_ms": 298.772
+          },
+          "prompt_3": {
+            "cached_input_tokens": [
+              0,
+              0,
+              0
+            ],
+            "canonical_ttft_ms": null,
+            "decode_beats_cpu_kv": true,
+            "decode_tok_s_median": 65.41358930430435,
+            "errors": 0,
+            "fresh_input_tokens": [
+              4113,
+              4113,
+              4113
+            ],
+            "fresh_prefill_tok_s_median": 1451.1939448553358,
+            "measured_samples": 3,
+            "mtp_acceptance_percent_median": 59.79381443,
+            "mtp_gate_pass": false,
+            "output_tokens": [
+              400,
+              400,
+              400
+            ],
+            "prefill_gate_pass": true,
+            "raw_accepted_counts": [
+              158,
+              174,
+              207
+            ],
+            "raw_drafted_counts": [
+              301,
+              291,
+              282
+            ],
+            "raw_mtp_acceptance_percent": [
+              52.49169435215947,
+              59.79381443298969,
+              73.40425531914893
+            ],
+            "samples": 3,
+            "status": "measured_goal_miss",
+            "supplemental_ttft_ms": 298.428
+          }
+        },
+        "selected_runtime_diagnostics": {
+          "driver_graph_reuse": {
+            "actual_cuda_graph_reuse_log_lines": 12,
+            "pager_logical_graph_counts_are_separate": true,
+            "proof_log": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/query-replay-proof.log"
+          },
+          "natural_old_file_recall": {
+            "admission_status": "pass",
+            "cold_before": true,
+            "completed_transition_chain": [
+              "page_cold_before_request",
+              "page_selected",
+              "h2d_completed",
+              "mapping_published",
+              "target_consumed",
+              "draft_consumed"
+            ],
+            "content_version": 256,
+            "fixture_id": "PY_MERGE_03",
+            "generation": 7,
+            "h2d_aligned_bytes": 34603008,
+            "h2d_useful_bytes": 34603008,
+            "host_backed_before": true,
+            "logical_page_id": 5,
+            "mtp_accepted": 75,
+            "mtp_drafted": 128,
+            "natural_nomination_rank": 4,
+            "query_replay_verified": true,
+            "raw_progress": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/natural-promotion/campaign-progress.json",
+            "selector_depth": 5,
+            "status": "pass",
+            "target_and_draft_consumed": true
+          },
+          "selected_route_snapshot": {
+            "actual_cuda_capture_count": "not_measured",
+            "actual_cuda_launch_count": "not_measured",
+            "actual_cuda_timing_reason": "CUDA events are not enabled by this receipt",
+            "actual_cuda_update_count": "not_measured",
+            "attention_pages": 16,
+            "attention_tokens": 4096,
+            "copy_time_us": 0,
+            "headroom_bytes": 201326592,
+            "host_pageable_bytes": 73531392,
+            "host_pinned_bytes": 0,
+            "mtp_backend": "gpu",
+            "mtp_type_k": "turbo4",
+            "mtp_type_v": "turbo4",
+            "overlap_us": 0,
+            "page_capacity": 16,
+            "page_inventory": {
+              "host_backed_pages": 17,
+              "logical_pages": 18,
+              "neither_backed_pages": 0,
+              "resident_and_host_backed_pages": 15,
+              "resident_pages": 16
+            },
+            "pager_logical_graph_capture_count": 153,
+            "pager_logical_graph_rebuild_count": 153,
+            "pager_logical_graph_replay_count": 97,
+            "physical_pool_capacity_bytes": 69206016,
+            "queue_time_us": 1532278,
+            "raw_path": "/srv/ai/paged-kv/results/forward/101-18/attempt-01/selected/raw/progress-off-measured-1-p0.jsonl",
+            "request_generation": 2,
+            "route": "selected packed",
+            "scope": "Sparse post-request slot snapshot; cumulative runtime counters, not canonical per-prompt deltas.",
+            "selected_pages": 16,
+            "snapshot_utc": "2026-10-01T21:13:00+02:00",
+            "summary_build_bytes": 71368704,
+            "summary_build_calls": 2112,
+            "summary_read_bytes": 0,
+            "summary_read_calls": 0,
+            "target_type_k": "turbo4",
+            "target_type_v": "turbo4",
+            "transfer_backpressure_waits": 0,
+            "wait_time_us": 7815207,
+            "waits": 250
+          }
+        },
+        "source_commit": "a0086f056f20efa519100718f010bc15c2efb830",
+        "source_diff_sha256": "93e16327869c36a468ed55e47db6750d1b833a2320eb3477ce96aaae8592a845"
+      },
+      "exit_code": 0,
+      "status": "pass"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "a0086f056f20efa519100718f010bc15c2efb830",
+  "source_diff_sha256": "93e16327869c36a468ed55e47db6750d1b833a2320eb3477ce96aaae8592a845",
+  "summary": "Built and measured the owner-repaired candidate once. Production query replay and natural old-file recall passed; selected and both matched controls completed the canonical three-prompt campaign without errors. Release disposition is goal_miss because selected MTP misses prompt-1 and prompt-3 floors; handoff to 101-12h is recorded.",
+  "task": "101-18"
+}
