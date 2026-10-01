@@ -1823,3 +1823,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12f`
 - Commit at update: `8cdca48f5`
 - Summary: Implemented fresh-prefill fence coalescing and phase-specific diagnostics; CUDA build, focused execution test, and receipt validation pass. Live retest remains assigned to 101-12g.
+
+## 2026-10-01T16:44:52+00:00 — 101-12g — done
+
+- Branch: `codex/task-101-12g`
+- Commit at update: `2517c5a06`
+- Summary: Completed selected and matched-control live retest with verified geometry, candidate/model identities, routes and telemetry; measured selected prefill remains below 500 tok/s, with ordered repair/retest/review successors preserved.

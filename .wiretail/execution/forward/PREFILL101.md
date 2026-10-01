@@ -1,8 +1,8 @@
 # Selected prefill: remove repeated CPU work and unnecessary submission barriers
 
 Revision: `hotpath-v10-20260914`. Amendment: `prefill-owner-101-20261001`.
-This is the implementation direction for tasks 101-13–101-19, after the
-currently running 101-12e review and before 102-01. It supersedes the generic
+This is the implementation direction for tasks 101-13–18 plus 101-12h, after the
+currently running 101-12g measurement and before 102-01. It supersedes the generic
 "profile another bottleneck" successor instructions for this boundary. Do not
 reload completed phase-100/101 packets, the entire journal, or raw Codex JSONL.
 
@@ -38,8 +38,10 @@ Source inspection identifies two definite redundant-work patterns:
 Two further serialization risks require current operation-level evidence:
 
 - `llama_context::decode` calls `synchronize()` on `prefill_page_wave_boundary`;
-  U=P=256 normally fences every page. Synchronize also seals summaries and
-  retires graph/source ownership. 101-07 kept this fence; its async host worker
+  Before101-12f, U=P=256 normally fenced every page. Its fresh-sequence fix
+  now coalesces to physical admission/outer-batch boundaries; preserve it.
+  Existing/irregular layouts still fall back to page fencing. Synchronize seals
+  summaries and retires graph/source ownership. 101-07 kept this fence; its async host worker
   did not remove it. Event-driven D2H alone does not pipeline CPU submission.
   Removing the call without replacing those owners would corrupt data.
 - Actual CUDA graphs require stable node properties and two compatible warmup
@@ -72,10 +74,11 @@ are already fast; do not rewrite their common arithmetic without attribution.
 101-14 fixes cache visitation and honest physical-read accounting.
 101-15 shares immutable catalogue payload and caches per-page hashes.
 101-16 verifies/fixes actual graph reuse and ordered mutable sidebands.
-101-17 replaces page-count fences with capacity/owner-driven prefill waves.
+101-17 extends the fresh101-12f repair to safe cached contiguous waves
+and capacity-driven source/graph ownership; no duplicate fresh-path rewrite.
 101-18 runs focused affected proofs and the final canonical paired benchmark.
-101-19 reviews that new result and inserts a **measured-owner** successor if
-needed. 102-01 depends on 101-19, not the historical 101-12e speed miss.
+101-12h reviews that new result and inserts a **measured-owner** successor if
+needed. 102-01 depends on 101-12h, not the historical 101-12e speed miss.
 
 All model operations stay on GPU. RAM is inclusive encoded Turbo4 storage;
 small routing metadata on CPU is permitted if bounded and demonstrably cheap.
@@ -86,15 +89,16 @@ query selection/replay, frozen historical membership through generation and
 verification, exact identity/version authentication, and safe rollback.
 
 CPU summary unpack is only metadata reduction. If after 101-14/15 it still
-occupies >=10% of isolated prefill or a comparable GPU idle gap, 101-19 must
+occupies >=10% of isolated prefill or a comparable GPU idle gap, 101-12h must
 schedule GPU page-summary reduction using the existing
-`GGML_OP_KV_ROUTING_SUMMARY` owner/encoded keys, not CPU attention or a new
+`GGML_OP_KV_PAGE_SUMMARY` owner in `ggml/src/ggml-cuda/kv-page-summary.cu`
+and encoded keys, not CPU attention or a new
 pager. Otherwise retain the now-bounded implementation. Do not prematurely
 offload bookkeeping whose measured cost is negligible.
 
 ## Small tests, useful context, truthful completion
 
-New clusters group summary/catologue work separately from GPU submission and
+New clusters group summary/catalogue work separately from GPU submission and
 final live measurement. Startup context is the current packet/cluster, this
 file, TESTING, and one compact immediate predecessor handoff. Source pointers
 are instructions to inspect symbol-sized spans on demand, not entire files to

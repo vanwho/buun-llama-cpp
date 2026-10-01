@@ -2,7 +2,7 @@
   "schema_version": 1,
   "defaults": {
     "task_model": "gpt-6-luna",
-    "task_reasoning": "low"
+    "task_reasoning": "medium"
   },
   "families": {
     "luna": "gpt-6-luna",

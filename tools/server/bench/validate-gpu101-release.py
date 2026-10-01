@@ -21,6 +21,45 @@ def digest(path: Path) -> str:
     return h.hexdigest()
 
 
+def successor_errors(tasks: list[dict], decision_task: str, ids: object,
+                     scale_task: str = "102-01") -> list[str]:
+    """Check the actual scheduled repair suffix, including completed prefixes.
+
+    A retained measured miss remains valid as its repair tasks progress. New
+    repairs must still be listed explicitly; this does not infer a runtime
+    pass from task status or waive any numeric or artifact checks.
+    """
+    positions = {task.get("id"): i for i, task in enumerate(tasks)}
+    if not isinstance(decision_task, str) or decision_task not in positions or scale_task not in positions:
+        return ["release decision or scale owner is absent from WORK_STATE"]
+    begin, end = positions[decision_task] + 1, positions[scale_task]
+    if begin >= end:
+        return ["goal_miss requires scheduled work before scaling"]
+    scheduled = tasks[begin:end]
+    expected_ids = [task.get("id") for task in scheduled]
+    if not isinstance(ids, list) or ids != expected_ids:
+        return [f"goal_miss successors must match the scheduled dependency chain: {expected_ids}"]
+    errors: list[str] = []
+    predecessor = decision_task
+    unfinished_seen = False
+    for task in scheduled:
+        task_id = task.get("id")
+        status = task.get("status")
+        if status not in {"todo", "in_progress", "done"}:
+            errors.append(f"{task_id}: successor is not runnable or completed")
+        if status == "done" and unfinished_seen:
+            errors.append(f"{task_id}: completed successor follows unfinished work")
+        unfinished_seen = unfinished_seen or status != "done"
+        if task.get("depends_on") != [predecessor]:
+            errors.append(f"{task_id}: dependency must be {[predecessor]}")
+        predecessor = task_id
+    if tasks[end].get("depends_on") != [predecessor]:
+        errors.append(f"{scale_task}: dependency must be {[predecessor]}")
+    if not unfinished_seen:
+        errors.append("goal_miss needs an unfinished repair or review before scaling")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--receipt", type=Path, default=RELEASE)
@@ -62,26 +101,7 @@ def main() -> int:
             errors.append("passing release must not carry repair successors")
     elif receipt.get("goal_status") == "goal_miss":
         decision_task = receipt.get("decision_task", "101-12")
-        measurement_retest = decision_task == "101-12d"
-        if (not isinstance(ids, list) or len(set(ids)) != len(ids)
-                or (ids != ["101-12e"] if measurement_retest else len(ids) < 2)):
-            errors.append("goal_miss requires the final review after a retest, or an ordered repair/retest chain")
-        else:
-            if any(task_id not in positions for task_id in ids):
-                errors.append("goal_miss successor task is absent from WORK_STATE")
-            else:
-                seq = [positions[x] for x in ids]
-                scale_pos = positions.get("102-01")
-                if seq != sorted(seq) or scale_pos is None or seq[-1] + 1 != scale_pos:
-                    errors.append("successors must be ordered immediately before 102-01")
-                predecessor = decision_task
-                for i, task_id in enumerate(ids):
-                    task = tasks[positions[task_id]]
-                    if task.get("status") in {"done", "deferred"}:
-                        errors.append(f"{task_id}: successor is not runnable")
-                    expected = [predecessor] if i == 0 else [ids[i - 1]]
-                    if task.get("depends_on") != expected:
-                        errors.append(f"{task_id}: dependency must be {expected}")
+        errors.extend(successor_errors(tasks, decision_task, ids))
         selected = receipt.get("selected", {})
         prompts = selected.get("per_prompt", {})
         if set(prompts) != {"prompt_1", "prompt_2", "prompt_3"}:
@@ -103,8 +123,8 @@ def main() -> int:
                                   ("page_tokens", 256), ("batch", 1024), ("ubatch", 256)):
                 if geometry.get(key) != expected:
                     errors.append(f"goal_miss geometry {key} must be {expected}")
-            if receipt.get("decision_task") not in {"101-12b", "101-12d", "101-12e", "101-12h"}:
-                errors.append("completed goal_miss must identify the canonical decision, retest, or final review task")
+            if receipt.get("decision_task") not in positions:
+                errors.append("completed goal_miss must identify a registered measurement or review owner")
         else:
             if selected.get("status") != "failed_before_complete_matrix":
                 errors.append("legacy incomplete goal_miss must state the selected matrix did not complete")

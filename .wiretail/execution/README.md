@@ -1,10 +1,11 @@
 # Current hot-KV execution package
 
 The active forward contract is [OVERVIEW](forward/OVERVIEW.md),
-[SPEED101](forward/SPEED101.md) and [TESTING](forward/TESTING.md).
-Next is101-01: actual GPU attribution, then source-directed execution repairs.
-Blocked100-04a is deferred without claiming parity;101-10 owns its real proof.
-Scale tests move to102 and final review to103, after101-12's speed release.
+[PREFILL101](forward/PREFILL101.md) and [TESTING](forward/TESTING.md).
+Continue the task recorded by WORK_STATE. After in-flight101-12g,
+source-directed repairs101-13–17 precede101-18's measurement and101-12h's
+review. Scale remains in102 and final review in103, after a measured passing
+speed release. Existing task work and live candidate ownership are preserved.
 Unstarted93-12/93-13 are removed from the runnable graph;
 their old packets are archived for provenance. Forward tasks supersede the
 old accepted-token historical refresh and universal attention-route preference.

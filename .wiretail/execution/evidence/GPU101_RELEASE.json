@@ -1601,12 +1601,19 @@
   "ordered_successors": [
     "101-12f",
     "101-12g",
+    "101-13",
+    "101-14",
+    "101-15",
+    "101-16",
+    "101-17",
+    "101-18",
     "101-12h"
   ],
   "successor_contract": {
     "repair": "101-12f isolates and repairs the selected fresh-prefill hot path while preserving scheduler-fence and page-publication invariants.",
     "retest": "101-12g repeats the frozen selected matrix and both matched controls with raw telemetry and candidate identities.",
-    "repeat_review": "101-12h independently recomputes all release gates; only a complete pass may release 102-01, otherwise it schedules another ordered repair/retest/review chain.",
+    "owner_repairs": "After the already-started 101-12g, tasks 101-13 through 101-17 attribute and remove repeated summary/catalogue work and measured submission barriers; 101-18 measures the final repaired candidate.",
+    "repeat_review": "101-12h reviews 101-18, not the pre-owner-repair 101-12g result; only a complete pass releases 102-01, otherwise it schedules measured-owner repair/retest/review successors.",
     "scale_task": "102-01 depends on 101-12h and remains todo; no capacity or occupancy work begins before final gate approval."
   },
   "raw_runs": {
