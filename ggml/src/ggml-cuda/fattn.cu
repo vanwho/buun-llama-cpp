@@ -425,7 +425,9 @@ static void ggml_cuda_flash_attn_ext_mma_f16_switch_ncols2(ggml_backend_cuda_con
 }
 
 #if defined(GGML_CUDA_TURBO_FA)
-// Turbo MMA fused dispatch: ncols1 selection for the <= 4-token decode path.
+// Turbo MMA fused dispatch: ncols1 is the per-block query tile. launch_fattn
+// advances grid.x over arbitrary query counts, so larger batches use the
+// largest instantiated tile instead of requiring a monolithic Q-sized tile.
 template <int DKQ, int DV, int ncols2, ggml_type type_K, ggml_type type_V>
 static void ggml_cuda_flash_attn_ext_mma_turbo_switch_ncols1(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
     const int cc = ggml_cuda_info().devices[ggml_cuda_get_device()].cc;
@@ -443,8 +445,16 @@ static void ggml_cuda_flash_attn_ext_mma_turbo_switch_ncols1(ggml_backend_cuda_c
         return;
     }
 
-    GGML_ASSERT(Q->ne[1] <= 4 && ncols2 == 8);
-    ggml_cuda_flash_attn_ext_mma_turbo_case<DKQ, DV, 4, 8, type_K, type_V>(ctx, dst);
+    if constexpr (ncols2 == 8) {
+        ggml_cuda_flash_attn_ext_mma_turbo_case<DKQ, DV, 4, 8, type_K, type_V>(ctx, dst);
+    } else if constexpr (ncols2 == 4) {
+        ggml_cuda_flash_attn_ext_mma_turbo_case<DKQ, DV, 4, 4, type_K, type_V>(ctx, dst);
+    } else if constexpr (ncols2 == 2) {
+        ggml_cuda_flash_attn_ext_mma_turbo_case<DKQ, DV, 8, 2, type_K, type_V>(ctx, dst);
+    } else {
+        static_assert(ncols2 == 1);
+        ggml_cuda_flash_attn_ext_mma_turbo_case<DKQ, DV, 16, 1, type_K, type_V>(ctx, dst);
+    }
 }
 
 static bool ggml_cuda_turbo4_fused_last_dispatch = false;
@@ -4335,7 +4345,8 @@ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst
     const bool matched_turbo4_fused_capable =
         K->type == GGML_TYPE_TURBO4_0 && V->type == GGML_TYPE_TURBO4_0 &&
         (Q->ne[0] == 128 || Q->ne[0] == 256) &&
-        K->ne[0] == Q->ne[0] && V->ne[0] == Q->ne[0] && Q->ne[1] >= 1 && Q->ne[1] <= 4 &&
+        K->ne[0] == Q->ne[0] && V->ne[0] == Q->ne[0] && Q->ne[1] >= 1 &&
+        Q->ne[1] <= std::numeric_limits<int32_t>::max() - 64 &&
         Q->ne[2] % K->ne[2] == 0 &&
         Q->nb[0] == sizeof(float) && Q->nb[1] % sizeof(float2) == 0 &&
         Q->nb[2] <= size_t(std::numeric_limits<int32_t>::max()) &&

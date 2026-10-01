@@ -1077,7 +1077,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_iter(
     float KQ_rowsum_add[cols_per_thread] = {0.0f};
 
     if constexpr (cols_per_warp == 8) {
-        if (ncols2 > 1 || mask_h) {
+        if (ncols2 > 1 || mask_h || KVPolicy::is_paged) {
 #pragma unroll
             for (int i00 = 0; i00 < nbatch_fa; i00 += np*T_C_KQ::I) {
                 const int i0 = i00 + (threadIdx.y % np)*T_C_KQ::I;
@@ -1140,7 +1140,7 @@ static __device__ __forceinline__ void flash_attn_ext_f16_iter(
             }
         }
     } else { // not Turing mma or T_B_KQ::I > 8
-        if (ncols2 > 1 || mask_h) {
+        if (ncols2 > 1 || mask_h || KVPolicy::is_paged) {
 #pragma unroll
             for (int i00 = 0; i00 < nbatch_fa; i00 += np*T_C_KQ::J) {
                 const int i0 = i00 + (threadIdx.y % np)*T_C_KQ::J;
