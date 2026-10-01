@@ -1,0 +1,8 @@
+{
+  "http_status": 200,
+  "model": "qwen38-fast-turbo4-mtp",
+  "completion_tokens": 4,
+  "logprob_count": 4,
+  "all_logprobs_finite": true,
+  "finish_reason": "length"
+}
