@@ -1787,3 +1787,9 @@ receives `PROJECT_ROOT` from the shared runner.
 - Branch: `codex/task-101-12`
 - Commit at update: `4622752e4`
 - Summary: Recorded canonical H4096 goal_miss after reproducible warmup/slot-reset no_victim, completed matched controls, and scheduled 101-12a repair plus 101-12b repeated speed review ahead of gated 102-01.
+
+## 2026-10-01T14:31:17+00:00 — 101-12a — done
+
+- Branch: `codex/task-101-12a`
+- Commit at update: `75d0aba47`
+- Summary: Repaired and verified H4096 reservation after slot erase
