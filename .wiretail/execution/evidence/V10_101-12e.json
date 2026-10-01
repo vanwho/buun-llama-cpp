@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "task": "101-12e",
+  "source_commit": "d0999713d76c94831ff0faf29b78db345f65eb63",
+  "summary": "Independently recalculated 101-12d selected and control gates from raw records. Release remains a measured goal miss; scheduled 101-12f repair, 101-12g retest, 101-12h repeat review, and moved 102-01 dependency to final review owner.",
+  "build_provenance": {
+    "measurement_source_commit": "8a5a3091f598c8952f13a904f44b7dce467685e7",
+    "independent_review_source_commit": "d0999713d76c94831ff0faf29b78db345f65eb63",
+    "selected_binary_sha256": "d6242076cd05d65289939ea251549367350fe4845cbe936c6b518d6d92ff797d",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+  },
+  "deferred_verification": [
+    "No unavailable platform/hardware verification for this review; selected-path optimization and its live retest are explicitly scheduled in 101-12f/101-12g."
+  ],
+  "checks": {
+    "repeated_speed_review_and_final_release_gate": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "python3",
+        ".wiretail/build/101-12e-review.py"
+      ],
+      "commands": [
+        [
+          "python3",
+          ".wiretail/build/101-12e-review.py"
+        ],
+        [
+          "python3",
+          "tools/server/bench/validate-gpu101-release.py",
+          "--receipt",
+          ".wiretail/execution/evidence/GPU101_RELEASE.json"
+        ],
+        [
+          "python3",
+          "/srv/wiretail/task_state.py",
+          "validate"
+        ],
+        [
+          "git",
+          "diff",
+          "--check"
+        ],
+        [
+          "python3",
+          ".wiretail/execution/v10/validate.py",
+          "--task",
+          "101-12d",
+          "--receipt",
+          ".wiretail/execution/evidence/V10_101-12d.json"
+        ]
+      ],
+      "metrics": {
+        "selected_prefill_gate": "miss all three prompts",
+        "mtp_floor": "pass prompt 2; miss prompts 1 and 3",
+        "decode_vs_cpu_kv": "pass all three prompts",
+        "three_x_prefill_vs_cpu_kv": "not supported",
+        "dense_gpu": "selected trails for prefill and decode on all prompts",
+        "release_decision": "goal_miss",
+        "ordered_repair_chain": [
+          "101-12f",
+          "101-12g",
+          "101-12h"
+        ],
+        "scale_dependency": "102-01 depends on 101-12h"
+      },
+      "artifacts": [
+        {
+          "path": ".wiretail/build/101-12e-review.py",
+          "sha256": "1e3af8bd3f1d0fff308dc9efe9b073d422b9fd971c6fc0d1a8a1c9c3961f190b"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12e-independent-review.json",
+          "sha256": "79404ea4352af2e3018d7e5f24f5f23a7efaf7da138e2b0453221708ef0b39d6"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12e-independent-review.log",
+          "sha256": "5ec8d035c6460ea1ff3e58979ac058b6be7cafb7a9f4907715529baf8decb505"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
+          "sha256": "1151f3f3bc73e11ba14f39e14bc4c0b06ba8bcea682def481fd626a0201f0f25"
+        },
+        {
+          "path": ".wiretail/execution/evidence/GPU101_RELEASE.md",
+          "sha256": "ba2554cf8e0cbb3fb4b1f1ec7febcce3cf6dbe2fac5d40ea6c3de47fbe40440d"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12e-release-validation.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12d-release-validation.log",
+          "sha256": "2b8ffa97ff92ceff0f3dda80ee8d054c78e63dcf15746eb90d0dd1ae61237a1e"
+        },
+        {
+          "path": ".wiretail/execution/evidence/V10_101-12d.json",
+          "sha256": "25b40b98f2ba645e86132fdb4e3a461b7af3e9d85b949e0ef59c670988057d7f"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12d-v10-validation.log",
+          "sha256": "e26deec7779e5d4cbec34d5284bb77f550e00c88216c283c497314bb92f9ed24"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12e-plan-validation.log",
+          "sha256": "ce5d522d4bd676984982186925ed32c9f0c267c73fb59a8c08a01eb3cf9ab057"
+        },
+        {
+          "path": ".wiretail/execution/evidence/101-12e-diff-check.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": ".wiretail/execution/tasks/101-12f.md",
+          "sha256": "9cd80915bad1bd1a81737e2c81a3b916b853a6eba0657dbf6a63bb051924eb0b"
+        },
+        {
+          "path": ".wiretail/execution/handoffs/101-12f.md",
+          "sha256": "404ffbcfb3c5da7f01ada02bb3f961ded3ad199e0c48043eb79eaa5a8e56e277"
+        },
+        {
+          "path": ".wiretail/execution/tasks/101-12g.md",
+          "sha256": "3efe42f06144c426ab525c2a109553b98a17a1e31f678e286d99f36a44b75bab"
+        },
+        {
+          "path": ".wiretail/execution/handoffs/101-12g.md",
+          "sha256": "34bcf5f21f2a6113e5f3f61105062fe5fe1670fe826dca72986c1403132dd84b"
+        },
+        {
+          "path": ".wiretail/execution/tasks/101-12h.md",
+          "sha256": "08efed09c869c77c77f627337803d52438a1c9b0251bf52283801a697e2f1170"
+        },
+        {
+          "path": ".wiretail/execution/handoffs/101-12h.md",
+          "sha256": "d075bdf12e17cbf905e9d9f3e150c6dbe4f11bf849c53d0649aa35b7d7db96d1"
+        },
+        {
+          "path": ".wiretail/execution/clusters/gpu101-final-proof.md",
+          "sha256": "772cd5117a9192908a98e57dc662f72f48265c58c9af094ae6a66a3f23e8bc1f"
+        }
+      ]
+    }
+  }
+}

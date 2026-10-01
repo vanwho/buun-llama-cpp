@@ -1,6 +1,6 @@
-# GPU101 canonical retest — 101-12d
+# GPU101 final independent release review — 101-12e
 
-Outcome: **goal_miss**. The complete selected matrix and both matched controls used the repaired candidate. All 3x400-cap measured requests per matrix completed with HTTP 200 and no errors. The selected fresh-prefill medians remain below the 500 tok/s gate; final release review is owned by 101-12e. No long occupancy ran.
+Outcome: **goal_miss**. The complete selected matrix and both matched controls used the repaired candidate. All 3x400-cap measured requests per matrix completed with HTTP 200 and no errors. The selected fresh-prefill medians remain below the 500 tok/s gate; 101-12e independently recalculated all selected and control medians from raw records. No long occupancy ran.
 
 ## Identity and protocol
 
@@ -12,11 +12,11 @@ Outcome: **goal_miss**. The complete selected matrix and both matched controls u
 
 ## Selected measurements
 
-| Prompt | Fresh prefill tok/s median | Decode tok/s median | MTP acceptance median | Supplemental TTFT s | Disposition |
+| Prompt | Fresh prefill tok/s median | Decode tok/s median | MTP acceptance median | Supplemental TTFT s | Prefill gate | MTP gate |
 |---:|---:|---:|---:|---:|---|
-| 1 | 331.28 | 34.69 | 48.88% | 10.732 | measured_goal_miss |
-| 2 | 386.66 | 34.30 | 48.44% | 12.447 | measured_goal_miss |
-| 3 | 331.21 | 37.11 | 57.05% | 10.964 | measured_goal_miss |
+| 1 | 331.28 | 34.69 | 48.88% | 10.732 | miss (<500) | miss (<75%) |
+| 2 | 386.66 | 34.30 | 48.44% | 12.447 | miss (<500) | pass (≥40%) |
+| 3 | 331.21 | 37.11 | 57.05% | 10.964 | miss (<500) | miss (<60%) |
 
 ## Matched controls
 
@@ -25,6 +25,16 @@ Outcome: **goal_miss**. The complete selected matrix and both matched controls u
 | 1 | 1566.34 | 84.13 | 659.75 | 25.06 |
 | 2 | 1562.65 | 61.70 | 661.72 | 18.60 |
 | 3 | 1564.67 | 71.12 | 662.30 | 21.50 |
+
+## Independent matched comparisons
+
+Ratios are selected divided by the stated control. All selected prefill medians miss 500 tok/s. Selected decode beats CPU-main-KV/GPU-MTP on every prompt. No prompt reaches 3x CPU-KV prefill. Selected remains slower than dense-GPU for both prefill and decode on every prompt. Ratios were recalculated from raw records by `.wiretail/build/101-12e-review.py`.
+
+| Prompt | Prefill / CPU-KV | Decode / CPU-KV | Prefill / dense GPU | Decode / dense GPU | CPU decode advantage |
+|---:|---:|---:|---:|---:|---|
+| 1 | 0.502x | 1.384x | 0.212x | 0.412x | pass |
+| 2 | 0.584x | 1.845x | 0.247x | 0.556x | pass |
+| 3 | 0.500x | 1.726x | 0.212x | 0.522x | pass |
 
 ## Telemetry and memory
 

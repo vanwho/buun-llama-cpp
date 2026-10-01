@@ -2,7 +2,7 @@
   "schema_version": 1,
   "task": "101-12d",
   "source_commit": "8a5a3091f598c8952f13a904f44b7dce467685e7",
-  "summary": "Completed the frozen selected GPU101 retest and both matched controls on the repaired candidate. All matrices completed with zero errors; selected fresh-prefill medians missed the 500 tok/s gate and selected MTP medians missed all three configured floors. Final release review is owned by 101-12e.",
+  "summary": "Completed the frozen selected GPU101 retest and both matched controls on the repaired candidate. All matrices completed with zero errors; selected fresh-prefill medians missed the 500 tok/s gate, MTP floors were missed on prompts 1 and 3 and passed on prompt 2, and selected decode beat CPU-KV on all prompts. Final review is completed by 101-12e; repair/retest/repeated review are scheduled before scale.",
   "build_provenance": {
     "source_tree_commit_at_measurement": "8a5a3091f598c8952f13a904f44b7dce467685e7",
     "binary_source_commit_prefix": "b6877d0ef",
@@ -20,9 +20,7 @@
     },
     "shared_prefix_sha256": "8218b0f427cc931fa38d08f1c29f91ec7d82e12ac309ff7743eb7a60da678d20"
   },
-  "deferred_verification": [
-    "Final release review and any next repair/retest chain are owned by 101-12e."
-  ],
+  "deferred_verification": [],
   "checks": {
     "canonical_selected_and_matched_control_retest": {
       "status": "pass",
@@ -80,11 +78,11 @@
       "artifacts": [
         {
           "path": ".wiretail/execution/evidence/GPU101_RELEASE.json",
-          "sha256": "4c184a22e1ace42cfa895dd658399ed9a94b2811a28b53fa1df3857115f26285"
+          "sha256": "1151f3f3bc73e11ba14f39e14bc4c0b06ba8bcea682def481fd626a0201f0f25"
         },
         {
           "path": ".wiretail/execution/evidence/GPU101_RELEASE.md",
-          "sha256": "240c9a96b8e863bc3d246a1b38a63b9ea0d12cf540b2ea78b79e4829550c146b"
+          "sha256": "ba2554cf8e0cbb3fb4b1f1ec7febcce3cf6dbe2fac5d40ea6c3de47fbe40440d"
         },
         {
           "path": ".wiretail/execution/evidence/101-12d-release-validation.log",

@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "raw_root": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01",
+  "raw_runs": {
+    "selected": {
+      "run-config.json": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final/run-config.json",
+        "sha256": "226d655ea98934d3969b9c61eee1e20c42df015038e1f053ed310c86d08c478a"
+      },
+      "summary.json": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final/summary.json",
+        "sha256": "bb97f7e748692e20a8adf49d83d45400d17e621575c226cb9a0cf04d1dae6e1c"
+      },
+      "records.jsonl": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/selected-final/records.jsonl",
+        "sha256": "29603bd066c9e513ce575ac7431f3605569d333ce92842b4edb6785549efc02f"
+      }
+    },
+    "dense_gpu": {
+      "run-config.json": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final/run-config.json",
+        "sha256": "ee0553103dd7c9210b720d66651acf4ad18145085e5fcddda09ce076a6adebbe"
+      },
+      "summary.json": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final/summary.json",
+        "sha256": "00c5e47f4c5b16bff65eab8afe1c7abd4027de1c30840f3e3f3fc0525e73227d"
+      },
+      "records.jsonl": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/pager-off-all-gpu-final/records.jsonl",
+        "sha256": "9a4dee87e8299efacd83c2091a7c0f5406319cf5e58ff92a09f4a47793df62ae"
+      }
+    },
+    "cpu_kv": {
+      "run-config.json": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final/run-config.json",
+        "sha256": "d3f3111a8ad36a3cf81ecf3f1cab6761f61907da35757ae99b0086f44aaf3465"
+      },
+      "summary.json": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final/summary.json",
+        "sha256": "985490be4fde5abb0532af77246f9c049a31a38fdd7ad64446dad07b11bb3bc9"
+      },
+      "records.jsonl": {
+        "path": "/srv/ai/paged-kv/results/forward/101-12d/attempt-01/cpu-main-kv-gpu-mtp-final/records.jsonl",
+        "sha256": "f1a63a0501bdd1dda2cde0d789c8104df53434c7b9f6909f205456ad07fb7378"
+      }
+    }
+  },
+  "prompts": {
+    "prompt_1": {
+      "selected": {
+        "prefill_tok_s_median": 331.27582733823374,
+        "decode_tok_s_median": 34.689326650609885,
+        "mtp_acceptance_percent_median": 48.88178914,
+        "input_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "measured_rows": 3
+      },
+      "dense_gpu": {
+        "prefill_tok_s_median": 1566.3355475189665,
+        "decode_tok_s_median": 84.13328582102625,
+        "mtp_acceptance_percent_median": 78.19548872,
+        "input_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "output_tokens": [
+          379,
+          379,
+          379
+        ],
+        "measured_rows": 3
+      },
+      "cpu_kv": {
+        "prefill_tok_s_median": 659.7459873736001,
+        "decode_tok_s_median": 25.062426598824956,
+        "mtp_acceptance_percent_median": 80.37037037,
+        "input_tokens": [
+          4115,
+          4115,
+          4115
+        ],
+        "output_tokens": [
+          386,
+          386,
+          386
+        ],
+        "measured_rows": 3
+      },
+      "mtp_floor_percent": 75.0,
+      "prefill_gate_pass": false,
+      "mtp_gate_pass": false,
+      "decode_beats_cpu_kv": true,
+      "selected_to_cpu_kv_prefill_ratio": 0.5021263238856795,
+      "selected_to_dense_gpu_prefill_ratio": 0.2114973562739898,
+      "selected_to_cpu_kv_decode_ratio": 1.3841168377620818,
+      "selected_to_dense_gpu_decode_ratio": 0.41231394105304836
+    },
+    "prompt_2": {
+      "selected": {
+        "prefill_tok_s_median": 386.66087678362845,
+        "decode_tok_s_median": 34.30072463918756,
+        "mtp_acceptance_percent_median": 48.4375,
+        "input_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "output_tokens": [
+          181,
+          126,
+          166
+        ],
+        "measured_rows": 3
+      },
+      "dense_gpu": {
+        "prefill_tok_s_median": 1562.6537904805045,
+        "decode_tok_s_median": 61.696445361147724,
+        "mtp_acceptance_percent_median": 50.0,
+        "input_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "output_tokens": [
+          168,
+          166,
+          168
+        ],
+        "measured_rows": 3
+      },
+      "cpu_kv": {
+        "prefill_tok_s_median": 661.7171979688243,
+        "decode_tok_s_median": 18.59510320783346,
+        "mtp_acceptance_percent_median": 50.0,
+        "input_tokens": [
+          4112,
+          4112,
+          4112
+        ],
+        "output_tokens": [
+          168,
+          168,
+          168
+        ],
+        "measured_rows": 3
+      },
+      "mtp_floor_percent": 40.0,
+      "prefill_gate_pass": false,
+      "mtp_gate_pass": true,
+      "decode_beats_cpu_kv": true,
+      "selected_to_cpu_kv_prefill_ratio": 0.5843294959999594,
+      "selected_to_dense_gpu_prefill_ratio": 0.24743860677209445,
+      "selected_to_cpu_kv_decode_ratio": 1.8446106082776605,
+      "selected_to_dense_gpu_decode_ratio": 0.5559594955333983
+    },
+    "prompt_3": {
+      "selected": {
+        "prefill_tok_s_median": 331.2113687396381,
+        "decode_tok_s_median": 37.105948083477784,
+        "mtp_acceptance_percent_median": 57.04697987,
+        "input_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "measured_rows": 3
+      },
+      "dense_gpu": {
+        "prefill_tok_s_median": 1564.6719666933723,
+        "decode_tok_s_median": 71.11635205552993,
+        "mtp_acceptance_percent_median": 63.32179931,
+        "input_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "measured_rows": 3
+      },
+      "cpu_kv": {
+        "prefill_tok_s_median": 662.2961241426019,
+        "decode_tok_s_median": 21.503075775168366,
+        "mtp_acceptance_percent_median": 65.03496503,
+        "input_tokens": [
+          4113,
+          4113,
+          4113
+        ],
+        "output_tokens": [
+          400,
+          400,
+          400
+        ],
+        "measured_rows": 3
+      },
+      "mtp_floor_percent": 60.0,
+      "prefill_gate_pass": false,
+      "mtp_gate_pass": false,
+      "decode_beats_cpu_kv": true,
+      "selected_to_cpu_kv_prefill_ratio": 0.5000955866507887,
+      "selected_to_dense_gpu_prefill_ratio": 0.21168102694367846,
+      "selected_to_cpu_kv_decode_ratio": 1.7256111856484984,
+      "selected_to_dense_gpu_decode_ratio": 0.5217639405140504
+    }
+  },
+  "gate_result": "goal_miss",
+  "gate_summary": {
+    "all_selected_prefill_at_least_500": false,
+    "mtp_floor_pass_prompts": [
+      "prompt_2"
+    ],
+    "all_selected_decode_beats_cpu_kv": true,
+    "selected_prefill_at_least_3x_cpu_kv": false,
+    "selected_beats_dense_gpu_all_prompts": false
+  },
+  "conclusion": "Measured complete goal miss: all selected prefill medians are below 500 tok/s; MTP misses prompts 1 and 3 and passes prompt 2; selected decode beats matched CPU-KV on all prompts but trails dense-GPU on all prompts. The request-wide wait and queue counters are diagnostic leads only; the retest did not isolate their prefill-phase contribution."
+}
