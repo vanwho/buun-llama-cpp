@@ -1,0 +1,348 @@
+{
+  "controls": {
+    "pager-off-direct": {
+      "config_path": "/srv/ai/paged-kv/results/v10/101-09/pager-off-direct/run-config.json",
+      "config_sha256": "7f6e630f7f4b596bce5240d2d2396654de768b7189706a048d72924a9b5e0bec",
+      "rows": [
+        {
+          "acceptance_percent": 74.54545455,
+          "accepted_tokens": 41,
+          "cached_tokens": 0,
+          "completion_tokens": 80,
+          "draft_tokens": 55,
+          "first_rejection": null,
+          "first_rejection_present": false,
+          "freeze_event": null,
+          "generation_span_events": [],
+          "history_frozen": false,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/pager-off-direct/raw/off-measured-1-p0.journal.log",
+          "journal_sha256": "f1d9e8f9061185206c8df93e9f25cf0c0b70e5a01a54aae1f15b629e4f7316ea",
+          "output_sha256": "574b1e4eaf011126630e246d5d1736186c00d019e3c6d99abaee06a8ca674027",
+          "prompt_index": 0,
+          "prompt_tokens": 30,
+          "query_replay_events": [
+            "0.08.656.775 I slot   operator(): id  0 | task 2 | query replay: unchanged history; replay_count=0"
+          ],
+          "rejected_proposals": 14
+        },
+        {
+          "acceptance_percent": 53.44827586,
+          "accepted_tokens": 31,
+          "cached_tokens": 0,
+          "completion_tokens": 80,
+          "draft_tokens": 58,
+          "first_rejection": "0.09.021.236 I slot   operator(): id  0 | task 2 | MTP first rejection: seq=0 rejected_index=1 proposed_token=198 target_row=1 target_finite=yes target_softmax_temperature=1 target_top8=[50346:25.085:0.5375851,198:24.93204:0.4613389,44:18.46726:0.0007184581,25863:16.86648:0.0001449399,38754:15.66366:4.353243e-05,20250:15.54458:3.864506e-05,18479:15.35876:3.209197e-05,78320:13.75496:6.454635e-06] draft_position=53 draft_carry_generation=17 draft_top8=[198:29.41412:0.876529,50346:27.37746:0.1143551,44:24.83394:0.008987052,25863:19.70533:5.324626e-05,38754:19.62112:4.89464e-05,18479:18.02182:9.888986e-06,42798:17.50422:5.893349e-06,1134:17.29781:4.794221e-06] target_kv_range=[53,53] draft_valid_frontier=53 staged_hidden_generation=12 target_verify_rows=3 target_causal_row=1",
+          "first_rejection_present": true,
+          "freeze_event": null,
+          "generation_span_events": [],
+          "history_frozen": false,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/pager-off-direct/raw/off-measured-1-p1.journal.log",
+          "journal_sha256": "787018a86e7c9aac9b9303eefb02f10c3018cbcb757ff6f37dcc1f200f9f0142",
+          "output_sha256": "5d9e48850577ed5bfcad0d9b9a8db1f512ee0366c6833685a0f3dabad7f7b794",
+          "prompt_index": 1,
+          "prompt_tokens": 27,
+          "query_replay_events": [
+            "0.10.040.086 I slot   operator(): id  0 | task 47 | query replay: unchanged history; replay_count=0"
+          ],
+          "rejected_proposals": 27
+        },
+        {
+          "acceptance_percent": 75.92592593,
+          "accepted_tokens": 41,
+          "cached_tokens": 0,
+          "completion_tokens": 80,
+          "draft_tokens": 54,
+          "first_rejection": "0.11.906.546 I slot   operator(): id  0 | task 102 | MTP first rejection: seq=0 rejected_index=1 proposed_token=23791 target_row=1 target_finite=yes target_softmax_temperature=1 target_top8=[7650:23.39161:0.5430563,23791:22.51619:0.2262837,4109:21.95011:0.1284725,2488:20.74974:0.03868092,2058:19.8033:0.01501279,5272:19.76539:0.01445439,17494:19.25728:0.008696183,28924:18.57722:0.004405355] draft_position=48 draft_carry_generation=164 draft_top8=[23791:22.95853:0.758171,17494:21.55624:0.186535,2488:19.83068:0.03321692,10049:18.38396:0.00781727,1368:17.64902:0.003748665,561:17.40323:0.002931767,10121:17.39372:0.002904035,7650:17.0962:0.002156688] target_kv_range=[48,48] draft_valid_frontier=48 staged_hidden_generation=103 target_verify_rows=3 target_causal_row=1",
+          "first_rejection_present": true,
+          "freeze_event": null,
+          "generation_span_events": [],
+          "history_frozen": false,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/pager-off-direct/raw/off-measured-1-p2.journal.log",
+          "journal_sha256": "7388a77b98adae4b86a36f46b58802f3ae64bb57de4acbadd0df0aa86f01f5d5",
+          "output_sha256": "2399cfce95e4db7506eea18b9785fc2548d283823715639a28c8849df3e390f6",
+          "prompt_index": 2,
+          "prompt_tokens": 28,
+          "query_replay_events": [
+            "0.11.614.890 I slot   operator(): id  0 | task 102 | query replay: unchanged history; replay_count=0"
+          ],
+          "rejected_proposals": 13
+        }
+      ],
+      "runtime_identity": {
+        "batch": "1024",
+        "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --device cuda0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "context": "8192",
+        "host_budget": null,
+        "hot_pages": null,
+        "loaded_dsos": [
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server"
+        ],
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "mtp_placement": "gpu",
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
+        "no_kv_offload": false,
+        "page_size_tokens": "",
+        "pager_mode": "off",
+        "pid": 883524,
+        "pin_recent": null,
+        "profile": "qwen38-fast",
+        "safety_headroom": null,
+        "spec_draft_n_max": 2,
+        "spec_type": "draft-mtp",
+        "target_kv_placement": "gpu",
+        "ubatch": "256",
+        "vram_budget": null
+      }
+    },
+    "selected-c-gt-h-direct": {
+      "config_path": "/srv/ai/paged-kv/results/v10/101-09/selected-c-gt-h-direct/run-config.json",
+      "config_sha256": "ed1c5e82e91e4c0cb0775bed1b89677be2ecd809446edd227ae55fa6efdb0d9a",
+      "rows": [
+        {
+          "acceptance_percent": 80.0,
+          "accepted_tokens": 44,
+          "cached_tokens": 0,
+          "completion_tokens": 80,
+          "draft_tokens": 55,
+          "first_rejection": "0.28.271.363 I slot   operator(): id  0 | task 2 | MTP first rejection: seq=0 rejected_index=1 proposed_token=18078 target_row=1 target_finite=yes target_softmax_temperature=1 target_top8=[11:30.12557:0.982644,18078:26.06776:0.01698681,92085:21.85993:0.0002527402,65342:20.16944:4.661279e-05,58:20.04453:4.113918e-05,8:18.89445:1.302516e-05,13787:17.78677:4.302532e-06,20897:17.69919:3.941747e-06] draft_position=4547 draft_carry_generation=15 draft_top8=[18078:26.87401:0.5574244,11:26.59623:0.42223,65342:23.14748:0.01342078,16793:22.07697:0.004601074,92085:21.21345:0.001940152,58:19.0723:0.000228006,12623:17.65329:5.516683e-05,4023:17.59625:5.210841e-05] target_kv_range=[4547,4547] draft_valid_frontier=4547 staged_hidden_generation=14 target_verify_rows=3 target_causal_row=1",
+          "first_rejection_present": true,
+          "freeze_event": "0.28.023.399 I slot freeze_pager: id  0 | task 2 | kv pager history frozen: turn=1 history_generation=1 table_epoch=9122 selector_refresh_count=0 h2d_queued=0 promotion_pages=0 eviction_pages=0",
+          "generation_span_events": [],
+          "history_frozen": true,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/selected-c-gt-h-direct/raw/off-measured-1-p0.journal.log",
+          "journal_sha256": "68bbcd67bdecaa0bd4aedc407050f47133389eb82f472b872a080ad38ce2425a",
+          "output_sha256": "587235d67ddc7f772f6d076de2a464754c7b3261c0a68fc058c08ff9a1145259",
+          "prompt_index": 0,
+          "prompt_tokens": 4536,
+          "query_replay_events": [
+            "0.27.851.973 I slot   operator(): id  0 | task 2 | query replay: unchanged history; replay_count=0"
+          ],
+          "rejected_proposals": 11
+        },
+        {
+          "acceptance_percent": 53.57142857,
+          "accepted_tokens": 30,
+          "cached_tokens": 4506,
+          "completion_tokens": 80,
+          "draft_tokens": 56,
+          "first_rejection": "0.30.619.090 I slot   operator(): id  0 | task 60 | MTP first rejection: seq=0 rejected_index=1 proposed_token=321 target_row=1 target_finite=yes target_softmax_temperature=1 target_top8=[318:26.82735:0.9063073,321:24.55647:0.09355043,27718:17.806:0.0001094845,4779:15.92643:1.67134e-05,1510:14.01212:2.464282e-06,3376:13.96018:2.339568e-06,429:12.86516:7.8266e-07,466:12.7057:6.672959e-07] draft_position=4541 draft_carry_generation=79 draft_top8=[321:29.48099:0.8105131,318:28.02721:0.1894044,27718:19.32271:3.141054e-05,1608:19.28522:3.025479e-05,364:18.61886:1.553805e-05,286:16.36524:1.631777e-06,310:16.17818:1.353395e-06,429:16.05387:1.195187e-06] target_kv_range=[4541,4541] draft_valid_frontier=4541 staged_hidden_generation=51 target_verify_rows=3 target_causal_row=1",
+          "first_rejection_present": true,
+          "freeze_event": "0.30.431.987 I slot freeze_pager: id  0 | task 60 | kv pager history frozen: turn=2 history_generation=2 table_epoch=9397 selector_refresh_count=1 h2d_queued=0 promotion_pages=0 eviction_pages=0",
+          "generation_span_events": [
+            "0.29.803.599 I slot      release: id  0 | task 2 | kv pager generated span: turn=1 history_generation=1 selector_refresh_delta=0 h2d_queued_delta=0 promotion_pages_delta=0 eviction_pages_delta=0 summary_build_calls_delta=64 table_epoch_before=9122 table_epoch_after=9335"
+          ],
+          "history_frozen": true,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/selected-c-gt-h-direct/raw/off-measured-1-p1.journal.log",
+          "journal_sha256": "47efb33c46a0f1518bb4ab90f8cfe2a76434bba5ad5efd3fc8590773480dba2b",
+          "output_sha256": "f580d13bae5b31cf6baa0ee20f5a699e4e78df8e79574123c9b00dc923d99e5f",
+          "prompt_index": 1,
+          "prompt_tokens": 4533,
+          "query_replay_events": [
+            "0.30.256.351 I slot   operator(): id  0 | task 60 | query replay: unchanged history; replay_count=0"
+          ],
+          "rejected_proposals": 26
+        },
+        {
+          "acceptance_percent": 58.62068966,
+          "accepted_tokens": 34,
+          "cached_tokens": 4506,
+          "completion_tokens": 80,
+          "draft_tokens": 58,
+          "first_rejection": "0.34.560.400 I slot   operator(): id  0 | task 117 | MTP first rejection: seq=0 rejected_index=0 proposed_token=369 target_row=0 target_finite=yes target_softmax_temperature=1 target_top8=[513:23.50513:0.403495,369:23.20398:0.2985737,579:22.78431:0.1962409,725:22.12623:0.1016224,11:13.47885:1.784355e-05,9867:11.69887:3.009178e-06,3029:11.60424:2.737469e-06,303:11.50048:2.46766e-06] draft_position=4535 draft_carry_generation=156 draft_top8=[369:27.5815:0.6120631,513:26.7662:0.2708414,579:25.35815:0.06625365,725:25.09121:0.05073144,488:18.76902:9.111437e-05,3905:16.15002:6.639977e-06,264:15.92967:5.32685e-06,567:15.56625:3.703741e-06] target_kv_range=[4536,4536] draft_valid_frontier=4536 staged_hidden_generation=102 target_verify_rows=3 target_causal_row=0",
+          "first_rejection_present": true,
+          "freeze_event": "0.34.498.880 I slot freeze_pager: id  0 | task 117 | kv pager history frozen: turn=3 history_generation=3 table_epoch=9757 selector_refresh_count=2 h2d_queued=64 promotion_pages=2 eviction_pages=4",
+          "generation_span_events": [
+            "0.32.765.559 I slot      release: id  0 | task 60 | kv pager generated span: turn=2 history_generation=2 selector_refresh_delta=0 h2d_queued_delta=0 promotion_pages_delta=0 eviction_pages_delta=0 summary_build_calls_delta=64 table_epoch_before=9397 table_epoch_after=9653"
+          ],
+          "history_frozen": true,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/selected-c-gt-h-direct/raw/off-measured-1-p2.journal.log",
+          "journal_sha256": "d48de7dd11ca58d04acf484d9bf95e5fac6e30dfe39bedbdd6e999ca8645aa27",
+          "output_sha256": "3ad263ab34dd304257409eac72fb3c55a63d3eeb119302599dab0f76be2af230",
+          "prompt_index": 2,
+          "prompt_tokens": 4534,
+          "query_replay_events": [
+            "0.34.123.746 I slot   operator(): id  0 | task 117 | query replay: begin=4506 end=4527 history_generation=3 replay_count=1",
+            "0.34.329.932 I slot   operator(): id  0 | task 117 | query replay: completed replay_count=1"
+          ],
+          "rejected_proposals": 24
+        }
+      ],
+      "runtime_identity": {
+        "batch": "1024",
+        "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --device cuda0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "context": "8192",
+        "host_budget": null,
+        "hot_pages": "16",
+        "loaded_dsos": [
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server"
+        ],
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "mtp_placement": "gpu",
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
+        "no_kv_offload": false,
+        "page_size_tokens": "256",
+        "pager_mode": "selective",
+        "pid": 885171,
+        "pin_recent": null,
+        "profile": "qwen38-fast",
+        "safety_headroom": null,
+        "spec_draft_n_max": 2,
+        "spec_type": "draft-mtp",
+        "target_kv_placement": "gpu",
+        "ubatch": "256",
+        "vram_budget": null
+      }
+    },
+    "selected-c-le-h-direct": {
+      "config_path": "/srv/ai/paged-kv/results/v10/101-09/selected-c-le-h-direct/run-config.json",
+      "config_sha256": "ffd5dc4dd3a9ad6301a73b12cb1aa7e789f07f5e29769864e61fc4fdaf0951c5",
+      "rows": [
+        {
+          "acceptance_percent": 81.48148148,
+          "accepted_tokens": 44,
+          "cached_tokens": 0,
+          "completion_tokens": 80,
+          "draft_tokens": 54,
+          "first_rejection": "0.09.116.460 I slot   operator(): id  0 | task 2 | MTP first rejection: seq=0 rejected_index=0 proposed_token=799 target_row=0 target_finite=yes target_softmax_temperature=1 target_top8=[264:29.90162:0.9266807,799:27.36467:0.07330686,3074:18.48062:1.015901e-05,2361:15.80909:7.024573e-07,279:15.25072:4.019043e-07,116246:14.55207:1.998505e-07,449:13.86796:1.008319e-07,588:13.83394:9.745936e-08] draft_position=58 draft_carry_generation=21 draft_top8=[799:32.86344:0.5197464,264:32.78441:0.4802506,23287:19.77629:1.076748e-06,588:19.13665:5.679674e-07,3074:18.67337:3.573745e-07,10300:18.30716:2.477875e-07,2361:18.27605:2.401982e-07,6681:18.18758:2.19859e-07] target_kv_range=[59,59] draft_valid_frontier=59 staged_hidden_generation=14 target_verify_rows=3 target_causal_row=0",
+          "first_rejection_present": true,
+          "freeze_event": "0.08.799.455 I slot freeze_pager: id  0 | task 2 | kv pager history frozen: turn=1 history_generation=1 table_epoch=56 selector_refresh_count=0 h2d_queued=0 promotion_pages=0 eviction_pages=0",
+          "generation_span_events": [],
+          "history_frozen": true,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/selected-c-le-h-direct/raw/off-measured-1-p0.journal.log",
+          "journal_sha256": "5946c735e55f23c2a02c726030850464a0c912a22b8502a6093ebb91ae928266",
+          "output_sha256": "993763b26c0e2fda293757257fb571610a4dd6ea0be7502b0846badedc24add3",
+          "prompt_index": 0,
+          "prompt_tokens": 30,
+          "query_replay_events": [
+            "0.08.687.688 I slot   operator(): id  0 | task 2 | query replay: unchanged history; replay_count=0"
+          ],
+          "rejected_proposals": 10
+        },
+        {
+          "acceptance_percent": 50.0,
+          "accepted_tokens": 30,
+          "cached_tokens": 0,
+          "completion_tokens": 80,
+          "draft_tokens": 60,
+          "first_rejection": "0.10.185.569 I slot   operator(): id  0 | task 44 | MTP first rejection: seq=0 rejected_index=0 proposed_token=5839 target_row=0 target_finite=yes target_softmax_temperature=1 target_top8=[15346:24.5415:0.5773349,5839:24.11026:0.375094,6007:21.67968:0.03300319,1328:19.88524:0.005485779,1510:19.53746:0.003874361,28241:18.73386:0.001734613,4496:18.57506:0.001479909,6463:17.66633:0.0005964541] draft_position=28 draft_carry_generation=68 draft_top8=[5839:23.9496:0.5928714,15346:23.00181:0.229794,1328:22.20506:0.1035901,6007:21.42824:0.04763726,1510:20.10853:0.01272931,6463:19.27725:0.00554353,8751:18.78161:0.003377006,1822:18.42489:0.002363784] target_kv_range=[29,29] draft_valid_frontier=29 staged_hidden_generation=43 target_verify_rows=3 target_causal_row=0",
+          "first_rejection_present": true,
+          "freeze_event": "0.10.153.895 I slot freeze_pager: id  0 | task 44 | kv pager history frozen: turn=2 history_generation=2 table_epoch=319 selector_refresh_count=1 h2d_queued=0 promotion_pages=0 eviction_pages=0",
+          "generation_span_events": [
+            "0.09.799.101 I slot      release: id  0 | task 2 | kv pager generated span: turn=1 history_generation=1 selector_refresh_delta=0 h2d_queued_delta=0 promotion_pages_delta=0 eviction_pages_delta=0 summary_build_calls_delta=0 table_epoch_before=56 table_epoch_after=264"
+          ],
+          "history_frozen": true,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/selected-c-le-h-direct/raw/off-measured-1-p1.journal.log",
+          "journal_sha256": "998a794c7d80effe895f0772cace4c806bf7fff02b03bcbfb5d0d6e6efbe6283",
+          "output_sha256": "b81348766f5ed8386f0449e833bc119716dfc0f8717ecff58e715ca592870f58",
+          "prompt_index": 1,
+          "prompt_tokens": 27,
+          "query_replay_events": [
+            "0.10.049.820 I slot   operator(): id  0 | task 44 | query replay: unchanged history; replay_count=0"
+          ],
+          "rejected_proposals": 30
+        },
+        {
+          "acceptance_percent": 72.72727273,
+          "accepted_tokens": 40,
+          "cached_tokens": 0,
+          "completion_tokens": 80,
+          "draft_tokens": 55,
+          "first_rejection": "0.11.853.157 I slot   operator(): id  0 | task 100 | MTP first rejection: seq=0 rejected_index=0 proposed_token=66256 target_row=0 target_finite=yes target_softmax_temperature=1 target_top8=[37250:24.1899:0.8230111,17494:22.51867:0.1547383,10049:20.39655:0.0185342,66256:18.4216:0.002571961,2793:16.02196:0.0002334059,26156:15.44922:0.000131636,417:15.41033:0.0001266146,48997:14.94652:7.962623e-05] draft_position=29 draft_carry_generation=150 draft_top8=[66256:21.3872:0.8538316,48997:18.89915:0.07092971,37250:17.92205:0.0266979,10049:17.6452:0.02024147,23146:17.1409:0.0122244,11747:16.5801:0.00697713,9799:15.99931:0.003903408,32184:15.3805:0.002102305] target_kv_range=[30,30] draft_valid_frontier=30 staged_hidden_generation=95 target_verify_rows=3 target_causal_row=0",
+          "first_rejection_present": true,
+          "freeze_event": "0.11.821.344 I slot freeze_pager: id  0 | task 100 | kv pager history frozen: turn=3 history_generation=3 table_epoch=627 selector_refresh_count=2 h2d_queued=0 promotion_pages=0 eviction_pages=0",
+          "generation_span_events": [],
+          "history_frozen": true,
+          "journal_path": "/srv/ai/paged-kv/results/v10/101-09/selected-c-le-h-direct/raw/off-measured-1-p2.journal.log",
+          "journal_sha256": "b5d9d0888423915df671642a141160ce79b82c2ff5bff42f8755da6d0aeb62fb",
+          "output_sha256": "8f7e2c5aae6917d10e119e2cb774017bd95799ab8d1d956c558f1a9a378b77cf",
+          "prompt_index": 2,
+          "prompt_tokens": 28,
+          "query_replay_events": [
+            "0.11.715.565 I slot   operator(): id  0 | task 100 | query replay: unchanged history; replay_count=0"
+          ],
+          "rejected_proposals": 15
+        }
+      ],
+      "runtime_identity": {
+        "batch": "1024",
+        "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+        "command": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server -m /srv/ai/models/text/current.gguf --alias qwen38-fast-turbo4-mtp -ngl 999 --fit off -fa on -c 8192 -np 1 -ctk turbo4 -ctv turbo4 -b 1024 -ub 256 --context-shift --poll 0 --host 0.0.0.0 --port 8080 --api-key-file /srv/ai/config/llama/api-keys --metrics --reasoning-preserve --kv-pager selective --kv-page-size 256 --kv-hot-pages 16 --device cuda0 --ctx-checkpoints 0 --cache-ram 0 --no-cache-idle-slots --spec-draft-kv-device gpu --spec-type draft-mtp --spec-draft-n-max 2 --spec-draft-type-k turbo4 --spec-draft-type-v turbo4",
+        "context": "8192",
+        "host_budget": null,
+        "hot_pages": "16",
+        "loaded_dsos": [
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-base.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cpu.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml-cuda.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libggml.so.0.25.3",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-common.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama-server-impl.so",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libllama.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/libmtmd.so.0.5.0",
+          "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server"
+        ],
+        "model": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+        "mtp_placement": "gpu",
+        "mtp_type_k": "turbo4",
+        "mtp_type_v": "turbo4",
+        "no_kv_offload": false,
+        "page_size_tokens": "256",
+        "pager_mode": "selective",
+        "pid": 884331,
+        "pin_recent": null,
+        "profile": "qwen38-fast",
+        "safety_headroom": null,
+        "spec_draft_n_max": 2,
+        "spec_type": "draft-mtp",
+        "target_kv_placement": "gpu",
+        "ubatch": "256",
+        "vram_budget": null
+      }
+    }
+  },
+  "diagnostics": {
+    "binary": "/srv/repos/vanwho/buun-llama-cpp/build-cuda/bin/llama-server",
+    "binary_sha256": "0760fc41b90b0f6a0ab1c55eaf13913f4da7b5855f6be97c58c92cafb2223701",
+    "model_path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+    "model_sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199",
+    "shared_prefix_sha256": "3fbaf4e7e7d1287ba43f669fdabfb12efb3e4dbbed48280ae3190b51b1230297",
+    "source_commit": "04af10e562f23832f8932d42dbcae6843c2dca19"
+  },
+  "resident_output_equality": {
+    "prompt_1": {
+      "equal": false,
+      "pager_off_sha256": "574b1e4eaf011126630e246d5d1736186c00d019e3c6d99abaee06a8ca674027",
+      "selected_sha256": "993763b26c0e2fda293757257fb571610a4dd6ea0be7502b0846badedc24add3"
+    },
+    "prompt_2": {
+      "equal": false,
+      "pager_off_sha256": "5d9e48850577ed5bfcad0d9b9a8db1f512ee0366c6833685a0f3dabad7f7b794",
+      "selected_sha256": "b81348766f5ed8386f0449e833bc119716dfc0f8717ecff58e715ca592870f58"
+    },
+    "prompt_3": {
+      "equal": false,
+      "pager_off_sha256": "2399cfce95e4db7506eea18b9785fc2548d283823715639a28c8849df3e390f6",
+      "selected_sha256": "8f7e2c5aae6917d10e119e2cb774017bd95799ab8d1d956c558f1a9a378b77cf"
+    }
+  }
+}
