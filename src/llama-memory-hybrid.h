@@ -128,6 +128,19 @@ public:
         return mem_attn->kv_pager_history_matches(
                 sequence_id, turn_id, frozen_history_generation);
     }
+    bool set_kv_pager_history_for_test(int32_t sequence_id,
+            int64_t query_start,
+            const std::vector<llama_kv_pager_selected_history> & history) override {
+        return mem_attn->set_kv_pager_history_for_test(
+                sequence_id, query_start, history);
+    }
+    bool get_kv_pager_history_for_test(int32_t sequence_id,
+            std::vector<llama_kv_pager_selected_history> & history) const override {
+        return mem_attn->get_kv_pager_history_for_test(sequence_id, history);
+    }
+    int32_t get_kv_pager_turn_phase_for_test(int32_t sequence_id) const override {
+        return mem_attn->get_kv_pager_turn_phase_for_test(sequence_id);
+    }
     void end_kv_pager_turn(int32_t sequence_id, uint64_t turn_id) override {
         mem_attn->end_kv_pager_turn(sequence_id, turn_id);
     }

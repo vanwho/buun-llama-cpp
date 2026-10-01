@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "task": "101-10",
+  "source_commit": "4d73754e3c04c55582d96dd4d018d624f96ed9f6",
+  "summary": "Passed integrated production checkpoint/replay one-pass parity on one GPU Qwen model allocation, including exact selected history identity/version, recurrent/draft/MTP state, encoded current KV, unchanged-map skip, cancellation recovery, and managed candidate reload.",
+  "build_provenance": {
+    "source_commit": "4d73754e3c04c55582d96dd4d018d624f96ed9f6",
+    "tracked_worktree_diff_sha256": "57f153125aab6d8b7536f77f0001e12ed7ab04fe602b82cb78355cba070f6251",
+    "tracked_worktree_diff_scope": ["src", "tools/server"],
+    "test_source": {
+      "path": "tests/test-server-query-replay.cpp",
+      "sha256": "2066ee57b2e92476db6730db198a980a09547fe0a7f82bd56f6cf8fe94811aa8"
+    },
+    "test_binary": {
+      "path": "build-cuda/bin/test-server-query-replay",
+      "sha256": "d96b8fb55b5a0671592157c46495cff4a4013a7b1f7ce307132dbb38dd3149eb"
+    },
+    "libllama": {
+      "path": "build-cuda/bin/libllama.so",
+      "sha256": "1afd13894dbc573aeaad7c3fc87eb0ff8b47d6b91d76233b10ff25de20c037df"
+    },
+    "model": {
+      "path": "/srv/ai/models/text/Qwen3.8-27B-UD-IQ4_XS.gguf",
+      "sha256": "40fac4050e940397dbf13087afd50f4734a11805bf9d65ef8ddd7483470e6199"
+    },
+    "build_command": [
+      "cmake", "--build", "build-cuda", "--target",
+      "test-server-query-replay", "test-server-prompt-cache", "-j6"
+    ]
+  },
+  "checks": {
+    "integrated_server_query_replay_one_pass_parity": {
+      "status": "pass",
+      "exit_code": 0,
+      "command": [
+        "build-cuda/bin/test-server-query-replay",
+        "--model", "/srv/ai/models/text/current.gguf",
+        "--B", "1024", "--U", "256", "--L", "8192", "--H", "4096",
+        "--output", ".wiretail/execution/evidence/101-10-model-proof.json"
+      ],
+      "environment": {
+        "gpu": "NVIDIA GeForce RTX 4080",
+        "context": 8192,
+        "hot_tokens": 4096,
+        "batch": 1024,
+        "ubatch": 256,
+        "page_size": 256,
+        "selected_hot_pages": 16,
+        "kv": "Turbo4 target and draft",
+        "mtp": "native speculative cycle",
+        "weights_loaded_once_shared_by_target_and_draft": true,
+        "managed_candidate_reloaded": true,
+        "health_8080": "ok",
+        "health_8091": "ok",
+        "port_8092_touched": false
+      },
+      "metrics": {
+        "proof_passed": true,
+        "replay_map_exact": true,
+        "control_map_exact": true,
+        "target_frontier_replay": 514,
+        "target_frontier_control": 514,
+        "draft_frontier_replay": 514,
+        "draft_frontier_control": 514,
+        "target_logits_tolerance": 0.08,
+        "final_hidden_tolerance": 0.02,
+        "target_encoded_kv_equal_after_page_generation_normalization": true,
+        "draft_encoded_kv_equal": true,
+        "unchanged_map_skipped_replay": true,
+        "cancel_after_provisional_recovered": true,
+        "cancel_after_publication_recovered": true,
+        "mtp_proposals": 2,
+        "mtp_accepted": 0
+      },
+      "artifacts": [
+        {"path": ".wiretail/execution/evidence/101-10-model-proof.json", "sha256": "0c7747f68262c7f3f3986bbb3d7688dca5dc373abfab1e34d24b426527271d8c"},
+        {"path": ".wiretail/execution/evidence/101-10-model-proof.log", "sha256": "83e4a7d4976668ab6fa0cc6a9a143cbfd3a198db04e9204c83c0b736fb85ed86"},
+        {"path": ".wiretail/execution/evidence/101-10-model-proof.json.replay-kv.bin", "sha256": "20b530c97d638562bf63b65796970360e0495cd88f9ae8c4ce67a27bfbd657d0"},
+        {"path": ".wiretail/execution/evidence/101-10-model-proof.json.control-kv.bin", "sha256": "6cc2c8955c637a93d0f53e85aa150d35e889fdc7057e514606af2e4ff3e90531"},
+        {"path": ".wiretail/execution/evidence/101-10-model-proof.json.replay-draft-kv.bin", "sha256": "cdf700e024ab9f7dd245857d4ab5643bcf7e8f151db5dbb06f1fbbf8a053ce65"},
+        {"path": ".wiretail/execution/evidence/101-10-model-proof.json.control-draft-kv.bin", "sha256": "cdf700e024ab9f7dd245857d4ab5643bcf7e8f151db5dbb06f1fbbf8a053ce65"},
+        {"path": ".wiretail/execution/evidence/101-10-attempt2-build-canonical.log", "sha256": "4b5210580b59db3501bb89f5ec9248b340076446fac0e435d3928cd8d260b1a8"},
+        {"path": ".wiretail/execution/evidence/101-10-attempt2-prompt-cache-canonical.log", "sha256": "7edc19e0004cec33f4fbc75820ed1e453b7306d9a6c6d851f9d3a6fc469b70e8"},
+        {"path": "tests/test-server-query-replay.cpp", "sha256": "2066ee57b2e92476db6730db198a980a09547fe0a7f82bd56f6cf8fe94811aa8"},
+        {"path": "build-cuda/bin/test-server-query-replay", "sha256": "d96b8fb55b5a0671592157c46495cff4a4013a7b1f7ce307132dbb38dd3149eb"},
+        {"path": "build-cuda/bin/libllama.so", "sha256": "1afd13894dbc573aeaad7c3fc87eb0ff8b47d6b91d76233b10ff25de20c037df"},
+        {"path": ".wiretail/execution/evidence/101-10-model-sha256.txt", "sha256": "e21bfc0bed19830fb176f4c93e063d986462ef35d470e3959e50fe34324e757f"}
+      ]
+    }
+  }
+}

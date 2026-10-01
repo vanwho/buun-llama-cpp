@@ -2892,6 +2892,55 @@ bool llama_kv_cache::commit_kv_pager_query(
     return true;
 }
 
+bool llama_kv_cache::set_kv_pager_history_for_test(
+        int32_t sequence_id, int64_t query_start,
+        const std::vector<llama_kv_pager_selected_history> & history) {
+    if (pager_ == nullptr || sequence_id < 0 || query_start <= 0 || history.empty()) {
+        return false;
+    }
+    const auto turn = pager_->turn_state(sequence_id);
+    if (turn.phase != llama_kv_pager_turn_phase::query_provisional ||
+            turn.query_start != query_start) {
+        return false;
+    }
+
+    const auto inventory = pager_->exact_page_records(sequence_id);
+    std::vector<llama_kv_pager_selected_history> validated;
+    validated.reserve(history.size());
+    for (size_t i = 0; i < history.size(); ++i) {
+        const auto & selected = history[i];
+        const auto page = std::find_if(inventory.begin(), inventory.end(),
+                [&](const llama_kv_page_record & record) {
+            return record.id == selected.identity;
+        });
+        if (selected.content_version == 0 || page == inventory.end() ||
+                page->content_version != selected.content_version ||
+                page->physical_slot == UINT32_MAX || page->valid_length == 0 ||
+                page->id.position_end >= query_start) {
+            return false;
+        }
+        for (size_t j = 0; j < i; ++j) {
+            if (validated[j].identity == selected.identity) return false;
+        }
+        validated.push_back(selected);
+    }
+    pager_committed_history_[sequence_id] = std::move(validated);
+    return true;
+}
+
+bool llama_kv_cache::get_kv_pager_history_for_test(
+        int32_t sequence_id,
+        std::vector<llama_kv_pager_selected_history> & history) const {
+    const auto it = pager_committed_history_.find(sequence_id);
+    if (it == pager_committed_history_.end()) return false;
+    history = it->second;
+    return true;
+}
+
+int32_t llama_kv_cache::get_kv_pager_turn_phase_for_test(int32_t sequence_id) const {
+    return pager_ == nullptr ? -1 : int32_t(pager_->turn_state(sequence_id).phase);
+}
+
 bool llama_kv_cache::kv_pager_history_matches(
         int32_t sequence_id, uint64_t turn_id,
         uint64_t frozen_history_generation) const {

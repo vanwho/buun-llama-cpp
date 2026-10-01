@@ -18,6 +18,7 @@
 struct server_context_impl; // private implementation
 class server_cache_control_authority;
 enum class llama_memory_failure_reason : uint8_t;
+struct common_speculative;
 
 // Shared final-user boundary transition. The server loop and its model-backed
 // regression fixture supply the real pager commit and checkpoint restore
@@ -40,6 +41,51 @@ server_query_replay_transition_result server_query_replay_transition(
     uint32_t replay_count,
     const std::function<bool(bool &, uint64_t &)> & commit,
     const std::function<bool()> & restore);
+
+// Opt-in model-backed fixture seam. The callbacks execute real decode and
+// pager commit operations; this function owns the production checkpoint and
+// replay transition used by the server slot loop.
+struct server_query_checkpoint_fixture_result {
+    bool captured = false;
+    bool provisional_decode_succeeded = false;
+    bool restored = false;
+    bool replay_decode_succeeded = false;
+    bool control_restored = false;
+    bool control_decode_succeeded = false;
+    server_query_replay_transition_status status =
+        server_query_replay_transition_status::failed;
+    bool history_changed = false;
+    uint64_t history_generation = 0;
+};
+
+server_query_checkpoint_fixture_result server_query_checkpoint_replay_for_test(
+    llama_context * target, llama_context * draft,
+    common_speculative * speculative, llama_seq_id sequence_id,
+    uint64_t request_id, uint64_t generation, llama_pos query_begin,
+    int64_t processed_tokens, bool require_mtp_carry,
+    const std::function<bool()> & provisional_decode,
+    const std::function<bool(bool &, uint64_t &)> & commit,
+    const std::function<bool()> & replay_decode,
+    const std::function<bool()> & control_decode);
+
+struct server_query_checkpoint_cancel_fixture_result {
+    bool captured = false;
+    bool provisional_decode_succeeded = false;
+    bool publication_succeeded = false;
+    bool history_changed = false;
+    bool restored = false;
+    bool recovery_decode_succeeded = false;
+    uint64_t history_generation = 0;
+};
+
+server_query_checkpoint_cancel_fixture_result server_query_checkpoint_cancel_for_test(
+    llama_context * target, llama_context * draft,
+    common_speculative * speculative, llama_seq_id sequence_id,
+    uint64_t request_id, uint64_t generation, llama_pos query_begin,
+    int64_t processed_tokens, bool require_mtp_carry,
+    const std::function<bool()> & provisional_decode,
+    const std::function<bool(bool &, uint64_t &)> & publish,
+    const std::function<bool()> & recovery_decode);
 
 enum class server_speculative_decode_terminal {
     success,

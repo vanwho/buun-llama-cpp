@@ -2214,6 +2214,95 @@ struct server_query_checkpoint {
     }
 };
 
+server_query_checkpoint_fixture_result server_query_checkpoint_replay_for_test(
+        llama_context * target, llama_context * draft,
+        common_speculative * speculative, llama_seq_id sequence_id,
+        uint64_t request_id, uint64_t generation, llama_pos query_begin,
+        int64_t processed_tokens, bool require_mtp_carry,
+        const std::function<bool()> & provisional_decode,
+        const std::function<bool(bool &, uint64_t &)> & commit,
+        const std::function<bool()> & replay_decode,
+        const std::function<bool()> & control_decode) {
+    server_query_checkpoint_fixture_result result;
+    server_query_checkpoint checkpoint;
+    result.captured = checkpoint.capture(target, draft, speculative,
+            sequence_id, request_id, generation, query_begin,
+            processed_tokens, require_mtp_carry);
+    if (!result.captured || !provisional_decode) return result;
+
+    result.provisional_decode_succeeded = provisional_decode();
+    if (!result.provisional_decode_succeeded) return result;
+
+    const char * restore_failure = nullptr;
+    const auto transition = server_query_replay_transition(
+            checkpoint.state == server_query_checkpoint::phase::prepared,
+            0,
+            [&](bool & history_changed, uint64_t & history_generation) {
+                return commit && commit(history_changed, history_generation);
+            },
+            [&]() {
+                const bool restored = checkpoint.restore(target, draft,
+                        speculative, sequence_id, request_id, generation,
+                        &restore_failure);
+                result.restored = restored;
+                return restored;
+            });
+    result.status = transition.status;
+    result.history_changed = transition.status ==
+            server_query_replay_transition_status::replay;
+    result.history_generation = transition.history_generation;
+    if (transition.status != server_query_replay_transition_status::replay ||
+            !result.restored || !replay_decode) {
+        return result;
+    }
+    result.replay_decode_succeeded = replay_decode();
+    if (!result.replay_decode_succeeded || !control_decode) return result;
+
+    // The parity control uses the very same captured pre-query recurrent and
+    // carry image after the final history map has been published. Re-arm the
+    // private checkpoint only inside this fixture seam so restore removes the
+    // replayed query and reinstalls the original recurrent frontier again.
+    checkpoint.state = server_query_checkpoint::phase::prepared;
+    result.control_restored = checkpoint.restore(target, draft, speculative,
+            sequence_id, request_id, generation, &restore_failure);
+    if (result.control_restored) {
+        result.control_decode_succeeded = control_decode();
+    }
+    return result;
+}
+
+server_query_checkpoint_cancel_fixture_result server_query_checkpoint_cancel_for_test(
+        llama_context * target, llama_context * draft,
+        common_speculative * speculative, llama_seq_id sequence_id,
+        uint64_t request_id, uint64_t generation, llama_pos query_begin,
+        int64_t processed_tokens, bool require_mtp_carry,
+        const std::function<bool()> & provisional_decode,
+        const std::function<bool(bool &, uint64_t &)> & publish,
+        const std::function<bool()> & recovery_decode) {
+    server_query_checkpoint_cancel_fixture_result result;
+    server_query_checkpoint checkpoint;
+    result.captured = checkpoint.capture(target, draft, speculative,
+            sequence_id, request_id, generation, query_begin,
+            processed_tokens, require_mtp_carry);
+    if (!result.captured || !provisional_decode) return result;
+    result.provisional_decode_succeeded = provisional_decode();
+    if (!result.provisional_decode_succeeded) return result;
+
+    bool changed = false;
+    if (publish) {
+        result.publication_succeeded = publish(changed, result.history_generation);
+        result.history_changed = changed;
+        if (!result.publication_succeeded) return result;
+    }
+    const char * failure_reason = nullptr;
+    result.restored = checkpoint.restore(target, draft, speculative,
+            sequence_id, request_id, generation, &failure_reason);
+    if (result.restored && recovery_decode) {
+        result.recovery_decode_succeeded = recovery_decode();
+    }
+    return result;
+}
+
 struct server_slot {
     int id;
 
