@@ -30262,7 +30262,7 @@
       "depends_on": [
         "101-02"
       ],
-      "commit": "37d07398ca0b43a6c5b9b54290ffb14d7d67545d",
+      "commit": "84f5501ee45eb285d1c7ba7770a4f916d57f36bb",
       "context_files": [
         ".wiretail/execution/clusters/gpu101-attention.md",
         ".wiretail/execution/tasks/101-03.md",
